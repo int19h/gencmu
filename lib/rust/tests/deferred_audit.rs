@@ -88,3 +88,16 @@ fn cached_queries_keep_alternative_targets_and_extension_locations() {
     expected.sort();
     assert_eq!(got, expected);
 }
+
+#[test]
+fn query_notes_follow_clause_discovery_instead_of_rule_order() {
+    // Design, Diagnostics and debugging: query notes retain the clause walk's order.
+    let report = report("%rule text (r3 ≻ r2) :: ∅ | W\n%rule r2 X\n%error \"r2\"\n%rule r3 $x:W [*r4]\n%conditions $x.parse(text …)\n%rule r4 W X W\n%error \"r4\"");
+    let targets: Vec<_> = report
+        .diagnostic_notes
+        .iter()
+        .filter(|note| note.kind == "query-error" && note.rule == "r3")
+        .map(|note| note.target.as_deref().unwrap())
+        .collect();
+    assert_eq!(targets, ["r4", "r2"]);
+}

@@ -574,7 +574,14 @@ impl Machine {
         self.machines.push(n);
         id
     }
-    fn intern(&mut self, s: State) -> u32 {
+    fn intern(&mut self, mut s: State) -> u32 {
+        // No predicate can distinguish structural emptiness (§4.1).
+        // Tree identities and restoration observations remain independent.
+        if self.predicates.is_empty() {
+            s.count = 0;
+            s.bits = None;
+            s.empty = false;
+        }
         if let Some(&id) = self.state_ids.get(&s) {
             return id;
         }
@@ -1056,4 +1063,23 @@ pub(crate) fn reads_node_values(pattern: &Pattern) -> bool {
         }
         _ => false,
     })
+}
+
+#[cfg(test)]
+mod undemanded_tests {
+    use super::Machine;
+    #[test]
+    fn empty_predicates_keep_only_independent_observations() {
+        // Engine §4.1: structural emptiness requires a demanded tree predicate.
+        let mut machine = Machine::new(&[]);
+        let empty = machine.empty;
+        let node = machine.node(Some("r"), empty, None);
+        assert_eq!(node, empty);
+        assert_eq!(machine.sealed(), empty);
+        let tree = machine.with_tree(node, 42);
+        let observation = machine.observing(tree, 7);
+        assert_eq!(machine.tree_state(observation), 42);
+        assert_eq!(machine.observation(observation), 7);
+        assert_eq!(machine.structural(observation), empty);
+    }
 }

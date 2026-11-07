@@ -31,36 +31,90 @@ pub struct DiagnosticNote {
     /// The captures of that tag expansion.
     pub captures: Vec<String>,
 }
-fn references(expr: &Expr) -> BTreeSet<String> {
-    let mut refs = BTreeSet::new();
+fn references(expr: &Expr, written: bool) -> Vec<String> {
+    let mut refs = Vec::new();
+    let mut seen = FxSet::default();
     let mut pending = vec![expr];
     while let Some(expr) = pending.pop() {
         work::count(Work::Walked, 1);
         match expr {
             Expr::Ref(name) => {
-                refs.insert(name.clone());
+                if seen.insert(name.clone()) {
+                    refs.push(name.clone());
+                }
             }
             Expr::Splice(e) | Expr::Optional(e, _, _) | Expr::Capture(_, e) | Expr::Tested(_, _, e) => pending.push(e),
-            Expr::Seq(xs) | Expr::Choice(xs) | Expr::And(xs) | Expr::Ranked(xs, _) => pending.extend(xs),
+            Expr::Seq(xs) | Expr::Choice(xs) | Expr::And(xs) | Expr::Ranked(xs, _) => {
+                if written {
+                    pending.extend(xs.iter().rev());
+                } else {
+                    pending.extend(xs);
+                }
+            }
             Expr::Repeat(e, s, _) => {
-                pending.push(e);
-                pending.extend(s.as_deref());
+                if written {
+                    pending.extend(s.as_deref());
+                    pending.push(e);
+                } else {
+                    pending.push(e);
+                    pending.extend(s.as_deref());
+                }
             }
             _ => {}
         }
     }
     refs
 }
-type Targets = BTreeMap<String, u8>;
-fn closure(edges: &BTreeMap<String, BTreeSet<String>>, roots: Targets) -> Targets {
+#[derive(Clone, Default)]
+struct Targets {
+    entries: Vec<(String, u8)>,
+    indexes: FxMap<String, usize>,
+}
+impl Targets {
+    fn new() -> Self {
+        Self::default()
+    }
+    fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+    fn add(&mut self, name: String, bits: u8) -> u8 {
+        let index = *self.indexes.entry(name.clone()).or_insert_with(|| {
+            let index = self.entries.len();
+            self.entries.push((name, 0));
+            index
+        });
+        let previous = self.entries[index].1;
+        self.entries[index].1 |= bits;
+        previous
+    }
+    fn keys(&self) -> impl Iterator<Item = &String> {
+        self.entries.iter().map(|(name, _)| name)
+    }
+}
+impl FromIterator<(String, u8)> for Targets {
+    fn from_iter<T: IntoIterator<Item = (String, u8)>>(iter: T) -> Self {
+        let mut targets = Self::new();
+        for (name, bits) in iter {
+            targets.add(name, bits);
+        }
+        targets
+    }
+}
+impl IntoIterator for Targets {
+    type Item = (String, u8);
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.entries.into_iter()
+    }
+}
+fn closure(edges: &BTreeMap<String, Vec<String>>, roots: Targets) -> Targets {
     let mut found = Targets::new();
     let mut pending: Vec<_> = roots.into_iter().collect();
     while let Some((name, bits)) = pending.pop() {
         work::count(Work::Walked, 1);
-        let previous = found.entry(name.clone()).or_default();
-        let added = bits & !*previous;
+        let previous = found.add(name.clone(), bits);
+        let added = bits & !previous;
         if added != 0 {
-            *previous |= added;
             for child in edges.get(&name).into_iter().flatten() {
                 work::count(Work::Walked, 1);
                 pending.push((child.clone(), added));
@@ -105,14 +159,14 @@ fn targets(root: Part<'_>, cache: &mut FxMap<(u8, usize), Arc<Targets>>) -> Arc<
                     }));
                 } else if method == "parse" {
                     if let Some(Arg::Term(Term::Body(body))) = args.get(1) {
-                        found.extend(references(body));
+                        found.extend(references(body, true));
                     }
                 }
             }
             _ => {}
         }
         for name in found {
-            *names.entry(name).or_default() |= if filtered { 2 } else { 1 };
+            names.add(name, if filtered { 2 } else { 1 });
         }
         pending.extend(part.children().into_iter().map(|child| (child, filtered || filter)));
     }
@@ -121,24 +175,26 @@ fn targets(root: Part<'_>, cache: &mut FxMap<(u8, usize), Arc<Targets>>) -> Arc<
     found
 }
 fn merge(into: &mut Targets, from: &Targets) {
-    for (name, bits) in from {
+    for (name, bits) in &from.entries {
         work::count(Work::Walked, 1);
-        *into.entry(name.clone()).or_default() |= bits;
+        into.add(name.clone(), *bits);
     }
 }
 pub(crate) fn notes(g: &StageGrammar) -> Vec<DiagnosticNote> {
-    let mut refs = FxMap::<usize, BTreeSet<String>>::default();
+    let mut refs = FxMap::<usize, Vec<String>>::default();
     let mut edges = BTreeMap::new();
     let mut warnings = BTreeSet::new();
     let mut errors = BTreeSet::new();
     for rule in &g.rules {
-        let mut children = BTreeSet::new();
+        let mut children = Vec::new();
+        let mut seen_children = FxSet::default();
         for alt in &rule.alternatives {
             work::count(Work::Walked, 1);
             children.extend(
                 refs.entry(&alt.alternative.expr as *const Expr as usize)
-                    .or_insert_with(|| references(&alt.alternative.expr))
+                    .or_insert_with(|| references(&alt.alternative.expr, false))
                     .iter()
+                    .filter(|name| seen_children.insert((*name).clone()))
                     .cloned(),
             );
             if alt.clauses.warning.is_some() {
@@ -151,10 +207,9 @@ pub(crate) fn notes(g: &StageGrammar) -> Vec<DiagnosticNote> {
         edges.insert(rule.name.clone(), children);
     }
     let mut roots_cache = FxMap::default();
-    let mut definition_roots = FxMap::<usize, Targets>::default();
+    let mut definition_roots = FxMap::<usize, (Targets, Targets, Targets)>::default();
     let mut queries = FxMap::<(usize, usize), Vec<(String, u8)>>::default();
     let mut guarded = FxMap::<usize, bool>::default();
-    let order: BTreeMap<_, _> = g.rules.iter().enumerate().map(|(index, rule)| (rule.name.as_str(), index)).collect();
     let mut notes = Vec::new();
     for rule in g.rules.iter().filter(|rule| !rule.query) {
         for alt in &rule.alternatives {
@@ -176,37 +231,42 @@ pub(crate) fn notes(g: &StageGrammar) -> Vec<DiagnosticNote> {
             let own =
                 own_roots.as_ref().filter(|roots| !roots.is_empty()).map_or(0, |roots| Arc::as_ptr(roots) as usize);
             let reached = queries.entry((definition, own)).or_insert_with(|| {
-                let mut roots = definition_roots
-                    .entry(definition)
-                    .or_insert_with(|| {
-                        let mut roots = Targets::new();
-                        let mut parts: Vec<_> = alt.clauses.conditions.iter().map(Part::Cond).collect();
-                        parts.extend(alt.clauses.tags.iter().map(Part::Term));
-                        for item in alt.clauses.emit.iter().flatten() {
+                let parts = definition_roots.entry(definition).or_insert_with(|| {
+                    let mut emission = Targets::new();
+                    if let Some(items) = &alt.clauses.emit {
+                        for item in items.iter().rev() {
                             let (tags, strings) = match item {
                                 EmitItem::Capture(_, tags, attachment) => (tags, &attachment.strings),
                                 EmitItem::Insert(tags, strings) => (tags, strings),
                             };
-                            parts.extend(tags.iter().chain(&strings.value).chain(&strings.image).map(Part::Term));
+                            for term in strings.image.iter().chain(&strings.value).chain(tags) {
+                                merge(&mut emission, &targets(Part::Term(term), &mut roots_cache));
+                            }
                         }
-                        for part in parts {
-                            merge(&mut roots, &targets(part, &mut roots_cache));
-                        }
-                        roots
-                    })
-                    .clone();
+                    }
+                    let mut tags = Targets::new();
+                    if let Some(term) = &alt.clauses.tags {
+                        merge(&mut tags, &targets(Part::Term(term), &mut roots_cache));
+                    }
+                    let mut conditions = Targets::new();
+                    for condition in alt.clauses.conditions.iter().rev() {
+                        merge(&mut conditions, &targets(Part::Cond(condition), &mut roots_cache));
+                    }
+                    (emission, tags, conditions)
+                });
+                let mut roots = parts.0.clone();
                 if let Some(own) = &own_roots {
                     merge(&mut roots, own);
                 }
-                let mut targets: Vec<_> = closure(&edges, roots)
+                merge(&mut roots, &parts.1);
+                merge(&mut roots, &parts.2);
+                closure(&edges, roots)
                     .into_iter()
                     .filter(|(name, _)| {
                         work::count(Work::Walked, 1);
                         errors.contains(name)
                     })
-                    .collect();
-                targets.sort_by_key(|(name, _)| order[name.as_str()]);
-                targets
+                    .collect()
             });
             for (target, bits) in reached.iter() {
                 for bit in [1, 2] {
