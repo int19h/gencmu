@@ -1,5 +1,5 @@
 {
-  "description": "The common Latin producer tags plain, capital, accented, ogonek, caron, ligature and glide letters on each route.",
+  "description": "The common Latin producer tags its plain, capital and accented letters and the breve vowels. It leaves the ogonek, caron, ligature and glide letters foreign, because only the experimental producer reads them.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/bpfk/pipeline.md\"\n```\n"
   },
