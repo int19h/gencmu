@@ -127,6 +127,10 @@ The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The sp
 
 An extended rafsi is a whole or shortened word before a y-hyphen. It has a classical apostrophe-y form or a borrowing head. A borrowing head excludes rafsi strings, whose endings include `hy-rafsi` and `stressed-hy-rafsi`. Thus the two alternatives cannot complete from the same start, even with an apostrophe onset in the borrowing form.
 
+A `hy_rafsi` is a CCVCV, CVCCV, CCV, or CVV rafsi body followed by `'y`. The BPFK grammar reads that shape only through the `hy-rafsi-of` template in lookaheads. It ends a rafsi string, and it keeps `y-less-rafsi` from starting one. The experimental layer also uses it inside compounds.
+
+A long CCVCV form leaves a consonant after its CCV prefix, where the shorter branch requires an apostrophe. The CVV form differs in its second or third letter. Thus only one branch reaches apostrophe-y.
+
 `hy-rafsi` takes a long rafsi with an unstressed vowel, a CCV rafsi, or a CVV rafsi before `'y`. The long form leaves a consonant after a CCV prefix, so the shorter form cannot reach the apostrophe there. CVV differs in its second or third letter. The stressed forms have the same separation. After these redefinitions, nothing reads the rules `brivla-rafsi`, `stressed-brivla-rafsi` and `two-syllables` of [../bpfk/morphology.md](../bpfk/morphology.md).
 
 ```jbogenbau
@@ -136,13 +140,16 @@ An extended rafsi is a whole or shortened word before a y-hyphen. It has a class
 %redefine-rule stressed-extended-rafsi  (* The stressed borrowing head excludes rafsi strings, including stressed-hy-rafsi. Only one extended form can complete at this start. *)
   stressed-hy-rafsi | stressed-fuhivla-rafsi
 
-%redefine-rule hy-rafsi = hy-rafsi-of(unstressed-vowel, unstressed-diphthong, unstressed-vowel, [h])  (* The long classical form appends an unstressed vowel to a long rafsi in this layer. *)
+%rule hy-rafsi = hy-rafsi-of(unstressed-vowel, unstressed-diphthong, unstressed-vowel, [h])  (* An apostrophe-y rafsi ends its classical body with apostrophe-y. The long classical form appends an unstressed vowel to a long rafsi in this layer. Another apostrophe can follow the hyphen. *)
+
+%rule stressed-hy-rafsi = hy-rafsi-of(stressed-vowel, stressed-diphthong, stressed-vowel, ε)  (* A stressed apostrophe-y rafsi ends its stressed classical body with apostrophe-y. *)
 ```
 
-<details><summary>Railroad diagrams of the 3 rules from <code>extended-rafsi</code> to <code>hy-rafsi</code></summary>
+<details><summary>Railroad diagrams of the 4 rules from <code>extended-rafsi</code> to <code>stressed-hy-rafsi</code></summary>
 <p><img src="../../../docs/diagrams/lojban/experimental/morphology/extended-rafsi.svg" alt="Railroad diagram of the rule extended-rafsi"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/morphology/stressed-extended-rafsi.svg" alt="Railroad diagram of the rule stressed-extended-rafsi"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/morphology/hy-rafsi.svg" alt="Railroad diagram of the rule hy-rafsi"></p>
+<p><img src="../../../docs/diagrams/lojban/experimental/morphology/stressed-hy-rafsi.svg" alt="Railroad diagram of the rule stressed-hy-rafsi"></p>
 </details>
 
 A CCV `hy-rafsi` can otherwise begin a brivla, as in `bla'ykla`. `brivla` rejects that start with a CCV rafsi, `'y` and the next onset, which `slihykru` tests. This onset includes CgV, so `bla'ykuiska`, `kla'ykuiska` and `bla'ytcuiska` are foreign too. Thus `kerlybla'ykla` is one word, but `bla'ykla` is not. The plain and stressed CCV choices need no order because their vowel stress differs. Only `brivla` reads `slihykru`.

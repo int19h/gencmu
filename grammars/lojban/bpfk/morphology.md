@@ -366,7 +366,7 @@ The callers of the stressed CVC form put a consonant after it. A short final raf
 
 Each rafsi shape stands once as a template. The stress argument of a template is one stress unit. The units are `stressed-vowel`, `unstressed-vowel`, `stressed-diphthong` and `unstressed-diphthong`. Plain `vowel` or `diphthong` as an argument means either stress. The two plain units cover the stressed unit and the unstressed unit of each kind.
 
-The tail of the `y` templates is an argument, `[h]` or `ε`. The first vowel of the apostrophe form of CVV stays unstressed in each binding. The long apostrophe-y body takes its own final-vowel argument. A layer can change that vowel without a change to the other parts. `gismu` reads the stressed long shape and one more vowel.
+The tail of the `y` templates is an argument, `[h]` or `ε`. The first vowel of the apostrophe form of CVV stays unstressed in each binding. The long apostrophe-y body takes its own final-vowel argument. A layer can change that vowel without a change to the other parts. `y-less-rafsi` and `rafsi-string-end` read the apostrophe-y shape of either stress through `hy-rafsi-of`. The named apostrophe-y bindings stand in the experimental layer, which reads them inside compounds. `gismu` reads the stressed long shape and one more vowel.
 
 ```jbogenbau
 %rule gismu  (* A root is the stressed long shape and a vowel. Its final syllable test stands at its last consonant. *)
@@ -446,15 +446,7 @@ The tail of the `y` templates is an argument, `[h]` or `ε`. The first vowel of 
 
 
 
-A `hy_rafsi` is a CCVCV, CVCCV, CCV, or CVV rafsi body followed by `'y`. The BPFK grammar uses it only in lookaheads. It ends a rafsi string, and it keeps `y-less-rafsi` from starting one. The experimental layer also uses it inside compounds.
-
-A long CCVCV form leaves a consonant after its CCV prefix, where the shorter branch requires an apostrophe. The CVV form differs in its second or third letter. Thus only one branch reaches apostrophe-y.
-
 ```jbogenbau
-%rule hy-rafsi = hy-rafsi-of(unstressed-vowel, unstressed-diphthong, vowel, [h])  (* An apostrophe-y rafsi ends its classical body with apostrophe-y. Another apostrophe can follow the hyphen. *)
-
-%rule stressed-hy-rafsi = hy-rafsi-of(stressed-vowel, stressed-diphthong, stressed-vowel, ε)  (* A stressed apostrophe-y rafsi ends its stressed classical body with apostrophe-y. *)
-
 %rule r-hyphen  (* The hyphen is r before a consonant, or n before r. Each letter reads as a full consonant, so its pair with the next letter must stand in the table. *)
   | $r:consonant="r"
   | $n:consonant="n"
@@ -465,9 +457,7 @@ A long CCVCV form leaves a consonant after its CCV prefix, where the shorter bra
 
 ```
 
-<details><summary>Railroad diagrams of <code>hy-rafsi</code>, <code>stressed-hy-rafsi</code> and <code>r-hyphen</code></summary>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/hy-rafsi.svg" alt="Railroad diagram of the rule hy-rafsi"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stressed-hy-rafsi.svg" alt="Railroad diagram of the rule stressed-hy-rafsi"></p>
+<details><summary>Railroad diagram of <code>r-hyphen</code></summary>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/r-hyphen.svg" alt="Railroad diagram of the rule r-hyphen"></p>
 </details>
 
@@ -538,7 +528,7 @@ So an unmarked brivla is stressed on its penultimate counted syllable, and a pau
 
 
 
-The `syllable-onset` hook reads an ordinary onset. Syllables, stress tests, the brivla head, and the coda lookahead use it. This includes `final-syllable`. A layer can extend their shared onset without changing the other restrictions. The `cmavo-form-with-onset`, `fuhivla-rafsi`, and `stressed-fuhivla-rafsi` rules read plain `onset` and remain unchanged by that extension.
+The `syllable-onset` hook reads an ordinary onset. Syllables, stress tests, the brivla head, and the coda lookahead use it. This includes `final-syllable`. A layer can extend their shared onset without changing the other restrictions. The `cmavo`, `fuhivla-rafsi`, and `stressed-fuhivla-rafsi` rules read plain `onset` and remain unchanged by that extension.
 
 A syllable has an onset, a nucleus, and an optional nonempty coda. A consonantal syllable has a consonant and then a coda that begins with a syllabic consonant. A consonantal syllable cannot consume the same complete letters as a syllable with a nucleus. A coda ends before another syllable or a pause, which are incompatible boundaries. Before a pause, one consonant and two consonants have different lengths. The absent optional covers the empty coda once.
 
