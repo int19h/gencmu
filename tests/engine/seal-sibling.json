@@ -1,0 +1,15 @@
+{
+  "description": "Engine §4.1, §6 and §9.3: erased seals (sibling).",
+  "grammar": "%ambiguity-resolution fewest #·zz\n%rule text $w:w\n%conditions $w ≅ #cc\n%rule w r2 cc\n%rule cc C\n%rule r2 (r4 ≻ B) :: ∅ | [r4]\n%erased\n%rule r4 B | ε\n%rule zz B B B",
+  "tokens": [
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected"
+  }
+}

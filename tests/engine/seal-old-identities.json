@@ -1,0 +1,28 @@
+{
+  "description": "Engine §4.1, §6 and §9.3: erased seals (old-identities).",
+  "grammar": "%ambiguity-resolution fewest #·text\n%rule text $x:e $y:e\n%conditions $x ≅ #·e, $x ≅ $y\n%rule e a | b\n%erased\n%rule a A\n%rule b A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

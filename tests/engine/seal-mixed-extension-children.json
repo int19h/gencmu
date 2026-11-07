@@ -1,0 +1,22 @@
+{
+  "description": "Engine §4.1, §6 and §9.3: erased seals (mixed-extension-children).",
+  "grammar": "%rule text $e:e\n%conditions $e ≅ #·e« A »\n%rule e A\n%erased\n%extend-rule e A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

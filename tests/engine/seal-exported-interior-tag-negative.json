@@ -1,0 +1,15 @@
+{
+  "description": "Engine §4.1, §6 and §9.3: erased seals (exported-interior-tag-negative).",
+  "grammar": "%rule text $h:hidden\n%conditions $h ≅ #·hidden<Has-A>\n%rule hidden :: ($ ≅ #« A » ⟹ Has-A)\n  | A | B\n%erased",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected"
+  }
+}

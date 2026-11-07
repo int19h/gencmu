@@ -1,0 +1,22 @@
+{
+  "description": "Engine §4.1, §6 and §9.3: erased seals (splice-exemption-valid).",
+  "grammar": "%ambiguity-resolution fewest #·zz\n%rule text r2 $c:C\n%conditions $c ≅ #·C\n%rule unused *r2\n%rule r2 (r4 ≻ B) :: ∅ | [r4]\n%erased\n%rule r4 B | ε\n%rule zz B B B",
+  "tokens": [
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

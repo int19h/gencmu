@@ -1,0 +1,15 @@
+{
+  "description": "Engine §4.1, §6 and §9.3: erased seals (empty-parent-sole).",
+  "grammar": "%ambiguity-resolution fewest #·zz\n%rule text e C\n%conditions $ ≅ #C\n%rule e ε\n%erased\n%rule zz B B B",
+  "tokens": [
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected"
+  }
+}

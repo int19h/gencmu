@@ -1,0 +1,23 @@
+{
+  "description": "Engine §4.1, §6 and §9.3: erased seals (tags-distinct).",
+  "grammar": "%ambiguity-resolution fewest #·zz\n%rule text e\n%rule e A :: P | A :: Q\n%erased\n%rule zz B B B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "verdict": "tie"
+        }
+      ]
+    },
+    "error": "ambiguous"
+  }
+}

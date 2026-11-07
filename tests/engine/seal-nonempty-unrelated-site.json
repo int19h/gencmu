@@ -1,0 +1,28 @@
+{
+  "description": "Engine §4.1, §6 and §9.3: erased seals (nonempty-unrelated-site).",
+  "grammar": "%ambiguity-resolution fewest #·zz\n%rule text $w:w $e:e\n%conditions $w ≅ #w, $e ≅ #·e\n%rule w W\n%rule probe $p:e\n%conditions $p ≅ #(⋮ a)\n%rule e a | b\n%erased\n%rule a A\n%rule b A\n%rule zz B B B",
+  "tokens": [
+    {
+      "text": "w",
+      "tags": [
+        "W"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

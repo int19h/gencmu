@@ -1,0 +1,22 @@
+{
+  "description": "Engine §4.1, §6 and §9.3: erased seals (neg-desc).",
+  "grammar": "%ambiguity-resolution fewest #·zz\n%rule text $r:r2 C\n%conditions $r ≇ #(⋮ ·B)\n%rule r2 (r4 ≻ B) :: ∅ | [r4]\n%erased\n%rule r4 B | ε\n%rule zz B B B",
+  "tokens": [
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

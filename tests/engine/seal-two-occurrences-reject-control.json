@@ -1,0 +1,15 @@
+{
+  "description": "Engine §4.1, §6 and §9.3: erased seals (two-occurrences-reject-control).",
+  "grammar": "%ambiguity-resolution fewest #·zz\n%rule text $w:w r2 C\n%conditions $w ≅ #r2, $w ≇ #r2\n%rule w r2\n%rule r2 (r4 ≻ B) :: ∅ | [r4]\n%erased\n%rule r4 B | ε\n%rule zz B B B",
+  "tokens": [
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected"
+  }
+}

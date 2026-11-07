@@ -1,0 +1,8 @@
+{
+  "description": "Engine §4.1, §6 and §9.3: erased seals (own-identity-cycle).",
+  "grammar": "%rule text e\n%rule e $x:a $y:a\n%conditions $x ≅ $y\n%erased\n%rule a a | ε",
+  "tokens": [],
+  "expect": {
+    "error": "grammar"
+  }
+}

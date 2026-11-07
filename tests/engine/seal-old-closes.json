@@ -1,0 +1,23 @@
+{
+  "description": "Engine §4.1, §6 and §9.3: erased seals (old-closes).",
+  "grammar": "%ambiguity-resolution fewest #·text\n%rule text $e:e C\n%conditions $e ≅ #·e, $e.without-elision.matches(w)\n%rule e [+T] | ε\n%erased\n%rule w [+T] | ε",
+  "tokens": [
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "verdict": "tie"
+        }
+      ]
+    },
+    "error": "ambiguous"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "description": "Engine §4.1, §6 and §9.3: erased seals (mixed-extension).",
+  "grammar": "%ambiguity-resolution fewest #·zz\n%rule text $e:e\n%conditions $e ≅ #·e\n%rule e A\n%erased\n%extend-rule e A\n%rule zz B B B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "verdict": "tie"
+        }
+      ]
+    },
+    "error": "ambiguous"
+  }
+}

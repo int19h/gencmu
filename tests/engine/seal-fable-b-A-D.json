@@ -1,0 +1,21 @@
+{
+  "description": "Engine §4.1, §6 and §9.3: erased seals (fable-b-A-D).",
+  "grammar": "%ambiguity-resolution fewest #·zz\n%rule text r2 C | $p:p D\n%conditions $p ≅ #·p« ·A ⋯ »\n%rule p r2 A\n%rule r2 (r4 ≻ B) :: ∅ | [r4]\n%erased\n%rule r4 B | ε\n%rule zz B B B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "d",
+      "tags": [
+        "D"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected"
+  }
+}

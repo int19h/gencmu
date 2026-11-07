@@ -1,0 +1,23 @@
+{
+  "description": "Engine §4.1, §6 and §9.3: erased seals (zero-span-ranking).",
+  "grammar": "%ambiguity-resolution most #·e\n%rule text e C | C\n%rule e ε\n%erased",
+  "tokens": [
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "verdict": "tie"
+        }
+      ]
+    },
+    "error": "ambiguous"
+  }
+}

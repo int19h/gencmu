@@ -1,0 +1,15 @@
+{
+  "description": "Engine §4.1, §6 and §9.3: erased seals (old-redundant-list).",
+  "grammar": "%ambiguity-resolution fewest #·text\n%rule text $r:r2 C\n%conditions $r ≅ (#·r2 ∪ #·r2« »)\n%rule r2 (r4 ≻ B) :: ∅ | r4\n%erased\n%rule r4 B | ε",
+  "tokens": [
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

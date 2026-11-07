@@ -1,0 +1,15 @@
+{
+  "description": "Engine §4.1, §6 and §9.3: erased seals (empty-bare-list).",
+  "grammar": "%rule text $e:e C\n%conditions $e ≅ #·«»\n%rule e ε\n%erased",
+  "tokens": [
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected"
+  }
+}
