@@ -709,8 +709,8 @@ If a coda stands before another syllable, omitting it leaves consonants that can
 %conditions
   $g.following-tokens.begins(nucleus)
 
-%rule i-or-u                  (* i / u *)
-  i | u
+%rule i-or-u                  (* The glide letters i and u, read by value. *)
+  "i" | "u"
 
 %rule diphthong  (* A diphthong cannot end directly before another nucleus. *)
   $d:diphthong-letters
@@ -718,24 +718,21 @@ If a coda stands before another syllable, omitting it leaves consonants that can
   ¬$d.following-tokens.begins(nucleus)
 
 %rule diphthong-letters  (* The four diphthongs differ in their first or second letter. A repeated i or u cannot follow the matching diphthong. *)
-  | a $i:i
-  | a $u:u
-  | e $i:i
-  | o $i:i
+  | "a" $i:"i"
+  | "a" $u:"u"
+  | "e" $i:"i"
+  | "o" $i:"i"
 %conditions
-  ¬$i.following-tokens.begins(i),
-  ¬$u.following-tokens.begins(u)
+  $i.following-tokens.first-token.value ≠ "i",
+  $u.following-tokens.first-token.value ≠ "u"
 
-%rule vowel  (* A vowel cannot end directly before another nucleus. *)
-  $v:vowel-letter
+%rule vowel  (* A vowel cannot end directly before another nucleus. It reads one token with the Vowel tag. *)
+  $v:_<Vowel>
 %conditions
   ¬$v.following-tokens.begins(nucleus)
-
-%rule vowel-letter            (* a / e / i / o / u *)
-  a | e | i | o | u
 ```
 
-<details><summary>Railroad diagrams of the 16 rules from <code>any-syllable</code> to <code>vowel-letter</code></summary>
+<details><summary>Railroad diagrams of the 15 rules from <code>any-syllable</code> to <code>vowel</code></summary>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/any-syllable.svg" alt="Railroad diagram of the rule any-syllable"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/syllable-onset.svg" alt="Railroad diagram of the rule syllable-onset"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/onset-nucleus-coda.svg" alt="Railroad diagram of the rule onset-nucleus-coda"></p>
@@ -751,31 +748,15 @@ If a coda stands before another syllable, omitting it leaves consonants that can
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/diphthong.svg" alt="Railroad diagram of the rule diphthong"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/diphthong-letters.svg" alt="Railroad diagram of the rule diphthong-letters"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/vowel.svg" alt="Railroad diagram of the rule vowel"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/vowel-letter.svg" alt="Railroad diagram of the rule vowel-letter"></p>
 </details>
 
 
 
 ## Letters
 
-A vowel letter has a lowercase value with or without `Stressed`. The `a`, `e`, `i`, `o` and `u` rules each read one value. `stress-mark` tests `Stressed` on those five values, so it finds the written stress. A `y` is not followed by a nucleus, unless that nucleus is another `y`. An apostrophe is followed by a nucleus.
+A vowel letter has a lowercase value with or without `Stressed`, and it carries the `Vowel` tag. Rules read a vowel letter through that tag, and one letter through a value test on it. `stress-mark` tests `Stressed` on the five vowel values, so it finds the written stress. A `y` is not followed by a nucleus, unless that nucleus is another `y`. An apostrophe is followed by a nucleus. The `y` rule stays, because it carries the test against a following non-y nucleus. A value test alone cannot state that test.
 
 ```jbogenbau
-%rule a                       (* a <- comma* [aA] *)
-  "a"
-
-%rule e                       (* e <- comma* [eE] *)
-  "e"
-
-%rule i                       (* i <- comma* [iI] *)
-  "i"
-
-%rule o                       (* o <- comma* [oO] *)
-  "o"
-
-%rule u                       (* u <- comma* [uU] *)
-  "u"
-
 %rule y  (* A y letter cannot precede a non-y nucleus. *)
   $y:"y"
 %conditions
@@ -792,12 +773,7 @@ A vowel letter has a lowercase value with or without `Stressed`. The `a`, `e`, `
   $h.following-tokens.begins(nucleus)
 ```
 
-<details><summary>Railroad diagrams of <code>a</code>, <code>e</code>, <code>i</code>, <code>o</code>, <code>u</code>, <code>y</code>, <code>non-y-nucleus</code> and <code>h</code></summary>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/a.svg" alt="Railroad diagram of the rule a"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/e.svg" alt="Railroad diagram of the rule e"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/i.svg" alt="Railroad diagram of the rule i"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/o.svg" alt="Railroad diagram of the rule o"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/u.svg" alt="Railroad diagram of the rule u"></p>
+<details><summary>Railroad diagrams of <code>y</code>, <code>non-y-nucleus</code> and <code>h</code></summary>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/y.svg" alt="Railroad diagram of the rule y"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/non-y-nucleus.svg" alt="Railroad diagram of the rule non-y-nucleus"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/h.svg" alt="Railroad diagram of the rule h"></p>

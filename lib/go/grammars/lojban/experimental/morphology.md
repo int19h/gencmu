@@ -214,7 +214,7 @@ The implication marks every NAI word `Indicator`, as [the experimental lexicon](
 
 ## Glide letters
 
-The experimental phoneme stage reads `ɩ`, `q`, `w`, `ĭ` and `ŭ` as the glides `i` and `u`, with the tag `Glide` ([latin.md](latin.md)). `ɩ`, `q` and `w` also carry `Onglide`, because they write only a glide before its vowel. Such a letter is a glide wherever it stands. So no rule reads it as a vowel. `vowel-letter` refuses every glide letter. `diphthong-letters` refuses an onglide letter, so `ĭ` and `ŭ` can end a diphthong, as in `maĭ`.
+The experimental phoneme stage reads `ɩ`, `q`, `w`, `ĭ` and `ŭ` as the glides `i` and `u`, with the tag `Glide` ([latin.md](latin.md)). `ɩ`, `q` and `w` also carry `Onglide`, because they write only a glide before its vowel. Such a letter is a glide wherever it stands. So no rule reads it as a vowel. The `Vowel` tag test of `vowel` refuses every glide letter. `diphthong-letters` refuses an onglide letter, so `ĭ` and `ŭ` can end a diphthong, as in `maĭ`.
 
 These tests of glide letters are gencmu's own.
 
@@ -225,30 +225,26 @@ A run with a glide letter where no glide can stand then divides into no words. T
 The lookaheads still read the letter as `i` or `u`. A glide letter is no vowel, so it is a nucleus only as the end of a diphthong. So `aɩa` and `aĭa` are `a` and `ia`, as `aia` is. The `!i` after a diphthong still sees a glide letter, so `aiɩa` divides into no words, as `aiia` does.
 
 ```jbogenbau
-%redefine-rule vowel          (* A vowel forbids a following nucleus. It also excludes a diphthong start, so a marked glide cannot leave a competing single vowel. *)
-  $v:vowel-letter
+%redefine-rule vowel          (* A vowel forbids a following nucleus. It also excludes a diphthong start, so a marked glide cannot leave a competing single vowel. A marked glide letter cannot serve as a vowel. *)
+  $v:_<Vowel ¬Glide>
 %conditions
   ¬$v.following-tokens.begins(nucleus),
   ¬$v.onward.begins(diphthong)
 
-%redefine-rule vowel-letter   (* A marked glide letter cannot serve as a vowel. *)
-  a | e | i<¬Glide> | o | u<¬Glide>
-
 %redefine-rule diphthong-letters (* An onglide letter cannot end a diphthong. A diphthong also forbids another matching i or u directly after it. *)
-  | a $i:i<¬Onglide>
-  | a $u:u<¬Onglide>
-  | e $j:i<¬Onglide>
-  | o $k:i<¬Onglide>
+  | "a" $i:"i"<¬Onglide>
+  | "a" $u:"u"<¬Onglide>
+  | "e" $j:"i"<¬Onglide>
+  | "o" $k:"i"<¬Onglide>
 %conditions
-  ¬$i.following-tokens.begins(i),
-  ¬$u.following-tokens.begins(u),
-  ¬$j.following-tokens.begins(i),
-  ¬$k.following-tokens.begins(i)
+  $i.following-tokens.first-token.value ≠ "i",
+  $u.following-tokens.first-token.value ≠ "u",
+  $j.following-tokens.first-token.value ≠ "i",
+  $k.following-tokens.first-token.value ≠ "i"
 ```
 
-<details><summary>Railroad diagrams of <code>vowel</code>, <code>vowel-letter</code> and <code>diphthong-letters</code></summary>
+<details><summary>Railroad diagrams of <code>vowel</code> and <code>diphthong-letters</code></summary>
 <p><img src="../../../docs/diagrams/lojban/experimental/morphology/vowel.svg" alt="Railroad diagram of the rule vowel"></p>
-<p><img src="../../../docs/diagrams/lojban/experimental/morphology/vowel-letter.svg" alt="Railroad diagram of the rule vowel-letter"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/morphology/diphthong-letters.svg" alt="Railroad diagram of the rule diphthong-letters"></p>
 </details>
 
