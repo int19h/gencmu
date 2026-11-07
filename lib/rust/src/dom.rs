@@ -1663,7 +1663,8 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
                 }
             },
             Nested::Term(term) => match term {
-                Term::Body(body) => stack.push((Nested::Expr(body), below)),
+                // The parse argument wrapper is transparent (engine §9).
+                Term::Body(body) => stack.push((Nested::Expr(body), depth)),
                 Term::Source(symbol) => stack.push((Nested::Source(symbol), depth)),
                 Term::Union(items) | Term::Intersection(items) => {
                     stack.extend(items.iter().map(|item| (Nested::Term(item), below)))
@@ -1734,7 +1735,8 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
                 }
             }
             Nested::Cond(cond) => match cond {
-                Cond::Forest(term) => stack.push((Nested::Term(term), below)),
+                // The forest term is the condition itself, not a child.
+                Cond::Forest(term) => stack.push((Nested::Term(term), depth)),
                 Cond::SourceQuery(_, args, _) => stack.extend(args.iter().filter_map(|arg| match arg {
                     Arg::Term(term) => Some((Nested::Term(term), below)),
                     _ => None,

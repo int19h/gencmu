@@ -817,6 +817,28 @@ fn result_patterns_refuse_error_message_assertions() {
 }
 
 #[test]
+fn result_pattern_message_exemptions_follow_the_javascript_runner() {
+    // Tests README: errors and readings end the inherited error-message restriction.
+    for (text, rejected) in [
+        (r#"{"error":{"message":"same"}}"#, true),
+        (r#"{"error":{"details":[{"message":"same"}]}}"#, true),
+        (r#"{"error":{"chosen":{"children":[{"message":"same"}]}}}"#, true),
+        (r#"{"error":{"warnings":[{"message":"same"}]}}"#, true),
+        (r#"{"error":{"details":[{"warnings":[{"message":"same"}]}]}}"#, true),
+        (r#"{"error":{"errors":[{"error":{"message":"same"}}]}}"#, true),
+        (r#"{"message":"ordinary"}"#, false),
+        (r#"{"warnings":[{"message":"ordinary"}]}"#, false),
+        (r#"{"error":{"errors":[{"message":"same"}]}}"#, false),
+        (r#"{"error":{"readings":[{"children":[{"message":"same"}]}]}}"#, false),
+        (r#"{"error":{"details":[{"errors":[{"children":[{"message":"same"}]}]}]}}"#, false),
+        (r#"{"error":{"details":[{"readings":[{"message":"same"}]}]}}"#, false),
+    ] {
+        let value = parse_json(text).unwrap();
+        assert_eq!(common::case::result_pattern(&value).is_err(), rejected, "{text}");
+    }
+}
+
+#[test]
 fn shared_case_metadata_is_well_formed() {
     let mut problems = Vec::new();
     for file in case_files("engine") {

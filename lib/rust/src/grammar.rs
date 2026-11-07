@@ -565,7 +565,6 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
     }
     crate::diagnostics::check(&grammar, documents)?;
     crate::boundary::reachable(&grammar)?;
-    crate::nullable_errors::check(&grammar)?;
     // Shared clauses are checked once, with the first alternative that
     // holds them.
     let mut checked: FxSet<*const RuleClauses> = FxSet::default();
@@ -597,6 +596,7 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
         recipe_cycles(alternative)?;
     }
     emission_overlap(&grammar)?;
+    crate::nullable_errors::check(&grammar)?;
     grammar.tree_comparisons = tree_comparisons;
     grammar.tree_expressions = tree_expressions;
     Ok(grammar)
