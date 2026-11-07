@@ -42,7 +42,7 @@ A particle excludes a name that begins at its own start. A final syllable exclud
 
 The document [../common/forms.md](../common/forms.md) says how words join.
 
-The word-boundary conditions decide which words can stand together without a pause. Every word carries `Continued`. Each word's boundary conditions still decide whether another word can follow without a pause. A word carries `Onset` when no nucleus begins it. Only such a word can follow another directly.
+The word-boundary conditions decide which words can stand together without a pause.
 
 The PEG's `CMAVO` is a list of the selma'o, each a set of spellings, followed by `cmavo` for every other cmavo. Each selma'o rule begins with `&cmavo` and ends with `&post_word`. Every spelling except `ybu` reads exactly what `cmavo` reads, and the lexicon gives each cmavo its selma'o.
 
@@ -119,7 +119,7 @@ The PEG's `lojban_word` is what `post_word` looks for after a word.
 %conditions
   ¬$w.onward.begins(nucleus)
 
-%rule pause                   (* `pause <- comma* space_char+ / EOF`. A pause test accepts a pause token or the end of input. *)
+%rule pause                   (* A pause test accepts a pause token or the end of input. *)
   PAUSE | end-of-text
 
 %rule end-of-text  (* Require the end of input. *)
@@ -139,7 +139,9 @@ The PEG's `lojban_word` is what `post_word` looks for after a word.
 
 
 
-The test on `lujvo` reads the whole word, and a test at its start gives the same result. A root or borrowing that stands as a proper prefix of a longer brivla needs a stressed syllable of its own. Stress by position puts a pause right after the prefix, so a longer brivla cannot hold the prefix. Every syllable of a brivla before its stressed syllable is unstressed, and its final syllable has no mark. Stress by a mark cannot stand in an unstressed initial rafsi of the longer brivla. So the marked syllable of the prefix is the stressed syllable of the longer brivla itself. One counted syllable follows it in both readings, and the letters fix both ends. Each reading therefore ends at the same nucleus, and no proper prefix exists.
+The test on `lujvo` reads the whole word, and a test at its start gives the same result. A root or borrowing that stands as a proper prefix of a longer brivla needs a stressed syllable of its own. Stress by position puts a pause right after the prefix, so a longer brivla cannot hold the prefix. Every syllable of a brivla before its stressed syllable is unstressed, and its final syllable has no mark. Stress by a mark cannot stand in an unstressed initial rafsi of the longer brivla. So the marked syllable of the prefix is the stressed syllable of the longer brivla itself.
+
+One counted syllable follows it in both readings, and the letters fix both ends. Each reading therefore ends at the same nucleus, and no proper prefix exists.
 
 ## Cmevla
 
@@ -148,7 +150,7 @@ A name is a run of letters that ends in a consonant before a pause. The repeated
 No sound in the repetition needs a test against a pause. The final consonant of `cmevla` always follows the repetition, so the repetition cannot take that consonant and still complete the name.
 
 ```jbogenbau
-%rule cmevla  (* A name forbids an initial apostrophe and ends in a consonant before a pause. The PEG also offers a syllabified name shape, which requires the same general shape and ends at the same pause. No pause test stands on the sounds, because the final consonant always follows them. *)
+%rule cmevla  (* A name forbids an initial apostrophe and ends in a consonant before a pause. A syllabified name requires the same general shape and ends at the same pause. No pause test stands on the sounds, because the final consonant always follows them. *)
   [{nucleus | glide | h | consonant}] $c:consonant
 %conditions
   ¬$.onward.begins(h),
@@ -247,7 +249,7 @@ The comment on `initial-rafsi` states why its three alternatives cannot complete
   ¬$l.onward.begins(any-extended-rafsi),
   ¬$l.following-tokens.begins(any-extended-rafsi)
 
-%rule any-extended-rafsi      (* `any_extended_rafsi <- fuhivla / extended_rafsi / stressed_extended_rafsi`. The test detects a borrowing or either extended rafsi form. *)
+%rule any-extended-rafsi      (* The test detects a borrowing or either extended rafsi form. *)
   fuhivla | extended-rafsi | stressed-extended-rafsi
 ```
 
@@ -303,7 +305,7 @@ An extended rafsi lets a brivla or a borrowing, whole or cut short, stand before
 %conditions
   ¬$b.onward.begins(rafsi-string)
 
-%rule brivla-head  (* An unstressed head requires an onset and excludes particles, slinku'i forms, and apostrophe starts. The following stress or hyphen fixes its length. *)
+%rule brivla-head  (* An unstressed head starts at a legal onset and excludes particles, slinku'i forms, and apostrophe starts. The following stress or hyphen fixes its length. *)
   [{unstressed-syllable}]
 %conditions
   ¬$.onward.begins(cmavo | slinkuhi | h),
@@ -458,7 +460,8 @@ A long CCVCV form leaves a consonant after its CCV prefix, where the shorter bra
   | $n:consonant="n"
 %conditions
   $r.following-tokens.begins(consonant),
-  $n.following-tokens.first-token.value = "r"
+  $n.following-tokens.first-token.value = "r",
+  $n.following-tokens.begins(consonant)
 
 ```
 
@@ -510,7 +513,7 @@ So an unmarked brivla is stressed on its penultimate counted syllable, and a pau
 
 %rule unstressed-vowel = unstressed-unit(vowel)  (* An unstressed vowel has neither a written stress mark nor positional stress. *)
 
-%rule stress  (* Positional stress precedes the last counted syllable before a pause. The counted syllable cannot start with y. It permits an empty onset, so the PEG's greedy split succeeds whenever any split does. *)
+%rule stress  (* Positional stress precedes the last counted syllable before a pause. The counted syllable cannot start with y. It permits an empty onset, so a split succeeds whenever any split does. *)
   [{consonant | glide}] [h] [y] $s:syllable
 %conditions
   $s.following-tokens.begins(pause)
@@ -628,7 +631,9 @@ If a coda stands before another syllable, omitting it leaves consonants that can
 
 ## Letters
 
-A vowel letter has a lowercase value with or without `Stressed`, and it carries the `Vowel` tag. Rules read a vowel letter through that tag, and one letter through a value test on it. `stress-mark` tests `Stressed` on the five vowel values, so it finds the written stress. A `y` is not followed by a nucleus, unless that nucleus is another `y`. An apostrophe is followed by a nucleus. The `y` rule stays, because it carries the test against a following non-y nucleus. A value test alone cannot state that test.
+A vowel letter has a lowercase value with or without `Stressed`, and it carries the `Vowel` tag. Rules read a vowel letter through that tag, and one letter through a value test on it. A stressed vowel letter also carries `Stressed`, which the stressed test reads.
+
+A `y` is not followed by a nucleus, unless that nucleus is another `y`. An apostrophe is followed by a nucleus. The `y` rule carries the test against a following non-y nucleus. A value test alone cannot state that test.
 
 ```jbogenbau
 %rule y  (* A y letter cannot precede a non-y nucleus. *)
@@ -651,12 +656,14 @@ A vowel letter has a lowercase value with or without `Stressed`, and it carries 
 
 ## Consonants
 
-An initial pair is two consonants that can begin a word. `initial` reads a cluster where each pair of neighbours stands in `$INITIAL`. An affricate can stand only as the whole cluster. That limit is a departure from CLL 4.7, and the closing section lists it. A sibilant, another consonant and a liquid give the usual shape of a long cluster. No consonant or glide can follow the cluster. The initial can be empty only where no consonant or glide follows.
+An initial pair is two consonants that can begin a word. `initial` reads a cluster where each pair of neighbours stands in `$INITIAL`. An affricate can stand only as the whole cluster. That limit is a departure from CLL 4.7, and the closing section lists it.
+
+A sibilant, another consonant and a liquid give the usual shape of a long cluster. No consonant or glide can follow the cluster. The initial can be empty only where no consonant or glide follows.
 
 The pair law reads raw consonant tokens against `$PERMISSIBLE`. A law that reads each consonant through its own rule can differ on one consonant query inside a bad run, as in `btb`. They give the same words, because each consonant of a divided run passes its own test. A run with a consonant that fails stays foreign under both laws. The `bu` test is the only lookahead that leaves a run. Its `post-word` chain reads whole words, so it reads each letter of the run.
 
 ```jbogenbau
-%rule cluster                 (* `cluster <- consonant consonant+`. The first two consonants decide this lookahead. *)
+%rule cluster                 (* The first two consonants decide this lookahead. *)
   consonant consonant
 
 %rule initial-pair  (* An initial pair is in $INITIAL, and no third consonant follows it. *)
