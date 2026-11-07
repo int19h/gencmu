@@ -123,3 +123,12 @@ func TestDeferredErasedInteriorsShareLinearSummaries(t *testing.T) {
 		t.Logf("%d erased choices: %d summary contexts", n, work.summaryContexts.Load())
 	}
 }
+
+func TestDeferredErasureUndemandedPatternStatesAreEqual(t *testing.T) {
+	// Engine §4.1: an empty predicate set has one structural observation.
+	machine := newPatternMachine(nil)
+	node := machine.node("r", machine.empty, "", "", nil)
+	if node != machine.empty || machine.seal != machine.empty || machine.concat(node, machine.seal) != machine.empty {
+		t.Fatal("undemanded states differ")
+	}
+}

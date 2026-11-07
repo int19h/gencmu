@@ -192,3 +192,17 @@ func TestDeferredAuditKeepsAlternativeTargetsAndExtensionLocations(t *testing.T)
 		t.Fatalf("wrong locations: %v", got)
 	}
 }
+
+func TestDeferredAuditQueryNotesFollowDiscoveryOrder(t *testing.T) {
+	// Design, Diagnostics and debugging: query notes retain the clause walk's order.
+	report := auditPipeline(t, "%rule text (r3 ≻ r2) :: ∅ | W\n%rule r2 X\n%error \"r2\"\n%rule r3 $x:W [*r4]\n%conditions $x.parse(text …)\n%rule r4 W X W\n%error \"r4\"").RankingReports()[0]
+	var targets []string
+	for _, note := range report.DiagnosticNotes {
+		if note.Kind == "query-error" && note.Rule == "r3" {
+			targets = append(targets, note.Target)
+		}
+	}
+	if !reflect.DeepEqual(targets, []string{"r4", "r2"}) {
+		t.Fatalf("query targets: %v", targets)
+	}
+}

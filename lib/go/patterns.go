@@ -371,6 +371,10 @@ func (m *patternMachine) sequence(p *domPattern) patternNFA {
 	return n
 }
 func (m *patternMachine) intern(s patternState) int {
+	// Without demanded predicates every structural observation is equal (§4.1).
+	if len(m.predicates) == 0 {
+		s.count, s.bits, s.empty = 0, nil, false
+	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "%d/%s/%s/%s/", s.count, s.first.Text(16), s.last.Text(16), s.any.Text(16))
 	for _, r := range s.relations {
