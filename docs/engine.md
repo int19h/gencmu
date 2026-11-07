@@ -2024,7 +2024,7 @@ Inside one recognition and cycle context, completed erased productions of one ru
 
 The state also includes tags. It also includes the completed constituent's structural state, demanded restoration observations, demanded tree identities, and boundary record that a parent reads (§4.2). Different observable states remain separate. A capture bound by the erased production cannot distinguish interiors because no parent reads it and its conditions already ran.
 
-The completed structural state and demanded tree identity are the exported observations of §4.1. Private working observations do not distinguish erased classes. The demanded restoration key retains ordered close records, opaque blocks, and validity. Named rule closes remain cycle bookkeeping on items and do not distinguish erased classes. Demanded close observations, tags, boundary records, frames, and caller modes retain their existing roles.
+The completed structural state and demanded tree identity are the exported observations of §4.1. Private working observations do not distinguish erased classes. Demanded close observations, tags, boundary records, frames, and caller modes retain their existing roles.
 
 The collapse crosses productions that carry `%erased`, but not productions without that clause. Extensions inherit no erasure. Each collapsed occurrence contributes one derivation to the verdict total. Internally, it chooses the best pre-erasure measure and then canonical action keys, without grammar key steps or a lean. Only its contribution to its parent resets to zero.
 
