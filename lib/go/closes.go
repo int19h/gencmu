@@ -144,7 +144,7 @@ func (m *closeArena) append(sequence int, event closeEvent) int {
 
 func (m *closeArena) semantic(state int) int {
 	if state == invalidCloses {
-		return 0
+		return -1
 	}
 	return m.links[m.states[state].sequence].semantic
 }

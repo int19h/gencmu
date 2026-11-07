@@ -164,3 +164,26 @@ func TestRankedHelpersWithoutPatternsNeedNoMachine(t *testing.T) {
 		}
 	}
 }
+
+func TestDeferredErasedClosesShareRankedEntryFrames(t *testing.T) {
+	// Engine §6 and §7.10: named closes do not split an outside ranked entry.
+	for _, checking := range []string{"", "%elision-only\n"} {
+		grammar := "%ambiguity-resolution greedy\n" + checking + "%rule text $p:p\n%conditions $p.without-elision.matches(w)\n%rule p e (e ≻ e) :: ∅\n%rule w p\n%rule e a | b\n%erased\n%rule a A\n%rule b A"
+		pipeline := mustLoad(t, oneStage(grammar))
+		result, err := pipeline.parseStoredTokens("aa", deferredTokens("A", "A"), ParseOptions{})
+		if err != nil || !result.OK || result.Stages[0].Verdict != VerdictUnique {
+			t.Fatalf("ranked erased closes: %v, %+v", err, result)
+		}
+	}
+}
+func TestDeferredErasedCloseProjectionKeepsValidity(t *testing.T) {
+	// Engine §6: names disappear from class identity, while invalidity remains.
+	m := newCloseArena()
+	a, b := m.named(0, 1), m.named(0, 2)
+	if a == b || m.semantic(a) != m.semantic(b) {
+		t.Fatal("raw names or their projection changed")
+	}
+	if m.semantic(invalidCloses) == m.semantic(a) {
+		t.Fatal("invalid and valid observations share a key")
+	}
+}

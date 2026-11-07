@@ -252,6 +252,7 @@ func (r cmpRes) flip() cmpRes {
 }
 
 type ranker struct {
+	restoration       *restorationViews
 	admission         *slotAdmission
 	rawWitnessCounted *bool
 	canonical         *ranker
@@ -288,7 +289,12 @@ func (rk *ranker) skips(fault, site string, i, n int) bool {
 // newRanker ranks by the key steps of a directive and then its lean,
 // greedy, lazy, or no lean for "" (engine §6).
 func newRanker(rec *recognizer, steps []keyStep, lean string) *ranker {
+	projection := newRestorationViews(rec)
+	if projection != nil {
+		rec = projection.rec
+	}
 	rk := newUnfilteredRanker(rec, steps, lean)
+	rk.restoration = projection
 	if len(rec.g.rankedHelpers) > 0 {
 		rk.views = newSlotViews(rk)
 		rk.admission = newSlotAdmission(rk)
@@ -326,6 +332,7 @@ func (rk *ranker) canonicalItem(it *item, f forbidden) *entry {
 		canonical.profiles = true
 		canonical.canonical = canonical
 		canonical.admission, canonical.views = rk.admission, rk.views
+		canonical.restoration = rk.restoration
 		canonical.check, canonical.marks = rk.check, rk.marks
 		rk.canonical = canonical
 	}
@@ -337,6 +344,17 @@ func (rk *ranker) witnessRepresentative(top []*symNode) *dn {
 	representative := newUnfilteredRanker(rk.rec, nil, "")
 	representative.profiles, representative.check, representative.witnessOnly = true, rk.check, true
 	representative.admission, representative.views, representative.marks = rk.admission, rk.views, rk.marks
+	representative.restoration = rk.restoration
+	if rk.restoration != nil {
+		mapped := make([]*symNode, len(top))
+		for i, s := range top {
+			mapped[i] = rk.restoration.syms[s]
+			if mapped[i] == nil {
+				mapped[i] = s
+			}
+		}
+		top = mapped
+	}
 	if representative.views != nil {
 		mapped := make([]*symNode, len(top))
 		for index, symbol := range top {
@@ -1276,6 +1294,16 @@ type rankResult struct {
 // text that spans it, combined as the edges of one root (engine §6). It is
 // nil when every derivation is cyclic.
 func (rk *ranker) rank(top []*symNode) *rankResult {
+	if rk.restoration != nil {
+		mapped := make([]*symNode, len(top))
+		for i, s := range top {
+			mapped[i] = rk.restoration.syms[s]
+			if mapped[i] == nil {
+				mapped[i] = s
+			}
+		}
+		top = mapped
+	}
 	if rk.admission != nil && rk.views != nil {
 		mapped := make([]*symNode, len(top))
 		for i, s := range top {

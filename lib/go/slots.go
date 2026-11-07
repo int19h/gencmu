@@ -61,7 +61,7 @@ func newSlotAdmission(rk *ranker) *slotAdmission {
 		if set == nil {
 			continue
 		}
-		for _, it := range set.index {
+		for _, it := range set.items {
 			a.stats.chartFacts++
 			items = append(items, it)
 		}

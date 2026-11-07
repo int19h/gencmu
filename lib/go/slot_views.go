@@ -130,7 +130,7 @@ func newSlotViews(rk *ranker) *slotViews {
 	}
 	for _, set := range rk.rec.sets {
 		if set != nil {
-			for _, raw := range set.index {
+			for _, raw := range set.items {
 				itemView(raw, nil)
 			}
 			for _, raw := range set.syms {
@@ -169,17 +169,17 @@ func (rk *ranker) slotMarks(it *item) map[link]bool {
 		return nil
 	}
 	if rk.views == nil {
-		return rk.marks[it]
+		return rk.restorationMarks(it)
 	}
 	v := rk.views
 	raw := v.originals[it]
 	if raw == nil {
-		return rk.marks[it]
+		return rk.restorationMarks(it)
 	}
 	if cached, ok := v.marked[it]; ok {
 		return cached
 	}
-	original := rk.marks[raw]
+	original := rk.restorationMarks(raw)
 	if original == nil {
 		v.marked[it] = nil
 		return nil
