@@ -767,8 +767,8 @@ class StageRunner:
         marks = walk.marks if walk is not None else None
         preferred = bool(lowered.ranked_helpers)
         ranking = _rank_check(forest, marks) if walk is not None else None
-        raw = rank(forest, steps, "none", marks=marks, check=True, unfiltered=True) if preferred and walk is not None else ranking
-        raw_counted = raw is not None and raw.raw_witness_counted is True
+        from ._rank import raw_witness_counted
+        raw_counted = walk is not None and raw_witness_counted(forest, marks)
         better = False
         if not raw_counted:
             ranking = None

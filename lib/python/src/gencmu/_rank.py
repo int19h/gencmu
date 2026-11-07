@@ -502,6 +502,10 @@ class Summaries:
                     stack.append((dep, False))
         return memo[key]
 
+    def derivable(self, key):
+        value = self.memo[key]
+        return value is not None and (value[1] > 0 if isinstance(value, tuple) else value.total > 0)
+
     def compute(self, key: Key) -> Any:
         raise NotImplementedError
 
@@ -608,7 +612,7 @@ class Ranker(Summaries):
         """Keep the coherent exterior and replace its erased interiors (§7.10)."""
         forest = self.forest
         original = forest.slot_original if hasattr(forest, "slot_original") else range(len(forest.prod))
-        root = next((item for item in forest.roots if original[item] == proof.item), None)
+        root = next((item for item in forest.roots if original[item] == getattr(forest,"restoration_aliases",range(len(forest.prod)))[proof.item]), None)
         if root is None:
             return None
         if self.productions[forest.prod[root]].erased:
@@ -630,12 +634,13 @@ class Ranker(Summaries):
                     continue
                 current = self.inner_key(key)
                 for link in reversed(frame["proof"].links):
-                    if original[current[1]] != link.item:
+                    if original[current[1]] != getattr(forest,"restoration_aliases",range(len(forest.prod)))[link.item]:
                         return None
                     mask = self.admission.mask(current) if self.admission is not None else None
                     steps = [step for step in self.all_steps(current) if mask is None or step[0] in mask]
                     indices = forest.slot_indices[current[1]] if hasattr(forest, "slot_indices") else None
-                    step = next((step for step in steps if (indices[step[0]] if indices is not None else step[0]) == link.index), None)
+                    number = forest.restoration_indices[link.item][link.index] if hasattr(forest,"restoration_indices") else link.index
+                    step = next((step for step in steps if (indices[step[0]] if indices is not None else step[0]) == number), None)
                     if step is None:
                         return None
                     _, kind, previous, child, token, terminal = step
@@ -643,7 +648,7 @@ class Ranker(Summaries):
                         parts.append(self.read_leaf(token, terminal))
                     elif kind == 2 and link.child is not None:
                         if self.productions[forest.prod[token]].erased:
-                            group = next(group for erased, group in self.erasures.groups(steps) if step in group)
+                            group = next(group for erased, group in self.erasures.groups(steps, lambda key: self.solve(key)[1] > 0) if step in group)
                             seq = self.erased_choice([edge[3] for edge in group])
                             if seq is None:
                                 return None
@@ -687,7 +692,7 @@ class Ranker(Summaries):
         total, least_measure, kept, w_all, member = 0, INFINITE_MEASURE, [], False, False
         marked = marks.get(item) if marks is not None else None
         edges = len(self.forest.edges[item])
-        for erased, group in self.erasures.groups(steps):
+        for erased, group in self.erasures.groups(steps, self.derivable):
             index, edge_kind, pred_key, child_key, a, b = group[0]
             sibling = self.check and edges > 1 and index == 0
             counted = not (sibling and _testing.fault("lost:context"))
@@ -1265,7 +1270,7 @@ class Profiled(Summaries):
         mask = self.admission.mask(key) if self.admission is not None else None
         every = Best(space)
         steps = [step for step in self.steps(key) if mask is None or step[0] in mask]
-        for erased, group in self.erasures.groups(steps):
+        for erased, group in self.erasures.groups(steps, self.derivable):
             index, edge_kind, pred_key, child_key, a, terminal = group[0]
             if edge_kind in (0, RESTORE):
                 total, profile, count = 1, space.zero, 1
@@ -1398,6 +1403,8 @@ def rank(forest: Forest, steps: tuple[tuple[str, str], ...], lean: str, marks=No
     """Rank a forest's derivations by the key steps ``steps`` and then by
     the lean, ``greedy``, ``lazy`` or ``none`` (engine §6); ``None`` if the
     input has no derivation that counts."""
+    from ._restoration_forest import restoration_forest
+    forest, marks = restoration_forest(forest, marks)
     admission = None
     ranked_helpers = forest.lowered.ranked_helpers
     productions = forest.lowered.productions
@@ -1442,3 +1449,16 @@ def rank_original(forest: Forest, steps: tuple[tuple[str, str], ...], lean: str,
     ranker.marks, ranker.check = marks, check
     ranker.admission = admission
     return ranker.rank(forest.roots)
+
+
+def raw_witness_counted(forest, marks):
+    """Concrete W(D) membership uses the untouched chart (engine §7.10)."""
+    counter = Ranker(forest, "none")
+    counter.marks, counter.check = marks, True
+    for root in forest.roots:
+        key = counter.full_key(root, counter.empty)
+        if key is not None:
+            counter.solve(key)
+            if counter.membership[key]:
+                return True
+    return False

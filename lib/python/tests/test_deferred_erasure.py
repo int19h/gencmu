@@ -44,6 +44,41 @@ class ErasedInteriors(unittest.TestCase):
                 self.assertEqual(ranking.verdict, "unique")
                 self.assertEqual(ranking.profile[:3], (0, 0, 0))
 
+    def test_named_closes_do_not_split_erased_classes(self):
+        # Engine §6: project the key but preserve raw cycle observations.
+        from gencmu._erased_classes import ErasedClasses
+        from gencmu._restoration_forest import restoration_forest
+        grammar = "%rule text a\n%rule a e | A\n%conditions $.without-elision.matches(w)\n%rule e a | b\n%erased\n%rule b A\n%rule w A"
+        ranking, root = prepare(grammar)
+        self.assertEqual(ranking.verdict, "tie")
+        loaded = gencmu.load_pipeline_sources({"p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n" + grammar + "\n```\n"}, "p.md")
+        lowered = lower(loaded._grammars[0], frozenset())
+        tokens = [gencmu.Token("a", frozenset({"A"}), (0, 1), (0, 1))]
+        context = StageContext(lowered, tokens, "a", loaded._unicode)
+        forest = Parser(context).parse(lowered.rule_ids["text"])
+        productions = forest.lowered.productions
+        interiors = [i for i, n in enumerate(forest.prod) if productions[n].rule_name == "e"
+                     and forest.dot[i] == len(productions[n].rhs)
+                     and forest.close_structure[i] != forest.close_machine.INVALID]
+        keys = ErasedClasses(forest)
+        self.assertGreater(len(set(forest.close_structure[i] for i in interiors)), 1)
+        self.assertEqual(len(set(keys.key(i) for i in interiors)), 1)
+        invalid = next(i for i, n in enumerate(forest.prod) if productions[n].rule_name == "e"
+                       and forest.dot[i] == len(productions[n].rhs)
+                       and forest.close_structure[i] == forest.close_machine.INVALID)
+        self.assertNotEqual(keys.key(interiors[0]), keys.key(invalid))
+        raw_states = list(forest.close_structure)
+        view, _ = restoration_forest(forest, None)
+        self.assertEqual(forest.close_structure, raw_states)
+        self.assertEqual(view.close_structure, raw_states)
+
+    def test_named_closes_do_not_split_ranked_entry_frames(self):
+        # Engine §6: only projected erased prefixes distinguish ranked entries.
+        for body, size in (("e (e ≻ e) :: ∅", 2), ("e (e ≻ e) e :: ∅", 3)):
+            grammar = "%rule text $p:p\n%conditions $p.without-elision.matches(w)\n%rule p " + body + "\n%rule w p\n%rule e a | b\n%erased\n%rule a A\n%rule b A"
+            ranking, root = prepare(grammar, ("A",) * size)
+            self.assertEqual(ranking.verdict, "unique")
+
     def test_a_common_suffix_settles_canonical_prefixes(self):
         # Engine §6: the key-free channel retains prefix-related candidates.
         ranking, root = prepare("%rule text gone\n%rule gone x y\n%erased\n%rule x a | a b\n%rule a ε\n%rule b ε\n%rule y ε", ())

@@ -1,5 +1,6 @@
 """Written prefix values and ready conditions across generated helpers."""
 from dataclasses import dataclass, replace
+from . import _testing
 from ._ranked import reads
 from ._clauses import WHOLE, simplify_condition, simplify_term, captures_in, prepare_conditions
 
@@ -143,13 +144,15 @@ def prepare_ranked_conditions(lowered):
 
 def written_prefix(lowered, p, dot, origin, prefix, caps, restores=False, closes=None, close_prefix=0):
     symbols = tuple((terminal, lowered.written_helpers.get(symbol,symbol),p.tests[i] if p.tests else None) for i,(terminal,symbol) in enumerate(zip(p.terminal,p.rhs)))
+    def identity(state):
+        return -1 if state == closes.INVALID else closes.semantic(state)
     def observation(part):
-        return (*part[:4], closes.semantic(part[4]), *part[5:]) if closes is not None and len(part) > 4 else part
+        return (*part[:4], identity(part[4]), *part[5:]) if closes is not None and len(part) > 4 else part
     captures = tuple((name, observation(caps[p.slots[position]])) for name, position in sorted(p.captures.items(), key=lambda part: part[1]) if not name.startswith('\u0000') and position < dot)
     source = (p.rule_name, *written_source(p), lowered.written_helpers.get(p.lhs))
     parent = p.lexical.close_entry if closes is not None and p.lexical else p.lexical.key if p.lexical else None
     key = (parent, source, p.real_id if p.guard_conditions else None, symbols, dot, origin, prefix, captures, restores, p.ranked_bindings)
-    return key + (closes.semantic(close_prefix),) if closes is not None else key
+    return key + (identity(close_prefix),) if closes is not None else key
 
 
 def written_source(p):
@@ -184,6 +187,7 @@ class Frames:
         self.closes, self.project = closes, project
         self.frames,self.productions = {},{}
         self.by_id = {}
+        self.restoration_keys = {}
         # The item conditions of each production, prepared once for all its
         # frames, by its number.
         self.prepared_items = {}
@@ -201,6 +205,7 @@ class Frames:
             key = key, close_prefix
         if key in self.frames:
             return self.frames[key]
+        entry_prefix = prefix
         captures = dict(outer.captures) if outer else {}
         captures.update((name,caps[p.slots[pos]]) for name,pos in p.captures.items() if not name.startswith('\u0000') and pos<dot)
         present = (outer.present if outer else set()) | {n for n in p.captures if not n.startswith('\u0000')}
@@ -224,6 +229,18 @@ class Frames:
             frame.seal_group = outer.seal_group if inside and outer else own_group
             frame.seal_start = outer.seal_start if inside and outer else at
             frame.seal_entry = outer.seal_entry if inside and outer else frame.close_entry
+        # The ranking view projects named closes without changing this frame.
+        ranking_key = None
+        def restoration_key():
+            nonlocal ranking_key
+            if ranking_key is None:
+                _testing.count("walk_steps", 1 + len(p.captures))
+                entry = written_prefix(self.lowered, p, dot, origin, entry_prefix, caps, restores, self.closes, close_prefix)
+                entry = (outer.restoration_key() if outer else None, *entry[1:])
+                key = (entry, boundary.id if boundary is not None else None, tree_prefix if self.trees is not None else None)
+                ranking_key = self.restoration_keys.setdefault(key, len(self.restoration_keys))
+            return ranking_key
+        frame.restoration_key = restoration_key
         self.frames[key] = frame
         self.by_id[frame.id] = frame
         return frame

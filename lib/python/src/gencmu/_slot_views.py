@@ -23,7 +23,7 @@ def helper_forest(raw, names, marks):
         return raw,marks
     fields = ['prod', 'dot', 'origin', 'end', 'caps', 'edges', 'structure', 'prefix', 'strict', 'close_structure', 'close_prefix', 'boundaries', 'boundary_annotations', 'family_prefix', 'family_structure']
     forest = replace(raw,**{name:list(getattr(raw,name)) for name in fields},tag=dict(raw.tag))
-    for name in ("original_tokens", "measures"):
+    for name in ("original_tokens", "measures", "restoration_aliases", "restoration_indices"):
         if hasattr(raw, name):
             setattr(forest, name, getattr(raw, name))
     tree_fields = [name for name in ("tree_prefix", "tree_identity", "tree_sequence") if hasattr(raw, name)]
