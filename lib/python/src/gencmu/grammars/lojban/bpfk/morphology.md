@@ -38,7 +38,7 @@ Where two stress tests apply to the same constituent, one alternative joins thei
 
 The phoneme stage supplies phoneme and pause tokens. A stressed vowel has a lowercase value and the `Stressed` tag. The forms stage reads names, particles, predicate words, and hesitation. Names end in consonants before a pause. Particles exclude names, and predicate words cannot complete at a particle start, as the Brivla section explains.
 
-The `¬cmevla` tests in `cmavo` and `final-syllable` keep a particle or brivla from ending directly before a name. Only hesitation with an even number of `y` letters can stand there without a pause.
+The `¬cmevla` tests in `cmavo` and `final-syllable` keep a particle or brivla from ending directly before a name. Hesitation can stand there without a pause. `yyykevin.` divides as `yyy` and `kevin`, so an odd run can stand before a name too. The name test in `y-run` reads a name that begins at the start of the hesitation itself.
 
 The document [../common/forms.md](../common/forms.md) says how words join.
 
@@ -48,7 +48,7 @@ The PEG's `CMAVO` is a list of the selma'o, each a set of spellings, followed by
 
 Hesitation that stands as its own word is one token. The [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) says that `y` is not a word and counts as whitespace. Thus `.yyy.` is one token here. The separate split before `bu` preserves letter words, as [the ybu exception](#the-ybu-exception) explains.
 
-`cmavo-shape` reads `cmavo`. A cmavo made only of `y` letters is hesitation, which [../common/forms.md](../common/forms.md) reads as `y-run`, so this document redefines `y-run` as that cmavo.
+`cmavo-shape` reads `cmavo` and excludes a pure `y` run. Hesitation is a direct `y` run, which this document states as `y-run`.
 
 A `y` is a nucleus exactly where no nucleus follows it. So the first `y` of a run is a nucleus exactly when the run has an odd number of letters. A run with an even number can follow a word directly: `kyyykerlo` is `ky yy kerlo`, but `bayyy` is no text. So a run of `y` has `Onset` where no nucleus begins it.
 
@@ -823,9 +823,7 @@ No consonant or glide can follow the cluster, and the empty onset always stands.
 
 The pair law reads raw consonant tokens against `$PERMISSIBLE`.
 
-The old letter rules read each consonant through its own rule.
-
-The two laws can differ on one consonant query inside a bad run, as in `btb`.
+A law that reads each consonant through its own rule can differ on one consonant query inside a bad run, as in `btb`.
 
 They give the same words, because each consonant of a divided run passes its own test.
 
@@ -973,7 +971,7 @@ A named letter rule reads one consonant token with that value.
 
 ## Differences from CLL and the reference PEG
 
-The [checkpoint record](https://mw.lojban.org/index.php?title=BPFK_Checkpoints&oldid=109606) defers morphology. CLL 1.3.4[^cll-later-a3-3] records two committee votes on word forms. One vote covers [consonants before glides](#consonant-restriction). The other requires a pause before and after every name, and so lifts the ban on `la`, `lai`, `la'i` and `doi` inside names. Any pause serves as the vote's dot. Hesitation with an even number of `y` letters also serves, because the Magic Words proposal counts `y` as whitespace.
+The [checkpoint record](https://mw.lojban.org/index.php?title=BPFK_Checkpoints&oldid=109606) defers morphology. CLL 1.3.4[^cll-later-a3-3] records two committee votes on word forms. One vote covers [consonants before glides](#consonant-restriction). The other requires a pause before and after every name, and so lifts the ban on `la`, `lai`, `la'i` and `doi` inside names. Any pause serves as the vote's dot. Hesitation also serves, because the Magic Words proposal counts `y` as whitespace.
 
 The PEG implements both votes. CLL 1.3.4 describes the rest of this working grammar, its extended rafsi included, as practice without a vote.
 
@@ -1004,6 +1002,12 @@ A run stays one hesitation token except for the split that prepares a letter wor
 ### Consonant restriction
 
 The consonant rules retain the ban on a consonant directly followed by a glide. The committee voted for this ban, and CLL 1.3.4 records the vote.[^cll-later-a3-3]
+
+The pair tables state the pair law and the initial law in one place for each fact.
+
+An affricate stands only as a whole initial cluster in this grammar.
+
+CLL 4.7 allows a longer cluster with an affricate pair inside it, so that limit departs from CLL.[^cll-s4-7]
 
 [^cll-s4-7]: [CLL 1.1, section 4.7](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-fuhivla.html).
 

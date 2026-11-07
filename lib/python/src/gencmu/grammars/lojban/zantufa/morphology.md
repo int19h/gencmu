@@ -217,9 +217,9 @@ The stage gives `Opener-Space` to a hesitation directly after a text opener, and
 
 ## Differences from CLL and BPFK
 
-*The Complete Lojban Language* (CLL) forbids the consonant pair `mz`.[^cll-s3-6] The BPFK working morphology also forbids it. Its letter rule for `m` refuses a following `z`.
+*The Complete Lojban Language* (CLL) forbids the consonant pair `mz`.[^cll-s3-6] The BPFK working morphology also forbids it, because its pair table has no `mz`.
 
-Zantufa's letter rule for `m` refuses only another `m` among the consonants. camxes-exp, the experimental grammar of the camxes parser, does the same. So Zantufa accepts `mz` wherever a permissible pair can stand. Examples are the gismu `kamzi`, the lujvo `bamzda` and the name `.djeimz.`.
+camxes-exp, the experimental grammar of the camxes parser, refuses only another `m` among the consonants after `m`. This layer adds `mz` to its own pair table. So Zantufa accepts `mz` wherever a permissible pair can stand. Examples are the gismu `kamzi`, the lujvo `bamzda` and the name `.djeimz.`.
 
 The other changes that camxes-exp makes to the word forms, in [../experimental/morphology.md](../experimental/morphology.md), are not Zantufa's.
 

@@ -256,7 +256,7 @@ The lookaheads still read the letter as `i` or `u`. A glide letter is no vowel, 
 
 camxes-exp extends the working word forms of the BPFK, the Lojban language planning committee. This layer retains its changes except the redundant glide lookahead described in [the pipeline departures](pipeline.md#where-it-reads-texts-differently-from-camxes-exp).
 
-*The Complete Lojban Language* (CLL) forbids the consonant pair `mz`.[^cll-s3-6] The BPFK working morphology also forbids it. Its letter rule for `m` refuses a following `z`. The letter rule for `m` in camxes-exp refuses only another `m` among the consonants. So camxes-exp accepts `mz` wherever a permissible pair can stand. Examples are the predicate word `kamzi`, the lujvo `bamzda` and the name `.djeimz.`.
+*The Complete Lojban Language* (CLL) forbids the consonant pair `mz`.[^cll-s3-6] The BPFK working morphology also forbids it, because its pair table has no `mz`. The letter rule for `m` in camxes-exp refuses only another `m` among the consonants. So camxes-exp accepts `mz` wherever a permissible pair can stand. This layer adds `mz` to its own pair table. Examples are the predicate word `kamzi`, the lujvo `bamzda` and the name `.djeimz.`.
 
 The working morphology has two kinds of extended rafsi, which let a word, whole or cut short, stand before a y-hyphen inside a compound. A `brivla_rafsi` is the head of a brivla of two syllables or more, followed by `'y`, as in `klama'ybroda`. A `fuhivla_rafsi` is the head of a borrowing, followed by an onset and `y`, as in `spageiybroda`.
 
