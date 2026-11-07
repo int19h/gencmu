@@ -729,7 +729,7 @@ For example, `mex MOI 🆓 ≻ SE 🆓 tanru-unit-1` produces this expression:
 
 Neighbour-guarded tag terms use the ordinary `if` term and boundary-method condition shapes. Their guard is one optionally negated atom on `$`, with a literal tag-set consequent. The DOM stores the written term, never the concrete variants of engine §3.7.
 
-The DOM holds no lowered helper, admission key, [seal](notation.md#ranked-choices), or selected option. References retain their written form before terminal resolution. Expression traversal includes `ranked` alongside other expression forms.
+The DOM holds no lowered helper, admission key, [seal](notation.md#the-structural-tree), or selected option. References retain their written form before terminal resolution. Expression traversal includes `ranked` alongside other expression forms.
 
 ### Preparsed DOMs
 
