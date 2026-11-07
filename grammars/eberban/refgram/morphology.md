@@ -25,7 +25,7 @@ The prose uses these Eberban terms:
 
 The text is a sequence of items. An item is a space, a digit, a hesitation or an eraser. It can also be a borrowing, a freeform variable, a run of words, or a run that no rule reads. A compound is an item too, and it can stretch over several runs and the gaps between them.
 
-A run is a maximal stretch of letters and hyphens between two items that are not letters. Each rule that reads a run makes it maximal with a condition on the tokens after it. A foreign quote is the last part of its run, so a new run can start right after the quote. Otherwise two runs never stand side by side, and one run has one division. The ranked choice in `item` reads a run as junk only where no other item reads the same text. Its explicit empty tags discard the returned classification after emission.
+A run is a maximal stretch of letters and hyphens between two items that are not letters. Each rule that reads a run makes it maximal with a condition on the tokens after it. A foreign quote is the last part of its run, so a new run can start right after the quote. Otherwise two runs never stand side by side, and one run has one division. The ranked choice in `item` keeps the word and junk readings together. The engine prefers the reading with less blame. The grammar then prefers fewer junk runs at an equal measure. Its explicit empty tags discard the returned classification after emission.
 
 Five forms can hold a space inside one token: a borrowing, a freeform variable, a compound, a spelling quote and a foreign quote. An unfinished compound also reaches over spaces, but it emits several tokens. The step `leftmost-longest #(·borrowing ∪ ·freeform-variable ∪ ·spelling-quote ∪ ·foreign-quote ∪ ·compound ∪ ·open-compound)` names the five rules and `open-compound`, the unfinished compound. At each free position, the stage takes the longest such form that starts there. The step chooses between forms by their start, then by their length.
 
@@ -36,7 +36,7 @@ The book allows a hyphen only at a syllable boundary inside a word. Each digit i
 ```jbogenbau
 %ambiguity-resolution
   leftmost-longest #(·borrowing ∪ ·freeform-variable ∪ ·spelling-quote ∪ ·foreign-quote ∪
-    ·compound ∪ ·open-compound), lazy
+    ·compound ∪ ·open-compound), fewest #·junk-run, lazy
 
 %rule text
   [{item}]
@@ -256,35 +256,35 @@ A freeform variable or borrowing has a third shape: `X` is a sonorant and `YZ` i
 
 A particle starts with a non-sonorant consonant followed only by vhowels, as `zi` or `tiho`. Or it starts with `n`, `a` or `o` and continues with vhowels and sonorants, as `a`, `on`, `ahu` or `nu`. The closing section explains why only these three letters start the second kind.
 
-The shape of a particle gives its family. As in the PEG, the first consonant gives the family, and for `p`, `b`, `d`, `c` and `j` the first vowel refines it. The book makes six particles families of their own: `pei`, `vei`, `dai`, `cei`, `cai` and `coi`. The templates below read the kinds of family. Each instance names its family.
+The shape of a particle gives its family. The first consonant gives the family, as in the PEG. For `p`, `b`, `d`, `c`, and `j`, the first vowel refines it. The book makes six particles families of their own: `pei`, `vei`, `dai`, `cei`, `cai` and `coi`. The templates below read the kinds of family. Each instance names its family. Their recovering vowels retain a family through a malformed vowel join. The strict delimiter templates use separate vowels.
 
 ```jbogenbau
 %rule particle-cv(@Consonant, @Tag)
-  $c:ns-consonant [hyphen-misplaced] vhowels :: @Tag
+  $c:ns-consonant [hyphen-misplaced] malformed-vhowels :: @Tag
 %conditions
   $c.value = @Consonant
 
 %rule particle-cv-except(@Consonant, @Except, @Tag)
-  $c:ns-consonant [hyphen-misplaced] $v:vhowels :: @Tag
+  $c:ns-consonant [hyphen-misplaced] $v:malformed-vhowels :: @Tag
 %conditions
   $c.value = @Consonant,
   $v.value ≠ @Except
 
 %rule particle-cvv(@Consonant, @Vowel, @Tag)
-  $c:ns-consonant [hyphen-misplaced] $v:vhowels :: @Tag
+  $c:ns-consonant [hyphen-misplaced] $v:malformed-vhowels :: @Tag
 %conditions
   $c.value = @Consonant,
   $v.first-token.value = @Vowel
 
 %rule particle-cvv-except(@Consonant, @Vowel, @Except, @Tag)
-  $c:ns-consonant [hyphen-misplaced] $v:vhowels :: @Tag
+  $c:ns-consonant [hyphen-misplaced] $v:malformed-vhowels :: @Tag
 %conditions
   $c.value = @Consonant,
   $v.first-token.value = @Vowel,
   $v.value ≠ @Except
 
 %rule particle-exact(@Consonant, @Vowels, @Tag)
-  $c:ns-consonant [hyphen-misplaced] $v:vhowels :: @Tag
+  $c:ns-consonant [hyphen-misplaced] $v:malformed-vhowels :: @Tag
 %conditions
   $c.value = @Consonant,
   $v.value = @Vowels
@@ -388,15 +388,15 @@ The particle families of `n`, `a` and `o` are `NI`, `A` and `O`. The `n` can tak
 
 ```jbogenbau
 %rule ni-particle
-  Letter="n" [hyphen-misplaced] vhowels particle-tail :: NI
+  Letter="n" [hyphen-misplaced] malformed-vhowels malformed-particle-tail :: NI
 
 %rule a-particle
-  $v:vhowels particle-tail :: A
+  $v:malformed-vhowels malformed-particle-tail :: A
 %conditions
   $v.first-token.value = "a"
 
 %rule o-particle
-  $v:vhowels particle-tail :: O
+  $v:malformed-vhowels malformed-particle-tail :: O
 %conditions
   $v.first-token.value = "o"
 
@@ -476,7 +476,7 @@ The conditions on `ni-word`, `vowel-particle-word`, `first-prefix` and `freeform
 
 A `co` that a complete opener follows starts a foreign quote, so it is never a plain word. A complete opener is `co`, its optional gap and delimiter, and an opening bracket, and `quote-opener` reads it. The condition on `consonant-particle-word` states the bar. It tests only a particle of the `CO` family, so no other particle before a bracket is tested.
 
-An ordinary `ce` carries `Missing-spelling-unit` only where the forms reader finds no first spelling unit. This test uses the letters, including malformed runs, before syntax receives whole tokens.
+The word wrappers retain an erroneous edge `h`, as in `hmi` or `mih`. Roots use the recovering root skeleton below. An ordinary `ce` carries `Missing-spelling-unit` only where the forms reader finds no first spelling unit. This test uses the letters, including malformed runs, before syntax receives whole tokens.
 
 The quote reads its own `co` through the particle rule, so the bar never meets the quote. A compound reads its components without the bar ("Compounds" below). The test reads the opener alone, not the whole quote. So an unclosed quote is rejected, as in `a mico [x`.
 
@@ -495,7 +495,7 @@ The quote reads its own `co` through the particle rule, so the bar never meets t
   consonant-particle-word | root-word | spelling-quote
 
 %rule consonant-particle-word
-  $p:consonant-particle [hyphen-misplaced] :: Word ∪ Particle ∪ $p.tags
+  [{h-not-between-vowels}] $p:consonant-particle [{h-not-between-vowels}] [hyphen-misplaced] :: Word ∪ Particle ∪ $p.tags
     ∪ (CE ⊆ $p.tags ∧ ¬$.following-tokens.begins(first-unit) ⟹ Missing-spelling-unit)
 %conditions
   CO ⊆ $p.tags ⟹ ¬$.onward.begins(quote-opener)
@@ -503,21 +503,21 @@ The quote reads its own `co` through the particle rule, so the bar never meets t
   $ :- $.value
 
 %rule ni-word
-  $p:ni-particle [hyphen-misplaced] :: Word ∪ Particle ∪ $p.tags
+  [{h-not-between-vowels}] $p:ni-particle [{h-not-between-vowels}] [hyphen-misplaced] :: Word ∪ Particle ∪ $p.tags
 %conditions
   ¬$.preceding-tokens.ends(after-digit)
 %emits
   $ :- $.value
 
 %rule vowel-particle-word
-  $p:vowel-particle [hyphen-misplaced] :: Word ∪ Particle ∪ $p.tags
+  [{h-not-between-vowels}] $p:vowel-particle [{h-not-between-vowels}] [hyphen-misplaced] :: Word ∪ Particle ∪ $p.tags
 %conditions
   ¬$.preceding-tokens.ends(after-digit)
 %emits
   $ :- $.value
 
 %rule root-word
-  root-form [hyphen-misplaced] :: Word ∪ Root
+  malformed-root [hyphen-misplaced] :: Word ∪ Root
 %emits
   $ :- $.value
 
@@ -543,7 +543,7 @@ The quote reads its own `co` through the particle rule, so the bar never meets t
 
 ## Borrowings and freeform variables
 
-A borrowing is `u`, then its content. The book says that spaces must follow a borrowing. So `space-after` ends it, and a bracket of a gap or the end of the text also counts. A freeform variable is the same with `i`. The template `freeform-word` reads both.
+A borrowing is `u`, then its content. The book says that spaces must follow a borrowing. So `space-after` ends it, and a bracket of a gap or the end of the text also counts. A freeform variable is the same with `i`. The template `freeform-word` reads both. Its recovering content retains the prefix class through local faults, as in `ubd`. The strict content remains available to prefix guards.
 
 The content has looser rules than a root. An initial pair can stand in the middle, and a medial pair at the start. A sonorant or `m` before a consonant counts as a pair. A sonorant before an initial pair or a consonant-sonorant medial pair counts as a triplet. The content can start with a vowel, a consonant, a pair, a triplet or `h`. It ends with a vowel or with one consonant.
 
@@ -555,7 +555,7 @@ The PEG warns about a hyphen before or after the prefix, and about content that 
 
 ```jbogenbau
 %rule freeform-word(@Prefix, @Tag)
-  [hyphen-misplaced] $p:Letter prefix-gap $c:content [hyphen-misplaced] space-after :: Word ∪
+  [hyphen-misplaced] $p:Letter prefix-gap $c:malformed-content [hyphen-misplaced] space-after :: Word ∪
     @Tag := @Prefix ++ $c.value
 %conditions
   $p.value = @Prefix,
@@ -823,7 +823,7 @@ A hyphen after a prefix or at the start of a run carries `hyphen-misplaced`, as 
   | [hyphen-misplaced] $n:compound :: $n.tags
 
 %rule component-particle
-  $p:consonant-particle [hyphen-misplaced] :: Word ∪ Particle ∪ $p.tags
+  [{h-not-between-vowels}] $p:consonant-particle [{h-not-between-vowels}] [hyphen-misplaced] :: Word ∪ Particle ∪ $p.tags
     ∪ (CE ⊆ $p.tags ∧ ¬$.following-tokens.begins(first-unit) ⟹ Missing-spelling-unit)
 %emits
   $ :- $.value
@@ -1254,16 +1254,12 @@ Second, a single hyphen beside a digit belongs to the digit word, so it is no ju
 
 ```jbogenbau
 %rule junk-run
-  read-quadruplet | read-triplet-middle-m | read-triplet-yz-sonorant-x |
-    read-triplet-root-first-pair | read-triplet-freeform-first-pair | read-triplet-root-shape |
-    read-triplet-freeform-shape | read-doubled-pair | read-pair-voiceness | read-sibilant-pair |
-    read-root-starts-with-medial-pair | read-particle-sonorant-pair | read-h-not-between-vowels
-    | read-hyphen-same-vowels | read-invalid-medial-pair | read-freeform-multi-consonents-ending
-    | plain-junk-run
+  {run-char} run-end
 %conditions
   ¬$.onward.begins(run-opener) ∨ $.preceding-tokens.ends(after-digit) ∧
     $.onward.begins(spaced-start),
   ¬$.matches(Hyphen) ∨ ¬$.preceding-tokens.ends(Digit) ∧ ¬$.following-tokens.begins(Digit)
+%error "the run " ++ $.source-text ++ " has no word reading"
 %emits
   $ :: Junk ∪ $.tags := $.decomposed-source-text :- $.source-text
 
@@ -1285,454 +1281,278 @@ Second, a single hyphen beside a digit belongs to the digit word, so it is no ju
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/spaced-start.svg" alt="Railroad diagram of the rule spaced-start"></p>
 </details>
 
-### Fault classes
+### Recovering word readers
 
-The readers below classify the existing junk run without dividing it. Their written order above is total, from quadruplets through freeform endings, with unclassified junk last. No other rule or query target names these readers. Fault-shape queries evaluate no warnings.
+A malformed word retains its word class. These readers admit a faulty piece where a strict word restriction fails. They attach its error to the containing word token. Several pieces can report in one word, as in `hpbanh`.
 
-Each reader keeps the raw run as its body and tests its shape through whole-span queries. It excludes every earlier shape in the written order. Thus a later `h` never replaces the earlier voicing fault in `pbanh`.
+The strict delimiter templates never call these readers. A malformed root can therefore stand after `ci`, but cannot delimit a foreign quote. Spelling units also keep their strict readers.
+
+The root skeleton retains the ordinary distinction between a particle and a root. A single onset needs a middle or a final sonorant. An onset pair needs neither. A faulty onset can retain one further consonant, so `tkco` reaches its faulty initial `tk`. It cannot detach after a vowel, so `tapmla` retains its faulty middle rather than becoming `ta pmla`.
 
 ```jbogenbau
-%rule read-quadruplet
-  raw-fault-run :: Fault-quadruplet
+%rule malformed-root
+  | [{h-not-between-vowels}] ns-consonant [hyphen-misplaced] malformed-vhowels
+      {malformed-root-middle} [final-sonorant] [{h-not-between-vowels}]
+  | [{h-not-between-vowels}] ns-consonant [hyphen-misplaced] malformed-vhowels
+      final-sonorant [{h-not-between-vowels}]
+  | [{h-not-between-vowels}] malformed-root-onset [hyphen-misplaced] malformed-vhowels
+      [{malformed-root-middle}] [final-sonorant] [{h-not-between-vowels}]
+  | quadruplet
+
+%rule malformed-root-onset
+  initial-pair | faulty-root-onset
+
+%rule faulty-root-onset
+  | malformed-pair
+  | root-starts-with-medial-pair [[Hyphen] consonant]
+  | quadruplet
 %conditions
-  $.matches(shape-quadruplet)
+  ¬$.preceding-tokens.ends(vowel-before-h)
 
-%rule read-triplet-middle-m
-  raw-fault-run :: Fault-triplet-middle-m
-%conditions
-  $.matches(shape-triplet-middle-m),
-  ¬$.matches(shape-quadruplet)
+%rule malformed-root-middle
+  | [Hyphen] sonorant [hyphen-misplaced] malformed-vhowels
+  | [hyphen-misplaced] (medial-pair | (malformed-pair ≻ invalid-medial-pair)
+      | malformed-root-triplet | quadruplet) [hyphen-misplaced] malformed-vhowels
+  | [hyphen-misplaced] h-not-between-vowels [hyphen-misplaced] malformed-vhowels
 
-%rule read-triplet-yz-sonorant-x
-  raw-fault-run :: Fault-triplet-yz-sonorant-x
-%conditions
-  $.matches(shape-triplet-yz-sonorant-x),
-  ¬$.matches(shape-quadruplet | shape-triplet-middle-m)
-
-%rule read-triplet-root-first-pair
-  raw-fault-run :: Fault-triplet-root-first-pair
-%conditions
-  $.matches(shape-triplet-root-first-pair),
-  ¬$.matches(shape-quadruplet | shape-triplet-middle-m | shape-triplet-yz-sonorant-x)
-
-%rule read-triplet-freeform-first-pair
-  raw-fault-run :: Fault-triplet-freeform-first-pair
-%conditions
-  $.matches(shape-triplet-freeform-first-pair),
-  ¬$.matches(shape-quadruplet | shape-triplet-middle-m | shape-triplet-yz-sonorant-x |
-    shape-triplet-root-first-pair)
-
-%rule read-triplet-root-shape
-  raw-fault-run :: Fault-triplet-root-shape
-%conditions
-  $.matches(shape-triplet-root-shape),
-  ¬$.matches(shape-quadruplet | shape-triplet-middle-m | shape-triplet-yz-sonorant-x |
-    shape-triplet-root-first-pair | shape-triplet-freeform-first-pair)
-
-%rule read-triplet-freeform-shape
-  raw-fault-run :: Fault-triplet-freeform-shape
-%conditions
-  $.matches(shape-triplet-freeform-shape),
-  ¬$.matches(shape-quadruplet | shape-triplet-middle-m | shape-triplet-yz-sonorant-x |
-    shape-triplet-root-first-pair | shape-triplet-freeform-first-pair | shape-triplet-root-shape)
-
-%rule read-doubled-pair
-  raw-fault-run :: Fault-doubled-pair
-%conditions
-  $.matches(shape-doubled-pair),
-  ¬$.matches(shape-quadruplet | shape-triplet-middle-m | shape-triplet-yz-sonorant-x |
-    shape-triplet-root-first-pair | shape-triplet-freeform-first-pair | shape-triplet-root-shape
-    | shape-triplet-freeform-shape)
-
-%rule read-pair-voiceness
-  raw-fault-run :: Fault-pair-voiceness
-%conditions
-  $.matches(shape-pair-voiceness),
-  ¬$.matches(shape-quadruplet | shape-triplet-middle-m | shape-triplet-yz-sonorant-x |
-    shape-triplet-root-first-pair | shape-triplet-freeform-first-pair | shape-triplet-root-shape
-    | shape-triplet-freeform-shape | shape-doubled-pair)
-
-%rule read-sibilant-pair
-  raw-fault-run :: Fault-sibilant-pair
-%conditions
-  $.matches(shape-sibilant-pair),
-  ¬$.matches(shape-quadruplet | shape-triplet-middle-m | shape-triplet-yz-sonorant-x |
-    shape-triplet-root-first-pair | shape-triplet-freeform-first-pair | shape-triplet-root-shape
-    | shape-triplet-freeform-shape | shape-doubled-pair | shape-pair-voiceness)
-
-%rule read-root-starts-with-medial-pair
-  raw-fault-run :: Fault-root-starts-with-medial-pair
-%conditions
-  $.matches(shape-root-starts-with-medial-pair),
-  ¬$.matches(shape-quadruplet | shape-triplet-middle-m | shape-triplet-yz-sonorant-x |
-    shape-triplet-root-first-pair | shape-triplet-freeform-first-pair | shape-triplet-root-shape
-    | shape-triplet-freeform-shape | shape-doubled-pair | shape-pair-voiceness |
-    shape-sibilant-pair)
-
-%rule read-particle-sonorant-pair
-  raw-fault-run :: Fault-particle-sonorant-pair
-%conditions
-  $.matches(shape-particle-sonorant-pair),
-  ¬$.matches(shape-quadruplet | shape-triplet-middle-m | shape-triplet-yz-sonorant-x |
-    shape-triplet-root-first-pair | shape-triplet-freeform-first-pair | shape-triplet-root-shape
-    | shape-triplet-freeform-shape | shape-doubled-pair | shape-pair-voiceness |
-    shape-sibilant-pair | shape-root-starts-with-medial-pair)
-
-%rule read-h-not-between-vowels
-  raw-fault-run :: Fault-h-not-between-vowels
-%conditions
-  $.matches(shape-h-not-between-vowels),
-  ¬$.matches(shape-quadruplet | shape-triplet-middle-m | shape-triplet-yz-sonorant-x |
-    shape-triplet-root-first-pair | shape-triplet-freeform-first-pair | shape-triplet-root-shape
-    | shape-triplet-freeform-shape | shape-doubled-pair | shape-pair-voiceness |
-    shape-sibilant-pair | shape-root-starts-with-medial-pair | shape-particle-sonorant-pair)
-
-%rule read-hyphen-same-vowels
-  raw-fault-run :: Fault-hyphen-same-vowels
-%conditions
-  $.matches(shape-hyphen-same-vowels),
-  ¬$.matches(shape-quadruplet | shape-triplet-middle-m | shape-triplet-yz-sonorant-x |
-    shape-triplet-root-first-pair | shape-triplet-freeform-first-pair | shape-triplet-root-shape
-    | shape-triplet-freeform-shape | shape-doubled-pair | shape-pair-voiceness |
-    shape-sibilant-pair | shape-root-starts-with-medial-pair | shape-particle-sonorant-pair |
-    shape-h-not-between-vowels)
-
-%rule read-invalid-medial-pair
-  raw-fault-run :: Fault-invalid-medial-pair
-%conditions
-  $.matches(shape-invalid-medial-pair),
-  ¬$.matches(shape-quadruplet | shape-triplet-middle-m | shape-triplet-yz-sonorant-x |
-    shape-triplet-root-first-pair | shape-triplet-freeform-first-pair | shape-triplet-root-shape
-    | shape-triplet-freeform-shape | shape-doubled-pair | shape-pair-voiceness |
-    shape-sibilant-pair | shape-root-starts-with-medial-pair | shape-particle-sonorant-pair |
-    shape-h-not-between-vowels | shape-hyphen-same-vowels)
-
-%rule read-freeform-multi-consonents-ending
-  raw-fault-run :: Fault-freeform-multi-consonents-ending
-%conditions
-  $.matches(shape-freeform-multi-consonents-ending),
-  ¬$.matches(shape-quadruplet | shape-triplet-middle-m | shape-triplet-yz-sonorant-x |
-    shape-triplet-root-first-pair | shape-triplet-freeform-first-pair | shape-triplet-root-shape
-    | shape-triplet-freeform-shape | shape-doubled-pair | shape-pair-voiceness |
-    shape-sibilant-pair | shape-root-starts-with-medial-pair | shape-particle-sonorant-pair |
-    shape-h-not-between-vowels | shape-hyphen-same-vowels | shape-invalid-medial-pair)
-
-%rule raw-fault-run
-  {run-char} run-end
-
-%rule plain-junk-run
-  raw-fault-run
-%conditions
-  ¬$.matches(fault-classified-run)
-
-%rule fault-classified-run
-  shape-quadruplet | shape-triplet-middle-m | shape-triplet-yz-sonorant-x |
-    shape-triplet-root-first-pair | shape-triplet-freeform-first-pair | shape-triplet-root-shape
-    | shape-triplet-freeform-shape | shape-doubled-pair | shape-pair-voiceness |
-    shape-sibilant-pair | shape-root-starts-with-medial-pair | shape-particle-sonorant-pair |
-    shape-h-not-between-vowels | shape-hyphen-same-vowels | shape-invalid-medial-pair |
-    shape-freeform-multi-consonents-ending
+%rule malformed-root-triplet
+  | root-triplet
+  | (triplet-middle-m ≻ triplet-root-first-pair ≻ triplet-root-shape) :: ∅
 ```
 
-<details><summary>Railroad diagrams of the 19 rules from <code>read-quadruplet</code> to <code>fault-classified-run</code></summary>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/read-quadruplet.svg" alt="Railroad diagram of the rule read-quadruplet"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/read-triplet-middle-m.svg" alt="Railroad diagram of the rule read-triplet-middle-m"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/read-triplet-yz-sonorant-x.svg" alt="Railroad diagram of the rule read-triplet-yz-sonorant-x"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/read-triplet-root-first-pair.svg" alt="Railroad diagram of the rule read-triplet-root-first-pair"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/read-triplet-freeform-first-pair.svg" alt="Railroad diagram of the rule read-triplet-freeform-first-pair"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/read-triplet-root-shape.svg" alt="Railroad diagram of the rule read-triplet-root-shape"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/read-triplet-freeform-shape.svg" alt="Railroad diagram of the rule read-triplet-freeform-shape"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/read-doubled-pair.svg" alt="Railroad diagram of the rule read-doubled-pair"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/read-pair-voiceness.svg" alt="Railroad diagram of the rule read-pair-voiceness"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/read-sibilant-pair.svg" alt="Railroad diagram of the rule read-sibilant-pair"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/read-root-starts-with-medial-pair.svg" alt="Railroad diagram of the rule read-root-starts-with-medial-pair"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/read-particle-sonorant-pair.svg" alt="Railroad diagram of the rule read-particle-sonorant-pair"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/read-h-not-between-vowels.svg" alt="Railroad diagram of the rule read-h-not-between-vowels"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/read-hyphen-same-vowels.svg" alt="Railroad diagram of the rule read-hyphen-same-vowels"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/read-invalid-medial-pair.svg" alt="Railroad diagram of the rule read-invalid-medial-pair"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/read-freeform-multi-consonents-ending.svg" alt="Railroad diagram of the rule read-freeform-multi-consonents-ending"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/raw-fault-run.svg" alt="Railroad diagram of the rule raw-fault-run"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/plain-junk-run.svg" alt="Railroad diagram of the rule plain-junk-run"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/fault-classified-run.svg" alt="Railroad diagram of the rule fault-classified-run"></p>
+<details><summary>Railroad diagrams of the 5 rules from <code>malformed-root</code> to <code>malformed-root-triplet</code></summary>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/malformed-root.svg" alt="Railroad diagram of the rule malformed-root"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/malformed-root-onset.svg" alt="Railroad diagram of the rule malformed-root-onset"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/faulty-root-onset.svg" alt="Railroad diagram of the rule faulty-root-onset"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/malformed-root-middle.svg" alt="Railroad diagram of the rule malformed-root-middle"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/malformed-root-triplet.svg" alt="Railroad diagram of the rule malformed-root-triplet"></p>
 </details>
 
-Each shape reads valid words and a valid unfinished word before its faulty letters. These prefixes cannot skip an earlier malformed cluster. Whole-run queries retain that left context when they apply the written precedence. Fault shapes contain only run characters, so they cannot merge runs across gaps.
+A borrowing or freeform retains its prefix and its complete content. Its cluster slots accept the freeform triplet shapes. A sonorant before an initial-shaped pair retains a fault on that pair, as in `unsba`.
+
+A final consonant cluster reports as one ending. A shared pair fault takes precedence at the same span, so `ubobs` reports its voicing mismatch. The no-vowel branch reaches `ubd` without pretending that `bd` contains a vowel. A bare quadruplet similarly retains one root token. Longer consonant-only runs retain junk where no skeleton reads them.
 
 ```jbogenbau
-%rule shape-quadruplet
-  [fault-valid-prefix] fault-four [{run-char}] run-end
+%rule malformed-content
+  | [malformed-content-onset] malformed-vhowels
+      [{malformed-content-middle malformed-vhowels}]
+      [[hyphen-misplaced] (consonant | malformed-ending)]
+      [{h-not-between-vowels}]
+  | malformed-ending
 
-%rule shape-triplet-middle-m
-  [fault-valid-prefix] fault-triplet-m [{run-char}] run-end
+%rule malformed-content-onset
+  (onset-cluster | malformed-split-cluster | malformed-pair | quadruplet | Letter<H>)
+    [hyphen-misplaced]
 
-%rule shape-triplet-yz-sonorant-x
-  [fault-valid-prefix] fault-triplet-sonorant [{run-char}] run-end
+%rule malformed-content-middle
+  | [Hyphen] onset-cluster [hyphen-misplaced]
+  | [hyphen-misplaced] (malformed-split-cluster | malformed-pair | quadruplet)
+      [hyphen-misplaced]
+  | [hyphen-misplaced] h-not-between-vowels [hyphen-misplaced]
 
-%rule shape-triplet-root-first-pair
-  [fault-valid-prefix] fault-triplet-root-pair [{run-char}] run-end
+%rule malformed-split-cluster
+  | freeform-triplet
+  | medial-pair
+  | sonorant-pair
+  | sonorant [Hyphen] malformed-pair
+  | (triplet-middle-m ≻ triplet-yz-sonorant-x ≻ triplet-freeform-first-pair
+      ≻ triplet-freeform-shape) :: ∅
 
-%rule shape-triplet-freeform-first-pair
-  [fault-valid-prefix] fault-triplet-freeform-pair [{run-char}] run-end
-
-%rule shape-triplet-root-shape
-  [fault-valid-prefix] fault-triplet-root-shape [{run-char}] run-end
-
-%rule shape-triplet-freeform-shape
-  [fault-valid-prefix] fault-triplet-freeform-shape [{run-char}] run-end
-
-%rule shape-doubled-pair
-  [fault-valid-prefix] fault-doubled [{run-char}] run-end
-
-%rule shape-pair-voiceness
-  [fault-valid-prefix] fault-voicing [{run-char}] run-end
-
-%rule shape-sibilant-pair
-  [fault-valid-prefix] fault-sibilants [{run-char}] run-end
-
-%rule shape-root-starts-with-medial-pair
-  [fault-valid-prefix] fault-root-start [{run-char}] run-end
-
-%rule shape-particle-sonorant-pair
-  [fault-valid-prefix] fault-particle-pair [{run-char}] run-end
-
-%rule shape-h-not-between-vowels
-  [fault-valid-prefix] fault-h [{run-char}] run-end
-
-%rule shape-hyphen-same-vowels
-  [fault-valid-prefix] fault-vowels [{run-char}] run-end
-
-%rule shape-invalid-medial-pair
-  [fault-valid-prefix] fault-medial [{run-char}] run-end
-
-%rule shape-freeform-multi-consonents-ending
-  [fault-valid-prefix] fault-ending [{run-char}] run-end
-
-%rule fault-valid-prefix
-  [Hyphen] [{fault-whole-word}] [fault-open-root | fault-open-freeform | fault-open-particle |
-    fault-onset]
-
-%rule fault-whole-word
-  fault-word-shape
+%rule malformed-ending :: ∅
+  | malformed-pair ≻ freeform-multi-consonents-ending
 %conditions
-  Vowel ⊈ $.last-token.tags ∨ ¬$.following-tokens.begins(root-middle | medial-pair)
+  $.following-tokens.begins(freeform-ending-boundary)
 
-%rule fault-word-shape
-  ($p:prefixes | consonant-particle | vowel-particle | ni-particle | root-form) [Hyphen]
+%rule freeform-multi-consonents-ending :: ∅
+  | consonant [Hyphen] consonant [{[Hyphen] consonant}]
 %conditions
-  $p.last-token.value ∉ "e" "i" ∨ ¬$p.following-tokens.begins(fault-next-arity)
-
-%rule fault-next-arity
-  [Hyphen] prefix-arity
-
-%rule fault-onset
-  ns-consonant [Hyphen] | initial-pair [Hyphen]
-
-%rule fault-open-root
-  fault-onset vhowels [{root-middle}] [Hyphen]
-
-%rule fault-open-freeform
-  (Letter="i" | Letter="u") [Hyphen] [content-onset] [vhowels [{content-middle vhowels}]] [Hyphen]
-
-%rule fault-open-particle
-  (Letter="a" | Letter="o" | Letter="n") [vhowels] [{[Hyphen] sonorant [Hyphen] vhowels}] [Hyphen]
-
-%rule fault-run-start
-  ε
-%conditions
-  $.starts-input ∨ $.preceding-tokens.ends(Space | Open | Close | Digit)
-
-%rule fault-word-prefix
-  fault-run-start [Hyphen] [{fault-word-shape}]
-
-%rule fault-root-context
-  fault-word-prefix (ns-consonant [Hyphen] vhowels | initial-pair [Hyphen] vhowels) [{root-middle}]
-
-%rule fault-freeform-head
-  fault-run-start [Hyphen] (Letter="i" | Letter="u") [Hyphen]
-
-%rule fault-freeform-context
-  fault-freeform-head [{run-char}]
-
-%rule fault-particle-context
-  fault-run-start [Hyphen] (Letter="a" | Letter="o" | Letter="n") [{run-char}]
+  $.following-tokens.begins(freeform-ending-boundary)
+%error "the ending " ++ $.source-text ++ " has more than one consonant"
 ```
 
-<details><summary>Railroad diagrams of the 30 rules from <code>shape-quadruplet</code> to <code>fault-particle-context</code></summary>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/shape-quadruplet.svg" alt="Railroad diagram of the rule shape-quadruplet"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/shape-triplet-middle-m.svg" alt="Railroad diagram of the rule shape-triplet-middle-m"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/shape-triplet-yz-sonorant-x.svg" alt="Railroad diagram of the rule shape-triplet-yz-sonorant-x"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/shape-triplet-root-first-pair.svg" alt="Railroad diagram of the rule shape-triplet-root-first-pair"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/shape-triplet-freeform-first-pair.svg" alt="Railroad diagram of the rule shape-triplet-freeform-first-pair"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/shape-triplet-root-shape.svg" alt="Railroad diagram of the rule shape-triplet-root-shape"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/shape-triplet-freeform-shape.svg" alt="Railroad diagram of the rule shape-triplet-freeform-shape"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/shape-doubled-pair.svg" alt="Railroad diagram of the rule shape-doubled-pair"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/shape-pair-voiceness.svg" alt="Railroad diagram of the rule shape-pair-voiceness"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/shape-sibilant-pair.svg" alt="Railroad diagram of the rule shape-sibilant-pair"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/shape-root-starts-with-medial-pair.svg" alt="Railroad diagram of the rule shape-root-starts-with-medial-pair"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/shape-particle-sonorant-pair.svg" alt="Railroad diagram of the rule shape-particle-sonorant-pair"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/shape-h-not-between-vowels.svg" alt="Railroad diagram of the rule shape-h-not-between-vowels"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/shape-hyphen-same-vowels.svg" alt="Railroad diagram of the rule shape-hyphen-same-vowels"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/shape-invalid-medial-pair.svg" alt="Railroad diagram of the rule shape-invalid-medial-pair"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/shape-freeform-multi-consonents-ending.svg" alt="Railroad diagram of the rule shape-freeform-multi-consonents-ending"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/fault-valid-prefix.svg" alt="Railroad diagram of the rule fault-valid-prefix"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/fault-whole-word.svg" alt="Railroad diagram of the rule fault-whole-word"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/fault-word-shape.svg" alt="Railroad diagram of the rule fault-word-shape"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/fault-next-arity.svg" alt="Railroad diagram of the rule fault-next-arity"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/fault-onset.svg" alt="Railroad diagram of the rule fault-onset"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/fault-open-root.svg" alt="Railroad diagram of the rule fault-open-root"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/fault-open-freeform.svg" alt="Railroad diagram of the rule fault-open-freeform"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/fault-open-particle.svg" alt="Railroad diagram of the rule fault-open-particle"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/fault-run-start.svg" alt="Railroad diagram of the rule fault-run-start"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/fault-word-prefix.svg" alt="Railroad diagram of the rule fault-word-prefix"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/fault-root-context.svg" alt="Railroad diagram of the rule fault-root-context"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/fault-freeform-head.svg" alt="Railroad diagram of the rule fault-freeform-head"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/fault-freeform-context.svg" alt="Railroad diagram of the rule fault-freeform-context"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/fault-particle-context.svg" alt="Railroad diagram of the rule fault-particle-context"></p>
+<details><summary>Railroad diagrams of the 6 rules from <code>malformed-content</code> to <code>freeform-multi-consonents-ending</code></summary>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/malformed-content.svg" alt="Railroad diagram of the rule malformed-content"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/malformed-content-onset.svg" alt="Railroad diagram of the rule malformed-content-onset"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/malformed-content-middle.svg" alt="Railroad diagram of the rule malformed-content-middle"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/malformed-split-cluster.svg" alt="Railroad diagram of the rule malformed-split-cluster"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/malformed-ending.svg" alt="Railroad diagram of the rule malformed-ending"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/freeform-multi-consonents-ending.svg" alt="Railroad diagram of the rule freeform-multi-consonents-ending"></p>
 </details>
 
-Cluster candidates name the particular failure, rather than one generic junk condition. A root and a freeform use their respective triplet shapes. A sonorant-first freeform defers a voicing mismatch to the pair reader.
-
 ```jbogenbau
-%rule fault-four
-  consonant [Hyphen] consonant [Hyphen] consonant [Hyphen] consonant
-
-%rule fault-triplet-m
-  $x:consonant [Hyphen] $y:Letter="m" [Hyphen] consonant
-%conditions
-  $.preceding-tokens.ends(fault-root-context | fault-freeform-context),
-  $x.value ++ $y.value ∈ $MEDIAL-PAIRS ∪ $INITIAL-PAIRS
-
-%rule fault-triplet-sonorant
-  sonorant [Hyphen] $y:consonant [Hyphen] $z:consonant
-%conditions
-  $.preceding-tokens.ends(fault-freeform-context),
-  ¬$y.onward.begins(fault-initial-shape),
-  Sonorant ⊆ $y.tags ∨ Sonorant ⊈ $z.tags
-
-%rule fault-initial-shape
-  | (Letter<Plosive> | Letter="f" | Letter="v") [Hyphen] Letter<Sibilant>
-  | Letter<Sibilant> [Hyphen] Letter<Other>
-
-%rule fault-triplet-root-pair
-  $x:consonant [Hyphen] $y:consonant [Hyphen] consonant
-%conditions
-  Sonorant ⊈ $x.tags,
-  $.preceding-tokens.ends(fault-root-context),
-  ¬$.preceding-tokens.ends(fault-freeform-context),
-  $x.value ++ $y.value ∉ $MEDIAL-PAIRS ∪ $INITIAL-PAIRS
-
-%rule fault-triplet-freeform-pair
-  $x:consonant [Hyphen] $y:consonant [Hyphen] consonant
-%conditions
-  $.preceding-tokens.ends(fault-freeform-context),
-  Sonorant ⊈ $x.tags,
-  $x.value ++ $y.value ∉ $MEDIAL-PAIRS ∪ $INITIAL-PAIRS
-
-%rule fault-triplet-root-shape
-  $x:consonant [Hyphen] $y:consonant [Hyphen] $z:consonant
-%conditions
-  Sonorant ⊈ $x.tags,
-  $.preceding-tokens.ends(fault-root-context),
-  ¬$.preceding-tokens.ends(fault-freeform-context),
-  $x.value ++ $y.value ∈ $MEDIAL-PAIRS ∪ $INITIAL-PAIRS,
-  $y.value ≠ "m",
-  ¬($x.value ++ $y.value ∈ $MEDIAL-PAIRS ∧ $y.value ++ $z.value ∈ $INITIAL-PAIRS
-    ∨ $y.value ∉ $NOT-BEFORE-LIQUID ∧ $z.value ∈ $LIQUIDS)
-
-%rule fault-triplet-freeform-shape
-  $x:consonant [Hyphen] $y:consonant [Hyphen] $z:consonant
-%conditions
-  $.preceding-tokens.ends(fault-freeform-context),
-  Sonorant ⊈ $x.tags,
-  $x.value ++ $y.value ∈ $MEDIAL-PAIRS ∪ $INITIAL-PAIRS,
-  $y.value ≠ "m",
-  ¬($x.value ++ $y.value ∈ $MEDIAL-PAIRS ∧ $y.value ++ $z.value ∈ $INITIAL-PAIRS
-    ∨ $y.value ∉ $NOT-BEFORE-LIQUID ∧ $z.value ∈ $LIQUIDS)
+%rule freeform-ending-boundary
+  [Hyphen] run-end
 ```
 
-<details><summary>Railroad diagrams of the 8 rules from <code>fault-four</code> to <code>fault-triplet-freeform-shape</code></summary>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/fault-four.svg" alt="Railroad diagram of the rule fault-four"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/fault-triplet-m.svg" alt="Railroad diagram of the rule fault-triplet-m"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/fault-triplet-sonorant.svg" alt="Railroad diagram of the rule fault-triplet-sonorant"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/fault-initial-shape.svg" alt="Railroad diagram of the rule fault-initial-shape"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/fault-triplet-root-pair.svg" alt="Railroad diagram of the rule fault-triplet-root-pair"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/fault-triplet-freeform-pair.svg" alt="Railroad diagram of the rule fault-triplet-freeform-pair"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/fault-triplet-root-shape.svg" alt="Railroad diagram of the rule fault-triplet-root-shape"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/fault-triplet-freeform-shape.svg" alt="Railroad diagram of the rule fault-triplet-freeform-shape"></p>
+<details><summary>Railroad diagram of <code>freeform-ending-boundary</code></summary>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/freeform-ending-boundary.svg" alt="Railroad diagram of the rule freeform-ending-boundary"></p>
 </details>
 
-The remaining candidates distinguish repeated consonants, voicing, sibilants, word starts, and endings. The `h` reader requires vowels on both sides, except at a freeform onset. Equal vowels across a hyphen fail inside a word, while a freeform prefix keeps its own vowel.
+Recovering vowels report the hyphen alone between two equal vowels. This permits separate errors in `a-a-a` without overlapping vowel spans. A freeform prefix is outside its content, so `u-u` keeps the ordinary prefix warning.
+
+The particle tail retains its family even with two adjacent sonorants. An erroneous `h` at a word edge also retains that family, so `mih` remains a `MI` word. A freeform onset `h` remains legal.
 
 ```jbogenbau
-%rule fault-doubled
-  $x:consonant Hyphen $y:consonant
+%rule malformed-vowels
+  | vowel
+  | malformed-vowels vowel
+  | $a:malformed-vowels Hyphen $b:vowel
+  | malformed-vowels hyphen-same-vowels vowel
 %conditions
-  $x.value = $y.value
+  $a.last-token.value ≠ $b.value
 
-%rule fault-voicing
-  $x:consonant [Hyphen] $y:consonant
+%rule malformed-vhowels
+  malformed-vowels [{[Hyphen] Letter<H> [hyphen-misplaced] malformed-vowels}]
+
+%rule malformed-particle-tail
+  [{[Hyphen] (sonorant | particle-sonorant-pair) [hyphen-misplaced] malformed-vhowels}]
+    [[hyphen-misplaced] (sonorant | particle-sonorant-pair)]
+
+%rule particle-sonorant-pair :: ∅
+  | sonorant [Hyphen] sonorant
+%error "the particle pair " ++ $.source-text ++ " contains two sonorants"
+
+%rule h-not-between-vowels :: ∅
+  | Letter<H>
 %conditions
-  Voiced ⊆ $x.tags ∧ Unvoiced ⊆ $y.tags ∨ Unvoiced ⊆ $x.tags ∧ Voiced ⊆ $y.tags
+  ¬$.preceding-tokens.ends(vowel-before-h) ∨ ¬$.following-tokens.begins(vowel-after-h)
+%error "h needs a vowel on each side, except at a borrowing or freeform onset"
 
-%rule fault-sibilants
-  Letter<Sibilant> [Hyphen] Letter<Sibilant>
-
-%rule fault-root-start
-  $x:consonant [Hyphen] $y:consonant
-%conditions
-  $.preceding-tokens.ends(fault-word-prefix),
-  ¬$.preceding-tokens.ends(fault-root-context | fault-freeform-context | fault-particle-context),
-  $x.value ++ $y.value ∈ $MEDIAL-PAIRS
-
-%rule fault-particle-pair
-  sonorant [Hyphen] sonorant
-%conditions
-  $.preceding-tokens.ends(fault-particle-context),
-  ¬$.preceding-tokens.ends(fault-freeform-context)
-
-%rule fault-h
-  Letter<H>
-%conditions
-  ¬$.preceding-tokens.ends(fault-vowel-before) ∧ ¬$.preceding-tokens.ends(fault-freeform-head)
-    ∨ ¬$.following-tokens.begins(fault-vowel-after)
-
-%rule fault-vowel-before
+%rule vowel-before-h
   vowel [Hyphen]
 
-%rule fault-vowel-after
+%rule vowel-after-h
   [Hyphen] vowel
 
-%rule fault-vowels
-  $x:vowel Hyphen $y:vowel
+%rule hyphen-same-vowels :: ∅
+  | Hyphen
 %conditions
-  $x.value = $y.value,
-  $x.value ∉ "i" "u" ∨ ¬$.preceding-tokens.ends(fault-run-start)
-
-%rule fault-medial
-  $x:ns-consonant [Hyphen] $y:consonant
-%conditions
-  $.preceding-tokens.ends(fault-root-context),
-  ¬$.preceding-tokens.ends(fault-freeform-context),
-  $x.value ++ $y.value ∉ $MEDIAL-PAIRS ∪ $INITIAL-PAIRS
-
-%rule fault-ending
-  consonant [Hyphen] consonant [Hyphen] run-end
-%conditions
-  $.preceding-tokens.ends(fault-freeform-context)
+  Vowel ⊆ $.preceding-tokens.last-token.tags,
+  Vowel ⊆ $.following-tokens.first-token.tags,
+  $.preceding-tokens.last-token.value = $.following-tokens.first-token.value
+%error "this hyphen separates two copies of the same vowel"
 ```
 
-<details><summary>Railroad diagrams of the 11 rules from <code>fault-doubled</code> to <code>fault-ending</code></summary>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/fault-doubled.svg" alt="Railroad diagram of the rule fault-doubled"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/fault-voicing.svg" alt="Railroad diagram of the rule fault-voicing"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/fault-sibilants.svg" alt="Railroad diagram of the rule fault-sibilants"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/fault-root-start.svg" alt="Railroad diagram of the rule fault-root-start"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/fault-particle-pair.svg" alt="Railroad diagram of the rule fault-particle-pair"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/fault-h.svg" alt="Railroad diagram of the rule fault-h"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/fault-vowel-before.svg" alt="Railroad diagram of the rule fault-vowel-before"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/fault-vowel-after.svg" alt="Railroad diagram of the rule fault-vowel-after"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/fault-vowels.svg" alt="Railroad diagram of the rule fault-vowels"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/fault-medial.svg" alt="Railroad diagram of the rule fault-medial"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/fault-ending.svg" alt="Railroad diagram of the rule fault-ending"></p>
+<details><summary>Railroad diagrams of the 8 rules from <code>malformed-vowels</code> to <code>hyphen-same-vowels</code></summary>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/malformed-vowels.svg" alt="Railroad diagram of the rule malformed-vowels"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/malformed-vhowels.svg" alt="Railroad diagram of the rule malformed-vhowels"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/malformed-particle-tail.svg" alt="Railroad diagram of the rule malformed-particle-tail"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/particle-sonorant-pair.svg" alt="Railroad diagram of the rule particle-sonorant-pair"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/h-not-between-vowels.svg" alt="Railroad diagram of the rule h-not-between-vowels"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/vowel-before-h.svg" alt="Railroad diagram of the rule vowel-before-h"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/vowel-after-h.svg" alt="Railroad diagram of the rule vowel-after-h"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/hyphen-same-vowels.svg" alt="Railroad diagram of the rule hyphen-same-vowels"></p>
+</details>
+
+Pair faults share one ordered group. Its order distinguishes overlapping faults, such as voicing and sibilants in `zs`. Strict pairs stand outside the group. The onset and medial root slots add their own failed restriction after these common faults.
+
+```jbogenbau
+%rule malformed-pair :: ∅
+  | doubled-pair ≻ pair-voiceness ≻ sibilant-pair
+
+%rule doubled-pair :: ∅
+  | $x:consonant Hyphen $y:consonant
+%conditions
+  $x.value = $y.value
+%error "the pair " ++ $.source-text ++ " repeats a consonant across a hyphen"
+
+%rule pair-voiceness :: ∅
+  | $x:consonant [Hyphen] $y:consonant
+%conditions
+  Voiced ⊆ $x.tags ∧ Unvoiced ⊆ $y.tags ∨ Unvoiced ⊆ $x.tags ∧ Voiced ⊆ $y.tags
+%error "the pair " ++ $.source-text ++ " mixes voiced and unvoiced consonants"
+
+%rule sibilant-pair :: ∅
+  | Letter<Sibilant> [Hyphen] Letter<Sibilant>
+%error "the pair " ++ $.source-text ++ " contains two sibilants"
+
+%rule root-starts-with-medial-pair :: ∅
+  | $x:consonant [Hyphen] $y:consonant
+%conditions
+  $x.value ++ $y.value ∈ $MEDIAL-PAIRS
+%error "a root cannot start with the medial pair " ++ $.source-text
+
+%rule invalid-medial-pair :: ∅
+  | $x:ns-consonant [Hyphen] $y:consonant
+%conditions
+  $x.value ++ $y.value ∉ $MEDIAL-PAIRS ∪ $INITIAL-PAIRS
+%error "the pair " ++ $.source-text ++ " is neither medial nor a new word's initial pair"
+
+%rule quadruplet :: ∅
+  | consonant [Hyphen] consonant [Hyphen] consonant [Hyphen] consonant
+%error "the cluster " ++ $.source-text ++ " contains four consecutive consonants"
+```
+
+<details><summary>Railroad diagrams of the 7 rules from <code>malformed-pair</code> to <code>quadruplet</code></summary>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/malformed-pair.svg" alt="Railroad diagram of the rule malformed-pair"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/doubled-pair.svg" alt="Railroad diagram of the rule doubled-pair"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/pair-voiceness.svg" alt="Railroad diagram of the rule pair-voiceness"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/sibilant-pair.svg" alt="Railroad diagram of the rule sibilant-pair"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/root-starts-with-medial-pair.svg" alt="Railroad diagram of the rule root-starts-with-medial-pair"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/invalid-medial-pair.svg" alt="Railroad diagram of the rule invalid-medial-pair"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/quadruplet.svg" alt="Railroad diagram of the rule quadruplet"></p>
+</details>
+
+Root and freeform triplet wrappers share the failed pair and shape restrictions. Their messages identify the containing word kind without rescanning a prefix. A sonorant-first freeform has its additional permitted shapes, so its fault uses a separate restriction.
+
+```jbogenbau
+%rule triplet-middle-m :: ∅
+  | $x:consonant [Hyphen] $y:Letter="m" [Hyphen] consonant
+%conditions
+  $x.value ++ $y.value ∈ $MEDIAL-PAIRS ∪ $INITIAL-PAIRS
+%error "the triplet " ++ $.source-text ++ " cannot have m in its middle"
+
+%rule triplet-root-first-pair :: ∅
+  | faulty-triplet-first-pair
+%error "the root triplet " ++ $.source-text ++ " needs a medial or initial first pair"
+
+%rule triplet-freeform-first-pair :: ∅
+  | faulty-triplet-first-pair
+%error "the freeform triplet " ++ $.source-text ++ " needs a medial or initial first pair"
+
+%rule faulty-triplet-first-pair
+  $x:ns-consonant [Hyphen] $y:consonant [Hyphen] consonant
+%conditions
+  $x.value ++ $y.value ∉ $MEDIAL-PAIRS ∪ $INITIAL-PAIRS
+
+%rule triplet-root-shape :: ∅
+  | faulty-triplet-shape
+%error "the root triplet " ++ $.source-text ++ " needs a medial-initial shape or a permitted liquid ending"
+
+%rule triplet-freeform-shape :: ∅
+  | faulty-triplet-shape
+%error "the freeform triplet " ++ $.source-text ++ " fits no permitted shape"
+
+%rule faulty-triplet-shape
+  $x:ns-consonant [Hyphen] $y:consonant [Hyphen] $z:consonant
+%conditions
+  $x.value ++ $y.value ∈ $MEDIAL-PAIRS ∪ $INITIAL-PAIRS,
+  $y.value ≠ "m",
+  ¬($x.value ++ $y.value ∈ $MEDIAL-PAIRS ∧ $y.value ++ $z.value ∈ $INITIAL-PAIRS
+    ∨ $y.value ∉ $NOT-BEFORE-LIQUID ∧ $z.value ∈ $LIQUIDS)
+
+%rule triplet-yz-sonorant-x :: ∅
+  | sonorant [Hyphen] $y:consonant [Hyphen] $z:consonant
+%conditions
+  ¬$y.onward.begins(initial-pair-shape),
+  Sonorant ⊆ $y.tags ∨ Sonorant ⊈ $z.tags
+%error "the freeform triplet " ++ $.source-text ++ " needs an initial or consonant-sonorant final pair"
+
+%rule initial-pair-shape
+  | (Letter<Plosive> | Letter="f" | Letter="v") [Hyphen] Letter<Sibilant>
+  | Letter<Sibilant> [Hyphen] Letter<Other>
+```
+
+<details><summary>Railroad diagrams of the 9 rules from <code>triplet-middle-m</code> to <code>initial-pair-shape</code></summary>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/triplet-middle-m.svg" alt="Railroad diagram of the rule triplet-middle-m"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/triplet-root-first-pair.svg" alt="Railroad diagram of the rule triplet-root-first-pair"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/triplet-freeform-first-pair.svg" alt="Railroad diagram of the rule triplet-freeform-first-pair"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/faulty-triplet-first-pair.svg" alt="Railroad diagram of the rule faulty-triplet-first-pair"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/triplet-root-shape.svg" alt="Railroad diagram of the rule triplet-root-shape"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/triplet-freeform-shape.svg" alt="Railroad diagram of the rule triplet-freeform-shape"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/faulty-triplet-shape.svg" alt="Railroad diagram of the rule faulty-triplet-shape"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/triplet-yz-sonorant-x.svg" alt="Railroad diagram of the rule triplet-yz-sonorant-x"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/initial-pair-shape.svg" alt="Railroad diagram of the rule initial-pair-shape"></p>
 </details>
 
 ## Differences from the reference grammar and the PEG
