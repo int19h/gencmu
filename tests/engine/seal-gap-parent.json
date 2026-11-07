@@ -16,7 +16,28 @@
         {
           "verdict": "unique"
         }
-      ]
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "body",
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "r2",
+                "children": []
+              },
+              {
+                "kind": "token",
+                "terminal": "C"
+              }
+            ]
+          }
+        ]
+      }
     }
   }
 }
