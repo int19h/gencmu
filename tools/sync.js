@@ -215,9 +215,12 @@ for (const [resource,entries] of families) {
 if (familyTexts.get(BOOTSTRAP_PATH) !== bootstrapText) throw new Error("the preparsed bootstrap does not reach its fixpoint");
 
 
-// A rule whose alternatives are single symbols does not put one on each of
-// its lines, and no line of its body holds more than 100 characters
-// (docs/notation.md, "Rules"; tools/alternatives.js).
+// The top-level alternatives of a rule keep the layout of
+// docs/notation.md, "Layout of the bundled grammars": each marked
+// alternative stands on lines of its own, a run of plain alternatives
+// does not put one of them on each line, no line of a rule body holds
+// more than 100 characters, and a comment stands on its own lines
+// (tools/alternatives.js).
 const sprawling = [];
 for (const [file, { dom }] of Object.entries(documents)) {
   for (const problem of layoutProblems(fs.readFileSync(path.join(root, file), "utf8"), dom, file)) sprawling.push(problem);

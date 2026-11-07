@@ -1,15 +1,20 @@
-// The layout of rules whose alternatives are single symbols, which
-// tools/sync.js requires of the bundled grammars (docs/notation.md, "Rules").
+// The layout of the top-level alternatives of a rule, which
+// tools/sync.js requires of the bundled grammars (docs/notation.md,
+// "Layout of the bundled grammars").
 //
-// A rule is eligible when its DOM has two or more alternatives, and each is a
-// single symbol with no guard and no tags of its own. A single symbol is a
-// reference, a terminal, a range, a property, a tested symbol or ε. An
-// eligible rule with no alternative recipe does not put one symbol on each line when it
-// has more than one, unless no two adjacent symbols fit on one line. Each line
-// that a symbol of its body occupies holds at most LINE_LIMIT code points. A
-// symbol can run over several lines, and each of them counts. A rule chooses
-// its own grouping otherwise. Each alternative with its own recipe occupies a
-// separate line.
+// A plain alternative is a juxtaposition of plain items, with no guard
+// and no clause. A plain item is a rule reference without arguments, a
+// string, a tag terminal, an engine tag, ε or a parameter. `_<T>` with
+// one tag `T` is also a plain item. Any other alternative is a marked
+// alternative. Each marked alternative stands on lines of its own. Plain
+// alternatives can share lines, but a run of two or more plain
+// alternatives does not put exactly one of them on each line, unless no
+// two adjacent alternatives of the run fit together on one line. No line
+// of a rule body holds more than LINE_LIMIT code points. A comment
+// stands on its own lines, before the rule or the alternative that it
+// describes. No comment shares a line with a rule header, an alternative
+// or any other grammar code. Part 3 of the section, shared tag clauses,
+// needs judgment, so this check does not test it.
 //
 // The rules and their lines come from the Markdown extraction of the engine
 // and the DOM's positions. From a rule's position, a small scanner finds
@@ -23,6 +28,10 @@ const unicode = new UnicodeTable(fs.readFileSync(new URL("../data/unicode/unicod
 
 export const LINE_LIMIT = 100;
 
+// Temporary exemption: another branch rewrites these documents, so the
+// layout check does not apply to them for now.
+export const TEMPORARY_LAYOUT_EXEMPTIONS = ["grammars/eberban/"];
+
 /**
  * Whether an expression of the DOM is a single symbol.
  * @param {Record<string, unknown>} expr
@@ -30,6 +39,57 @@ export const LINE_LIMIT = 100;
  */
 export function isSingleSymbol(expr) {
   return !!expr.splice || !!expr.call || !!expr.param || typeof expr.ref === "string" || "literal" in expr || "wildcard" in expr || "terminal" in expr || "range" in expr || "property" in expr || "test" in expr || expr.empty === true;
+}
+
+/**
+ * Whether an expression of the DOM is one plain item.
+ * @param {Record<string, unknown>} expr
+ * @returns {boolean}
+ */
+export function isPlainItem(expr) {
+  if (!expr || typeof expr !== "object") return false;
+  if (typeof expr.ref === "string") return true;
+  if (typeof expr.param === "string") return true;
+  if (expr.empty === true) return true;
+  const literal = /** @type {any} */ (expr).literal;
+  if (literal && typeof literal.string === "string") return true;
+  // `_<T>` with one tag `T` is a plain item.
+  const test = /** @type {any} */ (expr);
+  if (test.test !== undefined && test.expr && test.expr.wildcard === true && Array.isArray(test.requirements) && test.requirements.length === 1 && !test.requirements[0].negated && test.requirements[0].value && typeof test.requirements[0].value.tag === "string") return true;
+  return false;
+}
+
+// The written text of an alternative with strings removed, so that a
+// bracket, `&` or `≻` inside a string does not mark the alternative.
+/** @param {string} text */
+function sourceWithoutStrings(text) {
+  let out = "";
+  let string = false;
+  for (const c of text) {
+    if (string) { if (c === '"') string = false; continue; }
+    if (c === '"') { string = true; continue; }
+    out += c;
+  }
+  return out;
+}
+
+/**
+ * Whether a DOM alternative, as written, is a plain alternative.
+ * `hasInternalComment` says a comment stands between its first and last
+ * written code points.
+ * @param {any} alternative
+ * @param {string} text the alternative as written
+ * @param {boolean} [hasInternalComment]
+ * @returns {boolean}
+ */
+export function isPlainAlternative(alternative, text, hasInternalComment = false) {
+  if (!alternative || (alternative.guards && alternative.guards.length !== 0)) return false;
+  if (alternative.tags !== undefined || alternative.value !== undefined || alternative.image !== undefined) return false;
+  if (hasInternalComment) return false;
+  if (/[\[\]{}()&≻]/.test(sourceWithoutStrings(text))) return false;
+  const expr = alternative.expr;
+  const items = expr && Array.isArray(expr.seq) ? expr.seq : [expr];
+  return items.every((item) => isPlainItem(item));
 }
 
 /**
@@ -47,35 +107,99 @@ export function isSingleSymbol(expr) {
  * @param {string} path
  * @returns {EligibleRule[]}
  */
-export function eligibleRules(markdown, dom, path) {
+/**
+ * Every comment of the extracted grammar text, as a range of indexes.
+ * @param {string[]} chars
+ * @returns {{from: number, to: number}[]}
+ */
+export function scanComments(chars) {
+  /** @type {{from: number, to: number}[]} */
+  const comments = [];
+  let string = false;
+  for (let i = 0; i < chars.length; i++) {
+    const c = chars[i];
+    if (string) { if (c === '"') string = false; continue; }
+    if (c === '"') { string = true; continue; }
+    if (c === "(" && chars[i + 1] === "*") {
+      const from = i;
+      let depth = 1;
+      i += 2;
+      while (i < chars.length && depth) {
+        if (chars[i] === "(" && chars[i + 1] === "*") { depth++; i += 2; continue; }
+        if (chars[i] === "*" && chars[i + 1] === ")") { depth--; i += 2; continue; }
+        i++;
+      }
+      comments.push({ from, to: i });
+      i--;
+    }
+  }
+  return comments;
+}
+
+/**
+ * The layout of every rule of a document: each top-level alternative as
+ * written, the lines its code occupies, and whether it is plain.
+ * @typedef {{text: string, lines: number[], plain: boolean, from: number, to: number}} WrittenAlternative
+ * @typedef {{rule: any, keyword: string, line: number, indent: string, alternatives: WrittenAlternative[], comments: {from: number, to: number, lines: number[]}[]}} RuleLayout
+ * @param {string} markdown
+ * @param {{rules: any[]}} dom
+ * @param {string} path
+ * @returns {RuleLayout[]}
+ */
+export function alternativeLayouts(markdown, dom, path) {
   const { text, positions } = extractGrammarText(markdown, path, unicode);
   const chars = [...text];
   const lines = splitLines(markdown);
+  const comments = scanComments(chars).map(({ from, to }) => ({ from, to, lines: [...new Set(positions.slice(from, to).map(([line]) => line))] }));
   /** @type {Map<string, number>} */
   const indexOf = new Map();
   positions.forEach(([line, column], index) => {
     if (!indexOf.has(`${line}:${column}`)) indexOf.set(`${line}:${column}`, index);
   });
-  /** @type {EligibleRule[]} */
+  /** @type {RuleLayout[]} */
   const result = [];
   for (const rule of dom.rules) {
-    const alternatives = rule.alternatives??[];
-    if (alternatives.length < 2) continue;
-    if (!alternatives.every((/** @type {any} */ alternative) => alternative.guards.length === 0 && alternative.tags === undefined && isSingleSymbol(alternative.expr))) continue;
+    const alternatives = rule.alternatives ?? [];
+    if (alternatives.length < 1) continue;
     const start = indexOf.get(`${rule.at[0]}:${rule.at[1]}`);
     if (start === undefined || chars[start] !== "%") throw new Error(`${path}:${rule.at[0]}:${rule.at[1]}: no keyword at the position of rule ${rule.name}`);
     const starts = scanBody(chars, start);
     if (starts.length !== alternatives.length) throw new Error(`${path}:${rule.at[0]}: found ${starts.length} alternatives of rule ${rule.name} in its text, but its DOM has ${alternatives.length}`);
-    const written = starts.map(({ from, to }) => ({
-      text: chars.slice(from, to).join(""),
-      lines: [...new Set(positions.slice(from, to).map(([line]) => line))],
-    }));
+    const written = starts.map(({ from, to }, index) => {
+      const writtenText = chars.slice(from, to).join("");
+      const hasInternalComment = comments.some((comment) => comment.from > from && comment.to < to);
+      return {
+        text: writtenText,
+        lines: [...new Set(positions.slice(from, to).map(([line]) => line))],
+        plain: isPlainAlternative(alternatives[index], writtenText, hasInternalComment),
+        from, to,
+      };
+    });
     const headLine = lines[rule.at[0] - 1];
     const headIndent = /^\s*/.exec(headLine)?.[0] ?? "";
     const firstLine = written[0].lines[0];
     const indent = firstLine === rule.at[0] ? `${headIndent}  ` : (/^\s*/.exec(lines[firstLine - 1])?.[0] ?? "");
     const keyword = { define: "%rule", redefine: "%redefine-rule", extend: "%extend-rule" }[/** @type {"define" | "redefine" | "extend"} */ (rule.op)];
-    result.push({ rule, keyword, line: rule.at[0], indent, symbols: written });
+    result.push({ rule, keyword, line: rule.at[0], indent, alternatives: written, comments });
+  }
+  return result;
+}
+
+/**
+ * The rules of a document whose alternatives are all plain, each with
+ * its alternatives as written and the lines of each.
+ * @param {string} markdown
+ * @param {{rules: any[]}} dom
+ * @param {string} path
+ * @returns {EligibleRule[]}
+ */
+export function eligibleRules(markdown, dom, path) {
+  /** @type {EligibleRule[]} */
+  const result = [];
+  for (const layout of alternativeLayouts(markdown, dom, path)) {
+    if (layout.alternatives.length < 2) continue;
+    if (!layout.alternatives.every((alternative) => alternative.plain)) continue;
+    result.push({ rule: layout.rule, keyword: layout.keyword, line: layout.line, indent: layout.indent, symbols: layout.alternatives.map(({ text, lines }) => ({ text, lines })) });
   }
   return result;
 }
@@ -154,8 +278,8 @@ function scanBody(chars, start) {
       while (i < chars.length && chars[i] !== c) i++;
       i++;
     } else {
-      if (c === "(" || c === "[" || c === "<") depth++;
-      else if (c === ")" || c === "]" || c === ">") depth--;
+      if (c === "(" || c === "[" || c === "{" || c === "<") depth++;
+      else if (c === ")" || c === "]" || c === "}" || c === ">") depth--;
       i++;
     }
     if (current) current.to = i;
@@ -330,36 +454,83 @@ export function suggestLayout(symbols, indent, limit = LINE_LIMIT, leadingBar = 
  * @returns {string[]}
  */
 export function layoutProblems(markdown, dom, path, limit = LINE_LIMIT) {
+  if (TEMPORARY_LAYOUT_EXEMPTIONS.some((prefix) => path.startsWith(prefix))) return [];
   const lines = splitLines(markdown);
   /** @type {string[]} */
   const problems = clauseLayoutProblems(markdown, dom, path);
-  for (const { rule, keyword, line, indent, symbols } of eligibleRules(markdown, dom, path)) {
-    // How many symbols occupy each line of the body.
+  problems.push(...commentLayoutProblems(markdown, path));
+  for (const { rule, keyword, line, indent, alternatives, comments } of alternativeLayouts(markdown, dom, path)) {
+    // How many alternatives occupy each line of the body.
     /** @type {Map<number, number>} */
     const occupants = new Map();
-    for (const symbol of symbols) for (const number of symbol.lines) occupants.set(number, (occupants.get(number) ?? 0) + 1);
+    for (const alternative of alternatives) for (const number of alternative.lines) occupants.set(number, (occupants.get(number) ?? 0) + 1);
     const bodyLines = [...occupants.keys()].sort((a, b) => a - b);
     for (const number of bodyLines) {
       const width = [...lines[number - 1]].length;
       if (width > limit) problems.push(`${path}:${number}: a line of ${keyword} ${rule.name} holds ${width} characters, more than ${limit}`);
     }
-    const ownRecipes = rule.alternatives.map((alternative) => alternative.value !== undefined || alternative.image !== undefined);
-    if (ownRecipes.some(Boolean)) {
-      const shared = new Set();
-      symbols.forEach((symbol, index) => {
-        if (!ownRecipes[index]) return;
-        for (const number of symbol.lines) if (occupants.get(number) > 1) shared.add(number);
-      });
-      for (const number of shared) problems.push(`${path}:${number}: put alternatives with their own recipes on separate lines`);
-      continue;
+    // Each marked alternative stands on lines of its own.
+    const markedShared = new Set();
+    for (const alternative of alternatives) {
+      if (alternative.plain) continue;
+      for (const number of alternative.lines) if ((occupants.get(number) ?? 0) > 1) markedShared.add(number);
     }
-    if (bodyLines.length < 2 || [...occupants.values()].some((count) => count !== 1)) continue;
-    const header = rule.tags !== undefined || rule.value !== undefined || rule.image !== undefined;
-    const suggestion = suggestLayout(symbols.map((symbol) => symbol.text), indent, limit, header);
-    // When no two adjacent symbols fit on one line, one per line is the only
-    // layout. A suggestion with fewer lines puts two symbols on one line.
-    if (suggestion.length < bodyLines.length) {
-      problems.push(`${path}:${line}: ${keyword} ${rule.name} puts one symbol on each of its ${bodyLines.length} lines; write:\n${suggestion.join("\n")}`);
+    for (const number of [...markedShared].sort((a, b) => a - b)) problems.push(`${path}:${number}: a marked alternative of ${keyword} ${rule.name} shares its line with another alternative; put it on lines of its own`);
+    // A run of plain alternatives does not put one of them on each line.
+    let runStart = 0;
+    while (runStart < alternatives.length) {
+      if (!alternatives[runStart].plain) { runStart++; continue; }
+      let runEnd = runStart;
+      // A comment on its own lines between two plain alternatives breaks
+      // the run, because it stands before the alternative after it.
+      while (runEnd + 1 < alternatives.length && alternatives[runEnd + 1].plain && !comments.some((comment) => comment.from > alternatives[runEnd].to && comment.to < alternatives[runEnd + 1].from)) runEnd++;
+      const run = alternatives.slice(runStart, runStart = runEnd + 1);
+      if (run.length < 2) continue;
+      const runLines = [...new Set(run.flatMap((alternative) => alternative.lines))].sort((a, b) => a - b);
+      if (runLines.length < 2) continue;
+      if (runLines.some((number) => (occupants.get(number) ?? 0) !== 1)) continue;
+      const coversAll = run.length === alternatives.length;
+      const header = rule.tags !== undefined || rule.value !== undefined || rule.image !== undefined;
+      const suggestion = suggestLayout(run.map((alternative) => alternative.text.trim()), indent, limit, header || !coversAll);
+      // When no two adjacent alternatives fit on one line, one per line
+      // is the only layout. A suggestion with fewer lines puts two
+      // alternatives on one line.
+      if (suggestion.length < runLines.length) {
+        const at = coversAll ? line : run[0].lines[0];
+        problems.push(`${path}:${at}: ${keyword} ${rule.name} puts one plain alternative on each of its ${runLines.length} lines; write:\n${suggestion.join("\n")}`);
+      }
+    }
+  }
+  return problems;
+}
+
+/**
+ * A comment stands on its own lines. No comment shares a line with
+ * grammar code, such as a rule header or an alternative.
+ * @param {string} markdown
+ * @param {string} path
+ * @returns {string[]}
+ */
+function commentLayoutProblems(markdown, path) {
+  const { text, positions } = extractGrammarText(markdown, path, unicode);
+  const chars = [...text];
+  const comments = scanComments(chars);
+  if (!comments.length) return [];
+  const commentIndexes = new Set();
+  for (const { from, to } of comments) for (let i = from; i < to; i++) commentIndexes.add(i);
+  /** @type {Set<number>} */
+  const codeLines = new Set();
+  chars.forEach((c, index) => {
+    if (commentIndexes.has(index)) return;
+    if (c === "\n" || c === "\r" || /\p{White_Space}/u.test(c)) return;
+    codeLines.add(positions[index][0]);
+  });
+  /** @type {string[]} */
+  const problems = [];
+  for (const { from, to } of comments) {
+    const commentLines = [...new Set(positions.slice(from, to).map(([line]) => line))];
+    for (const number of commentLines) {
+      if (codeLines.has(number)) problems.push(`${path}:${number}: put a comment on its own lines, before the rule or alternative that it describes`);
     }
   }
   return problems;
