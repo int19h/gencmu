@@ -80,14 +80,16 @@ It keeps the test that no name begins at its own start.
 %rule word-shape(@W)  (* A word shape carries its join property and an onset mark when no nucleus begins it. *)
   $w:@W :: Continued ∪ (¬$w.onward.begins(nucleus) ⟹ Onset)
 
-%rule cmevla-shape = word-shape(cmevla)  (* A name carries its join property and its onset mark. *)
+%rule cmevla-shape  (* A name carries its join property and its onset mark. *)
+  $n:word-shape(cmevla) :: $n.tags
 
 %rule cmavo-shape  (* A particle carries its join property and its onset mark. It excludes pure y hesitation. *)
   $c:word-shape(cmavo) :: $c.tags
 %conditions
   ¬$c.matches(y-letters)
 
-%rule brivla-shape = word-shape(brivla-word)  (* A predicate word carries its join property and its onset mark. *)
+%rule brivla-shape  (* A predicate word carries its join property and its onset mark. *)
+  $b:word-shape(brivla-word) :: $b.tags
 
 %rule y-run-body  (* A direct run of y letters that does not begin a name. It cannot end before another y. *)
   $h:y-letters
