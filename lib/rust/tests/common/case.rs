@@ -73,9 +73,11 @@ pub fn result_pattern(value: &Value) -> R {
                 if error && value.get("message").is_some() {
                     return Err("a result pattern cannot assert an error message".into());
                 }
-                pending.extend(members.iter().map(|(name, part)| {
-                    (part, name == "error" || (error && name != "errors" && name != "readings"))
-                }));
+                pending.extend(
+                    members.iter().map(|(name, part)| {
+                        (part, name == "error" || (error && name != "errors" && name != "readings"))
+                    }),
+                );
             }
             Value::Array(items) => pending.extend(items.iter().map(|part| (part, error))),
             _ => {}
