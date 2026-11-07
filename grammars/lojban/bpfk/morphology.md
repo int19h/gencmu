@@ -76,31 +76,28 @@ Hesitation is a direct run of `y` letters, outside `cmavo`. It keeps the test th
 %rule cmavo-shape  (* A particle carries its join property and its onset mark. It excludes pure y hesitation. *)
   $c:word-shape(cmavo) :: $c.tags
 %conditions
-  ¬$c.matches(y-letters)
+  $c.value.ngrams(1) ≠ "y"
 
 %rule brivla-shape  (* A predicate word carries its join property and its onset mark. *)
   $b:word-shape(brivla-word) :: $b.tags
 
-%rule y-run-body  (* A direct run of y letters that does not begin a name. It cannot end before another y. *)
-  $h:y-letters
+%rule y-run-body  (* A direct run of y letters that does not begin a name. It cannot end before another y. It ends at a word boundary. *)
+  {y}
 %conditions
-  ¬$h.onward.begins(cmevla),
-  ¬$h.following-tokens.begins(y)
+  ¬$.onward.begins(cmevla),
+  ¬$.following-tokens.begins(y),
+  $.following-tokens.begins(post-word)
 
 %redefine-rule y-run = word-shape(y-run-body)  (* Hesitation is a direct y run with the shared onset mark. *)
-
-%rule y-letters               (* a run of y letters, which a condition tests *)
-  "y" | "y" y-letters
 ```
 
-<details><summary>Railroad diagrams of the 7 rules from <code>word-shape</code> to <code>y-letters</code></summary>
+<details><summary>Railroad diagrams of the 6 rules from <code>word-shape</code> to <code>y-run</code></summary>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/word-shape.svg" alt="Railroad diagram of the rule word-shape"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cmevla-shape.svg" alt="Railroad diagram of the rule cmevla-shape"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cmavo-shape.svg" alt="Railroad diagram of the rule cmavo-shape"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/brivla-shape.svg" alt="Railroad diagram of the rule brivla-shape"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/y-run-body.svg" alt="Railroad diagram of the rule y-run-body"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/y-run.svg" alt="Railroad diagram of the rule y-run"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/y-letters.svg" alt="Railroad diagram of the rule y-letters"></p>
 </details>
 
 
@@ -195,7 +192,7 @@ A cmavo is not the start of a name, and not the start of a lujvo that begins wit
   | $f:cmavo-form-with-onset
   | ys
 %conditions
-  ¬$f.matches(y-letters)
+  $f.value.ngrams(1) ≠ "y"
 
 %rule cmavo-form-with-onset  (* A particle forbids an apostrophe or cluster at its start. Each inner nucleus needs its apostrophe. The final nucleus cannot consume that apostrophe. *)
   $o:onset [{nucleus h}] cmavo-last-nucleus
