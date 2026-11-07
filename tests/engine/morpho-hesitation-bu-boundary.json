@@ -1,0 +1,172 @@
+{
+  "description": "Hesitation ends at a word boundary, so BU before a bad tail does not split the run. The run and the foreign tail are the forms tokens.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/bpfk/pipeline.md\"\n```\n"
+  },
+  "pipelineDocument": "pipeline.md",
+  "input": "yy buyykxa",
+  "options": {
+    "until": "forms"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "y",
+              "image": "y",
+              "source": [
+                0,
+                1
+              ],
+              "tags": []
+            },
+            {
+              "value": "y",
+              "image": "y",
+              "source": [
+                1,
+                2
+              ],
+              "tags": []
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "source": [
+                2,
+                3
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "value": "b",
+              "image": "b",
+              "source": [
+                3,
+                4
+              ],
+              "tags": [
+                "Consonant"
+              ]
+            },
+            {
+              "value": "u",
+              "image": "u",
+              "source": [
+                4,
+                5
+              ],
+              "tags": [
+                "Vowel"
+              ]
+            },
+            {
+              "value": "y",
+              "image": "y",
+              "source": [
+                5,
+                6
+              ],
+              "tags": []
+            },
+            {
+              "value": "y",
+              "image": "y",
+              "source": [
+                6,
+                7
+              ],
+              "tags": []
+            },
+            {
+              "value": "k",
+              "image": "k",
+              "source": [
+                7,
+                8
+              ],
+              "tags": [
+                "Consonant"
+              ]
+            },
+            {
+              "value": "x",
+              "image": "x",
+              "source": [
+                8,
+                9
+              ],
+              "tags": [
+                "Consonant"
+              ]
+            },
+            {
+              "value": "a",
+              "image": "a",
+              "source": [
+                9,
+                10
+              ],
+              "tags": [
+                "Vowel"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "forms",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "yy",
+              "image": "yy",
+              "source": [
+                0,
+                2
+              ],
+              "tags": [
+                "Continued",
+                "Hesitation",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Uncounted"
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "source": [
+                2,
+                3
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "value": "buyykxa",
+              "image": "buyykxa",
+              "source": [
+                3,
+                10
+              ],
+              "tags": [
+                "FOREIGN",
+                "Run-Final",
+                "Run-Initial"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

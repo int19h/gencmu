@@ -1,0 +1,96 @@
+{
+  "description": "Plain, capital, stressed and shorthand y carry no Vowel tag in the experimental Latin orthography.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```\n"
+  },
+  "pipelineDocument": "pipeline.md",
+  "input": "y Y ya",
+  "options": {
+    "until": "phonemes"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "y",
+              "image": "y",
+              "source": [
+                0,
+                1
+              ],
+              "tags": []
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "source": [
+                1,
+                2
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "value": "y",
+              "image": "Y",
+              "source": [
+                2,
+                3
+              ],
+              "tags": [
+                "Stressed"
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "source": [
+                3,
+                4
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "value": "y",
+              "image": "y",
+              "source": [
+                4,
+                6
+              ],
+              "tags": []
+            },
+            {
+              "value": "'",
+              "image": "'",
+              "source": [
+                6,
+                6
+              ],
+              "tags": [],
+              "insertedBy": "zbalermorna-shorthand"
+            },
+            {
+              "value": "a",
+              "image": "a",
+              "source": [
+                6,
+                7
+              ],
+              "tags": [
+                "Vowel"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

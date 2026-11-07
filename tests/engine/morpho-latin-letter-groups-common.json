@@ -1,0 +1,674 @@
+{
+  "description": "The common Latin producer tags plain, capital, accented, ogonek, caron, ligature and glide letters on each route.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/bpfk/pipeline.md\"\n```\n"
+  },
+  "pipelineDocument": "pipeline.md",
+  "input": "a e i o u A E I O U Á É Í Ó Ú ą ę ǫ ǎ ꜷ ɩ q w ĭ ŭ ka KA KÁ",
+  "options": {
+    "until": "phonemes"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "a",
+              "image": "a",
+              "source": [
+                0,
+                1
+              ],
+              "tags": [
+                "Vowel"
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "source": [
+                1,
+                2
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "value": "e",
+              "image": "e",
+              "source": [
+                2,
+                3
+              ],
+              "tags": [
+                "Vowel"
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "source": [
+                3,
+                4
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "value": "i",
+              "image": "i",
+              "source": [
+                4,
+                5
+              ],
+              "tags": [
+                "Vowel"
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "source": [
+                5,
+                6
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "value": "o",
+              "image": "o",
+              "source": [
+                6,
+                7
+              ],
+              "tags": [
+                "Vowel"
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "source": [
+                7,
+                8
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "value": "u",
+              "image": "u",
+              "source": [
+                8,
+                9
+              ],
+              "tags": [
+                "Vowel"
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "source": [
+                9,
+                10
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "value": "a",
+              "image": "A",
+              "source": [
+                10,
+                11
+              ],
+              "tags": [
+                "Stressed",
+                "Vowel"
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "source": [
+                11,
+                12
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "value": "e",
+              "image": "E",
+              "source": [
+                12,
+                13
+              ],
+              "tags": [
+                "Stressed",
+                "Vowel"
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "source": [
+                13,
+                14
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "value": "i",
+              "image": "I",
+              "source": [
+                14,
+                15
+              ],
+              "tags": [
+                "Stressed",
+                "Vowel"
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "source": [
+                15,
+                16
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "value": "o",
+              "image": "O",
+              "source": [
+                16,
+                17
+              ],
+              "tags": [
+                "Stressed",
+                "Vowel"
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "source": [
+                17,
+                18
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "value": "u",
+              "image": "U",
+              "source": [
+                18,
+                19
+              ],
+              "tags": [
+                "Stressed",
+                "Vowel"
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "source": [
+                19,
+                20
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "value": "a",
+              "image": "A",
+              "source": [
+                20,
+                21
+              ],
+              "tags": [
+                "Stressed",
+                "Vowel"
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "source": [
+                21,
+                22
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "value": "e",
+              "image": "E",
+              "source": [
+                22,
+                23
+              ],
+              "tags": [
+                "Stressed",
+                "Vowel"
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "source": [
+                23,
+                24
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "value": "i",
+              "image": "I",
+              "source": [
+                24,
+                25
+              ],
+              "tags": [
+                "Stressed",
+                "Vowel"
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "source": [
+                25,
+                26
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "value": "o",
+              "image": "O",
+              "source": [
+                26,
+                27
+              ],
+              "tags": [
+                "Stressed",
+                "Vowel"
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "source": [
+                27,
+                28
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "value": "u",
+              "image": "U",
+              "source": [
+                28,
+                29
+              ],
+              "tags": [
+                "Stressed",
+                "Vowel"
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "source": [
+                29,
+                30
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "value": "ą",
+              "image": "ą",
+              "source": [
+                30,
+                31
+              ],
+              "tags": [
+                "FOREIGN"
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "source": [
+                31,
+                32
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "value": "ę",
+              "image": "ę",
+              "source": [
+                32,
+                33
+              ],
+              "tags": [
+                "FOREIGN"
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "source": [
+                33,
+                34
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "value": "ǫ",
+              "image": "ǫ",
+              "source": [
+                34,
+                35
+              ],
+              "tags": [
+                "FOREIGN"
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "source": [
+                35,
+                36
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "value": "ǎ",
+              "image": "ǎ",
+              "source": [
+                36,
+                37
+              ],
+              "tags": [
+                "FOREIGN"
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "source": [
+                37,
+                38
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "value": "ꜷ",
+              "image": "ꜷ",
+              "source": [
+                38,
+                39
+              ],
+              "tags": [
+                "FOREIGN"
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "source": [
+                39,
+                40
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "value": "ɩ",
+              "image": "ɩ",
+              "source": [
+                40,
+                41
+              ],
+              "tags": [
+                "FOREIGN"
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "source": [
+                41,
+                42
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "value": "q",
+              "image": "q",
+              "source": [
+                42,
+                43
+              ],
+              "tags": [
+                "FOREIGN"
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "source": [
+                43,
+                44
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "value": "w",
+              "image": "w",
+              "source": [
+                44,
+                45
+              ],
+              "tags": [
+                "FOREIGN"
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "source": [
+                45,
+                46
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "value": "i",
+              "image": "i",
+              "source": [
+                46,
+                47
+              ],
+              "tags": [
+                "Vowel"
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "source": [
+                47,
+                48
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "value": "u",
+              "image": "u",
+              "source": [
+                48,
+                49
+              ],
+              "tags": [
+                "Vowel"
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "source": [
+                49,
+                50
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "value": "k",
+              "image": "k",
+              "source": [
+                50,
+                51
+              ],
+              "tags": [
+                "Consonant"
+              ]
+            },
+            {
+              "value": "a",
+              "image": "a",
+              "source": [
+                51,
+                52
+              ],
+              "tags": [
+                "Vowel"
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "source": [
+                52,
+                53
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "value": "k",
+              "image": "k",
+              "source": [
+                53,
+                54
+              ],
+              "tags": [
+                "Consonant"
+              ]
+            },
+            {
+              "value": "a",
+              "image": "A",
+              "source": [
+                54,
+                55
+              ],
+              "tags": [
+                "Stressed",
+                "Vowel"
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "source": [
+                55,
+                56
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "value": "k",
+              "image": "k",
+              "source": [
+                56,
+                57
+              ],
+              "tags": [
+                "Consonant"
+              ]
+            },
+            {
+              "value": "a",
+              "image": "A",
+              "source": [
+                57,
+                58
+              ],
+              "tags": [
+                "Stressed",
+                "Vowel"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
