@@ -68,10 +68,10 @@ The guard excludes neither cluster onsets nor CVV rafsi nor rafsi later in a bor
 The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The span test reads only that word, so it cannot mark CgV in a later word. [The experimental word stream](stream.md) reads this tag and supplies the warning. Disabling the warning changes no reading.
 
 ```jbogenbau
-%redefine-rule cmevla-shape  (* A name ends in a consonant, unlike a predicate word. The warning test inspects only this complete word. *)
+%redefine-rule cmevla-shape  (* A name ends in a consonant, unlike a predicate word. It carries the shared join and onset marks and its warning. The warning test inspects only this complete word. *)
   $n:cmevla :: Continued ∪ (¬$n.onward.begins(nucleus) ⟹ Onset) ∪ ($n.matches(cgv-form) ⟹ Cgv-Warning)
 
-%redefine-rule brivla-shape  (* A predicate word ends in a vowel, unlike a name. The warning test inspects only this complete word. *)
+%redefine-rule brivla-shape  (* A predicate word ends in a vowel, unlike a name. It carries the shared join and onset marks and its warning. The warning test inspects only this complete word. *)
   $b:brivla-word :: Continued ∪ (¬$b.onward.begins(nucleus) ⟹ Onset) ∪ ($b.matches(cgv-form) ⟹ Cgv-Warning)
 
 %rule cgv-form  (* This boolean span test requires a consonant, glide and nucleus. Several possible positions give the same truth value. *)

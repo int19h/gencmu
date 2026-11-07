@@ -62,31 +62,51 @@ This grammar excludes pure y from the onset alternative and reads the whole run 
 
 ### Word shapes and boundaries
 
-```jbogenbau
-%rule cmevla-shape  (* A name carries its join property and an onset mark when it does not begin with a nucleus. *)
-  $n:cmevla :: Continued ∪ (¬$n.onward.begins(nucleus) ⟹ Onset)
+One template states the shape of each word.
 
-%rule cmavo-shape  (* Ordinary particles exclude pure y hesitation. Onset marks a word that can follow another without a pause. *)
-  $c:cmavo :: Continued ∪ (¬$c.onward.begins(nucleus) ⟹ Onset)
+A word shape carries `Continued`, so another word can follow it directly.
+
+It carries `Onset` when no nucleus begins the word.
+
+Only a word with `Onset` can follow another word without a pause.
+
+Hesitation is a direct run of `y` letters, outside `cmavo`.
+
+It keeps the test that no name begins at its own start.
+
+`cmavo` keeps its exclusion of a pure `y` run, so a particle is never hesitation.
+
+```jbogenbau
+%rule word-shape(@W)  (* A word shape carries its join property and an onset mark when no nucleus begins it. *)
+  $w:@W :: Continued ∪ (¬$w.onward.begins(nucleus) ⟹ Onset)
+
+%rule cmevla-shape = word-shape(cmevla)  (* A name carries its join property and its onset mark. *)
+
+%rule cmavo-shape  (* A particle carries its join property and its onset mark. It excludes pure y hesitation. *)
+  $c:word-shape(cmavo) :: $c.tags
 %conditions
   ¬$c.matches(y-letters)
 
-%rule brivla-shape  (* A predicate word carries its join and onset properties. *)
-  $b:brivla-word :: Continued ∪ (¬$b.onward.begins(nucleus) ⟹ Onset)
+%rule brivla-shape = word-shape(brivla-word)  (* A predicate word carries its join property and its onset mark. *)
 
-%redefine-rule y-run  (* Pure hesitation keeps the complete particle boundary and its onset requirement. *)
-  $h:cmavo :: (¬$h.onward.begins(nucleus) ⟹ Onset)
+%rule y-run-body  (* A direct run of y letters that does not begin a name. It cannot end before another y. *)
+  $h:y-letters
 %conditions
-  $h.matches(y-letters)
+  ¬$h.onward.begins(cmevla),
+  ¬$h.following-tokens.begins(y)
+
+%redefine-rule y-run = word-shape(y-run-body)  (* Hesitation is a direct y run with the shared onset mark. *)
 
 %rule y-letters               (* a run of y letters, which a condition tests *)
   "y" | "y" y-letters
 ```
 
-<details><summary>Railroad diagrams of the 5 rules from <code>cmevla-shape</code> to <code>y-letters</code></summary>
+<details><summary>Railroad diagrams of the 7 rules from <code>word-shape</code> to <code>y-letters</code></summary>
+<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/word-shape.svg" alt="Railroad diagram of the rule word-shape"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cmevla-shape.svg" alt="Railroad diagram of the rule cmevla-shape"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cmavo-shape.svg" alt="Railroad diagram of the rule cmavo-shape"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/brivla-shape.svg" alt="Railroad diagram of the rule brivla-shape"></p>
+<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/y-run-body.svg" alt="Railroad diagram of the rule y-run-body"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/y-run.svg" alt="Railroad diagram of the rule y-run"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/y-letters.svg" alt="Railroad diagram of the rule y-letters"></p>
 </details>
@@ -96,8 +116,8 @@ This grammar excludes pure y from the onset alternative and reads the whole run 
 The PEG's `lojban_word` is what `post_word` looks for after a word.
 
 ```jbogenbau
-%rule lojban-word  (* A legal word is a name, a particle, or a predicate word. Their own conditions separate the classes. *)
-  cmevla | cmavo | brivla-word
+%rule lojban-word  (* A legal word is a name, a particle, a predicate word, or hesitation. Their own conditions separate the classes. *)
+  cmevla | cmavo | brivla-word | y-run
 
 %rule brivla-word  (* Predicate words are roots, compounds, or borrowings. Root stress and consonant clusters prevent a particle reading. Lujvo exclude roots and borrowings. Borrowing heads exclude root-shaped rafsi strings. *)
   gismu | lujvo | fuhivla
