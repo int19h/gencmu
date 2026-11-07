@@ -495,13 +495,13 @@ Shareable suffix queries cost one recognition starting the target at every posit
 
 A tree pattern tests a constructed constituent without recognizing its words again. The grammar uses `#` literals and `≅` or `≇` conditions. A node test names one node, and an adjacent `« »` list constrains that node's children. A bare list constrains the children. It gives the parent no name. `_` matches any written or omitted leaf, and every test needs an atom.
 
-`$x ≅ $y` compares two constituents instead of testing one against a pattern. The type of the right operand chooses between the two meanings. The comparison reads the structural tree that patterns read, with each ranked group as a seal of its token values. Tags, images and recipes take no part, so the answer depends on the two derivations alone. The engine keeps a tree identity only for the occurrences that such a comparison demands (engine §4.1). A grammar without the comparison pays nothing for it.
+`$x ≅ $y` compares two constituents instead of testing one against a pattern. The type of the right operand chooses between the two meanings. The comparison reads the structural tree that patterns read, with each ranked group as a seal of its token values. An erased occurrence exports its root over one such seal. Tags, images and recipes take no part, so the answer depends on the two derivations alone. The engine keeps a tree identity only for the occurrences that such a comparison demands (engine §4.1). A grammar without the comparison pays nothing for it.
 
 A child list requires a rule test, template family, or call. A compatible parameter can supply that test. Terminals and tested atoms cannot carry child lists. Separate items require whitespace or comments before `«` or `·` after a node test, `»`, `]`, `}`, or group `)`. A call's adjacent first list remains attached.
 
 Each node test searches through sole children by default. The prefix `·` makes only its own node exact. Child items retain their own searches unless they carry `·`. The name and attached child list must hold at the same visited node. Separate set operands can hold at different depths of the candidate's sole-child chain.
 
-Child lists contain sequences, choices, optionals, repetitions with `/` separators, and sibling gaps. Parentheses only group and never create a subtree boundary. Paths and sets combine whole patterns. Branches, omitted terminator leaves, and ranked seals preserve structural boundaries.
+Child lists contain sequences, choices, optionals, repetitions with `/` separators, and sibling gaps. Parentheses only group and never create a subtree boundary. Paths and sets combine whole patterns. Branches, omitted terminator leaves, and seals preserve structural boundaries.
 
 The pattern DOM stores child sequences as arrays. Empty and singleton child lists retain their guillemets in canonical spelling. The schema accepts exactly the reader's shapes, apart from source positions. Unresolved parameters preserve the distinction between whole patterns and child items. They never relax the surrounding field or sibling-gap rules.
 
@@ -511,7 +511,7 @@ The ordinary reader decodes the printer's single-guillemet escapes and gives the
 
 All user constant references use final stage definitions. A redefinition's own lexical name instead uses its immediately preceding definition. A graph of immutable versions permits forward references and detects cycles, including cycles through replaced definitions. Composite patterns therefore observe pipeline overrides without copied declarations.
 
-A demanded pattern is one that a condition reads. A structural state records a candidate's pattern answers. The recognizer compiles demanded patterns into finite structural states. Items retain prefix states, and captures retain completed states alongside spans and tags.
+A demanded pattern is one that a condition reads. A structural state records a candidate's pattern answers. State interning compares the specified parts, without semantic minimization. The recognizer compiles demanded patterns into finite structural states. Items retain prefix states, and captures retain completed states alongside spans and tags.
 
 A packed edge records one way to build a node. These edges keep correlated answers for one candidate. Outside erased collapse, equal observation states still retain distinct derivations.
 
@@ -519,9 +519,9 @@ A summary combines the derivations of one item. Its cycle context records ancest
 
 Reconstruction observes each candidate's structure projected onto original tokens. Restored helpers contribute omitted markers, while ordinary synthetic reads contribute no observable leaf. Pattern value and image remain empty on omitted markers. Body tests instead read synthetic recognition values. Every omission must pass its test on its exact restoration value before recognition admits it. This rule preserves the witness for inequality and tag tests without inventing values or tags.
 
-A seal is an opaque leaf that hides ranked content.
+A seal is an opaque leaf that hides ranked content or an erased interior.
 
-Structural states remain internal. Results expose token values and images and report the restored selected witness first in elision-only errors. Ranked seals have no serialized tree or DOM node.
+Structural states remain internal. Results expose token values and images and report the restored selected witness first in elision-only errors. Seals have no serialized tree or DOM node.
 
 A summary context is the cycle context of one summary. Measurements record structural states, chart items, packed edges and summary contexts alongside elapsed time and peak memory. Increasing list length, unary depth, nested omissions and independent ambiguous children expose product-state growth. Finite sharing can still require exponentially many states.
 
@@ -635,6 +635,16 @@ Message recipes read captures and `$`, with string methods and `++`. They cannot
 A chosen derivation with errors keeps its tree and `unique` or `resolved` verdict. Its `reported` result lists all named errors and keeps enabled unsuppressed warnings, with `ok:false`. It retains the reporting stage's output. Earlier chosen errors flow onward on tokens instead of stopping the run. A tie reports ambiguity and the errors and warnings of its two shown readings.
 
 Erasure drops both own and carried diagnostics and contributes zero measure to its parent. Equal observable interiors collapse to one canonical derivation, without grammar key steps or the lean. The observable state excludes interior prefix states and captures bound by the erased production, including ordinary captures and captures inside ranked options. Frame captures from an enclosing item remain in a contextual helper's state because its matching depends on them. Its structural state, demanded observations, and demanded tree identities are the completed values that a parent reads. Outer steps see the erased root alone.
+
+An erased definition exports its root with completed tags, its span value, and one seal as its only child. An empty occurrence keeps that root and seal. An erased splice exports the single seal without a named constructor.
+
+The definition's own conditions, tag terms and captures read their working views. Outside captures and patterns receive the exported view. Outside identities use the named or anonymous constructor over a seal of the original token values. Local comparisons retain their working identities.
+
+Sealing belongs to each definition carrying `%erased`. An extension without that clause stays unsealed by erasure. Erasure adds no restoration block, so demanded closes and existing ranked blocks retain their meanings.
+
+The loader rejects an attached child list on a rule whose every definition is erased, except `« ⋯ »`. An author exposes a needed interior fact through a named tag. Empty token spans still contribute nothing to grammar key steps, despite their seals.
+
+Output, actions, diagnostics, and serialized forms retain their derivation-based rules. The selected derivation can change because sealing changes outside observations. No seal appears in the output tree.
 
 Each summary keeps an additional action summary whose profile contains only the measure. It retains prefix-related candidates until their common continuation settles their canonical order. An erased parent reads this summary, while a live parent reads the ordinary one. Both compose over their retained shared edges without enumerating complete derivations (engine §6).
 
