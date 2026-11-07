@@ -70,5 +70,41 @@
     "suffix": ")",
     "tail": ")",
     "atLimit": 254
+  },
+  {
+    "description": "Engine §9: parse body depth without a wrapper charge",
+    "head": "%rule text $x:A\n%conditions $x.parse(",
+    "prefix": "[",
+    "leaf": "A",
+    "suffix": "]",
+    "tail": ")",
+    "atLimit": 255
+  },
+  {
+    "description": "Engine §9: parse body depth with an outer remainder",
+    "head": "%rule text $x:A\n%conditions $x.parse(",
+    "prefix": "[",
+    "leaf": "A",
+    "suffix": "]",
+    "tail": " …)",
+    "atLimit": 254
+  },
+  {
+    "description": "Engine §9: parse body depth without a wrapper charge under error-free",
+    "head": "%rule text $x:A\n%conditions $x.parse(",
+    "prefix": "[",
+    "leaf": "A",
+    "suffix": "]",
+    "tail": ").error-free",
+    "atLimit": 254
+  },
+  {
+    "description": "Engine §9: parse body depth with an outer remainder under error-free",
+    "head": "%rule text $x:A\n%conditions $x.parse(",
+    "prefix": "[",
+    "leaf": "A",
+    "suffix": "]",
+    "tail": " …).error-free",
+    "atLimit": 253
   }
 ]

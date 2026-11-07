@@ -1,0 +1,8 @@
+{
+  "description": "Engine §3.6: an undefined query target precedes the nullable-error test.",
+  "grammar": "%rule text $x:A\n%conditions $x.parse(nosuchrule)\n%rule bad ε\n%error \"bad\"",
+  "expect": {
+    "error": "grammar",
+    "message": "nosuchrule is not a rule of stage main"
+  }
+}
