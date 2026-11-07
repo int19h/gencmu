@@ -10544,6 +10544,10 @@
   /** @param {number} run @param {string} path @param {number[]} at */
   const argumentSite = (run,path,at) => JSON.stringify([run,path,at]);
   // Stitches documents, each { path, dom }, into one grammar.
+  /** Closed patterns remain available until final erasure flags are known (§9.3).
+   * @type {WeakMap<object,{pattern:any,where:any}[]>} */
+  const erasurePatternUses = new WeakMap();
+
   class Grammar {
     /**
      * @param {string} stageName
@@ -10553,6 +10557,7 @@
      *   the canonical value of a string constant in a test
      */
     constructor(stageName, documents, unicode) {
+      erasurePatternUses.set(this,[]);
       try {
         this.stageName = stageName;
         this.unicode = unicode;
@@ -11086,7 +11091,7 @@
       if ("pattern" in term) {
         checkDepth();
         try {
-          return { pattern: resolvePattern(term.pattern, (name,at) => {
+          const pattern = resolvePattern(term.pattern, (name,at) => {
             const resolved = lookup(name);
             if (!("string" in resolved) && !("pattern" in resolved)) throw this.documentError(path,at,"a pattern atom requires a string or pattern constant");
             return resolved;
@@ -11100,7 +11105,9 @@
               }
             }
             return this.evaluateClosed(path,value,atom.at ?? item,lookup);
-          }, this.unicode) };
+          }, this.unicode);
+          erasurePatternUses.get(this)?.push({pattern,where:{document:path,line:item[0],column:item[1]}});
+          return {pattern};
         } catch (error) {
           if (error instanceof GencmuError && !error.where.document) throw this.documentError(path,[error.where.line ?? item[0],error.where.column ?? item[1]],error.message);
           throw error;
@@ -11455,17 +11462,19 @@
       /** @type {{rule:StitchedRule,alternative:StitchedAlternative}[]} */
       this.errorAlternatives=[];
       const erased=new Set([...this.rules.values()].filter(rule=>rule.alternatives.every(alternative=>alternative.clauses.erased)).map(rule=>rule.name));
-      /** @param {any} pattern @param {any} [where] */
-      const names=(pattern,where={})=> {
+      /** @param {any} pattern @param {any} [where] @param {boolean} [collect] */
+      const names=(pattern,where={},collect=true)=> {
         if (pattern?.name) {
-          prohibited.add(pattern.name);
+          if(collect)prohibited.add(pattern.name);
           if(erased.has(pattern.name) && pattern.children && !(pattern.children.length===1 && pattern.children[0].siblings)) {
             const at=patternLocations.get(pattern) ?? pattern.at;
             throw new GencmuError("grammar",`a pattern of erased rule ${pattern.name} permits only the child list « ⋯ »`,{...where,...(at ? {line:at[0],column:at[1]} : {})});
           }
         }
-        for(const child of patternParts(pattern ?? {})) names(child,where);
+        for(const child of patternParts(pattern ?? {})) names(child,where,collect);
       };
+      for (const use of erasurePatternUses.get(this) ?? []) names(use.pattern,use.where,false);
+      erasurePatternUses.delete(this);
       for (const step of this.resolution?.steps ?? []) names(step.pattern);
       for (const constant of this.constants.values()) if ("pattern" in constant.value) names(constant.value.pattern);
       for (const rule of this.rules.values()) for (const alternative of rule.alternatives) {

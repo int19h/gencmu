@@ -52,8 +52,8 @@ export declare class TreeIdentities {
 export declare function terminalIdentity(context: any, terminal: string, at: number): any;
 /** @param {any} context @param {number} start @param {number} end */
 export declare function sealIdentity(context: any, start: number, end: number): any;
-/** @param {any} context @param {any} production @param {number} dot @param {any} previous @param {any} child @param {number} end */
-export declare function treeStep(context: any, production: any, dot: number, previous: any, child: any, end: number): {
+/** @param {any} context @param {any} production @param {number} dot @param {any} previous @param {any} child @param {number} end @param {boolean} [exported] */
+export declare function treeStep(context: any, production: any, dot: number, previous: any, child: any, end: number, exported?: boolean): {
     treePrefix: any;
     treeIdentity: number;
     treeSequence: any;
@@ -64,5 +64,5 @@ export declare function treeIdentityCycle(lowered: any): {
     production: any;
     cycle: string[];
 } | null;
-/** @param {any} context @param {any} root @returns {number} */
-export declare function derivationIdentity(context: any, root: any): number;
+/** @param {any} context @param {any} root @param {boolean} [working] @returns {number} */
+export declare function derivationIdentity(context: any, root: any, working?: boolean): number;

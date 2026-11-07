@@ -91,6 +91,9 @@ export declare class TagInterner {
 export declare function omissionAllowed(production: Pick<Production, "elided" | "elidedTest" | "elidedValue">): boolean;
 /** @param {ParseContext} context @param {string} terminal @param {number} at @returns {number} */
 export declare function structuralRead(context: ParseContext, terminal: string, at: number): number;
+/** The definition's own post-selection clauses read its working root (§4.1).
+ * @param {ParseContext} context @param {Item} item @returns {number} */
+export declare function workingStructure(context: ParseContext, item: Item): number;
 /**
  * @param {ParseContext} context
  * @param {string} terminal
