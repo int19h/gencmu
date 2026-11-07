@@ -798,7 +798,9 @@ A bare list has no name test. `#« a b »` tests any observable node whose child
 
 A child list attaches only to a rule name, emoji rule, template family, exact call, or compatible parameter. Terminals, `_`, tested atoms, and string constants cannot carry child lists. A seal passes no node test, including a bare list. On an anonymous splice capture, `#« ⋯ »` tests the seal itself and fails, while `#·e« ⋯ »` tests the named root above it.
 
-Take an atom that names a rule whose every definition carries `%erased`. An attached child list is a document error unless it contains only one sibling gap, `« ⋯ »`. That permitted list always holds on such a node. A template-family atom triggers this error only when at least one instance exists and every instance is fully erased. A parameter as the atom postpones this check until substitution. A child-list parameter occupies one element, so a known erased atom takes this check on its written list.
+Take an atom that names a rule whose every definition carries `%erased`. An attached child list is a document error unless it contains only one sibling gap, `« ⋯ »`. That permitted list always holds on such a node.
+
+For a template-family atom, this error requires at least one instance and fully erased definitions in every instance. A parameter as the atom postpones this check until substitution. A child-list parameter occupies one element, so a known erased atom takes this check on its written list.
 
 `«»` is an empty list, distinct from an absent list. It can match a terminal leaf or a directly captured empty rule. It does not assert that the input span is empty.
 
