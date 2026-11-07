@@ -1,6 +1,8 @@
 package gencmu
 
 import (
+	"bytes"
+	"encoding/json"
 	"reflect"
 	"strings"
 	"sync"
@@ -139,6 +141,30 @@ func TestWitnessLost(t *testing.T) {
 		chosen, _ := MarshalResult(&ParseResult{Tree: e.Chosen})
 		if string(chosen) != string(mainTree) {
 			t.Fatalf("%s: chosen %s, not %s", lose, chosen, mainTree)
+		}
+		var envelope struct{ Error json.RawMessage }
+		if err := json.Unmarshal(data, &envelope); err != nil {
+			t.Fatal(err)
+		}
+		decoder := json.NewDecoder(bytes.NewReader(envelope.Error))
+		if first, err := decoder.Token(); err != nil || first != json.Delim('{') {
+			t.Fatalf("error object: %v, %v", first, err)
+		}
+		var keys []string
+		for decoder.More() {
+			key, err := decoder.Token()
+			if err != nil {
+				t.Fatal(err)
+			}
+			keys = append(keys, key.(string))
+			var value json.RawMessage
+			if err := decoder.Decode(&value); err != nil {
+				t.Fatal(err)
+			}
+		}
+		wantKeys := []string{"kind", "stage", "code", "warnings", "message", "chosen", "completion"}
+		if !reflect.DeepEqual(keys, wantKeys) {
+			t.Fatalf("%s: error keys %v, want %v", lose, keys, wantKeys)
 		}
 		// The members in their order, and the records in their order of
 		// insertion, with the sound only for the tested terminator.
