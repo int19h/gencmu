@@ -1376,6 +1376,14 @@ pub(crate) fn lower(
     // (§3.3), decided over the structural grammar: every production made
     // so far, helpers included, before a false condition removes any, with
     // tests ignored. Every remaining alternative counts, reachable or not.
+    let erased_sequences: crate::fxhash::FxSet<usize> = order
+        .iter()
+        .enumerate()
+        .filter_map(|(index, pending)| {
+            let (_, written) = pending.source?;
+            grammar.rules[pending.rule as usize].alternatives[written].erased.then_some(index)
+        })
+        .collect();
     let mut sequences: Vec<(u32, Vec<Sym>)> =
         order.iter().map(|pending| (pending.rule, pending.sequence.iter().map(|(sym, ..)| *sym).collect())).collect();
     for (alias, rule) in rules.iter().enumerate() {
@@ -1935,7 +1943,7 @@ pub(crate) fn lower(
         let (demands, cases) = crate::tree_identity::demands(&lowered);
         lowered.tree_demands = demands.into();
         lowered.tree_cases = Some(Arc::new(cases));
-        crate::tree_identity::check_cycles(&lowered, &sequences, grammar)?;
+        crate::tree_identity::check_cycles(&lowered, &sequences, &erased_sequences, grammar)?;
     }
     Ok(lowered)
 }

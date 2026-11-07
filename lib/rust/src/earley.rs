@@ -1912,10 +1912,11 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         frame.parent_structure = m.node_with_value(Some(parent), frame.parent_structure, None, &[], value.as_deref());
         if !self.g.tree_demands.is_empty() && crate::tree_identity::demand(self.g, frame.prod, frame.lexical).whole {
             let project = |at: u32| frame.project.map_or(at, |p| p[at as usize]) as usize;
-            let values = tokens[project(lexical.seal_at)..project(frame.end)].iter().map(|t| t.value.clone()).collect();
+            let start = project(lexical.seal_at);
+            let end = project(frame.end);
             let prefix = m.tree(lexical.seal_prefix).unwrap_or_default().sequence;
             let arena = m.trees.as_mut().expect("demanded identities");
-            let seal = arena.node(crate::tree_identity::Node::Seal(values));
+            let seal = arena.seal(base + start, base + end, tokens[start..end].iter().map(|t| t.value.clone()));
             let prefix = arena.append(prefix, seal);
             let tree = arena.singleton(crate::tree_identity::Node::Rule(parent.clone(), prefix));
             frame.parent_structure = m.with_tree(frame.parent_structure, tree);
@@ -2323,7 +2324,11 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 Step::Complete { e, k } => {
                     let (e, k) = (*e, *k);
                     let tags = self.complete_tags(&run.chart, &mut run.evals, tokens, base, e, k)?;
-                    run.step = if tags == u32::MAX { Step::Next } else { self.complete(&mut run.chart, e, k, tags) };
+                    run.step = if tags == u32::MAX {
+                        Step::Next
+                    } else {
+                        self.complete(&mut run.chart, e, k, tags, tokens, base)
+                    };
                 }
                 Step::Waiters { e, origin, rule, tags, structure, boundary, route, empty, count, next } => {
                     while *next < *count {
@@ -3250,9 +3255,11 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 let (start, end) = project.map_or((cap.start as usize, cap.end as usize), |p| {
                     (p[cap.start as usize] as usize, p[cap.end as usize] as usize)
                 });
-                let values = observed[start..end].iter().map(|t| t.value.clone()).collect();
-                let tree =
-                    m.trees.as_mut().expect("demanded identities").singleton(crate::tree_identity::Node::Seal(values));
+                let arena = m.trees.as_mut().expect("demanded identities");
+                let identity =
+                    arena.seal(base + start, base + end, observed[start..end].iter().map(|t| t.value.clone()));
+                let sequence = arena.append(0, identity);
+                let tree = arena.state(crate::tree_identity::Tree { prefix: 0, identity, sequence });
                 m.with_tree(child, tree)
             } else {
                 child
@@ -3361,7 +3368,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     /// Records the completed item `k` of set `e`, whose constituent has
     /// `tags`, and gives the step that advances the items waiting for it,
     /// if a constituent of its rule, origin and tags is new here.
-    fn complete(&mut self, chart: &mut Chart, e: usize, k: usize, tags: SetId) -> Step {
+    fn complete(&mut self, chart: &mut Chart, e: usize, k: usize, tags: SetId, tokens: &[Tok], base: usize) -> Step {
         let item = chart.sets[e].items[k];
         let production = &self.g.prods[item.prod as usize];
         let rule = production.rule;
@@ -3370,8 +3377,33 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let mut structure = item.structure;
         if production.erased && structure != u32::MAX {
             if let Some(machine) = &self.shared.machine {
+                let value = self.pattern_value(tokens, base, item.origin as usize, e);
                 let mut machine = machine.borrow_mut();
-                if item.close_requested & crate::tree_identity::TREE == 0 {
+                let rule = &self.g.rules[production.rule as usize];
+                let names: Vec<String> = if machine.node_tags {
+                    self.shared.tags.list(tags).iter().map(|&id| self.shared.tags.name(id).to_owned()).collect()
+                } else {
+                    Vec::new()
+                };
+                structure =
+                    machine.erased(structure, (!rule.helper).then_some(rule.name.as_str()), &names, value.as_deref());
+                if item.close_requested & crate::tree_identity::TREE != 0 {
+                    let (observed, project) = self.observed(tokens);
+                    let (start, end) = project
+                        .map_or((item.origin as usize, e), |p| (p[item.origin as usize] as usize, p[e] as usize));
+                    let arena = machine.trees.as_mut().expect("demanded tree identities");
+                    let seal =
+                        arena.seal(base + start, base + end, observed[start..end].iter().map(|t| t.value.clone()));
+                    let prefix = arena.append(0, seal);
+                    let identity = if production.splice {
+                        arena.node(crate::tree_identity::Node::Anonymous(prefix))
+                    } else {
+                        arena.node(crate::tree_identity::Node::Rule(rule.name.clone(), prefix))
+                    };
+                    let sequence = if production.splice { prefix } else { arena.append(0, identity) };
+                    let tree = arena.state(crate::tree_identity::Tree { prefix: 0, identity, sequence });
+                    structure = machine.with_tree(structure, tree);
+                } else {
                     structure = machine.with_tree(structure, 0);
                 }
                 if item.close_requested & crate::tree_identity::CLOSE == 0 {

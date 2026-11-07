@@ -574,14 +574,7 @@ impl Machine {
         self.machines.push(n);
         id
     }
-    fn intern(&mut self, mut s: State) -> u32 {
-        // No predicate can distinguish structural emptiness (§4.1).
-        // Tree identities and restoration observations remain independent.
-        if self.predicates.is_empty() {
-            s.count = 0;
-            s.bits = None;
-            s.empty = false;
-        }
+    fn intern(&mut self, s: State) -> u32 {
         if let Some(&id) = self.state_ids.get(&s) {
             return id;
         }
@@ -827,6 +820,19 @@ impl Machine {
     pub(crate) fn normalized_observation(&self, state: u32) -> u32 {
         self.observations.as_ref().map_or(0, |o| o.normalized(self.observation(state)))
     }
+    /// Export a seal while preserving independent restoration observations (§4.1).
+    pub(crate) fn erased(&mut self, state: u32, name: Option<&str>, tags: &[String], value: Option<&str>) -> u32 {
+        let seal = self.sealed();
+        let target = if name.is_some() { self.node_with_value(name, seal, None, tags, value) } else { seal };
+        let source = self.states[state as usize].clone();
+        let mut result = self.states[target as usize].clone();
+        result.tree = source.tree;
+        result.observation = source.observation;
+        result.family = source.family;
+        result.oracle = source.oracle;
+        self.intern(result)
+    }
+
     pub(crate) fn structural(&mut self, state: u32) -> u32 {
         let mut s = self.states[state as usize].clone();
         s.observation = 0;
@@ -1069,17 +1075,21 @@ pub(crate) fn reads_node_values(pattern: &Pattern) -> bool {
 mod undemanded_tests {
     use super::Machine;
     #[test]
-    fn empty_predicates_keep_only_independent_observations() {
-        // Engine §4.1: structural emptiness requires a demanded tree predicate.
+    fn equal_parts_retain_seals_and_independent_observations() {
+        // Engine §4.1: state interning compares parts without semantic minimization.
         let mut machine = Machine::new(&[]);
         let empty = machine.empty;
         let node = machine.node(Some("r"), empty, None);
-        assert_eq!(node, empty);
-        assert_eq!(machine.sealed(), empty);
+        assert_eq!(machine.node(Some("r"), empty, None), node);
+        assert_ne!(machine.sealed(), empty);
         let tree = machine.with_tree(node, 42);
         let observation = machine.observing(tree, 7);
         assert_eq!(machine.tree_state(observation), 42);
         assert_eq!(machine.observation(observation), 7);
-        assert_eq!(machine.structural(observation), empty);
+        assert_eq!(machine.structural(observation), node);
+        let exported = machine.erased(observation, Some("r"), &[], None);
+        assert_eq!(machine.tree_state(exported), 42);
+        assert_eq!(machine.observation(exported), 7);
+        assert_ne!(machine.structural(exported), node);
     }
 }

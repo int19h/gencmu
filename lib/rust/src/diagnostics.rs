@@ -24,23 +24,56 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
     }
     None
 }
-fn pattern_names(pattern: &crate::patterns::Pattern, names: &mut FxSet<String>) {
+fn pattern_names(
+    pattern: &crate::patterns::Pattern,
+    names: &mut FxSet<String>,
+    erased: &FxSet<String>,
+    document: &str,
+) -> Result<(), Error> {
+    use crate::patterns::{Children, Pattern};
     for part in pattern.walk() {
-        if let crate::patterns::Part::Pattern(crate::patterns::Pattern::Name(name, _)) = part {
+        if let crate::patterns::Part::Pattern(Pattern::Name(name, _)) = part {
             names.insert(name.clone());
         }
+        if let crate::patterns::Part::Pattern(Pattern::Node(atom, _, Some(children))) = part {
+            if matches!(children,Children::Sequence(parts) if matches!(parts.as_slice(),[Children::Siblings]))
+                || matches!(children, Children::Siblings)
+            {
+                continue;
+            }
+            let mut atom = &**atom;
+            while let Pattern::Test(_, _, inner, _) = atom {
+                atom = inner;
+            }
+            if let Pattern::Name(name, at) = atom {
+                if erased.contains(name) {
+                    return Err(Error::grammar(format!(
+                        "a pattern of erased rule {name} permits only the child list « ⋯ »"
+                    ))
+                    .in_document(document)
+                    .at(at.0, at.1));
+                }
+            }
+        }
     }
+    Ok(())
 }
 pub(crate) fn check(grammar: &StageGrammar, documents: &[(Arc<str>, Arc<Dom>)]) -> Result<(), Error> {
+    let erased: FxSet<String> = grammar
+        .rules
+        .iter()
+        .filter(|rule| rule.alternatives.iter().all(|alt| alt.erased))
+        .map(|rule| rule.name.clone())
+        .collect();
     let mut prohibited = FxSet::default();
     let mut splices = Vec::new();
     let mut warnings = FxSet::default();
     for step in &grammar.steps {
-        pattern_names(&step.pattern, &mut prohibited);
+        pattern_names(&step.pattern, &mut prohibited, &erased, "")?;
     }
     let mut pending = Vec::new();
-    for (_, dom) in documents {
-        pending.extend(dom.constants.iter().map(|c| Part::Term(&c.value)));
+    for (document, dom) in documents {
+        pending.extend(dom.constants.iter().map(|c| (Part::Term(&c.value), document.as_ref())));
     }
     let mut expressions = FxSet::default();
     let mut parts = FxSet::default();
@@ -86,18 +119,25 @@ pub(crate) fn check(grammar: &StageGrammar, documents: &[(Arc<str>, Arc<Dom>)]) 
                     _ => {}
                 }
             }
-            pending.extend(alt.alternative.tags.iter().chain(&alt.clauses.tags).map(Part::Term));
-            pending.extend(alt.clauses.conditions.iter().map(Part::Cond));
+            pending.extend(
+                alt.alternative.tags.iter().chain(&alt.clauses.tags).map(|t| (Part::Term(t), alt.document.as_ref())),
+            );
+            pending.extend(alt.clauses.conditions.iter().map(|c| (Part::Cond(c), alt.document.as_ref())));
             for item in alt.clauses.emit.iter().flatten() {
                 let (tags, strings) = match item {
                     EmitItem::Capture(_, tags, a) => (tags, &a.strings),
                     EmitItem::Insert(tags, s) => (tags, s),
                 };
-                pending.extend(tags.iter().chain(&strings.value).chain(&strings.image).map(Part::Term));
+                pending.extend(
+                    tags.iter()
+                        .chain(&strings.value)
+                        .chain(&strings.image)
+                        .map(|t| (Part::Term(t), alt.document.as_ref())),
+                );
             }
         }
     }
-    while let Some(part) = pending.pop() {
+    while let Some((part, document)) = pending.pop() {
         let id = match part {
             Part::Term(t) => (0, t as *const Term as usize),
             Part::Cond(c) => (1, c as *const Cond as usize),
@@ -106,11 +146,11 @@ pub(crate) fn check(grammar: &StageGrammar, documents: &[(Arc<str>, Arc<Dom>)]) 
             continue;
         }
         match part {
-            Part::Term(Term::Pattern(pattern)) => pattern_names(pattern, &mut prohibited),
+            Part::Term(Term::Pattern(pattern)) => pattern_names(pattern, &mut prohibited, &erased, document)?,
             Part::Cond(Cond::Boundary(_, _, targets, _)) => prohibited.extend(targets.iter().cloned()),
             _ => {}
         }
-        pending.extend(part.children());
+        pending.extend(part.children().into_iter().map(|p| (p, document)));
     }
     for rule in &grammar.rules {
         for alt in &rule.alternatives {

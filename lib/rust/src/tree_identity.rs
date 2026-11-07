@@ -58,6 +58,7 @@ pub(crate) struct Arena {
     sequences: Vec<(u32, u32)>,
     sequence_ids: FxMap<(u32, u32), u32>,
     concatenations: FxMap<(u32, u32), u32>,
+    seals: FxMap<(usize, usize), u32>,
     states: Vec<Tree>,
     state_ids: FxMap<Tree, u32>,
 }
@@ -70,9 +71,19 @@ impl Arena {
             sequences: vec![(0, 0)],
             sequence_ids: FxMap::default(),
             concatenations: FxMap::default(),
+            seals: FxMap::default(),
             states: vec![Tree::default()],
             state_ids: FxMap::default(),
         }
+    }
+
+    pub(crate) fn seal(&mut self, start: usize, end: usize, values: impl Iterator<Item = String>) -> u32 {
+        if let Some(&identity) = self.seals.get(&(start, end)) {
+            return identity;
+        }
+        let identity = self.node(Node::Seal(values.collect()));
+        self.seals.insert((start, end), identity);
+        identity
     }
 
     pub(crate) fn node(&mut self, node: Node) -> u32 {
@@ -382,7 +393,8 @@ pub(crate) fn demand<'a>(g: &'a Lowered, prod: u32, frame: Option<&crate::earley
 }
 
 pub(crate) fn walks(g: &Lowered, item: crate::earley::Item, frame: Option<&crate::earley::LexicalFrame>) -> bool {
-    item.close_requested & TREE != 0 || g.prods[item.prod as usize].tree_root && demand(g, item.prod, frame).whole
+    item.close_requested & TREE != 0 && !g.prods[item.prod as usize].erased
+        || g.prods[item.prod as usize].tree_root && demand(g, item.prod, frame).whole
 }
 
 pub(crate) fn prefix_demand(
@@ -458,6 +470,7 @@ fn enter(g: &Lowered, id: u32, context: &Context, queue: &mut Vec<Context>) {
 pub(crate) fn check_cycles(
     g: &Lowered,
     rows: &[(u32, Vec<Sym>)],
+    erased: &FxSet<usize>,
     grammar: &crate::grammar::StageGrammar,
 ) -> Result<(), crate::lower::LowerError> {
     use crate::clauses::Part;
@@ -505,7 +518,10 @@ pub(crate) fn check_cycles(
         }
     }
     let mut edges = vec![Vec::new(); g.rules.len()];
-    for (rule, symbols) in rows {
+    for (row, (rule, symbols)) in rows.iter().enumerate() {
+        if erased.contains(&row) {
+            continue;
+        }
         for (index, symbol) in symbols.iter().enumerate() {
             if let Sym::N(child) = *symbol {
                 if !g.ranked.slots.contains_key(&child) {
@@ -666,18 +682,21 @@ pub(crate) struct EmissionScope {
     pub structure: u32,
 }
 
+#[allow(clippy::too_many_arguments)]
 fn emission_identity(
     g: &Lowered,
     tree: &crate::tree::ITree,
     tokens: &[crate::earley::Tok],
     root: u32,
+    working: bool,
     arena: &mut Arena,
-    memo: &mut FxMap<u32, Tree>,
+    memo: &mut FxMap<(u32, bool), Tree>,
 ) -> Tree {
     use crate::tree::IKind;
     let mut pending = vec![(root, false)];
     while let Some((id, expanded)) = pending.pop() {
-        if memo.contains_key(&id) {
+        let key = (id, working && id == root);
+        if memo.contains_key(&key) {
             continue;
         }
         let node = &tree.nodes[id as usize];
@@ -686,13 +705,14 @@ fn emission_identity(
                 let identity = arena
                     .node(Node::Written(g.terminals[terminal as usize].clone(), tokens[tok as usize].value.clone()));
                 let sequence = arena.append(0, identity);
-                memo.insert(id, Tree { prefix: 0, identity, sequence });
+                memo.insert(key, Tree { prefix: 0, identity, sequence });
                 continue;
             }
             IKind::Close { prod, .. } => prod,
         };
         let production = &g.prods[prod as usize];
-        if !expanded {
+        let sealed = production.erased && !key.1;
+        if !sealed && !expanded {
             pending.push((id, true));
             for (index, child) in node.children.iter().enumerate().rev() {
                 if !matches!(production.syms[index],Sym::N(rule) if g.ranked.slots.contains_key(&rule)) {
@@ -702,17 +722,35 @@ fn emission_identity(
             continue;
         }
         let mut prefix = 0;
-        for (index, &child) in node.children.iter().enumerate() {
+        let children = if sealed {
+            let (start, end) = match node.kind {
+                IKind::Close { start, end, .. } => (start, end),
+                _ => unreachable!(),
+            };
+            let identity = arena.seal(
+                start as usize,
+                end as usize,
+                tokens[start as usize..end as usize].iter().map(|t| t.value.clone()),
+            );
+            prefix = arena.append(0, identity);
+            &[][..]
+        } else {
+            node.children.as_slice()
+        };
+        for (index, &child) in children.iter().enumerate() {
             if matches!(production.syms[index],Sym::N(rule) if g.ranked.slots.contains_key(&rule)) {
                 let (start, end) = match tree.nodes[child as usize].kind {
                     IKind::Read { tok, .. } => (tok, tok + 1),
                     IKind::Close { start, end, .. } => (start, end),
                 };
-                let values = tokens[start as usize..end as usize].iter().map(|t| t.value.clone()).collect();
-                let seal = arena.node(Node::Seal(values));
+                let seal = arena.seal(
+                    start as usize,
+                    end as usize,
+                    tokens[start as usize..end as usize].iter().map(|t| t.value.clone()),
+                );
                 prefix = arena.append(prefix, seal);
             } else {
-                prefix = arena.concat(prefix, memo[&child].sequence);
+                prefix = arena.concat(prefix, memo[&(child, false)].sequence);
             }
         }
         let rule = &g.rules[production.rule as usize];
@@ -726,9 +764,9 @@ fn emission_identity(
             ABSENT
         };
         let sequence = if identity == ABSENT || production.splice { prefix } else { arena.append(0, identity) };
-        memo.insert(id, Tree { prefix, identity, sequence });
+        memo.insert(key, Tree { prefix, identity, sequence });
     }
-    memo[&root]
+    memo[&(root, working)]
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -739,7 +777,7 @@ pub(crate) fn emission_scope(
     term: &LTerm,
     tokens: &[crate::earley::Tok],
     machine: &mut Option<std::rc::Rc<std::cell::RefCell<crate::patterns::Machine>>>,
-    memo: &mut FxMap<u32, Tree>,
+    memo: &mut FxMap<(u32, bool), Tree>,
 ) -> Option<EmissionScope> {
     let mut reads = Vec::new();
     term_comparisons(term, &mut reads);
@@ -761,7 +799,7 @@ pub(crate) fn emission_scope(
                 _ => unreachable!("an emission comparison reads local bare captures"),
             };
             let arena = m.trees.as_mut().unwrap();
-            let observation = emission_identity(g, tree, tokens, node, arena, memo);
+            let observation = emission_identity(g, tree, tokens, node, matches!(span, Span::Whole), arena, memo);
             let state = arena.state(observation);
             let original = match span {
                 Span::Whole => scope.structure,
@@ -778,4 +816,60 @@ pub(crate) fn emission_scope(
         }
     }
     Some(scope)
+}
+
+#[cfg(test)]
+mod sealed_tests {
+    use super::{emission_identity, Arena, Node};
+    use crate::fxhash::FxMap;
+    #[test]
+    fn own_emission_identity_keeps_its_working_root() {
+        // Engine §4.1: private and exported identities retain separate caches.
+        let source = "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text e\n%rule e A\n%erased\n```\n";
+        let pipeline = crate::load_pipeline_sources([("p.md", source)], "p.md").unwrap();
+        let g = pipeline.lowered_stage(0);
+        let prod = g.prods.iter().position(|p| g.rules[p.rule as usize].name == "e").unwrap() as u32;
+        let crate::lower::Sym::T(terminal) = g.prods[prod as usize].syms[0] else { panic!("a terminal") };
+        let tree = crate::tree::ITree {
+            nodes: vec![
+                crate::tree::INode {
+                    lexical: 0,
+                    structure: u32::MAX,
+                    kind: crate::tree::IKind::Close { prod, start: 0, end: 1, tags: 0, caps: Vec::new() },
+                    children: vec![1],
+                },
+                crate::tree::INode {
+                    lexical: 0,
+                    structure: u32::MAX,
+                    kind: crate::tree::IKind::Read { tok: 0, terminal },
+                    children: Vec::new(),
+                },
+            ],
+        };
+        let token = crate::earley::Tok {
+            text: "a".into(),
+            tags: 0,
+            value: "a".into(),
+            source: (0, 1),
+            image: "a".into(),
+            sound: Default::default(),
+            quiet: 0,
+            before: Vec::new(),
+            after: Vec::new(),
+            errors: Vec::new(),
+            warnings: Vec::new(),
+        };
+        let mut arena = Arena::new();
+        let mut memo = FxMap::default();
+        let exported = emission_identity(&g, &tree, std::slice::from_ref(&token), 0, false, &mut arena, &mut memo);
+        let private = emission_identity(&g, &tree, std::slice::from_ref(&token), 0, true, &mut arena, &mut memo);
+        assert_ne!(exported.identity, private.identity);
+        let Node::Rule(_, children) = arena.nodes[exported.identity as usize] else { panic!("a named identity") };
+        let (before, child) = arena.sequences[children as usize];
+        assert_eq!(before, 0);
+        assert!(matches!(arena.nodes[child as usize], Node::Seal(_)));
+        assert_eq!(emission_identity(&g, &tree, &[token], 0, false, &mut arena, &mut memo), exported);
+        let seal = arena.seal(0, 1, std::iter::once_with(|| panic!("a seal span is copied twice")));
+        assert_eq!(seal, child);
+    }
 }
