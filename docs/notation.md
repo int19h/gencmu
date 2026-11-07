@@ -1422,7 +1422,7 @@ An author who needs an outside pattern to know a fact about the interior must pu
 %rule text $h:hidden
 %conditions $h ≅ #·hidden<Has-A>
 %rule hidden :: ($ ≅ #« A » ⟹ Has-A)
-  A | B
+  | A | B
 %erased
 ```
 
