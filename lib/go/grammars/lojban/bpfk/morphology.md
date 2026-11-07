@@ -48,8 +48,6 @@ The PEG's `CMAVO` is a list of the selma'o, each a set of spellings, followed by
 
 Hesitation that stands as its own word is one token. The [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) says that `y` is not a word and counts as whitespace. Thus `.yyy.` is one token here. The separate split before `bu` preserves letter words, as [the ybu exception](#the-ybu-exception) explains.
 
-`cmavo-shape` reads `cmavo`. Hesitation is a direct `y` run, which this document states as `y-run`, and `cmavo` itself excludes a pure `y` run.
-
 A `y` is a nucleus exactly where no nucleus follows it. So the first `y` of a run is a nucleus exactly when the run has an odd number of letters. A run with an even number can follow a word directly: `kyyykerlo` is `ky yy kerlo`, but `bayyy` is no text. So a run of `y` has `Onset` where no nucleus begins it.
 
 Ilmentufa's morphology-only parser accepts this division of `kyyykerlo`, but full camxes-std rejects the text. Its lexer wrapper calls `spaces` after `ky`, and that rule refuses a leading Y token. The [shared forms document](../common/forms.md#differences-from-camxes) compares the word streams.
@@ -58,11 +56,11 @@ Ilmentufa's morphology-only parser accepts this division of `kyyykerlo`, but ful
 
 The camxes-std [morphology-only parser](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-morpho.js) splits a bare odd y run through its `cmavo_form` onset alternative. Its `initial_spaces` reader instead reads a whole run. The [full camxes-std parser](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.js) uses that whole-run spacing reading. Both reference parsers keep every y inside the `ybu` letter word before BU.
 
-This grammar excludes pure y from the onset alternative and reads the whole run as hesitation, in agreement with camxes-std's spacing rule. The words stage drops this hesitation in `lojban/bpfk` and `lojban/experimental`. Zantufa can retain attached hesitation, so its erasure can observe the whole-run division.
+`cmavo` excludes a pure `y` run, and `y-run` reads the whole run as hesitation, in agreement with camxes-std's spacing rule. The words stage drops this hesitation in `lojban/bpfk` and `lojban/experimental`. Zantufa can retain attached hesitation, so its erasure can observe the whole-run division.
 
 ### Word shapes and boundaries
 
-One template states the shape of each word. A word shape carries `Continued`, so another word can follow it directly. It carries `Onset` when no nucleus begins the word. Only a word with `Onset` can follow another word without a pause.
+One template states the shape of each word. A word shape carries `Continued`, so another word can follow it directly. If no nucleus begins the word, it carries `Onset`. Only a word with `Onset` can follow another word without a pause.
 
 Hesitation is a direct run of `y` letters, outside `cmavo`. It keeps the test that no name begins at its own start. `cmavo` keeps its exclusion of a pure `y` run, so a particle is never hesitation.
 
@@ -150,7 +148,7 @@ A name is a run of letters that ends in a consonant before a pause. The repeated
 No sound in the repetition needs a test against a pause. The final consonant of `cmevla` always follows the repetition, so the repetition cannot take that consonant and still complete the name.
 
 ```jbogenbau
-%rule cmevla  (* A name forbids an initial apostrophe and ends in a consonant before a pause. A syllabified name requires the same general shape and ends at the same pause. No pause test stands on the sounds, because the final consonant always follows them. *)
+%rule cmevla  (* A name forbids an initial apostrophe and ends in a consonant before a pause. A syllabified name requires the same general shape and ends at the same pause. An apostrophe and a consonant use distinct letters. A glide needs a following nucleus, and a vowel forbids one, so one letter gives one sound reading. No pause test stands on the sounds, because the final consonant always follows them. *)
   [{nucleus | glide | h | consonant}] $c:consonant
 %conditions
   ¬$.onward.begins(h),
@@ -169,7 +167,7 @@ No sound in the repetition needs a test against a pause. The final consonant of 
 A cmavo is not the start of a name, and not the start of a lujvo that begins with a CVC rafsi and a y-hyphen. Its form is an onset and nuclei joined by apostrophes. A pause or another word follows it. `CVCy_lujvo` keeps `bajykerlo` one lujvo, rather than `ba jy kerlo`.
 
 ```jbogenbau
-%rule cmavo  (* A particle is an onset and nuclei joined by apostrophes. It excludes a name start, a CVCy compound start and pure y. It ends at a complete word boundary. *)
+%rule cmavo  (* A particle is an onset and nuclei joined by apostrophes. It excludes a name start, a CVCy compound start and pure y. The pure y test says that not every letter of the span is y. It ends at a complete word boundary. *)
   $o:onset [{nucleus h}] cmavo-last-nucleus
 %conditions
   ¬$o.onward.begins(h | cluster | cmevla | cvcy-lujvo),
@@ -221,7 +219,7 @@ The `short-final-rafsi` rule reads a consonant and diphthong, or an initial pair
 %conditions
   ¬$.onward.begins(cmavo)
 
-%rule brivla-core  (* Borrowing heads exclude rafsi strings. The other cores differ in consonant positions, apostrophes, hyphens, or stress. *)
+%rule brivla-core  (* Borrowing heads exclude rafsi strings. The other cores differ in consonant positions, apostrophes, hyphens, or stress. Stressed extended forms need apostrophe-y or a borrowing head. After a stressed long rafsi, consonant-y cannot start the short final, and an apostrophe after CVV cannot start it either. *)
   | fuhivla
   | gismu
   | cvv-final-rafsi
@@ -503,7 +501,7 @@ So an unmarked brivla is stressed on its penultimate counted syllable, and a pau
 
 %rule unstressed-vowel = unstressed-unit(vowel)  (* An unstressed vowel has neither a written stress mark nor positional stress. *)
 
-%rule stress  (* Positional stress precedes the last counted syllable before a pause. The counted syllable cannot start with y. It permits an empty onset, so a split succeeds whenever any split does. *)
+%rule stress  (* Positional stress precedes the last counted syllable before a pause. The counted syllable cannot start with y. The test asks whether a split reaches that final syllable and the pause. *)
   [{consonant | glide}] [h] [y] $s:syllable
 %conditions
   $s.following-tokens.begins(pause)

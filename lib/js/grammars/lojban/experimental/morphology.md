@@ -99,7 +99,7 @@ The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The sp
 %rule cgv-cluster-form  (* This boolean span test requires adjacent consonants. Different possible cluster positions give the same truth value. *)
   [{nonpause-phoneme}] consonant consonant [{nonpause-phoneme}]
 
-%rule cgv-rafsi-continuation  (* CVC and CCV differ in their second letter. Stress separates their variants, and the tested single consonant directly before the glide cannot be r. *)
+%rule cgv-rafsi-continuation  (* The start is a CVC or CCV rafsi of either stress. The tested single consonant directly before the glide cannot be r. *)
   (cvc-rafsi-of(vowel) | ccv-rafsi-of(vowel)) $c:consonant glide
 %conditions
   $c.value ≠ "r"
@@ -160,7 +160,7 @@ A CCV `hy-rafsi` can otherwise begin a brivla, as in `bla'ykla`. `brivla` reject
 %conditions
   ¬$.onward.begins(cmavo | slihykru)
 
-%rule slihykru                (* `slihykru <- (CCV_rafsi / stressed_CCV_rafsi) h y onset`. The forbidden start is a CCV rafsi, apostrophe-y, and a borrowing onset, including CgV. Vowel stress separates the CCV forms. *)
+%rule slihykru                (* The forbidden start is a CCV rafsi of either stress, apostrophe-y, and a borrowing onset, including CgV. *)
   ccv-rafsi-of(vowel) h y brivla-onset
 ```
 
@@ -200,7 +200,7 @@ A y-rafsi requires y where a classical extended form needs a vowel or apostrophe
   ¬$l.onward.begins(any-fuhivla-rafsi),
   ¬$l.following-tokens.begins(any-fuhivla-rafsi)
 
-%rule any-fuhivla-rafsi       (* `any_fuhivla_rafsi <- fuhivla / fuhivla_rafsi / stressed_fuhivla_rafsi`. The test detects a borrowing or either borrowing rafsi form. *)
+%rule any-fuhivla-rafsi       (* The test detects a complete borrowing or either borrowing rafsi form. *)
   fuhivla | fuhivla-rafsi | stressed-fuhivla-rafsi
 ```
 
@@ -239,13 +239,11 @@ The lookaheads still read the letter as `i` or `u`. A glide letter is no vowel, 
 %redefine-rule diphthong-letters (* An onglide letter cannot end a diphthong. A diphthong also forbids another matching i or u directly after it. *)
   | "a" $i:"i"<¬Onglide>
   | "a" $u:"u"<¬Onglide>
-  | "e" $j:"i"<¬Onglide>
-  | "o" $k:"i"<¬Onglide>
+  | "e" $i:"i"<¬Onglide>
+  | "o" $i:"i"<¬Onglide>
 %conditions
   $i.following-tokens.first-token.value ≠ "i",
-  $u.following-tokens.first-token.value ≠ "u",
-  $j.following-tokens.first-token.value ≠ "i",
-  $k.following-tokens.first-token.value ≠ "i"
+  $u.following-tokens.first-token.value ≠ "u"
 ```
 
 <details><summary>Railroad diagrams of <code>vowel</code> and <code>diphthong-letters</code></summary>
