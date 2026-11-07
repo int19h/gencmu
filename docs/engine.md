@@ -1554,7 +1554,7 @@ An erased production retains its ordinary working observations while evaluating 
 
 A spliced erased occurrence supplies the single-seal sequence without the named constructor. Its captured root uses the ordinary anonymous constructor over that sequence. Empty spans still supply one seal. Empty normalization removes neither the seal nor a named root containing it.
 
-Parent prefixes, captures, and contextual frames read the exported observations. Working prefixes and captures remain available for the erased production's own clauses. They do not enter its exported structural state.
+Parent prefixes, captures, and contextual frames read the exported observations. Working prefixes and captures remain available for the erased production's own clauses. They do not enter its exported structural state. A chain level or recursive occurrence of an erased definition is an erased child, so its parent level sees it sealed.
 
 These transitions apply in main recognition, queries, and reconstruction. Comparisons evaluated after selection use the same exported and working views. They do not rebuild an outside view from the unsealed output tree.
 
