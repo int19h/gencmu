@@ -219,8 +219,12 @@ impl Run {
             }
         };
         let lists = diagnostic_flow::join([self.pending.parts(), reporting.parts()]);
-        error.errors = lists.errors;
-        error.warnings = lists.warnings.clone();
+        if error.kind != ParseErrorKind::Ambiguous || error.reason == Some(AmbiguityReason::Tie) {
+            error.errors = lists.errors;
+        }
+        if matches!(error.kind, ParseErrorKind::Rejected | ParseErrorKind::Grammar | ParseErrorKind::FeatureConflict) {
+            error.warnings = lists.warnings.clone();
+        }
         self.warnings = lists.warnings;
         self.error = Some(error);
     }
@@ -654,7 +658,6 @@ impl Pipeline {
                     );
                     error.kind = ParseErrorKind::Reported;
                     error.errors = lists.errors;
-                    error.warnings = lists.warnings.clone();
                     run.error = Some(error);
                 }
                 run.warnings = lists.warnings;

@@ -86,3 +86,50 @@ fn failed_messages_drop_erased_evaluations_and_keep_carried_facts() {
         assert!(!gencmu::to_json(&result).contains("erased error"));
     }
 }
+
+#[test]
+fn result_only_warnings_stay_outside_reported_and_ambiguous_envelopes() {
+    // Output §1: reported and ambiguous envelopes keep warnings only on the result.
+    let cases = [
+        (
+            "%rule text bad good\n%rule bad A\n%error \"bad\"\n%rule good A\n%warning \"good\"",
+            "AA",
+            gencmu::ParseErrorKind::Reported,
+            None,
+        ),
+        (
+            "%rule text good a | good b\n%rule good ε\n%warning \"good\"\n%rule a A\n%rule b A",
+            "A",
+            gencmu::ParseErrorKind::Ambiguous,
+            Some(gencmu::AmbiguityReason::Tie),
+        ),
+        (
+            "%elision-only\n%rule text good s | good s B\n%rule good ε\n%warning \"good\"\n%rule s A [B]",
+            "AB",
+            gencmu::ParseErrorKind::Ambiguous,
+            Some(gencmu::AmbiguityReason::ElisionOnly),
+        ),
+    ];
+    for (body, input, kind, reason) in cases {
+        let source = format!("```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n{body}\n```\n");
+        let pipeline = gencmu::load_pipeline_sources([("p.md", source)], "p.md").unwrap();
+        let tokens: Vec<_> = input
+            .chars()
+            .map(|tag| InputToken {
+                text: tag.to_string(),
+                tags: [tag.to_string()].into_iter().collect(),
+                ..Default::default()
+            })
+            .collect();
+        let result = pipeline
+            .parse_tokens(&tokens, &ParseOptions { features: vec!["good".into()], ..Default::default() })
+            .unwrap();
+        let error = result.error.as_ref().unwrap();
+        assert_eq!((error.kind, error.reason), (kind, reason), "{body}");
+        assert!(error.warnings.is_empty(), "{body}");
+        assert_eq!(codes(&result.warnings), ["good"], "{body}");
+        let value = common::parse_json(&gencmu::to_json(&result)).unwrap();
+        assert!(value.get("error").unwrap().get("warnings").is_none());
+        assert_eq!(value.get("warnings").unwrap().array().len(), 1);
+    }
+}

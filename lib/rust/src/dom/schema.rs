@@ -663,7 +663,8 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                 pending.push((
                     Part::Expr { whole: true, flags: ExprFlags { query: true, ..ExprFlags::default() } },
                     body,
-                    next,
+                    // The argument wrapper adds no depth (engine §9).
+                    depth,
                 ));
             }
             Part::Call => return Some("a malformed call".into()),
