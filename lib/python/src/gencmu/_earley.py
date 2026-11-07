@@ -567,8 +567,16 @@ class StageContext:
     def query_key(self, rule, start, end, error_free):
         key = self.nested_key(rule, start, end)
         if error_free or reads_carried_errors(self.lowered, self.lowered.rule_ids[rule]):
-            key += ("carried-errors", error_free, tuple(bool(self.tokens[index].errors) for index in range(start, end)))
+            key += ("carried-errors", error_free)
+            # Positions already identify the errors of this context (§4.3).
+            if end - start <= CONTENT_KEY_LIMIT:
+                key += (tuple(self.error_bit(index) for index in range(start, end)),)
         return key
+
+    def error_bit(self, index: int) -> bool:
+        """One token's error presence in a bounded content key (§4.3)."""
+        _testing.count("keySteps")
+        return bool(self.tokens[index].errors)
 
     def ends(self, rule: str, start: int, end: int, error_free: bool = False) -> Walk:
         """Read suffixes in one fixed window, with retained answers for shareable targets."""
@@ -747,7 +755,7 @@ class StageContext:
                     _plain(self.tokens[index].image),
                     int(self.tokens[index].source[0] - low),
                     int(self.tokens[index].source[1] - low),
-                    bool(self.tokens[index].errors) if filtered else None,
+                    self.error_bit(index) if filtered else None,
                 )
                 for index in range(start, end)
             ),
