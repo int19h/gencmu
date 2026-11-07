@@ -105,3 +105,14 @@ class ErasedInteriors(unittest.TestCase):
                 self.assertLess(contexts, 60 * count + 10)
                 for entries, total in canonical.memo.values():
                     self.assertLess(len(entries), 5)
+
+
+class UndemandedStructure(unittest.TestCase):
+    def test_ranked_machine_has_one_undemanded_pattern_state(self):
+        # Engine §4.1: an empty predicate set has one structural observation.
+        from gencmu._patterns import PatternMachine
+        machine = PatternMachine([])
+        node = machine.node("r", machine.empty)
+        self.assertEqual(node, machine.empty)
+        self.assertEqual(machine.seal, machine.empty)
+        self.assertEqual(machine.concat(node, machine.seal), machine.empty)

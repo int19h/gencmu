@@ -240,6 +240,9 @@ class PatternMachine:
         return {"size": size, "start": 0, "end": 1, "edges": edges, "epsilon": tuple(epsilon)}
 
     def intern(self, state: tuple[Any, ...]) -> int:
+        # Without demanded predicates every structural observation is equal (§4.1).
+        if not self.predicates:
+            state = (0, 0, 0, 0, (), None, False)
         old = self.state_ids.get(state)
         if old is not None:
             return old
