@@ -837,7 +837,7 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
     controls canonical terminal spellings in diagnostics."""
     from ._templates import expand_templates
     from ._ranked import expression_locations
-    documents, template_order, _, validation, arguments_to_check, document_runs = expand_templates(documents, unicode)
+    documents, template_order, _, validation, arguments_to_check, document_runs, erasure_checks = expand_templates(documents, unicode)
     rules: dict[str, Rule] = {}
     written_alternatives: list[Alternative] = []
     constants = _Constants(stage, unicode)
@@ -1113,8 +1113,11 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
     def erased_pattern(root, path, at):
         for node in nodes(root):
             children = node.get("children")
-            if node.get("name") in erased and children is not None and children != [{"siblings": True}]:
-                raise _error(f"a pattern of erased rule {node['name']} permits only the child list « ⋯ »", path, getattr(node, "at", None) or at, stage)
+            if erasure_checks is None and node.get("name") in erased and children is not None and children != [{"siblings": True}]:
+                raise _error(f"a pattern of erased rule {node['name']} permits only the child list « ⋯ »", path, getattr(node, "at", None) or node.get("at") or at, stage)
+    for names, name, path, at in erasure_checks or ():
+        if names and all(target in erased for target in names):
+            raise _error(f"a pattern of erased rule {name} permits only the child list « ⋯ »", path, at, stage)
     for pattern, path, at in constants.closed_patterns or ():
         erased_pattern(pattern, path, at)
     constants.closed_patterns = None

@@ -9,7 +9,7 @@ from ._measures import compare_measure
 
 def prefix(forest,item):
     p = forest.lowered.productions[forest.prod[item]]
-    key = (written_prefix(forest.lowered, p, forest.dot[item], forest.origin[item], forest.prefix[item], forest.caps[item], any(e[1] == RESTORE for e in forest.edges[item]), forest.close_machine, forest.close_prefix[item] if forest.close_prefix else 0), forest.strict[item] if forest.strict else False, forest.boundaries[item].id if forest.boundaries else None)
+    key = (written_prefix(forest.lowered, p, forest.dot[item], forest.origin[item], forest.prefix[item] if forest.prefix else 0, forest.caps[item], any(e[1] == RESTORE for e in forest.edges[item]), forest.close_machine, forest.close_prefix[item] if forest.close_prefix else 0), forest.strict[item] if forest.strict else False, forest.boundaries[item].id if forest.boundaries else None)
     return (*key, forest.tree_prefix.get(item, 0)) if hasattr(forest, "tree_prefix") else key
 
 

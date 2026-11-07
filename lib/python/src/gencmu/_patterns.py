@@ -332,7 +332,7 @@ class PatternMachine:
 def observation_machine(lowered: Any) -> PatternMachine | None:
     roots = getattr(lowered, "_pattern_roots", None)
     if roots is not None:
-        return PatternMachine(roots) if roots or lowered.ranked_helpers else None
+        return PatternMachine(roots) if roots else None
     pending = []
     for production in lowered.productions:
         if production.ranked is not None:
@@ -362,4 +362,4 @@ def observation_machine(lowered: Any) -> PatternMachine | None:
         else:
             pending.extend(node.values())
     lowered._pattern_roots = roots
-    return PatternMachine(roots) if roots or lowered.ranked_helpers else None
+    return PatternMachine(roots) if roots else None

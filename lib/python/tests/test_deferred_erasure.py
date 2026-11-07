@@ -128,6 +128,32 @@ class ErasedInteriors(unittest.TestCase):
         self.assertEqual(derivation_identity(context, node), exported)
 
 
+class PostSelectionCosts(unittest.TestCase):
+    def test_erased_span_values_share_one_cached_read(self):
+        # Engine §4.1: local value observations share the context's span cache.
+        from gencmu._stage import working_structure
+        ranking, root = prepare('%rule text e\n%rule e A\n%conditions $ ≅ #·e="a"\n%erased')
+        forest = ranking._ranker.forest
+        context = forest.context
+        node = find(root, "e")
+        original = context.tokens[0].value
+        reads = []
+        class Counted:
+            @property
+            def value(self):
+                reads.append(1)
+                return original
+        context.tokens = [Counted()]
+        first = working_structure(context, forest, node)
+        self.assertEqual(first, working_structure(context, forest, node))
+        self.assertEqual(len(reads), 1)
+
+    def test_ranked_helpers_without_patterns_build_no_machine(self):
+        # Engine §4.1: only demanded predicates create a structural machine.
+        ranking, root = prepare('%rule text (A ≻ B) :: ∅')
+        self.assertIsNone(ranking._ranker.forest.machine)
+
+
 class UndemandedStructure(unittest.TestCase):
     def test_ranked_machine_interns_equal_parts_without_minimization(self):
         # Engine §4.1: equal parts share a state, while a seal retains its width.

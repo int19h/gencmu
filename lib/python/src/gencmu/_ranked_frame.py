@@ -206,8 +206,8 @@ class Frames:
         present = (outer.present if outer else set()) | {n for n in p.captures if not n.startswith('\u0000')}
         root = outer.root if outer else p
         named_origin = outer.origin if outer else origin
-        # Without ranked groups and patterns there is no machine, and the
-        # prefixes are all empty.
+        # Without demanded tree predicates there is no machine, so every
+        # structural prefix is empty.
         prefix = self.machine.concat(outer.prefix,prefix) if outer and self.machine is not None else prefix
         inside = bool(p.ranked or outer and outer.inside)
         seal_prefix = outer.seal_prefix if inside and outer else prefix

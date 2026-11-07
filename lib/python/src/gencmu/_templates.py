@@ -189,9 +189,10 @@ def _print_body(n, unicode, parent=''):
 def expand_templates(documents, unicode):
     from ._validate import dom_problem
     if not any(has_unresolved(dom) for _, dom in documents):
-        return documents, None, [], [], [], list(range(len(documents)))
+        return documents, None, [], [], [], list(range(len(documents))), None
     patterns = pattern_constant_names(c for _, dom in documents for c in dom["constants"])
     normalize = lambda value: normalize_argument(value, patterns)
+    erasure_checks = []
     templates, names, instances = {}, {}, {}
     slots, events, queue, extra, source_events = [], [], [], [], []
 
@@ -574,9 +575,16 @@ def expand_templates(documents, unicode):
             return items
         if not isinstance(root, dict):
             return root
+        def erased_check(names, name):
+            children = root.get('children')
+            if position == 'pattern' and children is not None and children != [{'siblings': True}]:
+                erasure_checks.append((names, name, event['path'], root.get('at') or event['rule'].get('at')))
+        if root.get('name') and root['name'] not in templates:
+            erased_check([root['name']], root['name'])
         if 'call' in root:
             instance = instances.get(key_of(normalize(dict(call=root['call'], args=root['args'], at=root['at']))))
             name = effective(instance) if instance else canonical_argument(root, unicode)
+            erased_check([name], name)
             if position == 'pattern':
                 result = dict(name=name, at=root['at'])
                 if root.get('exact'):
@@ -587,13 +595,15 @@ def expand_templates(documents, unicode):
             return {'ref' if position == 'expr' else 'rule': name}
 
         if position == 'pattern' and root.get('name') in templates:
+            erased_check([effective(i) for i in queue if i['call']['call'] == root['name']], root['name'])
+            children = (yield rewrite_walk(root['children'], event, 'pattern-item')) if 'children' in root else None
             members = []
             for instance in queue:
                 if instance['call']['call'] != root['name']:
                     continue
                 member = {**root, 'name': effective(instance)}
                 if 'children' in root:
-                    member['children'] = yield rewrite_walk(root['children'], event, 'pattern-item')
+                    member['children'] = children
                 members.append(member)
             return members[0] if len(members) == 1 else dict(union=members) if members else dict(difference=[dict(name='text', at=root['at'], **({'exact': True} if root.get('exact') else {})), dict(name='text', at=root['at'], **({'exact': True} if root.get('exact') else {}))])
         if root.get('ref') in templates or root.get('rule') in templates:
@@ -654,7 +664,11 @@ def expand_templates(documents, unicode):
         rewritten_definitions[id(event)] = rewritten
         return rewritten
 
-    validation = [e if 'params' in e['rule'] else rewrite_definition(e)
+    def retain_template(event):
+        rewrite(event['rule'], event)
+        return event
+
+    validation = [retain_template(e) if 'params' in e['rule'] else rewrite_definition(e)
                   for e in events if 'params' in e['rule'] or not any(k in e['rule'] for k in ('args', 'instance'))]
     validation.extend(rewrite_definition(e, {**e['rule'], 'name': effective(i)}) for i in queue for e in i['definitions'])
     validation.extend(rewrite_definition(e) for e in validation_definitions)
@@ -678,7 +692,7 @@ def expand_templates(documents, unicode):
     order = [n for n in slots if n in current or n in ordinary] + [effective(i) for i in queue if not i['name']]
     instance_names = {effective(i) for i in queue}
     document_runs = [*range(len(documents)), *(e["inspection_run"] for e in output)]
-    return expanded_docs, order, [name for name in order if name in instance_names], validation, arguments_to_check, document_runs
+    return expanded_docs, order, [name for name in order if name in instance_names], validation, arguments_to_check, document_runs, erasure_checks
 
 
 def effective(instance):

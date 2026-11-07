@@ -74,7 +74,15 @@ def working_structure(context, forest, node):
     if node.production.helper:
         return prefix
     machine = forest.machine
-    value = "".join(token.value for token in context.tokens[node.start:node.end]) if machine.node_values else None
+    value = None
+    if machine.node_values:
+        cache = getattr(context, "emission_span_values", None)
+        if cache is None:
+            context.emission_span_values = cache = {}
+        span = node.start, node.end
+        if span not in cache:
+            cache[span] = "".join(token.value for token in context.tokens[node.start:node.end])
+        value = cache[span]
     return machine.node(node.production.rule_name, prefix, tags=context.tagtab.get(node.tag), value=value)
 
 
