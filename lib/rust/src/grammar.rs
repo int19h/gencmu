@@ -288,8 +288,14 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
     let mut checks = Vec::new();
     let mut resolution: Option<(Arc<str>, (usize, usize))> = None;
     let mut elision_only = false;
-    let mut constants =
-        Constants { stage, unicode, values: HashMap::new(), versions: Vec::new(), latest: HashMap::new() };
+    let mut constants = Constants {
+        stage,
+        unicode,
+        patterns: Default::default(),
+        values: HashMap::new(),
+        versions: Vec::new(),
+        latest: HashMap::new(),
+    };
     let mut deferred = Vec::new();
     let mut text_order = 0;
     for (index, (document, dom)) in documents.iter().enumerate() {
@@ -321,6 +327,8 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
                         deferred.push(located(problem.message.clone(), document, rule.at));
                     }
                     if !constants_in_rule(rule).is_empty()
+                        || value_parts(ValuePart::Rule(rule))
+                            .any(|part| matches!(part, ValuePart::Pattern(_) | ValuePart::Term(Term::Pattern(_))))
                         || arguments_by_site.contains_key(&(run, document.clone(), rule.at))
                     {
                         checks.push((run, rule.at, 0, Check::Rule(document, rule)));
@@ -563,7 +571,7 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
     if !grammar.index.contains_key("text") {
         return Err(Error::grammar("has no rule text").in_stage(stage));
     }
-    crate::diagnostics::check(&grammar, documents)?;
+    crate::diagnostics::check(&grammar, documents, &constants.patterns.borrow())?;
     crate::boundary::reachable(&grammar)?;
     // Shared clauses are checked once, with the first alternative that
     // holds them.
@@ -942,6 +950,7 @@ struct Version {
     previous: Option<usize>,
 }
 struct Constants<'a> {
+    patterns: std::cell::RefCell<Vec<(Pattern, String)>>,
     versions: Vec<Version>,
     latest: HashMap<String, usize>,
     stage: &'a str,
@@ -1424,6 +1433,9 @@ impl Constants<'_> {
                     ));
                 }
             }
+        }
+        if matches!(term, Term::Pattern(_)) {
+            self.patterns.borrow_mut().push((pattern.clone(), document.to_owned()));
         }
         Ok(Value::Pattern(pattern))
     }

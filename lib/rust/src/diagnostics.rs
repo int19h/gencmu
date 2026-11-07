@@ -58,13 +58,22 @@ fn pattern_names(
     }
     Ok(())
 }
-pub(crate) fn check(grammar: &StageGrammar, documents: &[(Arc<str>, Arc<Dom>)]) -> Result<(), Error> {
+pub(crate) fn check(
+    grammar: &StageGrammar,
+    documents: &[(Arc<str>, Arc<Dom>)],
+    checked_patterns: &[(crate::patterns::Pattern, String)],
+) -> Result<(), Error> {
     let erased: FxSet<String> = grammar
         .rules
         .iter()
         .filter(|rule| rule.alternatives.iter().all(|alt| alt.erased))
         .map(|rule| rule.name.clone())
         .collect();
+    // Resolved patterns include unused templates and replaced definitions (§9.3).
+    let mut unused = FxSet::default();
+    for (pattern, document) in checked_patterns {
+        pattern_names(pattern, &mut unused, &erased, document)?;
+    }
     let mut prohibited = FxSet::default();
     let mut splices = Vec::new();
     let mut warnings = FxSet::default();
