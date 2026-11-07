@@ -18,9 +18,7 @@ CLL[^cll-s3-6] forbids repeated consonants, two consonants from `c j s z`, and t
 
 Each consonant token has one lowercase Latin letter as its value, in both the Latin and Cyrillic scripts. Thus adjacent code points in a consonant run are exactly its adjacent token values.
 
-CLL[^cll-s3-7] lists the 48 pairs in `$INITIAL` that can begin a word. A borrowing is a word taken from another language. A longer cluster can begin a borrowing if each adjacent pair in it is one of the 48 (CLL[^cll-s4-7]). So `spraile` is a borrowing, but not `ktraile` or `trkaile`. `long-initial-run` is every such cluster of three consonants or more. CLL[^cll-s3-7] forbids the triples `ndj ndz ntc nts`, except in a name.
-
-The shared [consonant tables](../common/consonant-tables.md) hold `$INITIAL`, `$PERMISSIBLE` and `$AFFRICATES` for every Lojban pipeline.
+CLL[^cll-s3-7] lists the 48 pairs in `$INITIAL` that can begin a word. A borrowing is a word taken from another language. A longer cluster can begin a borrowing if each adjacent pair in it is one of the 48 (CLL[^cll-s4-7]). So `spraile` is a borrowing, but not `ktraile` or `trkaile`. `long-initial-run` is every such cluster of three consonants or more. CLL[^cll-s3-7] forbids the triples `ndj ndz ntc nts`, except in a name. The shared [consonant tables](../common/consonant-tables.md) hold `$INITIAL`, `$PERMISSIBLE` and `$AFFRICATES` for every Lojban pipeline.
 
 ```jbogenbau
 %rule consonant

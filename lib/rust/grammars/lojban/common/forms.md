@@ -149,11 +149,7 @@ A join permits two words without a pause. No two joins apply to the same pair. T
 
 For example, in the CLL word family, a word tagged `Cy` never carries `Continued`. So only the `Cy` rule joins two `Cy` letters there, and the general join, a continued word followed by an onset, never follows one. The BPFK word forms tag no word `Cy`. They join a `Cy`-shaped word such as `fy` by the general join, so `fyno` is `fy` and `no`.
 
-Each join needs one of four tags on the word before it.
-
-The four tags are `Continued`, `Cy`, `Name-Intro` and `Open-Stress`.
-
-No other condition states that fact, because the join list states it in full.
+Each join needs one of four tags on the word before it. The four tags are `Continued`, `Cy`, `Name-Intro` and `Open-Stress`. No other condition states that fact, because the join list states it in full.
 
 Before the cmavo `bu`, this stage splits prolonged y hesitation into a prefix and a final y token, with or without a pause. In the BPFK word family, the `post_word` test requires the whole cmavo, so `yy buntu` keeps `yy` whole. In the CLL word family, the test reads only the letters `bu`, so `yy buntu` splits `yy`. Both pieces stay hesitation, so the split changes no reading there.
 

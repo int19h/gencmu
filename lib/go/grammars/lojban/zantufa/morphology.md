@@ -19,7 +19,7 @@ The rule names follow Zantufa, while their comments state its morphology constra
 
 ## The pair mz
 
-A diphthong combines two vowels in one syllable. A nucleus is a syllable's vowel or diphthong. A glide is an `i` or `u` before a nucleus. This layer adds the pair `mz` to the shared table of its own stitched pipeline. Thus `kamzi`, `bamzda` and `.djeimz.` have permissible consonant pairs.
+A diphthong combines two vowels in one syllable. A nucleus is a syllable's vowel or diphthong. A glide is an `i` or `u` before a nucleus. This layer adds the pair `mz` to the shared table of its own stitched pipeline, so `kamzi`, `bamzda` and `.djeimz.` have permissible consonant pairs.
 
 ```jbogenbau
 %redefine-const $PERMISSIBLE $PERMISSIBLE ∪ "mz"
@@ -62,9 +62,7 @@ A word of LU, TO or LUhEI opens a text of its own. The hesitation after such a w
   LU ∪ TO ∪ LUhEI
 ```
 
-This document extends the rule `word-run` of [../common/forms.md](../common/forms.md) to read a run in which a form follows `ra'oi`, as in `mira'oibroda`. So `unsegmentable-run` of [../common/forms.md](../common/forms.md) never takes such a run.
-
-The redefined `run-words` keeps the join conditions of [../common/forms.md](../common/forms.md).
+This document extends the rule `word-run` of [../common/forms.md](../common/forms.md) to read a run in which a form follows `ra'oi`, as in `mira'oibroda`. So `unsegmentable-run` of [../common/forms.md](../common/forms.md) never takes such a run. The redefined `run-words` keeps the join conditions of [../common/forms.md](../common/forms.md).
 
 ```jbogenbau
 %redefine-rule runs

@@ -14,11 +14,7 @@ The terminals of the stage are exact strings, such as `"a"`, scalar ranges, such
 
 The stage emits phoneme values and images for every script. A tag marks a token by an identifier. Consonant and vowel values are lowercase. A stressed vowel carries `Stressed`, and its image shows the stress as a capital vowel. The forms stage receives these values, images, and tags directly.
 
-Each consonant token carries the tag `Consonant`.
-
-Each vowel token with value `a`, `e`, `i`, `o` or `u` carries the tag `Vowel`.
-
-The letter `y` carries neither tag.
+Each consonant token carries the tag `Consonant`. Each vowel token with value `a`, `e`, `i`, `o` or `u` carries the tag `Vowel`. The letter `y` carries neither tag.
 
 The phoneme values are the letters of CLL[^cll-c3]:
 

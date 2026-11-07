@@ -62,19 +62,9 @@ This grammar excludes pure y from the onset alternative and reads the whole run 
 
 ### Word shapes and boundaries
 
-One template states the shape of each word.
+One template states the shape of each word. A word shape carries `Continued`, so another word can follow it directly. It carries `Onset` when no nucleus begins the word. Only a word with `Onset` can follow another word without a pause.
 
-A word shape carries `Continued`, so another word can follow it directly.
-
-It carries `Onset` when no nucleus begins the word.
-
-Only a word with `Onset` can follow another word without a pause.
-
-Hesitation is a direct run of `y` letters, outside `cmavo`.
-
-It keeps the test that no name begins at its own start.
-
-`cmavo` keeps its exclusion of a pure `y` run, so a particle is never hesitation.
+Hesitation is a direct run of `y` letters, outside `cmavo`. It keeps the test that no name begins at its own start. `cmavo` keeps its exclusion of a pure `y` run, so a particle is never hesitation.
 
 ```jbogenbau
 %rule word-shape(@W)  (* A word shape carries its join property and an onset mark when no nucleus begins it. *)
@@ -155,29 +145,13 @@ The PEG's `lojban_word` is what `post_word` looks for after a word.
 
 
 
-The test on `lujvo` reads the whole word, and a test at its start gives the same result.
-
-A root or borrowing that stands as a proper prefix of a longer brivla needs a stressed syllable of its own.
-
-Stress by position needs a pause after that syllable, and a longer brivla has letters there.
-
-Stress by a mark cannot stand in an unstressed initial rafsi of the longer brivla.
-
-The mark also cannot stand in the final syllable, which `final-syllable` protects.
-
-So the marked syllable is the stressed syllable of the longer brivla itself.
-
-One counted syllable follows it in both readings, and the letters fix both ends.
-
-Each reading therefore ends at the same nucleus, and no proper prefix exists.
+The test on `lujvo` reads the whole word, and a test at its start gives the same result. A root or borrowing that stands as a proper prefix of a longer brivla needs a stressed syllable of its own. Stress by position needs a pause after that syllable, and a longer brivla has letters there. Stress by a mark cannot stand in an unstressed initial rafsi of the longer brivla. The mark also cannot stand in the final syllable, which `final-syllable` protects. So the marked syllable is the stressed syllable of the longer brivla itself. One counted syllable follows it in both readings, and the letters fix both ends. Each reading therefore ends at the same nucleus, and no proper prefix exists.
 
 ## Cmevla
 
 A name is a run of letters that ends in a consonant before a pause. The repeated sounds exclude that final consonant, so only one repetition count reaches it. The PEG also offers a syllabified name shape, which requires the same general shape and ends at the same pause. The single `zifcme` form covers both name readings without duplicate proofs.
 
-No sound in the repetition needs a test against a pause.
-
-The final consonant of `zifcme` always follows the repetition, so the repetition cannot take that consonant and still complete the name.
+No sound in the repetition needs a test against a pause. The final consonant of `zifcme` always follows the repetition, so the repetition cannot take that consonant and still complete the name.
 
 ```jbogenbau
 %rule cmevla  (* A name needs the general name shape. The syllabified name shape requires that same shape and ends at the same pause. *)
@@ -422,41 +396,13 @@ The slinku'i test and a borrowing's head look for a string of rafsi. That is any
 
 The core of a brivla ends it, and a pause or another word follows it. Its final syllable has a nucleus with no stress mark and is not followed by a name.
 
-Three rules test `final-syllable` at one anchor each, and no rule repeats its `post-word` test.
+Three rules test `final-syllable` at one anchor each, and no rule repeats its `post-word` test. In `gismu`, the witness begins at the last consonant, and its nucleus is the last vowel of the body. In `cvv-final-rafsi`, the witness begins at the final vowel, and its nucleus is that vowel. In `short-final-rafsi`, the witness begins at the start of the body, and its nucleus ends the body. Each witness ends where its body ends, so its `post-word` test reads the same place as a test on the body.
 
-In `gismu`, the witness begins at the last consonant, and its nucleus is the last vowel of the body.
+The callers of the stressed CVC form put a consonant after it. A short final rafsi begins with a consonant, and an initial pair begins with a consonant. So no caller can put `y` after the stressed CVC form, and no test against `y` stands on that form.
 
-In `cvv-final-rafsi`, the witness begins at the final vowel, and its nucleus is that vowel.
+Each rafsi shape stands once as a template. The stress argument of a template is one stress unit. The units are `stressed-vowel`, `unstressed-vowel`, `stressed-diphthong` and `unstressed-diphthong`. Plain `vowel` or `diphthong` as an argument means either stress. The two plain units cover the stressed unit and the unstressed unit of each kind.
 
-In `short-final-rafsi`, the witness begins at the start of the body, and its nucleus ends the body.
-
-Each witness ends where its body ends, so its `post-word` test reads the same place as a test on the body.
-
-The callers of the stressed CVC form put a consonant after it.
-
-A short final rafsi begins with a consonant, and an initial pair begins with a consonant.
-
-So no caller can put `y` after the stressed CVC form, and no test against `y` stands on that form.
-
-Each rafsi shape stands once as a template.
-
-The stress argument of a template is one stress unit.
-
-The units are `stressed-vowel`, `unstressed-vowel`, `stressed-diphthong` and `unstressed-diphthong`.
-
-Plain `vowel` or `diphthong` as an argument means either stress.
-
-The two plain units cover the stressed unit and the unstressed unit of each kind.
-
-The tail of the `y` templates is an argument, `[h]` or `ε`.
-
-The first vowel of the apostrophe form of CVV stays unstressed in each binding.
-
-The long apostrophe-y body takes its own final-vowel argument.
-
-A layer can change that vowel without a change to the other parts.
-
-`gismu` reads the stressed long shape and one more vowel.
+The tail of the `y` templates is an argument, `[h]` or `ε`. The first vowel of the apostrophe form of CVV stays unstressed in each binding. The long apostrophe-y body takes its own final-vowel argument. A layer can change that vowel without a change to the other parts. `gismu` reads the stressed long shape and one more vowel.
 
 ```jbogenbau
 %rule gismu  (* A root is the stressed long shape and a vowel. Its final syllable test stands at its last consonant. *)
@@ -770,31 +716,9 @@ A vowel letter has a lowercase value with or without `Stressed`, and it carries 
 
 ## Consonants
 
-An initial pair is two consonants that can begin a word.
+An initial pair is two consonants that can begin a word. `initial` reads a cluster where each pair of neighbours stands in `$INITIAL`. An affricate can stand only as the whole cluster. That limit is a departure from CLL 4.7, and the closing section lists it. A sibilant, another consonant and a liquid give the usual shape of a long cluster. That sentence states the usual shape, and the table states the law. No consonant or glide can follow the cluster, and the empty onset always stands.
 
-`initial` reads a cluster where each pair of neighbours stands in `$INITIAL`.
-
-An affricate can stand only as the whole cluster.
-
-That limit is a departure from CLL 4.7, and the closing section lists it.
-
-A sibilant, another consonant and a liquid give the usual shape of a long cluster.
-
-One prose sentence states that shape here, and the table states the law.
-
-No consonant or glide can follow the cluster, and the empty onset always stands.
-
-The pair law reads raw consonant tokens against `$PERMISSIBLE`.
-
-A law that reads each consonant through its own rule can differ on one consonant query inside a bad run, as in `btb`.
-
-They give the same words, because each consonant of a divided run passes its own test.
-
-A run with a consonant that fails stays foreign under both laws.
-
-The `bu` test is the only lookahead that leaves a run.
-
-Its `post-word` chain reads whole words, so it reads each letter of the run.
+The pair law reads raw consonant tokens against `$PERMISSIBLE`. A law that reads each consonant through its own rule can differ on one consonant query inside a bad run, as in `btb`. They give the same words, because each consonant of a divided run passes its own test. A run with a consonant that fails stays foreign under both laws. The `bu` test is the only lookahead that leaves a run. Its `post-word` chain reads whole words, so it reads each letter of the run.
 
 ```jbogenbau
 %rule cluster                 (* `cluster <- consonant consonant+`. The first two consonants decide this lookahead. *)
@@ -907,11 +831,7 @@ A run stays one hesitation token except for the split that prepares a letter wor
 
 The consonant rules retain the ban on a consonant directly followed by a glide. The committee voted for this ban, and CLL 1.3.4 records the vote.[^cll-later-a3-3]
 
-The pair tables state the pair law and the initial law in one place for each fact.
-
-An affricate stands only as a whole initial cluster in this grammar.
-
-CLL 4.7 allows a longer cluster with an affricate pair inside it, so that limit departs from CLL.[^cll-s4-7]
+The pair tables state the pair law and the initial law in one place for each fact. An affricate stands only as a whole initial cluster in this grammar. CLL 4.7 allows a longer cluster with an affricate pair inside it, so that limit departs from CLL.[^cll-s4-7]
 
 [^cll-s4-7]: [CLL 1.1, section 4.7](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-fuhivla.html).
 

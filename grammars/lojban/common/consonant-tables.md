@@ -1,36 +1,10 @@
 # Consonant tables
 
-This document holds the consonant pair tables of the forms stage.
+This document holds the consonant pair tables of the forms stage. A stage is one step of a pipeline, with its own grammar ([engine §1](../../../docs/engine.md#1-tokens)). A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read.
 
-A stage is one step of a pipeline, with its own grammar ([engine §1](../../../docs/engine.md#1-tokens)).
+The loader stitches this document into the forms stage of every Lojban pipeline. Each word family keeps its own consonant rule. Each family also keeps its own statement for `n` before an affricate. Each family keeps its own ban on a letter before a following sound. A layer can add a pair to the table of its own stitched pipeline. The experimental layer and the Zantufa layer add `mz` in that way.
 
-A token is one unit that a stage reads or emits.
-
-A token's value is the string that exact comparisons read.
-
-The loader stitches this document into the forms stage of every Lojban pipeline.
-
-Each word family keeps its own consonant rule.
-
-Each family also keeps its own statement for `n` before an affricate.
-
-Each family keeps its own ban on a letter before a following sound.
-
-A layer can add a pair to the table of its own stitched pipeline.
-
-The experimental layer and the Zantufa layer add `mz` in that way.
-
-`$PERMISSIBLE` lists the 179 consonant pairs that can stand side by side.
-
-The list states the law of CLL[^cll-s3-6] for pairs of consonants.
-
-`$INITIAL` lists the 48 consonant pairs that can begin a word.
-
-The list states the inventory of CLL[^cll-s3-7].
-
-`$AFFRICATES` lists the four affricate pairs.
-
-An affricate joins a stopped sound with friction.
+`$PERMISSIBLE` lists the 179 consonant pairs that can stand side by side. The list states the law of CLL[^cll-s3-6] for pairs of consonants. `$INITIAL` lists the 48 consonant pairs that can begin a word. The list states the inventory of CLL[^cll-s3-7]. `$AFFRICATES` lists the four affricate pairs. An affricate joins a stopped sound with friction.
 
 ```jbogenbau
 %const $INITIAL
