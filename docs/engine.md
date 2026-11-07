@@ -1552,7 +1552,7 @@ Private option captures retain their real completed states for ready gates. The 
 
 An erased production retains its ordinary working observations while evaluating its own clauses. After those clauses pass, it supplies sealed structural observations to its caller. A named occurrence supplies its constructor over the shared seal. Its root uses the completed tags and the ordinary input span value.
 
-A spliced occurrence supplies the single-seal sequence without the named constructor. Its captured root uses the ordinary anonymous constructor over that sequence. Empty spans still supply one seal. Empty normalization removes neither the seal nor a named root containing it.
+A spliced erased occurrence supplies the single-seal sequence without the named constructor. Its captured root uses the ordinary anonymous constructor over that sequence. Empty spans still supply one seal. Empty normalization removes neither the seal nor a named root containing it.
 
 Parent prefixes, captures, and contextual frames read the exported observations. Working prefixes and captures remain available for the erased production's own clauses. They do not enter its exported structural state.
 
@@ -2024,7 +2024,7 @@ Inside one recognition and cycle context, completed erased productions of one ru
 
 The state also includes tags. It also includes the completed constituent's structural state, demanded restoration observations, demanded tree identities, and boundary record that a parent reads (§4.2). Different observable states remain separate. A capture bound by the erased production cannot distinguish interiors because no parent reads it and its conditions already ran.
 
-The completed structural state and demanded tree identity are the exported observations of §4.1. Private working observations do not distinguish erased classes. Demanded close observations, tags, boundary records, frames, and caller modes retain their existing roles.
+The completed structural state and demanded tree identity are the exported observations of §4.1. Private working observations do not distinguish erased classes. The demanded restoration key retains ordered close records, opaque blocks, and validity. Named rule closes remain cycle bookkeeping on items and do not distinguish erased classes. Demanded close observations, tags, boundary records, frames, and caller modes retain their existing roles.
 
 The collapse crosses productions that carry `%erased`, but not productions without that clause. Extensions inherit no erasure. Each collapsed occurrence contributes one derivation to the verdict total. Internally, it chooses the best pre-erasure measure and then canonical action keys, without grammar key steps or a lean. Only its contribution to its parent resets to zero.
 
@@ -3410,6 +3410,8 @@ Readers reject missing parts, unknown members and invalid arities. A tag test an
 Child arrays retain their context throughout unresolved inspection. An optional accepts no `separator`, and only a repeat accepts that member. A sibling ellipsis cannot occur at a repeat's sibling level, including through optional, choice, or repeat wrappers. A `child` pattern starts another node and therefore another sibling level for its own child list. Supplied DOMs obey the same restrictions. Stage resolution includes every pattern in replaced definitions and uncalled templates.
 
 Take an atom that names a rule whose every definition carries `%erased`. An attached child list is a document error unless it contains only one sibling gap, `« ⋯ »`. This check follows stitching and substitution. A mixed rule with an unerased definition does not trigger it.
+
+For a template-family atom, this error requires at least one instance and fully erased definitions in every instance. A parameter as the atom postpones this check until substitution. A child-list parameter occupies one element, so a known erased atom takes this check on its written list.
 
 If X is declared, `#« A @X »` and `#« ⋯ @X »` remain valid. Their closed items remain child items beside the parameter. A parameter postpones only the type or binding that its value determines. It never postpones the surrounding field, arity, context, or forbidden-gap rules. Source, supplied, and cached patterns all obey the exact schema in `docs/output.md`.
 
