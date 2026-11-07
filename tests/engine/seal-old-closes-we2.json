@@ -1,0 +1,28 @@
+{
+  "description": "Engine §6: named closes do not split erased classes under an aligned query with sealed identity comparisons.",
+  "grammar": "%ambiguity-resolution greedy\n%rule text $p:p\n%conditions $p.without-elision.matches(w)\n%rule p e e\n%rule w $a:e $b:e\n%conditions $a ≅ $b\n%rule e a | b\n%erased\n%rule a A\n%rule b A\n",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

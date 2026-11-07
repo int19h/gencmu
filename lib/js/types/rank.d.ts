@@ -117,6 +117,7 @@ export type ActionPair = {
 /** @typedef {{ordinary:ElisionSummary,canonical:ElisionSummary}} SummaryPair */
 /** @typedef {{ordinary:Candidate[],canonical:Candidate[],measure:import("./measures.js").Measure|null}} ActionPair */
 export declare class Ranker {
+    /** @type {ReturnType<typeof import("./restoration-forest.js").restorationForest>} */ restorationForest: ReturnType<typeof import("./restoration-forest.js").restorationForest>;
     erasures: ErasedClasses;
     /** @type {Item[]} */ rankingRoots: Item[];
     /** @type {Item[]} */ bestRoots: Item[];

@@ -10173,6 +10173,7 @@
 
 
 
+
   // Lexical entry state for transparent helpers in a ranked alternative.
 
 
@@ -10312,21 +10313,24 @@
   /** @param {any} context */
   function rankedFrameTable(context) {
     const frames = new Map(), productions = new Map();
+    /** @type {Map<string,number>} */ const restorationKeys = new Map();
     const contextual = new Set(context.lowered.productions.filter((/** @type {any} */ p) => p.contextual).map((/** @type {any} */ p) => p.lhs));
     const helpers = new Map(context.lowered.productions.filter((/** @type {any} */ p) => p.helper).map((/** @type {any} */ p) => [p.lhs,p]));
     let next = 0;
     const written = (/** @type {any} */ p) => [p.owner ?? p.lhs, p.source?.at ?? p.id, context.lowered.ranked?.paths.get(p.writtenExpression) ?? ''];
     const symbol = (/** @type {any} */ s) => [s.terminal ? s.name : helpers.has(s.name) ? written(helpers.get(s.name)) : s.name,s.terminal,s.test];
-    const prefixKey = (/** @type {any} */ item) => {
+    const prefixKey = (/** @type {any} */ item, project = false) => {
+      const observation = (/** @type {any} */ value) => project && value && context.closes ? context.closes.identity(value) : value?.id;
       const captures = [];
       for (let part = item.slots; part; part = part.parent) {
+        if(project && hooks.work)countWork(hooks.work,"groups");
         const name = item.production.captures[part.index].name;
         if (!name.startsWith('\u0000')) {
-          captures.push([name,part.start,part.end,part.tags,part.structure,part.observation?.id]);
+          captures.push([name,part.start,part.end,part.tags,part.structure,observation(part.observation)]);
           if(context.trees)captures[captures.length-1].push(part.treeIdentity);
         }
       }
-      const key = [written(item.production),item.production.guardConditions?.length ? item.production.id : null,item.origin,item.production.rhs.slice(0,item.dot).map(symbol),item.production.rhs.slice(item.dot).map(symbol),item.prefix,captures.reverse(),item.restores,item.production.rankedBindings,item.observationPrefix?.id];
+      const key = [written(item.production),item.production.guardConditions?.length ? item.production.id : null,item.origin,item.production.rhs.slice(0,item.dot).map(symbol),item.production.rhs.slice(item.dot).map(symbol),item.prefix,captures.reverse(),item.restores,item.production.rankedBindings,observation(item.observationPrefix)];
       if(context.trees)key.push(item.treePrefix);
       return key;
     };
@@ -10362,8 +10366,19 @@
         const sealGroup = inside && outer ? outer.sealGroup : context.lowered.ranked?.groups.find((/** @type {any} */ group) => group.helper === name) ?? null;
         const sealEntry = inside && outer ? outer.sealEntry : item;
         const knownPrivate = new Set([...outer?.knownPrivate ?? [],...item.production.rankedPrivate ?? []]);
-        const frame = {id:next++,key,captures,root,namedOrigin,prefix,inside,sealPrefix,present,knownPrivate,
+        /** @type {any} */ const frame = {id:next++,key,captures,root,namedOrigin,prefix,inside,sealPrefix,present,knownPrivate,
           observationPrefix,sealObservationPrefix,sealGroup,sealEntry,treePrefix,treeSealPrefix};
+        // Ranking projects named closes, while recognition retains the raw frame.
+        /** @type {number|undefined} */ let projectedKey;
+        frame.restorationKey = () => {
+          if(projectedKey===undefined) {
+            if(hooks.work)countWork(hooks.work,"groups");
+            const key=JSON.stringify([outer?.restorationKey() ?? null,prefixKey(item,true)]);
+            if(!restorationKeys.has(key))restorationKeys.set(key,restorationKeys.size);
+            projectedKey=restorationKeys.get(key);
+          }
+          return projectedKey;
+        };
         frames.set(key,frame);
         return frame;
       },
@@ -18135,7 +18150,9 @@
   /** @typedef {import('./types.js').Item} Item */
   /** @typedef {{indices:number[],erased:boolean}} EdgeGroup */
   class ErasedClasses {
-    constructor(){
+    /** @param {import("./close-observations.js").CloseObservations|null} [closes] */
+    constructor(closes=null){
+      this.closes=closes;
       /** @type {WeakMap<object,number>} */ this.ids=new WeakMap();
       /** @type {WeakMap<object,string>} */ this.keys=new WeakMap();
       this.next=0;
@@ -18148,20 +18165,21 @@
       if(key===undefined){
         // Only completed values cross a call. Prefixes describe its interior.
         key=JSON.stringify([item.production.lhs,item.origin,item.end,item.tagId,item.structure,
-          item.production.closeRequested?item.observation?.id:null,item.familySummary?.id,
+          item.production.closeRequested&&item.observation ? this.closes?.identity(item.observation) ?? item.observation.id : null,item.familySummary?.id,
           item.production.treeRequested?/** @type {any} */(item).treeIdentity:null,item.boundary?.id,
           item.strict,item.restores,!!item.production.closeRequested,!!item.production.treeRequested,
-          item.production.lexicalFrame?.id,item.slotScope?.id]);
+          /** @type {any} */(item).restorationFrame ?? item.production.lexicalFrame?.id,item.slotScope?.id]);
         this.keys.set(item,key);
       }
       return key;
     }
-    /** @param {import('./types.js').Edge[]} edges @param {Set<number>|null|undefined} [mask] @returns {EdgeGroup[]} */
-    groups(edges,mask){
+    /** @param {import('./types.js').Edge[]} edges @param {Set<number>|null|undefined} [mask] @param {(item:Item)=>boolean} [eligible] @returns {EdgeGroup[]} */
+    groups(edges,mask,eligible){
       const groups=[],seen=new Map();
       for(let index=0;index<edges.length;index++){
         if(mask&&!mask.has(index))continue;
         const edge=edges[index],erased=edge.kind==='complete'&&edge.child.production.erased;
+        if(erased&&eligible&&!eligible(edge.child))continue;
         const key=erased?this.id(edge.previous)+'/'+this.key(edge.child):null;
         const old=key===null?undefined:seen.get(key);
         if(old)old.indices.push(index);
@@ -18289,6 +18307,86 @@
       this.sizes.clear();
       this.totalSize = 0;
     }
+  }
+
+  // ---- restoration-forest.js
+  // Ranking forgets named-close bookkeeping only after recognition (§6).
+
+  /** @typedef {import('./types.js').Item} Item */
+  /** @typedef {import('./types.js').Edge} Edge */
+  /** @param {import('./earley.js').Chart} chart */
+  function restorationForest(chart) {
+    const closes=chart.context.closes;
+    if(!closes || !chart.context.lowered.productions.some(p=>p.erased))return null;
+    const identity=(/** @type {any} */ observation)=>observation ? closes.identity(observation) : null;
+    /** @type {Map<Item,Item>} */ const plain=new Map();
+    /** @type {Map<Item,number[]>} */ const indices=new Map();
+    /** @type {Map<Item,number>} */ const numbers=new Map();
+    /** @type {WeakMap<object,number>} */ const captures=new WeakMap();
+    /** @type {Map<string,number>} */ const captureIds=new Map();
+    /** @param {any} part */
+    const capture=(part)=> {
+      const pending=[];
+      for(let at=part;at&&!captures.has(at);at=at.parent)pending.push(at);
+      for(const at of pending.reverse()) {
+        if(hooks.work)countWork(hooks.work,'groups');
+        const key=JSON.stringify([at.parent?captures.get(at.parent):null,at.index,at.start,at.end,at.tags,at.structure,identity(at.observation),at.treeIdentity]);
+        if(!captureIds.has(key))captureIds.set(key,captureIds.size);
+        captures.set(at,/** @type {number} */(captureIds.get(key)));
+      }
+      return part?captures.get(part):null;
+    };
+    const sets=chart.sets.map(set=>set?{...set,items:/** @type {Item[]} */([])}:set);
+    /** @type {Map<string,Item>} */ const byKey=new Map();
+    /** @type {Map<Item,Edge[]>} */ const edges=new Map();
+    for(const set of chart.sets)if(set)for(const raw of set.items) {
+      if(hooks.work)countWork(hooks.work,'groups');
+      const p=raw.production;
+      const key=JSON.stringify([p.id,raw.dot,raw.origin,raw.end,raw.tagId,capture(raw.slots),raw.prefix,raw.structure,
+        identity(raw.observationPrefix),identity(raw.observation),raw.familySummary?.id,
+        /** @type {any} */(raw).treePrefix,/** @type {any} */(raw).treeIdentity,/** @type {any} */(raw).treeSequence,
+        p.closeRequested,p.treeRequested,p.lexicalFrame?.restorationKey(),raw.boundary?.id,raw.strict,raw.restores]);
+      let item=byKey.get(key);
+      if(!item) {
+        item=/** @type {Item} */(Object.setPrototypeOf({...raw},Object.getPrototypeOf(raw)));
+        Object.defineProperty(item,'edges',{value:[],writable:true});
+        /** @type {any} */(item).restorationFrame=p.lexicalFrame?.restorationKey();
+        byKey.set(key,item);numbers.set(item,numbers.size);edges.set(item,[]);sets[raw.end].items.push(item);
+      }
+      plain.set(raw,item);
+    }
+    /** @type {Map<Item,Map<string,number>>} */ const edgeIds=new Map();
+    for(const set of chart.sets)if(set)for(const raw of set.items) {
+      const item=/** @type {Item} */(plain.get(raw)),list=/** @type {Edge[]} */(edges.get(item));
+      let found=edgeIds.get(item);if(!found)edgeIds.set(item,found=new Map());
+      const positions=[];
+      for(const edge of raw.edges) {
+        if(hooks.work)countWork(hooks.work,'groups');
+        const previous='previous'in edge?/** @type {Item} */(plain.get(edge.previous)):null;
+        const child=edge.kind==='complete'?/** @type {Item} */(plain.get(edge.child)):null;
+        const key=JSON.stringify([edge.kind,previous?numbers.get(previous):null,child?numbers.get(child):null,
+          'token'in edge?edge.token:null,'terminal'in edge?edge.terminal:null]);
+        let index=found.get(key);
+        if(index===undefined) {
+          index=list.length;found.set(key,index);
+          list.push(edge.kind==='complete'?{...edge,previous:/** @type {Item} */(previous),child:/** @type {Item} */(child)}:edge.kind==='scan'?{...edge,previous:/** @type {Item} */(previous)}:edge);
+        }
+        positions.push(index);
+      }
+      indices.set(raw,positions);
+    }
+    for(const [item,list]of edges)Object.defineProperty(item,'edges',{value:list});
+    return {chart:{...chart,sets},plain,indices,
+      /** @param {Map<Item,Set<number>>} marks */
+      projectMarks(marks) {
+        /** @type {Map<Item,Set<number>>} */ const result=new Map();
+        for(const [raw,marked]of marks) {
+          const item=plain.get(raw);if(!item)continue;
+          let out=result.get(item);if(!out)result.set(item,out=new Set());
+          for(const index of marked)out.add(/** @type {number[]} */(indices.get(raw))[index]);
+        }
+        return result;
+      }};
   }
 
   // ---- restoration.js
@@ -18727,6 +18825,7 @@
      *   §7 gives (F19)
      */
     constructor(tokens, steps, lean, project = null) {
+      /** @type {ReturnType<typeof import("./restoration-forest.js").restorationForest>} */ this.restorationForest=null;
       this.erasures=new ErasedClasses();
       /** @type {Item[]} */ this.rankingRoots=[];
       /** @type {Item[]} */ this.bestRoots=[];
@@ -18805,7 +18904,7 @@
         const edges=current.edges,admitted=this.admission?.mask(current,key);
         /** @type {ActionPair} */
         const result={ordinary:[],canonical:[],measure:summary?(summary.canonical.profile?/** @type {import("./measures.js").Measure} */(summary.canonical.profile.slice(0,3)):null):ZERO_MEASURE};
-        for(const group of this.erasures.groups(edges,admitted)){
+        for(const group of this.erasures.groups(edges,admitted,child=>!!dependency(child)?.canonical.length)){
           const index=group.indices[0],edge=edges[index];
           if(this.check&&index>0&&index===edges.length-1&&fault('lost:select'))continue;
           if(summary&&!group.indices.some(index=>summary.ordinary.kept.has(index)||summary.canonical.kept.has(index)))continue;
@@ -18858,7 +18957,7 @@
       return this.traverse(item,this.summaries,(current,dependency,key)=>{
         const result={ordinary:noDerivation(),canonical:noDerivation()};
         const edges=current.edges,admitted=this.admission?.mask(current,key);
-        for(const group of this.erasures.groups(edges,admitted)){
+        for(const group of this.erasures.groups(edges,admitted,child=>!!dependency(child)?.canonical.total)){
           const edge=edges[group.indices[0]];
           for(const channel of /** @type {const} */(['ordinary','canonical'])){
             /** @type {Profile} */ let profile;
@@ -19073,7 +19172,7 @@
         const edges=current.edges,admitted=this.admission?.compute(current,dependency,key);
         let all=0,w=false,member=false;
         /** @type {import('./measures.js').Measure|null} */ let measure=null;
-        for(const group of this.erasures.groups(edges,admitted)){
+        for(const group of this.erasures.groups(edges,admitted,child=>dependency(child).all>0)){
           const index=group.indices[0],edge=edges[index];
           if(edge.kind==='restore'&&fault('lost:rank','count'))continue;
           if(this.check&&index>0&&index===edges.length-1&&fault('lost:context'))continue;
@@ -19147,7 +19246,8 @@
      * @returns {Rope|null}
      */
     witnessRepresentative(proof){
-      const item=this.admission?.forest?.plain.get(proof.item)??proof.item;
+      const source=this.restorationForest?.plain.get(proof.item)??proof.item;
+      const item=this.admission?.forest?.plain.get(source)??source;
       this.witnessRoot=item;this.witnessTree=null;
       if(item.production.erased){
         const items=this.rankingRoots.filter(other=>other.production.erased&&this.erasures.key(other)===this.erasures.key(item));
@@ -19164,18 +19264,18 @@
           let current=frame.item,context=frame.context;
           for(let index=frame.proof.links.length-1;index>=0;index--){
             const link=frame.proof.links[index];
-            if((current.slotOriginal??current)!==link.item)return null;
+            if((current.slotOriginal??current)!==(this.restorationForest?.plain.get(link.item)??link.item))return null;
             this.countOf(current,context);
             const admitted=this.admission?.mask(current,this.contextKey(context));
             const edges=current.edges;
-            const number=link.index;
-            if(!edges[number]||(this.admission?.forest?.rawIndices.get(edges[number])??number)!==link.index||admitted&&!admitted.has(number))return null;
+            const number=this.restorationForest?.indices.get(link.item)?.[link.index]??link.index;
+            if(!edges[number]||(this.admission?.forest?.rawIndices.get(edges[number])??number)!==number||admitted&&!admitted.has(number))return null;
             const edge=edges[number];
             if(edge.kind==='scan')frame.parts.push(this.readLeaf(edge.token,edge.terminal));
             else if(edge.kind==='complete'){
               if(!link.child)return null;
               if(edge.child.production.erased){
-                const group=this.erasures.groups(edges,admitted).find(group=>group.indices.includes(number));
+                const group=this.erasures.groups(edges,admitted,child=>this.countOf(child,this.contextBelow({item:current,context},child)).all>0).find(group=>group.indices.includes(number));
                 if(!group)return null;
                 const children=group.indices.map(index=>/** @type {CompletionEdge} */(edges[index]).child);
                 const parent={item:current,context};
@@ -19236,10 +19336,11 @@
         let current=frame.item,context=frame.context;
         for(let index=frame.proof.links.length-1;index>=0;index--){
           const link=frame.proof.links[index],edges=current.edges;
+          const number=this.restorationForest?.indices.get(link.item)?.[link.index]??link.index;
           const admitted=this.admission?.mask(current,this.contextKey(context));
           const kept=this.profiles?this.summaryAt(current,this.contextKey(context)).ordinary.kept:null;
-          for(const group of this.erasures.groups(edges,admitted)){
-            if(group.indices.includes(link.index)||kept&&!group.indices.some(index=>kept.has(index)))continue;
+          for(const group of this.erasures.groups(edges,admitted,child=>this.countOf(child,this.contextBelow({item:current,context},child)).all>0)){
+            if(group.indices.includes(number)||kept&&!group.indices.some(index=>kept.has(index)))continue;
             const edge=edges[group.indices[0]],parent={item:current,context};
             if(edge.kind!=='scan'&&edge.kind!=='complete')continue;
             const prefixes=this.candidatePair(edge.previous,this.contextBelow(parent,edge.previous)).ordinary;
@@ -19252,7 +19353,7 @@
             }else children=this.candidatePair(edge.child,this.contextBelow(parent,edge.child)).ordinary.map(entry=>concat(entry.seq,this.closeLeaf(edge.child)));
             for(const prefix of prefixes)for(const child of children)offer(concat(before,concat(concat(prefix.seq,child),suffix[index+1])));
           }
-          const edge=/** @type {Extract<import('./types.js').Edge,{previous:Item}>} */(edges[link.index]);
+          const edge=/** @type {Extract<import('./types.js').Edge,{previous:Item}>} */(edges[number]);
           context=this.contextBelow({item:current,context},edge.previous);current=edge.previous;
         }
         let prefix=before;
@@ -19503,6 +19604,11 @@
      * @returns {Ranking | null} null when every derivation is cyclic
      */
     rank(roots) {
+      const restoration=this.restorationForest;
+      if(restoration) {
+        roots=[...new Set(roots.map(item=>restoration.plain.get(item)??item))];
+        if(this.marks)this.marks=restoration.projectMarks(this.marks);
+      }
       const forest = this.admission?.forest;
       if (forest) roots = roots.map(item => /** @type {Item} */ (forest.plain.get(item)));
       this.rankingRoots=roots;
@@ -20192,12 +20298,12 @@
         const captures = [];
         for (let part = item.slots; part; part = part.parent) {
           const name = item.production.captures[part.index].name;
-          if (!name.startsWith('\u0000')) {captures.push([name,part.start,part.end,part.tags,part.structure,part.observation?.id]);if(chart.context.trees)captures[captures.length-1].push(part.treeIdentity);}
+          if (!name.startsWith('\u0000')) {captures.push([name,part.start,part.end,part.tags,part.structure,part.observation && chart.context.closes ? chart.context.closes.identity(part.observation) : null]);if(chart.context.trees)captures[captures.length-1].push(part.treeIdentity);}
         }
-        const key=[item.production.lexicalFrame?.id ?? null,written(item.production),item.production.guardConditions?.length ? item.production.id : null,item.origin,
+        const key=[item.restorationFrame ?? item.production.lexicalFrame?.id ?? null,written(item.production),item.production.guardConditions?.length ? item.production.id : null,item.origin,
           item.production.rhs.slice(0,item.dot).map((/** @type {any} */ s) => [helpers.has(s.name) ? written(helpers.get(s.name)) : s.name,s.terminal,s.test]),
           item.production.rhs.slice(item.dot).map((/** @type {any} */ s) => [helpers.has(s.name) ? written(helpers.get(s.name)) : s.name,s.terminal,s.test]),
-          item.prefix,captures.reverse(),item.strict,item.restores,item.boundary?.id ?? null,item.observationPrefix?.id];
+          item.prefix,captures.reverse(),item.strict,item.restores,item.boundary?.id ?? null,item.observationPrefix && chart.context.closes ? chart.context.closes.identity(item.observationPrefix) : null];
         if(chart.context.trees)key.push(item.treePrefix);
         return key;
       };
@@ -20664,6 +20770,7 @@
 
 
 
+
   // Running one stage: recognition, the choice of a parse, the result tree
   // (engine §12), emission (engine §11) and elision-only (engine §7).
 
@@ -20697,6 +20804,9 @@
   /** @param {import("./earley.js").Chart} chart @param {Token[]} tokens @param {import("./types.js").KeyStep[]} steps @param {import("./types.js").Lean} lean @param {number[] | null} [project] */
   function slotRanker(chart, tokens, steps, lean, project = null) {
     const ranker = new Ranker(tokens, steps, lean, project);
+    ranker.erasures.closes=chart.context.closes;
+    ranker.restorationForest=restorationForest(chart);
+    if(ranker.restorationForest)chart=ranker.restorationForest.chart;
     ranker.profiles ||= canCountProfiles(chart.context.lowered) && !(chart.context.mode === "reconstruction" && !chart.context.lowered.productions.some(p=>p.error) && steps.every(step=>requiresElided(step.pattern)));
     ranker.configured = true;
     ranker.interner = chart.context.interner;
@@ -20946,21 +21056,15 @@
       ranker.measures.original={measures:new Measures(tokens,main.sources),project};
       ranker.check = true;
       ranker.marks = walk.marks;
-      // Raw witness membership and filtered admission are separate decisions.
-      let raw = ranker;
-      if (ranker.admission) {
-        raw = new Ranker(restored, steps, "none", fault("F19") ? project : null);
-        raw.profiles = ranker.profiles;
-        raw.configured = true;
-        raw.interner = chart.context.interner;
-        raw.profileProject = project;
-        raw.measures.original=ranker.measures.original;
-        raw.check = true;
-        raw.marks = ranker.marks;
-      }
-      const rawRanking = raw.rank(roots);
-      let ranking = raw === ranker ? rawRanking : ranker.rank(roots);
-      if (fault("lost:count") || rawRanking?.rawWitnessCounted !== true) ranking = null;
+      // Concrete membership uses the raw chart, before the ranking view (§7.10).
+      const raw = new Ranker(restored, steps, "none", fault("F19") ? project : null);
+      raw.configured=true;raw.interner=chart.context.interner;
+      raw.measures.original=ranker.measures.original;
+      raw.check=true;raw.marks=walk.marks;raw.groupRules(roots);
+      const rawCounted=roots.some(item=>raw.countOf(item).member);
+      let ranking=ranker.rank(roots);
+      if(ranking)ranking.rawWitnessCounted=rawCounted;
+      if (fault("lost:count") || !rawCounted) ranking = null;
       if (fault("F23")) {
         // A fault leaves the main grammar in the mode of the check.
         for (const [name, productions] of lowered.byLhs) {
@@ -20989,7 +21093,7 @@
         ranking = { ...ranking, second: competitor, first: restoredWitness,
           witness: difference ? [difference.left, difference.right] : null };
       }
-      if (watch) watch.ranked({ ranking: better || ranker.admission ? ranking : selectedRanking, counted: rawRanking?.rawWitnessCounted === true,representative });
+      if (watch) watch.ranked({ ranking: better || ranker.admission ? ranking : selectedRanking, counted: rawCounted,representative });
       if (!better && ranking.verdict !== "tie") return { kind: "pass" };
       // The readings, mapped to the stage's input (engine §7.10).
       const original = new Sources(tokens);
