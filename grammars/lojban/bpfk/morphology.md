@@ -38,7 +38,7 @@ Where two stress tests apply to the same constituent, one alternative joins thei
 
 The phoneme stage supplies phoneme and pause tokens. A stressed vowel has a lowercase value and the `Stressed` tag. The forms stage reads names, particles, predicate words, and hesitation. Names end in consonants before a pause. Particles exclude names, and predicate words cannot complete at a particle start, as the Brivla section explains.
 
-The `¬cmevla` tests in `cmavo` and `final-syllable` keep a particle or brivla from ending directly before a name. Hesitation can stand there without a pause. `yyykevin.` divides as `yyy` and `kevin`, so an odd run can stand before a name too. The name test in `y-run` reads a name that begins at the start of the hesitation itself.
+A particle excludes a name that begins at its own start. A final syllable excludes a name that follows it. Hesitation can stand before a name without a pause. `yyykevin.` divides as `yyy` and `kevin`, so an odd run can stand before a name too. The name test in `y-run` reads a name that begins at the start of the hesitation itself.
 
 The document [../common/forms.md](../common/forms.md) says how words join.
 
@@ -48,7 +48,7 @@ The PEG's `CMAVO` is a list of the selma'o, each a set of spellings, followed by
 
 Hesitation that stands as its own word is one token. The [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) says that `y` is not a word and counts as whitespace. Thus `.yyy.` is one token here. The separate split before `bu` preserves letter words, as [the ybu exception](#the-ybu-exception) explains.
 
-`cmavo-shape` reads `cmavo` and excludes a pure `y` run. Hesitation is a direct `y` run, which this document states as `y-run`.
+`cmavo-shape` reads `cmavo`. Hesitation is a direct `y` run, which this document states as `y-run`, and `cmavo` itself excludes a pure `y` run.
 
 A `y` is a nucleus exactly where no nucleus follows it. So the first `y` of a run is a nucleus exactly when the run has an odd number of letters. A run with an even number can follow a word directly: `kyyykerlo` is `ky yy kerlo`, but `bayyy` is no text. So a run of `y` has `Onset` where no nucleus begins it.
 
@@ -73,10 +73,7 @@ Hesitation is a direct run of `y` letters, outside `cmavo`. It keeps the test th
 %rule cmevla-shape  (* A name carries its join property and its onset mark. *)
   $n:word-shape(cmevla) :: $n.tags
 
-%rule cmavo-shape  (* A particle carries its join property and its onset mark. It excludes pure y hesitation. *)
-  $c:word-shape(cmavo) :: $c.tags
-%conditions
-  $c.value.ngrams(1) ≠ "y"
+%rule cmavo-shape = word-shape(cmavo)  (* A particle carries its join property and its onset mark. *)
 
 %rule brivla-shape  (* A predicate word carries its join property and its onset mark. *)
   $b:word-shape(brivla-word) :: $b.tags
@@ -142,7 +139,7 @@ The PEG's `lojban_word` is what `post_word` looks for after a word.
 
 
 
-The test on `lujvo` reads the whole word, and a test at its start gives the same result. A root or borrowing that stands as a proper prefix of a longer brivla needs a stressed syllable of its own. Stress by position needs a pause after that syllable, and a longer brivla has letters there. Stress by a mark cannot stand in an unstressed initial rafsi of the longer brivla. The mark also cannot stand in the final syllable, which `final-syllable` protects. So the marked syllable is the stressed syllable of the longer brivla itself. One counted syllable follows it in both readings, and the letters fix both ends. Each reading therefore ends at the same nucleus, and no proper prefix exists.
+The test on `lujvo` reads the whole word, and a test at its start gives the same result. A root or borrowing that stands as a proper prefix of a longer brivla needs a stressed syllable of its own. Stress by position puts a pause right after the prefix, so a longer brivla cannot hold the prefix. Every syllable of a brivla before its stressed syllable is unstressed, and its final syllable has no mark. Stress by a mark cannot stand in an unstressed initial rafsi of the longer brivla. So the marked syllable of the prefix is the stressed syllable of the longer brivla itself. One counted syllable follows it in both readings, and the letters fix both ends. Each reading therefore ends at the same nucleus, and no proper prefix exists.
 
 ## Cmevla
 
@@ -175,37 +172,25 @@ No sound in the repetition needs a test against a pause. The final consonant of 
 
 ## Cmavo
 
-A cmavo is not the start of a name, and not the start of a lujvo that begins with a CVC rafsi and a y-hyphen. Its form is an onset and nuclei joined by apostrophes, or a run of `y`. A pause or another word follows it. `CVCy_lujvo` keeps `bajykerlo` one lujvo, rather than `ba jy kerlo`.
+A cmavo is not the start of a name, and not the start of a lujvo that begins with a CVC rafsi and a y-hyphen. Its form is an onset and nuclei joined by apostrophes. A pause or another word follows it. `CVCy_lujvo` keeps `bajykerlo` one lujvo, rather than `ba jy kerlo`.
 
 ```jbogenbau
-%rule cmavo  (* A particle excludes a name start and a CVCy compound start. It ends at a complete word boundary. *)
-  $f:cmavo-form
+%rule cmavo  (* A particle is an onset and nuclei joined by apostrophes. It excludes a name start, a CVCy compound start and pure y. It ends at a complete word boundary. *)
+  $o:onset [{nucleus h}] cmavo-last-nucleus
 %conditions
-  ¬$f.onward.begins(cmevla | cvcy-lujvo),
-  $f.following-tokens.begins(post-word)
+  ¬$o.onward.begins(h | cluster | cmevla | cvcy-lujvo),
+  $.value.ngrams(1) ≠ "y",
+  $.following-tokens.begins(post-word)
 
 %rule cvcy-lujvo  (* Detect a CVC rafsi with a y-hyphen before the compound core. Stress separates the two forms. Unhyphenated initial rafsi cannot start where the core starts, because of stress and their own exclusions. Only a lookahead. *)
   | cvc-rafsi y [h] [{initial-rafsi}] brivla-core
   | stressed-cvc-rafsi y short-final-rafsi
 
-%rule cmavo-form  (* A particle has an onset form or is a whole hesitation run. Pure y letters belong only to hesitation. *)
-  | $f:cmavo-form-with-onset
-  | ys
-%conditions
-  $f.value.ngrams(1) ≠ "y"
-
-%rule cmavo-form-with-onset  (* A particle forbids an apostrophe or cluster at its start. Each inner nucleus needs its apostrophe. The final nucleus cannot consume that apostrophe. *)
-  $o:onset [{nucleus h}] cmavo-last-nucleus
-%conditions
-  ¬$o.onward.begins(h | cluster)
-
 ```
 
-<details><summary>Railroad diagrams of the 4 rules from <code>cmavo</code> to <code>cmavo-form-with-onset</code></summary>
+<details><summary>Railroad diagrams of <code>cmavo</code> and <code>cvcy-lujvo</code></summary>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cmavo.svg" alt="Railroad diagram of the rule cmavo"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cvcy-lujvo.svg" alt="Railroad diagram of the rule cvcy-lujvo"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cmavo-form.svg" alt="Railroad diagram of the rule cmavo-form"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cmavo-form-with-onset.svg" alt="Railroad diagram of the rule cmavo-form-with-onset"></p>
 </details>
 
 
@@ -218,16 +203,10 @@ The last nucleus of a cmavo is unstressed, or it is not followed by a consonant 
 %conditions
   ¬$n.onward.begins(stressed) ∨ ¬$n.following-tokens.begins(cluster)
 
-%rule ys  (* Hesitation occupies a whole run of y letters. A shorter prefix cannot end before another y. *)
-  {y}
-%conditions
-  ¬$.following-tokens.begins(y)
-
 ```
 
-<details><summary>Railroad diagrams of <code>cmavo-last-nucleus</code> and <code>ys</code></summary>
+<details><summary>Railroad diagram of <code>cmavo-last-nucleus</code></summary>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cmavo-last-nucleus.svg" alt="Railroad diagram of the rule cmavo-last-nucleus"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/ys.svg" alt="Railroad diagram of the rule ys"></p>
 </details>
 
 
@@ -240,7 +219,7 @@ The `brivla` rule excludes cmavo starts directly. Unstressed initial rafsi prece
 
 No syllable of a borrowing has `y` as its nucleus. A borrowing cannot cross a y-hyphen. Its head excludes the rafsi strings that describe the classical cores. The `cvv-final-rafsi` form has an apostrophe where neither gismu shape permits one.
 
-The `short-final-rafsi` rule reads a consonant and diphthong, or an initial pair and vowel. Its diphthong cannot split into a gismu's final vowel and another word, because that vowel forbids a following nucleus. The `cvv-final-rafsi` rule stresses its first vowel, while the apostrophe form of `stressed-cvv-rafsi` stresses its second vowel.
+The `short-final-rafsi` rule reads a consonant and diphthong, or an initial pair and vowel. Its diphthong cannot split into a gismu's final vowel and another word, because that vowel forbids a following nucleus. The `cvv-final-rafsi` rule stresses its first vowel, while the apostrophe form of the stressed instance of `cvv-rafsi-of` stresses its second vowel.
 
 ```jbogenbau
 %rule brivla  (* A predicate word cannot start where a particle begins. Unstressed initial rafsi precede its stressed core. *)
@@ -254,7 +233,7 @@ The `short-final-rafsi` rule reads a consonant and diphthong, or an initial pair
   | cvv-final-rafsi
   | stressed-initial-rafsi short-final-rafsi
 
-%rule stressed-initial-rafsi  (* Extended brivla forms need an unstressed first syllable and apostrophe-y. Borrowing heads exclude rafsi strings. After a long y-rafsi's CCV prefix, consonant-y cannot start the required short final. An apostrophe after CVV cannot start it either. A CVC rafsi forbids following y. *)
+%rule stressed-initial-rafsi  (* Extended brivla forms need an unstressed first syllable and apostrophe-y. Borrowing heads exclude rafsi strings. After a long y-rafsi's CCV prefix, consonant-y cannot start the required short final. An apostrophe after CVV cannot start it either. The short final rafsi after a stressed CVC form begins with a consonant, so no y follows that form. *)
   stressed-extended-rafsi | stressed-y-rafsi | stressed-y-less-rafsi
 
 ```
@@ -713,7 +692,7 @@ A vowel letter has a lowercase value with or without `Stressed`, and it carries 
 
 ## Consonants
 
-An initial pair is two consonants that can begin a word. `initial` reads a cluster where each pair of neighbours stands in `$INITIAL`. An affricate can stand only as the whole cluster. That limit is a departure from CLL 4.7, and the closing section lists it. A sibilant, another consonant and a liquid give the usual shape of a long cluster. That sentence states the usual shape, and the table states the law. No consonant or glide can follow the cluster, and the empty onset always stands.
+An initial pair is two consonants that can begin a word. `initial` reads a cluster where each pair of neighbours stands in `$INITIAL`. An affricate can stand only as the whole cluster. That limit is a departure from CLL 4.7, and the closing section lists it. A sibilant, another consonant and a liquid give the usual shape of a long cluster. No consonant or glide can follow the cluster. The initial can be empty only where no consonant or glide follows.
 
 The pair law reads raw consonant tokens against `$PERMISSIBLE`. A law that reads each consonant through its own rule can differ on one consonant query inside a bad run, as in `btb`. They give the same words, because each consonant of a divided run passes its own test. A run with a consonant that fails stays foreign under both laws. The `bu` test is the only lookahead that leaves a run. Its `post-word` chain reads whole words, so it reads each letter of the run.
 
@@ -781,7 +760,7 @@ The pair law reads raw consonant tokens against `$PERMISSIBLE`. A law that reads
 
 
 
-The `letter-ban` hook reads a following syllable-initial apostrophe or glide. The pair table and this hook state the whole consonant law of CLL[^cll-s3-6]. No rule names one consonant letter, because the `Consonant` tag and a value test state each letter that a rule needs.
+The `letter-ban` hook reads a following syllable-initial apostrophe or glide. `$PERMISSIBLE` states the pair law of CLL[^cll-s3-6], and `n-affricate` states the triple law of CLL[^cll-s3-7]. This hook states the apostrophe rule and the committee's glide ban. No rule names one consonant letter, because the `Consonant` tag and a value test state each letter that a rule needs.
 
 ```jbogenbau
 %rule letter-ban  (* Consonant letters cannot precede a syllable-initial apostrophe or glide. *)
