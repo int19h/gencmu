@@ -1396,7 +1396,8 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 			c.fail("a remainder stands at one outer edge of a parse argument")
 			return
 		}
-		c.expr(t.Body, depth+1, true, false, false, false, false)
+		// The body wrapper is not a syntax node (engine §9).
+		c.expr(t.Body, depth, true, false, false, false, false)
 	case tmString:
 		if !utf8.ValidString(t.Str) {
 			c.fail("a string is not valid UTF-8")
@@ -1612,7 +1613,8 @@ func (c *domChecker) condition(d *domCond, depth int) {
 			c.fail("a condition requires a forest")
 			return
 		}
-		c.term(d.Left, depth+1, false)
+		// A forest predicate is already its condition node (engine §9).
+		c.term(d.Left, depth, false)
 	case cdCompare:
 		switch d.Op {
 		case "=", "≠", "∈", "∉", "⊆", "⊈", "≅", "≇":

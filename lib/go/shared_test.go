@@ -1403,7 +1403,15 @@ func TestRuntimeReasonRemovesOnlyItsLocation(t *testing.T) {
 		t.Fatalf("message comparison changed the public result: %s, %v", after, err)
 	}
 	bare := &ParseResult{Error: &ParseError{Kind: ErrorGrammar, Message: reason}}
-	if err := checkResult(bare, nil, nil, &caseExpect{Error: ErrorGrammar, Message: &reason}, nil); err != nil {
+	bareData, err := MarshalResult(bare)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bareGot, err := decodeJSON(bareData)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := checkResult(bare, bareGot, bareData, &caseExpect{Error: ErrorGrammar, Message: &reason}, nil); err != nil {
 		t.Fatalf("changed a reason without location metadata: %v", err)
 	}
 }

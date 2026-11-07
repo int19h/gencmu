@@ -1430,7 +1430,7 @@ func (dc *domDecoder) decodeTermNode(raw any, depth int) (*domTerm, error) {
 		return nil, fmt.Errorf("a malformed term")
 	}
 	if body, present := o[tmBody]; present {
-		expr, err := dc.decodeExprAt(body, depth+1)
+		expr, err := dc.decodeExprAt(body, depth)
 		return &domTerm{Kind: tmBody, Body: expr}, err
 	}
 	if _, ok := o["param"]; ok {

@@ -1,6 +1,7 @@
 package gencmu
 
 import (
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -141,7 +142,7 @@ func TestWitnessLost(t *testing.T) {
 		}
 		// The members in their order, and the records in their order of
 		// insertion, with the sound only for the tested terminator.
-		want := `"error":{"kind":"grammar","stage":"main","code":"elision-witness-lost","message":"the main stage could not reconstruct its chosen derivation for elision-only","chosen":`
+		want := `"error":{"kind":"grammar","stage":"main","code":"elision-witness-lost","warnings":[{"stage":"main","code":"w","rule":"w","span":[0,1],"source":[0,1],"message":"warning w"}],"message":"the main stage could not reconstruct its chosen derivation for elision-only","chosen":`
 		if !strings.Contains(string(data), want) || !strings.Contains(string(data), `,"completion":[{"terminal":"T","at":1,"source":[1,1],"value":"ta"},{"terminal":"U","at":1,"source":[1,1]}]}`) {
 			t.Fatalf("%s: %s", lose, data)
 		}
@@ -150,7 +151,7 @@ func TestWitnessLost(t *testing.T) {
 		if len(res.Stages) != 1 || res.Stages[0].Verdict != VerdictResolved || res.Stages[0].Output != nil {
 			t.Fatalf("%s: %s", lose, data)
 		}
-		if len(res.Warnings) != 1 || res.Warnings[0].Stage != "main" {
+		if len(res.Warnings) != 1 || res.Warnings[0].Stage != "main" || !reflect.DeepEqual(e.Warnings, res.Warnings) {
 			t.Fatalf("%s: warnings %#v", lose, res.Warnings)
 		}
 	}
