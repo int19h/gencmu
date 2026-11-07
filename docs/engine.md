@@ -1518,7 +1518,7 @@ A rejection at the end of a stage's input has an empty source at the source end 
 
 ### 4.1 Shared candidate observations
 
-A structural state is a finite summary of demanded tree predicates. Compile only patterns that conditions demand, and their dependencies. Reuse identical subpatterns. Intern states so equivalent observations share one state. A tree pointer in every item does not provide the required forest sharing.
+A structural state is a finite summary of demanded tree predicates. Compile only patterns that conditions demand, and their dependencies. Reuse identical subpatterns. Intern states by equality of all their specified parts. This rule uses no semantic minimization. Implementation bookkeeping does not distinguish structural states. A tree pointer in every item does not provide the required forest sharing.
 
 Patterns observe the structural tree defined in `docs/notation.md`. Rule names, terminal identities and demanded test answers form a finite alphabet for a lowered stage. A leaf transition records terminal identity and demanded value-test and tag-test answers. A named completion records the answers of the tag tests and value tests that a demanded pattern asks of that node. It reads the tags from the completed item's one tag set (§4), and the value from the input value of its span. An omitted T has empty observed value, empty image, and pattern tags `{T, _Elided}`. These leaf observations never replace constituent tags. The pattern atom `_` matches every written or omitted leaf, whatever terminal read it, and no rule node or seal.
 
@@ -1530,7 +1530,7 @@ Ordinary named completion adds its own constructor transition, including named c
 
 Each sibling gap has a private consuming loop. Its loop cannot consume children for another choice arm or an absent optional. Each repetition compiles its body once. Its separator returns to that body's entry after each completed occurrence. Nested repetitions add states in proportion to their written size.
 
-Each structural machine reuses one seal state. Completing another ranked option does not rebuild the seal's sequence relations.
+Each structural machine reuses one seal state. Completing another ranked option or erased occurrence does not rebuild the seal's sequence relations.
 
 A node test evaluates its atom and attached child list together at the current node. Unless `exact:true` is present, it propagates that complete local answer through a sole child. A bare child list follows the same rule without an atom. Each child pattern computes its own complete answer, with its own exact prefix.
 
@@ -1549,6 +1549,18 @@ At a ranked group completion, the structural sequence machine receives one fixed
 An empty completed option also contributes exactly one sealed leaf. Empty normalization never removes it or a named node that contains it. A seal is not an observable node as defined in [Tree patterns](notation.md#the-structural-tree).
 
 Private option captures retain their real completed states for ready gates. The composed parent state propagates the seal through subsequent constructors and captures. Output trees, tags, elisions and ranking actions retain their actual derivations. No seal appears in serialized trees or grammar DOMs. Queries and reconstruction apply the same transition at ranked group boundaries.
+
+An erased production retains its ordinary working observations while evaluating its own clauses. After those clauses pass, it supplies sealed structural observations to its caller. A named occurrence supplies its constructor over the shared seal. Its root uses the completed tags and the ordinary input span value.
+
+A spliced occurrence supplies the single-seal sequence without the named constructor. Its captured root uses the ordinary anonymous constructor over that sequence. Empty spans still supply one seal. Empty normalization removes neither the seal nor a named root containing it.
+
+Parent prefixes, captures, and contextual frames read the exported observations. Working prefixes and captures remain available for the erased production's own clauses. They do not enter its exported structural state.
+
+These transitions apply in main recognition, queries, and reconstruction. Comparisons evaluated after selection use the same exported and working views. They do not rebuild an outside view from the unsealed output tree.
+
+Structural sealing changes no action, proof edge, span, tag, boundary record, or diagnostic occurrence. Existing erasure rules still govern measures, selection, emission, and diagnostic removal. No seal appears in serialized trees or grammar DOMs.
+
+Erasure adds no ranked-group block to a restoration observation. Demanded closes and existing opaque blocks remain separate from the sealed structural state. Every key that reads them retains them.
 
 Every proof edge stays within its observation state. Equal states still permit distinct derivations and ordinary ties. A cycle alone supplies no finite proof of a structural answer. Cycle exclusion keeps its rule-and-span identity. A different structural state does not permit repetition of the same rule over the same span.
 
@@ -1590,7 +1602,7 @@ The engine shares candidate and witness proof states with their relevant cycle c
 
 A comparison of two constituents (§10) reads tree identities. A comparison in a `%conditions` clause, or in a rule or alternative tag term, runs during recognition and demands them. A comparison in an emission item's tag clause reads the chosen derivation and demands nothing. Only a comparison whose right operand has constituent type demands identities. A pattern comparison keeps its finite structural state and starts no identity.
 
-Demand is by occurrence, through the observed caller modes above. The occurrence of a compared capture demands the identity of the constituent that it reads. An item carries an identity only where a demanding occurrence predicted it, directly or through its descendants. So the demand follows the structural tree down from each compared occurrence. It enters every rule that the body can build there, through helpers and chain levels, and it stops at a seal. The identity of a parent reads a seal as its sequence of token values, so it needs nothing inside the group. A private comparison inside an option of a ranked group starts its own demand there. A rule that no demanding occurrence reaches keeps no identity and costs nothing. So the four libraries compute one demand set.
+Demand is by occurrence, through the observed caller modes above. The occurrence of a compared capture demands the identity of the constituent that it reads. An item carries an identity only where a demanding occurrence predicted it, directly or through its descendants. So the demand follows the structural tree down from each compared occurrence. It enters every rule that the body can build there, through helpers and chain levels, and it stops at a seal. The identity of a parent reads a seal as its sequence of token values, so it needs nothing inside the sealed interior. A private comparison inside an option of a ranked group starts its own demand there. A private comparison inside an erased definition starts its own working demand there. A rule that no demanding occurrence reaches keeps no identity and costs nothing. So the four libraries compute one demand set.
 
 A production's own comparisons apply under every caller mode, at their ordinary readiness points. A comparison that uses `$` needs the complete child sequence of the production and its root identity. So that production carries its partial sequence under every caller, and the comparison runs at completion. A comparison that uses only captures demands identities at those capture occurrences and below them. It demands nothing for the other children and nothing for the root. It runs where the item reads the later capture, as §4 says for every condition. The item keeps the identity of the earlier capture in that child's completed state, beside the rest of that state. So two items with different identities for it do not merge. The mode of a caller decides only whether the identity of a completed constituent stays in the item that advances over it.
 
@@ -1608,6 +1620,12 @@ Anonymous(child identity sequence)
 ```
 
 The rule identity names the resolved rule or template instance, not a production and not a helper. The terminal identity is the one of §9. An anonymous splice compares by its flattened ordered child sequence, including an empty sequence. Its identity differs from every named rule identity.
+
+An erased named occurrence exports `Rule(rule identity, [Seal(original token-value sequence)])`. An erased splice exports `Anonymous([Seal(original token-value sequence)])`. It contributes the single-seal sequence to its parent.
+
+Outside identity demand stops at the erased occurrence's seal. The definition's own comparisons start their ordinary internal demands. A comparison using its own `$` reads its working identity before export.
+
+Reconstruction uses the seal's projected original token-value sequence. Synthetic restoration tokens add no values to that sequence.
 
 The child sequence comes after helper flattening and after the removal of structurally empty children. So two groupings of helpers give one identity.
 
@@ -1846,7 +1864,7 @@ The last two are leans. A directive has one or more steps, and a lean can stand 
 
 A grammar key step counts matching observable nodes of the actual derivation (§4.1). These are ordinary rule constituents, written leaves, and omitted terminators. Nodes inside ranked options remain visible to ranking, because seals affect condition patterns only.
 
-Helpers and spliced roots supply no node for grammar key steps. Empty ordinary rule constituents contribute no occurrence. The mandatory measure includes spliced error occurrences. Grammar key steps see an erased root but none of its proper descendants. The ordinary exclusions of empty nodes and spliced roots still apply to that root.
+Helpers and spliced roots supply no node for grammar key steps. Empty ordinary rule constituents contribute no occurrence. The mandatory measure includes spliced error occurrences. Grammar key steps see an erased root but none of its proper descendants. The ordinary exclusions of empty nodes and spliced roots still apply to that root. A structural seal does not make a zero-span occurrence count in a grammar key step.
 
 A constituent or written leaf uses its input span. An omitted terminator uses the empty span at its boundary. A node contributes once per step, regardless of how many operands match it. Matching nonempty chain levels and unary constituents each count. Equal spans count separately, including nested occurrences. Names, declaration order, and production numbers give no priority.
 
@@ -2005,6 +2023,8 @@ The best derivations form a smaller forest. For each summary, the implementation
 Inside one recognition and cycle context, completed erased productions of one rule collapse on equal spans and observable states. Observable state is the completed item's identity (§4) without production, dot, interior prefix states, or captures bound by the erased production. This excludes ordinary captures and captures inside ranked options alike. Frame captures supplied by an enclosing item to a contextual helper remain in its state because its matching depends on them.
 
 The state also includes tags. It also includes the completed constituent's structural state, demanded restoration observations, demanded tree identities, and boundary record that a parent reads (§4.2). Different observable states remain separate. A capture bound by the erased production cannot distinguish interiors because no parent reads it and its conditions already ran.
+
+The completed structural state and demanded tree identity are the exported observations of §4.1. Private working observations do not distinguish erased classes. Demanded close observations, tags, boundary records, frames, and caller modes retain their existing roles.
 
 The collapse crosses productions that carry `%erased`, but not productions without that clause. Extensions inherit no erasure. Each collapsed occurrence contributes one derivation to the verdict total. Internally, it chooses the best pre-erasure measure and then canonical action keys, without grammar key steps or a lean. Only its contribution to its parent resets to zero.
 
@@ -2222,7 +2242,7 @@ Presence tests `$x`, feature guards, closed terms and constants mean what they m
 
 This close observation differs from pattern projection, which removes bare synthetic structural leaves. It never copies D's chosen close list. Nested aligned queries receive the candidate's close observation and original context. No restoration record is duplicated.
 
-Patterns compute each reconstruction candidate's projected structure over O and never copy the chosen original tree's observations. A value test on a rule atom reads the projected span, as a test of a reference does. A restoration helper contributes exactly one omitted-T marker. Its synthetic terminal read contributes no second child. A synthetic read in an ordinary production contributes no observable child. Named constructors remain, subject to empty-child removal. Original terminal reads remain written.
+Patterns compute each reconstruction candidate's projected structure over O and never copy the chosen original tree's observations. A value test on a rule atom reads the projected span, as a test of a reference does. A restoration helper contributes exactly one omitted-T marker. Its synthetic terminal read contributes no second child. A synthetic read in an ordinary production contributes no observable child. Named constructors remain, subject to empty-child removal. An erased completion retains its seal, even over an empty projected span. Original terminal reads remain written.
 
 An omitted final terminator still stops the last-child path. Its pattern value and image remain empty even when its default value is nonempty. Its pattern tags remain `{T, _Elided}`. Body tests read synthetic recognition values, while pattern tests read projected leaf observations. The reconstructed witness preserves these observations through helpers, named constructors, empty children and unary transitions.
 
@@ -3389,9 +3409,11 @@ Readers reject missing parts, unknown members and invalid arities. A tag test an
 
 Child arrays retain their context throughout unresolved inspection. An optional accepts no `separator`, and only a repeat accepts that member. A sibling ellipsis cannot occur at a repeat's sibling level, including through optional, choice, or repeat wrappers. A `child` pattern starts another node and therefore another sibling level for its own child list. Supplied DOMs obey the same restrictions. Stage resolution includes every pattern in replaced definitions and uncalled templates.
 
+Take an atom that names a rule whose every definition carries `%erased`. An attached child list is a document error unless it contains only one sibling gap, `« ⋯ »`. This check follows stitching and substitution. A mixed rule with an unerased definition does not trigger it.
+
 If X is declared, `#« A @X »` and `#« ⋯ @X »` remain valid. Their closed items remain child items beside the parameter. A parameter postpones only the type or binding that its value determines. It never postpones the surrounding field, arity, context, or forbidden-gap rules. Source, supplied, and cached patterns all obey the exact schema in `docs/output.md`.
 
-A comparison of two constituents needs a finite domain of tree identities (§4.1). Lowering checks this on the lowered grammar of each feature set, as it checks braces and chains in §3.3. So the gates apply, and only conditions and tests are not trusted. The nodes of the check are rules and template instances. For each recognition-time comparison whose right operand has constituent type, lowering builds the dependency graph of its demanded identities. An edge goes from a rule to each named rule whose identity its children need, through helpers and chain levels. The walk stops at a seal.
+A comparison of two constituents needs a finite domain of tree identities (§4.1). Lowering checks this on the lowered grammar of each feature set, as it checks braces and chains in §3.3. So the gates apply, and only conditions and tests are not trusted. The nodes of the check are rules and template instances. For each recognition-time comparison whose right operand has constituent type, lowering builds the dependency graph of its demanded identities. An edge goes from a rule to each named rule whose identity its children need, through helpers and chain levels. The walk stops at ranked seals and exported erasure seals. A definition's own comparison starts a separate walk through its working structure. Unerased alternatives retain their ordinary identity dependencies.
 
 Lowering marks an edge where the child can cover the complete span of the parent. Structural nullability decides that. It is a least fixed point over the lowered productions, as §3.3 defines it for the braces check:
 
@@ -3404,7 +3426,7 @@ Lowering marks an edge where the child can cover the complete span of the parent
 
 Each mark belongs to one production. Where every other symbol of the production is nullable, the edge to the child is marked. Helper productions are nodes of the computation. By the braces rule none of them is cyclic over one span, so the named rules on a cycle report it. A cycle of marked edges is an error of the grammar at the comparison. Lowering finds it for the features that make it, as it finds the errors of §3.3. §3 gives its order and its location. The diagnostic names the comparison and the cycle. It says that the cycle can repeat a demanded rule over one span.
 
-There is no forwarding exception, because a named wrapper changes the tree. Recursion over a shorter span is legal. A cycle that no comparison demands keeps its behavior, and ordinary queries keep their proof policy. The check is conservative on purpose. So `s → ε | s` under a comparison is an error, although its trees collapse.
+There is no forwarding exception, because a named wrapper changes the tree. Recursion over a shorter span is legal. A cycle that no comparison demands keeps its behavior, and ordinary queries keep their proof policy. The check is conservative on purpose. For an unerased `s`, `s → ε | s` under a comparison is an error, although its empty trees collapse.
 
 The Eberban grammar passes the check. Every path from `verb` back to `verb` reads a token first, such as `CA`, `PE`, `DA`, `DE` or `BU`. So the inner span is smaller by construction. `annotated-verb` adds one marked edge to `verb`, because every postfix can be absent, and that edge stands in no cycle.
 
