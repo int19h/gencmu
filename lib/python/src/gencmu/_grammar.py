@@ -1051,11 +1051,6 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
         raise GencmuError("has no rule text", stage=stage)
     from ._boundary import validate_targets
     validate_targets(rules, stage)
-    from ._nullable_errors import nullable_error
-    empty_error = nullable_error(rules)
-    if empty_error is not None:
-        rule, alt = empty_error
-        raise _error(f"an error production of {rule.name} can match no tokens", alt.document, alt.at, stage)
     classifier_names = {classifier["name"] for _, classifier in classifier_items}
     # The clauses of a rule that its alternatives share, by identity, once
     # checked: an error in one would have stopped the first check, at the
@@ -1221,6 +1216,11 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
     faulty = conflict(grammar)
     if faulty is not None:
         raise _error("emission carriers overlap input positions", faulty.document, faulty.at, stage)
+    from ._nullable_errors import nullable_error
+    empty_error = nullable_error(rules)
+    if empty_error is not None:
+        rule, alt = empty_error
+        raise _error(f"an error production of {rule.name} can match no tokens", alt.document, alt.at, stage)
     return grammar
 
 

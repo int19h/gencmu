@@ -258,6 +258,31 @@ class EngineCases(unittest.TestCase):
                     mismatch(pattern, value)
         self.assertIsNone(mismatch({"message": "ordinary"}, {"message": "ordinary"}))
 
+    def test_result_pattern_message_exemptions(self) -> None:
+        # Tests README: errors and readings end the inherited error-message restriction.
+        rejected = [
+            {'error': {'message': 'same'}},
+            {'error': {'details': [{'message': 'same'}]}},
+            {'error': {'chosen': {'children': [{'message': 'same'}]}}},
+            {'error': {'warnings': [{'message': 'same'}]}},
+            {'error': {'details': [{'warnings': [{'message': 'same'}]}]}},
+            {'error': {'errors': [{'error': {'message': 'same'}}]}},
+        ]
+        accepted = [
+            {'message': 'ordinary'},
+            {'warnings': [{'message': 'ordinary'}]},
+            {'error': {'errors': [{'message': 'same'}]}},
+            {'error': {'readings': [{'children': [{'message': 'same'}]}]}},
+            {'error': {'details': [{'errors': [{'children': [{'message': 'same'}]}]}]}},
+            {'error': {'details': [{'readings': [{'message': 'same'}]}]}},
+        ]
+        for pattern in rejected:
+            with self.subTest(pattern=pattern), self.assertRaisesRegex(AssertionError, "error message"):
+                mismatch(pattern, pattern)
+        for pattern in accepted:
+            with self.subTest(pattern=pattern):
+                self.assertIsNone(mismatch(pattern, pattern))
+
     def test_whole_pipeline_cases_share_sources_but_load_fresh_pipelines(self) -> None:
         documents = {
             "memo-a.md": '```jbogenbau\n%include "../grammars/gencmu/jbogenbau/pipeline.md"\n```\n',

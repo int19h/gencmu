@@ -1026,7 +1026,10 @@ def validate_result_pattern(pattern: Any) -> None:
         item, in_error = stack.pop()
         if isinstance(item, dict):
             assert not (in_error and "message" in item), "a result pattern cannot assert an error message"
-            stack.extend((child, (False if key in ("errors", "warnings") else in_error or key == "error")) for key, child in item.items())
+            stack.extend(
+                (child, key == "error" or (in_error and key not in ("errors", "readings")))
+                for key, child in item.items()
+            )
         elif isinstance(item, list):
             stack.extend((child, in_error) for child in item)
 
