@@ -80,7 +80,15 @@ struct FragmentInspection {
     position: (usize, usize),
     event: Event,
 }
+#[derive(Clone)]
+pub(crate) struct ErasurePatternCheck {
+    pub names: Vec<String>,
+    pub name: String,
+    pub document: String,
+    pub at: (usize, usize),
+}
 pub(crate) struct Expansion {
+    pub erasure_checks: Vec<ErasurePatternCheck>,
     pub documents: Documents,
     pub inspection_runs: Vec<usize>,
     pub order: Vec<String>,
@@ -90,6 +98,7 @@ pub(crate) struct Expansion {
     pub arguments: Vec<ArgumentUse>,
 }
 struct Expander<'a> {
+    erasure_checks: std::cell::RefCell<Vec<ErasurePatternCheck>>,
     uni: &'a Unicode,
     patterns: BTreeSet<String>,
     templates: Vec<Template>,
@@ -177,6 +186,7 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
         return Ok(None);
     }
     let mut x = Expander {
+        erasure_checks: Default::default(),
         uni,
         patterns: BTreeSet::new(),
         templates: Vec::new(),
@@ -395,6 +405,7 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
     let mut output = Vec::new();
     for e in &events {
         if has(&e.rule, "params") {
+            x.rewrite(&e.rule, e, "term")?;
             validation.push(e.clone());
         } else if !["args", "instance"].iter().any(|k| has(&e.rule, k)) {
             validation.push(Event { rule: x.rewrite(&e.rule, e, "term")?, ..e.clone() })
@@ -518,6 +529,7 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
         order.iter().filter(|name| names.contains(name.as_str())).cloned().collect()
     };
     Ok(Some(Expansion {
+        erasure_checks: x.erasure_checks.into_inner(),
         documents: expanded,
         inspection_runs,
         order,
@@ -1068,11 +1080,31 @@ impl Expander<'_> {
         }
         Ok(result)
     }
+    fn erasure_check(&self, root: &Json, event: &Event, position: &str, names: Vec<String>, name: &str) {
+        let children = list(get(root, "children"));
+        if position != "pattern"
+            || !has(root, "children")
+            || matches!(children,[child] if get(child,"siblings").as_bool()==Some(true))
+        {
+            return;
+        }
+        self.erasure_checks.borrow_mut().push(ErasurePatternCheck {
+            names,
+            name: name.to_owned(),
+            document: event.path.to_string(),
+            at: at(root).or_else(|| at(&event.rule)).unwrap_or_default(),
+        });
+    }
     fn rewrite(&self, root: &Json, event: &Event, position: &str) -> R<Json> {
         if let Json::Arr(xs) = root {
             return Ok(Json::Arr(xs.iter().map(|v| self.rewrite(v, event, position)).collect::<R<_>>()?));
         }
         let Some(fields) = root.as_object() else { return Ok(root.clone()) };
+        let named = text(get(root, "name"));
+        if !named.is_empty() && !self.template_names.contains_key(named) {
+            self.erasure_check(root, event, position, vec![named.to_string()], named);
+        }
+
         if has(root, "call") {
             let name = self
                 .keys
@@ -1083,6 +1115,7 @@ impl Expander<'_> {
                 ]))))
                 .map(|i| self.instances[*i].effective().to_string())
                 .unwrap_or_else(|| canonical(root, self.uni));
+            self.erasure_check(root, event, position, vec![name.clone()], &name);
             let mut value = if position == "pattern" {
                 obj([("name", string(name)), ("at", get(root, "at").clone())])
             } else {
@@ -1100,6 +1133,19 @@ impl Expander<'_> {
             return Ok(value);
         }
         if position == "pattern" && self.template_names.contains_key(text(get(root, "name"))) {
+            let names = self
+                .queue
+                .iter()
+                .map(|i| &self.instances[*i])
+                .filter(|i| get(&i.call, "call") == get(root, "name"))
+                .map(|i| i.effective().to_string())
+                .collect();
+            self.erasure_check(root, event, position, names, text(get(root, "name")));
+            let children = if has(root, "children") {
+                Some(self.rewrite(get(root, "children"), event, "pattern-item")?)
+            } else {
+                None
+            };
             let members: Vec<_> = self
                 .queue
                 .iter()
@@ -1109,7 +1155,7 @@ impl Expander<'_> {
                     let mut member = root.clone();
                     set(&mut member, "name", string(i.effective()));
                     if has(root, "children") {
-                        set(&mut member, "children", self.rewrite(get(root, "children"), event, "pattern-item")?);
+                        set(&mut member, "children", children.clone().unwrap());
                     }
                     Ok(member)
                 })

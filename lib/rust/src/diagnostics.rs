@@ -28,6 +28,7 @@ fn pattern_names(
     pattern: &crate::patterns::Pattern,
     names: &mut FxSet<String>,
     erased: &FxSet<String>,
+    resolved_checks: bool,
     document: &str,
 ) -> Result<(), Error> {
     use crate::patterns::{Children, Pattern};
@@ -46,7 +47,7 @@ fn pattern_names(
                 atom = inner;
             }
             if let Pattern::Name(name, at) = atom {
-                if erased.contains(name) {
+                if !resolved_checks && erased.contains(name) {
                     return Err(Error::grammar(format!(
                         "a pattern of erased rule {name} permits only the child list « ⋯ »"
                     ))
@@ -62,6 +63,7 @@ pub(crate) fn check(
     grammar: &StageGrammar,
     documents: &[(Arc<str>, Arc<Dom>)],
     checked_patterns: &[(crate::patterns::Pattern, String)],
+    source_checks: Option<&[crate::parameters::expand::ErasurePatternCheck]>,
 ) -> Result<(), Error> {
     let erased: FxSet<String> = grammar
         .rules
@@ -69,16 +71,26 @@ pub(crate) fn check(
         .filter(|rule| rule.alternatives.iter().all(|alt| alt.erased))
         .map(|rule| rule.name.clone())
         .collect();
+    for check in source_checks.unwrap_or_default() {
+        if !check.names.is_empty() && check.names.iter().all(|name| erased.contains(name)) {
+            return Err(Error::grammar(format!(
+                "a pattern of erased rule {} permits only the child list « ⋯ »",
+                check.name
+            ))
+            .in_document(&check.document)
+            .at(check.at.0, check.at.1));
+        }
+    }
     // Resolved patterns include unused templates and replaced definitions (§9.3).
     let mut unused = FxSet::default();
     for (pattern, document) in checked_patterns {
-        pattern_names(pattern, &mut unused, &erased, document)?;
+        pattern_names(pattern, &mut unused, &erased, source_checks.is_some(), document)?;
     }
     let mut prohibited = FxSet::default();
     let mut splices = Vec::new();
     let mut warnings = FxSet::default();
     for step in &grammar.steps {
-        pattern_names(&step.pattern, &mut prohibited, &erased, "")?;
+        pattern_names(&step.pattern, &mut prohibited, &erased, source_checks.is_some(), "")?;
     }
     let mut pending = Vec::new();
     for (document, dom) in documents {
@@ -155,7 +167,9 @@ pub(crate) fn check(
             continue;
         }
         match part {
-            Part::Term(Term::Pattern(pattern)) => pattern_names(pattern, &mut prohibited, &erased, document)?,
+            Part::Term(Term::Pattern(pattern)) => {
+                pattern_names(pattern, &mut prohibited, &erased, source_checks.is_some(), document)?
+            }
             Part::Cond(Cond::Boundary(_, _, targets, _)) => prohibited.extend(targets.iter().cloned()),
             _ => {}
         }

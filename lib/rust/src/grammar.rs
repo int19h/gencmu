@@ -571,7 +571,12 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
     if !grammar.index.contains_key("text") {
         return Err(Error::grammar("has no rule text").in_stage(stage));
     }
-    crate::diagnostics::check(&grammar, documents, &constants.patterns.borrow())?;
+    crate::diagnostics::check(
+        &grammar,
+        documents,
+        &constants.patterns.borrow(),
+        expansion.as_ref().map(|x| x.erasure_checks.as_slice()),
+    )?;
     crate::boundary::reachable(&grammar)?;
     // Shared clauses are checked once, with the first alternative that
     // holds them.
