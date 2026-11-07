@@ -2588,7 +2588,9 @@
               "text": "a",
               "value": "a",
               "image": "a",
-              "tags": [],
+              "tags": [
+                "Vowel"
+              ],
               "span": [
                 188,
                 190
@@ -4159,7 +4161,9 @@
               "text": "󲢫a",
               "value": "a",
               "image": "a",
-              "tags": [],
+              "tags": [
+                "Vowel"
+              ],
               "span": [
                 316,
                 318
