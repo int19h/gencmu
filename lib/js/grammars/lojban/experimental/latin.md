@@ -323,13 +323,13 @@ A breve on `i` or `u` makes a glide letter, which the next section reads. The vo
 %emits
   $ :: $.tags ∩ (Stressed ∪ Glide ∪ Onglide ∪ Vowel)
 
-%redefine-rule plain-vowel :: Vowel
+%redefine-rule plain-vowel :: (($.value ≠ "y" ∧ $.value ≠ "Y") ⟹ Vowel)
   | latin-vowel<¬Stressed ¬Folded ¬Dieresis>
 
-%redefine-rule stressed-vowel :: Stressed ∪ Vowel
+%redefine-rule stressed-vowel :: Stressed ∪ (($.value ≠ "y" ∧ $.value ≠ "Y") ⟹ Vowel)
   | latin-vowel<Stressed ¬Folded ¬Dieresis>
 
-%redefine-rule folded-vowel :: Vowel
+%redefine-rule folded-vowel :: (($.value ≠ "y" ∧ $.value ≠ "Y") ⟹ Vowel)
   | latin-vowel<Capital ¬Stressed ¬Dieresis> | latin-vowel<Accented ¬Dieresis>
   | latin-diphthong-i<Capital ¬Stressed ¬Dieresis> | latin-diphthong-i<Accented ¬Dieresis>
   | latin-diphthong-u<Capital ¬Stressed ¬Dieresis> | latin-diphthong-u<Accented ¬Dieresis>
