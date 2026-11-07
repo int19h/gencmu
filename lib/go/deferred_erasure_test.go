@@ -126,7 +126,7 @@ func TestDeferredErasedInteriorsShareLinearSummaries(t *testing.T) {
 
 func TestDeferredErasurePatternStatesInternEqualParts(t *testing.T) {
 	// Engine §4.1: a seal retains its width without semantic minimization.
-	machine := newPatternMachine(nil)
+	machine := newPatternMachine([]*domPattern{{Kind: "name", Name: "r", Exact: true}})
 	node := machine.node("r", machine.empty, "", "", nil)
 	if machine.seal == machine.empty || machine.node("r", machine.empty, "", "", nil) != node || machine.states[machine.concat(node, machine.seal)].count != 1 {
 		t.Fatal("wrong part equality or seal width")
@@ -152,5 +152,15 @@ func TestDeferredErasurePostSelectionWorkingView(t *testing.T) {
 	}
 	if em.treeIdentity(occurrence) != exported {
 		t.Fatal("the private identity replaced the export")
+	}
+}
+
+func TestRankedHelpersWithoutPatternsNeedNoMachine(t *testing.T) {
+	// Engine §4.1: only demanded predicates create a structural machine.
+	for _, body := range []string{"(A ≻ B)", "((A ≻ B) ≻ C)", "[(A ≻ B)]"} {
+		rk, _ := rankedMeasure(t, "%rule text "+body+" :: ∅", deferredTokens("A"))
+		if rk.rec.machine != nil {
+			t.Fatal("a ranked helper without predicates created a machine", body)
+		}
 	}
 }

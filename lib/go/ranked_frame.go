@@ -464,8 +464,8 @@ func (r *recognizer) rankedEntry(it *item, rule int32) *rankedFrame {
 		}
 		f.root, f.origin = outer.root, outer.origin
 		f.closeRoute = outer.closeRoute + f.closeRoute
-		// The pattern machine exists where a pattern or a ranked group
-		// needs it; without it, a prefix is the item's own.
+		// Only demanded tree predicates create the pattern machine.
+		// Without it, a prefix is the item's own.
 		if r.machine != nil {
 			f.prefix = r.machine.concat(outer.prefix, it.prefix)
 		}
@@ -747,7 +747,9 @@ func (v *slotViews) rankedAncestry(scope *slotScope, r *recognizer) string {
 			if r.boundaries != nil {
 				copy.boundary = r.boundaries.empty
 			}
-			copy.prefix = r.machine.empty
+			if r.machine != nil {
+				copy.prefix = r.machine.empty
+			}
 			copy.more = 0
 			copy.cap0 = capVal{}
 			before = &copy

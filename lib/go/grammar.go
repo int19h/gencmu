@@ -25,6 +25,7 @@ type defaultUse struct {
 }
 
 type stageGrammar struct {
+	erasureChecks       []erasurePatternCheck
 	erasurePatterns     []erasurePatternUse
 	erasurePatternsDone bool
 	queryTargets        map[*domExpr]string
@@ -145,6 +146,7 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 	}
 	docs = expanded.docs
 	g := &stageGrammar{name: stageName, uni: uni, constants: map[string]*stageConst{}, byName: map[string]*sRule{}}
+	g.erasureChecks = expanded.erasureChecks
 	g.arguments = map[argumentSite][]constArgument{}
 	for _, argument := range expanded.arguments {
 		key := argumentSite{argument.inspectionRun, argument.doc, argument.at}

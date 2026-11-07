@@ -10,6 +10,12 @@ type messageHook struct {
 
 var diagnosticMessage atomic.Pointer[messageHook]
 
+type erasurePatternCheck struct {
+	names     []string
+	name, doc string
+	at        [2]int
+}
+
 type erasurePatternUse struct {
 	pattern *domPattern
 	doc     string
@@ -27,6 +33,17 @@ func (g *stageGrammar) checkDiagnosticsAndSplices() *Error {
 		}
 		erased[rule.name] = all
 	}
+	for _, check := range g.erasureChecks {
+		all := len(check.names) > 0
+		for _, name := range check.names {
+			all = all && erased[name]
+		}
+		if all {
+			return grammarError(check.doc, check.at, "a pattern of erased rule %s permits only the child list « ⋯ »", check.name)
+		}
+	}
+	resolvedChecks := g.erasureChecks != nil
+	defer func() { g.erasureChecks = nil }()
 	var problem *Error
 	names := func(pattern *domPattern, doc string, at [2]int, collect bool) {
 		walkPattern(pattern, func(node *domPattern) {
@@ -34,7 +51,7 @@ func (g *stageGrammar) checkDiagnosticsAndSplices() *Error {
 				if collect {
 					prohibited[node.Name] = true
 				}
-				if problem == nil && erased[node.Name] && node.Attached != nil && !(len(node.Attached) == 1 && node.Attached[0].Kind == "siblings") {
+				if problem == nil && !resolvedChecks && erased[node.Name] && node.Attached != nil && !(len(node.Attached) == 1 && node.Attached[0].Kind == "siblings") {
 					pos := node.At
 					if pos == [2]int{} {
 						pos = at

@@ -105,7 +105,9 @@ func newSlotAdmission(rk *ranker) *slotAdmission {
 				if rk.rec.boundaries != nil {
 					copy.boundary = rk.rec.boundaries.empty
 				}
-				copy.prefix = rk.rec.machine.empty
+				if rk.rec.machine != nil {
+					copy.prefix = rk.rec.machine.empty
+				}
 				copy.cap0 = capVal{}
 				copy.more = 0
 				before = &copy

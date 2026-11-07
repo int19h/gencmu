@@ -251,3 +251,22 @@ func TestLostWitnessSkipsAdmission(t *testing.T) {
 		t.Fatalf("unexpected result: %+v", result)
 	}
 }
+
+func TestErasedWitnessRetainsWorkingStructure(t *testing.T) {
+	// Engine §4.1 and §7: W(D) retains the bound item's working view.
+	pipeline := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%elision-only\n%rule text e\n%rule e \"a\" [+T]\n%conditions $ ≅ #« \"a\" ⋯ »\n%erased"))
+	seen := false
+	options := ParseOptions{private: &privateOptions{elisionCheck: func(run *elisionCheckRun) elisionWatch {
+		_, w := walkWitness(run)
+		node := derivationNamed(w, "e")
+		if node == nil || node.workingStructure == node.structure {
+			t.Fatal("the erased witness lost its working structure")
+		}
+		seen = true
+		return elisionWatch{}
+	}}}
+	result, err := pipeline.Parse("a", options)
+	if err != nil || !result.OK || !seen {
+		t.Fatalf("witness observation: %v, %v, %t", err, result.Error, seen)
+	}
+}

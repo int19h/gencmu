@@ -214,11 +214,13 @@ func walkWitness(run *elisionCheckRun) (map[*item]map[link]bool, *dn) {
 		return nil, nil
 	}
 	states := map[*wnode]*symNode{}
+	working := map[*wnode]int{}
 	productions := map[*wnode]*production{}
 	for len(pending) > 0 {
 		b := pending[len(pending)-1]
 		pending = pending[:len(pending)-1]
 		states[b.w] = b.sym
+		working[b.w] = b.it.structure
 		productions[b.w] = b.it.prod
 		it := b.it
 		for i := len(b.w.kids) - 1; i >= 0; i-- {
@@ -244,13 +246,13 @@ func walkWitness(run *elisionCheckRun) (map[*item]map[link]bool, *dn) {
 			built[w] = readNode(int32(w.end-1), w.d.term)
 		case elided(w.d):
 			read := readNode(int32(w.end-1), run.rec.g.termID[w.d.prod.elided])
-			built[w] = closeNode(productions[w], int32(w.end-1), int32(w.end), states[w].tags, partNode(nil, read), states[w].structure)
+			built[w] = closeNode(productions[w], int32(w.end-1), int32(w.end), states[w].tags, partNode(nil, read), states[w].structure, states[w].closes, working[w])
 		default:
 			var kids *dn
 			for _, k := range w.kids {
 				kids = partNode(kids, built[k])
 			}
-			built[w] = closeNode(productions[w], int32(w.start), int32(w.end), states[w].tags, kids, states[w].structure)
+			built[w] = closeNode(productions[w], int32(w.start), int32(w.end), states[w].tags, kids, states[w].structure, states[w].closes, working[w])
 		}
 	}
 	return marks, built[root]

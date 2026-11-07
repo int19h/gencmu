@@ -36,6 +36,7 @@ func (i *ruleInstance) effective() string {
 }
 
 type templateExpansion struct {
+	erasureChecks  []erasurePatternCheck
 	docs           []docDOM
 	inspectionRuns []int
 	order          []string
@@ -44,6 +45,7 @@ type templateExpansion struct {
 	arguments      []constArgument
 }
 type templateExpander struct {
+	erasureChecks []erasurePatternCheck
 	uni           *unicodeTable
 	patterns      map[string]bool
 	templates     map[string]*ruleTemplate
@@ -103,7 +105,7 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 	if !unresolved {
 		return &templateExpansion{docs: docs}, nil
 	}
-	x := &templateExpander{uni: uni, templates: map[string]*ruleTemplate{}, instances: map[string]*ruleInstance{}}
+	x := &templateExpander{erasureChecks: []erasurePatternCheck{}, uni: uni, templates: map[string]*ruleTemplate{}, instances: map[string]*ruleInstance{}}
 	names := map[string][]*templateEvent{}
 	slots := []string{}
 	events, extra, sourceEvents := []*templateEvent{}, []*templateEvent{}, []*templateEvent{}
@@ -340,6 +342,7 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 	validation := []*templateEvent{}
 	for _, e := range events {
 		if e.rule["params"] != nil {
+			x.rewrite(e.rule, e, "term")
 			validation = append(validation, e)
 		} else if e.rule["args"] == nil && e.rule["instance"] == nil {
 			copy := *e
@@ -540,7 +543,7 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 			instanceNames = append(instanceNames, name)
 		}
 	}
-	return &templateExpansion{docs: expandedDocs, inspectionRuns: inspectionRuns, order: order, instanceNames: instanceNames, validation: users, arguments: arguments}, nil
+	return &templateExpansion{docs: expandedDocs, inspectionRuns: inspectionRuns, order: order, instanceNames: instanceNames, validation: users, arguments: arguments, erasureChecks: x.erasureChecks}, nil
 }
 func templateClone(v any) any {
 	switch n := v.(type) {
@@ -982,12 +985,27 @@ func (x *templateExpander) rewrite(root any, e *templateEvent, position string) 
 		}
 		return r
 	case map[string]any:
+		erasedCheck := func(names []string, name string) {
+			children := templateList(n["children"])
+			if position != "pattern" || n["children"] == nil || len(children) == 1 && templateObj(children[0])["siblings"] == true {
+				return
+			}
+			at := templateAt(n)
+			if at == [2]int{} {
+				at = templateAt(e.rule)
+			}
+			x.erasureChecks = append(x.erasureChecks, erasurePatternCheck{names, name, e.path, at})
+		}
+		if name := templateText(n["name"]); name != "" && x.templates[name] == nil {
+			erasedCheck([]string{name}, name)
+		}
 		if n["call"] != nil {
 			i := x.instances[templateKey(x.normalize(templateObject{"call": n["call"], "args": n["args"], "at": n["at"]}))]
 			name := templateCanonical(n, x.uni)
 			if i != nil {
 				name = i.effective()
 			}
+			erasedCheck([]string{name}, name)
 			if position == "pattern" {
 				result := templateObject{"name": name, "at": n["at"]}
 				if n["exact"] != nil {
@@ -1005,13 +1023,24 @@ func (x *templateExpander) rewrite(root any, e *templateEvent, position string) 
 			return templateObject{key: name}
 		}
 		if position == "pattern" && x.templates[templateText(n["name"])] != nil {
+			names := []string{}
+			for _, i := range x.queue {
+				if i.call["call"] == n["name"] {
+					names = append(names, i.effective())
+				}
+			}
+			erasedCheck(names, templateText(n["name"]))
+			var children any
+			if n["children"] != nil {
+				children = x.rewrite(n["children"], e, "pattern-item")
+			}
 			members := []any{}
 			for _, i := range x.queue {
 				if i.call["call"] == n["name"] {
 					member := templateCopy(n)
 					member["name"] = i.effective()
 					if n["children"] != nil {
-						member["children"] = x.rewrite(n["children"], e, "pattern-item")
+						member["children"] = children
 					}
 					members = append(members, member)
 				}

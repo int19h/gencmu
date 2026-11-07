@@ -785,7 +785,7 @@ func (r *recognizer) preparePatterns() {
 	if m, ok := run.patternMachines[r.g]; ok {
 		r.machine = m
 	} else {
-		if len(r.g.rankedHelpers) > 0 || len(prepared.patternRoots) > 0 {
+		if len(prepared.patternRoots) > 0 {
 			r.machine = newPatternMachine(prepared.patternRoots)
 		}
 		if run.patternMachines == nil {
