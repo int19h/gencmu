@@ -460,7 +460,7 @@ A layer can change that vowel without a change to the other parts.
 
 ```jbogenbau
 %rule gismu  (* A root is the stressed long shape and a vowel. Its final syllable test stands at its last consonant. *)
-  $s:stressed-long-rafsi $v:vowel
+  $s:long-rafsi-of(stressed-vowel) $v:vowel
 %conditions
   $s.last-token.onward.begins(final-syllable)
 
@@ -508,28 +508,20 @@ A layer can change that vowel without a change to the other parts.
 
 %rule long-rafsi = long-rafsi-of(unstressed-vowel)  (* A long rafsi has an unstressed vowel and one or two consonants after it. *)
 
-%rule stressed-long-rafsi = long-rafsi-of(stressed-vowel)  (* A stressed long rafsi has a stressed vowel and one or two consonants after it. *)
-
-%rule cvv-rafsi = cvv-rafsi-of(unstressed-vowel, unstressed-diphthong)  (* A CVV rafsi has two unstressed vowels with an apostrophe between them, or an unstressed diphthong. *)
-
-%rule stressed-cvv-rafsi = cvv-rafsi-of(stressed-vowel, stressed-diphthong)  (* A stressed CVV rafsi stresses its second vowel or its diphthong. *)
-
 %rule y-rafsi = y-rafsi-of(unstressed-vowel, [h])  (* A long rafsi or CVC rafsi ends before y. A following rafsi cannot start with the optional apostrophe. *)
 
 %rule stressed-y-rafsi = y-rafsi-of(stressed-vowel, ε)  (* A stressed long rafsi or CVC rafsi ends before y. *)
 
 %rule stressed-y-less-rafsi = short-rafsi-of(stressed-vowel, stressed-diphthong)  (* A stressed short rafsi is a CVC, CCV or CVV rafsi. No test against y stands here, because each caller puts a consonant after it. *)
 
-%rule y-less-rafsi  (* An unhyphenated rafsi excludes a y rafsi and an apostrophe-y rafsi of either stress at its start. It cannot end directly before an apostrophe. *)
-  $r:y-less-rafsi-body
+%rule y-less-rafsi  (* An unhyphenated rafsi excludes a y rafsi and an apostrophe-y rafsi of either stress at its start. It cannot end directly before an apostrophe. Its body is a CVC, CCV or CVV rafsi, whose forms differ in their second or third letter. *)
+  $r:short-rafsi-of(unstressed-vowel, unstressed-diphthong)
 %conditions
   ¬$r.onward.begins(y-rafsi-of(vowel, [h]) | hy-rafsi-of(vowel, diphthong, vowel, [h])),
   ¬$r.following-tokens.begins(h)
-
-%rule y-less-rafsi-body = short-rafsi-of(unstressed-vowel, unstressed-diphthong)  (* A short rafsi is a CVC, CCV or CVV rafsi. The forms differ in their second or third letter. *)
 ```
 
-<details><summary>Railroad diagrams of the 24 rules from <code>gismu</code> to <code>y-less-rafsi-body</code></summary>
+<details><summary>Railroad diagrams of the 20 rules from <code>gismu</code> to <code>y-less-rafsi</code></summary>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/gismu.svg" alt="Railroad diagram of the rule gismu"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cvv-final-rafsi.svg" alt="Railroad diagram of the rule cvv-final-rafsi"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/short-final-rafsi.svg" alt="Railroad diagram of the rule short-final-rafsi"></p>
@@ -546,14 +538,10 @@ A layer can change that vowel without a change to the other parts.
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/ccv-rafsi.svg" alt="Railroad diagram of the rule ccv-rafsi"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stressed-ccv-rafsi.svg" alt="Railroad diagram of the rule stressed-ccv-rafsi"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/long-rafsi.svg" alt="Railroad diagram of the rule long-rafsi"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stressed-long-rafsi.svg" alt="Railroad diagram of the rule stressed-long-rafsi"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cvv-rafsi.svg" alt="Railroad diagram of the rule cvv-rafsi"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stressed-cvv-rafsi.svg" alt="Railroad diagram of the rule stressed-cvv-rafsi"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/y-rafsi.svg" alt="Railroad diagram of the rule y-rafsi"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stressed-y-rafsi.svg" alt="Railroad diagram of the rule stressed-y-rafsi"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stressed-y-less-rafsi.svg" alt="Railroad diagram of the rule stressed-y-less-rafsi"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/y-less-rafsi.svg" alt="Railroad diagram of the rule y-less-rafsi"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/y-less-rafsi-body.svg" alt="Railroad diagram of the rule y-less-rafsi-body"></p>
 </details>
 
 
@@ -617,10 +605,8 @@ So an unmarked brivla is stressed on its penultimate counted syllable, and a pau
 
 %rule stressed-vowel = stressed-unit(vowel)  (* A vowel is stressed by a written mark or its position before the final syllable. One constituent covers both cases. *)
 
-%rule unstressed-syllable  (* An unstressed vowel-bearing syllable has a nucleus. A consonantal syllable has none. Only one kind can complete at a syllable boundary. *)
-  unstressed-plain-syllable | consonantal-syllable
-
-%rule unstressed-plain-syllable = unstressed-unit(syllable)  (* An unstressed syllable has neither a written stress mark nor positional stress. *)
+%rule unstressed-syllable  (* An unstressed vowel-bearing syllable has a nucleus. A consonantal syllable has none. Only one kind can complete at a syllable boundary. The plain form has neither a written stress mark nor positional stress. *)
+  unstressed-unit(syllable) | consonantal-syllable
 
 %rule unstressed-diphthong = unstressed-unit(diphthong)  (* An unstressed diphthong has neither a written stress mark nor positional stress. *)
 
@@ -638,7 +624,7 @@ So an unmarked brivla is stressed on its penultimate counted syllable, and a pau
   "a"<Stressed> | "e"<Stressed> | "i"<Stressed> | "o"<Stressed> | "u"<Stressed>
 ```
 
-<details><summary>Railroad diagrams of the 13 rules from <code>final-syllable</code> to <code>stress-mark</code></summary>
+<details><summary>Railroad diagrams of the 12 rules from <code>final-syllable</code> to <code>stress-mark</code></summary>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/final-syllable.svg" alt="Railroad diagram of the rule final-syllable"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stressed-unit.svg" alt="Railroad diagram of the rule stressed-unit"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/unstressed-unit.svg" alt="Railroad diagram of the rule unstressed-unit"></p>
@@ -646,7 +632,6 @@ So an unmarked brivla is stressed on its penultimate counted syllable, and a pau
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stressed-diphthong.svg" alt="Railroad diagram of the rule stressed-diphthong"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stressed-vowel.svg" alt="Railroad diagram of the rule stressed-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/unstressed-syllable.svg" alt="Railroad diagram of the rule unstressed-syllable"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/unstressed-plain-syllable.svg" alt="Railroad diagram of the rule unstressed-plain-syllable"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/unstressed-diphthong.svg" alt="Railroad diagram of the rule unstressed-diphthong"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/unstressed-vowel.svg" alt="Railroad diagram of the rule unstressed-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stress.svg" alt="Railroad diagram of the rule stress"></p>
