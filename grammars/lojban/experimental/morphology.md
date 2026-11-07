@@ -100,7 +100,7 @@ The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The sp
   [{nonpause-phoneme}] consonant consonant [{nonpause-phoneme}]
 
 %rule cgv-rafsi-continuation  (* CVC and CCV differ in their second letter. Stress separates their variants, and the tested single consonant directly before the glide cannot be r. *)
-  (cvc-rafsi | ccv-rafsi | stressed-cvc-rafsi | stressed-ccv-rafsi) $c:consonant glide
+  (cvc-rafsi-of(vowel) | ccv-rafsi-of(vowel)) $c:consonant glide
 %conditions
   $c.value ≠ "r"
 
@@ -154,7 +154,7 @@ A CCV `hy-rafsi` can otherwise begin a brivla, as in `bla'ykla`. `brivla` reject
   ¬$.onward.begins(cmavo | slihykru)
 
 %rule slihykru                (* `slihykru <- (CCV_rafsi / stressed_CCV_rafsi) h y onset`. The forbidden start is a CCV rafsi, apostrophe-y, and a borrowing onset, including CgV. Vowel stress separates the CCV forms. *)
-  (ccv-rafsi | stressed-ccv-rafsi) h y brivla-onset
+  ccv-rafsi-of(vowel) h y brivla-onset
 ```
 
 <details><summary>Railroad diagrams of <code>brivla</code> and <code>slihykru</code></summary>
@@ -212,7 +212,7 @@ The implication marks every NAI word `Indicator`, as [the experimental lexicon](
 
 ## Glide letters
 
-The experimental phoneme stage reads `ɩ`, `q`, `w`, `ĭ` and `ŭ` as the glides `i` and `u`, with the tag `Glide` ([latin.md](latin.md)). `ɩ`, `q` and `w` also carry `Onglide`, because they write only a glide before its vowel. Such a letter is a glide wherever it stands. So no rule reads it as a vowel. The `Vowel` tag test of `vowel` refuses every glide letter. `diphthong-letters` refuses an onglide letter, so `ĭ` and `ŭ` can end a diphthong, as in `maĭ`. These tests of glide letters are gencmu's own.
+The experimental phoneme stage reads `ɩ`, `q`, `w`, `ĭ` and `ŭ` as the glides `i` and `u`, with the tag `Glide` ([latin.md](latin.md)). `ɩ`, `q` and `w` also carry `Onglide`, because they write only a glide before its vowel. Such a letter is a glide wherever it stands. So no rule reads it as a vowel. A glide letter carries no `Vowel` tag, so the `Vowel` test of `vowel` does not read it. `diphthong-letters` refuses an onglide letter, so `ĭ` and `ŭ` can end a diphthong, as in `maĭ`. These tests of glide letters are gencmu's own.
 
 
 When a diphthong ends in a glide letter, its second letter is no vowel. So the `a` of `maĭ` passes the `!nucleus` test of `vowel`, and without a change it reads as a vowel alone. `vowel` therefore also refuses a letter where a diphthong begins. Without a glide letter the extra test changes nothing, because a diphthong's second letter is then a nucleus, and the camxes test already fails.
@@ -223,7 +223,7 @@ The lookaheads still read the letter as `i` or `u`. A glide letter is no vowel, 
 
 ```jbogenbau
 %redefine-rule vowel          (* A vowel forbids a following nucleus. It also excludes a diphthong start, so a marked glide cannot leave a competing single vowel. A marked glide letter cannot serve as a vowel. *)
-  $v:_<Vowel ¬Glide>
+  $v:_<Vowel>
 %conditions
   ¬$v.following-tokens.begins(nucleus),
   ¬$v.onward.begins(diphthong)

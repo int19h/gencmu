@@ -4,6 +4,6 @@
 <text class="title" x="10" y="24" textLength="67.2" lengthAdjust="spacingAndGlyphs">syllabic</text>
 <text class="label" x="97.2" y="24" textLength="115.2" lengthAdjust="spacingAndGlyphs">conditions apply</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
-<g class="terminal"><rect x="20" y="34" width="117" height="24" rx="12"/><text x="78.5" y="51" textLength="100.8" lengthAdjust="spacingAndGlyphs">_&lt;Consonant&gt;</text></g>
-<path d="M137 46h6m0 -8v16m4 -16v16"/>
+<g class="rule"><rect x="20" y="34" width="92" height="24" rx="0"/><text x="66" y="51" textLength="75.6" lengthAdjust="spacingAndGlyphs">consonant</text></g>
+<path d="M112 46h6m0 -8v16m4 -16v16"/>
 </svg>

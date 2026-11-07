@@ -355,7 +355,7 @@ A glide letter is a glide wherever it stands. This stage reads it as `i` or `u` 
 A capital glide letter is plain. A glide is never stressed, so an accent on a glide letter is ignored: `ĭ́` is the glide `i`.
 
 ```jbogenbau
-%rule glide-letter :: Glide ∪ Vowel ∪ ($m ⟹ $m.tags ∩ Dieresis)
+%rule glide-letter :: Glide ∪ ($m ⟹ $m.tags ∩ Dieresis)
   | ("ɩ" | "q") [$m:letter-marks] :: Onglide := "i"
   | ("Ɩ" | "Q") [$m:letter-marks] :: Onglide Capital := "i"
   | "w" [$m:letter-marks] :: Onglide := "u"
