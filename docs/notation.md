@@ -1866,9 +1866,31 @@ The `lojban/experimental` and `lojban/zantufa` pipelines do not declare `%elisio
 
 ## Layout of the bundled grammars
 
-The bundled grammars keep a layout convention for a rule with two or more alternatives that are each a single symbol. A single symbol is a reference, call, parameter, terminal, range, engine tag, tested symbol, or `ε`. An alternative with a guard, or with tags of its own (see "Tags"), is not a single symbol. If such a rule has more than one line, it does not put exactly one symbol on each line. The exception is a rule in which no two adjacent symbols fit together on one line.
+The bundled grammars keep a layout convention. Its purpose is that a reader sees at once where each top-level alternative of a rule ends. The notation does not require it. `tools/sync.js --check` makes sure that the bundled grammars keep it.
 
-No line of such a rule's body holds more than 100 characters, counted as Unicode code points. A symbol can run over several lines, and each of these lines counts. Apart from this, the author chooses the groups, such as the vowels on one line and the consonants on the next. `tools/sync.js --check` makes sure that the bundled grammars keep this convention. For a rule with one symbol per line, it suggests a layout, and keeps the line breaks inside each symbol.
+A plain alternative is a juxtaposition of plain items. A plain item is a rule reference without arguments, a string, a tag terminal, an engine tag, `ε` or a parameter. `_<T>` with one tag `T` is also a plain item. A plain alternative has no guard and no clause. Any other alternative is a marked alternative. A marked alternative contains brackets, a call, another test, a range, a capture, a constant, `&`, `≻` or a comment. Brackets are parentheses, square brackets and braces.
+
+Each marked alternative stands on lines of its own, and no other top-level alternative shares them. Plain alternatives can share lines. A rule with two or more plain alternatives in a row does not put exactly one of them on each line. The exception is a run in which no two adjacent alternatives fit together on one line.
+
+No line of a rule body holds more than 100 characters, counted as Unicode code points. An alternative can run over several lines, and each of these lines counts. Apart from this, the author chooses the groups of plain alternatives, such as the vowels on one line and the consonants on the next. For a run with one plain alternative per line, `tools/sync.js --check` suggests a layout.
+
+The convention covers only the top-level alternatives of a rule. A choice inside a group, and the options of a ranked choice, can stand on one line. So `("a" | "e") :: Vowel` and `a ≻ b` are each one alternative.
+
+```jbogenbau
+%rule plain-vowel :: ∅
+  | ("a" | "e" | "i" | "o" | "u") :: Vowel
+  | "y"
+```
+
+A comment on a whole rule stands on its own lines before the rule. A comment on one alternative stands on its own lines before that alternative. A comment does not follow a rule header or an alternative on the same line.
+
+```jbogenbau
+(* A glide stands before a vowel or a diphthong. *)
+%rule glide
+  "i" | "u"
+```
+
+Alternatives do not repeat a tag clause that they share. If every alternative carries the same tags, the tags stand on the header, because header tags and alternative tags are unioned. If some alternatives share tags, a group holds them, and the tag clause follows the group.
 
 ## Railroad diagrams
 
