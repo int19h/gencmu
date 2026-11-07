@@ -73,4 +73,5 @@ class SharedMemo:
         """The rules of the entries in both generations, for the library's
         own tests."""
         with self._lock:
-            return [key[1] for key in [*self._newer, *self._older]]
+            # The query kind and error-free flag precede the rule (§4.3).
+            return [key[2] for key in [*self._newer, *self._older]]
