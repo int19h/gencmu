@@ -4406,19 +4406,25 @@
     const result=context.trees.seal(values);context.treeSeals.set(key,result);return result;
   }
 
-  /** @param {any} context @param {any} production @param {number} dot @param {any} previous @param {any} child @param {number} end */
-  function treeStep(context,production,dot,previous,child,end) {
-    if(!context.trees || !production.observesTrees || !production.walksTrees && dot>production.treePrefixUntil)return null;
+  /** @param {any} context @param {any} production @param {number} dot @param {any} previous @param {any} child @param {number} end @param {boolean} [exported] */
+  function treeStep(context,production,dot,previous,child,end,exported=false) {
+    if(!context.trees || !production.observesTrees)return null;
+    const sealed=exported && production.erased && dot===production.rhs.length;
+    if(!production.walksTrees && dot>production.treePrefixUntil && !sealed)return null;
     const m=context.trees;
     let prefix=previous?.treePrefix ?? 0;
-    if(previous) {
+    if(previous && (production.walksTrees || dot<=production.treePrefixUntil)) {
       const symbol=production.rhs[dot-1];
       if(symbol.slot)prefix=m.append(prefix,sealIdentity(context,child.origin,child.end));
       else if(child)prefix=m.concat(prefix,child.treeSequence);
       else prefix=m.append(prefix,terminalIdentity(context,symbol.name,end-1));
     }
     let identity=-1,sequence=prefix;
-    if(dot===production.rhs.length && production.walksTrees) {
+    if(sealed) {
+      sequence=m.append(0,sealIdentity(context,previous?.origin ?? end,end));
+      if(production.spliceOf) identity=m.anonymous(sequence);
+      else { identity=m.rule(production.lhs,sequence);sequence=m.append(0,identity); }
+    } else if(dot===production.rhs.length && production.walksTrees) {
       if(production.spliceOf) identity=m.anonymous(prefix);
       else if(!production.helper) { identity=m.rule(production.lhs,prefix);sequence=m.append(0,identity); }
       else if(production.elided!==null && production.rhs.length===0) { identity=m.omitted(production.elided);sequence=m.append(0,identity); }
@@ -4439,7 +4445,7 @@
     const edges=new Map();
     for(const [name,productions] of byName) {
       /** @type {any[]} */ const out=[];
-      for(const production of productions) production.rhs.forEach((/** @type {any} */ symbol,/** @type {number} */ index)=> {
+      for(const production of productions) if(!production.erased) production.rhs.forEach((/** @type {any} */ symbol,/** @type {number} */ index)=> {
         if(!symbol.terminal && !seals.has(symbol.name))out.push({name:symbol.name,marked:production.rhs.every((/** @type {any} */ other,/** @type {number} */ i)=>i===index || !other.terminal && nullable.has(other.name))});
       });
       edges.set(name,out);
@@ -4503,29 +4509,42 @@
     return null;
   }
 
-  /** @param {any} context @param {any} root @returns {number} */
-  function derivationIdentity(context,root) {
+  /** @param {any} context @param {any} root @param {boolean} [working] @returns {number} */
+  function derivationIdentity(context,root,working=false) {
     context.emissionTrees ??= new TreeIdentities();
     context.emissionTreeValues ??= new WeakMap();
+    context.emissionWorkingTreeValues ??= new WeakMap();
+    context.emissionTreeSeals ??= new Map();
     const m=context.emissionTrees, memo=context.emissionTreeValues,pending=[root];
+    const seal=(/** @type {any} */ node)=> {
+      const key=`${node.start}/${node.end}`;
+      let id=context.emissionTreeSeals.get(key);
+      if(id===undefined) {id=m.seal(context.tokens.slice(node.start,node.end).map((/** @type {any} */ token)=>token.value));context.emissionTreeSeals.set(key,id);}
+      return id;
+    };
+    const table=(/** @type {any} */ node)=>working && node===root ? context.emissionWorkingTreeValues : memo;
     while(pending.length) {
-      const node=pending[pending.length-1];
-      if(memo.has(node)) {pending.pop();continue;}
-      if(node.read) {const identity=m.written(node.read.terminal,context.tokens[node.start].value);memo.set(node,{identity,sequence:m.append(0,identity)});continue;}
-      const child=node.children.find((/** @type {any} */ c,/** @type {number} */ i)=>!node.production.rhs[i]?.slot && !memo.has(c));
-      if(child) {pending.push(child);continue;}
+      const node=pending[pending.length-1], cache=table(node);
+      if(cache.has(node)) {pending.pop();continue;}
+      if(node.read) {const identity=m.written(node.read.terminal,context.tokens[node.start].value);cache.set(node,{identity,sequence:m.append(0,identity)});continue;}
+      const sealed=node.production.erased && !(working && node===root);
+      if(!sealed) {
+        const child=node.children.find((/** @type {any} */ c,/** @type {number} */ i)=>!node.production.rhs[i]?.slot && !memo.has(c));
+        if(child) {pending.push(child);continue;}
+      }
       let sequence=0;
-      node.children.forEach((/** @type {any} */ c,/** @type {number} */ i)=> {
-        if(node.production.rhs[i]?.slot) sequence=m.append(sequence,m.seal(context.tokens.slice(c.start,c.end).map((/** @type {any} */ token)=>token.value)));
+      if(sealed) sequence=m.append(0,seal(node));
+      else node.children.forEach((/** @type {any} */ c,/** @type {number} */ i)=> {
+        if(node.production.rhs[i]?.slot) sequence=m.append(sequence,seal(c));
         else sequence=m.concat(sequence,memo.get(c).sequence);
       });
       let identity=-1;
       if(node.production.spliceOf) identity=m.anonymous(sequence);
       else if(!node.production.helper) {identity=m.rule(node.production.lhs,sequence);sequence=m.append(0,identity);}
       else if(!node.children.length && node.production.elided!==null) {identity=m.omitted(node.production.elided);sequence=m.append(0,identity);}
-      memo.set(node,{identity,sequence});
+      cache.set(node,{identity,sequence});
     }
-    return memo.get(root).identity;
+    return table(root).get(root).identity;
   }
 
   // ---- pattern-shapes.js
@@ -11435,8 +11454,18 @@
       const warnings=new Set(), splices=[], prohibited=new Set();
       /** @type {{rule:StitchedRule,alternative:StitchedAlternative}[]} */
       this.errorAlternatives=[];
-      /** @param {any} pattern */
-      const names=(pattern)=> { if (pattern?.name) prohibited.add(pattern.name); for(const child of patternParts(pattern ?? {})) names(child); };
+      const erased=new Set([...this.rules.values()].filter(rule=>rule.alternatives.every(alternative=>alternative.clauses.erased)).map(rule=>rule.name));
+      /** @param {any} pattern @param {any} [where] */
+      const names=(pattern,where={})=> {
+        if (pattern?.name) {
+          prohibited.add(pattern.name);
+          if(erased.has(pattern.name) && pattern.children && !(pattern.children.length===1 && pattern.children[0].siblings)) {
+            const at=patternLocations.get(pattern) ?? pattern.at;
+            throw new GencmuError("grammar",`a pattern of erased rule ${pattern.name} permits only the child list « ⋯ »`,{...where,...(at ? {line:at[0],column:at[1]} : {})});
+          }
+        }
+        for(const child of patternParts(pattern ?? {})) names(child,where);
+      };
       for (const step of this.resolution?.steps ?? []) names(step.pattern);
       for (const constant of this.constants.values()) if ("pattern" in constant.value) names(constant.value.pattern);
       for (const rule of this.rules.values()) for (const alternative of rule.alternatives) {
@@ -11451,7 +11480,7 @@
           const node=pending.pop();
           if (!node || typeof node!=="object" || node instanceof Set) continue;
           if (node.splice) splices.push({name:node.splice.ref,alternative});
-          if (node.pattern) names(node.pattern);
+          if (node.pattern) names(node.pattern,alternative.at);
           if (BOUNDARY_METHODS.has(node.method)) for (const target of node.args) if(target.rule) prohibited.add(target.rule);
           for(const child of Object.values(node)) if(child && typeof child==="object") pending.push(child);
         }
@@ -11735,7 +11764,7 @@
       // The structural grammar (engine §3.3): every production that the gates
       // and the expansion make, before a false condition removes any, with
       // its symbols' tests ignored.
-      /** @type {{lhs: string, rhs: import("./types.js").GrammarSymbol[]}[]} */
+      /** @type {{lhs: string, rhs: import("./types.js").GrammarSymbol[], erased?:boolean}[]} */
       this.structural = [];
       // The item of each pair of braces, as its expansions, with the
       // definition that wrote it.
@@ -11777,7 +11806,7 @@
           this.productions.push(clone);
           if (!this.byLhs.has(name)) this.byLhs.set(name,[]);
           this.byLhs.get(name)?.push(clone);
-          this.structural.push({lhs:name,rhs:original.rhs});
+          this.structural.push({lhs:name,rhs:original.rhs,erased:original.erased});
         }
       }
       for (const terminal of [...terminals].sort(compareCodePoints)) {
@@ -11803,7 +11832,7 @@
           this.productions.push(clone);
           if (!this.byLhs.has(name)) this.byLhs.set(name,[]);
           this.byLhs.get(name)?.push(clone);
-          this.structural.push({lhs:name,rhs:original.rhs});
+          this.structural.push({lhs:name,rhs:original.rhs,erased:original.erased});
         }
       }
       for (const production of this.productions) production.treeRoot = !production.helper || !!production.spliceOf;
@@ -11847,7 +11876,7 @@
      * @returns {Production}
      */
     addProduction(fields) {
-      if (fields.helper && this.source) this.structural.push({ lhs: fields.lhs, rhs: fields.rhs });
+      if (fields.helper && this.source) this.structural.push({ lhs: fields.lhs, rhs: fields.rhs, erased:fields.erased });
       // Each position, capture and condition counts before it is indexed, so
       // that an index built by a scan of the list for each position fails
       // its budget.
@@ -12058,7 +12087,7 @@
      * @param {SequenceItem[]} sequence
      */
     addRuleProduction(rule, alternative, sequence) {
-      this.structural.push({ lhs: rule.name, rhs: sequence.map((item) => item.symbol) });
+      this.structural.push({ lhs: rule.name, rhs: sequence.map((item) => item.symbol), erased:alternative.clauses.erased });
       /** @type {import("./types.js").Capture[]} */
       const captures = [];
       sequence.forEach((item, index) => {
@@ -12689,6 +12718,16 @@
     if (!machine) return -1;
     if (context.synthetic?.[at] && !rawObservations(context)) return machine.empty;
     return machine.node(null, machine.empty, { terminal, value: storedValue(context, at), tags: context.tokens[at].tags });
+  }
+
+  /** The definition's own post-selection clauses read its working root (§4.1).
+   * @param {ParseContext} context @param {Item} item @returns {number} */
+  function workingStructure(context,item) {
+    const machine=context.patterns;
+    if(!machine)return item.structure;
+    const production=item.production;
+    if(production.erased)return machine.node(production.helper ? null : production.lhs,item.prefix,null,context.interner.get(item.tagId),machine.nodeValues ? patternValue(context,item.origin,item.end) : undefined);
+    return production.helper ? machine.node(null,item.structure) : item.structure;
   }
 
   /** @param {ParseContext} context @param {Production} production @param {number} dot @param {number} at @returns {number} */
@@ -13609,7 +13648,7 @@
       found = {...production, baseProduction:production.baseProduction ?? production,
         closeRequested:!!(Number(requested)&1),
         treeRequested:!!(Number(requested)&2),
-        walksTrees:!!context.trees && (!!(Number(requested)&2) || production.treeRoot && localTreeDemand(production).whole),
+        walksTrees:!!context.trees && (!!(Number(requested)&2) && !production.erased || production.treeRoot && localTreeDemand(production).whole),
         treePrefixUntil:context.trees ? localTreeDemand(production).prefixUntil : 0,
         observesTrees:!!context.trees && (!!(Number(requested)&2) || production.treeRoot && localTreeDemand(production).whole || localTreeDemand(production).prefixUntil>0),
         observesCloses:!!context.closes && (!!(Number(requested)&1) || localCloseDemand(production,lowered).whole)};
@@ -13678,7 +13717,11 @@
           })) return;
       const projected = structuralStep(context, production, dot, previous, child, set.position);
       if((context.patterns?.nodeTags || context.patterns?.nodeValues) && !production.helper && dot === production.rhs.length) projected.structure = context.patterns.node(production.lhs,projected.prefix,null,context.interner.get(tagId),context.patterns.nodeValues ? patternValue(context,origin,set.position) : undefined);
-      const tree = context.trees ? treeStep(context,production,dot,previous,child,set.position) : null;
+      // Local clauses already ran against structuralStep's working view (§4.1).
+      if (context.patterns && production.erased && dot === production.rhs.length) {
+        projected.structure = production.helper ? context.patterns.seal : context.patterns.node(production.lhs,context.patterns.seal,null,context.interner.get(tagId),context.patterns.nodeValues ? patternValue(context,origin,set.position) : undefined);
+      }
+      const tree = context.trees ? treeStep(context,production,dot,previous,child,set.position,true) : null;
       const close = closeStep(context,production,dot,origin,previous,child,set.position);
       const summary = familyStep(context, family, members, production, dot, origin, previous, child, set.position, close);
       let key = itemKey((production.id * dots + dot) * width + origin - start, slots);
@@ -21182,7 +21225,7 @@
     }
     /** @param {string} name */
     treeIdentityOf(name) {
-      if(name === "")return derivationIdentity(this.context,this.node);
+      if(name === "")return derivationIdentity(this.context,this.node,true);
       const capture=this.node.production.captures[/** @type {number} */ (this.node.production.captureSlot.get(name))];
       return derivationIdentity(this.context,capturedNode(this.node,name));
     }
@@ -21196,7 +21239,7 @@
     }
     /** @param {string} name */
     capture(name) {
-      if (name === "") return { observation: this.node.item.observation, structure: this.node.production.helper && this.context.patterns ? this.context.patterns.node(null,this.node.item.structure) : this.node.item.structure, patterns: this.context.patterns, start: this.node.start, end: this.node.end, tags: nodeTags(this.node, this.context) };
+      if (name === "") return { observation: this.node.item.observation, structure: workingStructure(this.context,this.node.item), patterns: this.context.patterns, start: this.node.start, end: this.node.end, tags: nodeTags(this.node, this.context) };
       const production = this.node.production;
       const capture = production.captures[/** @type {number} */ (production.captureSlot.get(name))];
       const child = capturedNode(this.node,name);
