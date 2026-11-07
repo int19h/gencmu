@@ -66,6 +66,18 @@ class DNode:
 DChild = Union[DNode, DRead]
 
 
+def working_structure(context, forest, node):
+    """Own post-selection clauses read the working structure (engine §4.1)."""
+    if not node.production.erased or forest.machine is None:
+        return forest.structure[node.item] if forest.structure else 0
+    prefix = forest.prefix[node.item]
+    if node.production.helper:
+        return prefix
+    machine = forest.machine
+    value = "".join(token.value for token in context.tokens[node.start:node.end]) if machine.node_values else None
+    return machine.node(node.production.rule_name, prefix, tags=context.tagtab.get(node.tag), value=value)
+
+
 def derivation(forest: Forest, rope: Rope | None) -> DNode:
     """Rebuild a derivation's tree from its actions."""
     productions = forest.lowered.productions
@@ -428,11 +440,12 @@ class Emitter:
         return token
 
     def item_tags(self, node: DNode, term: Any) -> Tags:
+        structure = working_structure(self.context, self.forest, node)
         bound = self.evaluator.bind(
             node.production,
             self.forest.caps[node.item],
             (node.start, node.end, node.tag),
-            self.forest.structure[node.item] if self.forest.structure else 0,
+            structure,
             self.forest.close_structure[node.item] if self.forest.close_structure else 0,
         )
         def boundary_test(atom):
@@ -445,7 +458,7 @@ class Emitter:
         bound.boundary_test = boundary_test
         from ._tree_identities import comparisons, derivation_identity
         if comparisons(term):
-            bound.tree_reader = lambda name: derivation_identity(self.context, self.capture(node, name))
+            bound.tree_reader = lambda name: derivation_identity(self.context, self.capture(node, name), working=name == "")
         return self.evaluator.tags(term, bound)
 
     def emit_item(self, node: DNode, item: tuple, out: list[Token], scope) -> None:

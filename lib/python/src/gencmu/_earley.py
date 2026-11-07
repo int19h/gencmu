@@ -1525,9 +1525,9 @@ class Parser:
                             observes_closes=closes is not None and (bool(requested & 1) or demand(p)[0]))
                 if trees is not None:
                     q.tree_requested = bool(requested & 2)
-                    q.walks_trees = q.tree_requested or p.tree_root and tree_demand(p)[0]
+                    q.walks_trees = q.tree_requested and not p.erased or p.tree_root and tree_demand(p)[0]
                     q.tree_prefix_until = tree_demand(p)[4]
-                    q.observes_trees = q.walks_trees or q.tree_prefix_until > 0
+                    q.observes_trees = q.tree_requested or q.walks_trees or q.tree_prefix_until > 0
                 productions.append(q)
                 demands[q.id] = demand(p)
                 variants[key] = q
@@ -1949,6 +1949,18 @@ class Parser:
                         continue
                 if machine is not None and (machine.node_tags or machine.node_values) and not production.helper:
                     structures[item] = machine.node(production.rule_name, prefixes[item], tags=tagtab.get(tag[item]), value=input_value(start, j) if machine.node_values else None)
+                # Own clauses read the working state before exporting the seal (§4.1).
+                if production.erased:
+                    if machine is not None:
+                        structures[item] = machine.seal if production.helper else machine.node(production.rule_name, machine.seal, tags=tagtab.get(tag[item]), value=input_value(start, j) if machine.node_values else None)
+                    if trees is not None and production.observes_trees:
+                        sequence = trees.append(0, seal_identity(start, j))
+                        if production.splice_of is not None:
+                            tree_ids[item] = trees.anonymous(sequence)
+                        else:
+                            tree_ids[item] = trees.rule(production.rule_name, sequence)
+                            sequence = trees.append(0, tree_ids[item])
+                        tree_sequences[item] = sequence
                 lhs = production.lhs
                 part = (start, j, tag[item])
                 if start == j:
@@ -2038,7 +2050,7 @@ class Parser:
         expected: dict[str, set[str]] = {}
         # The forest's tokens are those the parse read, before its furthest
         # set.
-        result = Forest(tokens[base : base + furthest], lowered, prod, dot, origin, end, caps, edges, tag, roots, furthest, expected, context.project, structures, machine, prefixes if has_slots else [], strict if has_slots else [], close_structures, close_prefixes, closes, self.observe, family, family_prefixes, family_structures, records, boundaries, annotations, failures, tagtab=context.tagtab, context=context, base=base)
+        result = Forest(tokens[base : base + furthest], lowered, prod, dot, origin, end, caps, edges, tag, roots, furthest, expected, context.project, structures, machine, prefixes if machine is not None else [], strict if has_slots else [], close_structures, close_prefixes, closes, self.observe, family, family_prefixes, family_structures, records, boundaries, annotations, failures, tagtab=context.tagtab, context=context, base=base)
         result.frames, result.predictions = frames, predicted
         result.candidate_factory, result.entry_for = candidate, entry
         if context.observed is not None: result.original_tokens = context.observed.tokens

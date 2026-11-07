@@ -211,7 +211,7 @@ def prepare(lowered):
     lowered.tree_demands = demands
 
 
-def check_cycles(lowered, structural):
+def check_cycles(lowered, structural, erased=()):
     from ._errors import GencmuError
     sites = list(lowered.tree_sites)
     for p in lowered.productions:
@@ -220,8 +220,9 @@ def check_cycles(lowered, structural):
             sites.append((comparison, p, bindings, ()))
     # A named root adds its constructor once. Only its children demand other rules.
     nullable, rows = set(), {}
-    for lhs, rhs, terminal in structural:
-        rows.setdefault(lhs, []).append((rhs, terminal))
+    for index, (lhs, rhs, terminal) in enumerate(structural):
+        if index not in erased:
+            rows.setdefault(lhs, []).append((rhs, terminal))
     changed = True
     while changed:
         changed = False
@@ -299,31 +300,42 @@ def check_cycles(lowered, structural):
                 stack.append((child, 0))
 
 
-def derivation_identity(context, root):
+def derivation_identity(context, root, working=False):
     if not hasattr(context, "emission_trees"):
         context.emission_trees = TreeIdentities()
         context.emission_tree_values = {}
+        context.emission_working_values = {}
+        context.emission_tree_seals = {}
     machine, memo = context.emission_trees, context.emission_tree_values
+    def table(node):
+        return context.emission_working_values if working and node is root else memo
+    def seal(node):
+        key = node.start, node.end
+        if key not in context.emission_tree_seals:
+            context.emission_tree_seals[key] = machine.seal(token.value for token in context.tokens[node.start:node.end])
+        return context.emission_tree_seals[key]
     pending = [root]
     while pending:
         node = pending[-1]
-        if node in memo:
+        cache = table(node)
+        if node in cache:
             pending.pop()
             continue
         if not hasattr(node, "production"):
             identity = machine.written(node.terminal, context.tokens[node.token].value)
-            memo[node] = identity, machine.append(0, identity)
+            cache[node] = identity, machine.append(0, identity)
             continue
-        child = next((child for index, child in enumerate(node.children)
+        sealed = node.production.erased and not (working and node is root)
+        child = None if sealed else next((child for index, child in enumerate(node.children)
                       if (node.production.terminal[index] or node.production.rhs[index] not in context.lowered.ranked_helpers)
                       and child not in memo), None)
         if child is not None:
             pending.append(child)
             continue
-        sequence = 0
-        for index, child in enumerate(node.children):
+        sequence = machine.append(0, seal(node)) if sealed else 0
+        for index, child in (() if sealed else enumerate(node.children)):
             if not node.production.terminal[index] and node.production.rhs[index] in context.lowered.ranked_helpers:
-                sequence = machine.append(sequence, machine.seal(token.value for token in context.tokens[child.start:child.end]))
+                sequence = machine.append(sequence, seal(child))
             else:
                 sequence = machine.concat(sequence, memo[child][1])
         identity = None
@@ -335,5 +347,5 @@ def derivation_identity(context, root):
         elif not node.children and node.production.elided is not None:
             identity = machine.omitted(node.production.elided)
             sequence = machine.append(0, identity)
-        memo[node] = identity, sequence
-    return memo[root][0]
+        cache[node] = identity, sequence
+    return table(root)[root][0]

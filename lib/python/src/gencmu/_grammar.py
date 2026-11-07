@@ -1105,9 +1105,18 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                 elif isinstance(value, list):
                     stack.extend(reversed(value))
     from ._template_nodes import nodes
+    erased = {rule.name for rule in rules.values() if all(alt.erased for alt in rule.alternatives)}
+    def erased_pattern(root, path, at):
+        for node in nodes(root):
+            children = node.get("children")
+            if node.get("name") in erased and children is not None and children != [{"siblings": True}]:
+                raise _error(f"a pattern of erased rule {node['name']} permits only the child list « ⋯ »", path, getattr(node, "at", None) or at, stage)
+    for _, pattern in key_steps:
+        erased_pattern(pattern, documents[0][0], None)
     prohibited = {n["name"] for _, pattern in key_steps for n in nodes(pattern) if isinstance(n.get("name"), str)}
     for constant in constants.values.values():
         if constant.type == "pattern":
+            erased_pattern(constant.value["pattern"], constant.document, None)
             prohibited.update(node["name"] for node in nodes(constant.value["pattern"]) if isinstance(node.get("name"), str))
     splices = []
     inspected = set()
@@ -1125,6 +1134,7 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                 if "splice" in node:
                     splices.append((node["splice"]["ref"], alt))
                 if "pattern" in node:
+                    erased_pattern(node["pattern"], alt.document, alt.at)
                     prohibited.update(part["name"] for part in nodes(node["pattern"]) if isinstance(part.get("name"), str))
                 if node.get("method") in ("followed-by", "preceded-by"):
                     prohibited.update(arg["rule"] for arg in node["args"] if "rule" in arg)
@@ -1537,6 +1547,7 @@ class _Lowerer:
         # gates and the expansion make, before a false condition removes
         # any, as its left side and its symbols, with their tests ignored.
         self.structural: list[tuple[int, tuple[Union[str, int], ...], tuple[bool, ...]]] = []
+        self.erased_structural: set[int] = set()
         # The item of each pair of braces, as its expansions, with the
         # definition that wrote it, in the order lowering meets them.
         self.brace_items: list[tuple[list[list[_Sym]], Alternative | None, Rule | None]] = []
@@ -1797,6 +1808,8 @@ class _Lowerer:
     def add(self, lhs: int, expansion: list[_Sym], alt: Alternative | None, elided: tuple[str, SymbolTest | None] | None = None, option: int = -1, items: tuple[str, ...] = ()) -> None:
         rhs = tuple(sym[1] for sym, _ in expansion)
         terminal = tuple(sym[0] == "t" for sym, _ in expansion)
+        if alt is not None and alt.erased:
+            self.erased_structural.add(len(self.structural))
         self.structural.append((lhs, rhs, terminal))
         tests = tuple(sym[2] if len(sym) > 2 else None for sym, _ in expansion)
         # A production reads each name at most once (engine §3.5); the
@@ -2024,6 +2037,8 @@ class _Lowerer:
         for target, alias in self.splice_aliases.items():
             for original in [p for p in self.productions if p.lhs == target]:
                 self.productions.append(replace(original, id=len(self.productions), lhs=alias, helper=True, splice_of=target, source_id=original.source_id if original.source_id is not None else original.id))
+                if original.erased:
+                    self.erased_structural.add(len(self.structural))
                 self.structural.append((alias, original.rhs, original.terminal))
         for production in self.productions:
             if production.lhs < len(self.rule_names) and self.rule_names[production.lhs] in self.grammar.query_rules:
@@ -2051,7 +2066,7 @@ class _Lowerer:
         if self.grammar.tree_comparisons:
             from ._tree_identities import prepare, check_cycles
             prepare(lowered)
-            check_cycles(lowered, self.structural)
+            check_cycles(lowered, self.structural, self.erased_structural)
         return lowered
 
     def check_brace_items(self) -> None:

@@ -107,12 +107,33 @@ class ErasedInteriors(unittest.TestCase):
                     self.assertLess(len(entries), 5)
 
 
+    def test_post_selection_owns_a_working_view_but_exports_a_seal(self):
+        # Engine §4.1: serialized children never reconstruct the public identity.
+        from gencmu._stage import working_structure
+        from gencmu._tree_identities import derivation_identity
+        ranking, root = prepare("%rule text e\n%rule e a\n%conditions $ ≅ #« a »\n%erased\n%rule a A")
+        forest = ranking._ranker.forest
+        context = forest.context
+        node = find(root, "e")
+        pattern = context.lowered._pattern_roots[0]
+        self.assertTrue(forest.machine.matches(working_structure(context, forest, node), pattern))
+        self.assertFalse(forest.machine.matches(forest.structure[node.item], pattern))
+        exported = derivation_identity(context, node)
+        private = derivation_identity(context, node, working=True)
+        self.assertNotEqual(exported, private)
+        machine = context.emission_trees
+        children = machine.elements(machine.nodes[exported][0][2])
+        self.assertEqual(len(children), 1)
+        self.assertEqual(machine.nodes[children[0]][0][0], "Seal")
+        self.assertEqual(derivation_identity(context, node), exported)
+
+
 class UndemandedStructure(unittest.TestCase):
-    def test_ranked_machine_has_one_undemanded_pattern_state(self):
-        # Engine §4.1: an empty predicate set has one structural observation.
+    def test_ranked_machine_interns_equal_parts_without_minimization(self):
+        # Engine §4.1: equal parts share a state, while a seal retains its width.
         from gencmu._patterns import PatternMachine
         machine = PatternMachine([])
         node = machine.node("r", machine.empty)
-        self.assertEqual(node, machine.empty)
-        self.assertEqual(machine.seal, machine.empty)
-        self.assertEqual(machine.concat(node, machine.seal), machine.empty)
+        self.assertNotEqual(machine.seal, machine.empty)
+        self.assertEqual(machine.node("r", machine.empty), node)
+        self.assertEqual(machine.states[machine.concat(node, machine.seal)][0], 1)
