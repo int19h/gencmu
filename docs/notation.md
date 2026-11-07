@@ -710,13 +710,21 @@ The left operand must be a bare capture or `$`. The type of the right operand de
 
 Patterns observe named rules, terminal reads, and omitted terminators before bracket output collapses unary nodes. Generated helpers and spliced calls flatten their children in order. Named chain levels retain their nodes unless their occurrence is spliced. An absent plain optional contributes no child. Recipes do not change this structural observation.
 
-Observable nodes are rule nodes and terminal leaves. Terminal leaves can be written or omitted. Ranked seals are not observable nodes.
+Observable nodes are rule nodes and terminal leaves. Terminal leaves can be written or omitted. Seals are not observable nodes.
 
 A terminal leaf records the terminal that read it, rather than every tag on its token. A literal, escaped literal, and equal string constant share one terminal identity. An omitted T contributes one leaf labeled T, with empty value and pattern tags `{T, _Elided}`. Its empty span does not remove it. This leaf adds no tags to the empty helper or the enclosing constituent. `_Elided` is a mark that only the tag test of a pattern can name. No token and no rule node carries it, and no tag clause can give it. Anywhere but in a pattern tag test, it is an error (engine §9.3).
 
-A structurally empty node contains no terminal read, omitted marker, or seal. Parent sequences remove structurally empty named children, including empty `🆓` nodes and empty wrappers. The [seal of a ranked choice](#ranked-choices) counts as a leaf here. A node that contains a seal remains in its parent sequence. A direct capture of an empty named rule retains its named root for a root-name test.
+A structurally empty node contains no terminal read, omitted marker, or seal. Parent sequences remove structurally empty named children, including empty `🆓` nodes and empty wrappers. A seal from a ranked choice or erased constituent counts as a leaf here. A node that contains a seal remains in its parent sequence. A direct capture of an empty named rule retains its named root for a root-name test.
 
-A node test first tests the candidate. If that test fails and the candidate has one structural child, the test follows that child. The search repeats this step. A branching node or ranked seal stops it. A node test with a child list tests both parts at the same visited node.
+An erased occurrence exports its named root with one seal as its only child. The root retains its tags and input span value. When the occurrence reads no tokens, this rule still applies. Its seal and named root remain in parent sequences.
+
+A spliced erased occurrence exports the seal without a named root. A capture of that splice sees an anonymous child sequence containing the seal. The splice does not expose the erased children.
+
+The erased definition's own clauses use its ordinary structure before export. Its own `$` retains that working view, including its splice mode. Captures inside the definition retain the ordinary views of the occurrences that they bind. An erased child supplies its own sealed view.
+
+An outside capture receives the exported view. Outside patterns can test the erased root's name, tags, value, and child list. Every node test fails at its only child, the seal. Every downward walk stops there. A sibling gap can consume it.
+
+A node test first tests the candidate. If that test fails and the candidate has one structural child, the test follows that child. The search repeats this step. A branching node or seal stops it. A node test with a child list tests both parts at the same visited node.
 
 The prefix `·` (U+00B7) makes one node test exact. It tests only the candidate, without the single-child search. It applies only to its own node test. In `#·a« b ·c »`, `a` and `c` are exact, while `b` keeps its search.
 
@@ -788,7 +796,9 @@ A separate `«` or `·` requires whitespace or a comment after a node test, `»`
 
 A bare list has no name test. `#« a b »` tests any observable node whose children match a then b. `#·« a b »` tests those children only at the candidate itself. `#« a »` requires one child and remains distinct from `#a`.
 
-A child list attaches only to a rule name, emoji rule, template family, exact call, or compatible parameter. Terminals, `_`, tested atoms, and string constants cannot carry child lists. A ranked seal passes no node test, including a bare list.
+A child list attaches only to a rule name, emoji rule, template family, exact call, or compatible parameter. Terminals, `_`, tested atoms, and string constants cannot carry child lists. A seal passes no node test, including a bare list.
+
+Take an atom that names a rule whose every definition carries `%erased`. An attached child list is a document error unless it contains only one sibling gap, `« ⋯ »`. That permitted list always holds on such a node.
 
 `«»` is an empty list, distinct from an absent list. It can match a terminal leaf or a directly captured empty rule. It does not assert that the input span is empty.
 
@@ -850,8 +860,10 @@ The compared tree is the structural tree above. Helpers are flattened, chain lev
 - If two rule nodes have the same rule and equal children in order, they are equal. Each template instance is a rule of its own. So nodes of two different instances are not equal, and nodes of one instance compare by their children. A parent drops a structurally empty child from its sequence. A directly captured empty named rule keeps its root, with no children. So two captures of different empty rules are not equal.
 - If one terminal read two written leaves and their tokens have equal values, the leaves are equal. A literal, an escaped literal and an equal string constant are one terminal. The tags, image and attachments of the token take no part.
 - If two omitted leaves have equal terminators, they are equal. An omitted leaf never equals a written leaf. The default value of the terminator takes no part (see "Elided terminators").
-- If the token values of the spans of two seals are equal sequences, the seals are equal. The sequence has one value for each original token of the span, in order, and an empty value is an element. The option that the group chose, its private captures, its tags and its omissions take no part. A seal of an empty span is still a seal.
+- If the token values of the spans of two seals are equal sequences, the seals are equal. The sequence has one value for each original token of the span, in order, and an empty value is an element. The chosen interior, private captures, tags and omissions take no part. A seal of an empty span is still a seal.
 - In the `elision-only` check, a capture of a terminal that reads a written-back terminator has the empty projection (engine §7.5). Two empty projections are equal, and an empty projection equals nothing else. Such a capture is present.
+
+An erased named constituent compares as its rule with one seal child over its span. When their ordered token-value sequences are equal, two occurrences of one rule compare equal. Their internal brackets do not distinguish them. An erased splice compares as an anonymous sequence containing that seal.
 
 Nothing else counts. Tags, images, source spans, attachments and emission take no part. Tags stay out as a matter of policy. A tag term can read the tags of a token or the words around a span, so two equal trees can carry different tags. So the comparison tests the tree, not the tokens. Its answer depends only on the derivations of the two constituents, as the answer of a pattern does.
 
@@ -1162,6 +1174,8 @@ Its conditions and written-terminator priority can inspect following words beyon
 
 A seal hides the content of a ranked group. Common entry observations describe state before the ranked group. An outside restoration view keeps that group as an opaque block with its common entry observations. The witness must keep the same block and cannot end inside it. A private capture inside an option keeps its own closes for conditions ready within the group.
 
+An erased constituent's structural seal adds no opaque restoration block. Its demanded close observations remain unchanged. Existing ranked groups inside it retain their blocks. A query using `.without-elision` still observes these closes and blocks.
+
 Projection maps restored positions back to original input positions.
 
 `.onward` preserves the restoration view, including through repeated calls. Other span methods first project to original tokens and return ordinary spans. `$x.without-elision.following-tokens` therefore reads the raw suffix. `.first-token`, `.tokens-after-first`, and `.last-token` expose original tokens.
@@ -1395,6 +1409,24 @@ The comma separates two emission items. An item can have empty tags because stri
 `%erased` hands on nothing and removes the constituent from counted parts. It serves text that later stages must not read, such as a hesitation or a word that removes other words. In Lojban, for example, `si` erases the preceding word, so `broda brode si bu` emits the letter word `broda bu`. The token's source still spans the erased text.
 
 Its strings exclude that text. Its errors and warnings also disappear, including carried diagnostics on erased input tokens. Internal derivations with the same observable state collapse to one canonical reading (engine §6). Outer ranking sees the erased root, but not its proper descendants.
+
+`%erased` also seals the occurrence's structure for callers, as defined under "The structural tree". Its own conditions, tag terms and captures retain their working views. Erasure does not add a ranked choice or change its admission rules.
+
+Sealing applies to the productions of the definition carrying `%erased`. An extension without that clause remains unerased and unsealed by erasure.
+
+Output trees retain the actual chosen derivation. Seals appear only in structural observations, never as output nodes. Conditions and erased collapse can change which derivation the engine chooses.
+
+An author who needs an outside pattern to know a fact about the interior must publish it as a tag. Here, `hidden` computes `Has-A` from its interior, and the parent reads that tag:
+
+```jbogenbau
+%rule text $h:hidden
+%conditions $h ≅ #·hidden<Has-A>
+%rule hidden :: ($ ≅ #« A » ⟹ Has-A)
+  A | B
+%erased
+```
+
+The tag term reads the real child sequence. The parent sees the sealed root with its completed tags.
 
 Grammar rule names starting with `erased-` identify `%erased` constituents only. Stream plumbing that merely omits output uses an unlisted part instead. `%emits ε` inserts a token and never erases.
 
@@ -1664,9 +1696,9 @@ A grammar then ranks admitted parses with equal measures by its `%ambiguity-reso
 
 Most steps count the occurrences of a node pattern (see "Tree patterns"). An occurrence is a node of the parse that the pattern matches, with the node's span. A node contributes at most one occurrence per step, including matches from several union operands.
 
-Equal spans count separately, so nested occurrences count each. Each named chain level is a node of its rule, so it counts. Empty rule nodes, generated helpers, spliced roots, and ranked seals count nothing in grammar key steps. The mandatory blame measure includes spliced error occurrences.
+Equal spans count separately, so nested occurrences count each. Each named chain level is a node of its rule, so it counts. Empty rule nodes, generated helpers, spliced roots, and seals count nothing in grammar key steps. The mandatory blame measure includes spliced error occurrences.
 
-Erasure resets its contribution to zero, and grammar steps see the erased root alone. Names give no priority: two rules that one pattern matches pool their occurrences.
+Erasure resets its contribution to zero, and grammar steps see the erased root alone. An erased occurrence with an empty token span counts nothing, despite its seal. Names give no priority: two rules that one pattern matches pool their occurrences.
 
 A step's pattern is exact and local. Each node test carries the prefix `·`, so the single-child search never makes a wrapper above the named node count. The pattern holds node tests with their tag and value tests, joined by `∪`, `∩` and `∖`. A step can also name a pattern constant, as a condition does, as in `late $OMITTED` after `%const $OMITTED #·_<_Elided>`. It holds no child list, no path and no bare list, because the count of a node must depend on that node alone. The prefix belongs to one node test, so a union is written `#(·a ∪ ·b)`.
 
