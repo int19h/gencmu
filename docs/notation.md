@@ -352,7 +352,7 @@ Ranked options have no local guard, tag clause, or emission clause. Ordinary alt
 
 Captures inside a ranked choice belong to that choice. They can serve only conditions ready before that choice closes. They cannot feed later conditions, tag terms, emission items, or parent recipes. No capture can wrap a sequence or ranked choice. Losing options run no recipes, and a winning recipe error never triggers fallback.
 
-`followed-by` and `preceded-by` see nodes inside an option, because a seal hides structure only from patterns.
+Boundary offers use the actual derivation. `followed-by` and `preceded-by` can see nodes inside ranked options and erased constituents.
 
 The whole-parent `$` becomes ready only when its named alternative completes. A final ranked group can reach that point. Any remaining element, including an empty optional, delays that readiness.
 
@@ -414,11 +414,11 @@ The asterisk stands directly before the name. A splice stands wherever a body ru
 
 The call keeps its conditions, tags, value, image, emission, erasure, diagnostic, and suppression clauses. It creates no output node. Its children take its place in order. Other occurrences of that rule remain ordinary calls.
 
-For tag inheritance, a splice is one logical symbol with the called constituent's tags. Tree patterns and tree comparison flatten its children as they flatten helper children. Its close is transparent to `greedy` and `lazy`.
+For tag inheritance, a splice is one logical symbol with the called constituent's tags. An unerased splice flattens its children for tree patterns and tree comparison. Its close is transparent to `greedy` and `lazy`.
 
-`$x:*foo` captures the anonymous call, with its span, tags, input strings, and flattened child sequence. Its presence is always true, including for an empty call. Its constituent recipes still supply emitted strings where selected.
+`$x:*foo` captures the anonymous call, with its span, tags, input strings, and observed child sequence. Its presence is always true, including for an empty call. Its constituent recipes still supply emitted strings where selected.
 
-`$x ≅ $y` compares anonymous constituents by their flattened child sequences. `$x ≅ #foo` is false because the call has no named root. `$` inside the spliced rule observes that same anonymous structure.
+`$x ≅ $y` compares anonymous constituents by their ordered observed child sequences. `$x ≅ #foo` is false because the call has no named root. Its own `$` uses the anonymous working view. The caller's capture uses the exported view, as "The structural tree" defines.
 
 The loader rejects a splice whose rule any stage ranking step, pattern, or neighbour target names. It resolves names through pattern constants, choices, template families, and instance keys. A query target does not forbid a splice, because a query parses its target independently.
 
@@ -856,7 +856,7 @@ The right operand takes its type by these rules:
 
 The compared tree is the structural tree above. Helpers are flattened, chain levels are kept, and a ranked group is one seal. Equality compares the two trees from their roots, child by child in order. It does not follow a single child, as a node test does. Two trees are equal by these rules:
 
-- If two anonymous spliced constituents have equal flattened child sequences in order, they are equal. An anonymous constituent never equals a named rule node.
+- If two anonymous spliced constituents have equal observed child sequences in order, they are equal. An anonymous constituent never equals a named rule node.
 - If two rule nodes have the same rule and equal children in order, they are equal. Each template instance is a rule of its own. So nodes of two different instances are not equal, and nodes of one instance compare by their children. A parent drops a structurally empty child from its sequence. A directly captured empty named rule keeps its root, with no children. So two captures of different empty rules are not equal.
 - If one terminal read two written leaves and their tokens have equal values, the leaves are equal. A literal, an escaped literal and an equal string constant are one terminal. The tags, image and attachments of the token take no part.
 - If two omitted leaves have equal terminators, they are equal. An omitted leaf never equals a written leaf. The default value of the terminator takes no part (see "Elided terminators").
@@ -1172,7 +1172,7 @@ Inside the shared stretch, the witness of `.without-elision` cannot add, drop, m
 
 Its conditions and written-terminator priority can inspect following words beyond the capture.
 
-A seal hides the content of a ranked group. Common entry observations describe state before the ranked group. An outside restoration view keeps that group as an opaque block with its common entry observations. The witness must keep the same block and cannot end inside it. A private capture inside an option keeps its own closes for conditions ready within the group.
+The structural seal of a ranked group hides its content. Common entry observations describe state before the ranked group. An outside restoration view keeps that group as an opaque block with its common entry observations. The witness must keep the same block and cannot end inside it. A private capture inside an option keeps its own closes for conditions ready within the group.
 
 An erased constituent's structural seal adds no opaque restoration block. Its demanded close observations remain unchanged. Existing ranked groups inside it retain their blocks. A query using `.without-elision` still observes these closes and blocks.
 
