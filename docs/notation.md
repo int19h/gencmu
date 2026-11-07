@@ -796,7 +796,7 @@ A separate `«` or `·` requires whitespace or a comment after a node test, `»`
 
 A bare list has no name test. `#« a b »` tests any observable node whose children match a then b. `#·« a b »` tests those children only at the candidate itself. `#« a »` requires one child and remains distinct from `#a`.
 
-A child list attaches only to a rule name, emoji rule, template family, exact call, or compatible parameter. Terminals, `_`, tested atoms, and string constants cannot carry child lists. A seal passes no node test, including a bare list. On an anonymous splice capture, `#« ⋯ »` tests the seal itself and fails, while `#·e« ⋯ »` tests the named root above it.
+A child list attaches only to a rule name, emoji rule, template family, exact call, or compatible parameter. Terminals, `_`, tested atoms, and string constants cannot carry child lists. A seal passes no node test, including a bare list. On an erased splice capture, `#« ⋯ »` fails at the seal, while `#·e« ⋯ »` holds on an ordinary erased `e` root.
 
 Take an atom that names a rule whose every definition carries `%erased`. An attached child list is a document error unless it contains only one sibling gap, `« ⋯ »`. That permitted list always holds on such a node.
 
