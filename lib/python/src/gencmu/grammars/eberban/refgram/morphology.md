@@ -27,7 +27,7 @@ The text is a sequence of items. An item is a space, a digit, a hesitation or an
 
 A run is a maximal stretch of letters and hyphens between two items that are not letters. Each rule that reads a run makes it maximal with a condition on the tokens after it. A foreign quote is the last part of its run, so a new run can start right after the quote. Otherwise two runs never stand side by side, and one run has one division.
 
-The ranked choice in `item` keeps the word and junk readings together. The engine prefers the reading with less blame. The grammar then prefers fewer junk runs at an equal measure. Its explicit empty tags discard the returned classification after emission.
+The ranked choice in `item` keeps the word and junk readings together. The engine prefers the reading with less blame. At an equal measure and span, the earlier word option excludes junk. Its explicit empty tags discard the returned classification after emission.
 
 Five forms can hold a space inside one token: a borrowing, a freeform variable, a compound, a spelling quote and a foreign quote. An unfinished compound also reaches over spaces, but it emits several tokens. The step `leftmost-longest #(·borrowing ∪ ·freeform-variable ∪ ·spelling-quote ∪ ·foreign-quote ∪ ·compound ∪ ·open-compound)` names the five rules and `open-compound`, the unfinished compound. At each free position, the stage takes the longest such form that starts there. The step chooses between forms by their start, then by their length.
 
@@ -38,7 +38,7 @@ The book allows a hyphen only at a syllable boundary inside a word. Each digit i
 ```jbogenbau
 %ambiguity-resolution
   leftmost-longest #(·borrowing ∪ ·freeform-variable ∪ ·spelling-quote ∪ ·foreign-quote ∪
-    ·compound ∪ ·open-compound), fewest #·junk-run, lazy
+    ·compound ∪ ·open-compound), lazy
 
 %rule text
   [{item}]
@@ -497,7 +497,7 @@ The quote reads its own `co` through the particle rule, so the bar never meets t
   consonant-particle-word | root-word | spelling-quote
 
 %rule consonant-particle-word
-  [{h-not-between-vowels [hyphen-misplaced]}] $p:consonant-particle [{[hyphen-misplaced] h-not-between-vowels}] [hyphen-misplaced] :: Word ∪ Particle ∪ $p.tags
+  *h-before-word $p:consonant-particle *h-after-word [hyphen-misplaced] :: Word ∪ Particle ∪ $p.tags
     ∪ (CE ⊆ $p.tags ∧ ¬$.following-tokens.begins(first-unit) ⟹ Missing-spelling-unit)
 %conditions
   CO ⊆ $p.tags ⟹ ¬$.onward.begins(quote-opener)
@@ -505,14 +505,14 @@ The quote reads its own `co` through the particle rule, so the bar never meets t
   $ :- $.value
 
 %rule ni-word
-  [{h-not-between-vowels [hyphen-misplaced]}] $p:ni-particle [{[hyphen-misplaced] h-not-between-vowels}] [hyphen-misplaced] :: Word ∪ Particle ∪ $p.tags
+  *h-before-word $p:ni-particle *h-after-word [hyphen-misplaced] :: Word ∪ Particle ∪ $p.tags
 %conditions
   ¬$.preceding-tokens.ends(after-digit)
 %emits
   $ :- $.value
 
 %rule vowel-particle-word
-  [{h-not-between-vowels [hyphen-misplaced]}] $p:vowel-particle [{[hyphen-misplaced] h-not-between-vowels}] [hyphen-misplaced] :: Word ∪ Particle ∪ $p.tags
+  *h-before-word $p:vowel-particle *h-after-word [hyphen-misplaced] :: Word ∪ Particle ∪ $p.tags
 %conditions
   ¬$.preceding-tokens.ends(after-digit)
 %emits
@@ -557,8 +557,8 @@ The PEG warns about a hyphen before or after the prefix, and about content that 
 
 ```jbogenbau
 %rule freeform-word(@Prefix, @Tag)
-  [hyphen-misplaced] $p:Letter prefix-gap $c:malformed-content [hyphen-misplaced] space-after :: Word ∪
-    @Tag := @Prefix ++ $c.value
+  [hyphen-misplaced] $p:Letter prefix-gap $c:malformed-content [hyphen-misplaced] space-after
+    :: Word ∪ @Tag := @Prefix ++ $c.value
 %conditions
   $p.value = @Prefix,
   ¬$p.preceding-tokens.ends(after-digit)
@@ -825,7 +825,7 @@ A hyphen after a prefix or at the start of a run carries `hyphen-misplaced`, as 
   | [hyphen-misplaced] $n:compound :: $n.tags
 
 %rule component-particle
-  [{h-not-between-vowels [hyphen-misplaced]}] $p:consonant-particle [{[hyphen-misplaced] h-not-between-vowels}] [hyphen-misplaced] :: Word ∪ Particle ∪ $p.tags
+  *h-before-word $p:consonant-particle *h-after-word [hyphen-misplaced] :: Word ∪ Particle ∪ $p.tags
     ∪ (CE ⊆ $p.tags ∧ ¬$.following-tokens.begins(first-unit) ⟹ Missing-spelling-unit)
 %emits
   $ :- $.value
@@ -939,7 +939,7 @@ An unfinished level of a compound lacks a required component, holds an unfinishe
 
 As in a complete compound, no quote starts in a component slot of an unfinished one. An eraser is no component, so it ends the compound. So in `a e co [ra a mo`, `co` is a plain particle and the bracket is a gap. Then `ra` erases the unfinished compound, and the text keeps `a mo`.
 
-The rule `open-compound` reads an unfinished compound. It follows `compound` level by level, with the same slot rules. Each level that it reads is unfinished, as defined above. An `e` level needs two components, and an `en` level needs three. An `er` level needs its closing `e`, which this rule never reads. So the rule counts the open slots of every prefix at every depth.
+The rule `open-compound` reads an unfinished compound. It follows `compound` level by level, with the same slot rules. Each level that it reads is unfinished, as defined above. An `e` level needs two components, and an `en` level needs three. An `er` level normally lacks its closing `e`. The exception is an empty `er e`, which lacks a component instead of a closer. So the rule counts the open slots of every prefix at every depth.
 
 So in `a ei mi co [ra a mo`, the inner `i` has its two components `mi` and `co`. The outer `e` still lacks its second component, so `co` starts no quote. In the same way, `a ene mi mo co [ra a ke` reads `e mi mo` and `co` as the first two components of `en`. The third is missing.
 
@@ -956,6 +956,8 @@ A reader can expect each quote rule to test the letters before it for an unfinis
 The prefix errors stand on their prefix tokens. Their mutually exclusive guards retain the compound arity marks inside the reader. Syntax accepts only their emitted `Stray-Prefix` class.
 
 An empty `er e` retains its closing `e` as `Stray-Prefix`, without a second error. The shared closer reader emits that token and keeps its word boundary. The emitted `e` preserves the word sequence inside a later erasure. Its warnings also survive until an actual erasure removes them.
+
+`empty-er-closer` names the closing token of that empty recovery. Its name distinguishes this role from the closer of a complete compound. It calls the shared `er-closer`, which emits the gap and closing `e`, without another diagnostic.
 
 ```jbogenbau
 %rule stray-compound
@@ -1289,7 +1291,7 @@ Two conditions keep junk from standing where a word reads. First, a run whose wo
 
 The query reads its words from the start of the run and cannot see what stands before the run. So the bar does not apply where a digit stands before a run that starts with a vowel or a sonorant, as `spaced-start` reads it. No word reading of that run exists, because such a word needs a space before it. So `a 1anco[x ra a mo` is junk that `ra` erases, while `a 1 anco[x ra a mo` is rejected.
 
-Second, a single hyphen beside a digit belongs to the digit word, so it is no junk. A row of hyphens beside a digit stays junk, so the syntax stage accepts it only where `ra` erases it. So `a mi 1--2 ra a mo` is a text, and `mi 1--2 bjan` is not. A hyphen with no digit beside it stays junk, so `a mi - bjan mo` is rejected. A hyphen that starts a longer junk run belongs to that run, as in `a mi 1-an mo`. So it carries no warning, and only the junk stops the text.
+Second, a single hyphen beside a digit belongs to the digit word, so it is no junk. A row of hyphens beside a digit stays junk, so the syntax stage accepts it only where `ra` erases it. So `a mi 1--2 ra a mo` is a text, and `mi 1--2 bjan` is not. A hyphen with no digit beside it stays junk, so `a mi - bjan mo` is rejected. Before a longer junk run, a hyphen beside a digit belongs to the digit, with its warning. Thus `a mi 1-an mo` warns about the hyphen, and the junk `an` stops the text. The smaller junk span has less blame than a run that includes the hyphen.
 
 ```jbogenbau
 %rule junk-run
@@ -1330,7 +1332,15 @@ Recovering gaps retain a misplaced `h` between the letters of a word shape. Thus
 
 Fault productions retain their literal restrictions, so a pair fault never spans an intervening `h`.
 
+The edge readers collect faulty `h` letters and their hyphens before or after a word. Their splices keep those letters in the word's own child sequence. A bare root tests its end after the suffix, so that boundary includes every faulty edge letter.
+
 ```jbogenbau
+%rule h-before-word
+  [{h-not-between-vowels [hyphen-misplaced]}]
+
+%rule h-after-word
+  [{[hyphen-misplaced] h-not-between-vowels}]
+
 %rule malformed-gap(@Hyphen)
   [@Hyphen] [{h-not-between-vowels [hyphen-misplaced]}]
 
@@ -1370,7 +1380,9 @@ Fault productions retain their literal restrictions, so a pair fault never spans
   malformed-gap(hyphen-misplaced) sonorant
 ```
 
-<details><summary>Railroad diagrams of the 7 rules from <code>malformed-gap</code> to <code>malformed-final-sonorant</code></summary>
+<details><summary>Railroad diagrams of the 9 rules from <code>h-before-word</code> to <code>malformed-final-sonorant</code></summary>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/h-before-word.svg" alt="Railroad diagram of the rule h-before-word"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/h-after-word.svg" alt="Railroad diagram of the rule h-after-word"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/malformed-gap.svg" alt="Railroad diagram of the rule malformed-gap"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/malformed-initial-pair.svg" alt="Railroad diagram of the rule malformed-initial-pair"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/malformed-medial-pair.svg" alt="Railroad diagram of the rule malformed-medial-pair"></p>
@@ -1380,32 +1392,40 @@ Fault productions retain their literal restrictions, so a pair fault never spans
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/malformed-final-sonorant.svg" alt="Railroad diagram of the rule malformed-final-sonorant"></p>
 </details>
 
-The root skeleton retains the ordinary distinction between a particle and a root. In its ordinary shape, a single onset needs a middle or a final sonorant. An onset pair needs neither. A faulty onset can retain one further consonant, so `tkco` reaches its faulty initial `tk`. It cannot detach after a vowel, so `tapmla` retains its faulty middle rather than becoming `ta pmla`.
+The root skeleton retains the ordinary distinction between a particle and a root. In its ordinary shape, a single onset needs a middle or a final sonorant. An onset pair needs neither. A faulty onset can retain one further consonant, so `tkco` reaches its faulty initial `tk`. A faulty onset cannot begin with a sonorant or detach after a vowel. Thus `pinrna` stays junk, and `tapmla` retains its faulty middle rather than becoming `ta pmla`.
 
-A bare medial pair or quadruplet can retain its root error without a vowel frame. The vowel-free root ends before any further letter. This prevents splitting `bcdfga` into a bare faulty word and another word. A root with preceding vowels can also retain a final quadruplet, as in `mikstr`.
+A bare medial pair or quadruplet can retain its root error without a vowel frame. The vowel-free root ends before any further letter. A bare medial pair can follow a vowel, so `mipt` reads `mi` and the faulty `pt`. The bare quadruplet keeps its preceding-vowel bar, so `mibcdf` stays one root. This prevents splitting `bcdfga` into a bare faulty word and another word. A root with preceding vowels can also retain a final quadruplet, as in `mikstr`.
 
 ```jbogenbau
 %rule malformed-root
-  | [{h-not-between-vowels [hyphen-misplaced]}] ns-consonant
-      malformed-gap(hyphen-misplaced) malformed-vhowels {malformed-root-middle} [malformed-final-sonorant] [{[hyphen-misplaced] h-not-between-vowels}]
-  | [{h-not-between-vowels [hyphen-misplaced]}] ns-consonant
-      malformed-gap(hyphen-misplaced) malformed-vhowels malformed-final-sonorant [{[hyphen-misplaced] h-not-between-vowels}]
-  | [{h-not-between-vowels [hyphen-misplaced]}] malformed-root-onset
-      malformed-gap(hyphen-misplaced) malformed-vhowels [{malformed-root-middle}] [malformed-final-sonorant] [{[hyphen-misplaced] h-not-between-vowels}]
-  | [{h-not-between-vowels [hyphen-misplaced]}] bare-root-piece
-      [{[hyphen-misplaced] h-not-between-vowels}] bare-root-end
+  | *h-before-word ns-consonant
+      malformed-gap(hyphen-misplaced) malformed-vhowels {malformed-root-middle}
+      [malformed-final-sonorant] *h-after-word
+  | *h-before-word ns-consonant
+      malformed-gap(hyphen-misplaced) malformed-vhowels malformed-final-sonorant *h-after-word
+  | *h-before-word malformed-root-onset
+      malformed-gap(hyphen-misplaced) malformed-vhowels [{malformed-root-middle}]
+      [malformed-final-sonorant] *h-after-word
+  | *h-before-word bare-root-piece
+      *h-after-word bare-root-end
 
 %extend-rule malformed-root
-  | [{h-not-between-vowels [hyphen-misplaced]}] ns-consonant
+  | *h-before-word ns-consonant
       malformed-gap(hyphen-misplaced) malformed-vhowels [{malformed-root-middle}]
-      malformed-long-cluster [{[hyphen-misplaced] h-not-between-vowels}] bare-root-end
-  | [{h-not-between-vowels [hyphen-misplaced]}] malformed-root-onset
+      malformed-long-cluster *h-after-word bare-root-end
+  | *h-before-word malformed-root-onset
       malformed-gap(hyphen-misplaced) malformed-vhowels [{malformed-root-middle}]
-      malformed-long-cluster [{[hyphen-misplaced] h-not-between-vowels}] bare-root-end
+      malformed-long-cluster *h-after-word bare-root-end
 
 %rule bare-root-piece
-  root-starts-with-medial-pair | quadruplet
+  root-starts-with-medial-pair
 %conditions
+  Sonorant ⊈ $.first-token.tags
+
+%extend-rule bare-root-piece
+  quadruplet
+%conditions
+  Sonorant ⊈ $.first-token.tags,
   ¬$.preceding-tokens.ends(vowel-before-h)
 
 %rule bare-root-end
@@ -1421,13 +1441,14 @@ A bare medial pair or quadruplet can retain its root error without a vowel frame
   | root-starts-with-medial-pair [malformed-gap(Hyphen) consonant]
   | malformed-long-cluster
 %conditions
+  Sonorant ⊈ $.first-token.tags,
   ¬$.preceding-tokens.ends(vowel-before-h)
 
 %rule malformed-root-middle
   | malformed-gap(Hyphen) sonorant malformed-gap(hyphen-misplaced) malformed-vhowels
   | malformed-gap(hyphen-misplaced) (malformed-medial-pair | (malformed-pair ≻ invalid-medial-pair)
-      | malformed-root-triplet | malformed-long-cluster) malformed-gap(hyphen-misplaced) malformed-vhowels
-  | [hyphen-misplaced] h-not-between-vowels [hyphen-misplaced] malformed-vhowels
+      | malformed-root-triplet | malformed-long-cluster)
+      malformed-gap(hyphen-misplaced) malformed-vhowels
 
 %rule malformed-root-triplet
   | recovering-root-triplet
@@ -1438,6 +1459,7 @@ A bare medial pair or quadruplet can retain its root error without a vowel frame
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/malformed-root.svg" alt="Railroad diagram of the rule malformed-root"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/malformed-root.2.svg" alt="Railroad diagram of the rule malformed-root"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/bare-root-piece.svg" alt="Railroad diagram of the rule bare-root-piece"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/bare-root-piece.2.svg" alt="Railroad diagram of the rule bare-root-piece"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/bare-root-end.svg" alt="Railroad diagram of the rule bare-root-end"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/malformed-root-onset.svg" alt="Railroad diagram of the rule malformed-root-onset"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/faulty-root-onset.svg" alt="Railroad diagram of the rule faulty-root-onset"></p>
@@ -1447,16 +1469,16 @@ A bare medial pair or quadruplet can retain its root error without a vowel frame
 
 A borrowing or freeform retains its prefix and its complete content. Its cluster slots accept the freeform triplet shapes. A sonorant before an initial-shaped pair retains a fault on that pair, as in `unsba`.
 
-A final consonant cluster reports as one ending. A shared pair fault takes precedence at the same span, so `ubobs` reports its voicing mismatch. The no-vowel branch reaches `ubd` without pretending that `bd` contains a vowel. A bare quadruplet similarly retains one root token. A framed cluster retains consonants after its first four, so `pabcdfga` reports on `bcdf`. Longer consonant-only runs retain junk where no skeleton reads them.
+A final consonant cluster reports as one ending. A shared pair fault takes precedence at the same span, so `ubobs` reports its voicing mismatch. The no-vowel branch reaches `ubd` without pretending that `bd` contains a vowel. It tries a long cluster before the generic ending, so `ubcdf` reports its quadruplet. A bare quadruplet similarly retains one root token. A framed cluster retains consonants after its first four, so `pabcdfga` reports on `bcdf`. Longer consonant-only runs retain junk where no skeleton reads them.
 
 ```jbogenbau
 %rule malformed-content
-  | [{h-not-between-vowels [hyphen-misplaced]}] [malformed-content-onset] malformed-vhowels
+  | *h-before-word [malformed-content-onset] malformed-vhowels
       [{malformed-content-middle malformed-vhowels}]
       [[hyphen-misplaced] (consonant | malformed-ending)]
-      [{[hyphen-misplaced] h-not-between-vowels}]
-  | [{h-not-between-vowels [hyphen-misplaced]}] malformed-ending
-      [{[hyphen-misplaced] h-not-between-vowels}]
+      *h-after-word
+  | *h-before-word (malformed-long-cluster ≻ malformed-ending)
+      *h-after-word
 
 %rule malformed-content-onset
   (malformed-initial-pair | consonant | malformed-split-cluster | malformed-pair
@@ -1464,9 +1486,9 @@ A final consonant cluster reports as one ending. A shared pair fault takes prece
 
 %rule malformed-content-middle
   | malformed-gap(Hyphen) (malformed-initial-pair | consonant) malformed-gap(hyphen-misplaced)
-  | malformed-gap(hyphen-misplaced) (malformed-split-cluster | malformed-pair | malformed-long-cluster)
+  | malformed-gap(hyphen-misplaced)
+      (malformed-split-cluster | malformed-pair | malformed-long-cluster)
       malformed-gap(hyphen-misplaced)
-  | [hyphen-misplaced] h-not-between-vowels [hyphen-misplaced]
 
 %rule malformed-split-cluster
   | recovering-freeform-triplet
@@ -1508,6 +1530,8 @@ The ending query passes a possible faulty `h` suffix and the last hyphen. It rea
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/freeform-ending-boundary.svg" alt="Railroad diagram of the rule freeform-ending-boundary"></p>
 </details>
 
+A sequence of faulty `h` letters between vowels requires at least two letters. Each intervening hyphen belongs to the later letter and warns, so `bah-ha` has one division. A single `h` between vowels is legal and uses `malformed-vhowels`.
+
 Recovering vowels report the hyphen alone between two equal vowels. This permits separate errors in `a-a-a` without overlapping vowel spans. A freeform prefix is outside its content, so `u-u` keeps the ordinary prefix warning.
 
 The particle tail retains its family even with two adjacent sonorants. An erroneous `h` at a word edge also retains that family, so `mih` remains a `MI` word. A freeform onset `h` remains legal.
@@ -1518,7 +1542,8 @@ The particle tail retains its family even with two adjacent sonorants. An errone
   | malformed-vowels vowel
   | $a:malformed-vowels Hyphen $b:vowel
   | malformed-vowels hyphen-same-vowels vowel
-  | malformed-vowels {[Hyphen] h-not-between-vowels [hyphen-misplaced]} vowel
+  | malformed-vowels [Hyphen] h-not-between-vowels
+      {[hyphen-misplaced] h-not-between-vowels} [hyphen-misplaced] vowel
 %conditions
   $a.last-token.value ≠ $b.value
 
@@ -1736,7 +1761,7 @@ The forms stage reports local faults inside words. Each word keeps its ordinary 
 
 Pair faults use doubled consonants, voicing, then sibilants as their fixed order. Root and freeform triplet wrappers share their failed restrictions. This order applies only within overlapping fault choices, not across a whole run. Separate faults survive together, as in `hpbanh`.
 
-An unclassified run carries `junk-run` on its whole span. Smaller local blame wins before any grammar step. At an equal measure, `fewest #·junk-run` prefers a word reading. Syntax accepts unclassified junk only inside erasure.
+An unclassified run carries `junk-run` on its whole span. Smaller local blame wins before any grammar step. At an equal measure and span, the ranked choice in `item` prefers the word option. Thus bare `bcdf` reports its quadruplet without a separate junk-count step. Syntax accepts unclassified junk only inside erasure.
 
 A stray prefix carries its own error and emits only `Stray-Prefix`. Syntax admits that class only as a base verb. It is not a root, quoted word, delimiter, number part, or namespace component. Each prefix takes its `n` or `r` before it ends, as in the strict compound reader.
 

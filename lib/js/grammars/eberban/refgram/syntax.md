@@ -652,7 +652,7 @@ At equal engine measures, a specific construct failure precedes an unmatched clo
     ∪ ·unmatched-bu ∪ ·unmatched-dai ∪ ·unmatched-resume)
 ```
 
-Named errors preserve a complete reading of faulty text. A reading without counted errors takes precedence, including erasure. Ordinary queries accept faulty witnesses. The explicit `.error-free` bar alone excludes them from its answer.
+Named errors preserve a complete reading of faulty text. A reading without counted errors takes precedence, including erasure. Ordinary queries admit tokens with carried errors. Their witnesses exclude their own unerased error productions. The explicit `.error-free` bar also requires zero measure.
 
 The forms stage reports an empty `er` on its prefix token. It consumes the closing `e` without another prefix error, including before components of another apparent compound.
 
