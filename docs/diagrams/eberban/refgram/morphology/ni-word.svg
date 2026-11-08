@@ -1,14 +1,42 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="350" height="78" viewBox="0 0 350 78" role="img" aria-label="Railroad diagram of the rule ni-word">
+<svg xmlns="http://www.w3.org/2000/svg" width="746" height="172" viewBox="0 0 746 172" role="img" aria-label="Railroad diagram of the rule ni-word">
 <style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="58.8" lengthAdjust="spacingAndGlyphs">ni-word</text>
 <text class="label" x="88.8" y="24" textLength="115.2" lengthAdjust="spacingAndGlyphs">conditions apply</text>
-<path d="M10 48v16m4 -16v16M14 56h6"/>
-<g class="rule"><rect x="20" y="44" width="109" height="24" rx="0"/><text x="74.5" y="61" textLength="92.4" lengthAdjust="spacingAndGlyphs">ni-particle</text></g>
-<path d="M129 56h10"/>
-<path d="M139 56h20"/>
-<g class="rule"><rect x="159" y="44" width="151" height="24" rx="0"/><text x="234.5" y="61" textLength="134.4" lengthAdjust="spacingAndGlyphs">hyphen-misplaced</text></g>
-<path d="M310 56H330"/>
-<path d="M139 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H310a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
-<path d="M330 56h6m0 -8v16m4 -16v16"/>
+<path d="M10 58v16m4 -16v16M14 66h6"/>
+<path d="M20 66h20"/>
+<path d="M40 66h20"/>
+<path d="M60 66h20"/>
+<g class="rule"><rect x="80" y="54" width="184" height="24" rx="0"/><text x="172" y="71" textLength="168" lengthAdjust="spacingAndGlyphs">h-not-between-vowels</text></g>
+<path d="M264 66h10"/>
+<path d="M274 66h20"/>
+<g class="rule"><rect x="294" y="54" width="151" height="24" rx="0"/><text x="369.5" y="71" textLength="134.4" lengthAdjust="spacingAndGlyphs">hyphen-misplaced</text></g>
+<path d="M445 66H465"/>
+<path d="M274 66a10 10 0 0 0 10 -10V54a10 10 0 0 1 10 -10H445a10 10 0 0 1 10 10V56a10 10 0 0 0 10 10"/>
+<path d="M465 66H485"/>
+<path d="M465 66a10 10 0 0 1 10 10V78a10 10 0 0 1 -10 10H80a10 10 0 0 1 -10 -10V76a10 10 0 0 1 10 -10"/>
+<path d="M485 66H505"/>
+<path d="M40 66a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H485a10 10 0 0 1 10 10V56a10 10 0 0 0 10 10"/>
+<path d="M505 66h10"/>
+<g class="rule"><rect x="515" y="54" width="109" height="24" rx="0"/><text x="569.5" y="71" textLength="92.4" lengthAdjust="spacingAndGlyphs">ni-particle</text></g>
+<path d="M624 66H706a10 10 0 0 1 10 10V88a10 10 0 0 1 -10 10H40a10 10 0 0 0 -10 10V130a10 10 0 0 0 10 10"/>
+<path d="M40 140h20"/>
+<path d="M60 140h20"/>
+<path d="M80 140h20"/>
+<g class="rule"><rect x="100" y="128" width="151" height="24" rx="0"/><text x="175.5" y="145" textLength="134.4" lengthAdjust="spacingAndGlyphs">hyphen-misplaced</text></g>
+<path d="M251 140H271"/>
+<path d="M80 140a10 10 0 0 0 10 -10V128a10 10 0 0 1 10 -10H251a10 10 0 0 1 10 10V130a10 10 0 0 0 10 10"/>
+<path d="M271 140h10"/>
+<g class="rule"><rect x="281" y="128" width="184" height="24" rx="0"/><text x="373" y="145" textLength="168" lengthAdjust="spacingAndGlyphs">h-not-between-vowels</text></g>
+<path d="M465 140H485"/>
+<path d="M465 140a10 10 0 0 1 10 10V152a10 10 0 0 1 -10 10H80a10 10 0 0 1 -10 -10V150a10 10 0 0 1 10 -10"/>
+<path d="M485 140H505"/>
+<path d="M40 140a10 10 0 0 0 10 -10V118a10 10 0 0 1 10 -10H485a10 10 0 0 1 10 10V130a10 10 0 0 0 10 10"/>
+<path d="M505 140h10"/>
+<path d="M515 140h20"/>
+<g class="rule"><rect x="535" y="128" width="151" height="24" rx="0"/><text x="610.5" y="145" textLength="134.4" lengthAdjust="spacingAndGlyphs">hyphen-misplaced</text></g>
+<path d="M686 140H706"/>
+<path d="M515 140a10 10 0 0 0 10 -10V128a10 10 0 0 1 10 -10H686a10 10 0 0 1 10 10V130a10 10 0 0 0 10 10"/>
+<path d="M706 140H726"/>
+<path d="M726 140h6m0 -8v16m4 -16v16"/>
 </svg>

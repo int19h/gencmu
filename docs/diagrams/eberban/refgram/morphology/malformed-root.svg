@@ -1,0 +1,170 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="809" height="846" viewBox="0 0 809 846" role="img" aria-label="Railroad diagram of the rule malformed-root">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="117.6" lengthAdjust="spacingAndGlyphs">malformed-root</text>
+<path d="M10 58v16m4 -16v16M14 66h6"/>
+<path d="M20 66h20"/>
+<path d="M40 66h20"/>
+<path d="M60 66h20"/>
+<path d="M80 66h20"/>
+<g class="rule"><rect x="100" y="54" width="184" height="24" rx="0"/><text x="192" y="71" textLength="168" lengthAdjust="spacingAndGlyphs">h-not-between-vowels</text></g>
+<path d="M284 66h10"/>
+<path d="M294 66h20"/>
+<g class="rule"><rect x="314" y="54" width="151" height="24" rx="0"/><text x="389.5" y="71" textLength="134.4" lengthAdjust="spacingAndGlyphs">hyphen-misplaced</text></g>
+<path d="M465 66H485"/>
+<path d="M294 66a10 10 0 0 0 10 -10V54a10 10 0 0 1 10 -10H465a10 10 0 0 1 10 10V56a10 10 0 0 0 10 10"/>
+<path d="M485 66H505"/>
+<path d="M485 66a10 10 0 0 1 10 10V78a10 10 0 0 1 -10 10H100a10 10 0 0 1 -10 -10V76a10 10 0 0 1 10 -10"/>
+<path d="M505 66H525"/>
+<path d="M60 66a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H505a10 10 0 0 1 10 10V56a10 10 0 0 0 10 10"/>
+<path d="M525 66h10"/>
+<g class="rule"><rect x="535" y="54" width="117" height="24" rx="0"/><text x="593.5" y="71" textLength="100.8" lengthAdjust="spacingAndGlyphs">ns-consonant</text></g>
+<path d="M652 66H749a10 10 0 0 1 10 10V88a10 10 0 0 1 -10 10H60a10 10 0 0 0 -10 10V110a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="108" width="277" height="24" rx="12"/><text x="198.5" y="125" textLength="260.4" lengthAdjust="spacingAndGlyphs">malformed-gap(hyphen-misplaced)</text></g>
+<path d="M337 120h10"/>
+<g class="rule"><rect x="347" y="108" width="159" height="24" rx="0"/><text x="426.5" y="125" textLength="142.8" lengthAdjust="spacingAndGlyphs">malformed-vhowels</text></g>
+<path d="M506 120h10"/>
+<path d="M516 120h20"/>
+<g class="rule"><rect x="536" y="108" width="193" height="24" rx="0"/><text x="632.5" y="125" textLength="176.4" lengthAdjust="spacingAndGlyphs">malformed-root-middle</text></g>
+<path d="M729 120H749"/>
+<path d="M729 120a10 10 0 0 1 10 10V132a10 10 0 0 1 -10 10H536a10 10 0 0 1 -10 -10V130a10 10 0 0 1 10 -10"/>
+<path d="M749 120H749a10 10 0 0 1 10 10V142a10 10 0 0 1 -10 10H60a10 10 0 0 0 -10 10V174a10 10 0 0 0 10 10"/>
+<path d="M60 184h20"/>
+<g class="rule"><rect x="80" y="172" width="218" height="24" rx="0"/><text x="189" y="189" textLength="201.6" lengthAdjust="spacingAndGlyphs">malformed-final-sonorant</text></g>
+<path d="M298 184H318"/>
+<path d="M60 184a10 10 0 0 0 10 -10V172a10 10 0 0 1 10 -10H298a10 10 0 0 1 10 10V174a10 10 0 0 0 10 10"/>
+<path d="M318 184H749a10 10 0 0 1 10 10V196a10 10 0 0 1 -10 10H60a10 10 0 0 0 -10 10V238a10 10 0 0 0 10 10"/>
+<path d="M60 248h20"/>
+<path d="M80 248h20"/>
+<path d="M100 248h20"/>
+<g class="rule"><rect x="120" y="236" width="151" height="24" rx="0"/><text x="195.5" y="253" textLength="134.4" lengthAdjust="spacingAndGlyphs">hyphen-misplaced</text></g>
+<path d="M271 248H291"/>
+<path d="M100 248a10 10 0 0 0 10 -10V236a10 10 0 0 1 10 -10H271a10 10 0 0 1 10 10V238a10 10 0 0 0 10 10"/>
+<path d="M291 248h10"/>
+<g class="rule"><rect x="301" y="236" width="184" height="24" rx="0"/><text x="393" y="253" textLength="168" lengthAdjust="spacingAndGlyphs">h-not-between-vowels</text></g>
+<path d="M485 248H505"/>
+<path d="M485 248a10 10 0 0 1 10 10V260a10 10 0 0 1 -10 10H100a10 10 0 0 1 -10 -10V258a10 10 0 0 1 10 -10"/>
+<path d="M505 248H525"/>
+<path d="M60 248a10 10 0 0 0 10 -10V226a10 10 0 0 1 10 -10H505a10 10 0 0 1 10 10V238a10 10 0 0 0 10 10"/>
+<path d="M525 248H769"/>
+<path d="M769 248H789"/>
+<path d="M20 66a10 10 0 0 1 10 10V302a10 10 0 0 0 10 10"/>
+<path d="M40 312h20"/>
+<path d="M60 312h20"/>
+<path d="M80 312h20"/>
+<g class="rule"><rect x="100" y="300" width="184" height="24" rx="0"/><text x="192" y="317" textLength="168" lengthAdjust="spacingAndGlyphs">h-not-between-vowels</text></g>
+<path d="M284 312h10"/>
+<path d="M294 312h20"/>
+<g class="rule"><rect x="314" y="300" width="151" height="24" rx="0"/><text x="389.5" y="317" textLength="134.4" lengthAdjust="spacingAndGlyphs">hyphen-misplaced</text></g>
+<path d="M465 312H485"/>
+<path d="M294 312a10 10 0 0 0 10 -10V300a10 10 0 0 1 10 -10H465a10 10 0 0 1 10 10V302a10 10 0 0 0 10 10"/>
+<path d="M485 312H505"/>
+<path d="M485 312a10 10 0 0 1 10 10V324a10 10 0 0 1 -10 10H100a10 10 0 0 1 -10 -10V322a10 10 0 0 1 10 -10"/>
+<path d="M505 312H525"/>
+<path d="M60 312a10 10 0 0 0 10 -10V290a10 10 0 0 1 10 -10H505a10 10 0 0 1 10 10V302a10 10 0 0 0 10 10"/>
+<path d="M525 312h10"/>
+<g class="rule"><rect x="535" y="300" width="117" height="24" rx="0"/><text x="593.5" y="317" textLength="100.8" lengthAdjust="spacingAndGlyphs">ns-consonant</text></g>
+<path d="M652 312H734a10 10 0 0 1 10 10V334a10 10 0 0 1 -10 10H60a10 10 0 0 0 -10 10V356a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="354" width="277" height="24" rx="12"/><text x="198.5" y="371" textLength="260.4" lengthAdjust="spacingAndGlyphs">malformed-gap(hyphen-misplaced)</text></g>
+<path d="M337 366h10"/>
+<g class="rule"><rect x="347" y="354" width="159" height="24" rx="0"/><text x="426.5" y="371" textLength="142.8" lengthAdjust="spacingAndGlyphs">malformed-vhowels</text></g>
+<path d="M506 366h10"/>
+<g class="rule"><rect x="516" y="354" width="218" height="24" rx="0"/><text x="625" y="371" textLength="201.6" lengthAdjust="spacingAndGlyphs">malformed-final-sonorant</text></g>
+<path d="M734 366H734a10 10 0 0 1 10 10V378a10 10 0 0 1 -10 10H60a10 10 0 0 0 -10 10V420a10 10 0 0 0 10 10"/>
+<path d="M60 430h20"/>
+<path d="M80 430h20"/>
+<path d="M100 430h20"/>
+<g class="rule"><rect x="120" y="418" width="151" height="24" rx="0"/><text x="195.5" y="435" textLength="134.4" lengthAdjust="spacingAndGlyphs">hyphen-misplaced</text></g>
+<path d="M271 430H291"/>
+<path d="M100 430a10 10 0 0 0 10 -10V418a10 10 0 0 1 10 -10H271a10 10 0 0 1 10 10V420a10 10 0 0 0 10 10"/>
+<path d="M291 430h10"/>
+<g class="rule"><rect x="301" y="418" width="184" height="24" rx="0"/><text x="393" y="435" textLength="168" lengthAdjust="spacingAndGlyphs">h-not-between-vowels</text></g>
+<path d="M485 430H505"/>
+<path d="M485 430a10 10 0 0 1 10 10V442a10 10 0 0 1 -10 10H100a10 10 0 0 1 -10 -10V440a10 10 0 0 1 10 -10"/>
+<path d="M505 430H525"/>
+<path d="M60 430a10 10 0 0 0 10 -10V408a10 10 0 0 1 10 -10H505a10 10 0 0 1 10 10V420a10 10 0 0 0 10 10"/>
+<path d="M525 430H754"/>
+<path d="M754 430H769a10 10 0 0 0 10 -10V258a10 10 0 0 1 10 -10"/>
+<path d="M20 66a10 10 0 0 1 10 10V484a10 10 0 0 0 10 10"/>
+<path d="M40 494h20"/>
+<path d="M60 494h20"/>
+<path d="M80 494h20"/>
+<g class="rule"><rect x="100" y="482" width="184" height="24" rx="0"/><text x="192" y="499" textLength="168" lengthAdjust="spacingAndGlyphs">h-not-between-vowels</text></g>
+<path d="M284 494h10"/>
+<path d="M294 494h20"/>
+<g class="rule"><rect x="314" y="482" width="151" height="24" rx="0"/><text x="389.5" y="499" textLength="134.4" lengthAdjust="spacingAndGlyphs">hyphen-misplaced</text></g>
+<path d="M465 494H485"/>
+<path d="M294 494a10 10 0 0 0 10 -10V482a10 10 0 0 1 10 -10H465a10 10 0 0 1 10 10V484a10 10 0 0 0 10 10"/>
+<path d="M485 494H505"/>
+<path d="M485 494a10 10 0 0 1 10 10V506a10 10 0 0 1 -10 10H100a10 10 0 0 1 -10 -10V504a10 10 0 0 1 10 -10"/>
+<path d="M505 494H525"/>
+<path d="M60 494a10 10 0 0 0 10 -10V472a10 10 0 0 1 10 -10H505a10 10 0 0 1 10 10V484a10 10 0 0 0 10 10"/>
+<path d="M525 494h10"/>
+<g class="rule"><rect x="535" y="482" width="184" height="24" rx="0"/><text x="627" y="499" textLength="168" lengthAdjust="spacingAndGlyphs">malformed-root-onset</text></g>
+<path d="M719 494H719a10 10 0 0 1 10 10V516a10 10 0 0 1 -10 10H60a10 10 0 0 0 -10 10V538a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="536" width="277" height="24" rx="12"/><text x="198.5" y="553" textLength="260.4" lengthAdjust="spacingAndGlyphs">malformed-gap(hyphen-misplaced)</text></g>
+<path d="M337 548h10"/>
+<g class="rule"><rect x="347" y="536" width="159" height="24" rx="0"/><text x="426.5" y="553" textLength="142.8" lengthAdjust="spacingAndGlyphs">malformed-vhowels</text></g>
+<path d="M506 548H719a10 10 0 0 1 10 10V560a10 10 0 0 1 -10 10H60a10 10 0 0 0 -10 10V592a10 10 0 0 0 10 10"/>
+<path d="M60 602h20"/>
+<path d="M80 602h20"/>
+<g class="rule"><rect x="100" y="590" width="193" height="24" rx="0"/><text x="196.5" y="607" textLength="176.4" lengthAdjust="spacingAndGlyphs">malformed-root-middle</text></g>
+<path d="M293 602H313"/>
+<path d="M293 602a10 10 0 0 1 10 10V614a10 10 0 0 1 -10 10H100a10 10 0 0 1 -10 -10V612a10 10 0 0 1 10 -10"/>
+<path d="M313 602H333"/>
+<path d="M60 602a10 10 0 0 0 10 -10V590a10 10 0 0 1 10 -10H313a10 10 0 0 1 10 10V592a10 10 0 0 0 10 10"/>
+<path d="M333 602h10"/>
+<path d="M343 602h20"/>
+<g class="rule"><rect x="363" y="590" width="218" height="24" rx="0"/><text x="472" y="607" textLength="201.6" lengthAdjust="spacingAndGlyphs">malformed-final-sonorant</text></g>
+<path d="M581 602H601"/>
+<path d="M343 602a10 10 0 0 0 10 -10V590a10 10 0 0 1 10 -10H581a10 10 0 0 1 10 10V592a10 10 0 0 0 10 10"/>
+<path d="M601 602H719a10 10 0 0 1 10 10V624a10 10 0 0 1 -10 10H60a10 10 0 0 0 -10 10V666a10 10 0 0 0 10 10"/>
+<path d="M60 676h20"/>
+<path d="M80 676h20"/>
+<path d="M100 676h20"/>
+<g class="rule"><rect x="120" y="664" width="151" height="24" rx="0"/><text x="195.5" y="681" textLength="134.4" lengthAdjust="spacingAndGlyphs">hyphen-misplaced</text></g>
+<path d="M271 676H291"/>
+<path d="M100 676a10 10 0 0 0 10 -10V664a10 10 0 0 1 10 -10H271a10 10 0 0 1 10 10V666a10 10 0 0 0 10 10"/>
+<path d="M291 676h10"/>
+<g class="rule"><rect x="301" y="664" width="184" height="24" rx="0"/><text x="393" y="681" textLength="168" lengthAdjust="spacingAndGlyphs">h-not-between-vowels</text></g>
+<path d="M485 676H505"/>
+<path d="M485 676a10 10 0 0 1 10 10V688a10 10 0 0 1 -10 10H100a10 10 0 0 1 -10 -10V686a10 10 0 0 1 10 -10"/>
+<path d="M505 676H525"/>
+<path d="M60 676a10 10 0 0 0 10 -10V654a10 10 0 0 1 10 -10H505a10 10 0 0 1 10 10V666a10 10 0 0 0 10 10"/>
+<path d="M525 676H739"/>
+<path d="M739 676H769a10 10 0 0 0 10 -10V258a10 10 0 0 1 10 -10"/>
+<path d="M20 66a10 10 0 0 1 10 10V730a10 10 0 0 0 10 10"/>
+<path d="M40 740h20"/>
+<path d="M60 740h20"/>
+<path d="M80 740h20"/>
+<g class="rule"><rect x="100" y="728" width="184" height="24" rx="0"/><text x="192" y="745" textLength="168" lengthAdjust="spacingAndGlyphs">h-not-between-vowels</text></g>
+<path d="M284 740h10"/>
+<path d="M294 740h20"/>
+<g class="rule"><rect x="314" y="728" width="151" height="24" rx="0"/><text x="389.5" y="745" textLength="134.4" lengthAdjust="spacingAndGlyphs">hyphen-misplaced</text></g>
+<path d="M465 740H485"/>
+<path d="M294 740a10 10 0 0 0 10 -10V728a10 10 0 0 1 10 -10H465a10 10 0 0 1 10 10V730a10 10 0 0 0 10 10"/>
+<path d="M485 740H505"/>
+<path d="M485 740a10 10 0 0 1 10 10V752a10 10 0 0 1 -10 10H100a10 10 0 0 1 -10 -10V750a10 10 0 0 1 10 -10"/>
+<path d="M505 740H525"/>
+<path d="M60 740a10 10 0 0 0 10 -10V718a10 10 0 0 1 10 -10H505a10 10 0 0 1 10 10V730a10 10 0 0 0 10 10"/>
+<path d="M525 740h10"/>
+<g class="rule"><rect x="535" y="728" width="142" height="24" rx="0"/><text x="606" y="745" textLength="126" lengthAdjust="spacingAndGlyphs">bare-root-piece</text></g>
+<path d="M677 740H677a10 10 0 0 1 10 10V762a10 10 0 0 1 -10 10H60a10 10 0 0 0 -10 10V804a10 10 0 0 0 10 10"/>
+<path d="M60 814h20"/>
+<path d="M80 814h20"/>
+<path d="M100 814h20"/>
+<g class="rule"><rect x="120" y="802" width="151" height="24" rx="0"/><text x="195.5" y="819" textLength="134.4" lengthAdjust="spacingAndGlyphs">hyphen-misplaced</text></g>
+<path d="M271 814H291"/>
+<path d="M100 814a10 10 0 0 0 10 -10V802a10 10 0 0 1 10 -10H271a10 10 0 0 1 10 10V804a10 10 0 0 0 10 10"/>
+<path d="M291 814h10"/>
+<g class="rule"><rect x="301" y="802" width="184" height="24" rx="0"/><text x="393" y="819" textLength="168" lengthAdjust="spacingAndGlyphs">h-not-between-vowels</text></g>
+<path d="M485 814H505"/>
+<path d="M485 814a10 10 0 0 1 10 10V826a10 10 0 0 1 -10 10H100a10 10 0 0 1 -10 -10V824a10 10 0 0 1 10 -10"/>
+<path d="M505 814H525"/>
+<path d="M60 814a10 10 0 0 0 10 -10V792a10 10 0 0 1 10 -10H505a10 10 0 0 1 10 10V804a10 10 0 0 0 10 10"/>
+<path d="M525 814h10"/>
+<g class="rule"><rect x="535" y="802" width="126" height="24" rx="0"/><text x="598" y="819" textLength="109.2" lengthAdjust="spacingAndGlyphs">bare-root-end</text></g>
+<path d="M661 814H697"/>
+<path d="M697 814H769a10 10 0 0 0 10 -10V258a10 10 0 0 1 10 -10"/>
+<path d="M789 248h6m0 -8v16m4 -16v16"/>
+</svg>

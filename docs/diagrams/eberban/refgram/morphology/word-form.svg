@@ -16,8 +16,8 @@
 <g class="rule"><rect x="40" y="146" width="109" height="24" rx="0"/><text x="94.5" y="163" textLength="92.4" lengthAdjust="spacingAndGlyphs">ni-particle</text></g>
 <path d="M149 158H208a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
 <path d="M20 56a10 10 0 0 1 10 10V182a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="180" width="92" height="24" rx="0"/><text x="86" y="197" textLength="75.6" lengthAdjust="spacingAndGlyphs">root-form</text></g>
-<path d="M132 192H208a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="40" y="180" width="134" height="24" rx="0"/><text x="107" y="197" textLength="117.6" lengthAdjust="spacingAndGlyphs">malformed-root</text></g>
+<path d="M174 192H208a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
 <path d="M20 56a10 10 0 0 1 10 10V216a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="40" y="214" width="134" height="24" rx="0"/><text x="107" y="231" textLength="117.6" lengthAdjust="spacingAndGlyphs">spelling-quote</text></g>
 <path d="M174 226H208a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
