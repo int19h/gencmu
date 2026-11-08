@@ -11,7 +11,7 @@ The prose uses these Eberban terms:
 - A bind is an explicit binding of a place of a verb, opened by `VI` or `FI` and closed by `vei`.
 - An annotation is a free prefix or suffix with no logical effect.
 
-[The notation document](../../../docs/notation.md) explains jbogenbau, the notation of these grammars. An elided terminator is a closing word left unwritten. The engine first prefers fewer errors. The pipeline then counts unmatched errors, erased words, and passed resumption steps, in that order. Its final step, `late #·_<_Elided>`, puts an elided terminator as late as the text allows.
+[The notation document](../../../docs/notation.md) explains jbogenbau, the notation of these grammars. An elided terminator is a closing word left unwritten. The engine first compares source blame, unlocated errors, and then local error count. The pipeline then counts unmatched errors and words-erasure routes. It next prefers the latest erasure start, then fewer passed resumption steps. Its final step, `late #·_<_Elided>`, puts an elided terminator as late as the text allows.
 
 ## Texts and paragraphs
 
@@ -49,7 +49,7 @@ A further sentence cannot start with a paragraph mark or the end of a parenthesi
   $s.onward.begins(starter-head)
 
 %rule invalid-tail
-  $s:erased-invalid
+  $s:words-erasure
 %conditions
   ¬$s.onward.begins(starter-head),
   ¬$s.onward.begins(po-or-dai),
@@ -117,17 +117,20 @@ A free prefix can stand before `cai`, `fi` or `bu`, as in `ca mo di cai`, becaus
 
 The rule `sentence` also reads erasures. The chapter on sentences gives two erasers. `ra` erases everything since the start of the current sentence. It also erases ungrammatical text back to the start of the last grammatical sentence. `ri` erases the current chain, which must be grammatical.
 
-The chapter erases back to the start of the last sentence that was still grammatical. So the first sentence of a paragraph is erased invalid text only where no grammatical sentence starts. The first condition of `sentence-of` states that, and its parameter says which sentence counts. A sentence that ends only before a closer or `dai` is grammatical only where an enclosing construct claims that word.
+The chapter erases back to the start of the last sentence that was still grammatical. The words route cannot replace an error-free sentence at the start of a paragraph. The first condition of `sentence-of` states that rule. Its parameter selects the required sentence witness. A sentence ending only before a closer or `dai` needs an enclosing construct to claim that word.
 
-In the whole text, a parenthetical or a quote with a written `cai`, the parameter is `open-sentence`. Such a sentence then does not block the erasure. In a quote whose `cai` is left out, a closer can end the quote, so any sentence blocks it. The parameter there is `sentence-choice`.
+In the whole text, a parenthetical or a quote with a written `cai`, the parameter is `open-sentence`. Such a sentence then does not block the erasure. In a quote whose `cai` is left out, a closer can end the quote. There, any error-free sentence blocks the words route. The parameter there is `sentence-choice`.
 
 A paragraph mark at the start of a paragraph is always the paragraph's mark, so the second condition keeps it out of the erased text. A `ra` can also stand where a sentence starts, with nothing to erase. That is `empty-erasure`.
 
 ```jbogenbau
 %rule sentence-of(@Open)
-  erased-valid | sentence-choice | $i:erased-invalid | empty-erasure
+  | sentence-erasure
+  | sentence-choice
+  | $i:words-erasure
+  | empty-erasure
 %conditions
-  ¬$i.onward.begins(@Open),
+  ¬$i.onward.parse(@Open …).error-free,
   ¬$i.onward.begins(po-head)
 
 %rule sentence-choice
@@ -189,32 +192,47 @@ A paragraph mark at the start of a paragraph is always the paragraph's mark, so 
 </details>
 
 
-An erased valid sentence is a sentence followed by one or more `ra`. Erased invalid text is one or more words up to the first `ra`. The words can be anything, so a stretch that the chapter calls one ungrammatical sentence can hold several sentences that look grammatical.
+Sentence erasure reads a sentence and then its `ra` run. Words erasure reads one or more words before that run. Either route can contain malformed words or syntax recovery. Its inner constituent is erased, so its errors, warnings, and measure disappear. The `ra` run stays outside and keeps its own diagnostics.
 
-`invalid-head` names its first word, so that the condition on a grammatical quote can test it. An empty erasure is a `ra` alone. Each word after the first is an `erased-word`. After error counts and unmatched-error counts tie, the pipeline applies `fewest #·erased-word`. The reading that erases fewer words wins, as the chapter's "last sentence that was still grammatical" asks.
+`erased-sentence` holds the erased sentence. `erased-words` holds the arbitrary words, with their first word named by `invalid-head`. The outer rules retain the erasure's following-token guards. An empty erasure reads `ra` alone and erases nothing.
 
-`invalid-head` needs a later `ra` somewhere in the text, which the rule `erasure-reach` tests. A closer at the head, an `elider-word`, needs the same. The conditions change no reading, because erased invalid text always ends with `ra`. They serve the error report.
+At equal measures, the pipeline first prefers fewer words-erasure routes. Then it prefers the latest start of an erased constituent, which erases the shortest stretch. Thus `a sune mo ra a ke` retains its sentence route rather than a shorter words route. Key steps cannot count the words hidden by the erased seal.
 
-Without them, a reading as erased text survives every word, so a failed text reports only its end and a missing `ra`. With them, `a pban` reports the word `pban`, and `a mi fa mo` reports `fa`. A text with a later `ra` reports the first word that the erasure cannot explain. In `a pban mo ra mo`, that word is the last `mo`.
+The `@Open` bar rejects a words route only for an error-free sentence witness. Ordinary starter and reach queries still recognize faulty tokens. Thus `a pban a mo ra a ke` retains its words route, while `a pban ra a mo` takes sentence erasure.
+
+`invalid-head` needs a later `ra`, which `erasure-reach` tests. This query reads every token before that `ra`, including malformed words and unclassified junk. Without it, every failed text keeps a speculative erasure reading and reports only a missing `ra` at input end.
+
+When its own first word is an elider, `erased-words` publishes `Closer-Head`. When its own sentence contains either marked erasure, `erased-sentence` publishes `Contains-Closer-Head`. This forwards the fact through nested erased sentences. Quote guards inspect those tags because the seal hides the real children.
 
 The chapter says that `ra` "must be surrounded by spaces or pauses". The start of a text counts as a pause, as it does for hesitation in the [word forms](morphology.md). So a text can start with `ra`.
 
 The PEG requires a written starter after an erasure, and states this rule in an error message. The book supports it only by inference. It lets only the first sentence of a paragraph leave its starter out, and the sentence after an erasure is not the first.
 
-`ra-run` keeps the tags of its repeated particles through a captured splice. The optional diagnostic tail adds no tag to a zero-error reading.
+`ra-run` keeps the tags of its repeated particles through a captured splice. The optional diagnostic tail adds no tag to an error-free reading.
 
 Erased text can follow an erasure too, because the later `ra` erases it. So `after-erasure` accepts a starter, a paragraph mark or more erased text. It also accepts the end of the text, or a particle that ends an enclosing quote or parenthesis. The particles of `elider-word` end a quote whose `cai` is left out.
 
 ```jbogenbau
-%rule erased-valid
-  $s:sentence-choice ra-run
+%rule sentence-erasure
+  $s:erased-sentence ra-run
 %conditions
   $.following-tokens.begins(after-erasure)
 
-%rule erased-invalid
-  invalid-head [{erased-word}] ra-run
+%rule words-erasure
+  $i:erased-words ra-run
 %conditions
   $.following-tokens.begins(after-erasure)
+
+%const $CLOSER-HEAD-ERASURE
+  #(⋮ erased-words<Closer-Head>) ∪ #(⋮ erased-sentence<Contains-Closer-Head>)
+
+%rule erased-sentence
+  $s:sentence-choice :: ($s ≅ $CLOSER-HEAD-ERASURE ⟹ Contains-Closer-Head)
+%erased
+
+%rule erased-words
+  $h:invalid-head [{erasure-word}] :: ($h ≅ #elider-word ⟹ Closer-Head)
+%erased
 
 %rule empty-erasure
   ra-run
@@ -229,27 +247,28 @@ Erased text can follow an erasure too, because the later `ra` erases it. So `aft
 %rule erasure-reach
   {_<¬RA>} RA
 
-%rule erased-word
+%rule erasure-word
   _<¬RA>
 
 %rule ra-run
-  $r:*ra-words [*erased-must-be-followed-by-sentence-starter] :: $r.tags
+  $r:*ra-words [*erasure-needs-starter] :: $r.tags
 
 %rule ra-words
   {RA}
 
 %rule after-erasure
-  | starter-head | PO | erased-invalid
-  | sentence-closer | end-of-text
+  starter-head | PO | words-erasure | sentence-closer | end-of-text
 ```
 
-<details><summary>Railroad diagrams of the 9 rules from <code>erased-valid</code> to <code>after-erasure</code></summary>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/erased-valid.svg" alt="Railroad diagram of the rule erased-valid"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/erased-invalid.svg" alt="Railroad diagram of the rule erased-invalid"></p>
+<details><summary>Railroad diagrams of the 11 rules from <code>sentence-erasure</code> to <code>after-erasure</code></summary>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/sentence-erasure.svg" alt="Railroad diagram of the rule sentence-erasure"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/words-erasure.svg" alt="Railroad diagram of the rule words-erasure"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/erased-sentence.svg" alt="Railroad diagram of the rule erased-sentence"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/erased-words.svg" alt="Railroad diagram of the rule erased-words"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/empty-erasure.svg" alt="Railroad diagram of the rule empty-erasure"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/invalid-head.svg" alt="Railroad diagram of the rule invalid-head"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/erasure-reach.svg" alt="Railroad diagram of the rule erasure-reach"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/erased-word.svg" alt="Railroad diagram of the rule erased-word"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/erasure-word.svg" alt="Railroad diagram of the rule erasure-word"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/ra-run.svg" alt="Railroad diagram of the rule ra-run"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/ra-words.svg" alt="Railroad diagram of the rule ra-words"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/after-erasure.svg" alt="Railroad diagram of the rule after-erasure"></p>
@@ -303,15 +322,15 @@ An inner predicate is a chain, with an optional arguments list before it. The ar
 
 A chain is one or more steps, grouped from the right. `ri` erases the chain read so far, and the chain starts again after it. `bi` before a chain negates the whole of it, as the chapter on [transformations](https://eberban.github.io/eberban/books/refgram/book/logic/transformations.html) says.
 
-After `bi`, `ri` erases the chain that the `bi` negates, and the `bi` stays. So `a mi bi mo ri ke` negates `ke`, as in the PEG. The chain after `bi` can read the `ri` itself, so the rule `erased-chain` refuses an erased item that ends in a `bi` chain. Without that condition, each such text has two readings.
+After `bi`, `ri` replaces the chain that the `bi` negates, and the `bi` stays. So `a mi bi mo ri ke` negates `ke`, as in the PEG. The chain after `bi` can read the `ri` itself, so `restart-chain` refuses a replaced chain that ends in a `bi` chain. Without that condition, each such text has two readings. This strict chain is not erased, so its errors still report.
 
 A step is a verb with its free suffixes and binds, then the rest of the chain. The verb can take an `SI` particle before it, which selects its places. An `SI` can also follow each `ZI` modifier of the verb. The rule `annotated-verb` reads the verb with its free suffixes, as the PEG's `ChainVerb` does.
 
 ```jbogenbau
 %rule chain
-  [{erased-chain RI}] chain-inner
+  [{restart-chain RI}] chain-inner
 
-%rule erased-chain
+%rule restart-chain
   chain-inner
 %conditions
   $ ≇ #(⋱ chain-inner« bi-free chain »)
@@ -338,7 +357,7 @@ A step is a verb with its free suffixes and binds, then the rest of the chain. T
 
 <details><summary>Railroad diagrams of the 8 rules from <code>chain</code> to <code>zi-free</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/chain.svg" alt="Railroad diagram of the rule chain"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/erased-chain.svg" alt="Railroad diagram of the rule erased-chain"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/restart-chain.svg" alt="Railroad diagram of the rule restart-chain"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/chain-inner.svg" alt="Railroad diagram of the rule chain-inner"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/bi-free.svg" alt="Railroad diagram of the rule bi-free"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/si-free.svg" alt="Railroad diagram of the rule si-free"></p>
@@ -440,11 +459,8 @@ A verb is a definable word with its namespace, or an inline assignment with `bo`
 
 ```jbogenbau
 %rule base-verb
-  | $d:definable-usage | inline-assignment | KI | ba-free | mi-free
-  | grammatical-quote | word-quote | spelling-quote | foreign-quote
-  | enumeration | borrowing-group | number
-%conditions
-  $d ≇ #« definable-part« fault-token » »
+  | definable-usage | inline-assignment | KI | ba-free | mi-free | grammatical-quote | word-quote
+  | spelling-quote | foreign-quote | enumeration | borrowing-group | number | Stray-Prefix
 
 %rule inline-assignment
   [{prefix}] BO (KI | definable)
@@ -468,11 +484,11 @@ The [quotes chapter](https://eberban.github.io/eberban/books/refgram/book/gramma
 
 The chapter does not say that `cai` can be left out. The PEG lets the speaker leave it out where the quoted text can end, and this grammar follows the PEG.
 
-A quote with a written `cai` reads `text`, like the whole text, because no closer inside it can end it. In a quote whose `cai` is left out, a particle that closes an outer construct ends the quoted text instead of starting erasable text. The second and third alternatives read such a quote. Their terminator `[+CAI=""]` allows only the omitted `cai`, because a written `cai` has the value `cai`. Their first two conditions require that the text holds no erased invalid stretch that starts with such a particle.
+A quote with a written `cai` reads `text`, like the whole text, because no closer inside it can end it. In a quote whose `cai` is left out, a particle that closes an outer construct ends the quoted text instead of starting erasable text. The second and third alternatives read such a quote. Their terminator `[+CAI=""]` allows only the omitted `cai`, because a written `cai` has the value `cai`. Their first conditions exclude an erased stretch whose head is such a particle. The test also reaches erased words nested inside an erased sentence through its published tag.
 
 Where a quote of several sentences leaves out its `cai` before the end of the text, the PEG warns. The end of the quote is then hard to see. The third alternative splices the warning rule `multi-sentence-cai-elided`.
 
-A quote holds several sentences in two cases: it has several paragraphs, or its first paragraph has more than one sentence that is not erased. `$SEVERAL-SENTENCES` states that. An erased sentence is a node that holds the sentence and its `ra`. So the single-child search of the pattern stops there, and the sentence does not count. The last three conditions send each such quote to exactly one of the two alternatives.
+A quote holds several sentences in two cases: it has several paragraphs, or its first paragraph has more than one sentence that is not erased. `$SEVERAL-SENTENCES` states that. An erased sentence exports a sealed root. The pattern cannot reach its inner `sentence-choice`, so that sentence does not count. The outer erasure still holds its `ra` separately. The last three conditions send each such quote to exactly one of the two alternatives.
 
 ```jbogenbau
 %const $SEVERAL-SENTENCES
@@ -485,13 +501,13 @@ A quote holds several sentences in two cases: it has several paragraphs, or its 
   | [{prefix}] CA $q:open-quote-text [+CAI=""]
   | *multi-sentence-cai-elided
 %conditions
-  $q ≇ #(⋮ erased-invalid« elider-word ⋯ »),
+  $q ≇ $CLOSER-HEAD-ERASURE,
   $q ≅ $SEVERAL-SENTENCES ⟹ $.following-tokens.begins(end-of-text)
 
 %rule multi-sentence-cai-elided
   [{prefix}] CA $l:open-quote-text [+CAI=""]
 %conditions
-  $l ≇ #(⋮ erased-invalid« elider-word ⋯ »),
+  $l ≇ $CLOSER-HEAD-ERASURE,
   $l ≅ $SEVERAL-SENTENCES,
   ¬$.following-tokens.begins(end-of-text)
 %warning "a quote of several sentences omits cai before more text"
@@ -628,7 +644,7 @@ The [annotations chapter](https://eberban.github.io/eberban/books/refgram/book/g
 
 ## Diagnostic recovery
 
-For equal error counts, a specific construct failure precedes an unmatched closer or resumption. The pipeline counts these named error nodes with `$UNMATCHED-ERRORS`. Every zero-error reading has the same zero count.
+At equal engine measures, a specific construct failure precedes an unmatched closer or resumption. The pipeline counts these named error nodes with `$UNMATCHED-ERRORS`. Every reading without counted errors has the same zero count.
 
 ```jbogenbau
 %const $UNMATCHED-ERRORS
@@ -636,139 +652,11 @@ For equal error counts, a specific construct failure precedes an unmatched close
     ∪ ·unmatched-bu ∪ ·unmatched-dai ∪ ·unmatched-resume)
 ```
 
-Named errors preserve a complete reading of faulty text. A zero-error reading always takes precedence, including erasure. A query uses only zero-error witnesses, so error recovery never makes erased invalid text grammatical.
+Named errors preserve a complete reading of faulty text. A reading without counted errors takes precedence, including erasure. Ordinary queries accept faulty witnesses. The explicit `.error-free` bar alone excludes them from its answer.
 
-When its closing `e` starts another compound, an empty `er` still reports on its own token. The combined recovery consumes a stray closing `e` without reporting a second error.
+The forms stage reports an empty `er` on its prefix token. It consumes the closing `e` without another prefix error, including before components of another apparent compound.
 
-Fault-bearing junk is a verb error or a definable-part error. The condition on the ordinary definable-usage branch excludes its bare fault reading at a verb position. That leaves one reading there, while namespaced and prefixed fault readings keep their structure.
-
-```jbogenbau
-%extend-rule base-verb
-  fault-token
-
-%extend-rule definable-part
-  [{prefix}] fault-token
-
-%rule fault-token
-  quadruplet | triplet-middle-m | triplet-yz-sonorant-x | triplet-root-first-pair |
-    triplet-freeform-first-pair | triplet-root-shape | triplet-freeform-shape | doubled-pair |
-    pair-voiceness | sibilant-pair | root-starts-with-medial-pair | particle-sonorant-pair |
-    h-not-between-vowels | hyphen-same-vowels | invalid-medial-pair |
-    freeform-multi-consonents-ending | spaced-i-prefix | empty-compound-fault
-    | compound-empty | incomplete-compound
-```
-
-<details><summary>Railroad diagrams of <code>base-verb</code>, <code>definable-part</code> and <code>fault-token</code></summary>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/base-verb.2.svg" alt="Railroad diagram of the rule base-verb"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/definable-part.2.svg" alt="Railroad diagram of the rule definable-part"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/fault-token.svg" alt="Railroad diagram of the rule fault-token"></p>
-</details>
-
-Each fault error reads the token that carries its class. Its span is that token alone. Incomplete compounds therefore report on each stray prefix rather than on the whole compound. The empty-compound recovery consumes its closing `e` outside the diagnostic, so only the `er` token reports.
-
-```jbogenbau
-%rule quadruplet
-  Junk<Fault-quadruplet>
-%error "a word permits at most three consecutive consonants"
-
-%rule triplet-middle-m
-  Junk<Fault-triplet-middle-m>
-%error "the middle consonant of this triplet cannot be m"
-
-%rule triplet-yz-sonorant-x
-  Junk<Fault-triplet-yz-sonorant-x>
-%error "after a sonorant, the last pair needs an initial or consonant-sonorant shape"
-
-%rule triplet-root-first-pair
-  Junk<Fault-triplet-root-first-pair>
-%error "a root triplet needs a medial or initial first pair"
-
-%rule triplet-freeform-first-pair
-  Junk<Fault-triplet-freeform-first-pair>
-%error "a freeform triplet needs a medial or initial first pair, or a sonorant first consonant"
-
-%rule triplet-root-shape
-  Junk<Fault-triplet-root-shape>
-%error "the root triplet needs a medial-initial shape or a permitted liquid ending"
-
-%rule triplet-freeform-shape
-  Junk<Fault-triplet-freeform-shape>
-%error "the freeform triplet fits none of the permitted shapes"
-
-%rule doubled-pair
-  Junk<Fault-doubled-pair>
-%error "a consonant pair cannot repeat the same consonant across a hyphen"
-
-%rule pair-voiceness
-  Junk<Fault-pair-voiceness>
-%error "invalid consonant pair: the consonants differ in voicing"
-
-%rule sibilant-pair
-  Junk<Fault-sibilant-pair>
-%error "a consonant pair cannot contain two sibilants"
-
-%rule root-starts-with-medial-pair
-  Junk<Fault-root-starts-with-medial-pair>
-%error "a root cannot start with a medial consonant pair"
-
-%rule particle-sonorant-pair
-  Junk<Fault-particle-sonorant-pair>
-%error "a particle cannot contain two consecutive sonorants"
-
-%rule h-not-between-vowels
-  Junk<Fault-h-not-between-vowels>
-%error "h must stand between vowels, except at a borrowing or freeform onset"
-
-%rule hyphen-same-vowels
-  Junk<Fault-hyphen-same-vowels>
-%error "a hyphen cannot separate two copies of the same vowel"
-
-%rule invalid-medial-pair
-  Junk<Fault-invalid-medial-pair>
-%error "the consonant pair is neither medial nor an initial pair starting another word"
-
-%rule freeform-multi-consonents-ending
-  Junk<Fault-freeform-multi-consonents-ending>
-%error "a borrowing or freeform can end with at most one consonant"
-
-%rule spaced-i-prefix
-  Junk<Fault-spaced-i-prefix>
-%error "attach the nested prefix as ei, or write e e instead of e i"
-
-%rule empty-compound-fault
-  *compound-empty Junk<Fault-incomplete-compound>="e"
-
-%rule compound-empty
-  Junk<Fault-compound-empty>
-%error "an er compound needs at least one component"
-
-%rule incomplete-compound
-  Junk<Fault-incomplete-compound>
-%error "the compound needs more components or its closing e"
-```
-
-<details><summary>Railroad diagrams of the 20 rules from <code>quadruplet</code> to <code>incomplete-compound</code></summary>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/quadruplet.svg" alt="Railroad diagram of the rule quadruplet"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/triplet-middle-m.svg" alt="Railroad diagram of the rule triplet-middle-m"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/triplet-yz-sonorant-x.svg" alt="Railroad diagram of the rule triplet-yz-sonorant-x"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/triplet-root-first-pair.svg" alt="Railroad diagram of the rule triplet-root-first-pair"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/triplet-freeform-first-pair.svg" alt="Railroad diagram of the rule triplet-freeform-first-pair"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/triplet-root-shape.svg" alt="Railroad diagram of the rule triplet-root-shape"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/triplet-freeform-shape.svg" alt="Railroad diagram of the rule triplet-freeform-shape"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/doubled-pair.svg" alt="Railroad diagram of the rule doubled-pair"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/pair-voiceness.svg" alt="Railroad diagram of the rule pair-voiceness"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/sibilant-pair.svg" alt="Railroad diagram of the rule sibilant-pair"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/root-starts-with-medial-pair.svg" alt="Railroad diagram of the rule root-starts-with-medial-pair"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/particle-sonorant-pair.svg" alt="Railroad diagram of the rule particle-sonorant-pair"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/h-not-between-vowels.svg" alt="Railroad diagram of the rule h-not-between-vowels"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/hyphen-same-vowels.svg" alt="Railroad diagram of the rule hyphen-same-vowels"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/invalid-medial-pair.svg" alt="Railroad diagram of the rule invalid-medial-pair"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/freeform-multi-consonents-ending.svg" alt="Railroad diagram of the rule freeform-multi-consonents-ending"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/spaced-i-prefix.svg" alt="Railroad diagram of the rule spaced-i-prefix"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/empty-compound-fault.svg" alt="Railroad diagram of the rule empty-compound-fault"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/compound-empty.svg" alt="Railroad diagram of the rule compound-empty"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/incomplete-compound.svg" alt="Railroad diagram of the rule incomplete-compound"></p>
-</details>
+Malformed words carry their forms diagnostics and retain their word classes. Syntax reads them in every position that accepts their classes, including `ci` and namespace steps. Only `base-verb` also admits a `Stray-Prefix` token. This leaves `a e` one reading without making a prefix a definable target.
 
 Unmatched closing particles have no open construct to claim them. Text recovery reads them after a sentence body or at a sentence start. This keeps closers out of verb positions inside chains.
 
@@ -780,10 +668,13 @@ A quote with written `cai` retains its own recovery scope. Without `cai`, a quot
 
 ```jbogenbau
 %extend-rule sentence-of(@Open)
-  | sentence-body unmatched-tail | erased-valid unmatched-tail
-  | $i:erased-invalid unmatched-tail | empty-erasure unmatched-tail | unmatched-tail
+  | sentence-body unmatched-tail
+  | sentence-erasure unmatched-tail
+  | $i:words-erasure unmatched-tail
+  | empty-erasure unmatched-tail
+  | unmatched-tail
 %conditions
-  ¬$i.onward.begins(@Open),
+  ¬$i.onward.parse(@Open …).error-free,
   ¬$i.onward.begins(po-head)
 
 %extend-rule base-verb
@@ -851,7 +742,7 @@ A quote with written `cai` retains its own recovery scope. Without `cai`, a quot
 
 <details><summary>Railroad diagrams of the 15 rules from <code>sentence-of</code> to <code>modified-empty</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/sentence-of.2.svg" alt="Railroad diagram of the rule sentence-of"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/base-verb.3.svg" alt="Railroad diagram of the rule base-verb"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/base-verb.2.svg" alt="Railroad diagram of the rule base-verb"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/unmatched-tail.svg" alt="Railroad diagram of the rule unmatched-tail"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/unmatched-closer.svg" alt="Railroad diagram of the rule unmatched-closer"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/ri-continuation.svg" alt="Railroad diagram of the rule ri-continuation"></p>
@@ -882,7 +773,7 @@ The boundary query recognizes annotated `vi` and `fi`, with optional `bi`, witho
   $p.following-tokens.begins(missing-operand-boundary)
 
 %extend-rule chain
-  [{erased-chain RI}] erased-chain *chain-empty<RI>
+  [{restart-chain RI}] restart-chain *chain-empty<RI>
 
 %extend-rule o-sentence
   [{prefix}] *chain-empty<O> [{postfix}] definable
@@ -1003,7 +894,7 @@ An unclosed parenthetical reports on its whole span, from `da` through the input
 
 A written `ce cei` reports an empty spelling quote. Without `cei`, the error requires the forms mark for a missing first unit. The forms stage marks that absence before words become indivisible syntax tokens. A following digit or malformed pair starts no unit. A valid unit without `cei` remains an unclosed quote, including `a ce mi`.
 
-A sentence after `ra` needs a written starter. A sentence without that starter is an `a-sentence` with an omitted `A`. The recovery follows the erasure and does not remove errors from its children.
+A sentence after `ra` needs a written starter. A sentence without that starter is an `a-sentence` with an omitted `A`. The recovery follows the erased constituent and retains its own error.
 
 ```jbogenbau
 %extend-rule base-verb
@@ -1019,27 +910,27 @@ A sentence after `ra` needs a written starter. A sentence without that starter i
   Missing-spelling-unit ⊆ $.last-token.tags
 %error "a spelling quote needs at least one unit"
 
-%rule erased-must-be-followed-by-sentence-starter
+%rule erasure-needs-starter
   $s:a-sentence
 %conditions
   ¬$s.onward.begins(starter-head | PO | sentence-closer)
 %error "after ra, write a sentence starter: a, o, or ni"
 ```
 
-<details><summary>Railroad diagrams of the 3 rules from <code>base-verb</code> to <code>erased-must-be-followed-by-sentence-starter</code></summary>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/base-verb.4.svg" alt="Railroad diagram of the rule base-verb"></p>
+<details><summary>Railroad diagrams of <code>base-verb</code>, <code>spelling-empty</code> and <code>erasure-needs-starter</code></summary>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/base-verb.3.svg" alt="Railroad diagram of the rule base-verb"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/spelling-empty.svg" alt="Railroad diagram of the rule spelling-empty"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/spelling-empty.2.svg" alt="Railroad diagram of the rule spelling-empty"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/erased-must-be-followed-by-sentence-starter.svg" alt="Railroad diagram of the rule erased-must-be-followed-by-sentence-starter"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/erasure-needs-starter.svg" alt="Railroad diagram of the rule erasure-needs-starter"></p>
 </details>
 
-A written `JI` cannot detach from a number that omits its own `JI`. This prevents splitting a written terminator from its number to disguise a failed resumption. Empty base recovery retains its written `JI`. Empty repeat and magnitude recovery retain only a grammatical prefix and report on the trailing `ja` or `je`.
+A written `JI` cannot detach from a number that omits its own `JI`. A digitless recovery also keeps its written `JI`, so it does not create a false standalone-terminator report. This prevents splitting a written terminator from its number to disguise a failed resumption. Empty base recovery retains its written `JI`. Empty repeat and magnitude recovery retain only a grammatical prefix and report on the trailing `ja` or `je`.
 
 The recovery prefix admits ordered parts, including a complete repeated part or magnitude. A repeated part still needs `jo`. An erroneous prefix stays outside the empty-part wrapper and keeps its own error.
 
 Number recovery distinguishes missing parts from parts in the wrong order. The loose reader retains each part. Digit runs take every following digit except the start of a base. This prevents alternate divisions of one faulty number. The ordered counterpart distinguishes order errors from missing digits or a missing fraction marker.
 
-Number recovery normally ends at written `JI`, before a token outside `number-start`, or before an empty marker. Some fragment readings also compete with a whole-number order error, and ranking chooses the report. The digitless rule bars detachment before `TI`, `JO`, `JA`, or `JE` without written `JI`. A bare `JU` after either digitless form starts no part, because no `TI` precedes it.
+Number recovery normally ends at written `JI`, before a token outside `number-start`, or before an empty marker. Some fragment readings also compete with a whole-number order error, and ranking chooses the report. The digitless rule bars detachment before `TI`, `JI`, `JO`, `JA`, or `JE` without its own written `JI`. A bare `JU` after either digitless form starts no part, because no `TI` precedes it.
 
 ```jbogenbau
 %extend-rule base-verb
@@ -1106,7 +997,7 @@ Number recovery normally ends at written `JI`, before a token outside `number-st
 %rule number-without-digits
   JO [JI] | TI JU [JO] [JI]
 %conditions
-  JI ⊆ $.last-token.tags ∨ ¬$.following-tokens.begins(TI | JO | JA | JE)
+  JI ⊆ $.last-token.tags ∨ ¬$.following-tokens.begins(TI | JI | JO | JA | JE)
 %error "a number needs integer digits, fractional digits, or a magnitude"
 
 %rule number-part-order
@@ -1118,7 +1009,7 @@ Number recovery normally ends at written `JI`, before a token outside `number-st
 ```
 
 <details><summary>Railroad diagrams of the 17 rules from <code>base-verb</code> to <code>number-part-order</code></summary>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/base-verb.5.svg" alt="Railroad diagram of the rule base-verb"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/base-verb.4.svg" alt="Railroad diagram of the rule base-verb"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/number-part.svg" alt="Railroad diagram of the rule number-part"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/loose-base.svg" alt="Railroad diagram of the rule loose-base"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/loose-digits.svg" alt="Railroad diagram of the rule loose-digits"></p>
