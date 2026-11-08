@@ -1,11 +1,9 @@
-export declare const BOUNDARY_METHODS: Set<string>;
+export { BOUNDARY_METHODS, boundaryAtoms } from "./clause-walk.js";
 /** @type {WeakMap<object, any>} */
 export declare const boundaryLocations: WeakMap<object, any>;
 /** Preserve positions when constants or patterns copy a clause.
  * @param {object} from @param {object} to */
 export declare function copyBoundaryLocation(from: object, to: object): void;
-/** @param {any} node @returns {any[]} */
-export declare function boundaryAtoms(node: any): any[];
 /** @param {any} rule @returns {{problem:string,node:any}|null} */
 export declare function boundaryProblem(rule: any): {
     problem: string;

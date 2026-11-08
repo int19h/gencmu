@@ -1,0 +1,29 @@
+{
+  "description": "An anonymous splice differs from a named constituent with the same children.",
+  "grammar": "%rule text $x:*a $y:a\n%conditions $x ≇ $y\n%rule a A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

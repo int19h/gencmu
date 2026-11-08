@@ -1,0 +1,29 @@
+{
+  "description": "A suffix query requires a zero-error witness.",
+  "grammar": "%rule text A B %conditions ¬$.ends(bad)\n%rule bad B %error \"bad\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

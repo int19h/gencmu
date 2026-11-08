@@ -286,7 +286,7 @@ func TestEligibleProperty(t *testing.T) {
 			continue
 		}
 		kept := map[*item]bool{}
-		for _, it := range rec.eligibleItems(items) {
+		for _, it := range rec.eligibleItems(items, false) {
 			kept[it] = true
 		}
 		for i, it := range items {

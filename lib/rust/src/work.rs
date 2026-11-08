@@ -347,6 +347,8 @@ mod tests {
             let mut shared = crate::earley::Shared::new(&pipeline.unicode, &text);
             let input: Vec<_> = (0..20)
                 .map(|at| crate::earley::Tok {
+                    errors: Vec::new(),
+                    warnings: Vec::new(),
                     text: "a".into(),
                     value: "a".into(),
                     image: "a".into(),
@@ -460,6 +462,8 @@ mod tests {
         let pipeline = crate::load_pipeline_sources(single(grammar), "p.md").unwrap();
         let mut parse = |n: usize| {
             let token = |tag: &str| InputToken {
+                errors: Vec::new(),
+                warnings: Vec::new(),
                 image: None,
                 text: tag.to_lowercase(),
                 tags: [tag.to_string()].into_iter().collect(),
@@ -514,6 +518,8 @@ mod tests {
             })
             .collect();
         let token = |tag: &str| InputToken {
+            errors: Vec::new(),
+            warnings: Vec::new(),
             image: None,
             text: tag.to_lowercase(),
             tags: [tag.to_string()].into_iter().collect(),
@@ -550,6 +556,8 @@ mod tests {
             })
             .collect();
         let token = |tag: &str| InputToken {
+            errors: Vec::new(),
+            warnings: Vec::new(),
             image: None,
             text: tag.to_lowercase(),
             tags: [tag.to_string()].into_iter().collect(),

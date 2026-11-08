@@ -551,7 +551,15 @@ If your change needs a switch, guard its alternative with `name?`. Add `%feature
 
 Use `--feature name` to enable a feature. Use `--no-feature name` to disable it.
 
-A warning guard, `name!`, reports an addition when enabled. It does not change which texts the grammar accepts.
+To report an addition, put its body in a `%warning` rule named by its code. Splice that rule where the body belongs, as `*name`. Put conditions that read its captures in that rule too.
+
+Give `%warning` one message recipe after `%conditions`. Put `%suppress-warnings` after the diagnostic and before `%emits` or `%erased`.
+
+A warning changes no accepted reading or chosen tree. Callers enable or disable its code with the feature controls. `%suppress-warnings code` suppresses it within one subtree, and `_` suppresses all warning codes.
+
+For an invalid construct, use `%error` only where its message says more than the default rejection, or says the same more briefly. The engine prefers fewer errors before grammar ranking. A chosen error stops the pipeline without stage output and keeps the chosen tree.
+
+Use `--` for comments inside grammar blocks. A comment ends at LF, CRLF, CR, or the file end. A string retains literal `--`. The notation has no block comment form.
 
 ## Common mistakes
 
@@ -692,7 +700,11 @@ Read [Classifiers](notation.md#classifiers) for lexicons, exact keys, and class 
 
 Read [Names and terminals](notation.md#names-and-terminals) for classes, terminals, and tags.
 
-Read [Feature guards](notation.md#feature-guards) for gates, warnings, and feature switches.
+Read [Feature guards](notation.md#feature-guards) for gates and feature switches.
+
+Read [Errors and warnings](notation.md#errors-and-warnings) for diagnostics and suppression.
+
+Read [Splices](notation.md#splices) for transparent calls.
 
 Read [Ambiguity](notation.md#ambiguity) for ties and the rules that rank parses.
 

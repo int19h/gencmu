@@ -362,18 +362,59 @@ pub(crate) struct Site {
     pub condition: usize,
 }
 pub(crate) fn condition_offsets(g: &crate::grammar::StageGrammar) -> FxMap<usize, usize> {
+    condition_sites(g).0
+}
+pub(crate) struct GuardSite {
+    pub alternative: Option<usize>,
+    pub condition: usize,
+}
+type GuardSites = FxMap<usize, FxMap<usize, GuardSite>>;
+pub(crate) fn guard_identity(atom: &crate::dom::Cond) -> usize {
+    let crate::dom::Cond::Boundary(_, _, _, source) = atom else { unreachable!("a boundary atom") };
+    std::sync::Arc::as_ptr(source) as usize
+}
+pub(crate) fn condition_sites(g: &crate::grammar::StageGrammar) -> (FxMap<usize, usize>, GuardSites) {
     let mut offsets = FxMap::default();
+    let mut guard_sites = FxMap::default();
     for rule in &g.rules {
         let mut count = 0;
-        for alt in &rule.alternatives {
+        let mut definitions = FxMap::default();
+        let mut order = Vec::new();
+        for (alternative, alt) in rule.alternatives.iter().enumerate() {
             let key = std::sync::Arc::as_ptr(&alt.clauses) as usize;
-            if let std::collections::hash_map::Entry::Vacant(e) = offsets.entry(key) {
-                e.insert(count);
-                count += alt.clauses.conditions.len();
+            if !definitions.contains_key(&key) {
+                order.push(key);
+            }
+            definitions.entry(key).or_insert_with(Vec::new).push((alternative, alt));
+        }
+        for key in order {
+            let alternatives = &definitions[&key];
+            let clauses = &alternatives[0].1.clauses;
+            offsets.insert(key, count);
+            count += clauses.conditions.len();
+            let mut seen: FxSet<usize> = clauses.conditions.iter().flat_map(dom_atoms).map(guard_identity).collect();
+            let sites = guard_sites.entry(key).or_insert_with(FxMap::default);
+            for (alternative, alt) in alternatives {
+                for (owner, term) in clauses
+                    .tags
+                    .iter()
+                    .map(|t| (None, t))
+                    .chain(alt.alternative.tags.iter().map(|t| (Some(*alternative), t)))
+                {
+                    for (condition, _) in crate::guarded_tags::guards(term) {
+                        for atom in dom_atoms(condition) {
+                            let identity = guard_identity(atom);
+                            if seen.insert(identity) {
+                                sites.insert(identity, GuardSite { alternative: owner, condition: count });
+                                count += 1;
+                            }
+                        }
+                    }
+                }
             }
         }
     }
-    offsets
+    (offsets, guard_sites)
 }
 /// Source graphs carry late annotation joins without splitting chart facts.
 #[derive(Debug, Default)]
@@ -493,10 +534,15 @@ pub(crate) fn definition_problem(rule: &crate::dom::RuleDef) -> Option<(String, 
             }
         }
     }
-    let mut terms: Vec<_> =
-        rule.tags.iter().chain(rule.strings.value.iter()).chain(rule.strings.image.iter()).collect();
+    let mut terms: Vec<_> = rule
+        .error
+        .iter()
+        .chain(&rule.warning)
+        .chain(rule.strings.value.iter())
+        .chain(rule.strings.image.iter())
+        .collect();
     for alt in &rule.alternatives {
-        terms.extend(alt.tags.iter().chain(alt.strings.value.iter()).chain(alt.strings.image.iter()));
+        terms.extend(alt.strings.value.iter().chain(alt.strings.image.iter()));
         terms.extend(crate::dom::tests_in(&alt.expr).into_iter().map(|(_, t, _)| t));
     }
     for item in rule.emit.iter().flatten() {
@@ -505,6 +551,11 @@ pub(crate) fn definition_problem(rule: &crate::dom::RuleDef) -> Option<(String, 
             EmitItem::Insert(_, s) => s,
         };
         terms.extend(strings.value.iter().chain(strings.image.iter()));
+    }
+    for term in rule.tags.iter().chain(rule.alternatives.iter().filter_map(|alt| alt.tags.as_ref())) {
+        if let Some((message, atom)) = crate::guarded_tags::problem(term) {
+            return problem(message, atom);
+        }
     }
     for t in terms {
         if let Some(atom) = term_atoms(t).first() {
@@ -537,7 +588,9 @@ fn reach(g: &crate::grammar::StageGrammar, roots: Vec<String>) -> (FxSet<String>
                     terminals.insert(n.clone());
                 }
                 Expr::Seq(es) | Expr::Choice(es) | Expr::Ranked(es, _) | Expr::And(es) => stack.extend(es),
-                Expr::Capture(_, e) | Expr::Optional(e, _, _) | Expr::Tested(_, _, e) => stack.push(e),
+                Expr::Splice(e) | Expr::Capture(_, e) | Expr::Optional(e, _, _) | Expr::Tested(_, _, e) => {
+                    stack.push(e)
+                }
                 Expr::Repeat(e, s, _) => {
                     stack.push(e);
                     stack.extend(s.as_deref());

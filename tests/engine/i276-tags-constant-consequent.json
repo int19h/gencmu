@@ -1,0 +1,35 @@
+{
+  "description": "A guarded consequent resolves a closed tag constant before lowering.",
+  "grammar": "%const $K (One ∪ Two)\n%rule text left right\n%rule left A :: ($.followed-by(right) ⟹ ($K ∖ Two))\n%rule right B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": [
+          {
+            "tags": [
+              "One"
+            ]
+          },
+          {
+            "rule": "right"
+          }
+        ]
+      }
+    }
+  }
+}

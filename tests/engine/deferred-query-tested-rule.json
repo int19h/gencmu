@@ -1,0 +1,15 @@
+{
+  "description": "Engine §3.10 and §4: body queries preserve tests, substitution, and correlated witness eligibility.",
+  "grammar": "%rule text A\n%conditions $.parse(probe=\"b\")\n%rule probe A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected"
+  }
+}

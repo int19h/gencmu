@@ -450,7 +450,7 @@ class Output(unittest.TestCase):
 
         def decode(text, *args, **kwargs):
             value = loads(text, *args, **kwargs)
-            if isinstance(value, dict) and value.get("format") == 15:
+            if isinstance(value, dict) and value.get("format") == 17:
                 value["ok"] = int(value["ok"])
             return value
 
@@ -465,7 +465,7 @@ class Output(unittest.TestCase):
         tags = json.dumps(sorted(result.stages[0].output[0].tags), ensure_ascii=False, separators=(",", ":"))
         self.assertTrue(
             text.startswith(
-                '{"format":15,"ok":true,"stages":[{"name":"sounds","verdict":"unique","output":[{"text":"m","value":"m","image":"m","tags":'
+                '{"format":17,"ok":true,"stages":[{"name":"sounds","verdict":"unique","output":[{"text":"m","value":"m","image":"m","tags":'
                 + tags + ',"span":[0,1],"source":[0,1]}'
             ),
             text,
@@ -675,13 +675,13 @@ class Warnings(unittest.TestCase):
     def test_result_and_json(self) -> None:
         """A warning is a ParseWarning of the result, and in the canonical
         JSON after the error only when there is one (docs/output.md)."""
-        pipeline = self.pipeline("%rule text w! A | B")
+        pipeline = self.pipeline('%rule text *w | B\n%rule w A %warning "warning w"')
         tokens = [gencmu.Token("a", frozenset({"A"}), (0, 1), (0, 1))]
         result = pipeline.parse_tokens(tokens, "a", features=["w"])
-        self.assertEqual(result.warnings, [gencmu.ParseWarning("main", "w", "text", (0, 1), (0, 1))])
+        self.assertEqual(result.warnings, [gencmu.ParseWarning("main", "w", "w", (0, 1), (0, 1), "warning w")])
         self.assertTrue(
             gencmu.to_json(result).endswith(
-                ',"error":null,"warnings":[{"stage":"main","feature":"w","rule":"text","span":[0,1],"source":[0,1]}]}'
+                ',"error":null,"warnings":[{"stage":"main","code":"w","rule":"w","span":[0,1],"source":[0,1],"message":"warning w"}]}'
             )
         )
         quiet = pipeline.parse_tokens(tokens, "a")
@@ -691,12 +691,12 @@ class Warnings(unittest.TestCase):
     def test_flat_braces(self) -> None:
         """A list of flat braces is no node of the tree, so its helper gives
         no warnings of its own (engine §3.2, §12)."""
-        pipeline = self.pipeline("%rule text w! {x}\n%rule x v! A")
+        pipeline = self.pipeline('%rule text *w\n%rule w {x} %warning "warning w"\n%rule x *v\n%rule v A %warning "warning v"')
         tokens = [gencmu.Token(str(n), frozenset({"A"}), (n, n + 1), (2 * n, 2 * n + 1)) for n in range(3)]
         result = pipeline.parse_tokens(tokens, "0 1 2", features=["v", "w"])
         self.assertEqual(
-            [(warning.feature, warning.rule, warning.span, warning.source) for warning in result.warnings],
-            [("w", "text", (0, 3), (0, 5)), ("v", "x", (0, 1), (0, 1)), ("v", "x", (1, 2), (2, 3)), ("v", "x", (2, 3), (4, 5))],
+            [(warning.code, warning.rule, warning.span, warning.source) for warning in result.warnings],
+            [("w", "w", (0, 3), (0, 5)), ("v", "v", (0, 1), (0, 1)), ("v", "v", (1, 2), (2, 3)), ("v", "v", (2, 3), (4, 5))],
         )
 
 
@@ -1164,10 +1164,10 @@ class ResultRenderingGuards(unittest.TestCase):
 
     def test_feature_role_location_occurs_once(self):
         with self.assertRaises(gencmu.GencmuError) as caught:
-            gencmu.load_pipeline_sources({"p.md":'```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text f? "a" | f! "b"\n```\n'}, "p.md")
+            gencmu.load_pipeline_sources({"p.md":'```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text f? "a" | *f\n%rule f "b"\n%warning "warning"\n```\n'}, "p.md")
         error = caught.exception
         self.assertEqual(error.message, "the feature f is used both as a gate and as a warning")
-        self.assertEqual(str(error).count("p.md:4:1"), 1)
+        self.assertEqual(str(error).count("p.md:5:1"), 1)
 
     def test_invalid_pipeline_path_is_usage(self):
         for load in (lambda: gencmu.load_pipeline_file("invalid-\udcff.md"), lambda: gencmu.load_pipeline_sources({}, "invalid-\udcff.md")):

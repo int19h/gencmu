@@ -25,7 +25,8 @@ CASE: dict[str, Any] = {
 %ambiguity-resolution late #·_<_Elided>
 %elision-only
 %rule text a | b
-%rule a w! A [+T="ta"] [+U] %emits $ :: X
+%rule a *w %emits $ :: X
+%rule w A [+T="ta"] [+U] %warning "warning w"
 %rule b A [+T="ta"] [+U] [+U]
 %stage later
 %ambiguity-resolution greedy
@@ -70,7 +71,7 @@ class WitnessLostError(unittest.TestCase):
 
         def decode(text, *args, **kwargs):
             value = loads(text, *args, **kwargs)
-            if isinstance(value, dict) and value.get("format") == 15:
+            if isinstance(value, dict) and value.get("format") == 17:
                 value["ok"] = int(value["ok"])
             return value
 
@@ -100,7 +101,7 @@ class WitnessLostError(unittest.TestCase):
                 self.assertIs(value["ok"], False)
                 self.assertIsNone(value["tree"])
                 error = value["error"]
-                self.assertTrue(same_json(list(error), ["kind", "stage", "code", "message", "chosen", "completion"]))
+                self.assertTrue(same_json(list(error), ["kind", "stage", "code", "warnings", "message", "chosen", "completion"]))
                 self.assertTrue(same_json(error["kind"], "grammar"))
                 self.assertTrue(same_json(error["stage"], "main"))
                 self.assertTrue(same_json(error["code"], "elision-witness-lost"))
@@ -116,6 +117,7 @@ class WitnessLostError(unittest.TestCase):
                 self.assertTrue(same_json(value["stages"], [{"name": "main", "verdict": "resolved"}]))
                 self.assertTrue(same_json(value["warnings"], [warning for warning in clean_value["warnings"] if warning["stage"] == "main"]))
                 self.assertEqual(len(value["warnings"]), 1)
+                self.assertEqual(error["warnings"], value["warnings"])
                 self.assertTrue(same_json(json.loads(gencmu.to_json(result)), value))
 
     def test_an_ordinary_grammar_error_in_the_check_has_no_code(self) -> None:

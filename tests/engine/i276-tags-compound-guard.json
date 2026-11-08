@@ -1,0 +1,15 @@
+{
+  "description": "A neighbour guard in a tag term contains only one optionally negated atom.",
+  "grammar": "%rule text A :: ($.followed-by(other) ∨ $.preceded-by(other) ⟹ Mark)\n%rule other B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

@@ -68,7 +68,7 @@ func (c *domChecker) sourceArgument(arg *domArgument, depth int) {
 			c.term(t, depth, false)
 		}
 	case arg.Expr != nil:
-		if !arg.Body && arg.Expr.Kind != exTest && arg.Expr.Kind != exRange && arg.Expr.Kind != exWildcard {
+		if !arg.Body && arg.Expr.Kind != exTest && arg.Expr.Kind != exRange && arg.Expr.Kind != exWildcard && arg.Expr.Kind != exSplice {
 			c.fail("a malformed symbol argument")
 		}
 		c.expr(arg.Expr, depth, true, false, false, false, false)
@@ -132,7 +132,7 @@ func (c *domChecker) sourceHead(r *domRule) {
 	}
 	if r.Instance != nil {
 		if r.Op == "extend" || len(r.Conditions) != 0 || len(r.Alternatives) != 0 ||
-			r.Tags != nil || r.Value != nil || r.Image != nil || r.Emit != nil || r.Erased {
+			r.Tags != nil || r.Value != nil || r.Image != nil || r.Error != nil || r.Warning != nil || r.SuppressWarnings != nil || r.Emit != nil || r.Erased {
 			c.fail("a malformed instance binding")
 		}
 		c.sourceCall(r.Instance, 0)

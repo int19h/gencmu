@@ -103,11 +103,11 @@ fn a_well_formed_dom_is_used() {
     assert!(!document_was_read(&with_emission(r#"{"items":[{"insert":true}]}"#)));
     // `%erased` removes the constituent from emission and counted parts (§11).
     assert!(!document_was_read(&dom(B, r#","erased":true"#, "", DOM_FORMAT, r#"{"step":"greedy"}"#)));
-    // A guard is a gate, negated or not, or a warning (§9).
-    let gate_and_warning = with_alternative(
-        r#"{"guards":[{"feature":"f","kind":"gate","negated":true},{"feature":"w","kind":"warning","negated":false}],"expr":{"literal":{"string":"b"}}}"#,
+    // Alternative guards are gates, with or without negation.
+    let gates = with_alternative(
+        r#"{"guards":[{"feature":"f","kind":"gate","negated":true},{"feature":"w","kind":"gate","negated":false}],"expr":{"literal":{"string":"b"}}}"#,
     );
-    assert!(!document_was_read(&gate_and_warning));
+    assert!(!document_was_read(&gates));
     // `#` is a rule's name, and `$` may be read by a condition, and by a
     // tag term through another rule.
     let hash = with_rule(
@@ -1414,7 +1414,7 @@ fn cached_features(dom: &str) -> Vec<(String, gencmu::FeatureKind)> {
 /// is a miss, so it never changes the pipeline's features.
 #[test]
 fn a_guard_of_an_alternative_names_a_feature() {
-    for (kind, feature_kind) in [("gate", gencmu::FeatureKind::Gate), ("warning", gencmu::FeatureKind::Warning)] {
+    for (kind, feature_kind) in [("gate", gencmu::FeatureKind::Gate)] {
         let guarded = |feature: &str| {
             with_alternative(&format!(
                 r#"{{"guards":[{{"feature":"{feature}","kind":"{kind}","negated":false}}],"expr":{{"literal":{{"string":"b"}}}}}}"#
@@ -1687,7 +1687,7 @@ fn deferred_recipe_precedes_empty_emission() {
 fn template_definition_keeps_its_specific_problem() {
     for params in ["", r#","params":["X"]"#] {
         let raw = format!(
-            r#"{{"format":44,"rules":[{{"name":"pair"{params},"op":"define","alternatives":[{{"guards":[],"expr":{{"ref":"A"}}}}],"tags":{{"method":"tags","receiver":{{"capture":"y"}},"args":[]}},"conditions":[],"at":[2,1]}}],"directives":[],"constants":[],"classifiers":[],"implications":[]}}"#
+            r#"{{"format":46,"rules":[{{"name":"pair"{params},"op":"define","alternatives":[{{"guards":[],"expr":{{"ref":"A"}}}}],"tags":{{"method":"tags","receiver":{{"capture":"y"}},"args":[]}},"conditions":[],"at":[2,1]}}],"directives":[],"constants":[],"classifiers":[],"implications":[]}}"#
         );
         let problem = gencmu::tools::check_dom(&raw).unwrap().unwrap();
         assert!(problem.contains("$y") && problem.contains("pair"), "{problem}");
@@ -1724,7 +1724,7 @@ fn substituted_condition_keeps_its_type_reason() {
 
 #[test]
 fn span_tag_hint_uses_source_spelling() {
-    let raw = r#"{"format":44,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"capture":"x","expr":{"ref":"A"}}}],"tags":{"union":[{"capture":"x"},{"tag":"B"}]},"conditions":[],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}"#;
+    let raw = r#"{"format":46,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"capture":"x","expr":{"ref":"A"}}}],"tags":{"union":[{"capture":"x"},{"tag":"B"}]},"conditions":[],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}"#;
     let problem = gencmu::tools::check_dom(raw).unwrap().unwrap();
     assert!(problem.contains("$x.tags") && !problem.contains("tags($x)"), "{problem}");
 }

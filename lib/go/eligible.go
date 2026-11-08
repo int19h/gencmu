@@ -105,9 +105,9 @@ func (e *eligibility) next(it *item) int {
 
 // eligibleItems keeps of the completed items those that have an eligible
 // proof tree (§4).
-func (r *recognizer) eligibleItems(items []*item) []*item {
+func (r *recognizer) eligibleItems(items []*item, errorFree bool) []*item {
 	helpers := r.g.elidable
-	if !r.g.anyElidable || len(items) == 0 {
+	if !r.g.anyElidable && !r.g.hasErrors && !errorFree || len(items) == 0 {
 		return items
 	}
 	if w := work.Load(); w != nil {
@@ -164,7 +164,7 @@ func (r *recognizer) eligibleItems(items []*item) []*item {
 	}
 	// With no omission, every item of a chart has a finite proof tree, made
 	// from predicted items in the order in which the recognizer made it.
-	if !omits {
+	if !omits && !r.g.hasErrors && !errorFree {
 		return items
 	}
 	// The prefixes that the chart advances over a written optional, from
@@ -199,75 +199,162 @@ func (r *recognizer) eligibleItems(items []*item) []*item {
 	for i, it := range e.order {
 		next[i] = e.next(it)
 	}
-	E, P := make([]bool, n), make([]bool, n)
-	childE := func(s *symNode) bool {
-		for _, c := range s.items {
-			if E[e.index[c]] {
-				return true
+	// Bit 1 is a clean proof, and bit 2 is a proof with carried errors.
+	// Raw support admits own errors so an erased completion can replace it.
+	E, P := make([]uint8, n), make([]uint8, n)
+	R, RP := make([]uint8, n), make([]uint8, n)
+	dirty := func(l link) bool {
+		index := r.base + int(l.tok)
+		if r.recon != nil {
+			index = r.recon.original[l.tok]
+			if index < 0 {
+				return false
 			}
 		}
-		return false
+		return len(r.run.toks[index].Errors) > 0
 	}
-	// The same transition qualifies ordinary proofs and paths through a
-	// logical optional. Permission cannot borrow an ineligible route (§4).
-	advanceE := func(it *item, l link) bool {
-		b := r.before(it, l)
-		if l.sym == nil {
-			return E[e.index[b]]
+	children := func(sym *symNode, states []uint8) uint8 {
+		var result uint8
+		for _, child := range sym.items {
+			result |= states[e.index[child]]
 		}
-		if e.omission(l) {
-			return P[e.index[b]] && childE(l.sym)
-		}
-		return E[e.index[b]] && childE(l.sym)
+		return result
 	}
 	for changed := true; changed; {
 		changed = false
 		for x, it := range e.order {
-			if E[x] && (P[x] || next[x] == nextNone) {
-				continue
-			}
-			// A predicted item is a leaf.
-			a, p := it.dot == 0, false
-			if a && next[x] == nextAlone && !reads[it] {
-				p = true
-			}
-			for _, l := range it.links {
-				b := r.before(it, l)
-				if !advanceE(it, l) {
-					continue
+			for channel := 0; channel < 2; channel++ {
+				states, permissions := R, RP
+				if channel == 1 {
+					states, permissions = E, P
 				}
-				a = true
-				switch next[x] {
-				case nextAlone:
-					if !reads[it] {
-						p = true
+				stateOf := func(item *item) uint8 { return states[e.index[item]] }
+				beforeStates := func(item *item, edge link) uint8 {
+					before := r.before(item, edge)
+					if e.omission(edge) {
+						return permissions[e.index[before]]
 					}
-				case nextConstituent:
-					// The advance over Y: its item before is the fixed
-					// prefix, which must permit the omission.
-					if l.sym != nil {
-						if end, ok := further[b]; !ok || end < it.set {
-							p = true
+					return stateOf(before)
+				}
+				advance := func(item *item, edge link) uint8 {
+					before := beforeStates(item, edge)
+					if edge.sym == nil {
+						if dirty(edge) && before != 0 {
+							return 2
+						}
+						return before
+					}
+					return combineProofStates(before, children(edge.sym, states))
+				}
+				a, p := uint8(0), uint8(0)
+				if it.dot == 0 {
+					a = 1
+					if it.restores && dirty(it.links[0]) {
+						a = 2
+					}
+				}
+				if next[x] == nextAlone && !reads[it] {
+					p = a
+				}
+				if !it.restores {
+					for _, edge := range it.links {
+						through := advance(it, edge)
+						if through == 0 {
+							continue
+						}
+						a |= through
+						switch next[x] {
+						case nextAlone:
+							if !reads[it] {
+								p |= through
+							}
+						case nextConstituent:
+							if edge.sym != nil {
+								if end, ok := further[r.before(it, edge)]; !ok || end < it.set {
+									p |= through
+								}
+							}
 						}
 					}
 				}
-			}
-			if a && next[x] == nextLogicalOptional {
-				p = logical.permitsEligible(it, advanceE)
-			}
-			if a && !E[x] {
-				E[x], changed = true, true
-			}
-			if p && !P[x] {
-				P[x], changed = true, true
+				if a != 0 && next[x] == nextLogicalOptional {
+					predecessors := func(item *item, edge link, bit uint8) uint8 {
+						before := beforeStates(item, edge)
+						var allowed uint8
+						for _, b := range []uint8{1, 2} {
+							if before&b == 0 {
+								continue
+							}
+							if edge.sym == nil {
+								after := b
+								if dirty(edge) {
+									after = 2
+								}
+								if after == bit {
+									allowed |= b
+								}
+							} else {
+								child := children(edge.sym, states)
+								for _, c := range []uint8{1, 2} {
+									if child&c != 0 && combineProofStates(b, c) == bit {
+										allowed |= b
+									}
+								}
+							}
+						}
+						return allowed
+					}
+					for _, bit := range []uint8{1, 2} {
+						if a&bit != 0 && logical.permitsEligible(it, bit, stateOf, predecessors) {
+							p |= bit
+						}
+					}
+				}
+				if int(it.dot) == len(it.prod.rhs) {
+					if it.prod.nothing {
+						if R[x]|a != 0 {
+							a = 1
+						}
+						if p != 0 {
+							p = 1
+						}
+					} else if it.prod.error != nil {
+						if channel == 0 {
+							if a != 0 {
+								a = 2
+							}
+							if p != 0 {
+								p = 2
+							}
+						} else {
+							a, p = 0, 0
+						}
+					}
+				}
+				if states[x]|a != states[x] {
+					states[x] |= a
+					changed = true
+				}
+				if permissions[x]|p != permissions[x] {
+					permissions[x] |= p
+					changed = true
+				}
 			}
 		}
 	}
 	var out []*item
 	for _, it := range items {
-		if E[e.index[it]] {
+		if E[e.index[it]] != 0 && (!errorFree || E[e.index[it]]&1 != 0) {
 			out = append(out, it)
 		}
 	}
 	return out
+}
+
+func combineProofStates(left, right uint8) uint8 {
+	clean := left & right & 1
+	if left != 0 && right != 0 && (left|right)&2 != 0 {
+		return clean | 2
+	}
+	return clean
 }

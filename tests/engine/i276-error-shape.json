@@ -1,0 +1,46 @@
+{
+  "description": "A named error retains its chosen tree, verdict, coordinates, and evaluated message.",
+  "grammar": "%rule text bad\n%rule bad A %error \"bad \" ++ $.value",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "tree": {
+        "rule": "text"
+      },
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "error": {
+        "kind": "reported",
+        "errors": [
+          {
+            "stage": "main",
+            "code": "bad",
+            "rule": "bad",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ],
+            "message": "bad a"
+          }
+        ]
+      }
+    },
+    "error": "reported"
+  }
+}

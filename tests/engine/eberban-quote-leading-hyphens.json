@@ -12,8 +12,8 @@
     "warnings": [
       {
         "stage": "forms",
-        "feature": "hyphen-misplaced",
-        "rule": "misplaced-hyphen",
+        "code": "hyphen-misplaced",
+        "rule": "hyphen-misplaced",
         "span": [
           5,
           6
@@ -21,12 +21,13 @@
         "source": [
           5,
           6
-        ]
+        ],
+        "message": "this hyphen stands outside a recommended position"
       },
       {
         "stage": "forms",
-        "feature": "hyphen-misplaced",
-        "rule": "misplaced-hyphen",
+        "code": "hyphen-misplaced",
+        "rule": "hyphen-misplaced",
         "span": [
           12,
           13
@@ -34,7 +35,8 @@
         "source": [
           12,
           13
-        ]
+        ],
+        "message": "this hyphen stands outside a recommended position"
       }
     ]
   }

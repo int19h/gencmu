@@ -1,0 +1,68 @@
+{
+  "description": "Engine §6 and §7.10: erased classes and their canonical representatives (shared-live).",
+  "grammar": "%ambiguity-resolution fewest #·a\n%rule text gone B live\n%rule gone choices\n%erased\n%rule live choices\n%rule choices a | b\n%rule a A\n%rule b A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "gone",
+            "children": [
+              {
+                "rule": "choices",
+                "children": [
+                  {
+                    "rule": "a"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "token"
+          },
+          {
+            "rule": "live",
+            "children": [
+              {
+                "rule": "choices",
+                "children": [
+                  {
+                    "rule": "b"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

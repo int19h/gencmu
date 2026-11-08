@@ -1,0 +1,30 @@
+{
+  "description": "Engine §6 and §7.10: erased classes and their canonical representatives (keys-count-root).",
+  "grammar": "%ambiguity-resolution most #·gone\n%rule text gone | other\n%rule gone a\n%erased\n%rule a A\n%rule other A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "gone"
+          }
+        ]
+      }
+    }
+  }
+}

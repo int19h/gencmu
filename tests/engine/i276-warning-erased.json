@@ -1,0 +1,23 @@
+{
+  "description": "Engine §12.1: warnings inside erased text do not survive.",
+  "grammar": "%rule text *warn %erased\n%rule warn A %warning \"warning warn\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "warn"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": []
+  }
+}

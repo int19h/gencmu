@@ -73,7 +73,11 @@ pub fn result_pattern(value: &Value) -> R {
                 if error && value.get("message").is_some() {
                     return Err("a result pattern cannot assert an error message".into());
                 }
-                pending.extend(members.iter().map(|(name, part)| (part, name == "error")));
+                pending.extend(
+                    members.iter().map(|(name, part)| {
+                        (part, name == "error" || (error && name != "errors" && name != "readings"))
+                    }),
+                );
             }
             Value::Array(items) => pending.extend(items.iter().map(|part| (part, error))),
             _ => {}
@@ -121,7 +125,7 @@ pub fn expect(value: &Value) -> R {
         result_pattern(pattern)?;
     }
     if let Some(error) = value.get("error").and_then(Value::str) {
-        if !matches!(error, "grammar" | "usage" | "rejected" | "ambiguous" | "feature-conflict") {
+        if !matches!(error, "grammar" | "usage" | "rejected" | "ambiguous" | "feature-conflict" | "reported") {
             return Err(format!("expect.error has an unknown kind {error:?}"));
         }
     }
@@ -148,7 +152,14 @@ pub fn expect(value: &Value) -> R {
             fields(
                 warning,
                 "expect.warnings[]",
-                &[("stage", Text), ("feature", Text), ("rule", Text), ("span", Array), ("source", Array)],
+                &[
+                    ("stage", Text),
+                    ("code", Text),
+                    ("rule", Text),
+                    ("span", Array),
+                    ("source", Array),
+                    ("message", Text),
+                ],
             )?;
             for name in ["span", "source"] {
                 if let Some(range) = warning.get(name) {
@@ -187,9 +198,16 @@ fn token_list(value: &Value, usage: bool) -> R {
                 ("span", Any),
                 ("before", Any),
                 ("after", Any),
+                ("errors", Any),
+                ("warnings", Any),
             ],
         )?;
         if !usage {
+            for kind in ["errors", "warnings"] {
+                if token.get(kind).is_some_and(|value| !matches!(value,Value::Array(items) if items.is_empty())) {
+                    return Err(format!("token.{kind} requires an empty diagnostic list"));
+                }
+            }
             required(token, "text", "token")?;
             strings(required(token, "tags", "token")?, "token.tags")?;
             for name in ["text", "value", "image"] {

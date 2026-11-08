@@ -1,0 +1,43 @@
+{
+  "description": "Engine §12.1: all error with sibling.",
+  "grammar": "%rule text :: ∅ | (bad ≻ other) | good\n%rule bad A\n%error \"bad\"\n%rule other A B\n%error \"other\"\n%rule good A C",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "reported",
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "reported",
+        "errors": [
+          {
+            "code": "bad",
+            "rejection": {
+              "token": 1,
+              "source": [
+                1,
+                1
+              ],
+              "line": 1,
+              "column": 2,
+              "expected": [
+                {
+                  "terminal": "C",
+                  "rules": [
+                    "good"
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "description": "Engine §6 and §12.1: erasure removes an occurrence's named error.",
+  "grammar": "%rule text *bad %erased\n%rule bad A %error \"bad\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null
+    },
+    "warnings": []
+  }
+}

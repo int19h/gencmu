@@ -1,0 +1,24 @@
+{
+  "description": "Engine §4.4: an item condition makes suffix recognition depend on its window end.",
+  "grammar": "%rule text $a:A B\n%conditions $.parse(… tail), ¬$a.parse(… tail)\n%rule tail {$i:A} B\n%conditions $i.following-tokens.begins(bword)\n%rule bword B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": []
+  }
+}

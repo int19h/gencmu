@@ -1,0 +1,54 @@
+{
+  "description": "Engine §12.1: a carried error keeps competitor evidence in raising-stage coordinates.",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "reported",
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "reported",
+        "errors": [
+          {
+            "code": "bad",
+            "rejection": {
+              "token": 2,
+              "source": [
+                3,
+                3
+              ],
+              "line": 1,
+              "column": 4,
+              "expected": [
+                {
+                  "terminal": "C",
+                  "rules": [
+                    "part"
+                  ]
+                }
+              ]
+            },
+            "stage": "before"
+          }
+        ],
+        "stage": "last"
+      }
+    }
+  },
+  "documents": {
+    "p.md": "```jbogenbau\n%stage before\n%ambiguity-resolution greedy\n%rule text :: ∅ | good ≻ bad\n%rule good A part\n%rule part B C\n%rule bad A B\n%error \"bad\"\n%emits $ :: Word\n%stage last\n%ambiguity-resolution greedy\n%rule text Word\n%emits $\n```\n"
+  },
+  "pipelineDocument": "p.md"
+}

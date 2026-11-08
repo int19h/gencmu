@@ -1,6 +1,6 @@
 {
   "description": "A warning on a chain's alternative gives one warning for each level of the chain in the chosen tree, each with its level's span, parent before children (engine §12).",
-  "grammar": "%rule text r\n%rule r g! {... A / S}",
+  "grammar": "%rule text r\n%rule r {... A / S} %warning \"warning r\"",
   "tokens": [
     {
       "text": "a",
@@ -35,7 +35,7 @@
   ],
   "options": {
     "features": [
-      "g"
+      "r"
     ]
   },
   "expect": {
@@ -179,7 +179,7 @@
     "warnings": [
       {
         "stage": "main",
-        "feature": "g",
+        "code": "r",
         "rule": "r",
         "span": [
           0,
@@ -188,11 +188,12 @@
         "source": [
           0,
           9
-        ]
+        ],
+        "message": "warning r"
       },
       {
         "stage": "main",
-        "feature": "g",
+        "code": "r",
         "rule": "r",
         "span": [
           0,
@@ -201,11 +202,12 @@
         "source": [
           0,
           5
-        ]
+        ],
+        "message": "warning r"
       },
       {
         "stage": "main",
-        "feature": "g",
+        "code": "r",
         "rule": "r",
         "span": [
           0,
@@ -214,7 +216,8 @@
         "source": [
           0,
           1
-        ]
+        ],
+        "message": "warning r"
       }
     ]
   }

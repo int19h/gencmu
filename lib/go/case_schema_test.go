@@ -123,6 +123,7 @@ func tokenSchema(usage bool) caseSchema {
 			return nil
 		}
 		fields["span"], fields["source"] = pair, pair
+		fields["errors"], fields["warnings"] = caseArray(caseAny), caseArray(caseAny)
 		for len(pending) > 0 {
 			part := pending[len(pending)-1]
 			pending = pending[:len(pending)-1]
@@ -311,7 +312,7 @@ func resultPatternProblem(pattern any) error {
 				return fmt.Errorf("a result pattern cannot assert an error message. Use expect.message")
 			}
 			for key, child := range value {
-				pending = append(pending, entry{child, part.inError || key == "error"})
+				pending = append(pending, entry{child, key == "error" || (part.inError && key != "errors" && key != "readings")})
 			}
 		case []any:
 			for _, child := range value {
@@ -341,6 +342,35 @@ func TestOptionsRequireNonemptyUntil(t *testing.T) {
 	for _, value := range []map[string]any{{}, {"until": "main"}} {
 		if err := optionsSchema(value, "options"); err != nil {
 			t.Fatal(err)
+		}
+	}
+}
+
+func TestResultPatternMessageExemptions(t *testing.T) {
+	// Tests README: errors and readings end the inherited error-message restriction.
+	for _, item := range []struct {
+		raw      string
+		rejected bool
+	}{
+		{`{"error":{"message":"same"}}`, true},
+		{`{"error":{"details":[{"message":"same"}]}}`, true},
+		{`{"error":{"chosen":{"children":[{"message":"same"}]}}}`, true},
+		{`{"error":{"warnings":[{"message":"same"}]}}`, true},
+		{`{"error":{"details":[{"warnings":[{"message":"same"}]}]}}`, true},
+		{`{"error":{"errors":[{"error":{"message":"same"}}]}}`, true},
+		{`{"message":"ordinary"}`, false},
+		{`{"warnings":[{"message":"ordinary"}]}`, false},
+		{`{"error":{"errors":[{"message":"same"}]}}`, false},
+		{`{"error":{"readings":[{"children":[{"message":"same"}]}]}}`, false},
+		{`{"error":{"details":[{"errors":[{"children":[{"message":"same"}]}]}]}}`, false},
+		{`{"error":{"details":[{"readings":[{"message":"same"}]}]}}`, false},
+	} {
+		value, err := decodeJSON([]byte(item.raw))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if rejected := resultPatternProblem(value) != nil; rejected != item.rejected {
+			t.Errorf("%s: rejected=%v, want %v", item.raw, rejected, item.rejected)
 		}
 	}
 }

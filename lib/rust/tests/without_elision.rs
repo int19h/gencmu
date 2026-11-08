@@ -26,8 +26,14 @@ fn growing_queries_keep_all_closes() {
     for n in [128, 256, 512] {
         let grammar = "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text $x:candidate\n%conditions $x.without-elision.matches(rival)\n%rule candidate {piece}\n%rule rival {piece}\n%rule piece piece [+U] | X [+T]\n```\n";
         let pipeline = gencmu::load_pipeline_sources([("p.md", grammar)], "p.md").unwrap();
-        let token =
-            gencmu::InputToken { image: None, text: "x".into(), tags: ["X".into()].into_iter().collect(), value: None };
+        let token = gencmu::InputToken {
+            errors: Vec::new(),
+            warnings: Vec::new(),
+            image: None,
+            text: "x".into(),
+            tags: ["X".into()].into_iter().collect(),
+            value: None,
+        };
         let started = std::time::Instant::now();
         let result = pipeline.parse_tokens(&vec![token; n], &gencmu::ParseOptions::default()).unwrap();
         assert!(result.ok, "{n}: {:?}", result.error);
@@ -39,8 +45,14 @@ fn growing_queries_keep_all_closes() {
 fn nullable_ranked_prefix() {
     let grammar = "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text $x:r\n%conditions $x.without-elision.matches(same)\n%rule r [+T] (r ≻ X)\n%rule same r\n```\n";
     let pipeline = gencmu::load_pipeline_sources([("p.md", grammar)], "p.md").unwrap();
-    let token =
-        gencmu::InputToken { image: None, text: "x".into(), tags: ["X".into()].into_iter().collect(), value: None };
+    let token = gencmu::InputToken {
+        errors: Vec::new(),
+        warnings: Vec::new(),
+        image: None,
+        text: "x".into(),
+        tags: ["X".into()].into_iter().collect(),
+        value: None,
+    };
     let result = pipeline.parse_tokens(&[token], &gencmu::ParseOptions::default()).unwrap();
     assert!(result.ok, "{:?}", result.error);
 }
@@ -52,6 +64,8 @@ fn a_prefix_can_end_before_a_ranked_group() {
     let tokens: Vec<_> = ["X", "Y"]
         .into_iter()
         .map(|tag| gencmu::InputToken {
+            errors: Vec::new(),
+            warnings: Vec::new(),
             image: None,
             text: tag.to_lowercase(),
             tags: [tag.into()].into_iter().collect(),
@@ -66,8 +80,14 @@ fn a_prefix_can_end_before_a_ranked_group() {
 fn synthetic_reads_cannot_hide_a_named_cycle() {
     let grammar = "```jbogenbau\n%stage main\n%ambiguity-resolution late #·_<_Elided>\n%elision-only\n%rule text a | b | c\n%rule a X [+T]\n%rule b X [+T] [+U]\n%rule c $x:r\n%conditions $x.without-elision.matches(rival)\n%rule r r T | X\n%rule rival X [+T]\n```\n";
     let pipeline = gencmu::load_pipeline_sources([("p.md", grammar)], "p.md").unwrap();
-    let token =
-        gencmu::InputToken { image: None, text: "x".into(), tags: ["X".into()].into_iter().collect(), value: None };
+    let token = gencmu::InputToken {
+        errors: Vec::new(),
+        warnings: Vec::new(),
+        image: None,
+        text: "x".into(),
+        tags: ["X".into()].into_iter().collect(),
+        value: None,
+    };
     let (result, checks) = gencmu::tools::with_elision_checks(|| {
         pipeline.parse_tokens(&[token], &gencmu::ParseOptions::default()).unwrap()
     });
@@ -80,8 +100,14 @@ fn synthetic_reads_cannot_hide_a_named_cycle() {
 fn ranked_seals_cannot_revive_a_cyclic_observation() {
     let grammar = "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text $x:X\n%conditions Tag-recursive ⊆ $x.tags(r), $x.tags(q) = ∅\n%rule q $y:r\n%conditions ¬$y.without-elision.matches(rival)\n%rule r s :: Tag-recursive | X :: ∅\n%rule s :: ∅ | ((r [+U]) ≻ Y)\n%rule rival X\n```\n";
     let pipeline = gencmu::load_pipeline_sources([("p.md", grammar)], "p.md").unwrap();
-    let token =
-        gencmu::InputToken { image: None, text: "x".into(), tags: ["X".into()].into_iter().collect(), value: None };
+    let token = gencmu::InputToken {
+        errors: Vec::new(),
+        warnings: Vec::new(),
+        image: None,
+        text: "x".into(),
+        tags: ["X".into()].into_iter().collect(),
+        value: None,
+    };
     let result = pipeline.parse_tokens(&[token], &gencmu::ParseOptions::default()).unwrap();
     assert!(result.ok, "{:?}", result.error);
 }
@@ -90,8 +116,14 @@ fn ranked_seals_cannot_revive_a_cyclic_observation() {
 fn emission_queries_demand_close_observations() {
     let grammar = "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text $x:a\n%emits $x :: $x.without-elision.tags(rival)\n%rule a X [+T]\n%rule rival X [+T] :: Tag-aligned\n```\n";
     let pipeline = gencmu::load_pipeline_sources([("p.md", grammar)], "p.md").unwrap();
-    let token =
-        gencmu::InputToken { image: None, text: "x".into(), tags: ["X".into()].into_iter().collect(), value: None };
+    let token = gencmu::InputToken {
+        errors: Vec::new(),
+        warnings: Vec::new(),
+        image: None,
+        text: "x".into(),
+        tags: ["X".into()].into_iter().collect(),
+        value: None,
+    };
     let result = pipeline.parse_tokens(&[token], &gencmu::ParseOptions::default()).unwrap();
     assert!(result.ok, "{:?}", result.error);
     assert!(result.stages[0].output.as_ref().unwrap()[0].tags.contains("Tag-aligned"));
@@ -106,8 +138,14 @@ fn lexical_whole_guards_close_the_enclosing_named_occurrence() {
             if guarded { clauses } else { "" }
         );
         let pipeline = gencmu::load_pipeline_sources([("p.md", grammar)], "p.md").unwrap();
-        let token =
-            gencmu::InputToken { image: None, text: "x".into(), tags: ["X".into()].into_iter().collect(), value: None };
+        let token = gencmu::InputToken {
+            errors: Vec::new(),
+            warnings: Vec::new(),
+            image: None,
+            text: "x".into(),
+            tags: ["X".into()].into_iter().collect(),
+            value: None,
+        };
         let result = pipeline.parse_tokens(&[token], &gencmu::ParseOptions::default()).unwrap();
         assert_eq!(result.ok, guarded, "guarded {guarded}: {:?}", result.error);
     }
@@ -120,6 +158,8 @@ fn ranked_entry_keeps_the_common_control_route() {
     let tokens: Vec<_> = ["Q", "X", "Y"]
         .into_iter()
         .map(|tag| gencmu::InputToken {
+            errors: Vec::new(),
+            warnings: Vec::new(),
             image: None,
             text: tag.to_lowercase(),
             tags: [tag.into()].into_iter().collect(),
@@ -137,6 +177,8 @@ fn ranked_entry_ignores_close_sound_in_common_captures() {
     let tokens: Vec<_> = ["Q", "X", "Y"]
         .into_iter()
         .map(|tag| gencmu::InputToken {
+            errors: Vec::new(),
+            warnings: Vec::new(),
             image: None,
             text: tag.to_lowercase(),
             tags: [tag.into()].into_iter().collect(),
@@ -145,4 +187,24 @@ fn ranked_entry_ignores_close_sound_in_common_captures() {
         .collect();
     let result = pipeline.parse_tokens(&tokens, &gencmu::ParseOptions::default()).unwrap();
     assert!(result.ok, "{:?}", result.error);
+}
+
+#[test]
+fn erased_prefixes_share_ranked_frames_with_demanded_closes() {
+    // Engine §6 and §7.10: named closes do not split an outside ranked entry.
+    for checking in ["", "%elision-only\n"] {
+        let grammar = format!("```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n{checking}%rule text $p:p\n%conditions $p.without-elision.matches(w)\n%rule p e (e ≻ e) :: ∅\n%rule w p\n%rule e a | b\n%erased\n%rule a A\n%rule b A\n```\n");
+        let pipeline = gencmu::load_pipeline_sources([("p.md", grammar)], "p.md").unwrap();
+        let token = gencmu::InputToken {
+            text: "a".into(),
+            tags: ["A".into()].into_iter().collect(),
+            value: None,
+            image: None,
+            errors: vec![],
+            warnings: vec![],
+        };
+        let result = pipeline.parse_tokens(&[token.clone(), token], &gencmu::ParseOptions::default()).unwrap();
+        assert!(result.ok, "{}", gencmu::to_json(&result));
+        assert_eq!(result.stages[0].verdict, Some(gencmu::Verdict::Unique));
+    }
 }

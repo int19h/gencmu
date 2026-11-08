@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime/debug"
 	"sort"
 	"strings"
@@ -55,14 +56,16 @@ type engineCase struct {
 // and after, which a caller cannot supply, go to the library as they
 // stand, so that it refuses them or drops empty ones.
 type caseToken struct {
-	Text   string      `json:"text"`
-	Tags   []string    `json:"tags"`
-	Value  *string     `json:"value"`
-	Image  *string     `json:"image"`
-	Span   *[2]int     `json:"span"`
-	Source *[2]int     `json:"source"`
-	Before []caseToken `json:"before"`
-	After  []caseToken `json:"after"`
+	Text     string      `json:"text"`
+	Tags     []string    `json:"tags"`
+	Value    *string     `json:"value"`
+	Image    *string     `json:"image"`
+	Span     *[2]int     `json:"span"`
+	Source   *[2]int     `json:"source"`
+	Before   []caseToken `json:"before"`
+	After    []caseToken `json:"after"`
+	Errors   []Warning   `json:"errors"`
+	Warnings []Warning   `json:"warnings"`
 }
 
 type caseOptions struct {
@@ -317,6 +320,7 @@ func caseTokens(specs []caseToken) ([]Token, string, error) {
 			// (tests/README.md).
 			n := len([]rune(tk.Text))
 			toks[i] = Token{Text: tk.Text, Value: tk.Text, Image: tk.Text, Tags: tk.Tags, Span: [2]int{i, i + 1}, Source: [2]int{pos, pos + n}}
+			toks[i].Errors, toks[i].Warnings = tk.Errors, tk.Warnings
 			if tk.Value != nil {
 				toks[i].Value = *tk.Value
 			}
@@ -535,13 +539,192 @@ func checkParse(d *Pipeline, c *engineCase, options *caseOptions, expect *caseEx
 // output, with its chosen tree and completion and no position, reason or
 // readings (engine §7.9). No result has it, whatever the case expects, since
 // engine §7.8 proves that no grammar gives it.
+func namedDiagnostic(value any, errors ...bool) bool {
+	diagnostic, ok := value.(map[string]any)
+	if !ok || len(diagnostic) < 6 || len(diagnostic) > 7 {
+		return false
+	}
+	allowed := map[string]bool{"stage": true, "code": true, "rule": true, "message": true, "span": true, "source": true}
+	if len(errors) > 0 && errors[0] {
+		allowed["rejection"] = true
+	}
+	for field := range diagnostic {
+		if !allowed[field] {
+			return false
+		}
+	}
+	if evidence, present := diagnostic["rejection"]; present && !rejectionEvidence(evidence) {
+		return false
+	}
+	for _, field := range []string{"stage", "code", "rule", "message"} {
+		if _, ok := diagnostic[field].(string); !ok {
+			return false
+		}
+	}
+	if diagnostic["code"] != diagnostic["rule"] {
+		return false
+	}
+	for _, field := range []string{"span", "source"} {
+		pair, ok := diagnostic[field].([]any)
+		if !ok || len(pair) != 2 {
+			return false
+		}
+		for _, number := range pair {
+			if caseInteger(number, field) != nil || number.(float64) < 0 || number.(float64) > 9007199254740991 {
+				return false
+			}
+		}
+		if pair[0].(float64) > pair[1].(float64) {
+			return false
+		}
+	}
+	return true
+}
+
+func rejectionEvidence(value any) bool {
+	evidence, ok := value.(map[string]any)
+	if !ok || len(evidence) != 5 {
+		return false
+	}
+	for _, key := range []string{"token", "line", "column"} {
+		n, ok := evidence[key].(float64)
+		if !ok || caseInteger(n, key) != nil || n < 0 || key != "token" && n < 1 {
+			return false
+		}
+	}
+	source, ok := evidence["source"].([]any)
+	if !ok || len(source) != 2 {
+		return false
+	}
+	for _, n := range source {
+		value, ok := n.(float64)
+		if !ok || caseInteger(n, "source") != nil || value < 0 {
+			return false
+		}
+	}
+	if source[0].(float64) > source[1].(float64) {
+		return false
+	}
+	expected, ok := evidence["expected"].([]any)
+	if !ok {
+		return false
+	}
+	for _, value := range expected {
+		item, ok := value.(map[string]any)
+		if !ok || len(item) != 2 {
+			return false
+		}
+		if _, ok := item["terminal"].(string); !ok {
+			return false
+		}
+		rules, ok := item["rules"].([]any)
+		if !ok {
+			return false
+		}
+		for _, rule := range rules {
+			if _, ok := rule.(string); !ok {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 func resultProblems(got any) []string {
 	var problems []string
 	result, _ := got.(map[string]any)
 	stages, _ := result["stages"].([]any)
+	if result["format"] != float64(resultFormat) {
+		problems = append(problems, "the result has the wrong format")
+	}
+	names := map[any]bool{}
+	for _, entry := range stages {
+		stage, _ := entry.(map[string]any)
+		names[stage["name"]] = true
+	}
+	pending := []any{result}
+	for len(pending) > 0 {
+		entry := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		switch item := entry.(type) {
+		case []any:
+			pending = append(pending, item...)
+		case map[string]any:
+			for key, value := range item {
+				if key != "errors" && key != "warnings" {
+					pending = append(pending, value)
+					continue
+				}
+				list, ok := value.([]any)
+				if !ok || len(list) == 0 {
+					problems = append(problems, key+" is not a nonempty list of named diagnostics")
+					continue
+				}
+				for _, diagnostic := range list {
+					if !namedDiagnostic(diagnostic, key == "errors") {
+						problems = append(problems, key+" contains an invalid diagnostic")
+					} else if !names[diagnostic.(map[string]any)["stage"]] {
+						problems = append(problems, "a diagnostic names an unknown raising stage")
+					}
+				}
+			}
+		}
+	}
+	for _, entry := range stages {
+		stage, _ := entry.(map[string]any)
+		if stage["errors"] != nil || stage["warnings"] != nil {
+			output, ok := stage["output"].([]any)
+			if !ok || len(output) != 0 {
+				problems = append(problems, "stage diagnostics require an empty emission")
+			}
+		}
+	}
 	if e, _ := result["error"].(map[string]any); e != nil && e["code"] != nil {
 		problems = append(problems, witnessLostProblems(e, stages)...)
 		problems = append(problems, "the result is the error elision-witness-lost, which no grammar gives")
+	}
+	error, _ := result["error"].(map[string]any)
+	if error != nil && (error["kind"] == ErrorRejected || error["kind"] == ErrorGrammar || error["kind"] == ErrorFeatureConflict) {
+		warnings, _ := error["warnings"].([]any)
+		outer, _ := result["warnings"].([]any)
+		if !reflect.DeepEqual(warnings, outer) {
+			problems = append(problems, "failure warnings differ from result warnings")
+		}
+	}
+	if error != nil && error["kind"] != ErrorReported && result["tree"] != nil {
+		problems = append(problems, "an error result other than reported has a tree")
+	}
+	if warnings, ok := result["warnings"].([]any); ok {
+		for _, warning := range warnings {
+			if !namedDiagnostic(warning) {
+				problems = append(problems, "a warning lacks its diagnostic fields")
+			}
+		}
+	}
+	if error != nil && error["kind"] == ErrorReported {
+		var last map[string]any
+		if len(stages) > 0 {
+			last, _ = stages[len(stages)-1].(map[string]any)
+		}
+		_, output := last["output"]
+		if result["ok"] != false || result["tree"] == nil || last["name"] != error["stage"] || last["verdict"] != VerdictUnique && last["verdict"] != VerdictResolved || !output {
+			problems = append(problems, "a reported result lacks its retained tree, verdict or output")
+		}
+		errors, ok := error["errors"].([]any)
+		valid := ok && len(errors) > 0
+		for _, diagnostic := range errors {
+			if !namedDiagnostic(diagnostic, true) {
+				valid = false
+			}
+		}
+		if !valid {
+			problems = append(problems, "a reported result lacks its ordered named errors")
+		}
+		for _, field := range []string{"token", "source", "line", "column", "expected", "readings"} {
+			if _, present := error[field]; present {
+				problems = append(problems, "a reported error has the member "+field)
+			}
+		}
 	}
 	// An ambiguous error has no position (docs/output.md).
 	if e, _ := result["error"].(map[string]any); e != nil && e["kind"] == ErrorAmbiguous {
@@ -569,6 +752,9 @@ func resultProblems(got any) []string {
 		e, _ := result["error"].(map[string]any)
 		readings, _ := e["readings"].([]any)
 		tree, hasTree := result["tree"]
+		if e != nil && e["kind"] == ErrorGrammar && e["stage"] == name && e["reason"] == nil && e["readings"] == nil && result["ok"] == false && hasTree && tree == nil {
+			continue
+		}
 		if result["ok"] != false || !hasTree || tree != nil || e == nil || e["kind"] != ErrorAmbiguous || e["reason"] != ReasonTie || e["stage"] != name || len(readings) != 2 {
 			problems = append(problems, "the tied stage "+name+" lacks its error of kind ambiguous, reason tie and two readings")
 		}
@@ -938,7 +1124,7 @@ func inputTokensOf(tokens []Token) []InputToken {
 	out := make([]InputToken, len(tokens))
 	for i, t := range tokens {
 		value, image := t.Value, t.Image
-		out[i] = InputToken{Text: t.Text, Value: &value, Image: &image, Tags: t.Tags, Span: t.Span, Source: t.Source}
+		out[i] = InputToken{Text: t.Text, Value: &value, Image: &image, Tags: t.Tags, Span: t.Span, Source: t.Source, Errors: t.Errors, Warnings: t.Warnings}
 		if t.Before != nil {
 			out[i].Before = inputTokensOf(t.Before)
 		}
@@ -959,7 +1145,7 @@ func unrepresentableTokenField(raw any) string {
 				return "Go InputToken cannot express an absent " + field + " member"
 			}
 		}
-		for _, field := range []string{"text", "value", "image", "tags", "span", "source", "before", "after"} {
+		for _, field := range []string{"text", "value", "image", "tags", "span", "source", "before", "after", "errors", "warnings"} {
 			if value, exists := token[field]; exists && value == nil {
 				return "Go InputToken cannot distinguish explicit null " + field + " from its default"
 			}
@@ -1217,7 +1403,15 @@ func TestRuntimeReasonRemovesOnlyItsLocation(t *testing.T) {
 		t.Fatalf("message comparison changed the public result: %s, %v", after, err)
 	}
 	bare := &ParseResult{Error: &ParseError{Kind: ErrorGrammar, Message: reason}}
-	if err := checkResult(bare, nil, nil, &caseExpect{Error: ErrorGrammar, Message: &reason}, nil); err != nil {
+	bareData, err := MarshalResult(bare)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bareGot, err := decodeJSON(bareData)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := checkResult(bare, bareGot, bareData, &caseExpect{Error: ErrorGrammar, Message: &reason}, nil); err != nil {
 		t.Fatalf("changed a reason without location metadata: %v", err)
 	}
 }

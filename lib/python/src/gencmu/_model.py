@@ -39,6 +39,8 @@ class Token:
     image: str
     before: list[Token] = field(default_factory=list)
     after: list[Token] = field(default_factory=list)
+    errors: list[ParseWarning] = field(default_factory=list)
+    warnings: list[ParseWarning] = field(default_factory=list)
 
     def __init__(
         self,
@@ -51,6 +53,8 @@ class Token:
         image: str | None = None,
         before: list[Token] | None = None,
         after: list[Token] | None = None,
+        errors: list[ParseWarning] | None = None,
+        warnings: list[ParseWarning] | None = None,
     ) -> None:
         self.text = text
         self.tags = tags
@@ -61,6 +65,8 @@ class Token:
         self.image = text if image is None else image
         self.before = [] if before is None else before
         self.after = [] if after is None else after
+        self.errors = [] if errors is None else errors
+        self.warnings = [] if warnings is None else warnings
 
     # Attachments nest as deep as a text is long, so equality and the
     # representation walk them with a list for a stack. They give what the
@@ -196,7 +202,8 @@ class Expected:
 @dataclass
 class ParseError:
     """Why a parse failed: ``kind`` is ``"rejected"``, ``"ambiguous"``,
-    ``"feature-conflict"``, or ``"grammar"`` (docs/output.md, "Error").
+    ``"feature-conflict"``, ``"reported"``, or ``"grammar"`` (docs/output.md, "Error").
+    A reported error retains its tree and ordered named ``errors``.
 
     An ambiguous error has a ``reason``: ``"tie"`` where a stage has two or
     more best readings (engine §6), or ``"elision-only"`` where the check of
@@ -226,6 +233,8 @@ class ParseError:
     completion: list[Restoration] | None = None
     witness: tuple[Action, Action] | None = None
     feature: str | None = None
+    errors: list[ParseWarning] | None = None
+    warnings: list[ParseWarning] | None = None
     # The definition's location is separate from the stage-input position.
     _grammar_location: str | None = field(default=None, repr=False, compare=False)
 
@@ -259,21 +268,25 @@ class Stage:
     output: list[Token] | None = None
     witness: tuple[Action, Action] | None = None
     tree: Node | None = None
+    errors: list[ParseWarning] = field(default_factory=list)
+    warnings: list[ParseWarning] = field(default_factory=list)
 
 
 @dataclass
 class ParseWarning:
-    """A warning (engine §12): a rule node of a stage's chosen tree whose
-    alternative has a warning ``feature!``, while the feature is on.
+    """An enabled, unsuppressed warning from a chosen occurrence (engine §12).
+    Its code names its definition, and its message is an evaluated recipe.
     ``span`` is the node's range of the stage's input tokens, and ``source``
     its range of the original text. Not called ``Warning``, which is a
     built-in exception."""
 
     stage: str
-    feature: str
+    code: str
     rule: str
     span: Range
     source: Range
+    message: str = ""
+    rejection: dict[str, Any] | None = None
 
 
 @dataclass

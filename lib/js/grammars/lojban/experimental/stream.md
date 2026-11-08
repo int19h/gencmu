@@ -13,18 +13,24 @@ An opaque foreign body contains no such word reads. Thus ZOI bodies, including `
 ```jbogenbau
 %features experimental-cgv
 
-%redefine-rule brivla-token :: $b.tags ∖ Cgv-Warning
-  | $b:BRIVLA<¬Cgv-Warning>
-  | experimental-cgv! $b:BRIVLA<Cgv-Warning>
+%redefine-rule brivla-token
+  | $b:BRIVLA<¬Cgv-Warning> :: $b.tags ∖ Cgv-Warning
+  | *experimental-cgv<BRIVLA>
 
-%redefine-rule cmevla-token :: $n.tags ∖ Cgv-Warning
-  | $n:CMEVLA<¬Cgv-Warning>
-  | experimental-cgv! $n:CMEVLA<Cgv-Warning>
+%redefine-rule cmevla-token
+  | $n:CMEVLA<¬Cgv-Warning> :: $n.tags ∖ Cgv-Warning
+  | *experimental-cgv<CMEVLA>
+
+%rule experimental-cgv
+  | $b:BRIVLA<Cgv-Warning> :: $b.tags ∖ Cgv-Warning
+  | $n:CMEVLA<Cgv-Warning> :: $n.tags ∖ Cgv-Warning
+%warning "this word uses an experimental CgV form"
 ```
 
-<details><summary>Railroad diagrams of <code>brivla-token</code> and <code>cmevla-token</code></summary>
+<details><summary>Railroad diagrams of <code>brivla-token</code>, <code>cmevla-token</code> and <code>experimental-cgv</code></summary>
 <p><img src="../../../docs/diagrams/lojban/experimental/stream/brivla-token.svg" alt="Railroad diagram of the rule brivla-token"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/stream/cmevla-token.svg" alt="Railroad diagram of the rule cmevla-token"></p>
+<p><img src="../../../docs/diagrams/lojban/experimental/stream/experimental-cgv.svg" alt="Railroad diagram of the rule experimental-cgv"></p>
 </details>
 
 ## Word quotations

@@ -41,21 +41,24 @@ def checks() -> Iterator[list[bool]]:
 
 
 def keeps(walk: Walk, ranking: Ranking | None) -> bool:
-    """The hook's two channels. The count channel: the check's own count, in
-    the same loop that counts, counted a derivation of W(D)'s marked edges
-    only. The selection channel: where the check reports two readings, the
-    first does not come after W(D) in the order T. Where the first is not
-    W(D), W(D) was a candidate for the second, so the second does not come
-    after W(D) in the canonical order T."""
-    if ranking is not None and ranking.raw_witness_counted is not None:
-        return ranking.raw_witness_counted
-    if ranking is None or not ranking.witness_counted:
+    """Read raw membership and compare the selected class representatives.
+
+    The check's own count supplies concrete raw membership (engine §7.10).
+    A kept interior can differ from the witness's concrete interior.
+    Selection compares its admitted class representative when one exists.
+    Otherwise it compares the concrete witness's action sequence.
+    """
+    if ranking is None:
+        return False
+    counted = ranking.raw_witness_counted if ranking.raw_witness_counted is not None else ranking.witness_counted
+    if not counted:
         return False
     if ranking.verdict != "tie":
         return True
-    w: Rope | None = None
-    for act in walk.sequence:
-        w = concat(w, leaf(act))
+    w = ranking.representative
+    if w is None:
+        for act in walk.sequence:
+            w = concat(w, leaf(act))
     first = compare(ranking.first, w, "none").order
     if first > 0:
         return False

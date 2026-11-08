@@ -25,22 +25,30 @@ type defaultUse struct {
 }
 
 type stageGrammar struct {
-	defaults          []defaultUse
-	treeComparisons   bool
-	treeExpressions   bool
-	arguments         map[argumentSite][]constArgument
-	features          []stageFeature
-	families          map[string]map[string]bool
-	ranked            *rankedGroups
-	deferredEmissions []*Error
-	templateDeferred  []*Error
-	name              string
-	uni               *unicodeTable // the loader's table, for the tags of a range in a constant's value
-	constants         map[string]*stageConst
-	constVersions     []*constVersion
-	constLatest       map[string]int
-	rules             []*sRule
-	byName            map[string]*sRule
+	erasureChecks       []erasurePatternCheck
+	erasurePatterns     []erasurePatternUse
+	erasurePatternsDone bool
+	queryTargets        map[*domExpr]string
+	queryIdentities     map[*domExpr]string
+	queryNames          map[string]string
+	queryRules          []*sRule
+	allRuleList         []*sRule
+	defaults            []defaultUse
+	treeComparisons     bool
+	treeExpressions     bool
+	arguments           map[argumentSite][]constArgument
+	features            []stageFeature
+	families            map[string]map[string]bool
+	ranked              *rankedGroups
+	deferredEmissions   []*Error
+	templateDeferred    []*Error
+	name                string
+	uni                 *unicodeTable // the loader's table, for the tags of a range in a constant's value
+	constants           map[string]*stageConst
+	constVersions       []*constVersion
+	constLatest         map[string]int
+	rules               []*sRule
+	byName              map[string]*sRule
 	// steps are the key steps of the stage's %ambiguity-resolution, in
 	// order, and lean its last step if that is greedy or lazy, or "" for no
 	// lean (engine §6). elisionOnly says whether the stage declares
@@ -69,15 +77,19 @@ type stitchChange struct {
 }
 
 type sRule struct {
-	name string
-	alts []*sAlt
-	doc  string
-	at   [2]int
+	query bool
+	name  string
+	alts  []*sAlt
+	doc   string
+	at    [2]int
 }
 
 // sAlt is an alternative with the clauses of the rule statement that wrote
 // it: an extension's alternatives keep the extension's own clauses.
 type sAlt struct {
+	definition           *domRule
+	error, warning       *domTerm
+	suppressWarnings     []string
 	boundaryOwner        *sAlt
 	boundarySites        map[*domCond]*boundarySite
 	written              jobj
@@ -134,6 +146,7 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 	}
 	docs = expanded.docs
 	g := &stageGrammar{name: stageName, uni: uni, constants: map[string]*stageConst{}, byName: map[string]*sRule{}}
+	g.erasureChecks = expanded.erasureChecks
 	g.arguments = map[argumentSite][]constArgument{}
 	for _, argument := range expanded.arguments {
 		key := argumentSite{argument.inspectionRun, argument.doc, argument.at}
@@ -218,7 +231,7 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 				}
 				alts := make([]*sAlt, len(r.Alternatives))
 				for i, a := range r.Alternatives {
-					alts[i] = &sAlt{written: written, writtenAlternative: i, textOrder: textOrder, alt: a, ruleTags: r.Tags, emit: r.Emit, conds: r.Conditions, erased: r.Erased, ruleValue: r.Value, ruleImage: r.Image, doc: d.path, at: r.At}
+					alts[i] = &sAlt{definition: r, error: r.Error, warning: r.Warning, suppressWarnings: r.SuppressWarnings, written: written, writtenAlternative: i, textOrder: textOrder, alt: a, ruleTags: r.Tags, emit: r.Emit, conds: r.Conditions, erased: r.Erased, ruleValue: r.Value, ruleImage: r.Image, doc: d.path, at: r.At}
 					textOrder++
 				}
 				for _, a := range alts {
@@ -381,6 +394,9 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 		g.rules = ordered
 	}
 
+	if err := g.checkDiagnosticsAndSplices(); err != nil {
+		return nil, err
+	}
 	if err := g.validateBoundaryTargets(); err != nil {
 		return nil, err
 	}
@@ -392,6 +408,9 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 				return nil, err
 			}
 		}
+	}
+	if err := g.prepareBodyQueries(); err != nil {
+		return nil, err
 	}
 	g.resolveFamilies()
 	if err := g.makeTests(); err != nil {
@@ -430,6 +449,9 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 	if err := g.validateEmissionOverlap(); err != nil {
 		return nil, err
 	}
+	if err := g.nullableError(); err != nil {
+		return nil, err
+	}
 	g.treeExpressions = checked.treeComparisons
 	if checked.treeComparisons {
 		for _, rule := range g.rules {
@@ -450,7 +472,7 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 // makeTests gives each test of the stitched stage's bodies its value, made
 // once for every lowering.
 func (g *stageGrammar) makeTests() *Error {
-	for _, r := range g.rules {
+	for _, r := range g.allRules() {
 		for _, a := range r.alts {
 			for _, t := range testsIn(a.alt.Expr) {
 				st := &symTest{op: t.Op}
@@ -596,6 +618,8 @@ func (g *stageGrammar) checkAlt(a *sAlt, checked *checkedClauses) *Error {
 			w.clauseSteps.add("clause steps")
 		}
 		switch c.Kind {
+		case cdForest:
+			return checkTerm(c.Left)
 		case cdCompare:
 			if (c.Op == "≅" || c.Op == "≇") && c.Right.Kind == tmCapture {
 				checked.treeComparisons = true

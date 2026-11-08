@@ -1,0 +1,43 @@
+{
+  "description": "Engine §4.1 and §6: a sibling gap consumes an empty erased root before the final C token.",
+  "grammar": "%ambiguity-resolution fewest #·zz\n%rule text $t:body\n%conditions $t ≅ #·body« ⋯ ·C »\n%rule body r2 C\n%rule r2 (r4 ≻ B) :: ∅ | [r4]\n%erased\n%rule r4 B | ε\n%rule zz B B B",
+  "tokens": [
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "body",
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "r2",
+                "children": []
+              },
+              {
+                "kind": "token",
+                "terminal": "C"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

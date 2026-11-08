@@ -1,0 +1,29 @@
+{
+  "description": "A spliced call in a symbol argument receives ordinary constant inspection.",
+  "grammar": "%const $K \"a\"\n%rule piece(@X) @X\n%rule wrap(@X) @X\n%rule text wrap(*piece($K))",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": [
+          {
+            "rule": "wrap(*piece($K))",
+            "children": [
+              {
+                "kind": "token"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

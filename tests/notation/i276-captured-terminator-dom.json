@@ -1,0 +1,28 @@
+{
+  "description": "A captured terminator uses the optional and capture DOM constructors.",
+  "document": "```jbogenbau\n%rule a [$j:+T=\"t\"]\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "alternatives": [
+            {
+              "expr": {
+                "optional": {
+                  "capture": "j",
+                  "expr": {
+                    "test": "=",
+                    "expr": {
+                      "ref": "T"
+                    }
+                  }
+                },
+                "elidable": true
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

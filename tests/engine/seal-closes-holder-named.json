@@ -1,0 +1,64 @@
+{
+  "description": "Engine §6 and §7.10: demanded restoration records merge named-only erased interiors and keep the canonical a tree.",
+  "grammar": "%ambiguity-resolution fewest #·zz\n%elision-only\n%rule text $r:p C\n%conditions $r.without-elision.matches(holder)\n%rule holder p\n%rule p e [+T]\n%rule e a | b\n%erased\n%rule a A\n%rule b A\n%rule zz B B B\n",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "p",
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "e",
+                "children": [
+                  {
+                    "kind": "rule",
+                    "rule": "a",
+                    "children": [
+                      {
+                        "kind": "token",
+                        "terminal": "A"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "elided",
+                "terminal": "T"
+              }
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "C"
+          }
+        ]
+      }
+    }
+  }
+}

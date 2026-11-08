@@ -1,5 +1,5 @@
 {
-  "description": "In the eberban/refgram pipeline, a quote closes at its first ]bjapta, so y stands outside it and carries non-eberban-letter.",
+  "description": "Word forms, Delimiters: the first ]bjapta closes the quote. The y stands outside it and warns. Word stream: the gap keeps that warning.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../grammars/eberban/refgram/pipeline.md\"\n```\n"
   },
@@ -12,8 +12,8 @@
     "warnings": [
       {
         "stage": "forms",
-        "feature": "non-eberban-letter",
-        "rule": "space-unit",
+        "code": "non-eberban-letter",
+        "rule": "non-eberban-letter",
         "span": [
           21,
           22
@@ -21,7 +21,8 @@
         "source": [
           21,
           22
-        ]
+        ],
+        "message": "this letter is outside the Eberban alphabet"
       }
     ]
   }

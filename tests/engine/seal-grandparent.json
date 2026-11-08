@@ -1,0 +1,22 @@
+{
+  "description": "Engine §4.1 and §6: a sole-child walk through two wrappers reaches the erased root and merges its interiors.",
+  "grammar": "%ambiguity-resolution fewest #·zz\n%rule text $g:gap C\n%conditions $g ≅ #wrap\n%rule gap wrap\n%rule wrap r2\n%rule r2 (r4 ≻ B) :: ∅ | [r4]\n%erased\n%rule r4 B | ε\n%rule zz B B B",
+  "tokens": [
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

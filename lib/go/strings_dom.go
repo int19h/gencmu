@@ -153,6 +153,10 @@ func stringTermShape(t *domTerm) bool {
 }
 
 func hasRecipes(r *domRule) bool {
+	return r.Error != nil || r.Warning != nil || hasStringRecipes(r)
+}
+
+func hasStringRecipes(r *domRule) bool {
 	if r.Value != nil || r.Image != nil {
 		return true
 	}
@@ -172,7 +176,7 @@ func effectiveRecipes(r *domRule, a *domAlt) []*domTerm {
 	if i == nil {
 		i = r.Image
 	}
-	return []*domTerm{v, i}
+	return []*domTerm{v, i, r.Error, r.Warning}
 }
 
 func recipeCapturesProblem(recipe *domTerm, has func(string) bool) string {
@@ -280,4 +284,20 @@ func stringTerminal(s string, uni *unicodeTable) string {
 	}
 	out.WriteByte('"')
 	return out.String()
+}
+
+func messageReadsEmitted(recipe *domTerm) bool {
+	pending := []*domTerm{recipe}
+	for len(pending) > 0 {
+		term := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		if term == nil {
+			continue
+		}
+		if term.Kind == tmCall && term.Str == "emitted" {
+			return true
+		}
+		pending = append(pending, term.Items...)
+	}
+	return false
 }

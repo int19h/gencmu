@@ -12,8 +12,8 @@
     "warnings": [
       {
         "stage": "syntax",
-        "feature": "multi-sentence-cai-elided",
-        "rule": "grammatical-quote",
+        "code": "multi-sentence-cai-elided",
+        "rule": "multi-sentence-cai-elided",
         "span": [
           3,
           8
@@ -21,7 +21,8 @@
         "source": [
           8,
           20
-        ]
+        ],
+        "message": "a quote of several sentences omits cai before more text"
       }
     ]
   }

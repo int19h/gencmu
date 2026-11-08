@@ -1,0 +1,15 @@
+{
+  "description": "Engine §9.3: an unused list parameter remains an element beside the gap.",
+  "grammar": "%rule probe(@P) $e:e\n%conditions $e ≅ #·e« ⋯ @P »\n%rule text A\n%rule e A\n%erased",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

@@ -1,15 +1,19 @@
 package gencmu
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 )
 
 // resultFormat is the version of docs/output.md.
-const resultFormat = 15
+const resultFormat = 17
 
 // MarshalResult writes the canonical JSON of a result (docs/output.md).
 func MarshalResult(result *ParseResult) ([]byte, error) {
+	if result.Error != nil && result.Error.Kind == ErrorReported && len(result.Error.Errors) == 0 {
+		return nil, fmt.Errorf("a reported result requires nonempty errors")
+	}
 	var w jsonWriter
 	w.raw(`{"format":`)
 	w.int(resultFormat)
@@ -42,17 +46,79 @@ func MarshalResult(result *ParseResult) ([]byte, error) {
 }
 
 func writeWarning(w *jsonWriter, x *Warning) {
+	writeDiagnostic(w, x, false)
+}
+
+func writeDiagnostic(w *jsonWriter, x *Warning, isError bool) {
 	w.raw(`{"stage":`)
 	w.str(x.Stage)
-	w.raw(`,"feature":`)
-	w.str(x.Feature)
+	w.raw(`,"code":`)
+	w.str(x.Code)
 	w.raw(`,"rule":`)
 	w.str(x.Rule)
 	w.raw(`,"span":`)
 	w.pair(x.Span)
 	w.raw(`,"source":`)
 	w.pair(x.Source)
+	w.raw(`,"message":`)
+	w.str(x.Message)
+	if isError && x.Rejection != nil {
+		e := x.Rejection
+		w.raw(`,"rejection":{"token":`)
+		w.int(e.Token)
+		w.raw(`,"source":`)
+		w.pair(e.Source)
+		w.raw(`,"line":`)
+		w.int(e.Line)
+		w.raw(`,"column":`)
+		w.int(e.Column)
+		w.raw(`,"expected":`)
+		writeExpected(w, e.Expected)
+		w.raw("}")
+	}
 	w.raw("}")
+}
+
+func writeDiagnostics(w *jsonWriter, errors, warnings []Warning) {
+	for _, group := range []struct {
+		name    string
+		list    []Warning
+		isError bool
+	}{
+		{"errors", errors, true}, {"warnings", warnings, false},
+	} {
+		if len(group.list) == 0 {
+			continue
+		}
+		w.raw(`,"` + group.name + `":[`)
+		for i := range group.list {
+			if i > 0 {
+				w.raw(",")
+			}
+			writeDiagnostic(w, &group.list[i], group.isError)
+		}
+		w.raw("]")
+	}
+}
+
+func writeExpected(w *jsonWriter, expected []Expected) {
+	w.raw("[")
+	for i, entry := range expected {
+		if i > 0 {
+			w.raw(",")
+		}
+		w.raw(`{"terminal":`)
+		w.str(entry.Terminal)
+		w.raw(`,"rules":[`)
+		for j, rule := range entry.Rules {
+			if j > 0 {
+				w.raw(",")
+			}
+			w.str(rule)
+		}
+		w.raw("]}")
+	}
+	w.raw("]")
 }
 
 func writeStage(w *jsonWriter, s *Stage) {
@@ -84,6 +150,7 @@ func writeStage(w *jsonWriter, s *Stage) {
 		}
 		w.raw("]")
 	}
+	writeDiagnostics(w, s.Errors, s.Warnings)
 	w.raw("}")
 }
 
@@ -146,6 +213,7 @@ func writeTokenAs(w *jsonWriter, t *Token, isAttached bool) {
 	for len(stack) > 0 {
 		f := stack[len(stack)-1]
 		if f.side == 2 {
+			writeDiagnostics(w, f.t.Errors, f.t.Warnings)
 			w.raw("}")
 			stack = stack[:len(stack)-1]
 			continue
@@ -298,10 +366,6 @@ func writeError(w *jsonWriter, e *ParseError) {
 		w.raw(`,"source":`)
 		w.pair(*e.Source)
 	}
-	if e.Document != "" {
-		w.raw(`,"document":`)
-		w.str(e.Document)
-	}
 	if e.Line > 0 {
 		w.raw(`,"line":`)
 		w.int(e.Line)
@@ -310,23 +374,8 @@ func writeError(w *jsonWriter, e *ParseError) {
 	}
 	switch e.Kind {
 	case ErrorRejected:
-		w.raw(`,"expected":[`)
-		for i, x := range e.Expected {
-			if i > 0 {
-				w.raw(",")
-			}
-			w.raw(`{"terminal":`)
-			w.str(x.Terminal)
-			w.raw(`,"rules":[`)
-			for j, r := range x.Rules {
-				if j > 0 {
-					w.raw(",")
-				}
-				w.str(r)
-			}
-			w.raw("]}")
-		}
-		w.raw("]")
+		w.raw(`,"expected":`)
+		writeExpected(w, e.Expected)
 		if b := e.Boundary; b != nil {
 			w.raw(`,"boundary":{"rule":`)
 			w.str(b.Rule)
@@ -356,6 +405,14 @@ func writeError(w *jsonWriter, e *ParseError) {
 			w.raw("]")
 		}
 	}
+	errors, warnings := e.Errors, e.Warnings
+	if e.Kind == ErrorAmbiguous && e.Reason != ReasonTie {
+		errors = nil
+	}
+	if e.Kind != ErrorRejected && e.Kind != ErrorGrammar && e.Kind != ErrorFeatureConflict {
+		warnings = nil
+	}
+	writeDiagnostics(w, errors, warnings)
 	w.raw(`,"message":`)
 	w.str(e.Message)
 	// The members of elision-witness-lost follow its message

@@ -1,0 +1,32 @@
+{
+  "description": "Grammar preferences resolve several derivations with the same least error count.",
+  "grammar": "%ambiguity-resolution fewest #·two, greedy\n%rule text one | two\n%rule one *bad\n%rule two *bad ε\n%rule bad A %error \"bad\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ],
+      "error": {
+        "kind": "reported",
+        "errors": [
+          {
+            "code": "bad"
+          }
+        ]
+      }
+    },
+    "error": "reported"
+  }
+}

@@ -48,6 +48,7 @@ _NAMES = {
     "restored": "a restored span",
     "emitted": "an emitted pair",
     "predicate": "a predicate",
+    "forest": "a witness forest",
     "set": "a set",
     "any": "a value",
 }
@@ -65,7 +66,7 @@ def _unknown_constants(name: str) -> TermType:
 
 _SPAN_METHODS = {"first-token", "tokens-after-first", "last-token", "onward", "following-tokens", "preceding-tokens"}
 _STRING_METHODS = {"value", "image", "source-text", "decomposed-source-text", "verbatim-text"}
-_PREDICATES = {"matches", "begins", "ends", "starts-input", "ends-input", "followed-by", "preceded-by"}
+_PREDICATES = {"matches", "begins", "ends", "starts-input", "ends-input", "parse", "error-free", "followed-by", "preceded-by"}
 _SPAN_SHAPES = _SPAN_METHODS | {"without-elision", "without-elision-except"}
 _METHODS = _SPAN_SHAPES | _STRING_METHODS | _PREDICATES | {"tags", "classes", "split", "ngrams", "classify", "emitted"}
 
@@ -92,7 +93,16 @@ def method_shape_problem(name: Any, receiver: Any, args: Any, recipe: bool = Fal
     def term(arg):
         return isinstance(arg, dict) and not ({"rule", "classifier", "terminal", "integer"} & arg.keys())
 
-    if name == "ngrams":
+    if name == "parse":
+        if len(args) != 1 or not isinstance(args[0], dict) or set(args[0]) != {"body"} or not isinstance(args[0]["body"], dict):
+            return "a method has the wrong receiver or arguments"
+        from ._query_forms import query_body
+        if _restored_shape(receiver) and query_body(args[0]["body"])[1] == "ends":
+            return "suffix parse requires an ordinary span, not a restored span"
+        valid = span
+    elif name == "error-free":
+        valid = receiver_method in ("parse", "error-free") and not args
+    elif name == "ngrams":
         valid = len(args) == 1 and named(args[0], "integer") and re.fullmatch(r"[1-9][0-9]*", args[0]["integer"]) is not None
     elif name == "split":
         valid = len(args) == 1 and term(args[0]) and not (has_unresolved([receiver, args]) and args[0].get("string") == "")
@@ -122,7 +132,15 @@ def method_type(name: str, receiver: TermType, args: list[Any], bare: bool = Fal
     if name == "ends" and receiver == "restored":
         return None, "ends requires an ordinary span, not a restored span"
     spans = {"capture", "span", "restored"}
-    if name in _STRING_METHODS:
+    if name == "parse":
+        valid = receiver in spans and len(args) == 1 and isinstance(args[0], dict) and "body" in args[0]
+        from ._query_forms import query_body
+        if valid and receiver == "restored" and query_body(args[0]["body"])[1] == "ends":
+            return None, "suffix parse requires an ordinary span, not a restored span"
+        result, arity = "forest", 1
+    elif name == "error-free":
+        valid, result, arity = receiver == "forest", "forest", 0
+    elif name in _STRING_METHODS:
         valid = receiver in spans or (receiver == "emitted" and name in ("value", "image"))
         if name == "verbatim-text":
             valid = recipe and bare
@@ -437,7 +455,7 @@ def _condition_typing_once(condition: Any, constants: ConstantTypes, memo: Memo)
         kind, fault = yield _term_typing(condition, constants, memo)
         if fault:
             return fault
-        if kind != "predicate":
+        if kind not in ("predicate", "forest"):
             return "a condition requires a predicate", condition
     return None
 
@@ -484,6 +502,7 @@ def rule_type_roots(rule: Any) -> list[Any]:
     for alternative in rule["alternatives"]:
         roots.extend(alternative.get(key) for key in ("expr", "tags", "value", "image"))
     roots.extend(rule["conditions"])
+    roots.extend((rule.get("error"), rule.get("warning")))
     for item in rule.get("emit", {}).get("items", []):
         roots.extend(item.get(key) for key in ("tags", "value", "image"))
     return roots

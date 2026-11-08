@@ -1,0 +1,22 @@
+{
+  "description": "Engine §4.1 and §6: an erased rule publishes an interior fact as a root tag that its parent reads.",
+  "grammar": "%rule text $h:hidden\n%conditions $h ≅ #·hidden<Has-A>\n%rule hidden :: ($ ≅ #« A » ⟹ Has-A)\n  | A | B\n%erased",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "description": "Conditions, diagnostics, suppression, and emission retain their clause order.",
+  "document": "```jbogenbau\n%rule a A %conditions $.value = \"a\" %error \"bad\" %suppress-warnings w %emits $\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "error": {
+            "concat": [
+              {
+                "string": "bad"
+              }
+            ]
+          },
+          "suppressWarnings": [
+            "w"
+          ],
+          "emit": {
+            "items": [
+              {
+                "capture": ""
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

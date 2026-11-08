@@ -1,0 +1,30 @@
+{
+  "description": "A spliced occurrence retains its emission clauses.",
+  "grammar": "%rule text *r\n%rule r A %emits $ :: Out := \"v\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "output": [
+            {
+              "value": "v",
+              "tags": [
+                "Out"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

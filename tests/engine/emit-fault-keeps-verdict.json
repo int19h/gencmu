@@ -1,6 +1,6 @@
 {
   "description": "A stage whose emission fails with an error of the grammar keeps its verdict and the warnings of its chosen tree, and has no output (engine §11, §12).",
-  "grammar": "%rule text w! a b %emits\n%rule a :- $.verbatim-text | A\n%rule b :- $.verbatim-text | B",
+  "grammar": "%rule text *w %emits\n%rule w a b %warning \"warning w\"\n%rule a :- $.verbatim-text | A\n%rule b :- $.verbatim-text | B",
   "tokens": [
     {
       "text": "a",
@@ -45,8 +45,8 @@
     "warnings": [
       {
         "stage": "main",
-        "feature": "w",
-        "rule": "text",
+        "code": "w",
+        "rule": "w",
         "span": [
           0,
           2
@@ -54,7 +54,8 @@
         "source": [
           0,
           3
-        ]
+        ],
+        "message": "warning w"
       }
     ],
     "error": "grammar"

@@ -6,9 +6,9 @@ The stage reads the words and spaces of the [forms stage](morphology.md). It kee
 
 ## The stream
 
-The stream is a sequence of units with gaps between them. A gap is one or more space tokens, and it emits nothing. Two units can also stand side by side, as `mi` and `bjan` do in `mibjan`. Each unit reads one token, so the text has one parse, and the `lazy` policy of the stage decides nothing.
+The stream is a sequence of units with gaps between them. A gap is one or more space tokens, and it emits nothing. It is not erased, because foreign-letter warnings must survive the loss of spacing. Two units can also stand side by side, as `mi` and `bjan` do in `mibjan`. Each unit reads one token, so the text has one parse, and the `lazy` policy of the stage decides nothing.
 
-A unit is a word or junk. Junk is a run that the forms stage read as no word, or a prefix of an unfinished compound. It passes through for the syntax stage, where only erased text admits it.
+A unit is a word, a stray prefix, or junk. Each retains its forms diagnostics. A stray prefix belongs to an unfinished compound. The closing `e` of an empty `er e` uses that class without another error. Junk is a run that no word reader accepts. Syntax erases junk or rejects it with its carried error.
 
 ```jbogenbau
 %ambiguity-resolution lazy
@@ -18,10 +18,9 @@ A unit is a word or junk. Junk is a run that the forms stage read as no word, or
 
 %rule gap
   {Space}
-%erased
 
 %rule unit
-  Word | Junk
+  Word | Stray-Prefix | Junk
 %emits
   $
 ```
@@ -31,3 +30,7 @@ A unit is a word or junk. Junk is a run that the forms stage read as no word, or
 <p><img src="../../../docs/diagrams/eberban/refgram/stream/gap.svg" alt="Railroad diagram of the rule gap"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/stream/unit.svg" alt="Railroad diagram of the rule unit"></p>
 </details>
+
+## Differences from the reference grammar and the PEG
+
+This stage preserves every diagnostic and adds none. The [word forms](morphology.md#diagnostic-codes-and-peg-sources) report local faults. The [syntax](syntax.md#diagnostic-codes-and-peg-sources) removes them only inside erased constituents.

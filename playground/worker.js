@@ -173,7 +173,7 @@
         ok: result.ok,
         text: result.text,
         features: result.features || [],
-        warnings: (result.warnings || []).map((warning) => ({ stage: warning.stage, feature: warning.feature, rule: warning.rule })),
+        warnings: (result.warnings || []).map((warning) => ({ stage: warning.stage, code: warning.code, rule: warning.rule, span:warning.span,source:warning.source,message:warning.message })),
         warningsText: gencmu.explainWarnings(result),
         stages: result.stages.map((stage) => ({
           name: stage.name,
@@ -185,6 +185,7 @@
         error: error ? {
           kind: error.kind, feature: error.feature || null, reason: error.reason || null, stage: error.stage || null, token: error.token === undefined ? null : error.token,
           line: error.line || null, column: error.column || null, message: error.message,
+          ...(error.errors ? {errors:error.errors.map(diagnostic=>({...diagnostic,span:[...diagnostic.span],source:[...diagnostic.source]}))} : {}),
         } : null,
         explanation: gencmu.explainError(result),
         ties: result.stages.filter((stage) => stage.verdict === "tie").map((stage) => tieView(result, stage)),

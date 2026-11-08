@@ -98,6 +98,7 @@ func TestDOMRules(t *testing.T) {
 		{"a guard has a feature and negated", rule(`"alternatives":[{"guards":[{"feature":"f"}],"expr":` + good + `}],"conditions":[]`)},
 		{"a guard has a kind", guarded(`{"feature":"f","negated":false}`)},
 		{"a guard is a gate or a warning", guarded(`{"feature":"f","kind":"hint","negated":false}`)},
+		{"a warning guard", guarded(`{"feature":"f","kind":"warning","negated":false}`)},
 		{"a warning is never negated", guarded(`{"feature":"f","kind":"warning","negated":true}`)},
 		// A guard has exactly its feature, its kind and whether it is
 		// negated, as an entry's guard has.
@@ -390,7 +391,7 @@ func TestDOMRules(t *testing.T) {
 			`{"if":{"union":[{"tag":"UI"},{"const":"K","at":[6,15]}]},"then":{"tag":"Indicator"},"at":[6,1]},{"if":{"union":[{"tag":"A"},{"tag":"C"}]},"then":{"union":[{"tag":"Early"},{"tag":"A"}]},"at":[7,1]}`),
 		tagged(`{"union":[{"tag":"T"},{"method":"classify","receiver":{"method":"value","receiver":{"capture":"x"},"args":[]},"args":[{"classifier":"lex"}]}]}`),
 		// A gate, negated or not, and a warning.
-		guarded(`{"feature":"f","kind":"gate","negated":true}`), guarded(`{"feature":"f","kind":"gate","negated":false},{"feature":"g","kind":"warning","negated":false}`),
+		guarded(`{"feature":"f","kind":"gate","negated":true}`),
 		alt(`{"seq":[{"capture":"a","expr":{"literal":{"string":"a"}}},{"capture":"b","expr":{"literal":{"string":"b"}}},{"capture":"c","expr":{"ref":"C"}},{"capture":"d","expr":{"ref":"D"}}]}`),
 		// Each at the bound: the deepest node below exactly 256 compound ones.
 		alt(`{"seq":[` + strings.Repeat(`{"seq":[{"literal":{"string":"a"}},`, 254) + `{"capture":"x","expr":{"literal":{"string":"b"}}}` + strings.Repeat(`]}`, 254) + `,{"literal":{"string":"b"}}]}`),
@@ -767,7 +768,6 @@ func TestGuardFeatureName(t *testing.T) {
 	for _, c := range []struct{ kind, where, problem string }{
 		{"gate", "classifier", "a gate's feature is a name"},
 		{"gate", "rule", "a guard's feature is a name"},
-		{"warning", "rule", "a guard's feature is a name"},
 	} {
 		guard := func(feature string) string {
 			return `{"feature":"` + feature + `","kind":"` + c.kind + `","negated":false}`

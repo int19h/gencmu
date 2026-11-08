@@ -10,7 +10,7 @@ use crate::result::{
 };
 
 /// The version of the shape of the result (docs/output.md).
-pub const RESULT_FORMAT: u32 = 15;
+pub const RESULT_FORMAT: u32 = 17;
 
 fn write_range(out: &mut String, range: &Range<usize>) {
     out.push('[');
@@ -44,6 +44,7 @@ fn write_token(out: &mut String, token: &Token) {
         token.inserted_by.as_deref(),
     );
     write_attachments(out, &token.before, &token.after);
+    write_diagnostics(out, &token.errors, &token.warnings);
     out.push('}');
 }
 
@@ -87,12 +88,14 @@ fn write_attachments(out: &mut String, before: &[Attachment], after: &[Attachmen
     enum Write<'a> {
         Lists(&'a [Attachment], &'a [Attachment]),
         Token(&'a Attachment),
+        Diagnostics(&'a Attachment),
         Text(&'static str),
     }
     let mut stack = vec![Write::Lists(before, after)];
     while let Some(work) = stack.pop() {
         match work {
             Write::Text(text) => out.push_str(text),
+            Write::Diagnostics(token) => write_diagnostics(out, &token.errors, &token.warnings),
             Write::Token(attachment) => {
                 write_token_fields(
                     out,
@@ -105,6 +108,7 @@ fn write_attachments(out: &mut String, before: &[Attachment], after: &[Attachmen
                     attachment.inserted_by.as_deref(),
                 );
                 stack.push(Write::Text("}"));
+                stack.push(Write::Diagnostics(attachment));
                 stack.push(Write::Lists(&attachment.before, &attachment.after));
             }
             Write::Lists(before, after) => {
@@ -140,6 +144,7 @@ pub(crate) fn write_attachment(out: &mut String, attachment: &Attachment) {
         attachment.inserted_by.as_deref(),
     );
     write_attachments(out, &attachment.before, &attachment.after);
+    write_diagnostics(out, &attachment.errors, &attachment.warnings);
     out.push('}');
 }
 
@@ -261,6 +266,7 @@ fn write_stage(out: &mut String, stage: &Stage) {
         }
         out.push(']');
     }
+    write_diagnostics(out, &stage.errors, &stage.warnings);
     out.push('}');
 }
 
@@ -270,6 +276,7 @@ fn write_error(out: &mut String, error: &ParseError) {
         ParseErrorKind::Rejected => "\"rejected\"",
         ParseErrorKind::Ambiguous => "\"ambiguous\"",
         ParseErrorKind::Grammar => "\"grammar\"",
+        ParseErrorKind::Reported => "\"reported\"",
         ParseErrorKind::FeatureConflict => "\"feature-conflict\"",
     });
     if let Some(stage) = &error.stage {
@@ -300,10 +307,6 @@ fn write_error(out: &mut String, error: &ParseError) {
     if let Some(source) = &error.source {
         out.push_str(",\"source\":");
         write_range(out, source);
-    }
-    if let Some(document) = &error.document {
-        out.push_str(",\"document\":");
-        write_str(out, document);
     }
     if let Some(line) = error.line {
         out.push_str(",\"line\":");
@@ -361,8 +364,21 @@ fn write_error(out: &mut String, error: &ParseError) {
                 out.push(']');
             }
         }
+        ParseErrorKind::Reported => {}
         ParseErrorKind::Grammar | ParseErrorKind::FeatureConflict => {}
     }
+    let errors = if error.kind == ParseErrorKind::Ambiguous && error.reason != Some(AmbiguityReason::Tie) {
+        &[][..]
+    } else {
+        &error.errors
+    };
+    let warnings =
+        if matches!(error.kind, ParseErrorKind::Rejected | ParseErrorKind::Grammar | ParseErrorKind::FeatureConflict) {
+            &error.warnings[..]
+        } else {
+            &[]
+        };
+    write_diagnostics(out, errors, warnings);
     out.push_str(",\"message\":");
     write_str(out, &error.message);
     // The members of elision-witness-lost follow its message
@@ -396,22 +412,77 @@ fn write_error(out: &mut String, error: &ParseError) {
 }
 
 fn write_warning(out: &mut String, warning: &Warning) {
+    write_diagnostic(out, warning, false);
+}
+
+fn write_diagnostics(out: &mut String, errors: &[Warning], warnings: &[Warning]) {
+    for (key, list, is_error) in [("errors", errors, true), ("warnings", warnings, false)] {
+        if list.is_empty() {
+            continue;
+        }
+        out.push_str(",\"");
+        out.push_str(key);
+        out.push_str("\":[");
+        for (index, diagnostic) in list.iter().enumerate() {
+            if index > 0 {
+                out.push(',');
+            }
+            write_diagnostic(out, diagnostic, is_error);
+        }
+        out.push(']');
+    }
+}
+
+fn write_diagnostic(out: &mut String, warning: &Warning, is_error: bool) {
     out.push_str("{\"stage\":");
     write_str(out, &warning.stage);
-    out.push_str(",\"feature\":");
-    write_str(out, &warning.feature);
+    out.push_str(",\"code\":");
+    write_str(out, &warning.code);
     out.push_str(",\"rule\":");
     write_str(out, &warning.rule);
     out.push_str(",\"span\":");
     write_range(out, &warning.span);
     out.push_str(",\"source\":");
     write_range(out, &warning.source);
+    out.push_str(",\"message\":");
+    write_str(out, &warning.message);
+    if let Some(evidence) = warning.rejection.as_ref().filter(|_| is_error) {
+        out.push_str(",\"rejection\":{\"token\":");
+        out.push_str(&evidence.token.to_string());
+        out.push_str(",\"source\":");
+        write_range(out, &evidence.source);
+        out.push_str(",\"line\":");
+        out.push_str(&evidence.line.to_string());
+        out.push_str(",\"column\":");
+        out.push_str(&evidence.column.to_string());
+        out.push_str(",\"expected\":[");
+        for (index, item) in evidence.expected.iter().enumerate() {
+            if index > 0 {
+                out.push(',');
+            }
+            out.push_str("{\"terminal\":");
+            write_str(out, &item.terminal);
+            out.push_str(",\"rules\":[");
+            for (index, rule) in item.rules.iter().enumerate() {
+                if index > 0 {
+                    out.push(',');
+                }
+                write_str(out, rule);
+            }
+            out.push_str("]}");
+        }
+        out.push_str("]}");
+    }
     out.push('}');
 }
 
 /// Writes a result as the canonical JSON of `docs/output.md`: keys in the
 /// documented order, no whitespace, non-ASCII characters as themselves.
 pub fn to_json(result: &ParseResult) -> String {
+    assert!(
+        result.error.as_ref().map_or(true, |error| error.kind != ParseErrorKind::Reported || !error.errors.is_empty()),
+        "a reported result requires nonempty errors"
+    );
     let mut out = String::new();
     out.push_str("{\"format\":");
     out.push_str(&RESULT_FORMAT.to_string());

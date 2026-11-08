@@ -1,0 +1,49 @@
+{
+  "description": "Engine §12.1: tested lookahead.",
+  "grammar": "%rule text :: ∅ | good ≻ bad\n%rule good A B=\"b\"\n%rule bad A C\n%error \"bad\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "reported",
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "reported",
+        "errors": [
+          {
+            "code": "bad",
+            "rejection": {
+              "token": 1,
+              "source": [
+                2,
+                3
+              ],
+              "line": 1,
+              "column": 3,
+              "expected": [
+                {
+                  "terminal": "B=\"b\"",
+                  "rules": [
+                    "good"
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

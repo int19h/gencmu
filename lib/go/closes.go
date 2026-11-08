@@ -144,7 +144,7 @@ func (m *closeArena) append(sequence int, event closeEvent) int {
 
 func (m *closeArena) semantic(state int) int {
 	if state == invalidCloses {
-		return 0
+		return -1
 	}
 	return m.links[m.states[state].sequence].semantic
 }
@@ -438,23 +438,8 @@ func demandedCloses(g *lowered) map[int32]bool {
 				return found
 			}
 			scan := func(n clausePart) bool {
-				var span *domTerm
-				var target string
-				if n.c != nil && (n.c.Kind == cdMatches || n.c.Kind == cdBegins || n.c.Kind == cdEnds) {
-					span = n.c.Span
-					for _, t := range n.c.queryTargets() {
-						if id, ok := g.byName[queryName(t)]; ok {
-							pending = append(pending, id)
-							if uses(span) {
-								wanted[id] = true
-							}
-						}
-					}
-				}
-				if n.t != nil && n.t.Kind == tmCall && n.t.Str == "tags" && len(n.t.Items) == 2 {
-					span, target = n.t.Items[0], n.t.Items[1].Str
-				}
-				if target != "" {
+				span, targets := queryParts(n, g)
+				for _, target := range targets {
 					if id, ok := g.byName[target]; ok {
 						pending = append(pending, id)
 						if uses(span) {
@@ -530,8 +515,8 @@ func (r *recognizer) localCloseDemand(p *production) closeDemand {
 	}
 	d := closeDemand{positions: map[int]bool{}, queries: map[int]map[int32]bool{}}
 	scan := func(n clausePart) bool {
-		if n.c != nil && (n.c.Kind == cdMatches || n.c.Kind == cdBegins || n.c.Kind == cdEnds) {
-			span := n.c.Span
+		span, targets := queryParts(n, r.g)
+		if span != nil {
 			if span != nil && span.Kind == tmCall && span.Str == "onward" {
 				span = span.Items[0]
 			}
@@ -542,8 +527,8 @@ func (r *recognizer) localCloseDemand(p *production) closeDemand {
 						d.queries[at] = map[int32]bool{}
 					}
 					if d.queries[at] != nil {
-						for _, t := range n.c.queryTargets() {
-							d.queries[at][r.g.byName[queryName(t)]] = true
+						for _, target := range targets {
+							d.queries[at][r.g.byName[target]] = true
 						}
 					}
 					return false
@@ -614,9 +599,9 @@ func (r *recognizer) closeProduction(p *production, requested observationKinds) 
 	if r.trees != nil {
 		q.treeRequested = requested&treeObservation != 0
 		d := r.g.localTreeDemand(p)
-		q.walksTrees = q.treeRequested || !p.helper && d.whole
+		q.walksTrees = q.treeRequested && !p.nothing || p.treeRoot && d.whole
 		q.treePrefixUntil = d.prefixUntil
-		q.observesTrees = q.walksTrees || q.treePrefixUntil > 0
+		q.observesTrees = q.treeRequested || q.walksTrees || q.treePrefixUntil > 0
 	}
 	r.closeVariants[key] = &q
 	if r.closes != nil {

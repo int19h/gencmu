@@ -1,0 +1,22 @@
+{
+  "description": "Engine §4.1 and §6: a parent child list retains the empty erased root before its token sibling.",
+  "grammar": "%rule text e C\n%conditions $ ≅ #·text« e C »\n%rule e ε\n%erased",
+  "tokens": [
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

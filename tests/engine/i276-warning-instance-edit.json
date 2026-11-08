@@ -1,0 +1,36 @@
+{
+  "description": "A call-head edit uses the final public name as its warning code.",
+  "grammar": "%rule w(@X) @X\n%rule warn = w(A)\n%redefine-rule w(A) A %warning \"instance warning\"\n%rule text *warn",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "warnings": [
+        {
+          "code": "warn",
+          "rule": "warn",
+          "message": "instance warning"
+        }
+      ]
+    },
+    "features": [
+      {
+        "name": "warn",
+        "kind": "warning",
+        "default": false
+      }
+    ]
+  },
+  "options": {
+    "features": [
+      "warn"
+    ]
+  }
+}

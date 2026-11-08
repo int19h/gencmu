@@ -1,0 +1,13 @@
+{
+  "description": "A capture of an empty splice is present.",
+  "grammar": "%rule text $x:*empty %conditions $x ∧ $x.value = \"\"\n%rule empty ε",
+  "input": "",
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": []
+      }
+    }
+  }
+}

@@ -23,9 +23,11 @@ const defaultMemoLimit = 1 << 13
 // writes it. That content names tags, so it holds no tag number of one
 // parse.
 type sharedKey struct {
-	begins  bool
-	rule    int32
-	content string
+	begins    bool
+	rule      int32
+	content   string
+	errorFree bool
+	errors    string
 }
 
 // sharedAnswer is whether a query holds, and for matches its tags by name.

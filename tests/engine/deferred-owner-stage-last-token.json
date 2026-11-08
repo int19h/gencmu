@@ -1,0 +1,87 @@
+{
+  "description": "Engine §11.5 and §12.1: diagnostic ownership (stage-last-token).",
+  "grammar": "%rule text word gap\n%rule gap A\n%warning \"gap\"\n%rule word B\n%emits $",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "note",
+      "text",
+      "gap",
+      "annotation"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "b",
+              "value": "b",
+              "image": "b",
+              "tags": [
+                "B"
+              ],
+              "span": [
+                0,
+                1
+              ],
+              "source": [
+                0,
+                1
+              ],
+              "warnings": [
+                {
+                  "stage": "main",
+                  "code": "gap",
+                  "rule": "gap",
+                  "span": [
+                    1,
+                    2
+                  ],
+                  "source": [
+                    2,
+                    3
+                  ],
+                  "message": "gap"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "gap",
+        "rule": "gap",
+        "span": [
+          1,
+          2
+        ],
+        "source": [
+          2,
+          3
+        ],
+        "message": "gap"
+      }
+    ]
+  }
+}

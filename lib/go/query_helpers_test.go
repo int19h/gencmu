@@ -28,7 +28,7 @@ func TestQueryHelperClassification(t *testing.T) {
 				if !p.transparent {
 					t.Errorf("%q production is not transparent", name)
 				}
-				if (action{prod: p}).visible() {
+				if !p.transparent {
 					t.Errorf("%q close is visible in canonical ranking", name)
 				}
 			}

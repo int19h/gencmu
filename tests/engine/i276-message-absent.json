@@ -1,0 +1,15 @@
+{
+  "description": "A message cannot read a capture that an applicable production lacks.",
+  "grammar": "%rule text [$x:A] %error $x.value",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

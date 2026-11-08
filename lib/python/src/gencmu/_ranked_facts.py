@@ -1,6 +1,7 @@
 """Ranked admission over finite, eligible proofs of raw packed edges."""
 from __future__ import annotations
-from ._rank import Summaries
+from ._rank import Summaries, INFINITE_MEASURE
+from ._measures import ZERO_MEASURE, sum_measure, compare_measure
 from ._earley import RESTORE
 from . import _testing
 
@@ -39,19 +40,41 @@ class RankedFacts(Summaries):
         right = self.memo[child] if child is not None else 1
         return min(left*right,2)
 
+    def cost(self, step):
+        _, kind, previous, child, token, _ = step
+        measure = self.measure_counts.get(previous, INFINITE_MEASURE) if previous is not None else ZERO_MEASURE
+        if kind in (1, RESTORE):
+            return sum_measure(measure, self.measures.carried[token])
+        if kind == 2:
+            production = self.productions[self.forest.prod[child[1]]]
+            measure = sum_measure(measure, ZERO_MEASURE if production.erased else self.measure_counts.get(child, INFINITE_MEASURE))
+        return measure
+
     def compute(self,key):
         if key[0]==0:
-            return self.memo[self.inner_key(key)]
+            inner = self.inner_key(key)
+            p = self.productions[self.forest.prod[key[1]]]
+            measure = self.measure_counts.get(inner, INFINITE_MEASURE)
+            if p.error is not None:
+                measure = sum_measure(measure, self.measures.own(self.forest.origin[key[1]], self.forest.end[key[1]]))
+            self.measure_counts[key] = measure
+            return self.memo[inner]
         mask = self.admit(key)
         all_ = 0
+        measure = INFINITE_MEASURE
         edges = len(self.forest.edges[key[1]])
         for step in self.all_steps(key):
             index,kind,_,_,child,_ = step
             if self.check and edges>1 and index==0 and _testing.fault('lost:context'):
                 continue
             ways = self.ways(step)
-            if mask is None or index in mask:
+            cost = self.cost(step)
+            order = compare_measure(cost, measure)
+            if ways and (mask is None or index in mask) and order <= 0:
+                if order < 0:
+                    measure, all_ = cost, 0
                 all_ = min(all_+ways,2)
+        self.measure_counts[key] = measure
         return all_
 
     def mask(self,key):

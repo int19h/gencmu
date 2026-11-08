@@ -571,7 +571,6 @@
     },
     "F15": {
       "elision-only-none.json": "result",
-      "reparse-competitor-effects.json": "result",
       "reparse-derivation-tags.json": "result",
       "reparse-empty-capture-provenance.json": "result",
       "reparse-equal-readings-witness.json": "result",

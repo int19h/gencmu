@@ -1,0 +1,26 @@
+{
+  "description": "Engine §12.1: plain error.",
+  "grammar": "%rule text :: ∅ | good | bad\n%rule good A B\n%rule bad A\n%error \"bad\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "reported",
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "reported",
+        "errors": [
+          {
+            "code": "bad"
+          }
+        ]
+      }
+    }
+  }
+}

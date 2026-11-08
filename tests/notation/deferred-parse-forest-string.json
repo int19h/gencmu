@@ -1,0 +1,11 @@
+{
+  "description": "Engine §4 and §9: body queries retain capture, receiver, and forest restrictions.",
+  "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n%conditions $.parse(A).value=\"x\"\n```\n",
+  "expect": {
+    "error": {
+      "line": 4,
+      "column": 13,
+      "message": "a method has the wrong receiver or arguments"
+    }
+  }
+}

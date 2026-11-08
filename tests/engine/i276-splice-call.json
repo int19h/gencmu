@@ -1,0 +1,24 @@
+{
+  "description": "A splice can call one template instance.",
+  "grammar": "%rule f(@X) @X\n%rule text *f(A)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": [
+          {
+            "terminal": "A"
+          }
+        ]
+      }
+    }
+  }
+}

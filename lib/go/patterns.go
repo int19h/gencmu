@@ -506,7 +506,7 @@ func (m *patternMachine) node(name string, children int, terminal, sound string,
 			bits.SetBit(bits, i, 1)
 		}
 	}
-	id := m.nodeState(bits, tags == nil && s.count == 0)
+	id := m.nodeState(bits, terminal == "" && s.count == 0)
 	m.transitions[key] = id
 	return id
 }
@@ -785,7 +785,7 @@ func (r *recognizer) preparePatterns() {
 	if m, ok := run.patternMachines[r.g]; ok {
 		r.machine = m
 	} else {
-		if len(r.g.rankedHelpers) > 0 || len(prepared.patternRoots) > 0 {
+		if len(prepared.patternRoots) > 0 {
 			r.machine = newPatternMachine(prepared.patternRoots)
 		}
 		if run.patternMachines == nil {
@@ -843,11 +843,14 @@ func (r *recognizer) omissionAllowed(p *production) bool {
 	sound := elidedValue(t)
 	return testHoldsOf(t, func(s string) bool { return s == sound }, r.run.ps.in.fromList([]string{p.elided}))
 }
-func (r *recognizer) derivationStructure(d *dn) int {
+func (r *recognizer) derivationStructure(d *dn, working bool) int {
 	if r.machine == nil {
 		return 0
 	}
 	if d.kind != dRead {
+		if working && d.prod.nothing {
+			return d.workingStructure
+		}
 		return d.structure
 	}
 	return r.terminalStructure(nil, -1, int(d.tok), d.term)

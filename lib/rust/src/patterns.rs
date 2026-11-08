@@ -368,6 +368,8 @@ pub(crate) struct Machine {
     states: Vec<State>,
     state_ids: FxMap<State, u32>,
     transitions: FxMap<String, u32>,
+    restoration_keys: FxMap<u32, (u32, u32)>,
+    restoration_states: FxMap<(u32, u32), u32>,
     pub empty: u32,
     pub observations: Option<crate::restoration::Observations>,
     pub families: crate::restoration::family::Families,
@@ -430,6 +432,8 @@ impl Machine {
             states: vec![],
             state_ids: FxMap::default(),
             transitions: FxMap::default(),
+            restoration_keys: FxMap::default(),
+            restoration_states: FxMap::default(),
             empty: 0,
             observations: None,
             families: Default::default(),
@@ -820,6 +824,38 @@ impl Machine {
     pub(crate) fn normalized_observation(&self, state: u32) -> u32 {
         self.observations.as_ref().map_or(0, |o| o.normalized(self.observation(state)))
     }
+    /// Class identity retains records, blocks and validity, without named closes (§6).
+    pub(crate) fn restoration_key(&mut self, state: u32) -> (u32, u32) {
+        if let Some(&key) = self.restoration_keys.get(&state) {
+            return key;
+        }
+        let observation = self.normalized_observation(state);
+        let mut parts = self.states[state as usize].clone();
+        parts.observation = 0;
+        let key = (self.intern(parts), observation);
+        self.restoration_keys.insert(state, key);
+        key
+    }
+    pub(crate) fn restoration_state(&mut self, state: u32) -> u32 {
+        if state == u32::MAX {
+            return state;
+        }
+        let key = self.restoration_key(state);
+        *self.restoration_states.entry(key).or_insert(state)
+    }
+    /// Export a seal while preserving independent restoration observations (§4.1).
+    pub(crate) fn erased(&mut self, state: u32, name: Option<&str>, tags: &[String], value: Option<&str>) -> u32 {
+        let seal = self.sealed();
+        let target = if name.is_some() { self.node_with_value(name, seal, None, tags, value) } else { seal };
+        let source = self.states[state as usize].clone();
+        let mut result = self.states[target as usize].clone();
+        result.tree = source.tree;
+        result.observation = source.observation;
+        result.family = source.family;
+        result.oracle = source.oracle;
+        self.intern(result)
+    }
+
     pub(crate) fn structural(&mut self, state: u32) -> u32 {
         let mut s = self.states[state as usize].clone();
         s.observation = 0;
@@ -1056,4 +1092,49 @@ pub(crate) fn reads_node_values(pattern: &Pattern) -> bool {
         }
         _ => false,
     })
+}
+
+#[cfg(test)]
+mod undemanded_tests {
+    use super::Machine;
+    #[test]
+    fn restoration_class_keys_project_names_and_preserve_validity() {
+        // Engine §6: the key projects observations, while chart states stay raw.
+        let mut m = Machine::new(&[]);
+        let mut closes = crate::restoration::Observations::new();
+        let a = closes.complete(0, Some(1), 0, 1);
+        let b = closes.complete(0, Some(2), 0, 1);
+        let omitted = closes.close(crate::restoration::record("T".into(), 0, &[], None));
+        m.observations = Some(closes);
+        let root = m.sealed();
+        let first = m.observing(root, a);
+        let second = m.observing(root, b);
+        let empty = m.observing(root, crate::restoration::INVALID);
+        let written = m.observing(root, omitted);
+        assert_ne!(first, second);
+        assert_eq!(m.restoration_key(first), m.restoration_key(second));
+        assert_eq!(m.restoration_state(first), m.restoration_state(second));
+        assert_ne!(m.restoration_key(first), m.restoration_key(empty));
+        assert_ne!(m.restoration_key(first), m.restoration_key(written));
+        assert_eq!(m.observation(first), a);
+        assert_eq!(m.observation(second), b);
+    }
+    #[test]
+    fn equal_parts_retain_seals_and_independent_observations() {
+        // Engine §4.1: state interning compares parts without semantic minimization.
+        let mut machine = Machine::new(&[]);
+        let empty = machine.empty;
+        let node = machine.node(Some("r"), empty, None);
+        assert_eq!(machine.node(Some("r"), empty, None), node);
+        assert_ne!(machine.sealed(), empty);
+        let tree = machine.with_tree(node, 42);
+        let observation = machine.observing(tree, 7);
+        assert_eq!(machine.tree_state(observation), 42);
+        assert_eq!(machine.observation(observation), 7);
+        assert_eq!(machine.structural(observation), node);
+        let exported = machine.erased(observation, Some("r"), &[], None);
+        assert_eq!(machine.tree_state(exported), 42);
+        assert_eq!(machine.observation(exported), 7);
+        assert_ne!(machine.structural(exported), node);
+    }
 }

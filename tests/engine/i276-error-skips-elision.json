@@ -1,0 +1,37 @@
+{
+  "description": "A chosen error reading starts no elision-only reconstruction.",
+  "grammar": "%elision-only\n%rule text A [+T] %error \"bad\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "error": {
+        "kind": "reported",
+        "errors": [
+          {
+            "code": "text",
+            "rule": "text",
+            "span": [
+              0,
+              1
+            ]
+          }
+        ]
+      }
+    },
+    "error": "reported"
+  }
+}

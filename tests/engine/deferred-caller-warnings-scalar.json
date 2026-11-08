@@ -1,0 +1,16 @@
+{
+  "description": "API: callers cannot supply diagnostics, and empty diagnostic lists are accepted and dropped.",
+  "grammar": "%rule text A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "warnings": "fault"
+    }
+  ],
+  "expect": {
+    "error": "usage"
+  }
+}

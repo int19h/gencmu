@@ -7,7 +7,7 @@ export declare const LEANS: Set<string>;
 export declare function validSteps(steps: unknown): boolean;
 export declare const CAPTURE_NAME: RegExp;
 export declare const DOM_MAX_DEPTH = 256;
-export declare const DOM_FORMAT = 44;
+export declare const DOM_FORMAT = 46;
 export declare const CONSTANT_NAME: RegExp;
 export declare const CLASSIFIER_NAME: RegExp;
 export declare const TEST_OPS: Set<string>;
@@ -270,7 +270,7 @@ export declare function captureSequences(expr: any): string[][];
  * alone: two captures are read by one production exactly when they stand
  * in different items of one sequence or one &, since each item is read in
  * any of its expansions. So no production is listed. A choice's branches
- * never meet. Braces and an elidable optional hold no capture.
+ * never meet. Braces isolate item captures. An elidable optional exports only its terminator capture.
  * @param {any} expr
  * @returns {{capture: string}[]}
  */
@@ -297,6 +297,8 @@ export type CaptureWitness = {
     mask?: number;
     present?: Set<string>;
 };
+/** @param {any} rule @param {any} alternative @returns {Map<string,number>[]} */
+export declare function validationCaptures(rule: any, alternative: any): Map<string, number>[];
 /**
  * Why a definition, a rule's alternatives with its own clauses, cannot be
  * read (engine §9), or null. The DOM's shape must already be checked. The
@@ -313,7 +315,7 @@ export declare function definitionProblem(rule: any, deferEmission?: boolean): s
  * @returns {string[]}
  */
 export declare function attachmentsOf(item: any): string[];
-export type TermType = "string" | "strings" | "tags" | "span" | "pattern" | "set" | "any" | "emitted" | "condition";
+export type TermType = "string" | "strings" | "tags" | "span" | "pattern" | "set" | "any" | "emitted" | "condition" | "forest";
 export type ConstantTypes = (name: string) => TermType;
 /**
  * The kind of sets joined by ∪, ∩ or ∖, or why they cannot be joined: each

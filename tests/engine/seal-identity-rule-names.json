@@ -1,0 +1,28 @@
+{
+  "description": "Engine §4.1 and §6: erased occurrences of different rules retain different named identities.",
+  "grammar": "%rule text $x:e $y:f\n%conditions $x ≇ $y\n%rule e A\n%erased\n%rule f A\n%erased",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

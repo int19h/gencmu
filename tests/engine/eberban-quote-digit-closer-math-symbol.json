@@ -12,8 +12,8 @@
     "warnings": [
       {
         "stage": "forms",
-        "feature": "math-symbol",
-        "rule": "math-mark",
+        "code": "math-symbol",
+        "rule": "math-symbol",
         "span": [
           10,
           10
@@ -21,7 +21,8 @@
         "source": [
           10,
           10
-        ]
+        ],
+        "message": "a mathematical symbol follows this digit"
       }
     ]
   }

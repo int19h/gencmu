@@ -1,10 +1,10 @@
 {
-  "description": "An entry of a classifier takes gates only. A warning on it is an error of the document, at the warning (engine §9).",
+  "description": "The lexical stage rejects the removed warning guard at its exclamation mark.",
   "document": "```jbogenbau\n%classifier lex\nf! \"mi\" ∈ KOhA\n```\n",
   "expect": {
     "error": {
       "line": 3,
-      "column": 1
+      "column": 2
     }
   }
 }

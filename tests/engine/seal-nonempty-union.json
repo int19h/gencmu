@@ -1,0 +1,15 @@
+{
+  "description": "Engine §4.1 and §6: a union of descendant tests cannot inspect either erased interior.",
+  "grammar": "%ambiguity-resolution fewest #·zz\n%rule text $e:e\n%conditions $e ≅ (#(⋮ a) ∪ #(⋮ b))\n%rule e a | b\n%erased\n%rule a A\n%rule b A\n%rule zz B B B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected"
+  }
+}

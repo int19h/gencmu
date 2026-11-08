@@ -1,0 +1,30 @@
+{
+  "description": "The suppression wildcard suppresses every warning below its definition.",
+  "grammar": "%rule text first second %suppress-warnings _\n%rule first A %warning \"first\"\n%rule second B %warning \"second\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "first",
+      "second"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": []
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "description": "Engine §4.1 and §6: sealed identities make equal-value erased interiors one class.",
+  "grammar": "%ambiguity-resolution fewest #·never\n%rule text $x:gone $y:gone\n%conditions $x ≅ $y\n%rule gone a | b\n%erased\n%rule a A\n%rule b A\n%rule never B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "description": "A spliced occurrence retains its erasure clause.",
+  "grammar": "%rule text *r B %emits $\n%rule r A %erased",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "output": [
+            {
+              "value": "b"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

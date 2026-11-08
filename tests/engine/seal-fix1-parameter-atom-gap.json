@@ -1,0 +1,22 @@
+{
+  "description": "Engine §9.3: a substituted erased atom permits its single sibling gap.",
+  "grammar": "%rule probe(@R) $e:e\n%conditions $e ≅ #·@R« ⋯ »\n%rule text probe(e)\n%rule e A\n%erased",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

@@ -3,6 +3,6 @@
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="100.8" lengthAdjust="spacingAndGlyphs">root-triplet</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
-<g class="terminal"><rect x="20" y="34" width="294" height="24" rx="12"/><text x="167" y="51" textLength="277.2" lengthAdjust="spacingAndGlyphs">root-triplet-of(misplaced-hyphen)</text></g>
+<g class="terminal"><rect x="20" y="34" width="294" height="24" rx="12"/><text x="167" y="51" textLength="277.2" lengthAdjust="spacingAndGlyphs">root-triplet-of(hyphen-misplaced)</text></g>
 <path d="M314 46h6m0 -8v16m4 -16v16"/>
 </svg>

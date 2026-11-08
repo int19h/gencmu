@@ -157,31 +157,54 @@ func (run *stageRun) buildTree(rec *recognizer, d *dn) *Node {
 	return root.node
 }
 
-// warnings lists the warnings of a chosen derivation (engine §12): each rule
-// node of its tree gives one for each warning of its production, in the
-// order a walk meets the nodes, parent before children and children left to
-// right. Helpers give their children in their place, as in buildTree.
-func (run *stageRun) warnings(rec *recognizer, d *dn, features map[string]bool) []Warning {
-	var out []Warning
-	pending := []*dn{d}
+// Evaluate messages after choice, before erasure and emission (engine §12.1).
+func (run *stageRun) evaluateDiagnostics(flow *diagnosticFlow, features map[string]bool) {
+	rec := flow.rec
+	strings := &stringEmitter{run: run, rec: rec, observing: true}
+	type visit struct {
+		node       *occurrence
+		suppressed map[string]bool
+	}
+	pending := []visit{{node: flow.root, suppressed: map[string]bool{}}}
 	for len(pending) > 0 {
-		n := pending[len(pending)-1]
+		at := pending[len(pending)-1]
 		pending = pending[:len(pending)-1]
-		if n.kind == dRead {
+		node, suppressed := at.node, at.suppressed
+		if node.d.kind != dClose {
 			continue
 		}
-		if !n.prod.helper {
-			a, b := rec.base+int(n.start), rec.base+int(n.end)
-			for _, f := range n.prod.warnings {
-				if !features[f] {
-					continue
-				}
-				out = append(out, Warning{Stage: run.name, Feature: f, Rule: n.prod.ruleName, Span: [2]int{a, b}, Source: run.spanSource(a, b)})
+		p := node.d.prod
+		if len(p.suppressWarnings) > 0 {
+			copied := map[string]bool{}
+			for code := range suppressed {
+				copied[code] = true
 			}
+			for _, code := range p.suppressWarnings {
+				copied[code] = true
+			}
+			suppressed = copied
 		}
-		pending = pushKids(pending, n)
+		code, recipe := p.ruleName, p.error
+		if recipe == nil && features[code] && !suppressed[code] && !suppressed["_"] {
+			recipe = p.warning
+		}
+		if recipe != nil {
+			if hook := diagnosticMessage.Load(); hook != nil && hook.stages[rec.g.stage] {
+				hook.call(node, recipe)
+			}
+			a, b := rec.base+int(node.d.start), rec.base+int(node.d.end)
+			report := Warning{Stage: run.name, Code: code, Rule: code, Span: [2]int{a, b}, Source: run.spanSource(a, b), Message: strings.recipe(node, recipe)}
+			measure := diagnosticMeasure{}
+			if p.error != nil {
+				measure = rec.ownMeasure(node.d.start, node.d.end)
+			}
+			report = recordDiagnostic(report, measure, &diagnosticIdentity{run.stageOrder, len(flow.evaluated)})
+			flow.add(node, report, p.error != nil)
+		}
+		for index := len(node.kids) - 1; index >= 0; index-- {
+			pending = append(pending, visit{node.kids[index], suppressed})
+		}
 	}
-	return out
 }
 
 // hasElided stops at the first elided node of the tree.

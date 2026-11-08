@@ -1,0 +1,36 @@
+{
+  "description": "A negated neighbour guard selects its literal tags when the atom is false.",
+  "grammar": "%rule text left (right | other)\n%rule left A :: (¬$.followed-by(other) ⟹ Mark)\n%rule right B\n%rule other C",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": [
+          {
+            "rule": "left",
+            "tags": [
+              "Mark"
+            ]
+          },
+          {
+            "rule": "right"
+          }
+        ]
+      }
+    }
+  }
+}

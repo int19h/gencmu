@@ -1,0 +1,23 @@
+{
+  "description": "An ordinary call and a splice share the same-span cycle key.",
+  "grammar": "%rule text *loop\n%rule loop loop | *loop | A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

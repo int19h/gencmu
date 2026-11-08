@@ -189,7 +189,7 @@ func captureQuery(e *domExpr, required, forbidden map[string]bool, order []strin
 			}
 			return
 		}
-		if e.Kind == exOptional && !e.Elidable {
+		if e.Kind == exOptional && (!e.Elidable || e.Inner.Kind == exCapture) {
 			out[0] = &captureWitness{key: captureLeaf(0)}
 			for state, w := range visit(e.Inner) {
 				if w != nil {
@@ -239,7 +239,7 @@ func variableCaptureExpr(root *domExpr) bool {
 			case exSeq, exChoice, exRanked, exAnd:
 				kids = e.Items
 			case exOptional:
-				if !e.Elidable {
+				if !e.Elidable || e.Inner.Kind == exCapture {
 					kids = []*domExpr{e.Inner}
 				}
 			case exTest:
@@ -358,7 +358,7 @@ func validationCaptures(r *domRule, a *domAlt) []map[string]int {
 		items = r.Emit.Items
 	}
 	mentioned := map[string]bool{}
-	for _, t := range []*domTerm{r.Tags, r.Value, r.Image} {
+	for _, t := range []*domTerm{r.Tags, r.Value, r.Image, r.Error, r.Warning} {
 		termMentions(t, mentioned)
 	}
 	for _, c := range r.Conditions {

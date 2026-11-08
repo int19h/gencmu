@@ -1,6 +1,6 @@
 {
   "description": "A warning changes no lowering, so parses with and without it can share one. Each parse still gives the warnings of its own features. One loaded pipeline parses with w off, on and off again (engine §3.1, §12, §13).",
-  "grammar": "%rule text w! A | B",
+  "grammar": "%rule text *w | B\n%rule w A %warning \"warning w\"",
   "tokens": [
     {
       "text": "a",
@@ -33,8 +33,8 @@
         "warnings": [
           {
             "stage": "main",
-            "feature": "w",
-            "rule": "text",
+            "code": "w",
+            "rule": "w",
             "span": [
               0,
               1
@@ -42,7 +42,8 @@
             "source": [
               0,
               1
-            ]
+            ],
+            "message": "warning w"
           }
         ],
         "brackets": "a"

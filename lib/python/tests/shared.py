@@ -780,7 +780,7 @@ def validate_engine_expect(expect: Any) -> None:
     if "warnings" in expect:
         assert isinstance(expect["warnings"], list), "expect.warnings: expected an array"
         for warning in expect["warnings"]:
-            case_object(warning, "stage feature rule span source", "expect.warnings[]", "stage feature rule span source")
+            case_object(warning, "stage code rule span source message", "expect.warnings[]", "stage code rule span source message")
             for field, value in warning.items():
                 case_value(value, "range" if field in ("span", "source") else "string", "expect.warnings[]." + field)
     if "result" in expect:
@@ -801,13 +801,16 @@ def validate_case_tokens(tokens: Any, usage: bool = False) -> None:
     stack = list(tokens)
     while stack:
         token = stack.pop()
-        case_object(token, "text tags value image span source before after", "token", "" if usage else "text tags")
+        case_object(token, "text tags value image span source before after errors warnings", "token", "" if usage else "text tags")
         for field, value in token.items():
             if field in ("before", "after"):
                 if not usage:
                     assert isinstance(value, list), f"token.{field}: expected an array"
                 if isinstance(value, list):
                     stack.extend(value)
+            elif field in ("errors", "warnings"):
+                if not usage:
+                    assert isinstance(value, list) and all(named_diagnostic(item, field) for item in value), f"token.{field}: expected diagnostics"
             elif not usage:
                 kind = "strings" if field == "tags" else "range" if field in ("span", "source") else "string"
                 case_value(value, kind, "token." + field)
@@ -1023,7 +1026,10 @@ def validate_result_pattern(pattern: Any) -> None:
         item, in_error = stack.pop()
         if isinstance(item, dict):
             assert not (in_error and "message" in item), "a result pattern cannot assert an error message"
-            stack.extend((child, in_error or key == "error") for key, child in item.items())
+            stack.extend(
+                (child, key == "error" or (in_error and key not in ("errors", "readings")))
+                for key, child in item.items()
+            )
         elif isinstance(item, list):
             stack.extend((child, in_error) for child in item)
 
@@ -1056,13 +1062,37 @@ def mismatch(pattern: Any, value: Any, where: str = "$") -> str | None:
     return None
 
 
+def named_diagnostic(value, kind="warnings"):
+    fields = {"stage", "code", "rule", "span", "source", "message"}
+    return (isinstance(value, dict) and fields <= set(value) <= fields | ({"rejection"} if kind == "errors" else set())
+            and ("rejection" not in value or rejection_evidence(value["rejection"]))
+            and all(isinstance(value[key], str) for key in ("stage", "code", "rule", "message"))
+            and value["code"] == value["rule"]
+            and all(isinstance(value[key], list) and len(value[key]) == 2
+                    and all(type(number) is int and 0 <= number <= 9007199254740991 for number in value[key])
+                    and value[key][0] <= value[key][1] for key in ("span", "source")))
+
+
+def rejection_evidence(value):
+    if not isinstance(value, dict) or set(value) != {"token", "source", "line", "column", "expected"}:
+        return False
+    if any(type(value[key]) is not int or value[key] < (0 if key == "token" else 1) for key in ("token", "line", "column")):
+        return False
+    source = value["source"]
+    if not (isinstance(source, list) and len(source) == 2 and all(type(n) is int for n in source) and 0 <= source[0] <= source[1]):
+        return False
+    return isinstance(value["expected"], list) and all(
+        isinstance(item, dict) and set(item) == {"terminal", "rules"} and isinstance(item["terminal"], str)
+        and isinstance(item["rules"], list) and all(isinstance(rule, str) for rule in item["rules"]) for item in value["expected"])
+
+
 def result_problems(value: dict[str, Any]) -> list[str]:
     """Report broken result invariants from tests/README.md.
 
     An ambiguous error has no token or source, and no stage has a tied
     member. A tied stage comes last and has no output. Its result has ok
-    false, tree null, and an ambiguous error with reason tie, its stage
-    name, and two readings. Errors have no cycle, conflict, or chosenReading.
+    false and tree null. It reports either a tie with two readings or a
+    grammar failure after choice. Errors have no cycle, conflict, or chosenReading.
 
     A witness-loss error has kind grammar, a stage, chosen, and completion.
     It has no token, source, line, column, expected, reason, or readings.
@@ -1071,6 +1101,45 @@ def result_problems(value: dict[str, Any]) -> list[str]:
     problems: list[str] = []
     stages = value["stages"]
     error = value["error"]
+    if value.get("format") != 17:
+        problems.append("the result format is not 17")
+    stage_names = {stage["name"] for stage in stages}
+    pending = [value]
+    while pending:
+        item = pending.pop()
+        if isinstance(item, list):
+            pending.extend(item)
+        elif isinstance(item, dict):
+            for key, child in item.items():
+                if key in ("errors", "warnings"):
+                    if not isinstance(child, list) or not child or any(not named_diagnostic(diagnostic, key) for diagnostic in child):
+                        problems.append(f"{key} is not a nonempty list of named diagnostics")
+                    elif any(diagnostic["stage"] not in stage_names for diagnostic in child):
+                        problems.append("a diagnostic names an unknown raising stage")
+                else:
+                    pending.append(child)
+    for stage in stages:
+        if any(kind in stage for kind in ("errors", "warnings")) and stage.get("output") != []:
+            problems.append("stage-level diagnostics require a completed empty emission")
+    if error and error.get("kind") in ("rejected", "grammar", "feature-conflict"):
+        if not same_json(error.get("warnings", []), value.get("warnings", [])):
+            problems.append("failure warnings differ from result warnings")
+    if error and error.get("kind") != "reported" and value.get("tree") is not None:
+        problems.append("an error result other than reported has a tree")
+    for warning in value.get("warnings", []):
+        if not named_diagnostic(warning):
+            problems.append("a warning lacks its diagnostic fields")
+    if error and error.get("kind") == "reported":
+        last = stages[-1] if stages else None
+        if (value.get("ok") is not False or not value.get("tree") or not last
+                or last.get("name") != error.get("stage") or last.get("verdict") not in ("unique", "resolved") or "output" not in last):
+            problems.append("a reported result lacks its retained tree, verdict or output")
+        errors = error.get("errors")
+        if not isinstance(errors, list) or not errors or any(not named_diagnostic(item, "errors") for item in errors):
+            problems.append("a reported result lacks its ordered named errors")
+        for member in ("token", "source", "line", "column", "expected", "readings"):
+            if member in error:
+                problems.append(f"a reported error has the member {member}")
     # An ambiguous error has no position (docs/output.md).
     if isinstance(error, dict) and error.get("kind") == "ambiguous":
         for member in ("token", "source"):
@@ -1107,11 +1176,12 @@ def result_problems(value: dict[str, Any]) -> list[str]:
             value["ok"] is not False
             or value["tree"] is not None
             or not isinstance(error, dict)
-            or error.get("kind") != "ambiguous"
-            or error.get("reason") != "tie"
             or not same_json(error.get("stage"), stage["name"])
-            or not isinstance(error.get("readings"), list)
-            or len(error["readings"]) != 2
+            or not (
+                error.get("kind") == "grammar" and "reason" not in error and "readings" not in error
+                or error.get("kind") == "ambiguous" and error.get("reason") == "tie"
+                and isinstance(error.get("readings"), list) and len(error["readings"]) == 2
+            )
         ):
             problems.append(f"the tied stage {stage['name']} lacks its error of kind ambiguous, reason tie and two readings")
     if isinstance(error, dict):
@@ -1196,6 +1266,8 @@ def _case_tokens(specs: list[dict[str, Any]]) -> Walk:
             value = spec.get(field, [])
             attachments[field] = ((yield _case_tokens(value))
                                   if isinstance(value, list) and all(isinstance(item, dict) for item in value) else value)
+        for field in ("errors", "warnings"):
+            attachments[field] = spec.get(field, [])
         # Pass invalid tags to the library for usage cases.
         tags = spec.get("tags")
         text = spec.get("text")
@@ -1205,7 +1277,7 @@ def _case_tokens(specs: list[dict[str, Any]]) -> Walk:
         )
         # None selects the constructor default. Set explicit JSON null on
         # the stored field so that malformed-token cases reach validation.
-        for field in ("value", "image", "before", "after"):
+        for field in ("value", "image", "before", "after", "errors", "warnings"):
             if field in spec and spec[field] is None:
                 setattr(tokens[-1], field, None)
         position += length + 1

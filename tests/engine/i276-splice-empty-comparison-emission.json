@@ -1,0 +1,30 @@
+{
+  "description": "Emission retains an empty anonymous identity.",
+  "grammar": "%rule text $x:*empty $y:*a\n%emits $ :: ($x ≇ $y ⟹ Different)\n%rule empty ε\n%rule a A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": [
+            {
+              "tags": [
+                "Different"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

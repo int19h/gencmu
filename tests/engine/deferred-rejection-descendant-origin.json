@@ -1,0 +1,49 @@
+{
+  "description": "Engine §12.1: descendant origin.",
+  "grammar": "%rule text :: ∅ | good ≻ bad\n%rule good A part\n%rule part B C\n%rule bad A B\n%error \"bad\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "reported",
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "reported",
+        "errors": [
+          {
+            "code": "bad",
+            "rejection": {
+              "token": 2,
+              "source": [
+                3,
+                3
+              ],
+              "line": 1,
+              "column": 4,
+              "expected": [
+                {
+                  "terminal": "C",
+                  "rules": [
+                    "part"
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

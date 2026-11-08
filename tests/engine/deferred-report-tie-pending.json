@@ -1,0 +1,79 @@
+{
+  "description": "Engine §11.5, §12.1, and §13: deferred diagnostic flow and reporting (tie-pending).",
+  "documents": {
+    "p.md": "```jbogenbau\n%features carrier  note\n%stage before\n%ambiguity-resolution greedy\n%rule text carrier\n%rule carrier fault\n%warning \"early\"\n%rule fault A\n%error \"bad\"\n%stage last\n%ambiguity-resolution greedy\n%rule text left | right\n%rule left note note\n%rule right note\n%rule note ε\n%warning \"note\"\n```\n"
+  },
+  "pipelineDocument": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "ambiguous",
+    "result": {
+      "ok": false,
+      "tree": null,
+      "stages": [
+        {
+          "name": "before",
+          "verdict": "unique",
+          "output": [],
+          "errors": [
+            {
+              "stage": "before",
+              "code": "fault",
+              "span": [
+                0,
+                1
+              ],
+              "source": [
+                0,
+                1
+              ]
+            }
+          ]
+        },
+        {
+          "name": "last",
+          "verdict": "tie"
+        }
+      ],
+      "error": {
+        "kind": "ambiguous",
+        "reason": "tie",
+        "errors": [
+          {
+            "stage": "before",
+            "code": "fault",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ]
+          }
+        ]
+      },
+      "warnings": [
+        {
+          "stage": "before",
+          "code": "carrier"
+        },
+        {
+          "stage": "last",
+          "code": "note"
+        },
+        {
+          "stage": "last",
+          "code": "note"
+        }
+      ]
+    }
+  }
+}

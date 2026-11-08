@@ -1,10 +1,10 @@
 {
-  "description": "`¬¬x!` has no complete lexical reading. The second negation reads the warning before its boundary condition fails. The lexical error follows `!` (engine §9).",
+  "description": "The lexical stage rejects the removed warning guard at its exclamation mark.",
   "document": "```jbogenbau\n%rule t ¬ ¬x! A\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 14
+      "column": 13
     }
   }
 }

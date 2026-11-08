@@ -1,0 +1,268 @@
+{
+  "description": "Invisible splice closes retain the canonical order of tied readings.",
+  "grammar": "%ambiguity-resolution fewest #·r1\n%rule text r3\n%rule r1 ε\n%rule r2 \"a\"\n%rule r3 r4\n%rule r4 *r5 \"b\" | {{r2}}\n%rule r5 r4 r5 | ε",
+  "input": "bbab",
+  "expect": {
+    "error": "ambiguous",
+    "result": {
+      "error": {
+        "reason": "tie",
+        "readings": [
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              4
+            ],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "r3",
+                "span": [
+                  0,
+                  4
+                ],
+                "children": [
+                  {
+                    "kind": "rule",
+                    "rule": "r4",
+                    "span": [
+                      0,
+                      4
+                    ],
+                    "children": [
+                      {
+                        "kind": "rule",
+                        "rule": "r4",
+                        "span": [
+                          0,
+                          1
+                        ],
+                        "children": [
+                          {
+                            "kind": "token",
+                            "span": [
+                              0,
+                              1
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "rule",
+                        "rule": "r5",
+                        "span": [
+                          1,
+                          3
+                        ],
+                        "children": [
+                          {
+                            "kind": "rule",
+                            "rule": "r4",
+                            "span": [
+                              1,
+                              2
+                            ],
+                            "children": [
+                              {
+                                "kind": "token",
+                                "span": [
+                                  1,
+                                  2
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "rule",
+                            "rule": "r5",
+                            "span": [
+                              2,
+                              3
+                            ],
+                            "children": [
+                              {
+                                "kind": "rule",
+                                "rule": "r4",
+                                "span": [
+                                  2,
+                                  3
+                                ],
+                                "children": [
+                                  {
+                                    "kind": "rule",
+                                    "rule": "r2",
+                                    "span": [
+                                      2,
+                                      3
+                                    ],
+                                    "children": [
+                                      {
+                                        "kind": "token",
+                                        "span": [
+                                          2,
+                                          3
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "kind": "rule",
+                                "rule": "r5",
+                                "span": [
+                                  3,
+                                  3
+                                ],
+                                "children": []
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "token",
+                        "span": [
+                          3,
+                          4
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              4
+            ],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "r3",
+                "span": [
+                  0,
+                  4
+                ],
+                "children": [
+                  {
+                    "kind": "rule",
+                    "rule": "r4",
+                    "span": [
+                      0,
+                      4
+                    ],
+                    "children": [
+                      {
+                        "kind": "rule",
+                        "rule": "r4",
+                        "span": [
+                          0,
+                          2
+                        ],
+                        "children": [
+                          {
+                            "kind": "rule",
+                            "rule": "r4",
+                            "span": [
+                              0,
+                              1
+                            ],
+                            "children": [
+                              {
+                                "kind": "token",
+                                "span": [
+                                  0,
+                                  1
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "rule",
+                            "rule": "r5",
+                            "span": [
+                              1,
+                              1
+                            ],
+                            "children": []
+                          },
+                          {
+                            "kind": "token",
+                            "span": [
+                              1,
+                              2
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "rule",
+                        "rule": "r5",
+                        "span": [
+                          2,
+                          3
+                        ],
+                        "children": [
+                          {
+                            "kind": "rule",
+                            "rule": "r4",
+                            "span": [
+                              2,
+                              3
+                            ],
+                            "children": [
+                              {
+                                "kind": "rule",
+                                "rule": "r2",
+                                "span": [
+                                  2,
+                                  3
+                                ],
+                                "children": [
+                                  {
+                                    "kind": "token",
+                                    "span": [
+                                      2,
+                                      3
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "rule",
+                            "rule": "r5",
+                            "span": [
+                              3,
+                              3
+                            ],
+                            "children": []
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "token",
+                        "span": [
+                          3,
+                          4
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

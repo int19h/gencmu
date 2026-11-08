@@ -1,0 +1,38 @@
+{
+  "description": "Message input methods can observe the same uncovered gap without claiming emitted text.",
+  "grammar": "%rule text warn warn\n%rule warn A | B %warning $.verbatim-text",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "warn"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "warnings": [
+        {
+          "code": "warn",
+          "message": "a "
+        },
+        {
+          "code": "warn",
+          "message": " b"
+        }
+      ]
+    }
+  }
+}

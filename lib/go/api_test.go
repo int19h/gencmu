@@ -128,7 +128,7 @@ func TestLoadErrors(t *testing.T) {
 		"bad feature":    {map[string]string{"p.md": block("%features 9x", "%stage x")}, 2, 11, "p.md"},
 		"empty features": {map[string]string{"p.md": block("%features", "%stage x")}, 2, 1, "p.md"},
 		// At the rule of the guard that disagrees with the first (§13).
-		"gate and warning": {oneStage("%ambiguity-resolution greedy\n%rule text f? A | B\n%rule a f! A"), 6, 1, "g.md"},
+		"gate and warning": {oneStage("%ambiguity-resolution greedy\n%rule text f? A | B\n%rule f A %warning \"warning f\""), 6, 1, "g.md"},
 	}
 	for name, c := range cases {
 		_, err := LoadPipelineSources(c.sources, "p.md")
@@ -304,7 +304,7 @@ func TestMarshalResult(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `{"format":15,"ok":true,"stages":[{"name":"main","verdict":"unique","output":[]}],"tree":{"kind":"rule","rule":"text","span":[0,1],"source":[0,1],"tags":[],"children":[{"kind":"token","terminal":"\"ø\"","token":0,"span":[0,1],"source":[0,1]},{"kind":"elided","terminal":"KU","span":[1,1],"source":[1,1]}]},"error":null}`
+	want := `{"format":17,"ok":true,"stages":[{"name":"main","verdict":"unique","output":[]}],"tree":{"kind":"rule","rule":"text","span":[0,1],"source":[0,1],"tags":[],"children":[{"kind":"token","terminal":"\"ø\"","token":0,"span":[0,1],"source":[0,1]},{"kind":"elided","terminal":"KU","span":[1,1],"source":[1,1]}]},"error":null}`
 	if string(data) != want {
 		t.Fatalf("got  %s\nwant %s", data, want)
 	}
@@ -316,23 +316,23 @@ func TestMarshalResult(t *testing.T) {
 	}
 	res, _ = d.Parse("x", ParseOptions{})
 	data, _ = MarshalResult(res)
-	if !strings.HasPrefix(string(data), `{"format":15,"ok":false,"stages":[{"name":"main","verdict":null}],"tree":null,"error":{"kind":"rejected","stage":"main","token":0,"source":[0,1],"line":1,"column":1,"expected":[{"terminal":"\"ø\"","rules":["text"]}],"message":`) {
+	if !strings.HasPrefix(string(data), `{"format":17,"ok":false,"stages":[{"name":"main","verdict":null}],"tree":null,"error":{"kind":"rejected","stage":"main","token":0,"source":[0,1],"line":1,"column":1,"expected":[{"terminal":"\"ø\"","rules":["text"]}],"message":`) {
 		t.Fatalf("%s", data)
 	}
 	// The warnings follow the error, only when there is one; the result's
 	// list is empty, not nil, when there is none.
-	d = mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text w! \"ø\" \"x\" | \"x\""))
+	d = mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text *w | \"x\"\n%rule w \"ø\" \"x\" %warning \"warning w\""))
 	res, _ = d.Parse("øx", ParseOptions{})
 	if data, _ = MarshalResult(res); res.Warnings == nil || len(res.Warnings) != 0 || strings.Contains(string(data), "warnings") {
 		t.Fatalf("%#v %s", res.Warnings, data)
 	}
 	res, _ = d.Parse("øx", ParseOptions{Features: []string{"w"}})
 	data, _ = MarshalResult(res)
-	if !strings.HasSuffix(string(data), `,"error":null,"warnings":[{"stage":"main","feature":"w","rule":"text","span":[0,2],"source":[0,2]}]}`) {
+	if !strings.HasSuffix(string(data), `,"error":null,"warnings":[{"stage":"main","code":"w","rule":"w","span":[0,2],"source":[0,2],"message":"warning w"}]}`) {
 		t.Fatalf("%s", data)
 	}
 	// An emitted token stores the recipe value "?" and the source-text image.
-	// Its JSON fields follow the format 15 order.
+	// Its JSON fields follow the format 17 order.
 	d = mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text w \"x\"\n%rule w \"ø\"\n%emits $ :: W := \"?\" :- $.source-text"))
 	res, _ = d.Parse("øx", ParseOptions{})
 	data, _ = MarshalResult(res)
@@ -351,22 +351,22 @@ func TestWarningsSpliced(t *testing.T) {
 		grammar, text string
 		want          []Warning
 	}{
-		{"%rule text w! a [{\"b\"}]\n%rule a v! \"a\" [\"c\"]", "acbbb", []Warning{
-			{Stage: "main", Feature: "w", Rule: "text", Span: [2]int{0, 5}, Source: [2]int{0, 5}},
-			{Stage: "main", Feature: "v", Rule: "a", Span: [2]int{0, 2}, Source: [2]int{0, 2}},
+		{"%rule text *w\n%rule w a [{\"b\"}] %warning \"warning w\"\n%rule a *v\n%rule v \"a\" [\"c\"] %warning \"warning v\"", "acbbb", []Warning{
+			{Stage: "main", Code: "w", Message: "warning w", Rule: "w", Span: [2]int{0, 5}, Source: [2]int{0, 5}},
+			{Stage: "main", Code: "v", Message: "warning v", Rule: "v", Span: [2]int{0, 2}, Source: [2]int{0, 2}},
 		}},
-		{"%rule text w! a {\"b\"}\n%rule a v! \"a\" [\"c\"]", "abb", []Warning{
-			{Stage: "main", Feature: "w", Rule: "text", Span: [2]int{0, 3}, Source: [2]int{0, 3}},
-			{Stage: "main", Feature: "v", Rule: "a", Span: [2]int{0, 1}, Source: [2]int{0, 1}},
+		{"%rule text *w\n%rule w a {\"b\"} %warning \"warning w\"\n%rule a *v\n%rule v \"a\" [\"c\"] %warning \"warning v\"", "abb", []Warning{
+			{Stage: "main", Code: "w", Message: "warning w", Rule: "w", Span: [2]int{0, 3}, Source: [2]int{0, 3}},
+			{Stage: "main", Code: "v", Message: "warning v", Rule: "v", Span: [2]int{0, 1}, Source: [2]int{0, 1}},
 		}},
-		{"%rule text x | w! \"q\"\n%rule x w! [{\"a\"}] \"b\" | \"c\"", "aab", []Warning{
-			{Stage: "main", Feature: "w", Rule: "x", Span: [2]int{0, 3}, Source: [2]int{0, 3}},
+		{"%rule text x | *w=\"q\"\n%rule x *w≠\"q\" | \"c\"\n%rule w [{\"a\"}] \"b\" | \"q\" %warning \"warning w\"", "aab", []Warning{
+			{Stage: "main", Code: "w", Message: "warning w", Rule: "w", Span: [2]int{0, 3}, Source: [2]int{0, 3}},
 		}},
-		{"%rule text w! {... a / \"b\"}\n%rule a v! \"a\"", "aba", []Warning{
-			{Stage: "main", Feature: "w", Rule: "text", Span: [2]int{0, 3}, Source: [2]int{0, 3}},
-			{Stage: "main", Feature: "w", Rule: "text", Span: [2]int{0, 1}, Source: [2]int{0, 1}},
-			{Stage: "main", Feature: "v", Rule: "a", Span: [2]int{0, 1}, Source: [2]int{0, 1}},
-			{Stage: "main", Feature: "v", Rule: "a", Span: [2]int{2, 3}, Source: [2]int{2, 3}},
+		{"%rule text *w\n%rule w {... a / \"b\"} %warning \"warning w\"\n%rule a *v\n%rule v \"a\" %warning \"warning v\"", "aba", []Warning{
+			{Stage: "main", Code: "w", Message: "warning w", Rule: "w", Span: [2]int{0, 3}, Source: [2]int{0, 3}},
+			{Stage: "main", Code: "w", Message: "warning w", Rule: "w", Span: [2]int{0, 1}, Source: [2]int{0, 1}},
+			{Stage: "main", Code: "v", Message: "warning v", Rule: "v", Span: [2]int{0, 1}, Source: [2]int{0, 1}},
+			{Stage: "main", Code: "v", Message: "warning v", Rule: "v", Span: [2]int{2, 3}, Source: [2]int{2, 3}},
 		}},
 	} {
 		d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n"+c.grammar))
@@ -374,8 +374,12 @@ func TestWarningsSpliced(t *testing.T) {
 		if err != nil || !res.OK {
 			t.Fatalf("%s: %v %+v", c.grammar, err, res)
 		}
-		if !reflect.DeepEqual(res.Warnings, c.want) {
-			t.Errorf("%s: warnings %+v", c.grammar, res.Warnings)
+		actual := append([]Warning(nil), res.Warnings...)
+		for index := range actual {
+			actual[index].record = nil
+		}
+		if !reflect.DeepEqual(actual, c.want) {
+			t.Errorf("%s: warnings %+v", c.grammar, actual)
 		}
 	}
 }
@@ -476,7 +480,7 @@ func TestConcurrentFeatures(t *testing.T) {
 	t.Parallel()
 	d := mustLoad(t, map[string]string{
 		"p.md": block("%features g", "%stage main", `%include "g.md"`),
-		"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [{item}]\n%rule item g? w! \"a\" | ¬g? \"a\" :: A | v! \"b\"\n```\n",
+		"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [{item}]\n%rule item g? *w | ¬g? \"a\" :: A | *v\n%rule w \"a\" %warning \"warning w\"\n%rule v \"b\" %warning \"warning v\"\n```\n",
 	})
 	options := []ParseOptions{
 		{}, {Features: []string{"w"}}, {Features: []string{"v", "w"}},
@@ -733,7 +737,7 @@ func TestMalformedPreparsed(t *testing.T) {
 		for k, v := range sources {
 			src[k] = v
 		}
-		src["data/preparsed/gencmu.json"] = `{"format":` + format + `,"documents":{"grammars/gencmu/jbogenbau/pipeline.md":{"hash":"0","dom":{"format":44,"rules":[],"directives":[{"name":"stage","args":["lexical"],"at":[1,1]},{"name":"include","args":["lexical.md"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}},"grammars/gencmu/jbogenbau/lexical.md":{"hash":"0","dom":` + dom + `}}}`
+		src["data/preparsed/gencmu.json"] = `{"format":` + format + `,"documents":{"grammars/gencmu/jbogenbau/pipeline.md":{"hash":"0","dom":{"format":46,"rules":[],"directives":[{"name":"stage","args":["lexical"],"at":[1,1]},{"name":"include","args":["lexical.md"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}},"grammars/gencmu/jbogenbau/lexical.md":{"hash":"0","dom":` + dom + `}}}`
 		_, err = LoadPipelineSources(src, "grammars/test/p.md")
 		var e *Error
 		if isGuardedCrash(err) || !errors.As(err, &e) || e.Kind != ErrorGrammar {
@@ -769,7 +773,7 @@ func TestMalformedCharacterClasses(t *testing.T) {
 		for k, v := range sources {
 			src[k] = v
 		}
-		src["data/preparsed/gencmu.json"] = `{"format":` + format + `,"documents":{"grammars/gencmu/jbogenbau/pipeline.md":{"hash":"0","dom":{"format":44,"rules":[],"directives":[{"name":"stage","args":["lexical"],"at":[1,1]},{"name":"include","args":["lexical.md"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}},"grammars/gencmu/jbogenbau/lexical.md":{"hash":"0","dom":` + dom + `}}}`
+		src["data/preparsed/gencmu.json"] = `{"format":` + format + `,"documents":{"grammars/gencmu/jbogenbau/pipeline.md":{"hash":"0","dom":{"format":46,"rules":[],"directives":[{"name":"stage","args":["lexical"],"at":[1,1]},{"name":"include","args":["lexical.md"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}},"grammars/gencmu/jbogenbau/lexical.md":{"hash":"0","dom":` + dom + `}}}`
 		_, err := LoadPipelineSources(src, "grammars/test/p.md")
 		return err
 	}
@@ -950,13 +954,13 @@ func TestFileUTF8(t *testing.T) {
 			return map[string]string{"p.md": "# A pipeline " + b + "\n\n" + pipeline, "g.md": good}
 		}, "p.md"},
 		{"a comment of the pipeline", func(b string) map[string]string {
-			return map[string]string{"p.md": strings.Replace(pipeline, "%stage main", "%stage main (* "+b+" *)", 1), "g.md": good}
+			return map[string]string{"p.md": strings.Replace(pipeline, "%stage main", "%stage main -- "+b, 1), "g.md": good}
 		}, "p.md"},
 		{"an included document's prose", func(b string) map[string]string {
 			return map[string]string{"p.md": pipeline, "g.md": "# A grammar " + b + "\n\n" + good}
 		}, "g.md"},
 		{"a comment of an included document", func(b string) map[string]string {
-			return map[string]string{"p.md": pipeline, "g.md": grammar("%rule text \"a\" (* " + b + " *)")}
+			return map[string]string{"p.md": pipeline, "g.md": grammar("%rule text \"a\" -- " + b)}
 		}, "g.md"},
 		{"an extra names file", func(b string) map[string]string {
 			return map[string]string{"p.md": strings.Replace(pipeline, "%stage main", "%names \"bad.names\"\n%stage main", 1), "g.md": grammar("%rule text \"‹LATIN SMALL LETTER A›\""), "bad.names": "unicode-names 15.1.0\n" + b}
@@ -977,7 +981,7 @@ func TestFileUTF8(t *testing.T) {
 	}
 	root := dir(map[string]string{
 		"p.md": "# A pipeline \uFFFD \U0001F600\n\n" + pipeline,
-		"g.md": grammar("%rule text \"�\" \"😀\" \"􏿽\" (* � 😀 *)"),
+		"g.md": grammar("%rule text \"�\" \"😀\" \"􏿽\" -- � 😀"),
 	})
 	d, err := LoadPipelineFile(filepath.Join(root, "p.md"))
 	if err != nil {
@@ -1462,7 +1466,7 @@ func TestMarshalWitnessLost(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `{"format":15,"ok":false,"stages":[{"name":"main","verdict":"resolved"}],"tree":null,"error":{"kind":"grammar","stage":"main","code":"elision-witness-lost","message":"the main stage could not reconstruct its chosen derivation for elision-only","chosen":{"kind":"rule","rule":"text","span":[0,1],"source":[0,1],"tags":[],"children":[{"kind":"token","terminal":"A","token":0,"span":[0,1],"source":[0,1]},{"kind":"elided","terminal":"T","span":[1,1],"source":[1,1],"value":"ta"}]},"completion":[{"terminal":"T","at":1,"source":[1,1],"value":"ta"},{"terminal":"U","at":1,"source":[1,1]}]}}`
+	want := `{"format":17,"ok":false,"stages":[{"name":"main","verdict":"resolved"}],"tree":null,"error":{"kind":"grammar","stage":"main","code":"elision-witness-lost","message":"the main stage could not reconstruct its chosen derivation for elision-only","chosen":{"kind":"rule","rule":"text","span":[0,1],"source":[0,1],"tags":[],"children":[{"kind":"token","terminal":"A","token":0,"span":[0,1],"source":[0,1]},{"kind":"elided","terminal":"T","span":[1,1],"source":[1,1],"value":"ta"}]},"completion":[{"terminal":"T","at":1,"source":[1,1],"value":"ta"},{"terminal":"U","at":1,"source":[1,1]}]}}`
 	if string(data) != want {
 		t.Fatalf("got  %s\nwant %s", data, want)
 	}
@@ -1514,7 +1518,7 @@ func TestParseUsageErrorOrder(t *testing.T) {
 
 func TestWarningFeaturesShareALowering(t *testing.T) {
 	t.Parallel()
-	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text a! b! \"x\""))
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text *a\n%rule a *b %warning \"warning a\"\n%rule b \"x\" %warning \"warning b\""))
 	for _, features := range [][]string{nil, {"a"}, {"b"}, {"a", "b"}, nil} {
 		result, err := d.Parse("x", ParseOptions{Features: features})
 		if err != nil || !result.OK || len(result.Warnings) != len(features) {

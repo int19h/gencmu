@@ -32,13 +32,17 @@ A caller can enable or disable an unknown feature name. Unknown names do not cha
 - `ParseOptions` has `features`, `without_features`, `until` and `elision_only`. `features` names the features to turn on, besides the pipeline's own. `without_features` names features to disable, including unconditional defaults.
 - `Pipeline::features()` lists the features of the pipeline in code point order, the gates of its classifiers' entries included. Each is a `Feature` with its `name`, its `kind` (`FeatureKind::Gate` or `FeatureKind::Warning`), and whether the pipeline turns it on by `default`.
 
+Warning codes are selectable features. Error codes are absent from the feature list and cannot appear in `%features` declarations. Caller feature lists do not affect error codes. One name cannot serve different roles across stages.
+
 A `FeatureConflict` result names a disabled feature whose conditional declaration holds for the stage input. Its `stage` and `feature` fields identify the conflict.
 
 ## Results
 
 - `to_json(&result)` writes the canonical JSON of `docs/output.md`.
 - `to_brackets(&result, show_elided)` renders the tree as brackets. It shows each token by its image. A token with attachments is a group of its before-attachments, its image and its after-attachments, so `mi ui klama` in the `lojban/cll` pipeline is `([mi ui] klama)`.
-- A `ParseResult` owns its data: the stages, the tree, the error and the warnings. Each stage has its input and output tokens, its verdict and, for a tie, its witness. A tied stage has no output tokens, and the error of the result holds its two readings. An error of the kind `ParseErrorKind::Ambiguous` has a `reason`: `AmbiguityReason::Tie` for a tie, or `AmbiguityReason::ElisionOnly` where the check of `elision-only` fails. Only an `elision-only` error has a `witness`, the pair of actions where its readings first differ (engine §7.10). Such an action can be `Action::Elided`, a read of a terminator that the check wrote back.
+- A `ParseResult` owns its stages, tree, error, and warnings. Each stage has its input and output tokens, verdict, and optional witness. A tied stage has no output. If its messages evaluate, its error reports `Ambiguous` with reason `Tie` and two readings. A message failure reports `Grammar` and retains the tie verdict.
+
+  `AmbiguityReason::ElisionOnly` identifies a failure of the check of `elision-only`. Its `witness` holds the pair of actions where the readings first differ (engine §7.10). `Action::Elided` records a terminator that the check wrote back.
 
   An error whose `kind` is `ParseErrorKind::Grammar` and whose `code` is `Some(ErrorCode::ElisionWitnessLost)` marks a library defect. The check loses the stage's chosen derivation (engine §7.9). Such an error also has `chosen`, the stage's chosen tree, and `completion`, the terminators that the check wrote back. Each `Restoration` has its `terminal`, input position `at`, and the empty `source` of its elided node.
 
@@ -48,7 +52,19 @@ A `FeatureConflict` result names a disabled feature whose conditional declaratio
 
   A token also has its attachments, `before` and `after`. These are tokens that belong to it and that no later stage reads, such as the indicators after a word. Each is an `Attachment`, a token without a span, with attachments of its own. Both lists are empty unless an emission gives the token attachments.
 
-  The warnings are those of the enabled warning features. Source positions count Unicode code points. Spans and token indices count tokens of the relevant stage.
+  Tokens carry `errors` and `warnings` to later stages. Each diagnostic records its `stage`, `code`, `rule`, `span`, `source`, and `message`. When an emission produces no tokens, stage-level lists retain its unowned diagnostics. `%erased` drops diagnostics from its subtree. `%suppress-warnings` suppresses matching warning codes on its occurrence and descendants. Disabled or suppressed warnings evaluate no message.
+
+  The reporting stage collects diagnostics in preorder, after pending earlier stage-level diagnostics. A token leaf supplies its carried lists in their stored order. Carrier diagnostics precede attachment groups within each stored list. Each attachment group uses raising stage and source occurrence order across its whole capture. The reporting stage is the stage that `until` names, or the last stage without `until`.
+
+  Counted errors give `ParseErrorKind::Reported`, with named reports in `ParseError::errors`. The reporting stage keeps its tree, output, and verdict. Earlier stages continue despite chosen errors. Other error results have a null result tree. A direct ranked-option error can carry default rejection evidence in its `rejection` member.
+
+  A failed message recipe gives `ParseErrorKind::Grammar` and retains the stage verdict. The result has a null tree and no output from the failing stage. Its envelope retains carried diagnostics and evaluated own messages outside erased subtrees. Earlier stages keep their outputs.
+
+  Verdicts count only derivations with the best three-part measure. The measure minimizes blamed source width, then errors without a source, then maximizes the diagnostic count. Carried errors retain their fixed charges. Erased completions with equal observable state collapse and keep one interior as their shown tree.
+
+  The `Warning` type represents either diagnostic kind. `Warning::new` constructs a public diagnostic. The engine alone assigns its private identity and charge.
+
+  Source positions count Unicode code points. Spans and token indices count tokens of the relevant stage.
 
   A shared `BTreeSet<String>` backs the mutable `Tags` set. `Tags` copies shared storage before mutation. `Deref` and `DerefMut` expose the standard set methods. `From` converts owned `BTreeSet<String>` values in both directions.
 
@@ -63,25 +79,31 @@ The method `.decomposed-source-text` decomposes the original source text of a sp
 
 Lowering can find grammar defects for the features of a parse. Examples include a chain beside another alternative or a repeated item that can match no tokens. The pipeline loads, but parsing returns a result whose error has kind `ParseErrorKind::Grammar` and the stage's name. It does not return an `Error`. Its message begins with the document, line and column of the definition that wrote the alternative at fault, as `g.md:4:1:`.
 
+An error production that can match no tokens fails during loading. The structural test treats gates as present and ignores conditions and tests. Empty warnings remain legal.
+
 `Pipeline` is `Send` and `Sync`, so threads can share one pipeline freely.
 
 ## Tools
 
-For tests and tools: `Pipeline::parse_tokens` feeds tokens straight to the first stage. An `InputToken` has optional `value` and `image` fields. Each absent field defaults independently to its `text`. An `InputToken` has no attachments, since a caller cannot supply them. A DOM (document object model) is the parsed form of a grammar document.
+For tests and tools: `Pipeline::parse_tokens` feeds tokens straight to the first stage. An `InputToken` has optional `value` and `image` fields. Each absent field defaults independently to its `text`. An `InputToken` has no attachments because a caller cannot supply them. Empty `errors` and `warnings` lists are accepted. A nonempty diagnostic list causes a usage error. A DOM (document object model) is the parsed form of a grammar document.
 
 `gencmu::tools` reads a grammar document into a DOM. It tests that DOM as a preparsed DOM. It also splices bundled pipelines into stages and computes the hashes for the DOM cache. `gencmu::tools::DOM_FORMAT` is the version of the DOM's shape, which every cache key holds.
 
 A DOM holds the document's constants, classifiers and implications as the document writes them, never their values. The loader gives each constant its value when it stitches a stage. A stage resolves its classifiers for the features of each parse, once for each set of features.
 
-The DOM format is 40. The result format is 15. Braces are a `repeat`, with a `separator` for `{x / s}`. A chain has `chain` set to `left` or `right` and forms its alternative's whole expression. An elidable optional, `[+T x]`, is an `optional` with `elidable`.
+The DOM format is 46. The result format is 17. Braces are a `repeat`, with a `separator` for `{x / s}`. A chain has `chain` set to `left` or `right` and forms its alternative's whole expression. An elidable optional, `[+T x]`, is an `optional` with `elidable`.
+
+`$x.parse(C)` supplies a forest of query witnesses for body `C`. One outer `…` selects a prefix or suffix. `.error-free` excludes carried errors outside erased parts. Ordinary witnesses allow carried errors. Both forms exclude unerased own error rules.
 
 `$x.without-elision` restores the terminators omitted inside `$x` for a query that preserves those closes. A close records an omitted terminal and its boundary. The method takes one bare capture. `$x.without-elision.onward` extends the query through the following input.
 
 `$x.without-elision-except(family)` takes a bare capture and one ordinary rule name or exact instance. The family permits extra closes from optionals that its members own. Each extra close needs a kept token or record on both sides inside the shared stretch. `.onward` preserves this permission. Other span methods drop it. Family membership follows the final written rules, before feature gates or lowering.
 
-The Rust API exposes definition changes through `Pipeline::changes`. Rejections can name a failed boundary condition through `ParseError::boundary`. It exposes no grammar audit. The audit data and notes of `docs/design.md` belong to the JavaScript API.
+The Rust API exposes definition changes through `Pipeline::changes`. Rejections can name a failed boundary condition through `ParseError::boundary`. `Pipeline::ranking_reports` classifies each written erasure as semantic or inert. Its notes describe queries that reach error rules, unused suppression codes, and large expansions of guarded tags. `format_ranking_reports` formats these notes as text.
 
-A capture can stand anywhere in an alternative but inside braces or an elidable optional, and a production holds each name once. A production can have any number of captures. Each capture forms part of the identity of a recognizer item. A capture whose rule can end in many places multiplies items (engine §4).
+A capture wraps one symbol or splice. An elidable optional can capture its lone terminator with `[$j:+T]`. Flat braces can hold item captures, including inside a chain. Other captures cannot stand inside a chain.
+
+A production holds each capture name once. A production can have any number of captures. Each capture forms part of the identity of a recognizer item. A capture whose rule can end in many places multiplies items (engine §4).
 
 ## Development
 

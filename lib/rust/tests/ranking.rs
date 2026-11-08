@@ -1082,6 +1082,8 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
         .iter()
         .enumerate()
         .map(|(index, tags)| gencmu::InputToken {
+            errors: Vec::new(),
+            warnings: Vec::new(),
             image: None,
             text: format!("t{index}"),
             tags: tags.iter().map(|&t| TERMINALS[t].to_string()).collect(),

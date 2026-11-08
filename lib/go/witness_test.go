@@ -1,6 +1,9 @@
 package gencmu
 
 import (
+	"bytes"
+	"encoding/json"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -50,14 +53,22 @@ func (log *checkLog) lost() int { return log.bad }
 // first is not W(D), W(D) was a candidate for the second, so the second
 // does not come after W(D) in the canonical order T.
 func keeps(res *rankResult, rk *ranker, w *dn) bool {
-	if rk.rawWitnessCounted != nil {
-		return res != nil && *rk.rawWitnessCounted
+	if res == nil {
+		return false
 	}
-	if res == nil || !res.witnessCounted {
+	counted := res.witnessCounted
+	if rk.rawWitnessCounted != nil {
+		counted = *rk.rawWitnessCounted
+	}
+	if !counted {
 		return false
 	}
 	if res.verdict != VerdictTie {
 		return true
+	}
+	// The admitted class uses its kept interior in the selection channel (§7.10).
+	if rk.witnessShown != nil {
+		w = rk.witnessShown
 	}
 	first := rk.compare(res.first, w)
 	if !rk.aFirst(first) {
@@ -69,7 +80,7 @@ func keeps(res *rankResult, rk *ranker, w *dn) bool {
 func lostCase(t *testing.T) (*Pipeline, *engineCase) {
 	c := &engineCase{
 		Documents: map[string]string{"p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution late #·_<_Elided>\n%elision-only\n" +
-			"%rule text a | b\n%rule a w! A [+T=\"ta\"] [+U] %emits $ :: X\n%rule b A [+T=\"ta\"] [+U] [+U]\n" +
+			"%rule text a | b\n%rule a *w %emits $ :: X\n%rule w A [+T=\"ta\"] [+U] %warning \"warning w\"\n%rule b A [+T=\"ta\"] [+U] [+U]\n" +
 			"%stage later\n%ambiguity-resolution greedy\n%rule text X\n```\n"},
 		PipelineDocument: "p.md",
 		Tokens:           []caseToken{{Text: "a", Tags: []string{"A"}}},
@@ -131,9 +142,33 @@ func TestWitnessLost(t *testing.T) {
 		if string(chosen) != string(mainTree) {
 			t.Fatalf("%s: chosen %s, not %s", lose, chosen, mainTree)
 		}
+		var envelope struct{ Error json.RawMessage }
+		if err := json.Unmarshal(data, &envelope); err != nil {
+			t.Fatal(err)
+		}
+		decoder := json.NewDecoder(bytes.NewReader(envelope.Error))
+		if first, err := decoder.Token(); err != nil || first != json.Delim('{') {
+			t.Fatalf("error object: %v, %v", first, err)
+		}
+		var keys []string
+		for decoder.More() {
+			key, err := decoder.Token()
+			if err != nil {
+				t.Fatal(err)
+			}
+			keys = append(keys, key.(string))
+			var value json.RawMessage
+			if err := decoder.Decode(&value); err != nil {
+				t.Fatal(err)
+			}
+		}
+		wantKeys := []string{"kind", "stage", "code", "warnings", "message", "chosen", "completion"}
+		if !reflect.DeepEqual(keys, wantKeys) {
+			t.Fatalf("%s: error keys %v, want %v", lose, keys, wantKeys)
+		}
 		// The members in their order, and the records in their order of
 		// insertion, with the sound only for the tested terminator.
-		want := `"error":{"kind":"grammar","stage":"main","code":"elision-witness-lost","message":"the main stage could not reconstruct its chosen derivation for elision-only","chosen":`
+		want := `"error":{"kind":"grammar","stage":"main","code":"elision-witness-lost","warnings":[{"stage":"main","code":"w","rule":"w","span":[0,1],"source":[0,1],"message":"warning w"}],"message":"the main stage could not reconstruct its chosen derivation for elision-only","chosen":`
 		if !strings.Contains(string(data), want) || !strings.Contains(string(data), `,"completion":[{"terminal":"T","at":1,"source":[1,1],"value":"ta"},{"terminal":"U","at":1,"source":[1,1]}]}`) {
 			t.Fatalf("%s: %s", lose, data)
 		}
@@ -142,7 +177,7 @@ func TestWitnessLost(t *testing.T) {
 		if len(res.Stages) != 1 || res.Stages[0].Verdict != VerdictResolved || res.Stages[0].Output != nil {
 			t.Fatalf("%s: %s", lose, data)
 		}
-		if len(res.Warnings) != 1 || res.Warnings[0].Stage != "main" {
+		if len(res.Warnings) != 1 || res.Warnings[0].Stage != "main" || !reflect.DeepEqual(e.Warnings, res.Warnings) {
 			t.Fatalf("%s: warnings %#v", lose, res.Warnings)
 		}
 	}
@@ -214,5 +249,24 @@ func TestLostWitnessSkipsAdmission(t *testing.T) {
 	}
 	if !seen || result.Error == nil || result.Error.Code != CodeElisionWitnessLost {
 		t.Fatalf("unexpected result: %+v", result)
+	}
+}
+
+func TestErasedWitnessRetainsWorkingStructure(t *testing.T) {
+	// Engine §4.1 and §7: W(D) retains the bound item's working view.
+	pipeline := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%elision-only\n%rule text e\n%rule e \"a\" [+T]\n%conditions $ ≅ #« \"a\" ⋯ »\n%erased"))
+	seen := false
+	options := ParseOptions{private: &privateOptions{elisionCheck: func(run *elisionCheckRun) elisionWatch {
+		_, w := walkWitness(run)
+		node := derivationNamed(w, "e")
+		if node == nil || node.workingStructure == node.structure {
+			t.Fatal("the erased witness lost its working structure")
+		}
+		seen = true
+		return elisionWatch{}
+	}}}
+	result, err := pipeline.Parse("a", options)
+	if err != nil || !result.OK || !seen {
+		t.Fatalf("witness observation: %v, %v, %t", err, result.Error, seen)
 	}
 }

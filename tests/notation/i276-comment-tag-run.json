@@ -1,0 +1,26 @@
+{
+  "description": "A name stops before the double hyphen that starts a comment.",
+  "document": "```jbogenbau\n%rule a A :: B -- ignored\n C\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "alternatives": [
+            {
+              "tags": {
+                "union": [
+                  {
+                    "tag": "B"
+                  },
+                  {
+                    "tag": "C"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "description": "A neighbour guard requires a literal tag-set consequent.",
+  "grammar": "%rule text $x:A :: ($.followed-by(other) ⟹ $x.tags)\n%rule other B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

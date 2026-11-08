@@ -33,7 +33,7 @@ from .shared import (
     write_json,
 )
 
-FIELDS = ("expect", "verdict", "stage", "at", "error", "ties", "words", "brackets")
+FIELDS = ("expect", "verdict", "stage", "at", "error", "errors", "ties", "words", "brackets", "warnings")
 
 _pipelines: dict[str, Any] = {}
 
@@ -80,7 +80,7 @@ def outcome(
     if witness_lost(value):
         raise AssertionError("the result is the error elision-witness-lost, which no grammar gives")
     got: dict[str, Any] = {"expect": "accept" if result.ok else "reject"}
-    if result.ok:
+    if result.ok or result.error is not None and result.error.kind == "reported":
         got["verdict"] = result.stages[-1].verdict
     else:
         got["stage"] = result.error.stage if result.error else None
@@ -91,6 +91,13 @@ def outcome(
     if result.error is not None and result.error.kind == "ambiguous":
         # An ambiguous error pins its kind and its reason (tests/README.md).
         got["error"] = {"kind": result.error.kind, "reason": result.error.reason}
+    if result.error is not None and result.error.errors:
+        got["errors"] = [{"stage": error.stage, "code": error.code, "at": error.source[0]} for error in result.error.errors]
+    if result.error is not None and result.error.kind == "reported":
+        got["stage"] = result.error.stage
+        got["error"] = {"kind": "reported"}
+        got["at"] = result.error.errors[0].source[0]
+    got["warnings"] = [{"stage": warning.stage, "code": warning.code, "at": warning.source[0]} for warning in result.warnings]
     ties = [stage.name for stage in result.stages if stage.verdict == "tie"]
     if ties:
         got["ties"] = ties
@@ -115,9 +122,16 @@ def mismatch(case: dict[str, Any], got: dict[str, Any] | str) -> str | None:
     if isinstance(got, str):
         return f"{case['id']}: crashed: {got}"
     for key in FIELDS:
+        if key == "warnings" and key not in case:
+            continue
         if key not in case and key not in got:
             continue
-        if not same_json(case.get(key), got.get(key)):
+        actual = got.get(key)
+        if key == "errors" and isinstance(case.get(key), list) and isinstance(actual, list):
+            actual = [({member: value for member, value in entry.items() if member != "stage"}
+                       if index < len(case[key]) and "stage" not in case[key][index] else entry)
+                      for index, entry in enumerate(actual)]
+        if not same_json(case.get(key), actual):
             return f"{case['id']} ({case['pipeline']}): {key} expected {write_json(case.get(key))}, got {write_json(got.get(key))}"
     return None
 

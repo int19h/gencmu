@@ -1,0 +1,43 @@
+{
+  "description": "Engine §12.1: a skipped direct prediction is a competitor entry with its written terminal test.",
+  "grammar": "%rule text :: ∅ | good ≻ bad\n%rule good B=\"b\"\n%rule bad A\n%error \"bad\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "reported",
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "reported",
+        "errors": [
+          {
+            "code": "bad",
+            "rejection": {
+              "token": 0,
+              "source": [
+                0,
+                1
+              ],
+              "line": 1,
+              "column": 1,
+              "expected": [
+                {
+                  "terminal": "B=\"b\"",
+                  "rules": [
+                    "good"
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

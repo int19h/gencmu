@@ -4,7 +4,7 @@
 //! When a key step of `%ambiguity-resolution` counts anything, a first pass
 //! gives every node of the forest, in each of its contexts, a *summary*:
 //! the greatest profile of its derivations, how many derivations attain it,
-//! how many there are in all, and which of its edges attain it. The entries
+//! how many attain its least measure, and which edges attain it. The entries
 //! below are then computed over only those edges, the forest of the best
 //! derivations.
 //!
@@ -20,10 +20,12 @@
 
 use crate::fxhash::FxMap;
 use std::cmp::Ordering;
+use std::rc::Rc;
 
-use crate::earley::{test_holds, Cap, Chart, Item, Shared, Tok};
+use crate::earley::{test_holds, Cap, Chart, Item, RestorationView, Shared, Tok};
 use crate::grammar::{KeyStep, Lean, StepKind};
 use crate::lower::{Lowered, Sym, NO_TEST};
+use crate::measures::{Measure, Measures};
 use crate::nat::Nat;
 use crate::tags::{SetId, Tags};
 use crate::witness::{self, Fault, Marks, WitnessAct};
@@ -69,6 +71,7 @@ pub(crate) enum Verdict {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum Node {
+    Absent,
     Scoped(u32),
     Read {
         tok: u32,
@@ -87,6 +90,7 @@ enum Node {
     /// any where it is `NO_TEST`.
     Group {
         requested: u8,
+        route: u8,
         rule: u32,
         origin: u32,
         set: u32,
@@ -97,6 +101,21 @@ enum Node {
         lexical: u32,
         option: usize,
     },
+}
+
+#[derive(Clone, PartialEq, Eq, Hash)]
+struct ErasedState {
+    rule: u32,
+    origin: u32,
+    end: u32,
+    tags: u32,
+    structure: (u32, u32),
+    boundary: u32,
+    requested: u8,
+    lexical: u32,
+    strict: bool,
+    restores: bool,
+    scope: usize,
 }
 
 type Key = (Node, u32);
@@ -151,12 +170,33 @@ struct SlotCandidate {
     start: u32,
     end: u32,
     entry: String,
+    measure: Measure,
 }
-#[derive(Default)]
+#[derive(Clone)]
 struct Counts {
+    measure: Measure,
     all: u8,
 }
+impl Default for Counts {
+    fn default() -> Self {
+        Self { all: 0, measure: Measure::ZERO }
+    }
+}
+impl Counts {
+    fn offer(&mut self, measure: Measure, ways: u8) {
+        if ways == 0 {
+            return;
+        }
+        if self.all == 0 || measure.compare(&self.measure).is_lt() {
+            self.measure = measure;
+            self.all = ways.min(2);
+        } else if measure == self.measure {
+            self.all = self.all.saturating_add(ways).min(2);
+        }
+    }
+}
 type SlotMaxima = std::collections::BTreeSet<String>;
+#[derive(Clone)]
 struct Admission {
     groups: Vec<Vec<SlotCandidate>>,
     at: FxMap<Node, Vec<SlotCandidate>>,
@@ -168,7 +208,7 @@ struct Admission {
 }
 /// The packed chart keeps raw proofs together. Admission separates the
 /// options at a slot edge while retaining every proof of each option.
-fn slot_links(g: &Lowered, chart: &Chart, set: u32, item: Item) -> Vec<(Item, Cap, usize)> {
+fn raw_slot_links(g: &Lowered, chart: &Chart, set: u32, item: Item) -> Vec<(Item, Cap, usize)> {
     let mut out = vec![];
     let rule = match g.prods[item.prod as usize].syms[item.dot as usize - 1] {
         Sym::N(r) => Some(r),
@@ -183,7 +223,7 @@ fn slot_links(g: &Lowered, chart: &Chart, set: u32, item: Item) -> Vec<(Item, Ca
                 let child = chart.sets[set as usize].items[index as usize];
                 if child.close_requested == cap.close_requested
                     && child.lexical == lexical
-                    && child.structure == cap.structure
+                    && chart.sets[set as usize].completed_structures[index as usize] == cap.structure
                     && child.boundary == cap.boundary
                     && chart.sets[set as usize].tagset[index as usize] == cap.tags
                 {
@@ -197,7 +237,64 @@ fn slot_links(g: &Lowered, chart: &Chart, set: u32, item: Item) -> Vec<(Item, Ca
     }
     out
 }
-fn written_frame(g: &Lowered, chart: &Chart, item: Item, at: u32) -> String {
+fn slot_links(
+    g: &Lowered,
+    chart: &Chart,
+    set: u32,
+    item: Item,
+    view: Option<&RestorationView>,
+) -> Vec<(Item, Cap, usize)> {
+    let Some(view) = view else { return raw_slot_links(g, chart, set, item) };
+    let index = chart.sets[set as usize].find(&item).expect("a ranked item");
+    let mut seen = crate::fxhash::FxSet::default();
+    let mut links = Vec::new();
+    for &raw in &view.members[&(set, view.aliases[set as usize][index as usize])] {
+        for (before, cap, option) in raw_slot_links(g, chart, set, chart.sets[set as usize].items[raw as usize]) {
+            work::count(Work::Walked, 1);
+            let previous = chart.sets[cap.start as usize].find(&before).expect("a ranked predecessor");
+            let mut observed = view.cap(cap);
+            observed.structure = observed.proof_structure.unwrap_or(observed.structure);
+            observed.proof_structure = None;
+            observed.route = 0;
+            let key = (
+                cap.start,
+                view.aliases[cap.start as usize][previous as usize],
+                observed,
+                view.frame(chart.expected_lexical(before, cap.start)),
+                option,
+            );
+            if seen.insert(key) {
+                links.push((before, cap, option));
+            }
+        }
+    }
+    links
+}
+impl RestorationView {
+    fn node(&self, node: Node) -> Node {
+        match node {
+            Node::Item { set, index } => Node::Item { set, index: self.aliases[set as usize][index as usize] },
+            Node::Close { set, index } => Node::Close { set, index: self.aliases[set as usize][index as usize] },
+            Node::Group { requested, route, rule, origin, set, tags, test, structure, boundary, lexical, option } => {
+                Node::Group {
+                    requested,
+                    route,
+                    rule,
+                    origin,
+                    set,
+                    tags,
+                    test,
+                    structure: self.state(structure),
+                    boundary,
+                    lexical: self.frame(lexical),
+                    option,
+                }
+            }
+            _ => node,
+        }
+    }
+}
+fn written_frame(g: &Lowered, chart: &Chart, item: Item, at: u32, projection: Option<&RestorationView>) -> String {
     let p = &g.prods[item.prod as usize];
     let control: Vec<_> = p
         .syms
@@ -218,9 +315,9 @@ fn written_frame(g: &Lowered, chart: &Chart, item: Item, at: u32) -> String {
         .names
         .iter()
         .zip(chart.caps(item.caps))
-        .filter_map(|(name, cap)| name.as_ref().map(|name| (name, cap)))
+        .filter_map(|(name, cap)| name.as_ref().map(|name| (name, projection.map_or(cap, |v| v.cap(cap)))))
         .collect();
-    let lexical = item.lexical;
+    let lexical = projection.map_or(item.lexical, |v| v.frame(item.lexical));
     let path = g.ranked.written.get(&p.rule);
     let index = chart.sets[at as usize].find(&item).expect("a written prefix");
     format!(
@@ -228,13 +325,19 @@ fn written_frame(g: &Lowered, chart: &Chart, item: Item, at: u32) -> String {
         p.slot.as_ref().unwrap().source,
         item.dot,
         item.origin,
-        item.prefix,
+        projection.map_or(item.prefix, |v| v.state(item.prefix)),
         item.boundary,
         chart.sets[at as usize].is_strict(index as usize)
     )
 }
 impl Admission {
-    fn new(g: &Lowered, chart: &Chart, views: Option<&SlotViews>, nodes: &[Node]) -> Self {
+    fn new(
+        g: &Lowered,
+        chart: &Chart,
+        views: Option<&SlotViews>,
+        nodes: &[Node],
+        projection: Option<&RestorationView>,
+    ) -> Self {
         let mut groups = Vec::<Vec<SlotCandidate>>::new();
         let mut ids = FxMap::<String, usize>::default();
         let mut at = FxMap::<Node, Vec<SlotCandidate>>::default();
@@ -247,7 +350,7 @@ impl Admission {
             let Node::Item { set: end, index } = raw else { continue };
             let item = chart.sets[end as usize].items[index as usize];
             let p = &g.prods[item.prod as usize];
-            if g.rules[p.rule as usize].helper && scope == 0 {
+            if !p.tree_root && scope == 0 {
                 continue;
             }
             if item.dot == 0 {
@@ -255,9 +358,9 @@ impl Admission {
             }
             let Sym::N(rule) = p.syms[item.dot as usize - 1] else { continue };
             let Some(group_id) = g.ranked.slots.get(&rule) else { continue };
-            for (edge, (previous, cap, option)) in slot_links(g, chart, end, item).into_iter().enumerate() {
-                let prefix = written_frame(g, chart, previous, cap.start);
-                let ancestry = views.map(|v| v.ranked_prefix_key(scope, g, chart));
+            for (edge, (previous, cap, option)) in slot_links(g, chart, end, item, projection).into_iter().enumerate() {
+                let prefix = written_frame(g, chart, previous, cap.start, projection);
+                let ancestry = views.map(|v| v.ranked_prefix_key(scope, g, chart, projection));
                 let key = format!("{group_id}/{prefix}/{ancestry:?}/{}/{}", cap.start, cap.end);
                 let group = *ids.entry(key.clone()).or_insert_with(|| {
                     groups.push(vec![]);
@@ -266,6 +369,7 @@ impl Admission {
                 let open = chart.boundaries.as_ref().map(|m| m.borrow().open(previous.boundary, cap.boundary));
                 let label = format!("{option:020}/{open:?}");
                 let candidate = SlotCandidate {
+                    measure: Measure::ZERO,
                     node,
                     edge,
                     label,
@@ -341,6 +445,8 @@ impl Ranker<'_> {
                     let right = &a.counts[&child];
                     let ways = left.all;
                     if ways > 0 && right.all > 0 {
+                        let mut candidate = candidate;
+                        candidate.measure = left.measure.add(&right.measure);
                         viable.push(candidate);
                     }
                 }
@@ -349,6 +455,7 @@ impl Ranker<'_> {
                     .filter(|proof| {
                         !viable.iter().any(|higher| {
                             higher.option < proof.option
+                                && !higher.measure.compare(&proof.measure).is_gt()
                                 && match (&higher.open, &proof.open) {
                                     (Some(h), Some(l)) => h.dominates(l),
                                     (None, None) => true,
@@ -389,21 +496,49 @@ impl Ranker<'_> {
                     }
                     _ => true,
                 };
-                Counts { all: u8::from(valid) }
+                Counts {
+                    all: u8::from(valid),
+                    measure: match self.raw_node(key.0) {
+                        Node::Read { tok, .. } => self.dag.carried_measure(tok),
+                        _ => Measure::ZERO,
+                    },
+                }
             }
             Deps::Close(None) => Counts::default(),
             Deps::Close(Some(k)) => {
                 let body = &a.counts[k];
-                Counts { all: body.all }
+                let measure = match self.raw_node(key.0) {
+                    Node::Close { set, index } => {
+                        let item = self.item(set, index);
+                        let production = &self.dag.g.prods[item.prod as usize];
+                        if production.erased {
+                            Measure::ZERO
+                        } else if production.error.is_some() {
+                            body.measure.add(&self.dag.own_measure(item.origin, set))
+                        } else {
+                            body.measure.clone()
+                        }
+                    }
+                    _ => body.measure.clone(),
+                };
+                Counts { all: body.all, measure }
             }
             Deps::Group(members) => {
                 let mut result = Counts::default();
-                for (i, k) in members.iter().enumerate() {
-                    if self.skips(Fault::LostContext, "group", i as u32, members.len()) {
-                        continue;
+                for (erased, group) in self.erased_groups(members) {
+                    for &index in &group {
+                        if self.skips(Fault::LostContext, "group", index as u32, members.len()) {
+                            continue;
+                        }
+                        let counts = &a.counts[&members[index]];
+                        if counts.all == 0 {
+                            continue;
+                        }
+                        result.offer(counts.measure.clone(), if erased { 1 } else { counts.all });
+                        if erased {
+                            break;
+                        }
                     }
-                    let c = &a.counts[k];
-                    result.all = result.all.saturating_add(c.all).min(2);
                 }
                 result
             }
@@ -418,7 +553,7 @@ impl Ranker<'_> {
                     let right = &a.counts[&child];
                     let ways = (left.all).saturating_mul(right.all).min(2);
                     if mask.map_or(true, |m| m[i]) {
-                        result.all = result.all.saturating_add(ways).min(2);
+                        result.offer(left.measure.add(&right.measure), ways);
                     }
                 }
                 result
@@ -661,14 +796,22 @@ impl Least {
         Least { profile, least: 1, total: 1, kept: vec![0] }
     }
 
-    /// Adds the derivations of the edge `index`. The total counts every
-    /// edge, losing ones included; the least count and the kept edges
-    /// count only those that attain the greatest profile.
+    /// Adds an edge and counts only derivations at the least measure.
+    /// The least count and kept edges also apply the written key steps.
     fn add(&mut self, profiles: &Profiles, index: u32, edge: &Least) {
         if edge.total == 0 {
             return;
         }
-        self.total = self.total.saturating_add(edge.total).min(2);
+        let error_order = if self.total == 0 {
+            Ordering::Less
+        } else {
+            Profiles::measure(&edge.profile).compare(&Profiles::measure(&self.profile))
+        };
+        self.total = match error_order {
+            Ordering::Less => edge.total.min(2),
+            Ordering::Equal => self.total.saturating_add(edge.total).min(2),
+            Ordering::Greater => self.total,
+        };
         let order = if self.least == 0 { Ordering::Less } else { profiles.compare(&edge.profile, &self.profile) };
         match order {
             Ordering::Less => {
@@ -724,6 +867,7 @@ pub(crate) struct Dag<'c> {
     g: &'c Lowered,
     chart: &'c Chart,
     tokens: &'c [Tok],
+    measures: Measures,
     /// The stored tag sets used by symbol tests (§4, §5).
     tags: &'c Tags,
     /// In the check of `elision-only`, O and π: a test of a reference reads
@@ -739,6 +883,15 @@ pub(crate) struct Dag<'c> {
 }
 
 pub(crate) struct Ranker<'c> {
+    shared: &'c Shared<'c>,
+    restoration: Option<Rc<RestorationView>>,
+    projected_marks: Option<Rc<Marks>>,
+    canonical_only: bool,
+    witness_only: bool,
+    raw_membership: bool,
+    witness_shown: Option<u32>,
+    canonical_channel: Option<Box<Ranker<'c>>>,
+    canonical_imports: FxMap<u32, u32>,
     pub dag: Dag<'c>,
     memo: FxMap<Key, u32>,
     results: Vec<NodeResult>,
@@ -763,6 +916,25 @@ impl<'c> Dag<'c> {
         self.chart.sets[set as usize].items[index as usize]
     }
 
+    fn own_measure(&self, start: u32, end: u32) -> Measure {
+        match self.projection {
+            Some((_, project)) => self.measures.projected_own(project, start as usize, end as usize),
+            None => self.measures.own(start as usize, end as usize),
+        }
+    }
+    fn carried_measure(&self, tok: u32) -> Measure {
+        let at = match self.projection {
+            Some((_, project)) => {
+                if project[tok as usize] == project[tok as usize + 1] {
+                    return Measure::ZERO;
+                }
+                project[tok as usize]
+            }
+            None => tok,
+        };
+        self.measures.carried[at as usize].clone()
+    }
+
     fn push(&mut self, node: DNode, vlen: Nat, flen: Nat) -> u32 {
         self.arena.push(node);
         self.vlen.push(vlen);
@@ -785,7 +957,12 @@ impl<'c> Dag<'c> {
 
     fn close_act(&self, set: u32, item: u32) -> Act {
         let item = self.item(set, item);
-        Act::Close { prod: item.prod, start: item.origin, end: set, visible: self.g.prods[item.prod as usize].visible }
+        Act::Close {
+            prod: self.g.prods[item.prod as usize].source,
+            start: item.origin,
+            end: set,
+            visible: self.g.prods[item.prod as usize].visible,
+        }
     }
 
     fn product(&mut self, first: &Entry, second: &Entry) -> Entry {
@@ -1102,10 +1279,12 @@ impl<'c> Ranker<'c> {
         lean: Lean,
     ) -> Ranker<'c> {
         let mut ranker = Self::new_unfiltered(g, chart, tokens, shared, steps, lean);
+        ranker.restoration = chart.restoration_view(g);
         if !g.ranked.slots.is_empty() {
             ranker.views = SlotViews::new(g);
             let nodes = ranker.prepare_views();
-            ranker.admission = Some(Admission::new(g, chart, ranker.views.as_ref(), &nodes));
+            ranker.admission =
+                Some(Admission::new(g, chart, ranker.views.as_ref(), &nodes, ranker.restoration.as_deref()));
         }
         ranker
     }
@@ -1122,11 +1301,14 @@ impl<'c> Ranker<'c> {
         // rule can match a step. The readings then
         // come from the forest of the best derivations (§6).
         let profiles = Profiles::new(steps);
-        let decide = crate::ranking_patterns::can_count(g, steps);
+        let measures = Measures::new(tokens);
+        let decide = crate::ranking_patterns::can_count(g, steps)
+            || measures.carried.iter().any(|measure| *measure != Measure::ZERO);
         let mut dag = Dag {
             g,
             chart,
             tokens,
+            measures,
             tags: &shared.tags,
             projection: None,
             lean,
@@ -1137,6 +1319,15 @@ impl<'c> Ranker<'c> {
         };
         dag.push(DNode::Empty, Nat::ZERO, Nat::ZERO);
         let mut ranker = Ranker {
+            shared,
+            restoration: None,
+            projected_marks: None,
+            canonical_only: false,
+            witness_only: false,
+            raw_membership: false,
+            witness_shown: None,
+            canonical_channel: None,
+            canonical_imports: FxMap::default(),
             dag,
             memo: FxMap::default(),
             results: Vec::new(),
@@ -1151,6 +1342,190 @@ impl<'c> Ranker<'c> {
         };
         ranker.fset_index.insert(Vec::new(), 0);
         ranker
+    }
+
+    fn erased_state(&self, key: Key) -> Option<ErasedState> {
+        let (node, scope) = self.views.as_ref().map_or((key.0, 0), |views| views.unpack(key.0));
+        let Node::Close { set, index } = node else { return None };
+        let item = self.item(set, index);
+        let production = &self.dag.g.prods[item.prod as usize];
+        if !production.erased {
+            return None;
+        }
+        Some(ErasedState {
+            rule: production.rule,
+            origin: item.origin,
+            end: set,
+            tags: self.dag.chart.sets[set as usize].tagset[index as usize],
+            structure: {
+                let state = self.dag.chart.sets[set as usize].completed_structures[index as usize];
+                self.dag.chart.machine.as_ref().map_or((state, 0), |m| m.borrow_mut().restoration_key(state))
+            },
+            boundary: item.boundary,
+            requested: item.close_requested,
+            lexical: self.restoration.as_ref().map_or(item.lexical, |v| v.frame(item.lexical)),
+            strict: self.dag.chart.sets[set as usize].is_strict(index as usize),
+            restores: production.syms.is_empty() && item.origin != set,
+            scope,
+        })
+    }
+
+    fn erased_groups(&self, members: &[Key]) -> Vec<(bool, Vec<usize>)> {
+        if self.raw_membership {
+            return (0..members.len())
+                .inspect(|_| work::count(Work::Walked, 1))
+                .map(|index| (false, vec![index]))
+                .collect();
+        }
+        let mut found: FxMap<ErasedState, usize> = FxMap::default();
+        let mut groups: Vec<(bool, Vec<usize>)> = Vec::new();
+        for (index, &member) in members.iter().enumerate() {
+            work::count(Work::Walked, 1);
+            if let Some(state) = self.erased_state(member) {
+                if let Some(&group) = found.get(&state) {
+                    groups[group].1.push(index);
+                } else {
+                    found.insert(state, groups.len());
+                    groups.push((true, vec![index]));
+                }
+            } else {
+                groups.push((false, vec![index]));
+            }
+        }
+        groups
+    }
+
+    fn action_channel(&self) -> Ranker<'c> {
+        let mut ranker =
+            Self::new_unfiltered(self.dag.g, self.dag.chart, self.dag.tokens, self.shared, &[], Lean::Neither);
+        if let Some((observed, project)) = self.dag.projection {
+            ranker = ranker.observing(observed, project);
+        }
+        ranker.summaries = Some(FxMap::default());
+        ranker.canonical_only = true;
+        ranker.admission = self.admission.clone();
+        ranker.views = self.views.clone();
+        ranker.restoration = self.restoration.clone();
+        ranker.projected_marks = self.projected_marks.clone();
+        ranker.check = self.check;
+        ranker.marks = self.marks;
+        ranker.fsets = self.fsets.clone();
+        ranker.fset_index = self.fset_index.clone();
+        ranker
+    }
+
+    /// A separate measure-only summary retains its ordinary action frontier (§6).
+    fn canonical_erased(&mut self, members: &[Key]) -> Option<u32> {
+        if self.canonical_only {
+            return self.choose_erased(members);
+        }
+        let mut channel = self.canonical_channel.take().unwrap_or_else(|| Box::new(self.action_channel()));
+        let keys: Vec<_> = members
+            .iter()
+            .map(|&(node, context)| {
+                let values = &self.fsets[context as usize];
+                let next = channel.fsets.len() as u32;
+                let context = *channel.fset_index.entry(values.clone()).or_insert_with(|| {
+                    channel.fsets.push(values.clone());
+                    next
+                });
+                (node, context)
+            })
+            .collect();
+        let result = channel.choose_erased(&keys);
+        let result = result.map(|root| self.import_canonical(&channel, root));
+        self.canonical_channel = Some(channel);
+        result
+    }
+
+    fn choose_erased(&mut self, members: &[Key]) -> Option<u32> {
+        let mut measure = None;
+        let mut selected = None;
+        for &member in members {
+            let Node::Close { set, index } = self.raw_node(member.0) else { unreachable!("an erased completion") };
+            let Deps::Close(Some(inner)) = self.deps(member) else { continue };
+            self.traverse(inner, Pass::Summaries);
+            self.traverse(inner, Pass::Entries);
+            let summary = &self.summaries.as_ref().unwrap()[&inner].all;
+            if summary.total == 0 {
+                continue;
+            }
+            let item = self.item(set, index);
+            let production = &self.dag.g.prods[item.prod as usize];
+            let mut current = Profiles::measure(&summary.profile);
+            if production.error.is_some() {
+                current = current.add(&self.dag.own_measure(item.origin, set));
+            }
+            let order = measure.as_ref().map_or(Ordering::Less, |best| current.compare(best));
+            if order.is_gt() {
+                continue;
+            }
+            if order.is_lt() {
+                measure = Some(current);
+                selected = None;
+            }
+            let entries = self.results[self.memo[&inner] as usize].entries.clone();
+            for entry in entries {
+                let candidate = self.dag.close(entry.x, set, index);
+                if selected.map_or(true, |before| self.dag.before(candidate, before)) {
+                    selected = Some(candidate);
+                }
+            }
+        }
+        selected
+    }
+
+    fn import_canonical(&mut self, channel: &Ranker<'c>, root: u32) -> u32 {
+        self.canonical_imports.entry(0).or_insert(0);
+        let mut pending = vec![(root, false)];
+        while let Some((node, ready)) = pending.pop() {
+            if self.canonical_imports.contains_key(&node) {
+                continue;
+            }
+            let source = channel.dag.arena[node as usize];
+            if !ready {
+                pending.push((node, true));
+                match source {
+                    DNode::Seq { left, right } => pending.extend([(right, false), (left, false)]),
+                    DNode::Close { body, .. } => pending.push((body, false)),
+                    _ => {}
+                }
+                continue;
+            }
+            work::count(Work::Walked, 1);
+            let copied = match source {
+                DNode::Empty => EMPTY,
+                DNode::Read { tok, terminal } => self.dag.push(DNode::Read { tok, terminal }, Nat::ONE, Nat::ONE),
+                DNode::Seq { left, right } => {
+                    self.dag.seq(self.canonical_imports[&left], self.canonical_imports[&right])
+                }
+                DNode::Close { body, set, item } => self.dag.close(self.canonical_imports[&body], set, item),
+            };
+            self.canonical_imports.insert(node, copied);
+        }
+        self.canonical_imports[&root]
+    }
+
+    pub(crate) fn raw_membership(mut self) -> Self {
+        self.raw_membership = true;
+        self.summaries = None;
+        self
+    }
+
+    pub(crate) fn witness_representative(&mut self) -> Option<u32> {
+        if self.witness_shown.is_some() {
+            return self.witness_shown;
+        }
+        self.marks?;
+        let mut ranker = self.action_channel();
+        ranker.canonical_only = false;
+        ranker.witness_only = true;
+        let ranking = ranker.rank_inner()?;
+        let imports = std::mem::take(&mut self.canonical_imports);
+        let root = self.import_canonical(&ranker, ranking.first);
+        self.canonical_imports = imports;
+        self.witness_shown = Some(root);
+        Some(root)
     }
 
     /// The profile of a chosen tree in this ranking's profiles (§7).
@@ -1171,8 +1546,12 @@ impl<'c> Ranker<'c> {
     /// whose tests of references read the projected span in O (§7.5).
     pub(crate) fn observing(mut self, observed: &'c [Tok], project: &'c [u32]) -> Ranker<'c> {
         self.dag.projection = Some((observed, project));
+        self.dag.measures = Measures::new(observed);
         // Every projected omission has an empty span, so these steps count nothing.
-        if self.profiles.patterns.iter().all(crate::patterns::requires_elided) {
+        if !self.dag.g.has_errors
+            && self.dag.measures.carried.iter().all(|measure| *measure == Measure::ZERO)
+            && self.profiles.patterns.iter().all(crate::patterns::requires_elided)
+        {
             self.summaries = None;
         }
         self
@@ -1184,6 +1563,20 @@ impl<'c> Ranker<'c> {
         self.check = true;
         self.dag.canonical_companions = true;
         self.marks = marks;
+        if let (Some(view), Some(marks)) = (&self.restoration, marks) {
+            self.projected_marks = Some(Rc::new(Marks {
+                items: marks
+                    .items
+                    .iter()
+                    .map(|&(set, index)| (set, view.aliases[set as usize][index as usize]))
+                    .collect(),
+                links: marks
+                    .links
+                    .iter()
+                    .map(|&(set, index, start)| (set, view.aliases[set as usize][index as usize], start))
+                    .collect(),
+            }));
+        }
         self
     }
 
@@ -1197,6 +1590,9 @@ impl<'c> Ranker<'c> {
     /// W(D)'s actions as a derivation of the ranking's own, to compare with
     /// its readings in the order T.
     pub(crate) fn derivation(&mut self, sequence: &[WitnessAct]) -> u32 {
+        if let Some(shown) = self.witness_shown {
+            return shown;
+        }
         let mut stack = Vec::new();
         for act in sequence {
             match *act {
@@ -1265,6 +1661,7 @@ impl<'c> Ranker<'c> {
     /// A rule on no cycle has an empty context below it, since no rule
     /// above it can complete again below it over the same span.
     fn fset_with(&mut self, fset: u32, rule: u32) -> u32 {
+        let rule = self.dag.g.rules[rule as usize].splice_target.unwrap_or(rule);
         let cycles = &self.dag.g.cycle;
         let Some(cycle) = cycles[rule as usize] else {
             return 0;
@@ -1284,8 +1681,30 @@ impl<'c> Ranker<'c> {
         id
     }
 
-    fn raw_deps(&mut self, (node, fset): Key) -> Deps {
+    fn raw_deps(&mut self, key: Key) -> Deps {
+        let deps = self.unprojected_deps(key);
+        let Some(view) = &self.restoration else { return deps };
+        let map = |(node, context)| {
+            work::count(Work::Walked, 1);
+            (view.node(node), context)
+        };
+        match deps {
+            Deps::Close(child) => Deps::Close(child.map(map)),
+            Deps::Group(nodes) => {
+                let mut seen = crate::fxhash::FxSet::default();
+                Deps::Group(nodes.into_iter().map(map).filter(|n| seen.insert(*n)).collect())
+            }
+            Deps::Links(links) => {
+                let mut seen = crate::fxhash::FxSet::default();
+                Deps::Links(links.into_iter().map(|(a, b)| (map(a), map(b))).filter(|n| seen.insert(*n)).collect())
+            }
+            _ => deps,
+        }
+    }
+    fn unprojected_deps(&mut self, (node, fset): Key) -> Deps {
+        let node = self.restoration.as_ref().map_or(node, |v| v.node(node));
         match node {
+            Node::Absent => Deps::Close(None),
             Node::Scoped(_) => unreachable!("a raw forest node"),
             Node::Read { .. } => Deps::Leaf,
             Node::Item { set, index } => {
@@ -1298,7 +1717,7 @@ impl<'c> Ranker<'c> {
                     let p = &g.prods[item.prod as usize];
                     let position = item.dot as usize - 1;
                     let mut links = Vec::new();
-                    for (before, cap, option) in slot_links(g, self.dag.chart, set, item) {
+                    for (before, cap, option) in slot_links(g, self.dag.chart, set, item, self.restoration.as_deref()) {
                         let m = cap.start;
                         let Some(index) = self.dag.chart.sets[m as usize].find(&before) else {
                             continue;
@@ -1308,13 +1727,14 @@ impl<'c> Ranker<'c> {
                             Sym::T(terminal) => (Node::Read { tok: m, terminal }, 0),
                             Sym::N(rule) => (
                                 Node::Group {
+                                    route: p.routes.get(&position).copied().unwrap_or(0),
                                     requested: cap.close_requested,
                                     rule,
                                     origin: m,
                                     set,
                                     tags: cap.tags,
                                     test: p.test(position).unwrap_or(NO_TEST),
-                                    structure: cap.structure,
+                                    structure: cap.proof_structure.unwrap_or(cap.structure),
                                     boundary: cap.boundary,
                                     lexical: self.dag.chart.expected_lexical(before, m),
                                     option,
@@ -1398,13 +1818,14 @@ impl<'c> Ranker<'c> {
                                 // the predecessor entered them in (§4).
                                 let before = self.dag.chart.sets[m as usize].items[p as usize];
                                 let child = Node::Group {
+                                    route: production.routes.get(&position).copied().unwrap_or(0),
                                     requested: cap.close_requested,
                                     rule,
                                     origin: m,
                                     set,
                                     tags: cap.tags,
                                     test: NO_TEST,
-                                    structure: cap.structure,
+                                    structure: cap.proof_structure.unwrap_or(cap.structure),
                                     boundary: cap.boundary,
                                     lexical: self.dag.chart.expected_lexical(before, m),
                                     option: usize::MAX,
@@ -1426,6 +1847,7 @@ impl<'c> Ranker<'c> {
                                 if let Some(p) = self.dag.chart.sets[m as usize].find(&pred).filter(|_| passes) {
                                     let before = self.dag.chart.sets[m as usize].items[p as usize];
                                     let child = Node::Group {
+                                        route: production.routes.get(&position).copied().unwrap_or(0),
                                         requested: 0,
                                         rule,
                                         origin: m,
@@ -1449,13 +1871,14 @@ impl<'c> Ranker<'c> {
             Node::Close { set, index } => {
                 let item = self.item(set, index);
                 let rule = self.dag.g.prods[item.prod as usize].rule;
+                let rule = self.dag.g.rules[rule as usize].splice_target.unwrap_or(rule);
                 if self.fsets[fset as usize].binary_search(&rule).is_ok() {
                     return Deps::Close(None);
                 }
                 let inner = self.fset_with(fset, rule);
                 Deps::Close(Some((Node::Item { set, index }, inner)))
             }
-            Node::Group { requested, rule, origin, set, tags, test, structure, boundary, lexical, option } => {
+            Node::Group { requested, route, rule, origin, set, tags, test, structure, boundary, lexical, option } => {
                 let eset = &self.dag.chart.sets[set as usize];
                 // A fault applies no test in the check (tests/README.md).
                 let no_tests = self.dag.projection.is_some() && witness::fault_at(Fault::RankerTests, "group");
@@ -1469,13 +1892,23 @@ impl<'c> Ranker<'c> {
                         items
                             .iter()
                             .filter(|&&index| {
-                                (eset.items[index as usize].lexical == lexical)
+                                (route == 0 || self.dag.g.route(eset.items[index as usize].prod) == route)
+                                    && (self.restoration.as_ref().map_or(eset.items[index as usize].lexical, |v| {
+                                        v.frame(eset.items[index as usize].lexical)
+                                    }) == lexical)
                                     && eset.items[index as usize].close_requested == requested
                                     && (option == usize::MAX
                                         || self.dag.g.ranked.options.get(&eset.items[index as usize].prod)
                                             == Some(&option))
                                     && (tags == ANY || eset.tagset[index as usize] == tags)
-                                    && (structure == ANY || eset.items[index as usize].structure == structure)
+                                    && (structure == ANY
+                                        || self
+                                            .restoration
+                                            .as_ref()
+                                            .map_or(eset.completed_structures[index as usize], |v| {
+                                                v.state(eset.completed_structures[index as usize])
+                                            })
+                                            == structure)
                                     && (boundary == ANY || eset.items[index as usize].boundary == boundary)
                             })
                             .filter(|&&index| {
@@ -1613,6 +2046,10 @@ impl<'c> Ranker<'c> {
                         );
                     }
                 }
+                if let Node::Read { tok, .. } = node {
+                    let charge = self.profiles.measure_profile(&self.dag.carried_measure(tok));
+                    profile = self.profiles.sum(&profile, &charge);
+                }
                 plain(Least::one(profile))
             }
             Deps::Close(None) => plain(Least::NONE),
@@ -1637,6 +2074,12 @@ impl<'c> Ranker<'c> {
                 let (least, total) = (body.least, body.total);
                 let mut profile = body.profile.clone();
                 let profiles = &mut self.profiles;
+                if production.erased {
+                    profile = Profile::ZERO;
+                } else if production.error.is_some() {
+                    let charge = profiles.measure_profile(&self.dag.own_measure(origin, set));
+                    profile = profiles.sum(&profile, &charge);
+                }
                 if elides && self.dag.projection.is_none() {
                     let occurrence =
                         profiles.occurrence(None, rule.elided.as_deref(), "", 0, self.dag.tags, true, p, p);
@@ -1682,10 +2125,35 @@ impl<'c> Ranker<'c> {
             }
             Deps::Group(members) => {
                 let summaries = self.summaries.as_ref().expect("profiles");
+                let groups = self.erased_groups(members);
                 let mut all = Least::NONE;
-                for (index, member) in (0..).zip(members) {
-                    all.add(&self.profiles, index, &summaries[member].all);
+                for (erased, indices) in &groups {
+                    let first = indices[0] as u32;
+                    if *erased {
+                        if let Some(summary) = indices
+                            .iter()
+                            .map(|&index| &summaries[&members[index]].all)
+                            .find(|summary| summary.total > 0)
+                        {
+                            let class =
+                                Least { profile: summary.profile.clone(), least: 1, total: 1, kept: Vec::new() };
+                            all.add(&self.profiles, first, &class);
+                        }
+                    } else {
+                        all.add(&self.profiles, first, &summaries[&members[indices[0]]].all);
+                    }
                 }
+                let retained: crate::fxhash::FxSet<_> = all.kept.drain(..).collect();
+                let mut mask = vec![false; members.len()];
+                for (_, indices) in groups {
+                    if retained.contains(&(indices[0] as u32)) {
+                        for index in indices {
+                            mask[index] = true;
+                        }
+                    }
+                }
+                all.kept =
+                    mask.into_iter().enumerate().filter_map(|(index, keep)| keep.then_some(index as u32)).collect();
                 plain(all)
             }
         }
@@ -1704,11 +2172,15 @@ impl<'c> Ranker<'c> {
     }
 
     fn compute(&mut self, key: Key, deps: Deps) -> NodeResult {
+        if self.summaries.as_ref().is_some_and(|summaries| summaries[&key].all.total == 0) {
+            return NodeResult::default();
+        }
         let node = self.raw_node(key.0);
         let kept = self.kept(&key);
         // Whether an item is marked, as a leaf or as the end of a marked
         // link (tests/README.md).
-        let marks = self.marks;
+        let projected_marks = self.projected_marks.clone();
+        let marks = projected_marks.as_deref().or(self.marks);
         let marked = |set: u32, index: u32| marks.is_some_and(|marks| marks.items.contains(&(set, index)));
         // The kept edges are sorted (`Least::keeps`).
         let in_all = |index: u32| kept.as_ref().map_or(true, |all| holds(all, index));
@@ -1795,23 +2267,45 @@ impl<'c> Ranker<'c> {
                 let mut list = Vec::new();
                 let mut count = 0u8;
                 let mut w = false;
-                let alternatives = members.len();
-                for (number, member) in (0..).zip(members) {
-                    if !in_all(number) {
-                        continue;
+                for (erased, indices) in self.erased_groups(&members) {
+                    let mut present = Vec::new();
+                    let mut counted = false;
+                    let mut member = false;
+                    for index in indices {
+                        if !in_all(index as u32) {
+                            continue;
+                        }
+                        let result = &self.results[self.memo[&members[index]] as usize];
+                        if !self.skips(Fault::LostContext, "group", index as u32, members.len()) {
+                            if erased {
+                                counted |= result.count > 0;
+                                member |= result.count > 0 && result.w;
+                            } else {
+                                count = count.saturating_add(result.count).min(2);
+                                w |= result.count > 0 && result.w;
+                            }
+                        }
+                        if self.skips(Fault::LostSelect, "group", index as u32, members.len()) {
+                            continue;
+                        }
+                        if erased {
+                            if result.count > 0 || self.witness_only {
+                                present.push(members[index]);
+                            }
+                        } else {
+                            for entry in &result.entries {
+                                self.dag.add_entry(&mut list, entry.clone());
+                            }
+                        }
                     }
-                    let result = &self.results[self.memo[&member] as usize];
-                    // Faults of the check skip the last of two or more
-                    // members, in the count or in the entries.
-                    if !self.skips(Fault::LostContext, "group", number, alternatives) {
-                        count = count.saturating_add(result.count).min(2);
-                        w |= result.count > 0 && result.w;
-                    }
-                    if self.skips(Fault::LostSelect, "group", number, alternatives) {
-                        continue;
-                    }
-                    for entry in &result.entries {
-                        self.dag.add_entry(&mut list, entry.clone());
+                    if erased {
+                        if counted {
+                            count = count.saturating_add(1).min(2);
+                            w |= member;
+                        }
+                        if let Some(chosen) = self.canonical_erased(&present) {
+                            self.dag.add_entry(&mut list, Entry { x: chosen, comps: Vec::new() });
+                        }
                     }
                 }
                 NodeResult { entries: list, count, w }
@@ -1835,6 +2329,7 @@ impl<'c> Ranker<'c> {
         // edge of one root (§6).
         let root = (
             Node::Group {
+                route: 0,
                 requested: self.dag.chart.close_requested,
                 rule: self.dag.g.start,
                 origin: 0,
@@ -1977,13 +2472,16 @@ pub(crate) enum Component {
 }
 
 /// A derivation's counts of every pattern that a key step tests, one
-/// component per key step, in the order of the steps (§6). The profile
-/// with no component counts nothing.
+/// three measure components, then one per written key step (§6).
+/// The profile with no component counts nothing.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Profile(Vec<Component>);
 
 impl Profile {
     pub const ZERO: Self = Self(Vec::new());
+    pub(crate) fn error_free(&self) -> bool {
+        Profiles::measure(self).0[2] == Nat::ZERO
+    }
 }
 
 /// The profiles of one ranking: how the key steps of its directive count
@@ -2011,7 +2509,7 @@ pub(crate) struct Profiles {
 impl Profiles {
     pub(crate) fn new(steps: &[KeyStep]) -> Profiles {
         Profiles {
-            steps: steps.iter().map(|step| step.kind).collect(),
+            steps: [StepKind::Fewest,StepKind::Fewest,StepKind::Most].into_iter().chain(steps.iter().map(|step| step.kind)).collect(),
             patterns: steps.iter().map(|step|step.pattern.clone()).collect(),
             answers: FxMap::default(),
             values: steps.iter().map(|step|step.pattern.walk().any(|part| matches!(part,crate::patterns::Part::Pattern(crate::patterns::Pattern::Test(op,_,_, _)) if op != "tags"))).collect(),
@@ -2019,6 +2517,23 @@ impl Profiles {
             span_values: FxMap::default(),
             vectors: Vectors::new(),
         }
+    }
+
+    fn measure(profile: &Profile) -> Measure {
+        Measure(std::array::from_fn(|index| match profile.0.get(index) {
+            Some(Component::Count(value)) => value.clone(),
+            _ => Nat::ZERO,
+        }))
+    }
+    fn measure_profile(&self, measure: &Measure) -> Profile {
+        if *measure == Measure::ZERO {
+            return Profile::ZERO;
+        }
+        let mut components: Vec<_> = (0..self.steps.len()).map(|index| self.zero(index)).collect();
+        for (index, value) in measure.0.iter().enumerate() {
+            components[index] = Component::Count(value.clone());
+        }
+        Profile(components)
     }
 
     fn node_value(&mut self, tokens: &[Tok], start: u32, end: u32) -> Option<std::rc::Rc<str>> {
@@ -2067,12 +2582,12 @@ impl Profiles {
         q: u32,
     ) -> Profile {
         let mut components: Option<Vec<Component>> = None;
-        for index in 0..self.steps.len() {
+        for index in 3..self.steps.len() {
             let key = RankingNodeKey {
                 step: index,
                 name: name.map(str::to_owned),
                 terminal: terminal.map(str::to_owned),
-                value: self.values[index].then(|| value.to_owned()),
+                value: self.values[index - 3].then(|| value.to_owned()),
                 set,
                 omitted,
             };
@@ -2083,7 +2598,7 @@ impl Profiles {
                     tags.list(set).iter().map(|&id| tags.name(id).to_owned()).collect()
                 };
                 crate::patterns::local_matches_with_value(
-                    &self.patterns[index],
+                    &self.patterns[index - 3],
                     name,
                     terminal.map(|t| (t, value, names.as_slice())),
                     &names,
@@ -2162,17 +2677,31 @@ impl Profiles {
         tokens: &[Tok],
         tags: &Tags,
     ) -> Profile {
+        let measures = Measures::new(tokens);
+        let mut error_profile = Profile::ZERO;
         let mut occurrences = Vec::new();
-        for node in &tree.nodes {
+        let mut pending = vec![0usize];
+        while let Some(index) = pending.pop() {
+            work::count(Work::Walked, 1);
+            let node = &tree.nodes[index];
+            let mut erased = false;
             match node.kind {
-                crate::tree::IKind::Close { prod, start, end, tags, .. } if start < end => {
-                    let rule = &g.rules[g.prods[prod as usize].rule as usize];
-                    if !rule.helper {
+                crate::tree::IKind::Close { prod, start, end, tags, .. } => {
+                    let production = &g.prods[prod as usize];
+                    let rule = &g.rules[production.rule as usize];
+                    erased = production.erased;
+                    if !erased && production.error.is_some() {
+                        let charge = self.measure_profile(&measures.own(start as usize, end as usize));
+                        error_profile = self.sum(&error_profile, &charge);
+                    }
+                    if start < end && !rule.helper {
                         occurrences.push((start, end, Some(rule.name.as_str()), None, "", tags));
                     }
                 }
                 crate::tree::IKind::Read { tok, terminal } => {
                     let token = &tokens[tok as usize];
+                    let charge = self.measure_profile(&measures.carried[tok as usize]);
+                    error_profile = self.sum(&error_profile, &charge);
                     occurrences.push((
                         tok,
                         tok + 1,
@@ -2182,7 +2711,9 @@ impl Profiles {
                         token.tags,
                     ));
                 }
-                _ => {}
+            }
+            if !erased {
+                pending.extend(node.children.iter().rev().map(|index| *index as usize));
             }
         }
         occurrences.sort_by_key(|&(start, _, _, _, _, _)| start);
@@ -2193,7 +2724,7 @@ impl Profiles {
             let occurrence = self.occurrence(name, terminal, value, set, tags, false, p, q);
             profile = self.sum(&profile, &occurrence);
         }
-        profile
+        self.sum(&profile, &error_profile)
     }
 }
 
@@ -2245,6 +2776,233 @@ fn sum_spans(left: &[(u32, u32, Nat)], right: &[(u32, u32, Nat)]) -> Vec<(u32, u
 mod tests {
     use super::{Least, Nat, Ordering, Profile, Profiles, VNode, Vectors};
     use crate::work::{assert_linear, Work};
+
+    #[test]
+    fn deferred_ranking_uses_all_three_measure_components() {
+        // Engine §6: these shared cases require source fields that InputToken cannot hold.
+        for name in [
+            "shorter-blame",
+            "finer-errors",
+            "overlap-adds",
+            "source-gaps",
+            "sourceless-before-source",
+            "sourceless-clean",
+            "empty-tokens-nonempty-envelope",
+            "ranked-blame",
+            "ranked-finer-errors",
+            "verdict-before-keys",
+        ] {
+            let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join(format!("../../tests/engine/deferred-measure-{name}.json"));
+            let case = crate::json::parse(&std::fs::read_to_string(path).unwrap()).unwrap();
+            let grammar = case.get("grammar").unwrap().as_str().unwrap();
+            let resolution =
+                if grammar.contains("%ambiguity-resolution") { "" } else { "%ambiguity-resolution greedy\n" };
+            let document = format!("```jbogenbau\n%stage main\n{resolution}{grammar}\n```\n");
+            let pipeline = crate::load_pipeline_sources([("p.md", document)], "p.md").unwrap();
+            let grammar = pipeline.lowered_stage(0);
+            let chars: Vec<_> = case.get("input").unwrap().as_str().unwrap().chars().collect();
+            let mut shared = crate::earley::Shared::new(&pipeline.unicode, &chars);
+            let index = |value: &crate::json::Json| match value {
+                crate::json::Json::Int(value) => *value as usize,
+                _ => panic!("an index"),
+            };
+            let tokens: Vec<_> = case
+                .get("tokens")
+                .unwrap()
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|token| {
+                    let text = token.get("text").unwrap().as_str().unwrap();
+                    let source = token.get("source").unwrap().as_array().unwrap();
+                    crate::earley::Tok {
+                        text: text.into(),
+                        value: text.into(),
+                        image: text.into(),
+                        source: (index(&source[0]), index(&source[1])),
+                        tags: shared.tags.set_of(
+                            token.get("tags").unwrap().as_array().unwrap().iter().map(|tag| tag.as_str().unwrap()),
+                        ),
+                        sound: Default::default(),
+                        quiet: 0,
+                        before: Vec::new(),
+                        after: Vec::new(),
+                        errors: Vec::new(),
+                        warnings: Vec::new(),
+                    }
+                })
+                .collect();
+            let matchers = crate::earley::matchers(&grammar, &mut shared.tags);
+            let chart =
+                crate::earley::Recognizer { g: &grammar, matchers: &matchers, shared: &mut shared, recon: None }
+                    .recognize(&tokens, 0, grammar.start)
+                    .unwrap();
+            let mut ranker = super::Ranker::new(
+                &grammar,
+                &chart,
+                &tokens,
+                &shared,
+                &pipeline.stages[0].steps,
+                pipeline.stages[0].lean,
+            );
+            let ranking = ranker.rank().unwrap();
+            let expected = case.get("expect").unwrap().get("result").unwrap();
+            let verdict = match ranking.verdict {
+                super::Verdict::Unique => "unique",
+                super::Verdict::Resolved => "resolved",
+                super::Verdict::Tie => "tie",
+            };
+            assert_eq!(
+                verdict,
+                expected.get("stages").unwrap().as_array().unwrap()[0].get("verdict").unwrap().as_str().unwrap(),
+                "{name}"
+            );
+            let tree = crate::tree::build(&ranker, ranking.first);
+            let codes: Vec<_> = tree
+                .nodes
+                .iter()
+                .filter_map(|node| match node.kind {
+                    crate::tree::IKind::Close { prod, .. } if grammar.prods[prod as usize].error.is_some() => {
+                        Some(grammar.rules[grammar.prods[prod as usize].rule as usize].name.as_str())
+                    }
+                    _ => None,
+                })
+                .collect();
+            let expected_codes: Vec<_> = expected
+                .get("error")
+                .and_then(|error| error.get("errors"))
+                .and_then(crate::json::Json::as_array)
+                .into_iter()
+                .flatten()
+                .map(|error| error.get("code").unwrap().as_str().unwrap())
+                .collect();
+            assert_eq!(codes, expected_codes, "{name}");
+        }
+    }
+
+    #[test]
+    fn deferred_ranking_preserves_fixed_carried_charges() {
+        // Engine §6: public coordinates do not replace a carried diagnostic's charge.
+        let source="```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text left | right\n%rule left erased A\n%rule right A erased\n%rule erased A\n%erased\n```\n";
+        let pipeline = crate::load_pipeline_sources([("p.md", source)], "p.md").unwrap();
+        let grammar = pipeline.lowered_stage(0);
+        let text = ['a', 'a'];
+        let mut shared = crate::earley::Shared::new(&pipeline.unicode, &text);
+        let tokens: Vec<_> = [10, 1]
+            .into_iter()
+            .enumerate()
+            .map(|(index, charge)| {
+                let mut error =
+                    crate::result::Warning::new("before".into(), "fault".into(), 0..100, 0..100, "fault".into());
+                error.record = Some(std::sync::Arc::new(crate::measures::DiagnosticRecord {
+                    identity: std::sync::Arc::new(crate::measures::DiagnosticIdentity {
+                        stage_order: 0,
+                        ordinal: index,
+                    }),
+                    measure: crate::measures::Measure([Nat::Small(charge), Nat::ZERO, Nat::ONE]),
+                }));
+                crate::earley::Tok {
+                    text: "a".into(),
+                    value: "a".into(),
+                    image: "a".into(),
+                    tags: shared.tags.set_of(["A"]),
+                    source: (index, index + 1),
+                    sound: Default::default(),
+                    quiet: 0,
+                    before: Vec::new(),
+                    after: Vec::new(),
+                    errors: vec![error],
+                    warnings: Vec::new(),
+                }
+            })
+            .collect();
+        let matchers = crate::earley::matchers(&grammar, &mut shared.tags);
+        let chart = crate::earley::Recognizer { g: &grammar, matchers: &matchers, shared: &mut shared, recon: None }
+            .recognize(&tokens, 0, grammar.start)
+            .unwrap();
+        let mut ranker = super::Ranker::new(&grammar, &chart, &tokens, &shared, &[], crate::grammar::Lean::Neither);
+        let result = ranker.rank().unwrap();
+        assert_eq!(result.verdict, super::Verdict::Unique);
+        assert_eq!(Profiles::measure(&result.profile), crate::measures::Measure([Nat::ONE, Nat::ZERO, Nat::ONE]));
+        let tree = crate::tree::build(&ranker, result.first);
+        assert!(tree.nodes.iter().any(|node|matches!(node.kind,crate::tree::IKind::Close{prod,..} if grammar.rules[grammar.prods[prod as usize].rule as usize].name=="left")));
+    }
+
+    #[test]
+    fn deferred_reconstruction_projects_own_and_carried_charges() {
+        // Engine §7.7: a synthetic anchor adds no source and carries no original charge.
+        let source = "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text A\n```\n";
+        let pipeline = crate::load_pipeline_sources([("p.md", source)], "p.md").unwrap();
+        let grammar = pipeline.lowered_stage(0);
+        let shared = crate::earley::Shared::new(&pipeline.unicode, &[]);
+        let token = |source| crate::earley::Tok {
+            text: "a".into(),
+            value: "a".into(),
+            image: "a".into(),
+            tags: 0,
+            source,
+            sound: Default::default(),
+            quiet: 0,
+            before: Vec::new(),
+            after: Vec::new(),
+            errors: Vec::new(),
+            warnings: Vec::new(),
+        };
+        let mut original = vec![token((10, 11)), token((0, 1))];
+        let mut error = crate::result::Warning::new("before".into(), "fault".into(), 0..1, 0..1, "fault".into());
+        error.record = Some(std::sync::Arc::new(crate::measures::DiagnosticRecord {
+            identity: std::sync::Arc::new(crate::measures::DiagnosticIdentity { stage_order: 0, ordinal: 0 }),
+            measure: crate::measures::Measure([Nat::Small(7), Nat::ZERO, Nat::ONE]),
+        }));
+        original[1].errors.push(error);
+        let reconstruction = vec![original[0].clone(), token((500, 500)), original[1].clone()];
+        let chart = crate::earley::Chart::default();
+        let project = [0, 1, 1, 2];
+        let ranker = super::Ranker::new_unfiltered(
+            &grammar,
+            &chart,
+            &reconstruction,
+            &shared,
+            &[],
+            crate::grammar::Lean::Neither,
+        )
+        .observing(&original, &project);
+        assert_eq!(ranker.dag.own_measure(1, 3), crate::measures::Measure([Nat::ONE, Nat::ZERO, Nat::ONE]));
+        assert_eq!(ranker.dag.own_measure(1, 2), crate::measures::Measure([Nat::ZERO, Nat::ONE, Nat::ONE]));
+        assert_eq!(ranker.dag.carried_measure(1), crate::measures::Measure::ZERO);
+        assert_eq!(ranker.dag.carried_measure(2), crate::measures::Measure([Nat::Small(7), Nat::ZERO, Nat::ONE]));
+    }
+
+    #[test]
+    fn deferred_erased_action_summaries_cost_linear_work() {
+        // Engine §6: two shared summary channels do not enumerate erased derivations.
+        let mut counts = Vec::new();
+        for n in [2, 8, 32] {
+            crate::work::reset();
+            let mut rules = String::from("%rule text gone\n%rule gone r0\n%erased\n");
+            for index in 0..n {
+                rules.push_str(&format!("%rule r{index} r{0} | r{0}\n", index + 1));
+            }
+            rules.push_str(&format!("%rule r{n} A\n"));
+            let source = format!("```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n{rules}```\n");
+            let pipeline = crate::load_pipeline_sources([("p.md", source)], "p.md").unwrap();
+            pipeline.lowered_stage(0);
+            crate::work::reset();
+            crate::work::budget(Work::SummaryContexts, 100 * n + 100);
+            crate::work::budget(Work::Walked, 500 * n + 500);
+            let token =
+                crate::InputToken { text: "a".into(), tags: ["A".into()].into_iter().collect(), ..Default::default() };
+            let result = pipeline.parse_tokens(&[token], &Default::default()).unwrap();
+            assert!(result.ok);
+            assert_eq!(result.stages[0].verdict, Some(crate::Verdict::Unique));
+            let contexts = crate::work::counted(Work::SummaryContexts);
+            eprintln!("erased contexts n={n}: {contexts}");
+            counts.push(contexts);
+        }
+        crate::work::reset();
+        assert!(counts[2] <= 5 * counts[1]);
+    }
 
     /// A node whose many edges all attain the least vector keeps them all,
     /// and asking of each edge whether it is kept costs about one step, not
@@ -2364,6 +3122,7 @@ struct SlotScope {
     frames: Vec<Node>,
     bounds: Vec<Node>,
 }
+#[derive(Clone)]
 struct SlotViews {
     wrapped: std::collections::BTreeSet<u32>,
     nodes: Vec<(Node, usize)>,
@@ -2378,7 +3137,7 @@ impl SlotViews {
         }
         let mut users: FxMap<u32, Vec<u32>> = FxMap::default();
         for p in &g.prods {
-            if g.rules[p.rule as usize].helper {
+            if !p.tree_root {
                 for s in &p.syms {
                     if let Sym::N(r) = s {
                         users.entry(*r).or_default().push(p.rule);
@@ -2433,14 +3192,20 @@ impl SlotViews {
         };
         Some(g.prods[chart.sets[set as usize].items[index as usize].prod as usize].rule)
     }
-    fn ranked_prefix_key(&self, scope: usize, g: &Lowered, chart: &Chart) -> String {
+    fn ranked_prefix_key(
+        &self,
+        scope: usize,
+        g: &Lowered,
+        chart: &Chart,
+        projection: Option<&RestorationView>,
+    ) -> String {
         let state = &self.scopes[scope];
         let frames: Vec<_> = state
             .frames
             .iter()
             .map(|node| {
                 let Node::Item { set, index } = *node else { unreachable!() };
-                written_frame(g, chart, chart.sets[set as usize].items[index as usize], set)
+                written_frame(g, chart, chart.sets[set as usize].items[index as usize], set, projection)
             })
             .collect();
         let bounds: Vec<_> = state
@@ -2501,6 +3266,58 @@ impl Ranker<'_> {
         id
     }
     fn deps(&mut self, key: Key) -> Deps {
+        let deps = self.contextual_deps(key);
+        if !self.witness_only {
+            return deps;
+        }
+        let projected_marks = self.projected_marks.clone();
+        let marks = projected_marks.as_deref().or(self.marks).expect("a displayed witness has marks");
+        let marked = |key: Key| matches!(self.raw_node(key.0),Node::Item{set,index}|Node::Close{set,index} if marks.items.contains(&(set,index)));
+        match deps {
+            Deps::Group(members) => {
+                let mut keep = vec![false; members.len()];
+                for (erased, indices) in self.erased_groups(&members) {
+                    if erased {
+                        if indices.iter().any(|&index| marked(members[index])) {
+                            for index in indices {
+                                keep[index] = true;
+                            }
+                        }
+                    } else {
+                        let index = indices[0];
+                        keep[index] = marked(members[index]);
+                    }
+                }
+                Deps::Group(
+                    members
+                        .into_iter()
+                        .enumerate()
+                        .map(|(index, key)| if keep[index] { key } else { (Node::Absent, 0) })
+                        .collect(),
+                )
+            }
+            Deps::Links(links) => {
+                let Node::Item { set, index } = self.raw_node(key.0) else { unreachable!() };
+                Deps::Links(
+                    links
+                        .into_iter()
+                        .map(|(before, child)| {
+                            let Node::Item { set: start, .. } = self.raw_node(before.0) else { unreachable!() };
+                            if marked(before) && marks.links.contains(&(set, index, start)) {
+                                (before, child)
+                            } else {
+                                (before, (Node::Absent, 0))
+                            }
+                        })
+                        .collect(),
+                )
+            }
+            Deps::Leaf if matches!(self.raw_node(key.0), Node::Item { .. }) && !marked(key) => Deps::Close(None),
+            _ => deps,
+        }
+    }
+
+    fn contextual_deps(&mut self, key: Key) -> Deps {
         let Some(views) = &self.views else {
             return self.raw_deps(key);
         };
@@ -2524,7 +3341,9 @@ impl Ranker<'_> {
                 let mut found = vec![];
                 for ((previous, pf), (child, cf)) in links {
                     let carries = matches!(child, Node::Group {rule, ..} if self.views.as_ref().unwrap().wrapped.contains(&rule))
-                        && (!self.dag.g.rules[own as usize].helper || scope != 0);
+                        && (self.dag.g.rules[own as usize].splice_target.is_some()
+                            || !self.dag.g.rules[own as usize].helper
+                            || scope != 0);
                     let pred = (self.views.as_mut().unwrap().view(previous, scope), pf);
                     if carries {
                         let inner = self.helper_scope(previous, child, scope);

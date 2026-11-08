@@ -1,0 +1,42 @@
+{
+  "description": "Engine §4.1 and §6: equal sealed identities merge two captured erased roots and keep their canonical empty interiors.",
+  "grammar": "%ambiguity-resolution fewest #·zz\n%rule text $a:r2 $b:r2 C\n%conditions $a ≅ #·r2, $a ≅ $b\n%rule r2 (r4 ≻ B) :: ∅ | [r4]\n%erased\n%rule r4 B | ε\n%rule zz B B B",
+  "tokens": [
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "r2",
+            "children": []
+          },
+          {
+            "kind": "rule",
+            "rule": "r2",
+            "children": []
+          },
+          {
+            "kind": "token",
+            "terminal": "C"
+          }
+        ]
+      }
+    }
+  }
+}

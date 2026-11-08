@@ -915,7 +915,7 @@
     "malformed": false
   },
   {
-    "description": "A supplied DOM accepts an unnegated warning whose feature starts with a capital (engine §9.1, §9.3).",
+    "description": "A supplied DOM rejects a warning guard.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -939,7 +939,7 @@
         1
       ]
     },
-    "malformed": false
+    "malformed": true
   },
   {
     "description": "The rule name 🆓 is a supplied without-elision-except argument (engine §9.3 and §10).",
@@ -16658,7 +16658,7 @@
     "malformed": true
   },
   {
-    "description": "A template tag clause cannot contain a boundary atom.",
+    "description": "A template tag clause can contain a guarded neighbour atom.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -16695,12 +16695,12 @@
         }
       }
     },
-    "malformed": true
+    "malformed": false
   },
   {
     "description": "A DOM envelope refuses unknown members.",
     "dom": {
-      "format": 44,
+      "format": 46,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -16713,7 +16713,7 @@
   {
     "description": "An empty complete DOM envelope is valid.",
     "dom": {
-      "format": 44,
+      "format": 46,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -16830,7 +16830,7 @@
   {
     "description": "Unsafe coordinates do not produce a duplicate-position problem.",
     "dom": {
-      "format": 44,
+      "format": 46,
       "rules": [
         {
           "name": "text",
@@ -16994,7 +16994,7 @@
   {
     "description": "An earlier malformed directive precedes excessive rule depth.",
     "dom": {
-      "format": 44,
+      "format": 46,
       "rules": [
         {
           "name": "text",
@@ -17899,7 +17899,7 @@
   {
     "description": "Ranked argument shape errors precede engine tags in constants.",
     "dom": {
-      "format": 44,
+      "format": 46,
       "rules": [],
       "directives": [],
       "constants": [
@@ -17946,7 +17946,7 @@
   {
     "description": "Ranked argument shape errors precede engine tags in implications.",
     "dom": {
-      "format": 44,
+      "format": 46,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -18124,7 +18124,7 @@
   {
     "description": "Well-shaped constants still refuse engine-tag literals.",
     "dom": {
-      "format": 44,
+      "format": 46,
       "rules": [],
       "directives": [],
       "constants": [
@@ -18148,7 +18148,7 @@
   {
     "description": "Well-shaped implications still refuse engine-tag literals.",
     "dom": {
-      "format": 44,
+      "format": 46,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -19095,7 +19095,7 @@
   {
     "description": "Ranked argument shape errors precede a non-closed constant term.",
     "dom": {
-      "format": 44,
+      "format": 46,
       "rules": [],
       "directives": [],
       "constants": [
@@ -19140,7 +19140,7 @@
   {
     "description": "A well-shaped constant still refuses a non-closed term.",
     "dom": {
-      "format": 44,
+      "format": 46,
       "rules": [],
       "directives": [],
       "constants": [
@@ -19180,7 +19180,7 @@
   {
     "description": "Ranked argument shape errors precede a non-closed implication term.",
     "dom": {
-      "format": 44,
+      "format": 46,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -19226,7 +19226,7 @@
   {
     "description": "A well-shaped implication still refuses a non-closed term.",
     "dom": {
-      "format": 44,
+      "format": 46,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -19697,7 +19697,7 @@
   {
     "description": "An implication checks then-side closedness before its capture type.",
     "dom": {
-      "format": 44,
+      "format": 46,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -19723,7 +19723,7 @@
   {
     "description": "An implication checks if-side closedness before its capture type.",
     "dom": {
-      "format": 44,
+      "format": 46,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -19749,7 +19749,7 @@
   {
     "description": "An earlier rule type fault precedes a later constant closedness fault.",
     "dom": {
-      "format": 44,
+      "format": 46,
       "rules": [
         {
           "name": "extra",
@@ -19795,7 +19795,7 @@
   {
     "description": "An earlier constant closedness fault precedes a later rule type fault.",
     "dom": {
-      "format": 44,
+      "format": 46,
       "rules": [
         {
           "name": "extra",
@@ -19841,7 +19841,7 @@
   {
     "description": "An earlier rule type fault precedes a later implication closedness fault.",
     "dom": {
-      "format": 44,
+      "format": 46,
       "rules": [
         {
           "name": "extra",
@@ -19888,7 +19888,7 @@
   {
     "description": "An earlier implication closedness fault precedes a later rule type fault.",
     "dom": {
-      "format": 44,
+      "format": 46,
       "rules": [
         {
           "name": "extra",
@@ -19935,7 +19935,7 @@
   {
     "description": "An earlier rule type fault precedes a later split delimiter fault in a supplied lexical DOM.",
     "dom": {
-      "format": 44,
+      "format": 46,
       "rules": [
         {
           "name": "text",
@@ -22698,7 +22698,7 @@
   {
     "description": "An earlier split delimiter fault precedes a later rule type fault.",
     "dom": {
-      "format": 44,
+      "format": 46,
       "rules": [
         {
           "name": "extra",
@@ -22752,7 +22752,7 @@
   {
     "description": "An earlier rule type fault precedes a split delimiter fault in a later rule.",
     "dom": {
-      "format": 44,
+      "format": 46,
       "rules": [
         {
           "name": "extra",
@@ -22821,7 +22821,7 @@
   {
     "description": "An earlier rule type fault precedes a split delimiter fault in a later implication.",
     "dom": {
-      "format": 44,
+      "format": 46,
       "rules": [
         {
           "name": "extra",
@@ -22876,7 +22876,7 @@
   {
     "description": "A later ranked shape error precedes an earlier split delimiter fault.",
     "dom": {
-      "format": 44,
+      "format": 46,
       "rules": [
         {
           "name": "later",
@@ -23448,6 +23448,571 @@
       "at": [
         1,
         1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Issue 276: A splice carries one rule reference.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "splice": {
+              "ref": "foo"
+            }
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "Issue 276: A capture can bind a splice.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "capture": "x",
+            "expr": {
+              "splice": {
+                "ref": "foo"
+              }
+            }
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "Issue 276: A splice rejects this target {\"splice\":{\"ref\":\"A\"}}.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "splice": {
+              "ref": "A"
+            }
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Issue 276: A splice rejects this target {\"splice\":{\"param\":\"X\",\"at\":[1,1]}}.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "splice": {
+              "param": "X",
+              "at": [
+                1,
+                1
+              ]
+            }
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Issue 276: A splice rejects this target {\"splice\":{\"splice\":{\"ref\":\"foo\"}}}.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "splice": {
+              "splice": {
+                "ref": "foo"
+              }
+            }
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Issue 276: A splice rejects this target {\"splice\":{\"seq\":[{\"ref\":\"foo\"},{\"ref\":\"bar\"}]}}.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "splice": {
+              "seq": [
+                {
+                  "ref": "foo"
+                },
+                {
+                  "ref": "bar"
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Issue 276: A definition carries an error recipe.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ],
+      "error": {
+        "concat": [
+          {
+            "string": "message"
+          }
+        ]
+      }
+    },
+    "malformed": false
+  },
+  {
+    "description": "Issue 276: A definition carries a warning recipe.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ],
+      "warning": {
+        "concat": [
+          {
+            "string": "message"
+          }
+        ]
+      }
+    },
+    "malformed": false
+  },
+  {
+    "description": "Issue 276: A definition cannot carry both diagnostic kinds.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ],
+      "error": {
+        "concat": [
+          {
+            "string": "message"
+          }
+        ]
+      },
+      "warning": {
+        "concat": [
+          {
+            "string": "message"
+          }
+        ]
+      }
+    },
+    "malformed": true
+  },
+  {
+    "description": "Issue 276: A template cannot carry a diagnostic.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ],
+      "params": [
+        "X"
+      ],
+      "error": {
+        "concat": [
+          {
+            "string": "message"
+          }
+        ]
+      }
+    },
+    "malformed": true
+  },
+  {
+    "description": "Issue 276: A message cannot read emitted strings.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ],
+      "error": {
+        "concat": [
+          {
+            "method": "value",
+            "receiver": {
+              "method": "emitted",
+              "receiver": {
+                "capture": ""
+              },
+              "args": []
+            },
+            "args": []
+          }
+        ]
+      }
+    },
+    "malformed": true
+  },
+  {
+    "description": "Issue 276: Suppression list [] has its required shape.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ],
+      "suppressWarnings": []
+    },
+    "malformed": true
+  },
+  {
+    "description": "Issue 276: Suppression list [\"_\", \"w\"] has its required shape.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ],
+      "suppressWarnings": [
+        "_",
+        "w"
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Issue 276: Suppression list [\"w\", \"w\"] has its required shape.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ],
+      "suppressWarnings": [
+        "w",
+        "w"
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "Issue 276: Suppression list [\"_\"] has its required shape.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ],
+      "suppressWarnings": [
+        "_"
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "Issue 276: Suppression list [\"w\"] has its required shape.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ],
+      "suppressWarnings": [
+        "w"
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "Issue 276: A warning guard is not a DOM constructor.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "guards": [
+            {
+              "feature": "w",
+              "kind": "warning",
+              "negated": false
+            }
+          ],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Issue 276: A sole captured terminator is legal.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "optional": {
+              "capture": "j",
+              "expr": {
+                "ref": "T"
+              }
+            },
+            "elidable": true
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "Issue 276: A deeper capture remains illegal.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "optional": {
+              "seq": [
+                {
+                  "ref": "T"
+                },
+                {
+                  "capture": "j",
+                  "expr": {
+                    "ref": "A"
+                  }
+                }
+              ]
+            },
+            "elidable": true
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Issue 276: A name cannot contain a comment opener.",
+    "rule": {
+      "name": "text--rest",
+      "op": "define",
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Issue 276: A template parameter cannot contain a comment opener.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ],
+      "params": [
+        "X--rest"
       ]
     },
     "malformed": true

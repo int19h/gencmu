@@ -1,0 +1,44 @@
+{
+  "description": "Engine §4.1 and §6: an erased rule tests its real seen child while its parent sees the seal.",
+  "grammar": "%ambiguity-resolution fewest #·zz\n%rule text $r:r2\n%conditions $r ≅ #·r2, $r ≇ #« seen »\n%rule r2 seen | other\n%conditions $ ≅ #« seen »\n%erased\n%rule seen C\n%rule other C\n%rule zz Z Z Z",
+  "tokens": [
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "r2",
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "seen",
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "C"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

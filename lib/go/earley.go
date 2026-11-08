@@ -233,6 +233,9 @@ const (
 )
 
 type recognizer struct {
+	predictionIndexes                     map[int]map[predictionName][]rankedPrediction
+	skippedCache                          map[int]map[*production]bool
+	measures                              *diagnosticMeasures
 	trees                                 *treeArena
 	suffix                                *suffixState
 	scans                                 []*item
@@ -984,7 +987,33 @@ func (r *recognizer) complete(k int, it *item) *nestedQuery {
 	if it.tree != nil {
 		identity, sequence = it.tree.identity, it.tree.sequence
 	}
-	key := symKey{treeIdentity: identity, boundary: it.boundary, requested: p.requestedKinds(), lexical: p.lexical, option: option, rule: p.lhs, origin: it.origin, tags: ts.id, structure: it.structure, closes: it.closes, familySummary: it.familySummary}
+	// An erased completion exposes only the observations requested by a parent.
+	// Its own comparisons already ran and do not demand an exterior identity (§6).
+	structure := it.structure
+	completedCloses := it.closes
+	if p.nothing {
+		if r.machine != nil {
+			structure = r.machine.sealed()
+			if !p.helper {
+				structure = r.machine.node(p.ruleName, structure, "", r.patternValue(it.origin, int32(k)), ts)
+			}
+		}
+		if p.treeRequested {
+			sequence = r.trees.append(0, r.sealIdentity(it.origin, int32(k)))
+			if p.spliceTarget != nil {
+				identity = r.trees.intern(treeNodeKey{kind: "Anonymous", children: sequence})
+			} else {
+				identity = r.trees.intern(treeNodeKey{kind: "Rule", name: p.ruleName, children: sequence})
+				sequence = r.trees.append(0, identity)
+			}
+		} else {
+			identity, sequence = 0, 0
+		}
+		if !p.closeRequested {
+			completedCloses = 0
+		}
+	}
+	key := symKey{treeIdentity: identity, boundary: it.boundary, requested: p.requestedKinds(), lexical: p.lexical, option: option, rule: p.lhs, origin: it.origin, tags: ts.id, structure: structure, closes: completedCloses, familySummary: it.familySummary}
 	c := s.syms[key]
 	if c != nil {
 		c.items = append(c.items, it)
@@ -994,7 +1023,7 @@ func (r *recognizer) complete(k int, it *item) *nestedQuery {
 		r.step.kind = stepNext
 		return nil
 	}
-	c = &symNode{treeIdentity: identity, treeSequence: sequence, boundary: it.boundary, boundaryAnnotations: it.boundaryAnnotations, closeRequested: p.closeRequested, lexical: p.lexical, option: option, structure: it.structure, closes: it.closes, familySummary: it.familySummary, rule: p.lhs, start: it.origin, end: int32(k), tags: ts, items: []*item{it}}
+	c = &symNode{treeIdentity: identity, treeSequence: sequence, boundary: it.boundary, boundaryAnnotations: it.boundaryAnnotations, closeRequested: p.closeRequested, lexical: p.lexical, option: option, structure: structure, closes: completedCloses, familySummary: it.familySummary, rule: p.lhs, start: it.origin, end: int32(k), tags: ts, items: []*item{it}}
 	if s.syms == nil {
 		s.syms = map[symKey]*symNode{}
 	}
@@ -1031,6 +1060,9 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) *n
 		r.obligations = nil
 		key = it.itemKey
 		pos := int(key.dot)
+		if route := p.rhs[pos].route; route != 0 && l.sym != nil && (len(l.sym.items[0].prod.rhs) == 0) != (route == 1) {
+			return nil
+		}
 		// A strict step that completes, route 3's read of T with nothing
 		// after it, makes a strict item at the end of its production. The
 		// step drops it before it evaluates anything (§4, §7.4; JS
@@ -1049,8 +1081,19 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) *n
 		if r.trees != nil {
 			r.advanceTree(&key, it, &cv, l)
 		}
+		if name := p.forwardCaptures[pos]; name != "" && l.sym != nil {
+			child := l.sym.items[0]
+			cv = r.caps(&child.itemKey).at(child.prod.slotOf[name])
+			if r.trees != nil && cv.tree == 0 {
+				cv.tree = r.terminalIdentity(r.g.terminals[child.prod.rhs[0].id], child.origin)
+			}
+		}
 		if slot := p.capSlot[pos]; slot >= 0 {
-			r.setCap(&key, slot, cv)
+			captured := cv
+			if r.machine != nil && l.sym != nil && r.g.rules[l.sym.rule].spliceTarget != nil {
+				captured.structure = r.machine.node("", cv.structure, "", "", nil)
+			}
+			r.setCap(&key, slot, captured)
 		}
 
 		key.dot++
@@ -1212,6 +1255,12 @@ func (r *recognizer) captureFunc(p *production, caps itemCaps, origin, end int32
 		identity = tree.identity
 	}
 	rootName, rootPrefix := p.ruleName, 0
+	if p.helper {
+		rootName = ""
+		if p.lexical == nil && r.machine != nil {
+			state = r.machine.node("", state, "", "", nil)
+		}
+	}
 	if len(structure) > 2 {
 		rootPrefix = structure[2]
 	}
@@ -1316,7 +1365,7 @@ func (r *recognizer) accepted(start int32) []*symNode {
 // begun says whether a start-rule constituent begins at the start of the
 // input, in any set, with an eligible proof tree: whether a prefix of the
 // input, the empty one included, parses as the start rule.
-func (r *recognizer) begun(start int32) bool {
+func (r *recognizer) begun(start int32, errorFree bool) bool {
 	var items []*item
 	for _, s := range r.sets {
 		for key, c := range s.syms {
@@ -1326,7 +1375,7 @@ func (r *recognizer) begun(start int32) bool {
 		}
 	}
 	// Only an item with an eligible proof tree counts (§4).
-	return len(r.eligibleItems(items)) > 0
+	return len(r.eligibleItems(items, errorFree)) > 0
 }
 
 func sortSyms(s []*symNode) {

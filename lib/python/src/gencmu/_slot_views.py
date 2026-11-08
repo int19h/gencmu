@@ -5,10 +5,10 @@ from ._earley import RESTORE
 
 def helper_forest(raw, names, marks):
     productions = raw.lowered.productions
-    helpers = {p.lhs for p in productions if p.helper}
+    helpers = {p.lhs for p in productions if p.helper and p.splice_of is None}
     users = {}
     for p in productions:
-        if p.helper:
+        if p.helper and p.splice_of is None:
             for terminal,symbol in zip(p.terminal,p.rhs):
                 if not terminal:
                     users.setdefault(symbol,[]).append(p.lhs)
@@ -21,8 +21,14 @@ def helper_forest(raw, names, marks):
                 pending.append(parent)
     if not wrapped:
         return raw,marks
-    fields = ['prod', 'dot', 'origin', 'end', 'caps', 'edges', 'structure', 'prefix', 'strict', 'close_structure', 'close_prefix', 'boundaries', 'boundary_annotations']
+    fields = ['prod', 'dot', 'origin', 'end', 'caps', 'edges', 'structure', 'prefix', 'strict', 'close_structure', 'close_prefix', 'boundaries', 'boundary_annotations', 'family_prefix', 'family_structure']
     forest = replace(raw,**{name:list(getattr(raw,name)) for name in fields},tag=dict(raw.tag))
+    for name in ("original_tokens", "measures", "restoration_aliases", "restoration_indices"):
+        if hasattr(raw, name):
+            setattr(forest, name, getattr(raw, name))
+    tree_fields = [name for name in ("tree_prefix", "tree_identity", "tree_sequence") if hasattr(raw, name)]
+    for name in tree_fields:
+        setattr(forest, name, dict(getattr(raw, name)))
     forest.slot_original = list(range(len(raw.prod)))
     forest.slot_scopes = [None]*len(raw.prod)
     forest.slot_indices = [[] for _ in raw.prod]
@@ -45,6 +51,10 @@ def helper_forest(raw, names, marks):
                 values.append(getattr(raw,name)[item])
         if item in raw.tag:
             forest.tag[number] = raw.tag[item]
+        for name in tree_fields:
+            values = getattr(forest, name)
+            if item in values:
+                values[number] = values[item]
         forest.slot_original.append(item)
         forest.slot_scopes.append(scope)
         forest.slot_indices.append([])
@@ -75,7 +85,7 @@ def helper_forest(raw, names, marks):
                 append((previous,kind,child,extra),index)
                 continue
             predecessor = view(previous,scope)
-            carries = kind == 2 and productions[raw.prod[child]].lhs in wrapped and (not production.helper or scope is not None)
+            carries = kind == 2 and productions[raw.prod[child]].lhs in wrapped and (not production.helper or production.splice_of is not None or scope is not None)
             if not carries:
                 append((predecessor,kind,child,extra),index)
                 continue

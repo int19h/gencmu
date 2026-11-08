@@ -1,0 +1,23 @@
+{
+  "description": "Repeating a suppression code is legal and changes nothing.",
+  "grammar": "%rule text *warn %suppress-warnings warn, warn\n%rule warn A %warning \"warning warn\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "warn"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": []
+  }
+}

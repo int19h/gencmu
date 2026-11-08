@@ -1,0 +1,36 @@
+{
+  "description": "Header and alternative guards share normalized target sets and one Boolean assignment.",
+  "grammar": "%rule text left (right | other)\n%rule left :: ($.followed-by(right | other) ⟹ Header)\n | A :: (¬$.followed-by(other | right | right) ⟹ Alternative)\n%rule right B\n%rule other C",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": [
+          {
+            "rule": "left",
+            "tags": [
+              "Header"
+            ]
+          },
+          {
+            "rule": "right"
+          }
+        ]
+      }
+    }
+  }
+}

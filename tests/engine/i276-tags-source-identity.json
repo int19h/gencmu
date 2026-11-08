@@ -1,0 +1,47 @@
+{
+  "description": "Guard variants retain one source production identity in ranking actions and witnesses.",
+  "grammar": "%rule text left (right | other)\n%rule left A A :: ($.followed-by(right) ⟹ Mark)\n%rule right B\n%rule other B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "ambiguous",
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "verdict": "tie",
+          "witness": [
+            {
+              "close": {
+                "rule": "text"
+              }
+            },
+            {
+              "close": {
+                "rule": "text"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

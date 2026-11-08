@@ -1,0 +1,29 @@
+{
+  "description": "Engine §3.6: an omission reads its opener token, except a diagnostic on a whole unclosed construct.",
+  "pipeline": "eberban/refgram",
+  "input": "a mi vi mo fi",
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "reported",
+        "errors": [
+          {
+            "stage": "syntax",
+            "code": "bind-empty-fi",
+            "rule": "bind-empty-fi",
+            "span": [
+              4,
+              5
+            ],
+            "source": [
+              11,
+              13
+            ]
+          }
+        ]
+      }
+    },
+    "error": "reported"
+  }
+}

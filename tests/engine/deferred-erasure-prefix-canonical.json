@@ -1,0 +1,39 @@
+{
+  "description": "Engine §6 and §7.10: erased classes and their canonical representatives (prefix-canonical).",
+  "grammar": "%rule text gone\n%rule gone x y\n%erased\n%rule x a | a b\n%rule a ε\n%rule b ε\n%rule y ε",
+  "tokens": [],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "gone",
+            "children": [
+              {
+                "rule": "x",
+                "children": [
+                  {
+                    "rule": "a"
+                  },
+                  {
+                    "rule": "b"
+                  }
+                ]
+              },
+              {
+                "rule": "y"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

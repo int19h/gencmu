@@ -1,0 +1,48 @@
+{
+  "description": "Engine §6 and §7.10: a pattern key step still counts equivalent projected roots once and keeps the canonical a interior.",
+  "grammar": "%ambiguity-resolution fewest #·zz\n%elision-only\n%rule text e [+T]\n%conditions $.without-elision.matches(w)\n%rule e a | b\n%erased\n%rule a A\n%rule b A\n%rule w A [+T]\n%rule zz Z Z\n",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "e",
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "a",
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "A"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "elided",
+            "terminal": "T"
+          }
+        ]
+      }
+    }
+  }
+}

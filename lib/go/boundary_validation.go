@@ -26,8 +26,24 @@ func boundaryRuleProblem(r *domRule) (*domCond, string) {
 			}
 		}
 	}
+	var tagTerms []*domTerm
+	tagTerms = append(tagTerms, r.Tags)
+	for _, a := range r.Alternatives {
+		tagTerms = append(tagTerms, a.Tags)
+	}
+	allowed := map[*domCond]bool{}
+	for _, term := range tagTerms {
+		if atom, msg := neighbourGuardProblem(term); msg != "" {
+			return atom, msg
+		}
+		for _, guard := range neighbourGuards(term) {
+			for _, atom := range boundaryAtoms(clausePart{c: guard.Cond}) {
+				allowed[atom] = true
+			}
+		}
+	}
 	var terms []*domTerm
-	terms = append(terms, r.Tags, r.Value, r.Image)
+	terms = append(terms, r.Tags, r.Value, r.Image, r.Error, r.Warning)
 	for _, a := range r.Alternatives {
 		terms = append(terms, a.Tags, a.Value, a.Image)
 		pending := []*domExpr{a.Expr}
@@ -51,8 +67,10 @@ func boundaryRuleProblem(r *domRule) (*domCond, string) {
 		}
 	}
 	for _, t := range terms {
-		if atoms := boundaryAtoms(clausePart{t: t}); len(atoms) > 0 {
-			return atoms[0], "a boundary atom stands only in conditions or emission tags"
+		for _, atom := range boundaryAtoms(clausePart{t: t}) {
+			if !allowed[atom] {
+				return atom, "a boundary atom stands only in conditions or emission tags"
+			}
 		}
 	}
 	return nil, ""
@@ -60,6 +78,11 @@ func boundaryRuleProblem(r *domRule) (*domCond, string) {
 
 func sourceBoundaryAtoms(a *sAlt) []*domCond {
 	var atoms []*domCond
+	for _, term := range []*domTerm{a.ruleTags, a.alt.Tags} {
+		for _, guard := range neighbourGuards(term) {
+			atoms = append(atoms, boundaryAtoms(clausePart{c: guard.Cond})...)
+		}
+	}
 	for _, c := range a.conds {
 		atoms = append(atoms, boundaryAtoms(clausePart{c: c})...)
 	}
@@ -88,6 +111,15 @@ func (g *stageGrammar) validateBoundaryTargets() *Error {
 			}
 			for _, p := range parts {
 				walkClause(p, func(q clausePart) bool {
+					if q.t != nil && q.t.Kind == tmCall && q.t.Str == "parse" {
+						core, _, _ := queryBody(q.t.Items[1].Body)
+						walkQueryBody(core, func(expr *domExpr) bool {
+							if expr.Kind == exRef {
+								roots = append(roots, expr.Name)
+							}
+							return true
+						}, nil)
+					}
 					if q.c != nil && (q.c.Kind == cdMatches || q.c.Kind == cdBegins || q.c.Kind == cdEnds) {
 						for _, t := range q.c.queryTargets() {
 							if t.Kind == tmTerminal || t.Kind == tmRule {
@@ -209,6 +241,10 @@ func restoreBoundaryLocations(to, from *domDoc) {
 		for _, r := range d.Rules {
 			for _, c := range r.Conditions {
 				out = append(out, boundaryAtoms(clausePart{c: c})...)
+			}
+			out = append(out, boundaryAtoms(clausePart{t: r.Tags})...)
+			for _, alt := range r.Alternatives {
+				out = append(out, boundaryAtoms(clausePart{t: alt.Tags})...)
 			}
 			if r.Emit != nil {
 				for _, it := range r.Emit.Items {

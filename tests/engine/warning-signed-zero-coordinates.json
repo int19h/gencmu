@@ -1,11 +1,45 @@
 {
   "description": "Warning coordinates compare signed zeros by value.",
-  "grammar": "%rule text w! A | B",
-  "tokens": [{"text":"a","tags":["A"]}],
-  "options": {"features":["w"]},
+  "grammar": "%rule text *w | B\n%rule w A %warning \"warning w\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "w"
+    ]
+  },
   "expect": {
-    "result": {"ok":true,"stages":[{"name":"main","verdict":"unique"}]},
-    "warnings": [{"stage":"main","feature":"w","rule":"text","span":[-0,1],"source":[-0,1]}],
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    },
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "w",
+        "rule": "w",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "message": "warning w"
+      }
+    ],
     "brackets": "a"
   }
 }

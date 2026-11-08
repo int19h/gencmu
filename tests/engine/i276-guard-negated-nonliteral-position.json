@@ -1,0 +1,14 @@
+{
+  "description": "An invalid negated guard reports its atom position.",
+  "grammar": "%rule text x b\n%rule x $y:\"a\" :: (¬$.followed-by(b) ⟹ $y.tags)\n%rule b \"b\"",
+  "input": "ab",
+  "expect": {
+    "error": "grammar",
+    "message": "a neighbour tag guard requires a literal tag set",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 21
+    }
+  }
+}

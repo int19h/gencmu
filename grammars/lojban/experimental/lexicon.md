@@ -29,13 +29,13 @@ The implication after the entries marks some words `Indicator`, which the indica
   "si'u" "ta'i" "tai" "ti'i" "ti'u" "tu'i" "va'o" "va'u" "zau" "zu'e" ∈ BAI
   "dei'i'u" "fi'ei" "ja'u" "kai'ai" "nai'i" "pau'u" "po'a" ∈ BAI
   "te'i" "xau" ∈ BAI
-  (* #257 tracks the missing construction. pe'ei marks a connective without changing its syntactic scope. *)
+  -- #257 tracks the missing construction. pe'ei marks a connective without changing its syntactic scope.
   "ba'e" "ci'a" "pe'ei" "za'e" "zai'e" ∈ BAhE
-  (* #257 tracks the missing construction. BAhEI has no experimental construction. *)
+  -- #257 tracks the missing construction. BAhEI has no experimental construction.
   "ba'ei" ∈ BAhEI
   "be" ∈ BE
   "bei" ∈ BEI
-  (* #257 tracks the missing construction. BEIhE has no experimental construction. *)
+  -- #257 tracks the missing construction. BEIhE has no experimental construction.
   "bei'e" ∈ BEIhE
   "be'o" ∈ BEhO
   "bi'e" ∈ BIhE
@@ -55,24 +55,24 @@ The implication after the entries marks some words `Indicator`, which the indica
   "cei" ∈ CEI
   "ce'e" ∈ CEhE
   "ci'au" ∈ CIhAU
-  (* Score-two exception, explained under Dictionary additions. *)
+  -- Score-two exception, explained under Dictionary additions.
   "ci'au'u" ∈ CIhAUhU
   "co" ∈ CO
   "be'e" "co'o" "co'oi" "coi" "di'ai" "fe'o" "fi'i" "je'e" "ju'i" "ke'o" "ki'ai" "ki'e" "mi'e" ∈ COI
   "mu'o" "nu'e" "pe'u" "re'i" "sa'ei" "ta'a" "vi'o" ∈ COI
-  (* #257 tracks the missing construction. jo'au forms a vocative without changing the parser pipeline. *)
+  -- #257 tracks the missing construction. jo'au forms a vocative without changing the parser pipeline.
   "a'oi" "ci'oi" "fau'u" "jo'au" "o'ai" "tai'i" "xu'e" ∈ COI
   "bu'oi" "de'a'ai" "di'a'ai" "ke'o'a" "ku'au'i" "sau'ei" "sei'u" ∈ COI
   "ni'au" ∈ COI
-  (* #257 tracks the missing construction. COhAI has no experimental construction. *)
+  -- #257 tracks the missing construction. COhAI has no experimental construction.
   "co'ai" ∈ COhAI
-  (* #257 tracks the missing construction. COhEhOhE has no experimental construction. *)
+  -- #257 tracks the missing construction. COhEhOhE has no experimental construction.
   "co'e'o'e" ∈ COhEhOhE
   "cu" ∈ CU
-  (* #257 tracks the missing construction. CUhAU has no experimental construction. *)
+  -- #257 tracks the missing construction. CUhAU has no experimental construction.
   "cu'au" ∈ CUhAU
   "ba'au" "cu'e" "nau" "pu'au" ∈ CUhE
-  (* #257 tracks the missing construction. xei'u attaches after a word without moving attitudes to the sentence. *)
+  -- #257 tracks the missing construction. xei'u attaches after a word without moving attitudes to the sentence.
   "da'o" "xei'u" ∈ DAhO
   "da'ei" "da'oi" "doi" ∈ DOI
   "do'oi" ∈ DOhOI
@@ -82,17 +82,17 @@ The implication after the entries marks some words `Indicator`, which the indica
   "be'a" "bu'u" "ca'u" "du'a" "fa'a" "ga'u" "ne'a" "ne'i" "ne'u" "ni'a" "pa'o" "re'o" "ri'u" ∈ FAhA
   "ru'u" "te'e" "ti'a" "to'o" "vu'a" "ze'o" "zo'a" "zo'i" "zu'a" ∈ FAhA
   "bau'u" "xei'e" ∈ FAhA
-  (* #257 tracks the missing construction. xo'a erases the suffix without switching to Loglan. *)
+  -- #257 tracks the missing construction. xo'a erases the suffix without switching to Loglan.
   "fa'o" "xo'a" ∈ FAhO
   "fa'u'u'u'u'u'u'u'u" ∈ FAhO
-  (* #257 tracks the missing construction. FAhOhO has no experimental construction. *)
+  -- #257 tracks the missing construction. FAhOhO has no experimental construction.
   "fa'o'o" ∈ FAhOhO
   "fe'e" ∈ FEhE
   "fe'u" ∈ FEhU
   "fi'o" ∈ FIhO
   "foi" ∈ FOI
   "fu'a" ∈ FUhA
-  (* #257 tracks the missing construction. fu'ei requires an indicator instead of opening a quotation closed by fu'o. *)
+  -- #257 tracks the missing construction. fu'ei requires an indicator instead of opening a quotation closed by fu'o.
   "fu'e" "fu'ei" ∈ FUhE
   "fu'o" ∈ FUhO
   "ga" "ge" "ge'i" "go" "gu" ∈ GA
@@ -100,7 +100,7 @@ The implication after the entries marks some words `Indicator`, which the indica
   "ge'u" ∈ GEhU
   "gi" ∈ GI
   "gi'a" "gi'e" "gi'i" "gi'o" "gi'u" ∈ GIhA
-  (* #257 tracks the missing construction. GIhEI has no experimental construction. *)
+  -- #257 tracks the missing construction. GIhEI has no experimental construction.
   "gi'ei" ∈ GIhEI
   "goi" "ne" "no'u" "pe" "po" "po'e" "po'u" ∈ GOI
   "bu'a" "bu'e" "bu'i" "co'e" "du" "go'a" "go'e" "go'i" "go'o" "go'u" "mo" "nei" "no'a" ∈ GOhA
@@ -113,16 +113,16 @@ The implication after the entries marks some words `Indicator`, which the indica
   "ja" "je" "je'i" "ji'a'a" "jo" "ju" ∈ JA
   "ja'ei" "jai" ∈ JAI
   "jo'ai" ∈ JAI
-  (* #257 tracks the missing construction. JAIhA has no experimental construction. *)
+  -- #257 tracks the missing construction. JAIhA has no experimental construction.
   "jai'a" ∈ JAIhA
-  (* #257 tracks the missing construction. JAIhI has no experimental construction. *)
+  -- #257 tracks the missing construction. JAIhI has no experimental construction.
   "jai'i" ∈ JAIhI
-  (* #257 tracks the missing construction. JIhOI has no experimental construction. *)
+  -- #257 tracks the missing construction. JIhOI has no experimental construction.
   "ji'oi" ∈ JIhOI
   "ce" "ce'o" "fa'u" "jo'e" "jo'u" "joi" "ju'e" "ku'a" "pi'u" ∈ JOI
   "ce'oi" "jo'oi" ∈ JOI
   "jo'i" ∈ JOhI
-  (* #257 tracks the missing construction. KAUhU has no experimental construction. *)
+  -- #257 tracks the missing construction. KAUhU has no experimental construction.
   "kau'u" ∈ KAUhU
   "fei'u" "ke" "pi'ai" "va'au" ∈ KE
   "kei" ∈ KEI
@@ -141,7 +141,7 @@ The implication after the entries marks some words `Indicator`, which the indica
   "ku'o" ∈ KUhO
   "ku'oi" ∈ KUhOI
   "ce'a" "lau" "tau" "zai" ∈ LAU
-  (* #257 tracks the missing construction. Experimental syntax replaces the inherited LA constructions with LE. *)
+  -- #257 tracks the missing construction. Experimental syntax replaces the inherited LA constructions with LE.
   "la'ei" "lai'u" ∈ LA
   "la'e" "lu'a" "lu'e" "lu'i" "lu'o" "tu'a" "vu'i" "zo'ei" ∈ LAhE
   "lai'e" "moi'a" ∈ LAhE
@@ -154,7 +154,7 @@ The implication after the entries marks some words `Indicator`, which the indica
   "li" "mai'o" "me'o" ∈ LI
   "bo'ai" ∈ LI
   "li'au" ∈ LIhAU
-  (* #257 tracks the missing construction. LIhEI has no experimental construction. *)
+  -- #257 tracks the missing construction. LIhEI has no experimental construction.
   "li'ei" ∈ LIhEI
   "li'u" ∈ LIhU
   "lo'ai" "sa'ai" ∈ LOhAI
@@ -165,7 +165,7 @@ The implication after the entries marks some words `Indicator`, which the indica
   "la'au" "lu" "tu'ai" ∈ LU
   "lu'ei" ∈ LUhEI
   "lu'u" ∈ LUhU
-  (* #257 tracks the missing construction. sai'ei forms an ordinal modifier instead of an attitude intensity. *)
+  -- #257 tracks the missing construction. sai'ei forms an ordinal modifier instead of an attitude intensity.
   "mai" "mo'o" "sai'ei" ∈ MAI
   "ma'o" ∈ MAhO
   "me" "me'au" ∈ ME
@@ -215,12 +215,12 @@ The implication after the entries marks some words `Indicator`, which the indica
   "sei" "ti'o" "xoi" ∈ SEI
   "sei'e" ∈ SEI
   "se'u" ∈ SEhU
-  (* #257 tracks the missing construction. SEhEhI has no experimental construction. *)
+  -- #257 tracks the missing construction. SEhEhI has no experimental construction.
   "se'e'i" "ve'e'i" ∈ SEhEhI
   "si" "si'au'i" "ze'ei" ∈ SI
-  (* #257 tracks the missing construction. SIhIhEI has no experimental construction. *)
+  -- #257 tracks the missing construction. SIhIhEI has no experimental construction.
   "si'i'ei" ∈ SIhIhEI
-  (* #257 tracks the missing construction. SIhOI has no experimental construction. *)
+  -- #257 tracks the missing construction. SIhOI has no experimental construction.
   "si'oi" ∈ SIhOI
   "fi'oi" "soi" ∈ SOI
   "so'oi" ∈ SOhOI
@@ -228,15 +228,15 @@ The implication after the entries marks some words `Indicator`, which the indica
   "su'u'u'u'u'u'u'u" ∈ SUhUhUhUhUhUhUhU
   "di'i" "na'o" "ru'i" "ta'e" ∈ TAhE
   "dei'a" "ze'ai" ∈ TAhE
-  (* #257 tracks the missing construction. TAhOI has no experimental construction. *)
+  -- #257 tracks the missing construction. TAhOI has no experimental construction.
   "ta'oi" ∈ TAhOI
   "tei" ∈ TEI
   "te'u" ∈ TEhU
   "to" "to'i" ∈ TO
   "toi" ∈ TOI
-  (* #257 tracks the missing construction. TOIhE has no experimental construction. *)
+  -- #257 tracks the missing construction. TOIhE has no experimental construction.
   "koi'e" "toi'e" ∈ TOIhE
-  (* #257 tracks the missing construction. TOIhO has no experimental construction. *)
+  -- #257 tracks the missing construction. TOIhO has no experimental construction.
   "toi'o" ∈ TOIhO
   "tu'e" ∈ TUhE
   "tu'u" ∈ TUhU
@@ -263,15 +263,15 @@ The implication after the entries marks some words `Indicator`, which the indica
   "ve'o" ∈ VEhO
   "vi'a" "vi'e" "vi'i" "vi'u" ∈ VIhA
   "vu'o" ∈ VUhO
-  (* #257 tracks the missing construction. VUhOI has no experimental construction. *)
+  -- #257 tracks the missing construction. VUhOI has no experimental construction.
   "vu'oi" ∈ VUhOI
   "cu'a" "de'o" "fa'i" "fe'a" "fe'i" "fu'u" "ge'a" "gei" "joi'i" "ju'u" "ne'o" "pa'i" "pi'a" ∈ VUhU
   "pi'i" "re'a" "ri'o" "sa'i" "sa'o" "si'i" "su'i" "te'a" "va'a" "vu'u" ∈ VUhU
-  (* #257 tracks the missing construction. xo'ei needs an operator construction instead of defaulting to zero arguments. *)
+  -- #257 tracks the missing construction. xo'ei needs an operator construction instead of defaulting to zero arguments.
   "je'e'e" "nei'au" "xo'ei" ∈ VUhU
   "di'ei'o'au" ∈ VUhU
   "te'ai" "xi" "xi'e" ∈ XI
-  (* #257 tracks the missing construction. XOhI has no experimental construction. *)
+  -- #257 tracks the missing construction. XOhI has no experimental construction.
   "xo'i" ∈ XOhI
   "ie'o" ∈ Y
   "ba'o" "ca'o" "co'a" "co'a'a" "co'au'a" "co'i" "co'u" "co'u'a" "de'a" "di'a" "mo'u" "pu'o" ∈ ZAhO
@@ -284,7 +284,7 @@ The implication after the entries marks some words `Indicator`, which the indica
   "zi'e" ∈ ZIhE
   "doi'u" "ma'oi" "zo" ∈ ZO
   "la'o" "zoi" ∈ ZOI
-  (* #257 tracks the missing construction. ZOhAU has no experimental construction. *)
+  -- #257 tracks the missing construction. ZOhAU has no experimental construction.
   "zo'au" ∈ ZOhAU
   "ci'e'u" "la'oi" "ra'oi" "zo'oi" ∈ ZOhOI
   "ce'ai" "zo'u" ∈ ZOhU

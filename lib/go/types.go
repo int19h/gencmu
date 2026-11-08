@@ -11,7 +11,8 @@ package gencmu
 // are none. An attached token has no span, since its span would count the
 // input of the stage that attached it: its Span is zero, and the output
 // leaves it out. Its Source is in the original text, as any token's.
-// A caller of ParseTokens cannot supply attachments.
+// Errors and Warnings carry diagnostics between stages.
+// A caller of ParseTokens cannot supply attachments or diagnostics.
 type Token struct {
 	Text       string
 	Value      string
@@ -22,16 +23,20 @@ type Token struct {
 	InsertedBy string
 	Before     []Token
 	After      []Token
+	Errors     []Warning
+	Warnings   []Warning
+	carrier    *diagnosticCarrier
 }
 
 // InputToken supplies stored strings before the first grammar stage.
 // A nil string pointer uses Text. A non-nil pointer preserves an empty string.
 type InputToken struct {
-	Text          string
-	Value, Image  *string
-	Tags          []string
-	Span, Source  [2]int
-	Before, After []InputToken
+	Text             string
+	Value, Image     *string
+	Tags             []string
+	Span, Source     [2]int
+	Before, After    []InputToken
+	Errors, Warnings []Warning
 }
 
 // Node kinds.
@@ -98,16 +103,19 @@ const (
 // in the result's Error (engine §6). Output is nil unless the verdict is
 // unique or resolved, and nil too when the stage's emission failed.
 type Stage struct {
-	Name    string
-	Input   []Token
-	Output  []Token
-	Verdict string
-	Witness []Action
+	Name     string
+	Input    []Token
+	Output   []Token
+	Verdict  string
+	Witness  []Action
+	Errors   []Warning
+	Warnings []Warning
 }
 
 // Error kinds.
 const (
 	ErrorRejected        = "rejected"
+	ErrorReported        = "reported"
 	ErrorAmbiguous       = "ambiguous"
 	ErrorGrammar         = "grammar"
 	ErrorFeatureConflict = "feature-conflict"
@@ -171,6 +179,8 @@ type BoundaryCondition struct {
 // and Completion, the terminators that the check wrote back (engine §7.9).
 
 type ParseError struct {
+	Errors     []Warning
+	Warnings   []Warning
 	Feature    string
 	Boundary   *BoundaryCondition
 	Kind       string
@@ -190,22 +200,32 @@ type ParseError struct {
 	Completion []Restoration
 }
 
-// Warning reports a rule node of a stage's chosen tree that an alternative
-// with a warning guard, f!, built while the feature f was on (engine §12).
+// Warning reports an enabled, unsuppressed diagnostic from a chosen occurrence (engine §12).
 // Span counts the stage's input tokens, Source the original text's code
 // points, as a node's do.
 type Warning struct {
-	Stage   string
-	Feature string
-	Rule    string
-	Span    [2]int
-	Source  [2]int
+	Stage     string
+	Code      string
+	Message   string
+	Rule      string
+	Span      [2]int
+	Source    [2]int
+	Rejection *RejectionEvidence
+	record    *diagnosticRecord
 }
 
-// ParseResult is the result of a parse: OK when every stage run accepted
-// without an error, the stages run, the last stage's chosen tree, the error
-// that ended the run, and the warnings of every stage run, in stage order,
-// an empty list when there are none.
+// RejectionEvidence describes the non-error competitors of a ranked error.
+// Its token and source coordinates belong to the stage that raised it.
+type RejectionEvidence struct {
+	Token        int
+	Source       [2]int
+	Line, Column int
+	Expected     []Expected
+}
+
+// ParseResult records the stages, the reporting tree, and the ending error.
+// Warnings follow the reporting collection of engine §12.1.
+// OK is true only when the reporting collection has no errors.
 type ParseResult struct {
 	// Features lists enabled names when the run ends, outside canonical JSON.
 	Features []string

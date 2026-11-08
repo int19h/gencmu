@@ -38,7 +38,7 @@ The ten rising diphthongs, such as `ia` and `ui`, are cmavo as whole words. A co
 
 A consonant followed by `y` is a letter cmavo.[^cll-s4-2] So is `y'y`, the letter for the apostrophe.[^cll-s17-2] The ten pairs `a'y e'y i'y o'y u'y y'a y'e y'i y'o y'u` are cmavo too.
 
-A cmavo can also use `y` as one more unit, as `ka'y`, `ky'a`, `cy'y` and `y'y'y` do. They are always words. The grammar tags each one `Cmavo-Warning`, and the words stage reads it under the warning `y-cmavo` ([stream.md](stream.md)). A caller who turns the feature on gets a warning for each one that the words stage reads as a Lojban word. Such a word has at least two units. A `y` alone, or a run of `y`, is hesitation, which [../common/forms.md](../common/forms.md) reads.
+A cmavo can also use `y` as one more unit, as `ka'y`, `ky'a`, `cy'y` and `y'y'y` do. They are always words. The grammar tags each one `Cmavo-Warning`, and the words stage reads it under the warning `y-cmavo` ([stream.md](stream.md)). A caller who enables that warning code gets a warning for each one that the words stage reads as a Lojban word. Such a word has at least two units. A `y` alone, or a run of `y`, is hesitation, which [../common/forms.md](../common/forms.md) reads.
 
 A cmavo's stress is free (CLL[^cll-s3-9]), so any of its vowels can be a capital. Its first or last syllable is stressed if its first or last unit has a capital vowel.
 

@@ -1,0 +1,23 @@
+{
+  "description": "Engine §4: query eligibility retains finite proofs and the specified error behavior.",
+  "grammar": "%rule text A\n%conditions ¬$.parse(bad)\n%rule bad A\n%error \"bad\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

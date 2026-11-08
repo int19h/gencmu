@@ -1,0 +1,23 @@
+{
+  "description": "Engine §6 and §7.10: erased classes and their canonical representatives (root).",
+  "grammar": "%rule text first | second\n%erased\n%rule first A\n%rule second A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

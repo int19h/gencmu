@@ -1,0 +1,69 @@
+{
+  "description": "Engine §11.5, §12.1, and §13: deferred diagnostic flow and reporting (rejection-cutoff).",
+  "documents": {
+    "p.md": "```jbogenbau\n%features wb\n%stage before\n%ambiguity-resolution greedy\n%rule text $a:fa $b:wb $c:fc\n%emits $a :: X, $b :: Y, $c :: Z\n%rule fa A\n%error \"first\"\n%rule wb B\n%warning \"middle\"\n%rule fc C\n%error \"last\"\n%stage last\n%ambiguity-resolution greedy\n%rule text X Q\n```\n"
+  },
+  "pipelineDocument": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected",
+    "result": {
+      "ok": false,
+      "tree": null,
+      "error": {
+        "kind": "rejected",
+        "stage": "last",
+        "token": 1,
+        "errors": [
+          {
+            "stage": "before",
+            "code": "fa",
+            "span": [
+              0,
+              1
+            ]
+          }
+        ],
+        "warnings": [
+          {
+            "stage": "before",
+            "code": "wb",
+            "span": [
+              1,
+              2
+            ]
+          }
+        ]
+      },
+      "warnings": [
+        {
+          "stage": "before",
+          "code": "wb",
+          "span": [
+            1,
+            2
+          ]
+        }
+      ]
+    }
+  }
+}

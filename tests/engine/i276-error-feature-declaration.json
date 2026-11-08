@@ -1,0 +1,15 @@
+{
+  "description": "A feature declaration cannot name an error code.",
+  "grammar": "%features bad\n%rule text *bad\n%rule bad A %error \"bad\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

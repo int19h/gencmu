@@ -1,0 +1,35 @@
+{
+  "description": "A guarded consequent evaluates a closed literal tag expression.",
+  "grammar": "%rule text left right\n%rule left A :: ($.followed-by(right) ⟹ ((One ∪ Two) ∩ (One ∪ Three)))\n%rule right B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": [
+          {
+            "tags": [
+              "One"
+            ]
+          },
+          {
+            "rule": "right"
+          }
+        ]
+      }
+    }
+  }
+}

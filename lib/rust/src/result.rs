@@ -131,6 +131,10 @@ pub struct Token {
     pub before: Vec<Attachment>,
     /// The tokens attached after this one (engine §11).
     pub after: Vec<Attachment>,
+    /// Errors carried from earlier stages.
+    pub errors: Vec<Warning>,
+    /// Warnings carried from earlier stages.
+    pub warnings: Vec<Warning>,
 }
 
 /// A token attached to another (engine §11). It is a token without a span,
@@ -155,6 +159,10 @@ pub struct Attachment {
     pub before: Vec<Attachment>,
     /// The tokens attached after this one.
     pub after: Vec<Attachment>,
+    /// Errors carried from earlier stages.
+    pub errors: Vec<Warning>,
+    /// Warnings carried from earlier stages.
+    pub warnings: Vec<Warning>,
 }
 
 impl Attachment {
@@ -168,6 +176,8 @@ impl Attachment {
             inserted_by: self.inserted_by.clone(),
             before: Vec::new(),
             after: Vec::new(),
+            errors: self.errors.clone(),
+            warnings: self.warnings.clone(),
         }
     }
 
@@ -180,6 +190,8 @@ impl Attachment {
             && self.inserted_by == other.inserted_by
             && self.before.len() == other.before.len()
             && self.after.len() == other.after.len()
+            && self.errors == other.errors
+            && self.warnings == other.warnings
     }
 }
 
@@ -439,6 +451,10 @@ pub struct Stage {
     /// reading first differ, the first reading's action first. The readings
     /// themselves are in the result's error.
     pub witness: Option<[Action; 2]>,
+    /// Warnings retained by this stage or failure.
+    pub warnings: Vec<Warning>,
+    /// Unowned errors from a completed empty emission.
+    pub errors: Vec<Warning>,
 }
 
 /// Why a text did not parse.
@@ -446,6 +462,8 @@ pub struct Stage {
 pub enum ParseErrorKind {
     /// A conditional declaration holds for a feature that the caller disables.
     FeatureConflict,
+    /// The chosen derivation contains named error reports.
+    Reported,
     /// A stage's grammar does not accept its input.
     Rejected,
     /// A stage has two or more best readings, or the `elision-only` check
@@ -517,6 +535,8 @@ pub struct BoundaryFailure {
 /// The error of a result whose `ok` is false.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseError {
+    /// Named reports from the chosen occurrences, in tree preorder.
+    pub errors: Vec<Warning>,
     /// The disabled feature whose conditional declaration holds, for FeatureConflict.
     pub feature: Option<String>,
     /// The failed neighbor condition, when one explains this rejection.
@@ -556,6 +576,8 @@ pub struct ParseError {
     /// For `ErrorCode::ElisionWitnessLost`, the terminators that the check
     /// wrote back, in their order of insertion; empty for any other error.
     pub completion: Vec<Restoration>,
+    /// Warnings retained by this stage or failure.
+    pub warnings: Vec<Warning>,
 }
 
 impl fmt::Display for ParseError {
@@ -573,20 +595,54 @@ impl fmt::Display for ParseError {
     }
 }
 
-/// A warning (engine §12): a rule node of a stage's chosen tree, built from
-/// an alternative with a warning `f!` while the feature `f` was on.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// A named diagnostic from a chosen occurrence (engine §12).
+#[derive(Debug, Clone)]
 pub struct Warning {
     /// The stage whose chosen tree has the node.
     pub stage: String,
-    /// The warning's feature, the `f` of `f!`.
-    pub feature: String,
+    /// The diagnostic code, equal to its rule name.
+    pub code: String,
+    /// The evaluated message recipe.
+    pub message: String,
     /// The node's rule.
     pub rule: String,
     /// The range of the stage's input tokens the node covers.
     pub span: Range<usize>,
     /// The range of the original text the node covers, in code points.
     pub source: Range<usize>,
+    /// Rejection evidence for a directly ranked error.
+    pub rejection: Option<RejectionEvidence>,
+    pub(crate) record: Option<Arc<crate::measures::DiagnosticRecord>>,
+}
+
+impl Warning {
+    /// Constructs a diagnostic for display or a caller-validation test.
+    pub fn new(stage: String, code: String, span: Range<usize>, source: Range<usize>, message: String) -> Self {
+        Self { stage, rule: code.clone(), code, span, source, message, rejection: None, record: None }
+    }
+}
+
+impl PartialEq for Warning {
+    fn eq(&self, other: &Self) -> bool {
+        (&self.stage, &self.code, &self.message, &self.rule, &self.span, &self.source, &self.rejection)
+            == (&other.stage, &other.code, &other.message, &other.rule, &other.span, &other.source, &other.rejection)
+    }
+}
+impl Eq for Warning {}
+
+/// The default rejection within a ranked error's competitor slice.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RejectionEvidence {
+    /// The furthest token in the competitor slice.
+    pub token: usize,
+    /// Its original source range.
+    pub source: Range<usize>,
+    /// Its source line, from one.
+    pub line: usize,
+    /// Its source column, from one.
+    pub column: usize,
+    /// The terminals expected at that boundary.
+    pub expected: Vec<Expected>,
 }
 
 /// The result of parsing a text (`docs/output.md`).
@@ -598,7 +654,7 @@ pub struct ParseResult {
     pub ok: bool,
     /// The stages run, in order.
     pub stages: Vec<Stage>,
-    /// The last stage's chosen tree, when `ok`.
+    /// The last stage's chosen tree, on success or a named error result.
     pub tree: Option<Node>,
     /// Why the text did not parse, when not `ok`.
     pub error: Option<ParseError>,

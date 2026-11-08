@@ -34,7 +34,8 @@ type slotChoice struct {
 type slotLabels map[slotChoice]bool
 type slotMask map[int]bool
 type slotCount struct {
-	all int
+	measure diagnosticMeasure
+	all     int
 }
 type slotCountKey struct {
 	it      *item
@@ -60,7 +61,7 @@ func newSlotAdmission(rk *ranker) *slotAdmission {
 		if set == nil {
 			continue
 		}
-		for _, it := range set.index {
+		for _, it := range set.items {
 			a.stats.chartFacts++
 			items = append(items, it)
 		}
@@ -73,7 +74,7 @@ func newSlotAdmission(rk *ranker) *slotAdmission {
 		if rk.views != nil {
 			scope = rk.views.itemScopes[it]
 		}
-		if g.rules[it.prod.lhs].helper && scope == nil {
+		if g.rules[it.prod.lhs].helper && it.prod.spliceTarget == nil && scope == nil {
 			continue
 		}
 		pos := int(it.dot) - 1
@@ -104,7 +105,9 @@ func newSlotAdmission(rk *ranker) *slotAdmission {
 				if rk.rec.boundaries != nil {
 					copy.boundary = rk.rec.boundaries.empty
 				}
-				copy.prefix = rk.rec.machine.empty
+				if rk.rec.machine != nil {
+					copy.prefix = rk.rec.machine.empty
+				}
 				copy.cap0 = capVal{}
 				copy.more = 0
 				before = &copy
@@ -146,11 +149,11 @@ func (a *slotAdmission) key(it *item, sym *symNode, f forbidden) slotCountKey {
 			scope = a.rk.views.itemScopes[it]
 		}
 	}
-	cut := sym != nil && f.has(sym.rule)
+	cut := sym != nil && f.has(a.rk.rec.g.cycleRule(sym.rule))
 	if sym != nil {
-		f = a.rk.slotContext(f, sym.rule, scope)
+		f = a.rk.slotContext(f, a.rk.rec.g.cycleRule(sym.rule), scope)
 	} else {
-		f = a.rk.slotContext(f, it.prod.lhs, scope)
+		f = a.rk.slotContext(f, a.rk.rec.g.cycleRule(it.prod.lhs), scope)
 	}
 	context := f.key()
 	a.contexts[context] = f
@@ -200,7 +203,7 @@ func (a *slotAdmission) dependencies(key slotCountKey) []slotCountKey {
 	out := []slotCountKey{}
 	if s := key.sym; s != nil {
 		if a.rk.rec.g.rules[s.rule].scc >= 0 && (a.rk.views == nil || a.rk.views.symScopes[s] == nil) {
-			f = f.with(s.rule)
+			f = f.with(a.rk.rec.g.cycleRule(s.rule))
 		}
 		for _, it := range s.items {
 			out = append(out, a.key(it, nil, f))
@@ -246,6 +249,9 @@ func (a *slotAdmission) dependencies(key slotCountKey) []slotCountKey {
 func (a *slotAdmission) edgeCount(it *item, edge link, f forbidden) (slotCount, slotCount) {
 	p, c := a.edgeKeys(it, edge, f)
 	left, right := a.value(p), a.value(c)
+	if edge.sym == nil {
+		right.measure = a.rk.rec.carriedMeasure(edge.tok)
+	}
 	return left, right
 }
 func (a *slotAdmission) admit(key slotCountKey) {
@@ -272,8 +278,10 @@ func (a *slotAdmission) admit(key slotCountKey) {
 				excluded, hasHigher := false, false
 				for _, higher := range viable {
 					if higher.label < proof.label {
+						hl, hr := a.edgeCount(higher.item, higher.item.links[higher.index], f)
+						pl, pr := a.edgeCount(proof.item, proof.item.links[proof.index], f)
 						hasHigher = true
-						if boundaryDominates(higher.open, proof.open) {
+						if hl.measure.add(hr.measure).cmp(pl.measure.add(pr.measure)) <= 0 && boundaryDominates(higher.open, proof.open) {
 							excluded = true
 							break
 						}
@@ -305,7 +313,7 @@ func (a *slotAdmission) compute(key slotCountKey) slotCount {
 	if s := key.sym; s != nil {
 		f := a.contexts[key.context]
 		if rk.rec.g.rules[s.rule].scc >= 0 && (rk.views == nil || rk.views.symScopes[s] == nil) {
-			f = f.with(s.rule)
+			f = f.with(a.rk.rec.g.cycleRule(s.rule))
 		}
 		var out slotCount
 		for i, it := range s.items {
@@ -313,7 +321,13 @@ func (a *slotAdmission) compute(key slotCountKey) slotCount {
 				continue
 			}
 			v := a.value(a.key(it, nil, f))
-			out.all = min(out.all+v.all, 2)
+			if it.prod.error != nil {
+				v.measure = v.measure.add(rk.rec.ownMeasure(it.origin, it.set))
+			}
+			if it.prod.nothing {
+				v.measure = diagnosticMeasure{}
+			}
+			out.offer(v)
 		}
 		return out
 	}
@@ -335,7 +349,7 @@ func (a *slotAdmission) compute(key slotCountKey) slotCount {
 		l, r := a.edgeCount(it, edge, f)
 		ways := min(l.all*r.all, 2)
 		if !filtered || mask[index] {
-			out.all = min(out.all+ways, 2)
+			out.offer(slotCount{all: ways, measure: l.measure.add(r.measure)})
 		}
 	}
 	return out
@@ -388,5 +402,16 @@ func (a *slotAdmission) mask(it *item, f forbidden) (slotMask, bool) {
 func (a *slotAdmission) prepareRoots(top []*symNode) {
 	for _, s := range top {
 		a.prepare(a.key(nil, s, nil))
+	}
+}
+
+func (s *slotCount) offer(value slotCount) {
+	if value.all == 0 {
+		return
+	}
+	if s.all == 0 || value.measure.cmp(s.measure) < 0 {
+		*s = value
+	} else if value.measure.cmp(s.measure) == 0 {
+		s.all = min(s.all+value.all, 2)
 	}
 }

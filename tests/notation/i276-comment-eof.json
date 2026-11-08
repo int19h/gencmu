@@ -1,0 +1,20 @@
+{
+  "description": "A line comment can end at the file boundary.",
+  "document": "```jbogenbau\n%rule a A--comment\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "name": "a",
+          "alternatives": [
+            {
+              "expr": {
+                "ref": "A"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

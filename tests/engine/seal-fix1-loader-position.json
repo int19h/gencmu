@@ -1,0 +1,20 @@
+{
+  "description": "Engine §9.3: a forbidden child list reports its rule atom location.",
+  "grammar": "%rule text $e:e\n%conditions $e ≅ #(⋮ e«»)\n%rule e A\n%erased",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 22
+    }
+  }
+}

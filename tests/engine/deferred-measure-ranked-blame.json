@@ -1,0 +1,47 @@
+{
+  "description": "Engine §6 and §6.1: additive blame, sourceless count, and reverse error count (ranked-blame).",
+  "grammar": "%rule text (long ≻ small A) :: ∅\n%rule long A A %error \"long\"\n%rule small A %error \"small\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "source": [
+        0,
+        1
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "source": [
+        1,
+        2
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "error": {
+        "kind": "reported",
+        "errors": [
+          {
+            "code": "small"
+          }
+        ]
+      }
+    },
+    "error": "reported"
+  },
+  "input": "xx"
+}

@@ -126,11 +126,12 @@ fn harness_detects_a_wrong_expectation() {
     // expected exactly when there is one.
     let warned = |expect: &str| {
         let case = format!(
-            r#"{{"grammar": "%rule text w! X", "tokens": [{{"text": "x", "tags": ["X"]}}], "options": {{"features": ["w"]}}, "expect": {expect}}}"#
+            r#"{{"grammar": "%rule text *w\n%rule w X %warning \"warning w\"", "tokens": [{{"text": "x", "tags": ["X"]}}], "options": {{"features": ["w"]}}, "expect": {expect}}}"#
         );
         run_engine_case(&parse_json(&case).unwrap())
     };
-    let warning = r#"{"stage": "main", "feature": "w", "rule": "text", "span": [0, 1], "source": [0, 1]}"#;
+    let warning =
+        r#"{"stage": "main", "code": "w", "rule": "w", "span": [0, 1], "source": [0, 1], "message": "warning w"}"#;
     assert!(warned(&format!(r#"{{"warnings": [{warning}]}}"#)).is_ok());
     assert!(warned(r#"{"warnings": []}"#).is_err());
     assert!(warned(r#"{"features": [{"name": "w", "kind": "warning", "default": false}]}"#).is_ok());
@@ -236,7 +237,7 @@ fn emission_errors_come_in_order() {
 #[test]
 fn the_runner_refuses_a_result_that_breaks_an_invariant() {
     use common::{apply_mutant, check_json, engine_case_result, result_mutants, result_problems, Value};
-    let expect = parse_json(r#"{"result": {"ok": false, "error": {"kind": "ambiguous"}}}"#).unwrap();
+    let expect = parse_json("{}").unwrap();
     for (mutant, case) in result_mutants() {
         let name = mutant.get("name").and_then(Value::str).unwrap_or("").to_string();
         let json = engine_case_result(&case);
@@ -258,8 +259,8 @@ fn a_check_that_loses_its_witness_is_the_grammar_error_elision_witness_lost() {
     use common::{result_problems, witness_problem, Value};
     use gencmu::tools::{losing_witness, with_elision_checks, Loss};
     let case = parse_json(
-        r#"{"documents": {"p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution late #·_<_Elided>\n%elision-only\n%rule text a | b\n%rule a w! A [+T=\"ta\"] [+U] %emits $ :: Tag-x\n%rule b A [+T=\"ta\"] [+U] [+U]\n%stage later\n%ambiguity-resolution greedy\n%rule text Tag-x\n```\n"},
-            "pipelineDocument": "p.md", "tokens": [{"text": "a", "tags": ["A"]}], "options": {"features": ["w"]}}"#,
+        r#"{"documents": {"p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution late #·_<_Elided>\n%elision-only\n%rule text a | b\n%rule a A [+T=\"ta\"] [+U] %warning \"warning a\" %emits $ :: Tag-x\n%rule b A [+T=\"ta\"] [+U] [+U]\n%stage later\n%ambiguity-resolution greedy\n%rule text Tag-x\n```\n"},
+            "pipelineDocument": "p.md", "tokens": [{"text": "a", "tags": ["A"]}], "options": {"features": ["a"]}}"#,
     )
     .unwrap();
     let (documents, pipeline) = common::case_documents(&case);
@@ -287,7 +288,7 @@ fn a_check_that_loses_its_witness_is_the_grammar_error_elision_witness_lost() {
         assert!(result.tree.is_none());
         let error = json.get("error").unwrap();
         let keys: Vec<&str> = error.object().iter().map(|(key, _)| key.as_str()).collect();
-        assert_eq!(keys, ["kind", "stage", "code", "message", "chosen", "completion"], "{loss:?}");
+        assert_eq!(keys, ["kind", "stage", "code", "warnings", "message", "chosen", "completion"], "{loss:?}");
         assert_eq!(error.get("kind").and_then(Value::str), Some("grammar"));
         assert_eq!(error.get("stage").and_then(Value::str), Some("main"));
         assert_eq!(error.get("code").and_then(Value::str), Some("elision-witness-lost"));
@@ -369,6 +370,8 @@ fn lowering_error(sources: &[(&str, &str)], features: &[&str]) -> String {
         gencmu::load_pipeline_sources(sources.iter().map(|(path, text)| (path.to_string(), text.to_string())), "p.md")
             .expect("an error of lowering is no load error");
     let token = gencmu::InputToken {
+        errors: Vec::new(),
+        warnings: Vec::new(),
         text: "a".into(),
         tags: ["A".to_string()].into_iter().collect(),
         value: None,
@@ -814,6 +817,28 @@ fn result_patterns_refuse_error_message_assertions() {
 }
 
 #[test]
+fn result_pattern_message_exemptions_follow_the_javascript_runner() {
+    // Tests README: errors and readings end the inherited error-message restriction.
+    for (text, rejected) in [
+        (r#"{"error":{"message":"same"}}"#, true),
+        (r#"{"error":{"details":[{"message":"same"}]}}"#, true),
+        (r#"{"error":{"chosen":{"children":[{"message":"same"}]}}}"#, true),
+        (r#"{"error":{"warnings":[{"message":"same"}]}}"#, true),
+        (r#"{"error":{"details":[{"warnings":[{"message":"same"}]}]}}"#, true),
+        (r#"{"error":{"errors":[{"error":{"message":"same"}}]}}"#, true),
+        (r#"{"message":"ordinary"}"#, false),
+        (r#"{"warnings":[{"message":"ordinary"}]}"#, false),
+        (r#"{"error":{"errors":[{"message":"same"}]}}"#, false),
+        (r#"{"error":{"readings":[{"children":[{"message":"same"}]}]}}"#, false),
+        (r#"{"error":{"details":[{"errors":[{"children":[{"message":"same"}]}]}]}}"#, false),
+        (r#"{"error":{"details":[{"readings":[{"message":"same"}]}]}}"#, false),
+    ] {
+        let value = parse_json(text).unwrap();
+        assert_eq!(common::case::result_pattern(&value).is_err(), rejected, "{text}");
+    }
+}
+
+#[test]
 fn shared_case_metadata_is_well_formed() {
     let mut problems = Vec::new();
     for file in case_files("engine") {
@@ -1090,4 +1115,35 @@ fn runtime_message_expectations_use_structured_locations() {
         assert_eq!(before, after, "the runner changed the public result");
     }
     assert!(problems.is_empty(), "{}", problems.join("\n"));
+}
+
+#[test]
+fn runner_keeps_grammar_failures_after_a_tied_choice() {
+    // Engine §12.1: a failed message keeps its tie verdict without shown readings.
+    let result = parse_json(r#"{"format":17,"ok":false,"stages":[{"name":"main","verdict":"tie"}],"tree":null,"error":{"kind":"grammar","stage":"main","message":"guard"},"features":[]}"#).unwrap();
+    assert!(common::result_problems(&result).is_empty());
+    let mut wrong = result.clone();
+    if let common::Value::Object(fields) = &mut wrong {
+        let error = fields.iter_mut().find(|(key, _)| key == "error").unwrap();
+        if let common::Value::Object(fields) = &mut error.1 {
+            fields.push(("readings".into(), common::Value::Array(Vec::new())));
+        }
+    }
+    assert!(!common::result_problems(&wrong).is_empty());
+}
+
+#[test]
+fn runner_validates_diagnostics_on_every_failure_envelope() {
+    // Output §1: earlier-stage diagnostics retain their coordinates on a rejection.
+    let result = parse_json(r#"{"format":17,"ok":false,"stages":[{"name":"before","verdict":"unique","output":[]},{"name":"main"}],"tree":null,"error":{"kind":"rejected","stage":"main","errors":[{"stage":"before","code":"bad","rule":"bad","span":[0,1],"source":[0,1],"message":"bad"}],"message":"stopped"},"features":[]}"#).unwrap();
+    assert!(common::result_problems(&result).is_empty());
+    let text = result.to_text();
+    for (from, into) in [
+        ("\"code\":\"bad\"", "\"code\":\"other\""),
+        ("\"stage\":\"before\",\"code\"", "\"stage\":\"missing\",\"code\""),
+        ("\"span\":[0,1]", "\"span\":[2,1]"),
+    ] {
+        let changed = parse_json(&text.replace(from, into)).unwrap();
+        assert!(!common::result_problems(&changed).is_empty(), "{from}");
+    }
 }

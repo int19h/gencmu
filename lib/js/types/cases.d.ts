@@ -2,7 +2,7 @@
  * The fields of a corpus case that a result is compared with, in the order
  * in which a difference is reported.
  */
-export declare const CASE_FIELDS: readonly ["expect", "verdict", "stage", "at", "error", "ties", "words", "brackets"];
+export declare const CASE_FIELDS: readonly ["expect", "verdict", "stage", "at", "error", "errors", "ties", "words", "brackets", "warnings"];
 export type CaseOutcome = {
     expect: "accept" | "reject";
     /**
@@ -21,13 +21,25 @@ export type CaseOutcome = {
      */
     at?: number;
     /**
-     * an
-     * ambiguous error's kind and reason
+     * an error kind and reason
      */
     error?: {
         kind: string;
-        reason: string | undefined;
+        reason?: string;
     };
+    errors?: {
+        stage?: string;
+        code: string;
+        at: number;
+    }[];
+    /**
+     * ordered warning codes and source positions
+     */
+    warnings?: {
+        stage: string;
+        code: string;
+        at: number;
+    }[];
     /**
      * the stages whose verdict is a tie
      */
@@ -52,8 +64,9 @@ export type CaseOutcome = {
  *   text
  * @property {number} [at] where that stage stopped, as a position in the
  *   text
- * @property {{kind: string, reason: string | undefined}} [error] an
- *   ambiguous error's kind and reason
+ * @property {{kind: string, reason?: string}} [error] an error kind and reason
+ * @property {{stage?:string,code:string,at:number}[]} [errors]
+ * @property {{stage:string,code:string,at:number}[]} [warnings] ordered warning codes and source positions
  * @property {string[]} [ties] the stages whose verdict is a tie
  * @property {string[]} [words] the images of the words stage's output
  * @property {string} [brackets] the tree of an accepted text, with elided

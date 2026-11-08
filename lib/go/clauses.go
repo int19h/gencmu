@@ -610,7 +610,7 @@ func itemCaptureProblem(r *domRule, itemsByAlt []map[string]itemPlace, items map
 		names []string
 	}
 	var others []clause
-	for _, t := range []*domTerm{r.Tags, r.Value, r.Image} {
+	for _, t := range []*domTerm{r.Tags, r.Value, r.Image, r.Error, r.Warning} {
 		if t != nil {
 			others = append(others, clause{"a clause", orderedMentions(clausePart{t: t})})
 		}
@@ -890,8 +890,8 @@ func definitionFault(r *domRule, deferIssue func(definitionKind, string) bool) *
 	if r.Emit != nil {
 		items = r.Emit.Items
 	}
-	// An erased definition cannot carry recipes or emission (engine §9).
-	if r.Erased && (hasRecipes(r) || r.Emit != nil) {
+	// Erasure bars value and image recipes, but permits diagnostics (§9).
+	if r.Erased && (hasStringRecipes(r) || r.Emit != nil) {
 		return immediate("an erased definition cannot carry recipes or emission")
 	}
 	// A capture no alternative captures, wherever it is mentioned.
@@ -907,7 +907,7 @@ func definitionFault(r *domRule, deferIssue func(definitionKind, string) bool) *
 			return true
 		})
 	}
-	for _, term := range []*domTerm{r.Tags, r.Value, r.Image} {
+	for _, term := range []*domTerm{r.Tags, r.Value, r.Image, r.Error, r.Warning} {
 		mention(clausePart{t: term})
 	}
 	for _, a := range r.Alternatives {
@@ -1020,6 +1020,16 @@ func definitionFault(r *domRule, deferIssue func(definitionKind, string) bool) *
 	if r.Emit != nil {
 		emits = newEmitSplit(items)
 	}
+	guarded := map[*domTerm]bool{}
+	tagTerms := []*domTerm{r.Tags}
+	for _, alt := range r.Alternatives {
+		tagTerms = append(tagTerms, alt.Tags)
+	}
+	for _, term := range tagTerms {
+		if term != nil && len(neighbourGuards(term)) > 0 {
+			guarded[term] = true
+		}
+	}
 	for _, prod := range prods {
 		caps, a := prod.caps, prod.alt
 		has := hasIn(caps)
@@ -1028,6 +1038,21 @@ func definitionFault(r *domRule, deferIssue func(definitionKind, string) bool) *
 		for _, t := range []*domTerm{r.Tags, a.Tags} {
 			if msg := lacking(t, ns, has); msg != "" {
 				return immediate(msg)
+			}
+		}
+		if (guarded[r.Tags] || guarded[a.Tags]) && (r.Tags == nil || !waits(r.Tags)) && (a.Tags == nil || !waits(a.Tags)) {
+			var terms []*domTerm
+			for _, term := range []*domTerm{r.Tags, a.Tags} {
+				if term != nil {
+					terms = append(terms, simplifyTerm(term, has))
+				}
+			}
+			effective := &domTerm{Kind: tmUnion, Items: terms}
+			if len(terms) == 1 {
+				effective = terms[0]
+			}
+			if _, fault := guardedTagVariants(effective); fault != "" {
+				return immediate(fault)
 			}
 		}
 		for _, recipe := range effectiveRecipes(r, a) {

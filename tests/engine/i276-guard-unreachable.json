@@ -1,0 +1,9 @@
+{
+  "description": "A guarded tag target must be reachable through recognition or a query.",
+  "grammar": "%const $T P ∪ Q\n%rule text {step}\n%rule step :: ($.followed-by(b) ⟹ $T)\n  | \"a\"\n  | \"b\"\n%rule b \"b\"",
+  "input": "ab",
+  "expect": {
+    "error": "grammar",
+    "message": "boundary target b is unreachable"
+  }
+}

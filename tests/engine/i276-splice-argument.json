@@ -1,0 +1,29 @@
+{
+  "description": "A splice can supply a template's symbol argument and retains its canonical call spelling.",
+  "grammar": "%rule wrap(@X) @X\n%rule text wrap(*piece)\n%rule piece A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": [
+          {
+            "rule": "wrap(*piece)",
+            "children": [
+              {
+                "terminal": "A"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

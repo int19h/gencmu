@@ -1,0 +1,15 @@
+{
+  "description": "A suppression code must name a warning rule of the stage.",
+  "grammar": "%rule text A %suppress-warnings unknown",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

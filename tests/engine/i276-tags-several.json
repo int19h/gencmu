@@ -1,0 +1,46 @@
+{
+  "description": "Several neighbour guards contribute their tags under one settled assignment.",
+  "grammar": "%rule text left middle right\n%rule left A\n%rule middle B :: ($.preceded-by(left) ⟹ Back) ∪ ($.followed-by(right) ⟹ Ahead)\n%rule right C",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": [
+          {
+            "rule": "left"
+          },
+          {
+            "rule": "middle",
+            "tags": [
+              "Ahead",
+              "Back"
+            ]
+          },
+          {
+            "rule": "right"
+          }
+        ]
+      }
+    }
+  }
+}

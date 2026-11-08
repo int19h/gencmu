@@ -6,6 +6,7 @@ export declare class RankedAdmission {
             setAt: (position: number) => import("./earley.js").ChartSet;
             furthest: number;
             context: import("./earley.js").ParseContext;
+            frames: ReturnType<typeof import("./ranked-frame.js").rankedFrameTable> | null;
             closeRequested?: boolean;
             boundaryFailures?: any[];
             family?: import("./family-summaries.js").FamilySummaries | null;

@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%const $P # ( KEhE = \"A\" )\n```\n",
   "expect": {
     "dom": {
-      "format": 44,
+      "format": 46,
       "rules": [],
       "directives": [],
       "constants": [

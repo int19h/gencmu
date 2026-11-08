@@ -614,6 +614,12 @@ pub fn unexpressible_tokens(case: &Value) -> Option<&'static str> {
     let Value::Array(tokens) = tokens else { panic!("the fixture requires a token array") };
     let mut offset = 0;
     for (index, token) in tokens.iter().enumerate() {
+        if ["errors", "warnings"]
+            .iter()
+            .any(|kind| token.get(kind).is_some_and(|list| !matches!(list, Value::Array(_))))
+        {
+            return Some("unavailable caller fields: Rust InputToken requires typed diagnostic lists");
+        }
         if !matches!(token.get("text"), Some(Value::String(_))) {
             return Some("unavailable caller fields: Rust InputToken requires a text string");
         }
@@ -654,6 +660,18 @@ pub fn case_tokens(case: &Value) -> Option<Vec<gencmu::InputToken>> {
             .array()
             .iter()
             .map(|token| gencmu::InputToken {
+                errors: token
+                    .get("errors")
+                    .map_or(&[][..], Value::array)
+                    .iter()
+                    .map(|_| gencmu::Warning::new(String::new(), String::new(), 0..0, 0..0, String::new()))
+                    .collect(),
+                warnings: token
+                    .get("warnings")
+                    .map_or(&[][..], Value::array)
+                    .iter()
+                    .map(|_| gencmu::Warning::new(String::new(), String::new(), 0..0, 0..0, String::new()))
+                    .collect(),
                 text: token.get("text").and_then(Value::str).unwrap_or("").to_string(),
                 tags: token
                     .get("tags")
@@ -674,6 +692,7 @@ pub fn error_kind(kind: gencmu::ParseErrorKind) -> &'static str {
         gencmu::ParseErrorKind::Rejected => "rejected",
         gencmu::ParseErrorKind::Ambiguous => "ambiguous",
         gencmu::ParseErrorKind::Grammar => "grammar",
+        gencmu::ParseErrorKind::Reported => "reported",
         gencmu::ParseErrorKind::FeatureConflict => "feature-conflict",
     }
 }
@@ -820,11 +839,108 @@ pub fn check_load_error(expect: &Value, error: &gencmu::Error) -> Result<(), Str
 /// What a canonical result breaks of the invariants that every runner
 /// checks on every result, whatever the case expects (tests/README.md): no
 /// stage has a tied tree, and a stage whose verdict is `tie` has no output,
-/// comes last, and has the result's ambiguous error with the reason `tie`
-/// and two readings.
+/// comes last, and has either its ambiguous error or a grammar failure after choice.
 pub fn result_problems(json: &Value) -> Vec<String> {
     let mut problems = Vec::new();
     let stages = json.get("stages").map_or(&[][..], Value::array);
+    let integer = |value: Option<&Value>, minimum: f64| matches!(value,Some(Value::Number(n)) if n.is_finite() && *n>=minimum && n.fract()==0.0 && *n<=9007199254740991.0);
+    let range = |value: Option<&Value>| matches!(value,Some(Value::Array(pair)) if pair.len()==2 && pair.iter().all(|part|integer(Some(part),0.0)) && matches!((&pair[0],&pair[1]),(Value::Number(a),Value::Number(b)) if a<=b));
+    let evidence = |value: &Value| {
+        matches!(value,Value::Object(fields) if fields.len()==5)
+            && integer(value.get("token"), 0.0)
+            && integer(value.get("line"), 1.0)
+            && integer(value.get("column"), 1.0)
+            && range(value.get("source"))
+            && matches!(value.get("expected"),Some(Value::Array(items)) if items.iter().all(|item| {
+                matches!(item,Value::Object(fields) if fields.len()==2) && item.get("terminal").and_then(Value::str).is_some()
+                    && matches!(item.get("rules"),Some(Value::Array(rules)) if rules.iter().all(|rule|rule.str().is_some()))
+            }))
+    };
+    let diagnostic = |value: &Value, error: bool| {
+        let keys = ["stage", "code", "rule", "span", "source", "message", "rejection"];
+        matches!(value,Value::Object(fields) if (fields.len()==6 || error && fields.len()==7) && fields.iter().all(|(key,_)|keys.contains(&key.as_str())))
+            && value.get("rejection").map_or(true, |value| error && evidence(value))
+            && value.get("code") == value.get("rule")
+            && ["stage", "code", "rule", "message"].iter().all(|key| value.get(key).and_then(Value::str).is_some())
+            && range(value.get("span"))
+            && range(value.get("source"))
+    };
+    if json.get("format") != Some(&Value::Number(17.0)) {
+        problems.push("the result format is not 17".into());
+    }
+    let names: std::collections::BTreeSet<_> =
+        stages.iter().filter_map(|stage| stage.get("name").and_then(Value::str)).collect();
+    let mut pending = vec![json];
+    while let Some(value) = pending.pop() {
+        match value {
+            Value::Array(items) => pending.extend(items),
+            Value::Object(fields) => {
+                for (key, value) in fields {
+                    if key == "errors" || key == "warnings" {
+                        if !matches!(value,Value::Array(items) if !items.is_empty() && items.iter().all(|value|diagnostic(value,key=="errors")))
+                        {
+                            problems.push(format!("{key} is not a nonempty list of named diagnostics"));
+                        } else if value
+                            .array()
+                            .iter()
+                            .any(|value| !names.contains(value.get("stage").and_then(Value::str).unwrap_or("")))
+                        {
+                            problems.push("a diagnostic names an unknown raising stage".into());
+                        }
+                    } else {
+                        pending.push(value);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    for stage in stages {
+        if (stage.get("errors").is_some() || stage.get("warnings").is_some())
+            && !matches!(stage.get("output"),Some(Value::Array(items)) if items.is_empty())
+        {
+            problems.push("stage diagnostics require a completed empty emission".into());
+        }
+    }
+    if let Some(error) = json.get("error").filter(|error| {
+        matches!(error.get("kind").and_then(Value::str), Some("rejected" | "grammar" | "feature-conflict"))
+    }) {
+        if error.get("warnings") != json.get("warnings") {
+            problems.push("failure warnings differ from result warnings".into());
+        }
+    }
+    for warning in json.get("warnings").map_or(&[][..], Value::array) {
+        if !diagnostic(warning, false) {
+            problems.push("a warning lacks its diagnostic fields".into());
+        }
+    }
+    if let Some(error) = json.get("error").filter(|e| matches!(e, Value::Object(_))) {
+        if error.get("kind").and_then(Value::str) == Some("reported") {
+            let last = stages.last();
+            if json.get("ok") != Some(&Value::Bool(false))
+                || json.get("tree") == Some(&Value::Null)
+                || json.get("tree").is_none()
+                || !last.is_some_and(|s| {
+                    s.get("name") == error.get("stage")
+                        && matches!(s.get("verdict").and_then(Value::str), Some("unique" | "resolved"))
+                        && matches!(s.get("output"), Some(Value::Array(_)))
+                })
+            {
+                problems.push("a reported result lacks its retained tree, verdict or output".into());
+            }
+            if !matches!(error.get("errors"),Some(Value::Array(reports)) if !reports.is_empty() && reports.iter().all(|r|diagnostic(r,true)))
+            {
+                problems.push("a reported result lacks its ordered named errors".into());
+            }
+            for key in ["token", "source", "line", "column", "expected", "readings"] {
+                if error.get(key).is_some() {
+                    problems.push(format!("a reported error has {key}"));
+                }
+            }
+        } else if json.get("tree") != Some(&Value::Null) {
+            problems.push("an error result other than reported has a tree".into());
+        }
+    }
     for (index, stage) in stages.iter().enumerate() {
         let name = stage.get("name").and_then(Value::str).unwrap_or("?");
         if stage.get("tied").is_some() {
@@ -844,10 +960,11 @@ pub fn result_problems(json: &Value) -> Vec<String> {
         let readings = error.and_then(|error| error.get("readings"));
         if json.get("ok") != Some(&Value::Bool(false))
             || json.get("tree") != Some(&Value::Null)
-            || field("kind") != Some("ambiguous")
-            || field("reason") != Some("tie")
             || field("stage") != Some(name)
-            || !matches!(readings, Some(Value::Array(readings)) if readings.len() == 2)
+            || !(field("kind") == Some("grammar") && field("reason").is_none() && readings.is_none()
+                || field("kind") == Some("ambiguous")
+                    && field("reason") == Some("tie")
+                    && matches!(readings, Some(Value::Array(readings)) if readings.len() == 2))
         {
             problems
                 .push(format!("the tied stage {name} lacks its error of kind ambiguous, reason tie and two readings"));

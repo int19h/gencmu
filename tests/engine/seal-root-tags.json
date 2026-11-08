@@ -1,0 +1,38 @@
+{
+  "description": "Engine §4.1 and §6: an erased root retains its completed tags for an outside pattern.",
+  "grammar": "%rule text $r:r2\n%conditions $r ≅ #·r2<T>\n%rule r2 C :: T\n%erased",
+  "tokens": [
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "r2",
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "C"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

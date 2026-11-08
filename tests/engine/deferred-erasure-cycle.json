@@ -1,0 +1,23 @@
+{
+  "description": "Engine §6 and §7.10: erased classes and their canonical representatives (cycle).",
+  "grammar": "%rule text gone\n%rule gone gone | A\n%erased",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

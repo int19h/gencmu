@@ -1,0 +1,57 @@
+{
+  "description": "Sentences and erasure: sentence-erasure keeps ra-run outside its sealed erased-sentence. Repeated erasers retain their empty inherited tags and flat token children.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/eberban/refgram/pipeline.md\"\n```\n"
+  },
+  "pipelineDocument": "pipeline.md",
+  "input": "a sune ra ra a sunu",
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "paragraphs",
+            "children": [
+              {
+                "rule": "sentences",
+                "children": [
+                  {
+                    "rule": "sentence",
+                    "children": [
+                      {
+                        "rule": "sentence-erasure",
+                        "children": [
+                          {
+                            "rule": "erased-sentence"
+                          },
+                          {
+                            "rule": "ra-run",
+                            "tags": [],
+                            "children": [
+                              {
+                                "kind": "token",
+                                "terminal": "RA"
+                              },
+                              {
+                                "kind": "token",
+                                "terminal": "RA"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {}
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "warnings": []
+  }
+}

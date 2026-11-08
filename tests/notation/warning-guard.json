@@ -1,6 +1,6 @@
 {
-  "description": "w! is a warning guard, and f? a gate (engine §9).",
-  "document": "```jbogenbau\n%rule a f? w! A\n```\n",
+  "description": "A warning rule follows its conditions and has a message recipe.",
+  "document": "```jbogenbau\n%rule a f? A\n%warning \"warning a\"\n```\n",
   "expect": {
     "dom": {
       "rules": [
@@ -12,15 +12,17 @@
                   "feature": "f",
                   "kind": "gate",
                   "negated": false
-                },
-                {
-                  "feature": "w",
-                  "kind": "warning",
-                  "negated": false
                 }
               ]
             }
-          ]
+          ],
+          "warning": {
+            "concat": [
+              {
+                "string": "warning a"
+              }
+            ]
+          }
         }
       ]
     }

@@ -1,0 +1,23 @@
+{
+  "description": "A whole-span query requires a zero-error witness.",
+  "grammar": "%rule text A %conditions ¬$.matches(bad)\n%rule bad A %error \"bad\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

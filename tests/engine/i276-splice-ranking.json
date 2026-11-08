@@ -1,0 +1,15 @@
+{
+  "description": "A stage ranking step cannot name a spliced rule.",
+  "grammar": "%ambiguity-resolution fewest #·r\n%rule text *r\n%rule r A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

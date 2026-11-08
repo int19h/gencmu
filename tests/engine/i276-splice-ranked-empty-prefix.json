@@ -1,0 +1,16 @@
+{
+  "description": "An always-empty splice cannot move the start of a ranked group.",
+  "grammar": "%rule text q p\n%rule q \"q\"\n%rule z ε\n%rule p *z ($x:\"a\" ≻ \"b\")\n%conditions $x ∨ $.preceded-by(q)",
+  "input": "qa",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

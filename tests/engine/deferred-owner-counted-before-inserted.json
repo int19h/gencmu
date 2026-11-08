@@ -1,0 +1,98 @@
+{
+  "description": "Engine §11.5 and §12.1: diagnostic ownership (counted-before-inserted).",
+  "grammar": "%rule text A\n%warning \"root\"\n%emits ε :: X, $",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "note",
+      "text",
+      "gap",
+      "annotation"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "tags": [
+                "X"
+              ],
+              "span": [
+                0,
+                0
+              ],
+              "source": [
+                0,
+                0
+              ],
+              "insertedBy": "text"
+            },
+            {
+              "text": "a",
+              "value": "a",
+              "image": "a",
+              "tags": [
+                "A"
+              ],
+              "span": [
+                0,
+                1
+              ],
+              "source": [
+                0,
+                1
+              ],
+              "warnings": [
+                {
+                  "stage": "main",
+                  "code": "text",
+                  "rule": "text",
+                  "span": [
+                    0,
+                    1
+                  ],
+                  "source": [
+                    0,
+                    1
+                  ],
+                  "message": "root"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "text",
+        "rule": "text",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "message": "root"
+      }
+    ]
+  }
+}

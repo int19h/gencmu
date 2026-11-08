@@ -1,0 +1,58 @@
+{
+  "description": "A reported error result retains its enabled warnings.",
+  "grammar": "%rule text *bad %warning \"warning text\"\n%rule bad A %error \"bad\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "text"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "error": {
+        "kind": "reported",
+        "errors": [
+          {
+            "code": "bad",
+            "rule": "bad",
+            "span": [
+              0,
+              1
+            ]
+          }
+        ]
+      }
+    },
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "text",
+        "rule": "text",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "message": "warning text"
+      }
+    ],
+    "error": "reported"
+  }
+}

@@ -10,6 +10,8 @@ export type AttachedToken = Omit<Token, "span">;
  */
 /** @type {AttachedToken[]} */
 export declare const NO_ATTACHMENTS: AttachedToken[];
+/** @type {import("./types.js").ParseWarning[]} */
+export declare const NO_DIAGNOSTICS: import("./types.js").ParseWarning[];
 export declare class Token {
     tags: TagSet;
     span: Span;
@@ -18,6 +20,10 @@ export declare class Token {
     value: string;
     insertedBy: string | undefined;
     image: string;
+    /** @type {import("./types.js").ParseWarning[]} */
+    errors: import("./types.js").ParseWarning[];
+    /** @type {import("./types.js").ParseWarning[]} */
+    warnings: import("./types.js").ParseWarning[];
     /**
      * The tokens attached before this one (engine §11), none by default.
      * @type {AttachedToken[]}

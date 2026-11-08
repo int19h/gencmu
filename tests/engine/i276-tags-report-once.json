@@ -1,0 +1,44 @@
+{
+  "description": "Concrete guard variants retain one surviving diagnostic occurrence.",
+  "grammar": "%rule text left right\n%rule left A :: ($.followed-by(right) ⟹ Mark) %warning \"warning left\"\n%rule right B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "left"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "left",
+        "rule": "left",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "message": "warning left"
+      }
+    ]
+  }
+}

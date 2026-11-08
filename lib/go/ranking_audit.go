@@ -21,9 +21,12 @@ type CountedRuleChange struct {
 
 // RankingReport holds the static reports of one stage.
 type RankingReport struct {
-	Name           string
-	KeySteps       []RankingStepReport
-	CountedChanges []CountedRuleChange
+	Erasures        []ErasureReport
+	IdleErasures    []IdleErasure
+	DiagnosticNotes []DiagnosticNote
+	Name            string
+	KeySteps        []RankingStepReport
+	CountedChanges  []CountedRuleChange
 }
 
 func addRankingTags(into, from map[string]bool) {
@@ -170,7 +173,25 @@ func rankingStageReport(g *stageGrammar) RankingReport {
 func (p *Pipeline) RankingReports() []RankingReport {
 	out := make([]RankingReport, 0, len(p.stages))
 	for _, g := range p.stages {
-		out = append(out, rankingStageReport(g))
+		report := rankingStageReport(g)
+		report.DiagnosticNotes = diagnosticNotes(g)
+		report.Erasures = erasureAudit(g)
+		report.IdleErasures = []IdleErasure{}
+		inert := map[string]bool{}
+		for _, entry := range report.Erasures {
+			if _, known := inert[entry.Rule]; !known {
+				inert[entry.Rule] = true
+			}
+			inert[entry.Rule] = inert[entry.Rule] && entry.Kind == "inert"
+		}
+		seen := map[string]bool{}
+		for _, entry := range report.Erasures {
+			if inert[entry.Rule] && !seen[entry.Rule] {
+				seen[entry.Rule] = true
+				report.IdleErasures = append(report.IdleErasures, IdleErasure{entry.Rule, entry.Document})
+			}
+		}
+		out = append(out, report)
 	}
 	return out
 }
@@ -183,6 +204,25 @@ func FormatRankingReports(reports []RankingReport) string {
 		for _, step := range report.KeySteps {
 			if step.Status != "" {
 				lines = append(lines, fmt.Sprintf("  ranking step %d: %s", step.Step+1, step.Status))
+			}
+		}
+		for _, erasure := range report.Erasures {
+			lines = append(lines, fmt.Sprintf("  %s erasure: %s", erasure.Kind, erasure.Rule))
+		}
+		for _, note := range report.DiagnosticNotes {
+			switch note.Kind {
+			case "query-error":
+				detail := fmt.Sprintf("query target %s contains error productions. Witnesses exclude unerased own errors", note.Target)
+				if note.Filtered {
+					detail += " and carried errors outside erased parts"
+				} else {
+					detail += " but allow carried errors"
+				}
+				lines = append(lines, fmt.Sprintf("  %s: %s", note.Rule, detail))
+			case "unused-suppression":
+				lines = append(lines, fmt.Sprintf("  %s: suppression code %s reaches no warning", note.Rule, note.Code))
+			case "guarded-tag-variants":
+				lines = append(lines, fmt.Sprintf("  %s: %d guarded tag variants", note.Rule, note.Variants))
 			}
 		}
 		for _, change := range report.CountedChanges {

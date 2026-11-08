@@ -1,0 +1,44 @@
+{
+  "description": "Engine §6 and §6.1: additive blame, sourceless count, and reverse error count (overlap-adds).",
+  "grammar": "%rule text nested | one\n%rule nested one %error \"outer\"\n%rule one A %error \"inner\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "source": [
+        3,
+        7
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "error": {
+        "kind": "reported",
+        "errors": [
+          {
+            "code": "one"
+          }
+        ]
+      },
+      "tree": {
+        "children": [
+          {
+            "rule": "one"
+          }
+        ]
+      }
+    },
+    "error": "reported"
+  },
+  "input": "xxxxxxx"
+}

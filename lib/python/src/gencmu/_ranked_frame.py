@@ -1,5 +1,6 @@
 """Written prefix values and ready conditions across generated helpers."""
 from dataclasses import dataclass, replace
+from . import _testing
 from ._ranked import reads
 from ._clauses import WHOLE, simplify_condition, simplify_term, captures_in, prepare_conditions
 
@@ -36,8 +37,8 @@ def prepare_ranked(lowered):
         if p.ranked is not None:
             lowered.ranked_helpers[p.lhs] = p.ranked
         if p.helper and p.slot is not None:
-            lowered.written_helpers[p.lhs] = (p.rule_name, p.slot.source.document, p.slot.source.at, ranked.paths[p.slot.path])
-            p.contextual = p.contextual or id(p.slot.source) in sources
+            lowered.written_helpers[p.lhs] = (p.rule_name, p.slot.source.document, p.slot.source.at, ranked.paths.get(p.slot.path, ""))
+            p.contextual = p.contextual or p.splice_of is None and id(p.slot.source) in sources
             lowered.contextual = lowered.contextual or p.contextual
     for p in lowered.productions:
         if p.ranked is None:
@@ -112,7 +113,7 @@ def prepare_ranked_conditions(lowered):
             pending.append((symbol, child))
 
     for p in lowered.productions:
-        if not p.helper:
+        if p.tree_root:
             enter(p, SimpleNamespace(present=set(), captures={}, known_private=set()))
     seen, at = set(), 0
     while at < len(pending):
@@ -143,13 +144,15 @@ def prepare_ranked_conditions(lowered):
 
 def written_prefix(lowered, p, dot, origin, prefix, caps, restores=False, closes=None, close_prefix=0):
     symbols = tuple((terminal, lowered.written_helpers.get(symbol,symbol),p.tests[i] if p.tests else None) for i,(terminal,symbol) in enumerate(zip(p.terminal,p.rhs)))
+    def identity(state):
+        return -1 if state == closes.INVALID else closes.semantic(state)
     def observation(part):
-        return (*part[:4], closes.semantic(part[4]), *part[5:]) if closes is not None and len(part) > 4 else part
+        return (*part[:4], identity(part[4]), *part[5:]) if closes is not None and len(part) > 4 else part
     captures = tuple((name, observation(caps[p.slots[position]])) for name, position in sorted(p.captures.items(), key=lambda part: part[1]) if not name.startswith('\u0000') and position < dot)
     source = (p.rule_name, *written_source(p), lowered.written_helpers.get(p.lhs))
     parent = p.lexical.close_entry if closes is not None and p.lexical else p.lexical.key if p.lexical else None
-    key = (parent, source, symbols, dot, origin, prefix, captures, restores, p.ranked_bindings)
-    return key + (closes.semantic(close_prefix),) if closes is not None else key
+    key = (parent, source, p.real_id if p.guard_conditions else None, symbols, dot, origin, prefix, captures, restores, p.ranked_bindings)
+    return key + (identity(close_prefix),) if closes is not None else key
 
 
 def written_source(p):
@@ -183,6 +186,8 @@ class Frames:
         self.lowered,self.machine = lowered,machine
         self.closes, self.project = closes, project
         self.frames,self.productions = {},{}
+        self.by_id = {}
+        self.restoration_keys = {}
         # The item conditions of each production, prepared once for all its
         # frames, by its number.
         self.prepared_items = {}
@@ -200,13 +205,14 @@ class Frames:
             key = key, close_prefix
         if key in self.frames:
             return self.frames[key]
+        entry_prefix = prefix
         captures = dict(outer.captures) if outer else {}
         captures.update((name,caps[p.slots[pos]]) for name,pos in p.captures.items() if not name.startswith('\u0000') and pos<dot)
         present = (outer.present if outer else set()) | {n for n in p.captures if not n.startswith('\u0000')}
         root = outer.root if outer else p
         named_origin = outer.origin if outer else origin
-        # Without ranked groups and patterns there is no machine, and the
-        # prefixes are all empty.
+        # Without demanded tree predicates there is no machine, so every
+        # structural prefix is empty.
         prefix = self.machine.concat(outer.prefix,prefix) if outer and self.machine is not None else prefix
         inside = bool(p.ranked or outer and outer.inside)
         seal_prefix = outer.seal_prefix if inside and outer else prefix
@@ -223,7 +229,20 @@ class Frames:
             frame.seal_group = outer.seal_group if inside and outer else own_group
             frame.seal_start = outer.seal_start if inside and outer else at
             frame.seal_entry = outer.seal_entry if inside and outer else frame.close_entry
+        # The ranking view projects named closes without changing this frame.
+        ranking_key = None
+        def restoration_key():
+            nonlocal ranking_key
+            if ranking_key is None:
+                _testing.count("walk_steps", 1 + len(p.captures))
+                entry = written_prefix(self.lowered, p, dot, origin, entry_prefix, caps, restores, self.closes, close_prefix)
+                entry = (outer.restoration_key() if outer else None, *entry[1:])
+                key = (entry, boundary.id if boundary is not None else None, tree_prefix if self.trees is not None else None)
+                ranking_key = self.restoration_keys.setdefault(key, len(self.restoration_keys))
+            return ranking_key
+        frame.restoration_key = restoration_key
         self.frames[key] = frame
+        self.by_id[frame.id] = frame
         return frame
 
     def common_entry(self, p, dot, origin, prefix, caps, outer, close_prefix, tree_prefix=0):
@@ -271,6 +290,12 @@ class Frames:
             public = {''} | (frame.present-private)
             tags = [simplify_term(t,public) for t in (source.tags,source.rule_tags) if t is not None]
             q.parent_tags = tags[0] if len(tags)==1 else {'union':tags} if tags else {'emptySet':True}
+            from ._guarded_tags import variants, atom_key
+            assigned = {atom_key(c.get("not", c)): "not" not in c for c in frame.root.guard_conditions}
+            found = next((term for term, conditions in variants(q.parent_tags) if all(assigned.get(atom_key(c.get("not", c))) == ("not" not in c) for c in conditions)), None)
+            if found is None:
+                raise RuntimeError("a ranked frame lost its enclosing tag assignment")
+            q.parent_tags = found
         else:
             # A helper outside every ranked alternative: a frame gives it the
             # enclosing item's captures and nothing else.

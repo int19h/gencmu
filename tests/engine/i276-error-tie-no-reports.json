@@ -1,0 +1,30 @@
+{
+  "description": "A tied stage reports no diagnostics from its competing readings.",
+  "grammar": "%ambiguity-resolution fewest #·never\n%rule text one | two\n%rule one A %error \"one\"\n%rule two A %error \"two\"\n%rule never B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "tie"
+        }
+      ],
+      "tree": null,
+      "error": {
+        "kind": "ambiguous",
+        "reason": "tie"
+      }
+    },
+    "warnings": [],
+    "error": "ambiguous"
+  }
+}

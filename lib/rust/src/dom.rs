@@ -71,7 +71,7 @@ use crate::tags::is_name;
 use crate::unicode::Unicode;
 
 /// The DOM format version (`docs/output.md`), part of every cache key.
-pub const DOM_FORMAT: i64 = 44;
+pub const DOM_FORMAT: i64 = 46;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct Dom {
@@ -117,6 +117,9 @@ pub(crate) struct ImplicationDef {
 /// Whether a string is a classifier's name: a name that begins with `a` to
 /// `z` (engine §2, §9).
 pub(crate) fn is_classifier_name(name: &str) -> bool {
+    if name.contains("--") {
+        return false;
+    }
     let mut chars = name.chars();
     chars.next().is_some_and(|c| c.is_ascii_lowercase())
         && chars.all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
@@ -136,6 +139,9 @@ pub(crate) struct ConstDef {
 /// Whether a string is a constant's name without its `$`: a name that
 /// begins with `A` to `Z` (engine §2).
 pub(crate) fn is_constant_name(name: &str) -> bool {
+    if name.contains("--") {
+        return false;
+    }
     let mut chars = name.chars();
     chars.next().is_some_and(|c| c.is_ascii_uppercase())
         && chars.all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
@@ -161,6 +167,9 @@ pub(crate) struct RuleDef {
     pub conditions: Vec<Cond>,
     /// `%erased` contributes no strings or emission parts (engine §11).
     pub erased: bool,
+    pub error: Option<Term>,
+    pub warning: Option<Term>,
+    pub suppress_warnings: Vec<String>,
     pub at: (usize, usize),
 }
 
@@ -171,13 +180,11 @@ pub enum FeatureKind {
     /// A gate, `f?` or `¬f?`: its alternatives are kept only while the
     /// feature is on, or off.
     Gate,
-    /// A warning, `f!`: its alternatives are always kept, and while the
-    /// feature is on, each node of a chosen tree built from one gives a
-    /// warning (engine §12).
+    /// A warning code, named by its reporting rule (engine §12).
     Warning,
 }
 
-/// A guard; a warning is never negated.
+/// A feature gate, optionally negated.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Guard {
     pub feature: String,
@@ -206,6 +213,7 @@ pub(crate) enum Expr {
     /// Braces: the item, the separator after `/` if any, and a chain's
     /// direction, from its marker `...` (engine §3.2, §3.3).
     Repeat(Box<Expr>, Option<Box<Expr>>, Option<Chain>),
+    Splice(Box<Expr>),
     Ref(String),
     Terminal(String),
     Literal(Term),
@@ -219,6 +227,7 @@ pub(crate) enum Expr {
     /// The closed operand precedes the wrapped symbol in this representation.
     Tested(String, Term, Box<Expr>),
     Empty,
+    Remainder,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -247,6 +256,7 @@ pub(crate) enum Chain {
 /// The capture named `""` is `$`, the whole constituent.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Term {
+    Body(std::sync::Arc<Expr>),
     Source(SourceSymbol),
     Pattern(Box<crate::patterns::Pattern>),
     /// A string, decoded.
@@ -286,6 +296,7 @@ pub(crate) struct BoundaryLocation {
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Cond {
+    Forest(Term),
     SourceQuery(String, Vec<Arg>, BoundaryLocation),
     Compare(String, Term, Term, Option<(usize, usize)>),
     Matches(Term, Vec<String>),
@@ -297,7 +308,8 @@ pub(crate) enum Cond {
     Initial(Term),
     Final(Term),
     /// A complete-tree neighbor, with its direction and target choice.
-    Boundary(bool, Term, Vec<String>, BoundaryLocation),
+    /// Clones share the annotation's identity even without source locations.
+    Boundary(bool, Term, Vec<String>, std::sync::Arc<BoundaryLocation>),
     Not(Box<Cond>),
     Any(Vec<Cond>),
     All(Vec<Cond>),
@@ -576,7 +588,6 @@ fn guard_from_json(guard: &Json) -> R<Guard> {
         feature: string(guard, "feature")?,
         kind: match string(guard, "kind")?.as_str() {
             "gate" => FeatureKind::Gate,
-            "warning" => FeatureKind::Warning,
             _ => return Err("a bad guard".to_string()),
         },
         negated: field(guard, "negated")?.as_bool().ok_or("a bad guard")?,
@@ -642,6 +653,15 @@ pub(crate) fn rule_from_json(value: &Json) -> R<RuleDef> {
             .collect::<R<Vec<_>>>()?,
         emit: value.get("emit").map(emit_from_json).transpose()?,
         conditions: array(value, "conditions")?.iter().map(cond_from_json).collect::<R<Vec<_>>>()?,
+        error: value.get("error").map(term_from_json).transpose()?,
+        warning: value.get("warning").map(term_from_json).transpose()?,
+        suppress_warnings: value
+            .get("suppressWarnings")
+            .and_then(Json::as_array)
+            .unwrap_or(&[])
+            .iter()
+            .map(|v| v.as_str().map(String::from).ok_or_else(|| "a malformed suppression code".into()))
+            .collect::<R<_>>()?,
         erased: is_true(value.get("erased")),
         at: position(value)?,
     })
@@ -649,6 +669,7 @@ pub(crate) fn rule_from_json(value: &Json) -> R<RuleDef> {
 
 fn first_key(value: &Json) -> R<&str> {
     const FORMS: &[&str] = &[
+        "splice",
         "seq",
         "choice",
         "ranked",
@@ -697,6 +718,7 @@ fn expr_from_json(value: &Json) -> R<Expr> {
         Optional(Mark, Option<DefaultValue>),
         Repeat(Option<Chain>, bool),
         Capture(String),
+        Splice,
     }
     let mut pending = vec![Task::Read(value)];
     let mut values = Vec::new();
@@ -720,6 +742,11 @@ fn expr_from_json(value: &Json) -> R<Expr> {
                         let items = array(value, key)?;
                         pending.push(Task::List(key, items.len()));
                         pending.extend(items.iter().rev().map(Task::Read));
+                        continue;
+                    }
+                    "splice" => {
+                        pending.push(Task::Splice);
+                        pending.push(Task::Read(field(value, "splice")?));
                         continue;
                     }
                     "optional" => {
@@ -755,6 +782,7 @@ fn expr_from_json(value: &Json) -> R<Expr> {
                     "ref" => Expr::Ref(string(value, "ref")?),
                     "literal" => Expr::Literal(term_from_json(field(value, "literal")?)?),
                     "wildcard" => Expr::Wildcard,
+                    "remainder" => Expr::Remainder,
                     "range" => match array(value, "range")? {
                         [start, end] => Expr::ScalarRange(term_from_json(start)?, term_from_json(end)?),
                         _ => return Err("a range requires two string terms".into()),
@@ -786,6 +814,7 @@ fn expr_from_json(value: &Json) -> R<Expr> {
                 let separator = separated.then(|| Box::new(values.pop().unwrap()));
                 Expr::Repeat(item, separator, chain)
             }
+            Task::Splice => Expr::Splice(Box::new(values.pop().unwrap())),
             Task::Capture(name) => Expr::Capture(name, Box::new(values.pop().unwrap())),
         };
         values.push(expression);
@@ -839,7 +868,12 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                     children.push((field(value, "left")?, false));
                     children.push((field(value, "right")?, false));
                 }
-                "method" => children.push((field(value, "receiver")?, false)),
+                "method" => {
+                    children.push((field(value, "receiver")?, false));
+                    if matches!(value.get("method").and_then(Json::as_str), Some("parse")) {
+                        children.extend(array(value, "args")?.iter().map(|argument| (argument, false)));
+                    }
+                }
                 "not" => children.push((field(value, "not")?, true)),
                 "any" | "all" => children.extend(array(value, key)?.iter().map(|child| (child, true))),
                 "if" => {
@@ -871,7 +905,7 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                             .map(|arg| (arg, false)),
                     );
                 }
-                "pattern" | "string" | "tag" | "emptySet" | "capture" | "const" | "param" | "call" => {}
+                "body" | "pattern" | "string" | "tag" | "emptySet" | "capture" | "const" | "param" | "call" => {}
                 _ => return Err(format!("an unknown term {key:?}")),
             }
         }
@@ -892,6 +926,13 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                 "method" => {
                     let receiver = operands.next().unwrap().term();
                     let name = string(value, "method")?;
+                    if matches!(name.as_str(), "parse" | "error-free") {
+                        let args = std::iter::once(Arg::Term(receiver))
+                            .chain(operands.map(|operand| Arg::Term(operand.term())))
+                            .collect();
+                        values.push(ReadValue::Cond(Cond::Forest(Term::Call(name, args))));
+                        continue;
+                    }
                     if array(value, "args")?.iter().any(|arg| arg.get("param").is_some() || arg.get("call").is_some()) {
                         let mut args = vec![Arg::Term(receiver)];
                         for arg in array(value, "args")? {
@@ -915,7 +956,7 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                             args.iter()
                                 .map(|arg| string(arg, if arg.get("rule").is_some() { "rule" } else { "terminal" }))
                                 .collect::<R<Vec<_>>>()?,
-                            BoundaryLocation::default(),
+                            BoundaryLocation::default().into(),
                         ),
                         ("matches" | "begins" | "ends", args) => {
                             let targets = args
@@ -942,6 +983,7 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
             })
         } else {
             ReadValue::Term(match key {
+                "body" => Term::Body(std::sync::Arc::new(expr_from_json(field(value, "body")?)?)),
                 "pattern" => Term::Pattern(Box::new(crate::patterns::Pattern::from_json(field(value, "pattern")?)?)),
                 "string" => Term::Str(string(value, "string")?),
                 "tag" => Term::Tag(string(value, "tag")?),
@@ -1037,6 +1079,9 @@ fn is_position(value: Option<&Json>) -> bool {
 
 /// A capture name starts with a lowercase ASCII letter and contains no capitals.
 pub(crate) fn is_capture_name(name: &str) -> bool {
+    if name.contains("--") {
+        return false;
+    }
     let mut chars = name.chars();
     chars.next().is_some_and(|c| c.is_ascii_lowercase())
         && chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == '_')
@@ -1084,7 +1129,7 @@ fn elidable_head_json(expr: &Json) -> Option<&Json> {
         Some([head, ..]) => head,
         _ => expr,
     };
-    let mut base = head;
+    let mut base = if head.get("capture").is_some() { head.get("expr")? } else { head };
     while base.get("test").and_then(Json::as_str).is_some_and(|op| TEST_OPS.contains(&op)) {
         base = base.get("expr")?;
     }
@@ -1338,6 +1383,22 @@ pub(crate) fn write_rule(out: &mut String, rule: &RuleDef) {
         write_cond(out, cond);
     }
     out.push(']');
+    for (key, term) in [("error", &rule.error), ("warning", &rule.warning)] {
+        if let Some(term) = term {
+            out.push_str(&format!(",\"{key}\":"));
+            write_term(out, term);
+        }
+    }
+    if !rule.suppress_warnings.is_empty() {
+        out.push_str(",\"suppressWarnings\":[");
+        for (index, code) in rule.suppress_warnings.iter().enumerate() {
+            if index > 0 {
+                out.push(',');
+            }
+            write_str(out, code);
+        }
+        out.push(']');
+    }
     if rule.erased {
         out.push_str(",\"erased\":true");
     }
@@ -1387,6 +1448,8 @@ pub(crate) enum Type {
     Strings,
     Tags,
     Span,
+    Forest,
+    Body,
     Set,
     Any,
 }
@@ -1399,6 +1462,8 @@ impl Type {
             Type::Strings => "a set of strings",
             Type::Tags => "a tag set",
             Type::Span => "a span",
+            Type::Forest => "a forest",
+            Type::Body => "a parse body",
             Type::Set => "a set",
             Type::Any => "a value",
         }
@@ -1447,6 +1512,7 @@ fn constants_in<'t>(start: Nested<'t>, out: &mut Vec<(&'t str, (usize, usize))>,
         match part {
             Nested::Source(symbol) => stack.extend(source_children(symbol).into_iter().rev()),
             Nested::Term(term) => match term {
+                Term::Body(body) => stack.push(Nested::Expr(body)),
                 Term::Source(symbol) => stack.push(Nested::Source(symbol)),
                 Term::Pattern(p) => stack.push(Nested::Pattern(p)),
                 Term::Const(name, at) if engine || !name.starts_with('_') => out.push((name, *at)),
@@ -1461,6 +1527,7 @@ fn constants_in<'t>(start: Nested<'t>, out: &mut Vec<(&'t str, (usize, usize))>,
                 Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Capture(_) => {}
             },
             Nested::Cond(cond) => match cond {
+                Cond::Forest(term) => stack.push(Nested::Term(term)),
                 Cond::SourceQuery(_, args, _) => stack.extend(args.iter().rev().filter_map(|arg| match arg {
                     Arg::Term(term) => Some(Nested::Term(term)),
                     _ => None,
@@ -1485,7 +1552,9 @@ fn constants_in<'t>(start: Nested<'t>, out: &mut Vec<(&'t str, (usize, usize))>,
                 Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                     stack.extend(items.iter().rev().map(Nested::Expr))
                 }
-                Expr::Capture(_, inner) | Expr::Optional(inner, _, _) => stack.push(Nested::Expr(inner)),
+                Expr::Capture(_, inner) | Expr::Splice(inner) | Expr::Optional(inner, _, _) => {
+                    stack.push(Nested::Expr(inner))
+                }
                 Expr::Repeat(item, separator, _) => {
                     stack.extend(separator.as_deref().map(Nested::Expr));
                     stack.push(Nested::Expr(item));
@@ -1576,7 +1645,7 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
                         stack.push((Nested::Term(&default.term), below));
                     }
                 }
-                Expr::Capture(_, inner) => stack.push((Nested::Expr(inner), below)),
+                Expr::Capture(_, inner) | Expr::Splice(inner) => stack.push((Nested::Expr(inner), below)),
                 Expr::Repeat(item, separator, _) => {
                     stack.push((Nested::Expr(item), below));
                     stack.extend(separator.as_deref().map(|separator| (Nested::Expr(separator), below)));
@@ -1590,9 +1659,12 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
                     stack.push((Nested::Term(a), depth));
                     stack.push((Nested::Term(b), depth));
                 }
-                Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Wildcard | Expr::Empty => {}
+                Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Wildcard | Expr::Empty | Expr::Remainder => {
+                }
             },
             Nested::Term(term) => match term {
+                // The parse argument wrapper is transparent (engine §9).
+                Term::Body(body) => stack.push((Nested::Expr(body), depth)),
                 Term::Source(symbol) => stack.push((Nested::Source(symbol), depth)),
                 Term::Union(items) | Term::Intersection(items) => {
                     stack.extend(items.iter().map(|item| (Nested::Term(item), below)))
@@ -1663,6 +1735,8 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
                 }
             }
             Nested::Cond(cond) => match cond {
+                // The forest term is the condition itself, not a child.
+                Cond::Forest(term) => stack.push((Nested::Term(term), depth)),
                 Cond::SourceQuery(_, args, _) => stack.extend(args.iter().filter_map(|arg| match arg {
                     Arg::Term(term) => Some((Nested::Term(term), below)),
                     _ => None,
@@ -1744,7 +1818,7 @@ pub(crate) fn tests_in(expr: &Expr) -> Vec<(&str, &Term, &Expr)> {
                 }
                 stack.push(inner);
             }
-            Expr::Capture(_, inner) => stack.push(inner),
+            Expr::Capture(_, inner) | Expr::Splice(inner) => stack.push(inner),
             // The item before the separator.
             Expr::Repeat(item, separator, _) => {
                 stack.extend(separator.as_deref());
@@ -1761,7 +1835,8 @@ pub(crate) fn tests_in(expr: &Expr) -> Vec<(&str, &Term, &Expr)> {
             | Expr::ScalarRange(..)
             | Expr::Range(..)
             | Expr::Wildcard
-            | Expr::Empty => {}
+            | Expr::Empty
+            | Expr::Remainder => {}
         }
     }
     found
@@ -1771,7 +1846,14 @@ pub(crate) fn tests_in(expr: &Expr) -> Vec<(&str, &Term, &Expr)> {
 /// alternatives, conditions, then emission items.
 pub(crate) fn constants_in_rule(rule: &RuleDef) -> Vec<(&str, (usize, usize))> {
     let mut out = Vec::new();
-    for term in rule.tags.iter().chain(rule.strings.value.iter()).chain(&rule.strings.image) {
+    for term in rule
+        .tags
+        .iter()
+        .chain(rule.strings.value.iter())
+        .chain(&rule.strings.image)
+        .chain(&rule.error)
+        .chain(&rule.warning)
+    {
         references_in_term(term, &mut out);
     }
     for alternative in &rule.alternatives {
@@ -1791,7 +1873,7 @@ pub(crate) fn constants_in_rule(rule: &RuleDef) -> Vec<(&str, (usize, usize))> {
                 Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs, _) | Expr::And(xs) => {
                     pending.extend(xs.iter().rev())
                 }
-                Expr::Capture(_, x) => pending.push(x),
+                Expr::Capture(_, x) | Expr::Splice(x) => pending.push(x),
                 Expr::Optional(x, _, default) => {
                     if let Some(default) = default {
                         references_in_term(&default.term, &mut out);
@@ -1846,6 +1928,7 @@ pub(crate) fn call_type(call: &str) -> Type {
     match call {
         "value" | "source-text" | "decomposed-source-text" | "image" | "verbatim-text" | "concat" => Type::String,
         "split" | "ngrams" => Type::Strings,
+        "parse" | "error-free" => Type::Forest,
         "tags" | "classes" | "classify" | "requirements" | "forbid" => Type::Tags,
         _ => Type::Span,
     }
@@ -1855,6 +1938,9 @@ pub(crate) fn call_type(call: &str) -> Type {
 /// joined: each is a set, and all whose kind is known have one kind. A
 /// constant whose type is not known yet fits any set.
 pub(crate) fn joined_type(types: &[Type], operator: &str) -> Result<Type, String> {
+    if types.iter().any(|ty| matches!(ty, Type::Forest | Type::Body)) {
+        return Err(format!("{operator} requires sets, not a forest or parse body"));
+    }
     if types.contains(&Type::Span) {
         return Err(SPAN_NOT_VALUE.to_string());
     }
@@ -1971,6 +2057,8 @@ pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type
         joined_type(&types, operator).map_err(|problem| Fault::in_term(problem, term))
     };
     match term {
+        Term::Body(body) => crate::query_forms::body_problem(body)
+            .map_or(Ok(Type::Body), |problem| Err(Fault::in_term(problem.into(), term))),
         Term::Pattern(p) => match p.type_fault(constants) {
             Some(f) => Err(f),
             None => Ok(Type::Pattern),
@@ -2002,6 +2090,8 @@ pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type
                     let expected = match call.as_str() {
                         "split" | "ngrams" | "classify" | "concat" => Type::String,
                         "requirements" | "forbid" => Type::Tags,
+                        "parse" if index == 1 => Type::Body,
+                        "error-free" => Type::Forest,
                         _ if index == 0 => Type::Span,
                         _ => continue,
                     };
@@ -2029,6 +2119,10 @@ pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type
 /// that disagrees, or `None` (engine §10).
 pub(crate) fn cond_type_fault(cond: &Cond, constants: ConstantTypes) -> Option<Fault> {
     match cond {
+        Cond::Forest(term) => term_type_in(term, constants).err().or_else(|| {
+            (term_type_in(term, constants).ok() != Some(Type::Forest))
+                .then(|| Fault::in_term("a condition requires a forest".into(), term))
+        }),
         Cond::SourceQuery(_, args, _) => args.iter().find_map(|arg| match arg {
             Arg::Term(term) => term_type_in(term, constants).err(),
             _ => None,
@@ -2122,6 +2216,7 @@ pub(crate) fn rule_type_fault(rule: &RuleDef, constants: ConstantTypes) -> Optio
     let mut uses = Vec::new();
     uses.extend(rule.tags.iter().map(Use::Tags));
     channels(&rule.strings, &mut uses);
+    uses.extend(rule.error.iter().chain(&rule.warning).map(Use::String));
     for alternative in &rule.alternatives {
         let mut pending = vec![&alternative.expr];
         while let Some(expr) = pending.pop() {
@@ -2137,7 +2232,7 @@ pub(crate) fn rule_type_fault(rule: &RuleDef, constants: ConstantTypes) -> Optio
                         uses.push(Use::String(&default.term));
                     }
                 }
-                Expr::Capture(_, inner) | Expr::Tested(_, _, inner) => pending.push(inner),
+                Expr::Capture(_, inner) | Expr::Splice(inner) | Expr::Tested(_, _, inner) => pending.push(inner),
                 Expr::Repeat(item, separator, _) => {
                     pending.extend(separator.as_deref());
                     pending.push(item);
@@ -2338,7 +2433,9 @@ impl Expr {
                 }
                 stack.push(Dropping::Expr(std::mem::replace(&mut **inner, Expr::Empty)));
             }
-            Expr::Capture(_, inner) => stack.push(Dropping::Expr(std::mem::replace(&mut **inner, Expr::Empty))),
+            Expr::Capture(_, inner) | Expr::Splice(inner) => {
+                stack.push(Dropping::Expr(std::mem::replace(&mut **inner, Expr::Empty)))
+            }
             Expr::Repeat(item, separator, _) => {
                 stack.push(Dropping::Expr(std::mem::replace(&mut **item, Expr::Empty)));
                 if let Some(separator) = separator {
@@ -2354,7 +2451,7 @@ impl Expr {
                 stack.push(Dropping::Term(std::mem::replace(a, Term::EmptySet)));
                 stack.push(Dropping::Term(std::mem::replace(b, Term::EmptySet)));
             }
-            Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Wildcard | Expr::Empty => {}
+            Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Wildcard | Expr::Empty | Expr::Remainder => {}
         }
     }
 }
@@ -2362,6 +2459,12 @@ impl Expr {
 impl Term {
     fn take_parts(&mut self, stack: &mut Vec<Dropping>) {
         match self {
+            Term::Body(body) => {
+                let owned = std::mem::replace(body, std::sync::Arc::new(Expr::Empty));
+                if let Ok(expr) = std::sync::Arc::try_unwrap(owned) {
+                    stack.push(Dropping::Expr(expr));
+                }
+            }
             Self::Source(symbol) => symbol.take_parts(stack),
             Term::Union(items) | Term::Intersection(items) => stack.extend(items.drain(..).map(Dropping::Term)),
             Term::Difference(left, right) => {
@@ -2390,6 +2493,7 @@ impl Term {
 impl Cond {
     fn take_parts(&mut self, stack: &mut Vec<Dropping>) {
         match self {
+            Cond::Forest(term) => stack.push(Dropping::Term(std::mem::replace(term, Term::EmptySet))),
             Cond::SourceQuery(_, args, _) => {
                 stack.extend(args.drain(..).filter_map(|arg| match arg {
                     Arg::Term(term) => Some(Dropping::Term(term)),
