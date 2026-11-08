@@ -26,7 +26,9 @@
                 0,
                 1
               ],
-              "tags": []
+              "tags": [
+                "Consonant"
+              ]
             },
             {
               "value": "a",
@@ -35,7 +37,9 @@
                 1,
                 2
               ],
-              "tags": []
+              "tags": [
+                "Vowel"
+              ]
             },
             {
               "value": "i",
@@ -44,7 +48,9 @@
                 2,
                 3
               ],
-              "tags": []
+              "tags": [
+                "Vowel"
+              ]
             },
             {
               "value": "b",
@@ -53,7 +59,9 @@
                 3,
                 4
               ],
-              "tags": []
+              "tags": [
+                "Consonant"
+              ]
             },
             {
               "value": "a",
@@ -62,7 +70,9 @@
                 4,
                 5
               ],
-              "tags": []
+              "tags": [
+                "Vowel"
+              ]
             }
           ]
         }

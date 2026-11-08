@@ -20,11 +20,15 @@
               "output": [
                 {
                   "value": "l",
-                  "tags": []
+                  "tags": [
+                    "Consonant"
+                  ]
                 },
                 {
                   "value": "a",
-                  "tags": []
+                  "tags": [
+                    "Vowel"
+                  ]
                 },
                 {
                   "value": " ",
@@ -34,27 +38,39 @@
                 },
                 {
                   "value": "l",
-                  "tags": []
+                  "tags": [
+                    "Consonant"
+                  ]
                 },
                 {
                   "value": "i",
-                  "tags": []
+                  "tags": [
+                    "Vowel"
+                  ]
                 },
                 {
                   "value": "d",
-                  "tags": []
+                  "tags": [
+                    "Consonant"
+                  ]
                 },
                 {
                   "value": "i",
-                  "tags": []
+                  "tags": [
+                    "Vowel"
+                  ]
                 },
                 {
                   "value": "a",
-                  "tags": []
+                  "tags": [
+                    "Vowel"
+                  ]
                 },
                 {
                   "value": "s",
-                  "tags": []
+                  "tags": [
+                    "Consonant"
+                  ]
                 },
                 {
                   "value": " ",
@@ -132,11 +148,15 @@
               "output": [
                 {
                   "value": "l",
-                  "tags": []
+                  "tags": [
+                    "Consonant"
+                  ]
                 },
                 {
                   "value": "a",
-                  "tags": []
+                  "tags": [
+                    "Vowel"
+                  ]
                 },
                 {
                   "value": " ",
@@ -146,27 +166,39 @@
                 },
                 {
                   "value": "l",
-                  "tags": []
+                  "tags": [
+                    "Consonant"
+                  ]
                 },
                 {
                   "value": "i",
-                  "tags": []
+                  "tags": [
+                    "Vowel"
+                  ]
                 },
                 {
                   "value": "d",
-                  "tags": []
+                  "tags": [
+                    "Consonant"
+                  ]
                 },
                 {
                   "value": "i",
-                  "tags": []
+                  "tags": [
+                    "Vowel"
+                  ]
                 },
                 {
                   "value": "a",
-                  "tags": []
+                  "tags": [
+                    "Vowel"
+                  ]
                 },
                 {
                   "value": "s",
-                  "tags": []
+                  "tags": [
+                    "Consonant"
+                  ]
                 },
                 {
                   "value": " ",
@@ -241,11 +273,15 @@
               "output": [
                 {
                   "value": "l",
-                  "tags": []
+                  "tags": [
+                    "Consonant"
+                  ]
                 },
                 {
                   "value": "a",
-                  "tags": []
+                  "tags": [
+                    "Vowel"
+                  ]
                 },
                 {
                   "value": " ",
@@ -255,27 +291,39 @@
                 },
                 {
                   "value": "l",
-                  "tags": []
+                  "tags": [
+                    "Consonant"
+                  ]
                 },
                 {
                   "value": "i",
-                  "tags": []
+                  "tags": [
+                    "Vowel"
+                  ]
                 },
                 {
                   "value": "d",
-                  "tags": []
+                  "tags": [
+                    "Consonant"
+                  ]
                 },
                 {
                   "value": "i",
-                  "tags": []
+                  "tags": [
+                    "Vowel"
+                  ]
                 },
                 {
                   "value": "a",
-                  "tags": []
+                  "tags": [
+                    "Vowel"
+                  ]
                 },
                 {
                   "value": "s",
-                  "tags": []
+                  "tags": [
+                    "Consonant"
+                  ]
                 },
                 {
                   "value": " ",

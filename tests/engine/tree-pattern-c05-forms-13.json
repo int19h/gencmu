@@ -266,7 +266,9 @@
                                                       0,
                                                       1
                                                     ],
-                                                    "tags": [],
+                                                    "tags": [
+                                                      "Consonant"
+                                                    ],
                                                     "children": [
                                                       {
                                                         "kind": "token",
@@ -295,7 +297,8 @@
                                                       2
                                                     ],
                                                     "tags": [
-                                                      "Stressed"
+                                                      "Stressed",
+                                                      "Vowel"
                                                     ],
                                                     "children": [
                                                       {
@@ -338,7 +341,8 @@
                                                           3
                                                         ],
                                                         "tags": [
-                                                          "Stressed"
+                                                          "Stressed",
+                                                          "Vowel"
                                                         ],
                                                         "children": [
                                                           {
@@ -406,7 +410,9 @@
                                                                       3,
                                                                       4
                                                                     ],
-                                                                    "tags": [],
+                                                                    "tags": [
+                                                                      "Consonant"
+                                                                    ],
                                                                     "children": [
                                                                       {
                                                                         "kind": "token",
@@ -434,7 +440,9 @@
                                                                       4,
                                                                       5
                                                                     ],
-                                                                    "tags": [],
+                                                                    "tags": [
+                                                                      "Consonant"
+                                                                    ],
                                                                     "children": [
                                                                       {
                                                                         "kind": "token",
@@ -464,7 +472,9 @@
                                                                   5,
                                                                   6
                                                                 ],
-                                                                "tags": [],
+                                                                "tags": [
+                                                                  "Vowel"
+                                                                ],
                                                                 "children": [
                                                                   {
                                                                     "kind": "token",

@@ -23,7 +23,9 @@
                 0,
                 1
               ],
-              "tags": []
+              "tags": [
+                "Consonant"
+              ]
             },
             {
               "value": "a",
@@ -33,7 +35,8 @@
                 2
               ],
               "tags": [
-                "Syllabic"
+                "Syllabic",
+                "Vowel"
               ]
             },
             {
@@ -53,7 +56,8 @@
                 3
               ],
               "tags": [
-                "Syllabic"
+                "Syllabic",
+                "Vowel"
               ]
             },
             {
@@ -63,7 +67,9 @@
                 3,
                 4
               ],
-              "tags": []
+              "tags": [
+                "Consonant"
+              ]
             },
             {
               "value": "a",
@@ -73,7 +79,8 @@
                 5
               ],
               "tags": [
-                "Syllabic"
+                "Syllabic",
+                "Vowel"
               ]
             }
           ]

@@ -19,7 +19,9 @@
             {
               "value": "r",
               "image": "r",
-              "tags": [],
+              "tags": [
+                "Consonant"
+              ],
               "source": [
                 0,
                 1
@@ -28,7 +30,9 @@
             {
               "value": "e",
               "image": "e",
-              "tags": [],
+              "tags": [
+                "Vowel"
+              ],
               "source": [
                 1,
                 1
@@ -50,7 +54,9 @@
             {
               "value": "c",
               "image": "c",
-              "tags": [],
+              "tags": [
+                "Consonant"
+              ],
               "source": [
                 3,
                 4
@@ -59,7 +65,9 @@
             {
               "value": "i",
               "image": "i",
-              "tags": [],
+              "tags": [
+                "Vowel"
+              ],
               "source": [
                 4,
                 4

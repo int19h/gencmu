@@ -19,7 +19,9 @@
             {
               "value": "r",
               "image": "r",
-              "tags": [],
+              "tags": [
+                "Consonant"
+              ],
               "source": [
                 0,
                 1
@@ -28,7 +30,9 @@
             {
               "value": "a",
               "image": "a",
-              "tags": [],
+              "tags": [
+                "Vowel"
+              ],
               "source": [
                 1,
                 2
@@ -46,7 +50,9 @@
             {
               "value": "o",
               "image": "o",
-              "tags": [],
+              "tags": [
+                "Vowel"
+              ],
               "source": [
                 3,
                 4
@@ -55,7 +61,9 @@
             {
               "value": "i",
               "image": "i",
-              "tags": [],
+              "tags": [
+                "Vowel"
+              ],
               "source": [
                 4,
                 5
@@ -88,7 +96,9 @@
             {
               "value": "b",
               "image": "b",
-              "tags": [],
+              "tags": [
+                "Consonant"
+              ],
               "source": [
                 9,
                 10
@@ -97,7 +107,9 @@
             {
               "value": "r",
               "image": "r",
-              "tags": [],
+              "tags": [
+                "Consonant"
+              ],
               "source": [
                 10,
                 11
@@ -106,7 +118,9 @@
             {
               "value": "o",
               "image": "o",
-              "tags": [],
+              "tags": [
+                "Vowel"
+              ],
               "source": [
                 11,
                 12
@@ -115,7 +129,9 @@
             {
               "value": "d",
               "image": "d",
-              "tags": [],
+              "tags": [
+                "Consonant"
+              ],
               "source": [
                 12,
                 13
@@ -124,7 +140,9 @@
             {
               "value": "a",
               "image": "a",
-              "tags": [],
+              "tags": [
+                "Vowel"
+              ],
               "source": [
                 13,
                 14

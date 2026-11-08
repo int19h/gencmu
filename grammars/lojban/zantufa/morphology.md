@@ -19,18 +19,11 @@ The rule names follow Zantufa, while their comments state its morphology constra
 
 ## The pair mz
 
-A diphthong combines two vowels in one syllable. A nucleus is a syllable's vowel or diphthong. A glide is an `i` or `u` before a nucleus. The rule for `m` applies the shared `letter-ban` and rejects another `m`, but permits `z`. Thus `kamzi`, `bamzda` and `.djeimz.` have permissible consonant pairs.
+A diphthong combines two vowels in one syllable. A nucleus is a syllable's vowel or diphthong. A glide is an `i` or `u` before a nucleus. This layer adds the pair `mz` to the shared table of its own stitched pipeline, so `kamzi`, `bamzda` and `.djeimz.` have permissible consonant pairs.
 
 ```jbogenbau
-%redefine-rule m              -- The consonant m forbids an apostrophe, glide, and another m. It permits z.
-  $c:"m"
-%conditions
-  ¬$c.following-tokens.begins(letter-ban | m)
+%redefine-const $PERMISSIBLE $PERMISSIBLE ∪ "mz"
 ```
-
-<details><summary>Railroad diagram of <code>m</code></summary>
-<p><img src="../../../docs/diagrams/lojban/zantufa/morphology/m.svg" alt="Railroad diagram of the rule m"></p>
-</details>
 
 ## Hesitation and space
 
@@ -39,7 +32,6 @@ Zantufa's Y is `y` and `ie'o`, and its `spaces` read both as space. So `ie'o` is
 ```jbogenbau
 %redefine-rule source-word
   -- The lexicon classifies Y forms as hesitation, including ie'o. Other particles remain words.
---
   | $c:cmavo-shape :: Word ∪ Cmavo ∪ $c.tags ∪ $c.value.classify(lexicon)
   | $y:cmavo-shape :: Hesitation ∪ $y.tags
   | $b:brivla-shape :: Word ∪ BRIVLA ∪ $b.tags
@@ -75,8 +67,7 @@ The redefined `run-words` keeps the join conditions of [../common/forms.md](../c
 
 ```jbogenbau
 %redefine-rule runs
-  -- Preserve quote state across pauses and hesitation. A quoted form belongs to rahoi-rest, not
--- an ordinary run.
+  -- Preserve quote state across pauses and hesitation. A quoted form belongs to rahoi-rest, not an ordinary run.
   | $r:run :: $r.tags
   | $p:runs pause-token $r:run :: $r.tags ∪ (RAhOI ⊆ $p.tags ∧ $r.matches(only-hesitation) ⟹ RAhOI)
   | $q:runs pause-token $s:rahoi-rest :: $s.tags
@@ -88,8 +79,7 @@ The redefined `run-words` keeps the join conditions of [../common/forms.md](../c
   run-words<RAhOI> $s:rahoi-rest :: $s.tags
 
 %redefine-rule run-words
-  -- Keep the inherited word joins, stress boundaries, and hesitation spacing. A pending ra'oi
--- reserves its quoted form.
+  -- Keep the inherited word joins, stress boundaries, and hesitation spacing. A pending ra'oi reserves its quoted form.
   | $f:first-word :: $f.tags ∪ (Hesitation ⊆ $f.tags ⟹ Spacing)
   | $r:run-words $v:later-word
       :: $v.tags ∪ (Uncounted ⊆ $v.tags ⟹ Open-Stress ∩ $r.tags)
@@ -117,8 +107,7 @@ The redefined `run-words` keeps the join conditions of [../common/forms.md](../c
   Open-Stress ⊈ $r.tags ∨ Uncounted ⊆ $v.tags
 
 %rule rahoi-rest
-  -- Read a quoted form and its continuation. Pass quote state through pure hesitation and
--- repeated quotes.
+  -- Read a quoted form and its continuation. Pass quote state through pure hesitation and repeated quotes.
   | $p:rahoi-form :: ∅
   | rahoi-form $w:rahoi-tail :: $w.tags
   | rahoi-form $v:rahoi-tail $s:rahoi-rest :: $s.tags
@@ -128,8 +117,7 @@ The redefined `run-words` keeps the join conditions of [../common/forms.md](../c
   $h.matches(only-hesitation)
 
 %rule rahoi-tail
-  -- The first word after a quoted form is not run-initial. Keep quote state, opener spacing,
--- and the existing word joins.
+  -- The first word after a quoted form is not run-initial. Keep quote state, opener spacing, and the existing word joins.
   | $v:later-word :: $v.tags
   | $r:rahoi-tail $v:later-word :: $v.tags
   | $s:rahoi-tail $y:joined-hesitation :: $y.tags
@@ -158,8 +146,7 @@ The redefined `run-words` keeps the join conditions of [../common/forms.md](../c
   ordinary-space-piece | split-later-y
 
 %rule ordinary-space-piece
-  -- Reserve the final y before BU for the letter word, rather than emitting the whole run as
--- space.
+  -- Reserve the final y before BU for the letter word, rather than emitting the whole run as space.
   $w:source-word<Y-Letters>
 %conditions
   ¬$w.onward.begins(split-later-y)
@@ -171,8 +158,7 @@ The redefined `run-words` keeps the join conditions of [../common/forms.md](../c
   first-word<Hesitation> | only-hesitation later-word<Hesitation> | only-hesitation joined-hesitation
 
 %rule rahoi-form
-  -- The quote takes the longest rafsi or gismu form in a complete reading. Stress separates
--- equal-letter forms.
+  -- The quote takes the longest rafsi or gismu form in a complete reading. Stress separates equal-letter forms.
   y-rafsi | long-rafsi | y-less-rafsi | gismu
 %emits
   $ :: Rafsi-Form ∪ (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
@@ -209,8 +195,7 @@ The stage gives `Opener-Space` to a hesitation directly after a text opener, and
   ordinary-joined-hesitation | split-later-y
 
 %rule ordinary-joined-hesitation
-  -- Reserve the final y before BU for the letter word, rather than emitting the whole attached
--- run.
+  -- Reserve the final y before BU for the letter word, rather than emitting the whole attached run.
   $w:source-word<Y-Letters>
 %conditions
   ¬$w.onward.begins(split-later-y)
@@ -225,9 +210,9 @@ The stage gives `Opener-Space` to a hesitation directly after a text opener, and
 
 ## Differences from CLL and BPFK
 
-*The Complete Lojban Language* (CLL) forbids the consonant pair `mz`.[^cll-s3-6] The BPFK working morphology also forbids it. Its letter rule for `m` refuses a following `z`.
+*The Complete Lojban Language* (CLL) forbids the consonant pair `mz`.[^cll-s3-6] The BPFK working morphology also forbids it, because its pair table has no `mz`.
 
-Zantufa's letter rule for `m` refuses only another `m` among the consonants. camxes-exp, the experimental grammar of the camxes parser, does the same. So Zantufa accepts `mz` wherever a permissible pair can stand. Examples are the gismu `kamzi`, the lujvo `bamzda` and the name `.djeimz.`.
+Zantufa 1.9999's letter rule for `m` refuses only another `m` among the consonants, as camxes-exp's rule does. This layer adds `mz` to its own pair table. So Zantufa accepts `mz` wherever a permissible pair can stand. Examples are the gismu `kamzi`, the lujvo `bamzda` and the name `.djeimz.`.
 
 The other changes that camxes-exp makes to the word forms, in [../experimental/morphology.md](../experimental/morphology.md), are not Zantufa's.
 

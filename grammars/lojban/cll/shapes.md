@@ -18,47 +18,12 @@ CLL[^cll-s3-6] forbids repeated consonants, two consonants from `c j s z`, and t
 
 Each consonant token has one lowercase Latin letter as its value, in both the Latin and Cyrillic scripts. Thus adjacent code points in a consonant run are exactly its adjacent token values.
 
-CLL[^cll-s3-7] lists the 48 pairs in `$INITIAL` that can begin a word. A borrowing is a word taken from another language. A longer cluster can begin a borrowing if each adjacent pair in it is one of the 48 (CLL[^cll-s4-7]). So `spraile` is a borrowing, but not `ktraile` or `trkaile`. `long-initial-run` is every such cluster of three consonants or more. CLL[^cll-s3-7] forbids the triples `ndj ndz ntc nts`, except in a name.
+CLL[^cll-s3-7] lists the 48 pairs in `$INITIAL` that can begin a word. A borrowing is a word taken from another language. A longer cluster can begin a borrowing if each adjacent pair in it is one of the 48 (CLL[^cll-s4-7]). So `spraile` is a borrowing, but not `ktraile` or `trkaile`. `long-initial-run` is every such cluster of three consonants or more. CLL[^cll-s3-7] forbids the triples `ndj ndz ntc nts`, except in a name. The shared [consonant tables](../common/consonant-tables.md) hold `$INITIAL`, `$PERMISSIBLE` and `$AFFRICATES` for every Lojban pipeline.
 
 ```jbogenbau
 %rule consonant
   | "b" | "c" | "d" | "f" | "g" | "j" | "k" | "l" | "m"
   | "n" | "p" | "r" | "s" | "t" | "v" | "x" | "z"
-
-%const $INITIAL
-  "bl" "br"
-  "cf" "ck" "cl" "cm" "cn" "cp" "cr" "ct"
-  "dj" "dr" "dz"
-  "fl" "fr"
-  "gl" "gr"
-  "jb" "jd" "jg" "jm" "jv"
-  "kl" "kr"
-  "ml" "mr"
-  "pl" "pr"
-  "sf" "sk" "sl" "sm" "sn" "sp" "sr" "st"
-  "tc" "tr" "ts"
-  "vl" "vr"
-  "xl" "xr"
-  "zb" "zd" "zg" "zm" "zv"
-
-%const $PERMISSIBLE
-  "bd" "bg" "bj" "bv" "bz" "bl" "bm" "bn" "br"
-  "cf" "ck" "cp" "ct" "cl" "cm" "cn" "cr"
-  "db" "dg" "dj" "dv" "dz" "dl" "dm" "dn" "dr"
-  "fc" "fk" "fp" "fs" "ft" "fx" "fl" "fm" "fn" "fr"
-  "gb" "gd" "gj" "gv" "gz" "gl" "gm" "gn" "gr"
-  "jb" "jd" "jg" "jv" "jl" "jm" "jn" "jr"
-  "kc" "kf" "kp" "ks" "kt" "kl" "km" "kn" "kr"
-  "lb" "lc" "ld" "lf" "lg" "lj" "lk" "lm" "ln" "lp" "lr" "ls" "lt" "lv" "lx" "lz"
-  "mb" "mc" "md" "mf" "mg" "mj" "mk" "ml" "mn" "mp" "mr" "ms" "mt" "mv" "mx"
-  "nb" "nc" "nd" "nf" "ng" "nj" "nk" "nl" "nm" "np" "nr" "ns" "nt" "nv" "nx" "nz"
-  "pc" "pf" "pk" "ps" "pt" "px" "pl" "pm" "pn" "pr"
-  "rb" "rc" "rd" "rf" "rg" "rj" "rk" "rl" "rm" "rn" "rp" "rs" "rt" "rv" "rx" "rz"
-  "sf" "sk" "sp" "st" "sx" "sl" "sm" "sn" "sr"
-  "tc" "tf" "tk" "tp" "ts" "tx" "tl" "tm" "tn" "tr"
-  "vb" "vd" "vg" "vj" "vz" "vl" "vm" "vn" "vr"
-  "xf" "xp" "xs" "xt" "xl" "xm" "xn" "xr"
-  "zb" "zd" "zg" "zv" "zl" "zm" "zn" "zr"
 
 %rule initial-pair
   consonant consonant

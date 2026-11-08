@@ -1,0 +1,79 @@
+{
+  "description": "A shorthand before the glide letter ɩ reads one i'a cmavo.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```\n"
+  },
+  "pipelineDocument": "pipeline.md",
+  "input": "ɩa",
+  "options": {
+    "until": "forms"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "i",
+              "image": "i",
+              "source": [
+                0,
+                2
+              ],
+              "tags": [
+                "Vowel"
+              ]
+            },
+            {
+              "value": "'",
+              "image": "'",
+              "source": [
+                2,
+                2
+              ],
+              "tags": [],
+              "insertedBy": "zbalermorna-shorthand"
+            },
+            {
+              "value": "a",
+              "image": "a",
+              "source": [
+                2,
+                3
+              ],
+              "tags": [
+                "Vowel"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "forms",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "i'a",
+              "image": "i'a",
+              "source": [
+                0,
+                3
+              ],
+              "tags": [
+                "Cmavo",
+                "Continued",
+                "Indicator",
+                "Run-Final",
+                "Run-Initial",
+                "UI",
+                "Word"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

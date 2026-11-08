@@ -38,17 +38,15 @@ Where two stress tests apply to the same constituent, one alternative joins thei
 
 The phoneme stage supplies phoneme and pause tokens. A stressed vowel has a lowercase value and the `Stressed` tag. The forms stage reads names, particles, predicate words, and hesitation. Names end in consonants before a pause. Particles exclude names, and predicate words cannot complete at a particle start, as the Brivla section explains.
 
-The `¬cmevla` tests in `cmavo` and `final-syllable` keep a particle or brivla from ending directly before a name. Only hesitation with an even number of `y` letters can stand there without a pause.
+A particle excludes a name that begins at its own start. A final syllable excludes a name that follows it. Hesitation can stand before a name without a pause. `yyykevin.` divides as `yyy` and `kevin`, so an odd run can stand before a name too. The name test in `y-run` reads a name that begins at the start of the hesitation itself.
 
 The document [../common/forms.md](../common/forms.md) says how words join.
 
-The word-boundary conditions decide which words can stand together without a pause. Every word carries `Continued`. Each word's boundary conditions still decide whether another word can follow without a pause. A word carries `Onset` when no nucleus begins it. Only such a word can follow another directly.
+The word-boundary conditions decide which words can stand together without a pause.
 
 The PEG's `CMAVO` is a list of the selma'o, each a set of spellings, followed by `cmavo` for every other cmavo. Each selma'o rule begins with `&cmavo` and ends with `&post_word`. Every spelling except `ybu` reads exactly what `cmavo` reads, and the lexicon gives each cmavo its selma'o.
 
 Hesitation that stands as its own word is one token. The [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) says that `y` is not a word and counts as whitespace. Thus `.yyy.` is one token here. The separate split before `bu` preserves letter words, as [the ybu exception](#the-ybu-exception) explains.
-
-`cmavo-shape` reads `cmavo`. A cmavo made only of `y` letters is hesitation, which [../common/forms.md](../common/forms.md) reads as `y-run`, so this document redefines `y-run` as that cmavo.
 
 A `y` is a nucleus exactly where no nucleus follows it. So the first `y` of a run is a nucleus exactly when the run has an odd number of letters. A run with an even number can follow a word directly: `kyyykerlo` is `ky yy kerlo`, but `bayyy` is no text. So a run of `y` has `Onset` where no nucleus begins it.
 
@@ -58,37 +56,43 @@ Ilmentufa's morphology-only parser accepts this division of `kyyykerlo`, but ful
 
 The camxes-std [morphology-only parser](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-morpho.js) splits a bare odd y run through its `cmavo_form` onset alternative. Its `initial_spaces` reader instead reads a whole run. The [full camxes-std parser](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.js) uses that whole-run spacing reading. Both reference parsers keep every y inside the `ybu` letter word before BU.
 
-This grammar excludes pure y from the onset alternative and reads the whole run as hesitation, in agreement with camxes-std's spacing rule. The words stage drops this hesitation in `lojban/bpfk` and `lojban/experimental`. Zantufa can retain attached hesitation, so its erasure can observe the whole-run division.
+`cmavo` excludes a pure `y` run, and `y-run` reads the whole run as hesitation, in agreement with camxes-std's spacing rule. The words stage drops this hesitation in `lojban/bpfk` and `lojban/experimental`. Zantufa can retain attached hesitation, so its erasure can observe the whole-run division.
 
 ### Word shapes and boundaries
 
+One template states the shape of each word. A word shape carries `Continued`, so another word can follow it directly. If no nucleus begins the word, it carries `Onset`. Only a word with `Onset` can follow another word without a pause.
+
+Hesitation is a direct run of `y` letters, outside `cmavo`. It keeps the test that no name begins at its own start. `cmavo` keeps its exclusion of a pure `y` run, so a particle is never hesitation.
+
 ```jbogenbau
-%rule cmevla-shape  -- A name carries its join property and an onset mark when it does not begin with a nucleus.
-  $n:cmevla :: Continued ∪ (¬$n.onward.begins(nucleus) ⟹ Onset)
+%rule word-shape(@W)  -- A word shape carries its join property and an onset mark when no nucleus begins it.
+  $w:@W :: Continued ∪ (¬$w.onward.begins(nucleus) ⟹ Onset)
 
-%rule cmavo-shape  -- Ordinary particles exclude pure y hesitation. Onset marks a word that can follow another without a pause.
-  $c:cmavo :: Continued ∪ (¬$c.onward.begins(nucleus) ⟹ Onset)
+%rule cmevla-shape  -- A name carries its join property and its onset mark.
+  $n:word-shape(cmevla) :: $n.tags
+
+%rule cmavo-shape = word-shape(cmavo)  -- A particle carries its join property and its onset mark.
+
+%rule brivla-shape  -- A predicate word carries its join property and its onset mark.
+  $b:word-shape(brivla-word) :: $b.tags
+
+%rule y-run-body  -- A direct run of y letters that does not begin a name. It cannot end before another y. It ends at a word boundary.
+  {y}
 %conditions
-  ¬$c.matches(y-letters)
+  ¬$.onward.begins(cmevla),
+  ¬$.following-tokens.begins(y),
+  $.following-tokens.begins(post-word)
 
-%rule brivla-shape  -- A predicate word carries its join and onset properties.
-  $b:brivla-word :: Continued ∪ (¬$b.onward.begins(nucleus) ⟹ Onset)
-
-%redefine-rule y-run  -- Pure hesitation keeps the complete particle boundary and its onset requirement.
-  $h:cmavo :: (¬$h.onward.begins(nucleus) ⟹ Onset)
-%conditions
-  $h.matches(y-letters)
-
-%rule y-letters               -- a run of y letters, which a condition tests
-  "y" | "y" y-letters
+%redefine-rule y-run = word-shape(y-run-body)  -- Hesitation is a direct y run with the shared onset mark.
 ```
 
-<details><summary>Railroad diagrams of the 5 rules from <code>cmevla-shape</code> to <code>y-letters</code></summary>
+<details><summary>Railroad diagrams of the 6 rules from <code>word-shape</code> to <code>y-run</code></summary>
+<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/word-shape.svg" alt="Railroad diagram of the rule word-shape"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cmevla-shape.svg" alt="Railroad diagram of the rule cmevla-shape"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cmavo-shape.svg" alt="Railroad diagram of the rule cmavo-shape"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/brivla-shape.svg" alt="Railroad diagram of the rule brivla-shape"></p>
+<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/y-run-body.svg" alt="Railroad diagram of the rule y-run-body"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/y-run.svg" alt="Railroad diagram of the rule y-run"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/y-letters.svg" alt="Railroad diagram of the rule y-letters"></p>
 </details>
 
 
@@ -96,8 +100,8 @@ This grammar excludes pure y from the onset alternative and reads the whole run 
 The PEG's `lojban_word` is what `post_word` looks for after a word.
 
 ```jbogenbau
-%rule lojban-word  -- A legal word is a name, a particle, or a predicate word. Their own conditions separate the classes.
-  cmevla | cmavo | brivla-word
+%rule lojban-word  -- A legal word is a name, a particle, a predicate word, or hesitation. Their own conditions separate the classes.
+  cmevla | cmavo | brivla-word | y-run
 
 %rule brivla-word  -- Predicate words are roots, compounds, or borrowings. Root stress and consonant clusters prevent a particle reading. Lujvo exclude roots and borrowings. Borrowing heads exclude root-shaped rafsi strings.
   gismu | lujvo | fuhivla
@@ -105,7 +109,7 @@ The PEG's `lojban_word` is what `post_word` looks for after a word.
 %rule lujvo  -- A compound is a predicate word that is neither a root nor a borrowing.
   $b:brivla
 %conditions
-  ¬$b.onward.begins(gismu | fuhivla)
+  ¬$b.matches(gismu | fuhivla)
 
 %rule post-word  -- A word ends before a pause or a legal next word. Without a pause, the next word cannot start with a nucleus.
   | pause
@@ -113,7 +117,7 @@ The PEG's `lojban_word` is what `post_word` looks for after a word.
 %conditions
   ¬$w.onward.begins(nucleus)
 
-%rule pause                   -- `pause <- comma* space_char+ / EOF`. A pause test accepts a pause token or the end of input.
+%rule pause                   -- A pause test accepts a pause token or the end of input.
   PAUSE | end-of-text
 
 %rule end-of-text  -- Require the end of input.
@@ -133,71 +137,52 @@ The PEG's `lojban_word` is what `post_word` looks for after a word.
 
 
 
+The test on `lujvo` reads the whole word, and a test at its start gives the same result. A root or borrowing that stands as a proper prefix of a longer brivla needs a stressed syllable of its own. Stress by position puts a pause right after the prefix, so a longer brivla cannot hold the prefix. Every syllable of a brivla before its stressed syllable is unstressed, and its final syllable has no mark. Stress by a mark cannot stand in an unstressed initial rafsi of the longer brivla. So the marked syllable of the prefix is the stressed syllable of the longer brivla itself.
+
+One counted syllable follows it in both readings, and the letters fix both ends. Each reading therefore ends at the same nucleus, and no proper prefix exists.
+
 ## Cmevla
 
-A name is a run of letters that ends in a consonant before a pause. The repeated sounds exclude that final consonant, so only one repetition count reaches it. The PEG also offers a syllabified name shape, which requires the same general shape and ends at the same pause. The single `zifcme` form covers both name readings without duplicate proofs.
+A name is a run of letters that ends in a consonant before a pause. The repeated sounds exclude that final consonant, so only one repetition count reaches it. The PEG also offers a syllabified name shape, which requires the same general shape and ends at the same pause. The single `cmevla` form covers both name readings without duplicate proofs.
+
+No sound in the repetition needs a test against a pause. The final consonant of `cmevla` always follows the repetition, so the repetition cannot take that consonant and still complete the name.
 
 ```jbogenbau
-%rule cmevla  -- A name needs the general name shape. The syllabified name shape requires that same shape and ends at the same pause.
-  zifcme
-
-%rule zifcme  -- A name forbids an initial apostrophe and ends in a consonant before a pause.
-  [{zifcme-sound}] $c:consonant
+%rule cmevla  -- A name forbids an initial apostrophe and ends in a consonant before a pause. A syllabified name requires the same general shape and ends at the same pause. An apostrophe and a consonant use distinct letters. A glide needs a following nucleus, and a vowel forbids one, so one letter gives one sound reading. No pause test stands on the sounds, because the final consonant always follows them.
+  [{nucleus | glide | h | consonant}] $c:consonant
 %conditions
   ¬$.onward.begins(h),
   $c.following-tokens.begins(pause)
 
-%rule zifcme-sound  -- An apostrophe and a consonant use distinct letters. A glide requires a following nucleus, which a vowel forbids. Reserve the pause-final consonant for zifcme.
-  | nucleus
-  | glide
-  | h
-  | $c:consonant
-%conditions
-  ¬$c.following-tokens.begins(pause)
-
 ```
 
-<details><summary>Railroad diagrams of <code>cmevla</code>, <code>zifcme</code> and <code>zifcme-sound</code></summary>
+<details><summary>Railroad diagram of <code>cmevla</code></summary>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cmevla.svg" alt="Railroad diagram of the rule cmevla"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/zifcme.svg" alt="Railroad diagram of the rule zifcme"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/zifcme-sound.svg" alt="Railroad diagram of the rule zifcme-sound"></p>
 </details>
 
 
 
 ## Cmavo
 
-A cmavo is not the start of a name, and not the start of a lujvo that begins with a CVC rafsi and a y-hyphen. Its form is an onset and nuclei joined by apostrophes, or a run of `y`. A pause or another word follows it. `CVCy_lujvo` keeps `bajykerlo` one lujvo, rather than `ba jy kerlo`.
+A cmavo is not the start of a name, and not the start of a lujvo that begins with a CVC rafsi and a y-hyphen. Its form is an onset and nuclei joined by apostrophes. A pause or another word follows it. `CVCy_lujvo` keeps `bajykerlo` one lujvo, rather than `ba jy kerlo`.
 
 ```jbogenbau
-%rule cmavo  -- A particle excludes a name start and a CVCy compound start. It ends at a complete word boundary.
-  $f:cmavo-form
+%rule cmavo  -- A particle is an onset and nuclei joined by apostrophes. It excludes a name start, a CVCy compound start and pure y. The pure y test says that not every letter of the span is y. It ends at a complete word boundary.
+  $o:onset [{nucleus h}] cmavo-last-nucleus
 %conditions
-  ¬$f.onward.begins(cmevla | cvcy-lujvo),
-  $f.following-tokens.begins(post-word)
+  ¬$o.onward.begins(h | cluster | cmevla | cvcy-lujvo),
+  $.value.ngrams(1) ≠ "y",
+  $.following-tokens.begins(post-word)
 
 %rule cvcy-lujvo  -- Detect a CVC rafsi with a y-hyphen before the compound core. Stress separates the two forms. Unhyphenated initial rafsi cannot start where the core starts, because of stress and their own exclusions. Only a lookahead.
   | cvc-rafsi y [h] [{initial-rafsi}] brivla-core
   | stressed-cvc-rafsi y short-final-rafsi
 
-%rule cmavo-form  -- A particle has an onset form or is a whole hesitation run. Pure y letters belong only to hesitation.
-  | $f:cmavo-form-with-onset
-  | ys
-%conditions
-  ¬$f.matches(y-letters)
-
-%rule cmavo-form-with-onset  -- A particle forbids an apostrophe or cluster at its start. Each inner nucleus needs its apostrophe. The final nucleus cannot consume that apostrophe.
-  $o:onset [{nucleus h}] cmavo-last-nucleus
-%conditions
-  ¬$o.onward.begins(h | cluster)
-
 ```
 
-<details><summary>Railroad diagrams of the 4 rules from <code>cmavo</code> to <code>cmavo-form-with-onset</code></summary>
+<details><summary>Railroad diagrams of <code>cmavo</code> and <code>cvcy-lujvo</code></summary>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cmavo.svg" alt="Railroad diagram of the rule cmavo"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cvcy-lujvo.svg" alt="Railroad diagram of the rule cvcy-lujvo"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cmavo-form.svg" alt="Railroad diagram of the rule cmavo-form"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cmavo-form-with-onset.svg" alt="Railroad diagram of the rule cmavo-form-with-onset"></p>
 </details>
 
 
@@ -210,16 +195,10 @@ The last nucleus of a cmavo is unstressed, or it is not followed by a consonant 
 %conditions
   ¬$n.onward.begins(stressed) ∨ ¬$n.following-tokens.begins(cluster)
 
-%rule ys  -- Hesitation occupies a whole run of y letters. A shorter prefix cannot end before another y.
-  {y}
-%conditions
-  ¬$.following-tokens.begins(y)
-
 ```
 
-<details><summary>Railroad diagrams of <code>cmavo-last-nucleus</code> and <code>ys</code></summary>
+<details><summary>Railroad diagram of <code>cmavo-last-nucleus</code></summary>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cmavo-last-nucleus.svg" alt="Railroad diagram of the rule cmavo-last-nucleus"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/ys.svg" alt="Railroad diagram of the rule ys"></p>
 </details>
 
 
@@ -232,7 +211,7 @@ The `brivla` rule excludes cmavo starts directly. Unstressed initial rafsi prece
 
 No syllable of a borrowing has `y` as its nucleus. A borrowing cannot cross a y-hyphen. Its head excludes the rafsi strings that describe the classical cores. The `cvv-final-rafsi` form has an apostrophe where neither gismu shape permits one.
 
-The `short-final-rafsi` rule reads a consonant and diphthong, or an initial pair and vowel. Its diphthong cannot split into a gismu's final vowel and another word, because that vowel forbids a following nucleus. The `cvv-final-rafsi` rule stresses its first vowel, while the apostrophe form of `stressed-cvv-rafsi` stresses its second vowel.
+The `short-final-rafsi` rule reads a consonant and diphthong, or an initial pair and vowel. Its diphthong cannot split into a gismu's final vowel and another word, because that vowel forbids a following nucleus. The `cvv-final-rafsi` rule stresses its first vowel, while the apostrophe form of the stressed instance of `cvv-rafsi-of` stresses its second vowel.
 
 ```jbogenbau
 %rule brivla  -- A predicate word cannot start where a particle begins. Unstressed initial rafsi precede its stressed core.
@@ -240,21 +219,17 @@ The `short-final-rafsi` rule reads a consonant and diphthong, or an initial pair
 %conditions
   ¬$.onward.begins(cmavo)
 
-%rule brivla-core  -- Borrowing heads exclude rafsi strings. The other cores differ in consonant positions, apostrophes, hyphens, or stress.
+%rule brivla-core  -- Borrowing heads exclude rafsi strings. The other cores differ in consonant positions, apostrophes, hyphens, or stress. A stressed long y-rafsi leaves consonant-y after its CCV prefix, and no short final starts with consonant-y. No short final starts with an apostrophe, so a stressed CVV form cannot compete with an apostrophe-y form. Stressed extended forms need an unstressed first syllable and apostrophe-y, or a borrowing head.
   | fuhivla
   | gismu
   | cvv-final-rafsi
-  | stressed-initial-rafsi short-final-rafsi
-
-%rule stressed-initial-rafsi  -- Extended brivla forms need an unstressed first syllable and apostrophe-y. Borrowing heads exclude rafsi strings. After a long y-rafsi's CCV prefix, consonant-y cannot start the required short final. An apostrophe after CVV cannot start it either. A CVC rafsi forbids following y.
-  stressed-extended-rafsi | stressed-y-rafsi | stressed-y-less-rafsi
+  | (stressed-extended-rafsi | stressed-y-rafsi | stressed-y-less-rafsi) short-final-rafsi
 
 ```
 
-<details><summary>Railroad diagrams of <code>brivla</code>, <code>brivla-core</code> and <code>stressed-initial-rafsi</code></summary>
+<details><summary>Railroad diagrams of <code>brivla</code> and <code>brivla-core</code></summary>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/brivla.svg" alt="Railroad diagram of the rule brivla"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/brivla-core.svg" alt="Railroad diagram of the rule brivla-core"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stressed-initial-rafsi.svg" alt="Railroad diagram of the rule stressed-initial-rafsi"></p>
 </details>
 
 
@@ -272,7 +247,7 @@ The comment on `initial-rafsi` states why its three alternatives cannot complete
   ¬$l.onward.begins(any-extended-rafsi),
   ¬$l.following-tokens.begins(any-extended-rafsi)
 
-%rule any-extended-rafsi      -- `any_extended_rafsi <- fuhivla / extended_rafsi / stressed_extended_rafsi`. The test detects a borrowing or either extended rafsi form.
+%rule any-extended-rafsi      -- The test detects a borrowing or either extended rafsi form.
   fuhivla | extended-rafsi | stressed-extended-rafsi
 ```
 
@@ -328,7 +303,7 @@ An extended rafsi lets a brivla or a borrowing, whole or cut short, stand before
 %conditions
   ¬$b.onward.begins(rafsi-string)
 
-%rule brivla-head  -- An unstressed head requires an onset and excludes particles, slinku'i forms, and apostrophe starts. The following stress or hyphen fixes its length.
+%rule brivla-head  -- An unstressed head starts at a legal onset and excludes particles, slinku'i forms, and apostrophe starts. The following stress or hyphen fixes its length.
   [{unstressed-syllable}]
 %conditions
   ¬$.onward.begins(cmavo | slinkuhi | h),
@@ -362,15 +337,13 @@ The slinku'i test and a borrowing's head look for a string of rafsi. That is any
 %rule rafsi-string  -- Detect a string of rafsi. The stressed ending or y boundary fixes the unstressed prefix. Only a lookahead.
   [{y-less-rafsi}] rafsi-string-end
 
-%rule rafsi-string-end        -- `gismu / CVV_final_rafsi / stressed_y_less_rafsi short_final_rafsi / y_rafsi / stressed_y_rafsi / stressed_y_less_rafsi? initial_pair y / hy_rafsi / stressed_hy_rafsi`. The test detects a compound ending or a y-hyphen boundary.
+%rule rafsi-string-end        -- The string ends a compound, or it reaches a y-hyphen of either stress.
   | gismu
   | cvv-final-rafsi
   | stressed-y-less-rafsi short-final-rafsi
-  | y-rafsi
-  | stressed-y-rafsi
+  | y-rafsi-of(vowel, [h])
   | [stressed-y-less-rafsi] initial-pair y  -- A stressed CVC or CVV rafsi differs from initial-pair in its second letter. A stressed CCV rafsi has a vowel where the following y is required. So the optional cannot consume the required pair.
-  | hy-rafsi
-  | stressed-hy-rafsi
+  | hy-rafsi-of(vowel, diphthong, vowel, [h])
 
 ```
 
@@ -385,148 +358,106 @@ The slinku'i test and a borrowing's head look for a string of rafsi. That is any
 
 The core of a brivla ends it, and a pause or another word follows it. Its final syllable has a nucleus with no stress mark and is not followed by a name.
 
+Three rules test `final-syllable` at one anchor each, and no rule repeats its `post-word` test. In `gismu`, the witness begins at the last consonant, and its nucleus is the last vowel of the body. In `cvv-final-rafsi`, the witness begins at the final vowel, and its nucleus is that vowel. In `short-final-rafsi`, the witness begins at the start of the body, and its nucleus ends the body. Each witness ends where its body ends, so its `post-word` test reads the same place as a test on the body.
+
+The callers of the stressed CVC form put a consonant after it. A short final rafsi begins with a consonant, and an initial pair begins with a consonant. So no caller can put `y` after the stressed CVC form, and no test against `y` stands on that form.
+
+Each rafsi shape stands once as a template. The stress argument of a template is one stress unit. The units are `stressed-vowel`, `unstressed-vowel`, `stressed-diphthong` and `unstressed-diphthong`. Plain `vowel` or `diphthong` as an argument means either stress. The two plain units cover the stressed unit and the unstressed unit of each kind.
+
+The tail of the `y` templates is an argument, `[h]` or `ε`. The first vowel of the apostrophe form of CVV stays unstressed in each binding. The long apostrophe-y body takes its own final-vowel argument. A layer can change that vowel without a change to the other parts.
+
+`y-less-rafsi` and `rafsi-string-end` read the apostrophe-y shape of either stress through `hy-rafsi-of`. The named apostrophe-y bindings stand in the experimental layer, which reads them inside compounds. `gismu` reads the stressed long shape and one more vowel.
+
 ```jbogenbau
-%rule gismu  -- A root ends with a valid final syllable at a complete word boundary.
-  gismu-start $c:consonant $v:vowel
+%rule gismu  -- A root is the stressed long shape and a vowel. Its final syllable test stands at its last consonant.
+  $s:long-rafsi-of(stressed-vowel) vowel
 %conditions
-  $c.onward.begins(final-syllable),
-  $v.following-tokens.begins(post-word)
+  $s.last-token.onward.begins(final-syllable)
 
-%rule gismu-start             -- `initial_pair stressed_vowel / consonant stressed_vowel consonant`. The second letter is a consonant in one form and a vowel in the other.
-  initial-pair stressed-vowel | consonant stressed-vowel consonant
-
-%rule cvv-final-rafsi  -- A CVV final rafsi ends with a valid final syllable at a complete word boundary.
+%rule cvv-final-rafsi  -- A CVV final rafsi ends with a valid final syllable. Its test stands at its final vowel.
   consonant stressed-vowel h $v:vowel
 %conditions
-  $v.onward.begins(final-syllable),
-  $v.following-tokens.begins(post-word)
+  $v.onward.begins(final-syllable)
 
-%rule short-final-rafsi  -- A short final rafsi forms a valid final syllable at a complete word boundary.
-  $r:short-final-body
-%conditions
-  $r.onward.begins(final-syllable),
-  $r.following-tokens.begins(post-word)
-
-%rule short-final-body        -- `consonant diphthong / initial_pair vowel`. The second letter is a vowel in one form and a consonant in the other.
+%rule short-final-rafsi  -- A short final rafsi forms a valid final syllable. The second letter is a vowel in one form and a consonant in the other.
   consonant diphthong | initial-pair vowel
-
-%rule stressed-y-rafsi  -- A stressed long rafsi or CVC rafsi ends before y. The forms differ in their second letter, or a consonant follows the CVC prefix before the long form reaches y.
-  stressed-long-rafsi y | stressed-cvc-rafsi y
-
-%rule stressed-y-less-rafsi  -- CVC, CCV, and CVV differ in their second or third letter. The CVC form cannot end directly before y.
-  | $c:stressed-cvc-rafsi
-  | stressed-ccv-rafsi
-  | stressed-cvv-rafsi
 %conditions
-  ¬$c.following-tokens.begins(y)
+  $.onward.begins(final-syllable)
 
-%rule stressed-long-rafsi     -- `stressed_long_rafsi <- initial_pair stressed_vowel consonant / consonant stressed_vowel consonant consonant`. The forms differ in their second letter.
-  initial-pair stressed-vowel consonant | consonant stressed-vowel consonant consonant
+%rule cvc-rafsi-of(@V)  -- A CVC rafsi has the given vowel unit between two consonants.
+  consonant @V consonant
 
-%rule stressed-cvc-rafsi      -- A stressed CVC rafsi has a stressed vowel between two consonants.
-  consonant stressed-vowel consonant
+%rule ccv-rafsi-of(@V)  -- A CCV rafsi ends in the given vowel unit after an initial consonant pair.
+  initial-pair @V
 
-%rule stressed-ccv-rafsi      -- A stressed CCV rafsi ends in a stressed vowel after an initial consonant pair.
-  initial-pair stressed-vowel
+%rule long-rafsi-of(@V)  -- A long rafsi has the given vowel unit and one or two consonants after it. The forms differ in their second letter.
+  initial-pair @V consonant | consonant @V consonant consonant
 
-%rule stressed-cvv-rafsi      -- A stressed CVV rafsi begins with a consonant. Its apostrophe form stresses the second vowel. Its diphthong form stresses the diphthong. An r-hyphen can follow either form.
-  consonant stressed-cvv-body [r-hyphen]
+%rule cvv-rafsi-of(@V, @D)  -- A CVV rafsi begins with a consonant. Its apostrophe form keeps its first vowel unstressed. An r-hyphen can follow either form.
+  consonant (unstressed-vowel h @V | @D) [r-hyphen]
 
-%rule stressed-cvv-body       -- `unstressed_vowel h stressed_vowel / stressed_diphthong`. The second letter is an apostrophe in one form and a vowel in the other.
-  unstressed-vowel h stressed-vowel | stressed-diphthong
+%rule short-rafsi-of(@V, @D)  -- A short rafsi is a CVC, CCV or CVV rafsi with the given units. The forms differ in their second or third letter.
+  cvc-rafsi-of(@V) | ccv-rafsi-of(@V) | cvv-rafsi-of(@V, @D)
 
-%rule y-rafsi  -- A long rafsi or CVC rafsi ends before y. The forms differ in their second letter, or a consonant follows the CVC prefix before the long form reaches y. The following rafsi cannot start with apostrophe.
-  (long-rafsi | cvc-rafsi) y [h]
+%rule y-rafsi-of(@V, @T)  -- A long rafsi or CVC rafsi with the given unit ends before y. The tail after y is an argument.
+  (long-rafsi-of(@V) | cvc-rafsi-of(@V)) y @T
 
-%rule y-less-rafsi  -- An unhyphenated rafsi excludes y-rafsi, hy-rafsi, and their stressed forms at its start. It cannot end directly before an apostrophe.
-  $r:y-less-rafsi-body
+%rule hy-rafsi-of(@V, @D, @LV, @T)  -- A classical body ends with apostrophe-y. The long body takes its own final-vowel argument.
+  (long-rafsi @LV | ccv-rafsi-of(@V) | cvv-rafsi-of(@V, @D)) h y @T
+
+%rule cvc-rafsi = cvc-rafsi-of(unstressed-vowel)  -- A CVC rafsi has an unstressed vowel between two consonants.
+
+%rule stressed-cvc-rafsi = cvc-rafsi-of(stressed-vowel)  -- A stressed CVC rafsi has a stressed vowel between two consonants.
+
+%rule long-rafsi = long-rafsi-of(unstressed-vowel)  -- A long rafsi has an unstressed vowel and one or two consonants after it.
+
+%rule y-rafsi = y-rafsi-of(unstressed-vowel, [h])  -- A long rafsi or CVC rafsi ends before y. A following rafsi cannot start with the optional apostrophe.
+
+%rule stressed-y-rafsi = y-rafsi-of(stressed-vowel, ε)  -- A stressed long rafsi or CVC rafsi ends before y.
+
+%rule stressed-y-less-rafsi = short-rafsi-of(stressed-vowel, stressed-diphthong)  -- A stressed short rafsi is a CVC, CCV or CVV rafsi. No test against y stands here, because each caller puts a consonant after it.
+
+%rule y-less-rafsi  -- An unhyphenated rafsi excludes a y rafsi and an apostrophe-y rafsi of either stress at its start. It cannot end directly before an apostrophe. Its body is a CVC, CCV or CVV rafsi, whose forms differ in their second or third letter.
+  $r:short-rafsi-of(unstressed-vowel, unstressed-diphthong)
 %conditions
-  ¬$r.onward.begins(y-rafsi | stressed-y-rafsi | hy-rafsi | stressed-hy-rafsi),
+  ¬$r.onward.begins(y-rafsi-of(vowel, [h]) | hy-rafsi-of(vowel, diphthong, vowel, [h])),
   ¬$r.following-tokens.begins(h)
-
-%rule y-less-rafsi-body       -- `CVC_rafsi / CCV_rafsi / CVV_rafsi`. CVC and CCV differ in their second letter. CVC and CVV differ in their third letter. CCV and CVV differ in their second letter.
-  cvc-rafsi | ccv-rafsi | cvv-rafsi
 ```
 
-<details><summary>Railroad diagrams of the 15 rules from <code>gismu</code> to <code>y-less-rafsi-body</code></summary>
+<details><summary>Railroad diagrams of the 17 rules from <code>gismu</code> to <code>y-less-rafsi</code></summary>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/gismu.svg" alt="Railroad diagram of the rule gismu"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/gismu-start.svg" alt="Railroad diagram of the rule gismu-start"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cvv-final-rafsi.svg" alt="Railroad diagram of the rule cvv-final-rafsi"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/short-final-rafsi.svg" alt="Railroad diagram of the rule short-final-rafsi"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/short-final-body.svg" alt="Railroad diagram of the rule short-final-body"></p>
+<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cvc-rafsi-of.svg" alt="Railroad diagram of the rule cvc-rafsi-of"></p>
+<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/ccv-rafsi-of.svg" alt="Railroad diagram of the rule ccv-rafsi-of"></p>
+<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/long-rafsi-of.svg" alt="Railroad diagram of the rule long-rafsi-of"></p>
+<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cvv-rafsi-of.svg" alt="Railroad diagram of the rule cvv-rafsi-of"></p>
+<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/short-rafsi-of.svg" alt="Railroad diagram of the rule short-rafsi-of"></p>
+<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/y-rafsi-of.svg" alt="Railroad diagram of the rule y-rafsi-of"></p>
+<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/hy-rafsi-of.svg" alt="Railroad diagram of the rule hy-rafsi-of"></p>
+<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cvc-rafsi.svg" alt="Railroad diagram of the rule cvc-rafsi"></p>
+<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stressed-cvc-rafsi.svg" alt="Railroad diagram of the rule stressed-cvc-rafsi"></p>
+<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/long-rafsi.svg" alt="Railroad diagram of the rule long-rafsi"></p>
+<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/y-rafsi.svg" alt="Railroad diagram of the rule y-rafsi"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stressed-y-rafsi.svg" alt="Railroad diagram of the rule stressed-y-rafsi"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stressed-y-less-rafsi.svg" alt="Railroad diagram of the rule stressed-y-less-rafsi"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stressed-long-rafsi.svg" alt="Railroad diagram of the rule stressed-long-rafsi"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stressed-cvc-rafsi.svg" alt="Railroad diagram of the rule stressed-cvc-rafsi"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stressed-ccv-rafsi.svg" alt="Railroad diagram of the rule stressed-ccv-rafsi"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stressed-cvv-rafsi.svg" alt="Railroad diagram of the rule stressed-cvv-rafsi"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stressed-cvv-body.svg" alt="Railroad diagram of the rule stressed-cvv-body"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/y-rafsi.svg" alt="Railroad diagram of the rule y-rafsi"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/y-less-rafsi.svg" alt="Railroad diagram of the rule y-less-rafsi"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/y-less-rafsi-body.svg" alt="Railroad diagram of the rule y-less-rafsi-body"></p>
 </details>
 
 
 
-A `hy_rafsi` is a CCVCV, CVCCV, CCV, or CVV rafsi body followed by `'y`. The BPFK grammar uses it only in lookaheads. It ends a rafsi string, and it keeps `y-less-rafsi` from starting one. The experimental layer also uses it inside compounds.
-
-A long CCVCV form leaves a consonant after its CCV prefix, where the shorter branch requires an apostrophe. The CVV form differs in its second or third letter. Thus only one branch reaches apostrophe-y.
-
 ```jbogenbau
-%rule hy-rafsi                -- An apostrophe-y rafsi ends its classical body with apostrophe-y. Another apostrophe can follow the hyphen.
-  hy-rafsi-body h y [h]
-
-%rule hy-rafsi-body  -- A long CCVCV form leaves a consonant after CCV, so only one reaches apostrophe-y. CVV differs in its second or third letter.
-  long-rafsi-vowel | ccv-rafsi | cvv-rafsi
-
-%rule long-rafsi-vowel        -- The long classical form appends a vowel to a long rafsi.
-  long-rafsi vowel
-
-%rule stressed-hy-rafsi       -- A stressed apostrophe-y rafsi ends its stressed classical body with apostrophe-y.
-  stressed-hy-rafsi-body h y
-
-%rule stressed-hy-rafsi-body  -- CVV differs in its second or third letter. The long form differs from stressed CCV in its second letter or third-letter stress.
-  long-rafsi-stressed-vowel | stressed-ccv-rafsi | stressed-cvv-rafsi
-
-%rule long-rafsi-stressed-vowel  -- The stressed long classical form appends a stressed vowel to an unstressed long rafsi.
-  long-rafsi stressed-vowel
-
-%rule long-rafsi              -- `long_rafsi <- initial_pair unstressed_vowel consonant / consonant unstressed_vowel consonant consonant`. The forms differ in their second letter.
-  initial-pair unstressed-vowel consonant | consonant unstressed-vowel consonant consonant
-
-%rule cvc-rafsi               -- A CVC rafsi has an unstressed vowel between two consonants.
-  consonant unstressed-vowel consonant
-
-%rule ccv-rafsi               -- A CCV rafsi ends in an unstressed vowel after an initial consonant pair.
-  initial-pair unstressed-vowel
-
-%rule cvv-rafsi               -- A CVV rafsi begins with a consonant. It has two unstressed vowels with an apostrophe between them, or an unstressed diphthong. An r-hyphen can follow either form.
-  consonant cvv-body [r-hyphen]
-
-%rule cvv-body                -- `unstressed_vowel h unstressed_vowel / unstressed_diphthong`. The second letter is an apostrophe in one form and a vowel in the other.
-  unstressed-vowel h unstressed-vowel | unstressed-diphthong
-
-%rule r-hyphen  -- The hyphen is r before a consonant, or n before r. A following rafsi cannot begin with either resulting pair.
-  | $r:r
-  | $n:n
+%rule r-hyphen  -- The hyphen is r before a consonant, or n before r. Each letter reads as a full consonant, so its pair with the next letter must stand in the table.
+  | $r:consonant="r"
+  | $n:consonant="n"
 %conditions
   $r.following-tokens.begins(consonant),
-  $n.following-tokens.begins(r)
+  $n.following-tokens.first-token.value = "r",
+  $n.following-tokens.begins(consonant)
 
 ```
 
-<details><summary>Railroad diagrams of the 12 rules from <code>hy-rafsi</code> to <code>r-hyphen</code></summary>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/hy-rafsi.svg" alt="Railroad diagram of the rule hy-rafsi"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/hy-rafsi-body.svg" alt="Railroad diagram of the rule hy-rafsi-body"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/long-rafsi-vowel.svg" alt="Railroad diagram of the rule long-rafsi-vowel"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stressed-hy-rafsi.svg" alt="Railroad diagram of the rule stressed-hy-rafsi"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stressed-hy-rafsi-body.svg" alt="Railroad diagram of the rule stressed-hy-rafsi-body"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/long-rafsi-stressed-vowel.svg" alt="Railroad diagram of the rule long-rafsi-stressed-vowel"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/long-rafsi.svg" alt="Railroad diagram of the rule long-rafsi"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cvc-rafsi.svg" alt="Railroad diagram of the rule cvc-rafsi"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/ccv-rafsi.svg" alt="Railroad diagram of the rule ccv-rafsi"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cvv-rafsi.svg" alt="Railroad diagram of the rule cvv-rafsi"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cvv-body.svg" alt="Railroad diagram of the rule cvv-body"></p>
+<details><summary>Railroad diagram of <code>r-hyphen</code></summary>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/r-hyphen.svg" alt="Railroad diagram of the rule r-hyphen"></p>
 </details>
 
@@ -565,28 +496,23 @@ So an unmarked brivla is stressed on its penultimate counted syllable, and a pau
 
 %rule stressed-vowel = stressed-unit(vowel)  -- A vowel is stressed by a written mark or its position before the final syllable. One constituent covers both cases.
 
-%rule unstressed-syllable  -- An unstressed vowel-bearing syllable has a nucleus. A consonantal syllable has none. Only one kind can complete at a syllable boundary.
-  unstressed-plain-syllable | consonantal-syllable
-
-%rule unstressed-plain-syllable = unstressed-unit(syllable)  -- An unstressed syllable has neither a written stress mark nor positional stress.
+%rule unstressed-syllable  -- An unstressed vowel-bearing syllable has a nucleus. A consonantal syllable has none. Only one kind can complete at a syllable boundary. The plain form has neither a written stress mark nor positional stress.
+  unstressed-unit(syllable) | consonantal-syllable
 
 %rule unstressed-diphthong = unstressed-unit(diphthong)  -- An unstressed diphthong has neither a written stress mark nor positional stress.
 
 %rule unstressed-vowel = unstressed-unit(vowel)  -- An unstressed vowel has neither a written stress mark nor positional stress.
 
-%rule stress  -- Positional stress precedes the last counted syllable before a pause. The counted syllable cannot start with y. It permits an empty onset, so the PEG's greedy split succeeds whenever any split does.
+%rule stress  -- Positional stress precedes the last counted syllable before a pause. The counted syllable cannot start with y. The test asks whether a split reaches that final syllable and the pause.
   [{consonant | glide}] [h] [y] $s:syllable
 %conditions
   $s.following-tokens.begins(pause)
 
-%rule stressed                -- stressed <- onset comma* [AEIOU]
-  syllable-onset stress-mark
-
-%rule stress-mark             -- [AEIOU], a letter and not a vowel rule
-  "a"<Stressed> | "e"<Stressed> | "i"<Stressed> | "o"<Stressed> | "u"<Stressed>
+%rule stressed                -- A stressed syllable begins at a syllable onset and has a stressed vowel letter. It reads the letter, not the vowel rule.
+  syllable-onset _<Vowel Stressed>
 ```
 
-<details><summary>Railroad diagrams of the 13 rules from <code>final-syllable</code> to <code>stress-mark</code></summary>
+<details><summary>Railroad diagrams of the 11 rules from <code>final-syllable</code> to <code>stressed</code></summary>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/final-syllable.svg" alt="Railroad diagram of the rule final-syllable"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stressed-unit.svg" alt="Railroad diagram of the rule stressed-unit"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/unstressed-unit.svg" alt="Railroad diagram of the rule unstressed-unit"></p>
@@ -594,17 +520,15 @@ So an unmarked brivla is stressed on its penultimate counted syllable, and a pau
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stressed-diphthong.svg" alt="Railroad diagram of the rule stressed-diphthong"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stressed-vowel.svg" alt="Railroad diagram of the rule stressed-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/unstressed-syllable.svg" alt="Railroad diagram of the rule unstressed-syllable"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/unstressed-plain-syllable.svg" alt="Railroad diagram of the rule unstressed-plain-syllable"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/unstressed-diphthong.svg" alt="Railroad diagram of the rule unstressed-diphthong"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/unstressed-vowel.svg" alt="Railroad diagram of the rule unstressed-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stress.svg" alt="Railroad diagram of the rule stress"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stressed.svg" alt="Railroad diagram of the rule stressed"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/stress-mark.svg" alt="Railroad diagram of the rule stress-mark"></p>
 </details>
 
 
 
-The `syllable-onset` hook reads an ordinary onset. Syllables, stress tests, the brivla head, and the coda lookahead use it. This includes `final-syllable`. A layer can extend their shared onset without changing the other restrictions. The `cmavo-form-with-onset`, `fuhivla-rafsi`, and `stressed-fuhivla-rafsi` rules read plain `onset` and remain unchanged by that extension.
+The `syllable-onset` hook reads an ordinary onset. Syllables, stress tests, the brivla head, and the coda lookahead use it. This includes `final-syllable`. A layer can extend their shared onset without changing the other restrictions. The `cmavo`, `fuhivla-rafsi`, and `stressed-fuhivla-rafsi` rules read plain `onset` and remain unchanged by that extension.
 
 A syllable has an onset, a nucleus, and an optional nonempty coda. A consonantal syllable has a consonant and then a coda that begins with a syllabic consonant. A consonantal syllable cannot consume the same complete letters as a syllable with a nucleus. A coda ends before another syllable or a pause, which are incompatible boundaries. Before a pause, one consonant and two consonants have different lengths. The absent optional covers the empty coda once.
 
@@ -612,37 +536,28 @@ If a coda stands before another syllable, omitting it leaves consonants that can
 
 ```jbogenbau
 %rule any-syllable  -- A vowel-bearing syllable has a nucleus. A consonantal syllable has none, so they cannot consume the same complete syllable.
-  onset-nucleus-coda | consonantal-syllable
+  syllable-of(nucleus) | consonantal-syllable
 
 %rule syllable-onset  -- This hook supplies the shared onset for syllables, stress tests, the brivla head and coda lookahead.
   onset
 
-%rule onset-nucleus-coda  -- A vowel-bearing syllable has an optional nonempty coda. Omitting a required coda leaves consonants that cannot start the following syllable.
-  syllable-onset nucleus [coda]
+%rule syllable-of(@N)  -- A vowel-bearing syllable has the given nucleus and an optional nonempty coda. Omitting a required coda leaves consonants that cannot start the following syllable.
+  syllable-onset @N [coda]
 
-%rule syllable  -- A counted syllable forbids a y nucleus. Its optional nonempty coda leaves no duplicate empty reading at a pause.
-  $o:syllable-onset nucleus [coda]
-%conditions
-  ¬$o.following-tokens.begins(y)
+%rule syllable = syllable-of((vowel | diphthong))  -- A counted syllable has a vowel or diphthong as its nucleus, never y. Its optional nonempty coda leaves no duplicate empty reading at a pause.
 
 %rule consonantal-syllable  -- The second consonant must be syllabic. The nonempty coda contains it.
   $c:consonant coda
 %conditions
   $c.following-tokens.begins(syllabic)
 
-%rule coda  -- A nonempty coda ends before a syllable or a pause. Those following boundaries cannot coincide.
-  coda-before-syllable | coda-before-pause
-
-%rule coda-before-syllable  -- A medial coda ends before a syllable, but cannot begin a syllable itself.
-  $c:consonant
+%rule coda  -- A nonempty coda ends before a syllable or a pause. Those following boundaries cannot coincide. A final coda has one consonant or a syllabic consonant and another consonant, whose lengths before the pause cannot coincide.
+  | $c:consonant
+  | [syllabic] $p:consonant
 %conditions
   ¬$c.onward.begins(any-syllable),
-  $c.following-tokens.begins(any-syllable)
-
-%rule coda-before-pause  -- A final coda has one consonant or a syllabic consonant and another consonant. Their lengths before the pause cannot coincide.
-  [syllabic] $c:consonant
-%conditions
-  $c.following-tokens.begins(pause)
+  $c.following-tokens.begins(any-syllable),
+  $p.following-tokens.begins(pause)
 
 %rule onset  -- An apostrophe, glide, or consonant initial precedes a nucleus. An empty initial before apostrophe cannot reach that nucleus. Initial forbids a following glide.
   h | glide | initial
@@ -655,12 +570,9 @@ If a coda stands before another syllable, omitting it leaves consonants that can
   ¬$y.following-tokens.begins(nucleus)
 
 %rule glide  -- A glide is i or u directly before a nucleus.
-  $g:i-or-u
+  "i" | "u"
 %conditions
-  $g.following-tokens.begins(nucleus)
-
-%rule i-or-u                  -- i / u
-  i | u
+  $.following-tokens.begins(nucleus)
 
 %rule diphthong  -- A diphthong cannot end directly before another nucleus.
   $d:diphthong-letters
@@ -668,73 +580,48 @@ If a coda stands before another syllable, omitting it leaves consonants that can
   ¬$d.following-tokens.begins(nucleus)
 
 %rule diphthong-letters  -- The four diphthongs differ in their first or second letter. A repeated i or u cannot follow the matching diphthong.
-  | a $i:i
-  | a $u:u
-  | e $i:i
-  | o $i:i
+  | "a" $i:"i"
+  | "a" $u:"u"
+  | "e" $i:"i"
+  | "o" $i:"i"
 %conditions
-  ¬$i.following-tokens.begins(i),
-  ¬$u.following-tokens.begins(u)
+  $i.following-tokens.first-token.value ≠ "i",
+  $u.following-tokens.first-token.value ≠ "u"
 
-%rule vowel  -- A vowel cannot end directly before another nucleus.
-  $v:vowel-letter
+%rule vowel  -- A vowel cannot end directly before another nucleus. It reads one token with the Vowel tag.
+  $v:_<Vowel>
 %conditions
   ¬$v.following-tokens.begins(nucleus)
-
-%rule vowel-letter            -- a / e / i / o / u
-  a | e | i | o | u
 ```
 
-<details><summary>Railroad diagrams of the 16 rules from <code>any-syllable</code> to <code>vowel-letter</code></summary>
+<details><summary>Railroad diagrams of the 12 rules from <code>any-syllable</code> to <code>vowel</code></summary>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/any-syllable.svg" alt="Railroad diagram of the rule any-syllable"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/syllable-onset.svg" alt="Railroad diagram of the rule syllable-onset"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/onset-nucleus-coda.svg" alt="Railroad diagram of the rule onset-nucleus-coda"></p>
+<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/syllable-of.svg" alt="Railroad diagram of the rule syllable-of"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/syllable.svg" alt="Railroad diagram of the rule syllable"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/consonantal-syllable.svg" alt="Railroad diagram of the rule consonantal-syllable"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/coda.svg" alt="Railroad diagram of the rule coda"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/coda-before-syllable.svg" alt="Railroad diagram of the rule coda-before-syllable"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/coda-before-pause.svg" alt="Railroad diagram of the rule coda-before-pause"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/onset.svg" alt="Railroad diagram of the rule onset"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/nucleus.svg" alt="Railroad diagram of the rule nucleus"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/glide.svg" alt="Railroad diagram of the rule glide"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/i-or-u.svg" alt="Railroad diagram of the rule i-or-u"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/diphthong.svg" alt="Railroad diagram of the rule diphthong"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/diphthong-letters.svg" alt="Railroad diagram of the rule diphthong-letters"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/vowel.svg" alt="Railroad diagram of the rule vowel"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/vowel-letter.svg" alt="Railroad diagram of the rule vowel-letter"></p>
 </details>
 
 
 
 ## Letters
 
-A vowel letter has a lowercase value with or without `Stressed`. The `a`, `e`, `i`, `o` and `u` rules each read one value. `stress-mark` tests `Stressed` on those five values, so it finds the written stress. A `y` is not followed by a nucleus, unless that nucleus is another `y`. An apostrophe is followed by a nucleus.
+A vowel letter has a lowercase value with or without `Stressed`, and it carries the `Vowel` tag. Rules read a vowel letter through that tag, and one letter through a value test on it. A stressed vowel letter also carries `Stressed`, which the stressed test reads.
+
+A `y` is not followed by a nucleus, unless that nucleus is another `y`. An apostrophe is followed by a nucleus. The `y` rule carries the test against a following non-y nucleus. A value test alone cannot state that test.
 
 ```jbogenbau
-%rule a                       -- a <- comma* [aA]
-  "a"
-
-%rule e                       -- e <- comma* [eE]
-  "e"
-
-%rule i                       -- i <- comma* [iI]
-  "i"
-
-%rule o                       -- o <- comma* [oO]
-  "o"
-
-%rule u                       -- u <- comma* [uU]
-  "u"
-
 %rule y  -- A y letter cannot precede a non-y nucleus.
   $y:"y"
 %conditions
-  ¬$y.following-tokens.begins(non-y-nucleus)
-
-%rule non-y-nucleus  -- This nucleus test excludes y at its start.
-  $n:nucleus
-%conditions
-  ¬$n.onward.begins(y)
+  ¬$y.following-tokens.begins(vowel | diphthong)
 
 %rule h  -- An apostrophe must precede a nucleus.
   $h:"'"<¬PAUSE>
@@ -742,14 +629,8 @@ A vowel letter has a lowercase value with or without `Stressed`. The `a`, `e`, `
   $h.following-tokens.begins(nucleus)
 ```
 
-<details><summary>Railroad diagrams of <code>a</code>, <code>e</code>, <code>i</code>, <code>o</code>, <code>u</code>, <code>y</code>, <code>non-y-nucleus</code> and <code>h</code></summary>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/a.svg" alt="Railroad diagram of the rule a"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/e.svg" alt="Railroad diagram of the rule e"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/i.svg" alt="Railroad diagram of the rule i"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/o.svg" alt="Railroad diagram of the rule o"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/u.svg" alt="Railroad diagram of the rule u"></p>
+<details><summary>Railroad diagrams of <code>y</code> and <code>h</code></summary>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/y.svg" alt="Railroad diagram of the rule y"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/non-y-nucleus.svg" alt="Railroad diagram of the rule non-y-nucleus"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/h.svg" alt="Railroad diagram of the rule h"></p>
 </details>
 
@@ -757,158 +638,88 @@ A vowel letter has a lowercase value with or without `Stressed`. The `a`, `e`, `
 
 ## Consonants
 
-An initial pair is two consonants that can begin a word. `initial` says which: an affricate, or a sibilant, another consonant and a liquid, each optional, where no consonant or glide follows. An affricate joins a stopped sound with friction. A sibilant is a hissing consonant. The liquids here are `l` and `r`.
+An initial pair is two consonants that can begin a word. `initial` reads a cluster where each pair of neighbours stands in `$INITIAL`. An affricate can stand only as the whole cluster. That limit is a departure from CLL 4.7, and the closing section lists it.
+
+A sibilant, another consonant and a liquid give the usual shape of a long cluster. No consonant or glide can follow the cluster. The initial can be empty only where no consonant or glide follows.
+
+The pair law reads raw consonant tokens against `$PERMISSIBLE`. A law that reads each consonant through its own rule can differ on one consonant query inside a bad run, as in `btb`. They give the same words, because each consonant of a divided run passes its own test. A run with a consonant that fails stays foreign under both laws. The `bu` test is the only lookahead that leaves a run. Its `post-word` chain reads whole words, so it reads each letter of the run.
 
 ```jbogenbau
-%rule cluster                 -- `cluster <- consonant consonant+`. The first two consonants decide this lookahead.
+%rule cluster                 -- The first two consonants decide this lookahead.
   consonant consonant
 
-%rule initial-pair  -- An initial pair starts a legal initial and contains exactly two consonants.
-  $a:consonant $b:consonant
+%rule initial-pair  -- An initial pair is in $INITIAL, and no third consonant follows it.
+  consonant consonant
 %conditions
-  $a.onward.begins(initial),
-  ¬$b.following-tokens.begins(consonant)
+  $.value ∈ $INITIAL,
+  ¬$.following-tokens.begins(consonant)
 
-%rule initial  -- An initial ends before any next consonant or glide. The parts branch leaves an affricate's second consonant, so only the affricate branch completes.
-  | $a:affricate
-  | $p:initial-parts
+%rule initial  -- An initial is a cluster from the table, or no consonant at all. No consonant or glide follows it.
+  [initial-cluster]
 %conditions
-  ¬$a.following-tokens.begins(consonant | glide),
-  ¬$p.following-tokens.begins(consonant | glide)
+  ¬$.following-tokens.begins(consonant | glide)
 
-%rule initial-parts  -- Each initial part is optional. Leaving any available consonant unread fails the final consonant exclusion of initial.
-  [sibilant] [other] [liquid]
-
-%rule affricate               -- `affricate <- t c / t s / d j / d z`. The forms differ in their first or second letter.
-  t c | t s | d j | d z
-
-%rule liquid                  -- liquid <- l / r
-  l | r
-
-%rule other  -- The other initial consonants forbid tl, dl, and n before a liquid.
-  | p | $t:t | k | f | x | b | $d:d | g | v | m | $n:n
+%rule initial-cluster  -- Each pair of neighbours is in $INITIAL. An affricate stands only as the whole cluster.
+  {consonant}
 %conditions
-  ¬$t.following-tokens.begins(l),
-  ¬$d.following-tokens.begins(l),
-  ¬$n.following-tokens.begins(liquid)
+  $.value.ngrams(2) ⊆ $INITIAL,
+  $.value ∈ $AFFRICATES ∨ $.value.ngrams(2) ∩ $AFFRICATES = ∅
 
-%rule sibilant  -- A sibilant forbids sx, and j or z before n or a liquid.
-  | c
-  | $s:s
-  | $j:j-or-z
+%rule n-affricate  -- The letter n and an affricate after it, read as raw consonant tokens against $AFFRICATES. Only a lookahead.
+  "n" _<Consonant> _<Consonant>
 %conditions
-  ¬$s.following-tokens.begins(x),
-  ¬$j.following-tokens.begins(n | liquid)
+  $.tokens-after-first.value ∈ $AFFRICATES
 
-%rule j-or-z                  -- j / z
-  j | z
+%rule consonant  -- A consonant token cannot stand before a banned sound, an impermissible pair, or n with an affricate.
+  $c:_<Consonant>
+%conditions
+  ¬$c.following-tokens.begins(letter-ban),
+  ¬$c.onward.begins(impermissible-pair),
+  ¬$c.onward.begins(n-affricate)
 
-%rule consonant               -- consonant <- voiced / unvoiced / syllabic
-  voiced | unvoiced | syllabic
+%rule impermissible-pair  -- Two raw consonant tokens whose pair is outside $PERMISSIBLE. Only a lookahead.
+  _<Consonant> _<Consonant>
+%conditions
+  $.value ∉ $PERMISSIBLE
 
-%rule syllabic                -- syllabic <- l / m / n / r
-  l | m | n | r
+%const $SYLLABIC-CONSONANTS
+  "l" "m" "n" "r"
 
-%rule voiced                  -- voiced <- b / d / g / j / v / z
-  b | d | g | j | v | z
-
-%rule unvoiced                -- unvoiced <- c / f / k / p / s / t / x
-  c | f | k | p | s | t | x
+%rule syllabic  -- A syllabic consonant is a full consonant with one of the four syllabic values.
+  $s:consonant
+%conditions
+  $s.value ∈ $SYLLABIC-CONSONANTS
 ```
 
-<details><summary>Railroad diagrams of the 13 rules from <code>cluster</code> to <code>unvoiced</code></summary>
+<details><summary>Railroad diagrams of the 8 rules from <code>cluster</code> to <code>syllabic</code></summary>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cluster.svg" alt="Railroad diagram of the rule cluster"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/initial-pair.svg" alt="Railroad diagram of the rule initial-pair"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/initial.svg" alt="Railroad diagram of the rule initial"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/initial-parts.svg" alt="Railroad diagram of the rule initial-parts"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/affricate.svg" alt="Railroad diagram of the rule affricate"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/liquid.svg" alt="Railroad diagram of the rule liquid"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/other.svg" alt="Railroad diagram of the rule other"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/sibilant.svg" alt="Railroad diagram of the rule sibilant"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/j-or-z.svg" alt="Railroad diagram of the rule j-or-z"></p>
+<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/initial-cluster.svg" alt="Railroad diagram of the rule initial-cluster"></p>
+<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/n-affricate.svg" alt="Railroad diagram of the rule n-affricate"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/consonant.svg" alt="Railroad diagram of the rule consonant"></p>
+<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/impermissible-pair.svg" alt="Railroad diagram of the rule impermissible-pair"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/syllabic.svg" alt="Railroad diagram of the rule syllabic"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/voiced.svg" alt="Railroad diagram of the rule voiced"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/unvoiced.svg" alt="Railroad diagram of the rule unvoiced"></p>
 </details>
 
 
 
-The `letter-ban` hook reads a following syllable-initial apostrophe or glide. Each consonant letter refuses what it reads and the same consonant. Each voiced or unvoiced letter also refuses consonants of the other voicing, and some letters refuse other letters, as CLL[^cll-s3-6] says.
-
-The `consonant-letter` template takes the character and its forbidden targets. Each letter keeps its reference name through a named instance.
+The `letter-ban` hook reads a following syllable-initial apostrophe or glide. `$PERMISSIBLE` states the pair law of CLL[^cll-s3-6], and `n-affricate` states the triple law of CLL[^cll-s3-7]. This hook states the apostrophe rule and the committee's glide ban. No rule names one consonant letter, because the `Consonant` tag and a value test state each letter that a rule needs.
 
 ```jbogenbau
 %rule letter-ban  -- Consonant letters cannot precede a syllable-initial apostrophe or glide.
   h | glide
-
-%rule consonant-letter(@S, @B)
-  $c:@S
-%conditions
-  ¬$c.following-tokens.begins(letter-ban | @B)
-
-%rule l = consonant-letter("l", l)  -- This consonant applies the shared letter ban and forbids a repeated letter.
-
-%rule m = consonant-letter("m", m | z)  -- This consonant applies the shared letter ban and forbids a repeated letter. It forbids z.
-
-%rule n = consonant-letter("n", n | affricate)  -- This consonant applies the shared letter ban and forbids a repeated letter. It forbids an affricate.
-
-%rule r = consonant-letter("r", r)  -- This consonant applies the shared letter ban and forbids a repeated letter.
-
-%rule b = consonant-letter("b", b | unvoiced)  -- This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant.
-
-%rule d = consonant-letter("d", d | unvoiced)  -- This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant.
-
-%rule g = consonant-letter("g", g | unvoiced)  -- This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant.
-
-%rule v = consonant-letter("v", v | unvoiced)  -- This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant.
-
-%rule j = consonant-letter("j", j | z | unvoiced)  -- This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. It forbids z.
-
-%rule z = consonant-letter("z", z | j | unvoiced)  -- This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. It forbids j.
-
-%rule s = consonant-letter("s", s | c | voiced)  -- This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. It forbids c.
-
-%rule c = consonant-letter("c", c | s | x | voiced)  -- This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. It forbids s and x.
-
-%rule x = consonant-letter("x", x | c | k | voiced)  -- This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. It forbids c and k.
-
-%rule k = consonant-letter("k", k | x | voiced)  -- This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. It forbids x.
-
-%rule f = consonant-letter("f", f | voiced)  -- This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant.
-
-%rule p = consonant-letter("p", p | voiced)  -- This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant.
-
-%rule t = consonant-letter("t", t | voiced)  -- This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant.
 ```
 
-<details><summary>Railroad diagrams of the 19 rules from <code>letter-ban</code> to <code>t</code></summary>
+<details><summary>Railroad diagram of <code>letter-ban</code></summary>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/letter-ban.svg" alt="Railroad diagram of the rule letter-ban"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/consonant-letter.svg" alt="Railroad diagram of the rule consonant-letter"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/l.svg" alt="Railroad diagram of the rule l"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/m.svg" alt="Railroad diagram of the rule m"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/n.svg" alt="Railroad diagram of the rule n"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/r.svg" alt="Railroad diagram of the rule r"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/b.svg" alt="Railroad diagram of the rule b"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/d.svg" alt="Railroad diagram of the rule d"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/g.svg" alt="Railroad diagram of the rule g"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/v.svg" alt="Railroad diagram of the rule v"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/j.svg" alt="Railroad diagram of the rule j"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/z.svg" alt="Railroad diagram of the rule z"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/s.svg" alt="Railroad diagram of the rule s"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/c.svg" alt="Railroad diagram of the rule c"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/x.svg" alt="Railroad diagram of the rule x"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/k.svg" alt="Railroad diagram of the rule k"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/f.svg" alt="Railroad diagram of the rule f"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/p.svg" alt="Railroad diagram of the rule p"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/t.svg" alt="Railroad diagram of the rule t"></p>
 </details>
 
 
 
 ## Differences from CLL and the reference PEG
 
-The [checkpoint record](https://mw.lojban.org/index.php?title=BPFK_Checkpoints&oldid=109606) defers morphology. CLL 1.3.4[^cll-later-a3-3] records two committee votes on word forms. One vote covers [consonants before glides](#consonant-restriction). The other requires a pause before and after every name, and so lifts the ban on `la`, `lai`, `la'i` and `doi` inside names. Any pause serves as the vote's dot. Hesitation with an even number of `y` letters also serves, because the Magic Words proposal counts `y` as whitespace.
+The [checkpoint record](https://mw.lojban.org/index.php?title=BPFK_Checkpoints&oldid=109606) defers morphology. CLL 1.3.4[^cll-later-a3-3] records two committee votes on word forms. One vote covers [consonants before glides](#consonant-restriction). The other requires a pause before and after every name, and so lifts the ban on `la`, `lai`, `la'i` and `doi` inside names. Any pause serves as the vote's dot. Hesitation also serves, because the Magic Words proposal counts `y` as whitespace.
 
 The PEG implements both votes. CLL 1.3.4 describes the rest of this working grammar, its extended rafsi included, as practice without a vote.
 
@@ -939,6 +750,8 @@ A run stays one hesitation token except for the split that prepares a letter wor
 ### Consonant restriction
 
 The consonant rules retain the ban on a consonant directly followed by a glide. The committee voted for this ban, and CLL 1.3.4 records the vote.[^cll-later-a3-3]
+
+The pair tables state the pair law and the initial law in one place for each fact. An affricate stands only as a whole initial cluster in this grammar. CLL 4.7 allows a longer cluster with an affricate pair inside it, so that limit departs from CLL.[^cll-s4-7]
 
 [^cll-s4-7]: [CLL 1.1, section 4.7](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-fuhivla.html).
 

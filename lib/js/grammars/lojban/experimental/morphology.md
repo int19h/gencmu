@@ -41,15 +41,11 @@ The words stage drops hesitation outside opaque bodies, except before BU. That e
 
 A diphthong combines two vowels in one syllable. A nucleus is a syllable's vowel or diphthong. A glide is an `i` or `u` before a nucleus.
 
-The rule for `m` applies `letter-ban` and rejects another `m`, but permits `z` and a glide. Thus `kamzi`, `bamzda` and `.djeimz.` have permissible consonant pairs.
+This layer adds the pair `mz` to the shared table of its own stitched pipeline. Thus `kamzi`, `bamzda` and `.djeimz.` have permissible consonant pairs.
 
 ```jbogenbau
-%redefine-rule m = consonant-letter("m", m)              -- The consonant m forbids an apostrophe and another m. It permits z and a glide.
+%redefine-const $PERMISSIBLE $PERMISSIBLE ∪ "mz"
 ```
-
-<details><summary>Railroad diagram of <code>m</code></summary>
-<p><img src="../../../docs/diagrams/lojban/experimental/morphology/m.svg" alt="Railroad diagram of the rule m"></p>
-</details>
 
 ## Consonants before glides
 
@@ -70,11 +66,11 @@ The guard excludes neither cluster onsets nor CVV rafsi nor rafsi later in a bor
 The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The span test reads only that word, so it cannot mark CgV in a later word. [The experimental word stream](stream.md) reads this tag and supplies the warning. Disabling the warning changes no reading.
 
 ```jbogenbau
-%redefine-rule cmevla-shape  -- A name ends in a consonant, unlike a predicate word. The warning test inspects only this complete word.
-  $n:cmevla :: Continued ∪ (¬$n.onward.begins(nucleus) ⟹ Onset) ∪ ($n.matches(cgv-form) ⟹ Cgv-Warning)
+%redefine-rule cmevla-shape  -- A name ends in a consonant, unlike a predicate word. It carries the template marks and its warning. The warning test inspects only this complete word.
+  $n:word-shape(cmevla) :: $n.tags ∪ ($n.matches(cgv-form) ⟹ Cgv-Warning)
 
-%redefine-rule brivla-shape  -- A predicate word ends in a vowel, unlike a name. The warning test inspects only this complete word.
-  $b:brivla-word :: Continued ∪ (¬$b.onward.begins(nucleus) ⟹ Onset) ∪ ($b.matches(cgv-form) ⟹ Cgv-Warning)
+%redefine-rule brivla-shape  -- A predicate word ends in a vowel, unlike a name. It carries the template marks and its warning. The warning test inspects only this complete word.
+  $b:word-shape(brivla-word) :: $b.tags ∪ ($b.matches(cgv-form) ⟹ Cgv-Warning)
 
 %rule cgv-form  -- This boolean span test requires a consonant, glide and nucleus. Several possible positions give the same truth value.
   [{nonpause-phoneme}] consonant glide [{nonpause-phoneme}]
@@ -88,13 +84,10 @@ The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The sp
 %rule cgv-onset  -- The nonempty consonant initial precedes one glide. The glide requires a following nucleus.
   cgv-initial glide
 
-%rule cgv-initial  -- Affricates differ from initial-parts in their consonant order. Both forms require the last consonant before the glide, and initial-parts cannot be empty.
-  | $a:affricate
-  | $p:initial-parts
+%rule cgv-initial  -- A CgV onset begins with the shared initial cluster. The cluster is not empty, and no consonant follows it.
+  $c:initial-cluster
 %conditions
-  ¬$a.following-tokens.begins(consonant),
-  ¬$p.following-tokens.begins(consonant),
-  $p.value ≠ ""
+  ¬$c.following-tokens.begins(consonant)
 
 %redefine-rule fuhivla  -- Only a complete CgV borrowing bypasses the rafsi-string exclusion. The initial-rafsi conditions exclude the competing compound, while the cluster and continuation tests constrain the borrowing.
   $b:brivla-head stressed-syllable [{consonantal-syllable}] final-syllable
@@ -106,8 +99,8 @@ The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The sp
 %rule cgv-cluster-form  -- This boolean span test requires adjacent consonants. Different possible cluster positions give the same truth value.
   [{nonpause-phoneme}] consonant consonant [{nonpause-phoneme}]
 
-%rule cgv-rafsi-continuation  -- CVC and CCV differ in their second letter. Stress separates their variants, and the tested single consonant directly before the glide cannot be r.
-  (cvc-rafsi | ccv-rafsi | stressed-cvc-rafsi | stressed-ccv-rafsi) $c:consonant glide
+%rule cgv-rafsi-continuation  -- The start is a CVC or CCV rafsi of either stress. The tested single consonant directly before the glide cannot be r.
+  (cvc-rafsi-of(vowel) | ccv-rafsi-of(vowel)) $c:consonant glide
 %conditions
   $c.value ≠ "r"
 
@@ -134,6 +127,8 @@ The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The sp
 
 An extended rafsi is a whole or shortened word before a y-hyphen. It has a classical apostrophe-y form or a borrowing head. A borrowing head excludes rafsi strings, whose endings include `hy-rafsi` and `stressed-hy-rafsi`. Thus the two alternatives cannot complete from the same start, even with an apostrophe onset in the borrowing form.
 
+A `hy_rafsi` is a CCVCV, CVCCV, CCV, or CVV rafsi body followed by `'y`. The BPFK grammar reads that shape only through the `hy-rafsi-of` template in lookaheads. It ends a rafsi string, and it keeps `y-less-rafsi` from starting one. This layer also reads it inside compounds.
+
 `hy-rafsi` takes a long rafsi with an unstressed vowel, a CCV rafsi, or a CVV rafsi before `'y`. The long form leaves a consonant after a CCV prefix, so the shorter form cannot reach the apostrophe there. CVV differs in its second or third letter. The stressed forms have the same separation. After these redefinitions, nothing reads the rules `brivla-rafsi`, `stressed-brivla-rafsi` and `two-syllables` of [../bpfk/morphology.md](../bpfk/morphology.md).
 
 ```jbogenbau
@@ -143,14 +138,16 @@ An extended rafsi is a whole or shortened word before a y-hyphen. It has a class
 %redefine-rule stressed-extended-rafsi  -- The stressed borrowing head excludes rafsi strings, including stressed-hy-rafsi. Only one extended form can complete at this start.
   stressed-hy-rafsi | stressed-fuhivla-rafsi
 
-%redefine-rule long-rafsi-vowel -- The long classical form appends an unstressed vowel to a long rafsi.
-  long-rafsi unstressed-vowel
+%rule hy-rafsi = hy-rafsi-of(unstressed-vowel, unstressed-diphthong, unstressed-vowel, [h])  -- An apostrophe-y rafsi ends its classical body with apostrophe-y. The long classical form appends an unstressed vowel to a long rafsi in this layer. Another apostrophe can follow the hyphen.
+
+%rule stressed-hy-rafsi = hy-rafsi-of(stressed-vowel, stressed-diphthong, stressed-vowel, ε)  -- A stressed apostrophe-y rafsi ends its stressed classical body with apostrophe-y.
 ```
 
-<details><summary>Railroad diagrams of the 3 rules from <code>extended-rafsi</code> to <code>long-rafsi-vowel</code></summary>
+<details><summary>Railroad diagrams of the 4 rules from <code>extended-rafsi</code> to <code>stressed-hy-rafsi</code></summary>
 <p><img src="../../../docs/diagrams/lojban/experimental/morphology/extended-rafsi.svg" alt="Railroad diagram of the rule extended-rafsi"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/morphology/stressed-extended-rafsi.svg" alt="Railroad diagram of the rule stressed-extended-rafsi"></p>
-<p><img src="../../../docs/diagrams/lojban/experimental/morphology/long-rafsi-vowel.svg" alt="Railroad diagram of the rule long-rafsi-vowel"></p>
+<p><img src="../../../docs/diagrams/lojban/experimental/morphology/hy-rafsi.svg" alt="Railroad diagram of the rule hy-rafsi"></p>
+<p><img src="../../../docs/diagrams/lojban/experimental/morphology/stressed-hy-rafsi.svg" alt="Railroad diagram of the rule stressed-hy-rafsi"></p>
 </details>
 
 A CCV `hy-rafsi` can otherwise begin a brivla, as in `bla'ykla`. `brivla` rejects that start with a CCV rafsi, `'y` and the next onset, which `slihykru` tests. This onset includes CgV, so `bla'ykuiska`, `kla'ykuiska` and `bla'ytcuiska` are foreign too. Thus `kerlybla'ykla` is one word, but `bla'ykla` is not. The plain and stressed CCV choices need no order because their vowel stress differs. Only `brivla` reads `slihykru`.
@@ -161,8 +158,8 @@ A CCV `hy-rafsi` can otherwise begin a brivla, as in `bla'ykla`. `brivla` reject
 %conditions
   ¬$.onward.begins(cmavo | slihykru)
 
-%rule slihykru                -- `slihykru <- (CCV_rafsi / stressed_CCV_rafsi) h y onset`. The forbidden start is a CCV rafsi, apostrophe-y, and a borrowing onset, including CgV. Vowel stress separates the CCV forms.
-  (ccv-rafsi | stressed-ccv-rafsi) h y brivla-onset
+%rule slihykru                -- The forbidden start is a CCV rafsi of either stress, apostrophe-y, and a borrowing onset, including CgV.
+  ccv-rafsi-of(vowel) h y brivla-onset
 ```
 
 <details><summary>Railroad diagrams of <code>brivla</code> and <code>slihykru</code></summary>
@@ -201,7 +198,7 @@ A y-rafsi requires y where a classical extended form needs a vowel or apostrophe
   ¬$l.onward.begins(any-fuhivla-rafsi),
   ¬$l.following-tokens.begins(any-fuhivla-rafsi)
 
-%rule any-fuhivla-rafsi       -- `any_fuhivla_rafsi <- fuhivla / fuhivla_rafsi / stressed_fuhivla_rafsi`. The test detects a borrowing or either borrowing rafsi form.
+%rule any-fuhivla-rafsi       -- The test detects a complete borrowing or either borrowing rafsi form.
   fuhivla | fuhivla-rafsi | stressed-fuhivla-rafsi
 ```
 
@@ -220,9 +217,9 @@ The implication marks every NAI word `Indicator`, as [the experimental lexicon](
 
 ## Glide letters
 
-The experimental phoneme stage reads `ɩ`, `q`, `w`, `ĭ` and `ŭ` as the glides `i` and `u`, with the tag `Glide` ([latin.md](latin.md)). `ɩ`, `q` and `w` also carry `Onglide`, because they write only a glide before its vowel. Such a letter is a glide wherever it stands. So no rule reads it as a vowel. `vowel-letter` refuses every glide letter. `diphthong-letters` refuses an onglide letter, so `ĭ` and `ŭ` can end a diphthong, as in `maĭ`.
+The experimental phoneme stage reads `ɩ`, `q`, `w`, `ĭ` and `ŭ` as the glides `i` and `u`, with the tag `Glide` ([latin.md](latin.md)). `ɩ`, `q` and `w` also carry `Onglide`, because they write only a glide before its vowel. Such a letter is a glide wherever it stands. So no rule reads it as a vowel.
 
-These tests of glide letters are gencmu's own.
+A glide letter carries no `Vowel` tag, so the `Vowel` test of `vowel` does not read it. `diphthong-letters` refuses an onglide letter, so `ĭ` and `ŭ` can end a diphthong, as in `maĭ`. These tests of glide letters are gencmu's own.
 
 When a diphthong ends in a glide letter, its second letter is no vowel. So the `a` of `maĭ` passes the `!nucleus` test of `vowel`, and without a change it reads as a vowel alone. `vowel` therefore also refuses a letter where a diphthong begins. Without a glide letter the extra test changes nothing, because a diphthong's second letter is then a nucleus, and the camxes test already fails.
 
@@ -231,30 +228,24 @@ A run with a glide letter where no glide can stand then divides into no words. T
 The lookaheads still read the letter as `i` or `u`. A glide letter is no vowel, so it is a nucleus only as the end of a diphthong. So `aɩa` and `aĭa` are `a` and `ia`, as `aia` is. The `!i` after a diphthong still sees a glide letter, so `aiɩa` divides into no words, as `aiia` does.
 
 ```jbogenbau
-%redefine-rule vowel          -- A vowel forbids a following nucleus. It also excludes a diphthong start, so a marked glide cannot leave a competing single vowel.
-  $v:vowel-letter
+%redefine-rule vowel          -- A vowel forbids a following nucleus. It also excludes a diphthong start, so a marked glide cannot leave a competing single vowel. A marked glide letter cannot serve as a vowel.
+  $v:_<Vowel>
 %conditions
   ¬$v.following-tokens.begins(nucleus),
   ¬$v.onward.begins(diphthong)
 
-%redefine-rule vowel-letter   -- A marked glide letter cannot serve as a vowel.
-  a | e | i<¬Glide> | o | u<¬Glide>
-
 %redefine-rule diphthong-letters -- An onglide letter cannot end a diphthong. A diphthong also forbids another matching i or u directly after it.
-  | a $i:i<¬Onglide>
-  | a $u:u<¬Onglide>
-  | e $j:i<¬Onglide>
-  | o $k:i<¬Onglide>
+  | "a" $i:"i"<¬Onglide>
+  | "a" $u:"u"<¬Onglide>
+  | "e" $i:"i"<¬Onglide>
+  | "o" $i:"i"<¬Onglide>
 %conditions
-  ¬$i.following-tokens.begins(i),
-  ¬$u.following-tokens.begins(u),
-  ¬$j.following-tokens.begins(i),
-  ¬$k.following-tokens.begins(i)
+  $i.following-tokens.first-token.value ≠ "i",
+  $u.following-tokens.first-token.value ≠ "u"
 ```
 
-<details><summary>Railroad diagrams of <code>vowel</code>, <code>vowel-letter</code> and <code>diphthong-letters</code></summary>
+<details><summary>Railroad diagrams of <code>vowel</code> and <code>diphthong-letters</code></summary>
 <p><img src="../../../docs/diagrams/lojban/experimental/morphology/vowel.svg" alt="Railroad diagram of the rule vowel"></p>
-<p><img src="../../../docs/diagrams/lojban/experimental/morphology/vowel-letter.svg" alt="Railroad diagram of the rule vowel-letter"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/morphology/diphthong-letters.svg" alt="Railroad diagram of the rule diphthong-letters"></p>
 </details>
 
@@ -262,7 +253,7 @@ The lookaheads still read the letter as `i` or `u`. A glide letter is no vowel, 
 
 camxes-exp extends the working word forms of the BPFK, the Lojban language planning committee. This layer retains its changes except the redundant glide lookahead described in [the pipeline departures](pipeline.md#where-it-reads-texts-differently-from-camxes-exp).
 
-*The Complete Lojban Language* (CLL) forbids the consonant pair `mz`.[^cll-s3-6] The BPFK working morphology also forbids it. Its letter rule for `m` refuses a following `z`. The letter rule for `m` in camxes-exp refuses only another `m` among the consonants. So camxes-exp accepts `mz` wherever a permissible pair can stand. Examples are the predicate word `kamzi`, the lujvo `bamzda` and the name `.djeimz.`.
+*The Complete Lojban Language* (CLL) forbids the consonant pair `mz`.[^cll-s3-6] The BPFK working morphology also forbids it, because its pair table has no `mz`. The letter rule for `m` in camxes-exp refuses only another `m` among the consonants. So camxes-exp accepts `mz` wherever a permissible pair can stand. This layer adds `mz` to its own pair table. Examples are the predicate word `kamzi`, the lujvo `bamzda` and the name `.djeimz.`.
 
 The working morphology has two kinds of extended rafsi, which let a word, whole or cut short, stand before a y-hyphen inside a compound. A `brivla_rafsi` is the head of a brivla of two syllables or more, followed by `'y`, as in `klama'ybroda`. A `fuhivla_rafsi` is the head of a borrowing, followed by an onset and `y`, as in `spageiybroda`.
 

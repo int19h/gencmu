@@ -253,17 +253,17 @@ An accent on a capital still marks stress there, and the other capitals fold. So
 %rule joined-folded-vowel = joined-vowel-with(folded-vowel)
 
 %rule folded-vowel :: ∅
-  | "A" := "a"
-  | "E" := "e"
-  | "I" [glide-mark] := "i"
-  | "O" := "o"
-  | "U" [glide-mark] := "u"
+  | "A" :: Vowel := "a"
+  | "E" :: Vowel := "e"
+  | "I" [glide-mark] :: Vowel := "i"
+  | "O" :: Vowel := "o"
+  | "U" [glide-mark] :: Vowel := "u"
   | "Y" := "y"
-  | "A" stress-mark :: Stressed := "a" :- "A"
-  | "E" stress-mark :: Stressed := "e" :- "E"
-  | "I" stress-mark :: Stressed := "i" :- "I"
-  | "O" stress-mark :: Stressed := "o" :- "O"
-  | "U" stress-mark :: Stressed := "u" :- "U"
+  | "A" stress-mark :: Stressed ∪ Vowel := "a" :- "A"
+  | "E" stress-mark :: Stressed ∪ Vowel := "e" :- "E"
+  | "I" stress-mark :: Stressed ∪ Vowel := "i" :- "I"
+  | "O" stress-mark :: Stressed ∪ Vowel := "o" :- "O"
+  | "U" stress-mark :: Stressed ∪ Vowel := "u" :- "U"
   | "Y" stress-mark :: Stressed := "y" :- "Y"
 %emits
   $
@@ -293,17 +293,17 @@ A combining mark that no letter rule takes makes its run foreign, whatever its c
 
 ```jbogenbau
 %extend-rule plain-vowel :: ∅
-  | ("i" | "I") glide-mark := "i"
-  | ("u" | "U") glide-mark := "u"
+  | ("i" | "I") glide-mark :: Vowel := "i"
+  | ("u" | "U") glide-mark :: Vowel := "u"
 %emits
   $
 
 %extend-rule stressed-vowel :: Stressed
-  | ("a" | "A") stress-mark := "a" :- "A"
-  | ("e" | "E") stress-mark := "e" :- "E"
-  | ("i" | "I") stress-mark := "i" :- "I"
-  | ("o" | "O") stress-mark := "o" :- "O"
-  | ("u" | "U") stress-mark := "u" :- "U"
+  | ("a" | "A") stress-mark :: Vowel := "a" :- "A"
+  | ("e" | "E") stress-mark :: Vowel := "e" :- "E"
+  | ("i" | "I") stress-mark :: Vowel := "i" :- "I"
+  | ("o" | "O") stress-mark :: Vowel := "o" :- "O"
+  | ("u" | "U") stress-mark :: Vowel := "u" :- "U"
   | ("y" | "Y") stress-mark := "y" :- "Y"
 %emits
   $
@@ -326,7 +326,7 @@ A combining mark that no letter rule takes makes its run foreign, whatever its c
 
 Each digit emits the letters of its number word, so `2` is `re`. The first emission covers the character. The second is inserted at the end of that span, with empty source and text. It names the digit rule in `insertedBy`. Their values and images spell the number word.
 
-The `two-phonemes` template takes a character and two output strings. The named instances keep each digit rule and the decimal-point rule as the `insertedBy` rule.
+The `digit-phonemes` template takes a character and two output strings. The named instances keep each digit rule and the decimal-point rule as the `insertedBy` rule.
 
 A single period between two digits is the decimal point, `pi`. The decimal point needs a digit before it, so `la .djan.2mei` has a pause after `djan`.
 
@@ -367,32 +367,32 @@ A period between two digits is the decimal point in a foreign run too, so it bel
 %rule digit
   digit-0 | digit-1 | digit-2 | digit-3 | digit-4 | digit-5 | digit-6 | digit-7 | digit-8 | digit-9
 
-%rule two-phonemes(@C, @A, @B)
+%rule digit-phonemes(@C, @A, @B)
   @C
 %emits
-  $ :: ∅ := @A, ε :: ∅ := @B
+  $ :: Consonant := @A, ε :: Vowel := @B
 
-%rule digit-0 = two-phonemes("0", "n", "o")
+%rule digit-0 = digit-phonemes("0", "n", "o")
 
-%rule digit-1 = two-phonemes("1", "p", "a")
+%rule digit-1 = digit-phonemes("1", "p", "a")
 
-%rule digit-2 = two-phonemes("2", "r", "e")
+%rule digit-2 = digit-phonemes("2", "r", "e")
 
-%rule digit-3 = two-phonemes("3", "c", "i")
+%rule digit-3 = digit-phonemes("3", "c", "i")
 
-%rule digit-4 = two-phonemes("4", "v", "o")
+%rule digit-4 = digit-phonemes("4", "v", "o")
 
-%rule digit-5 = two-phonemes("5", "m", "u")
+%rule digit-5 = digit-phonemes("5", "m", "u")
 
-%rule digit-6 = two-phonemes("6", "x", "a")
+%rule digit-6 = digit-phonemes("6", "x", "a")
 
-%rule digit-7 = two-phonemes("7", "z", "e")
+%rule digit-7 = digit-phonemes("7", "z", "e")
 
-%rule digit-8 = two-phonemes("8", "b", "i")
+%rule digit-8 = digit-phonemes("8", "b", "i")
 
-%rule digit-9 = two-phonemes("9", "s", "o")
+%rule digit-9 = digit-phonemes("9", "s", "o")
 
-%rule decimal-point = two-phonemes(".", "p", "i")
+%rule decimal-point = digit-phonemes(".", "p", "i")
 ```
 
 <details><summary>Railroad diagrams of the 19 rules from <code>items</code> to <code>decimal-point</code></summary>
@@ -403,7 +403,7 @@ A period between two digits is the decimal point in a foreign run too, so it bel
 <p><img src="../../../docs/diagrams/lojban/common/latin/lojban-chars.svg" alt="Railroad diagram of the rule lojban-chars"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/chars-with-non-lojban-char.svg" alt="Railroad diagram of the rule chars-with-non-lojban-char"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/digit.svg" alt="Railroad diagram of the rule digit"></p>
-<p><img src="../../../docs/diagrams/lojban/common/latin/two-phonemes.svg" alt="Railroad diagram of the rule two-phonemes"></p>
+<p><img src="../../../docs/diagrams/lojban/common/latin/digit-phonemes.svg" alt="Railroad diagram of the rule digit-phonemes"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/digit-0.svg" alt="Railroad diagram of the rule digit-0"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/digit-1.svg" alt="Railroad diagram of the rule digit-1"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/digit-2.svg" alt="Railroad diagram of the rule digit-2"></p>

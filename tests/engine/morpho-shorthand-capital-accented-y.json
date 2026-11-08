@@ -1,0 +1,77 @@
+{
+  "description": "A shorthand before a capital accented y reads one cmavo, because that y carries no Vowel tag.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```\n"
+  },
+  "pipelineDocument": "pipeline.md",
+  "input": "Ýa",
+  "options": {
+    "until": "forms"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "y",
+              "image": "Y",
+              "source": [
+                0,
+                2
+              ],
+              "tags": [
+                "Stressed"
+              ]
+            },
+            {
+              "value": "'",
+              "image": "'",
+              "source": [
+                2,
+                2
+              ],
+              "tags": [],
+              "insertedBy": "zbalermorna-shorthand"
+            },
+            {
+              "value": "a",
+              "image": "a",
+              "source": [
+                2,
+                3
+              ],
+              "tags": [
+                "Vowel"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "forms",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "y'a",
+              "image": "Y'a",
+              "source": [
+                0,
+                3
+              ],
+              "tags": [
+                "Cmavo",
+                "Continued",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

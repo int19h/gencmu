@@ -73,6 +73,10 @@ The word forms divide each run in one way only, so the stage's `lazy` step decid
 ```jbogenbau
 %ambiguity-resolution lazy
 ```
+- [Consonant tables](../common/consonant-tables.md): the shared consonant pair tables
+  ```jbogenbau
+  %include "../common/consonant-tables.md"
+  ```
 - [BPFK word forms](morphology.md)
   ```jbogenbau
   %include "morphology.md"

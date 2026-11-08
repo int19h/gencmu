@@ -1,0 +1,75 @@
+{
+  "description": "A shorthand before a y with a breve reads one cmavo, because that y carries no Vowel tag.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```\n"
+  },
+  "pipelineDocument": "pipeline.md",
+  "input": "y̆a",
+  "options": {
+    "until": "forms"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "y",
+              "image": "y",
+              "source": [
+                0,
+                3
+              ],
+              "tags": []
+            },
+            {
+              "value": "'",
+              "image": "'",
+              "source": [
+                3,
+                3
+              ],
+              "tags": [],
+              "insertedBy": "zbalermorna-shorthand"
+            },
+            {
+              "value": "a",
+              "image": "a",
+              "source": [
+                3,
+                4
+              ],
+              "tags": [
+                "Vowel"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "forms",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "y'a",
+              "image": "y'a",
+              "source": [
+                0,
+                4
+              ],
+              "tags": [
+                "Cmavo",
+                "Continued",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

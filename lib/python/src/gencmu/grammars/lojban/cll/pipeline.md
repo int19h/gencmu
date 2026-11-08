@@ -49,6 +49,10 @@ The word forms divide each run in one way only, so the stage's `lazy` step decid
 ```jbogenbau
 %ambiguity-resolution lazy
 ```
+- [Consonant tables](../common/consonant-tables.md): the shared consonant pair tables
+  ```jbogenbau
+  %include "../common/consonant-tables.md"
+  ```
 - [Word shapes](shapes.md): the sounds of CLL's words: consonant pairs, vowels, diphthongs and stress
   ```jbogenbau
   %include "shapes.md"

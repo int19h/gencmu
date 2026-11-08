@@ -1,0 +1,624 @@
+{
+  "description": "Hesitation before BU splits from it at the forms stage. The run yybu reads as two hesitation words and BU, as on the baseline.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/bpfk/pipeline.md\"\n```\n"
+  },
+  "pipelineDocument": "pipeline.md",
+  "input": "yybu",
+  "options": {
+    "until": "forms"
+  },
+  "expect": {
+    "result": {
+      "format": 17,
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "y",
+              "value": "y",
+              "image": "y",
+              "tags": [],
+              "span": [
+                0,
+                1
+              ],
+              "source": [
+                0,
+                1
+              ]
+            },
+            {
+              "text": "y",
+              "value": "y",
+              "image": "y",
+              "tags": [],
+              "span": [
+                1,
+                2
+              ],
+              "source": [
+                1,
+                2
+              ]
+            },
+            {
+              "text": "b",
+              "value": "b",
+              "image": "b",
+              "tags": [
+                "Consonant"
+              ],
+              "span": [
+                2,
+                3
+              ],
+              "source": [
+                2,
+                3
+              ]
+            },
+            {
+              "text": "u",
+              "value": "u",
+              "image": "u",
+              "tags": [
+                "Vowel"
+              ],
+              "span": [
+                3,
+                4
+              ],
+              "source": [
+                3,
+                4
+              ]
+            }
+          ]
+        },
+        {
+          "name": "forms",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "y",
+              "value": "y",
+              "image": "y",
+              "tags": [
+                "Continued",
+                "Hesitation",
+                "Onset",
+                "Run-Initial",
+                "Uncounted"
+              ],
+              "span": [
+                0,
+                1
+              ],
+              "source": [
+                0,
+                1
+              ]
+            },
+            {
+              "text": "y",
+              "value": "y",
+              "image": "y",
+              "tags": [
+                "Continued",
+                "Hesitation",
+                "Onset",
+                "Spacing",
+                "Uncounted"
+              ],
+              "span": [
+                1,
+                2
+              ],
+              "source": [
+                1,
+                2
+              ]
+            },
+            {
+              "text": "bu",
+              "value": "bu",
+              "image": "bu",
+              "tags": [
+                "BU",
+                "Cmavo",
+                "Continued",
+                "Onset",
+                "Run-Final",
+                "Word"
+              ],
+              "span": [
+                2,
+                4
+              ],
+              "source": [
+                2,
+                4
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          4
+        ],
+        "source": [
+          0,
+          4
+        ],
+        "tags": [],
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "runs",
+            "span": [
+              0,
+              4
+            ],
+            "source": [
+              0,
+              4
+            ],
+            "tags": [
+              "BU",
+              "Cmavo",
+              "Continued",
+              "Onset",
+              "Word"
+            ],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "run",
+                "span": [
+                  0,
+                  4
+                ],
+                "source": [
+                  0,
+                  4
+                ],
+                "tags": [
+                  "BU",
+                  "Cmavo",
+                  "Continued",
+                  "Onset",
+                  "Word"
+                ],
+                "children": [
+                  {
+                    "kind": "rule",
+                    "rule": "word-run",
+                    "span": [
+                      0,
+                      4
+                    ],
+                    "source": [
+                      0,
+                      4
+                    ],
+                    "tags": [
+                      "BU",
+                      "Cmavo",
+                      "Continued",
+                      "Onset",
+                      "Word"
+                    ],
+                    "children": [
+                      {
+                        "kind": "rule",
+                        "rule": "run-words",
+                        "span": [
+                          0,
+                          4
+                        ],
+                        "source": [
+                          0,
+                          4
+                        ],
+                        "tags": [
+                          "BU",
+                          "Cmavo",
+                          "Continued",
+                          "Onset",
+                          "Word"
+                        ],
+                        "children": [
+                          {
+                            "kind": "rule",
+                            "rule": "run-words",
+                            "span": [
+                              0,
+                              2
+                            ],
+                            "source": [
+                              0,
+                              2
+                            ],
+                            "tags": [
+                              "Continued",
+                              "Hesitation",
+                              "Onset",
+                              "Uncounted"
+                            ],
+                            "children": [
+                              {
+                                "kind": "rule",
+                                "rule": "first-word",
+                                "span": [
+                                  0,
+                                  2
+                                ],
+                                "source": [
+                                  0,
+                                  2
+                                ],
+                                "tags": [
+                                  "Continued",
+                                  "Hesitation",
+                                  "Onset",
+                                  "Uncounted"
+                                ],
+                                "children": [
+                                  {
+                                    "kind": "rule",
+                                    "rule": "split-first-y",
+                                    "span": [
+                                      0,
+                                      2
+                                    ],
+                                    "source": [
+                                      0,
+                                      2
+                                    ],
+                                    "tags": [
+                                      "Continued",
+                                      "Hesitation",
+                                      "Onset",
+                                      "Uncounted"
+                                    ],
+                                    "children": [
+                                      {
+                                        "kind": "rule",
+                                        "rule": "y-prefix",
+                                        "span": [
+                                          0,
+                                          1
+                                        ],
+                                        "source": [
+                                          0,
+                                          1
+                                        ],
+                                        "tags": [],
+                                        "children": [
+                                          {
+                                            "kind": "rule",
+                                            "rule": "y-atom",
+                                            "span": [
+                                              0,
+                                              1
+                                            ],
+                                            "source": [
+                                              0,
+                                              1
+                                            ],
+                                            "tags": [],
+                                            "children": [
+                                              {
+                                                "kind": "token",
+                                                "terminal": "\"y\"",
+                                                "token": 0,
+                                                "span": [
+                                                  0,
+                                                  1
+                                                ],
+                                                "source": [
+                                                  0,
+                                                  1
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "kind": "rule",
+                                        "rule": "y-atom",
+                                        "span": [
+                                          1,
+                                          2
+                                        ],
+                                        "source": [
+                                          1,
+                                          2
+                                        ],
+                                        "tags": [],
+                                        "children": [
+                                          {
+                                            "kind": "token",
+                                            "terminal": "\"y\"",
+                                            "token": 1,
+                                            "span": [
+                                              1,
+                                              2
+                                            ],
+                                            "source": [
+                                              1,
+                                              2
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "rule",
+                            "rule": "later-word",
+                            "span": [
+                              2,
+                              4
+                            ],
+                            "source": [
+                              2,
+                              4
+                            ],
+                            "tags": [
+                              "BU",
+                              "Cmavo",
+                              "Continued",
+                              "Onset",
+                              "Word"
+                            ],
+                            "children": [
+                              {
+                                "kind": "rule",
+                                "rule": "ordinary-later-word",
+                                "span": [
+                                  2,
+                                  4
+                                ],
+                                "source": [
+                                  2,
+                                  4
+                                ],
+                                "tags": [
+                                  "BU",
+                                  "Cmavo",
+                                  "Continued",
+                                  "Onset",
+                                  "Word"
+                                ],
+                                "children": [
+                                  {
+                                    "kind": "rule",
+                                    "rule": "source-word",
+                                    "span": [
+                                      2,
+                                      4
+                                    ],
+                                    "source": [
+                                      2,
+                                      4
+                                    ],
+                                    "tags": [
+                                      "BU",
+                                      "Cmavo",
+                                      "Continued",
+                                      "Onset",
+                                      "Word"
+                                    ],
+                                    "children": [
+                                      {
+                                        "kind": "rule",
+                                        "rule": "cmavo-shape",
+                                        "span": [
+                                          2,
+                                          4
+                                        ],
+                                        "source": [
+                                          2,
+                                          4
+                                        ],
+                                        "tags": [
+                                          "Continued",
+                                          "Onset"
+                                        ],
+                                        "children": [
+                                          {
+                                            "kind": "rule",
+                                            "rule": "cmavo",
+                                            "span": [
+                                              2,
+                                              4
+                                            ],
+                                            "source": [
+                                              2,
+                                              4
+                                            ],
+                                            "tags": [],
+                                            "children": [
+                                              {
+                                                "kind": "rule",
+                                                "rule": "onset",
+                                                "span": [
+                                                  2,
+                                                  3
+                                                ],
+                                                "source": [
+                                                  2,
+                                                  3
+                                                ],
+                                                "tags": [
+                                                  "Consonant"
+                                                ],
+                                                "children": [
+                                                  {
+                                                    "kind": "rule",
+                                                    "rule": "initial",
+                                                    "span": [
+                                                      2,
+                                                      3
+                                                    ],
+                                                    "source": [
+                                                      2,
+                                                      3
+                                                    ],
+                                                    "tags": [
+                                                      "Consonant"
+                                                    ],
+                                                    "children": [
+                                                      {
+                                                        "kind": "rule",
+                                                        "rule": "initial-cluster",
+                                                        "span": [
+                                                          2,
+                                                          3
+                                                        ],
+                                                        "source": [
+                                                          2,
+                                                          3
+                                                        ],
+                                                        "tags": [
+                                                          "Consonant"
+                                                        ],
+                                                        "children": [
+                                                          {
+                                                            "kind": "rule",
+                                                            "rule": "consonant",
+                                                            "span": [
+                                                              2,
+                                                              3
+                                                            ],
+                                                            "source": [
+                                                              2,
+                                                              3
+                                                            ],
+                                                            "tags": [
+                                                              "Consonant"
+                                                            ],
+                                                            "children": [
+                                                              {
+                                                                "kind": "token",
+                                                                "terminal": "_",
+                                                                "token": 2,
+                                                                "span": [
+                                                                  2,
+                                                                  3
+                                                                ],
+                                                                "source": [
+                                                                  2,
+                                                                  3
+                                                                ]
+                                                              }
+                                                            ]
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              },
+                                              {
+                                                "kind": "rule",
+                                                "rule": "cmavo-last-nucleus",
+                                                "span": [
+                                                  3,
+                                                  4
+                                                ],
+                                                "source": [
+                                                  3,
+                                                  4
+                                                ],
+                                                "tags": [
+                                                  "Vowel"
+                                                ],
+                                                "children": [
+                                                  {
+                                                    "kind": "rule",
+                                                    "rule": "nucleus",
+                                                    "span": [
+                                                      3,
+                                                      4
+                                                    ],
+                                                    "source": [
+                                                      3,
+                                                      4
+                                                    ],
+                                                    "tags": [
+                                                      "Vowel"
+                                                    ],
+                                                    "children": [
+                                                      {
+                                                        "kind": "rule",
+                                                        "rule": "vowel",
+                                                        "span": [
+                                                          3,
+                                                          4
+                                                        ],
+                                                        "source": [
+                                                          3,
+                                                          4
+                                                        ],
+                                                        "tags": [
+                                                          "Vowel"
+                                                        ],
+                                                        "children": [
+                                                          {
+                                                            "kind": "token",
+                                                            "terminal": "_",
+                                                            "token": 3,
+                                                            "span": [
+                                                              3,
+                                                              4
+                                                            ],
+                                                            "source": [
+                                                              3,
+                                                              4
+                                                            ]
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "error": null
+    }
+  }
+}

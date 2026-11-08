@@ -18,12 +18,12 @@ The phoneme explanations use Humbert code points. The mapping in [Two encodings]
 
 The first rules below read the consonant radicals. DENPA BU (U+ED89) is the radical for the period, and YHY (U+ED8A) is the apostrophe. SLAKA BU (U+ED9A) is the comma. PA TONGA (U+ED8C), SMAJI BU (U+ED99), and TCENA BU (U+ED9B) also map to a comma.
 
-The diphthong instances use `two-phonemes` for their two output strings. The `stressed-two-phonemes` template also reads the stress mark. Its second and third arguments are the value and the image of the first output, and that output carries `Stressed`. The fourth argument is the second output.
+The diphthong instances use `diphthong-phonemes` for their two output strings. The `stressed-two-phonemes` template also reads the stress mark. Its second and third arguments are the value and the image of the first output, and that output carries `Stressed`. The fourth argument is the second output.
 
 ```jbogenbau
 %names "zbalermorna-names.txt"
 
-%extend-rule consonant :: ∅
+%extend-rule consonant :: Consonant
   | ("‹ZBALERMORNA HUMBERT LETTER PY›" | "‹ZBALERMORNA UCSUR LETTER PY›") := "p"
   | ("‹ZBALERMORNA HUMBERT LETTER TY›" | "‹ZBALERMORNA UCSUR LETTER TY›") := "t"
   | ("‹ZBALERMORNA HUMBERT LETTER KY›" | "‹ZBALERMORNA UCSUR LETTER KY›") := "k"
@@ -79,19 +79,19 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
 ```jbogenbau
 %extend-rule plain-vowel :: ∅
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN ABU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN ABU›"
-    | "‹ZBALERMORNA HUMBERT LETTER FULL ABU›" | "‹ZBALERMORNA UCSUR LETTER FULL ABU›") := "a"
+    | "‹ZBALERMORNA HUMBERT LETTER FULL ABU›" | "‹ZBALERMORNA UCSUR LETTER FULL ABU›") :: Vowel := "a"
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN EBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN EBU›"
-    | "‹ZBALERMORNA HUMBERT LETTER FULL EBU›" | "‹ZBALERMORNA UCSUR LETTER FULL EBU›") := "e"
+    | "‹ZBALERMORNA HUMBERT LETTER FULL EBU›" | "‹ZBALERMORNA UCSUR LETTER FULL EBU›") :: Vowel := "e"
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN IBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN IBU›"
     | "‹ZBALERMORNA HUMBERT LETTER FULL IBU›" | "‹ZBALERMORNA UCSUR LETTER FULL IBU›"
     | "‹ZBALERMORNA HUMBERT LETTER SEMIVOWEL IY›"
-    | "‹ZBALERMORNA UCSUR LETTER SEMIVOWEL IY›") := "i"
+    | "‹ZBALERMORNA UCSUR LETTER SEMIVOWEL IY›") :: Vowel := "i"
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN OBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN OBU›"
-    | "‹ZBALERMORNA HUMBERT LETTER FULL OBU›" | "‹ZBALERMORNA UCSUR LETTER FULL OBU›") := "o"
+    | "‹ZBALERMORNA HUMBERT LETTER FULL OBU›" | "‹ZBALERMORNA UCSUR LETTER FULL OBU›") :: Vowel := "o"
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN UBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN UBU›"
     | "‹ZBALERMORNA HUMBERT LETTER FULL UBU›" | "‹ZBALERMORNA UCSUR LETTER FULL UBU›"
     | "‹ZBALERMORNA HUMBERT LETTER SEMIVOWEL UY›"
-    | "‹ZBALERMORNA UCSUR LETTER SEMIVOWEL UY›") := "u"
+    | "‹ZBALERMORNA UCSUR LETTER SEMIVOWEL UY›") :: Vowel := "u"
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN YBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN YBU›"
     | "‹ZBALERMORNA HUMBERT LETTER FULL YBU›" | "‹ZBALERMORNA UCSUR LETTER FULL YBU›") := "y"
 %emits
@@ -100,19 +100,19 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
 %extend-rule stressed-vowel :: Stressed
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN ABU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN ABU›"
     | "‹ZBALERMORNA HUMBERT LETTER FULL ABU›"
-    | "‹ZBALERMORNA UCSUR LETTER FULL ABU›") zbalermorna-stress := "a" :- "A"
+    | "‹ZBALERMORNA UCSUR LETTER FULL ABU›") zbalermorna-stress :: Vowel := "a" :- "A"
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN EBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN EBU›"
     | "‹ZBALERMORNA HUMBERT LETTER FULL EBU›"
-    | "‹ZBALERMORNA UCSUR LETTER FULL EBU›") zbalermorna-stress := "e" :- "E"
+    | "‹ZBALERMORNA UCSUR LETTER FULL EBU›") zbalermorna-stress :: Vowel := "e" :- "E"
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN IBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN IBU›"
     | "‹ZBALERMORNA HUMBERT LETTER FULL IBU›"
-    | "‹ZBALERMORNA UCSUR LETTER FULL IBU›") zbalermorna-stress := "i" :- "I"
+    | "‹ZBALERMORNA UCSUR LETTER FULL IBU›") zbalermorna-stress :: Vowel := "i" :- "I"
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN OBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN OBU›"
     | "‹ZBALERMORNA HUMBERT LETTER FULL OBU›"
-    | "‹ZBALERMORNA UCSUR LETTER FULL OBU›") zbalermorna-stress := "o" :- "O"
+    | "‹ZBALERMORNA UCSUR LETTER FULL OBU›") zbalermorna-stress :: Vowel := "o" :- "O"
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN UBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN UBU›"
     | "‹ZBALERMORNA HUMBERT LETTER FULL UBU›"
-    | "‹ZBALERMORNA UCSUR LETTER FULL UBU›") zbalermorna-stress := "u" :- "U"
+    | "‹ZBALERMORNA UCSUR LETTER FULL UBU›") zbalermorna-stress :: Vowel := "u" :- "U"
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN YBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN YBU›"
     | "‹ZBALERMORNA HUMBERT LETTER FULL YBU›"
     | "‹ZBALERMORNA UCSUR LETTER FULL YBU›") zbalermorna-stress := "y" :- "Y"
@@ -140,19 +140,24 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
 %rule zbalermorna-diphthong
   zbalermorna-ai | zbalermorna-ei | zbalermorna-oi | zbalermorna-au
 
-%rule zbalermorna-ai = two-phonemes(
+%rule diphthong-phonemes(@C, @A, @B)
+  @C
+%emits
+  $ :: Vowel := @A, ε :: Vowel := @B
+
+%rule zbalermorna-ai = diphthong-phonemes(
   ("‹ZBALERMORNA HUMBERT VOWEL SIGN AIBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN AIBU›"),
   "a", "i")
 
-%rule zbalermorna-ei = two-phonemes(
+%rule zbalermorna-ei = diphthong-phonemes(
   ("‹ZBALERMORNA HUMBERT VOWEL SIGN EIBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN EIBU›"),
   "e", "i")
 
-%rule zbalermorna-oi = two-phonemes(
+%rule zbalermorna-oi = diphthong-phonemes(
   ("‹ZBALERMORNA HUMBERT VOWEL SIGN OIBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN OIBU›"),
   "o", "i")
 
-%rule zbalermorna-au = two-phonemes(
+%rule zbalermorna-au = diphthong-phonemes(
   ("‹ZBALERMORNA HUMBERT VOWEL SIGN AUBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN AUBU›"),
   "a", "u")
 
@@ -163,7 +168,7 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
 %rule stressed-two-phonemes(@C, @A, @Image, @B)
   @C zbalermorna-stress
 %emits
-  $ :: Stressed := @A :- @Image, ε :: ∅ := @B
+  $ :: Stressed ∪ Vowel := @A :- @Image, ε :: Vowel := @B
 
 %rule zbalermorna-stressed-ai = stressed-two-phonemes(
   ("‹ZBALERMORNA HUMBERT VOWEL SIGN AIBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN AIBU›"),
@@ -197,7 +202,7 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
   ("‹ZBALERMORNA HUMBERT SYMBOL FOR CNIMAHO BU›" | "‹ZBALERMORNA UCSUR SYMBOL FOR CNIMAHO BU›")
 ```
 
-<details><summary>Railroad diagrams of the 23 rules from <code>plain-vowel</code> to <code>zbalermorna-shorthand-mark</code></summary>
+<details><summary>Railroad diagrams of the 24 rules from <code>plain-vowel</code> to <code>zbalermorna-shorthand-mark</code></summary>
 <p><img src="../../../docs/diagrams/lojban/common/zbalermorna/plain-vowel.svg" alt="Railroad diagram of the rule plain-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/common/zbalermorna/stressed-vowel.svg" alt="Railroad diagram of the rule stressed-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/common/zbalermorna/zbalermorna-stress.svg" alt="Railroad diagram of the rule zbalermorna-stress"></p>
@@ -207,6 +212,7 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
 <p><img src="../../../docs/diagrams/lojban/common/zbalermorna/mark-char.svg" alt="Railroad diagram of the rule mark-char"></p>
 <p><img src="../../../docs/diagrams/lojban/common/zbalermorna/zbalermorna-stress-mark.svg" alt="Railroad diagram of the rule zbalermorna-stress-mark"></p>
 <p><img src="../../../docs/diagrams/lojban/common/zbalermorna/zbalermorna-diphthong.svg" alt="Railroad diagram of the rule zbalermorna-diphthong"></p>
+<p><img src="../../../docs/diagrams/lojban/common/zbalermorna/diphthong-phonemes.svg" alt="Railroad diagram of the rule diphthong-phonemes"></p>
 <p><img src="../../../docs/diagrams/lojban/common/zbalermorna/zbalermorna-ai.svg" alt="Railroad diagram of the rule zbalermorna-ai"></p>
 <p><img src="../../../docs/diagrams/lojban/common/zbalermorna/zbalermorna-ei.svg" alt="Railroad diagram of the rule zbalermorna-ei"></p>
 <p><img src="../../../docs/diagrams/lojban/common/zbalermorna/zbalermorna-oi.svg" alt="Railroad diagram of the rule zbalermorna-oi"></p>

@@ -22,7 +22,7 @@ A capital `Ъ` writes stressed `y`, with value `y` and image `Y`. The [Latin str
 %extend-rule stressed-vowel
   cll-cyrillic? cll-cyrillic-stressed-vowel
 
-%rule cll-cyrillic-consonant :: ∅
+%rule cll-cyrillic-consonant :: Consonant
   | ("б" | "Б") := "b"
   | ("в" | "В") := "v"
   | ("г" | "Г") := "g"
@@ -44,11 +44,11 @@ A capital `Ъ` writes stressed `y`, with value `y` and image `Y`. The [Latin str
   $
 
 %rule cll-cyrillic-plain-vowel :: ∅
-  | "а" := "a"
-  | "е" := "e"
-  | "и" := "i"
-  | "о" := "o"
-  | "у" := "u"
+  | "а" :: Vowel := "a"
+  | "е" :: Vowel := "e"
+  | "и" :: Vowel := "i"
+  | "о" :: Vowel := "o"
+  | "у" :: Vowel := "u"
   | "ъ" := "y"
 %emits
   $
