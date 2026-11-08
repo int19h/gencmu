@@ -27,7 +27,7 @@ The text is a sequence of items. An item is a space, a digit, a hesitation or an
 
 A run is a maximal stretch of letters and hyphens between two items that are not letters. Each rule that reads a run makes it maximal with a condition on the tokens after it. A foreign quote is the last part of its run, so a new run can start right after the quote. Otherwise two runs never stand side by side, and one run has one division.
 
-The ranked choice in `item` keeps the word and junk readings together. The engine prefers the reading with less blame. The grammar then prefers fewer junk runs at an equal measure. Its explicit empty tags discard the returned classification after emission.
+The ranked choice in `item` keeps the word and junk readings together. The engine prefers the reading with less blame. At an equal measure and span, the earlier word option excludes junk. Its explicit empty tags discard the returned classification after emission.
 
 Five forms can hold a space inside one token: a borrowing, a freeform variable, a compound, a spelling quote and a foreign quote. An unfinished compound also reaches over spaces, but it emits several tokens. The step `leftmost-longest #(·borrowing ∪ ·freeform-variable ∪ ·spelling-quote ∪ ·foreign-quote ∪ ·compound ∪ ·open-compound)` names the five rules and `open-compound`, the unfinished compound. At each free position, the stage takes the longest such form that starts there. The step chooses between forms by their start, then by their length.
 
@@ -38,7 +38,7 @@ The book allows a hyphen only at a syllable boundary inside a word. Each digit i
 ```jbogenbau
 %ambiguity-resolution
   leftmost-longest #(·borrowing ∪ ·freeform-variable ∪ ·spelling-quote ∪ ·foreign-quote ∪
-    ·compound ∪ ·open-compound), fewest #·junk-run, lazy
+    ·compound ∪ ·open-compound), lazy
 
 %rule text
   [{item}]
@@ -1761,7 +1761,7 @@ The forms stage reports local faults inside words. Each word keeps its ordinary 
 
 Pair faults use doubled consonants, voicing, then sibilants as their fixed order. Root and freeform triplet wrappers share their failed restrictions. This order applies only within overlapping fault choices, not across a whole run. Separate faults survive together, as in `hpbanh`.
 
-An unclassified run carries `junk-run` on its whole span. Smaller local blame wins before any grammar step. At an equal measure, `fewest #·junk-run` prefers a word reading. Syntax accepts unclassified junk only inside erasure.
+An unclassified run carries `junk-run` on its whole span. Smaller local blame wins before any grammar step. At an equal measure and span, the ranked choice in `item` prefers the word option. Thus bare `bcdf` reports its quadruplet without a separate junk-count step. Syntax accepts unclassified junk only inside erasure.
 
 A stray prefix carries its own error and emits only `Stray-Prefix`. Syntax admits that class only as a base verb. It is not a root, quoted word, delimiter, number part, or namespace component. Each prefix takes its `n` or `r` before it ends, as in the strict compound reader.
 
