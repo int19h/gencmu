@@ -7052,3 +7052,16 @@ eberban.step3.bare-medial-pair
 eberban.step3.final-quadruplet
 eberban.step3.final-long-cluster
 eberban.step3.freeform-ending-and-suffix
+eberban.step3-fix1.h-chain-1
+eberban.step3-fix1.h-chain-2
+eberban.step3-fix1.h-chain-ci
+eberban.step3-fix1.h-merged-control
+eberban.step3-fix1.h-single-control
+eberban.step3-fix1.freeform-four
+eberban.step3-fix1.freeform-five
+eberban.step3-fix1.sonorant-after-word
+eberban.step3-fix1.sonorant-run-start
+eberban.step3-fix1.bare-medial-pt
+eberban.step3-fix1.bare-medial-bd
+eberban.step3-fix1.root-triplet-control
+eberban.step3-fix1.root-four-control
