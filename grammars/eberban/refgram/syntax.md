@@ -1060,33 +1060,18 @@ The PEG reads `ra` only after a space character, so a text that starts with `ra`
 
 The PEG warns about a `cai` left out after a quote of several sentences. Its paragraph rule stores the erased sentence in a sequence, and the warning reads the field `eraser` on that sequence. The sentence inside the sequence has that field, but the sequence has none. So the PEG counts the erased sentence. This grammar counts only sentences that are not erased. So the PEG warns about `a mi pe ca a mo ra ke ra a ke bu ke` and this grammar does not.
 
+The omitted-`cai` guard excludes a closer-headed words erasure anywhere in its quoted text. It also excludes that fact inside an erased sentence, through `Contains-Closer-Head`. This retains reach through nested erased sentences without inspecting sealed children.
+
 ### Diagnostic codes and PEG sources
 
-Each named error adds the failed relation or states the default rejection's information more briefly. The messages belong to this grammar. Error counts precede the written diagnostic preference, erasure preference, resumption preference, and elision preference.
+Each named error adds the failed relation or states the default rejection's information more briefly. The engine's blame measure precedes every grammar step. At equal measures, the steps prefer specific errors, sentence erasure, shorter erasure, deeper resumption, and later omitted terminators, in that order.
 
-The named rules below reject only their chosen erroneous reading. Every erasable span retains a zero-error reading, so `a tkco ra a mo` reports no error. Erasure by `ri` discards no errors: `a mi duna vo ri ke` and `a mi fa ri bjan` remain reported failures.
+An erased constituent removes its inner errors and warnings. Thus `a tkco ra a mo` reports no error. The strict chain before `ri` is not erased, so `a mi duna vo ri ke` and `a mi fa ri bjan` still report.
+
+Morphology faults originate in the [forms stage](morphology.md#diagnostic-codes-and-peg-sources), whose table gives their codes and PEG sources. Syntax reads their ordinary word classes. It does not need separate fault alternatives in verb or definable positions.
 
 | Code and rule | Grammar position | PEG source |
 | --- | --- | --- |
-| `quadruplet` | `fault-token`, through `base-verb` or `definable-part` | [`E_Quadruplet`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1025) |
-| `triplet-middle-m` | `fault-token`, through `base-verb` or `definable-part` | [`E_TripletInvalid_Root`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1031) / [`E_TripletInvalid_Freeform`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1041) |
-| `triplet-yz-sonorant-x` | `fault-token`, through `base-verb` or `definable-part` | [`E_TripletYZ_SonorantX`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1028) |
-| `triplet-root-first-pair` | `fault-token`, through `base-verb` or `definable-part` | [`E_TripletInvalid_Root`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1031) |
-| `triplet-freeform-first-pair` | `fault-token`, through `base-verb` or `definable-part` | [`E_TripletInvalid_Freeform`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1041) |
-| `triplet-root-shape` | `fault-token`, through `base-verb` or `definable-part` | [`E_TripletInvalid_Root`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1031) |
-| `triplet-freeform-shape` | `fault-token`, through `base-verb` or `definable-part` | [`E_TripletInvalid_Freeform`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1041) |
-| `doubled-pair` | `fault-token`, through `base-verb` or `definable-part` | [`E_DoubledPair`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1073) |
-| `pair-voiceness` | `fault-token`, through `base-verb` or `definable-part` | [`E_PairVoiceness1`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1075) / [`E_PairVoiceness2`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1077) |
-| `sibilant-pair` | `fault-token`, through `base-verb` or `definable-part` | [`E_SibilantPair`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1079) |
-| `root-starts-with-medial-pair` | `fault-token`, through `base-verb` or `definable-part` | [`E_RootStartsWithMedialPair`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L919) |
-| `particle-sonorant-pair` | `fault-token`, through `base-verb` or `definable-part` | [`E_ParticleSonorantPair`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L910) |
-| `h-not-between-vowels` | `fault-token`, through `base-verb` or `definable-part` | [`E_NoVowelBeforeH`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L999) / [`E_NoVowelAfterH`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1000) |
-| `hyphen-same-vowels` | `fault-token`, through `base-verb` or `definable-part` | [`Vowels`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L974) |
-| `invalid-medial-pair` | `fault-token`, through `base-verb` or `definable-part` | [`E_InvalidMedialPair`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L939) |
-| `freeform-multi-consonents-ending` | `fault-token`, through `base-verb` or `definable-part` | [`E_FreeformMultiConsonentsEnding`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L881) |
-| `spaced-i-prefix` | `fault-token`, through `base-verb` or `definable-part` | [`E_SpacedIPrefix`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L807) |
-| `compound-empty` | `fault-token`, directly or through `empty-compound-fault` | [`CompoundN`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L785) |
-| `incomplete-compound` | `fault-token`, through `base-verb` or `definable-part` | [`E_IncompleteCompound`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L810) |
 | `unmatched-fi` | `unmatched-tail` in text recovery | [`E_UnmatchedFI`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L211) |
 | `unmatched-vei` | `unmatched-tail` in text recovery | [`E_UnmatchedVEI`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L212) |
 | `unmatched-be` | `unmatched-tail` in text recovery | [`E_UnmatchedBE`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L213) |
@@ -1104,7 +1089,7 @@ The named rules below reject only their chosen erroneous reading. Every erasable
 | `not-definable-ni` | The opening `NI` token in `ni-sentence` | [`E_NotDefinableNI`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L298) |
 | `unclosed-parenthetical` | The whole unclosed `parenthetical`, from `DA` through input end | [`E_UnclosedParenthetical`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L631) |
 | `spelling-empty` | `base-verb` | [`E_SpellingEmpty`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L524) |
-| `erased-must-be-followed-by-sentence-starter` | The optional final child inside `ra-run` | [`E_ErasedMustBeFollowedBySentenceStarter`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L287) |
+| `erasure-needs-starter` | The optional final child inside `ra-run` | [`E_ErasedMustBeFollowedBySentenceStarter`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L287) |
 | `number-end-alone` | `base-verb` | [`E_NumberEndAlone`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L611) |
 | `number-empty-base` | `empty-base-number`, on its `JU` | [`E_NumberEmptyBase`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L612) |
 | `number-empty-repeat` | `empty-repeat-number`, on its `JA` | [`E_NumberEmptyRepeat`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L613) |
@@ -1117,9 +1102,9 @@ The named rules below reject only their chosen erroneous reading. Every erasable
 
 A numeric word quoted by `ci` is not a number constituent. It does not block `number-end-alone`. A second written `JI` can also report after a number that already has its terminator.
 
-A grammatical complete body can precede one empty `ja` or `je` in number recovery. Other misplaced parts have no general segmentation preference. An empty `ju` after a complete body retains ordinary rejection, as in `a to je te ju`. Digits before `ju` form a base. If recovery retains the complete body before `ju`, its final digits also form a base with that marker. That base competes with `number-without-digits` at the same error count.
+A grammatical complete body can precede one empty `ja` or `je` in number recovery. Other misplaced parts have no general segmentation preference. An empty `ju` after a complete body retains ordinary rejection, as in `a to je te ju`. Digits before `ju` form a base. If recovery retains the complete body before `ju`, its final digits also form a base with that marker. That base competes with `number-without-digits` on the same faulty `ju`.
 
-The grammar gives `ci` no fault alternative. Unsupported quote operands, unclassified junk, missing word boundaries, and a free prefix before `po` retain ordinary rejection. A `JI` value restriction also remains outside this grammar, as the preceding numbers discussion explains.
+The `ci` position accepts malformed roots, compounds, borrowings, and ordinary particles with their forms diagnostics. A freeform or quote unit remains unsupported there. Unclassified junk and missing word boundaries retain ordinary rejection, with any carried forms error. A free prefix before `po` also retains ordinary rejection. A `JI` value restriction also remains outside this grammar, as the preceding numbers discussion explains.
 
 An unclaimed `cai` keeps the default rejection, including `a mo ra cai`. This map has no named error for an unmatched `cai`.
 
@@ -1129,7 +1114,7 @@ Missing-operand recovery stops at structural boundaries, including a bind opener
 
 A missing parenthetical end reports only at input end. Recovery before `cai` needs the owning quote's own terminator status. Neighbour tests cannot qualify that node by its tags or a pattern. A named elided-quote constituent changes valid trees, and a splice cannot serve as a neighbour target. So a missing `dai` before `cai` retains ordinary rejection.
 
-Enclosing bind and enumeration closers lie outside that boundary. Examples are `a mi va ke da mo fi ke vei` and `a pe ke da mo pei`. Their chosen readings report the swallowed closers and then the missing `dai` at input end.
+Enclosing bind and enumeration closers lie outside that boundary. Examples are `a mi va ke da mo fi ke vei` and `a pe ke da mo pei`. Their chosen readings report the unclosed parenthetical before its swallowed closer errors. Its diagnostic spans from `da` through input end.
 
 The PEG can queue a message from a reading that later fails. This grammar reports only errors in its chosen derivation, so its message need not match that queued message.
 
@@ -1138,3 +1123,5 @@ The PEG can queue a message from a reading that later fails. This grammar report
 | `multi-sentence-cai-elided` | The warning call in [`GrammaticalQuote`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L450) |
 
 The warning counts only sentences that are not erased. The PEG's erased-sentence counting departure remains as described above.
+
+Warnings inside a syntax-erased stretch disappear, including warnings raised in forms. The PEG retains some of these warnings, as in `a co zao[x]zao-pt ra a mo`. This grammar follows the erasure rule. Warnings on an unerased gap survive, including a foreign letter after an unclassified run before a quote bracket.

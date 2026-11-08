@@ -1714,7 +1714,7 @@ The PEG reads no word boundary after a digit, so `a mi 1an mo` and `a mi 1-an mo
 
 The PEG reads no digit as a delimiter. The book calls each digit a `TI` particle, and the quotes chapter lets any particle be a delimiter. So `a co 1[x]1 mo]1` closes at the first `]1` here, and the PEG rejects it.
 
-An invalid cluster reads no word here. The PEG reads a pair with mismatched voicing or an invalid triplet as part of a longer word, and it queues an error. The book makes no such cluster part of a root. So a delimiter reader can end before such a cluster where the PEG reads on. In `a co bja[x]bjapsta]bja mo`, the PEG reads `bjapsta` and the text is a quote of `x]bjapsta` there. Here the root `bja` closes the quote at the first `]bja`, and `psta` is junk.
+A strict delimiter reader accepts no invalid cluster. The PEG reads a pair with mismatched voicing or an invalid triplet as part of a longer word, and it queues an error. The book makes no such cluster part of a root. So a delimiter reader can end before such a cluster where the PEG reads on. In `a co bja[x]bjapsta]bja mo`, the PEG reads `bjapsta` and the text is a quote of `x]bjapsta` there. Here the root `bja` closes the quote at the first `]bja`, and `psta` is junk.
 
 In a borrowing, the PEG tests a sonorant triplet with the pair shapes, without their voicing. So it accepts `a unsba`, where the voicing of `s` and `b` does not match. The morphology chapter makes voicing agree in every pair, so this grammar rejects the text.
 
@@ -1732,34 +1732,45 @@ A word boundary holds one hyphen at most, so this grammar rejects them. The same
 
 ### Diagnostic codes and PEG sources
 
-The forms stage classifies erasable faults and leaves their diagnostics to syntax. The outer item choice gives stray prefixes precedence over junk runs. Within stray prefixes, `spaced-i-prefix` precedes `compound-empty`, then `incomplete-compound`. The remaining order is the written junk-reader list below.
+The forms stage reports local faults inside words. Each word keeps its ordinary class and carries every diagnostic from its faulty pieces. A complete compound owns the diagnostics of its components. A malformed native delimiter still fails its strict reader.
 
-Each malformed run keeps its original division and carries one ordinary fault mark. Whole-run shape queries select the leftmost fault through a valid morphological prefix. They evaluate no warning recipe. An unclassified run remains plain `Junk`.
+Pair faults use doubled consonants, voicing, then sibilants as their fixed order. Root and freeform triplet wrappers share their failed restrictions. This order applies only within overlapping fault choices, not across a whole run. Separate faults survive together, as in `hpbanh`.
 
-A prefix takes its `n` or `r` before it ends. This leaves an attached `NI` component as ordinary junk rather than a doubled-consonant fault. For an incomplete compound, each diagnostic spans its own stray prefix.
+An unclassified run carries `junk-run` on its whole span. Smaller local blame wins before any grammar step. At an equal measure, `fewest #·junk-run` prefers a word reading. Syntax accepts unclassified junk only inside erasure.
+
+A stray prefix carries its own error and emits only `Stray-Prefix`. Syntax admits that class only as a base verb. It is not a root, quoted word, delimiter, number part, or namespace component. Each prefix takes its `n` or `r` before it ends, as in the strict compound reader.
+
+The prefix errors stand on the prefix. The PEG's `E_SpacedIPrefix` names the separate `i`, and its incomplete-compound error names the open component slot. These are the two position departures from #278. A prefix says that the compound is unfinished or that its arity does not fit its components.
 
 | Code | Forms reader or bearer | PEG source |
 | --- | --- | --- |
-| `spaced-i-prefix` | `stray-prefix`, `Fault-spaced-i-prefix` | [`E_SpacedIPrefix`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L807) |
-| `compound-empty` | `stray-prefix`, `Fault-compound-empty` | [`CompoundN`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L785) |
-| `incomplete-compound` | `stray-prefix`, `Fault-incomplete-compound` | [`E_IncompleteCompound`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L810) |
-| `quadruplet` | `read-quadruplet`, `Fault-quadruplet` | [`E_Quadruplet`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1025) |
-| `triplet-middle-m` | `read-triplet-middle-m`, `Fault-triplet-middle-m` | [`E_TripletInvalid_Root`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1031) / [`E_TripletInvalid_Freeform`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1041) |
-| `triplet-yz-sonorant-x` | `read-triplet-yz-sonorant-x`, `Fault-triplet-yz-sonorant-x` | [`E_TripletYZ_SonorantX`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1028) |
-| `triplet-root-first-pair` | `read-triplet-root-first-pair`, `Fault-triplet-root-first-pair` | [`E_TripletInvalid_Root`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1031) |
-| `triplet-freeform-first-pair` | `read-triplet-freeform-first-pair`, `Fault-triplet-freeform-first-pair` | [`E_TripletInvalid_Freeform`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1041) |
-| `triplet-root-shape` | `read-triplet-root-shape`, `Fault-triplet-root-shape` | [`E_TripletInvalid_Root`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1031) |
-| `triplet-freeform-shape` | `read-triplet-freeform-shape`, `Fault-triplet-freeform-shape` | [`E_TripletInvalid_Freeform`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1041) |
-| `doubled-pair` | `read-doubled-pair`, `Fault-doubled-pair` | [`E_DoubledPair`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1073) |
-| `pair-voiceness` | `read-pair-voiceness`, `Fault-pair-voiceness` | [`E_PairVoiceness1`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1075) / [`E_PairVoiceness2`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1077) |
-| `sibilant-pair` | `read-sibilant-pair`, `Fault-sibilant-pair` | [`E_SibilantPair`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1079) |
-| `root-starts-with-medial-pair` | `read-root-starts-with-medial-pair`, `Fault-root-starts-with-medial-pair` | [`E_RootStartsWithMedialPair`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L919) |
-| `particle-sonorant-pair` | `read-particle-sonorant-pair`, `Fault-particle-sonorant-pair` | [`E_ParticleSonorantPair`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L910) |
-| `h-not-between-vowels` | `read-h-not-between-vowels`, `Fault-h-not-between-vowels` | [`E_NoVowelBeforeH`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L999) / [`E_NoVowelAfterH`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1000) |
-| `hyphen-same-vowels` | `read-hyphen-same-vowels`, `Fault-hyphen-same-vowels` | [`Vowels`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L974) |
-| `invalid-medial-pair` | `read-invalid-medial-pair`, `Fault-invalid-medial-pair` | [`E_InvalidMedialPair`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L939) |
-| `freeform-multi-consonents-ending` | `read-freeform-multi-consonents-ending`, `Fault-freeform-multi-consonents-ending` | [`E_FreeformMultiConsonentsEnding`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L881) |
+| `spaced-i-prefix` | The `spaced-i-prefix` alternative of `stray-prefix` | [`E_SpacedIPrefix`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L807) |
+| `compound-empty` | The `compound-empty` alternative of `stray-prefix` | [`CompoundN`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L785) |
+| `incomplete-compound` | The `incomplete-compound` alternative of `stray-prefix` | [`E_IncompleteCompound`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L810) |
+| `quadruplet` | The local `quadruplet` constituent inside its word | [`E_Quadruplet`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1025) |
+| `triplet-middle-m` | The local `triplet-middle-m` constituent inside its word | [`E_TripletInvalid_Root`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1031) / [`E_TripletInvalid_Freeform`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1041) |
+| `triplet-yz-sonorant-x` | The local `triplet-yz-sonorant-x` constituent inside its word | [`E_TripletYZ_SonorantX`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1028) |
+| `triplet-root-first-pair` | The local `triplet-root-first-pair` constituent inside its word | [`E_TripletInvalid_Root`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1031) |
+| `triplet-freeform-first-pair` | The local `triplet-freeform-first-pair` constituent inside its word | [`E_TripletInvalid_Freeform`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1041) |
+| `triplet-root-shape` | The local `triplet-root-shape` constituent inside its word | [`E_TripletInvalid_Root`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1031) |
+| `triplet-freeform-shape` | The local `triplet-freeform-shape` constituent inside its word | [`E_TripletInvalid_Freeform`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1041) |
+| `doubled-pair` | The local `doubled-pair` constituent inside its word | [`E_DoubledPair`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1073) |
+| `pair-voiceness` | The local `pair-voiceness` constituent inside its word | [`E_PairVoiceness1`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1075) / [`E_PairVoiceness2`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1077) |
+| `sibilant-pair` | The local `sibilant-pair` constituent inside its word | [`E_SibilantPair`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1079) |
+| `root-starts-with-medial-pair` | The local `root-starts-with-medial-pair` constituent inside its word | [`E_RootStartsWithMedialPair`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L919) |
+| `particle-sonorant-pair` | The local `particle-sonorant-pair` constituent inside its word | [`E_ParticleSonorantPair`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L910) |
+| `h-not-between-vowels` | The local `h-not-between-vowels` constituent inside its word | [`E_NoVowelBeforeH`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L999) / [`E_NoVowelAfterH`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L1000) |
+| `hyphen-same-vowels` | The local `hyphen-same-vowels` constituent inside its word | [`Vowels`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L974) |
+| `invalid-medial-pair` | The local `invalid-medial-pair` constituent inside its word | [`E_InvalidMedialPair`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L939) |
+| `freeform-multi-consonents-ending` | The local `freeform-multi-consonents-ending` constituent inside its word | [`E_FreeformMultiConsonentsEnding`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L881) |
+| `junk-run` | The whole unclassified run | The default failure of [`Word` and `NativeWord`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy) |
 | `unclosed-foreign-quote` | The whole unclosed foreign quote, from `co` through input end | [`E_UnclosedForeignQuote`](https://github.com/eberban/eberban/blob/f10f86a05f0d95d60e9cb7ffc7b7d7505c13ba99/web/src/grammar/eberban.peggy#L520) |
+
+A faulty root emits `Word ∪ Root`. A faulty borrowing or freeform keeps `Word ∪ Borrowing` or `Word ∪ Freeform`. A faulty particle keeps `Word ∪ Particle` and its family. Its `CE` mark for a missing spelling unit also remains where applicable. A complete compound keeps `Word ∪ Compound` despite a component fault.
+
+These classes make morphology diagnostics available in every matching syntax position. Roots and compounds can be namespace components, definable targets, ordinary verbs, and words after `ci`. Freeforms reach definable targets and namespace components, but `ci` does not accept them. Borrowings reach borrowing groups and `ci`. Particles reach their family positions, including numbers for `TI`, and `ci` outside quote units.
+
+The faulty piece alone supplies the diagnostic span. For example, `pban` reports on `pb`, and `mi-i` reports on its hyphen. This differs from the PEG's message position without changing whether the text reports a fault.
 
 An unclosed foreign quote reports in this stage because syntax cannot erase it. A bracket closes a simple quote. A delimited quote also needs the matching delimiter after its bracket.
 
