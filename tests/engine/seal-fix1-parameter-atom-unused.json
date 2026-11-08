@@ -1,0 +1,22 @@
+{
+  "description": "Engine §9.3: an unused parameter atom postpones the erased child-list test.",
+  "grammar": "%rule probe(@R) $e:e\n%conditions $e ≅ #·@R« A »\n%rule text A\n%rule e A\n%erased",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

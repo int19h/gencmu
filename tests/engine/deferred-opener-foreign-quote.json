@@ -1,0 +1,29 @@
+{
+  "description": "Engine §3.6: an omission reads its opener token, except a diagnostic on a whole unclosed construct.",
+  "pipeline": "eberban/refgram",
+  "input": "a co [foo",
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "reported",
+        "errors": [
+          {
+            "stage": "forms",
+            "code": "unclosed-foreign-quote",
+            "rule": "unclosed-foreign-quote",
+            "span": [
+              2,
+              8
+            ],
+            "source": [
+              2,
+              9
+            ]
+          }
+        ]
+      }
+    },
+    "error": "reported"
+  }
+}

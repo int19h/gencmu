@@ -1,0 +1,35 @@
+{
+  "description": "Engine §6 and §6.1: additive blame, sourceless count, and reverse error count (sourceless-clean).",
+  "grammar": "%rule text bad | good\n%rule bad A %error \"bad\"\n%rule good A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "source": [
+        4,
+        4
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "good"
+          }
+        ]
+      }
+    }
+  },
+  "input": "xxxx"
+}

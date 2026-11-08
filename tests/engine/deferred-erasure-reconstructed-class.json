@@ -1,0 +1,23 @@
+{
+  "description": "Engine §6 and §7.10: erased classes and their canonical representatives (reconstructed-class).",
+  "grammar": "%ambiguity-resolution greedy\n%elision-only\n%rule text gone\n%rule gone \"a\" T | \"a\" [+T]\n%erased",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

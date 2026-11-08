@@ -603,7 +603,10 @@ GUARDED: dict[str, Callable[[int], dict[str, Any]]] = {
 }
 "The clauses of a choice of n captures, $c0:A | … | $c:n−1(A), whose\nparts each belong to one capture, so that each production keeps one."
 
-GUARDED_MOST = 256
+# The query-target walk visits shared clauses once before lowering.
+# Guarded tags with a constant cost 586636 steps at 250 alternatives,
+# and 2341636 at 1000 alternatives, including that linear walk.
+GUARDED_MOST = 264
 """How many units of the counted lines each production and each node of
 the lowered clauses may cost."""
 

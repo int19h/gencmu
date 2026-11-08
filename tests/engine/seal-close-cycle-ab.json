@@ -1,0 +1,73 @@
+{
+  "description": "Engine §6: erased collapse keeps both valid readings and excludes the cyclic interior with ab alternative order.",
+  "grammar": "%ambiguity-resolution greedy\n%rule text a\n%rule a e | A\n%conditions $.without-elision.matches(w)\n%rule e a | b\n%erased\n%rule b A\n%rule w A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "verdict": "tie"
+        }
+      ],
+      "error": {
+        "kind": "ambiguous",
+        "reason": "tie",
+        "readings": [
+          {
+            "kind": "rule",
+            "rule": "text",
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "a",
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "A"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "text",
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "a",
+                "children": [
+                  {
+                    "kind": "rule",
+                    "rule": "e",
+                    "children": [
+                      {
+                        "kind": "rule",
+                        "rule": "b",
+                        "children": [
+                          {
+                            "kind": "token",
+                            "terminal": "A"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "error": "ambiguous"
+  }
+}

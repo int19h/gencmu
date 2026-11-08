@@ -1,0 +1,14 @@
+{
+  "description": "A guard error retains its source position.",
+  "grammar": "%rule text x c\n%rule c \"c\"\n%rule x \"a\" :: ($.followed-by(b) ⟹ T)\n%conditions\n  $.followed-by(c)\n%rule b \"b\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "message": "boundary target b is unreachable",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 31
+    }
+  }
+}

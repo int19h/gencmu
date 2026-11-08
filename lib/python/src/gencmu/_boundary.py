@@ -33,6 +33,13 @@ def problem(rule):
             from ._clauses import captures_in
             if captures_in(condition) - {name}:
                 return 'a boundary condition with a captured receiver reads only that capture', atom
+    from ._guarded_tags import guards, problem as tag_problem
+    for term in [rule.get("tags"), *(a.get("tags") for a in rule["alternatives"])]:
+        fault = tag_problem(term)
+        if fault:
+            return fault
+        for guard in guards(term):
+            allowed.update(id(atom) for atom in atoms(guard["if"]))
     for atom in atoms(rule.get('emit')):
         allowed.add(id(atom))
     for atom in atoms(rule):
@@ -250,14 +257,31 @@ class Located(dict):
         self.at = at
 
 
+def condition_items(rule):
+    from ._guarded_tags import guards
+    definitions = {}
+    for alternative in rule.alternatives:
+        definitions.setdefault(id(alternative.conditions), []).append(alternative)
+    for alternatives in definitions.values():
+        first = alternatives[0]
+        items = list(first.conditions)
+        seen = {id(atom) for atom in atoms(items)}
+        for alternative in alternatives:
+            for term in (first.rule_tags, alternative.tags):
+                for guard in guards(term):
+                    for atom in atoms(guard['if']):
+                        if id(atom) not in seen:
+                            seen.add(id(atom))
+                            items.append(atom)
+        yield first, items
+
+
 def validate_targets(rules, stage):
     from ._errors import GencmuError
-    found, seen = [], set()
+    found = []
     for rule in rules.values():
-        for alternative in rule.alternatives:
-            if id(alternative.conditions) not in seen:
-                seen.add(id(alternative.conditions))
-                found.extend((alternative, atom) for atom in atoms([alternative.conditions, alternative.emit]))
+        for alternative, items in condition_items(rule):
+            found.extend((alternative, atom) for atom in atoms([items, alternative.emit]))
     if not found:
         return
     queries, visited = [], set()

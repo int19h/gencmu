@@ -9,6 +9,26 @@
     "until": "words"
   },
   "expect": {
-    "error": "rejected"
+    "error": "reported",
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "reported",
+        "stage": "words",
+        "errors": [
+          {
+            "code": "unclosed-foreign-quote",
+            "span": [
+              0,
+              13
+            ],
+            "source": [
+              0,
+              13
+            ]
+          }
+        ]
+      }
+    }
   }
 }

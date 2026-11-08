@@ -8,7 +8,7 @@ from typing import Any
 from ._model import Action, Node, ParseError, ParseResult, ParseWarning, Restoration, Stage, Token
 from ._tags import sorted_tags
 
-FORMAT = 15
+FORMAT = 17
 _ASCII_LOWER = str.maketrans("ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")
 
 
@@ -31,6 +31,10 @@ def token_json(token: Token) -> dict[str, Any]:
             value["before"] = []
         if current.after:
             value["after"] = []
+        if current.errors:
+            value["errors"] = [warning_json(diagnostic, "errors") for diagnostic in current.errors]
+        if current.warnings:
+            value["warnings"] = [warning_json(diagnostic) for diagnostic in current.warnings]
         return value
 
     top = shallow(token)
@@ -97,6 +101,10 @@ def stage_json(stage: Stage) -> dict[str, Any]:
         value["witness"] = [action_json(stage.witness[0]), action_json(stage.witness[1])]
     if stage.output is not None:
         value["output"] = [token_json(token) for token in stage.output]
+    if stage.errors:
+        value["errors"] = [warning_json(diagnostic, "errors") for diagnostic in stage.errors]
+    if stage.warnings:
+        value["warnings"] = [warning_json(diagnostic) for diagnostic in stage.warnings]
     return value
 
 
@@ -114,8 +122,6 @@ def error_json(error: ParseError) -> dict[str, Any]:
         value["token"] = error.token
     if error.source is not None:
         value["source"] = list(error.source)
-    if error.document is not None:
-        value["document"] = error.document
     if error.line is not None:
         value["line"] = error.line
     if error.column is not None:
@@ -129,6 +135,10 @@ def error_json(error: ParseError) -> dict[str, Any]:
     # Only an error of elision-only has a witness (docs/output.md).
     if error.kind == "ambiguous" and error.witness is not None and error.reason == "elision-only":
         value["witness"] = [action_json(error.witness[0]), action_json(error.witness[1])]
+    if (error.kind != "ambiguous" or error.reason == "tie") and error.errors:
+        value["errors"] = [warning_json(diagnostic, "errors") for diagnostic in error.errors]
+    if error.kind in ("rejected", "grammar", "feature-conflict") and error.warnings:
+        value["warnings"] = [warning_json(diagnostic) for diagnostic in error.warnings]
     value["message"] = error.message
     # The members of elision-witness-lost follow its message
     # (docs/output.md).
@@ -148,14 +158,24 @@ def restoration_json(record: Restoration) -> dict[str, Any]:
     return value
 
 
-def warning_json(warning: ParseWarning) -> dict[str, Any]:
-    return {
+def warning_json(warning: ParseWarning, kind: str = "warnings") -> dict[str, Any]:
+    value = {
         "stage": warning.stage,
-        "feature": warning.feature,
+        "code": warning.code,
         "rule": warning.rule,
         "span": list(warning.span),
         "source": list(warning.source),
+        "message": warning.message,
     }
+
+    if kind == "errors" and warning.rejection is not None:
+        evidence = warning.rejection
+        value["rejection"] = {
+            "token": evidence["token"], "source": list(evidence["source"]),
+            "line": evidence["line"], "column": evidence["column"],
+            "expected": [{"terminal": entry["terminal"], "rules": list(entry["rules"])} for entry in evidence["expected"]],
+        }
+    return value
 
 
 def result_json(result: ParseResult) -> dict[str, Any]:

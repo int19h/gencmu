@@ -1,0 +1,29 @@
+{
+  "description": "A prefix query requires a zero-error witness.",
+  "grammar": "%rule text A B %conditions ¬$.begins(bad)\n%rule bad A %error \"bad\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

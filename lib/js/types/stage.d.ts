@@ -1,3 +1,4 @@
+import { DiagnosticFlow } from "./diagnostic-flow.js";
 import { ParseContext } from "./earley.js";
 import { Token } from "./tokens.js";
 import { StringWalk } from "./strings.js";
@@ -7,6 +8,8 @@ import type { UnicodeTable } from "./unicode.js";
 export type StageOptions = {
     features: Set<string>;
     elisionOnly: boolean | null | undefined;
+    stageOrder?: number;
+    pendingErrors?: boolean;
 };
 export declare class Stage {
     name: string;
@@ -62,11 +65,18 @@ export type ElisionCheck = ({
 }) & {
     competitorWarnings?: import("./types.js").ParseWarning[];
 };
+/**
+ * Evaluate own messages before erasure and preserve a prefix on failure (§12.1).
+ * @param {DiagnosticFlow} flow @param {ParseContext} context
+ * @param {Set<string>} features @param {string} stage @param {number} [stageOrder]
+ */
+export declare function evaluateDiagnostics(flow: DiagnosticFlow, context: ParseContext, features: Set<string>, stage: string, stageOrder?: number): void;
 export type Emitter = {
     context: ParseContext;
     strings: StringWalk;
     forwards: boolean;
     inherited: Set<import("./tokens.js").AttachedToken>;
+    trace: DiagnosticFlow;
 };
 /**
  * A token's explicit tags with the tags of the stage's implications, added
@@ -84,15 +94,17 @@ export declare function implied(tags: TagSet, implications: {
 }[]): TagSet;
 export type EmitTask = {
     walk: Derivation;
+    flow: import("./diagnostic-flow.js").EmissionScope;
 } | {
     run: () => void;
 };
 /**
- * @typedef {{walk: Derivation} | {run: () => void}} EmitTask
+ * @typedef {{walk: Derivation,flow:import("./diagnostic-flow.js").EmissionScope} | {run: () => void}} EmitTask
  */
 /**
  * @param {Derivation} root
  * @param {ParseContext} context
+ * @param {DiagnosticFlow} [trace]
  * @returns {Token[]}
  */
-export declare function emit(root: Derivation, context: ParseContext): Token[];
+export declare function emit(root: Derivation, context: ParseContext, trace?: DiagnosticFlow): Token[];

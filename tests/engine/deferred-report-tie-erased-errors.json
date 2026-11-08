@@ -1,0 +1,26 @@
+{
+  "description": "Engine §11.5, §12.1, and §13: deferred diagnostic flow and reporting (tie-erased-errors).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text left | right\n%rule left gone\n%rule right gone\n%rule gone bad\n%erased\n%rule bad A\n%error \"bad\"\n```\n"
+  },
+  "pipelineDocument": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "ambiguous",
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "ambiguous",
+        "reason": "tie"
+      }
+    },
+    "warnings": []
+  }
+}

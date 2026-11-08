@@ -1,0 +1,23 @@
+{
+  "description": "Each template instance inherits its template's suppression clause.",
+  "grammar": "%rule wrap(@X) @X %suppress-warnings warn\n%rule text wrap(warn)\n%rule warn A %warning \"warning warn\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "warn"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": []
+  }
+}

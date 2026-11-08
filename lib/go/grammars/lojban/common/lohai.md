@@ -32,7 +32,7 @@ In the experimental pipeline, an unfinished marker carries `Fault` unless a [`co
   skipped constructor-word
 
 %extend-rule quote
-  (* LOhAI_pre <- pre_clause (LOhAI spaces? (!LOhAI !LEhAI any_word)* )? (LOhAI spaces? (!LOhAI !LEhAI any_word)* )? LEhAI spaces? *)
+  -- LOhAI_pre <- pre_clause (LOhAI spaces? (!LOhAI !LEhAI any_word)* )? (LOhAI spaces? (!LOhAI !LEhAI any_word)* )? LEhAI spaces?
   lohai-quote
 
 %rule lohai-quote :- $.source-text

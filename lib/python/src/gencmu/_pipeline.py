@@ -21,6 +21,8 @@ from ._model import Feature, Node, ParseError, ParseResult, ParseWarning, Stage,
 from ._splice import _EmptyStageError, SplicedPipeline, splice_pipeline
 from ._recent import Recent
 from ._stage import StageOutcome, StageRunner
+from ._diagnostic_flow import DiagnosticLists, join_diagnostics, input_diagnostics
+from ._source_lines import SourceLines
 from ._tags import is_tag
 from ._unicode import UnicodeTable
 from ._validate import CLASSIFIER_NAME, FORMAT, MAX_DEPTH, TOO_DEEP, dom_problem, known_dom_members
@@ -690,22 +692,35 @@ def _pipeline_features(grammars: list[Grammar], declared: frozenset[str]) -> tup
     Unconditional declarations also supply defaults. A name that
     only declarations use is a gate. A name used as both gate and warning is an error."""
     kinds: dict[str, str] = {}
+    errors = set()
     for grammar in grammars:
-        guards = [(guard, alternative.document, alternative.at) for rule in grammar.rules.values() for alternative in rule.alternatives for guard in alternative.guards]
+        roles = []
+        for rule in grammar.rules.values():
+            for alternative in rule.alternatives:
+                roles.extend((guard["feature"], "gate", alternative.document, alternative.at) for guard in alternative.guards)
+                for kind in ("error", "warning"):
+                    if getattr(alternative, kind) is not None:
+                        roles.append((rule.name, kind, alternative.document, alternative.at))
         for document, classifier in grammar.classifier_items:
             for entry in classifier["entries"]:
-                guards.extend((guard, document, entry["at"]) for guard in entry["guards"])
-        for guard, document, at in guards:
-            name = guard["feature"]
-            kind = "warning" if guard.get("kind") == "warning" else "gate"
-            if kinds.setdefault(name, kind) != kind:
-                raise GencmuError(f"the feature {name} is used both as a gate and as a warning", document=document, line=at[0], column=at[1], stage=grammar.stage)
+                roles.extend((guard["feature"], "gate", document, entry["at"]) for guard in entry["guards"])
+        for name, kind, document, at in roles:
+            known = kinds.setdefault(name, kind)
+            if known != kind:
+                category = "name" if "error" in (known, kind) else "feature"
+                raise GencmuError(f"the {category} {name} is used both as a {known} and as a {kind}", document=document, line=at[0], column=at[1], stage=grammar.stage)
+            if kind == "error":
+                errors.add(name)
+    if errors & declared:
+        raise GencmuError("an error code cannot be enabled or disabled")
     local = set()
     defaults = set(declared)
     tested = {}
     for grammar in grammars:
         for document, directive in grammar.feature_items:
             for name in directive["args"]:
+                if name in errors:
+                    raise GencmuError("an error code cannot be enabled or disabled", document=document, stage=grammar.stage)
                 if name in tested:
                     raise GencmuError(f"stage {tested[name]} tests local feature {name}", document=document, line=directive["at"][0], column=directive["at"][1], stage=grammar.stage)
                 local.add(name)
@@ -715,9 +730,11 @@ def _pipeline_features(grammars: list[Grammar], declared: frozenset[str]) -> tup
             for alt in rule.alternatives:
                 for guard in alt.guards:
                     tested.setdefault(guard["feature"], grammar.stage)
+                if alt.warning is not None:
+                    tested.setdefault(rule.name, grammar.stage)
         for name in grammar.classifier_gates:
             tested.setdefault(name, grammar.stage)
-    return tuple(Feature(name, kinds.get(name, "gate"), name in defaults) for name in sorted(kinds.keys() | declared | local))
+    return tuple(Feature(name, kinds.get(name, "gate"), name in defaults) for name in sorted((kinds.keys() | declared | local) - errors))
 
 
 class Pipeline:
@@ -742,6 +759,19 @@ class Pipeline:
         reports = []
         for grammar in self._grammars:
             report = ranking_audit(grammar)
+            from ._diagnostic_audit import diagnostic_notes
+            notes = diagnostic_notes(grammar)
+            from ._erasure_audit import erasure_audit
+            erasures = erasure_audit(grammar)
+            report["erasures"] = erasures
+            definitions = {}
+            for entry in erasures:
+                alt = grammar.rules[entry["rule"]].alternatives[entry["alternative"]]
+                key = entry["rule"], entry["document"], alt.definition
+                definitions[key] = definitions.get(key, True) and entry["kind"] == "inert"
+            report["idleErasures"] = [dict(rule=name, document=document) for (name, document, definition), inert in definitions.items() if inert]
+            if notes:
+                report["diagnosticNotes"] = notes
             reports.append(dict(name=grammar.stage, **report))
         return reports
 
@@ -853,29 +883,45 @@ class Pipeline:
             return (isinstance(value, (list, tuple)) and len(value) == 2 and all(type(n) is int for n in value)
                     and 0 <= value[0] <= value[1] and (limit is None or value[1] <= limit))
 
+        if not isinstance(tokens, Sequence) or isinstance(tokens, (str, bytes)):
+            raise GencmuError("tokens requires a sequence", kind="usage")
+        supplied_tags = []
         for index, token in enumerate(tokens):
-            if token.before or token.after:
+            if not isinstance(token, Token):
+                raise GencmuError(f"token {index}: invalid input token", kind="usage")
+            for field in ("errors", "warnings"):
+                values = getattr(token, field)
+                if not isinstance(values, list) or values:
+                    raise GencmuError(f"token {index} has diagnostics, which a caller cannot supply", kind="usage")
+            if any(not isinstance(values, list) or values for values in (token.before, token.after)):
                 raise GencmuError(f"token {index} has attachments, which a caller cannot supply", kind="usage")
             for field in ("text", "value", "image"):
                 value = getattr(token, field)
                 if not isinstance(value, str) or scalar_problem(value) is not None:
                     raise GencmuError(f"token {index}: {field} requires a scalar string", kind="usage")
-            if isinstance(token.tags, str) or not isinstance(token.tags, (list, tuple, set, frozenset)) or any(not is_tag(tag, self._unicode) for tag in token.tags):
+            tags = token.tags
+            if isinstance(tags, str) or not isinstance(tags, (list, tuple, set, frozenset)):
                 raise GencmuError(f"token {index}: invalid stored tags", kind="usage")
+            tags = list(tags)
+            if any(not is_tag(tag, self._unicode) for tag in tags):
+                raise GencmuError(f"token {index}: invalid stored tags", kind="usage")
+            supplied_tags.append(tags)
             if not valid_range(token.source, len(text)) or not valid_range(token.span):
                 raise GencmuError(f"token {index}: invalid source or span", kind="usage")
         enabled, off, last = self._parse_selection(features, without_features, until)
         tokens = [
             replace(
                 token,
-                tags=frozenset(self._unicode.canonical_tag(tag) if tag.startswith("_") else tag for tag in token.tags),
+                tags=frozenset(self._unicode.canonical_tag(tag) if tag.startswith("_") else tag for tag in tags),
                 span=(token.span[0], token.span[1]),
                 source=(token.source[0], token.source[1]),
                 before=[],
                 after=[],
                 inserted_by=None,
+                errors=[],
+                warnings=[],
             )
-            for token in tokens
+            for token, tags in zip(tokens, supplied_tags)
         ]
         return self._run(text, tokens, enabled, off, last, elision_only)
 
@@ -890,10 +936,13 @@ class Pipeline:
     ) -> ParseResult:
         """Run each selected stage once."""
         stages = []
-        warnings: list[ParseWarning] = []
+        pending = DiagnosticLists()
+        collected = DiagnosticLists()
         current = tokens
+        lines = SourceLines(text)
         for number in range(last + 1):
             grammar = self._grammars[number]
+            failure = None
             try:
                 for _, directive in grammar.feature_items:
                     conditional = "conditions" in directive
@@ -902,37 +951,52 @@ class Pipeline:
                     for feature in directive["args"]:
                         if feature in off:
                             if conditional:
-                                failure = ParseError("feature-conflict", f"the {grammar.stage} stage requires disabled feature {feature}", stage=grammar.stage, feature=feature)
-                                stages.append(Stage(grammar.stage, None, current))
-                                return ParseResult(False, stages, None, failure, warnings=warnings, features=sorted(features))
+                                failure = ParseError("feature-conflict", f"the {grammar.stage} stage requires disabled feature {feature}",
+                                                     stage=grammar.stage, feature=feature)
+                                break
                         else:
                             features = features | {feature}
-                lowered = self._lowered_grammar(number, features)
+                    if failure is not None:
+                        break
+                if failure is None:
+                    lowered = self._lowered_grammar(number, features)
             except GencmuError as error:
-                # An error of the grammar lowering finds for these features
-                # is a result, with its stage and no position (engine §13).
                 failure = ParseError("grammar", error.message, stage=grammar.stage, _grammar_location=error.where)
-                stages.append(Stage(grammar.stage, None, current))
-                return ParseResult(False, stages, None, failure, warnings=warnings, features=sorted(features))
-
-            runner = StageRunner(grammar.stage, lowered, current, text, self._unicode, features=features)
-            check = grammar.elision_only if elision_only is None else elision_only
-            outcome = runner.run(check)
-            stage = Stage(
-                grammar.stage,
-                outcome.verdict,
-                current,
-                outcome.output,
-                outcome.witness,
-                outcome.tree,
-            )
+            if failure is not None:
+                outcome = StageOutcome(error=failure)
+            else:
+                runner = StageRunner(grammar.stage, lowered, current, text, self._unicode,
+                                     features=features, stage_order=number, pending_errors=bool(pending.errors), lines=lines)
+                check = grammar.elision_only if elision_only is None else elision_only
+                outcome = runner.run(check)
+            stage = Stage(grammar.stage, outcome.verdict, current, outcome.output, outcome.witness, outcome.tree,
+                          errors=outcome.errors, warnings=outcome.warnings)
             stages.append(stage)
-            warnings.extend(outcome.warnings)
+            data = outcome._diagnostics
             if outcome.error is not None:
-                return ParseResult(False, stages, None, outcome.error, warnings=warnings, features=sorted(features))
+                error = outcome.error
+                if error.kind == "ambiguous":
+                    reporting = data.collected
+                elif error.kind == "rejected":
+                    cutoff = min(len(current), (error.token if error.token is not None else len(current)) + 1)
+                    reporting = input_diagnostics(current, cutoff)
+                else:
+                    reporting = join_diagnostics([data.evaluated, input_diagnostics(current)])
+                collected = join_diagnostics([pending, reporting])
+                if (error.kind != "ambiguous" or error.reason == "tie") and collected.errors:
+                    error.errors = collected.errors
+                if error.kind in ("rejected", "grammar", "feature-conflict") and collected.warnings:
+                    error.warnings = collected.warnings
+                return ParseResult(False, stages, None, error, warnings=collected.warnings, features=sorted(features))
+            if number == last:
+                collected = join_diagnostics([pending, data.collected])
+                error = (ParseError("reported", "the chosen derivation reports errors", stage=grammar.stage, errors=collected.errors)
+                         if collected.errors else None)
+                return ParseResult(error is None, stages, outcome.tree, error, warnings=collected.warnings, features=sorted(features))
+            pending = join_diagnostics([pending, DiagnosticLists(outcome.errors, outcome.warnings)])
             assert outcome.output is not None
             current = outcome.output
-        return ParseResult(True, stages, stages[-1].tree if stages else None, None, warnings=warnings, features=sorted(features))
+        return ParseResult(True, stages, None, None, warnings=collected.warnings, features=sorted(features))
 
 
 def read_document(text: str, path: str = "document.md", *, sources: Mapping[str, str] | None = None) -> Dom:

@@ -1,0 +1,9 @@
+{
+  "description": "A directly spliced nullable rule cannot be an item of braces.",
+  "grammar": "%rule text {*z} \"a\"\n%rule z ε",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "message": "an item of braces in text can match no tokens"
+  }
+}

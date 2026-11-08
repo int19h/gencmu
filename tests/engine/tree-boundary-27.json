@@ -1,8 +1,8 @@
 {
-  "description": "No atom in a tag term (engine §4.2 and §6, case 27).",
+  "description": "A positive neighbour guard is valid in a tag term. This input still lacks the required terminal.",
   "grammar": "%rule text A :: ($.followed-by(B) ⟹ X) | B",
   "tokens": [],
   "expect": {
-    "error": "grammar"
+    "error": "rejected"
   }
 }

@@ -1,0 +1,26 @@
+{
+  "description": "Engine §12.1: all error empty slice.",
+  "grammar": "%rule text :: ∅ | bad ≻ other\n%rule bad A\n%error \"bad\"\n%rule other A B\n%error \"other\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "reported",
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "reported",
+        "errors": [
+          {
+            "code": "bad"
+          }
+        ]
+      }
+    }
+  }
+}

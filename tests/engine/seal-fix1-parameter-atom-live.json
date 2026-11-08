@@ -1,0 +1,22 @@
+{
+  "description": "Engine §9.3: substitution of an unerased atom permits its child list.",
+  "grammar": "%rule probe(@R) $e:e\n%conditions $e ≅ #·@R« A »\n%rule text probe(e)\n%rule e A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

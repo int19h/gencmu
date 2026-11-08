@@ -1,0 +1,34 @@
+{
+  "description": "Engine §4.1 and §6: seal identity compares ordered token values rather than their concatenated string.",
+  "grammar": "%rule text $x:e $y:e\n%conditions $x ≇ $y\n%rule e A | A B\n%erased",
+  "tokens": [
+    {
+      "text": "ab",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

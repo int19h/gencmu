@@ -1,0 +1,14 @@
+{
+  "description": "A guard error retains its source position.",
+  "grammar": "%rule text x b\n%rule x \"a\" :: ($.followed-by(b) ∧ $.followed-by(b) ⟹ T)\n%rule b \"b\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "message": "a tag guard requires one optionally negated neighbour atom on $",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 1
+    }
+  }
+}

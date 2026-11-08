@@ -1,0 +1,23 @@
+{
+  "description": "Engine §4.1 and §6 and §7: an aligned holder retains two different close observations across erased interiors.",
+  "grammar": "%ambiguity-resolution fewest #·zz\n%elision-only\n%rule text $r:r2 C\n%conditions $r ≅ #·r2, $r.without-elision.matches(holder)\n%rule holder r2\n%rule r2 [+T] | ε\n%erased\n%rule zz B B B",
+  "tokens": [
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "verdict": "tie"
+        }
+      ]
+    },
+    "error": "ambiguous"
+  }
+}

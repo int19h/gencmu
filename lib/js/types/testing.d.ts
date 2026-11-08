@@ -46,6 +46,7 @@ export type ElisionCheckWatch = {
     ranked: (outcome: {
         ranking: import("./rank.js").Ranking | null;
         counted: boolean;
+        representative?: import("./types.js").Rope | null;
     }) => void;
 };
 export type WorkCounts = {
@@ -139,7 +140,7 @@ export type WorkCounts = {
     /**
      * the steps of the readers and walks of a
      * document, of its notation's tree and of its DOM, in the library and in
-     * the tools
+     * the tools, plus candidate lookups and enumeration in competitor evidence
      */
     walkSteps: number;
     /**
@@ -206,7 +207,7 @@ export type WorkKind = "boundaryRecords" | "familySummaries" | "familySteps" | "
 /**
  * The independent witness test's ranking observer.
  * @typedef {object} ElisionCheckWatch
- * @property {(outcome: {ranking: import("./rank.js").Ranking | null, counted: boolean}) => void} ranked
+ * @property {(outcome: {ranking: import("./rank.js").Ranking | null, counted: boolean,representative?:import("./types.js").Rope|null}) => void} ranked
  */
 /**
  * The counts of `hooks.work`.
@@ -243,7 +244,7 @@ export type WorkKind = "boundaryRecords" | "familySummaries" | "familySteps" | "
  *   the token's, that the closure of a token's tags reads
  * @property {number} walkSteps the steps of the readers and walks of a
  *   document, of its notation's tree and of its DOM, in the library and in
- *   the tools
+ *   the tools, plus candidate lookups and enumeration in competitor evidence
  * @property {number} lowering the symbols and captures that lowering and
  *   the checks of a definition add to a sequence or copy, the helpers
  *   that lowering moves on its list of those waiting, and the positions,
@@ -288,8 +289,9 @@ export declare class WorkBudget extends Error {
  * @param {number} [steps]
  */
 export declare function countWork(work: WorkCounts, kind: WorkKind, steps?: number): void;
-/** @type {{boundaryAdmission:((splits:any[],chart:any)=>void)|null, familyAlignment: ((summary:boolean, direct:boolean) => void)|null, elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null, work: WorkCounts | null, slotAdmission: ((statistics: {chartFacts:number,groups:number,candidateEdges:number,retainedEdges:number,boundarySplits?:any[]}) => void) | null, memoLimit: number | null, memoInsert: ((key: string) => void) | null, memoHit: ((key: string, alignedActive: number) => void) | null, alignedQuery: ((change: number) => void) | null}} */
+/** @type {{diagnosticMessage:((node:import("./types.js").DerivationRule,recipe:import("./types.js").Recipe)=>void)|null,boundaryAdmission:((splits:any[],chart:any)=>void)|null, familyAlignment: ((summary:boolean, direct:boolean) => void)|null, elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null, work: WorkCounts | null, slotAdmission: ((statistics: {chartFacts:number,groups:number,candidateEdges:number,retainedEdges:number,boundarySplits?:any[]}) => void) | null, memoLimit: number | null, memoInsert: ((key: string) => void) | null, memoHit: ((key: string, alignedActive: number) => void) | null, alignedQuery: ((change: number) => void) | null}} */
 export declare const hooks: {
+    diagnosticMessage: ((node: import("./types.js").DerivationRule, recipe: import("./types.js").Recipe) => void) | null;
     boundaryAdmission: ((splits: any[], chart: any) => void) | null;
     familyAlignment: ((summary: boolean, direct: boolean) => void) | null;
     elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null;

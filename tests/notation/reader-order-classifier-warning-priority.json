@@ -1,10 +1,10 @@
 {
-  "description": "A classifier rejects a warning guard before an invalid class name. Its key tests plain dollar text (engine §9.3).",
+  "description": "The lexical stage rejects the removed warning guard at its exclamation mark.",
   "document": "```jbogenbau\n%classifier c f! \"$(_D800)\" ∈ bad\n%rule text _\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 15
+      "column": 16
     }
   }
 }

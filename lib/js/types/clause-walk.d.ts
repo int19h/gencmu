@@ -17,3 +17,6 @@ export declare function productionClauses(production: import("./types.js").Produ
  * @returns {import("./types.js").Expr[]}
  */
 export declare function expressionChildren(expr: import("./types.js").Expr): import("./types.js").Expr[];
+export declare const BOUNDARY_METHODS: Set<string>;
+/** @param {any} node @returns {any[]} */
+export declare function boundaryAtoms(node: any): any[];

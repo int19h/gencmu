@@ -1,0 +1,16 @@
+{
+  "description": "A self-splice adds no admitted same-span cycle through a ranked choice.",
+  "grammar": "%ambiguity-resolution greedy\n%rule text *r3\n%rule r3 *r3 | (\"b\" ≻ \"b\") \"b\" \"a\"",
+  "input": "bba",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

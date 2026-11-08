@@ -1,0 +1,28 @@
+{
+  "description": "An omitted terminator leaves its capture absent and retains the elided node.",
+  "grammar": "%rule text A [$j:+T] %conditions ¬$j",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": [
+          {
+            "terminal": "A"
+          },
+          {
+            "kind": "elided",
+            "terminal": "T"
+          }
+        ]
+      }
+    }
+  }
+}

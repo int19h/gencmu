@@ -1,0 +1,29 @@
+{
+  "description": "Engine §6 and §7.10: erased classes and their canonical representatives (splice).",
+  "grammar": "%rule text $x:*gone $y:copy\n%conditions $x ≇ $y\n%rule gone [A] [A] :: ∅\n%erased\n%rule copy A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "description": "An extension inherits no suppression clause from the earlier definition.",
+  "grammar": "%rule text wrap\n%rule wrap *warn %suppress-warnings warn\n%extend-rule wrap B *warn\n%rule warn A %warning \"warning warn\"",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "warn"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "warn",
+        "rule": "warn",
+        "span": [
+          1,
+          2
+        ],
+        "source": [
+          2,
+          3
+        ],
+        "message": "warning warn"
+      }
+    ]
+  }
+}

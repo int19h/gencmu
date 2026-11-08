@@ -1,0 +1,27 @@
+{
+  "description": "Engine §4.1: the first-child path of an erased outer chain level stops at its inner level's seal.",
+  "grammar": "%ambiguity-resolution fewest #·zz\n%rule text $x:s\n%rule s {... a / B}\n%conditions $ ≅ #(·a ⋰)\n%erased\n%rule a A\n%rule zz Z Z Z",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected"
+  }
+}

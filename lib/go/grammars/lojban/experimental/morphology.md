@@ -66,45 +66,45 @@ The guard excludes neither cluster onsets nor CVV rafsi nor rafsi later in a bor
 The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The span test reads only that word, so it cannot mark CgV in a later word. [The experimental word stream](stream.md) reads this tag and supplies the warning. Disabling the warning changes no reading.
 
 ```jbogenbau
-%redefine-rule cmevla-shape  (* A name ends in a consonant, unlike a predicate word. It carries the template marks and its warning. The warning test inspects only this complete word. *)
+%redefine-rule cmevla-shape  -- A name ends in a consonant, unlike a predicate word. It carries the template marks and its warning. The warning test inspects only this complete word.
   $n:word-shape(cmevla) :: $n.tags ∪ ($n.matches(cgv-form) ⟹ Cgv-Warning)
 
-%redefine-rule brivla-shape  (* A predicate word ends in a vowel, unlike a name. It carries the template marks and its warning. The warning test inspects only this complete word. *)
+%redefine-rule brivla-shape  -- A predicate word ends in a vowel, unlike a name. It carries the template marks and its warning. The warning test inspects only this complete word.
   $b:word-shape(brivla-word) :: $b.tags ∪ ($b.matches(cgv-form) ⟹ Cgv-Warning)
 
-%rule cgv-form  (* This boolean span test requires a consonant, glide and nucleus. Several possible positions give the same truth value. *)
+%rule cgv-form  -- This boolean span test requires a consonant, glide and nucleus. Several possible positions give the same truth value.
   [{nonpause-phoneme}] consonant glide [{nonpause-phoneme}]
 
-%rule brivla-onset  (* An ordinary initial forbids a following glide. A CgV onset requires a consonant before its glide, unlike an ordinary glide onset. *)
+%rule brivla-onset  -- An ordinary initial forbids a following glide. A CgV onset requires a consonant before its glide, unlike an ordinary glide onset.
   onset | cgv-onset
 
-%redefine-rule syllable-onset  (* This hook permits a consonant before a glide in syllables but leaves rafsi onsets unchanged. *)
+%redefine-rule syllable-onset  -- This hook permits a consonant before a glide in syllables but leaves rafsi onsets unchanged.
   brivla-onset
 
-%rule cgv-onset  (* The nonempty consonant initial precedes one glide. The glide requires a following nucleus. *)
+%rule cgv-onset  -- The nonempty consonant initial precedes one glide. The glide requires a following nucleus.
   cgv-initial glide
 
-%rule cgv-initial  (* A CgV onset begins with the shared initial cluster. The cluster is not empty, and no consonant follows it. *)
+%rule cgv-initial  -- A CgV onset begins with the shared initial cluster. The cluster is not empty, and no consonant follows it.
   $c:initial-cluster
 %conditions
   ¬$c.following-tokens.begins(consonant)
 
-%redefine-rule fuhivla  (* Only a complete CgV borrowing bypasses the rafsi-string exclusion. The initial-rafsi conditions exclude the competing compound, while the cluster and continuation tests constrain the borrowing. *)
+%redefine-rule fuhivla  -- Only a complete CgV borrowing bypasses the rafsi-string exclusion. The initial-rafsi conditions exclude the competing compound, while the cluster and continuation tests constrain the borrowing.
   $b:brivla-head stressed-syllable [{consonantal-syllable}] final-syllable
 %conditions
   ¬$b.onward.begins(rafsi-string) ∨ $.matches(cgv-form),
   ¬$.onward.begins(cgv-rafsi-continuation),
   $.matches(cgv-cluster-form)
 
-%rule cgv-cluster-form  (* This boolean span test requires adjacent consonants. Different possible cluster positions give the same truth value. *)
+%rule cgv-cluster-form  -- This boolean span test requires adjacent consonants. Different possible cluster positions give the same truth value.
   [{nonpause-phoneme}] consonant consonant [{nonpause-phoneme}]
 
-%rule cgv-rafsi-continuation  (* The start is a CVC or CCV rafsi of either stress. The tested single consonant directly before the glide cannot be r. *)
+%rule cgv-rafsi-continuation  -- The start is a CVC or CCV rafsi of either stress. The tested single consonant directly before the glide cannot be r.
   (cvc-rafsi-of(vowel) | ccv-rafsi-of(vowel)) $c:consonant glide
 %conditions
   $c.value ≠ "r"
 
-%redefine-rule letter-ban  (* Consonant letters cannot precede a syllable-initial apostrophe but can precede a glide. *)
+%redefine-rule letter-ban  -- Consonant letters cannot precede a syllable-initial apostrophe but can precede a glide.
   h
 
 ```
@@ -132,15 +132,15 @@ A `hy_rafsi` is a CCVCV, CVCCV, CCV, or CVV rafsi body followed by `'y`. The BPF
 `hy-rafsi` takes a long rafsi with an unstressed vowel, a CCV rafsi, or a CVV rafsi before `'y`. The long form leaves a consonant after a CCV prefix, so the shorter form cannot reach the apostrophe there. CVV differs in its second or third letter. The stressed forms have the same separation. After these redefinitions, nothing reads the rules `brivla-rafsi`, `stressed-brivla-rafsi` and `two-syllables` of [../bpfk/morphology.md](../bpfk/morphology.md).
 
 ```jbogenbau
-%redefine-rule extended-rafsi  (* An extended rafsi has a classical apostrophe-y form or a borrowing head. Borrowing heads exclude rafsi strings, which include hy-rafsi. *)
+%redefine-rule extended-rafsi  -- An extended rafsi has a classical apostrophe-y form or a borrowing head. Borrowing heads exclude rafsi strings, which include hy-rafsi.
   hy-rafsi | fuhivla-rafsi
 
-%redefine-rule stressed-extended-rafsi  (* The stressed borrowing head excludes rafsi strings, including stressed-hy-rafsi. Only one extended form can complete at this start. *)
+%redefine-rule stressed-extended-rafsi  -- The stressed borrowing head excludes rafsi strings, including stressed-hy-rafsi. Only one extended form can complete at this start.
   stressed-hy-rafsi | stressed-fuhivla-rafsi
 
-%rule hy-rafsi = hy-rafsi-of(unstressed-vowel, unstressed-diphthong, unstressed-vowel, [h])  (* An apostrophe-y rafsi ends its classical body with apostrophe-y. The long classical form appends an unstressed vowel to a long rafsi in this layer. Another apostrophe can follow the hyphen. *)
+%rule hy-rafsi = hy-rafsi-of(unstressed-vowel, unstressed-diphthong, unstressed-vowel, [h])  -- An apostrophe-y rafsi ends its classical body with apostrophe-y. The long classical form appends an unstressed vowel to a long rafsi in this layer. Another apostrophe can follow the hyphen.
 
-%rule stressed-hy-rafsi = hy-rafsi-of(stressed-vowel, stressed-diphthong, stressed-vowel, ε)  (* A stressed apostrophe-y rafsi ends its stressed classical body with apostrophe-y. *)
+%rule stressed-hy-rafsi = hy-rafsi-of(stressed-vowel, stressed-diphthong, stressed-vowel, ε)  -- A stressed apostrophe-y rafsi ends its stressed classical body with apostrophe-y.
 ```
 
 <details><summary>Railroad diagrams of the 4 rules from <code>extended-rafsi</code> to <code>stressed-hy-rafsi</code></summary>
@@ -153,12 +153,12 @@ A `hy_rafsi` is a CCVCV, CVCCV, CCV, or CVV rafsi body followed by `'y`. The BPF
 A CCV `hy-rafsi` can otherwise begin a brivla, as in `bla'ykla`. `brivla` rejects that start with a CCV rafsi, `'y` and the next onset, which `slihykru` tests. This onset includes CgV, so `bla'ykuiska`, `kla'ykuiska` and `bla'ytcuiska` are foreign too. Thus `kerlybla'ykla` is one word, but `bla'ykla` is not. The plain and stressed CCV choices need no order because their vowel stress differs. Only `brivla` reads `slihykru`.
 
 ```jbogenbau
-%redefine-rule brivla  (* A predicate word excludes a particle start and the CCV-apostrophe-y start that slihykru detects. Its unstressed rafsi precede the stressed core. *)
+%redefine-rule brivla  -- A predicate word excludes a particle start and the CCV-apostrophe-y start that slihykru detects. Its unstressed rafsi precede the stressed core.
   [{initial-rafsi}] brivla-core
 %conditions
   ¬$.onward.begins(cmavo | slihykru)
 
-%rule slihykru                (* The forbidden start is a CCV rafsi of either stress, apostrophe-y, and a borrowing onset, including CgV. *)
+%rule slihykru                -- The forbidden start is a CCV rafsi of either stress, apostrophe-y, and a borrowing onset, including CgV.
   ccv-rafsi-of(vowel) h y brivla-onset
 ```
 
@@ -170,12 +170,12 @@ A CCV `hy-rafsi` can otherwise begin a brivla, as in `bla'ykla`. `brivla` reject
 The onset after a borrowing rafsi head can be an apostrophe. `spageti'ybroda` uses `fuhivla-rafsi` before `broda`. `spageti'ykla` uses `stressed-fuhivla-rafsi` before `kla`. Each example needs the apostrophe onset in its own rule.
 
 ```jbogenbau
-%redefine-rule fuhivla-rafsi  (* A borrowing rafsi starts with an unstressed syllable. Its onset can be an apostrophe. A following rafsi cannot start with the optional apostrophe. *)
+%redefine-rule fuhivla-rafsi  -- A borrowing rafsi starts with an unstressed syllable. Its onset can be an apostrophe. A following rafsi cannot start with the optional apostrophe.
   $f:fuhivla-head onset y [h]
 %conditions
   $f.onward.begins(unstressed-syllable)
 
-%redefine-rule stressed-fuhivla-rafsi  (* A stressed borrowing rafsi permits an apostrophe onset. A consonantal syllable cannot consume the start of the following onset and y. *)
+%redefine-rule stressed-fuhivla-rafsi  -- A stressed borrowing rafsi permits an apostrophe onset. A consonantal syllable cannot consume the start of the following onset and y.
   fuhivla-head stressed-syllable [{consonantal-syllable}] onset y
 
 ```
@@ -190,7 +190,7 @@ An initial rafsi is an extended form, an ordinary y-rafsi, or a short unhyphenat
 A y-rafsi requires y where a classical extended form needs a vowel or apostrophe. A borrowing head excludes that y-rafsi through its rafsi-string test. Thus only one kind can complete at the same start. No rule reads `any-extended-rafsi` after this replacement.
 
 ```jbogenbau
-%redefine-rule initial-rafsi  (* A short unhyphenated rafsi cannot start or directly precede a borrowing or borrowing rafsi. It excludes y-rafsi and hy-rafsi through y-less-rafsi, and borrowing forms through any-fuhivla-rafsi. Initial borrowing rafsi need an unstressed first syllable. Classical extended forms require apostrophe-y. The stressed counterparts also need a short final that cannot start with consonant-y or apostrophe. *)
+%redefine-rule initial-rafsi  -- A short unhyphenated rafsi cannot start or directly precede a borrowing or borrowing rafsi. It excludes y-rafsi and hy-rafsi through y-less-rafsi, and borrowing forms through any-fuhivla-rafsi. Initial borrowing rafsi need an unstressed first syllable. Classical extended forms require apostrophe-y. The stressed counterparts also need a short final that cannot start with consonant-y or apostrophe.
   | extended-rafsi
   | y-rafsi
   | $l:y-less-rafsi
@@ -198,7 +198,7 @@ A y-rafsi requires y where a classical extended form needs a vowel or apostrophe
   ¬$l.onward.begins(any-fuhivla-rafsi),
   ¬$l.following-tokens.begins(any-fuhivla-rafsi)
 
-%rule any-fuhivla-rafsi       (* The test detects a complete borrowing or either borrowing rafsi form. *)
+%rule any-fuhivla-rafsi       -- The test detects a complete borrowing or either borrowing rafsi form.
   fuhivla | fuhivla-rafsi | stressed-fuhivla-rafsi
 ```
 
@@ -228,13 +228,13 @@ A run with a glide letter where no glide can stand then divides into no words. T
 The lookaheads still read the letter as `i` or `u`. A glide letter is no vowel, so it is a nucleus only as the end of a diphthong. So `aɩa` and `aĭa` are `a` and `ia`, as `aia` is. The `!i` after a diphthong still sees a glide letter, so `aiɩa` divides into no words, as `aiia` does.
 
 ```jbogenbau
-%redefine-rule vowel          (* A vowel forbids a following nucleus. It also excludes a diphthong start, so a marked glide cannot leave a competing single vowel. A marked glide letter cannot serve as a vowel. *)
+%redefine-rule vowel          -- A vowel forbids a following nucleus. It also excludes a diphthong start, so a marked glide cannot leave a competing single vowel. A marked glide letter cannot serve as a vowel.
   $v:_<Vowel>
 %conditions
   ¬$v.following-tokens.begins(nucleus),
   ¬$v.onward.begins(diphthong)
 
-%redefine-rule diphthong-letters (* An onglide letter cannot end a diphthong. A diphthong also forbids another matching i or u directly after it. *)
+%redefine-rule diphthong-letters -- An onglide letter cannot end a diphthong. A diphthong also forbids another matching i or u directly after it.
   | "a" $i:"i"<¬Onglide>
   | "a" $u:"u"<¬Onglide>
   | "e" $i:"i"<¬Onglide>

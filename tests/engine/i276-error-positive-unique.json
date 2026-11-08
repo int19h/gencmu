@@ -1,0 +1,39 @@
+{
+  "description": "Engine §6: a single derivation at the best positive measure remains unique.",
+  "grammar": "%rule text one | two\n%rule one *bad\n%rule two *extra\n%rule bad A %error \"bad\"\n%rule extra *bad %error \"extra\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "one"
+          }
+        ]
+      },
+      "error": {
+        "kind": "reported",
+        "errors": [
+          {
+            "code": "bad"
+          }
+        ]
+      }
+    },
+    "error": "reported"
+  }
+}

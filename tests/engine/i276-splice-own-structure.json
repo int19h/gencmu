@@ -1,0 +1,23 @@
+{
+  "description": "The whole capture inside a splice observes its anonymous child sequence.",
+  "grammar": "%rule text *r\n%rule r A %conditions $ ≅ #A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

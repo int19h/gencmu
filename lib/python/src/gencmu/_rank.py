@@ -20,6 +20,10 @@ from . import _testing
 from ._patterns import local_node_matches
 from ._ranking_patterns import can_count_profiles, has_pattern_value, requires_elided
 from ._earley import RESTORE, Forest
+from ._measures import Measures, ZERO_MEASURE, sum_measure, compare_measure
+from ._erased_classes import ErasedClasses
+
+INFINITE_MEASURE = (math.inf, math.inf, -math.inf)
 
 Count = float
 """A number of visible actions, an exact integer, or INF."""
@@ -259,12 +263,24 @@ of the item before the step and of the completed child, and the token and
 terminal of a read or the child item of a completion."""
 
 
+def measures_of(forest):
+    measures = getattr(forest, "measures", None)
+    if measures is None:
+        measures = forest.measures = Measures(forest.tokens)
+        if forest.project is not None:
+            measures.original = Measures(forest.original_tokens), forest.project
+    return measures
+
+
 class Summaries:
     """The summaries of forest items in each cycle context."""
 
     def __init__(self, forest: Forest) -> None:
         self.forest = forest
         self.admission = None
+        self.measure_counts = {}
+        self.measures = measures_of(forest)
+        self.erasures = ErasedClasses(forest)
         self.productions = forest.lowered.productions
         self.memo: dict[Key, Any] = {}
         self.steps_memo: dict[Key, list[Step]] = {}
@@ -276,7 +292,8 @@ class Summaries:
     # -- the cycle rule's contexts
 
     def rule(self, item: int) -> int:
-        return self.productions[self.forest.prod[item]].lhs
+        p = self.productions[self.forest.prod[item]]
+        return p.splice_of if p.splice_of is not None else p.lhs
 
     def sensitive(self, item: int) -> bool:
         """Whether an item's derivations depend on its context: whether it has
@@ -390,7 +407,7 @@ class Summaries:
         cause no difference of context. Different sets of ancestors within
         the group can still need different summaries of the item."""
         scope = getattr(self.forest,"slot_scopes",())[item] if hasattr(self.forest,"slot_scopes") else None
-        if scope is not None and self.productions[self.forest.prod[item]].helper:
+        if scope is not None and (self.productions[self.forest.prod[item]].helper and self.productions[self.forest.prod[item]].splice_of is None):
             return frozenset(rule for rule in forbidden if rule not in self.forest.slot_helpers)
         if not forbidden or not self.sensitive(item):
             return self.empty
@@ -416,7 +433,7 @@ class Summaries:
         own rule joins the context of its children over its span."""
         _, item, context = key
         scope = getattr(self.forest,"slot_scopes",())[item] if hasattr(self.forest,"slot_scopes") else None
-        return self.partial_key(item, context if scope is not None and self.productions[self.forest.prod[item]].helper else context | {self.rule(item)})
+        return self.partial_key(item, context if scope is not None and (self.productions[self.forest.prod[item]].helper and self.productions[self.forest.prod[item]].splice_of is None) else context | {self.rule(item)})
 
     def all_steps(self, key: Key) -> list[Step]:
         """The edges of a partial key's item that its context allows."""
@@ -485,6 +502,10 @@ class Summaries:
                     stack.append((dep, False))
         return memo[key]
 
+    def derivable(self, key):
+        value = self.memo[key]
+        return value is not None and (value[1] > 0 if isinstance(value, tuple) else value.total > 0)
+
     def compute(self, key: Key) -> Any:
         raise NotImplementedError
 
@@ -501,10 +522,14 @@ class Ranker(Summaries):
         lean: str,
         entries: bool = True,
         best: Profiled | None = None,
+        canonical_mode: bool = False,
     ) -> None:
         super().__init__(forest)
         self.lean = lean
         self.best = best
+        self.canonical_mode = canonical_mode
+        self.canonical_ranker = None
+        self.membership = {}
         self.read_leaves: dict[tuple[int, str], Rope] = {}
         self.close_leaves: dict[int, Rope] = {}
         # Whether this ranks the check of elision-only, which only its
@@ -544,7 +569,7 @@ class Ranker(Summaries):
                     False,
                     item=forest.slot_original[item] if hasattr(forest,"slot_original") else item,
                     production=production.id,
-                    canonical=production.real_id,
+                    canonical=production.action_id,
                     start=forest.origin[item],
                     end=forest.end[item],
                     visible=not production.transparent,
@@ -553,84 +578,176 @@ class Ranker(Summaries):
             self.close_leaves[item] = found
         return found
 
+    def canonical_summary(self, keys):
+        if self.canonical_mode:
+            return self
+        ranker = self.canonical_ranker
+        if ranker is None:
+            space = Profiles((), self.forest.tagtab, getattr(self.forest, "original_tokens", self.forest.tokens), self.measures)
+            profiles = Profiled(self.forest, space, "none")
+            profiles.admission, profiles.check = self.admission, self.check
+            ranker = self.canonical_ranker = Ranker(self.forest, "none", best=profiles, canonical_mode=True)
+            ranker.admission, ranker.check = self.admission, self.check
+        for key in keys:
+            ranker.best.solve(key)
+        return ranker
+
+    def erased_choice(self, keys):
+        ranker = self.canonical_summary(keys)
+        measure, best = INFINITE_MEASURE, None
+        for key in keys:
+            entries, count = ranker.solve(key)
+            current = ranker.measure_counts[key]
+            order = compare_measure(current, measure)
+            if not count or order > 0:
+                continue
+            if order < 0:
+                measure, best = current, None
+            for entry in entries:
+                if best is None or compare(entry.seq, best, "none").order < 0:
+                    best = entry.seq
+        return best
+
+    def witness_representative(self, proof):
+        """Keep the coherent exterior and replace its erased interiors (§7.10)."""
+        forest = self.forest
+        original = forest.slot_original if hasattr(forest, "slot_original") else range(len(forest.prod))
+        root = next((item for item in forest.roots if original[item] == getattr(forest,"restoration_aliases",range(len(forest.prod)))[proof.item]), None)
+        if root is None:
+            return None
+        if self.productions[forest.prod[root]].erased:
+            items = [item for item in forest.roots if self.productions[forest.prod[item]].erased
+                     and self.erasures.key(item) == self.erasures.key(root)]
+            return self.erased_choice([self.full_key(item, self.empty) for item in items])
+        root_frame = {"proof": proof, "key": self.full_key(root, self.empty), "parts": None, "result": None}
+        stack = [root_frame]
+        while stack:
+            _testing.count("witness_steps")
+            frame = stack[-1]
+            key = frame["key"]
+            item = key[1]
+            if frame["parts"] is None:
+                parts = frame["parts"] = []
+                restoration = next((edge for edge in forest.edges[item] if edge[1] == RESTORE), None)
+                if restoration is not None:
+                    parts.append(self.read_leaf(restoration[2], restoration[3]))
+                    continue
+                current = self.inner_key(key)
+                for link in reversed(frame["proof"].links):
+                    if original[current[1]] != getattr(forest,"restoration_aliases",range(len(forest.prod)))[link.item]:
+                        return None
+                    mask = self.admission.mask(current) if self.admission is not None else None
+                    steps = [step for step in self.all_steps(current) if mask is None or step[0] in mask]
+                    indices = forest.slot_indices[current[1]] if hasattr(forest, "slot_indices") else None
+                    number = forest.restoration_indices[link.item][link.index] if hasattr(forest,"restoration_indices") else link.index
+                    step = next((step for step in steps if (indices[step[0]] if indices is not None else step[0]) == number), None)
+                    if step is None:
+                        return None
+                    _, kind, previous, child, token, terminal = step
+                    if kind == 1:
+                        parts.append(self.read_leaf(token, terminal))
+                    elif kind == 2 and link.child is not None:
+                        if self.productions[forest.prod[token]].erased:
+                            group = next(group for erased, group in self.erasures.groups(steps, lambda key: self.solve(key)[1] > 0) if step in group)
+                            seq = self.erased_choice([edge[3] for edge in group])
+                            if seq is None:
+                                return None
+                            parts.append(seq)
+                        else:
+                            parts.append({"proof": link.child, "key": child, "parts": None, "result": None})
+                    else:
+                        return None
+                    current = previous
+                parts.reverse()
+                stack.extend(part for part in reversed(parts) if isinstance(part, dict))
+                continue
+            seq = None
+            for part in frame["parts"]:
+                seq = concat(seq, part["result"] if isinstance(part, dict) else part)
+            frame["result"] = concat(seq, self.close_leaf(item))
+            stack.pop()
+        return root_frame["result"]
+
     def compute(self, key: Key) -> Any:
-        """A key's candidates and derivation count. Each partial key holds
-        its item's derivations."""
+        """Compose ordinary actions and the key-free erased summary (engine §6)."""
         kind, item, _ = key
-        memo = self.memo
-        marks = self.marks
+        memo, marks = self.memo, self.marks
         if kind == 0:
+            inner_key = self.inner_key(key)
             if marks is not None:
-                inner_w = self.witnessed[self.inner_key(key)]
-                self.witnessed[key] = inner_w
-            inner = memo[self.inner_key(key)]
-            entries, count = inner
-            close = self.close_leaf(item)
-            kept: list[Entry] = []
+                self.witnessed[key] = self.witnessed[inner_key]
+                self.membership[key] = self.membership[inner_key]
+            entries, count = memo[inner_key]
+            production = self.productions[self.forest.prod[item]]
+            measure = self.measure_counts.get(inner_key, INFINITE_MEASURE)
+            if production.error is not None:
+                measure = sum_measure(measure, self.measures.own(self.forest.origin[item], self.forest.end[item]))
+            self.measure_counts[key] = measure
+            close, kept = self.close_leaf(item), []
             for entry in entries:
                 self.keep(kept, self.extend(entry, close))
-            return (kept, count)
+            return kept, count
         mask = self.admission.mask(key) if self.admission is not None else None
-        total = 0
-        kept = []
+        steps = [step for step in self.steps(key) if mask is None or step[0] in mask]
+        total, least_measure, kept, w_all, member = 0, INFINITE_MEASURE, [], False, False
         marked = marks.get(item) if marks is not None else None
-        witnessed = self.witnessed
-        w_all = False
         edges = len(self.forest.edges[item])
-        for index, edge_kind, pred_key, child_key, a, b in self.steps(key):
-            if mask is not None and index not in mask:
-                continue
-            # Faults of the check skip the first of two or more edges, in the
-            # count or in the candidates (tests/README.md). Python's agenda
-            # completes the restoring sibling first.
+        for erased, group in self.erasures.groups(steps, self.derivable):
+            index, edge_kind, pred_key, child_key, a, b = group[0]
             sibling = self.check and edges > 1 and index == 0
             counted = not (sibling and _testing.fault("lost:context"))
             selected = not (sibling and _testing.fault("lost:select"))
-            produced: list[Entry] = []
+            produced = []
             if edge_kind == 0:
                 ways = 1
                 produced.append(Entry(None, [], INF))
             elif edge_kind == RESTORE:
-                # A restoration reads its synthetic token, and its own close
-                # follows (engine §7.4, §7.7).
                 ways = 1
                 produced.append(Entry(self.read_leaf(a, b), [], INF))
             else:
-                assert pred_key is not None
-                earlier = memo[pred_key]
+                pred_entries, ways = memo[pred_key]
                 if edge_kind == 1:
-                    pred_entries, ways = earlier
                     read = self.read_leaf(a, b)
-                    for entry in pred_entries:
-                        produced.append(self.extend(entry, read))
+                    produced.extend(self.extend(entry, read) for entry in pred_entries)
                 else:
-                    pred_entries, pred_count = earlier
-                    child_entries, child_count = memo[child_key]
-                    ways = pred_count * child_count
+                    if erased:
+                        seq = self.erased_choice([step[3] for step in group])
+                        child_entries, child_count = ([Entry(seq, [], INF)], 1) if seq is not None else ([], 0)
+                    else:
+                        child_entries, child_count = memo[child_key]
+                    ways *= child_count
                     for before in pred_entries:
                         for after in child_entries:
                             produced.append(self.combine(before, after))
-            if marked is not None and ways > 0 and index in marked and counted:
-                # The edge is W(D)'s where it is marked, and its predecessor
-                # and child are W(D)'s.
-                edge_w = True
-                if pred_key is not None:
-                    edge_w = witnessed[pred_key]
-                if edge_w and child_key is not None and edge_kind == 2:
-                    edge_w = witnessed[child_key]
-                w_all = w_all or edge_w
-            if not counted:
-                ways = 0
-            total += ways
-            if not selected:
-                produced = []
-            for entry in produced:
-                self.keep(kept, entry)
-        total = min(total, 2)
-        value = (kept, total)
+            measure = self.measure_counts.get(pred_key, INFINITE_MEASURE) if pred_key is not None else ZERO_MEASURE
+            if edge_kind in (1, RESTORE):
+                measure = sum_measure(measure, self.measures.carried[a])
+            elif edge_kind == 2 and not erased:
+                measure = sum_measure(measure, self.measure_counts.get(child_key, INFINITE_MEASURE))
+            edge_w = False
+            if marked is not None and counted:
+                for number, _, previous, child, _, _ in group:
+                    if number not in marked:
+                        continue
+                    member |= ((previous is None or self.membership[previous])
+                               and (child is None or self.membership[child]))
+                    edge_w |= ((previous is None or self.witnessed[previous])
+                               and (child is None or (self.membership[child] if erased else self.witnessed[child])))
+            order = compare_measure(measure, least_measure)
+            if not ways or order > 0:
+                continue
+            if order < 0:
+                least_measure, total, kept, w_all = measure, 0, [], False
+            w_all |= edge_w
+            if counted:
+                total += ways
+            if selected:
+                for entry in produced:
+                    self.keep(kept, entry)
+        self.measure_counts[key] = least_measure
         if marks is not None:
-            witnessed[key] = w_all
-        return value
+            self.witnessed[key], self.membership[key] = w_all, member
+        return kept, min(total, 2)
 
     def extend(self, entry: Entry, rope: Rope) -> Entry:
         result = Entry(concat(entry.seq, rope), [], INF)
@@ -696,6 +813,8 @@ class Ranker(Summaries):
         """The winner takes over what of the loser is tied with it: the loser
         itself, if the two are tied, and the loser's tied derivations that
         diverge from it before the two do."""
+        if self.canonical_mode:
+            return
         point = comparison.index
         if point >= INF:
             self.offer(winner, loser.seq, INF)
@@ -717,16 +836,32 @@ class Ranker(Summaries):
         witness; ``None`` if the input has no derivation. The root combines
         the derivations of every root item (engine §6)."""
         total = 0
+        least_measure = INFINITE_MEASURE
         kept: list[Entry] = []
         counted = False
-        for root in roots:
-            key = self.full_key(root, self.empty)
-            if key is None:
+        for erased, group in self.erasures.roots(roots):
+            keys = [key for root in group if (key := self.full_key(root, self.empty)) is not None]
+            for key in keys:
+                self.solve(key)
+            if erased:
+                seq = self.erased_choice(keys)
+                entries, count = ([Entry(seq, [], INF)], 1) if seq is not None else ([], 0)
+                measure = ZERO_MEASURE
+                member = self.marks is not None and any(self.membership[key] for key in keys)
+            else:
+                if not keys:
+                    continue
+                key = keys[0]
+                entries, count = self.memo[key]
+                measure = self.measure_counts[key]
+                member = self.marks is not None and self.witnessed[key]
+            order = compare_measure(measure, least_measure)
+            if not count or order > 0:
                 continue
-            entries, count = self.solve(key)
+            if order < 0:
+                least_measure, total, kept, counted = measure, 0, [], False
             total += count
-            if self.marks is not None:
-                counted = counted or (count > 0 and self.witnessed[key])
+            counted |= bool(member)
             for entry in entries:
                 self.keep(kept, Entry(entry.seq, list(entry.alts), entry.at))
         if total == 0 or not kept:
@@ -736,8 +871,15 @@ class Ranker(Summaries):
             if compare(entry.seq, first.seq, self.lean).order < 0:
                 first = entry
         counted_w = counted if self.marks is not None else None
+        def finish(result):
+            result._ranker = self
+            result.profile = least_measure
+            if self.marks is not None:
+                result.raw_witness_counted = any(self.membership[key] for root in roots
+                                               if (key := self.full_key(root, self.empty)) is not None)
+            return result
         if total == 1:
-            return Ranking("unique", first.seq, None, None, counted_w)
+            return finish(Ranking("unique", first.seq, None, None, counted_w))
         # Every other candidate's visible sequence extends the first one's,
         # so it first differs from it visibly where the first one ends, and
         # so do its tied derivations that diverge from it no earlier.
@@ -749,7 +891,7 @@ class Ranker(Summaries):
             candidates.append((length, entry.seq))
             candidates.extend((entry.at if entry.at < length else length, alt) for alt in entry.alts)
         if not candidates:
-            return Ranking("resolved", first.seq, None, None, counted_w)
+            return finish(Ranking("resolved", first.seq, None, None, counted_w))
         best_at, second = candidates[0]
         for at, rope in candidates[1:]:
             if self.check:
@@ -763,7 +905,7 @@ class Ranker(Summaries):
             difference = first_difference(first.seq, second, False)
         assert difference is not None
         witness = (difference[1], difference[2])
-        return Ranking("tie", first.seq, second, witness, counted_w)
+        return finish(Ranking("tie", first.seq, second, witness, counted_w))
 
 
 class Elided:
@@ -914,15 +1056,16 @@ class Profiles:
     """The profiles of one ranking: how the key steps of its directive count
     occurrences, add profiles and compare them (engine §6)."""
 
-    def __init__(self, steps, tagtab=None, tokens=()) -> None:
+    def __init__(self, steps, tagtab=None, tokens=(), measures=None) -> None:
         self.steps = tuple(steps)
-        self.kinds = tuple(step for step, _ in self.steps)
+        self.kinds = ("fewest", "fewest", "most") + tuple(step for step, _ in self.steps)
         self.tagtab = tagtab
         self.tokens = tokens
         self.values = tuple(has_pattern_value(pattern) for _, pattern in steps)
         self.span_values = {} if any(self.values) else None
         self.answers = {}
         self.zero: Profile = tuple(() if kind == "leftmost-longest" else 0 if kind in ("fewest", "most") else None for kind in self.kinds)
+        self.measures = Measures(tokens) if measures is None else measures
         self.leaves: dict[int, Elided] = {}
 
     def occurrence(self, name, tags, terminal, value, p, q) -> Profile:
@@ -941,7 +1084,7 @@ class Profiles:
             if match:
                 if profile is None:
                     profile = list(self.zero)
-                profile[index] = self.one(index, p, q)
+                profile[index + 3] = self.one(index, p, q)
         return self.zero if profile is None else tuple(profile)
 
     def tags(self, identity):
@@ -950,7 +1093,7 @@ class Profiles:
     def one(self, index: int, p: int, q: int) -> Component:
         """One occurrence in the component of a step. An empty span counts
         nothing under ``leftmost-longest``."""
-        kind = self.kinds[index]
+        kind = self.kinds[index + 3]
         if kind == "leftmost-longest":
             return ((p, q, 1),) if p < q else ()
         if kind in ("fewest", "most"):
@@ -959,6 +1102,11 @@ class Profiles:
         if leaf is None:
             leaf = self.leaves[p] = Elided(1, p, p)
         return leaf
+
+    def charge(self, profile, measure):
+        if measure is ZERO_MEASURE:
+            return profile
+        return (*sum_measure(profile[:3], measure), *profile[3:])
 
     def sum(self, left: Profile, right: Profile) -> Profile:
         """Adds profiles component by component. The positions of ``left``
@@ -1004,7 +1152,14 @@ class Profiles:
         while pending:
             node = pending.pop()
             production = getattr(node, "production", None)
+            if production is not None and production.erased:
+                if not production.helper and node.start < node.end:
+                    profile = self.sum(profile, self.occurrence(production.rule_name, self.tags(node.tag), None, None, node.start, node.end))
+                continue
+            if production is not None and production.error is not None:
+                profile = self.charge(profile, self.measures.own(node.start, node.end))
             if production is None:
+                profile = self.charge(profile, self.measures.carried[node.token])
                 if node.start < node.end:
                     token = self.tokens[node.token]
                     profile = self.sum(profile, self.occurrence(None, frozenset(token.tags), node.terminal, token.value, node.start, node.end))
@@ -1043,15 +1198,19 @@ class Best:
         self.edges: list[int] = []
 
     def offer(self, index: int, total: int, profile: Profile, count: int) -> None:
-        # Every edge adds to the total, losing ones included.
-        self.total += total
+        measure_order = compare_measure(profile[:3], self.profile[:3]) if self.found else -1
+        if measure_order < 0:
+            self.total = total
+        elif measure_order == 0:
+            self.total += total
+        indices = (index,) if isinstance(index, int) else index
         order = self.space.compare(profile, self.profile) if self.found else -1
         if order < 0:
             self.found = True
-            self.profile, self.count, self.edges = profile, count, [index]
+            self.profile, self.count, self.edges = profile, count, list(indices)
         elif order == 0:
             self.count += count
-            self.edges.append(index)
+            self.edges.extend(indices)
 
     def summary(self) -> Summary | None:
         if not self.found:
@@ -1073,6 +1232,7 @@ class Profiled(Summaries):
     def __init__(self, forest: Forest, space: Profiles, lean: str) -> None:
         super().__init__(forest)
         self.space = space
+        self.space.measures = self.measures
         self.lean = lean
         self.check = False
         self.marks: dict[int, set[int]] | None = None
@@ -1104,25 +1264,33 @@ class Profiled(Summaries):
             if self.elided[forest.prod[item]] and forest.project is None and forest.edges[item][0][1] != RESTORE:
                 terminal = production.elided
                 profile = space.sum(profile, space.occurrence(None, frozenset((terminal, "_Elided")), terminal, "", start, start))
+            if production.error is not None:
+                profile = space.charge(profile, self.measures.own(forest.origin[item], forest.end[item]))
             return Summary(inner.total, profile, inner.count, NO_EDGES)
         mask = self.admission.mask(key) if self.admission is not None else None
         every = Best(space)
-        for index, edge_kind, pred_key, child_key, a, terminal in self.steps(key):
-            if edge_kind == 0 or edge_kind == RESTORE:
+        steps = [step for step in self.steps(key) if mask is None or step[0] in mask]
+        for erased, group in self.erasures.groups(steps, self.derivable):
+            index, edge_kind, pred_key, child_key, a, terminal = group[0]
+            if edge_kind in (0, RESTORE):
                 total, profile, count = 1, space.zero, 1
             else:
-                assert pred_key is not None
-                before: Summary | None = memo[pred_key]
+                before = memo[pred_key]
                 if before is None:
                     continue
                 total, profile, count = before.total, before.profile, before.count
                 if edge_kind == 2:
-                    child: Summary | None = memo[child_key]
-                    if child is None:
-                        continue
-                    total = min(total * child.total, 2)
-                    profile = space.sum(profile, child.profile)
-                    count = min(count * child.count, 2)
+                    if erased:
+                        if not any(memo[step[3]] is not None for step in group):
+                            continue
+                        child_profile = self.erased_profile(a)
+                    else:
+                        child = memo[child_key]
+                        if child is None:
+                            continue
+                        total, count = min(total * child.total, 2), min(count * child.count, 2)
+                        child_profile = child.profile
+                    profile = space.sum(profile, child_profile)
                 elif edge_kind == 1:
                     start, end = a, a + 1
                     if forest.project is not None:
@@ -1130,9 +1298,19 @@ class Profiled(Summaries):
                     if start < end:
                         token = forest.tokens[a]
                         profile = space.sum(profile, space.occurrence(None, frozenset(token.tags), terminal, token.value, start, end))
-            if mask is None or index in mask:
-                every.offer(index, total, profile, count)
+            if edge_kind in (1, RESTORE):
+                profile = space.charge(profile, self.measures.carried[a])
+            every.offer([step[0] for step in group], total, profile, count)
+
         return every.summary()
+
+    def erased_profile(self, item):
+        production = self.productions[self.forest.prod[item]]
+        start, end = self.forest.origin[item], self.forest.end[item]
+        if self.forest.project is not None:
+            start, end = self.forest.project[start], self.forest.project[end]
+        return (self.space.occurrence(production.rule_name, self.space.tags(self.forest.tag.get(item)), None, None, start, end)
+                if not production.helper and start < end else self.space.zero)
 
     def edges(self, key: Key) -> frozenset[int]:
         """The edges that attain the greatest profile of a partial key."""
@@ -1148,15 +1326,21 @@ class Profiled(Summaries):
         the input has no derivation. The root combines its items as a
         summary combines its edges (engine §6)."""
         roots_best = Best(self.space)
-        for root in roots:
-            key = self.full_key(root, self.empty)
-            if key is None:
+        for erased, group in self.erasures.roots(roots):
+            found = []
+            for root in group:
+                key = self.full_key(root, self.empty)
+                if key is not None:
+                    summary = self.solve(key)
+                    if summary is not None:
+                        found.append((root, summary))
+            if not found:
                 continue
-            summary: Summary | None = self.solve(key)
-            if summary is None:
-                continue
-            # The root combines its items as a summary combines its edges.
-            roots_best.offer(root, summary.total, summary.profile, summary.count)
+            if erased:
+                roots_best.offer([root for root, _ in found], 1, self.erased_profile(found[0][0]), 1)
+            else:
+                root, summary = found[0]
+                roots_best.offer(root, summary.total, summary.profile, summary.count)
         if not roots_best.found:
             return None
         total = roots_best.total
@@ -1183,6 +1367,7 @@ class Profiled(Summaries):
             counter.check, counter.marks = self.check, self.marks
             unfiltered = counter.rank(roots)
             readings.witness_counted = unfiltered is not None and unfiltered.witness_counted
+            readings.raw_witness_counted = unfiltered.raw_witness_counted if unfiltered is not None else False
         return readings
 
 
@@ -1193,7 +1378,7 @@ class Ranking:
     runtime witness marks, says whether the count counted W(D)
     (tests/README.md); ``None`` without marks."""
 
-    __slots__ = ("verdict", "first", "second", "witness", "witness_counted", "profile", "raw_witness_counted")
+    __slots__ = ("verdict", "first", "second", "witness", "witness_counted", "profile", "raw_witness_counted", "representative", "_ranker")
 
     def __init__(
         self,
@@ -1204,6 +1389,8 @@ class Ranking:
         witness_counted: bool | None = None,
     ) -> None:
         self.raw_witness_counted = None
+        self.representative = None
+        self._ranker = None
         self.profile: Profile = ()
         self.verdict = verdict
         self.first = first
@@ -1216,6 +1403,8 @@ def rank(forest: Forest, steps: tuple[tuple[str, str], ...], lean: str, marks=No
     """Rank a forest's derivations by the key steps ``steps`` and then by
     the lean, ``greedy``, ``lazy`` or ``none`` (engine §6); ``None`` if the
     input has no derivation that counts."""
+    from ._restoration_forest import restoration_forest
+    forest, marks = restoration_forest(forest, marks)
     admission = None
     ranked_helpers = forest.lowered.ranked_helpers
     productions = forest.lowered.productions
@@ -1251,12 +1440,25 @@ def rank_original(forest: Forest, steps: tuple[tuple[str, str], ...], lean: str,
     decide when a step can match a reachable node (engine §6)."""
     if not forest.roots:
         return None
-    space = Profiles(steps, forest.tagtab, getattr(forest, "original_tokens", forest.tokens))
+    space = Profiles(steps, forest.tagtab, getattr(forest, "original_tokens", forest.tokens), measures_of(forest))
     ranker: Profiled | Ranker
-    if can_count_profiles(forest.lowered, steps) and not (forest.project is not None and all(requires_elided(pattern) for _, pattern in steps)):
+    if any(measure[2] for measure in space.measures.carried) or can_count_profiles(forest.lowered, steps) and not (forest.project is not None and not any(p.error is not None for p in forest.lowered.productions) and all(requires_elided(pattern) for _, pattern in steps)):
         ranker = Profiled(forest, space, lean)
     else:
         ranker = Ranker(forest, lean)
     ranker.marks, ranker.check = marks, check
     ranker.admission = admission
     return ranker.rank(forest.roots)
+
+
+def raw_witness_counted(forest, marks):
+    """Concrete W(D) membership uses the untouched chart (engine §7.10)."""
+    counter = Ranker(forest, "none")
+    counter.marks, counter.check = marks, True
+    for root in forest.roots:
+        key = counter.full_key(root, counter.empty)
+        if key is not None:
+            counter.solve(key)
+            if counter.membership[key]:
+                return True
+    return False

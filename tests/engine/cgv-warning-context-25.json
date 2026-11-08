@@ -44,30 +44,32 @@
         },
         "warnings": [
           {
-            "feature": "experimental-cgv",
-            "rule": "brivla-token",
-            "source": [
-              4,
-              11
-            ],
+            "stage": "words",
+            "code": "experimental-cgv",
+            "rule": "experimental-cgv",
             "span": [
               2,
               3
             ],
-            "stage": "words"
+            "source": [
+              4,
+              11
+            ],
+            "message": "this word uses an experimental CgV form"
           },
           {
-            "feature": "experimental-cgv",
-            "rule": "brivla-token",
-            "source": [
-              22,
-              29
-            ],
+            "stage": "words",
+            "code": "experimental-cgv",
+            "rule": "experimental-cgv",
             "span": [
               6,
               7
             ],
-            "stage": "words"
+            "source": [
+              22,
+              29
+            ],
+            "message": "this word uses an experimental CgV form"
           }
         ]
       }

@@ -1,0 +1,10 @@
+{
+  "description": "The asterisk of a splice stands directly before its target.",
+  "document": "```jbogenbau\n%rule text * name\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 18
+    }
+  }
+}

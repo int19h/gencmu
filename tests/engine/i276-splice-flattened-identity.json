@@ -1,0 +1,41 @@
+{
+  "description": "Nested helpers and splices retain the same flattened sequence.",
+  "grammar": "%rule text $x:*a $y:*b\n%conditions $x ≅ $y\n%rule a *c [B]\n%rule b A B\n%rule c A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

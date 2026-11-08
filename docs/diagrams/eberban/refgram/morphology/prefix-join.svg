@@ -4,7 +4,7 @@
 <text class="title" x="10" y="24" textLength="92.4" lengthAdjust="spacingAndGlyphs">prefix-join</text>
 <path d="M10 58v16m4 -16v16M14 66h6"/>
 <path d="M20 66h20"/>
-<g class="rule"><rect x="40" y="54" width="151" height="24" rx="0"/><text x="115.5" y="71" textLength="134.4" lengthAdjust="spacingAndGlyphs">misplaced-hyphen</text></g>
+<g class="rule"><rect x="40" y="54" width="151" height="24" rx="0"/><text x="115.5" y="71" textLength="134.4" lengthAdjust="spacingAndGlyphs">hyphen-misplaced</text></g>
 <path d="M191 66H211"/>
 <path d="M20 66a10 10 0 0 0 10 -10V54a10 10 0 0 1 10 -10H191a10 10 0 0 1 10 10V56a10 10 0 0 0 10 10"/>
 <path d="M211 66h10"/>
@@ -12,7 +12,7 @@
 <g class="rule"><rect x="241" y="54" width="42" height="24" rx="0"/><text x="262" y="71" textLength="25.2" lengthAdjust="spacingAndGlyphs">gap</text></g>
 <path d="M283 66h10"/>
 <path d="M293 66h20"/>
-<g class="rule"><rect x="313" y="54" width="151" height="24" rx="0"/><text x="388.5" y="71" textLength="134.4" lengthAdjust="spacingAndGlyphs">misplaced-hyphen</text></g>
+<g class="rule"><rect x="313" y="54" width="151" height="24" rx="0"/><text x="388.5" y="71" textLength="134.4" lengthAdjust="spacingAndGlyphs">hyphen-misplaced</text></g>
 <path d="M464 66H484"/>
 <path d="M293 66a10 10 0 0 0 10 -10V54a10 10 0 0 1 10 -10H464a10 10 0 0 1 10 10V56a10 10 0 0 0 10 10"/>
 <path d="M484 66H504"/>

@@ -181,7 +181,7 @@ class Lexical(unittest.TestCase):
         """
         notation = gencmu.load_pipeline("gencmu/jbogenbau")
         result = notation.parse(
-            '%rule a ¬f? B "c" "d" {E ... / "$(_005C)"} | g! %tags X %rulex $e ¬h "x".."y" _General_Category_Letter "a"... [+F] [+G]',
+            '%rule a ¬f? B "c" "d" {E ... / "$(_005C)"} | g? %tags X %rulex $e ¬h "x".."y" _General_Category_Letter "a"... [+F] [+G]',
             until="lexical",
         )
         self.assertTrue(result.ok, result.error)
@@ -203,7 +203,7 @@ class Lexical(unittest.TestCase):
                 ('"$(_005C)"', ["String"]),
                 ("}", ["_Age_V1_1", "_Bidi_Class_Other_Neutral", "_Bidi_Mirrored", "_Bidi_Paired_Bracket_Type_Close", "_Block_Basic_Latin", "_Canonical_Combining_Class_Not_Reordered", "_Decomposition_Type_None", "_East_Asian_Width_Narrow", "_General_Category_Close_Punctuation", "_General_Category_Punctuation", "_Grapheme_Base", "_Grapheme_Cluster_Break_Other", "_Hangul_Syllable_Type_Not_Applicable", "_Indic_Conjunct_Break_None", "_Indic_Positional_Category_NA", "_Indic_Syllabic_Category_Other", "_Joining_Group_No_Joining_Group", "_Joining_Type_Non_Joining", "_Line_Break_Close_Punctuation", "_NFC_Quick_Check_Yes", "_NFD_Quick_Check_Yes", "_NFKC_Quick_Check_Yes", "_NFKD_Quick_Check_Yes", "_Numeric_Type_None", "_Pattern_Syntax", "_Script_Common", "_Script_Extensions_Common", "_Sentence_Break_Close", "_Vertical_Orientation_Rotated", "_Word_Break_Other"]),
                 ("|", ["_Age_V1_1", "_Bidi_Class_Other_Neutral", "_Bidi_Paired_Bracket_Type_None", "_Block_Basic_Latin", "_Canonical_Combining_Class_Not_Reordered", "_Decomposition_Type_None", "_East_Asian_Width_Narrow", "_General_Category_Math_Symbol", "_General_Category_Symbol", "_Grapheme_Base", "_Grapheme_Cluster_Break_Other", "_Hangul_Syllable_Type_Not_Applicable", "_Indic_Conjunct_Break_None", "_Indic_Positional_Category_NA", "_Indic_Syllabic_Category_Other", "_Joining_Group_No_Joining_Group", "_Joining_Type_Non_Joining", "_Line_Break_Break_After", "_Math", "_NFC_Quick_Check_Yes", "_NFD_Quick_Check_Yes", "_NFKC_Quick_Check_Yes", "_NFKD_Quick_Check_Yes", "_Numeric_Type_None", "_Pattern_Syntax", "_Script_Common", "_Script_Extensions_Common", "_Sentence_Break_Other", "_Vertical_Orientation_Rotated", "_Word_Break_Other"]),
-                ("g!", ["Guard"]),
+                ("g?", ["Guard"]),
                 ("%tags", ["Keyword"]),
                 ("X", ["Identifier", "Uppercase-Name"]),
                 ("%rulex", ["Keyword"]),

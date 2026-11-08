@@ -1,0 +1,10 @@
+{
+  "description": "A suppression list contains at least one code or the wildcard.",
+  "document": "```jbogenbau\n%rule text A %suppress-warnings\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 32
+    }
+  }
+}

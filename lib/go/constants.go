@@ -270,6 +270,9 @@ func (g *stageGrammar) evaluateClosed(doc string, t *domTerm, item [2]int, expec
 			return nil, err
 		}
 		p, err := g.resolvePatternValue(doc, t.Pattern, item)
+		if err == nil && !g.erasurePatternsDone {
+			g.erasurePatterns = append(g.erasurePatterns, erasurePatternUse{p, doc, item})
+		}
 		return &constValue{ty: tyPattern, pattern: p}, err
 	case tmString:
 		return &constValue{ty: tyString, s: t.Str}, nil
@@ -398,6 +401,7 @@ func (g *stageGrammar) resolveConstants(checks []func() *Error) *Error {
 	r := newResolver(g.constants, g.uni)
 	for _, rule := range g.rules {
 		for _, a := range rule.alts {
+			a.error, a.warning = r.term(a.error), r.term(a.warning)
 			a.ruleTags = r.term(a.ruleTags)
 			a.ruleValue = r.term(a.ruleValue)
 			a.ruleImage = r.term(a.ruleImage)
@@ -603,7 +607,7 @@ func walkValues(root valuePart, visit func(valuePart) *Error, patterns bool) *Er
 			}
 		case part.rule != nil:
 			r := part.rule
-			terms(r.Tags, r.Value, r.Image)
+			terms(r.Tags, r.Value, r.Image, r.Error, r.Warning)
 			for _, a := range r.Alternatives {
 				children = append(children, valuePart{alt: a})
 			}

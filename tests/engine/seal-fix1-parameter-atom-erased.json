@@ -1,0 +1,15 @@
+{
+  "description": "Engine §9.3: substitution of an erased rule into the atom rejects its child list.",
+  "grammar": "%rule probe(@R) $e:e\n%conditions $e ≅ #·@R« A »\n%rule text probe(e)\n%rule e A\n%erased",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

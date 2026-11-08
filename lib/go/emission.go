@@ -14,8 +14,11 @@ type occurrence struct {
 }
 
 type stringEmitter struct {
+	observing                    bool
 	trees                        *treeArena
 	treeStates                   map[*occurrence]treeState
+	workingTreeStates            map[*occurrence]treeState
+	treeSeals                    map[[2]int]int
 	boundaryStarts, boundaryEnds map[string]map[int]bool
 	run                          *stageRun
 	rec                          *recognizer
@@ -55,6 +58,9 @@ func (em *stringEmitter) capture(o *occurrence, name string) *occurrence {
 	}
 	if o.d.kind == dClose {
 		if pos, ok := o.d.prod.posOf[name]; ok {
+			if o.d.prod.forwardCaptures[pos] != "" {
+				return o.kids[pos].kids[0]
+			}
 			return o.kids[pos]
 		}
 	}
@@ -246,6 +252,9 @@ func (em *stringEmitter) verbatim(a, b int) string {
 	for r < q && !em.coverage[r] {
 		r++
 	}
+	if em.observing {
+		return string(em.run.ps.text[l:r])
+	}
 	span := [2]int{a, b}
 	if _, exists := em.claims[span]; !exists {
 		var claims [][2]int
@@ -310,7 +319,7 @@ func (em *stringEmitter) ownership(o *occurrence) int {
 	return attached
 }
 
-func (run *stageRun) emit(rec *recognizer, d *dn) []Token {
+func (run *stageRun) emitFlow(rec *recognizer, root *occurrence, flow *diagnosticFlow) []Token {
 	em := &stringEmitter{run: run, rec: rec, claims: map[[2]int]bool{}, inherited: map[int]bool{}}
 	forwards := false
 	for i := range run.toks {
@@ -319,7 +328,6 @@ func (run *stageRun) emit(rec *recognizer, d *dn) []Token {
 			break
 		}
 	}
-	root := occurrenceTree(d)
 	demands := map[string]bool{}
 	for _, p := range rec.g.prods {
 		if p.emit != nil {
@@ -361,20 +369,23 @@ func (run *stageRun) emit(rec *recognizer, d *dn) []Token {
 		}
 	}
 	type frame struct {
-		o             *occurrence
-		next          int
-		item          int
-		phase         int
-		token         Token
-		before, after []Token
-		attachments   []*occurrence
-		attachment    int
-		into          *[]Token
-		following     []int
+		o                               *occurrence
+		next                            int
+		item                            int
+		phase                           int
+		token                           Token
+		before, after                   []Token
+		attachments                     []*occurrence
+		attachment                      int
+		into                            *[]Token
+		following                       []int
+		scope                           *emissionScope
+		beforeGroups, afterGroups       []diagnosticGroup
+		inheritedBefore, inheritedAfter []diagnosticGroup
 	}
 	output := []Token{}
 	newOutput := func() *[]Token { list := []Token{}; return &list }
-	stack := []*frame{{o: root, into: &output}}
+	stack := []*frame{{o: root, into: &output, scope: flow.main}}
 	var result []Token
 	for len(stack) > 0 {
 		f := stack[len(stack)-1]
@@ -393,7 +404,7 @@ func (run *stageRun) emit(rec *recognizer, d *dn) []Token {
 			}
 			child := f.o.kids[f.next]
 			f.next++
-			stack = append(stack, &frame{o: child, into: f.into})
+			stack = append(stack, &frame{o: child, into: f.into, scope: f.scope})
 			continue
 		}
 		if f.item == len(p.emit.Items) {
@@ -414,6 +425,7 @@ func (run *stageRun) emit(rec *recognizer, d *dn) []Token {
 			f.attachment = 0
 			f.before = nil
 			f.after = nil
+			f.beforeGroups, f.afterGroups, f.inheritedBefore, f.inheritedAfter = nil, nil, nil, nil
 			for _, name := range it.Before {
 				f.attachments = append(f.attachments, em.capture(f.o, name))
 			}
@@ -429,12 +441,27 @@ func (run *stageRun) emit(rec *recognizer, d *dn) []Token {
 			if f.attachment < len(f.attachments) {
 				part := f.attachments[f.attachment]
 				f.attachment++
-				stack = append(stack, &frame{o: part, into: newOutput()})
+				scope := flow.attachment(part)
+				if f.phase == 1 {
+					f.beforeGroups = append(f.beforeGroups, diagnosticGroup{scope: scope})
+				} else {
+					f.afterGroups = append(f.afterGroups, diagnosticGroup{scope: scope})
+				}
+				stack = append(stack, &frame{o: part, into: newOutput(), scope: scope})
 				continue
 			}
 			if f.phase == 3 {
 				f.token.Before = append(f.before, f.token.Before...)
 				f.token.After = append(f.token.After[:len(f.token.After):len(f.token.After)], f.after...)
+				row := f.token.carrier
+				row.token = f.token
+				row.groups = append(row.groups, f.beforeGroups...)
+				row.groups = append(row.groups, f.inheritedBefore...)
+				row.groups = append(row.groups, f.inheritedAfter...)
+				row.groups = append(row.groups, f.afterGroups...)
+				for _, group := range append(append([]diagnosticGroup{}, f.beforeGroups...), f.afterGroups...) {
+					group.scope.carrier = row
+				}
 				*f.into = append(*f.into, f.token)
 				f.item++
 				f.phase = 0
@@ -482,9 +509,9 @@ func (run *stageRun) emit(rec *recognizer, d *dn) []Token {
 				ev := run.evaluator(rec.g, func(name string) (spanVal, bool) {
 					o := em.capture(f.o, name)
 					x, y, tags := em.span(o)
-					span := spanVal{a: x, b: y, whole: true, tags: tags, machine: rec.machine, structure: rec.derivationStructure(o.d), arena: rec.closes, closes: rec.derivationCloses(o.d)}
+					span := spanVal{a: x, b: y, whole: true, tags: tags, machine: rec.machine, structure: rec.derivationStructure(o.d, name == ""), arena: rec.closes, closes: rec.derivationCloses(o.d)}
 					if rec.g.stage.treeExpressions {
-						span.treeReader = func() int { return em.treeIdentity(o) }
+						span.treeReader = func() int { return em.treeIdentity(o, name == "") }
 					}
 					return span, true
 				})
@@ -527,8 +554,19 @@ func (run *stageRun) emit(rec *recognizer, d *dn) []Token {
 					source := run.toks[index]
 					token.Before = source.Before[:len(source.Before):len(source.Before)]
 					token.After = source.After[:len(source.After):len(source.After)]
+					for _, token := range source.Before {
+						f.inheritedBefore = append(f.inheritedBefore, diagnosticGroup{lists: diagnosticLists{token.Errors, token.Warnings}})
+					}
+					for _, token := range source.After {
+						f.inheritedAfter = append(f.inheritedAfter, diagnosticGroup{lists: diagnosticLists{token.Errors, token.Warnings}})
+					}
 				}
 			}
+			var support *occurrence
+			if !it.IsInsert {
+				support = part
+			}
+			token.carrier = flow.emitted(token, support, f.o, f.scope)
 			f.token = token
 			f.phase = 3
 			f.attachments = nil
@@ -539,4 +577,30 @@ func (run *stageRun) emit(rec *recognizer, d *dn) []Token {
 		}
 	}
 	return result
+}
+
+func (run *stageRun) emit(rec *recognizer, d *dn) []Token {
+	root := occurrenceTree(d)
+	flow := newDiagnosticFlow(root, run, rec)
+	output := run.emitFlow(rec, root, flow)
+	flow.assign()
+	finishDiagnosticCarriers(output)
+	return output
+}
+
+// Carrier references exist only during one emission walk.
+func finishDiagnosticCarriers(tokens []Token) {
+	pending := [][]Token{tokens}
+	for len(pending) > 0 {
+		list := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		for index := range list {
+			token := &list[index]
+			if row := token.carrier; row != nil {
+				token.Errors, token.Warnings = row.token.Errors, row.token.Warnings
+				token.carrier = nil
+			}
+			pending = append(pending, token.Before, token.After)
+		}
+	}
 }

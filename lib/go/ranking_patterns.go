@@ -217,10 +217,18 @@ func possibleNodeMatch(p *domPattern, name, terminal string, omitted bool, tags 
 }
 
 func (g *lowered) canCountProfiles(steps []keyStep) bool {
-	if len(steps) == 0 {
-		return false
-	}
 	g.profileOnce.Do(func() {
+		erased := false
+		for _, production := range g.prods {
+			erased = erased || production.nothing
+		}
+		if g.hasErrors || erased {
+			g.profilePossible = true
+			return
+		}
+		if len(steps) == 0 {
+			return
+		}
 		pending := []int32{g.byName["text"]}
 		seen := map[int32]bool{}
 		matches := func(name, terminal string, omitted bool, tags *tagset) bool {

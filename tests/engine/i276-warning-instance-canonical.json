@@ -1,0 +1,15 @@
+{
+  "description": "A call-head warning requires a final name that is a valid feature name.",
+  "grammar": "%rule w(@X) @X\n%redefine-rule w(A) A %warning \"instance warning\"\n%rule text w(A)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

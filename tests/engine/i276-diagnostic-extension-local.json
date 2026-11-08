@@ -1,0 +1,23 @@
+{
+  "description": "An extension inherits no diagnostic clause from the earlier definition.",
+  "grammar": "%rule text warn\n%rule warn A %warning \"warning warn\"\n%extend-rule warn B",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "warn"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": []
+  }
+}

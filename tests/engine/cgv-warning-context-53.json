@@ -45,17 +45,18 @@
         },
         "warnings": [
           {
-            "feature": "experimental-cgv",
-            "rule": "cmevla-token",
-            "source": [
-              11,
-              17
-            ],
+            "stage": "words",
+            "code": "experimental-cgv",
+            "rule": "experimental-cgv",
             "span": [
               4,
               5
             ],
-            "stage": "words"
+            "source": [
+              11,
+              17
+            ],
+            "message": "this word uses an experimental CgV form"
           }
         ]
       }

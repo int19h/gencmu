@@ -1,0 +1,87 @@
+{
+  "description": "Engine §11.5 and §12.1: diagnostic ownership (empty-attachment).",
+  "grammar": "%rule text $a:annotation $w:word\n%emits ($a) $w\n%rule annotation A\n%warning \"annotation\"\n%rule word B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "note",
+      "text",
+      "gap",
+      "annotation"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "b",
+              "value": "b",
+              "image": "b",
+              "tags": [
+                "B"
+              ],
+              "span": [
+                1,
+                2
+              ],
+              "source": [
+                2,
+                3
+              ],
+              "warnings": [
+                {
+                  "stage": "main",
+                  "code": "annotation",
+                  "rule": "annotation",
+                  "span": [
+                    0,
+                    1
+                  ],
+                  "source": [
+                    0,
+                    1
+                  ],
+                  "message": "annotation"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "annotation",
+        "rule": "annotation",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "message": "annotation"
+      }
+    ]
+  }
+}

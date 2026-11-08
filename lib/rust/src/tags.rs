@@ -173,6 +173,9 @@ pub(crate) fn is_subset(small: &TagList, large: &TagList) -> bool {
 /// A name starts with an ASCII letter, followed by ASCII letters, digits,
 /// underscores, or hyphens (engine §9).
 pub(crate) fn is_name(tag: &str) -> bool {
+    if tag.contains("--") {
+        return false;
+    }
     let mut chars = tag.chars();
     chars.next().is_some_and(|c| c.is_ascii_alphabetic())
         && chars.all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')

@@ -1,0 +1,31 @@
+{
+  "description": "A spliced rule retains its value and image recipes.",
+  "grammar": "%rule text $x:*r %emits $x\n%rule r A :: Mark := \"v\" :- \"i\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "output": [
+            {
+              "value": "v",
+              "image": "i",
+              "tags": [
+                "Mark"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "description": "Conditions precede the diagnostic clause.",
+  "document": "```jbogenbau\n%rule text A %warning \"message\" %conditions $\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 33
+    }
+  }
+}

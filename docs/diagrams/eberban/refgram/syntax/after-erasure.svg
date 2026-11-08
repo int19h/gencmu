@@ -10,8 +10,8 @@
 <g class="terminal"><rect x="40" y="68" width="33" height="24" rx="12"/><text x="56.5" y="85" textLength="16.8" lengthAdjust="spacingAndGlyphs">PO</text></g>
 <path d="M73 80H182a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="102" width="134" height="24" rx="0"/><text x="107" y="119" textLength="117.6" lengthAdjust="spacingAndGlyphs">erased-invalid</text></g>
-<path d="M174 114H182a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="40" y="102" width="126" height="24" rx="0"/><text x="103" y="119" textLength="109.2" lengthAdjust="spacingAndGlyphs">words-erasure</text></g>
+<path d="M166 114H182a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V138a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="40" y="136" width="142" height="24" rx="0"/><text x="111" y="153" textLength="126" lengthAdjust="spacingAndGlyphs">sentence-closer</text></g>
 <path d="M182 148H182a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>

@@ -1,0 +1,50 @@
+{
+  "description": "Engine §11.5, §12.1, and §13: deferred diagnostic flow and reporting (pending-skips-elision).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage before\n%ambiguity-resolution greedy\n%rule text fault\n%rule fault A\n%error \"bad\"\n%stage last\n%ambiguity-resolution greedy\n%elision-only\n%rule text [+T]\n```\n"
+  },
+  "pipelineDocument": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "reported",
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "before",
+          "verdict": "unique"
+        },
+        {
+          "name": "last",
+          "verdict": "unique",
+          "output": []
+        }
+      ],
+      "error": {
+        "kind": "reported",
+        "stage": "last",
+        "errors": [
+          {
+            "stage": "before",
+            "code": "fault",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

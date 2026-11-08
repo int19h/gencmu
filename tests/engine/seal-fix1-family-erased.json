@@ -1,0 +1,18 @@
+{
+  "description": "Engine §9.3: a family child list fails when every instance is fully erased.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule atom(@T) @T\n%erased\n%rule ia atom(A)\n%rule text $i:ia\n%conditions $i ≅ #·atom« A »\n```\n"
+  },
+  "pipelineDocument": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

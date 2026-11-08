@@ -4,7 +4,7 @@
 
 mod suffix;
 use crate::patterns::{Machine, Pattern};
-use std::cell::{Cell, RefCell};
+use std::cell::{Cell, OnceCell, RefCell};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -63,6 +63,8 @@ pub(crate) struct Tok {
     /// operation sees: only emission forwards them.
     pub before: Vec<Attachment>,
     pub after: Vec<Attachment>,
+    pub errors: Vec<crate::result::Warning>,
+    pub warnings: Vec<crate::result::Warning>,
 }
 
 impl Tok {
@@ -123,6 +125,8 @@ pub(crate) fn test_holds(test: &SymbolTest, tokens: &[Tok], tags: &Tags, set: Se
 /// A captured part: its span, relative to the parse's tokens, and its tag set.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct Cap {
+    pub route: u8,
+    pub proof_structure: Option<u32>,
     pub boundary: u32,
     pub close_requested: u8,
     pub structure: u32,
@@ -219,7 +223,7 @@ pub(crate) struct Item {
     pub caps: u32,
 }
 
-type CompletionKey = (u32, u32, SetId, u32, u32, u8, u32);
+type CompletionKey = (u32, u32, SetId, u32, u32, u8, u32, u8);
 
 #[derive(Debug, Default)]
 pub(crate) struct ESet {
@@ -239,6 +243,7 @@ pub(crate) struct ESet {
     processed: Vec<bool>,
     /// For a completed item, its constituent's tag set; else `u32::MAX`.
     pub tagset: Vec<SetId>,
+    pub completed_structures: Vec<u32>,
     index: FxMap<Item, u32>,
     failed: FxSet<Item>,
     waiting: FxMap<u128, Vec<u32>>,
@@ -247,14 +252,14 @@ pub(crate) struct ESet {
     /// The origins of each rule's completed items, in order of completion.
     pub origins: FxMap<u32, Vec<u32>>,
     done: FxSet<CompletionKey>,
-    empty: FxMap<u128, Vec<(SetId, u32, u32)>>,
+    empty: FxMap<u128, Vec<(SetId, u32, u32, u8)>>,
     /// The rules predicted here, each with whether every prediction of it
     /// was strict (§7.4).
     predicted: FxMap<u128, bool>,
     /// The productions that prediction skipped here because the next token
     /// lacked their first terminal. A production whose condition failed is
     /// not one of them.
-    pub skipped: Vec<u32>,
+    pub skipped: Vec<Item>,
 }
 
 /// The bit of a queue entry that marks an item processed again (§7.4).
@@ -283,6 +288,7 @@ impl ESet {
             queue,
             processed,
             tagset,
+            completed_structures,
             index,
             failed,
             waiting,
@@ -298,6 +304,7 @@ impl ESet {
         queue.clear();
         processed.clear();
         tagset.clear();
+        completed_structures.clear();
         index.clear();
         failed.clear();
         let mut keep = |mut list: Vec<u32>| {
@@ -379,6 +386,113 @@ pub(crate) struct LexicalFrame {
     pub inside: bool,
     pub restoration_entry: Option<u32>,
     pub restoration_seal: Option<(usize, u32, usize)>,
+}
+
+/// Ranking aliases project restoration identities without changing chart items (§6).
+#[derive(Default)]
+pub(crate) struct RestorationView {
+    pub aliases: Vec<Vec<u32>>,
+    pub members: FxMap<(u32, u32), Vec<u32>>,
+    states: FxMap<u32, u32>,
+    caps: Vec<u32>,
+    lexical: Vec<u32>,
+}
+impl RestorationView {
+    pub fn state(&self, state: u32) -> u32 {
+        self.states.get(&state).copied().unwrap_or(state)
+    }
+    pub fn cap(&self, mut cap: Cap) -> Cap {
+        cap.structure = self.state(cap.structure);
+        cap.proof_structure = cap.proof_structure.map(|s| self.state(s));
+        cap
+    }
+    pub fn item(&self, mut item: Item) -> Item {
+        item.prefix = self.state(item.prefix);
+        item.structure = self.state(item.structure);
+        item.caps = self.caps[item.caps as usize];
+        item.lexical = self.frame(item.lexical);
+        item
+    }
+    pub fn frame(&self, frame: u32) -> u32 {
+        self.lexical[frame as usize]
+    }
+}
+impl Chart {
+    pub(crate) fn restoration_view(&self, g: &Lowered) -> Option<Rc<RestorationView>> {
+        let machine = self.machine.as_ref()?;
+        machine.borrow().observations.as_ref()?;
+        if !g.prods.iter().any(|p| p.erased) {
+            return None;
+        }
+        let mut view = RestorationView::default();
+        let mut state =
+            |value| *view.states.entry(value).or_insert_with(|| machine.borrow_mut().restoration_state(value));
+        for set in &self.sets {
+            for (i, item) in set.items.iter().enumerate() {
+                work::count(Work::Walked, 1);
+                state(item.prefix);
+                state(item.structure);
+                state(set.completed_structures[i]);
+            }
+        }
+        for entry in &self.caps {
+            state(entry.cap.structure);
+            if let Some(s) = entry.cap.proof_structure {
+                state(s);
+            }
+        }
+        for frame in &self.lexical {
+            state(frame.prefix);
+            state(frame.seal_prefix);
+            for cap in frame.captures.values() {
+                work::count(Work::Walked, 1);
+                state(cap.structure);
+                if let Some(s) = cap.proof_structure {
+                    state(s);
+                }
+            }
+        }
+        let mut captures = FxMap::default();
+        view.caps.push(0);
+        for entry in self.caps.iter().skip(1) {
+            work::count(Work::Walked, 1);
+            let key = (view.caps[entry.parent as usize], view.cap(entry.cap));
+            let next = captures.len() as u32 + 1;
+            view.caps.push(*captures.entry(key).or_insert(next));
+        }
+        let mut frames = FxMap::default();
+        view.lexical.push(0);
+        for (index, raw) in self.lexical.iter().enumerate() {
+            work::count(Work::Walked, 1);
+            let mut frame = raw.clone();
+            frame.prefix = view.state(frame.prefix);
+            frame.seal_prefix = view.state(frame.seal_prefix);
+            for cap in frame.captures.values_mut() {
+                work::count(Work::Walked, 1);
+                *cap = view.cap(*cap);
+            }
+            let key = format!("{frame:?}");
+            view.lexical.push(*frames.entry(key).or_insert(index as u32 + 1));
+        }
+        for (set, data) in self.sets.iter().enumerate() {
+            let mut found = FxMap::default();
+            let mut aliases = Vec::new();
+            for (index, item) in data.items.iter().enumerate() {
+                work::count(Work::Walked, 1);
+                let key = (
+                    view.item(*item),
+                    data.tagset[index],
+                    view.state(data.completed_structures[index]),
+                    data.is_strict(index),
+                );
+                let first = *found.entry(key).or_insert(index as u32);
+                aliases.push(first);
+                view.members.entry((set as u32, first)).or_default().push(index as u32);
+            }
+            view.aliases.push(aliases);
+        }
+        Some(Rc::new(view))
+    }
 }
 
 fn lexical_rule(rule: u32, lexical: u32, requested: u8) -> u128 {
@@ -463,8 +577,9 @@ impl Chart {
             .get(&p.rule)
             .cloned()
             .unwrap_or_else(|| format!("parent{:?}", p.slot.as_ref().expect("a written source").source));
+        let variant = if p.guard_conditions.is_empty() { None } else { Some(before.prod) };
         let key = format!(
-            "{:?}/{written:?}/{symbols:?}/{}/{}/{own:?}/{}/{:?}/{observing}/{}",
+            "{variant:?}/{:?}/{written:?}/{symbols:?}/{}/{}/{own:?}/{}/{:?}/{observing}/{}",
             before.lexical,
             before.dot,
             before.origin,
@@ -818,6 +933,11 @@ impl Contents {
 /// What a nested parse's answer is remembered by (§4).
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum NestedKey {
+    Context {
+        key: Box<NestedKey>,
+        filtered: bool,
+        errors: u64,
+    },
     /// A short span: its rule, the original text that holds its tokens'
     /// sources, and each token's tags, text, value, and where its
     /// source begins and ends in that text, which
@@ -841,6 +961,8 @@ enum NestedKey {
 /// text, and the memo of nested parses, which `next_stage` clears before a
 /// parse over other tokens or with other rules.
 pub(crate) struct Shared<'a> {
+    error_prefix: Vec<usize>,
+    error_base: usize,
     pattern_values: RefCell<FxMap<(usize, usize, usize), Rc<str>>>,
     pub emission_boundaries: FxSet<(bool, u32, Sym)>,
     pub emission_targets: FxMap<String, Sym>,
@@ -852,16 +974,17 @@ pub(crate) struct Shared<'a> {
     pub tags: Tags,
     pub unicode: &'a Unicode,
     pub text: &'a [char],
+    source_lines: OnceCell<Vec<usize>>,
     /// Whether a span parses as a rule, and its tags as it: what `matches`
     /// and `tags` read of one nested parse.
-    memo: FxMap<NestedKey, (bool, SetId)>,
+    memo: FxMap<NestedKey, Answer>,
     /// The contents that the keys of the memo and of `begins` number.
     contents: Contents,
     /// Original qualified witnesses, shared by alignment constraints and endpoints.
     qualified: FxMap<QualificationKey, Vec<QualifiedWitness>>,
     /// What `begins` reads, apart, since it can hold where `matches` does
     /// not.
-    begins: FxMap<NestedKey, bool>,
+    begins: FxMap<NestedKey, (bool, bool)>,
     /// The nested parses running, by place, whatever the kind of query that
     /// started each.
     running: FxSet<Place>,
@@ -879,6 +1002,8 @@ pub(crate) struct Shared<'a> {
 impl<'a> Shared<'a> {
     pub(crate) fn new(unicode: &'a Unicode, text: &'a [char]) -> Shared<'a> {
         Shared {
+            error_prefix: Vec::new(),
+            error_base: 0,
             pattern_values: RefCell::new(FxMap::default()),
             boundaries: None,
             emission_boundaries: FxSet::default(),
@@ -890,6 +1015,7 @@ impl<'a> Shared<'a> {
             tags: Tags::new(),
             unicode,
             text,
+            source_lines: OnceCell::new(),
             memo: FxMap::default(),
             contents: Contents::default(),
             qualified: FxMap::default(),
@@ -902,6 +1028,42 @@ impl<'a> Shared<'a> {
             spare: Vec::new(),
             lists: Vec::new(),
         }
+    }
+
+    pub(crate) fn position(&self, offset: usize) -> (usize, usize) {
+        let starts = self.source_lines.get_or_init(|| {
+            let mut starts = vec![0];
+            for (index, &character) in self.text.iter().enumerate() {
+                work::count(Work::Walked, 1);
+                if character == '\n' || character == '\r' && self.text.get(index + 1) != Some(&'\n') {
+                    starts.push(index + 1);
+                }
+            }
+            starts
+        });
+        let offset = offset.min(self.text.len());
+        let line = starts.partition_point(|&start| {
+            work::count(Work::Walked, 1);
+            start <= offset
+        });
+        (line, offset - starts[line - 1] + 1)
+    }
+
+    fn prepare_errors(&mut self, tokens: &[Tok], base: usize) {
+        if !self.error_prefix.is_empty() {
+            return;
+        }
+        self.error_base = base;
+        self.error_prefix.push(0);
+        for token in tokens {
+            work::count(Work::Walked, 1);
+            let next = self.error_prefix.last().unwrap() + usize::from(!token.errors.is_empty());
+            self.error_prefix.push(next);
+        }
+    }
+    fn carried_errors(&self, base: usize, length: usize) -> bool {
+        let start = base - self.error_base;
+        self.error_prefix[start] != self.error_prefix[start + length]
     }
 
     /// An empty set, with room kept from an earlier chart if one has it.
@@ -925,6 +1087,7 @@ impl<'a> Shared<'a> {
     /// Forgets the nested parses of the previous parse, whose rules and
     /// tokens may differ.
     pub(crate) fn next_stage(&mut self) {
+        self.error_prefix.clear();
         self.machine = None;
         self.boundaries = None;
         self.emission_boundaries.clear();
@@ -1129,6 +1292,7 @@ struct QualifiedWitness {
     tags: SetId,
     family: u32,
     oracle: u32,
+    clean: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1144,7 +1308,11 @@ impl Request<'_> {
         (self.rule, self.base + self.start, self.base + self.end)
     }
     fn qualification_key(&self) -> QualificationKey {
-        match &self.key {
+        let mut key = &self.key;
+        while let NestedKey::Context { key: inner, .. } = key {
+            key = inner;
+        }
+        match key {
             NestedKey::Aligned { active, .. } => (self.place(), active.clone(), self.aligned.and_then(|a| a.family)),
             _ => unreachable!("an aligned qualification key"),
         }
@@ -1153,7 +1321,7 @@ impl Request<'_> {
 
 /// A nested query's answer: whether its span parses as its rule, and the
 /// union of the tags of its derivations.
-type Answer = (bool, SetId);
+type Answer = (bool, SetId, bool);
 
 /// What a node of a condition or a term gives, or a whole evaluation of a
 /// production's tag term for its constituent.
@@ -1194,6 +1362,7 @@ fn took(last: &mut Option<Out>) -> Out {
 /// The kind of a nested query, which says what its answer gives.
 #[derive(Debug, Clone, Copy)]
 enum Query {
+    ErrorFree(crate::query_forms::Mode),
     Matches,
     Begins,
     Ends,
@@ -1201,9 +1370,10 @@ enum Query {
 }
 
 impl Query {
-    fn out(self, (holds, set): Answer, tags: &Tags) -> Out {
+    fn out(self, (holds, set, clean): Answer, tags: &Tags) -> Out {
         match self {
             Query::Matches | Query::Begins | Query::Ends => Out::Bool(holds),
+            Query::ErrorFree(_) => Out::Bool(clean),
             Query::TagsRule => Out::Value(Value::Set(tags.shared(set))),
         }
     }
@@ -1417,7 +1587,7 @@ enum Step {
     },
     /// Advance `item` over the empty constituents found in set `e`, from
     /// the one at `next` on.
-    Empties { item: Item, e: usize, strict: bool, empties: Vec<(SetId, u32, u32)>, next: usize },
+    Empties { item: Item, e: usize, strict: bool, empties: Vec<(SetId, u32, u32, u8)>, next: usize },
     /// Advance `item` over a token.
     Terminal { item: Item, cap: Cap, into: usize, strict: bool },
     /// Complete the item `k` of set `e`.
@@ -1431,6 +1601,7 @@ enum Step {
         tags: SetId,
         structure: u32,
         boundary: u32,
+        route: u8,
         empty: bool,
         count: usize,
         next: usize,
@@ -1473,7 +1644,16 @@ impl<'t, 'g> Run<'t, 'g> {
             parent: 0,
             jump: 0,
             depth: 0,
-            cap: Cap { boundary: 0, close_requested: 0, start: 0, end: 0, tags: 0, structure: u32::MAX },
+            cap: Cap {
+                route: 0,
+                proof_structure: None,
+                boundary: 0,
+                close_requested: 0,
+                start: 0,
+                end: 0,
+                tags: 0,
+                structure: u32::MAX,
+            },
         });
         chart.sets.push(first);
         // The first step predicts the start rule in a set that holds
@@ -1798,7 +1978,10 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             if !g.tree_demands.is_empty() && self.walks_trees(*item, lexical) {
                 let prefix = m.tree(item.prefix).unwrap_or_default().sequence;
                 let arena = m.trees.as_mut().expect("demanded tree identities");
-                let tree = if !rule.helper {
+                let tree = if p.splice {
+                    let identity = arena.node(crate::tree_identity::Node::Anonymous(prefix));
+                    arena.state(crate::tree_identity::Tree { prefix, identity, sequence: prefix })
+                } else if !rule.helper {
                     let identity = arena.node(crate::tree_identity::Node::Rule(rule.name.clone(), prefix));
                     let sequence = arena.append(0, identity);
                     arena.state(crate::tree_identity::Tree { prefix, identity, sequence })
@@ -1817,6 +2000,16 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
 
     /// The enclosing named view retains cycles hidden by a ranked seal.
     fn lexical_whole_structure(&self, frame: &mut Frame<'_>, prefix: u32, base: usize, tokens: &[Tok]) {
+        if frame.structure != u32::MAX && frame.lexical.is_none() && self.g.prods[frame.prod as usize].splice {
+            if let Some(machine) = &self.shared.machine {
+                let mut m = machine.borrow_mut();
+                let observation = m.observation(frame.structure);
+                let tree = m.tree_state(frame.structure);
+                let structure = m.node(None, frame.structure, None);
+                frame.structure = m.with_tree(structure, tree);
+                frame.structure = m.observing(frame.structure, observation);
+            }
+        }
         let (Some(lexical), Some(machine)) = (frame.lexical, &self.shared.machine) else { return };
         let rule = self.g.prods[lexical.root as usize].rule;
         let parent = &self.g.rules[rule as usize].name;
@@ -1826,10 +2019,11 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         frame.parent_structure = m.node_with_value(Some(parent), frame.parent_structure, None, &[], value.as_deref());
         if !self.g.tree_demands.is_empty() && crate::tree_identity::demand(self.g, frame.prod, frame.lexical).whole {
             let project = |at: u32| frame.project.map_or(at, |p| p[at as usize]) as usize;
-            let values = tokens[project(lexical.seal_at)..project(frame.end)].iter().map(|t| t.value.clone()).collect();
+            let start = project(lexical.seal_at);
+            let end = project(frame.end);
             let prefix = m.tree(lexical.seal_prefix).unwrap_or_default().sequence;
             let arena = m.trees.as_mut().expect("demanded identities");
-            let seal = arena.node(crate::tree_identity::Node::Seal(values));
+            let seal = arena.seal(base + start, base + end, tokens[start..end].iter().map(|t| t.value.clone()));
             let prefix = arena.append(prefix, seal);
             let tree = arena.singleton(crate::tree_identity::Node::Rule(parent.clone(), prefix));
             frame.parent_structure = m.with_tree(frame.parent_structure, tree);
@@ -1930,11 +2124,12 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     /// so a nested parse over the rest of a long text makes only the sets it
     /// reaches.
     pub(crate) fn recognize(&mut self, tokens: &[Tok], base: usize, start: u32) -> Result<Chart, EngineError> {
+        self.shared.prepare_errors(self.recon.map_or(tokens, |recon| recon.observed), base);
         self.prepare_patterns();
         let first = self.shared.fresh_set();
         let mut run = Run::new(tokens, base, start, self.recon, first);
         // A non-stage root is a query whose completed items need eligibility.
-        run.chart.record_links |= start != self.g.start;
+        run.chart.record_links |= start != self.g.start || self.g.has_errors;
         run.chart.machine = self.shared.machine.clone();
         run.chart.boundaries = self.shared.boundaries.clone();
         Ok(self.drive(run)?.0)
@@ -2060,17 +2255,21 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         };
         if request.begins {
             let mut accepted = false;
+            let mut clean = false;
             for w in witnesses {
-                accepted |= aligned(&w);
+                if aligned(&w) {
+                    accepted = true;
+                    clean |= w.clean;
+                }
             }
             if self.shared.suffix_active == 0 {
-                self.shared.begins.insert(request.key, accepted);
+                self.shared.begins.insert(request.key, (accepted, clean));
             }
-            return (accepted, 0);
+            return (accepted, 0, clean);
         }
         let retained: Vec<_> = witnesses.iter().filter(aligned).collect();
         let list = union_all(retained.iter().map(|w| self.shared.tags.list(w.tags)));
-        let answer = (!retained.is_empty(), self.shared.tags.set(list));
+        let answer = (!retained.is_empty(), self.shared.tags.set(list), retained.iter().any(|w| w.clean));
         if self.shared.suffix_active == 0 {
             self.shared.memo.insert(request.key, answer);
         }
@@ -2078,7 +2277,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     }
     fn settle(&mut self, request: Request, chart: &Chart) -> Answer {
         if let Some(id) = request.suffix {
-            return (self.shared.suffixes[id].answers[&(request.base + request.end)], 0);
+            let (holds, clean) = self.shared.suffixes[id].answers[&(request.base + request.end)];
+            return (holds, 0, clean);
         }
         let rule = request.rule;
         let tokens = &request.tokens[request.start..request.end];
@@ -2105,13 +2305,15 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     .map(move |&index| (set as u32, index))
             })
             .collect();
-        let eligible = self.proofs(chart).eligible(&witnesses);
+        let eligible =
+            self.proofs(chart).flags(&witnesses, tokens, self.shared.carried_errors(query_base, tokens.len()));
         if request.aligned.is_some() {
             let qualified: Vec<_> = witnesses
                 .into_iter()
                 .zip(eligible)
-                .filter(|(_, eligible)| *eligible)
-                .map(|((set, index), _)| QualifiedWitness {
+                .filter(|(_, eligible)| *eligible != 0)
+                .map(|((set, index), flags)| QualifiedWitness {
+                    clean: flags & 1 != 0,
                     end: query_base + set as usize,
                     observation: self
                         .shared
@@ -2144,19 +2346,24 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             }
             return answer;
         }
-        let retained: Vec<_> =
-            witnesses.into_iter().zip(eligible).filter_map(|(witness, eligible)| eligible.then_some(witness)).collect();
+        let retained: Vec<_> = witnesses
+            .into_iter()
+            .zip(eligible)
+            .filter_map(|(witness, flags)| (flags != 0).then_some((witness, flags & 1 != 0)))
+            .collect();
         let accepted = !retained.is_empty();
+        let clean = retained.iter().any(|(_, clean)| *clean);
         if request.begins {
             if self.shared.suffix_active == 0 {
-                self.shared.begins.insert(request.key, accepted);
+                self.shared.begins.insert(request.key, (accepted, clean));
             }
-            return (accepted, 0);
+            return (accepted, 0, clean);
         }
         let tags = &self.shared.tags;
-        let list =
-            union_all(retained.iter().map(|&(set, index)| tags.list(chart.sets[set as usize].tagset[index as usize])));
-        let answer = (accepted, self.shared.tags.set(list));
+        let list = union_all(
+            retained.iter().map(|&((set, index), _)| tags.list(chart.sets[set as usize].tagset[index as usize])),
+        );
+        let answer = (accepted, self.shared.tags.set(list), clean);
         if self.shared.suffix_active == 0 {
             self.shared.memo.insert(request.key, answer);
         }
@@ -2201,8 +2408,10 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     };
                 }
                 Step::Empties { item, e, strict, empties, next } => {
-                    while let Some(&(tags, structure, boundary)) = empties.get(*next) {
+                    while let Some(&(tags, structure, boundary, route)) = empties.get(*next) {
                         let cap = Cap {
+                            route,
+                            proof_structure: None,
                             close_requested: self.requests_child(&run.chart, *item, run.tokens, *e),
                             start: *e as u32,
                             end: *e as u32,
@@ -2222,9 +2431,13 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 Step::Complete { e, k } => {
                     let (e, k) = (*e, *k);
                     let tags = self.complete_tags(&run.chart, &mut run.evals, tokens, base, e, k)?;
-                    run.step = if tags == u32::MAX { Step::Next } else { self.complete(&mut run.chart, e, k, tags) };
+                    run.step = if tags == u32::MAX {
+                        Step::Next
+                    } else {
+                        self.complete(&mut run.chart, e, k, tags, tokens, base)
+                    };
                 }
-                Step::Waiters { e, origin, rule, tags, structure, boundary, empty, count, next } => {
+                Step::Waiters { e, origin, rule, tags, structure, boundary, route, empty, count, next } => {
                     while *next < *count {
                         let chart = &run.chart;
                         let waiter = chart.sets[*origin].waiting[&*rule][*next];
@@ -2235,6 +2448,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                         let strict = *empty && chart.sets[*origin].is_strict(waiter as usize);
                         if !strict || self.reads_later(waiting) {
                             let cap = Cap {
+                                route: *route,
+                                proof_structure: None,
                                 close_requested: (*rule >> 64) as u8,
                                 start: *origin as u32,
                                 end: *e as u32,
@@ -2391,7 +2606,16 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 .boundaries
                 .as_ref()
                 .map_or(0, |m| m.borrow_mut().leaf(&g.terminals[terminal as usize], synthetic));
-            let cap = Cap { boundary, close_requested: 0, start: e as u32, end: e as u32 + 1, tags, structure };
+            let cap = Cap {
+                route: 0,
+                proof_structure: None,
+                boundary,
+                close_requested: 0,
+                start: e as u32,
+                end: e as u32 + 1,
+                tags,
+                structure,
+            };
             run.step = Step::Terminal { item, cap, into: e + 1, strict };
             return true;
         }
@@ -2743,6 +2967,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let index = target.items.len() as u32;
         target.index.insert(item, index);
         target.items.push(item);
+        target.completed_structures.push(item.structure);
         if chart.suffix {
             chart.positions.get_mut().expect("suffix positions").entry(item).or_default().push(set as u32);
         }
@@ -2851,6 +3076,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 let set = self.shared.tags.set(vec![own]);
                 let sound = helper.elided_value.clone().unwrap_or_default();
                 let synthetic = Tok {
+                    errors: Vec::new(),
+                    warnings: Vec::new(),
                     text: String::new(),
                     tags: set,
                     value: sound,
@@ -2882,6 +3109,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         // A production that must first read a terminal the next token lacks
         // gives a dead item, so prediction skips it. The set records it, and
         // the rejection report adds back the terminal it expected.
+        // Entry conditions run before lookahead. Their chart entries supply evidence without another evaluation.
         let has_conditions = chart.lexical_frame(lexical).map_or_else(
             || lowered.has_conds_at(0),
             |frame| {
@@ -2897,7 +3125,17 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 || !self.shared.reads(matcher, &tokens[e], self.recon.is_some_and(|recon| recon.synthetic[e]))
             {
                 if before.is_none() {
-                    chart.sets[e].skipped.push(production);
+                    chart.sets[e].skipped.push(Item {
+                        boundary: 0,
+                        close_requested: requested,
+                        lexical,
+                        prod: production,
+                        dot: 0,
+                        origin: e as u32,
+                        caps: 0,
+                        prefix: 0,
+                        structure: u32::MAX,
+                    });
                 }
                 return Ok(());
             }
@@ -2983,6 +3221,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let index = target.items.len() as u32;
         target.index.insert(item, index);
         target.items.push(item);
+        target.completed_structures.push(item.structure);
         target.tagset.push(u32::MAX);
         target.enqueue(index, true, false);
     }
@@ -3016,6 +3255,47 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         if strict && item.dot as usize + 1 == production.syms.len() {
             return Ok(());
         }
+        if let Some(route) = production.routes.get(&(item.dot as usize)) {
+            let omitted = cap.route == 1;
+            if (*route == 1) != omitted {
+                return Ok(());
+            }
+        }
+        let mut captured = if production.forward_captures.contains_key(&(item.dot as usize)) {
+            let Sym::N(helper) = production.syms[item.dot as usize] else { unreachable!() };
+            chart.sets[cap.end as usize]
+                .completed
+                .get(&(helper, cap.start))
+                .into_iter()
+                .flatten()
+                .find_map(|&index| {
+                    let child = chart.sets[cap.end as usize].items[index as usize];
+                    (chart.sets[cap.end as usize].tagset[index as usize] == cap.tags
+                        && g.route(child.prod) == cap.route)
+                        .then(|| chart.caps(child.caps).first().copied())
+                        .flatten()
+                })
+                .unwrap_or(cap)
+        } else {
+            cap
+        };
+        if production.forward_captures.contains_key(&(item.dot as usize)) {
+            captured.proof_structure = Some(cap.structure);
+            captured.route = cap.route;
+        }
+        if let Sym::N(rule) = production.syms[item.dot as usize] {
+            if g.rules[rule as usize].splice_target.is_some() {
+                if let Some(machine) = &self.shared.machine {
+                    let mut m = machine.borrow_mut();
+                    let observation = m.observation(captured.structure);
+                    let tree = m.tree_state(captured.structure);
+                    let structure = m.node(None, captured.structure, None);
+                    captured.proof_structure = Some(cap.structure);
+                    captured.structure = m.with_tree(structure, tree);
+                    captured.structure = m.observing(captured.structure, observation);
+                }
+            }
+        }
         // A tested symbol's test must hold of its own span and tags, which
         // is checked before any condition the advance makes ready (§4). A
         // test of a terminal reads the token with its recognition values; in
@@ -3038,8 +3318,11 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let reading_trees = !g.tree_demands.is_empty();
         let observing_trees =
             reading_trees && crate::tree_identity::prefix_demand(g, item, chart.lexical_frame(item.lexical));
-        let caps =
-            if production.cap_at[item.dot as usize].is_some() { chart.extend_caps(item.caps, cap) } else { item.caps };
+        let caps = if production.cap_at[item.dot as usize].is_some() {
+            chart.extend_caps(item.caps, captured)
+        } else {
+            item.caps
+        };
         let prefix = self.shared.machine.as_ref().map_or(0, |m| {
             let mut m = m.borrow_mut();
             let observing = m.observations.is_some() && self.observes_closes(item);
@@ -3079,9 +3362,11 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 let (start, end) = project.map_or((cap.start as usize, cap.end as usize), |p| {
                     (p[cap.start as usize] as usize, p[cap.end as usize] as usize)
                 });
-                let values = observed[start..end].iter().map(|t| t.value.clone()).collect();
-                let tree =
-                    m.trees.as_mut().expect("demanded identities").singleton(crate::tree_identity::Node::Seal(values));
+                let arena = m.trees.as_mut().expect("demanded identities");
+                let identity =
+                    arena.seal(base + start, base + end, observed[start..end].iter().map(|t| t.value.clone()));
+                let sequence = arena.append(0, identity);
+                let tree = arena.state(crate::tree_identity::Tree { prefix: 0, identity, sequence });
                 m.with_tree(child, tree)
             } else {
                 child
@@ -3190,9 +3475,51 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     /// Records the completed item `k` of set `e`, whose constituent has
     /// `tags`, and gives the step that advances the items waiting for it,
     /// if a constituent of its rule, origin and tags is new here.
-    fn complete(&mut self, chart: &mut Chart, e: usize, k: usize, tags: SetId) -> Step {
+    fn complete(&mut self, chart: &mut Chart, e: usize, k: usize, tags: SetId, tokens: &[Tok], base: usize) -> Step {
         let item = chart.sets[e].items[k];
-        let rule = self.g.prods[item.prod as usize].rule;
+        let production = &self.g.prods[item.prod as usize];
+        let rule = production.rule;
+        // Own conditions and tag recipes already read the full identity.
+        // A parent receives only the observations that its occurrence demands (§6).
+        let mut structure = item.structure;
+        if production.erased && structure != u32::MAX {
+            if let Some(machine) = &self.shared.machine {
+                let value = self.pattern_value(tokens, base, item.origin as usize, e);
+                let mut machine = machine.borrow_mut();
+                let rule = &self.g.rules[production.rule as usize];
+                let names: Vec<String> = if machine.node_tags {
+                    self.shared.tags.list(tags).iter().map(|&id| self.shared.tags.name(id).to_owned()).collect()
+                } else {
+                    Vec::new()
+                };
+                structure =
+                    machine.erased(structure, (!rule.helper).then_some(rule.name.as_str()), &names, value.as_deref());
+                if item.close_requested & crate::tree_identity::TREE != 0 {
+                    let (observed, project) = self.observed(tokens);
+                    let (start, end) = project
+                        .map_or((item.origin as usize, e), |p| (p[item.origin as usize] as usize, p[e] as usize));
+                    let arena = machine.trees.as_mut().expect("demanded tree identities");
+                    let seal =
+                        arena.seal(base + start, base + end, observed[start..end].iter().map(|t| t.value.clone()));
+                    let prefix = arena.append(0, seal);
+                    let identity = if production.splice {
+                        arena.node(crate::tree_identity::Node::Anonymous(prefix))
+                    } else {
+                        arena.node(crate::tree_identity::Node::Rule(rule.name.clone(), prefix))
+                    };
+                    let sequence = if production.splice { prefix } else { arena.append(0, identity) };
+                    let tree = arena.state(crate::tree_identity::Tree { prefix: 0, identity, sequence });
+                    structure = machine.with_tree(structure, tree);
+                } else {
+                    structure = machine.with_tree(structure, 0);
+                }
+                if item.close_requested & crate::tree_identity::CLOSE == 0 {
+                    structure = machine.observing(structure, 0);
+                }
+            }
+        }
+        chart.sets[e].completed_structures[k] = structure;
+        let route = self.g.route(item.prod);
         chart.sets[e].tagset[k] = tags;
         let completed = chart.sets[e].completed.entry((rule, item.origin)).or_insert_with(|| self.shared.fresh_list());
         if completed.is_empty() {
@@ -3203,12 +3530,14 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         }
         if chart.boundaries.is_some() {
             let cap = Cap {
+                route: 0,
+                proof_structure: None,
                 boundary: item.boundary,
                 close_requested: item.close_requested,
                 start: item.origin,
                 end: e as u32,
                 tags,
-                structure: item.structure,
+                structure,
             };
             let source = chart.annotations.get(&(e as u32, item)).cloned().unwrap_or_default();
             if !source.start.is_empty() || !source.end.is_empty() {
@@ -3219,10 +3548,11 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             rule,
             item.origin,
             tags,
-            item.structure,
+            structure,
             item.lexical,
             item.close_requested,
             item.boundary,
+            route,
         )) {
             return Step::Next;
         }
@@ -3230,20 +3560,10 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let origin = item.origin as usize;
         let empty = origin == e;
         if empty {
-            chart.sets[e].empty.entry(rule).or_default().push((tags, item.structure, item.boundary));
+            chart.sets[e].empty.entry(rule).or_default().push((tags, structure, item.boundary, route));
         }
         let count = chart.sets[origin].waiting.get(&rule).map_or(0, Vec::len);
-        Step::Waiters {
-            e,
-            origin,
-            rule,
-            tags,
-            structure: item.structure,
-            boundary: item.boundary,
-            empty,
-            count,
-            next: 0,
-        }
+        Step::Waiters { e, origin, rule, tags, structure, boundary: item.boundary, route, empty, count, next: 0 }
     }
 
     /// A constituent's tags where its production has no tag term (§3.7):
@@ -3261,7 +3581,15 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
 
     /// The key a nested parse of `tokens[start..end]` as `rule` is
     /// remembered by: its content if the span is short, else its place.
-    fn nested_key(&mut self, tokens: &[Tok], base: usize, start: usize, end: usize, rule: u32) -> NestedKey {
+    fn nested_key(
+        &mut self,
+        tokens: &[Tok],
+        base: usize,
+        start: usize,
+        end: usize,
+        rule: u32,
+        filtered: bool,
+    ) -> NestedKey {
         if end - start > CONTENT_KEY_LIMIT {
             return NestedKey::Place((rule, base + start, base + end));
         }
@@ -3270,7 +3598,16 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let low = span.iter().map(|token| token.source.0).min().unwrap_or(0);
         let high = span.iter().map(|token| token.source.1).max().unwrap_or(0);
         let shared = &mut *self.shared;
-        NestedKey::Content(rule, shared.contents.number(&shared.text[low..high], span, low))
+        let key = NestedKey::Content(rule, shared.contents.number(&shared.text[low..high], span, low));
+        if filtered || self.g.reads_errors[rule as usize] {
+            let errors = span.iter().enumerate().fold(0, |bits, (index, token)| {
+                work::count(Work::Walked, 1);
+                bits | (u64::from(!token.errors.is_empty()) << index)
+            });
+            NestedKey::Context { key: Box::new(key), filtered, errors }
+        } else {
+            key
+        }
     }
 
     /// The proof trees of a nested parse's chart, using its recorded advances.
@@ -3351,7 +3688,21 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 .ranked
                 .plans
                 .get(&(frame.prod, lexical.declared.clone(), lexical.available.clone(), lexical.known_private.clone()))
-                .and_then(|p| p.whole_tags.as_ref()),
+                .and_then(|p| {
+                    let assignments = &self.g.prods[lexical.root as usize].guard_conditions;
+                    p.whole_tag_variants
+                        .iter()
+                        .find(|(conditions, _)| {
+                            conditions.iter().all(|condition| {
+                                assignments.iter().any(|assigned| {
+                                    crate::guarded_tags::assignment(assigned)
+                                        == crate::guarded_tags::assignment(condition)
+                                })
+                            })
+                        })
+                        .map(|(_, term)| term)
+                        .or(p.whole_tags.as_ref())
+                }),
             None => self.g.prods[frame.prod as usize].tags.as_ref(),
         };
         match term {
@@ -3427,6 +3778,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         tokens: &'t [Tok],
         base: usize,
     ) -> Result<Out, Halt<'t>> {
+        self.shared.prepare_errors(tokens, base);
         let (start, match_end, _) = self.checked_bounds(span, frame, tokens.len())?;
         let mut anchor = span;
         while let Span::From(inner) = anchor {
@@ -3445,7 +3797,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             None
         };
         let end = if aligned.is_some() { tokens.len() } else { match_end };
-        if matches!(query, Query::Ends) {
+        if matches!(query, Query::Ends | Query::ErrorFree(crate::query_forms::Mode::Suffix)) {
             let place = (rule, base + start, base + end);
             let mut request = Request {
                 tokens,
@@ -3470,7 +3822,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             };
             let state = &self.shared.suffixes[id];
             if let Some(&holds) = state.answers.get(&(base + end)) {
-                return Ok(Out::Bool(holds));
+                return Ok(query.out((holds.0, 0, holds.1), &self.shared.tags));
             }
             request.suffix = Some(id);
             eval.tasks.push(Task::Await(query));
@@ -3498,9 +3850,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     .unwrap()
                     .normalized(a.observation),
             },
-            None => self.nested_key(tokens, base, start, end, rule),
+            None => self.nested_key(tokens, base, start, end, rule, matches!(query, Query::ErrorFree(_))),
         };
-        let begins = matches!(query, Query::Begins);
+        let begins = matches!(query, Query::Begins | Query::ErrorFree(crate::query_forms::Mode::Prefix));
         let place = (rule, base + start, base + end);
         if self.shared.running.contains(&place) {
             let request = Request { tokens, base, start, end, rule, key, begins, suffix: None, aligned };
@@ -3509,7 +3861,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let known = if self.shared.suffix_active > 0 {
             None
         } else if begins {
-            self.shared.begins.get(&key).map(|&holds| (holds, 0))
+            self.shared.begins.get(&key).map(|&(holds, clean)| (holds, 0, clean))
         } else {
             self.shared.memo.get(&key).copied()
         };
@@ -3698,6 +4050,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                         LCond::If(antecedent, consequent) => {
                             eval.push(Task::Implies(consequent), Task::Cond(antecedent));
                             continue;
+                        }
+                        LCond::ErrorFree(span, rule, mode) => {
+                            self.query(eval, span, *rule, Query::ErrorFree(*mode), frame, tokens, base)?
                         }
                         LCond::Matches(span, rule) => {
                             self.query(eval, span, *rule, Query::Matches, frame, tokens, base)?
@@ -4003,6 +4358,43 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         Ok(last.expect("a value"))
     }
 
+    /// Tests an omitted prediction only when rejection evidence requests it (§12.1).
+    pub(crate) fn omitted_allowed(
+        &mut self,
+        chart: &Chart,
+        tokens: &[Tok],
+        mut item: Item,
+    ) -> Result<bool, EngineError> {
+        let at = item.origin as usize;
+        self.finish_structure(chart.family, chart.lexical_frame(item.lexical), &mut item, at, 0, tokens);
+        let production = &self.g.prods[item.prod as usize];
+        let conds = chart.lexical_frame(item.lexical).map_or_else(
+            || production.conds_at(0),
+            |frame| {
+                self.g.ranked.plans
+                    [&(item.prod, frame.declared.clone(), frame.available.clone(), frame.known_private.clone())]
+                    .conditions[0]
+                    .as_slice()
+            },
+        );
+        if conds.is_empty() {
+            return Ok(true);
+        }
+        let state = Held::new(Eval::conditions(conds, Vec::new()), item, item.origin as usize, false);
+        let search = CapSearch::new(chart, 0);
+        let mut frame = state.frame(&search, None);
+        self.lexical_whole_structure(&mut frame, item.prefix, 0, tokens);
+        let mut eval = state.eval;
+        loop {
+            match self.evaluate(&mut eval, &frame, tokens, 0) {
+                Ok(out) => return Ok(out.holds()),
+                Err(Halt::Invalid) => return Ok(false),
+                Err(Halt::Error(error)) => return Err(error),
+                Err(Halt::Pending(request)) => eval.answer = Some(self.answer(*request)?),
+            }
+        }
+    }
+
     /// Evaluates a tag term over a constituent, for emission (§11). A
     /// nested parse it needs runs at once, and the evaluation goes on from
     /// where it halted.
@@ -4082,6 +4474,8 @@ mod tests {
         for n in [1000, 4000] {
             let mut tokens: Vec<Tok> = (0..n)
                 .map(|index| Tok {
+                    errors: Vec::new(),
+                    warnings: Vec::new(),
                     text: "x".to_string(),
                     tags: 0,
                     value: if index + 1 == n { "a".into() } else { String::new() },
@@ -4129,6 +4523,8 @@ mod tests {
                 let tokens: Vec<Tok> = names
                     .iter()
                     .map(|name| Tok {
+                        errors: Vec::new(),
+                        warnings: Vec::new(),
                         text: "x".to_string(),
                         tags: shared.tags.set_of([name.as_str()]),
                         value: String::new(),
@@ -4250,7 +4646,16 @@ mod tests {
             let union = LTerm::Union(names.into_iter().map(LTerm::Tag).collect());
             let list = recognizer.tag_list(&union, &frame, &[], 0).expect("initial tag set");
             let tags = recognizer.shared.tags.set_shared(list);
-            let caps = [Cap { boundary: 0, close_requested: 0, start: 0, end: 0, tags, structure: u32::MAX }];
+            let caps = [Cap {
+                route: 0,
+                proof_structure: None,
+                boundary: 0,
+                close_requested: 0,
+                start: 0,
+                end: 0,
+                tags,
+                structure: u32::MAX,
+            }];
             let frame = Frame { caps: Caps::All(&caps), ..frame };
             let range = LTerm::Tags(Span::Cap(0));
             let first = recognizer.tag_list(&range, &frame, &[], 0).expect("a set");
@@ -4279,6 +4684,8 @@ mod tests {
         let mut shared = Shared::new(&pipeline.unicode, &chars);
         let input: Vec<Tok> = (0..n)
             .map(|index| Tok {
+                errors: Vec::new(),
+                warnings: Vec::new(),
                 text: "a".to_string(),
                 tags: shared.tags.set_of(["A"]),
                 value: String::new(),
@@ -4439,12 +4846,30 @@ mod tests {
             parent: 0,
             jump: 0,
             depth: 0,
-            cap: Cap { boundary: 0, close_requested: 0, start: 0, end: 0, tags: 0, structure: u32::MAX },
+            cap: Cap {
+                route: 0,
+                proof_structure: None,
+                boundary: 0,
+                close_requested: 0,
+                start: 0,
+                end: 0,
+                tags: 0,
+                structure: u32::MAX,
+            },
         });
         let id = (0..n).fold(0, |id, at| {
             chart.extend_caps(
                 id,
-                Cap { boundary: 0, close_requested: 0, start: at, end: at + 1, tags: 0, structure: u32::MAX },
+                Cap {
+                    route: 0,
+                    proof_structure: None,
+                    boundary: 0,
+                    close_requested: 0,
+                    start: at,
+                    end: at + 1,
+                    tags: 0,
+                    structure: u32::MAX,
+                },
             )
         });
         (chart, id)
@@ -4481,6 +4906,8 @@ mod tests {
         let mut shared = Shared::new(&pipeline.unicode, &chars);
         let tokens: Vec<Tok> = (0..n)
             .map(|index| Tok {
+                errors: Vec::new(),
+                warnings: Vec::new(),
                 text: "a".to_string(),
                 tags: shared.tags.set_of(["A"]),
                 value: "a".to_string(),
@@ -4496,8 +4923,16 @@ mod tests {
         let classes = shared.tags.set_of(names.iter().map(String::as_str));
         let matchers = matchers(&g, &mut shared.tags);
         let mut recognizer = Recognizer { g: &g, matchers: &matchers, shared: &mut shared, recon: None };
-        let caps =
-            [Cap { boundary: 0, close_requested: 0, start: 0, end: n as u32, tags: classes, structure: u32::MAX }];
+        let caps = [Cap {
+            route: 0,
+            proof_structure: None,
+            boundary: 0,
+            close_requested: 0,
+            start: 0,
+            end: n as u32,
+            tags: classes,
+            structure: u32::MAX,
+        }];
         let frame = Frame {
             prefix: 0,
             parent_prefix: 0,
@@ -4543,6 +4978,8 @@ mod tests {
         assert_linear(Work::Spanned, 1000, &mut |n| {
             let mut tokens: Vec<Tok> = (0..n)
                 .map(|index| Tok {
+                    errors: Vec::new(),
+                    warnings: Vec::new(),
                     text: "a".to_string(),
                     tags: 0,
                     value: if index + 1 == n { "a".into() } else { String::new() },
@@ -4590,7 +5027,16 @@ mod tests {
         let mut recognizer = Recognizer { g: &g, matchers: &matchers, shared: &mut shared, recon: None };
         assert_linear(Work::Listed, 1000, &mut |n| {
             let (_, classes, split) = made.iter().find(|made| made.0 == n).expect("made");
-            let caps = [Cap { boundary: 0, close_requested: 0, start: 0, end: 0, tags: *classes, structure: u32::MAX }];
+            let caps = [Cap {
+                route: 0,
+                proof_structure: None,
+                boundary: 0,
+                close_requested: 0,
+                start: 0,
+                end: 0,
+                tags: *classes,
+                structure: u32::MAX,
+            }];
             let frame = Frame {
                 prefix: 0,
                 parent_prefix: 0,

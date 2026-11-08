@@ -1,0 +1,15 @@
+{
+  "description": "A pattern cannot name a spliced rule.",
+  "grammar": "%rule text *r %conditions $ ≅ #r\n%rule r A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

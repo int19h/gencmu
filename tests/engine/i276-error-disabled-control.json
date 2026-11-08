@@ -1,0 +1,42 @@
+{
+  "description": "Caller feature controls cannot disable an error code.",
+  "grammar": "%rule text bad\n%rule bad A %error \"bad\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "options": {
+    "withoutFeatures": [
+      "bad"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "error": {
+        "kind": "reported",
+        "errors": [
+          {
+            "code": "bad",
+            "rule": "bad",
+            "span": [
+              0,
+              1
+            ]
+          }
+        ]
+      }
+    },
+    "error": "reported"
+  }
+}

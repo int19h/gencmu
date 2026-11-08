@@ -1,0 +1,30 @@
+{
+  "description": "The DOM represents a splice as a reference inside its splice constructor.",
+  "document": "```jbogenbau\n%rule a $x:*r<B>=\"b\"\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "alternatives": [
+            {
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "test": "=",
+                  "expr": {
+                    "test": "tags",
+                    "expr": {
+                      "splice": {
+                        "ref": "r"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

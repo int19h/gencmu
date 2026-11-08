@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any, NamedTuple
+from dataclasses import dataclass, field
 
 from . import _testing
 from ._earley import RESTORE, SEED
@@ -10,11 +11,25 @@ from ._rank import Act
 from ._stage import DNode, DRead
 
 
+@dataclass
+class ProofLink:
+    item: int
+    index: int
+    child: Any = None
+
+
+@dataclass
+class WitnessProof:
+    item: int
+    links: list[ProofLink] = field(default_factory=list)
+
+
 class Walk(NamedTuple):
     """Matched edge indices for each witness item, plus its action sequence."""
 
     marks: dict[int, set[int]]
     sequence: list[Act]
+    proof: WitnessProof | None = None
 
 
 def is_elided(node: DNode | DRead) -> bool:
@@ -149,16 +164,25 @@ def walk_witness(run: _testing.CheckRun) -> Walk | None:
     if not any(root in top for root in forest.roots):
         return None
     # Bind the exact child states of one coherent restored derivation.
-    bound = {}
+    bound, proofs = {}, {}
     pending = [(run.chosen, next(root for root in forest.roots if root in top))]
     while pending:
         node, item = pending.pop()
         bound[id(node)] = item
+        proof = proofs[id(node)] = WitnessProof(item)
         for child in reversed(node.children):
-            pred, kind, a, b = steps[id(node)][item]
+            edge = steps[id(node)][item]
+            pred, kind, a, b = edge
+            proof.links.append(ProofLink(item, edges[item].index(edge)))
             if isinstance(child, DNode):
                 pending.append((child, a))
             item = pred
+        proof.links.reverse()
+    for node in order:
+        if not isinstance(node, DRead) and not is_elided(node):
+            for link, child in zip(proofs[id(node)].links, node.children):
+                if isinstance(child, DNode):
+                    link.child = proofs[id(child)]
     # Build the witness's actions after visiting each node's children.
     # Use reconstruction tokens and the spans of matched items.
     # Each restoration reads its synthetic token and closes over it.
@@ -173,5 +197,5 @@ def walk_witness(run: _testing.CheckRun) -> Walk | None:
         production = forest.lowered.productions[forest.prod[item]]
         if is_elided(node):
             sequence.append(Act(True, token=start, terminal=production.elided or ""))
-        sequence.append(Act(False, item=item, production=production.id, canonical=production.real_id, start=start, end=end, visible=not production.transparent))
-    return Walk(marks, sequence)
+        sequence.append(Act(False, item=item, production=production.id, canonical=production.action_id, start=start, end=end, visible=not production.transparent))
+    return Walk(marks, sequence, proofs[id(run.chosen)])

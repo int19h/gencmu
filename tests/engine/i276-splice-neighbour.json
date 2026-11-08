@@ -1,0 +1,15 @@
+{
+  "description": "A neighbour target cannot name a spliced rule.",
+  "grammar": "%rule text *r A %conditions $.followed-by(r)\n%rule r A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

@@ -4,6 +4,6 @@
 <text class="title" x="10" y="24" textLength="100.8" lengthAdjust="spacingAndGlyphs">invalid-tail</text>
 <text class="label" x="130.8" y="24" textLength="115.2" lengthAdjust="spacingAndGlyphs">conditions apply</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
-<g class="rule"><rect x="20" y="34" width="134" height="24" rx="0"/><text x="87" y="51" textLength="117.6" lengthAdjust="spacingAndGlyphs">erased-invalid</text></g>
-<path d="M154 46h6m0 -8v16m4 -16v16"/>
+<g class="rule"><rect x="20" y="34" width="126" height="24" rx="0"/><text x="83" y="51" textLength="109.2" lengthAdjust="spacingAndGlyphs">words-erasure</text></g>
+<path d="M146 46h6m0 -8v16m4 -16v16"/>
 </svg>

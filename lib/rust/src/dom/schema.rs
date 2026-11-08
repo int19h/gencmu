@@ -13,12 +13,14 @@ pub(crate) struct ExprFlags {
     pub chain: bool,
     pub item: bool,
     pub ranked: bool,
+    pub query: bool,
 }
 
 #[derive(Clone, Copy)]
 pub(crate) enum Part {
     Expr { whole: bool, flags: ExprFlags },
     Term,
+    Body,
     RecipeAtom,
     Condition,
     String,
@@ -54,19 +56,20 @@ fn rule_name(name: &str, unicode: &Unicode, expanded: bool) -> bool {
 }
 
 fn feature(name: &str) -> bool {
-    name.starts_with(|c: char| c.is_ascii_alphabetic()) && name.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-')
+    !name.contains("--")
+        && name.starts_with(|c: char| c.is_ascii_alphabetic())
+        && name.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-')
 }
 
-fn guards(value: Option<&Json>, gates: bool) -> bool {
+fn guards(value: Option<&Json>, _gates: bool) -> bool {
     value.and_then(Json::as_array).is_some_and(|items| {
         items.iter().all(|item| {
             exact(item, &["feature", "kind", "negated"], &[])
                 && item.get("feature").and_then(Json::as_str).is_some_and(feature)
-                && match (item.get("kind").and_then(Json::as_str), item.get("negated")) {
-                    (Some("gate"), Some(Json::Bool(_))) => true,
-                    (Some("warning"), Some(Json::Bool(false))) => !gates,
-                    _ => false,
-                }
+                && matches!(
+                    (item.get("kind").and_then(Json::as_str), item.get("negated")),
+                    (Some("gate"), Some(Json::Bool(_)))
+                )
         })
     })
 }
@@ -92,6 +95,48 @@ fn span(value: &Json) -> bool {
                     | "preceding-tokens"
             )
         )
+}
+
+fn forest(value: &Json) -> bool {
+    source::leaf(value) || matches!(value.get("method").and_then(Json::as_str), Some("parse" | "error-free"))
+}
+
+fn body_json_problem(body: &Json) -> Option<&'static str> {
+    let marker = "a remainder stands at one outer edge of a parse argument";
+    let mut pending = vec![body];
+    if let Some(items) = body.get("seq").and_then(Json::as_array) {
+        let markers: Vec<_> = items
+            .iter()
+            .enumerate()
+            .filter_map(|(index, item)| item.get("remainder").is_some().then_some(index))
+            .collect();
+        if !markers.is_empty() {
+            if markers.len() != 1 || items.len() < 2 || markers[0] != 0 && markers[0] + 1 != items.len() {
+                return Some(marker);
+            }
+            pending = items.iter().filter(|item| item.get("remainder").is_none()).collect();
+        }
+    }
+    while let Some(expression) = pending.pop() {
+        crate::work::count(crate::work::Work::Walked, 1);
+        if expression.get("capture").is_some() {
+            return Some("a parse argument cannot declare captures");
+        }
+        if expression.get("remainder").is_some() {
+            return Some(marker);
+        }
+        for key in ["seq", "choice", "ranked", "and"] {
+            if let Some(items) = expression.get(key).and_then(Json::as_array) {
+                pending.extend(items);
+            }
+        }
+        for key in ["optional", "repeat", "separator", "splice", "expr"] {
+            if let Some(inner) = expression.get(key) {
+                pending.push(inner);
+            }
+        }
+    }
+    None
 }
 
 pub(crate) fn restored_span(mut value: &Json) -> bool {
@@ -139,13 +184,13 @@ fn base(value: &Json, unicode: &Unicode, expanded: bool) -> bool {
 }
 
 fn tested_base(value: &Json, unicode: &Unicode, expanded: bool) -> bool {
-    base(value, unicode, expanded)
+    let symbol = |value: &Json| base(value, unicode, expanded) || value.get("splice").is_some();
+    symbol(value)
         || value.get("test").and_then(Json::as_str).is_some_and(|op| match (op, value.get("expr")) {
-            ("tags", Some(inner)) => base(inner, unicode, expanded),
+            ("tags", Some(inner)) => symbol(inner),
             ("=" | "≠", Some(inner)) => {
-                base(inner, unicode, expanded)
-                    || inner.get("test").and_then(Json::as_str) == Some("tags")
-                        && inner.get("expr").is_some_and(|value| base(value, unicode, expanded))
+                symbol(inner)
+                    || inner.get("test").and_then(Json::as_str) == Some("tags") && inner.get("expr").is_some_and(symbol)
             }
             _ => false,
         })
@@ -262,7 +307,18 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
                     if !exact(
                         item,
                         &["name", "op", "alternatives", "conditions", "at"],
-                        &["tags", "value", "image", "emit", "erased", "params", "args"],
+                        &[
+                            "tags",
+                            "value",
+                            "image",
+                            "emit",
+                            "erased",
+                            "params",
+                            "args",
+                            "error",
+                            "warning",
+                            "suppressWarnings",
+                        ],
                     ) || !item.get("name").and_then(Json::as_str).is_some_and(rule)
                         || !matches!(item.get("op").and_then(Json::as_str), Some("define" | "extend" | "redefine"))
                     {
@@ -274,7 +330,19 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
                     {
                         return Some("an erased rule with an emission or recipe".into());
                     }
-                    for key in ["tags", "value", "image"] {
+                    if item.get("error").is_some() && item.get("warning").is_some() {
+                        return Some("a rule cannot report both an error and a warning".into());
+                    }
+                    if let Some(codes) = item.get("suppressWarnings") {
+                        if !codes.as_array().is_some_and(|codes| {
+                            !codes.is_empty()
+                                && (!codes.iter().any(|c| c.as_str() == Some("_")) || codes.len() == 1)
+                                && codes.iter().all(|c| c.as_str().is_some_and(|c| c == "_" || feature(c)))
+                        }) {
+                            return Some("a malformed suppression list".into());
+                        }
+                    }
+                    for key in ["tags", "value", "image", "error", "warning"] {
                         if let Some(value) = item.get(key) {
                             pending.push((if key == "tags" { Part::Term } else { Part::Recipe }, value, 0));
                         }
@@ -451,6 +519,9 @@ pub(crate) fn decoded_problem(raw: &Json, dom: &mut Dom) -> Option<String> {
                     return Some(problem.into());
                 }
                 let rule = &mut dom.rules[index];
+                if let Some(problem) = crate::diagnostics::definition_problem(rule) {
+                    return Some(problem);
+                }
                 if rule.source.instance.is_some() {
                     continue;
                 }
@@ -581,6 +652,21 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
             continue;
         }
         match kind {
+            Part::Body => {
+                if !exact(value, &["body"], &[]) {
+                    return Some("a malformed parse body".into());
+                }
+                let body = value.get("body").unwrap();
+                if let Some(problem) = body_json_problem(body) {
+                    return Some(problem.into());
+                }
+                pending.push((
+                    Part::Expr { whole: true, flags: ExprFlags { query: true, ..ExprFlags::default() } },
+                    body,
+                    // The argument wrapper adds no depth (engine §9).
+                    depth,
+                ));
+            }
             Part::Call => return Some("a malformed call".into()),
             Part::Argument => {
                 if let Some(problem) = source::argument(value, depth, &mut pending, &rule) {
@@ -628,7 +714,17 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                         pending.push((Part::String, left, depth));
                         pending.push((Part::String, right, depth));
                     }
-                } else if exact(value, &["empty"], &[]) && is_true(value.get("empty")) {
+                } else if exact(value, &["remainder"], &[]) && is_true(value.get("remainder")) && flags.query
+                    || exact(value, &["empty"], &[]) && is_true(value.get("empty"))
+                {
+                } else if let Some(inner) = value.get("splice") {
+                    if !exact(value, &["splice"], &[])
+                        || !(inner.get("call").is_some()
+                            || exact(inner, &["ref"], &[]) && inner.get("ref").and_then(Json::as_str).is_some_and(rule))
+                    {
+                        return Some("a splice targets a rule reference or call".into());
+                    }
+                    pending.push(expression(inner, flags));
                 } else if let Some(inner) = value.get("capture") {
                     // A chain holds no capture, and an elidable optional
                     // seals everything inside it. Flat braces hold item
@@ -639,7 +735,9 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                         || flags.item && flags.ranked
                         || !exact(value, &["capture", "expr"], &[])
                         || !inner.as_str().is_some_and(is_capture_name)
-                        || !value.get("expr").is_some_and(|value| tested_base(value, unicode, expanded))
+                        || !value
+                            .get("expr")
+                            .is_some_and(|value| tested_base(value, unicode, expanded) || value.get("splice").is_some())
                     {
                         return Some("a malformed capture".into());
                     }
@@ -663,7 +761,20 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                         }
                         pending.push((Part::String, default, depth + 1));
                     }
-                    let sealed = flags.sealed || value.get("elidable").is_some();
+                    let malformed_capture = inner.get("capture").is_some()
+                        && value.get("elidable").is_some()
+                        && !inner.get("expr").is_some_and(|t| {
+                            let mut base = t;
+                            while let Some(inner) = base.get("expr").filter(|_| base.get("test").is_some()) {
+                                base = inner;
+                            }
+                            base.get("param").is_some()
+                                || base.get("ref").and_then(Json::as_str).is_some_and(|t| tag(t) && !engine_tag(t))
+                        });
+                    if malformed_capture {
+                        return Some("a malformed captured terminator".into());
+                    }
+                    let sealed = flags.sealed || value.get("elidable").is_some() && inner.get("capture").is_none();
                     pending.push(expression(inner, ExprFlags { sealed, ..flags }));
                 } else if let Some(inner) = value.get("repeat") {
                     if !exact(value, &["repeat"], &["separator", "chain"])
@@ -674,7 +785,8 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                         return Some("a malformed repeat".into());
                     }
                     let chain = value.get("chain").is_some();
-                    let inside = ExprFlags { sealed: flags.sealed, chain, item: !chain, ranked: false };
+                    let inside =
+                        ExprFlags { sealed: flags.sealed, chain, item: !chain, ranked: false, query: flags.query };
                     pending.push(expression(inner, inside));
                     if let Some(separator) = value.get("separator") {
                         pending.push(expression(separator, inside));
@@ -779,6 +891,18 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                             || exact(arg, &["rule"], &[]) && arg.get("rule").and_then(Json::as_str).is_some_and(rule)
                     };
                     let valid = match (name, args) {
+                        ("parse", [arg]) => {
+                            span(receiver)
+                                && exact(arg, &["body"], &[])
+                                && !(restored_span(receiver)
+                                    && arg
+                                        .get("body")
+                                        .and_then(|body| body.get("seq"))
+                                        .and_then(Json::as_array)
+                                        .and_then(|items| items.first())
+                                        .is_some_and(|first| first.get("remainder").is_some()))
+                        }
+                        ("error-free", []) => forest(receiver),
                         ("without-elision", []) => capture,
                         ("without-elision-except", [arg]) => capture && rule_arg(arg),
                         ("verbatim-text", []) => matches!(kind, Part::RecipeAtom) && capture,
@@ -818,6 +942,10 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                     }
                     pending.push((kind, receiver, next));
                     for arg in args {
+                        if name == "parse" {
+                            pending.push((Part::Body, arg, next));
+                            continue;
+                        }
                         if arg.get("rule").is_none() && arg.get("classifier").is_none() && arg.get("integer").is_none()
                         {
                             pending.push((Part::Term, arg, next));
@@ -869,6 +997,10 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                     pending.push((Part::Term, value.get("left").unwrap(), next));
                     pending.push((Part::Term, value.get("right").unwrap(), next));
                 } else if exact(value, &["method", "receiver", "args"], &[]) {
+                    if matches!(value.get("method").and_then(Json::as_str), Some("parse" | "error-free")) {
+                        pending.push((Part::Term, value, depth));
+                        continue;
+                    }
                     let receiver = value.get("receiver").unwrap();
                     let args = value.get("args").and_then(Json::as_array);
                     if value.get("method").and_then(Json::as_str) == Some("ends") && restored_span(receiver) {
@@ -1080,6 +1212,13 @@ fn boundary_problem(rule: &Json) -> Option<&'static str> {
                 }
             }
         }
+    }
+    for tags in rule
+        .get("tags")
+        .into_iter()
+        .chain(rule.get("alternatives").and_then(Json::as_array).unwrap_or(&[]).iter().filter_map(|a| a.get("tags")))
+    {
+        allowed.extend(json_boundary_atoms(tags).iter().map(|v| *v as *const Json));
     }
     for item in rule.get("emit").and_then(|v| v.get("items")).and_then(Json::as_array).unwrap_or(&[]) {
         if let Some(tags) = item.get("tags") {

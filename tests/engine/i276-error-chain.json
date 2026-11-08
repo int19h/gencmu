@@ -1,0 +1,57 @@
+{
+  "description": "Each error-bearing chain level contributes one named error.",
+  "grammar": "%rule text bad\n%rule bad {... A / S} %error \"bad\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "s",
+      "tags": [
+        "S"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "error": {
+        "kind": "reported",
+        "errors": [
+          {
+            "code": "bad",
+            "rule": "bad",
+            "span": [
+              0,
+              3
+            ]
+          },
+          {
+            "code": "bad",
+            "rule": "bad",
+            "span": [
+              0,
+              1
+            ]
+          }
+        ]
+      }
+    },
+    "error": "reported"
+  }
+}

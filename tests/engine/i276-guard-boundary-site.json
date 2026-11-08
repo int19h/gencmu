@@ -1,0 +1,17 @@
+{
+  "description": "A failed guard obligation retains its condition index.",
+  "grammar": "%rule text \"b\" [r4]\n%rule r2 \"a\" :: ($.followed-by(r2) ⟹ T0)\n%rule r4 r2 \"b\" \"a\"",
+  "input": "bab",
+  "expect": {
+    "error": "rejected",
+    "result": {
+      "error": {
+        "boundary": {
+          "rule": "r2",
+          "condition": 0,
+          "at": 2
+        }
+      }
+    }
+  }
+}

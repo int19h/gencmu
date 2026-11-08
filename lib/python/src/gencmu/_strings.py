@@ -7,7 +7,7 @@ from typing import Any
 
 from ._unicode_property_catalog import PROPERTY_CATALOG
 ENGINE_TAGS = frozenset(PROPERTY_CATALOG["tags"])
-USER_NAME = re.compile(r"[A-Z][A-Za-z0-9_-]*")
+USER_NAME = re.compile(r"(?!.*--)[A-Z][A-Za-z0-9_-]*")
 def is_constant(name: Any) -> bool:
     return isinstance(name, str) and USER_NAME.fullmatch(name) is not None
 

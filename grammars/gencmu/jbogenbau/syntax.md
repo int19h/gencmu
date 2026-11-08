@@ -43,7 +43,7 @@ The reader converts the recognized tree into a DOM, its document object model. C
 
 ## Rules and alternatives
 
-A rule defines, redefines, or extends a name. The body precedes the conditions and the output.
+A rule defines, redefines, or extends a name. Its trailing clauses are conditions, diagnostic, suppression, then output.
 
 Header tag and string clauses apply to every alternative. A header clause requires the leading `|`, which separates its operands from the body.
 
@@ -54,7 +54,7 @@ An alternative can carry its own tag, value, and image clauses. Both clause list
 ```jbogenbau
 %rule rule
   definer (rule-name | call) ("=" call | (body | clauses headed-body)
-    [conditions-clause] [output])
+    [conditions-clause] [diagnostic] [suppress-warnings-clause] [output])
 
 %rule definer
   KW-RULE | KW-REDEFINE-RULE | KW-EXTEND-RULE
@@ -134,7 +134,7 @@ A requirement list and a target choice retain their distinct categories. Parenth
   group | optional | repetition | empty
 
 %rule symbol-argument
-  tested | range | wildcard
+  tested | range | wildcard | splice
 ```
 
 <details><summary>Railroad diagrams of the 8 rules from <code>call</code> to <code>symbol-argument</code></summary>
@@ -162,7 +162,7 @@ A chain has `...` before or after its item. The reader requires a chain to occup
 
 A capture writes its binder before `:` and a primary after it. Recognition admits a `Constant` binder so that the reader can report the capitalized capture name there.
 
-Recognition also admits invalid capture targets and captures inside braces or marked optionals. The reader rejects them at the positions in engine §9.3.
+Recognition also admits invalid capture targets. A captured terminator has its own optional route, with its binder before `+`. The reader rejects them at the positions in engine §9.3.
 
 ```jbogenbau
 %rule choice
@@ -175,14 +175,20 @@ Recognition also admits invalid capture targets and captures inside braces or ma
   {primary}
 
 %rule primary
-  capture | tested | untested-primary
+  capture<¬Captured-Terminator> | tested | untested-primary
 
 %rule capture
-  (Capture | Constant) ":" primary
+  | (Capture | Constant) ":" primary :: ∅
+  | *captured-terminator
 
 %rule untested-primary
-  reference | call | parameter | tag | string-terminal | range | wildcard
+  reference | call | splice | parameter | tag | string-terminal | range | wildcard
   | group | optional | repetition | empty
+
+%rule splice
+  "*" (reference | call)
+%conditions
+  $.source-text = "*" ++ $.tokens-after-first.source-text
 
 %rule reference
   Lowercase-Name | Emoji-Name
@@ -200,7 +206,10 @@ Recognition also admits invalid capture targets and captures inside braces or ma
   "(" choice ")"
 
 %rule optional
-  "[" ["+"] choice "]"
+  "[" ["+"] choice "]" | "[" capture<Captured-Terminator> "]"
+
+%rule captured-terminator
+  (Capture | Constant) ":" "+" primary :: Captured-Terminator
 
 %rule repetition
   "{" ["..."] choice ["/" choice] "}" | "{" choice "..." ["/" choice] "}"
@@ -212,19 +221,21 @@ Recognition also admits invalid capture targets and captures inside braces or ma
   Guard
 ```
 
-<details><summary>Railroad diagrams of the 15 rules from <code>choice</code> to <code>guard</code></summary>
+<details><summary>Railroad diagrams of the 17 rules from <code>choice</code> to <code>guard</code></summary>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/choice.svg" alt="Railroad diagram of the rule choice"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/conjunction.svg" alt="Railroad diagram of the rule conjunction"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/sequence.svg" alt="Railroad diagram of the rule sequence"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/primary.svg" alt="Railroad diagram of the rule primary"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/capture.svg" alt="Railroad diagram of the rule capture"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/untested-primary.svg" alt="Railroad diagram of the rule untested-primary"></p>
+<p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/splice.svg" alt="Railroad diagram of the rule splice"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/reference.svg" alt="Railroad diagram of the rule reference"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/tag.svg" alt="Railroad diagram of the rule tag"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/string-terminal.svg" alt="Railroad diagram of the rule string-terminal"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/wildcard.svg" alt="Railroad diagram of the rule wildcard"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/group.svg" alt="Railroad diagram of the rule group"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/optional.svg" alt="Railroad diagram of the rule optional"></p>
+<p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/captured-terminator.svg" alt="Railroad diagram of the rule captured-terminator"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/repetition.svg" alt="Railroad diagram of the rule repetition"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/empty.svg" alt="Railroad diagram of the rule empty"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/guard.svg" alt="Railroad diagram of the rule guard"></p>
@@ -293,6 +304,8 @@ Each tag requirement has an optional `¬`. An empty requirement list holds vacuo
 
 On `%features`, the clause tests stage input before parsing ([Pipelines](../../../docs/notation.md#pipelines)).
 
+`%error` and `%warning` carry one message recipe. `%suppress-warnings` names codes or `_` for all warnings.
+
 `%emits` lists output items, or means one whole-rule item when it has no items. A clause without a target also applies to that whole-rule item.
 
 A valid target is a capture or `ε`, which inserts a token. Recognition admits names and ranges too, so the reader reports an invalid target at that item.
@@ -304,6 +317,21 @@ Attachments are named captures in parentheses around a named carrier. The reader
 ```jbogenbau
 %rule conditions-clause
   KW-CONDITIONS [","] {implication / ","}
+
+%rule diagnostic
+  error-clause | warning-clause
+
+%rule error-clause
+  KW-ERROR recipe
+
+%rule warning-clause
+  KW-WARNING recipe
+
+%rule suppress-warnings-clause
+  KW-SUPPRESS-WARNINGS ("_" | {suppression-code / ","})
+
+%rule suppression-code
+  Identifier
 
 %rule output
   erased-clause | emits-clause
@@ -336,8 +364,13 @@ Attachments are named captures in parentheses around a named carrier. The reader
   "::" term
 ```
 
-<details><summary>Railroad diagrams of the 11 rules from <code>conditions-clause</code> to <code>emit-tags</code></summary>
+<details><summary>Railroad diagrams of the 16 rules from <code>conditions-clause</code> to <code>emit-tags</code></summary>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/conditions-clause.svg" alt="Railroad diagram of the rule conditions-clause"></p>
+<p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/diagnostic.svg" alt="Railroad diagram of the rule diagnostic"></p>
+<p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/error-clause.svg" alt="Railroad diagram of the rule error-clause"></p>
+<p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/warning-clause.svg" alt="Railroad diagram of the rule warning-clause"></p>
+<p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/suppress-warnings-clause.svg" alt="Railroad diagram of the rule suppress-warnings-clause"></p>
+<p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/suppression-code.svg" alt="Railroad diagram of the rule suppression-code"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/output.svg" alt="Railroad diagram of the rule output"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/erased-clause.svg" alt="Railroad diagram of the rule erased-clause"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/emits-clause.svg" alt="Railroad diagram of the rule emits-clause"></p>
@@ -393,7 +426,7 @@ A guarded term writes a condition before `⟹`. It supplies its value only where
 
 The reader groups repeated guards to the right. Flat lists retain their written order without completing a separate recursive level for each guard.
 
-A method chain starts with a receiver and follows it with selectors. Each selector names a method and can supply nonempty parenthesized arguments.
+A method chain starts with a receiver and follows it with selectors. Each selector names a method and can supply nonempty parenthesized arguments. The `parse` selector takes a capture-free body constituent instead of a list of terms. Its outer remainder mark selects a prefix or suffix query.
 
 The methods `.begins`, `.matches`, `.ends`, `.followed-by`, and `.preceded-by` separate target names with `|`. Other methods separate arguments with `,`. The reader enforces this distinction.
 
@@ -438,7 +471,18 @@ An emoji rule name is also a method argument. A classifier name starts with a lo
   term-atom
 
 %rule method-selector
-  "." method-name ["(" arguments ")"]
+  "." (parse-selector ≻ ordinary-selector)
+
+%rule ordinary-selector
+  method-name ["(" arguments ")"]
+%conditions
+  $.first-token.value ≠ "parse"
+
+%rule parse-selector
+  "parse" "(" parse-argument ")"
+
+%rule parse-argument
+  "…" choice | choice "…" | choice
 
 %rule method-name
   Identifier | Call-Name
@@ -468,7 +512,7 @@ An emoji rule name is also a method argument. A classifier name starts with a lo
   String
 ```
 
-<details><summary>Railroad diagrams of the 21 rules from <code>term</code> to <code>string</code></summary>
+<details><summary>Railroad diagrams of the 24 rules from <code>term</code> to <code>string</code></summary>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/term.svg" alt="Railroad diagram of the rule term"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/guarded-term.svg" alt="Railroad diagram of the rule guarded-term"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/union.svg" alt="Railroad diagram of the rule union"></p>
@@ -481,6 +525,9 @@ An emoji rule name is also a method argument. A classifier name starts with a lo
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/method.svg" alt="Railroad diagram of the rule method"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/method-receiver.svg" alt="Railroad diagram of the rule method-receiver"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/method-selector.svg" alt="Railroad diagram of the rule method-selector"></p>
+<p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/ordinary-selector.svg" alt="Railroad diagram of the rule ordinary-selector"></p>
+<p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/parse-selector.svg" alt="Railroad diagram of the rule parse-selector"></p>
+<p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/parse-argument.svg" alt="Railroad diagram of the rule parse-argument"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/method-name.svg" alt="Railroad diagram of the rule method-name"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/arguments.svg" alt="Railroad diagram of the rule arguments"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/argument.svg" alt="Railroad diagram of the rule argument"></p>
@@ -749,7 +796,7 @@ Recognition accepts wider operands than each directive permits. The reader rejec
 
 A constant declaration defines or redefines a prefixed name and gives it a term. The loader resolves its type and final value after stitching the stage.
 
-A classifier has a name and entries. Each entry has guards, one or more string keys, an operator, and a class. The reader rejects warning guards and invalid class names.
+A classifier has a name and entries. Each entry has guards, one or more string keys, an operator, and a class. Each guard is a feature gate. The reader rejects invalid class names.
 
 `%implies` joins two tag-set terms with `⟹`. Neither side is an ungrouped guarded term, so that symbol identifies the implication itself.
 

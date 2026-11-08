@@ -1,0 +1,46 @@
+{
+  "description": "Engine §4.1: removing an empty child prevents its rule name from giving an erased working view the X tag.",
+  "grammar": "%ambiguity-resolution fewest #·zz\n%rule text $x:e A\n%conditions $x ≇ #·e<X>\n%rule w e\n%rule g :: ($ ≅ #(⋮ b) ⟹ X)\n  | A\n%conditions $ ≇ #·« ⋯ B »\n%rule e :: ($ ≅ #« a » ⟹ X)\n  | a :: P | b\n%erased\n%rule a ε | A\n%rule b B\n%rule zz Z Z Z",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "e",
+            "tags": [
+              "P"
+            ],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "a",
+                "children": []
+              }
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "A"
+          }
+        ]
+      }
+    }
+  }
+}

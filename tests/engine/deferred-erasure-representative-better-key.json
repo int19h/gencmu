@@ -1,0 +1,42 @@
+{
+  "description": "Engine §7.10: the shown witness uses its admitted class representative, including when another profile wins.",
+  "grammar": "%ambiguity-resolution fewest #·gone, greedy\n%elision-only\n%rule text gone | competitor\n%rule gone first | second\n%erased\n%rule first \"a\" T\n%rule second \"a\" [+T]\n%rule competitor \"a\" T",
+  "input": "a",
+  "expect": {
+    "error": "ambiguous",
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "error": {
+        "kind": "ambiguous",
+        "reason": "elision-only",
+        "readings": [
+          {
+            "children": [
+              {
+                "rule": "gone",
+                "children": [
+                  {
+                    "rule": "first"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "children": [
+              {
+                "rule": "competitor"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

@@ -38,7 +38,7 @@ func newSlotViews(rk *ranker) *slotViews {
 	g := rk.rec.g
 	users := map[int32][]int32{}
 	for _, p := range g.prods {
-		if g.rules[p.lhs].helper {
+		if g.rules[p.lhs].helper && p.spliceTarget == nil {
 			for _, s := range p.rhs {
 				if !s.term {
 					users[s.id] = append(users[s.id], p.lhs)
@@ -130,7 +130,7 @@ func newSlotViews(rk *ranker) *slotViews {
 	}
 	for _, set := range rk.rec.sets {
 		if set != nil {
-			for _, raw := range set.index {
+			for _, raw := range set.items {
 				itemView(raw, nil)
 			}
 			for _, raw := range set.syms {
@@ -148,7 +148,7 @@ func newSlotViews(rk *ranker) *slotViews {
 		}
 		for index, edge := range raw.links {
 			prev := itemView(edge.prev, scope)
-			if edge.sym == nil || !wrapped[edge.sym.rule] || g.rules[raw.prod.lhs].helper && scope == nil {
+			if edge.sym == nil || !wrapped[edge.sym.rule] || g.rules[raw.prod.lhs].helper && raw.prod.spliceTarget == nil && scope == nil {
 				copy := edge
 				copy.prev = prev
 				copy.sym = symView(edge.sym, nil)
@@ -169,17 +169,17 @@ func (rk *ranker) slotMarks(it *item) map[link]bool {
 		return nil
 	}
 	if rk.views == nil {
-		return rk.marks[it]
+		return rk.restorationMarks(it)
 	}
 	v := rk.views
 	raw := v.originals[it]
 	if raw == nil {
-		return rk.marks[it]
+		return rk.restorationMarks(it)
 	}
 	if cached, ok := v.marked[it]; ok {
 		return cached
 	}
-	original := rk.marks[raw]
+	original := rk.restorationMarks(raw)
 	if original == nil {
 		v.marked[it] = nil
 		return nil

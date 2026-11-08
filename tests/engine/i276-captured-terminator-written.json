@@ -1,0 +1,33 @@
+{
+  "description": "A written terminator supplies its capture and retains its terminal node.",
+  "grammar": "%rule text A [$j:+T] %conditions $j, $j.value = \"t\", $j ≅ #·T",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "t",
+      "tags": [
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": [
+          {
+            "terminal": "A"
+          },
+          {
+            "terminal": "T"
+          }
+        ]
+      }
+    }
+  }
+}

@@ -6,9 +6,9 @@ import re
 
 
 
-_IDENTIFIER = re.compile(r"[A-Za-z][A-Za-z0-9_-]*\Z", re.ASCII)
-_CONSTANT = re.compile(r"[A-Z][A-Za-z0-9_-]*\Z", re.ASCII)
-_RULE = re.compile(r"[a-z][A-Za-z0-9_-]*\Z", re.ASCII)
+_IDENTIFIER = re.compile(r"(?!.*--)[A-Za-z][A-Za-z0-9_-]*\Z", re.ASCII)
+_CONSTANT = re.compile(r"(?!.*--)[A-Z][A-Za-z0-9_-]*\Z", re.ASCII)
+_RULE = re.compile(r"(?!.*--)[a-z][A-Za-z0-9_-]*\Z", re.ASCII)
 _SETS = ("union", "intersection", "difference")
 
 

@@ -143,6 +143,11 @@ fn write_list<'a, T>(out: &mut Pieces<'a>, key: &str, items: &'a [T], write: fn(
 
 fn emit_expr<'a>(out: &mut Pieces<'a>, expr: &'a Expr) {
     match expr {
+        Expr::Splice(inner) => {
+            out.push_str("{\"splice\":");
+            write_expr(out, inner);
+            out.push('}');
+        }
         Expr::Source(symbol) => out.parts.push(Part::Symbol(symbol, true, true)),
         Expr::Seq(items) => write_list(out, "seq", items, write_expr),
         Expr::Choice(items) => write_list(out, "choice", items, write_expr),
@@ -219,6 +224,7 @@ fn emit_expr<'a>(out: &mut Pieces<'a>, expr: &'a Expr) {
             out.push('}');
         }
         Expr::Empty => out.push_str("{\"empty\":true}"),
+        Expr::Remainder => out.push_str("{\"remainder\":true}"),
     }
 }
 
@@ -231,6 +237,11 @@ fn write_range(out: &mut Pieces<'_>, start: char, end: char) {
 }
 fn emit_term<'a>(out: &mut Pieces<'a>, term: &'a Term) {
     match term {
+        Term::Body(body) => {
+            out.push_str("{\"body\":");
+            write_expr(out, body);
+            out.push('}');
+        }
         Term::Source(symbol) => out.parts.push(Part::Symbol(symbol, true, true)),
         Term::Pattern(p) => {
             out.push_str("{\"pattern\":");
@@ -335,6 +346,7 @@ fn emit_requirements<'a>(out: &mut Pieces<'a>, term: &'a Term) {
 
 fn emit_cond<'a>(out: &mut Pieces<'a>, cond: &'a Cond) {
     match cond {
+        Cond::Forest(term) => write_term(out, term),
         Cond::SourceQuery(name, args, _) => {
             out.push_str("{\"method\":");
             write_str(out, name);
@@ -464,7 +476,9 @@ fn emit_source_arguments<'a>(out: &mut Pieces<'a>, args: &'a [SourceArgument]) {
                     out.push('}');
                 }
                 Expr::Literal(term) => write_term(out, term),
-                Expr::Source(_) | Expr::Tested(..) | Expr::ScalarRange(..) | Expr::Wildcard => write_expr(out, expr),
+                Expr::Splice(_) | Expr::Source(_) | Expr::Tested(..) | Expr::ScalarRange(..) | Expr::Wildcard => {
+                    write_expr(out, expr)
+                }
                 _ => {
                     out.push_str("{\"body\":");
                     write_expr(out, expr);

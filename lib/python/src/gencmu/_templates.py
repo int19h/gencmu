@@ -74,6 +74,8 @@ def _print_argument(n, unicode):
     if 'call' in n:
         args = yield _print_join(n['args'], unicode, _print_argument, ', ')
         return n['call'] + '(' + args + ')'
+    if 'splice' in n:
+        return '*' + (yield _print_argument(n['splice'], unicode))
     if 'param' in n:
         return '@' + n['param']
     for key in ('rule', 'tag', 'terminal', 'ref', 'name', 'integer', 'classifier'):
@@ -124,6 +126,10 @@ def _print_argument(n, unicode):
                 text = yield _print_argument(value, unicode)
                 parts.append('(' + text + ')' if term_group(value, key, i) else text)
             return op.join(parts)
+    if n.get('method') == 'parse':
+        return (yield _print_argument(n['receiver'], unicode)) + '.parse(' + (yield _print_body(n['args'][0]['body'], unicode)) + ')'
+    if 'remainder' in n:
+        return '…'
     if 'method' in n:
         separator = ' | ' if n['method'] in ('matches', 'begins', 'ends', 'followed-by', 'preceded-by') else ', '
         args = yield _print_join(n['args'], unicode, _print_argument, separator)
@@ -183,9 +189,10 @@ def _print_body(n, unicode, parent=''):
 def expand_templates(documents, unicode):
     from ._validate import dom_problem
     if not any(has_unresolved(dom) for _, dom in documents):
-        return documents, None, [], [], [], list(range(len(documents)))
+        return documents, None, [], [], [], list(range(len(documents))), None
     patterns = pattern_constant_names(c for _, dom in documents for c in dom["constants"])
     normalize = lambda value: normalize_argument(value, patterns)
+    erasure_checks = []
     templates, names, instances = {}, {}, {}
     slots, events, queue, extra, source_events = [], [], [], [], []
 
@@ -309,7 +316,7 @@ def expand_templates(documents, unicode):
                     for i, alternative in enumerate(node['alternatives']):
                         children.extend(alternative.get(k) for k in ('expr', 'tags', 'value', 'image'))
                         if i == 0:
-                            children.extend(node.get(k) for k in ('tags', 'value', 'image', 'conditions', 'emit'))
+                            children.extend(node.get(k) for k in ('tags', 'value', 'image', 'conditions', 'error', 'warning', 'emit'))
                 else:
                     children = [node.get('receiver'), node['args']] if 'method' in node else [node['args']] if 'call' in node else [node[k] for k in ordered_keys(node)]
                 pending.append((node, True))
@@ -390,7 +397,7 @@ def expand_templates(documents, unicode):
                 return dict(ref=arg.get('rule', arg.get('tag', arg.get('terminal'))))
             if 'string' in arg or 'const' in arg:
                 return dict(literal=arg)
-            if any(k in arg for k in ('call', 'test', 'range', 'wildcard')):
+            if any(k in arg for k in ('call', 'test', 'range', 'wildcard', 'splice')):
                 return arg
         elif position == 'pattern':
             if 'rule' in arg:
@@ -412,7 +419,7 @@ def expand_templates(documents, unicode):
                 return dict(terminal=arg['tag'])
             if any(k in arg for k in ('rule', 'terminal', 'call')):
                 return arg
-        elif position == 'term' and not any(k in arg for k in ('body', 'targets', 'requirements', 'rule', 'call', 'test', 'range', 'wildcard')):
+        elif position == 'term' and not any(k in arg for k in ('body', 'targets', 'requirements', 'rule', 'call', 'test', 'range', 'wildcard', 'splice')):
             return arg
         fail(event, use, f"argument {canonical_argument(arg, unicode)} is invalid at @{use['param']} in {position} position")
 
@@ -461,6 +468,8 @@ def expand_templates(documents, unicode):
                     replacement = env.get(arg.get('param'), {})
                     if query and 'targets' in replacement:
                         result[key].extend(convert(x, 'target', event, arg) for x in replacement['targets'])
+                    elif root['method'] == 'parse':
+                        result[key].append({'body': (yield substitute_walk(arg['body'], env, event, 'expr'))})
                     else:
                         result[key].append((yield substitute_walk(arg, env, event, 'target' if target else 'term')))
                 continue
@@ -566,9 +575,16 @@ def expand_templates(documents, unicode):
             return items
         if not isinstance(root, dict):
             return root
+        def erased_check(names, name):
+            children = root.get('children')
+            if position == 'pattern' and children is not None and children != [{'siblings': True}]:
+                erasure_checks.append((names, name, event['path'], root.get('at') or event['rule'].get('at')))
+        if root.get('name') and root['name'] not in templates:
+            erased_check([root['name']], root['name'])
         if 'call' in root:
             instance = instances.get(key_of(normalize(dict(call=root['call'], args=root['args'], at=root['at']))))
             name = effective(instance) if instance else canonical_argument(root, unicode)
+            erased_check([name], name)
             if position == 'pattern':
                 result = dict(name=name, at=root['at'])
                 if root.get('exact'):
@@ -579,13 +595,15 @@ def expand_templates(documents, unicode):
             return {'ref' if position == 'expr' else 'rule': name}
 
         if position == 'pattern' and root.get('name') in templates:
+            erased_check([effective(i) for i in queue if i['call']['call'] == root['name']], root['name'])
+            children = (yield rewrite_walk(root['children'], event, 'pattern-item')) if 'children' in root else None
             members = []
             for instance in queue:
                 if instance['call']['call'] != root['name']:
                     continue
                 member = {**root, 'name': effective(instance)}
                 if 'children' in root:
-                    member['children'] = yield rewrite_walk(root['children'], event, 'pattern-item')
+                    member['children'] = children
                 members.append(member)
             return members[0] if len(members) == 1 else dict(union=members) if members else dict(difference=[dict(name='text', at=root['at'], **({'exact': True} if root.get('exact') else {})), dict(name='text', at=root['at'], **({'exact': True} if root.get('exact') else {}))])
         if root.get('ref') in templates or root.get('rule') in templates:
@@ -616,7 +634,7 @@ def expand_templates(documents, unicode):
             arguments_to_check.append(dict(owner, term=rewrite(term, event), tags=tags))
 
         arg = normalize(argument)
-        if any(k in arg for k in ('body', 'test', 'range', 'wildcard')):
+        if any(k in arg for k in ('body', 'test', 'range', 'wildcard', 'splice')):
             rule = dict(name='text' if event['index'] in extra_indexes else event['rule']['name'], op='define', conditions=[],
                         alternatives=[dict(guards=[], expr=rewrite(arg.get('body', arg), event, 'expr'))], at=event['rule']['at'])
             if any('param' in n for n in parts):
@@ -646,7 +664,11 @@ def expand_templates(documents, unicode):
         rewritten_definitions[id(event)] = rewritten
         return rewritten
 
-    validation = [e if 'params' in e['rule'] else rewrite_definition(e)
+    def retain_template(event):
+        rewrite(event['rule'], event)
+        return event
+
+    validation = [retain_template(e) if 'params' in e['rule'] else rewrite_definition(e)
                   for e in events if 'params' in e['rule'] or not any(k in e['rule'] for k in ('args', 'instance'))]
     validation.extend(rewrite_definition(e, {**e['rule'], 'name': effective(i)}) for i in queue for e in i['definitions'])
     validation.extend(rewrite_definition(e) for e in validation_definitions)
@@ -670,7 +692,7 @@ def expand_templates(documents, unicode):
     order = [n for n in slots if n in current or n in ordinary] + [effective(i) for i in queue if not i['name']]
     instance_names = {effective(i) for i in queue}
     document_runs = [*range(len(documents)), *(e["inspection_run"] for e in output)]
-    return expanded_docs, order, [name for name in order if name in instance_names], validation, arguments_to_check, document_runs
+    return expanded_docs, order, [name for name in order if name in instance_names], validation, arguments_to_check, document_runs, erasure_checks
 
 
 def effective(instance):
@@ -686,9 +708,9 @@ def child_position(key, position):
         return 'pattern-item'
     if position == 'pattern' and key in ('union', 'intersection', 'difference'):
         return 'pattern'
-    if key in ('alternatives', 'conditions', 'emit', 'tags', 'value', 'image', 'default', 'requirements', 'range', 'literal', 'concat', 'union', 'intersection', 'difference', 'left', 'right', 'receiver', 'if', 'then', 'not', 'all', 'any', 'args'):
+    if key in ('alternatives', 'conditions', 'error', 'warning', 'emit', 'tags', 'value', 'image', 'default', 'requirements', 'range', 'literal', 'concat', 'union', 'intersection', 'difference', 'left', 'right', 'receiver', 'if', 'then', 'not', 'all', 'any', 'args'):
         return 'term'
-    if key in ('seq', 'choice', 'ranked', 'and', 'optional', 'repeat', 'separator', 'expr') and position != 'pattern':
+    if key in ('seq', 'choice', 'ranked', 'and', 'optional', 'repeat', 'separator', 'expr', 'splice') and position != 'pattern':
         return 'expr'
     if key in ('pattern', 'child'):
         return 'pattern'

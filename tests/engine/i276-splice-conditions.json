@@ -1,0 +1,15 @@
+{
+  "description": "The conditions of a spliced rule still apply.",
+  "grammar": "%rule text *r\n%rule r A %conditions $.value = \"b\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected"
+  }
+}

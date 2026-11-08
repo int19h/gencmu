@@ -6,18 +6,22 @@ The rules follow *The Complete Lojban Language* (CLL). A cmavo is a particle, a 
 
 The word forms admit a cmavo with `y` as one more vowel unit. Examples are `ka'y` and `ky'a` ([morphology.md](morphology.md)). The forms stage gives each such word the tag `Cmavo-Warning`. A tag marks a token by an identifier.
 
-This stage reads the word under the warning `y-cmavo`. The stage always reads the word. A feature is a named switch that the grammars test. A caller who turns on the feature `y-cmavo` gets a warning for each such word.
+This stage reads the word through the spliced warning rule `y-cmavo`. The stage always reads the word. A caller who enables the warning code `y-cmavo` gets a warning for each such word.
 
 The stage gives the warning where it reads the word as a Lojban word. That is, the word can be a word of the text, a quoted word, or a word inside `lo'u ... le'u`. It can also be either `zoi` delimiter or an operand of `zei`, erased or not. Each delimiter warns when it is a `y`-cmavo. The warning is absent for the word inside a `zoi` body or after `fa'o`, because the stage does not read that word as Lojban.
 
 ```jbogenbau
 %redefine-rule cmavo-token
-  | Cmavo<¬Cmavo-Warning>
-  | y-cmavo! Cmavo<Cmavo-Warning>
+  Cmavo<¬Cmavo-Warning> | *y-cmavo
+
+%rule y-cmavo
+  Cmavo<Cmavo-Warning>
+%warning "this word uses a y-final cmavo"
 ```
 
-<details><summary>Railroad diagram of <code>cmavo-token</code></summary>
+<details><summary>Railroad diagrams of <code>cmavo-token</code> and <code>y-cmavo</code></summary>
 <p><img src="../../../docs/diagrams/lojban/cll/stream/cmavo-token.svg" alt="Railroad diagram of the rule cmavo-token"></p>
+<p><img src="../../../docs/diagrams/lojban/cll/stream/y-cmavo.svg" alt="Railroad diagram of the rule y-cmavo"></p>
 </details>
 
 A name that `bu` takes needs a pause on both sides of it in the source (CLL[^cll-s17-4]). The forms stage requires a pause or the end of the text after every name, as CLL requires.[^cll-s4-9] It tags the first word of each run `Run-Initial`. A run is a stretch with no internal pause.

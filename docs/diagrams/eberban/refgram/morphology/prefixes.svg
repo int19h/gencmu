@@ -8,7 +8,7 @@
 <path d="M147 66h20"/>
 <path d="M167 66h20"/>
 <path d="M187 66h20"/>
-<g class="rule"><rect x="207" y="54" width="151" height="24" rx="0"/><text x="282.5" y="71" textLength="134.4" lengthAdjust="spacingAndGlyphs">misplaced-hyphen</text></g>
+<g class="rule"><rect x="207" y="54" width="151" height="24" rx="0"/><text x="282.5" y="71" textLength="134.4" lengthAdjust="spacingAndGlyphs">hyphen-misplaced</text></g>
 <path d="M358 66H378"/>
 <path d="M187 66a10 10 0 0 0 10 -10V54a10 10 0 0 1 10 -10H358a10 10 0 0 1 10 10V56a10 10 0 0 0 10 10"/>
 <path d="M378 66h10"/>

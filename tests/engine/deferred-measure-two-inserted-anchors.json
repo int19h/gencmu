@@ -1,0 +1,111 @@
+{
+  "description": "Engine §6: two inserted tokens at different anchors still give one sourceless error, despite their nonempty source envelope.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage before\n%ambiguity-resolution greedy\n%rule text left right\n%rule left A\n%emits ε :: X\n%rule right B\n%emits ε :: X\n%stage last\n%ambiguity-resolution greedy\n%rule text fault | one one\n%rule fault X X\n%error \"two inserted tokens\"\n%rule one X\n%error \"one inserted token\"\n```\n"
+  },
+  "pipelineDocument": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "reported",
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "before",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "tags": [
+                "X"
+              ],
+              "span": [
+                1,
+                1
+              ],
+              "source": [
+                1,
+                1
+              ],
+              "insertedBy": "left"
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "tags": [
+                "X"
+              ],
+              "span": [
+                2,
+                2
+              ],
+              "source": [
+                3,
+                3
+              ],
+              "insertedBy": "right"
+            }
+          ]
+        },
+        {
+          "name": "last",
+          "verdict": "unique",
+          "output": [],
+          "errors": [
+            {
+              "stage": "last",
+              "code": "fault",
+              "rule": "fault",
+              "span": [
+                0,
+                2
+              ],
+              "source": [
+                1,
+                3
+              ],
+              "message": "two inserted tokens"
+            }
+          ]
+        }
+      ],
+      "error": {
+        "kind": "reported",
+        "stage": "last",
+        "errors": [
+          {
+            "stage": "last",
+            "code": "fault",
+            "rule": "fault",
+            "span": [
+              0,
+              2
+            ],
+            "source": [
+              1,
+              3
+            ],
+            "message": "two inserted tokens"
+          }
+        ]
+      }
+    },
+    "warnings": []
+  }
+}

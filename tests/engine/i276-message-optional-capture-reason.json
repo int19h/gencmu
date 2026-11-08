@@ -1,0 +1,15 @@
+{
+  "description": "A message capture exists but is absent from some productions.",
+  "grammar": "%rule text item\n%rule item [$j:B] A\n%warning \"w\" ++ $j.value",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

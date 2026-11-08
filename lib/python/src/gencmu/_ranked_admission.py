@@ -4,11 +4,12 @@ from ._rank import Summaries
 from ._ranked_frame import written_prefix
 from ._earley import RESTORE
 from ._boundary import dominates
+from ._measures import compare_measure
 
 
 def prefix(forest,item):
     p = forest.lowered.productions[forest.prod[item]]
-    key = (written_prefix(forest.lowered, p, forest.dot[item], forest.origin[item], forest.prefix[item], forest.caps[item], any(e[1] == RESTORE for e in forest.edges[item]), forest.close_machine, forest.close_prefix[item] if forest.close_prefix else 0), forest.strict[item] if forest.strict else False, forest.boundaries[item].id if forest.boundaries else None)
+    key = (written_prefix(forest.lowered, p, forest.dot[item], forest.origin[item], forest.prefix[item] if forest.prefix else 0, forest.caps[item], any(e[1] == RESTORE for e in forest.edges[item]), forest.close_machine, forest.close_prefix[item] if forest.close_prefix else 0), forest.strict[item] if forest.strict else False, forest.boundaries[item].id if forest.boundaries else None)
     return (*key, forest.tree_prefix.get(item, 0)) if hasattr(forest, "tree_prefix") else key
 
 
@@ -33,7 +34,7 @@ class RankedAdmission(RankedFacts):
         for item,edges in enumerate(forest.edges):
             p = self.productions[forest.prod[item]]
             scope = forest.slot_scopes[item] if hasattr(forest,'slot_scopes') else None
-            if p.helper and scope is None:
+            if p.helper and p.splice_of is None and scope is None:
                 continue
             position = forest.dot[item]-1
             if position<0 or p.terminal[position]:
@@ -62,13 +63,15 @@ class RankedAdmission(RankedFacts):
             kept = self.maxima.get(context)
             if context not in self.maxima:
                 present = []
+                costs = {}
                 for item,number,option in self.slot_groups[group]:
                     candidate = self.partial_key(item,key[2])
                     step = next((s for s in self.all_steps(candidate) if s[0]==number),None)
                     if step is not None and self.ways(step):
                         present.append((item, number, option))
+                        costs[item, number] = self.cost(step)
                 kept = self.maxima[context] = frozenset((item, number) for item, number, option in present
-                    if not any(higher < option and dominates(self.open[other, edge], self.open[item, number])
+                    if not any(higher < option and compare_measure(costs[other, edge], costs[item, number]) <= 0 and dominates(self.open[other, edge], self.open[item, number])
                                for other, edge, higher in present))
                 if group not in self.reported and any(
                     (item, number) in kept and any(higher < option for _, _, higher in present)

@@ -60,7 +60,7 @@
 // decomposition. The .decomposed-source-text method decomposes the original
 // source text of a span with the same table.
 //
-// Result format 15 and grammar DOM format 43 follow docs/output.md.
+// Result format 16 and grammar DOM format 45 follow docs/output.md.
 // Source positions count Unicode code points, rather than UTF-8 bytes.
 // Spans and token indices count tokens of the relevant stage. Tags occur
 // once in code point order. User tags start with uppercase ASCII letters.
@@ -75,14 +75,14 @@
 // ParseOptions.WithoutFeatures disables features. If a conditional
 // declaration holds for a disabled feature, the result is feature-conflict.
 //
-// A guard on an alternative of a grammar is a gate, f? or ¬f?, which keeps the
-// alternative only while f is on, or off, or a warning, f!, which keeps it
-// either way and, while f is on, adds a Warning to the result for each node
-// of the chosen tree that the alternative built. A gate can also stand
-// before an entry of a classifier, which then applies only while the gate
-// holds. Pipeline.Features lists a pipeline's features, the gates of its
-// classifiers' entries included, each with its kind and whether the
-// pipeline turns it on.
+// A guard on an alternative is a gate, f? or ¬f?. It keeps the alternative
+// only while f is on or off. A classifier entry can use a gate too.
+// A warning rule uses %warning and its own code as a feature name.
+// Enabled, unsuppressed warning occurrences produce evaluated messages.
+// An error rule uses %error and always reports its chosen occurrences.
+// Error counts precede grammar preferences. A reported result retains its
+// chosen tree, reports named Errors, and stops before emission.
+// Pipeline.Features lists gates and warning codes with their defaults.
 //
 // # Concurrency
 //

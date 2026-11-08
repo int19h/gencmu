@@ -22,12 +22,18 @@ import (
 // node.
 const maxDOMDepth = 256
 
-var nameSyntaxFeature = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9-]*$`)
+type notationName struct{ *regexp.Regexp }
 
-var domName = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_-]*$`)
+func (p notationName) MatchString(text string) bool {
+	return !strings.Contains(text, "--") && p.Regexp.MatchString(text)
+}
+
+var nameSyntaxFeature = notationName{regexp.MustCompile(`^[A-Za-z][A-Za-z0-9-]*$`)}
+
+var domName = notationName{regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_-]*$`)}
 
 // captureName is the syntax of a capture's name, all lower case (engine §9).
-var captureName = regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
+var captureName = notationName{regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)}
 
 // domProblem is why a DOM is malformed; tooDeep marks the nesting limit,
 // the one problem a DOM the reader built can have.
@@ -175,6 +181,25 @@ func checkDOMMode(d *domDoc, uni *unicodeTable, expanded bool) *domProblem {
 			c.constituentTags(r.Tags)
 			c.recipe(r.Value)
 			c.recipe(r.Image)
+			if r.Error != nil && r.Warning != nil || r.Params != nil && (r.Error != nil || r.Warning != nil) {
+				c.fail("a template accepts no diagnostic, and a rule accepts only one")
+			}
+			for _, recipe := range []*domTerm{r.Error, r.Warning} {
+				c.recipe(recipe)
+				if recipe != nil && messageReadsEmitted(recipe) {
+					c.fail("a message recipe cannot read .emitted")
+				}
+			}
+			if r.SuppressWarnings != nil {
+				if len(r.SuppressWarnings) == 0 {
+					c.fail("a malformed suppression list")
+				}
+				for _, code := range r.SuppressWarnings {
+					if code == "_" && len(r.SuppressWarnings) != 1 || code != "_" && !nameSyntaxFeature.MatchString(code) {
+						c.fail("a malformed suppression list")
+					}
+				}
+			}
 			c.emission(r.Emit)
 			for _, cond := range r.Conditions {
 				c.condition(cond, 0)
@@ -187,7 +212,7 @@ func checkDOMMode(d *domDoc, uni *unicodeTable, expanded bool) *domProblem {
 				// A guard is a gate or a warning, and a warning has no negated
 				// form. Its feature is a name (§9).
 				for _, g := range a.Guards {
-					if g.Kind != FeatureGate && (g.Kind != FeatureWarning || g.Negated) {
+					if g.Kind != FeatureGate {
 						c.fail("a malformed guard")
 					}
 					if !nameSyntaxFeature.MatchString(g.Feature) {
@@ -206,7 +231,7 @@ func checkDOMMode(d *domDoc, uni *unicodeTable, expanded bool) *domProblem {
 			if c.unresolved && !c.ruleName(r.Name) {
 				return &domProblem{message: "a malformed rule name", rule: r}
 			}
-			if r.Erased && (r.Emit != nil || hasRecipes(r)) {
+			if r.Erased && (r.Emit != nil || hasStringRecipes(r)) {
 				return &domProblem{message: "an erased rule has an emission or recipe", rule: r}
 			}
 			d.unresolved = d.unresolved || c.unresolved
@@ -344,8 +369,8 @@ func checkDOMMode(d *domDoc, uni *unicodeTable, expanded bool) *domProblem {
 // lower-case letter, and className that of a class, which begins with a
 // capital (engine §2, §9).
 var (
-	classifierName = regexp.MustCompile(`^[a-z][A-Za-z0-9_-]*$`)
-	className      = regexp.MustCompile(`^[A-Z][A-Za-z0-9_-]*$`)
+	classifierName = notationName{regexp.MustCompile(`^[a-z][A-Za-z0-9_-]*$`)}
+	className      = notationName{regexp.MustCompile(`^[A-Z][A-Za-z0-9_-]*$`)}
 )
 
 // entryProblem validates classifier gates, keys, operators, and classes.
@@ -436,6 +461,7 @@ func directiveOperandsOK(dir *domDirective) bool {
 }
 
 type domChecker struct {
+	parseBody       bool
 	expanded        bool
 	parameters      map[string]bool
 	unresolved      bool
@@ -527,7 +553,7 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed, chain, item, ran
 			c.fail("a malformed elidable optional")
 			return
 		}
-		c.expr(e.Inner, depth+1, false, sealed || e.Elidable, chain, item, ranked)
+		c.expr(e.Inner, depth+1, false, sealed || e.Elidable && e.Inner.Kind != exCapture, chain, item, ranked)
 	case exRepeat:
 		// A chain is the whole expression of its alternative (engine §9).
 		// A separator counts on from the depth of its repeat, as the item
@@ -541,6 +567,12 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed, chain, item, ran
 		if e.Sep != nil {
 			c.expr(e.Sep, depth+1, false, sealed, e.Chain != "", e.Chain == "", false)
 		}
+	case exSplice:
+		if e.Inner == nil || e.Inner.Kind != exCall && (e.Inner.Kind != exRef || !c.ruleName(e.Inner.Name)) {
+			c.fail("a splice requires a rule or instance")
+			return
+		}
+		c.expr(e.Inner, depth+1, false, sealed, chain, item, ranked)
 	case exCapture:
 		// A capture wraps one symbol, and stands anywhere but in braces or
 		// an elidable optional; $, the whole constituent, wraps nothing.
@@ -624,6 +656,10 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed, chain, item, ran
 			c.fail("%s", problem)
 		}
 	case exEmpty:
+	case exRemainder:
+		if !c.parseBody {
+			c.fail("a remainder stands at one outer edge of a parse argument")
+		}
 	default:
 		c.fail("an unknown expression %q", e.Kind)
 	}
@@ -638,6 +674,9 @@ func elidableHead(e *domExpr) *domExpr {
 	head := e
 	if e.Kind == exSeq && len(e.Items) > 0 {
 		head = e.Items[0]
+	}
+	if head.Kind == exCapture {
+		head = head.Inner
 	}
 	base := head
 	for base != nil && base.Kind == exTest && (base.Op == "=" || base.Op == "≠" || base.Op == "tags") {
@@ -674,7 +713,7 @@ func duplicateCaptures(e *domExpr) map[*domExpr]bool {
 			return nil
 		case n.Kind == exSeq || n.Kind == exAnd || n.Kind == exChoice || n.Kind == exRanked:
 			return n.Items
-		case n.Kind == exOptional && !n.Elidable:
+		case n.Kind == exOptional && (!n.Elidable || n.Inner.Kind == exCapture):
 			return []*domExpr{n.Inner}
 		}
 		return nil
@@ -945,7 +984,7 @@ func bracesSequences(e *domExpr) [][]string {
 			return nil
 		case n.Kind == exSeq || n.Kind == exAnd || n.Kind == exChoice || n.Kind == exRanked:
 			return n.Items
-		case n.Kind == exOptional && !n.Elidable:
+		case n.Kind == exOptional && (!n.Elidable || n.Inner.Kind == exCapture):
 			return []*domExpr{n.Inner}
 		case n.Kind == exRepeat && n.Chain != "":
 			if n.Sep != nil {
@@ -1158,7 +1197,7 @@ func captureSequences(e *domExpr) [][]*domExpr {
 			return nil
 		case n.Kind == exSeq || n.Kind == exAnd || n.Kind == exChoice || n.Kind == exRanked:
 			return n.Items
-		case n.Kind == exOptional && !n.Elidable:
+		case n.Kind == exOptional && (!n.Elidable || n.Inner.Kind == exCapture):
 			return []*domExpr{n.Inner}
 		}
 		return nil
@@ -1232,7 +1271,7 @@ func captureSequences(e *domExpr) [][]*domExpr {
 // reference, a terminal, a range, a property or a tested symbol (engine §9).
 func isCapturable(kind string) bool {
 	switch kind {
-	case exRef, exRange, exLiteral, exWildcard, exTest, exParam, exCall:
+	case exRef, exRange, exLiteral, exWildcard, exTest, exParam, exCall, exSplice:
 		return true
 	}
 	return false
@@ -1245,7 +1284,7 @@ func isTestable(e *domExpr) bool {
 		return false
 	}
 	switch e.Kind {
-	case exRef, exParam, exCall:
+	case exRef, exParam, exCall, exSplice:
 		return true
 	case exRange, exLiteral, exWildcard:
 		return true
@@ -1337,6 +1376,28 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		return
 	}
 	switch t.Kind {
+	case tmBody:
+		if !c.parseBody || !argument {
+			c.fail("a body stands only in a parse argument")
+			return
+		}
+		core, _, problem := queryBody(t.Body)
+		if problem != "" {
+			c.fail("%s", problem)
+			return
+		}
+		if queryCapture(core) != nil {
+			c.fail("a parse argument cannot declare captures")
+			return
+		}
+		nested := false
+		walkQueryBody(core, func(expr *domExpr) bool { nested = nested || expr.Kind == exRemainder; return !nested }, func() bool { return !nested })
+		if nested {
+			c.fail("a remainder stands at one outer edge of a parse argument")
+			return
+		}
+		// The body wrapper is not a syntax node (engine §9).
+		c.expr(t.Body, depth, true, false, false, false, false)
 	case tmString:
 		if !utf8.ValidString(t.Str) {
 			c.fail("a string is not valid UTF-8")
@@ -1463,6 +1524,21 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		}
 		var ok bool
 		switch t.Str {
+		case "parse":
+			ok = len(args) == 2 && isSpanShape(args[0]) && args[1] != nil && args[1].Kind == tmBody
+			if ok {
+				_, mode, problem := queryBody(args[1].Body)
+				if problem != "" {
+					c.fail("%s", problem)
+					return
+				}
+				if mode == cdEnds && restoredTerm(args[0]) {
+					c.fail("suffix parse requires an ordinary span, not a restored span")
+					return
+				}
+			}
+		case "error-free":
+			ok = len(args) == 1 && (forestTerm(args[0]) || unresolvedTerm(args[0]))
 		case "emitted", "verbatim-text":
 			ok = false
 		case "without-elision-except":
@@ -1495,6 +1571,13 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 			return
 		}
 		for _, a := range args {
+			if a.Kind == tmBody && t.Str == "parse" {
+				previous := c.parseBody
+				c.parseBody = true
+				c.term(a, depth+1, true)
+				c.parseBody = previous
+				continue
+			}
 			if unresolvedTerm(a) {
 				c.term(a, depth+1, true)
 			} else if isRule(a) || isClassifier(a) || a.Kind == tmInteger {
@@ -1525,6 +1608,13 @@ func (c *domChecker) condition(d *domCond, depth int) {
 		return
 	}
 	switch d.Kind {
+	case cdForest:
+		if !forestTerm(d.Left) {
+			c.fail("a condition requires a forest")
+			return
+		}
+		// A forest predicate is already its condition node (engine §9).
+		c.term(d.Left, depth, false)
 	case cdCompare:
 		switch d.Op {
 		case "=", "≠", "∈", "∉", "⊆", "⊈", "≅", "≇":
@@ -1735,9 +1825,11 @@ const (
 	tySet
 	tyAny
 	tyPattern
+	tyForest
+	tyBody
 )
 
-var typeNames = map[termType]string{tyPattern: "a tree pattern", tyString: "a string", tyStrings: "a set of strings", tyTags: "a tag set", tySpan: "a span", tySet: "a set", tyAny: "a value"}
+var typeNames = map[termType]string{tyBody: "a parse body", tyForest: "a forest", tyPattern: "a tree pattern", tyString: "a string", tyStrings: "a set of strings", tyTags: "a tag set", tySpan: "a span", tySet: "a set", tyAny: "a value"}
 
 const spanNotValue = "a span is not a value: $x.tags is the tag set of $x"
 
@@ -1765,6 +1857,8 @@ func isSetType(t termType) bool { return t == tyStrings || t == tyTags || t == t
 // callType is the type of the value a function gives.
 func callType(name string) termType {
 	switch name {
+	case "parse", "error-free":
+		return tyForest
 	case "value", "image", "source-text", "decomposed-source-text", "verbatim-text":
 		return tyString
 	case "split", "ngrams":
@@ -1983,6 +2077,13 @@ func termTypeOnce(t *domTerm, ct constTypes, memo *typeMemo) (termType, *typeFau
 		w.readerSteps.add("reader steps")
 	}
 	switch t.Kind {
+	case tmBody:
+		for _, term := range queryTerms(t.Body) {
+			if _, fault := termTypeMemo(term, ct, memo); fault != nil {
+				return 0, fault
+			}
+		}
+		return tyBody, nil
 	case tmParam, tmSourceCall:
 		return tyAny, nil
 	case tmPattern:
@@ -2104,6 +2205,9 @@ func termTypeOnce(t *domTerm, ct constTypes, memo *typeMemo) (termType, *typeFau
 					return 0, &typeFault{"a method has the wrong receiver or arguments", t}
 				}
 			}
+			if t.Str == "error-free" && ty != tyForest && ty != tyAny {
+				return 0, &typeFault{"error-free requires a forest", t}
+			}
 		}
 		return callType(t.Str), nil
 	}
@@ -2142,6 +2246,14 @@ func condTypeOnce(c *domCond, ct constTypes, memo *typeMemo) *typeFault {
 		w.readerSteps.add("reader steps")
 	}
 	switch c.Kind {
+	case cdForest:
+		ty, fault := termTypeMemo(c.Left, ct, memo)
+		if fault != nil {
+			return fault
+		}
+		if ty != tyForest && ty != tyAny {
+			return &typeFault{"a condition requires a forest", c}
+		}
 	case cdAny, cdAll, cdIf:
 		for _, it := range c.Items {
 			if f := condTypeMemo(it, ct, memo); f != nil {
@@ -2364,6 +2476,8 @@ func ruleTypeFault(r *domRule, ct constTypes) *typeFault {
 	for _, condition := range r.Conditions {
 		add(clausePart{c: condition})
 	}
+	term(r.Error)
+	term(r.Warning)
 	if r.Emit != nil {
 		for _, item := range r.Emit.Items {
 			term(item.Tags)
@@ -2450,7 +2564,7 @@ func constantValueType(value *domTerm, redefine bool, ct constTypes) (termType, 
 
 // constName is the syntax of a constant's name, without its $: a name that
 // begins with a capital (engine §2).
-var constName = regexp.MustCompile(`^[A-Z][A-Za-z0-9_-]*$`)
+var constName = notationName{regexp.MustCompile(`^[A-Z][A-Za-z0-9_-]*$`)}
 
 // openPart is the first part of a term that is not closed (engine §10), or
 // nil: a capture, a guarded term, or a call of anything but split and ngrams.

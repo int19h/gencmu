@@ -514,3 +514,24 @@ fn pattern_closedness_leaves_tests_to_schema() {
         }
     }
 }
+
+#[test]
+fn deferred_body_queries_round_trip_and_substitute() {
+    // Engine §3.10: query bodies use ordinary template substitution and DOM shapes.
+    for source in [
+        "%rule text A %conditions $.parse(A).error-free",
+        "%rule text A %conditions $.parse(… A=\"a\")",
+        "%rule text A %conditions $.parse([A] …).error-free",
+        "%rule check(@C) A %conditions $.parse(@C).error-free\n%rule text = check(A=\"a\")",
+    ] {
+        let decoded = located(source);
+        let raw = dom::dom_to_json(&decoded);
+        let restored = dom::dom_from_json(&j(&raw), &unicode()).unwrap();
+        assert_eq!(dom::dom_to_json(&restored), raw, "{source}");
+        let grammar = grammar(source);
+        assert!(!grammar.rules.is_empty());
+    }
+    let raw =
+        j(r#"{"method":"parse","receiver":{"capture":""},"args":[{"body":{"seq":[{"remainder":true},{"ref":"A"}]}}]}"#);
+    assert_eq!(print::canonical(&raw, &unicode()), "$.parse(… A)");
+}

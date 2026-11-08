@@ -4,6 +4,11 @@
 
 use std::cell::Cell;
 use std::collections::BTreeSet;
+use std::rc::Rc;
+use std::sync::Arc;
+
+use crate::diagnostic_flow::{DiagnosticFlow, Lists};
+use crate::measures::{DiagnosticIdentity, DiagnosticRecord, Measure, Measures};
 
 use crate::earley::{Cap, Caps, EngineError, Frame, Recognizer, Tok};
 use crate::fxhash::{FxMap, FxSet};
@@ -22,6 +27,7 @@ pub(crate) enum IKind {
 
 #[derive(Debug, Clone)]
 pub(crate) struct INode {
+    pub lexical: u32,
     pub structure: u32,
     pub kind: IKind,
     pub children: Vec<u32>,
@@ -41,12 +47,18 @@ pub(crate) fn build(ranker: &Ranker, root: u32) -> ITree {
         let index = nodes.len() as u32;
         match ranker.dag.arena[id as usize] {
             DNode::Read { tok, terminal, .. } => {
-                nodes.push(INode { structure: u32::MAX, kind: IKind::Read { tok, terminal }, children: Vec::new() });
+                nodes.push(INode {
+                    lexical: 0,
+                    structure: u32::MAX,
+                    kind: IKind::Read { tok, terminal },
+                    children: Vec::new(),
+                });
             }
             DNode::Close { body, set, item } => {
                 let it = ranker.item(set, item);
                 let tags = ranker.chart().sets[set as usize].tagset[item as usize];
                 nodes.push(INode {
+                    lexical: it.lexical,
                     structure: it.structure,
                     kind: IKind::Close {
                         prod: it.prod,
@@ -282,45 +294,62 @@ pub(crate) fn public_tree(tree: &ITree, context: &TreeContext) -> Node {
     root.pop().expect("the root is a rule node")
 }
 
-/// The warnings of a stage's chosen tree (§12): each rule node gives one
-/// for each warning of its production whose feature is on, in the order a
-/// walk meets the nodes, parent before children and children left to
-/// right. The walk passes through the helpers that the tree splices out,
-/// without counting them as nodes, and so meets the tree's nodes in the
-/// tree's own order.
-pub(crate) fn warnings_of(
+/// Evaluates messages in chosen preorder, including erased occurrences (§12.1).
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn evaluate_reports(
     tree: &ITree,
     g: &Lowered,
     sources: &Sources,
     features: &BTreeSet<String>,
     stage: &str,
-) -> Vec<Warning> {
-    let mut warnings = Vec::new();
-    let mut stack = vec![0u32];
-    while let Some(index) = stack.pop() {
+    stage_order: usize,
+    tokens: &[Tok],
+    text: &[char],
+    flow: &mut DiagnosticFlow,
+) -> Result<(), EngineError> {
+    let charges = Measures::new(tokens);
+    let mut strings = crate::strings::Strings::new(g, tree, tokens, sources, text, &g.unicode);
+    strings.observe();
+    let mut stack = vec![(0u32, Rc::new(BTreeSet::<String>::new()))];
+    while let Some((index, mut suppressed)) = stack.pop() {
+        work::count(Counted::Walked, 1);
         let node = &tree.nodes[index as usize];
-        let IKind::Close { prod, start, end, .. } = node.kind else {
-            continue;
-        };
+        let IKind::Close { prod, start, end, .. } = node.kind else { continue };
         let production = &g.prods[prod as usize];
-        // A helper's productions have no warnings.
-        for feature in production.warnings.iter().filter(|&feature| features.contains(feature)) {
-            warnings.push(Warning {
+        if !production.suppress_warnings.is_empty() {
+            Rc::make_mut(&mut suppressed).extend(production.suppress_warnings.iter().cloned());
+        }
+        let code = &g.rules[production.rule as usize].name;
+        let warning = production
+            .warning
+            .as_ref()
+            .filter(|_| features.contains(code) && !suppressed.contains("_") && !suppressed.contains(code));
+        for (recipe, is_error) in production.error.iter().map(|r| (r, true)).chain(warning.map(|r| (r, false))) {
+            crate::diagnostics::message(code)?;
+            let report = Warning {
+                record: Some(Arc::new(DiagnosticRecord {
+                    identity: Arc::new(DiagnosticIdentity { stage_order, ordinal: flow.ordinal() }),
+                    measure: if is_error { charges.own(start as usize, end as usize) } else { Measure::ZERO },
+                })),
+                rejection: None,
                 stage: stage.to_string(),
-                feature: feature.clone(),
-                rule: g.rules[production.rule as usize].name.clone(),
+                code: code.clone(),
+                rule: code.clone(),
                 span: start as usize..end as usize,
                 source: source_of(sources, start as usize, end as usize),
-            });
+                message: strings.override_string(index, recipe)?,
+            };
+            flow.add(index, report, is_error);
         }
-        stack.extend(node.children.iter().rev());
+        stack.extend(node.children.iter().rev().map(|&child| (child, suppressed.clone())));
     }
-    warnings
+    Ok(())
 }
 
 /// A token emitted for the next stage.
 #[derive(Debug, Clone)]
 pub(crate) struct Emitted {
+    row: Option<usize>,
     pub span: (usize, usize),
     pub source: (usize, usize),
     pub tags: SetId,
@@ -331,14 +360,17 @@ pub(crate) struct Emitted {
     /// The tokens attached before it and after it (§11).
     pub before: Vec<Attachment>,
     pub after: Vec<Attachment>,
+    pub errors: Vec<crate::result::Warning>,
+    pub warnings: Vec<crate::result::Warning>,
 }
 
 enum Work<'g> {
-    Visit(u32),
+    Visit(u32, usize),
     /// A token covering node `node`. Its tags are those of an item's term,
     /// evaluated in the frame of the constituent `owner` when the token is
     /// made (§10, §11), or else `tags`.
     Cover {
+        scope: usize,
         node: u32,
         owner: u32,
         term: Option<&'g LTerm>,
@@ -347,6 +379,7 @@ enum Work<'g> {
     },
     /// An inserted token with an optional tag term, at a token index, in a node.
     Insert {
+        scope: usize,
         tag: Option<&'g LTerm>,
         at: u32,
         node: u32,
@@ -358,7 +391,10 @@ enum Work<'g> {
     Mark,
     /// Moves the tokens since the item's two marks into its carrier's
     /// attachments (§11).
-    Attach,
+    Attach {
+        before_scopes: Vec<usize>,
+        after_scopes: Vec<usize>,
+    },
 }
 
 /// What forwarding needs across one emission (§11): whether any input
@@ -401,8 +437,19 @@ fn cover(
         (at, at)
     };
     let (value, image) = (String::new(), String::new());
-    let mut token =
-        Emitted { span, source, tags, value, image, inserted_by: None, before: Vec::new(), after: Vec::new() };
+    let mut token = Emitted {
+        row: None,
+        errors: Vec::new(),
+        warnings: Vec::new(),
+        span,
+        source,
+        tags,
+        value,
+        image,
+        inserted_by: None,
+        before: Vec::new(),
+        after: Vec::new(),
+    };
     // Counted parts decide attachment forwarding (§11).
     if forwarding.on {
         if let Some(from) = forwarded(recognizer.g, tree, tokens, index)? {
@@ -462,6 +509,8 @@ fn forwarded(g: &Lowered, tree: &ITree, tokens: &[Tok], root: u32) -> Result<Opt
 /// (§11), with its tags and its text as the result has them.
 fn attachment(recognizer: &Recognizer, token: Emitted) -> Attachment {
     Attachment {
+        errors: token.errors,
+        warnings: token.warnings,
         text: recognizer.shared.source_text(token.source.0, token.source.1),
         value: token.value,
         image: token.image,
@@ -626,7 +675,8 @@ pub(crate) fn emit(
     tree: &ITree,
     tokens: &[Tok],
     sources: &Sources,
-) -> Result<Vec<Emitted>, EngineError> {
+    flow: &mut DiagnosticFlow,
+) -> Result<(Vec<Emitted>, Lists), EngineError> {
     let g = recognizer.g;
     recognizer.shared.emission_boundaries.clear();
     recognizer.shared.emission_targets = emission_targets(g);
@@ -658,10 +708,10 @@ pub(crate) fn emit(
     // The output positions of the marks of the items being emitted.
     let mut marks: Vec<usize> = Vec::new();
     let mut identity_memo = FxMap::default();
-    let mut stack = vec![Work::Visit(0)];
+    let mut stack = vec![Work::Visit(0, 0)];
     while let Some(work) = stack.pop() {
         match work {
-            Work::Visit(index) => {
+            Work::Visit(index, scope) => {
                 let node = &tree.nodes[index as usize];
                 let IKind::Close { prod, tags, caps, .. } = &node.kind else {
                     continue;
@@ -671,7 +721,7 @@ pub(crate) fn emit(
                     LEmit::Nothing => {}
                     LEmit::None => {
                         for &child in node.children.iter().rev() {
-                            stack.push(Work::Visit(child));
+                            stack.push(Work::Visit(child, scope));
                         }
                     }
                     LEmit::This(items) => {
@@ -679,6 +729,7 @@ pub(crate) fn emit(
                         // its term evaluated when it is made.
                         for (item, term) in items.iter().enumerate().rev() {
                             stack.push(Work::Cover {
+                                scope,
                                 node: index,
                                 owner: index,
                                 term: term.as_ref(),
@@ -696,7 +747,13 @@ pub(crate) fn emit(
                             if slot == u32::MAX {
                                 index
                             } else {
-                                node.children[production.cap_pos[slot as usize]]
+                                let position = production.cap_pos[slot as usize];
+                                let child = node.children[position];
+                                if production.forward_captures.contains_key(&position) {
+                                    tree.nodes[child as usize].children[0]
+                                } else {
+                                    child
+                                }
                             }
                         };
                         let mut sequence = Vec::with_capacity(items.len());
@@ -704,6 +761,7 @@ pub(crate) fn emit(
                             match item {
                                 LEmitItem::Cap(slot, term, before, after) => {
                                     let carrier = Work::Cover {
+                                        scope,
                                         node: child(*slot),
                                         owner: index,
                                         term: term.as_ref(),
@@ -719,12 +777,26 @@ pub(crate) fn emit(
                                     // after-attachments: each the tokens
                                     // that its captured part emits in its
                                     // place (§11).
+                                    let before_scopes: Vec<_> =
+                                        before.iter().map(|&slot| flow.attachment(child(slot))).collect();
+                                    let after_scopes: Vec<_> =
+                                        after.iter().map(|&slot| flow.attachment(child(slot))).collect();
                                     sequence.push(Work::Mark);
-                                    sequence.extend(before.iter().map(|&slot| Work::Visit(child(slot))));
+                                    sequence.extend(
+                                        before
+                                            .iter()
+                                            .zip(&before_scopes)
+                                            .map(|(&slot, &scope)| Work::Visit(child(slot), scope)),
+                                    );
                                     sequence.push(Work::Mark);
                                     sequence.push(carrier);
-                                    sequence.extend(after.iter().map(|&slot| Work::Visit(child(slot))));
-                                    sequence.push(Work::Attach);
+                                    sequence.extend(
+                                        after
+                                            .iter()
+                                            .zip(&after_scopes)
+                                            .map(|(&slot, &scope)| Work::Visit(child(slot), scope)),
+                                    );
+                                    sequence.push(Work::Attach { before_scopes, after_scopes });
                                 }
                                 LEmitItem::Insert(tag, anchor) => {
                                     // At the start of the first written part
@@ -732,6 +804,7 @@ pub(crate) fn emit(
                                     // the constituent's end.
                                     let at = anchor.map_or(end, |slot| span_of(tree, child(slot)).0);
                                     sequence.push(Work::Insert {
+                                        scope,
                                         tag: tag.as_ref(),
                                         at,
                                         node: index,
@@ -745,7 +818,7 @@ pub(crate) fn emit(
                     }
                 }
             }
-            Work::Cover { node, owner, term, tags, strings: channels } => {
+            Work::Cover { scope, node, owner, term, tags, strings: channels } => {
                 let tags = match term {
                     Some(term) => {
                         let IKind::Close { prod, start, end, tags, caps } = &tree.nodes[owner as usize].kind else {
@@ -789,16 +862,26 @@ pub(crate) fn emit(
                 let tags = implications.implied(&mut recognizer.shared.tags, tags);
                 let mut token = cover(recognizer, tree, tokens, sources, &mut forwarding, node, tags)?;
                 (token.value, token.image) = strings.item(owner, Some(node), channels)?;
+                let row = flow.emitted(token.span, Some(node), owner, scope);
+                flow.inherited(row, &token.before, &token.after);
+                token.row = Some(row);
                 out.push(token);
             }
             Work::Mark => marks.push(out.len()),
-            Work::Attach => {
+            Work::Attach { before_scopes, after_scopes } => {
                 // New attachments are outer to inherited ones (§11).
                 let at = marks.pop().expect("a carrier's mark");
                 let first = marks.pop().expect("an item's mark");
                 let after: Vec<Emitted> = out.drain(at + 1..).collect();
                 let mut carrier = out.pop().expect("a carrier");
                 let before: Vec<Emitted> = out.drain(first..).collect();
+                flow.attachments(
+                    carrier.row.unwrap(),
+                    before.iter().map(|token| token.row).collect(),
+                    after.iter().map(|token| token.row).collect(),
+                    &before_scopes,
+                    &after_scopes,
+                );
                 if !before.is_empty() {
                     let mut all: Vec<Attachment> =
                         before.into_iter().map(|token| attachment(recognizer, token)).collect();
@@ -808,7 +891,7 @@ pub(crate) fn emit(
                 carrier.after.extend(after.into_iter().map(|token| attachment(recognizer, token)));
                 out.push(carrier);
             }
-            Work::Insert { tag, at, node, anchor, strings: channels } => {
+            Work::Insert { scope, tag, at, node, anchor, strings: channels } => {
                 let (start, _) = span_of(tree, node);
                 // At the source end of the token before, or at the start of
                 // the constituent's source if `at` is its start.
@@ -868,6 +951,9 @@ pub(crate) fn emit(
                 // Inserted tokens receive their strings from item recipes.
                 let (value, image) = strings.item(node, None, channels)?;
                 out.push(Emitted {
+                    row: Some(flow.emitted((at as usize, at as usize), None, node, scope)),
+                    errors: Vec::new(),
+                    warnings: Vec::new(),
                     span: (at as usize, at as usize),
                     source: (source, source),
                     tags: set,
@@ -880,7 +966,25 @@ pub(crate) fn emit(
             }
         }
     }
-    Ok(out)
+    let unowned = flow.assign();
+    for token in &mut out {
+        let row = token.row.take().unwrap();
+        let lists = flow.row(row);
+        token.errors.clone_from(&lists.errors);
+        token.warnings.clone_from(&lists.warnings);
+        let (before, after) = flow.display_children(row);
+        let mut pending: Vec<_> =
+            token.before.iter_mut().zip(before).chain(token.after.iter_mut().zip(after)).collect();
+        while let Some((attachment, row)) = pending.pop() {
+            let Some(row) = *row else { continue };
+            let lists = flow.row(row);
+            attachment.errors.clone_from(&lists.errors);
+            attachment.warnings.clone_from(&lists.warnings);
+            let (before, after) = flow.display_children(row);
+            pending.extend(attachment.before.iter_mut().zip(before).chain(attachment.after.iter_mut().zip(after)));
+        }
+    }
+    Ok((out, unowned))
 }
 
 #[cfg(test)]

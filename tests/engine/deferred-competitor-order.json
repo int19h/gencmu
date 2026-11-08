@@ -1,0 +1,43 @@
+{
+  "description": "Engine §7.10: reconstruction uses the T-first best competitor, while a tie uses its earliest-diverging reading.",
+  "grammar": "%ambiguity-resolution greedy\n%elision-only\n%rule text head tail | other\n%rule head \"a\"\n%rule tail [+T] | T\n%rule other \"a\" T",
+  "input": "a",
+  "expect": {
+    "error": "ambiguous",
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "error": {
+        "kind": "ambiguous",
+        "reason": "elision-only",
+        "readings": [
+          {
+            "children": [
+              {
+                "rule": "head"
+              },
+              {
+                "rule": "tail"
+              }
+            ]
+          },
+          {
+            "children": [
+              {
+                "rule": "head"
+              },
+              {
+                "rule": "tail"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

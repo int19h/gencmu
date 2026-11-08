@@ -1,0 +1,16 @@
+{
+  "description": "A line comment ends before CRLF.",
+  "document": "```jbogenbau\n%rule a A -- ignored\r\n%rule b B\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "name": "a"
+        },
+        {
+          "name": "b"
+        }
+      ]
+    }
+  }
+}

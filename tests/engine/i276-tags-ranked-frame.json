@@ -1,0 +1,46 @@
+{
+  "description": "Ranked frames retain concrete tag assignments before their neighbour obligations settle.",
+  "grammar": "%rule text left right\n%rule left ($x:first ≻ second) :: ($.followed-by(right) ⟹ Mark) %conditions $x ⟹ Mark ⊆ $.tags\n%rule first A\n%rule second A\n%rule right B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "left",
+            "tags": [
+              "Mark"
+            ],
+            "children": [
+              {
+                "rule": "first"
+              }
+            ]
+          },
+          {
+            "rule": "right"
+          }
+        ]
+      }
+    }
+  }
+}

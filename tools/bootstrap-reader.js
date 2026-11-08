@@ -38,10 +38,10 @@ export function readResource(key) {
 // The symbols of one character; `..`, `...` and `¬` have rules of
 // their own in the lexer.
 const LAYERED_SYMBOLS = new Set(["«", "»", "·"]);
-const SYMBOLS = new Set(["+", "|", "&", "(", ")", "[", "]", "{", "}", "/", ":", ".", "<", ">", "#", "ε", ",", "∧", "∨", "⟹", "=",
-  "∈", "⊆", "∪", "∩", "∖", "∅", "≅", "⋯", "⋮", "⋰", "⋱", "≻", "≝"]);
+const SYMBOLS = new Set(["*", "+", "|", "&", "(", ")", "[", "]", "{", "}", "/", ":", ".", "<", ">", "#", "ε", ",", "∧", "∨", "⟹", "=",
+  "∈", "⊆", "∪", "∩", "∖", "∅", "≅", "⋯", "⋮", "⋰", "⋱", "≻", "≝", "…"]);
 
-const KEYWORDS = new Set(["%rule", "%redefine-rule", "%extend-rule", "%conditions", "%emits", "%erased",
+const KEYWORDS = new Set(["%rule", "%redefine-rule", "%extend-rule", "%conditions", "%error", "%warning", "%suppress-warnings", "%emits", "%erased",
   "%ambiguity-resolution", "%elision-only", "%stage", "%extend-stage", "%redefine-stage", "%include", "%names", "%features", "%const", "%redefine-const", "%classifier", "%implies"]);
 
 // A syntax error: the text cannot be read as the notation at all, which the
@@ -74,7 +74,7 @@ const isCapital = (text) => /^[A-Z]/.test(text);
 // found once for the whole text, so the lexer's work grows with the
 // text's length. Each step of it counts as walkSteps of `hooks.work`
 // (tests/README.md).
-function lex(text, originalPositions) {
+function lex(text, originalPositions, legacyComments = false) {
   const original = [...text];
   const decomposed = unicode.decomposeWithOrigins(text);
   const chars = decomposed.map(item => item.character);
@@ -97,12 +97,15 @@ function lex(text, originalPositions) {
   // body that begins there. Backslashes remain ordinary characters.
   const runEnds = new Array(n + 2).fill(n);
   const closes = new Array(n + 2).fill(n);
+  const lineEnds = new Array(n + 2).fill(n);
   const featureEnds = new Array(n + 2).fill(n);
   const engineEnds = new Array(n + 2).fill(n);
   for (let i = n - 1; i >= 0; i--) {
     if (hooks.work) countWork(hooks.work, "walkSteps");
-    runEnds[i] = isNameChar(chars[i]) ? runEnds[i + 1] : i;
-    featureEnds[i] = /^[A-Za-z0-9-]$/.test(chars[i]) ? featureEnds[i + 1] : i;
+    const comment = chars[i] === "-" && chars[i + 1] === "-";
+    runEnds[i] = isNameChar(chars[i]) && !comment ? runEnds[i + 1] : i;
+    lineEnds[i] = chars[i] === "\r" || chars[i] === "\n" ? i : lineEnds[i + 1];
+    featureEnds[i] = /^[A-Za-z0-9-]$/.test(chars[i]) && !comment ? featureEnds[i + 1] : i;
     engineEnds[i] = (/^[A-Za-z0-9_]$/.test(chars[i]) || chars[i] === "." && /^[0-9]$/.test(chars[i-1] ?? "") && /^[0-9]$/.test(chars[i+1] ?? "")) ? engineEnds[i + 1] : i;
     closes[i] = chars[i] === "*" && chars[i + 1] === ")" ? i : closes[i + 1];
   }
@@ -118,7 +121,7 @@ function lex(text, originalPositions) {
   const guardEnd = (j) => {
     if (isLetter(chars[j])) {
       const end = featureEnds[j];
-      return chars[end] === "?" || chars[end] === "!" ? end + 1 : null;
+      return chars[end] === "?" ? end + 1 : null;
     }
     if (chars[j] === "¬" && isLetter(chars[j + 1])) {
       const end = featureEnds[j + 1];
@@ -143,7 +146,9 @@ function lex(text, originalPositions) {
       reach = Math.max(reach, end);
     };
     if (unicode.isWhiteSpace(c.codePointAt(0))) found.push([i + 1, null]);
-    if (c === "(" && chars[i + 1] === "*") {
+    if (c === "-") reach=Math.max(reach,i+1);
+    if (c === "-" && chars[i + 1] === "-") found.push([lineEnds[i + 2], null]);
+    if (legacyComments && c === "(" && chars[i + 1] === "*") {
       const j = closes[i + 2];
       if (j < n) found.push([j + 2, null]);
       reach = Math.max(reach, Math.min(j + 2, n));
@@ -156,16 +161,16 @@ function lex(text, originalPositions) {
     }
     if (c === "@") prefixed(i + 1, () => "parameter");
     if (unicode.isEmojiName(c)) {
-      if (!(chars[i+1] === "(" && chars[i+2] !== "*")) found.push([i + 1, "emoji"]);
-      if (chars[i+1] === "(" && chars[i+2] !== "*") found.push([i+1, "call-name"]);
+      if (!(chars[i+1] === "(" && !(legacyComments && chars[i+2] === "*" && closes[i+3]<n))) found.push([i + 1, "emoji"]);
+      if (chars[i+1] === "(" && !(legacyComments && chars[i+2] === "*" && closes[i+3]<n)) found.push([i+1, "call-name"]);
     }
     if (isLetter(c)) {
       // A whole name, or the whole run and `?` or `!`, a guard.
       const end = runEnds[i];
       const featureEnd = featureEnds[i];
-      if (chars[featureEnd] === "?" || chars[featureEnd] === "!") found.push([featureEnd + 1, "guard"]);
-      if (!( /^[a-z]/.test(c) && chars[end] === "(" && chars[end+1] !== "*")) found.push([end, "identifier"]);
-      if (/^[a-z]/.test(c) && chars[end] === "(" && chars[end+1] !== "*") found.push([end, "call-name"]);
+      if (chars[featureEnd] === "?") found.push([featureEnd + 1, "guard"]);
+      if (!( /^[a-z]/.test(c) && chars[end] === "(" && !(legacyComments && chars[end+1] === "*" && closes[end+2]<n))) found.push([end, "identifier"]);
+      if (/^[a-z]/.test(c) && chars[end] === "(" && !(legacyComments && chars[end+1] === "*" && closes[end+2]<n)) found.push([end, "call-name"]);
       reach = Math.max(reach, end);
     }
     if (c === "¬") {
@@ -191,6 +196,7 @@ function lex(text, originalPositions) {
         let j = runEnds[i + 1];
         for (;;) {
           if (j < n && unicode.isWhiteSpace(chars[j].codePointAt(0))) j++;
+          else if (chars[j] === "-" && chars[j + 1] === "-") j = lineEnds[j + 2];
           else if (chars[j] === "(" && chars[j + 1] === "*" && closes[j + 2] < n) j = closes[j + 2] + 2;
           else break;
         }
@@ -266,7 +272,7 @@ const TEST_COMPARATORS = new Set(["=", "≠", "<"]);
 const AFTER_TERM = new Set(["≅", "≇", ...COMPARATORS, "++", "∪", "∩", "∖"]);
 const TERM_STARTS = new Set(["call-name", "parameter", "emoji", "identifier", "tag", "string", "capture", "constant", "(", "∅", "#", "∪", "∩"]);
 const EMIT_STARTS = new Set(["capture", "identifier", "tag", "ε", "(", "string", "constant"]);
-const PRIMARY_STARTS = new Set(["call-name", "parameter", "identifier", "tag", "string", "_", "capture", "constant", "(", "[", "{", "emoji", "ε"]);
+const PRIMARY_STARTS = new Set(["*", "call-name", "parameter", "identifier", "tag", "string", "_", "capture", "constant", "(", "[", "{", "emoji", "ε"]);
 
 // A recursive descent parser of the notation's syntax grammar
 // (grammars/gencmu/jbogenbau/syntax.md). It builds a node for each rule that the
@@ -472,6 +478,19 @@ class Parser {
       while (this.is(",")) clause.push(this.tok(), (yield this.implication()));
       children.push(this.node("conditions-clause", at, clause));
     }
+    if (this.is("%error") || this.is("%warning")) {
+      const at = this.index, kind = this.kindAt().slice(1);
+      children.push(this.node(`${kind}-clause`, at, [this.tok(), yield this.recipe()]));
+    }
+    if (this.is("%suppress-warnings")) {
+      const at = this.index, clause = [this.tok()];
+      if (this.is("_")) clause.push(this.tok());
+      else {
+        clause.push(this.is("identifier") ? this.leaf("suppression-code") : this.fail("expected a warning code"));
+        while (this.is(",")) clause.push(this.tok(), this.is("identifier") ? this.leaf("suppression-code") : this.fail("expected a warning code"));
+      }
+      children.push(this.node("suppress-warnings-clause", at, clause));
+    }
     if (this.is("%emits")) children.push((yield this.emitsClause()));
     else if (this.is("%erased")) children.push(this.leaf("erased-clause"));
     return this.node("rule", start, children);
@@ -611,7 +630,7 @@ class Parser {
           value=this.node(category,start,[yield this.symbol()]);
         } else if (category === "symbol-argument") {
           const valueNode=yield this.primary();
-          if (!["tested","range","wildcard"].includes(valueNode.children[0].rule)) this.fail("expected a symbol argument");
+          if (!["tested","range","wildcard","splice"].includes(valueNode.children[0].rule)) this.fail("expected a symbol argument");
           value=this.node(category,start,valueNode.children);
         } else value=yield this.term();
         if (!this.is(",") && !this.is(")")) this.fail("expected argument boundary");
@@ -625,6 +644,13 @@ class Parser {
     const start = this.index;
     if ((this.is("string") || this.is("constant") || this.is("parameter")) && this.is("..", 1)) return yield this.range();
     switch (this.kindAt()) {
+      case "*": {
+        const star = this.tok();
+        const adjacent = this.tokens[start].source[1] === this.peek()?.source[0];
+        const target = this.is("call-name") ? yield this.call() : this.is("emoji") || this.is("identifier") && !isCapital(this.peek().value) ? this.leaf("reference") : this.fail("expected a splice target");
+        if (!adjacent) this.fail("a splice name is adjacent to *");
+        return this.node("splice",start,[star,target]);
+      }
       case "call-name": return yield this.call();
       case "parameter": return this.leaf("parameter");
       case "identifier": return this.leaf(isCapital(this.peek().value) ? "tag" : "reference");
@@ -635,8 +661,14 @@ class Parser {
       case "(": return this.node("group", start, [this.tok(), (yield this.choice()), this.expect(")")]);
       case "[": {
         const children = [this.tok()];
-        if (this.is("+")) children.push(this.tok());
-        children.push((yield this.choice()), this.expect("]"));
+        if ((this.is("capture") || this.is("constant")) && this.is(":",1) && this.is("+",2)) {
+          const at = this.index;
+          children.push(this.node("capture",at,[this.tok(),this.tok(),this.tok(),yield this.primary()]));
+        } else {
+          if (this.is("+")) children.push(this.tok());
+          children.push(yield this.choice());
+        }
+        children.push(this.expect("]"));
         return this.node("optional", start, children);
       }
       case "{": {
@@ -868,6 +900,17 @@ class Parser {
       const at = this.index;
       const selector = [this.tok()];
       if (!this.is("identifier") && !this.is("call-name")) this.fail("expected a method name");
+      if (this.peek().value === "parse") {
+        const parsed = [this.tok(), this.expect("(")];
+        const argumentAt = this.index, argument = [];
+        if (this.is("…")) argument.push(this.tok());
+        argument.push(yield this.choice());
+        if (this.is("…")) argument.push(this.tok());
+        parsed.push(this.node("parse-argument", argumentAt, argument), this.expect(")"));
+        selector.push(this.node("parse-selector", at + 1, parsed));
+        children.push(this.node("method-selector", at, selector));
+        continue;
+      }
       selector.push(this.leaf("method-name"));
       if (this.is("(")) {
         selector.push(this.tok());
@@ -1041,33 +1084,41 @@ class Parser {
 export function readSyntaxTree(markdown, path, inherited = []) {
   if (/[\uD800-\uDFFF]/u.test(markdown)) throw new GencmuError("usage", `${path}: the document contains a lone surrogate`, { document: path });
   const { text, positions } = extractGrammarText(markdown, path, unicode);
-  const names = new NamesScope(readResource, unicode, inherited);
-  const strings = new DocumentStrings(path, unicode, names, offset => positions[offset] || positions[positions.length - 1] || [1, 1]);
-  let tokens;
-  let tree;
-  try {
-    tokens = lex(text, positions);
-    strings.inspect(tokens.map(token => ({...token, tags:new Set(token.kind === "string" ? ["String"] : token.kind === "include-path" ? ["Include-Path"] : [])})));
-    // An error at the end of the text stands where the last token ends, as
-    // the syntax stage reports it.
-    const endAt = tokens.length ? tokens[tokens.length - 1].end : positions[positions.length - 1] || [1, 1];
-    const parser = new Parser(tokens, endAt);
+  const read = (legacyComments) => {
+    const names = new NamesScope(readResource, unicode, inherited);
+    const strings = new DocumentStrings(path, unicode, names, offset => positions[offset] || positions[positions.length - 1] || [1, 1]);
+    let tokens;
+    let tree;
     try {
-      tree = run(parser.document());
+      tokens = lex(text, positions, legacyComments);
+      strings.inspect(tokens.map(token => ({...token, tags:new Set(token.kind === "string" ? ["String"] : token.kind === "include-path" ? ["Include-Path"] : [])})));
+      // An error at the end of the text stands where the last token ends, as
+      // the syntax stage reports it.
+      const endAt = tokens.length ? tokens[tokens.length - 1].end : positions[positions.length - 1] || [1, 1];
+      const parser = new Parser(tokens, endAt);
+      try {
+        tree = run(parser.document());
+      } catch (error) {
+        if (!(error instanceof SyntaxFailure) || parser.furthest === null) throw error;
+        // The furthest token that a reading reached.
+        const token = tokens[parser.furthest.index];
+        const failure = new SyntaxFailure(parser.furthest.message, token ? token.at : endAt);
+        failure.index = parser.furthest.index;
+        throw failure;
+      }
     } catch (error) {
-      if (!(error instanceof SyntaxFailure) || parser.furthest === null) throw error;
-      // The furthest token that a reading reached.
-      const token = tokens[parser.furthest.index];
-      const failure = new SyntaxFailure(parser.furthest.message, token ? token.at : endAt);
-      failure.index = parser.furthest.index;
-      throw failure;
+      if (!(error instanceof SyntaxFailure)) throw error;
+      const [line, column] = error.at;
+      throw new GencmuError("grammar", `${path}:${line}:${column}: ${error.message}`, { document: path, line, column, ...(error.index !== null && rankedSyntaxFailure(tokens, error.index) ? { code: "ranked-choice-syntax" } : {}) });
     }
-  } catch (error) {
-    if (!(error instanceof SyntaxFailure)) throw error;
-    const [line, column] = error.at;
-    throw new GencmuError("grammar", `${path}:${line}:${column}: ${error.message}`, { document: path, line, column, ...(error.index !== null && rankedSyntaxFailure(tokens, error.index) ? { code: "ranked-choice-syntax" } : {}) });
+    return {tree,tokens,positionOf:(token) => token.at,unicode,decodeString:(token,path) => strings.decode(token,path)};
+  };
+  try { return read(false); }
+  catch (error) {
+    if (!text.includes("(*")) throw error;
+    try { return read(true); }
+    catch { throw error; }
   }
-  return {tree,tokens,positionOf:(token) => token.at,unicode,decodeString:(token,path) => strings.decode(token,path)};
 }
 
 export function readDocument(markdown,path,inherited = []) {

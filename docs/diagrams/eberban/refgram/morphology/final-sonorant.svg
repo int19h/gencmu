@@ -3,6 +3,6 @@
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="117.6" lengthAdjust="spacingAndGlyphs">final-sonorant</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
-<g class="terminal"><rect x="20" y="34" width="310" height="24" rx="12"/><text x="175" y="51" textLength="294" lengthAdjust="spacingAndGlyphs">final-sonorant-of(misplaced-hyphen)</text></g>
+<g class="terminal"><rect x="20" y="34" width="310" height="24" rx="12"/><text x="175" y="51" textLength="294" lengthAdjust="spacingAndGlyphs">final-sonorant-of(hyphen-misplaced)</text></g>
 <path d="M330 46h6m0 -8v16m4 -16v16"/>
 </svg>

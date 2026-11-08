@@ -1,0 +1,36 @@
+{
+  "description": "Emission compares anonymous children after the choice.",
+  "grammar": "%rule text $x:*a $y:*b\n%emits $ :: ($x ≇ $y ⟹ Different)\n%rule a A\n%rule b B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": [
+            {
+              "tags": [
+                "Different"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

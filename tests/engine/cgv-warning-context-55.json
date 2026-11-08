@@ -45,30 +45,32 @@
         },
         "warnings": [
           {
-            "feature": "experimental-cgv",
-            "rule": "cmevla-token",
-            "source": [
-              4,
-              10
-            ],
+            "stage": "words",
+            "code": "experimental-cgv",
+            "rule": "experimental-cgv",
             "span": [
               2,
               3
             ],
-            "stage": "words"
+            "source": [
+              4,
+              10
+            ],
+            "message": "this word uses an experimental CgV form"
           },
           {
-            "feature": "experimental-cgv",
-            "rule": "cmevla-token",
-            "source": [
-              20,
-              26
-            ],
+            "stage": "words",
+            "code": "experimental-cgv",
+            "rule": "experimental-cgv",
             "span": [
               6,
               7
             ],
-            "stage": "words"
+            "source": [
+              20,
+              26
+            ],
+            "message": "this word uses an experimental CgV form"
           }
         ]
       }

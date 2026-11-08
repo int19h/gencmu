@@ -22,14 +22,14 @@ class Marks(Protocol):
     def changes_in_document(self, code: int) -> bool: ...
 
 
-FORMAT = 44
+FORMAT = 46
 MAX_DEPTH = 256
 TOO_DEEP = "nested too deeply"
 CONSTANT_NAME = USER_NAME
-CLASSIFIER_NAME = re.compile(r"[a-z][A-Za-z0-9_-]*")
-CAPTURE_NAME = re.compile(r"[a-z][a-z0-9_-]*")
-_NAME = re.compile(r"[A-Za-z][A-Za-z0-9_-]*")
-_FEATURE = re.compile(r"[A-Za-z][A-Za-z0-9-]*")
+CLASSIFIER_NAME = re.compile(r"(?!.*--)[a-z][A-Za-z0-9_-]*")
+CAPTURE_NAME = re.compile(r"(?!.*--)[a-z][a-z0-9_-]*")
+_NAME = re.compile(r"(?!.*--)[A-Za-z][A-Za-z0-9_-]*")
+_FEATURE = re.compile(r"(?!.*--)[A-Za-z][A-Za-z0-9-]*")
 _DIRECTIVES = {"ambiguity-resolution", "elision-only", "stage", "extend-stage", "redefine-stage", "include", "names", "features"}
 TEST_OPS = frozenset(("tags", "=", "≠"))
 KEY_STEPS = frozenset(("leftmost-longest", "fewest", "most", "late", "early"))
@@ -78,7 +78,7 @@ def _guard(value: Any, gate: bool = False) -> bool:
         and isinstance(value["feature"], str)
         and _FEATURE.fullmatch(value["feature"]) is not None
         and type(value["negated"]) is bool
-        and (value["kind"] == "gate" or not gate and value["kind"] == "warning" and not value["negated"])
+        and value["kind"] == "gate"
     )
 
 
@@ -87,7 +87,7 @@ def _base(expr: Any, rule_name=_ref) -> bool:
         isinstance(expr, dict)
         and ("param" in expr or "call" in expr or len(expr) == 1)
         and (
-            "param" in expr or "call" in expr or "ref" in expr
+            "param" in expr or "call" in expr or "splice" in expr or "ref" in expr
             and (_ref(expr["ref"]) or rule_name(expr["ref"]))
             or "literal" in expr
             or "range" in expr
@@ -113,6 +113,8 @@ def _target(expr: Any, rule_name=_ref) -> bool:
 
 def elidable_head(expr: Any) -> Any:
     head = expr["seq"][0] if isinstance(expr, dict) and _items(expr.get("seq")) else expr
+    if isinstance(head, dict) and "capture" in head:
+        head = head["expr"]
     base = head
     while isinstance(base, dict) and base.get("test") in TEST_OPS:
         base = base.get("expr")
@@ -304,7 +306,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
     type_roots = [task[1] for task in pending]
     for r in dom["rules"]:
         params = r.get('params', [])
-        if 'params' in r and (not isinstance(params, list) or not params or any(not isinstance(p, str) or re.fullmatch(r'[A-Za-z][A-Za-z0-9_-]*', p) is None for p in params) or len(set(params)) != len(params) or 'args' in r):
+        if 'params' in r and (not isinstance(params, list) or not params or any(not isinstance(p, str) or re.fullmatch(r'(?!.*--)[A-Za-z][A-Za-z0-9_-]*', p) is None for p in params) or len(set(params)) != len(params) or 'args' in r):
             return 'malformed template parameters'
         for node in nodes(r):
             if 'param' in node and (not {'param', 'at'} <= set(node) or not set(node) <= {'param', 'at', 'exact', 'children'} or not _is_position(node['at']) or node['param'] not in params):
@@ -321,7 +323,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
             pending.append(('call', dict(call=r['name'], args=r['args'], at=r['at']), 0, False, False))
             type_roots.append(pending[-1][1])
         if (
-            not set(r) <= {"name", "params", "args", "op", "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "at"}
+            not set(r) <= {"name", "params", "args", "op", "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "error", "warning", "suppressWarnings", "at"}
             or not isinstance(r.get("name"), str)
             or not rule_name(r["name"])
             or r.get("op") not in ("define", "redefine", "extend")
@@ -331,7 +333,16 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
             and (r["erased"] is not True or any(k in r for k in ("emit", "value", "image")))
         ):
             return "a malformed rule"
-        for channel in ("value", "image"):
+        if "error" in r and "warning" in r or "params" in r and ("error" in r or "warning" in r):
+            return "a template cannot carry diagnostics, and a rule has at most one diagnostic"
+        if "suppressWarnings" in r:
+            codes = r["suppressWarnings"]
+            if not _items(codes) or any(not isinstance(code, str) or code != "_" and _FEATURE.fullmatch(code) is None for code in codes) or "_" in codes and codes != ["_"]:
+                return "a malformed suppression list"
+        for diagnostic in ("error", "warning"):
+            if diagnostic in r and any(node.get("method") == "emitted" for node in nodes(r[diagnostic])):
+                return "a message recipe cannot read .emitted"
+        for channel in ("value", "image", "error", "warning"):
             if channel in r:
                 pending.append(("recipe", r[channel], 0, False, False))
         if "tags" in r:
@@ -516,7 +527,7 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: l
         if 'param' in node:
             if kind not in ('expr', 'arg', 'term', 'tags', 'string', 'target'):
                 return f'a malformed {kind}'
-            if keys != {'param', 'at'} or not isinstance(node['param'], str) or re.fullmatch(r'[A-Za-z][A-Za-z0-9_-]*', node['param']) is None or not _is_position(node['at']):
+            if keys != {'param', 'at'} or not isinstance(node['param'], str) or re.fullmatch(r'(?!.*--)[A-Za-z][A-Za-z0-9_-]*', node['param']) is None or not _is_position(node['at']):
                 return 'an undeclared or malformed parameter'
             continue
         if 'call' in node or kind == 'call':
@@ -548,7 +559,7 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: l
                 if keys != {'rule'} or not isinstance(node['rule'], str) or not rule_name(node['rule']):
                     return 'a malformed nominal rule argument'
             else:
-                pending.append(('expr' if keys & {'test', 'range', 'wildcard'} else 'term', node, depth, False, False))
+                pending.append(('expr' if keys & {'test', 'range', 'wildcard', 'splice'} else 'term', node, depth, False, False))
             continue
         if kind == 'target':
             if not (keys == {'rule'} and isinstance(node['rule'], str) and rule_name(node['rule']) or keys == {'terminal'} and _tag(node['terminal']) and not node['terminal'].startswith('_')):
@@ -573,7 +584,7 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: l
                     if node.get("elidable") is not True:
                         return "a default requires an elidable optional"
                     pending.append(("string", node["default"], below, False, False))
-                pending.append(("expr", node["optional"], below, False, sealed | (1 if "elidable" in node else 0)))
+                pending.append(("expr", node["optional"], below, False, sealed | (1 if "elidable" in node and "capture" not in node["optional"] else 0)))
             elif "repeat" in node:
                 if (
                     not keys <= {"repeat", "separator", "chain"}
@@ -588,6 +599,11 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: l
                 pending.append(("expr", node["repeat"], below, False, inside))
                 if "separator" in node:
                     pending.append(("expr", node["separator"], below, False, inside))
+            elif "splice" in node:
+                target = node["splice"]
+                if keys != {"splice"} or not isinstance(target, dict) or not (set(target) == {"ref"} and rule_name(target["ref"]) or "call" in target):
+                    return "a splice requires a rule or instance"
+                pending.append(("expr", target, below, False, sealed))
             elif "capture" in node:
                 if keys != {"capture", "expr"} or sealed & 3 or sealed & 12 == 12 or not _capture(node["capture"], False) or not _target(node["expr"], rule_name):
                     return "a malformed capture"
@@ -679,7 +695,7 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: l
                 keys == {"captured"}
                 and _capture(node["captured"])
                 or keys == {"method", "receiver", "args"}
-                and node["method"] in ("matches", "begins", "ends", "starts-input", "ends-input", "followed-by", "preceded-by")
+                and node["method"] in ("matches", "begins", "ends", "starts-input", "ends-input", "parse", "error-free", "followed-by", "preceded-by")
             ):
                 return "a malformed condition"
             keep_type(None if id(node) in deferred else condition_type_fault(node, memo=types), node)
@@ -711,7 +727,18 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: l
                 keep_type(("split has an empty delimiter", node), node)
             pending.append(("recipe-method" if recipe else "term", node["receiver"], below, False, False))
             for arg in node["args"]:
-                if isinstance(arg, dict) and set(arg) in ({"rule"}, {"classifier"}, {"terminal"}, {"integer"}):
+                if isinstance(arg, dict) and "body" in arg:
+                    from ._query_forms import query_body, query_capture
+                    if node["method"] != "parse" or set(arg) != {"body"}:
+                        return "a malformed parse argument"
+                    body, mode, problem = query_body(arg["body"])
+                    if problem:
+                        return problem
+                    if query_capture(body):
+                        return "a parse argument cannot declare captures"
+                    depth = below + (1 if mode != "matches" and len(arg["body"]["seq"]) == 2 else 0)
+                    pending.append(("expr", body, depth, False, True))
+                elif isinstance(arg, dict) and set(arg) in ({"rule"}, {"classifier"}, {"terminal"}, {"integer"}):
                     key = next(iter(arg))
                     if key == "integer":
                         if node["method"] != "ngrams" or not isinstance(arg[key], str) or re.fullmatch(r"[1-9][0-9]*", arg[key]) is None:

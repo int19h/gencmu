@@ -1,0 +1,58 @@
+{
+  "description": "Engine §6 and §6.1: additive blame, sourceless count, and reverse error count (finer-errors).",
+  "grammar": "%ambiguity-resolution most #·long\n%rule text long | short short\n%rule long A A %error \"long\"\n%rule short A %error \"short\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "source": [
+        0,
+        1
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "source": [
+        1,
+        2
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "error": {
+        "kind": "reported",
+        "errors": [
+          {
+            "code": "short",
+            "span": [
+              0,
+              1
+            ]
+          },
+          {
+            "code": "short",
+            "span": [
+              1,
+              2
+            ]
+          }
+        ]
+      }
+    },
+    "error": "reported"
+  },
+  "input": "xx"
+}

@@ -1,0 +1,28 @@
+{
+  "description": "Engine §6 and §7.10: erased classes and their canonical representatives (keys-ignore-descendants).",
+  "grammar": "%ambiguity-resolution fewest #·a\n%rule text gone | other\n%rule gone a\n%erased\n%rule a A\n%rule other A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "tie"
+        }
+      ],
+      "error": {
+        "kind": "ambiguous",
+        "reason": "tie"
+      }
+    },
+    "error": "ambiguous"
+  }
+}

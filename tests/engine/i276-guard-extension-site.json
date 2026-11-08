@@ -1,0 +1,41 @@
+{
+  "description": "An extension counts written conditions and guard atoms of earlier definitions.",
+  "grammar": "%rule text \"b\" [r4]\n%rule r2 old? \"a\" :: ($.followed-by(r2) ⟹ T0)\n%conditions $ = $\n%extend-rule r2 ¬old? \"a\"\n%conditions $.followed-by(r2)\n%rule r4 r2 \"b\" \"a\"",
+  "input": "bab",
+  "parses": [
+    {
+      "options": {
+        "features": [
+          "old"
+        ]
+      },
+      "expect": {
+        "error": "rejected",
+        "result": {
+          "error": {
+            "boundary": {
+              "rule": "r2",
+              "condition": 1,
+              "at": 2
+            }
+          }
+        }
+      }
+    },
+    {
+      "options": {},
+      "expect": {
+        "error": "rejected",
+        "result": {
+          "error": {
+            "boundary": {
+              "rule": "r2",
+              "condition": 2,
+              "at": 2
+            }
+          }
+        }
+      }
+    }
+  ]
+}

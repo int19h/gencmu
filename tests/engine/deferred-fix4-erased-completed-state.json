@@ -1,0 +1,48 @@
+{
+  "description": "Engine §6: erased completions collapse on the completed state that a parent reads, independent of their interior prefixes.",
+  "grammar": "%rule text gone $y:w\n%conditions $y ≅ #·w« ·first »\n%rule w first\n%rule gone first | second\n%erased\n%rule first A\n%rule second A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "gone",
+            "children": [
+              {
+                "rule": "first"
+              }
+            ]
+          },
+          {
+            "rule": "w",
+            "children": [
+              {
+                "rule": "first"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "description": "Spliced closes remain invisible to lazy ranking.",
+  "grammar": "%ambiguity-resolution lazy\n%rule text r3\n%rule r1 ε\n%rule r2 \"a\"\n%rule r3 r4\n%rule r4 *r5 \"b\" | {{r2}}\n%rule r5 r4 r5 | ε",
+  "input": "bbab",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ]
+    }
+  }
+}

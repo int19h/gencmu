@@ -1,0 +1,35 @@
+{
+  "description": "Ordinary and spliced occurrences of one rule retain their distinct tree forms.",
+  "grammar": "%rule text pair *pair\n%rule pair A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "pair"
+          },
+          {
+            "kind": "token",
+            "terminal": "A"
+          }
+        ]
+      }
+    }
+  }
+}

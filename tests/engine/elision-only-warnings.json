@@ -1,6 +1,6 @@
 {
   "description": "A stage that fails the check of elision-only keeps the warnings of its chosen tree. late-elision chooses a, whose alternative warns w, and the check then fails (engine §7, §12).",
-  "grammar": "%ambiguity-resolution late #·_<_Elided>\n%elision-only\n%rule text a | b | c\n%rule a w! (A [+T])\n%rule b (A [+T] [+T])\n%rule c (A T)",
+  "grammar": "%ambiguity-resolution late #·_<_Elided>\n%elision-only\n%rule text a | b | c\n%rule a *w\n%rule w A [+T] %warning \"warning w\"\n%rule b (A [+T] [+T])\n%rule c (A T)",
   "tokens": [
     {
       "text": "a",
@@ -30,10 +30,10 @@
         "witness": [
           {
             "close": {
-              "rule": "a",
-              "production": 3,
+              "rule": "w",
+              "production": 5,
               "span": [
-                0,
+                1,
                 1
               ]
             }
@@ -41,7 +41,7 @@
           {
             "close": {
               "rule": "c",
-              "production": 11,
+              "production": 12,
               "span": [
                 0,
                 1
@@ -54,8 +54,8 @@
     "warnings": [
       {
         "stage": "main",
-        "feature": "w",
-        "rule": "a",
+        "code": "w",
+        "rule": "w",
         "span": [
           0,
           1
@@ -63,7 +63,8 @@
         "source": [
           0,
           1
-        ]
+        ],
+        "message": "warning w"
       }
     ],
     "error": "ambiguous"

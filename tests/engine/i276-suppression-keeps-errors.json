@@ -1,0 +1,51 @@
+{
+  "description": "Warning suppression preserves named errors in the same subtree.",
+  "grammar": "%rule text *warn *bad %suppress-warnings _\n%rule warn A %warning \"warning\"\n%rule bad B %error \"bad\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "warn"
+    ]
+  },
+  "expect": {
+    "error": "reported",
+    "warnings": [],
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "error": {
+        "kind": "reported",
+        "errors": [
+          {
+            "code": "bad",
+            "span": [
+              1,
+              2
+            ],
+            "source": [
+              2,
+              3
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

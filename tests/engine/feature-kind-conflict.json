@@ -1,6 +1,6 @@
 {
   "description": "A name that one guard uses as a gate and another as a warning is an error of the pipeline, found when it is loaded (engine §13).",
-  "grammar": "%rule text f? A | f! B",
+  "grammar": "%rule text f? A | *f\n%rule f B %warning \"warning f\"",
   "tokens": [
     {
       "text": "a",

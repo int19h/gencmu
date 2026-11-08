@@ -97,6 +97,301 @@
     }
   }
 
+  // ---- testing.js
+  // Switches and hooks for the library's own tests. Nothing here is part of
+  // the API, and index.js does not export it.
+  //
+  // `faults` holds the faults that a test turns on, one at a time, to show
+  // which shared cases catch each (tests/README.md). An empty set is the
+  // engine as specified. The names F1 to F32 are those of the fault list of
+  // the check of elision-only. Each fault is defined by exactly what
+  // it reads, and a variant of a fault is a switch of its own, so that every
+  // catch that the fault table names is shown by injection:
+  //
+  // - "F1:<observer>", such as "F1:head", computes the observer over the
+  //   tokens of R behind its argument, and projects afterwards. The tokens
+  //   behind a function of a span are exact: one token for head and last,
+  //   and from the first original token for tail, from and after. from and
+  //   after have no such fault, since they give the same span before the
+  //   projection or after it.
+  // - "F1pos:<observer>" reads R at the positions that it is handed, which
+  //   for a function of a span are positions of the stage's input.
+  // - "F7:restoration" gives a restoration the synthetic token's tags,
+  //   "F7:capture" gives them to a capture of the terminal that reads it and
+  //   to a production that inherits from that terminal, and "F7:union" adds
+  //   the synthetic tokens' tags inside the exact span of R behind a span to
+  //   the union of its tokens' tags.
+  // - "F26:lost" loses an error of the grammar that the check meets, and
+  //   "F26:relabel" reports it as elision-witness-lost, which the runner
+  //   invariant of tests/README.md fails.
+  // - "F27:order" reverses the records at one position, and "F27:bare" shows
+  //   a read of a synthetic token as a token.
+  // - "F30" takes the greatest answer of "can read" (engine §7.4), "F31"
+  //   makes the item after the T of route 3 ordinary where a strict item read
+  //   T. "F32:queue" leaves an item that an ordinary step reaches as it was
+  //   processed while strict, and "F32:predict" never predicts again a rule
+  //   that a strict prediction predicted first.
+  // - "omission:skip" skips the predicate that records an allowed omission.
+  // - "lost:roots" and "lost:count" lose the witness after recognition
+  //   (engine §7.9).
+  // - "lost:rank" gives a restoration no derivation in the ranking, so the
+  //   check's ranking does not count W(D) though its chart holds it. Most
+  //   cases see it through the result too, since the readings change or none
+  //   is left. reparse-witness-sibling-last sees it through the hook alone.
+  // - "lost:context" makes the check's count skip the last edge of an item
+  //   that has two or more, and "lost:select" makes its candidates skip it.
+  //   In the sibling cases that edge is W(D)'s. The count channel of the
+  //   witness hook alone sees lost:context, where the readings stay; the
+  //   selection channel sees lost:select, where W(D) was a reading.
+  // - "witness:project" leaves the witness of an error of elision-only over
+  //   R, unmapped: a read keeps its index in R, and a close its span there.
+  // - "order:tags" evaluates a completing item's tag term before its
+  //   conditions, and "order:conditions" evaluates the conditions that read
+  //   only captures before those that read `$`, against the order of one step
+  //   of the recognizer (engine §4). Both apply to every parse, the main parse
+  //   as well as the check.
+  //
+  // F25 finds no query cycle at all while the check runs. A detector that
+  // finds only some cycles gives the same public result, because the
+  // recursion meets the same rule and span one level deeper, and only the
+  // message differs, which no pattern pins. The switch ends the recursion at
+  // a bound, with an error that is not the library's, and faults.json images
+  // that catch "bound".
+  //
+  // A fault with several sites names the site where it is checked, and
+  // `hits` counts each site that a run enters while the fault is on. The
+  // fault test asserts that the named cases enter every declared site.
+  //
+  // A strict and an ordinary prediction of one symbol at one position share
+  // their items (engine §7.4). So a fault of the strict path (F16, F29, F31,
+  // F32) shows only where that path is the only one at its position, or
+  // comes first, and a case that catches it says so. A case for a fault that
+  // depends on the order of processing comes in both orders.
+  //
+  // `hooks.elisionCheck`, when set, receives each check that recognized R
+  // and met no error of the grammar, before the check ranks, for the witness
+  // test of tests/README.md. It returns a ranking observer. Runtime tracking
+  // supplies witness marks independently of that observer.
+  //
+  // `hooks.work`, when set, counts work for the tests that it grows with the
+  // input as it should: the items that the recognizer makes, in parses and
+  // nested parses alike (tests/growth.json). Each step counts through
+  // countWork, which throws a WorkBudget at the first count past the budget
+  // that `hooks.work.budget` gives it, if any, so that a regression to
+  // quadratic work stops at once. Unset, a parse counts nothing.
+  //
+  // The other kinds count the steps of reads, scans, checks and formatters
+  // whose work must grow linearly with their input, each where a loop takes
+  // the step. A loop that rescanned or copied a growing list would count
+  // the square of the input, so the tests that read these kinds fail on it.
+  // Tools outside the library count through the same hook.
+
+  // The faults, one switch each. F1 has two per observer,
+  // one for the tokens of R behind its argument and one for positions, except
+  // that from and after have only the second: applied before the projection
+  // or after it, they give the same span. F7, F26, F27 and F32 have one
+  // switch for each of their variants. faults.json records how each case
+  // catches each fault: F28 and lost:rank, for example, through the result
+  // and the hook together in most cases, and lost:context through the hook
+  // alone.
+  const OBSERVERS = ["following-tokens", "onward", "first-token", "tokens-after-first", "last-token", "starts-input", "source-text", "value", "classes", "tags"];
+  // The order of one step of the recognizer (engine §4), which the check
+  // meets on its own competing routes as the main parse does.
+  const ORDER = ["order:tags", "order:conditions"];
+  // A ranking that does not count W(D) though the chart holds it.
+  const LOST = ["lost:roots", "lost:count", "lost:rank", "lost:context", "lost:select"];
+  // A witness of elision-only that is not mapped to the stage's input.
+  const WITNESS = ["witness:project"];
+  const VARIANTS = { F7: ["restoration", "capture", "union"], F26: ["lost", "relabel"], F27: ["order", "bare"], F32: ["queue", "predict"] };
+
+  // The sites of each fault that has several: the named
+  // cases must enter every one while the fault is on. A fault not listed
+  // has one site.
+  const SITES = {
+    F11: ["restore", "test"],
+    F16: ["predict", "item", "empty"],
+    F17: ["items", "diagnostic"],
+    F29: ["predict", "reading"],
+    "order:tags": ["predict", "advance"],
+    "lost:rank": ["candidates", "count"],
+  };
+  /** @type {(fault: string) => string[]} */
+  const sitesOf = (fault) => {
+    if (fault in SITES) return SITES[/** @type {keyof typeof SITES} */ (fault)].map((site) => `${fault}@${site}`);
+    // An F1 fault of a function of a span, head, tail or last, applies the
+    // function before the projection, and so do the F1pos faults of the
+    // functions with from and after. The other observers read their
+    // argument's tokens or positions.
+    const functions = ["first-token", "tokens-after-first", "last-token", "onward", "following-tokens"];
+    const [family, observer] = fault.split(":");
+    if (family === "F1") return [`${fault}@${functions.includes(observer) ? "function" : "argument"}`];
+    if (family === "F1pos") return [`${fault}@${functions.includes(observer) ? "observe" : "argument"}`];
+    return [fault];
+  };
+  const FAULTS = [
+    ...OBSERVERS.flatMap((name) => name === "onward" || name === "following-tokens" ? [`F1pos:${name}`] : [`F1:${name}`, `F1pos:${name}`]),
+    ...Array.from({ length: 31 }, (_, index) => `F${index + 2}`)
+      .filter((name) => !["F5", "F6", "F20"].includes(name))
+      .flatMap((name) => name in VARIANTS ? VARIANTS[/** @type {keyof typeof VARIANTS} */ (name)].map((variant) => `${name}:${variant}`) : [name]),
+    "omission:skip",
+    ...ORDER,
+    ...LOST,
+    ...WITNESS,
+  ].sort((a, b) => a.localeCompare(b, "en", { numeric: true }));
+
+
+  /** @type {Set<string>} */
+  const faults = new Set();
+
+  /**
+   * How often each site of a fault was entered while that fault was on, by
+   * the fault's name, or its name and the site's after an @, for a fault
+   * with several sites. The fault test asserts that its named cases enter
+   * every declared site (tests/README.md).
+   * @type {Map<string, number>}
+   */
+  const hits = new Map();
+
+  /**
+   * What the check of engine §7 hands its test hook.
+   * @typedef {object} ElisionCheckRun
+   * @property {import("./types.js").Derivation} chosen D, the chosen
+   *   derivation of the main parse
+   * @property {import("./earley.js").Chart} chart the recognition of R
+   * @property {import("./types.js").Item[]} roots the completed items of
+   *   `text` over R
+   * @property {boolean[]} synthetic for each token of R, whether it is
+   *   synthetic, by its provenance
+   * @property {number[]} originalAt for each token of the stage's input, its
+   *   index in R
+   * @property {number[]} recordAt for each restoration record, the index of
+   *   its synthetic token in R
+   */
+
+  /**
+   * The independent witness test's ranking observer.
+   * @typedef {object} ElisionCheckWatch
+   * @property {(outcome: {ranking: import("./rank.js").Ranking | null, counted: boolean,representative?:import("./types.js").Rope|null}) => void} ranked
+   */
+
+  /**
+   * The counts of `hooks.work`.
+   * @typedef {object} WorkCounts
+   * @property {number} familySummaries distinct family summaries taken by items
+   * @property {number} familySteps deletion automaton transitions and relation rows
+   * @property {number} closeStates shared close and cycle summaries interned
+   * @property {number} closeSequences shared close sequence links interned
+   * @property {number} structuralStates finite structural states interned
+   * @property {number} structuralTransitions structural transitions computed
+   * @property {number} packedEdges distinct packed forest edges
+   * @property {number} summaryContexts summary results stored per traversal
+   * @property {number} boundaryRecords distinct boundary records used in recognitions
+   * @property {number} items the items that the recognizer made
+   * @property {number} captures the captured parts that the recognizer made
+   * @property {number} captureSteps the steps that find a captured part from
+   *   the last one, or that list every part at once
+   * @property {number} captureLookups the entries of a production's captures
+   *   that an advance or a formatter reads to find the capture at a position
+   * @property {number} edgeChecks the ways of building an item that the
+   *   recognizer compares with a new way, to find it already there, or that
+   *   it indexes for that
+   * @property {number} conditions the conditions that an advance reads to
+   *   find those ready at its dot
+   * @property {number} visits the nodes of conditions and terms that an
+   *   evaluation visits, each counted before it is evaluated, also where the
+   *   evaluation halts for a nested parse
+   * @property {number} valueSteps the tokens that a value test or value()
+   *   visits
+   * @property {number} tags the tags that a union of tag sets or an entry of
+   *   a classifier adds to a set or copies, and those that an intersection,
+   *   a difference, a comparison or a test of tag sets reads
+   * @property {number} implications the implications, and their tags and
+   *   the token's, that the closure of a token's tags reads
+   * @property {number} walkSteps the steps of the readers and walks of a
+   *   document, of its notation's tree and of its DOM, in the library and in
+   *   the tools, plus candidate lookups and enumeration in competitor evidence
+   * @property {number} lowering the symbols and captures that lowering and
+   *   the checks of a definition add to a sequence or copy, the helpers
+   *   that lowering moves on its list of those waiting, and the positions,
+   *   captures and conditions of a production that it indexes
+   * @property {number} closures the productions, alternatives and symbols
+   *   that the closures over a grammar's rules read: the nullable rules, the
+   *   rules that can read, and those that can emit
+   * @property {number} clauses the items of an emission and the alternatives
+   *   of a rule that the checks of a definition and the audit read, and the
+   *   nodes of the expressions that the audit walks
+   * @property {number} groups the items, edges, rules and arcs that the
+   *   grouping of rules for the cycle context of a ranking reads
+   * @property {number} traversal the steps, edges, dependencies and rules
+   *   of a context that a traversal of a forest for a ranking reads
+   * @property {number} splice the names, stages and documents that a splice
+   *   of a pipeline checks or copies
+   * @property {number} text the characters, words, lines and cells that the
+   *   formatters of diagnostics and the tools' scans of a text read
+   * @property {Partial<Record<WorkKind, number>>} [budget] the most of each
+   *   count that the work may reach
+   */
+
+  /** @typedef {"boundaryRecords" | "familySummaries" | "familySteps" | "closeStates" | "closeSequences" | "structuralStates" | "structuralTransitions" | "packedEdges" | "summaryContexts" | "items" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "valueSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text"} WorkKind */
+
+  /** @type {readonly WorkKind[]} */
+  const WORK_KINDS = ["boundaryRecords","familySummaries", "familySteps", "closeStates", "closeSequences", "structuralStates", "structuralTransitions", "packedEdges", "summaryContexts", "items", "captures", "captureSteps", "captureLookups", "edgeChecks", "conditions", "visits", "valueSteps", "tags", "implications", "walkSteps", "lowering", "closures", "clauses", "groups", "traversal", "splice", "text"];
+
+  /**
+   * Counts of every kind at zero, for a test to set as `hooks.work`.
+   * @param {Partial<Record<WorkKind, number>>} [budget]
+   * @returns {WorkCounts}
+   */
+  function newWork(budget) {
+    const work = /** @type {WorkCounts} */ ({ budget });
+    for (const kind of WORK_KINDS) work[kind] = 0;
+    return work;
+  }
+
+  /**
+   * A count of `hooks.work` past its budget. It is no GencmuError, so no
+   * handler of the library's catches it.
+   */
+  class WorkBudget extends Error {}
+
+  /**
+   * Counts one or more of `work`, and throws a WorkBudget if that passes its
+   * budget.
+   * @param {WorkCounts} work
+   * @param {WorkKind} kind
+   * @param {number} [steps]
+   */
+  function countWork(work, kind, steps = 1) {
+    const counted = (work[kind] += steps);
+    const most = work.budget?.[kind];
+    if (most !== undefined && counted > most) throw new WorkBudget(`${counted} ${kind}, past the budget of ${most}`);
+  }
+
+  /** @type {{diagnosticMessage:((node:import("./types.js").DerivationRule,recipe:import("./types.js").Recipe)=>void)|null,boundaryAdmission:((splits:any[],chart:any)=>void)|null, familyAlignment: ((summary:boolean, direct:boolean) => void)|null, elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null, work: WorkCounts | null, slotAdmission: ((statistics: {chartFacts:number,groups:number,candidateEdges:number,retainedEdges:number,boundarySplits?:any[]}) => void) | null, memoLimit: number | null, memoInsert: ((key: string) => void) | null, memoHit: ((key: string, alignedActive: number) => void) | null, alignedQuery: ((change: number) => void) | null}} */
+  const hooks = { diagnosticMessage:null, boundaryAdmission:null, elisionCheck: null, work: null, slotAdmission: null,
+    /** @type {((summary:boolean, direct:boolean) => void)|null} */ familyAlignment: null,
+    // The bound of the shared memos (engine §4.3), or null for the default.
+    // A bound of 0 turns them off. memoInsert sees the key of each answer
+    // that enters a shared memo, and memoHit the key of each answer that one
+    // serves, with the number of aligned queries active then. alignedQuery
+    // sees 1 where the nested parse of an aligned query starts, and -1 where
+    // it ends.
+    memoLimit: null, memoInsert: null, memoHit: null, alignedQuery: null };
+
+  /**
+   * Whether a fault is on, at one of its sites. A fault that is on counts the
+   * site as entered.
+   * @param {string} name
+   * @param {string} [site] the site, for a fault with several
+   * @returns {boolean}
+   */
+  function fault(name, site = "") {
+    if (faults.size === 0 || !faults.has(name)) return false;
+    const key = site === "" ? name : `${name}@${site}`;
+    hits.set(key, (hits.get(key) || 0) + 1);
+    return true;
+  }
+
   // ---- clause-walk.js
   // The term-bearing fields of clauses. Source locations, patterns and
   // lowered grammar links contain no open term or nested condition.
@@ -111,6 +406,14 @@
     if (!value || typeof value !== "object") return [];
     const node = /** @type {Record<string, any>} */ (value);
     if (node.pattern) return [];
+    if (node.body) return [node.body];
+    if (node.seq || node.choice || node.ranked || node.and || node.optional || node.repeat || node.splice || node.expr) {
+      const children = expressionChildren(/** @type {any} */ (node));
+      if (node.test) for(const child of node.test === "tags" ? node.requirements.map((/** @type {any} */ r)=>r.value) : [node.value])children.push(child);
+      return children;
+    }
+    if (node.literal) return typeof node.literal === "object" ? [node.literal] : [];
+    if (node.range) return node.range;
     if (node.string !== undefined || node.tag !== undefined || node.captured !== undefined || node.rule || node.classifier) return [];
     if (typeof node.capture === "string" && !node.tags && !node.value && !node.image) return [];
     if (node.method) return [node.receiver, ...node.args];
@@ -122,8 +425,8 @@
     }
     if (node.const) return node.value === undefined ? [] : [node.value];
     if (node.condition) return [node.condition];
-    if (!node.conditions && !node.tags && !node.emit && !node.value && !node.image) return [];
-    return [node.conditions, node.tags, node.emit, node.value, node.image].filter(child => child !== undefined);
+    if (!node.conditions && !node.tags && !node.emit && !node.value && !node.image && !node.error && !node.warning) return [];
+    return [node.conditions, node.tags, node.emit, node.value, node.image, node.error, node.warning].filter(child => child !== undefined);
   }
 
   /**
@@ -144,6 +447,7 @@
    * @returns {import("./types.js").Expr[]}
    */
   function expressionChildren(expr) {
+    if ("splice" in expr) return [expr.splice];
     if ("seq" in expr) return expr.seq;
     if ("choice" in expr) return expr.choice;
     if ("ranked" in expr) return expr.ranked;
@@ -154,19 +458,7 @@
     return [];
   }
 
-  // ---- boundary.js
-  // Complete-tree neighbours, represented by finite records (engine §4.2).
-
-
   const BOUNDARY_METHODS = new Set(["followed-by", "preceded-by"]);
-  /** @type {WeakMap<object, any>} */
-  const boundaryLocations = new WeakMap();
-  /** Preserve positions when constants or patterns copy a clause.
-   * @param {object} from @param {object} to */
-  function copyBoundaryLocation(from,to) {
-    const location = boundaryLocations.get(from);
-    if (location) boundaryLocations.set(to,location);
-  }
   /** @param {any} node @returns {any[]} */
   function boundaryAtoms(node) {
     const found = [], pending = [node];
@@ -176,6 +468,220 @@
       else for (const child of clauseChildren(part).slice().reverse()) pending.push(child);
     }
     return found;
+  }
+
+  // ---- query-forms.js
+
+  // Body queries (engine §3.10 and §4): the outer remainder is not a symbol.
+
+
+  /** @param {any} body @returns {{body:any, mode:string, problem?:string}} */
+  function queryBody(body) {
+    const sequence = body?.seq;
+    const markers=[],parts=[];
+    if(Array.isArray(sequence))for(let index=0;index<sequence.length;index++){
+      if(hooks.work)countWork(hooks.work,"walkSteps");
+      if(sequence[index]?.remainder)markers.push(index);else parts.push(sequence[index]);
+    }
+    if (markers.length) {
+      if (Object.keys(body).length !== 1 || markers.length !== 1 || sequence.length < 2 || ![0,sequence.length-1].includes(markers[0]) ||
+          Object.keys(sequence[markers[0]]).length !== 1 || sequence[markers[0]].remainder !== true) {
+        return {body,mode:"matches",problem:"a remainder stands at one outer edge of a parse argument"};
+      }
+      return {body:parts.length === 1 ? parts[0] : {seq:parts},mode:markers[0] === 0 ? "ends" : "begins"};
+    }
+    return {body,mode:"matches"};
+  }
+
+  /** @param {any} body @returns {any | null} */
+  function queryCapture(body) {
+    const pending = [body], seen = new Set();
+    while (pending.length) {
+      if(hooks.work)countWork(hooks.work,"walkSteps");
+      const node = pending.pop();
+      if (!node || typeof node !== "object" || seen.has(node)) continue;
+      seen.add(node);
+      if (typeof node.capture === "string") return node;
+      for(const child of expressionChildren(node).slice().reverse())pending.push(child);
+    }
+    return null;
+  }
+
+  // Keys omit source positions and expand resolved constants. The memo owns no
+  // input-dependent facts: a body is part of one loaded grammar.
+  /** @type {WeakMap<object,string>} */
+  const identities = new WeakMap();
+  /** @param {any} body @returns {string} */
+  function queryIdentity(body) {
+    const known = identities.get(body);
+    if (known !== undefined) return known;
+    /** @param {any} node @returns {any} */
+    const normalized = node => {
+      if(hooks.work)countWork(hooks.work,"walkSteps");
+      if (node instanceof Set) return [...node].sort();
+      if (Array.isArray(node)) return node.map(normalized);
+      if (!node || typeof node !== "object") return node;
+      if (node.set && typeof node.set[Symbol.iterator] === "function") return {set:[...node.set].sort()};
+      if (node.const && node.value !== undefined) return normalized(node.value);
+      const result = {};
+      for (const key of Object.keys(node).filter(key => key !== "at").sort()) {
+        let value = normalized(node[key]);
+        if (["seq","choice"].includes(key)) value = value.flatMap((/** @type {any} */ child) => child[key] ?? [child]);
+        /** @type {any} */ (result)[key] = value;
+      }
+      return result;
+    };
+    const key = JSON.stringify(normalized(queryBody(body).body));
+    identities.set(body,key);
+    return key;
+  }
+
+  /** @param {any} body @returns {string[]} */
+  function queryReferences(body) {
+    const found = [], pending = [queryBody(body).body];
+    while (pending.length) {
+      if(hooks.work)countWork(hooks.work,"walkSteps");
+      const node = pending.pop();
+      if (node.ref) found.push(node.ref);
+      for (const child of expressionChildren(node).slice().reverse()) pending.push(child);
+    }
+    return found;
+  }
+
+  /** @param {any} lowered @param {any} body @returns {string} */
+  function bodyTarget(lowered,body) {
+    const found = lowered.queryTargets.get(queryIdentity(body));
+    if (found === undefined) throw new Error("a body query has no lowered target");
+    return found;
+  }
+
+  // ---- guarded-tags.js
+  // Concrete variants for neighbour guards in constituent tags (engine §3.7).
+
+
+  /** @param {any} term @returns {Set<string>|null} */
+  function literalTags(term) {
+    if (term?.tag) return new Set([term.tag]);
+    if (term?.emptySet) return new Set();
+    if (term?.const) return term.value?.set instanceof Set ? term.value.set : null;
+    const parts=term?.union ?? term?.intersection ?? term?.difference;
+    if (!parts) return null;
+    const sets=parts.map(literalTags);
+    if (sets.some((/** @type {Set<string>|null} */ set)=>set===null)) return null;
+    const first=new Set(sets[0] ?? []);
+    if (term.union) {
+      for (const set of sets.slice(1)) for (const tag of set) first.add(tag);
+    } else if (term.intersection) {
+      for (const tag of first) if (sets.some((/** @type {Set<string>} */ set)=>!set.has(tag))) first.delete(tag);
+    } else {
+      for (const tag of sets[1]) first.delete(tag);
+    }
+    return first;
+  }
+
+  /** @param {any} term @returns {{node:any,atom:any,negated:boolean}[]} */
+  function neighbourGuards(term) {
+    const result=[], pending=[term];
+    while (pending.length) {
+      const node=pending.pop();
+      if (!node || typeof node!=='object') continue;
+      if (node.if && boundaryAtoms(node.if).length) {
+        result.push({node,atom:node.if.not ?? node.if,negated:!!node.if.not});
+        continue;
+      }
+      for (const child of clauseChildren(node).slice().reverse()) pending.push(child);
+    }
+    return result;
+  }
+
+  /** @param {any} term @returns {boolean} */
+  function literalTagShape(term) {
+    if (term?.tag || term?.emptySet || term?.const || term?.param) return true;
+    const operands=term?.union ?? term?.intersection ?? term?.difference;
+    return !!operands && operands.every(literalTagShape);
+  }
+
+  /** @param {any} term @returns {{problem:string,node:any}|null} */
+  function neighbourGuardProblem(term) {
+    for (const {node,atom} of neighbourGuards(term)) {
+      if (!BOUNDARY_METHODS.has(atom.method) || atom.receiver?.capture!=='' || Object.keys(atom.receiver).length!==1) {
+        return {problem:'a tag guard requires one optionally negated neighbour atom on $',node:atom};
+      }
+      if (literalTags(node.then)===null && !literalTagShape(node.then)) {
+        return {problem:'a neighbour tag guard requires a literal tag set',node:atom};
+      }
+    }
+    return null;
+  }
+
+  /** @param {any} term @returns {{tags:any,conditions:any[]}[]} */
+  function guardedTagVariants(term) {
+    const guards=neighbourGuards(term);
+    if (!guards.length) return [{tags:term,conditions:[]}];
+    /** @type {any[]} */
+    const atoms=[];
+    const byKey=new Map(), parts=new Map();
+    for (const {node,atom,negated} of guards) {
+      const tags=literalTags(node.then);
+      if (tags===null) throw new Error('a neighbour tag guard requires a literal tag set');
+      // An empty consequent contributes no tag under either truth value.
+      if (!tags.size) {parts.set(node,{empty:true});continue;}
+      const targets=[...new Set(atom.args.map((/** @type {any} */ arg)=>JSON.stringify([arg.rule?'rule':'terminal',arg.rule ?? arg.terminal])))].sort();
+      const key=JSON.stringify([atom.method,targets]);
+      let index=byKey.get(key);
+      if (index===undefined) {index=atoms.length;byKey.set(key,index);atoms.push({atom,targets,direction:atom.method});}
+      parts.set(node,{index,negated});
+    }
+    const assigned=/** @type {boolean[]} */ ([]);
+    /** @type {{tags:any,conditions:any[]}[]} */
+    const result=[];
+    const possible=()=> {
+      for (let i=0;i<assigned.length;i++) if (assigned[i]) {
+        const negative=new Set();
+        for (let j=0;j<assigned.length;j++) if (!assigned[j] && atoms[j].direction===atoms[i].direction) for (const target of atoms[j].targets) negative.add(target);
+        if (atoms[i].targets.every((/** @type {string} */ target)=>negative.has(target))) return false;
+      }
+      return true;
+    };
+    /** @param {any} node @returns {any} */
+    const replace=(node)=> {
+      const part=parts.get(node);
+      if (part) return !part.empty && assigned[part.index]!==part.negated ? node.then : {emptySet:true};
+      if (!node || typeof node!=='object' || node instanceof Set) return node;
+      if (Array.isArray(node)) return node.map(replace);
+      // Only the term spine changes. Condition and capture identities stay intact.
+      if (node.if) return {...node,then:replace(node.then)};
+      for (const key of ['union','intersection','difference']) if (node[key]) return {...node,[key]:node[key].map(replace)};
+      return node;
+    };
+    const visit=()=> {
+      if (!possible()) return;
+      if (assigned.length===atoms.length) {
+        result.push({tags:replace(term),conditions:atoms.map(({atom},index)=>assigned[index]?atom:{not:atom})});
+        if (result.length>16) throw new Error('a production has more than 16 guarded tag variants');
+        return;
+      }
+      assigned.push(false);visit();assigned.pop();
+      assigned.push(true);visit();assigned.pop();
+    };
+    visit();
+    return result;
+  }
+
+  // ---- boundary.js
+
+
+  // Complete-tree neighbours, represented by finite records (engine §4.2).
+
+
+
+  /** @type {WeakMap<object, any>} */
+  const boundaryLocations = new WeakMap();
+  /** Preserve positions when constants or patterns copy a clause.
+   * @param {object} from @param {object} to */
+  function copyBoundaryLocation(from,to) {
+    const location = boundaryLocations.get(from);
+    if (location) boundaryLocations.set(to,location);
   }
   /** @param {any} rule @returns {{problem:string,node:any}|null} */
   function boundaryProblem(rule) {
@@ -197,13 +703,18 @@
         }
       }
     }
+    for (const term of [rule.tags,...rule.alternatives.map((/** @type {any} */ alternative)=>alternative.tags)]) {
+      const problem=neighbourGuardProblem(term);
+      if (problem) return problem;
+      for (const {atom} of neighbourGuards(term)) allowed.add(atom);
+    }
     for (const item of rule.emit?.items ?? []) for (const atom of boundaryAtoms(item.tags)) allowed.add(atom);
     // Include bodies, tests, and recipes as forbidden surfaces too.
     const pending = [rule];
     while (pending.length) {
       const part = pending.pop();
       if (!part || typeof part !== "object") continue;
-      if (BOUNDARY_METHODS.has(part.method) && !allowed.has(part)) return {problem:"a boundary atom stands only in conditions or emission tags",node:part};
+      if (BOUNDARY_METHODS.has(part.method) && !allowed.has(part)) return {problem:"a boundary atom stands only in conditions or guarded tag terms",node:part};
       for (const child of Object.values(part)) if (child && typeof child === "object") pending.push(child);
     }
     return null;
@@ -237,10 +748,12 @@
     for (const rule of grammar.rules.values()) for (const alternative of rule.alternatives) {
       const clauses = alternative.clauses;
       if (seen.has(clauses)) {
+        for (const atom of boundaryAtoms(alternative.tags)) atoms.push({rule:rule.name,alternative,atom});
         const pending = [alternative.tags];
         while (pending.length) {
           const part = pending.pop();
           const query = ["matches","begins","ends","tags"].includes(part?.method);
+          if (part?.method === "parse") for (const target of queryReferences(part.args[0].body)) queries.push({rule:rule.name,alternative,target});
           if (query) for (const arg of part.args) {
             if (arg.terminal || arg.rule) queries.push({rule:rule.name,alternative,target:arg.rule ?? arg.terminal});
           }
@@ -249,11 +762,12 @@
         continue;
       }
       seen.add(clauses);
-      for (const atom of boundaryAtoms([clauses.conditions,clauses.emit])) atoms.push({rule:rule.name,alternative,atom});
+      for (const atom of boundaryAtoms([clauses.conditions,clauses.emit,clauses.tags,alternative.tags])) atoms.push({rule:rule.name,alternative,atom});
       const pending = [clauses,alternative.tags];
       while (pending.length) {
         const part = pending.pop();
         const query = ["matches","begins","ends","tags"].includes(part?.method);
+        if (part?.method === "parse") for (const target of queryReferences(part.args[0].body)) queries.push({rule:rule.name,alternative,target});
         if (query) for (const arg of part.args) {
           if (arg.terminal || arg.rule) queries.push({rule:rule.name,alternative,target:arg.rule ?? arg.terminal});
         }
@@ -443,8 +957,10 @@
   function restoreBoundaryLocations(dom,source) {
     const compared=writtenTreeComparisons(dom), originalsCompared=writtenTreeComparisons(source);
     if(compared.length===originalsCompared.length)compared.forEach((/** @type {any} */ node,/** @type {number} */ index)=>copyBoundaryLocation(originalsCompared[index],node));
-    const atoms = dom.rules.flatMap((/** @type {any} */ rule) => boundaryAtoms([rule.conditions,rule.emit]));
-    const originals = source.rules.flatMap((/** @type {any} */ rule) => boundaryAtoms([rule.conditions,rule.emit]));
+    const collect = (/** @type {any} */ document) => document.rules.flatMap((/** @type {any} */ rule) => boundaryAtoms([
+      rule.conditions,rule.tags,...(rule.alternatives ?? []).map((/** @type {any} */ alt)=>alt.tags),rule.emit,
+    ]));
+    const atoms = collect(dom), originals = collect(source);
     if (atoms.length !== originals.length) return;
     atoms.forEach((/** @type {any} */ atom,/** @type {number} */ index) => {
       const original = originals[index];
@@ -1979,301 +2495,6 @@
 
   }
 
-  // ---- testing.js
-  // Switches and hooks for the library's own tests. Nothing here is part of
-  // the API, and index.js does not export it.
-  //
-  // `faults` holds the faults that a test turns on, one at a time, to show
-  // which shared cases catch each (tests/README.md). An empty set is the
-  // engine as specified. The names F1 to F32 are those of the fault list of
-  // the check of elision-only. Each fault is defined by exactly what
-  // it reads, and a variant of a fault is a switch of its own, so that every
-  // catch that the fault table names is shown by injection:
-  //
-  // - "F1:<observer>", such as "F1:head", computes the observer over the
-  //   tokens of R behind its argument, and projects afterwards. The tokens
-  //   behind a function of a span are exact: one token for head and last,
-  //   and from the first original token for tail, from and after. from and
-  //   after have no such fault, since they give the same span before the
-  //   projection or after it.
-  // - "F1pos:<observer>" reads R at the positions that it is handed, which
-  //   for a function of a span are positions of the stage's input.
-  // - "F7:restoration" gives a restoration the synthetic token's tags,
-  //   "F7:capture" gives them to a capture of the terminal that reads it and
-  //   to a production that inherits from that terminal, and "F7:union" adds
-  //   the synthetic tokens' tags inside the exact span of R behind a span to
-  //   the union of its tokens' tags.
-  // - "F26:lost" loses an error of the grammar that the check meets, and
-  //   "F26:relabel" reports it as elision-witness-lost, which the runner
-  //   invariant of tests/README.md fails.
-  // - "F27:order" reverses the records at one position, and "F27:bare" shows
-  //   a read of a synthetic token as a token.
-  // - "F30" takes the greatest answer of "can read" (engine §7.4), "F31"
-  //   makes the item after the T of route 3 ordinary where a strict item read
-  //   T. "F32:queue" leaves an item that an ordinary step reaches as it was
-  //   processed while strict, and "F32:predict" never predicts again a rule
-  //   that a strict prediction predicted first.
-  // - "omission:skip" skips the predicate that records an allowed omission.
-  // - "lost:roots" and "lost:count" lose the witness after recognition
-  //   (engine §7.9).
-  // - "lost:rank" gives a restoration no derivation in the ranking, so the
-  //   check's ranking does not count W(D) though its chart holds it. Most
-  //   cases see it through the result too, since the readings change or none
-  //   is left. reparse-witness-sibling-last sees it through the hook alone.
-  // - "lost:context" makes the check's count skip the last edge of an item
-  //   that has two or more, and "lost:select" makes its candidates skip it.
-  //   In the sibling cases that edge is W(D)'s. The count channel of the
-  //   witness hook alone sees lost:context, where the readings stay; the
-  //   selection channel sees lost:select, where W(D) was a reading.
-  // - "witness:project" leaves the witness of an error of elision-only over
-  //   R, unmapped: a read keeps its index in R, and a close its span there.
-  // - "order:tags" evaluates a completing item's tag term before its
-  //   conditions, and "order:conditions" evaluates the conditions that read
-  //   only captures before those that read `$`, against the order of one step
-  //   of the recognizer (engine §4). Both apply to every parse, the main parse
-  //   as well as the check.
-  //
-  // F25 finds no query cycle at all while the check runs. A detector that
-  // finds only some cycles gives the same public result, because the
-  // recursion meets the same rule and span one level deeper, and only the
-  // message differs, which no pattern pins. The switch ends the recursion at
-  // a bound, with an error that is not the library's, and faults.json images
-  // that catch "bound".
-  //
-  // A fault with several sites names the site where it is checked, and
-  // `hits` counts each site that a run enters while the fault is on. The
-  // fault test asserts that the named cases enter every declared site.
-  //
-  // A strict and an ordinary prediction of one symbol at one position share
-  // their items (engine §7.4). So a fault of the strict path (F16, F29, F31,
-  // F32) shows only where that path is the only one at its position, or
-  // comes first, and a case that catches it says so. A case for a fault that
-  // depends on the order of processing comes in both orders.
-  //
-  // `hooks.elisionCheck`, when set, receives each check that recognized R
-  // and met no error of the grammar, before the check ranks, for the witness
-  // test of tests/README.md. It returns a ranking observer. Runtime tracking
-  // supplies witness marks independently of that observer.
-  //
-  // `hooks.work`, when set, counts work for the tests that it grows with the
-  // input as it should: the items that the recognizer makes, in parses and
-  // nested parses alike (tests/growth.json). Each step counts through
-  // countWork, which throws a WorkBudget at the first count past the budget
-  // that `hooks.work.budget` gives it, if any, so that a regression to
-  // quadratic work stops at once. Unset, a parse counts nothing.
-  //
-  // The other kinds count the steps of reads, scans, checks and formatters
-  // whose work must grow linearly with their input, each where a loop takes
-  // the step. A loop that rescanned or copied a growing list would count
-  // the square of the input, so the tests that read these kinds fail on it.
-  // Tools outside the library count through the same hook.
-
-  // The faults, one switch each. F1 has two per observer,
-  // one for the tokens of R behind its argument and one for positions, except
-  // that from and after have only the second: applied before the projection
-  // or after it, they give the same span. F7, F26, F27 and F32 have one
-  // switch for each of their variants. faults.json records how each case
-  // catches each fault: F28 and lost:rank, for example, through the result
-  // and the hook together in most cases, and lost:context through the hook
-  // alone.
-  const OBSERVERS = ["following-tokens", "onward", "first-token", "tokens-after-first", "last-token", "starts-input", "source-text", "value", "classes", "tags"];
-  // The order of one step of the recognizer (engine §4), which the check
-  // meets on its own competing routes as the main parse does.
-  const ORDER = ["order:tags", "order:conditions"];
-  // A ranking that does not count W(D) though the chart holds it.
-  const LOST = ["lost:roots", "lost:count", "lost:rank", "lost:context", "lost:select"];
-  // A witness of elision-only that is not mapped to the stage's input.
-  const WITNESS = ["witness:project"];
-  const VARIANTS = { F7: ["restoration", "capture", "union"], F26: ["lost", "relabel"], F27: ["order", "bare"], F32: ["queue", "predict"] };
-
-  // The sites of each fault that has several: the named
-  // cases must enter every one while the fault is on. A fault not listed
-  // has one site.
-  const SITES = {
-    F11: ["restore", "test"],
-    F16: ["predict", "item", "empty"],
-    F17: ["items", "diagnostic"],
-    F29: ["predict", "reading"],
-    "order:tags": ["predict", "advance"],
-    "lost:rank": ["candidates", "count"],
-  };
-  /** @type {(fault: string) => string[]} */
-  const sitesOf = (fault) => {
-    if (fault in SITES) return SITES[/** @type {keyof typeof SITES} */ (fault)].map((site) => `${fault}@${site}`);
-    // An F1 fault of a function of a span, head, tail or last, applies the
-    // function before the projection, and so do the F1pos faults of the
-    // functions with from and after. The other observers read their
-    // argument's tokens or positions.
-    const functions = ["first-token", "tokens-after-first", "last-token", "onward", "following-tokens"];
-    const [family, observer] = fault.split(":");
-    if (family === "F1") return [`${fault}@${functions.includes(observer) ? "function" : "argument"}`];
-    if (family === "F1pos") return [`${fault}@${functions.includes(observer) ? "observe" : "argument"}`];
-    return [fault];
-  };
-  const FAULTS = [
-    ...OBSERVERS.flatMap((name) => name === "onward" || name === "following-tokens" ? [`F1pos:${name}`] : [`F1:${name}`, `F1pos:${name}`]),
-    ...Array.from({ length: 31 }, (_, index) => `F${index + 2}`)
-      .filter((name) => !["F5", "F6", "F20"].includes(name))
-      .flatMap((name) => name in VARIANTS ? VARIANTS[/** @type {keyof typeof VARIANTS} */ (name)].map((variant) => `${name}:${variant}`) : [name]),
-    "omission:skip",
-    ...ORDER,
-    ...LOST,
-    ...WITNESS,
-  ].sort((a, b) => a.localeCompare(b, "en", { numeric: true }));
-
-
-  /** @type {Set<string>} */
-  const faults = new Set();
-
-  /**
-   * How often each site of a fault was entered while that fault was on, by
-   * the fault's name, or its name and the site's after an @, for a fault
-   * with several sites. The fault test asserts that its named cases enter
-   * every declared site (tests/README.md).
-   * @type {Map<string, number>}
-   */
-  const hits = new Map();
-
-  /**
-   * What the check of engine §7 hands its test hook.
-   * @typedef {object} ElisionCheckRun
-   * @property {import("./types.js").Derivation} chosen D, the chosen
-   *   derivation of the main parse
-   * @property {import("./earley.js").Chart} chart the recognition of R
-   * @property {import("./types.js").Item[]} roots the completed items of
-   *   `text` over R
-   * @property {boolean[]} synthetic for each token of R, whether it is
-   *   synthetic, by its provenance
-   * @property {number[]} originalAt for each token of the stage's input, its
-   *   index in R
-   * @property {number[]} recordAt for each restoration record, the index of
-   *   its synthetic token in R
-   */
-
-  /**
-   * The independent witness test's ranking observer.
-   * @typedef {object} ElisionCheckWatch
-   * @property {(outcome: {ranking: import("./rank.js").Ranking | null, counted: boolean}) => void} ranked
-   */
-
-  /**
-   * The counts of `hooks.work`.
-   * @typedef {object} WorkCounts
-   * @property {number} familySummaries distinct family summaries taken by items
-   * @property {number} familySteps deletion automaton transitions and relation rows
-   * @property {number} closeStates shared close and cycle summaries interned
-   * @property {number} closeSequences shared close sequence links interned
-   * @property {number} structuralStates finite structural states interned
-   * @property {number} structuralTransitions structural transitions computed
-   * @property {number} packedEdges distinct packed forest edges
-   * @property {number} summaryContexts summary results stored per traversal
-   * @property {number} boundaryRecords distinct boundary records used in recognitions
-   * @property {number} items the items that the recognizer made
-   * @property {number} captures the captured parts that the recognizer made
-   * @property {number} captureSteps the steps that find a captured part from
-   *   the last one, or that list every part at once
-   * @property {number} captureLookups the entries of a production's captures
-   *   that an advance or a formatter reads to find the capture at a position
-   * @property {number} edgeChecks the ways of building an item that the
-   *   recognizer compares with a new way, to find it already there, or that
-   *   it indexes for that
-   * @property {number} conditions the conditions that an advance reads to
-   *   find those ready at its dot
-   * @property {number} visits the nodes of conditions and terms that an
-   *   evaluation visits, each counted before it is evaluated, also where the
-   *   evaluation halts for a nested parse
-   * @property {number} valueSteps the tokens that a value test or value()
-   *   visits
-   * @property {number} tags the tags that a union of tag sets or an entry of
-   *   a classifier adds to a set or copies, and those that an intersection,
-   *   a difference, a comparison or a test of tag sets reads
-   * @property {number} implications the implications, and their tags and
-   *   the token's, that the closure of a token's tags reads
-   * @property {number} walkSteps the steps of the readers and walks of a
-   *   document, of its notation's tree and of its DOM, in the library and in
-   *   the tools
-   * @property {number} lowering the symbols and captures that lowering and
-   *   the checks of a definition add to a sequence or copy, the helpers
-   *   that lowering moves on its list of those waiting, and the positions,
-   *   captures and conditions of a production that it indexes
-   * @property {number} closures the productions, alternatives and symbols
-   *   that the closures over a grammar's rules read: the nullable rules, the
-   *   rules that can read, and those that can emit
-   * @property {number} clauses the items of an emission and the alternatives
-   *   of a rule that the checks of a definition and the audit read, and the
-   *   nodes of the expressions that the audit walks
-   * @property {number} groups the items, edges, rules and arcs that the
-   *   grouping of rules for the cycle context of a ranking reads
-   * @property {number} traversal the steps, edges, dependencies and rules
-   *   of a context that a traversal of a forest for a ranking reads
-   * @property {number} splice the names, stages and documents that a splice
-   *   of a pipeline checks or copies
-   * @property {number} text the characters, words, lines and cells that the
-   *   formatters of diagnostics and the tools' scans of a text read
-   * @property {Partial<Record<WorkKind, number>>} [budget] the most of each
-   *   count that the work may reach
-   */
-
-  /** @typedef {"boundaryRecords" | "familySummaries" | "familySteps" | "closeStates" | "closeSequences" | "structuralStates" | "structuralTransitions" | "packedEdges" | "summaryContexts" | "items" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "valueSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text"} WorkKind */
-
-  /** @type {readonly WorkKind[]} */
-  const WORK_KINDS = ["boundaryRecords","familySummaries", "familySteps", "closeStates", "closeSequences", "structuralStates", "structuralTransitions", "packedEdges", "summaryContexts", "items", "captures", "captureSteps", "captureLookups", "edgeChecks", "conditions", "visits", "valueSteps", "tags", "implications", "walkSteps", "lowering", "closures", "clauses", "groups", "traversal", "splice", "text"];
-
-  /**
-   * Counts of every kind at zero, for a test to set as `hooks.work`.
-   * @param {Partial<Record<WorkKind, number>>} [budget]
-   * @returns {WorkCounts}
-   */
-  function newWork(budget) {
-    const work = /** @type {WorkCounts} */ ({ budget });
-    for (const kind of WORK_KINDS) work[kind] = 0;
-    return work;
-  }
-
-  /**
-   * A count of `hooks.work` past its budget. It is no GencmuError, so no
-   * handler of the library's catches it.
-   */
-  class WorkBudget extends Error {}
-
-  /**
-   * Counts one or more of `work`, and throws a WorkBudget if that passes its
-   * budget.
-   * @param {WorkCounts} work
-   * @param {WorkKind} kind
-   * @param {number} [steps]
-   */
-  function countWork(work, kind, steps = 1) {
-    const counted = (work[kind] += steps);
-    const most = work.budget?.[kind];
-    if (most !== undefined && counted > most) throw new WorkBudget(`${counted} ${kind}, past the budget of ${most}`);
-  }
-
-  /** @type {{boundaryAdmission:((splits:any[],chart:any)=>void)|null, familyAlignment: ((summary:boolean, direct:boolean) => void)|null, elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null, work: WorkCounts | null, slotAdmission: ((statistics: {chartFacts:number,groups:number,candidateEdges:number,retainedEdges:number,boundarySplits?:any[]}) => void) | null, memoLimit: number | null, memoInsert: ((key: string) => void) | null, memoHit: ((key: string, alignedActive: number) => void) | null, alignedQuery: ((change: number) => void) | null}} */
-  const hooks = { boundaryAdmission:null, elisionCheck: null, work: null, slotAdmission: null,
-    /** @type {((summary:boolean, direct:boolean) => void)|null} */ familyAlignment: null,
-    // The bound of the shared memos (engine §4.3), or null for the default.
-    // A bound of 0 turns them off. memoInsert sees the key of each answer
-    // that enters a shared memo, and memoHit the key of each answer that one
-    // serves, with the number of aligned queries active then. alignedQuery
-    // sees 1 where the nested parse of an aligned query starts, and -1 where
-    // it ends.
-    memoLimit: null, memoInsert: null, memoHit: null, alignedQuery: null };
-
-  /**
-   * Whether a fault is on, at one of its sites. A fault that is on counts the
-   * site as entered.
-   * @param {string} name
-   * @param {string} [site] the site, for a fault with several
-   * @returns {boolean}
-   */
-  function fault(name, site = "") {
-    if (faults.size === 0 || !faults.has(name)) return false;
-    const key = site === "" ? name : `${name}@${site}`;
-    hits.set(key, (hits.get(key) || 0) + 1);
-    return true;
-  }
-
   // ---- tags.js
 
   // Stored user and engine tags, and their set operations (engine §1).
@@ -2590,6 +2811,8 @@
    * @property {string} [insertedBy]
    * @property {TokenJson[]} [before] present only when not empty
    * @property {TokenJson[]} [after] present only when not empty
+   * @property {WarningJson[]} [errors]
+   * @property {WarningJson[]} [warnings]
    */
 
   /**
@@ -2612,6 +2835,8 @@
    * @property {ParseError["kind"]} kind
    * @property {string} [stage]
    * @property {string} [feature]
+   * @property {WarningJson[]} [errors]
+   * @property {WarningJson[]} [warnings]
    * @property {"elision-witness-lost"} [code]
    * @property {"tie" | "elision-only"} [reason]
    * @property {number} [token]
@@ -2622,7 +2847,6 @@
    * @property {import("./types.js").Expectation[]} [expected]
    * @property {NodeJson[]} [readings]
    * @property {ActionJson[]} [witness]
-   * @property {string} [document]
    * @property {string} message
    * @property {NodeJson} [chosen]
    * @property {import("./types.js").Restoration[]} [completion]
@@ -2635,6 +2859,8 @@
    * @property {import("./types.js").Verdict | null} verdict
    * @property {ActionJson[]} [witness]
    * @property {TokenJson[]} [output]
+   * @property {WarningJson[]} [errors]
+   * @property {WarningJson[]} [warnings]
    */
 
   /**
@@ -2652,10 +2878,12 @@
    * A warning (docs/output.md).
    * @typedef {object} WarningJson
    * @property {string} stage
-   * @property {string} feature
+   * @property {string} code
+   * @property {string} message
    * @property {string} rule
    * @property {[number, number]} span
    * @property {[number, number]} source
+   * @property {import('./types.js').CompetitorRejection} [rejection]
    */
 
   /**
@@ -2665,7 +2893,7 @@
    */
 
 
-  const RESULT_FORMAT = 15;
+  const RESULT_FORMAT = 17;
 
   /**
    * A token in the result JSON. An attached token has no span, and a list of
@@ -2690,6 +2918,8 @@
         fill: (before, after) => {
           if (before.length > 0) result.before = before;
           if (after.length > 0) result.after = after;
+          if(current.errors?.length)result.errors=current.errors.map(diagnostic=>diagnosticJson(diagnostic,"errors"));
+          if(current.warnings?.length)result.warnings=current.warnings.map(diagnostic=>diagnosticJson(diagnostic,"warnings"));
         },
       };
     });
@@ -2748,6 +2978,17 @@
     return { close: { rule: action.rule, production: action.production, span: [action.span[0], action.span[1]] } };
   }
 
+  /** @param {import("./types.js").ParseWarning} diagnostic @param {"errors"|"warnings"} kind @returns {WarningJson} */
+  function diagnosticJson(diagnostic,kind) {
+    /** @type {WarningJson} */
+    const result={stage:diagnostic.stage,code:diagnostic.code,rule:diagnostic.rule,span:[...diagnostic.span],source:[...diagnostic.source],message:diagnostic.message};
+    if(kind==="errors"&&diagnostic.rejection) {
+      const {token,source,line,column,expected}=diagnostic.rejection;
+      Object.assign(result,{rejection:{token,source:[...source],line,column,expected:expected.map(item=>({terminal:item.terminal,rules:[...item.rules]}))}});
+    }
+    return result;
+  }
+
   /**
    * @param {ParseError} error
    * @returns {ErrorJson}
@@ -2758,6 +2999,7 @@
     if (error.stage !== undefined) result.stage = error.stage;
     if (error.feature !== undefined) result.feature = error.feature;
     if (error.code !== undefined) result.code = error.code;
+
     if (error.reason !== undefined) result.reason = error.reason;
     if (error.token !== undefined) result.token = error.token;
     if (error.source !== undefined) result.source = [error.source[0], error.source[1]];
@@ -2768,7 +3010,10 @@
     if (error.readings !== undefined) result.readings = error.readings.map(nodeJson);
     // Only an error of elision-only has a witness (docs/output.md).
     if (error.kind === "ambiguous" && error.witness !== undefined && error.reason === "elision-only") result.witness = error.witness.map(actionJson);
-    if (error.document !== undefined) result.document = error.document;
+    if(error.kind!=='ambiguous'||error.reason==='tie'){
+      if(error.errors?.length)result.errors=error.errors.map(diagnostic=>diagnosticJson(diagnostic,"errors"));
+    }
+    if(['rejected','grammar','feature-conflict'].includes(error.kind)&&error.warnings?.length)result.warnings=error.warnings.map(diagnostic=>diagnosticJson(diagnostic,"warnings"));
     result.message = error.message;
     // The members of elision-witness-lost follow its message (docs/output.md).
     if (error.chosen !== undefined) result.chosen = nodeJson(error.chosen);
@@ -2798,15 +3043,15 @@
         const json = { name: stage.name, verdict: stage.verdict };
         if (stage.verdict === "tie" && stage.witness) json.witness = stage.witness.map(actionJson);
         if (stage.output) json.output = stage.output.map(tokenJson);
+        if(stage.errors?.length)json.errors=stage.errors.map(diagnostic=>diagnosticJson(diagnostic,"errors"));
+        if(stage.warnings?.length)json.warnings=stage.warnings.map(diagnostic=>diagnosticJson(diagnostic,"warnings"));
         return json;
       }),
       tree: result.tree ? nodeJson(result.tree) : null,
       error: result.error ? errorJson(result.error) : null,
     };
     if (result.warnings && result.warnings.length > 0) {
-      json.warnings = result.warnings.map((warning) => ({
-        stage: warning.stage, feature: warning.feature, rule: warning.rule, span: [warning.span[0], warning.span[1]], source: [warning.source[0], warning.source[1]],
-      }));
+      json.warnings = result.warnings.map(diagnostic=>diagnosticJson(diagnostic,"warnings"));
     }
     return json;
   }
@@ -3257,7 +3502,7 @@
    * The fields of a corpus case that a result is compared with, in the order
    * in which a difference is reported.
    */
-  const CASE_FIELDS = /** @type {const} */ (["expect", "verdict", "stage", "at", "error", "ties", "words", "brackets"]);
+  const CASE_FIELDS = /** @type {const} */ (["expect", "verdict", "stage", "at", "error", "errors", "ties", "words", "brackets", "warnings"]);
 
   /**
    * What a corpus case records of a result.
@@ -3269,8 +3514,9 @@
    *   text
    * @property {number} [at] where that stage stopped, as a position in the
    *   text
-   * @property {{kind: string, reason: string | undefined}} [error] an
-   *   ambiguous error's kind and reason
+   * @property {{kind: string, reason?: string}} [error] an error kind and reason
+   * @property {{stage?:string,code:string,at:number}[]} [errors]
+   * @property {{stage:string,code:string,at:number}[]} [warnings] ordered warning codes and source positions
    * @property {string[]} [ties] the stages whose verdict is a tie
    * @property {string[]} [words] the images of the words stage's output
    * @property {string} [brackets] the tree of an accepted text, with elided
@@ -3285,10 +3531,16 @@
   function caseOutcome(result) {
     /** @type {CaseOutcome} */
     const got = { expect: result.ok ? "accept" : "reject" };
-    if (result.ok) got.verdict = result.stages[result.stages.length - 1].verdict;
-    else got.stage = result.error ? result.error.stage : null;
+    if (result.ok || result.error?.kind==="reported") got.verdict = result.stages[result.stages.length - 1].verdict;
+    if (!result.ok) got.stage = result.error ? result.error.stage : null;
     // A rejection pins where its stage stopped, as a position in the text
     // (tests/README.md).
+    if(result.error?.errors?.length)got.errors=result.error.errors.map(error=>({stage:error.stage,code:error.code,at:error.source[0]}));
+    if (result.error?.kind==="reported") {
+      got.error={kind:"reported"};
+      got.at=got.errors?.[0]?.at;
+    }
+    got.warnings=(result.warnings ?? []).map(warning=>({stage:warning.stage,code:warning.code,at:warning.source[0]}));
     if (!result.ok && result.error && result.error.source) got.at = result.error.source[0];
     // An ambiguous error pins its kind and reason (tests/README.md).
     if (result.error && result.error.kind === "ambiguous") got.error = { kind: result.error.kind, reason: result.error.reason };
@@ -3310,8 +3562,16 @@
    */
   function caseDifference(expected, got) {
     for (const key of CASE_FIELDS) {
+      if (key==="warnings" && !Object.hasOwn(expected,key)) continue;
       if (!(key in expected) && !(key in got)) continue;
-      if (!sameValue(expected[key], got[key])) {
+      let actual=got[key];
+      if(key==='errors'&&Array.isArray(expected[key])&&Array.isArray(actual)){
+        const wanted=/** @type {Record<string,unknown>[]} */(expected[key]);
+        actual=/** @type {NonNullable<CaseOutcome["errors"]>} */(actual).map((entry,index)=>{
+          const copy={...entry};if(wanted[index]&&!Object.hasOwn(wanted[index],'stage'))delete copy.stage;return copy;
+        });
+      }
+      if (!sameValue(expected[key], actual)) {
         return `${key} expected ${JSON.stringify(expected[key])}, got ${JSON.stringify(got[key])}`;
       }
     }
@@ -3431,6 +3691,7 @@
   }
 
   // ---- close-observations.js
+
   // Shared close observations for aligned queries. The chart keeps summaries
   // of proofs, not completed trees. A cyclic summary remains available to
   // ordinary query eligibility, but cannot supply an aligned observation.
@@ -3755,8 +4016,8 @@
           const node = /** @type {any} */ (stack.pop());
           if (!node || typeof node !== "object" || seen.has(node)) continue;
           seen.add(node);
-          if (["matches","begins","ends","tags"].includes(node.method) ) for (const arg of node.args ?? []) {
-            const name = arg.rule ?? (arg.terminal ? "\u0000query:" + arg.terminal : null);
+          if (["matches","begins","ends","tags","parse"].includes(node.method) ) for (const arg of node.args ?? []) {
+            const name = arg.rule ?? (arg.terminal ? "\u0000query:" + arg.terminal : arg.body ? bodyTarget(lowered,arg.body) : null);
             if (!name) continue;
             pending.push(name);
             if (needsCloseObservations(node.receiver)) wanted.add(name);
@@ -3801,9 +4062,10 @@
    * Only a caller that consumes an observation asks its child to retain it.
    * A private whole capture also needs the enclosing written alternative.
    * @param {import("./types.js").Production} production
+   * @param {import("./types.js").LoweredGrammar} lowered
    * @returns {LocalCloseDemand}
    */
-  function localCloseDemand(production) {
+  function localCloseDemand(production,lowered) {
     const base = production.baseProduction ?? production;
     const old = localDemands.get(base);
     if (old) return old;
@@ -3814,9 +4076,9 @@
       const node = /** @type {any} */ (stack.pop());
       if (!node || typeof node !== "object" || seen.has(node)) continue;
       seen.add(node);
-      const value = ["matches","begins","ends","tags"].includes(node.method) ? node.receiver : undefined;
+      const value = ["matches","begins","ends","tags","parse"].includes(node.method) ? node.receiver : undefined;
       const aligned = value?.method === "onward" ? value.receiver : value;
-      const queryRules = (node.args ?? []).map((/** @type {any} */ arg) => arg.rule ?? (arg.terminal ? "\u0000query:" + arg.terminal : null)).filter((/** @type {any} */ name) => typeof name === "string");
+      const queryRules = (node.args ?? []).map((/** @type {any} */ arg) => arg.rule ?? (arg.terminal ? "\u0000query:" + arg.terminal : arg.body ? bodyTarget(lowered,arg.body) : null)).filter((/** @type {any} */ name) => typeof name === "string");
       if (["without-elision", "without-elision-except"].includes(aligned?.method) && queryRules.length) {
         const part = base.captures.find(capture => capture.name === aligned.receiver.capture);
         if (part) {
@@ -3892,6 +4154,397 @@
     }
     prefixes.set(grammar,table);
     return table;
+  }
+
+  // ---- source-lines.js
+
+
+  /** @typedef {{characters:string[],breaks:number[]}} LineIndex */
+
+  /**
+   * @param {Iterable<string>} text
+   * @returns {LineIndex}
+   */
+  function lineIndex(text) {
+    /** @type {string[]} */
+    const characters = [];
+    for (const character of text) {
+      if (hooks.work) countWork(hooks.work, "text");
+      characters.push(character);
+    }
+    const breaks = [];
+    for (let index = 0; index < characters.length; index++) {
+      if (hooks.work) countWork(hooks.work, "text");
+      const character = characters[index];
+      if (character === "\n" || (character === "\r" && characters[index + 1] !== "\n")) breaks.push(index);
+    }
+    return { characters, breaks };
+  }
+
+  /** @param {LineIndex} lines @param {number} offset */
+  function positionAt({breaks},offset) {
+    // The number of breaks before the range's start, by binary search.
+    let low = 0;
+    let high = breaks.length;
+    while (low < high) {
+      if (hooks.work) countWork(hooks.work, "text");
+      const middle = (low + high) >> 1;
+      if (breaks[middle] < offset) low = middle + 1;
+      else high = middle;
+    }
+    return {line:low+1,column:offset-(low===0?0:breaks[low-1]+1)+1,lineStart:low===0?0:breaks[low-1]+1};
+  }
+
+  /**
+   * @param {LineIndex} lines
+   * @param {import("./types.js").Span} source code point range
+   * @returns {{line: number, column: number, excerpt: string}}
+   */
+  function excerptAt({ characters, breaks }, source) {
+    const {line,column,lineStart}=positionAt({characters,breaks},source[0]);
+    let lineEnd = lineStart;
+    while (lineEnd < characters.length && characters[lineEnd] !== "\n" && characters[lineEnd] !== "\r") {
+      if (hooks.work) countWork(hooks.work, "text");
+      lineEnd++;
+    }
+    const shown = characters.slice(lineStart, lineEnd).join("").replace(/\t/g, " ");
+    const width = Math.max(1, Math.min(source[1], lineEnd) - source[0]);
+    const gutter = `${line} | `;
+    const excerpt = `${gutter}${shown}\n${" ".repeat(gutter.length - 2)}| ${" ".repeat(column - 1)}${"^".repeat(width)}`;
+    return { line, column, excerpt };
+  }
+
+
+  // ---- tree-identities.js
+  // Exact structural observations for compared occurrences (engine §4.1).
+
+
+
+  /** @param {any} root @returns {any[]} */
+  function constituentComparisons(root) {
+    const result=[], pending=[root], seen=new Set();
+    while(pending.length) {
+      const node=pending.pop();
+      if(!node || typeof node!=='object' || seen.has(node)) continue;
+      seen.add(node);
+      if((node.op==='≅' || node.op==='≇') && typeof node.right?.capture==='string') result.push(node);
+      else for (const child of clauseChildren(node).slice().reverse()) pending.push(child);
+    }
+    return result;
+  }
+
+  /**
+   * @typedef {object} TreeDemand
+   * @property {boolean} whole
+   * @property {Set<number>} parts
+   * @property {Set<string>} names
+   * @property {Set<string>} outer
+   * @property {boolean} parentPrefix
+   * @property {number} prefixUntil
+   */
+  /** @type {WeakMap<object,Map<string,TreeDemand>>} */
+  const local=new WeakMap();
+  /** @type {WeakMap<object,string>} */
+  const frameKeys=new WeakMap();
+  /** @param {any} frame */
+  function frameKey(frame) {
+    if(!frame)return '';
+    let key=frameKeys.get(frame);
+    if(key===undefined) {key=JSON.stringify([[...frame.present].sort(),[...frame.captures.keys()].sort(),[...frame.knownPrivate].sort(),!!frame.inside]);frameKeys.set(frame,key);}
+    return key;
+  }
+  /** @param {any} production @returns {TreeDemand} */
+  function localTreeDemand(production) {
+    const found=local.get(production.baseProduction ?? production)?.get(frameKey(production.lexicalFrame));
+    if(!found)throw new Error('a production has no tree demand case');
+    return found;
+  }
+
+  /** @param {any} lowered @param {any} frames */
+  function prepareTreeDemands(lowered, frames) {
+    const byKey=new Map();
+    /** @type {any[]} */
+    const states=[];
+    let nextFrame=0;
+    const contextual=new Set(lowered.productions.filter((/** @type {any} */ p)=>p.contextual).map((/** @type {any} */ p)=>p.lhs));
+    const state=(/** @type {any} */ p,/** @type {any} */ frame)=> {
+      const key=p.id+'/'+frameKey(frame);
+      if(byKey.has(key))return byKey.get(key);
+      const bound=frame ? frames.production(p,frame) : p;
+      const result={whole:false,parts:new Set(),names:new Set(),outer:new Set(),parentPrefix:false,prefixUntil:0};
+      for(const comparison of constituentComparisons([bound.conditions,bound.tags,bound.parentTags]))for(const name of [comparison.left.capture,comparison.right.capture]) {
+        result.names.add(name);
+        if(name==='') {result.whole=true;result.parentPrefix=!!p.helper&&!p.spliceOf;}
+        else {
+          const capture=p.captures.find((/** @type {any} */ c)=>c.name===name);
+          if(capture)result.parts.add(capture.index);else result.outer.add(name);
+        }
+      }
+      const entry={p,frame,demand:result,edges:[]};
+      const demands=local.get(p)??new Map();demands.set(frameKey(frame),result);local.set(p,demands);
+      states.push(entry);byKey.set(key,entry);return entry;
+    };
+    for(const p of lowered.productions)if(!p.contextual)state(p,null);
+    for(let at=0;at<states.length;at++) {
+      const entry=states[at],{p,frame}=entry;
+      const captures=p.captures.filter((/** @type {any} */ c)=>!c.name.startsWith('\u0000'));
+      const present=new Set([...frame?.present??[],...captures.map((/** @type {any} */ c)=>c.name)]);
+      const knownPrivate=new Set([...frame?.knownPrivate??[],...p.rankedPrivate??[]]);
+      const inside=!!frame?.inside||!!p.rankedGroup;
+      p.rhs.forEach((/** @type {any} */ symbol,/** @type {number} */ index)=> {
+        if(symbol.terminal||!contextual.has(symbol.name))return;
+        const ready=new Map(frame?.captures??[]);
+        for(const capture of captures)if(capture.index<index)ready.set(capture.name,null);
+        const child={id:nextFrame++,present,knownPrivate,captures:ready,inside};
+        for(const q of lowered.byLhs.get(symbol.name)??[])entry.edges.push({index,child:state(q,child)});
+      });
+    }
+    let changed=true;
+    while(changed) {
+      changed=false;
+      for(const entry of states)for(const edge of entry.edges) {
+        const d=entry.demand, child=edge.child.demand;
+        if(child.parentPrefix) {
+          if(entry.p.helper&&!d.parentPrefix) {d.parentPrefix=true;changed=true;}
+          if(!entry.frame?.inside&&!entry.p.rankedGroup&&edge.index>d.prefixUntil) {d.prefixUntil=edge.index;changed=true;}
+        }
+        for(const name of child.outer) {
+          const capture=entry.p.captures.find((/** @type {any} */ c)=>c.name===name&&c.index<edge.index);
+          if(capture) {if(!d.parts.has(capture.index)) {d.parts.add(capture.index);changed=true;}}
+          else if(entry.frame?.captures.has(name)&&!d.outer.has(name)) {d.outer.add(name);changed=true;}
+        }
+      }
+    }
+  }
+
+  class TreeIdentities {
+    constructor() {
+      /** @type {Map<string,number>} */ this.ids=new Map();
+      /** @type {{key:any[],empty:boolean}[]} */ this.nodes=[];
+      /** @type {Map<number,string>} */ this.semanticNodes=new Map();
+      /** @type {Map<number,string>} */ this.semanticSequences=new Map();
+      /** @type {[number,number][]} */ this.sequences=[[0,-1]];
+      /** @type {Map<string,number>} */ this.sequenceIds=new Map();
+      /** @type {Map<string,number>} */ this.concatenations=new Map();
+      this.emptyProjection=this.intern(['EmptyProjection'],true);
+    }
+    /** @param {any[]} key @param {boolean} [empty] */
+    intern(key,empty=false) {
+      const text=JSON.stringify(key), old=this.ids.get(text);if(old!==undefined)return old;
+      const id=this.nodes.length;this.ids.set(text,id);this.nodes.push({key,empty});return id;
+    }
+    /** @param {number} prefix @param {number} node */
+    append(prefix,node) {
+      if(this.nodes[node].empty)return prefix;
+      const key=`${prefix}/${node}`,old=this.sequenceIds.get(key);if(old!==undefined)return old;
+      const id=this.sequences.length;this.sequences.push([prefix,node]);this.sequenceIds.set(key,id);return id;
+    }
+    /** @param {number} left @param {number} right */
+    concat(left,right) {
+      if(!left)return right;if(!right)return left;
+      const key=`${left}/${right}`,old=this.concatenations.get(key);if(old!==undefined)return old;
+      const pending=[];for(let at=right;at;at=this.sequences[at][0])pending.push(this.sequences[at][1]);
+      let result=left;while(pending.length)result=this.append(result,/** @type {number} */(pending.pop()));
+      this.concatenations.set(key,result);return result;
+    }
+    /** @param {number} sequence @returns {number[]} */
+    elements(sequence) {
+      const nodes=[];
+      for(let at=sequence;at;at=this.sequences[at][0])nodes.push(this.sequences[at][1]);
+      return nodes.reverse();
+    }
+    /** @param {number|undefined} identity @returns {string|null} */
+    semantic(identity) {
+      if(identity === undefined || identity < 0)return null;
+      const pending=[identity];
+      while(pending.length) {
+        const node=pending[pending.length-1];
+        if(this.semanticNodes.has(node)) {pending.pop();continue;}
+        const key=this.nodes[node].key;
+        if(key[0] !== 'Rule' && key[0] !== 'Anonymous') {this.semanticNodes.set(node,JSON.stringify(key));continue;}
+        const children=this.elements(key[key[0] === 'Rule' ? 2 : 1]);
+        const missing=children.find(child=>!this.semanticNodes.has(child));
+        if(missing!==undefined) {pending.push(missing);continue;}
+        this.semanticNodes.set(node,'['+JSON.stringify(key[0])+(key[0] === 'Rule' ? ','+JSON.stringify(key[1]) : '')+',['+children.map(child=>this.semanticNodes.get(child)).join(',')+']]');
+      }
+      return /** @type {string} */ (this.semanticNodes.get(identity));
+    }
+    /** @param {number} sequence @returns {string} */
+    sequenceSemantic(sequence) {
+      let value=this.semanticSequences.get(sequence);
+      if(value===undefined) {value='['+this.elements(sequence).map(node=>this.semantic(node)).join(',')+']';this.semanticSequences.set(sequence,value);}
+      return value;
+    }
+    /** @param {string} name @param {number} children */
+    rule(name,children) {return this.intern(['Rule',name,children],children===0);}
+    /** @param {number} children */
+    anonymous(children) {return this.intern(['Anonymous',children]);}
+    /** @param {string} terminal @param {string} value */
+    written(terminal,value) {return this.intern(['Written',terminal,value]);}
+    /** @param {string} terminal */
+    omitted(terminal) {return this.intern(['Omitted',terminal]);}
+    /** @param {string[]} values */
+    seal(values) {return this.intern(['Seal',values]);}
+  }
+
+  /** @param {any} context @param {string} terminal @param {number} at */
+  function terminalIdentity(context,terminal,at) {
+    if(context.recon && !context.recon.raw) {
+      if(context.synthetic?.[at])return context.trees.emptyProjection;
+      return context.trees.written(terminal,context.recon.observed.tokens[context.recon.project[at]].value);
+    }
+    return context.trees.written(terminal,context.tokens[at].value);
+  }
+
+  /** @param {any} context @param {number} start @param {number} end */
+  function sealIdentity(context,start,end) {
+    const key=`${start}/${end}`;
+    const old=context.treeSeals.get(key);if(old!==undefined)return old;
+    const observed=context.recon && !context.recon.raw ? context.recon.observed : context;
+    if(observed!==context) { start=context.recon.project[start];end=context.recon.project[end]; }
+    const values=[];for(let i=start;i<end;i++)values.push(observed.tokens[i].value);
+    const result=context.trees.seal(values);context.treeSeals.set(key,result);return result;
+  }
+
+  /** @param {any} context @param {any} production @param {number} dot @param {any} previous @param {any} child @param {number} end @param {boolean} [exported] */
+  function treeStep(context,production,dot,previous,child,end,exported=false) {
+    if(!context.trees || !production.observesTrees)return null;
+    const sealed=exported && production.erased && dot===production.rhs.length;
+    if(!production.walksTrees && dot>production.treePrefixUntil && !sealed)return null;
+    const m=context.trees;
+    let prefix=previous?.treePrefix ?? 0;
+    if(previous && (production.walksTrees || dot<=production.treePrefixUntil)) {
+      const symbol=production.rhs[dot-1];
+      if(symbol.slot)prefix=m.append(prefix,sealIdentity(context,child.origin,child.end));
+      else if(child)prefix=m.concat(prefix,child.treeSequence);
+      else prefix=m.append(prefix,terminalIdentity(context,symbol.name,end-1));
+    }
+    let identity=-1,sequence=prefix;
+    if(sealed) {
+      sequence=m.append(0,sealIdentity(context,previous?.origin ?? end,end));
+      if(production.spliceOf) identity=m.anonymous(sequence);
+      else { identity=m.rule(production.lhs,sequence);sequence=m.append(0,identity); }
+    } else if(dot===production.rhs.length && production.walksTrees) {
+      if(production.spliceOf) identity=m.anonymous(prefix);
+      else if(!production.helper) { identity=m.rule(production.lhs,prefix);sequence=m.append(0,identity); }
+      else if(production.elided!==null && production.rhs.length===0) { identity=m.omitted(production.elided);sequence=m.append(0,identity); }
+    }
+    return {treePrefix:sealed?sequence:prefix,treeIdentity:identity,treeSequence:sequence};
+  }
+
+  /** @param {any} lowered @returns {{comparison:any,production:any,cycle:string[]}|null} */
+  function treeIdentityCycle(lowered) {
+    const rows=lowered.structural, byName=new Map(), nullable=new Set();
+    for(const row of rows) {const list=byName.get(row.lhs) ?? [];list.push(row);byName.set(row.lhs,list);}
+    let changed=true;
+    while(changed) {
+      changed=false;
+      for(const row of rows)if(!nullable.has(row.lhs) && row.rhs.every((/** @type {any} */ s)=>!s.terminal && nullable.has(s.name))) {nullable.add(row.lhs);changed=true;}
+    }
+    const seals=new Set(lowered.grammar.ranked.groups.map((/** @type {any} */ g)=>g.helper));
+    const edges=new Map();
+    for(const [name,productions] of byName) {
+      /** @type {any[]} */ const out=[];
+      for(const production of productions) if(!production.erased) production.rhs.forEach((/** @type {any} */ symbol,/** @type {number} */ index)=> {
+        if(!symbol.terminal && !seals.has(symbol.name))out.push({name:symbol.name,marked:production.rhs.every((/** @type {any} */ other,/** @type {number} */ i)=>i===index || !other.terminal && nullable.has(other.name))});
+      });
+      edges.set(name,out);
+    }
+    const sites=[...lowered.treeSites];
+    for(const production of lowered.productions) {
+      const bindings=new Map(production.captures.map((/** @type {any} */ c)=>[c.name,[production.rhs[c.index].terminal,production.rhs[c.index].name]]));
+      for(const comparison of constituentComparisons([production.tags,production.parentTags,production.conditions]))sites.push({comparison,production,bindings,prefix:[]});
+    }
+    const order=new Map(), hints=new Map();
+    let nextOrder=0;
+    for(const rule of lowered.grammar.rules.values()) {
+      const definitions=new Map();
+      for(const source of rule.alternatives) {
+        const alternatives=definitions.get(source.clauses)??[];alternatives.push(source);definitions.set(source.clauses,alternatives);
+      }
+      for(const [clauses,alternatives] of definitions)for(const root of [clauses.tags,...alternatives.map((/** @type {any} */ a)=>a.tags),clauses.conditions]) {
+        for(const comparison of constituentComparisons(root)) {
+          const number=nextOrder++;
+          order.set(comparison,number);
+          const key=JSON.stringify([alternatives[0].document,boundaryLocations.get(comparison)?.at,comparison]);
+          if(!hints.has(key))hints.set(key,number);
+        }
+      }
+    }
+    const ordinal=(/** @type {any} */ site)=>order.get(site.comparison)??hints.get(JSON.stringify([(site.production.logicalSource??site.production.source)?.document,boundaryLocations.get(site.comparison)?.at,site.comparison]))??nextOrder;
+    sites.sort((a,b)=>ordinal(a)-ordinal(b)||a.production.id-b.production.id);
+    for(const {comparison,production,bindings,prefix} of sites) {
+        const roots=[];
+        for(const name of [comparison.left.capture,comparison.right.capture]) {
+          if(name==='') {
+            for (const name of prefix) roots.push(name);
+            if(production.treeRoot) for (const symbol of production.rhs) if (!symbol.terminal && !seals.has(symbol.name)) roots.push(symbol.name);
+          } else {
+            const binding=bindings.get(name);
+            if(binding && !binding[0])roots.push(binding[1]);
+          }
+        }
+        const reachable=[],known=new Set(),todo=roots.slice().reverse();
+        while(todo.length) {const name=todo.pop();if(known.has(name))continue;known.add(name);reachable.push(name);for(const edge of (edges.get(name)??[]).slice().reverse())todo.push(edge.name);}
+        const done=new Set(),active=new Map();
+        /** @type {string[]} */ const path=[];
+        for(const root of reachable) {
+          if(done.has(root))continue;
+          const stack=[{name:root,next:0}];
+          while(stack.length) {
+            const frame=stack[stack.length-1];
+            if(!active.has(frame.name)) {active.set(frame.name,path.length);path.push(frame.name);}
+            const out=edges.get(frame.name)??[];
+            const edge=out[frame.next++];
+            if(!edge) {path.pop();active.delete(frame.name);done.add(frame.name);stack.pop();continue;}
+            if(!edge.marked || done.has(edge.name))continue;
+            if(active.has(edge.name)) {
+              const cycle=path.slice(active.get(edge.name)).concat(edge.name).filter(name=>!name.startsWith('\u0000'));
+              return {comparison,production,cycle};
+            }
+            stack.push({name:edge.name,next:0});
+          }
+        }
+    }
+    return null;
+  }
+
+  /** @param {any} context @param {any} root @param {boolean} [working] @returns {number} */
+  function derivationIdentity(context,root,working=false) {
+    context.emissionTrees ??= new TreeIdentities();
+    context.emissionTreeValues ??= new WeakMap();
+    context.emissionWorkingTreeValues ??= new WeakMap();
+    context.emissionTreeSeals ??= new Map();
+    const m=context.emissionTrees, memo=context.emissionTreeValues,pending=[root];
+    const seal=(/** @type {any} */ node)=> {
+      const key=`${node.start}/${node.end}`;
+      let id=context.emissionTreeSeals.get(key);
+      if(id===undefined) {id=m.seal(context.tokens.slice(node.start,node.end).map((/** @type {any} */ token)=>token.value));context.emissionTreeSeals.set(key,id);}
+      return id;
+    };
+    const table=(/** @type {any} */ node)=>working && node===root ? context.emissionWorkingTreeValues : memo;
+    while(pending.length) {
+      const node=pending[pending.length-1], cache=table(node);
+      if(cache.has(node)) {pending.pop();continue;}
+      if(node.read) {const identity=m.written(node.read.terminal,context.tokens[node.start].value);cache.set(node,{identity,sequence:m.append(0,identity)});continue;}
+      const sealed=node.production.erased && !(working && node===root);
+      if(!sealed) {
+        const child=node.children.find((/** @type {any} */ c,/** @type {number} */ i)=>!node.production.rhs[i]?.slot && !memo.has(c));
+        if(child) {pending.push(child);continue;}
+      }
+      let sequence=0;
+      if(sealed) sequence=m.append(0,seal(node));
+      else node.children.forEach((/** @type {any} */ c,/** @type {number} */ i)=> {
+        if(node.production.rhs[i]?.slot) sequence=m.append(sequence,seal(c));
+        else sequence=m.concat(sequence,memo.get(c).sequence);
+      });
+      let identity=-1;
+      if(node.production.spliceOf) identity=m.anonymous(sequence);
+      else if(!node.production.helper) {identity=m.rule(node.production.lhs,sequence);sequence=m.append(0,identity);}
+      else if(!node.children.length && node.production.elided!==null) {identity=m.omitted(node.production.elided);sequence=m.append(0,identity);}
+      cache.set(node,{identity,sequence});
+    }
+    return table(root).get(root).identity;
   }
 
   // ---- pattern-shapes.js
@@ -4518,9 +5171,16 @@
   /** @param {any} lowered @returns {boolean} */
   function canCountProfiles(lowered) {
     const steps=lowered.resolution.steps;
-    if (!steps.length) return false;
     const cached=profileDecisions.get(lowered);
     if (cached !== undefined) return cached;
+    if (lowered.productions.some((/** @type {any} */ production)=>!!production.error || production.erased)) {
+      profileDecisions.set(lowered,true);
+      return true;
+    }
+    if (!steps.length) {
+      profileDecisions.set(lowered,false);
+      return false;
+    }
     const pending=['text'],seen=new Set();
     let possible=false;
     const test=(/** @type {any} */ node)=>steps.some((/** @type {any} */ step)=>possibleNodeMatch(step.pattern,node)!==false);
@@ -4541,15 +5201,233 @@
     return possible;
   }
 
+  // ---- family-summaries.js
+  // The deletion automaton of engine §4.1. Items retain sets and relations,
+  // never permission-marked close sequences. Dead summaries filter witnesses
+  // only. The chart and its omission blockers still retain every item.
+
+
+
+  /**
+   * A null relation is the identity of a record-free empty item.
+   * @typedef {{id:number, dead:boolean, first:bigint, last:bigint, relation:bigint[]|null}} FamilySummary
+   */
+  /** @typedef {import("./close-observations.js").CloseEvent} Event */
+
+  /** @param {Event} left @param {Event} right @returns {boolean} */
+  function sameRecord(left, right) {
+    return left.kind === right.kind && (left.kind === "close"
+      ? left.terminal === /** @type {Extract<Event,{kind:"close"}>} */ (right).terminal && left.at === /** @type {Extract<Event,{kind:"close"}>} */ (right).at
+      : left.key === /** @type {Extract<Event,{kind:"block"}>} */ (right).key && left.start === /** @type {Extract<Event,{kind:"block"}>} */ (right).start && left.end === /** @type {Extract<Event,{kind:"block"}>} */ (right).end);
+  }
+
+  /**
+   * Independent whole-group test for the library's conformance switch. It
+   * reads each witness record directly, without item sets or relation joins.
+   * @param {Event[]} candidate
+   * @param {{event:Event, permitted:boolean}[]} witness
+   * @param {number} start @param {number} end
+   * @returns {boolean}
+   */
+  function deletionTest(candidate, witness, start, end) {
+    /** @type {(event:Event) => number} */
+    const position = event => event.kind === "close" ? event.at : event.start;
+    /** @type {(event:Event) => boolean} */
+    const inside = event => position(event) <= end && !(event.kind === "block" && event.start === end && event.end > end);
+    for (const {event} of witness) if (event.kind === "block" && event.start < end && event.end > end) return false;
+    const kept = candidate.filter(inside);
+    const records = witness.filter(record => inside(record.event));
+    // A state records matched candidate records and whether the last step
+    // deleted one. A later match or a following token supplies its right anchor.
+    let states = new Set(["0/0"]);
+    for (const {event, permitted} of records) {
+      const next = new Set();
+      for (const state of states) {
+        const [index, trailing] = state.split("/").map(Number);
+        const at = position(event);
+        // Candidate records before this boundary must already be matched.
+        if (index < kept.length && position(kept[index]) < at) continue;
+        if (index < kept.length && sameRecord(event, kept[index])) next.add(`${index+1}/0`);
+        const earlierRecord = index > 0 && position(kept[index-1]) === at;
+        if (permitted && event.kind === "close" && (at > start || earlierRecord)) next.add(`${index}/1`);
+        // `trailing` stays relevant only at the final boundary.
+        void trailing;
+      }
+      states = next;
+    }
+    return states.has(`${kept.length}/0`) || (records.length !== 0 && position(records[records.length-1].event) < end && states.has(`${kept.length}/1`));
+  }
+
+  class FamilySummaries {
+    /**
+     * @param {import("./close-observations.js").CloseObservations} closes
+     * @param {import("./close-observations.js").CloseObservation} candidate
+     * @param {number} start
+     * @param {number} end
+     */
+    constructor(closes, candidate, start, end) {
+      this.start = start;
+      this.end = end;
+      /** @type {Map<number,Event[]>} */ this.groups = new Map();
+      for (const event of closes.raw.values(candidate.sequence)) {
+        const at = event.kind === "close" ? event.at : event.start;
+        const group = this.groups.get(at);
+        if (group) group.push(event);
+        else this.groups.set(at, [event]);
+      }
+      this.groupPositions = [...this.groups.keys()].sort((a, b) => a - b);
+      /** @type {Map<string,FamilySummary>} */ this.summaries = new Map();
+      /** @type {Set<number>} */ this.taken = new Set();
+      /** @type {Map<string,bigint[]>} */ this.records = new Map();
+      /** @type {Map<string,FamilySummary>} */ this.joins = new Map();
+      this.identity = this.intern(false, 0n, 0n, null);
+      this.dead = this.intern(true, 0n, 0n, null);
+    }
+
+    /** @param {number} at @returns {Event[]} */
+    group(at) { return this.groups.get(at) ?? []; }
+
+    /** @param {boolean} dead @param {bigint} first @param {bigint} last @param {bigint[]|null} relation @returns {FamilySummary} */
+    intern(dead, first, last, relation) {
+      const key = dead ? "dead" : `${first}/${last}/${relation?.join(",") ?? "identity"}`;
+      let summary = this.summaries.get(key);
+      if (!summary) {
+        summary = {id:this.summaries.size, dead, first, last, relation};
+        this.summaries.set(key, summary);
+      }
+      return summary;
+    }
+
+    /** @param {FamilySummary} summary @returns {FamilySummary} */
+    take(summary) {
+      if (!this.taken.has(summary.id)) {
+        this.taken.add(summary.id);
+        if (hooks.work) countWork(hooks.work, "familySummaries");
+      }
+      return summary;
+    }
+
+    /** @param {number} at @param {boolean} final @returns {bigint} */
+    accept(at, final = false) {
+      if (at > this.end) return 1n;
+      const group = this.group(at);
+      let count = group.length;
+      if (final && count && group[count-1].kind === "block" && /** @type {Extract<Event,{kind:"block"}>} */ (group[count-1]).end > at) count--;
+      return (final || at === this.end ? 1n : 3n) << BigInt(2*count);
+    }
+
+    /** @param {bigint[]|null} relation @param {bigint} set @returns {bigint} */
+    image(relation, set) {
+      if (relation === null) return set;
+      if (hooks.work) countWork(hooks.work, "familySteps", relation.length);
+      let result = 0n;
+      for (let index = 0; index < relation.length; index++) if (set & (1n << BigInt(index))) result |= relation[index];
+      return result;
+    }
+
+    /** @param {bigint[]|null} relation @param {bigint} set @returns {bigint} */
+    preimage(relation, set) {
+      if (relation === null) return set;
+      if (hooks.work) countWork(hooks.work, "familySteps", relation.length);
+      let result = 0n;
+      for (let index = 0; index < relation.length; index++) if (relation[index] & set) result |= 1n << BigInt(index);
+      return result;
+    }
+
+    /** @param {Event} event @param {boolean} permitted @returns {FamilySummary} */
+    record(event, permitted) {
+      const at = event.kind === "close" ? event.at : event.start;
+      if (at > this.end || event.kind === "block" && at === this.end && event.end > at) return this.identity;
+      const group = this.group(at);
+      if (hooks.work) countWork(hooks.work, "familySteps", 2*(group.length+1));
+      const key = JSON.stringify([event.kind === "close" ? [event.terminal,event.at] : [event.key,event.start,event.end], permitted]);
+      let relation = this.records.get(key);
+      if (!relation) {
+        relation = Array(2*(group.length+1)).fill(0n);
+        for (let i = 0; i <= group.length; i++) {
+          let targets = 0n;
+          if (i < group.length && sameRecord(event, group[i])) targets |= 1n << BigInt(2*(i+1));
+          if (permitted && event.kind === "close" && (i > 0 || at > this.start)) targets |= 1n << BigInt(2*i+1);
+          relation[2*i] = relation[2*i+1] = targets;
+        }
+        this.records.set(key, relation);
+      }
+      return this.intern(false, 0n, 0n, relation);
+    }
+
+    /**
+     * A token or an opaque block reads an interval. Its interior has no
+     * visible records. Candidate records there therefore make it dead.
+     * @param {number} start @param {number} end @returns {FamilySummary}
+     */
+    tokens(start, end) {
+      if (start < this.end && this.end < end) return this.dead;
+      if (end - start > 1) {
+        let low = 0, high = this.groupPositions.length;
+        while (low < high) {
+          const mid = (low + high) >>> 1;
+          if (this.groupPositions[mid] <= start) low = mid + 1;
+          else high = mid;
+        }
+        const at = this.groupPositions[low];
+        if (at !== undefined && at < end && at <= this.end) return this.dead;
+      }
+      return this.intern(false, this.accept(start), 1n, null);
+    }
+
+    /**
+     * @param {FamilySummary} left @param {FamilySummary} right
+     * @param {number} start @param {number} middle @param {number} end
+     * @returns {FamilySummary}
+     */
+    join(left, right, start, middle, end) {
+      if (left.dead || right.dead) return this.dead;
+      const key = `${left.id}/${right.id}/${start === middle}/${middle === end}`;
+      const known = this.joins.get(key);
+      if (known) {
+        // Memoization skips row computation, but the shared work metric
+        // charges the specified relation operation at each use.
+        let steps = 0;
+        if (start === middle && middle === end) {
+          if (left.relation && right.relation) steps = left.relation.length*right.relation.length;
+        } else if (start === middle) steps = left.relation?.length ?? 0;
+        else if (middle === end) steps = right.relation?.length ?? 0;
+        if (hooks.work) countWork(hooks.work, "familySteps", steps);
+        return known;
+      }
+      let summary;
+      if (start === middle && middle === end) {
+        const relation = left.relation === null ? right.relation : right.relation === null ? left.relation : left.relation.map(row => this.image(right.relation, row));
+        summary = this.intern(false, 0n, 0n, relation);
+      } else if (start === middle) {
+        summary = this.intern(false, this.preimage(left.relation, right.first), right.last, null);
+      } else if (middle === end) {
+        summary = this.intern(false, left.first, this.image(right.relation, left.last), null);
+      } else {
+        summary = left.last & right.first ? this.intern(false, left.first, right.last, null) : this.dead;
+      }
+      this.joins.set(key, summary);
+      return summary;
+    }
+
+    /** @param {FamilySummary} summary @param {number} end @returns {boolean} */
+    accepts(summary, end) {
+      if (summary.dead) return false;
+      const accepting = this.accept(end, true);
+      return end === this.start ? !!(this.image(summary.relation, 1n) & accepting)
+        : !!(summary.first & 1n) && (end > this.end || !!(summary.last & accepting));
+    }
+  }
+
   // ---- template-nodes.js
   // Shared unresolved template nodes. This module has no loader dependencies.
 
   /** @param {any} node @returns {string[]} */
   function sourceKeys(node) {
-    const prefix = node.name && node.op ? ['instance','args','tags','value','image','alternatives','conditions','emit']
+    const prefix = node.name && node.op ? ['instance','args','tags','value','image','alternatives','conditions','error','warning','suppressWarnings','emit']
       : node.expr && !node.test ? ['expr','tags','value','image']
       : 'capture' in node || node.insert ? ['tags','value','image'] : [];
-    const order = [...prefix,'if','then','left','right','not','any','all','receiver','args','expr','body','targets','requirements','negated','tags','value','image','pattern','child','children','repeat','separator','optional','seq','choice','ranked','and','union','intersection','difference','concat','items','before','after'];
+    const order = [...prefix,'if','then','left','right','not','any','all','receiver','args','expr','splice','body','targets','requirements','negated','tags','value','image','pattern','child','children','repeat','separator','optional','seq','choice','ranked','and','union','intersection','difference','concat','items','before','after'];
     return [...new Set(order)].filter(key=>Object.hasOwn(node,key)).concat(Object.keys(node).filter(key=>!order.includes(key)).sort());
   }
 
@@ -4569,7 +5447,7 @@
   function argumentOfExpression(expr) {
     if(expr.ref) return /^[A-Z_]/.test(expr.ref)?{tag:expr.ref}:{rule:expr.ref};
     if(expr.literal) return expr.literal;
-    if(expr.param || expr.call || expr.test || expr.range || expr.wildcard) return expr;
+    if(expr.param || expr.call || expr.splice || expr.test || expr.range || expr.wildcard) return expr;
     return {body:expr};
   }
 
@@ -4577,6 +5455,12 @@
   function normalizeArgument(value, copyLocation = null, patterns = new Set()) {
     if(!value || typeof value!=="object") return value;
     if(Array.isArray(value)) return value.map(item => normalizeArgument(item,copyLocation,patterns));
+    if(value.method === "parse") {
+      const result={...value,receiver:normalizeArgument(value.receiver,copyLocation,patterns),
+        args:value.args.map((/** @type {any} */ arg)=>({body:normalizeArgument(arg.body,copyLocation,patterns)}))};
+      copyLocation?.(value,result);
+      return result;
+    }
     if(value.body) {
       const converted=argumentOfExpression(normalizeArgument(value.body,copyLocation,patterns));
       return converted;
@@ -4640,10 +5524,11 @@
   // Receiver-first method signatures (engine §10).
 
 
+
   const METHOD_SIGNATURE_PROBLEM = "a method has the wrong receiver or arguments";
 
   const SPAN_METHODS = new Set(["first-token", "tokens-after-first", "last-token", "onward", "following-tokens", "preceding-tokens", "without-elision", "without-elision-except"]);
-  const QUERY_METHODS = new Set(["matches", "begins", "ends", "starts-input", "ends-input", "followed-by", "preceded-by"]);
+  const QUERY_METHODS = new Set(["matches", "begins", "ends", "starts-input", "ends-input", "parse", "error-free", "followed-by", "preceded-by"]);
   const INPUT_STRINGS = new Set(["value", "image", "source-text", "decomposed-source-text"]);
   const TARGET_METHODS = new Set(["matches", "begins", "ends", "followed-by", "preceded-by"]);
   const METHODS = new Set([...SPAN_METHODS, ...QUERY_METHODS, ...INPUT_STRINGS, "tags", "classes", "split", "ngrams", "classify", "verbatim-text", "emitted"]);
@@ -4668,7 +5553,12 @@
     const term = (/** @type {any} */ arg) => object(arg) && !["rule", "classifier", "terminal", "integer"].some(key => key in arg);
     if (name === "ends" && restored(receiver)) return "ends requires an ordinary span, not a restored span";
     let valid;
-    if (name === "ngrams") valid = args.length === 1 && named(args[0], "integer") && /^[1-9][0-9]*$/.test(args[0].integer);
+    if (name === "parse") {
+      if (args.length !== 1 || !object(args[0]) || Object.keys(args[0]).length !== 1 || !object(args[0].body)) return METHOD_SIGNATURE_PROBLEM;
+      if (restored(receiver) && queryBody(args[0].body).mode === "ends") return "suffix parse requires an ordinary span, not a restored span";
+      valid = span;
+    } else if (name === "error-free") valid = ["parse","error-free"].includes(receiver.method) && args.length === 0;
+    else if (name === "ngrams") valid = args.length === 1 && named(args[0], "integer") && /^[1-9][0-9]*$/.test(args[0].integer);
     else if (name === "split") valid = args.length === 1 && term(args[0]) && !(hasUnresolved([receiver,args]) && args[0].string === "");
     else if (name === "classify") valid = args.length === 1 && named(args[0], "classifier");
     else if (name === "tags") valid = span && (args.length === 0 || args.length === 1 && rule(args[0]));
@@ -4697,7 +5587,12 @@
     const span = type === "span";
     const string = type === "string" || type === "any" || span;
     const rule = (/** @type {number} */ index) => args[index] && typeof args[index].rule === "string";
-    if (name === "without-elision") {
+    if (name === "parse") {
+      if (!span || args.length !== 1 || !args[0]?.body) return METHOD_SIGNATURE_PROBLEM;
+      if (restored(receiver) && queryBody(args[0].body).mode === "ends") return "suffix parse requires an ordinary span, not a restored span";
+    } else if (name === "error-free") {
+      if (type !== "forest" || args.length) return METHOD_SIGNATURE_PROBLEM;
+    } else if (name === "without-elision") {
       if (args.length || typeof receiver.capture !== "string" || Object.keys(receiver).length !== 1) {
         return "without-elision requires a bare capture: write $x.without-elision.onward";
       }
@@ -4738,6 +5633,7 @@
 
   /** @param {string} name @returns {string} */
   function methodType(name) {
+    if (name === "parse" || name === "error-free") return "forest";
     if (SPAN_METHODS.has(name)) return "span";
     if (QUERY_METHODS.has(name)) return "condition";
     if (name === "emitted") return "emitted";
@@ -4757,7 +5653,653 @@
     return receiver?.method === "without-elision" || receiver?.method === "without-elision-except";
   }
 
+  // ---- tokens.js
+  // Tokens (engine §1): what every stage reads and writes.
+
+
+
+
+  /** @import { TagSet, Span } from "./types.js" */
+  /** @import { UnicodeTable } from "./unicode.js" */
+
+  /**
+   * A token attached to another (engine §11): a token with no span, since its
+   * span counts the input of the stage that attached it.
+   * @typedef {Omit<Token, "span">} AttachedToken
+   */
+
+  // The attachments of a token that has none: one frozen list, shared, so that
+  // a character token costs no lists of its own.
+  /** @type {AttachedToken[]} */
+  const NO_ATTACHMENTS = /** @type {AttachedToken[]} */ (/** @type {unknown} */ (Object.freeze([])));
+
+  /** @type {import("./types.js").ParseWarning[]} */
+  const NO_DIAGNOSTICS = /** @type {import("./types.js").ParseWarning[]} */ (/** @type {unknown} */ (Object.freeze([])));
+
+  class Token {
+    /**
+     * @param {TagSet} tags
+     * @param {Span} span the tokens of the stage before it this token covers
+     * @param {Span} source the code points of the text it covers
+     * @param {string} text the text it covers, as written
+     * @param {string} [value] the stored comparison string
+     * @param {string | undefined} insertedBy the rule that inserted it, for a
+     *   token no text stands for
+     * @param {string} [image] what it shows to people (engine §5): by default
+     *   its text, as for a caller-supplied token
+     */
+    constructor(tags, span, source, text, value = text, insertedBy = undefined, image = text) {
+      this.tags = tags;
+      this.span = span;
+      this.source = source;
+      this.text = text;
+      this.value = value;
+      this.insertedBy = insertedBy;
+      this.image = image;
+      /** @type {import("./types.js").ParseWarning[]} */
+      this.errors = NO_DIAGNOSTICS;
+      /** @type {import("./types.js").ParseWarning[]} */
+      this.warnings = NO_DIAGNOSTICS;
+      /**
+       * The tokens attached before this one (engine §11), none by default.
+       * @type {AttachedToken[]}
+       */
+      this.before = NO_ATTACHMENTS;
+      /**
+       * The tokens attached after this one (engine §11), none by default.
+       * @type {AttachedToken[]}
+       */
+      this.after = NO_ATTACHMENTS;
+    }
+  }
+
+  /**
+   * Whether a token has attachments (engine §11).
+   * @param {AttachedToken} token
+   * @returns {boolean}
+   */
+  function hasAttachments(token) {
+    return token.before.length > 0 || token.after.length > 0;
+  }
+
+  /**
+   * A token as an attachment: the same token without its span (engine §11).
+   * @param {Token} token
+   * @returns {AttachedToken}
+   */
+  function attached(token) {
+    const { span, ...rest } = token;
+    void span;
+    return rest;
+  }
+
+  // The source of a run of tokens (engine §1): from the least source start
+  // among them to the greatest source end. Tokens usually lie in the order of
+  // their sources, and then that is the first token's start and the last
+  // token's end. Otherwise a table of the least start and the greatest end of
+  // every run of a power of two tokens answers without a scan, so that the
+  // nested nodes of a long left-recursive rule cost no more than its tokens.
+  class Sources {
+    /** @param {Token[]} tokens */
+    constructor(tokens) {
+      this.tokens = tokens;
+      /**
+       * Made at the first question: null when the tokens are in order.
+       * @type {{lows: number[][], highs: number[][]} | null | undefined}
+       */
+      this.table = undefined;
+    }
+
+    /**
+     * The source of tokens [start, end), which must not be empty.
+     * @param {number} start
+     * @param {number} end
+     * @returns {Span}
+     */
+    of(start, end) {
+      if (this.table === undefined) this.table = sourceTable(this.tokens);
+      if (this.table === null) return [this.tokens[start].source[0], this.tokens[end - 1].source[1]];
+      // Two runs of a power of two tokens cover the span between them.
+      const level = 31 - Math.clz32(end - start);
+      const other = end - (1 << level);
+      const lows = this.table.lows[level];
+      const highs = this.table.highs[level];
+      return [Math.min(lows[start], lows[other]), Math.max(highs[start], highs[other])];
+    }
+  }
+
+  /**
+   * @param {Token[]} tokens
+   * @returns {{lows: number[][], highs: number[][]} | null}
+   */
+  function sourceTable(tokens) {
+    let ordered = true;
+    for (let index = 1; index < tokens.length && ordered; index++) {
+      const before = tokens[index - 1].source;
+      const after = tokens[index].source;
+      ordered = before[0] <= after[0] && before[1] <= after[1];
+    }
+    if (ordered) return null;
+    // lows[k][i] is the least start of tokens [i, i + 2^k), and highs[k][i]
+    // the greatest end.
+    const lows = [tokens.map((token) => token.source[0])];
+    const highs = [tokens.map((token) => token.source[1])];
+    for (let width = 1; 2 * width <= tokens.length; width *= 2) {
+      const low = lows[lows.length - 1];
+      const high = highs[highs.length - 1];
+      /** @type {number[]} */
+      const nextLow = [];
+      /** @type {number[]} */
+      const nextHigh = [];
+      for (let index = 0; index + 2 * width <= tokens.length; index++) {
+        nextLow.push(Math.min(low[index], low[index + width]));
+        nextHigh.push(Math.max(high[index], high[index + width]));
+      }
+      lows.push(nextLow);
+      highs.push(nextHigh);
+    }
+    return { lows, highs };
+  }
+
+  // The first stage's input: one token per decomposed scalar, with its
+  // original source and the scalar's engine tags (engine §1).
+  /**
+   * @param {string} text
+   * @param {UnicodeTable} unicode
+   * @returns {Token[]}
+   */
+  function characterTokens(text, unicode) {
+    if (/[\uD800-\uDFFF]/u.test(text)) throw new GencmuError("usage", "the text contains a lone surrogate");
+    const tokens = [];
+    // Recognition treats these sets as immutable. The pipeline gives each
+    // public token its own set before returning a result.
+    /** @type {Map<number,TagSet>} */
+    const profiles = new Map();
+    let index = 0;
+    const original = [...text];
+    for (const { character, origin } of unicode.decomposeWithOrigins(text)) {
+      const code = /** @type {number} */ (character.codePointAt(0));
+      let tags = profiles.get(code);
+      if (!tags) {
+        tags = tagSet(unicode.profile(code));
+        profiles.set(code,tags);
+      }
+      tokens.push(new Token(tags, [index, index + 1], [origin, origin + 1], original[origin], character, undefined, character));
+      index++;
+    }
+    return tokens;
+  }
+
+  // ---- eligible.js
+  // Written-terminator priority for nested queries (engine §4): which
+  // completed items of a queried rule have an eligible proof tree.
+
+  /**
+   * @import { Edge, Item, LoweredGrammar } from "./types.js"
+   * @import { Chart } from "./earley.js"
+   */
+
+
+  /** @type {WeakMap<LoweredGrammar, {elidable:Set<string>,optional:Map<string,object>}>} */
+  const helperSites = new WeakMap();
+  /** @type {WeakMap<LoweredGrammar,boolean>} */
+  const errorGrammars = new WeakMap();
+
+  /**
+   * Elidable helpers and the written sites of split plain optional helpers. A
+   * captured optional can have separate helpers for its expanded routes.
+   * @param {LoweredGrammar} lowered
+   * @returns {{elidable:Set<string>,optional:Map<string,object>}}
+   */
+  function helpersOf(lowered) {
+    let helpers = helperSites.get(lowered);
+    if (!helpers) {
+      helpers = {elidable:new Set(),optional:new Map()};
+      /** @type {Map<object,Set<string>>} */
+      const sites = new Map();
+      for (const production of lowered.productions) {
+        if (!production.helper) continue;
+        if (production.elided !== null) helpers.elidable.add(production.lhs);
+        const expression = production.writtenExpression;
+        if (expression && "optional" in expression && expression.elidable !== true) {
+          let names = sites.get(expression);
+          if (!names) sites.set(expression,names=new Set());
+          names.add(production.lhs);
+        }
+      }
+      // One helper already joins all its optional's routes in the chart.
+      // Only distinct names of one written site need the logical group key.
+      for (const [expression,names] of sites) {
+        if (names.size > 1) for (const name of names) helpers.optional.set(name,expression);
+      }
+      helperSites.set(lowered, helpers);
+    }
+    return helpers;
+  }
+
+  /**
+   * Whether a completed item is the empty helper of an elidable optional: an
+   * advance over it is an omission.
+   * @param {Item} item
+   * @returns {boolean}
+   */
+  function omitted(item) {
+    return item.production.helper && item.production.elided !== null && item.production.rhs.length === 0;
+  }
+
+  /**
+   * Whether a completed item is an elidable optional's helper over its
+   * nonempty alternative: an advance over it reads the optional as written.
+   * @param {Item} item
+   * @returns {boolean}
+   */
+  function written(item) {
+    return item.dot === item.production.rhs.length && item.production.helper && item.production.elided !== null && item.production.rhs.length > 0;
+  }
+
+  /**
+   * @param {Item} item
+   * @returns {{node:import("./logical.js").LogicalSymbol|undefined, initial:boolean}|null}
+   */
+  function logicalPredecessor(item) {
+    const roots = item.production.logical;
+    if (!roots) return null;
+    /** @param {import("./logical.js").LogicalSymbol[]} nodes @param {boolean} root @returns {{node:import("./logical.js").LogicalSymbol|undefined,initial:boolean}|null} */
+    const find = (nodes,root) => {
+      for (let index=0;index<nodes.length;index++) {
+        const node = nodes[index];
+        if (node.symbol && node.from === item.dot) return {node:nodes[index-1],initial:root && index === 1};
+        if (node.children && node.from <= item.dot && item.dot < node.to) {
+          const result = find(node.children,false);
+          if (result) return result;
+        }
+      }
+      return null;
+    };
+    return find(roots,true);
+  }
+
+  /**
+   * The completed items of the queried rule with an eligible proof tree in
+   * the chart (engine §4). An omission is an advance over the
+   * empty helper of an elidable optional at its position p. It is forbidden
+   * where the prefix that the proof tree holds fixed can go on and read the
+   * optional as written:
+   *
+   * - Where the optional has a constituent Y, the prefix is the item before Y
+   *   in the same proof tree. The omission is forbidden when the chart advances
+   *   that item over Y to some p' ≥ p, and the item so made advances over the
+   *   optional's nonempty alternative.
+   * - Otherwise the prefix is the item before the optional, and the omission
+   *   is forbidden when the chart advances that item over the nonempty
+   *   alternative.
+   *
+   * The chart is the whole recognition of the query, before any filtering,
+   * so an attempt that never completes the rule can forbid an omission.
+   *
+   * Each item has two states, computed together to the least fixpoint: it has
+   * an eligible proof tree (E), and an eligible proof tree that permits
+   * the optional after it to be empty (P). P follows the proof tree,
+   * so a permitted omission never combines with another proof tree's prefix.
+   * @param {Chart} chart
+   * @param {Item[]} witnesses
+   * @param {boolean} [errorFree]
+   * @returns {Item[]}
+   */
+  function eligibleWitnesses(chart, witnesses, errorFree = false) {
+    if (witnesses.length === 0) return witnesses;
+    const {elidable:helpers,optional:optionals} = helpersOf(chart.context.lowered);
+    let errors=errorGrammars.get(chart.context.lowered);
+    if (errors===undefined) { errors=chart.context.lowered.productions.some(production=>!!production.error);errorGrammars.set(chart.context.lowered,errors); }
+    if (helpers.size === 0 && !errors && !errorFree) return witnesses;
+    // The items the witnesses rest on, children before the items made from
+    // them where the edges allow, so that one sweep settles most of them.
+    /** @type {Map<Item, number>} */
+    const index = new Map();
+    /** @type {Item[]} */
+    const order = [];
+    let omits = false;
+    for (const witness of witnesses) {
+      if (index.has(witness)) continue;
+      index.set(witness, -1);
+      /** @type {{item: Item, edges: Edge[], next: number}[]} */
+      const stack = [{ item: witness, edges: witness.edges, next: 0 }];
+      while (stack.length > 0) {
+        const frame = stack[stack.length - 1];
+        let pushed = false;
+        while (frame.next < frame.edges.length * 2) {
+          const step = frame.next++;
+          const edge = frame.edges[step >> 1];
+          /** @type {Item | null} */
+          let below = null;
+          if ((step & 1) === 0) below = edge.kind === "seed" || edge.kind === "restore" ? null : edge.previous;
+          else if (edge.kind === "complete") {
+            below = edge.child;
+            if (omitted(edge.child)) omits = true;
+          }
+          if (below !== null && !index.has(below)) {
+            index.set(below, -1);
+            stack.push({ item: below, edges: below.edges, next: 0 });
+            pushed = true;
+            break;
+          }
+        }
+        if (pushed) continue;
+        stack.pop();
+        index.set(frame.item, order.length);
+        order.push(frame.item);
+      }
+    }
+    // With no omission, every item of a chart has a finite proof, made from
+    // predicted items in the order in which the recognizer made it.
+    if (!omits && !errors && !errorFree) return witnesses;
+
+    // The prefixes that advance over a written optional, and for each item
+    // before a constituent Y, the furthest end of an advance over Y that then
+    // reads the optional as written.
+    /** @type {Set<Item>} */
+    const reads = new Set();
+    for (const set of chart.sets) {
+      if (!set) continue;
+      for (const item of set.items) {
+        for (const edge of item.edges) if (edge.kind === "complete" && written(edge.child)) reads.add(edge.previous);
+      }
+    }
+    /** @type {Map<Item, number>} */
+    const further = new Map();
+    for (const item of reads) {
+      for (const edge of item.edges) {
+        if (edge.kind !== "complete") continue;
+        const known = further.get(edge.previous);
+        if (known === undefined || known < item.end) further.set(edge.previous, item.end);
+      }
+    }
+
+    // For each item, whether an elidable optional comes next, and whether it
+    // has a constituent: not at the start, not after a terminal, and not
+    // after the first symbol of a production whose first symbol is its own
+    // rule (engine §4).
+    /** @type {Map<Item,import("./logical.js").LogicalSymbol>} */
+    const precedingGroups = new Map();
+    /** @param {Item} item @returns {"none"|"alone"|"constituent"|"group"} */
+    const nextKind = item => {
+      const rhs = item.production.rhs;
+      const symbol = rhs[item.dot];
+      if (symbol === undefined || symbol.terminal || !helpers.has(symbol.name)) return "none";
+      const logical = logicalPredecessor(item);
+      if (logical) {
+        const previous = logical.node;
+        if (!previous || previous.symbol?.terminal) return "alone";
+        const optional = previous.symbol && optionals.get(previous.symbol.name);
+        if (previous.children || optional) {
+          // Both physical helper variants and inline expansions retain one
+          // optional boundary for the fixed prefix and all blocker routes.
+          precedingGroups.set(item,optional ? {...previous,written:optional} : previous);
+          return "group";
+        }
+        if (logical.initial && previous.symbol?.name === item.production.lhs) return "alone";
+        return "constituent";
+      }
+      if (item.dot === 0 || rhs[item.dot-1].terminal) return "alone";
+      if (item.dot === 1 && rhs[0].name === item.production.lhs) return "alone";
+      return "constituent";
+    };
+    const next = order.map(nextKind);
+    const identities = new WeakMap();
+    let identityCount = 0;
+    /** @param {object|undefined} object */
+    const identity = object => {
+      if (!object) return 0;
+      let id = identities.get(object);
+      if (id === undefined) identities.set(object,id=++identityCount);
+      return id;
+    };
+    /** @param {Item} item @param {import("./logical.js").LogicalSymbol} group */
+    const fixedKey = (item,group) => {
+      const captures = [];
+      for (let slot=item.slots;slot;slot=slot.parent) {
+        const name = item.production.captures[slot.index].name;
+        captures.push([name,slot.start,slot.end,slot.tags,slot.structure,slot.observation?.sequence]);
+      }
+      const symbols = item.production.rhs.map((symbol,index) => [symbol.name,symbol.test?.written,
+        item.production.captures.filter(capture => capture.index === index && !capture.name.startsWith("\u0000")).map(capture => capture.name)]);
+      // Only the preceding optional's route varies. Every outside expansion
+      // remains part of the same logical production and fixed prefix.
+      const outside = [...symbols.slice(0,group.from),["optional"],...symbols.slice(group.to)];
+      // A surrounding optional can also have one helper per expanded route.
+      const owner = optionals.get(item.production.lhs);
+      const scope = owner ? ["optional",identity(owner)] : item.production.lhs;
+      return JSON.stringify([identity(item.production.logicalSource ?? item.production.source),scope,identity(group.written),
+        item.origin,item.end,item.structure,item.observationPrefix?.sequence,item.boundary?.id,outside,captures.reverse()]);
+    };
+    /** @param {Item} item @param {number} dot @returns {Item[]} */
+    const boundaries = (item,dot) => {
+      const result = [], pending = [item], seen = new Set();
+      while (pending.length) {
+        const current = /** @type {Item} */ (pending.pop());
+        if (seen.has(current)) continue;
+        seen.add(current);
+        if (current.dot === dot) result.push(current);
+        else for (const edge of current.edges) if (edge.kind === "scan" || edge.kind === "complete") pending.push(edge.previous);
+      }
+      return result;
+    };
+    const groupFurther = new Map();
+    for (const item of reads) if (nextKind(item) === "group") {
+      const group = /** @type {import("./logical.js").LogicalSymbol} */ (precedingGroups.get(item));
+      for (const prefix of boundaries(item,group.from)) {
+        const key = fixedKey(prefix,group);
+        groupFurther.set(key,Math.max(groupFurther.get(key) ?? -1,item.end));
+      }
+    }
+    // Each mask holds distinct proof states: 1 is clean and 2 carries an
+    // error. E and P retain those states separately. The support channel
+    // keeps finite written-priority proofs through own errors for erasure.
+    const eligible = new Uint8Array(order.length), permits = new Uint8Array(order.length);
+    const support = new Uint8Array(order.length), supportPermits = new Uint8Array(order.length);
+    /** @type {(item: Item) => number} */
+    const at = item => /** @type {number} */ (index.get(item));
+    /** @param {number} left @param {number} right */
+    const combine = (left,right) => (left & right & 1) | (left && right && ((left | right) & 2) ? 2 : 0);
+    /** @param {Edge} edge */
+    const dirtyRead = edge => (edge.kind === "scan" || edge.kind === "restore") && (chart.context.tokens[edge.token].errors?.length ?? 0) !== 0;
+    /**
+     * Find a permitted proof of one F state through a logical optional.
+     * Reverse advances retain that state, so a dirty permitted proof cannot
+     * lend permission to a clean forbidden proof of the same chart item.
+     * @param {Item} item
+     * @param {import("./logical.js").LogicalSymbol} group
+     * @param {number} end
+     * @param {Uint8Array} states
+     * @param {Uint8Array} permissions
+     * @param {number} bit
+     */
+    const groupPermits = (item,group,end,states,permissions,bit) => {
+      const pending = [{item,bit}], seen = new Set();
+      while (pending.length) {
+        const current = /** @type {{item:Item,bit:number}} */ (pending.pop());
+        const key = at(current.item)*2 + (current.bit === 2 ? 1 : 0);
+        if (seen.has(key) || !(states[at(current.item)] & current.bit)) continue;
+        seen.add(key);
+        if (current.item.dot === group.from) {
+          if ((groupFurther.get(fixedKey(current.item,group)) ?? -1) < end) return true;
+          continue;
+        }
+        for (const edge of current.item.edges) {
+          if (edge.kind === "scan") {
+            for (const before of [1,2]) if (states[at(edge.previous)] & before &&
+                (dirtyRead(edge) ? 2 : before) === current.bit) pending.push({item:edge.previous,bit:before});
+          } else if (edge.kind === "complete") {
+            const beforeStates = omitted(edge.child) ? permissions[at(edge.previous)] : states[at(edge.previous)];
+            for (const before of [1,2]) for (const child of [1,2]) {
+              if (beforeStates & before && states[at(edge.child)] & child &&
+                  combine(before,child) === current.bit) pending.push({item:edge.previous,bit:before});
+            }
+          }
+        }
+      }
+      return false;
+    };
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (let x = 0; x < order.length; x++) {
+        const item = order[x];
+        // These are semantic support channels, not separate legacy paths.
+        for (const raw of [true,false]) {
+          const states = raw ? support : eligible, permissions = raw ? supportPermits : permits;
+          let e = 0, p = 0;
+          for (const edge of item.edges) {
+            let through = 0;
+            if (edge.kind === "seed" || edge.kind === "restore") through = dirtyRead(edge) ? 2 : 1;
+            else if (edge.kind === "scan") through = dirtyRead(edge) ? states[at(edge.previous)] ? 2 : 0 : states[at(edge.previous)];
+            else through = combine(omitted(edge.child) ? permissions[at(edge.previous)] : states[at(edge.previous)],states[at(edge.child)]);
+            if (!through) continue;
+            e |= through;
+            if (next[x] === "alone" && !reads.has(item)) p |= through;
+            else if (next[x] === "group") {
+              const group = /** @type {import("./logical.js").LogicalSymbol} */ (precedingGroups.get(item));
+              for (const bit of [1,2]) if (through & bit && groupPermits(item,group,item.end,states,permissions,bit)) p |= bit;
+            } else if (next[x] === "constituent" && edge.kind === "complete") {
+              const end = further.get(edge.previous);
+              if (end === undefined || end < item.end) p |= through;
+            }
+          }
+          if (item.complete && item.production.erased) {
+            // This replaces the ordinary completion transition. Its finite
+            // support can contain own errors that normal E rejects.
+            e = support[x] || e ? 1 : 0;
+            p = p ? 1 : 0;
+          } else if (item.complete && item.production.error) {
+            e = raw && e ? 2 : 0;
+            p = raw && p ? 2 : 0;
+          }
+          if ((states[x] | e) !== states[x]) { states[x] |= e; changed = true; }
+          if ((permissions[x] | p) !== permissions[x]) { permissions[x] |= p; changed = true; }
+        }
+      }
+    }
+    return witnesses.filter(witness => errorFree ? !!(eligible[at(witness)] & 1) : eligible[at(witness)] !== 0);
+  }
+
+  // ---- nullable-errors.js
+  // Conservative empty-error test before feature filtering (engine §3.6).
+
+  /**
+   * The first error alternative that can read no tokens. Gates, conditions,
+   * and symbol tests cannot establish a positive width. Each dependency edge
+   * participates in the least fixed point once, including recursive calls.
+   * @param {Map<string,import('./grammar.js').StitchedRule>} rules
+   * @param {{rule:import('./grammar.js').StitchedRule,alternative:import('./grammar.js').StitchedAlternative}[]} errors
+   */
+  function nullableError(rules, errors) {
+    /** @typedef {{all:boolean,children:number[],users:number[],remaining:number,value:boolean}} Node */
+    /** @type {Node[]} */
+    const nodes=[];
+    /** @type {Map<object|string,number>} */
+    const identities=new Map();
+    /** @type {(object|string)[]} */
+    const pending=[];
+    /** @param {object|string} identity */
+    const intern=identity=>{
+      const previous=identities.get(identity);
+      if(previous!==undefined)return previous;
+      const id=nodes.length;
+      identities.set(identity,id);
+      nodes.push({all:false,children:[],users:[],remaining:0,value:false});
+      pending.push(identity);
+      return id;
+    };
+    const roots=errors.map(({alternative})=>intern(alternative.expr));
+    for(let index=0;index<pending.length;index++){
+      const identity=pending[index],node=nodes[index];
+      /** @type {(object|string)[]} */
+      let children=[];
+      if(typeof identity==='string')children=rules.get(identity)?.alternatives.map(alternative=>alternative.expr) ?? [];
+      else {
+        const expr=/** @type {import('./types.js').Expr} */(identity);
+        if('empty' in expr || 'optional' in expr)node.all=true;
+        else if('seq' in expr){node.all=true;children=expr.seq;}
+        else if('choice' in expr)children=expr.choice;
+        else if('ranked' in expr)children=expr.ranked;
+        else if('and' in expr)children=expr.and;
+        else if('repeat' in expr)children=[expr.repeat];
+        else if('capture' in expr || 'test' in expr)children=[expr.expr];
+        else if('splice' in expr)children=[expr.splice];
+        else if('ref' in expr && rules.has(expr.ref))children=[expr.ref];
+      }
+      node.children=children.map(intern);
+      node.remaining=node.children.length;
+      for(const child of node.children)nodes[child].users.push(index);
+    }
+    const ready=[];
+    for(let index=0;index<nodes.length;index++)if(nodes[index].all && nodes[index].remaining===0){nodes[index].value=true;ready.push(index);}
+    for(let index=0;index<ready.length;index++)for(const user of nodes[ready[index]].users){
+      const node=nodes[user];
+      if(node.value)continue;
+      if(!node.all || --node.remaining===0){node.value=true;ready.push(user);}
+    }
+    const first=roots.findIndex(root=>nodes[root].value);
+    return first<0?undefined:errors[first];
+  }
+
+  // ---- emission-overlap.js
+  // Conservative input coverage of final stitched emissions (engine §9.3).
+
+
+  /** @import { Expr } from "./types.js" */
+
+  /** @param {Expr} expr @param {Set<string>} rules @returns {boolean} */
+  function consuming(expr,rules) {
+    if ("splice" in expr) return consuming(expr.splice,rules);
+    if ("literal" in expr || "range" in expr || "wildcard" in expr) return true;
+    if ("ref" in expr) return /^[A-Z_]/.test(expr.ref) || rules.has(expr.ref);
+    if ("empty" in expr) return false;
+    if ("test" in expr || "capture" in expr) return consuming(expr.expr,rules);
+    if ("optional" in expr) return consuming(expr.optional,rules);
+    if ("repeat" in expr) return consuming(expr.repeat,rules) || expr.separator !== undefined && consuming(expr.separator,rules);
+    return (/** @type {any} */ (expr).seq ?? /** @type {any} */ (expr).choice ?? /** @type {any} */ (expr).ranked ?? /** @type {any} */ (expr).and).some((/** @type {Expr} */ child) => consuming(child,rules));
+  }
+
+  /** @param {Map<string,import("./grammar.js").StitchedRule>} definitions */
+  function validateEmissionOverlap(definitions) {
+    const marked = new Set();
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const rule of definitions.values()) if (!marked.has(rule.name) && rule.alternatives.some(alternative => consuming(alternative.expr,marked))) {
+        marked.add(rule.name);
+        changed = true;
+      }
+    }
+    for (const rule of definitions.values()) for (const alternative of rule.alternatives) {
+      const emission = alternative.clauses.emit;
+      if (!emission || emission.items.length < 2) continue;
+      const captures = new Map();
+      const pending = [alternative.expr];
+      while (pending.length) {
+        const expr = /** @type {Expr} */ (pending.pop());
+        if ("capture" in expr) captures.set(expr.capture, captures.get(expr.capture) || consuming(expr.expr,marked));
+        for (const key of ["seq","choice","ranked","and"]) for (const child of (/** @type {any} */ (expr)[key] ?? [])) pending.push(child);
+        for (const key of ["expr","splice","optional","repeat","separator"]) if (/** @type {any} */ (expr)[key]) pending.push(/** @type {any} */ (expr)[key]);
+      }
+      for (let left=0;left<emission.items.length;left++) for (let right=left+1;right<emission.items.length;right++) {
+        const a=emission.items[left], b=emission.items[right];
+        if (a.insert || b.insert || a.capture !== "" && b.capture !== "") continue;
+        const other = a.capture === "" ? b : a;
+        const overlap = other.capture === "" ? consuming(alternative.expr,marked)
+          : [...(other.before ?? []),other.capture,...(other.after ?? [])].some(name=>captures.get(name));
+        if (overlap) {
+          const at = alternative.at;
+          throw new GencmuError("grammar",`${at.document}:${at.line}:${at.column}: the emission of ${rule.name} overlaps input positions`,at);
+        }
+      }
+    }
+  }
+
   // ---- dom.js
+
+
 
 
 
@@ -4790,20 +6332,20 @@
     });
   }
   // A capture's name is all lower case (engine §9).
-  const CAPTURE_NAME = /^[a-z][a-z0-9_-]*$/;
+  const CAPTURE_NAME = /^(?!.*--)[a-z][a-z0-9_-]*$/;
   // The nesting the notation allows (engine §9): deeper than any grammar a
   // person writes, and shallow enough for the recursive walks over a DOM.
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 44;
+  const DOM_FORMAT = 46;
   // A constant's name, without its `$`, begins with a capital (engine §2).
-  const CONSTANT_NAME = /^[A-Z][A-Za-z0-9_-]*$/;
+  const CONSTANT_NAME = /^(?!.*--)[A-Z][A-Za-z0-9_-]*$/;
   // A classifier name starts with a lowercase letter. A class name starts
   // and ends with an uppercase ASCII letter (engine §2, §9).
-  const CLASSIFIER_NAME = /^[a-z][A-Za-z0-9_-]*$/;
-  const CLASS_NAME = /^[A-Z](?:[A-Za-z0-9_-]*[A-Z])?$/;
-  const FEATURE_NAME = /^[A-Za-z][A-Za-z0-9-]*$/;
+  const CLASSIFIER_NAME = /^(?!.*--)[a-z][A-Za-z0-9_-]*$/;
+  const CLASS_NAME = /^(?!.*--)[A-Z](?:[A-Za-z0-9_-]*[A-Z])?$/;
+  const FEATURE_NAME = /^(?!.*--)[A-Za-z][A-Za-z0-9-]*$/;
 
   // The comparators of a test in a body (engine §2): the two value tests and
   // signed tag requirements.
@@ -4917,11 +6459,11 @@
     /** @type {(value: any) => boolean} */
     const stringTerm = value => stringAtom(value) || object(value) && "param" in value;
     /** @type {(value: any) => boolean} */
-    const tag = value => typeof value === "string" && (/^[A-Z][A-Za-z0-9_-]*$/.test(value) || (value.startsWith("_") && value !== "_" && unicode.canonicalTag(value) === value));
+    const tag = value => typeof value === "string" && (/^(?!.*--)[A-Z][A-Za-z0-9_-]*$/.test(value) || (value.startsWith("_") && value !== "_" && unicode.canonicalTag(value) === value));
     /** @type {(value: any) => boolean} */
     const constant = value => typeof value === "string" && CONSTANT_NAME.test(value);
     /** @type {(values: any) => boolean} */
-    const guards = values => Array.isArray(values) && values.every((/** @type {any} */ guard) => exact(guard, ["feature", "kind", "negated"]) && Object.keys(guard).length === 3 && typeof guard.feature === "string" && FEATURE_NAME.test(guard.feature) && typeof guard.negated === "boolean" && (guard.kind === "gate" || guard.kind === "warning" && !guard.negated));
+    const guards = values => Array.isArray(values) && values.every((/** @type {any} */ guard) => exact(guard, ["feature", "kind", "negated"]) && Object.keys(guard).length === 3 && typeof guard.feature === "string" && FEATURE_NAME.test(guard.feature) && typeof guard.negated === "boolean" && guard.kind === "gate");
     /** @type {any[]} */
     const pending = [];
     const tagClauses = new Map();
@@ -4975,7 +6517,7 @@
     }
     for (const rule of dom.rules) {
       activeParams = new Set(Array.isArray(rule.params) ? rule.params : []);
-      if ("params" in rule && (!Array.isArray(rule.params) || !rule.params.length || rule.params.some((/** @type {any} */ p) => typeof p !== "string" || !/^[A-Za-z][A-Za-z0-9_-]*$/.test(p)) || activeParams.size !== rule.params.length || "args" in rule)) return "malformed template parameters";
+      if ("params" in rule && (!Array.isArray(rule.params) || !rule.params.length || rule.params.some((/** @type {any} */ p) => typeof p !== "string" || !/^(?!.*--)[A-Za-z][A-Za-z0-9_-]*$/.test(p)) || activeParams.size !== rule.params.length || "args" in rule)) return "malformed template parameters";
       if (rule.instance) {
         if (!exact(rule,["name","op","instance","conditions","at"]) || !ruleName(rule.name) || !["define","redefine"].includes(rule.op) || !Array.isArray(rule.conditions) || rule.conditions.length) return "a malformed instance binding";
         push("call",rule.instance);
@@ -4985,8 +6527,16 @@
         if (!["redefine","extend"].includes(rule.op)) return "an instance head requires an edit";
         push("call",{call:rule.name,args:rule.args,at:rule.at});
       }
-      if (!exact(rule, ["name", "params", "args", "op",  "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "at"]) || !(typeof rule.name === "string" && ruleName(rule.name)) || !["define", "redefine", "extend"].includes(rule.op) || !Array.isArray(rule.alternatives) || !rule.alternatives.length || !Array.isArray(rule.conditions)) return "a malformed rule";
+      if (!exact(rule, ["name", "params", "args", "op",  "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "error", "warning", "suppressWarnings", "at"]) || !(typeof rule.name === "string" && ruleName(rule.name)) || !["define", "redefine", "extend"].includes(rule.op) || !Array.isArray(rule.alternatives) || !rule.alternatives.length || !Array.isArray(rule.conditions)) return "a malformed rule";
       if ("erased" in rule && (rule.erased !== true || rule.emit || rule.value || rule.image)) return "a malformed erased rule";
+      if (rule.error !== undefined && rule.warning !== undefined || rule.params && (rule.error !== undefined || rule.warning !== undefined)) return "a definition accepts one diagnostic, and a template accepts none";
+      if (rule.suppressWarnings !== undefined && (!Array.isArray(rule.suppressWarnings) || !rule.suppressWarnings.length || !(rule.suppressWarnings.length === 1 && rule.suppressWarnings[0] === "_") && !rule.suppressWarnings.every((/** @type {any} */ code) => typeof code === "string" && FEATURE_NAME.test(code)))) return "a malformed warning suppression";
+      for (const kind of ["error","warning"]) if (rule[kind] !== undefined) {
+        if (capturesMentioned(rule[kind]).some(name => typeof name !== "string")) return "a malformed message recipe";
+        const nodes=[rule[kind]];
+        while(nodes.length) { const n=nodes.pop(); if(n?.method === "emitted") return "a message recipe cannot read .emitted"; for(const child of clauseChildren(n)) nodes.push(child); }
+        push("recipe",rule[kind]);
+      }
       if (rule.tags !== undefined) push("tags", rule.tags, 0, { constituent: true, owner: rule });
       if (rule.value !== undefined) push("recipe", rule.value);
       if (rule.image !== undefined) push("recipe", rule.image);
@@ -5000,7 +6550,7 @@
       }
     }
     /** @type {(value: any) => boolean} */
-    const base = value => object(value) && ("param" in value || "call" in value || (typeof value.ref === "string") || "literal" in value || "range" in value || value.wildcard === true);
+    const base = value => object(value) && ("param" in value || "call" in value || "splice" in value || (typeof value.ref === "string") || "literal" in value || "range" in value || value.wildcard === true);
     /** @type {(value: any) => boolean} */
     const target = value => base(value) || object(value) && value.test === "tags" && base(value.expr);
     for (let task = pending.pop(); task; task = pending.pop()) {
@@ -5078,19 +6628,22 @@
           }
         } else if (value.rule) {
           if (!exact(value,["rule"]) || !ruleName(value.rule)) return "a malformed nominal rule argument";
-        } else if (value.test || value.range || value.wildcard) push("expr",value,depth,{params:task.params});
+        } else if (value.splice || value.test || value.range || value.wildcard) push("expr",value,depth,{params:task.params});
         else push("term",value,depth,{params:task.params});
         continue;
       }
       if (kind === "target") {
-        if (!(exact(value,["rule"]) && ruleName(value.rule) || exact(value,["terminal"]) && /^[A-Z][A-Za-z0-9_-]*$/.test(value.terminal))) return "a malformed query target";
+        if (!(exact(value,["rule"]) && ruleName(value.rule) || exact(value,["terminal"]) && /^(?!.*--)[A-Z][A-Za-z0-9_-]*$/.test(value.terminal))) return "a malformed query target";
         continue;
       }
       if (kind === "method-shape") {
         const problem = methodShapeProblem(value.method, value.receiver, value.args, task.recipe);
         if (problem) return problem;
       } else if (kind === "expr") {
-        if (value.test) {
+        if ("splice" in value) {
+          if (!exact(value,["splice"]) || !object(value.splice) || !(typeof value.splice.ref === "string" && ruleName(value.splice.ref) || value.splice.call)) return "a malformed splice";
+          child("expr",value.splice,{sealed:task.sealed,chain:task.chain,item:task.item,ranked:task.ranked});
+        } else if (value.test) {
           if (!TEST_OPS.has(value.test) || !exact(value, value.test === "tags" ? ["test", "requirements", "expr"] : ["test", "value", "expr"]) || !(value.test === "tags" ? base(value.expr) : target(value.expr))) return "a malformed test";
           child("expr", value.expr, { sealed: task.sealed, chain: task.chain, item: task.item, ranked: task.ranked });
           if (value.test === "tags") {
@@ -5101,7 +6654,7 @@
             }
           } else { if (!stringTerm(value.value)) return "a malformed value test"; child("term", value.value); }
         } else if ("capture" in value) {
-          if (!exact(value, ["capture", "expr"]) || !(typeof value.capture === "string" && CAPTURE_NAME.test(value.capture)) || task.sealed || task.chain || task.item && task.ranked || !(target(value.expr) || ["=", "≠"].includes(value.expr?.test) && target(value.expr.expr))) return "a malformed capture";
+          if (!exact(value, ["capture", "expr"]) || !(typeof value.capture === "string" && CAPTURE_NAME.test(value.capture)) || task.sealed && !task.capturedTerminator || task.chain || task.item && task.ranked || !(target(value.expr) || ["=", "≠"].includes(value.expr?.test) && target(value.expr.expr))) return "a malformed capture";
           child("expr", value.expr, { sealed: task.sealed, chain: task.chain, item: task.item, ranked: task.ranked });
         } else if (["seq", "choice", "ranked", "and"].some(key => key in value)) {
           if (fields.length !== 1) return "a malformed expression";
@@ -5114,7 +6667,7 @@
             if (value.elidable !== true || !stringTerm(value.default)) return "a malformed default";
             child("term", value.default);
           }
-          child("expr", value.optional, { sealed: task.sealed || value.elidable, chain: task.chain, item: task.item, ranked: task.ranked });
+          child("expr", value.optional, { sealed: task.sealed || value.elidable, capturedTerminator:!task.sealed && value.elidable && typeof value.optional?.capture === "string", chain: task.chain, item: task.item, ranked: task.ranked });
         } else if ("repeat" in value) {
           if (!exact(value, ["repeat", "separator", "chain"]) || "chain" in value && (!task.whole || !["left", "right"].includes(value.chain))) return "a malformed repetition";
           // A chain holds no capture, and the braces of a flat list hold item
@@ -5182,12 +6735,18 @@
         else if ("capture" in value) { if (typeof value.capture !== "string" || value.capture !== "" && !CAPTURE_NAME.test(value.capture)) return "a malformed capture reference"; }
         else if ("method" in value) {
           if (["classify","ngrams"].includes(value.method) && Array.isArray(value.args) && value.args.some(hasUnresolved)) return "a parameter cannot replace a classifier name or integer argument";
-          if (!Array.isArray(value.args) || !object(value.receiver) || (!task.recipe && (value.method === "verbatim-text" || value.method === "emitted")) || (!task.query && QUERY_METHODS.has(value.method))) return "a malformed method";
+          if (!Array.isArray(value.args) || !object(value.receiver) || (!task.recipe && (value.method === "verbatim-text" || value.method === "emitted")) || (!task.query && QUERY_METHODS.has(value.method) && !["parse","error-free"].includes(value.method))) return "a malformed method";
           push("method-shape", value, depth, { recipe: task.recipe });
           child("term", value.receiver, { recipe: task.recipe });
           for (const arg of value.args) {
-            if (object(arg) && typeof arg.rule === "string") { if (Object.keys(arg).length !== 1 || !["tags", "matches", "begins", "ends", "without-elision-except", "followed-by", "preceded-by"].includes(value.method) || !ruleName(arg.rule)) return "a malformed rule argument"; }
-            else if (object(arg) && typeof arg.terminal === "string") { if (Object.keys(arg).length !== 1 || !TARGET_METHODS.has(value.method) || !/^[A-Z][A-Za-z0-9_-]*$/.test(arg.terminal)) return "a malformed boundary target"; }
+            if (object(arg) && "body" in arg) {
+              if (value.method !== "parse" || !exact(arg,["body"])) return "a malformed parse argument";
+              const parsed = queryBody(arg.body);
+              if (parsed.problem) return parsed.problem;
+              if (queryCapture(parsed.body)) return "a parse argument cannot declare captures";
+              push("expr",parsed.body,depth + (parsed.mode !== "matches" && arg.body.seq.length === 2 ? 2 : 1),{params:task.params,whole:true});
+            } else if (object(arg) && typeof arg.rule === "string") { if (Object.keys(arg).length !== 1 || !["tags", "matches", "begins", "ends", "without-elision-except", "followed-by", "preceded-by"].includes(value.method) || !ruleName(arg.rule)) return "a malformed rule argument"; }
+            else if (object(arg) && typeof arg.terminal === "string") { if (Object.keys(arg).length !== 1 || !TARGET_METHODS.has(value.method) || !/^(?!.*--)[A-Z][A-Za-z0-9_-]*$/.test(arg.terminal)) return "a malformed boundary target"; }
             else if (object(arg) && "integer" in arg) { if (Object.keys(arg).length !== 1 || value.method !== "ngrams" || typeof arg.integer !== "string" || !/^[1-9][0-9]*$/.test(arg.integer)) return "a malformed integer argument"; }
             else if (object(arg) && typeof arg.classifier === "string") { if (Object.keys(arg).length !== 1 || value.method !== "classify" || !CLASSIFIER_NAME.test(arg.classifier)) return "a malformed classifier argument"; }
             else child("term", arg);
@@ -5950,7 +7509,7 @@
         return result;
       }
       if ("optional" in node) {
-        if (node.elidable === true) return [[]];
+        if (node.elidable === true && !/** @type {any} */ (node.optional)?.capture) return [[]];
         return [[], ...visit(node.optional)];
       }
       return [[]];
@@ -5981,7 +7540,7 @@
     const named = emitted.flatMap((/** @type {any} */ item) => (typeof item.capture === "string" ? [item.capture, ...attachmentsOf(item)] : []));
     /** @type {[string, unknown][]} */
     const others = [
-      ...[rule.tags, rule.value, rule.image].map((clause) => /** @type {[string, unknown]} */ (["a clause", clause])),
+      ...[rule.tags, rule.value, rule.image, rule.error, rule.warning].map((clause) => /** @type {[string, unknown]} */ (["a clause", clause])),
       ...rule.alternatives.flatMap((/** @type {any} */ a) => [a.tags, a.value, a.image].map((clause) => /** @type {[string, unknown]} */ (["a clause", clause]))),
       ...emitted.map((/** @type {unknown} */ item) => /** @type {[string, unknown]} */ (["%emits", item])),
     ];
@@ -6176,7 +7735,7 @@
         return distinct(result);
       }
       if ("optional" in node) {
-        if (node.elidable === true) return [root];
+        if (node.elidable === true && !/** @type {any} */ (node.optional)?.capture) return [root];
         /** @type {CaptureNode[]} */
         const all = [root];
         for (const sequence of yield visit(node.optional)) all.push(sequence);
@@ -6193,7 +7752,7 @@
    * alone: two captures are read by one production exactly when they stand
    * in different items of one sequence or one &, since each item is read in
    * any of its expansions. So no production is listed. A choice's branches
-   * never meet. Braces and an elidable optional hold no capture.
+   * never meet. Braces isolate item captures. An elidable optional exports only its terminator capture.
    * @param {any} expr
    * @returns {{capture: string}[]}
    */
@@ -6300,10 +7859,10 @@
    * @returns {any}
    */
   function elidableHead(expr) {
-    const head = isDomObject(expr) && Array.isArray(expr.seq) ? expr.seq[0] : expr;
+    const head = isDomObject(expr) && typeof expr.capture === "string" ? expr.expr : isDomObject(expr) && Array.isArray(expr.seq) ? expr.seq[0] : expr;
     if (!isDomObject(head)) return null;
     /** @type {(node: any) => boolean} */
-    const isTerminal = (node) => isDomObject(node) && (typeof node.param === "string" || Object.keys(node).length === 1 && typeof node.ref === "string" && /^[A-Z][A-Za-z0-9_-]*$/.test(node.ref));
+    const isTerminal = (node) => isDomObject(node) && (typeof node.param === "string" || Object.keys(node).length === 1 && typeof node.ref === "string" && /^(?!.*--)[A-Z][A-Za-z0-9_-]*$/.test(node.ref));
     if (isTerminal(head)) return head;
     /** @type {any} */
     let base = head;
@@ -6410,7 +7969,7 @@
         } else for(const child of children) all=join(all,yield visit(child));
         return all;
       }
-      if(node.optional && !node.elidable) {
+      if(node.optional && (!node.elidable || node.optional.capture)) {
         const out=new Map([[0,{...empty(),key:0}]]);
         for(const [state,w] of yield visit(node.optional)) pick(out,state,{...w,key:[1,w.key]});
         return out;
@@ -6429,7 +7988,7 @@
     /** @type {{has:boolean,variable:boolean}[]} */ const done=[];
     while(pending.length) {
       const [node,ready]=/** @type {any[]} */ (pending.pop());
-      const children=node.seq??node.choice??node.ranked??node.and??(node.optional&&!node.elidable?[node.optional]:node.test?[node.expr]:[]);
+      const children=node.seq??node.choice??node.ranked??node.and??(node.optional&&(!node.elidable||node.optional.capture)?[node.optional]:node.test?[node.expr]:[]);
       if(!ready) { pending.push([node,true]); for(let i=children.length-1;i>=0;i--) pending.push([children[i],false]); continue; }
       const parts=done.splice(done.length-children.length,children.length);
       /** @type {boolean} */ const has=node.capture!==undefined || parts.some(x=>x.has);
@@ -6499,7 +8058,7 @@
     const initial=captureWitness(alternative.expr,new Set(),new Set(),[]);
     if(initial) witnesses.push(initial);
     const items=rule.emit?.items??[];
-    const mentioned=[rule.tags,rule.value,rule.image,...rule.conditions,...rule.alternatives.flatMap((/** @type {any} */ a)=>[a.tags,a.value,a.image]),...items];
+    const mentioned=[rule.tags,rule.value,rule.image,rule.error,rule.warning,...rule.conditions,...rule.alternatives.flatMap((/** @type {any} */ a)=>[a.tags,a.value,a.image]),...items];
     for(const clause of mentioned) for(const name of capturesMentioned(clause)) ask([name]);
     for(const item of items) if(item.capture!==undefined) for(const name of [item.capture,...attachmentsOf(item)]) ask([name]);
     const clause=(/** @type {any} */ value,/** @type {boolean} */ condition,/** @type {string[]} */ carrier=[])=>{
@@ -6535,7 +8094,7 @@
     };
     for(const c of rule.conditions) clause(c,true);
     for(const t of [rule.tags,alternative.tags]) clause(t,false);
-    for(const t of [alternative.value??rule.value,alternative.image??rule.image??alternative.value??rule.value]) if(t) for(const name of capturesUsed(t)) ask([],[name]);
+    for(const t of [alternative.value??rule.value,alternative.image??rule.image??alternative.value??rule.value,rule.error,rule.warning]) if(t) for(const name of capturesUsed(t)) ask([],[name]);
     if(items.length && !items.some((/** @type {any} */ item)=>item.insert || item.capture==='')) ask([],items.map((/** @type {any} */ item)=>item.capture));
     const written=[];
     for(const item of items) {
@@ -6562,6 +8121,8 @@
    * @returns {string | null}
    */
   function definitionProblem(rule, deferEmission = false) {
+    if (rule.error && rule.warning || rule.params && (rule.error || rule.warning)) return "a definition accepts one diagnostic, and a template accepts none";
+    if (rule.suppressWarnings !== undefined && (!Array.isArray(rule.suppressWarnings) || !rule.suppressWarnings.length || !(rule.suppressWarnings.length === 1 && rule.suppressWarnings[0] === "_") && !rule.suppressWarnings.every((/** @type {any} */ code) => typeof code === "string" && FEATURE_NAME.test(code)))) return "a malformed warning suppression";
     deferredDefinitionProblems.delete(rule);
     const defer = deferEmission && ruleHasRanked(rule);
     for (const issue of definitionIssues(rule)) {
@@ -6590,7 +8151,7 @@
     // A definition with no clause has nothing to check about its captures,
     // and its productions, whose number can be exponential, are not listed.
     if (rule.tags === undefined && rule.conditions.length === 0 && rule.emit === undefined &&
-        rule.alternatives.every((/** @type {any} */ alternative) => alternative.tags === undefined && alternative.value === undefined && alternative.image === undefined) && rule.value === undefined && rule.image === undefined) return;
+        rule.alternatives.every((/** @type {any} */ alternative) => alternative.tags === undefined && alternative.value === undefined && alternative.image === undefined) && rule.value === undefined && rule.image === undefined && rule.error === undefined && rule.warning === undefined) return;
     // Each production of each alternative, with the captures it reads
     // (engine §3.5, §9); productions that read the same captures in the same
     // order are one.
@@ -6685,9 +8246,16 @@
         const missing = capturesUsed(simplifyFor(prepareClause(term), has, captures)).find((name) => !has(name));
         if (missing !== undefined) yield {kind:"independent", problem:`a tag term of ${rule.name} uses $${missing}, which a production lacks; guard it with $${missing} ⟹`};
       }
+      const effectiveTags=[rule.tags,alternative.tags].filter(term=>term!==undefined);
+      if (effectiveTags.length && !effectiveTags.some(waits)) {
+        const terms=effectiveTags.map(term=>simplifyFor(prepareClause(term),has,captures));
+        try { guardedTagVariants(terms.length===1?terms[0]:{union:terms}); }
+        catch(error) {yield {kind:"independent",problem:/** @type {Error} */ (error).message};}
+      }
       const recipes = new Set([
         alternative.value ?? rule.value,
         alternative.image ?? rule.image ?? alternative.value ?? rule.value,
+        rule.error, rule.warning,
       ]);
       for (const recipe of recipes) {
         if (recipe === undefined) continue;
@@ -6771,7 +8339,7 @@
    * A term's type: a string, a set of strings, a tag set, a span, a set
    * whose kind nothing has given yet, such as `∅`, or, for a constant that
    * the reader cannot know, any type but a span (engine §9).
-   * @typedef {"string" | "strings" | "tags" | "span" | "pattern" | "set" | "any" | "emitted" | "condition"} TermType
+   * @typedef {"string" | "strings" | "tags" | "span" | "pattern" | "set" | "any" | "emitted" | "condition" | "forest"} TermType
    */
 
   /**
@@ -6782,7 +8350,7 @@
 
   const SET_KINDS = new Set(["strings", "tags", "pattern", "set"]);
   /** @type {Record<string, string>} */
-  const TYPE_NAMES = { string: "a string", strings: "a set of strings", tags: "a tag set", span: "a span", pattern: "a pattern", set: "a set", any: "a value", emitted: "an emitted pair", condition: "a condition" };
+  const TYPE_NAMES = { forest: "a witness forest", string: "a string", strings: "a set of strings", tags: "a tag set", span: "a span", pattern: "a pattern", set: "a set", any: "a value", emitted: "an emitted pair", condition: "a condition" };
   /** @type {ConstantTypes} */
   const UNKNOWN_CONSTANTS = () => "any";
 
@@ -6968,7 +8536,7 @@
       if ("problem" in receiver) return receiver;
       const types = [];
       for (const arg of term.args) {
-        if (arg.rule || arg.classifier || arg.terminal || arg.integer) types.push("name");
+        if (arg.body || arg.rule || arg.classifier || arg.terminal || arg.integer) types.push("name");
         else {
           const found = yield typing(arg, constants);
           if ("problem" in found) return found;
@@ -7046,7 +8614,7 @@
     if (condition.method) {
       const found = yield typing(condition, constants);
       if ("problem" in found) return found;
-      return found.type === "condition" ? null : { problem: "a condition requires a query method", node: condition };
+      return ["condition","forest"].includes(found.type) ? null : { problem: "a condition requires a query method", node: condition };
     }
     if (Array.isArray(condition.any) || Array.isArray(condition.all)) {
       for (const item of condition.any ?? condition.all) {
@@ -7140,7 +8708,7 @@
 
   /** @param {any} rule @param {ConstantTypes} [constants] @returns {Generator<TypeFault>} */
   function* ruleTypeFaults(rule, constants) {
-    const recipes = [rule.value, rule.image,
+    const recipes = [rule.value, rule.image, rule.error, rule.warning,
       ...rule.alternatives.flatMap((/** @type {any} */ alternative) => [alternative.value, alternative.image]),
       ...(rule.emit ? rule.emit.items.flatMap((/** @type {any} */ item) => [item.value, item.image]) : [])];
     for (const recipe of recipes) {
@@ -7175,7 +8743,7 @@
           if (problem) yield {problem,node:operand};
         }
         for (const key of ["seq","choice","ranked","and"]) if (expr[key]) for (let i = expr[key].length - 1; i >= 0; i--) pending.push(expr[key][i]);
-        for (const key of ["expr","separator","repeat","optional"]) if (expr[key]) pending.push(expr[key]);
+        for (const key of ["expr","splice","separator","repeat","optional"]) if (expr[key]) pending.push(expr[key]);
       }
     }
     // A test's value is a string for a value test and a tag set for a tag
@@ -7337,6 +8905,7 @@
   // ---- ranked.js
 
 
+
   // Written ranked groups and their local loading rules.
 
 
@@ -7473,7 +9042,7 @@
         const source = group.source;
         let analysis = this.clauseAnalyses.get(source);
         if (!analysis) {
-          const exports = [source.tags,source.clauses.tags,source.value,source.image,source.clauses.value,source.clauses.image,source.clauses.emit];
+          const exports = [source.tags,source.clauses.tags,source.value,source.image,source.clauses.value,source.clauses.image,source.clauses.error,source.clauses.warning,source.clauses.emit];
           analysis = {conditions:source.clauses.conditions.map(rankedCaptureReads),exports:rankedCaptureReads(exports),paths:new Map()};
           this.clauseAnalyses.set(source,analysis);
         }
@@ -7523,7 +9092,7 @@
             if (term === undefined) continue;
             if (privateRead(term)) this.fail(group, "ranked-choice-export", "A tag term cannot read a private ranked capture.", {option:end.option,expression:term});
           }
-          for (const recipe of [source.value,source.image,source.clauses.value,source.clauses.image]) {
+          for (const recipe of [source.value,source.image,source.clauses.value,source.clauses.image,source.clauses.error,source.clauses.warning]) {
             if (recipe && privateRead(recipe)) this.fail(group,"ranked-choice-export","A recipe cannot read a private ranked capture.",{option:end.option,expression:recipe});
           }
           // Written emission references count before absent carriers disappear.
@@ -7712,7 +9281,7 @@
       path.length = 1;
       path.captures.set(expr.capture,{owner:groups.owners.get(expr)??null,at:1});
     }
-    while (expr.expr) expr = expr.expr;
+    while (expr.expr || expr.splice) expr = expr.expr ?? expr.splice;
     const rule = expr.ref && groups.rules.has(expr.ref);
     path.span = {productive:!rule || spans.productive.has(expr.ref),nonempty:!rule || spans.nonempty.has(expr.ref)};
     return [path];
@@ -7774,7 +9343,7 @@
             // The recursive repetition route can only add a self edge.
             if (expr.separator) describe(expr.separator);
           }
-        } else if (expr.expr) result = describe(expr.expr);
+        } else if (expr.expr || expr.splice) result = describe(expr.expr ?? expr.splice);
         else result = {zero:false,children:[expr.ref && named.has(expr.ref)?named.get(expr.ref):null]};
         memo.set(expr,result); return result;
       };
@@ -7782,7 +9351,13 @@
       const body = expr.chain ? describe(expr.repeat) : describe(expr);
       if (expr.chain && expr.separator) describe(expr.separator);
       const terms = [source.tags,source.clauses.tags].filter(t=>t!==undefined);
-      named.get(rule.name).routes.push({source,expr:source.expr,tagged:terms.length>0,unsafe:terms.some(t=>!rankedLiteralEmpty(t)),children:body.children});
+      let unsafe=terms.some(t=>!rankedLiteralEmpty(t));
+      if (neighbourGuards(terms).length) {
+        const term=terms.length===1?terms[0]:{union:terms};
+        const names=new Set(["",...rankedCaptureReads(term)]);
+        unsafe=guardedTagVariants(term).some(variant=>!rankedLiteralEmpty(simplifyFor(prepareClause(variant.tags),()=>true,names)));
+      }
+      named.get(rule.name).routes.push({source,expr:source.expr,tagged:terms.length>0,unsafe,children:body.children});
     }
     return {nodes,groups};
   }
@@ -7800,7 +9375,7 @@
     const expression = expr => {
       const known = memo.get(expr); if (known !== undefined) return known;
       let id;
-      if (expr.expr) id = expression(expr.expr);
+      if (expr.expr || expr.splice) id = expression(expr.expr ?? expr.splice);
       else if (expr.ref) id = named.get(expr.ref) ?? terminal;
       else if (expr.literal || expr.range || expr.wildcard) id = terminal;
       else {
@@ -7992,6 +9567,7 @@
     if(n.range) return n.range.map(print).join('..');
     if(n.wildcard) return '_';
     if(n.empty) return 'ε';
+    if(n.remainder) return '…';
     if(n.emptySet) return '∅';
     if(n.requirements && !n.test) return '<'+n.requirements.flatMap((/** @type {any} */ x)=>x.value.set instanceof Set ? [...x.value.set].sort().map(tag=>(x.negated?'¬':'')+tag) : [(x.negated?'¬':'')+print(x.value)]).join(' ')+'>';
     if(n.targets) return n.targets.map(print).join(' | ');
@@ -8008,6 +9584,7 @@
       const op={concat:' ++ ',union:' ∪ ',intersection:' ∩ ',difference:' ∖ '}[key];
       return values.map((/** @type {any} */ x,/** @type {number} */ i)=>templateTermGroup(x,key,i)?'('+print(x)+')':print(x)).join(op);
     }
+    if(n.method === 'parse') return print(n.receiver)+'.parse('+templateBodyText(n.args[0].body,unicode)+')';
     if(n.method) {
       const receiver=print(n.receiver);
       const grouped=templateTermGroup(n.receiver,'method',0);
@@ -8021,6 +9598,7 @@
       const key=n.any?'any':'all';
       return n[key].map((/** @type {any} */ x)=>templateBooleanGroup(x,key)?'('+print(x)+')':print(x)).join(n.any?' ∨ ':' ∧ ');
     }
+    if(n.splice) return "*"+print(n.splice);
     if(n.captured!==undefined) return '$'+n.captured;
     throw new Error('unprintable argument '+JSON.stringify(n));
   }
@@ -8067,6 +9645,8 @@
   /** @param {any[]} documents @param {any} unicode @returns {any} */
   function expandTemplates(documents,unicode) {
     if(!documents.some((/** @type {any} */ d)=>hasUnresolved(d.dom))) return {documents,order:null,templates:[],instances:[]};
+    /** @type {{names:string[],name:string,where:{document:string,line:number|undefined,column:number|undefined}}[]} */
+    const erasureChecks=[];
     const patterns=patternConstantNames(documents.flatMap(d=>d.dom.constants));
     const normalize=(/** @type {any} */ value)=>normalizeTemplateArgument(value,patterns);
     const templates=new Map(), names=new Map(), instances=new Map();
@@ -8177,7 +9757,7 @@
           n.alternatives.forEach((/** @type {any} */ alternative,/** @type {number} */ index)=>{
             visit(alternative.expr);visit(alternative.tags);visit(alternative.value);visit(alternative.image);
             if(index===0) {
-              visit(n.tags);visit(n.value);visit(n.image);visit(n.conditions);visit(n.emit);
+              visit(n.tags);visit(n.value);visit(n.image);visit(n.conditions);visit(n.error);visit(n.warning);visit(n.emit);
             }
           });
           return;
@@ -8250,7 +9830,7 @@
         if(arg.targets) return {choice:arg.targets.map((/** @type {any} */ x)=>convert(x,'expr',event,use))};
         if(arg.rule || arg.tag || arg.terminal) return {ref:arg.rule??arg.tag??arg.terminal};
         if('string' in arg || arg.const) return {literal:arg};
-        if(arg.call || arg.test || arg.range || arg.wildcard) return arg;
+        if(arg.call || arg.splice || arg.test || arg.range || arg.wildcard) return arg;
       } else if(position==='pattern') {
         if(arg.rule) return {name:arg.rule,at:use.at};
         if(arg.tag || arg.terminal) return {terminal:arg.tag??arg.terminal,at:use.at};
@@ -8262,7 +9842,7 @@
       } else if(position==='target') {
         if(arg.tag) return {terminal:arg.tag};
         if(arg.rule || arg.terminal || arg.call) return arg;
-      } else if(position==='term' && !arg.body && !arg.targets && !arg.requirements && !arg.rule && !arg.call && !arg.test && !arg.range && !arg.wildcard) return arg;
+      } else if(position==='term' && !arg.body && !arg.targets && !arg.requirements && !arg.rule && !arg.call && !arg.splice && !arg.test && !arg.range && !arg.wildcard) return arg;
       fail(event,use,`argument ${canonicalArgument(arg,unicode)} is invalid at @${use.param} in ${position} position`);
     };
     /** @type {(root:any,env:Map<string,any>,event:any,position?:string)=>any} */
@@ -8299,6 +9879,7 @@
             if(query && replacement?.targets) {
               for(const target of replacement.targets) result.args.push(convert(target,'target',event,arg));
             }
+            else if(root.method==='parse') result.args.push({body:substitute(arg.body,env,event,'expr')});
             else result.args.push(substitute(arg,env,event,target?'target':'term'));
           }
           continue;
@@ -8316,18 +9897,18 @@
         }
         if(key==='optional' && root.elidable) {
           let head=value.seq?value.seq[0]:value;
-          while(head.test) head=head.expr;
+          while(head.test || head.capture) head=head.expr;
           if(head.param) {
             const arg=normalize(env.get(head.param));
             if(!arg.tag || !/^[A-Z]/.test(arg.tag) || Object.keys(arg).length!==1) fail(event,head,'an elidable parameter head requires one bare user tag');
           }
         }
         let next=position;
-        if(['alternatives','conditions','emit','tags','value','image','default','requirements','range','literal','concat','union','intersection','difference','left','right','receiver','if','then','not','all','any'].includes(key) && !(position==='pattern' && ['union','intersection','difference'].includes(key))) next='term';
-        if(['seq','choice','ranked','and','optional','repeat','separator'].includes(key) && position!=='pattern') next='expr';
+        if(['alternatives','conditions','error','warning','emit','tags','value','image','default','requirements','range','literal','concat','union','intersection','difference','left','right','receiver','if','then','not','all','any'].includes(key) && !(position==='pattern' && ['union','intersection','difference'].includes(key))) next='term';
+        if(['seq','choice','ranked','and','optional','repeat','separator','splice'].includes(key) && position!=='pattern') next='expr';
         if(key==='expr') next=position==='pattern'?'pattern':'expr';
         if(key==='pattern' || key==='child') next='pattern';
-        if(key==='children' || position==='pattern-item' && ['choice','optional','repeat','separator'].includes(key)) next='pattern-item';
+        if(key==='children' || position==='pattern-item' && ['choice','optional','repeat','separator','splice'].includes(key)) next='pattern-item';
         result[key]=substitute(value,env,event,next);
         if(key==='default') {
           result[key]={...result[key]};
@@ -8401,13 +9982,25 @@
     const rewrite=(root,event,position='term')=>{
       if(!root || typeof root!=='object') return root;
       if(Array.isArray(root)) return root.map((/** @type {any} */ x)=>rewrite(x,event,position));
+      /** @param {string[]} names @param {string} name */
+      const erasedCheck=(names,name)=> {
+        if(position==='pattern' && root.children && !(root.children.length===1 && root.children[0].siblings)) {
+          const at=patternLocations.get(root) ?? root.at ?? event.rule.at;
+          erasureChecks.push({names,name,where:{document:event.path,line:at?.[0],column:at?.[1]}});
+        }
+      };
+      if(root.name && !templates.has(root.name)) erasedCheck([root.name],root.name);
       if(root.call) {
         const instance=instances.get(JSON.stringify(templateIdentity(normalize({call:root.call,args:root.args,at:root.at}))));
         const name=instance?effective(instance):canonicalArgument(root,unicode);
+        erasedCheck([name],name);
         return position==='pattern'?{name,...(root.exact?{exact:true}:{}),...(root.children?{children:rewrite(root.children,event,'pattern-item')}:{ }),at:root.at}:position==='expr'?{ref:name}:{rule:name};
       }
       if(position==='pattern' && root.name && templates.has(root.name)) {
-        const members=queue.filter((/** @type {any} */ x)=>x.call.call===root.name).map((/** @type {any} */ x)=>({...root,name:effective(x),...(root.children?{children:rewrite(root.children,event,'pattern-item')}:{})}));
+        const instances=queue.filter((/** @type {any} */ x)=>x.call.call===root.name);
+        erasedCheck(instances.map(effective),root.name);
+        const children=root.children ? rewrite(root.children,event,'pattern-item') : undefined;
+        const members=instances.map((/** @type {any} */ x)=>({...root,name:effective(x),...(children?{children}: {})}));
         return members.length===1?members[0]:members.length?{union:members}:{difference:[{name:'text',at:root.at,...(root.exact?{exact:true}:{})},{name:'text',at:root.at,...(root.exact?{exact:true}:{})}]};
       }
       if(root.ref && templates.has(root.ref) || root.rule && templates.has(root.rule)) fail(event,root,'a bare template reference must name one instance');
@@ -8415,10 +10008,10 @@
     const result={};
       for(const [key,value] of Object.entries(root)) {
         let next=position;
-        if(['alternatives','conditions','emit','tags','value','image','default','left','right','receiver','range','literal','args'].includes(key)) next='term';
-        if(['seq','choice','ranked','and','optional','repeat','separator','expr'].includes(key) && position!=='pattern') next='expr';
+        if(['alternatives','conditions','error','warning','emit','tags','value','image','default','left','right','receiver','range','literal','args'].includes(key)) next='term';
+        if(['seq','choice','ranked','and','optional','repeat','separator','expr','splice'].includes(key) && position!=='pattern') next='expr';
         if(key==='pattern' || key==='child') next='pattern';
-        if(key==='children' || position==='pattern-item' && ['choice','optional','repeat','separator'].includes(key)) next='pattern-item';
+        if(key==='children' || position==='pattern-item' && ['choice','optional','repeat','separator','splice'].includes(key)) next='pattern-item';
         result[key]=key==='at'?value:rewrite(value,event,next);
       }
       copyRankedLocation(root,result);
@@ -8438,7 +10031,7 @@
       const owner={path:event.path,kind:event.kind??0,origin:event.origin,instance:event.instance,inspectionRun:rewrittenDefinitions.get(event)?.inspectionRun??event.inspectionRun,at:event.rule.at,position:references[0].at};
       const add=(/** @type {any} */ term,tags=false)=>argumentsToCheck.push({...owner,term:rewrite(term,event),tags});
       const arg=normalize(argument);
-      if(arg.body || arg.test || arg.range || arg.wildcard) {
+      if(arg.body || arg.splice || arg.test || arg.range || arg.wildcard) {
         const rule={...(parts.some(n=>n.param)?{params:event.rule.params}:{}),name:extraIndexes.has(event.index)?'text':event.rule.name,op:'define',conditions:[],alternatives:[{guards:[],expr:rewrite(arg.body??arg,event,'expr')}],at:event.rule.at};
         argumentsToCheck.push({...owner,rule,fragment:true});
       } else if(arg.requirements) {
@@ -8460,7 +10053,7 @@
       rewrittenDefinitions.set(event,rewritten);
     };
     for(const event of events) {
-      if(event.rule.params) validation.push(event);
+      if(event.rule.params) {rewrite(event.rule,event);validation.push(event);}
       else if(!event.rule.args && !event.rule.instance) rewriteDefinition(event);
     }
     for(const instance of queue) for(const event of instance.definitions) rewriteDefinition(event,{...event.rule,name:effective(instance)});
@@ -8478,7 +10071,7 @@
     for(const instance of queue) for(const event of instance.definitions) output.push(rewrittenDefinitions.get(event));
     const expandedDocs=documents.map((/** @type {any} */ d,inspectionRun)=>({...d,inspectionRun,dom:{...d.dom,rules:[],...Object.fromEntries(['constants','directives','classifiers','implications'].map(key=>[key,d.dom[key].map((/** @type {any} */ item)=>rewrite(item,{path:d.path,rule:item}))]))}}));
     for(const event of output) expandedDocs.push({path:event.path,inspectionRun:event.inspectionRun,dom:{format:documents[0].dom.format,rules:[event.rule],directives:[],constants:[],classifiers:[],implications:[]}});
-    return {documents:expandedDocs,validation,argumentsToCheck,order:[...slots.filter((/** @type {any} */ n)=>current.has(n)||ordinary.has(n)),...queue.filter((/** @type {any} */ x)=>!x.name).map(effective)],templates:[...templates.values()],instances:queue};
+    return {documents:expandedDocs,validation,argumentsToCheck,erasureChecks,order:[...slots.filter((/** @type {any} */ n)=>current.has(n)||ordinary.has(n)),...queue.filter((/** @type {any} */ x)=>!x.name).map(effective)],templates:[...templates.values()],instances:queue};
   }
 
   /** @param {any} grammar @returns {{templates:any[],instances:any[]}} */
@@ -8531,1161 +10124,6 @@
     };
   }
 
-  // ---- ranking-audit.js
-  // Static reports for node-pattern steps (docs/design.md).
-
-
-
-
-
-  /** @param {any} grammar @returns {any} */
-  function observations(grammar) {
-    const rules=new Map(),terminals=new Set(),omitted=new Set();
-    const body=(/** @type {any} */ root,/** @type {Set<string>} */ refs)=>{
-      const pending=[root];
-      while(pending.length) {
-        const expr=pending.pop();
-        if(hooks.work) countWork(hooks.work,"clauses");
-        if(expr.ref) {
-          if(grammar.rules.has(expr.ref)) refs.add(expr.ref);
-          else terminals.add(expr.ref);
-        } else if(expr.literal) {
-          const value=grammar.evaluateClosed('',expr.literal,[1,1]);
-          if('string' in value) terminals.add(stringName(value.string,grammar.unicode));
-        } else if(expr.range) terminals.add(expr.range.map((/** @type {any} */ end)=>stringName(grammar.evaluateClosed('',end,[1,1]).string,grammar.unicode)).join('..'));
-        else if(expr.wildcard) terminals.add('_');
-        if(expr.optional && expr.elidable) {
-          let head=expr.optional;
-          while(head.seq || head.capture || head.test) head=head.seq?.[0] ?? head.expr;
-          if(head.ref) {omitted.add(head.ref);}
-        }
-        for(const key of ['seq','choice','ranked','and']) if(expr[key]) for (const child of expr[key]) pending.push(child);
-        for(const key of ['expr','optional','repeat','separator']) if(expr[key]) pending.push(expr[key]);
-      }
-    };
-    for(const rule of grammar.rules.values()) {
-      const refs=new Set();
-      for(const alternative of rule.alternatives) body(alternative.expr,refs);
-      rules.set(rule.name,{refs});
-    }
-    const reachable=new Set(),pending=['text'];
-    while(pending.length) {
-      const name=pending.pop();
-      if(reachable.has(name) || !rules.has(name)) continue;
-      reachable.add(name);
-      for (const child of rules.get(name).refs) pending.push(child);
-    }
-    // Keep terminal reachability separate from query-only references.
-    const reachedTerminals=new Set(),reachedOmitted=new Set();
-    const allTerminals=new Set(terminals),allOmitted=new Set(omitted);
-    terminals.clear();omitted.clear();
-    for(const name of reachable) for(const alternative of grammar.rules.get(name).alternatives) body(alternative.expr,new Set());
-    for(const terminal of terminals) reachedTerminals.add(terminal);
-    for(const terminal of omitted) reachedOmitted.add(terminal);
-    return {rules,reachable,terminals:reachedTerminals,omitted:reachedOmitted,allTerminals,allOmitted};
-  }
-
-  /** @param {any} pattern @param {any} data @returns {boolean} */
-  function dead(pattern,data) {
-    if(pattern.union) return pattern.union.every((/** @type {any} */ p)=>dead(p,data));
-    if(pattern.intersection) return pattern.intersection.some((/** @type {any} */ p)=>dead(p,data));
-    if(pattern.difference) return dead(pattern.difference[0],data);
-    if(pattern.test) return pattern.any?false:dead(pattern.expr,data);
-    if(pattern.name) return !data.reachable.has(pattern.name);
-    if(pattern.terminal) return pattern.terminal === '_' ? !data.terminals.size && !data.omitted.size : !data.terminals.has(pattern.terminal) && !data.omitted.has(pattern.terminal);
-    return false;
-  }
-
-  /** @param {any} grammar @returns {any} */
-  function rankingAudit(grammar) {
-    const steps=grammar.resolution?.steps??[];
-    if (!steps.length) return {keySteps:[],countedChanges:[]};
-    const data=observations(grammar);
-    const reports=[],changes=[];
-    for(let index=0;index<steps.length;index++) {
-      const step=steps[index],named=new Set(),pending=[step.pattern];
-      while(pending.length) {
-        const pattern=pending.pop();
-        if(pattern.name)named.add(pattern.name);
-        for (const child of patternParts(pattern)) pending.push(child);
-      }
-      reports.push({step:index,pattern:canonicalArgument({pattern:step.pattern},grammar.unicode),...(dead(step.pattern,data)?{status:'impossible'}:{})});
-      for(const change of grammar.changes)if(named.has(change.rule))changes.push({...change,step:index});
-    }
-    return {keySteps:reports,countedChanges:changes};
-  }
-
-  // ---- tree-identities.js
-  // Exact structural observations for compared occurrences (engine §4.1).
-
-
-
-  /** @param {any} root @returns {any[]} */
-  function constituentComparisons(root) {
-    const result=[], pending=[root], seen=new Set();
-    while(pending.length) {
-      const node=pending.pop();
-      if(!node || typeof node!=='object' || seen.has(node)) continue;
-      seen.add(node);
-      if((node.op==='≅' || node.op==='≇') && typeof node.right?.capture==='string') result.push(node);
-      else for (const child of clauseChildren(node).slice().reverse()) pending.push(child);
-    }
-    return result;
-  }
-
-  /**
-   * @typedef {object} TreeDemand
-   * @property {boolean} whole
-   * @property {Set<number>} parts
-   * @property {Set<string>} names
-   * @property {Set<string>} outer
-   * @property {boolean} parentPrefix
-   * @property {number} prefixUntil
-   */
-  /** @type {WeakMap<object,Map<string,TreeDemand>>} */
-  const local=new WeakMap();
-  /** @type {WeakMap<object,string>} */
-  const frameKeys=new WeakMap();
-  /** @param {any} frame */
-  function frameKey(frame) {
-    if(!frame)return '';
-    let key=frameKeys.get(frame);
-    if(key===undefined) {key=JSON.stringify([[...frame.present].sort(),[...frame.captures.keys()].sort(),[...frame.knownPrivate].sort(),!!frame.inside]);frameKeys.set(frame,key);}
-    return key;
-  }
-  /** @param {any} production @returns {TreeDemand} */
-  function localTreeDemand(production) {
-    const found=local.get(production.baseProduction ?? production)?.get(frameKey(production.lexicalFrame));
-    if(!found)throw new Error('a production has no tree demand case');
-    return found;
-  }
-
-  /** @param {any} lowered @param {any} frames */
-  function prepareTreeDemands(lowered, frames) {
-    const byKey=new Map();
-    /** @type {any[]} */
-    const states=[];
-    let nextFrame=0;
-    const contextual=new Set(lowered.productions.filter((/** @type {any} */ p)=>p.contextual).map((/** @type {any} */ p)=>p.lhs));
-    const state=(/** @type {any} */ p,/** @type {any} */ frame)=> {
-      const key=p.id+'/'+frameKey(frame);
-      if(byKey.has(key))return byKey.get(key);
-      const bound=frame ? frames.production(p,frame) : p;
-      const result={whole:false,parts:new Set(),names:new Set(),outer:new Set(),parentPrefix:false,prefixUntil:0};
-      for(const comparison of constituentComparisons([bound.conditions,bound.tags,bound.parentTags]))for(const name of [comparison.left.capture,comparison.right.capture]) {
-        result.names.add(name);
-        if(name==='') {result.whole=true;result.parentPrefix=!!p.helper;}
-        else {
-          const capture=p.captures.find((/** @type {any} */ c)=>c.name===name);
-          if(capture)result.parts.add(capture.index);else result.outer.add(name);
-        }
-      }
-      const entry={p,frame,demand:result,edges:[]};
-      const demands=local.get(p)??new Map();demands.set(frameKey(frame),result);local.set(p,demands);
-      states.push(entry);byKey.set(key,entry);return entry;
-    };
-    for(const p of lowered.productions)if(!p.contextual)state(p,null);
-    for(let at=0;at<states.length;at++) {
-      const entry=states[at],{p,frame}=entry;
-      const captures=p.captures.filter((/** @type {any} */ c)=>!c.name.startsWith('\u0000'));
-      const present=new Set([...frame?.present??[],...captures.map((/** @type {any} */ c)=>c.name)]);
-      const knownPrivate=new Set([...frame?.knownPrivate??[],...p.rankedPrivate??[]]);
-      const inside=!!frame?.inside||!!p.rankedGroup;
-      p.rhs.forEach((/** @type {any} */ symbol,/** @type {number} */ index)=> {
-        if(symbol.terminal||!contextual.has(symbol.name))return;
-        const ready=new Map(frame?.captures??[]);
-        for(const capture of captures)if(capture.index<index)ready.set(capture.name,null);
-        const child={id:nextFrame++,present,knownPrivate,captures:ready,inside};
-        for(const q of lowered.byLhs.get(symbol.name)??[])entry.edges.push({index,child:state(q,child)});
-      });
-    }
-    let changed=true;
-    while(changed) {
-      changed=false;
-      for(const entry of states)for(const edge of entry.edges) {
-        const d=entry.demand, child=edge.child.demand;
-        if(child.parentPrefix) {
-          if(entry.p.helper&&!d.parentPrefix) {d.parentPrefix=true;changed=true;}
-          if(!entry.frame?.inside&&!entry.p.rankedGroup&&edge.index>d.prefixUntil) {d.prefixUntil=edge.index;changed=true;}
-        }
-        for(const name of child.outer) {
-          const capture=entry.p.captures.find((/** @type {any} */ c)=>c.name===name&&c.index<edge.index);
-          if(capture) {if(!d.parts.has(capture.index)) {d.parts.add(capture.index);changed=true;}}
-          else if(entry.frame?.captures.has(name)&&!d.outer.has(name)) {d.outer.add(name);changed=true;}
-        }
-      }
-    }
-  }
-
-  class TreeIdentities {
-    constructor() {
-      /** @type {Map<string,number>} */ this.ids=new Map();
-      /** @type {{key:any[],empty:boolean}[]} */ this.nodes=[];
-      /** @type {Map<number,string>} */ this.semanticNodes=new Map();
-      /** @type {Map<number,string>} */ this.semanticSequences=new Map();
-      /** @type {[number,number][]} */ this.sequences=[[0,-1]];
-      /** @type {Map<string,number>} */ this.sequenceIds=new Map();
-      /** @type {Map<string,number>} */ this.concatenations=new Map();
-      this.emptyProjection=this.intern(['EmptyProjection'],true);
-    }
-    /** @param {any[]} key @param {boolean} [empty] */
-    intern(key,empty=false) {
-      const text=JSON.stringify(key), old=this.ids.get(text);if(old!==undefined)return old;
-      const id=this.nodes.length;this.ids.set(text,id);this.nodes.push({key,empty});return id;
-    }
-    /** @param {number} prefix @param {number} node */
-    append(prefix,node) {
-      if(this.nodes[node].empty)return prefix;
-      const key=`${prefix}/${node}`,old=this.sequenceIds.get(key);if(old!==undefined)return old;
-      const id=this.sequences.length;this.sequences.push([prefix,node]);this.sequenceIds.set(key,id);return id;
-    }
-    /** @param {number} left @param {number} right */
-    concat(left,right) {
-      if(!left)return right;if(!right)return left;
-      const key=`${left}/${right}`,old=this.concatenations.get(key);if(old!==undefined)return old;
-      const pending=[];for(let at=right;at;at=this.sequences[at][0])pending.push(this.sequences[at][1]);
-      let result=left;while(pending.length)result=this.append(result,/** @type {number} */(pending.pop()));
-      this.concatenations.set(key,result);return result;
-    }
-    /** @param {number} sequence @returns {number[]} */
-    elements(sequence) {
-      const nodes=[];
-      for(let at=sequence;at;at=this.sequences[at][0])nodes.push(this.sequences[at][1]);
-      return nodes.reverse();
-    }
-    /** @param {number|undefined} identity @returns {string|null} */
-    semantic(identity) {
-      if(identity === undefined || identity < 0)return null;
-      const pending=[identity];
-      while(pending.length) {
-        const node=pending[pending.length-1];
-        if(this.semanticNodes.has(node)) {pending.pop();continue;}
-        const key=this.nodes[node].key;
-        if(key[0] !== 'Rule') {this.semanticNodes.set(node,JSON.stringify(key));continue;}
-        const children=this.elements(key[2]);
-        const missing=children.find(child=>!this.semanticNodes.has(child));
-        if(missing!==undefined) {pending.push(missing);continue;}
-        this.semanticNodes.set(node,'["Rule",'+JSON.stringify(key[1])+',['+children.map(child=>this.semanticNodes.get(child)).join(',')+']]');
-      }
-      return /** @type {string} */ (this.semanticNodes.get(identity));
-    }
-    /** @param {number} sequence @returns {string} */
-    sequenceSemantic(sequence) {
-      let value=this.semanticSequences.get(sequence);
-      if(value===undefined) {value='['+this.elements(sequence).map(node=>this.semantic(node)).join(',')+']';this.semanticSequences.set(sequence,value);}
-      return value;
-    }
-    /** @param {string} name @param {number} children */
-    rule(name,children) {return this.intern(['Rule',name,children],children===0);}
-    /** @param {string} terminal @param {string} value */
-    written(terminal,value) {return this.intern(['Written',terminal,value]);}
-    /** @param {string} terminal */
-    omitted(terminal) {return this.intern(['Omitted',terminal]);}
-    /** @param {string[]} values */
-    seal(values) {return this.intern(['Seal',values]);}
-  }
-
-  /** @param {any} context @param {string} terminal @param {number} at */
-  function terminalIdentity(context,terminal,at) {
-    if(context.recon && !context.recon.raw) {
-      if(context.synthetic?.[at])return context.trees.emptyProjection;
-      return context.trees.written(terminal,context.recon.observed.tokens[context.recon.project[at]].value);
-    }
-    return context.trees.written(terminal,context.tokens[at].value);
-  }
-
-  /** @param {any} context @param {number} start @param {number} end */
-  function sealIdentity(context,start,end) {
-    const key=`${start}/${end}`;
-    const old=context.treeSeals.get(key);if(old!==undefined)return old;
-    const observed=context.recon && !context.recon.raw ? context.recon.observed : context;
-    if(observed!==context) { start=context.recon.project[start];end=context.recon.project[end]; }
-    const values=[];for(let i=start;i<end;i++)values.push(observed.tokens[i].value);
-    const result=context.trees.seal(values);context.treeSeals.set(key,result);return result;
-  }
-
-  /** @param {any} context @param {any} production @param {number} dot @param {any} previous @param {any} child @param {number} end */
-  function treeStep(context,production,dot,previous,child,end) {
-    if(!context.trees || !production.observesTrees || !production.walksTrees && dot>production.treePrefixUntil)return null;
-    const m=context.trees;
-    let prefix=previous?.treePrefix ?? 0;
-    if(previous) {
-      const symbol=production.rhs[dot-1];
-      if(symbol.slot)prefix=m.append(prefix,sealIdentity(context,child.origin,child.end));
-      else if(child)prefix=m.concat(prefix,child.treeSequence);
-      else prefix=m.append(prefix,terminalIdentity(context,symbol.name,end-1));
-    }
-    let identity=-1,sequence=prefix;
-    if(dot===production.rhs.length && production.walksTrees) {
-      if(!production.helper) { identity=m.rule(production.lhs,prefix);sequence=m.append(0,identity); }
-      else if(production.elided!==null && production.rhs.length===0) { identity=m.omitted(production.elided);sequence=m.append(0,identity); }
-    }
-    return {treePrefix:prefix,treeIdentity:identity,treeSequence:sequence};
-  }
-
-  /** @param {any} lowered @returns {{comparison:any,production:any,cycle:string[]}|null} */
-  function treeIdentityCycle(lowered) {
-    const rows=lowered.structural, byName=new Map(), nullable=new Set();
-    for(const row of rows) {const list=byName.get(row.lhs) ?? [];list.push(row);byName.set(row.lhs,list);}
-    let changed=true;
-    while(changed) {
-      changed=false;
-      for(const row of rows)if(!nullable.has(row.lhs) && row.rhs.every((/** @type {any} */ s)=>!s.terminal && nullable.has(s.name))) {nullable.add(row.lhs);changed=true;}
-    }
-    const seals=new Set(lowered.grammar.ranked.groups.map((/** @type {any} */ g)=>g.helper));
-    const edges=new Map();
-    for(const [name,productions] of byName) {
-      /** @type {any[]} */ const out=[];
-      for(const production of productions) production.rhs.forEach((/** @type {any} */ symbol,/** @type {number} */ index)=> {
-        if(!symbol.terminal && !seals.has(symbol.name))out.push({name:symbol.name,marked:production.rhs.every((/** @type {any} */ other,/** @type {number} */ i)=>i===index || !other.terminal && nullable.has(other.name))});
-      });
-      edges.set(name,out);
-    }
-    const sites=[...lowered.treeSites];
-    for(const production of lowered.productions) {
-      const bindings=new Map(production.captures.map((/** @type {any} */ c)=>[c.name,[production.rhs[c.index].terminal,production.rhs[c.index].name]]));
-      for(const comparison of constituentComparisons([production.tags,production.parentTags,production.conditions]))sites.push({comparison,production,bindings,prefix:[]});
-    }
-    const order=new Map(), hints=new Map();
-    let nextOrder=0;
-    for(const rule of lowered.grammar.rules.values()) {
-      const definitions=new Map();
-      for(const source of rule.alternatives) {
-        const alternatives=definitions.get(source.clauses)??[];alternatives.push(source);definitions.set(source.clauses,alternatives);
-      }
-      for(const [clauses,alternatives] of definitions)for(const root of [clauses.tags,...alternatives.map((/** @type {any} */ a)=>a.tags),clauses.conditions]) {
-        for(const comparison of constituentComparisons(root)) {
-          const number=nextOrder++;
-          order.set(comparison,number);
-          const key=JSON.stringify([alternatives[0].document,boundaryLocations.get(comparison)?.at,comparison]);
-          if(!hints.has(key))hints.set(key,number);
-        }
-      }
-    }
-    const ordinal=(/** @type {any} */ site)=>order.get(site.comparison)??hints.get(JSON.stringify([(site.production.logicalSource??site.production.source)?.document,boundaryLocations.get(site.comparison)?.at,site.comparison]))??nextOrder;
-    sites.sort((a,b)=>ordinal(a)-ordinal(b)||a.production.id-b.production.id);
-    for(const {comparison,production,bindings,prefix} of sites) {
-        const roots=[];
-        for(const name of [comparison.left.capture,comparison.right.capture]) {
-          if(name==='') {
-            for (const name of prefix) roots.push(name);
-            if(!production.helper) for (const symbol of production.rhs) if (!symbol.terminal && !seals.has(symbol.name)) roots.push(symbol.name);
-          } else {
-            const binding=bindings.get(name);
-            if(binding && !binding[0])roots.push(binding[1]);
-          }
-        }
-        const reachable=[],known=new Set(),todo=roots.slice().reverse();
-        while(todo.length) {const name=todo.pop();if(known.has(name))continue;known.add(name);reachable.push(name);for(const edge of (edges.get(name)??[]).slice().reverse())todo.push(edge.name);}
-        const done=new Set(),active=new Map();
-        /** @type {string[]} */ const path=[];
-        for(const root of reachable) {
-          if(done.has(root))continue;
-          const stack=[{name:root,next:0}];
-          while(stack.length) {
-            const frame=stack[stack.length-1];
-            if(!active.has(frame.name)) {active.set(frame.name,path.length);path.push(frame.name);}
-            const out=edges.get(frame.name)??[];
-            const edge=out[frame.next++];
-            if(!edge) {path.pop();active.delete(frame.name);done.add(frame.name);stack.pop();continue;}
-            if(!edge.marked || done.has(edge.name))continue;
-            if(active.has(edge.name)) {
-              const cycle=path.slice(active.get(edge.name)).concat(edge.name).filter(name=>!name.startsWith('\u0000'));
-              return {comparison,production,cycle};
-            }
-            stack.push({name:edge.name,next:0});
-          }
-        }
-    }
-    return null;
-  }
-
-  /** @param {any} context @param {any} root @returns {number} */
-  function derivationIdentity(context,root) {
-    context.emissionTrees ??= new TreeIdentities();
-    context.emissionTreeValues ??= new WeakMap();
-    const m=context.emissionTrees, memo=context.emissionTreeValues,pending=[root];
-    while(pending.length) {
-      const node=pending[pending.length-1];
-      if(memo.has(node)) {pending.pop();continue;}
-      if(node.read) {const identity=m.written(node.read.terminal,context.tokens[node.start].value);memo.set(node,{identity,sequence:m.append(0,identity)});continue;}
-      const child=node.children.find((/** @type {any} */ c,/** @type {number} */ i)=>!node.production.rhs[i]?.slot && !memo.has(c));
-      if(child) {pending.push(child);continue;}
-      let sequence=0;
-      node.children.forEach((/** @type {any} */ c,/** @type {number} */ i)=> {
-        if(node.production.rhs[i]?.slot) sequence=m.append(sequence,m.seal(context.tokens.slice(c.start,c.end).map((/** @type {any} */ token)=>token.value)));
-        else sequence=m.concat(sequence,memo.get(c).sequence);
-      });
-      let identity=-1;
-      if(!node.production.helper) {identity=m.rule(node.production.lhs,sequence);sequence=m.append(0,identity);}
-      else if(!node.children.length && node.production.elided!==null) {identity=m.omitted(node.production.elided);sequence=m.append(0,identity);}
-      memo.set(node,{identity,sequence});
-    }
-    return memo.get(root).identity;
-  }
-
-  // ---- family-summaries.js
-  // The deletion automaton of engine §4.1. Items retain sets and relations,
-  // never permission-marked close sequences. Dead summaries filter witnesses
-  // only. The chart and its omission blockers still retain every item.
-
-
-
-  /**
-   * A null relation is the identity of a record-free empty item.
-   * @typedef {{id:number, dead:boolean, first:bigint, last:bigint, relation:bigint[]|null}} FamilySummary
-   */
-  /** @typedef {import("./close-observations.js").CloseEvent} Event */
-
-  /** @param {Event} left @param {Event} right @returns {boolean} */
-  function sameRecord(left, right) {
-    return left.kind === right.kind && (left.kind === "close"
-      ? left.terminal === /** @type {Extract<Event,{kind:"close"}>} */ (right).terminal && left.at === /** @type {Extract<Event,{kind:"close"}>} */ (right).at
-      : left.key === /** @type {Extract<Event,{kind:"block"}>} */ (right).key && left.start === /** @type {Extract<Event,{kind:"block"}>} */ (right).start && left.end === /** @type {Extract<Event,{kind:"block"}>} */ (right).end);
-  }
-
-  /**
-   * Independent whole-group test for the library's conformance switch. It
-   * reads each witness record directly, without item sets or relation joins.
-   * @param {Event[]} candidate
-   * @param {{event:Event, permitted:boolean}[]} witness
-   * @param {number} start @param {number} end
-   * @returns {boolean}
-   */
-  function deletionTest(candidate, witness, start, end) {
-    /** @type {(event:Event) => number} */
-    const position = event => event.kind === "close" ? event.at : event.start;
-    /** @type {(event:Event) => boolean} */
-    const inside = event => position(event) <= end && !(event.kind === "block" && event.start === end && event.end > end);
-    for (const {event} of witness) if (event.kind === "block" && event.start < end && event.end > end) return false;
-    const kept = candidate.filter(inside);
-    const records = witness.filter(record => inside(record.event));
-    // A state records matched candidate records and whether the last step
-    // deleted one. A later match or a following token supplies its right anchor.
-    let states = new Set(["0/0"]);
-    for (const {event, permitted} of records) {
-      const next = new Set();
-      for (const state of states) {
-        const [index, trailing] = state.split("/").map(Number);
-        const at = position(event);
-        // Candidate records before this boundary must already be matched.
-        if (index < kept.length && position(kept[index]) < at) continue;
-        if (index < kept.length && sameRecord(event, kept[index])) next.add(`${index+1}/0`);
-        const earlierRecord = index > 0 && position(kept[index-1]) === at;
-        if (permitted && event.kind === "close" && (at > start || earlierRecord)) next.add(`${index}/1`);
-        // `trailing` stays relevant only at the final boundary.
-        void trailing;
-      }
-      states = next;
-    }
-    return states.has(`${kept.length}/0`) || (records.length !== 0 && position(records[records.length-1].event) < end && states.has(`${kept.length}/1`));
-  }
-
-  class FamilySummaries {
-    /**
-     * @param {import("./close-observations.js").CloseObservations} closes
-     * @param {import("./close-observations.js").CloseObservation} candidate
-     * @param {number} start
-     * @param {number} end
-     */
-    constructor(closes, candidate, start, end) {
-      this.start = start;
-      this.end = end;
-      /** @type {Map<number,Event[]>} */ this.groups = new Map();
-      for (const event of closes.raw.values(candidate.sequence)) {
-        const at = event.kind === "close" ? event.at : event.start;
-        const group = this.groups.get(at);
-        if (group) group.push(event);
-        else this.groups.set(at, [event]);
-      }
-      this.groupPositions = [...this.groups.keys()].sort((a, b) => a - b);
-      /** @type {Map<string,FamilySummary>} */ this.summaries = new Map();
-      /** @type {Set<number>} */ this.taken = new Set();
-      /** @type {Map<string,bigint[]>} */ this.records = new Map();
-      /** @type {Map<string,FamilySummary>} */ this.joins = new Map();
-      this.identity = this.intern(false, 0n, 0n, null);
-      this.dead = this.intern(true, 0n, 0n, null);
-    }
-
-    /** @param {number} at @returns {Event[]} */
-    group(at) { return this.groups.get(at) ?? []; }
-
-    /** @param {boolean} dead @param {bigint} first @param {bigint} last @param {bigint[]|null} relation @returns {FamilySummary} */
-    intern(dead, first, last, relation) {
-      const key = dead ? "dead" : `${first}/${last}/${relation?.join(",") ?? "identity"}`;
-      let summary = this.summaries.get(key);
-      if (!summary) {
-        summary = {id:this.summaries.size, dead, first, last, relation};
-        this.summaries.set(key, summary);
-      }
-      return summary;
-    }
-
-    /** @param {FamilySummary} summary @returns {FamilySummary} */
-    take(summary) {
-      if (!this.taken.has(summary.id)) {
-        this.taken.add(summary.id);
-        if (hooks.work) countWork(hooks.work, "familySummaries");
-      }
-      return summary;
-    }
-
-    /** @param {number} at @param {boolean} final @returns {bigint} */
-    accept(at, final = false) {
-      if (at > this.end) return 1n;
-      const group = this.group(at);
-      let count = group.length;
-      if (final && count && group[count-1].kind === "block" && /** @type {Extract<Event,{kind:"block"}>} */ (group[count-1]).end > at) count--;
-      return (final || at === this.end ? 1n : 3n) << BigInt(2*count);
-    }
-
-    /** @param {bigint[]|null} relation @param {bigint} set @returns {bigint} */
-    image(relation, set) {
-      if (relation === null) return set;
-      if (hooks.work) countWork(hooks.work, "familySteps", relation.length);
-      let result = 0n;
-      for (let index = 0; index < relation.length; index++) if (set & (1n << BigInt(index))) result |= relation[index];
-      return result;
-    }
-
-    /** @param {bigint[]|null} relation @param {bigint} set @returns {bigint} */
-    preimage(relation, set) {
-      if (relation === null) return set;
-      if (hooks.work) countWork(hooks.work, "familySteps", relation.length);
-      let result = 0n;
-      for (let index = 0; index < relation.length; index++) if (relation[index] & set) result |= 1n << BigInt(index);
-      return result;
-    }
-
-    /** @param {Event} event @param {boolean} permitted @returns {FamilySummary} */
-    record(event, permitted) {
-      const at = event.kind === "close" ? event.at : event.start;
-      if (at > this.end || event.kind === "block" && at === this.end && event.end > at) return this.identity;
-      const group = this.group(at);
-      if (hooks.work) countWork(hooks.work, "familySteps", 2*(group.length+1));
-      const key = JSON.stringify([event.kind === "close" ? [event.terminal,event.at] : [event.key,event.start,event.end], permitted]);
-      let relation = this.records.get(key);
-      if (!relation) {
-        relation = Array(2*(group.length+1)).fill(0n);
-        for (let i = 0; i <= group.length; i++) {
-          let targets = 0n;
-          if (i < group.length && sameRecord(event, group[i])) targets |= 1n << BigInt(2*(i+1));
-          if (permitted && event.kind === "close" && (i > 0 || at > this.start)) targets |= 1n << BigInt(2*i+1);
-          relation[2*i] = relation[2*i+1] = targets;
-        }
-        this.records.set(key, relation);
-      }
-      return this.intern(false, 0n, 0n, relation);
-    }
-
-    /**
-     * A token or an opaque block reads an interval. Its interior has no
-     * visible records. Candidate records there therefore make it dead.
-     * @param {number} start @param {number} end @returns {FamilySummary}
-     */
-    tokens(start, end) {
-      if (start < this.end && this.end < end) return this.dead;
-      if (end - start > 1) {
-        let low = 0, high = this.groupPositions.length;
-        while (low < high) {
-          const mid = (low + high) >>> 1;
-          if (this.groupPositions[mid] <= start) low = mid + 1;
-          else high = mid;
-        }
-        const at = this.groupPositions[low];
-        if (at !== undefined && at < end && at <= this.end) return this.dead;
-      }
-      return this.intern(false, this.accept(start), 1n, null);
-    }
-
-    /**
-     * @param {FamilySummary} left @param {FamilySummary} right
-     * @param {number} start @param {number} middle @param {number} end
-     * @returns {FamilySummary}
-     */
-    join(left, right, start, middle, end) {
-      if (left.dead || right.dead) return this.dead;
-      const key = `${left.id}/${right.id}/${start === middle}/${middle === end}`;
-      const known = this.joins.get(key);
-      if (known) {
-        // Memoization skips row computation, but the shared work metric
-        // charges the specified relation operation at each use.
-        let steps = 0;
-        if (start === middle && middle === end) {
-          if (left.relation && right.relation) steps = left.relation.length*right.relation.length;
-        } else if (start === middle) steps = left.relation?.length ?? 0;
-        else if (middle === end) steps = right.relation?.length ?? 0;
-        if (hooks.work) countWork(hooks.work, "familySteps", steps);
-        return known;
-      }
-      let summary;
-      if (start === middle && middle === end) {
-        const relation = left.relation === null ? right.relation : right.relation === null ? left.relation : left.relation.map(row => this.image(right.relation, row));
-        summary = this.intern(false, 0n, 0n, relation);
-      } else if (start === middle) {
-        summary = this.intern(false, this.preimage(left.relation, right.first), right.last, null);
-      } else if (middle === end) {
-        summary = this.intern(false, left.first, this.image(right.relation, left.last), null);
-      } else {
-        summary = left.last & right.first ? this.intern(false, left.first, right.last, null) : this.dead;
-      }
-      this.joins.set(key, summary);
-      return summary;
-    }
-
-    /** @param {FamilySummary} summary @param {number} end @returns {boolean} */
-    accepts(summary, end) {
-      if (summary.dead) return false;
-      const accepting = this.accept(end, true);
-      return end === this.start ? !!(this.image(summary.relation, 1n) & accepting)
-        : !!(summary.first & 1n) && (end > this.end || !!(summary.last & accepting));
-    }
-  }
-
-  // ---- tokens.js
-  // Tokens (engine §1): what every stage reads and writes.
-
-
-
-
-  /** @import { TagSet, Span } from "./types.js" */
-  /** @import { UnicodeTable } from "./unicode.js" */
-
-  /**
-   * A token attached to another (engine §11): a token with no span, since its
-   * span counts the input of the stage that attached it.
-   * @typedef {Omit<Token, "span">} AttachedToken
-   */
-
-  // The attachments of a token that has none: one frozen list, shared, so that
-  // a character token costs no lists of its own.
-  /** @type {AttachedToken[]} */
-  const NO_ATTACHMENTS = /** @type {AttachedToken[]} */ (/** @type {unknown} */ (Object.freeze([])));
-
-  class Token {
-    /**
-     * @param {TagSet} tags
-     * @param {Span} span the tokens of the stage before it this token covers
-     * @param {Span} source the code points of the text it covers
-     * @param {string} text the text it covers, as written
-     * @param {string} [value] the stored comparison string
-     * @param {string | undefined} insertedBy the rule that inserted it, for a
-     *   token no text stands for
-     * @param {string} [image] what it shows to people (engine §5): by default
-     *   its text, as for a caller-supplied token
-     */
-    constructor(tags, span, source, text, value = text, insertedBy = undefined, image = text) {
-      this.tags = tags;
-      this.span = span;
-      this.source = source;
-      this.text = text;
-      this.value = value;
-      this.insertedBy = insertedBy;
-      this.image = image;
-      /**
-       * The tokens attached before this one (engine §11), none by default.
-       * @type {AttachedToken[]}
-       */
-      this.before = NO_ATTACHMENTS;
-      /**
-       * The tokens attached after this one (engine §11), none by default.
-       * @type {AttachedToken[]}
-       */
-      this.after = NO_ATTACHMENTS;
-    }
-  }
-
-  /**
-   * Whether a token has attachments (engine §11).
-   * @param {AttachedToken} token
-   * @returns {boolean}
-   */
-  function hasAttachments(token) {
-    return token.before.length > 0 || token.after.length > 0;
-  }
-
-  /**
-   * A token as an attachment: the same token without its span (engine §11).
-   * @param {Token} token
-   * @returns {AttachedToken}
-   */
-  function attached(token) {
-    const { span, ...rest } = token;
-    void span;
-    return rest;
-  }
-
-  // The source of a run of tokens (engine §1): from the least source start
-  // among them to the greatest source end. Tokens usually lie in the order of
-  // their sources, and then that is the first token's start and the last
-  // token's end. Otherwise a table of the least start and the greatest end of
-  // every run of a power of two tokens answers without a scan, so that the
-  // nested nodes of a long left-recursive rule cost no more than its tokens.
-  class Sources {
-    /** @param {Token[]} tokens */
-    constructor(tokens) {
-      this.tokens = tokens;
-      /**
-       * Made at the first question: null when the tokens are in order.
-       * @type {{lows: number[][], highs: number[][]} | null | undefined}
-       */
-      this.table = undefined;
-    }
-
-    /**
-     * The source of tokens [start, end), which must not be empty.
-     * @param {number} start
-     * @param {number} end
-     * @returns {Span}
-     */
-    of(start, end) {
-      if (this.table === undefined) this.table = sourceTable(this.tokens);
-      if (this.table === null) return [this.tokens[start].source[0], this.tokens[end - 1].source[1]];
-      // Two runs of a power of two tokens cover the span between them.
-      const level = 31 - Math.clz32(end - start);
-      const other = end - (1 << level);
-      const lows = this.table.lows[level];
-      const highs = this.table.highs[level];
-      return [Math.min(lows[start], lows[other]), Math.max(highs[start], highs[other])];
-    }
-  }
-
-  /**
-   * @param {Token[]} tokens
-   * @returns {{lows: number[][], highs: number[][]} | null}
-   */
-  function sourceTable(tokens) {
-    let ordered = true;
-    for (let index = 1; index < tokens.length && ordered; index++) {
-      const before = tokens[index - 1].source;
-      const after = tokens[index].source;
-      ordered = before[0] <= after[0] && before[1] <= after[1];
-    }
-    if (ordered) return null;
-    // lows[k][i] is the least start of tokens [i, i + 2^k), and highs[k][i]
-    // the greatest end.
-    const lows = [tokens.map((token) => token.source[0])];
-    const highs = [tokens.map((token) => token.source[1])];
-    for (let width = 1; 2 * width <= tokens.length; width *= 2) {
-      const low = lows[lows.length - 1];
-      const high = highs[highs.length - 1];
-      /** @type {number[]} */
-      const nextLow = [];
-      /** @type {number[]} */
-      const nextHigh = [];
-      for (let index = 0; index + 2 * width <= tokens.length; index++) {
-        nextLow.push(Math.min(low[index], low[index + width]));
-        nextHigh.push(Math.max(high[index], high[index + width]));
-      }
-      lows.push(nextLow);
-      highs.push(nextHigh);
-    }
-    return { lows, highs };
-  }
-
-  // The first stage's input: one token per decomposed scalar, with its
-  // original source and the scalar's engine tags (engine §1).
-  /**
-   * @param {string} text
-   * @param {UnicodeTable} unicode
-   * @returns {Token[]}
-   */
-  function characterTokens(text, unicode) {
-    if (/[\uD800-\uDFFF]/u.test(text)) throw new GencmuError("usage", "the text contains a lone surrogate");
-    const tokens = [];
-    // Recognition treats these sets as immutable. The pipeline gives each
-    // public token its own set before returning a result.
-    /** @type {Map<number,TagSet>} */
-    const profiles = new Map();
-    let index = 0;
-    const original = [...text];
-    for (const { character, origin } of unicode.decomposeWithOrigins(text)) {
-      const code = /** @type {number} */ (character.codePointAt(0));
-      let tags = profiles.get(code);
-      if (!tags) {
-        tags = tagSet(unicode.profile(code));
-        profiles.set(code,tags);
-      }
-      tokens.push(new Token(tags, [index, index + 1], [origin, origin + 1], original[origin], character, undefined, character));
-      index++;
-    }
-    return tokens;
-  }
-
-  // ---- eligible.js
-  // Written-terminator priority for nested queries (engine §4): which
-  // completed items of a queried rule have an eligible proof tree.
-
-  /**
-   * @import { Edge, Item, LoweredGrammar } from "./types.js"
-   * @import { Chart } from "./earley.js"
-   */
-
-
-  /** @type {WeakMap<LoweredGrammar, {elidable:Set<string>,optional:Map<string,object>}>} */
-  const helperSites = new WeakMap();
-
-  /**
-   * Elidable helpers and the written sites of split plain optional helpers. A
-   * captured optional can have separate helpers for its expanded routes.
-   * @param {LoweredGrammar} lowered
-   * @returns {{elidable:Set<string>,optional:Map<string,object>}}
-   */
-  function helpersOf(lowered) {
-    let helpers = helperSites.get(lowered);
-    if (!helpers) {
-      helpers = {elidable:new Set(),optional:new Map()};
-      /** @type {Map<object,Set<string>>} */
-      const sites = new Map();
-      for (const production of lowered.productions) {
-        if (!production.helper) continue;
-        if (production.elided !== null) helpers.elidable.add(production.lhs);
-        const expression = production.writtenExpression;
-        if (expression && "optional" in expression && expression.elidable !== true) {
-          let names = sites.get(expression);
-          if (!names) sites.set(expression,names=new Set());
-          names.add(production.lhs);
-        }
-      }
-      // One helper already joins all its optional's routes in the chart.
-      // Only distinct names of one written site need the logical group key.
-      for (const [expression,names] of sites) {
-        if (names.size > 1) for (const name of names) helpers.optional.set(name,expression);
-      }
-      helperSites.set(lowered, helpers);
-    }
-    return helpers;
-  }
-
-  /**
-   * Whether a completed item is the empty helper of an elidable optional: an
-   * advance over it is an omission.
-   * @param {Item} item
-   * @returns {boolean}
-   */
-  function omitted(item) {
-    return item.production.helper && item.production.elided !== null && item.production.rhs.length === 0;
-  }
-
-  /**
-   * Whether a completed item is an elidable optional's helper over its
-   * nonempty alternative: an advance over it reads the optional as written.
-   * @param {Item} item
-   * @returns {boolean}
-   */
-  function written(item) {
-    return item.dot === item.production.rhs.length && item.production.helper && item.production.elided !== null && item.production.rhs.length > 0;
-  }
-
-  /**
-   * @param {Item} item
-   * @returns {{node:import("./logical.js").LogicalSymbol|undefined, initial:boolean}|null}
-   */
-  function logicalPredecessor(item) {
-    const roots = item.production.logical;
-    if (!roots) return null;
-    /** @param {import("./logical.js").LogicalSymbol[]} nodes @param {boolean} root @returns {{node:import("./logical.js").LogicalSymbol|undefined,initial:boolean}|null} */
-    const find = (nodes,root) => {
-      for (let index=0;index<nodes.length;index++) {
-        const node = nodes[index];
-        if (node.symbol && node.from === item.dot) return {node:nodes[index-1],initial:root && index === 1};
-        if (node.children && node.from <= item.dot && item.dot < node.to) {
-          const result = find(node.children,false);
-          if (result) return result;
-        }
-      }
-      return null;
-    };
-    return find(roots,true);
-  }
-
-  /**
-   * The completed items of the queried rule with an eligible proof tree in
-   * the chart (engine §4). An omission is an advance over the
-   * empty helper of an elidable optional at its position p. It is forbidden
-   * where the prefix that the proof tree holds fixed can go on and read the
-   * optional as written:
-   *
-   * - Where the optional has a constituent Y, the prefix is the item before Y
-   *   in the same proof tree. The omission is forbidden when the chart advances
-   *   that item over Y to some p' ≥ p, and the item so made advances over the
-   *   optional's nonempty alternative.
-   * - Otherwise the prefix is the item before the optional, and the omission
-   *   is forbidden when the chart advances that item over the nonempty
-   *   alternative.
-   *
-   * The chart is the whole recognition of the query, before any filtering,
-   * so an attempt that never completes the rule can forbid an omission.
-   *
-   * Each item has two states, computed together to the least fixpoint: it has
-   * an eligible proof tree (E), and an eligible proof tree that permits
-   * the optional after it to be empty (P). P follows the proof tree,
-   * so a permitted omission never combines with another proof tree's prefix.
-   * @param {Chart} chart
-   * @param {Item[]} witnesses
-   * @returns {Item[]}
-   */
-  function eligibleWitnesses(chart, witnesses) {
-    if (witnesses.length === 0) return witnesses;
-    const {elidable:helpers,optional:optionals} = helpersOf(chart.context.lowered);
-    if (helpers.size === 0) return witnesses;
-    // The items the witnesses rest on, children before the items made from
-    // them where the edges allow, so that one sweep settles most of them.
-    /** @type {Map<Item, number>} */
-    const index = new Map();
-    /** @type {Item[]} */
-    const order = [];
-    let omits = false;
-    for (const witness of witnesses) {
-      if (index.has(witness)) continue;
-      index.set(witness, -1);
-      /** @type {{item: Item, edges: Edge[], next: number}[]} */
-      const stack = [{ item: witness, edges: witness.edges, next: 0 }];
-      while (stack.length > 0) {
-        const frame = stack[stack.length - 1];
-        let pushed = false;
-        while (frame.next < frame.edges.length * 2) {
-          const step = frame.next++;
-          const edge = frame.edges[step >> 1];
-          /** @type {Item | null} */
-          let below = null;
-          if ((step & 1) === 0) below = edge.kind === "seed" || edge.kind === "restore" ? null : edge.previous;
-          else if (edge.kind === "complete") {
-            below = edge.child;
-            if (omitted(edge.child)) omits = true;
-          }
-          if (below !== null && !index.has(below)) {
-            index.set(below, -1);
-            stack.push({ item: below, edges: below.edges, next: 0 });
-            pushed = true;
-            break;
-          }
-        }
-        if (pushed) continue;
-        stack.pop();
-        index.set(frame.item, order.length);
-        order.push(frame.item);
-      }
-    }
-    // With no omission, every item of a chart has a finite proof, made from
-    // predicted items in the order in which the recognizer made it.
-    if (!omits) return witnesses;
-
-    // The prefixes that advance over a written optional, and for each item
-    // before a constituent Y, the furthest end of an advance over Y that then
-    // reads the optional as written.
-    /** @type {Set<Item>} */
-    const reads = new Set();
-    for (const set of chart.sets) {
-      if (!set) continue;
-      for (const item of set.items) {
-        for (const edge of item.edges) if (edge.kind === "complete" && written(edge.child)) reads.add(edge.previous);
-      }
-    }
-    /** @type {Map<Item, number>} */
-    const further = new Map();
-    for (const item of reads) {
-      for (const edge of item.edges) {
-        if (edge.kind !== "complete") continue;
-        const known = further.get(edge.previous);
-        if (known === undefined || known < item.end) further.set(edge.previous, item.end);
-      }
-    }
-
-    // For each item, whether an elidable optional comes next, and whether it
-    // has a constituent: not at the start, not after a terminal, and not
-    // after the first symbol of a production whose first symbol is its own
-    // rule (engine §4).
-    /** @type {Map<Item,import("./logical.js").LogicalSymbol>} */
-    const precedingGroups = new Map();
-    /** @param {Item} item @returns {"none"|"alone"|"constituent"|"group"} */
-    const nextKind = item => {
-      const rhs = item.production.rhs;
-      const symbol = rhs[item.dot];
-      if (symbol === undefined || symbol.terminal || !helpers.has(symbol.name)) return "none";
-      const logical = logicalPredecessor(item);
-      if (logical) {
-        const previous = logical.node;
-        if (!previous || previous.symbol?.terminal) return "alone";
-        const optional = previous.symbol && optionals.get(previous.symbol.name);
-        if (previous.children || optional) {
-          // Both physical helper variants and inline expansions retain one
-          // optional boundary for the fixed prefix and all blocker routes.
-          precedingGroups.set(item,optional ? {...previous,written:optional} : previous);
-          return "group";
-        }
-        if (logical.initial && previous.symbol?.name === item.production.lhs) return "alone";
-        return "constituent";
-      }
-      if (item.dot === 0 || rhs[item.dot-1].terminal) return "alone";
-      if (item.dot === 1 && rhs[0].name === item.production.lhs) return "alone";
-      return "constituent";
-    };
-    const next = order.map(nextKind);
-    const identities = new WeakMap();
-    let identityCount = 0;
-    /** @param {object|undefined} object */
-    const identity = object => {
-      if (!object) return 0;
-      let id = identities.get(object);
-      if (id === undefined) identities.set(object,id=++identityCount);
-      return id;
-    };
-    /** @param {Item} item @param {import("./logical.js").LogicalSymbol} group */
-    const fixedKey = (item,group) => {
-      const captures = [];
-      for (let slot=item.slots;slot;slot=slot.parent) {
-        const name = item.production.captures[slot.index].name;
-        captures.push([name,slot.start,slot.end,slot.tags,slot.structure,slot.observation?.sequence]);
-      }
-      const symbols = item.production.rhs.map((symbol,index) => [symbol.name,symbol.test?.written,
-        item.production.captures.filter(capture => capture.index === index && !capture.name.startsWith("\u0000")).map(capture => capture.name)]);
-      // Only the preceding optional's route varies. Every outside expansion
-      // remains part of the same logical production and fixed prefix.
-      const outside = [...symbols.slice(0,group.from),["optional"],...symbols.slice(group.to)];
-      // A surrounding optional can also have one helper per expanded route.
-      const owner = optionals.get(item.production.lhs);
-      const scope = owner ? ["optional",identity(owner)] : item.production.lhs;
-      return JSON.stringify([identity(item.production.logicalSource ?? item.production.source),scope,identity(group.written),
-        item.origin,item.end,item.structure,item.observationPrefix?.sequence,item.boundary?.id,outside,captures.reverse()]);
-    };
-    /** @param {Item} item @param {number} dot @returns {Item[]} */
-    const boundaries = (item,dot) => {
-      const result = [], pending = [item], seen = new Set();
-      while (pending.length) {
-        const current = /** @type {Item} */ (pending.pop());
-        if (seen.has(current)) continue;
-        seen.add(current);
-        if (current.dot === dot) result.push(current);
-        else for (const edge of current.edges) if (edge.kind === "scan" || edge.kind === "complete") pending.push(edge.previous);
-      }
-      return result;
-    };
-    const groupFurther = new Map();
-    for (const item of reads) if (nextKind(item) === "group") {
-      const group = /** @type {import("./logical.js").LogicalSymbol} */ (precedingGroups.get(item));
-      for (const prefix of boundaries(item,group.from)) {
-        const key = fixedKey(prefix,group);
-        groupFurther.set(key,Math.max(groupFurther.get(key) ?? -1,item.end));
-      }
-    }
-    const eligible = new Uint8Array(order.length);
-    const permits = new Uint8Array(order.length);
-    /** @type {(item: Item) => number} */
-    const at = (item) => /** @type {number} */ (index.get(item));
-    /** @param {Item} item @param {import("./logical.js").LogicalSymbol} group @param {number} end @returns {boolean} */
-    const groupPermits = (item,group,end) => {
-      const pending = [item], seen = new Set();
-      while (pending.length) {
-        const current = /** @type {Item} */ (pending.pop());
-        if (seen.has(current) || !eligible[at(current)]) continue;
-        seen.add(current);
-        if (current.dot === group.from) {
-          if ((groupFurther.get(fixedKey(current,group)) ?? -1) < end) return true;
-          continue;
-        }
-        for (const edge of current.edges) {
-          if (edge.kind === "scan") pending.push(edge.previous);
-          else if (edge.kind === "complete" && eligible[at(edge.child)] && (!omitted(edge.child) || permits[at(edge.previous)])) pending.push(edge.previous);
-        }
-      }
-      return false;
-    };
-    let changed = true;
-    while (changed) {
-      changed = false;
-      for (let x = 0; x < order.length; x++) {
-        if (eligible[x] && (permits[x] || next[x] === "none")) continue;
-        const item = order[x];
-        let e = 0;
-        let p = 0;
-        for (const edge of item.edges) {
-          let through = 0;
-          // Seeds and restoration edges supply a base proof state.
-          if (edge.kind === "seed" || edge.kind === "restore") through = 1;
-          else if (edge.kind === "scan") through = eligible[at(edge.previous)];
-          else {
-            const before = at(edge.previous);
-            through = (omitted(edge.child) ? permits[before] : eligible[before]) & eligible[at(edge.child)];
-          }
-          if (!through) continue;
-          e = 1;
-          if (next[x] === "alone") {
-            if (!reads.has(item)) p = 1;
-          } else if (next[x] === "group") {
-            const group = /** @type {import("./logical.js").LogicalSymbol} */ (precedingGroups.get(item));
-            if (groupPermits(item,group,item.end)) p = 1;
-          } else if (next[x] === "constituent" && edge.kind === "complete") {
-            const end = further.get(edge.previous);
-            if (end === undefined || end < item.end) p = 1;
-          }
-        }
-        if (e && !eligible[x]) {
-          eligible[x] = 1;
-          changed = true;
-        }
-        if (p && !permits[x]) {
-          permits[x] = 1;
-          changed = true;
-        }
-      }
-    }
-    return witnesses.filter((witness) => eligible[at(witness)]);
-  }
-
-  // ---- emission-overlap.js
-  // Conservative input coverage of final stitched emissions (engine §9.3).
-
-
-  /** @import { Expr } from "./types.js" */
-
-  /** @param {Expr} expr @param {Set<string>} rules @returns {boolean} */
-  function consuming(expr,rules) {
-    if ("literal" in expr || "range" in expr || "wildcard" in expr) return true;
-    if ("ref" in expr) return /^[A-Z_]/.test(expr.ref) || rules.has(expr.ref);
-    if ("empty" in expr) return false;
-    if ("test" in expr || "capture" in expr) return consuming(expr.expr,rules);
-    if ("optional" in expr) return consuming(expr.optional,rules);
-    if ("repeat" in expr) return consuming(expr.repeat,rules) || expr.separator !== undefined && consuming(expr.separator,rules);
-    return (/** @type {any} */ (expr).seq ?? /** @type {any} */ (expr).choice ?? /** @type {any} */ (expr).ranked ?? /** @type {any} */ (expr).and).some((/** @type {Expr} */ child) => consuming(child,rules));
-  }
-
-  /** @param {Map<string,import("./grammar.js").StitchedRule>} definitions */
-  function validateEmissionOverlap(definitions) {
-    const marked = new Set();
-    let changed = true;
-    while (changed) {
-      changed = false;
-      for (const rule of definitions.values()) if (!marked.has(rule.name) && rule.alternatives.some(alternative => consuming(alternative.expr,marked))) {
-        marked.add(rule.name);
-        changed = true;
-      }
-    }
-    for (const rule of definitions.values()) for (const alternative of rule.alternatives) {
-      const emission = alternative.clauses.emit;
-      if (!emission || emission.items.length < 2) continue;
-      const captures = new Map();
-      const pending = [alternative.expr];
-      while (pending.length) {
-        const expr = /** @type {Expr} */ (pending.pop());
-        if ("capture" in expr) captures.set(expr.capture, captures.get(expr.capture) || consuming(expr.expr,marked));
-        for (const key of ["seq","choice","ranked","and"]) for (const child of (/** @type {any} */ (expr)[key] ?? [])) pending.push(child);
-        for (const key of ["expr","optional","repeat","separator"]) if (/** @type {any} */ (expr)[key]) pending.push(/** @type {any} */ (expr)[key]);
-      }
-      for (let left=0;left<emission.items.length;left++) for (let right=left+1;right<emission.items.length;right++) {
-        const a=emission.items[left], b=emission.items[right];
-        if (a.insert || b.insert || a.capture !== "" && b.capture !== "") continue;
-        const other = a.capture === "" ? b : a;
-        const overlap = other.capture === "" ? consuming(alternative.expr,marked)
-          : [...(other.before ?? []),other.capture,...(other.after ?? [])].some(name=>captures.get(name));
-        if (overlap) {
-          const at = alternative.at;
-          throw new GencmuError("grammar",`${at.document}:${at.line}:${at.column}: the emission of ${rule.name} overlaps input positions`,at);
-        }
-      }
-    }
-  }
-
   // ---- logical.js
   // Logical helper boundaries beside physical capture expansions (engine §3.2).
   /** @import { GrammarSymbol } from "./types.js" */
@@ -9734,6 +10172,8 @@
   // ---- ranked-frame.js
 
 
+
+
   // Lexical entry state for transparent helpers in a ranked alternative.
 
 
@@ -9754,7 +10194,7 @@
         if (visited.has(next)) continue;
         visited.add(next);
         if (groups.has(next)) found.add(groups.get(next));
-        for (const p of lowered.byLhs.get(next) ?? []) if (p.helper) {
+        for (const p of lowered.byLhs.get(next) ?? []) if (p.helper && !p.spliceOf) {
           for (const s of p.rhs) if (helpers.has(s.name)) pending.push(s.name);
         }
       }
@@ -9766,18 +10206,18 @@
       const own = p.rankedGroup;
       const names = new Set([...relevant].flatMap((/** @type {any} */ g) => [...privateNames.get(g)]));
       const clauses = p.source?.clauses.conditions ?? [];
-      if (!p.helper) {
+      if (!p.helper || p.spliceOf) {
         // Private conditions run at their lexical boundary, including guards
         // on a capture absent from the selected option.
         p.rankedDeferred = clauses.filter((/** @type {any} */ c) => [...rankedCaptureReads(c)].some(n => names.has(n)));
         // Presence simplification can erase every read, so rebuild these clauses.
         const common = clauses.filter((/** @type {any} */ c) => !p.rankedDeferred.includes(c));
         const present = new Set(['', ...p.captures.map((/** @type {any} */ c) => c.name)]);
-        p.conditions = frameConditions(common, present, p);
+        p.conditions = [...frameConditions(common, present, p),...p.guardConditions ?? []];
         p.conditionsAt = Array.from({length:p.rhs.length+1}, () => []);
         for (const c of p.conditions) p.conditionsAt[c.readyAt+1].push(c);
       }
-      if (p.helper && ranked.groups.some((/** @type {any} */ g) => g.source === p.source)) {
+      if (p.helper && !p.spliceOf && ranked.groups.some((/** @type {any} */ g) => g.source === p.source)) {
         p.contextual = true;
       }
       p.rankedPrivate = own ? rankedBoundCaptures(own,relevant) : new Set();
@@ -9814,7 +10254,7 @@
         pending.push(child);
       });
     };
-    for (const p of lowered.productions) if (!p.helper) enter(p, {present:new Set(), captures:new Map(), knownPrivate:new Set()});
+    for (const p of lowered.productions) if (!p.helper || p.spliceOf) enter(p, {present:new Set(), captures:new Map(), knownPrivate:new Set()});
     const seen = new Set();
     for (let at = 0; at < pending.length; at++) {
       const frame = pending[at];
@@ -9846,7 +10286,7 @@
     const result = [];
     for (const raw of clauses) {
       const atom = firstBoundaryAtom(raw);
-      if (production.helper && atom) {
+      if (production.helper && !production.spliceOf && atom) {
         const receiver = atom.receiver.capture;
         if (receiver !== "" && prefix.has(receiver)) continue;
       }
@@ -9862,7 +10302,7 @@
         // Ownership belongs to the written clause, before presence removes reads.
         // A nested helper still evaluates it, but introduces no enclosing literal.
         const wholeBoundary = atom?.receiver.capture === ""
-          ? !production.helper || [...rankedCaptureReads(raw)].some(name => production.rankedPrivate?.has(name))
+          ? !production.helper || !!production.spliceOf || [...rankedCaptureReads(raw)].some(name => production.rankedPrivate?.has(name))
           : true;
         result.push({condition,readyAt,wholeBoundary});
       }
@@ -9873,21 +10313,24 @@
   /** @param {any} context */
   function rankedFrameTable(context) {
     const frames = new Map(), productions = new Map();
+    /** @type {Map<string,number>} */ const restorationKeys = new Map();
     const contextual = new Set(context.lowered.productions.filter((/** @type {any} */ p) => p.contextual).map((/** @type {any} */ p) => p.lhs));
     const helpers = new Map(context.lowered.productions.filter((/** @type {any} */ p) => p.helper).map((/** @type {any} */ p) => [p.lhs,p]));
     let next = 0;
     const written = (/** @type {any} */ p) => [p.owner ?? p.lhs, p.source?.at ?? p.id, context.lowered.ranked?.paths.get(p.writtenExpression) ?? ''];
     const symbol = (/** @type {any} */ s) => [s.terminal ? s.name : helpers.has(s.name) ? written(helpers.get(s.name)) : s.name,s.terminal,s.test];
-    const prefixKey = (/** @type {any} */ item) => {
+    const prefixKey = (/** @type {any} */ item, project = false) => {
+      const observation = (/** @type {any} */ value) => project && value && context.closes ? context.closes.identity(value) : value?.id;
       const captures = [];
       for (let part = item.slots; part; part = part.parent) {
+        if(project && hooks.work)countWork(hooks.work,"groups");
         const name = item.production.captures[part.index].name;
         if (!name.startsWith('\u0000')) {
-          captures.push([name,part.start,part.end,part.tags,part.structure,part.observation?.id]);
+          captures.push([name,part.start,part.end,part.tags,part.structure,observation(part.observation)]);
           if(context.trees)captures[captures.length-1].push(part.treeIdentity);
         }
       }
-      const key = [written(item.production),item.origin,item.production.rhs.slice(0,item.dot).map(symbol),item.production.rhs.slice(item.dot).map(symbol),item.prefix,captures.reverse(),item.restores,item.production.rankedBindings,item.observationPrefix?.id];
+      const key = [written(item.production),item.production.guardConditions?.length ? item.production.id : null,item.origin,item.production.rhs.slice(0,item.dot).map(symbol),item.production.rhs.slice(item.dot).map(symbol),item.prefix,captures.reverse(),item.restores,item.production.rankedBindings,observation(item.observationPrefix)];
       if(context.trees)key.push(item.treePrefix);
       return key;
     };
@@ -9923,8 +10366,19 @@
         const sealGroup = inside && outer ? outer.sealGroup : context.lowered.ranked?.groups.find((/** @type {any} */ group) => group.helper === name) ?? null;
         const sealEntry = inside && outer ? outer.sealEntry : item;
         const knownPrivate = new Set([...outer?.knownPrivate ?? [],...item.production.rankedPrivate ?? []]);
-        const frame = {id:next++,key,captures,root,namedOrigin,prefix,inside,sealPrefix,present,knownPrivate,
+        /** @type {any} */ const frame = {id:next++,key,captures,root,namedOrigin,prefix,inside,sealPrefix,present,knownPrivate,
           observationPrefix,sealObservationPrefix,sealGroup,sealEntry,treePrefix,treeSealPrefix};
+        // Ranking projects named closes, while recognition retains the raw frame.
+        /** @type {number|undefined} */ let projectedKey;
+        frame.restorationKey = () => {
+          if(projectedKey===undefined) {
+            if(hooks.work)countWork(hooks.work,"groups");
+            const key=JSON.stringify([outer?.restorationKey() ?? null,prefixKey(item,true)]);
+            if(!restorationKeys.has(key))restorationKeys.set(key,restorationKeys.size);
+            projectedKey=restorationKeys.get(key);
+          }
+          return projectedKey;
+        };
         frames.set(key,frame);
         return frame;
       },
@@ -9959,9 +10413,14 @@
         const publicNames = new Set([...frame.present].filter(n => !production.sourcePrivate.has(n)));
         const terms = [source.tags,source.clauses.tags].filter(term => term !== undefined)
           .map(term => simplifyFor(prepareClause(term),n => n === '' || publicNames.has(n),publicNames));
-        // With no written term, tag closure proves empty unary inheritance.
-        // Multi-symbol parents discard tags by the ordinary rule.
-        const parentTags = terms.length === 0 ? {emptySet:true} : terms.length === 1 ? terms[0] : {union:terms};
+        let parentTags = terms.length === 0 ? {emptySet:true} : terms.length === 1 ? terms[0] : {union:terms};
+        // Keep prefix capture applicability and the enclosing guard assignment.
+        if (frame.root) {
+          const assigned=new Map((frame.root.guardConditions ?? []).map((/** @type {any} */ {condition})=>[rankedTagAtomKey(condition.not ?? condition),!condition.not]));
+          const variant=guardedTagVariants(parentTags).find(variant=>variant.conditions.every(condition=>assigned.get(rankedTagAtomKey(condition.not ?? condition))===!condition.not));
+          if (!variant) throw new Error("a ranked frame lost its enclosing tag assignment");
+          parentTags=variant.tags;
+        }
         const result = {...production,baseProduction:production,lexicalFrame:frame,conditions,conditionsAt,parentTags};
         productions.set(key,result);
         return result;
@@ -9994,7 +10453,15 @@
   /** @param {any} condition */
   function rankedConditionVariables(condition) {return [...rankedCaptureReads(condition)];}
 
+  /** @param {any} atom @returns {string} */
+  function rankedTagAtomKey(atom) {
+    return JSON.stringify([atom.method,[...new Set(atom.args.map((/** @type {any} */ target)=>JSON.stringify([target.rule?'rule':'terminal',target.rule ?? target.terminal])))].sort()]);
+  }
+
   // ---- grammar.js
+
+
+
 
 
 
@@ -10052,6 +10519,9 @@
    * @property {boolean} erased
    * @property {import("./types.js").Recipe | undefined} value
    * @property {import("./types.js").Recipe | undefined} image
+   * @property {import("./types.js").Recipe | undefined} error
+   * @property {import("./types.js").Recipe | undefined} warning
+   * @property {string[] | undefined} suppressWarnings
    */
 
   /**
@@ -10074,7 +10544,7 @@
 
   /**
    * A symbol of an expanded sequence, and the capture that names it.
-   * @typedef {{symbol: import("./types.js").GrammarSymbol, capture?: string}} SequenceItem
+   * @typedef {{symbol: import("./types.js").GrammarSymbol, capture?: string, captureTerminal?:boolean}} SequenceItem
    */
 
   /**
@@ -10103,6 +10573,10 @@
   /** @param {number} run @param {string} path @param {number[]} at */
   const argumentSite = (run,path,at) => JSON.stringify([run,path,at]);
   // Stitches documents, each { path, dom }, into one grammar.
+  /** Closed patterns remain available until final erasure flags are known (§9.3).
+   * @type {WeakMap<object,{pattern:any,where:any}[]>} */
+  const erasurePatternUses = new WeakMap();
+
   class Grammar {
     /**
      * @param {string} stageName
@@ -10112,6 +10586,7 @@
      *   the canonical value of a string constant in a test
      */
     constructor(stageName, documents, unicode) {
+      erasurePatternUses.set(this,[]);
       try {
         this.stageName = stageName;
         this.unicode = unicode;
@@ -10163,6 +10638,7 @@
           argumentsBySite.get(key).push(argument);
         }
         argumentUses.set(this,argumentsBySite);
+        this.erasureChecks=expansion.erasureChecks;
         this.templates=expansion.templates;
         this.instances=expansion.instances;
         for (const [index, {path, dom, inspectionRun = index}] of expansion.documents.entries()) {
@@ -10236,6 +10712,11 @@
               for (const atom of boundaryAtoms(condition)) sites.set(atom,{rule:rule.name,condition:conditionIndex,order:ruleOrder});
               conditionIndex++;
             }
+            for (const other of rule.alternatives.filter(other=>other.clauses===alternative.clauses)) {
+              for (const {atom} of neighbourGuards([alternative.clauses.tags,other.tags])) {
+                if (!sites.has(atom)) sites.set(atom,{rule:rule.name,condition:conditionIndex++,order:ruleOrder});
+              }
+            }
           }
           ruleOrder++;
         }
@@ -10253,8 +10734,10 @@
         /** @type {any[]} */
         this.defaultValues = [];
         this.checkReferences();
+        this.checkDiagnosticsAndSplices();
         this.families = closeFamilies(this.rules);
-        this.ranked = new RankedGroups(this.rules);
+        this.prepareQueries();
+        this.ranked = new RankedGroups(new Map([...this.rules,...this.queryRules]));
         if (this.defaultValues.length) {
           const defaults = new Lowering(this,new Set());
           for (const [rule,alternative,node] of this.defaultValues) defaults.elidedTerminal(node.optional,{rule,alternative,pending:[]},node.default);
@@ -10277,6 +10760,8 @@
           validateRecipeCycles(alternative.value ?? alternative.clauses.value,alternative.image ?? alternative.clauses.image,alternative.document);
         }
         validateEmissionOverlap(this.rules);
+        const emptyError=nullableError(this.rules,this.errorAlternatives);
+        if(emptyError)throw new GencmuError("grammar",`an error production of ${emptyError.rule.name} can match no tokens`,emptyError.alternative.at);
         /**
          * The features that gate an alternative or an entry of a classifier.
          * Only these change a lowered grammar. A warning keeps its alternative
@@ -10317,7 +10802,7 @@
           }
           if (deferredEmissionProblem(rule) || deferredRecipeProblem(rule)) this.emissionUsers.push({path, rule, run:inspectionRun});
           const at = { document: path, line: rule.at[0], column: rule.at[1] };
-          const clauses = { tags: rule.tags, emit: rule.emit, conditions: rule.conditions || [], erased: rule.erased === true, value:rule.value, image:rule.image };
+          const clauses = { tags: rule.tags, emit: rule.emit, conditions: rule.conditions || [], erased: rule.erased === true, value:rule.value, image:rule.image, error:rule.error, warning:rule.warning, suppressWarnings:rule.suppressWarnings };
           const alternatives = rule.alternatives.map((alternative) => ({ ...alternative, clauses, document: path, at, order:this.alternativeOrder++ }));
           const previous = this.rules.get(rule.name);
           if (rule.op === "define") {
@@ -10636,7 +11121,7 @@
       if ("pattern" in term) {
         checkDepth();
         try {
-          return { pattern: resolvePattern(term.pattern, (name,at) => {
+          const pattern = resolvePattern(term.pattern, (name,at) => {
             const resolved = lookup(name);
             if (!("string" in resolved) && !("pattern" in resolved)) throw this.documentError(path,at,"a pattern atom requires a string or pattern constant");
             return resolved;
@@ -10650,7 +11135,9 @@
               }
             }
             return this.evaluateClosed(path,value,atom.at ?? item,lookup);
-          }, this.unicode) };
+          }, this.unicode);
+          erasurePatternUses.get(this)?.push({pattern,where:{document:path,line:item[0],column:item[1]}});
+          return {pattern};
         } catch (error) {
           if (error instanceof GencmuError && !error.where.document) throw this.documentError(path,[error.where.line ?? item[0],error.where.column ?? item[1]],error.message);
           throw error;
@@ -10867,7 +11354,7 @@
           if (!names && !clauseNeedsResolution([alternative.tags, alternative.value, alternative.image])) return alternative;
           let shared = resolved.get(clauses);
           if (!shared) {
-            shared = { ...clauses, tags: resolve(clauses.tags, alternative.document, [alternative.at.line ?? 0, alternative.at.column ?? 0]), conditions: resolve(clauses.conditions, alternative.document, [alternative.at.line ?? 0, alternative.at.column ?? 0]), emit: resolve(clauses.emit, alternative.document, [alternative.at.line ?? 0, alternative.at.column ?? 0]), value:resolve(clauses.value,alternative.document,[alternative.at.line ?? 0,alternative.at.column ?? 0]), image:resolve(clauses.image,alternative.document,[alternative.at.line ?? 0,alternative.at.column ?? 0]) };
+            shared = { ...clauses, tags: resolve(clauses.tags, alternative.document, [alternative.at.line ?? 0, alternative.at.column ?? 0]), error:resolve(clauses.error,alternative.document,[alternative.at.line ?? 0,alternative.at.column ?? 0]), warning:resolve(clauses.warning,alternative.document,[alternative.at.line ?? 0,alternative.at.column ?? 0]), conditions: resolve(clauses.conditions, alternative.document, [alternative.at.line ?? 0, alternative.at.column ?? 0]), emit: resolve(clauses.emit, alternative.document, [alternative.at.line ?? 0, alternative.at.column ?? 0]), value:resolve(clauses.value,alternative.document,[alternative.at.line ?? 0,alternative.at.column ?? 0]), image:resolve(clauses.image,alternative.document,[alternative.at.line ?? 0,alternative.at.column ?? 0]) };
             resolved.set(clauses, shared);
           }
           return { ...alternative, value:resolve(alternative.value,alternative.document,[alternative.at.line ?? 0,alternative.at.column ?? 0]), image:resolve(alternative.image,alternative.document,[alternative.at.line ?? 0,alternative.at.column ?? 0]), tags: resolve(alternative.tags, alternative.document, [alternative.at.line ?? 0, alternative.at.column ?? 0]), clauses: shared };
@@ -10909,6 +11396,46 @@
       return found;
     }
 
+    // Anonymous query definitions join lowering and ranked-helper discovery,
+    // but never the written grammar or its public audits (engine §3.10).
+    prepareQueries() {
+      /** @type {Map<string,string>} */ this.queryTargets = new Map();
+      /** @type {Map<string,string>} */ this.queryNames = new Map();
+      /** @type {Map<string,StitchedRule>} */ this.queryRules = new Map();
+      const seen = new Set();
+      for (const rule of this.rules.values()) for (const alternative of rule.alternatives) {
+        /** @type {unknown[]} */
+        const pending = [alternative.clauses,alternative.tags].reverse();
+        while (pending.length) {
+          const part = /** @type {any} */ (pending.pop());
+          if (!part || typeof part !== "object" || seen.has(part)) continue;
+          seen.add(part);
+          if (part.method === "parse") {
+            const body = queryBody(part.args[0].body).body;
+            const key = queryIdentity(part.args[0].body);
+            if (!this.queryTargets.has(key)) {
+              let name;
+              if (body.ref && !body.ref.startsWith("_")) name = isTerminalName(body.ref) ? "\u0000query:"+body.ref : body.ref;
+              else {
+                name = "\u0000parse:"+this.queryRules.size;
+                // A forest exposes no returned tags. Discarding the anonymous
+                // root's tags also seals ranked bodies without inventing a
+                // restriction on an otherwise legal query constituent.
+                /** @type {RuleClauses} */
+                const clauses = {conditions:[],erased:false,tags:{emptySet:true},emit:undefined,value:undefined,image:undefined,error:undefined,warning:undefined,suppressWarnings:undefined};
+                const source = {...alternative,guards:[],expr:body,tags:undefined,value:undefined,image:undefined,clauses};
+                this.queryRules.set(name,{name,document:alternative.document,at:alternative.at,alternatives:[source]});
+                this.queryNames.set(name,templateBodyText(body,this.unicode));
+              }
+              this.queryTargets.set(key,name);
+            }
+          }
+          const children = clauseChildren(part);
+          for (let index = children.length-1; index >= 0; index--) pending.push(children[index]);
+        }
+      }
+    }
+
     checkReferences() {
       // A rule named anywhere must be defined: in a body, and in a clause as the
       // rule of matches, begins or tags (engine §2). The error stands at the
@@ -10948,6 +11475,7 @@
             if (hooks.work) countWork(hooks.work, "clauses");
             if (!node || typeof node !== "object") continue;
             if (BOUNDARY_METHODS.has(node.method)) continue;
+            if (node.body) { visit(queryBody(node.body).body,rule,alternative); continue; }
             if (typeof node.rule === "string") check(node.rule,rule,alternative);
             if (typeof node.classifier === "string" && !classifierNames.has(node.classifier)) {
               throw new GencmuError("grammar", `${node.classifier} is not a classifier of stage ${this.stageName}`, alternative.at);
@@ -10957,6 +11485,53 @@
           }
         }
       }
+    }
+
+    checkDiagnosticsAndSplices() {
+      const warnings=new Set(), splices=[], prohibited=new Set();
+      /** @type {{rule:StitchedRule,alternative:StitchedAlternative}[]} */
+      this.errorAlternatives=[];
+      const erased=new Set([...this.rules.values()].filter(rule=>rule.alternatives.every(alternative=>alternative.clauses.erased)).map(rule=>rule.name));
+      /** @param {any} pattern @param {any} [where] @param {boolean} [collect] */
+      const names=(pattern,where={},collect=true)=> {
+        if (pattern?.name) {
+          if(collect)prohibited.add(pattern.name);
+          if(!this.erasureChecks && erased.has(pattern.name) && pattern.children && !(pattern.children.length===1 && pattern.children[0].siblings)) {
+            const at=patternLocations.get(pattern) ?? pattern.at;
+            throw new GencmuError("grammar",`a pattern of erased rule ${pattern.name} permits only the child list « ⋯ »`,{...where,...(at ? {line:at[0],column:at[1]} : {})});
+          }
+        }
+        for(const child of patternParts(pattern ?? {})) names(child,where,collect);
+      };
+      for (const check of this.erasureChecks ?? []) if(check.names.length && check.names.every((/** @type {string} */ name)=>erased.has(name))) {
+        throw new GencmuError("grammar",`a pattern of erased rule ${check.name} permits only the child list « ⋯ »`,check.where);
+      }
+      for (const use of erasurePatternUses.get(this) ?? []) names(use.pattern,use.where,false);
+      erasurePatternUses.delete(this);
+      for (const step of this.resolution?.steps ?? []) names(step.pattern);
+      for (const constant of this.constants.values()) if ("pattern" in constant.value) names(constant.value.pattern);
+      for (const rule of this.rules.values()) for (const alternative of rule.alternatives) {
+        const clauses=alternative.clauses;
+        if (clauses.warning) warnings.add(rule.name);
+        if (clauses.error) this.errorAlternatives.push({rule,alternative});
+        if (clauses.error && !(/^(?!.*--)[a-z][A-Za-z0-9_-]*$/.test(rule.name) || this.unicode.isEmojiName(rule.name))) throw new GencmuError("grammar","an error code must be a rule name",alternative.at);
+        if (clauses.warning && !/^(?!.*--)[A-Za-z][A-Za-z0-9-]*$/.test(rule.name)) throw new GencmuError("grammar","a warning code must be a feature name",alternative.at);
+        /** @type {any[]} */
+        const pending=[alternative.expr,clauses,alternative.tags];
+        while(pending.length) {
+          const node=pending.pop();
+          if (!node || typeof node!=="object" || node instanceof Set) continue;
+          if (node.splice) splices.push({name:node.splice.ref,alternative});
+          if (node.pattern) names(node.pattern,alternative.at);
+          if (BOUNDARY_METHODS.has(node.method)) for (const target of node.args) if(target.rule) prohibited.add(target.rule);
+          for(const child of Object.values(node)) if(child && typeof child==="object") pending.push(child);
+        }
+      }
+      for (const rule of this.rules.values()) for (const alternative of rule.alternatives) {
+        for (const code of alternative.clauses.suppressWarnings ?? []) if(code!=="_" && !warnings.has(code)) throw new GencmuError("grammar",`suppression code ${code} is not a warning of stage ${this.stageName}`,alternative.at);
+      }
+      delete this.erasureChecks;
+      for (const {name,alternative} of splices) if (prohibited.has(name)) throw new GencmuError("grammar",`a splice of ${name} conflicts with a pattern or neighbour target`,alternative.at);
     }
 
     /**
@@ -11018,7 +11593,7 @@
       }
       const expressions = expressionChildren(node);
       const children = Array.isArray(node) ? node
-        : node.alternatives ? [node.tags,node.value,node.image,node.alternatives,node.conditions,node.emit]
+        : node.alternatives ? [node.tags,node.value,node.image,node.alternatives,node.conditions,node.error,node.warning,node.emit]
         : node.call ? node.args
         : node.body ? [node.body]
         : node.targets ? node.targets
@@ -11088,7 +11663,7 @@
    * @returns {string[]}
    */
   function gateNames(guards) {
-    const names = new Set(guards.filter((guard) => guard.kind !== "warning").map((guard) => guard.feature));
+    const names = new Set(guards.map((guard) => guard.feature));
     return [...names].sort(compareCodePoints);
   }
 
@@ -11146,7 +11721,7 @@
     return false;
   }
 
-  const TYPE_PHRASES = { pattern: "a pattern", string: "a string", strings: "a set of strings", tags: "a tag set", span: "a span", emitted: "an emitted pair", condition: "a condition", set: "a set", any: "a value" };
+  const TYPE_PHRASES = { forest: "a witness forest", pattern: "a pattern", string: "a string", strings: "a set of strings", tags: "a tag set", span: "a span", emitted: "an emitted pair", condition: "a condition", set: "a set", any: "a value" };
 
   /**
    * A copy of a clause in which every reference to a constant holds the
@@ -11227,10 +11802,12 @@
       /** @type {WeakMap<SequenceItem[],{group:import("./ranked.js").RankedGroup,option:number}>} */
       this.rankedSequences = new WeakMap();
       this.rankedHelpers = new Set();
+      /** @type {Map<string,string>} */
+      this.spliceNames = new Map();
       // The structural grammar (engine §3.3): every production that the gates
       // and the expansion make, before a false condition removes any, with
       // its symbols' tests ignored.
-      /** @type {{lhs: string, rhs: import("./types.js").GrammarSymbol[]}[]} */
+      /** @type {{lhs: string, rhs: import("./types.js").GrammarSymbol[], erased?:boolean}[]} */
       this.structural = [];
       // The item of each pair of braces, as its expansions, with the
       // definition that wrote it.
@@ -11243,7 +11820,7 @@
       for (const rule of this.grammar.rules.values()) {
         // Only gates drop an alternative; a warning keeps it (engine §3.1).
         const enabled = rule.alternatives.filter((alternative) => alternative.guards.every(
-          (guard) => guard.kind === "warning" || this.features.has(guard.feature) !== guard.negated));
+          (guard) => this.features.has(guard.feature) !== guard.negated));
         // A chain is the only alternative of its rule that the gates leave
         // (engine §3.3); a %extend-rule can add another.
         const chain = enabled.find((alternative) => isChain(alternative.expr));
@@ -11263,17 +11840,45 @@
         if (["matches", "begins", "ends"].includes(part.method)) for (const arg of part.args) if (arg.terminal) terminals.add(arg.terminal);
         for (const child of clauseChildren(part)) pending.push(child);
       }
+      for (const name of this.grammar.queryTargets.values()) if (name.startsWith("\u0000query:")) terminals.add(name.slice(7));
       this.source = undefined;
+      for (const [target,name] of this.spliceNames) {
+        const originals=this.byLhs.get(target) ?? [];
+        for (const original of originals) {
+          const clone={...original,id:this.productions.length,lhs:name,helper:true,spliceOf:target,sourceId:original.sourceId ?? original.id};
+          this.productions.push(clone);
+          if (!this.byLhs.has(name)) this.byLhs.set(name,[]);
+          this.byLhs.get(name)?.push(clone);
+          this.structural.push({lhs:name,rhs:original.rhs,erased:original.erased});
+        }
+      }
       for (const terminal of [...terminals].sort(compareCodePoints)) {
         const name = "\u0000query:" + terminal;
+        this.grammar.queryNames.set(name,terminal);
         this.addProduction({
           lhs: name, rhs: [{name: terminal, terminal: true}], helper: true,
           owner: name, elided: null, elidedTest: null,
           captures: [{name: "\u0000child", index: 0}], conditions: [],
           tags: {method: "tags", receiver: {capture: "\u0000child"}, args: []},
-          emit: null, erased: false, warnings: [],
+          emit: null, erased: false,
         });
       }
+      for (const rule of this.grammar.queryRules.values()) {
+        for (const alternative of rule.alternatives) this.lowerAlternative(rule,alternative);
+        for (const production of this.byLhs.get(rule.name) ?? []) production.helper = true;
+      }
+      // A splice used only by an anonymous target is discovered after the
+      // written aliases. Its target still uses the same original productions.
+      for (const [target,name] of this.spliceNames) if (!this.byLhs.has(name)) {
+        for (const original of this.byLhs.get(target) ?? []) {
+          const clone={...original,id:this.productions.length,lhs:name,helper:true,spliceOf:target,sourceId:original.sourceId ?? original.id};
+          this.productions.push(clone);
+          if (!this.byLhs.has(name)) this.byLhs.set(name,[]);
+          this.byLhs.get(name)?.push(clone);
+          this.structural.push({lhs:name,rhs:original.rhs,erased:original.erased});
+        }
+      }
+      for (const production of this.productions) production.treeRoot = !production.helper || !!production.spliceOf;
       this.checkBraceItems();
       this.contextual = this.productions.some((production) => production.contextual);
       if(this.grammar.treeComparisons)this.treeSites=[];
@@ -11299,6 +11904,8 @@
         ranked: this.grammar.ranked,
         families: this.grammar.families,
         boundarySites:this.grammar.boundarySites,
+        queryTargets:this.grammar.queryTargets,
+        queryNames:this.grammar.queryNames,
       };
     }
 
@@ -11312,7 +11919,7 @@
      * @returns {Production}
      */
     addProduction(fields) {
-      if (fields.helper && this.source) this.structural.push({ lhs: fields.lhs, rhs: fields.rhs });
+      if (fields.helper && this.source) this.structural.push({ lhs: fields.lhs, rhs: fields.rhs, erased:fields.erased });
       // Each position, capture and condition counts before it is indexed, so
       // that an index built by a scan of the list for each position fails
       // its budget.
@@ -11485,7 +12092,7 @@
           const ranked = this.rankedSequences.get(sequence);
           // The item captures inside braces bind to the helper's productions
           // (engine §3.5), as do the captures of a ranked option.
-          const captures = sequence.flatMap((item,index) => item.capture ? [{name:item.capture,index}] : []);
+          const captures = sequence.flatMap((item,index) => item.capture ? [{name:item.capture,index,...(item.captureTerminal?{terminal:true}:{})}] : []);
           const items = helperItems;
           if (single && captures.length === 0) captures.push({name:"\u0000child",index:/** @type {number} */ (inherited)});
           this.addProduction({
@@ -11502,7 +12109,6 @@
             tags: single ? { method: "tags", receiver: { capture: captures[0].name }, args: [] } : null,
             emit: null,
             erased: false,
-            warnings: [],
             ...(ranked ? {rankedGroup:ranked.group,rankedOption:ranked.option} : {}),
             // Every helper of an alternative with item captures is contextual,
             // so that a frame reaches the braces' helper through the helpers
@@ -11524,11 +12130,11 @@
      * @param {SequenceItem[]} sequence
      */
     addRuleProduction(rule, alternative, sequence) {
-      this.structural.push({ lhs: rule.name, rhs: sequence.map((item) => item.symbol) });
+      this.structural.push({ lhs: rule.name, rhs: sequence.map((item) => item.symbol), erased:alternative.clauses.erased });
       /** @type {import("./types.js").Capture[]} */
       const captures = [];
       sequence.forEach((item, index) => {
-        if (item.capture) captures.push({ name: item.capture, index });
+        if (item.capture) captures.push({ name: item.capture, index,...(item.captureTerminal?{terminal:true}:{}) });
       });
       // `$`, the whole constituent, is a capture every production has.
       const names = new Set(["", ...captures.map((capture) => capture.name)]);
@@ -11543,7 +12149,7 @@
       // its own captures and output, not every part of the clause.
       const alternativeTags = alternative.tags === undefined ? null : simplifyFor(prepareClause(alternative.tags), has, names);
       const definitionTags = clauses.tags === undefined ? null : simplifyFor(prepareClause(clauses.tags), has, names);
-      const written = [alternativeTags, definitionTags].filter((term) => term !== null);
+      const written = [definitionTags, alternativeTags].filter((term) => term !== null);
       /** @type {Term | null} */
       let tags = written.length === 0 ? null : written.length === 1 ? written[0] : { union: written };
       const logical = logicalOf(sequence);
@@ -11627,7 +12233,7 @@
             }),
         };
       }
-      this.addProduction({
+      const fields = {
         lhs: rule.name,
         rhs: sequence.map((item) => item.symbol),
         logical,
@@ -11643,8 +12249,16 @@
         erased: clauses.erased,
         value: alternative.value ?? clauses.value,
         image: alternative.image ?? clauses.image,
-        warnings: alternative.guards.filter((guard) => guard.kind === "warning").map((guard) => guard.feature),
-      });
+        error:clauses.error, warning:clauses.warning, suppressWarnings:clauses.suppressWarnings,
+      };
+      let variants;
+      try { variants=guardedTagVariants(tags); }
+      catch (error) { throw this.grammar.documentError(alternative.document,[alternative.at.line ?? 0,alternative.at.column ?? 0],/** @type {Error} */ (error).message); }
+      const sourceId=this.productions.length;
+      for (const variant of variants) {
+        const extra=variant.conditions.map(condition=>({condition,readyAt:sequence.length-1}));
+        this.addProduction({...fields,tags:variant.tags,conditions:[...conditions,...extra],guardConditions:extra,sourceId});
+      }
     }
 
     /**
@@ -11683,6 +12297,15 @@
       }
       if ("optional" in expr) {
         const inner = expr.optional;
+        if (expr.elidable && "capture" in inner) {
+          const elided=this.elidedTerminal(inner.expr,where,expr.default);
+          this.helperExpression=expr;
+          const name=this.helper(where,context=>[[],...this.expand(inner,context)],elided);
+          return [
+            [{symbol:{name,terminal:false,optionalRoute:"empty"}}],
+            [{symbol:{name,terminal:false,optionalRoute:"written"},capture:inner.capture,captureTerminal:true}],
+          ];
+        }
         // A plain optional that holds a capture expands in place, as (ε | x)
         // would: first the empty sequence, then each expansion of x
         // (engine §3.2).
@@ -11732,6 +12355,13 @@
         const inner = this.expand(expr.expr, where);
         const test = this.grammar.symbolTest(expr, where.rule.document, where.rule.at);
         return [[{ symbol: { ...inner[0][0].symbol, test } }]];
+      }
+      if ("splice" in expr) {
+        if (!("ref" in expr.splice)) throw loweringError(where.alternative.at,"a splice requires a resolved rule reference");
+        const target=expr.splice.ref;
+        let name=this.spliceNames.get(target);
+        if (name===undefined) {name="\u0000splice:"+target;this.spliceNames.set(target,name);}
+        return [[{symbol:{name,terminal:false}}]];
       }
       if ("ref" in expr) return [[{ symbol: { name: expr.ref, terminal: isTerminalName(expr.ref) } }]];
       // A range or a property is a terminal whose name is its written form,
@@ -11790,7 +12420,7 @@
      * @returns {{terminal: string, test: SymbolTest | null, value?:string}}
      */
     elidedTerminal(expr, where, defaultValue) {
-      const first = "seq" in expr ? expr.seq[0] : expr;
+      const first = "capture" in expr ? expr.expr : "seq" in expr ? expr.seq[0] : expr;
       const tested = "test" in first ? first : null;
       const name = tagName(tested ? tested.expr : first);
       if (name === undefined) throw loweringError(where.alternative.at, `an elidable optional in ${where.rule.name} does not begin with its terminator`);
@@ -11946,6 +12576,7 @@
 
 
 
+
   // Recognition (engine §4) and the terms and conditions it evaluates
   // (engine §10).
 
@@ -11979,6 +12610,7 @@
    *   making it: a set the recognizer never reached is empty
    * @property {number} furthest the last position whose set holds an item
    * @property {ParseContext} context
+   * @property {ReturnType<typeof rankedFrameTable>|null} frames
    * @property {boolean} [closeRequested]
    * @property {any[]} [boundaryFailures]
    * @property {FamilySummaries|null} [family]
@@ -12129,6 +12761,16 @@
     if (!machine) return -1;
     if (context.synthetic?.[at] && !rawObservations(context)) return machine.empty;
     return machine.node(null, machine.empty, { terminal, value: storedValue(context, at), tags: context.tokens[at].tags });
+  }
+
+  /** The definition's own post-selection clauses read its working root (§4.1).
+   * @param {ParseContext} context @param {Item} item @returns {number} */
+  function workingStructure(context,item) {
+    const machine=context.patterns;
+    if(!machine)return item.structure;
+    const production=item.production;
+    if(production.erased)return machine.node(production.helper ? null : production.lhs,item.prefix,null,context.interner.get(item.tagId),machine.nodeValues ? patternValue(context,item.origin,item.end) : undefined);
+    return production.helper ? machine.node(null,item.structure) : item.structure;
   }
 
   /** @param {ParseContext} context @param {Production} production @param {number} dot @param {number} at @returns {number} */
@@ -12628,6 +13270,7 @@
       this.at = at;
       this.key = key;
       this.unseen = unseen;
+      this.errorFree = false;
       /** The count of aligned queries when the query halted (engine §4.3). */
       this.asked = 0;
       /** @type {import("./types.js").AlignedSpan|null} */
@@ -12859,6 +13502,7 @@
   function requireInactive(context, rule, start, end) {
     const circular = "parse\u0001" + rule + "\u0001" + start + "\u0001" + end;
     if (context.inProgress.has(circular)) {
+      rule = context.lowered.queryNames.get(rule) ?? rule;
       throw new GencmuError("grammar",
         `a condition asks whether its own span parses as ${rule} from inside the parse of that span as ${rule}: ` +
         `the grammar defines ${rule} in terms of itself over the same text`, { rule });
@@ -12909,7 +13553,7 @@
         for (const item of set.items) if (item.complete && item.origin === start && item.production.lhs === rule && !!item.production.closeRequested === !!chart.closeRequested) witnesses.push(item);
       }
       const constraint = query.aligned;
-      const qualified = eligibleWitnesses(chart, boundaryWitnesses(chart,witnesses)).map(item => ({
+      const qualified = eligibleWitnesses(chart, boundaryWitnesses(chart,witnesses),query.errorFree).map(item => ({
         end:item.end, tags:context.interner.get(item.tagId), observation:item.observation ?? null,
         familyAligned:chart.family ? !!item.familySummary && chart.family.accepts(item.familySummary, item.end) : null,
         direct:chart.familyTrace && context.closes ? deletionTest(context.closes.list(constraint.observation.sequence),
@@ -12931,12 +13575,12 @@
         if (set === undefined) continue;
         for (const item of set.items) if (item.complete && item.origin === start && item.production.lhs === rule && !!item.production.closeRequested === !!chart.closeRequested) witnesses.push(item);
       }
-      answer = eligibleWitnesses(chart, boundaryWitnesses(chart,witnesses)).length > 0;
+      answer = eligibleWitnesses(chart, boundaryWitnesses(chart,witnesses),query.errorFree).length > 0;
       shared = answer;
     } else {
       // One recognition answers matches and tags, so the shared memo keeps
       // both in one entry (engine §4.3).
-      const witnesses = eligibleWitnesses(chart, boundaryWitnesses(chart,rootItems(chart, rule)));
+      const witnesses = eligibleWitnesses(chart, boundaryWitnesses(chart,rootItems(chart, rule)),query.errorFree);
       const result = new TagUnion();
       for (const item of witnesses) result.add(context.interner.get(item.tagId));
       const tags = result.result();
@@ -13047,10 +13691,10 @@
       found = {...production, baseProduction:production.baseProduction ?? production,
         closeRequested:!!(Number(requested)&1),
         treeRequested:!!(Number(requested)&2),
-        walksTrees:!!context.trees && (!!(Number(requested)&2) || !production.helper && localTreeDemand(production).whole),
+        walksTrees:!!context.trees && (!!(Number(requested)&2) && !production.erased || production.treeRoot && localTreeDemand(production).whole),
         treePrefixUntil:context.trees ? localTreeDemand(production).prefixUntil : 0,
-        observesTrees:!!context.trees && (!!(Number(requested)&2) || !production.helper && localTreeDemand(production).whole || localTreeDemand(production).prefixUntil>0),
-        observesCloses:!!context.closes && (!!(Number(requested)&1) || localCloseDemand(production).whole)};
+        observesTrees:!!context.trees && (!!(Number(requested)&2) || production.treeRoot && localTreeDemand(production).whole || localTreeDemand(production).prefixUntil>0),
+        observesCloses:!!context.closes && (!!(Number(requested)&1) || localCloseDemand(production,lowered).whole)};
       variants.set(key, found);
       return found;
     };
@@ -13059,7 +13703,7 @@
     const requestCloses = item => {
       if (!context.closes) return false;
       if (item.production.observesCloses) return true;
-      const demand = localCloseDemand(item.production);
+      const demand = localCloseDemand(item.production,lowered);
       if (!demand.parts.has(item.dot)) return false;
       const rules = demand.queries.get(item.dot);
       const child = prefixTable?.get(item.production.rhs[item.dot].name);
@@ -13116,7 +13760,11 @@
           })) return;
       const projected = structuralStep(context, production, dot, previous, child, set.position);
       if((context.patterns?.nodeTags || context.patterns?.nodeValues) && !production.helper && dot === production.rhs.length) projected.structure = context.patterns.node(production.lhs,projected.prefix,null,context.interner.get(tagId),context.patterns.nodeValues ? patternValue(context,origin,set.position) : undefined);
-      const tree = context.trees ? treeStep(context,production,dot,previous,child,set.position) : null;
+      // Local clauses already ran against structuralStep's working view (§4.1).
+      if (context.patterns && production.erased && dot === production.rhs.length) {
+        projected.structure = production.helper ? context.patterns.seal : context.patterns.node(production.lhs,context.patterns.seal,null,context.interner.get(tagId),context.patterns.nodeValues ? patternValue(context,origin,set.position) : undefined);
+      }
+      const tree = context.trees ? treeStep(context,production,dot,previous,child,set.position,true) : null;
       const close = closeStep(context,production,dot,origin,previous,child,set.position);
       const summary = familyStep(context, family, members, production, dot, origin, previous, child, set.position, close);
       let key = itemKey((production.id * dots + dot) * width + origin - start, slots);
@@ -13403,6 +14051,8 @@
     /** @type {(item: Item, from: number, to: number, child: Item | null) => Advanced | null | Halt} */
     const advance = (item, from, to, child) => {
       const production = item.production;
+      const route=production.rhs[item.dot].optionalRoute;
+      if (child && route && (child.production.rhs.length===0)!==(route==="empty")) return null;
       // A tested symbol's test must hold of its own span and tags, which is
       // checked before any condition the advance makes ready (engine §4).
       const test = production.rhs[item.dot].test;
@@ -13421,7 +14071,14 @@
         // production that inherits from the terminal (F7:capture).
         const tags = child ? child.tagId
           : context.interner.intern(synthetic !== null && synthetic[from] && !rawObservations(context) && !fault("F7:capture") ? tagSet() : tokens[from].tags);
-        slots = captureAfter(context, slots, captureIndex, from, to, tags, child ? child.structure : terminalState(context, production, item.dot, from), child ? closeChild(context,item,child) : terminalObservation(context,production.rhs[item.dot].name,from), context.trees && localTreeDemand(production).parts.has(item.dot) ? child ? /** @type {any} */ (child).treeIdentity : terminalIdentity(context,production.rhs[item.dot].name,from) : undefined);
+        let structure=child ? child.structure : terminalState(context,production,item.dot,from);
+        let observation=child ? closeChild(context,item,child) : terminalObservation(context,production.rhs[item.dot].name,from);
+        let identity=context.trees && localTreeDemand(production).parts.has(item.dot) ? child ? /** @type {any} */ (child).treeIdentity : terminalIdentity(context,production.rhs[item.dot].name,from) : undefined;
+        if (child && production.captures[captureIndex].terminal) {
+          const forwarded=child.production.captureSlot.get(production.captures[captureIndex].name);
+          for(let part=child.slots;part;part=part.parent) if(part.index===forwarded) {structure=part.structure;observation=part.observation;identity=part.treeIdentity ?? (context.trees ? terminalIdentity(context,child.production.rhs[0].name,from) : undefined);break;}
+        } else if (child?.production.spliceOf && context.patterns) structure=context.patterns.node(null,child.structure);
+        slots = captureAfter(context, slots, captureIndex, from, to, tags, structure, observation, identity);
       }
       if (hooks.work) countWork(hooks.work, "captureLookups");
       /** @type {StepScope} */
@@ -13519,9 +14176,9 @@
       if (suffix.answers.has(set.position)) return;
       /** @type {Chart} */
       const chart = {sets,start,end:set.position,setAt:position => sets[position-start] || new ChartSet(position),
-        furthest,context,closeRequested:false,family:null,familyTrace:null,boundaryFailures};
+        furthest,context,frames:lexical,closeRequested:false,family:null,familyTrace:null,boundaryFailures};
       const witnesses = set.items.filter(item => item.complete && item.production.lhs === rule && !item.production.closeRequested);
-      suffix.answers.set(set.position,eligibleWitnesses(chart,boundaryWitnesses(chart,witnesses)).length !== 0);
+      suffix.answers.set(set.position,eligibleWitnesses(chart,boundaryWitnesses(chart,witnesses),!!query?.errorFree).length !== 0);
     } : null;
     beginPredict(setAt(start), rule,false,null,!!query?.aligned);
 
@@ -13717,7 +14374,7 @@
           step = NEXT;
           /** @type {(position: number) => ChartSet} */
           const peek = (position) => sets[position - start] || new ChartSet(position);
-          return { sets, start, end, setAt: peek, furthest, context, closeRequested: !!query?.aligned, family, familyTrace, boundaryFailures };
+          return { sets, start, end, setAt: peek, furthest, context, frames:lexical, closeRequested: !!query?.aligned, family, familyTrace, boundaryFailures };
         }
         step = kind;
         item = entry;
@@ -14300,11 +14957,11 @@
       if (name === "") {
         const scope = this;
         return {
-          patternName:this.production.lhs,
+          patternName:this.production.helper ? null : this.production.lhs,
           patternPrefix:this.prefix,
           treeIdentity:this.treeIdentity,
           observation: this.observation,
-          structure: this.structure,
+          structure: this.production.helper && this.context.patterns ? this.context.patterns.node(null,this.structure) : this.structure,
           patterns: this.context.patterns,
           start: this.origin,
           end: this.end,
@@ -14960,6 +15617,14 @@
     // A presence test is decided when the grammar is lowered (engine §3.6).
     if ("captured" in condition) throw new GencmuError("grammar", "a presence test outlived lowering");
     if ("method" in condition) {
+      if (condition.method === "parse" || condition.method === "error-free") {
+        let query = /** @type {any} */ (condition), errorFree = false;
+        while (query.method === "error-free") { errorFree = true; query = query.receiver; }
+        const span = spanOf(context,query.receiver,scope), target = queryTarget(context,span,scope);
+        const kind = /** @type {"matches"|"begins"|"ends"} */ (queryBody(query.args[0].body).mode);
+        return /** @type {boolean|Halt} */ (nested(target.context,kind,bodyTarget(target.context.lowered,query.args[0].body),
+          target.start,target.end,{...target,errorFree}));
+      }
       const span = spanOf(context, condition.receiver, scope);
       if (BOUNDARY_METHODS.has(condition.method)) {
         if (scope.boundaryValue !== undefined) return scope.boundaryValue;
@@ -15143,7 +15808,7 @@
    * @param {string} rule
    * @param {number} start
    * @param {number} end
-   * @param {{key: [number, number] | null, aligned?: import("./types.js").AlignedSpan} | null} target
+   * @param {{key: [number, number] | null, aligned?: import("./types.js").AlignedSpan, errorFree?: boolean} | null} target
    *   where a query of the check came from
    * @returns {boolean | TagSet | Halt}
    */
@@ -15153,16 +15818,25 @@
     const sharing = sharingOf(context);
     if (aligned) sharing.asked++;
     // One recognition answers matches and tags, so both memos share a kind (§4.3).
-    const memoKind = kind === "tags" ? "matches" : kind;
+    const errorFree = !!target?.errorFree;
+    const memoKind = (kind === "tags" ? "matches" : kind) + (errorFree ? ":error-free" : "");
     const ancestry = aligned ? [...context.inProgress].sort(compareCodePoints) : null;
-    const key = kind === "ends" ? JSON.stringify(["suffix",rule,start,end]) : aligned ? JSON.stringify(["aligned",memoKind,rule,start,end,aligned.candidateEnd,aligned.matchEnd,aligned.family,context.closes?.identity(aligned.observation),ancestry])
+    let key = kind === "ends" ? JSON.stringify(["suffix",rule,start,end,errorFree]) : aligned ? JSON.stringify(["aligned",memoKind,rule,start,end,aligned.candidateEnd,aligned.matchEnd,aligned.family,context.closes?.identity(aligned.observation),ancestry])
       : at !== null && end - start > CONTENT_KEY_LIMIT
         ? JSON.stringify(["at", memoKind, rule, at[0], at[1]])
         : nestedKey(context, memoKind, rule, start, end);
+    if (errorFree || readsCarriedErrors(context.lowered,rule)) {
+      const parts = JSON.parse(key);
+      if (key.startsWith('["of"')) {
+        parts.push("carried-errors");
+        for(let index=start;index<end;index++)parts.push(context.tokens[index].errors.length!==0);
+      }
+      key = JSON.stringify(parts);
+    }
     requireInactive(context,rule,start,end);
     let suffix = null;
     if (kind === "ends") {
-      suffix = sharing.suffixActive > 0 ? freshSuffix() : suffixState(context, rule, start, end);
+      suffix = sharing.suffixActive > 0 ? freshSuffix() : suffixState(context, rule, start, end, errorFree);
       if (suffix.answers.has(end)) {
         if (suffix.dependent) sharing.asked++;
         return /** @type {boolean} */ (suffix.answers.get(end));
@@ -15186,7 +15860,7 @@
         return queryAnswer(kind, entry);
       }
     }
-    const qualificationKey = aligned ? JSON.stringify([rule,start,end,ancestry,
+    const qualificationKey = aligned ? JSON.stringify([rule,start,end,ancestry,errorFree,
       ...(aligned.family ? [aligned.family,aligned.candidateEnd,context.closes?.identity(aligned.observation)] : [])]) : null;
     const qualified = qualificationKey !== null && sharing.suffixActive === 0 ? context.qualified.get(qualificationKey) : undefined;
     if (qualified && aligned) {
@@ -15196,6 +15870,7 @@
     }
     // A fault finds no query cycle while the check runs (F25).
     halting = new Pending(context, kind, rule, start, end, at, key, context.checking && fault("F25"));
+    halting.errorFree = errorFree;
     halting.aligned = aligned ?? null;
     halting.qualificationKey = qualificationKey;
     halting.asked = sharing.asked;
@@ -15246,7 +15921,7 @@
       for (const production of lowered.byLhs.get(here.rule) ?? []) {
         for (const symbol of production.rhs) if (!symbol.terminal) pending.push({rule:symbol.name,nested:here.nested});
         /** @type {unknown[]} */
-        const clauses = [production.conditions,production.tags,production.parentTags,production.rankedDeferred];
+        const clauses = productionClauses(production);
         const visited = new Set();
         while (clauses.length) {
           const node = /** @type {any} */ (clauses.pop());
@@ -15255,13 +15930,13 @@
           if (!here.nested && ["onward","following-tokens","ends-input","followed-by"].includes(node.method)) {
             memo.set(rule,true); return true;
           }
-          if (["matches","begins","ends","tags"].includes(node.method) && node.args.length) {
+          if (["matches","begins","ends","tags","parse"].includes(node.method) && node.args.length) {
             let receiver = node.receiver;
             while (receiver.method === "onward") receiver = receiver.receiver;
             if (["without-elision","without-elision-except"].includes(receiver.method)) {
               memo.set(rule,true); return true;
             }
-            for (const arg of node.args) if (arg.rule) pending.push({rule:arg.rule,nested:true});
+            for (const arg of node.args) if (arg.rule || arg.body) pending.push({rule:arg.rule ?? bodyTarget(lowered,arg.body),nested:true});
           }
           for (const child of clauseChildren(node)) clauses.push(child);
         }
@@ -15270,14 +15945,61 @@
     memo.set(rule,false); return false;
   }
 
-  /** @param {ParseContext} context @param {string} rule @param {number} start @param {number} end @returns {SuffixState} */
-  function suffixState(context, rule, start, end) {
+  /** @param {ParseContext} context @param {string} rule @param {number} start @param {number} end @param {boolean} errorFree @returns {SuffixState} */
+  function suffixState(context, rule, start, end, errorFree) {
     let states = suffixStates.get(context);
     if (!states) suffixStates.set(context,states=new Map());
-    const key = JSON.stringify(suffixReadsEnd(context.lowered,rule) ? [rule,start,end] : [rule,start]);
+    const key = JSON.stringify(suffixReadsEnd(context.lowered,rule) ? [rule,start,end,errorFree] : [rule,start,errorFree]);
     let state = states.get(key);
     if (!state) states.set(key,state=freshSuffix());
     return state;
+  }
+
+  // A nested filtered answer makes its caller sensitive to carried errors.
+  // Discover these dependencies once per lowered grammar, including anonymous
+  // targets and calls inside the target's conditions (engine §4.3).
+  /** @type {WeakMap<LoweredGrammar,Set<string>>} */
+  const carriedDependencies = new WeakMap();
+  /** @param {LoweredGrammar} lowered @param {string} rule @returns {boolean} */
+  function readsCarriedErrors(lowered,rule) {
+    let sensitive = carriedDependencies.get(lowered);
+    if (sensitive) return sensitive.has(rule);
+    sensitive = new Set();
+    /** @type {Map<string,Set<string>>} */
+    const callers = new Map();
+    /** @param {string} target @param {string} caller */
+    const edge = (target,caller) => {
+      let users = callers.get(target);
+      if (!users) callers.set(target,users=new Set());
+      users.add(caller);
+    };
+    for (const [name,productions] of lowered.byLhs) {
+      const visited = new Set();
+      for (const production of productions) {
+        for (const symbol of production.rhs) if (!symbol.terminal) edge(symbol.name,name);
+        const clauses = productionClauses(production);
+        while (clauses.length) {
+          const part = /** @type {any} */ (clauses.pop());
+          if (!part || typeof part !== "object" || visited.has(part)) continue;
+          visited.add(part);
+          if (part.method === "error-free") sensitive.add(name);
+          if (["parse","matches","begins","ends","tags"].includes(part.method)) {
+            for (const arg of part.args) if (arg.rule || arg.body) edge(arg.rule ?? bodyTarget(lowered,arg.body),name);
+          }
+          for (const child of clauseChildren(part)) clauses.push(child);
+        }
+      }
+    }
+    const pending = [...sensitive];
+    while (pending.length) {
+      const name = /** @type {string} */ (pending.pop());
+      for (const caller of callers.get(name) ?? []) if (!sensitive.has(caller)) {
+        sensitive.add(caller);
+        pending.push(caller);
+      }
+    }
+    carriedDependencies.set(lowered,sensitive);
+    return sensitive.has(rule);
   }
 
   /**
@@ -15401,7 +16123,7 @@
    * @param {string} rule
    * @param {number} start
    * @param {number} end
-   * @param {{key: [number, number] | null, aligned?: import("./types.js").AlignedSpan} | null} [target]
+   * @param {{key: [number, number] | null, aligned?: import("./types.js").AlignedSpan, errorFree?: boolean} | null} [target]
    * @returns {boolean | Halt}
    */
   function nestedMatches(context, rule, start, end, target = null) {
@@ -15416,7 +16138,7 @@
    * @param {string} rule
    * @param {number} start
    * @param {number} end
-   * @param {{key: [number, number] | null, aligned?: import("./types.js").AlignedSpan} | null} [target]
+   * @param {{key: [number, number] | null, aligned?: import("./types.js").AlignedSpan, errorFree?: boolean} | null} [target]
    * @returns {boolean | Halt}
    */
   function nestedBegins(context, rule, start, end, target = null) {
@@ -15428,7 +16150,7 @@
    * @param {string} rule
    * @param {number} start
    * @param {number} end
-   * @param {{key: [number, number] | null, aligned?: import("./types.js").AlignedSpan} | null} [target]
+   * @param {{key: [number, number] | null, aligned?: import("./types.js").AlignedSpan, errorFree?: boolean} | null} [target]
    * @returns {TagSet | Halt}
    */
   function nestedTags(context, rule, start, end, target = null) {
@@ -15458,9 +16180,10 @@
    * is a terminal, and the predictions the lookahead did not make items of.
    * @param {Chart} chart
    * @param {number} position
+   * @param {Production[]} [skipped]
    * @returns {Expectation[]}
    */
-  function expectedAt(chart, position) {
+  function expectedAt(chart, position, skipped) {
     const set = chart.setAt(position);
     /** @type {Map<string, Set<string>>} */
     const expected = new Map();
@@ -15476,21 +16199,36 @@
     }
     // A skipped prediction passed its conditions before it was skipped. Those
     // it checked then use no captures, so they hold again now.
-    const context = chart.context;
-    const next = position < chart.end ? context.tokens[position] : null;
-    for (const skipped of set.skipped) {
-      const productions = typeof skipped === "string" ? context.lowered.byLhs.get(skipped) ?? [] : [skipped];
-      for (const production of productions) {
-        if (!lookaheadSkips(context, production, next, position)) continue;
-        const failed = settled(() => failedCondition(context, production, -1, null, position, position, { scope: null, ...structuralStep(context, production, 0, null, null, position), observation: closeStep(context,production,0,position,null,null,position)?.observation ?? null }));
-        if (failed) continue;
-        note(writtenSymbol(production.rhs[0]), production.owner);
-      }
-    }
+    for (const production of skipped??skippedProductions(chart,position)) note(writtenSymbol(production.rhs[0]), production.owner);
     return [...expected].sort((left, right) => compareCodePoints(left[0], right[0])).map(([terminal, rules]) => ({
       terminal,
       rules: [...rules].sort(compareCodePoints),
     }));
+  }
+
+  /** Lookahead omissions that passed their entry conditions, as virtual entries.
+   * @param {Chart} chart @param {number} position
+   * @param {{name?:string,accept?:(production:Production)=>boolean,cache?:Map<Production,boolean>,candidates?:Iterable<string|Production>}} [selection]
+   * @returns {Production[]} */
+  function skippedProductions(chart,position,selection={}) {
+    const result=[],context=chart.context,next=position<chart.end?context.tokens[position]:null;
+    for(const skipped of selection.candidates??chart.setAt(position).skipped) {
+      if(hooks.work)countWork(hooks.work,"walkSteps");
+      if(selection.name!==undefined&&(typeof skipped==='string'?skipped:skipped.lhs)!==selection.name)continue;
+      const productions=typeof skipped==='string'?context.lowered.byLhs.get(skipped)??[]:[skipped];
+      for(const production of productions) {
+        if(hooks.work)countWork(hooks.work,"walkSteps");
+        if(selection.accept&&!selection.accept(production))continue;
+        const cached=selection.cache?.get(production);
+        if(cached!==undefined){if(cached)result.push(production);continue;}
+        if(hooks.work)countWork(hooks.work,"walkSteps");
+        if(!lookaheadSkips(context,production,next,position)){selection.cache?.set(production,false);continue;}
+        const failed=settled(()=>failedCondition(context,production,-1,null,position,position,{scope:null,...structuralStep(context,production,0,null,null,position),observation:closeStep(context,production,0,position,null,null,position)?.observation??null}));
+        selection.cache?.set(production,!failed);
+        if(!failed)result.push(production);
+      }
+    }
+    return result;
   }
 
   /** Evaluate each Boolean assignment in the existing order, across query halts.
@@ -15595,7 +16333,695 @@
     return conditions.every(condition => settled(() => holds(context,present(condition),scope)));
   }
 
+  // ---- competitor-rejection.js
+
+
+  /** @type {WeakMap<string[],import("./source-lines.js").LineIndex>} */
+  const sourceLines=new WeakMap();
+  // Default rejection evidence for a diagnostic that is itself a ranked option (§12.1).
+
+
+  /** @typedef {import('./earley.js').Item} Item */
+  /** @typedef {import('./types.js').Production} Production */
+  /** @typedef {{next:Item,child:Item|null}} Advance */
+
+  /** @template T @param {Map<string,Map<any,T[]>>} index @param {string} name @param {any} frame @param {T} candidate */
+  function indexCandidate(index,name,frame,candidate){
+    if(hooks.work)countWork(hooks.work,"walkSteps");
+    let frames=index.get(name);if(!frames)index.set(name,frames=new Map());
+    let list=frames.get(frame);if(!list)frames.set(frame,list=[]);
+    list.push(candidate);
+  }
+  /** @template T @param {Map<string,Map<any,T[]>>|undefined} index @param {string} name @param {any} frame @returns {T[]} */
+  function candidatesAt(index,name,frame){
+    if(hooks.work)countWork(hooks.work,"walkSteps");
+    return index?.get(name)?.get(frame)??[];
+  }
+
+  /** @param {import('./diagnostic-flow.js').DiagnosticFlow} flow @param {import('./earley.js').Chart} chart */
+  function competitorRejections(flow,chart) {
+    for(const event of flow.evaluated) {
+      if(event.kind!=='errors'||'read'in event.node||event.node.production.spliceOf)continue;
+      const parent=flow.info(event.node).parent;
+      if(!parent||'read'in parent||!parent.production.rankedGroup||parent.children.length!==1||parent.children[0]!==event.node)continue;
+      const result=competitorSlice(chart,event.node.start,event.node.end,parent.production);
+      if(result)event.diagnostic.rejection=result;
+    }
+  }
+
+  /** @param {import('./earley.js').Chart} chart @param {number} start @param {number} cap @param {Production} option
+   * @returns {import('./types.js').CompetitorRejection|null} */
+  function competitorSlice(chart,start,cap,option) {
+    const group=/** @type {NonNullable<Production['rankedGroup']>} */(option.rankedGroup);
+    const frames=chart.frames;
+    /** @type {Map<number,Map<string,Map<any,Item[]>>>} */ const entries=new Map();
+    /** @type {Map<Item,Advance[]>} */ const advances=new Map();
+    /** @type {Map<Item,{previous:Item,next:Item}[]>} */ const completions=new Map();
+    /** @type {Map<number,Map<Production,boolean>>} */ const skipped=new Map();
+    /** @type {Map<number,Map<string,Map<any,(string|Production)[]>>>} */ const skippedCandidates=new Map();
+    /** @param {number} at */
+    const skippedAt=at=>{
+      if(hooks.work)countWork(hooks.work,"walkSteps");
+      let index=skippedCandidates.get(at);
+      if(!index){
+        skippedCandidates.set(at,index=new Map());
+        for(const candidate of chart.setAt(at).skipped)indexCandidate(index,typeof candidate==='string'?candidate:candidate.lhs,typeof candidate==='string'?null:candidate.lexicalFrame??null,candidate);
+      }
+      return index;
+    };
+    /** @param {number} at @param {(production:Production)=>boolean} accept @param {Iterable<string|Production>} candidates */
+    const omissions=(at,accept,candidates)=>{
+      let cache=skipped.get(at);if(!cache)skipped.set(at,cache=new Map());
+      return skippedProductions(chart,at,{candidates,accept:production=>!production.error&&accept(production),cache});
+    };
+    /** @type {Map<number,Map<string,Set<any>>>} */ const predictions=new Map();
+    /** @param {number} at @param {string} name @param {any} frame */
+    const firstPrediction=(at,name,frame)=>{
+      if(hooks.work)countWork(hooks.work,"walkSteps");
+      let names=predictions.get(at);if(!names)predictions.set(at,names=new Map());
+      let seen=names.get(name);if(!seen)names.set(name,seen=new Set());
+      if(seen.has(frame))return false;
+      seen.add(frame);return true;
+    };
+    /** @type {Map<number,ChartSet>} */ const sets=new Map();
+    /** @type {Set<Item>} */ const reached=new Set();
+    /** @type {Item[]} */ const queue=[];
+    /** @param {number} at */
+    const setAt=at=>{let set=sets.get(at);if(!set)sets.set(at,set=new ChartSet(at));return set;};
+    /** @param {Production} production */
+    const competitor=production=> {
+      if(production.rankedGroup===group)return production.rankedOption!==option.rankedOption&&production.lexicalFrame===option.lexicalFrame;
+      const source=production.logicalSource;
+      return !production.helper&&production.lhs===group.parent&&source!==group.source&&source?.clauses===group.source.clauses;
+    };
+    /** @param {Item} item */
+    const add=item=>{
+      if(item.production.error||reached.has(item))return;
+      reached.add(item);queue.push(item);
+      // A ranked helper around one call is the entry of that called option,
+      // not an independent non-error attempt when the call carries %error.
+      const transparent=item.dot===0&&item.production.rankedGroup&&item.production.rhs.length===1&&!item.production.rhs[0].terminal;
+      if(!transparent)setAt(item.end).items.push(item);
+    };
+    /** @type {Map<number,Set<Production>>} */ const omitted=new Map();
+    /** @param {number} at @param {Production} production */
+    const omit=(at,production)=>{
+      if(hooks.work)countWork(hooks.work,"walkSteps");
+      let seen=omitted.get(at);if(!seen)omitted.set(at,seen=new Set());
+      if(!seen.has(production)){seen.add(production);setAt(at).skipped.push(production);}
+    };
+    for(const set of chart.sets) {
+      if(set.position<start||set.position>cap)continue;
+      const byName=new Map();entries.set(set.position,byName);
+      for(const item of set.items) {
+        if(item.production.error)continue;
+        if(item.dot===0) {
+          indexCandidate(byName,item.production.lhs,item.production.lexicalFrame??null,item);
+          if(item.origin===start&&set.position===start&&competitor(item.production))add(item);
+        }
+        for(const edge of item.edges)if('previous'in edge) {
+          const child=edge.kind==='complete'?edge.child:null;
+          const list=advances.get(edge.previous)??[];list.push({next:item,child});advances.set(edge.previous,list);
+          if(child){const uses=completions.get(child)??[];uses.push({previous:edge.previous,next:item});completions.set(child,uses);}
+        }
+      }
+    }
+    for(const production of omissions(start,competitor,chart.setAt(start).skipped))omit(start,production);
+    for(let index=0;index<queue.length;index++) {
+      const item=queue[index],symbol=item.production.rhs[item.dot];
+      if(symbol&&!symbol.terminal) {
+        const frame=frames?.entry(item,symbol.name)??null;
+        if(firstPrediction(item.end,symbol.name,frame)){
+          for(const entry of candidatesAt(entries.get(item.end),symbol.name,frame)){
+            if(hooks.work)countWork(hooks.work,"walkSteps");
+            add(entry);
+          }
+          const candidates=candidatesAt(skippedAt(item.end),symbol.name,frame);
+          for(const production of omissions(item.end,p=>(p.lexicalFrame??null)===frame,candidates))omit(item.end,production);
+        }
+      }
+      for(const advance of advances.get(item)??[])if(!advance.child||reached.has(advance.child))add(advance.next);
+      for(const completion of completions.get(item)??[])if(reached.has(completion.previous))add(completion.next);
+    }
+    if(!sets.size)return null;
+    let position=start;for(const at of sets.keys())position=Math.max(position,at);
+    const slice={...chart,furthest:position,setAt};
+    const tokens=chart.context.tokens,end=tokens[tokens.length-1]?.source[1]??0;
+    const source=position<tokens.length?tokens[position].source:[end,end];
+    let lines=sourceLines.get(chart.context.sourceText);
+    if(!lines)sourceLines.set(chart.context.sourceText,lines=lineIndex(chart.context.sourceText));
+    const {line,column}=positionAt(lines,source[0]);
+    return {token:position,source:[source[0],source[1]],line,column,expected:expectedAt(slice,position,/** @type {Production[]} */(setAt(position).skipped))};
+  }
+
+  // ---- diagnostic-audit.js
+
+
+  // Notes for diagnostic rules, suppression, and concrete tag variants.
+
+
+
+
+  /** @param {import('./grammar.js').Grammar} grammar @returns {any[]} */
+  function diagnosticAudit(grammar) {
+    const notes=[], edges=new Map(), warnings=new Map(), errors=new Set();
+    for (const rule of grammar.rules.values()) {
+      const references=new Set(), codes=new Set();
+      for (const alternative of rule.alternatives) {
+        if(hooks.work)countWork(hooks.work,"closures");
+        if(alternative.clauses.error)errors.add(rule.name);
+        /** @type {any[]} */
+        const pending=[alternative.expr];
+        while(pending.length) {
+          if(hooks.work)countWork(hooks.work,"walkSteps");
+          const node=pending.pop();
+          if (node && 'ref' in node && grammar.rules.has(node.ref)) references.add(node.ref);
+          for (const child of expressionChildren(node)) pending.push(child);
+        }
+        if (alternative.clauses.warning) codes.add(rule.name);
+      }
+      edges.set(rule.name,references);warnings.set(rule.name,codes);
+    }
+    // Each bit follows the rule graph once: ordinary and filtered queries.
+    const closure=(/** @type {Iterable<[string,number]>} */ roots)=> {
+      const seen=new Map(),pending=[...roots];
+      while(pending.length) {
+        if(hooks.work)countWork(hooks.work,"closures");
+        const [name,bits]=/** @type {[string,number]} */(pending.pop());
+        const old=seen.get(name)??0,added=bits&~old;
+        if(!added)continue;
+        seen.set(name,old|bits);
+        for(const child of edges.get(name)??[]) {
+          if(hooks.work)countWork(hooks.work,"closures");
+          pending.push([child,added]);
+        }
+      }
+      return seen;
+    };
+    // Definition clauses and terms stay shared across their alternatives.
+    // Cache discovery by source object, not by a simplified production.
+    /** @typedef {Map<string,number>} Targets */
+    /** @type {Targets} */ const emptyTargets=new Map();
+    /** @type {Map<any,Targets>} */ const queryTargets=new Map();
+    const targetsOf=(/** @type {any} */ root)=>{
+      const known=queryTargets.get(root);if(known)return known;
+      /** @type {Targets} */ const found=new Map();
+      const pending=[{node:root,filtered:false}];
+      while(pending.length) {
+        if(hooks.work)countWork(hooks.work,"walkSteps");
+        const {node,filtered}=/** @type {NonNullable<ReturnType<typeof pending.pop>>} */(pending.pop());
+        const names=['matches','begins','ends','tags'].includes(node?.method)?node.args.flatMap((/** @type {any} */ arg)=>arg.rule?[arg.rule]:[]):node?.method==='parse'?queryReferences(node.args[0].body):[];
+        for(const name of names)found.set(name,(found.get(name)??0)|(filtered?2:1));
+        for(const child of clauseChildren(node))pending.push({node:child,filtered:filtered||node?.method==='error-free'});
+      }
+      const result=found.size?found:emptyTargets;
+      queryTargets.set(root,result);return result;
+    };
+    /** @type {Map<import('./grammar.js').RuleClauses,Map<Targets,Targets>>} */ const queryClosures=new Map();
+    const queriesOf=(/** @type {import('./grammar.js').RuleClauses} */ clauses,/** @type {any} */ tags)=>{
+      const own=targetsOf(tags);
+      let cache=queryClosures.get(clauses);if(!cache)queryClosures.set(clauses,cache=new Map());
+      const known=cache.get(own);if(known)return known;
+      /** @type {Targets} */ const targets=new Map();
+      // Preserve the clause walk's discovery order for the audit notes.
+      for(const part of [targetsOf(clauses.emit),own,targetsOf(clauses.tags),targetsOf(clauses.conditions)]) {
+        for(const [name,bits]of part)targets.set(name,(targets.get(name)??0)|bits);
+      }
+      const reached=closure(targets);cache.set(own,reached);return reached;
+    };
+    /** @type {Map<any,boolean>} */ const guards=new Map();
+    const guarded=(/** @type {any} */ term)=>{
+      const known=guards.get(term);if(known!==undefined)return known;
+      const found=neighbourGuards(term).length!==0;guards.set(term,found);return found;
+    };
+    for (const rule of grammar.rules.values()) for (const alternative of rule.alternatives) {
+      const clauses=alternative.clauses;
+      const where={rule:rule.name,document:alternative.document,line:alternative.at.line,column:alternative.at.column};
+      for(const [name,bits]of queriesOf(clauses,alternative.tags))if(errors.has(name))for(const filtered of [false,true]) {
+        if(bits&(filtered?2:1))notes.push({kind:'query-error',...where,target:name,filtered});
+      }
+      if (clauses.suppressWarnings) {
+        const roots=new Set();
+        /** @type {any[]} */
+        const body=[alternative.expr];
+        while(body.length) {
+          if(hooks.work)countWork(hooks.work,"walkSteps");
+          const node=body.pop();
+          if ('ref' in node && grammar.rules.has(node.ref)) roots.add(node.ref);
+          for (const child of expressionChildren(node)) body.push(child);
+        }
+        const possible=new Set(clauses.warning?[rule.name]:[]);
+        for (const name of closure([...roots].map(name=>[name,1])).keys()) for (const code of warnings.get(name) ?? []) possible.add(code);
+        for (const code of new Set(clauses.suppressWarnings)) if (code==='_' ? !possible.size : !possible.has(code)) notes.push({kind:'unused-suppression',...where,code});
+      }
+      const terms=[clauses.tags,alternative.tags].filter(term=>term!==undefined);
+      if (terms.some(guarded)) {
+        const owner={name:rule.name,...clauses,alternatives:[alternative]};
+        for (const captures of validationCaptures(owner,alternative)) {
+          const terms=[clauses.tags,alternative.tags].filter(term=>term!==undefined).map(term=>simplifyFor(prepareClause(term),name=>captures.has(name),captures));
+          const count=guardedTagVariants(terms.length===1?terms[0]:{union:terms}).length;
+          if (count>8) notes.push({kind:'guarded-tag-variants',...where,variants:count,captures:[...captures.keys()].filter(Boolean)});
+        }
+      }
+    }
+    // Shared definition clauses can supply one note through several alternatives.
+    const seen=new Set();
+    return notes.filter(note=>{const key=JSON.stringify(note);if(seen.has(key)) return false;seen.add(key);return true;});
+  }
+
+  // ---- measures.js
+  // Additive diagnostic charges and profile order (engine §1, §6).
+
+
+  /** @typedef {number|bigint} Count */
+  /** @typedef {[Count,Count,Count]} Measure */
+  /** @type {Measure} */
+  const ZERO_MEASURE=Object.freeze(/** @type {any} */([0,0,0]));
+
+  /** @param {Count} left @param {Count} right @returns {Count} */
+  function addCount(left,right){
+    if(typeof left==='number' && typeof right==='number'){
+      const sum=left+right;
+      if(sum<=Number.MAX_SAFE_INTEGER || sum===Infinity)return sum;
+    }
+    if(left===Infinity || right===Infinity)return Infinity;
+    return BigInt(left)+BigInt(right);
+  }
+
+  /** @param {Measure} left @param {Measure} right @returns {Measure} */
+  function sumMeasure(left,right){
+    if(left===ZERO_MEASURE)return right;
+    if(right===ZERO_MEASURE)return left;
+    return [addCount(left[0],right[0]),addCount(left[1],right[1]),addCount(left[2],right[2])];
+  }
+
+  /** Negative means that the left measure wins. @param {ArrayLike<any>} left @param {ArrayLike<any>} right */
+  function compareMeasure(left,right){
+    for(let index=0;index<3;index++)if(left[index]<right[index] || left[index]>right[index]){
+      const order=left[index]<right[index]?-1:1;
+      return index===2?-order:order;
+    }
+    return 0;
+  }
+
+  // Public diagnostic objects carry no charge or identity fields. Copies
+  // retain this private record rather than deriving a charge from new spans.
+  /** @type {WeakMap<object,{measure:Measure,identity:object}>} */
+  const records=new WeakMap();
+  /** @param {object} diagnostic @param {Measure} measure @param {object} [identity] */
+  function recordDiagnostic(diagnostic,measure,identity={}){
+    records.set(diagnostic,{measure:/** @type {Measure} */(Object.freeze([...measure])),identity});
+    return diagnostic;
+  }
+  /** @param {object} diagnostic */
+  function diagnosticRecord(diagnostic){
+    const record=records.get(diagnostic);
+    if(!record)throw new Error('An engine diagnostic requires a fixed charge and identity.');
+    return record;
+  }
+  /** @param {object} original @param {object} copy */
+  function copyDiagnosticRecord(original,copy){
+    const record=records.get(original);
+    if(record)records.set(copy,record);
+    return copy;
+  }
+
+  class Measures {
+    /** @param {import('./tokens.js').Token[]} tokens @param {Sources} [sources] */
+    constructor(tokens,sources=new Sources(tokens)){
+      this.sources=sources;
+      /** @type {{measures:Measures,project:number[]}|null} */ this.original=null;
+      this.nonempty=[0];
+      /** @type {Measure[]} */
+      this.carried=[];
+      for(const token of tokens){
+        this.nonempty.push(this.nonempty[this.nonempty.length-1]+(token.source[0]<token.source[1]?1:0));
+        let measure=ZERO_MEASURE;
+        for(const diagnostic of token.errors)measure=sumMeasure(measure,diagnosticRecord(diagnostic).measure);
+        this.carried.push(measure);
+      }
+    }
+    /** @param {number} start @param {number} end @returns {Measure} */
+    own(start,end){
+      if(this.original)return this.original.measures.own(this.original.project[start],this.original.project[end]);
+      if(this.nonempty[end]===this.nonempty[start])return [0,1,1];
+      const [low,high]=this.sources.of(start,end);
+      return [high-low,0,1];
+    }
+  }
+
+  // ---- diagnostic-flow.js
+
+  // Diagnostic identity, reporting collections, and emission owners (§11.5, §12.1).
+
+
+  /** @typedef {import('./types.js').Derivation} Derivation */
+  /** @typedef {import('./types.js').ParseWarning} Diagnostic */
+  /** @typedef {{errors:Diagnostic[],warnings:Diagnostic[]}} DiagnosticLists */
+  /** @typedef {{node:Derivation,diagnostic:Diagnostic,kind:'errors'|'warnings',own:boolean}} DiagnosticEvent */
+  /** @typedef {{parent:Derivation|null,erased:boolean,scope:EmissionScope}} NodeInfo */
+  /** @typedef {{root:Derivation,rows:Carrier[],carrier:Carrier|null,unowned:DiagnosticLists}} EmissionScope */
+  /** @typedef {{token:import('./tokens.js').AttachedToken,span:import('./types.js').Span,part:Derivation|null,emission:Derivation,scope:EmissionScope,support:import('./types.js').Span|null,own:DiagnosticLists,groups:(EmissionScope|import('./tokens.js').AttachedToken)[]}} Carrier */
+
+  /** @returns {DiagnosticLists} */
+  function emptyDiagnostics(){return {errors:[],warnings:[]};}
+  /** @param {Diagnostic} diagnostic */
+  function diagnosticIdentity(diagnostic){return diagnosticRecord(diagnostic).identity;}
+
+  /** @param {DiagnosticLists[]} lists @returns {DiagnosticLists} */
+  function joinDiagnostics(lists){
+    const result=emptyDiagnostics();
+    for(const kind of /** @type {const} */(['errors','warnings'])){
+      const seen=new Set();
+      for(const list of lists)for(const diagnostic of list[kind]){
+        const identity=diagnosticIdentity(diagnostic);
+        if(!seen.has(identity)){seen.add(identity);result[kind].push(diagnostic);}
+      }
+    }
+    return result;
+  }
+
+  /** @param {import('./tokens.js').Token[]} tokens @param {number} [end] */
+  function inputDiagnostics(tokens,end=tokens.length){
+    return joinDiagnostics(tokens.slice(0,end).map(token=>({errors:token.errors,warnings:token.warnings})));
+  }
+
+  /** @param {Diagnostic[]} list */
+  function ordered(list){
+    return list.slice().sort((left,right)=>{
+      const a=/** @type {{stageOrder?:number,ordinal?:number}} */(diagnosticIdentity(left));
+      const b=/** @type {{stageOrder?:number,ordinal?:number}} */(diagnosticIdentity(right));
+      return (a.stageOrder??0)-(b.stageOrder??0)||(a.ordinal??0)-(b.ordinal??0);
+    });
+  }
+
+  /** @param {Diagnostic} diagnostic */
+  function objectKey(diagnostic){
+    return JSON.stringify([diagnostic.stage,diagnostic.code,diagnostic.rule,diagnostic.span,diagnostic.source,diagnostic.message,/** @type {any} */(diagnostic).rejection??null]);
+  }
+
+  /** @param {DiagnosticEvent[]} first @param {DiagnosticEvent[]} second @returns {DiagnosticLists} */
+  function tiedDiagnostics(first,second){
+    const result=emptyDiagnostics();
+    for(const kind of /** @type {const} */(['errors','warnings'])){
+      const carried=new Set(),counts=new Map(),later=new Map();
+      for(const [reading,events] of [first,second].entries())for(const event of events){
+        if(event.kind!==kind)continue;
+        const diagnostic=event.diagnostic;
+        if(!event.own){
+          const id=diagnosticIdentity(diagnostic);if(carried.has(id))continue;carried.add(id);
+        }else{
+          const key=objectKey(diagnostic),table=reading===0?counts:later,n=(table.get(key)??0)+1;
+          table.set(key,n);if(reading===1&&n<=(counts.get(key)??0))continue;
+        }
+        result[kind].push(diagnostic);
+      }
+    }
+    return result;
+  }
+
+  class DiagnosticFlow {
+    /** @param {Derivation} root @param {import('./tokens.js').Token[]} input */
+    constructor(root,input){
+      this.root=root;this.input=input;
+      /** @type {Map<Derivation,NodeInfo>} */ this.nodes=new Map();
+      /** @type {Derivation[]} */ this.order=[];
+      /** @type {Map<Derivation,DiagnosticEvent>} */ this.own=new Map();
+      /** @type {DiagnosticEvent[]} */ this.evaluated=[];
+      /** @type {Map<Derivation,EmissionScope>} */ this.scopeRoots=new Map();
+      /** @type {WeakMap<object,Carrier>} */ this.carriers=new WeakMap();
+      this.main=/** @type {EmissionScope} */({root,rows:[],carrier:null,unowned:emptyDiagnostics()});
+      this.scopes=[this.main];
+      const live=new Array(input.length).fill(0);
+      const pending=[{node:root,parent:/** @type {Derivation|null} */(null),erased:false}];
+      while(pending.length){
+        const {node,parent,erased:outer}=/** @type {NonNullable<ReturnType<typeof pending.pop>>} */(pending.pop());
+        const erased=outer||!('read'in node)&&node.production.erased;
+        this.nodes.set(node,{parent,erased,scope:this.main});this.order.push(node);
+        if('read'in node){if(!erased)live[node.read.token]=1;}
+        else for(let index=node.children.length-1;index>=0;index--)pending.push({node:node.children[index],parent:node,erased});
+      }
+      this.prefix=[0];for(const bit of live)this.prefix.push(this.prefix[this.prefix.length-1]+bit);
+      this.next=new Array(input.length+1);this.next[input.length]=input.length;
+      for(let index=input.length-1;index>=0;index--)this.next[index]=live[index]?index:this.next[index+1];
+      this.previous=[0];for(let index=0;index<input.length;index++)this.previous.push(live[index]?index+1:this.previous[index]);
+    }
+    /** @param {Derivation} node @returns {NodeInfo} */
+    info(node){const info=this.nodes.get(node);if(!info)throw new Error('An emission part requires its chosen occurrence.');return info;}
+    /** @param {Derivation} node @param {Diagnostic} diagnostic @param {'errors'|'warnings'} kind */
+    add(node,diagnostic,kind){
+      const event={node,diagnostic,kind,own:true};this.own.set(node,event);this.evaluated.push(event);
+    }
+    /** @returns {DiagnosticLists} */
+    messages(){
+      const result=emptyDiagnostics();
+      for(const event of this.evaluated)if(!this.info(event.node).erased)result[event.kind].push(event.diagnostic);
+      return result;
+    }
+    /** Surviving chosen preorder, before output-node omission. @returns {DiagnosticEvent[]} */
+    events(){
+      const result=[];
+      for(const node of this.order){
+        if(this.info(node).erased)continue;
+        const own=this.own.get(node);if(own)result.push(own);
+        if('read'in node)for(const kind of /** @type {const} */(['errors','warnings']))for(const diagnostic of this.input[node.read.token][kind])result.push({node,diagnostic,kind,own:false});
+      }
+      return result;
+    }
+    /** @returns {DiagnosticLists} */
+    collected(){
+      const result=emptyDiagnostics();
+      for(const event of this.events())result[event.kind].push(event.diagnostic);
+      return joinDiagnostics([result]);
+    }
+    /** @param {Derivation} root @returns {EmissionScope} */
+    attachment(root){
+      const scope={root,rows:[],carrier:null,unowned:emptyDiagnostics()};
+      this.scopeRoots.set(root,scope);this.scopes.push(scope);return scope;
+    }
+    /** @param {number} start @param {number} end */
+    count(start,end){return this.prefix[end]-this.prefix[start];}
+    /** @param {import('./tokens.js').Token} token @param {Derivation|null} part @param {Derivation} emission @param {EmissionScope} scope */
+    emitted(token,part,emission,scope){
+      const support=part&&this.count(part.start,part.end)?/** @type {import('./types.js').Span} */([this.next[part.start],this.previous[part.end]]):null;
+      const row={token,span:token.span,part,emission,scope,support,own:emptyDiagnostics(),groups:[]};
+      scope.rows.push(row);this.carriers.set(token,row);return row;
+    }
+    /** @param {object} original @param {import('./tokens.js').AttachedToken} copy */
+    attached(original,copy){const row=this.carriers.get(original);if(row){row.token=copy;this.carriers.set(copy,row);}}
+    /** @param {import('./tokens.js').Token} token @param {EmissionScope[]} before @param {EmissionScope[]} after @param {import('./tokens.js').AttachedToken[]} inheritedBefore @param {import('./tokens.js').AttachedToken[]} inheritedAfter */
+    attachments(token,before,after,inheritedBefore,inheritedAfter){
+      const row=this.carriers.get(token);if(!row)throw new Error('An attachment requires its emitted carrier.');row.groups=[...before,...inheritedBefore,...inheritedAfter,...after];
+      for(const scope of [...before,...after])scope.carrier=row;
+    }
+    /** @param {EmissionScope} scope @returns {DiagnosticLists} */
+    all(scope){
+      const joined=joinDiagnostics([scope.unowned,...scope.rows.map(row=>({errors:row.token.errors,warnings:row.token.warnings}))]);
+      return {errors:ordered(joined.errors),warnings:ordered(joined.warnings)};
+    }
+    /** @returns {DiagnosticLists} */
+    assign(){
+      for(const node of this.order){
+        const info=this.info(node),parent=info.parent?this.info(info.parent).scope:this.main;
+        info.scope=this.scopeRoots.get(node)??parent;
+      }
+      const buckets=new Map(),emissions=new Map(),nearest=new Map();
+      for(const event of this.events()){
+        const scope=this.info(event.node).scope,list=buckets.get(scope)??[];list.push(event);buckets.set(scope,list);
+      }
+      for(const scope of this.scopes)for(const row of scope.rows){const list=emissions.get(row.emission)??[];list.push(row);emissions.set(row.emission,list);}
+      for(const node of this.order){
+        const info=this.info(node),rows=emissions.get(node);
+        nearest.set(node,rows?.length?rows:info.parent&&this.info(info.parent).scope===info.scope?nearest.get(info.parent):null);
+      }
+      for(const scope of this.scopes){
+        const supported=/** @type {(Carrier & {support:import("./types.js").Span})[]} */(scope.rows.filter(row=>row.support!==null));
+        /** @param {Derivation} node */
+        const owner=node=>{
+          if(this.count(node.start,node.end)){
+            let low=0,high=supported.length;
+            while(low<high){const mid=(low+high)>>>1;if(supported[mid].support[1]<=node.start)low=mid+1;else high=mid;}
+            const row=supported[low];
+            if(row&&row.support[0]<node.end&&this.count(Math.max(node.start,row.support[0]),Math.min(node.end,row.support[1])))return row;
+          }
+          const rows=nearest.get(node);
+          if(rows?.length){
+            let low=0,high=rows.length;
+            while(low<high){const mid=(low+high)>>>1;if((rows[mid].support??rows[mid].span)[1]<node.start)low=mid+1;else high=mid;}
+            return rows[low]??rows[rows.length-1];
+          }
+          let low=0,high=scope.rows.length;
+          while(low<high){const mid=(low+high)>>>1;if(scope.rows[mid].span[0]<node.start)low=mid+1;else high=mid;}
+          return scope.rows[low]??scope.rows[scope.rows.length-1]??null;
+        };
+        for(const event of buckets.get(scope)??[]){
+          const row=owner(event.node);(row?row.own:scope.unowned)[event.kind].push(event.diagnostic);
+        }
+      }
+      for(const scope of this.scopes.slice().reverse())for(const row of scope.rows){
+        const groups=row.groups.map(group=>'rows'in group?this.all(group):{errors:group.errors,warnings:group.warnings});
+        for(const kind of /** @type {const} */(['errors','warnings'])){
+          const displayed=new Set(groups.flatMap(group=>group[kind].map(diagnosticIdentity)));
+          const own=ordered(row.own[kind].filter(diagnostic=>!displayed.has(diagnosticIdentity(diagnostic))));
+          const list=joinDiagnostics([{errors:kind==='errors'?own:[],warnings:kind==='warnings'?own:[]},...groups])[kind];
+          row.token[kind]=list.length?list:NO_DIAGNOSTICS;
+        }
+      }
+      return this.main.unowned;
+    }
+  }
+
+  // The pipeline reads these collections without retaining a packed forest.
+  /** @type {WeakMap<object,{collected:DiagnosticLists,evaluated:DiagnosticLists}>} */
+  const stageDiagnostics=new WeakMap();
+
+  // ---- erasure-audit.js
+  // Conservative effects of removing one written erasure (design, Diagnostics and debugging).
+
+
+
+  const READ=1,EMIT=2,DIAGNOSTIC=4,CHOICE=8,ALL=15;
+
+  /** @param {import('./grammar.js').Grammar} grammar
+   * @param {(alternative:import('./grammar.js').StitchedAlternative)=>boolean} emits
+   * @returns {{rule:string,document:string,line:number,column:number,alternative:number,kind:'semantic'|'inert',effects:string[]}[]} */
+  function erasureAudit(grammar,emits) {
+    /** @type {Map<object,{bits:number,mask:number,references:Set<string>}>} */ const alternatives=new Map();
+    /** @type {Map<string,number>} */ const effects=new Map();
+    /** @type {Map<string,{parent:string,mask:number}[]>} */ const dependents=new Map();
+    /** @type {string[]} */ const pending=[];
+    /** @param {string} name @param {number} bits */
+    const add=(name,bits)=>{const old=effects.get(name)??0;if((old|bits)!==old){effects.set(name,old|bits);pending.push(name);}};
+    for(const rule of grammar.rules.values()) {
+      if(rule.alternatives.length>1)add(rule.name,CHOICE);
+      for(const alternative of rule.alternatives) {
+        if(hooks.work)countWork(hooks.work,'closures');
+        let bits=(alternative.clauses.error||alternative.clauses.warning?DIAGNOSTIC:0)|(emits(alternative)?EMIT:0);
+        const references=new Set(),stack=[alternative.expr];
+        while(stack.length) {
+          if(hooks.work)countWork(hooks.work,'walkSteps');
+          const node=stack.pop();
+          if(!node)continue;
+          if('ref'in node){if(grammar.rules.has(node.ref))references.add(node.ref);else bits|=READ|DIAGNOSTIC;}
+          if('literal'in node||'range'in node||'wildcard'in node)bits|=READ|DIAGNOSTIC;
+          if('optional'in node||'repeat'in node||'choice'in node||'ranked'in node||'and'in node)bits|=CHOICE;
+          for(const child of expressionChildren(node))stack.push(child);
+        }
+        const mask=alternative.clauses.emit?ALL&~EMIT:ALL;
+        alternatives.set(alternative,{bits,mask,references});
+        if(alternative.clauses.erased)continue;
+        add(rule.name,bits);
+        for(const target of references){const list=dependents.get(target)??[];list.push({parent:rule.name,mask});dependents.set(target,list);}
+      }
+    }
+    for(let index=0;index<pending.length;index++)for(const edge of dependents.get(pending[index])??[]) {
+      if(hooks.work)countWork(hooks.work,'closures');
+      add(edge.parent,(effects.get(pending[index])??0)&edge.mask);
+    }
+    /** @type {ReturnType<typeof erasureAudit>} */ const result=[];
+    for(const rule of grammar.rules.values())rule.alternatives.forEach((alternative,index)=>{
+      if(!alternative.clauses.erased)return;
+      const local=/** @type {NonNullable<ReturnType<typeof alternatives.get>>} */(alternatives.get(alternative));
+      let bits=local.bits|(rule.alternatives.length>1?CHOICE:0);
+      for(const target of local.references)bits|=(effects.get(target)??0)&local.mask;
+      const names=[];
+      if(bits&READ)names.push('counted-parts');if(bits&EMIT)names.push('emission');
+      if(bits&DIAGNOSTIC)names.push('diagnostics');if(bits&CHOICE)names.push('derivation-choice');
+      result.push({rule:rule.name,document:alternative.document,line:alternative.at.line??1,column:alternative.at.column??1,alternative:index,kind:/** @type {'semantic'|'inert'} */(bits?'semantic':'inert'),effects:names});
+    });
+    return result;
+  }
+
+  // ---- ranking-audit.js
+  // Static reports for node-pattern steps (docs/design.md).
+
+
+
+
+
+  /** @param {any} grammar @returns {any} */
+  function observations(grammar) {
+    const rules=new Map(),terminals=new Set(),omitted=new Set();
+    const body=(/** @type {any} */ root,/** @type {Set<string>} */ refs)=>{
+      const pending=[root];
+      while(pending.length) {
+        const expr=pending.pop();
+        if(hooks.work) countWork(hooks.work,"clauses");
+        if(expr.ref) {
+          if(grammar.rules.has(expr.ref)) refs.add(expr.ref);
+          else terminals.add(expr.ref);
+        } else if(expr.literal) {
+          const value=grammar.evaluateClosed('',expr.literal,[1,1]);
+          if('string' in value) terminals.add(stringName(value.string,grammar.unicode));
+        } else if(expr.range) terminals.add(expr.range.map((/** @type {any} */ end)=>stringName(grammar.evaluateClosed('',end,[1,1]).string,grammar.unicode)).join('..'));
+        else if(expr.wildcard) terminals.add('_');
+        if(expr.optional && expr.elidable) {
+          let head=expr.optional;
+          while(head.seq || head.capture || head.test) head=head.seq?.[0] ?? head.expr;
+          if(head.ref) {omitted.add(head.ref);}
+        }
+        for(const key of ['seq','choice','ranked','and']) if(expr[key]) for (const child of expr[key]) pending.push(child);
+        for(const key of ['expr','splice','optional','repeat','separator']) if(expr[key]) pending.push(expr[key]);
+      }
+    };
+    for(const rule of grammar.rules.values()) {
+      const refs=new Set();
+      for(const alternative of rule.alternatives) body(alternative.expr,refs);
+      rules.set(rule.name,{refs});
+    }
+    const reachable=new Set(),pending=['text'];
+    while(pending.length) {
+      const name=pending.pop();
+      if(reachable.has(name) || !rules.has(name)) continue;
+      reachable.add(name);
+      for (const child of rules.get(name).refs) pending.push(child);
+    }
+    // Keep terminal reachability separate from query-only references.
+    const reachedTerminals=new Set(),reachedOmitted=new Set();
+    const allTerminals=new Set(terminals),allOmitted=new Set(omitted);
+    terminals.clear();omitted.clear();
+    for(const name of reachable) for(const alternative of grammar.rules.get(name).alternatives) body(alternative.expr,new Set());
+    for(const terminal of terminals) reachedTerminals.add(terminal);
+    for(const terminal of omitted) reachedOmitted.add(terminal);
+    return {rules,reachable,terminals:reachedTerminals,omitted:reachedOmitted,allTerminals,allOmitted};
+  }
+
+  /** @param {any} pattern @param {any} data @returns {boolean} */
+  function dead(pattern,data) {
+    if(pattern.union) return pattern.union.every((/** @type {any} */ p)=>dead(p,data));
+    if(pattern.intersection) return pattern.intersection.some((/** @type {any} */ p)=>dead(p,data));
+    if(pattern.difference) return dead(pattern.difference[0],data);
+    if(pattern.test) return pattern.any?false:dead(pattern.expr,data);
+    if(pattern.name) return !data.reachable.has(pattern.name);
+    if(pattern.terminal) return pattern.terminal === '_' ? !data.terminals.size && !data.omitted.size : !data.terminals.has(pattern.terminal) && !data.omitted.has(pattern.terminal);
+    return false;
+  }
+
+  /** @param {any} grammar @returns {any} */
+  function rankingAudit(grammar) {
+    const steps=grammar.resolution?.steps??[];
+    if (!steps.length) return {keySteps:[],countedChanges:[]};
+    const data=observations(grammar);
+    const reports=[],changes=[];
+    for(let index=0;index<steps.length;index++) {
+      const step=steps[index],named=new Set(),pending=[step.pattern];
+      while(pending.length) {
+        const pattern=pending.pop();
+        if(pattern.name)named.add(pattern.name);
+        for (const child of patternParts(pattern)) pending.push(child);
+      }
+      reports.push({step:index,pattern:canonicalArgument({pattern:step.pattern},grammar.unicode),...(dead(step.pattern,data)?{status:'impossible'}:{})});
+      for(const change of grammar.changes)if(named.has(change.rule))changes.push({...change,step:index});
+    }
+    return {keySteps:reports,countedChanges:changes};
+  }
+
   // ---- diagnostics.js
+
+  /** @typedef {import("./source-lines.js").LineIndex} LineIndex */
+
+
+
 
 
 
@@ -15633,32 +17059,6 @@
   // ---- Where in the text --------------------------------------------------
 
   /**
-   * A text's code points and where its line breaks are, built once so that
-   * each excerpt of the text costs its line, not the text before it.
-   * @typedef {{characters: string[], breaks: number[]}} LineIndex
-   */
-
-  /**
-   * @param {string} text
-   * @returns {LineIndex}
-   */
-  function lineIndex(text) {
-    /** @type {string[]} */
-    const characters = [];
-    for (const character of text) {
-      if (hooks.work) countWork(hooks.work, "text");
-      characters.push(character);
-    }
-    const breaks = [];
-    for (let index = 0; index < characters.length; index++) {
-      if (hooks.work) countWork(hooks.work, "text");
-      const character = characters[index];
-      if (character === "\n" || (character === "\r" && characters[index + 1] !== "\n")) breaks.push(index);
-    }
-    return { characters, breaks };
-  }
-
-  /**
    * The line of the text holding a source range, and a caret line under the
    * range: at least one caret, at the end of the line for an empty range.
    * @param {string} text
@@ -15667,36 +17067,6 @@
    */
   function sourceExcerpt(text, source) {
     return excerptAt(lineIndex(text), source);
-  }
-
-  /**
-   * @param {LineIndex} lines
-   * @param {Span} source code point range
-   * @returns {{line: number, column: number, excerpt: string}}
-   */
-  function excerptAt({ characters, breaks }, source) {
-    // The number of breaks before the range's start, by binary search.
-    let low = 0;
-    let high = breaks.length;
-    while (low < high) {
-      if (hooks.work) countWork(hooks.work, "text");
-      const middle = (low + high) >> 1;
-      if (breaks[middle] < source[0]) low = middle + 1;
-      else high = middle;
-    }
-    const line = low + 1;
-    const lineStart = low === 0 ? 0 : breaks[low - 1] + 1;
-    let lineEnd = lineStart;
-    while (lineEnd < characters.length && characters[lineEnd] !== "\n" && characters[lineEnd] !== "\r") {
-      if (hooks.work) countWork(hooks.work, "text");
-      lineEnd++;
-    }
-    const shown = characters.slice(lineStart, lineEnd).join("").replace(/\t/g, " ");
-    const column = source[0] - lineStart + 1;
-    const width = Math.max(1, Math.min(source[1], lineEnd) - source[0]);
-    const gutter = `${line} | `;
-    const excerpt = `${gutter}${shown}\n${" ".repeat(gutter.length - 2)}| ${" ".repeat(column - 1)}${"^".repeat(width)}`;
-    return { line, column, excerpt };
   }
 
   /**
@@ -15721,6 +17091,9 @@
   function explainError(result) {
     const error = result.error;
     if (!error) return "";
+    /** @type {LineIndex|null} */ let index=null;
+    /** @param {Span} source */
+    const excerpt=source=>excerptAt(index??(index=lineIndex(result.text)),source);
     const lines = [];
     if (error.kind === "rejected") {
       const report = result.stages.find((stage) => stage.name === error.stage);
@@ -15728,7 +17101,7 @@
       const at = error.token === undefined ? tokens.length : error.token;
       const what = at < tokens.length ? `at ${quoted(tokens[at].text)}` : "at the end of the text";
       lines.push(`The ${error.stage} stage cannot read the text ${what}:`);
-      if (error.source) lines.push(sourceExcerpt(result.text, error.source).excerpt);
+      if (error.source) lines.push(excerpt(error.source).excerpt);
       const byRule = new Map();
       for (const expectation of error.expected || []) {
         for (const rule of expectation.rules) {
@@ -15744,8 +17117,8 @@
     } else if (error.kind === "ambiguous" && error.reason === "tie") {
       // A tie is explained where its two readings first differ.
       const report = result.stages.find((stage) => stage.name === error.stage);
-      if (report) return explainTies({ text: result.text, stages: [report] });
-      lines.push(`The ${error.stage} stage's text is ambiguous: it has two best readings, a tie.`);
+      if (report) lines.push(tieExplanations({ text: result.text, stages: [report] },excerpt));
+      else lines.push(`The ${error.stage} stage's text is ambiguous: it has two best readings, a tie.`);
     } else if (error.kind === "ambiguous") {
       const report = result.stages.find((stage) => stage.name === error.stage);
       const tokens = (report && report.input) || [];
@@ -15759,12 +17132,27 @@
         lines.push(`  the first reading ${describeAction(error.witness[0], tokens)}`);
         lines.push(`  the second reading ${describeAction(error.witness[1], tokens)}`);
       }
+    } else if (error.kind === "reported") {
+      // The ordered named diagnostics below explain this envelope.
     } else if (error.kind === "feature-conflict") {
       lines.push(error.message);
     } else {
       const location = [error.document, error.line, error.column].filter(part => part !== undefined).join(":");
       const where = location ? `${location}: ` : "";
       lines.push(`A grammar error${error.stage ? ` in the ${error.stage} stage` : ""}: ${where}${error.message}`);
+    }
+    const owners=error.errors?.length?attachmentDiagnosticOwners(result):new Map();
+    for(const diagnostic of error.errors??[]) {
+      lines.push(`Error ${diagnostic.code} in the ${diagnostic.stage} stage, rule ${diagnostic.rule}: ${diagnostic.message}`);
+      if(owners.has(diagnostic))lines.push(/** @type {string} */(owners.get(diagnostic)));
+      lines.push(excerpt(diagnostic.source).excerpt);
+      if(diagnostic.rejection) {
+        const evidence=diagnostic.rejection;
+        lines.push(`The competing readings reach token ${evidence.token}, line ${evidence.line}, column ${evidence.column}:`);
+        lines.push(excerpt(evidence.source).excerpt);
+        for(const expectation of evidence.expected)lines.push(`  ${expectation.terminal}: ${expectation.rules.join(', ')}`);
+        if(!evidence.expected.length)lines.push('No terminal can continue those readings.');
+      }
     }
     return lines.join("\n");
   }
@@ -15862,6 +17250,12 @@
    * @returns {string}
    */
   function explainTies(result) {
+    /** @type {LineIndex|null} */ let index=null;
+    return tieExplanations(result,source=>excerptAt(index??(index=lineIndex(result.text)),source));
+  }
+
+  /** @param {{text:string,stages:StageReport[]}} result @param {(source:Span)=>ReturnType<typeof excerptAt>} excerpt */
+  function tieExplanations(result,excerpt) {
     const blocks = [];
     for (const stage of result.stages) {
       if (stage.verdict !== "tie" || !stage.witness) continue;
@@ -15876,7 +17270,7 @@
         const token = tokens[Math.min(at, tokens.length - 1)];
         /** @type {Span} */
         const source = at < tokens.length ? token.source : [token.source[1], token.source[1]];
-        lines.push(sourceExcerpt(result.text, source).excerpt);
+        lines.push(excerpt(source).excerpt);
       }
       lines.push(`  the first reading ${describeAction(first, tokens)}`);
       lines.push(`  the second reading ${describeAction(second, tokens)}`);
@@ -15895,18 +17289,35 @@
   }
 
   /**
-   * Each warning of a result (engine §12) as the feature it names and an
-   * excerpt of the text the warned constituent covers.
+   * Each warning's code and evaluated message, with its source excerpt.
    * @param {ParseResult} result
    * @returns {string}
    */
   function explainWarnings(result) {
     const warnings = result.warnings || [];
+    if(!warnings.length)return "";
     const lines = warnings.length ? lineIndex(result.text) : null;
+    const owners=attachmentDiagnosticOwners(result);
     return warnings.map((warning) => [
-      `Warning: the ${warning.stage} stage read this with the feature ${warning.feature}, in the rule ${warning.rule}:`,
+      `Warning ${warning.code} in the ${warning.stage} stage, rule ${warning.rule}: ${warning.message}`,
+      ...(owners.has(warning)?[owners.get(warning)]:[]),
       excerptAt(/** @type {LineIndex} */ (lines), warning.source).excerpt,
     ].join("\n")).join("\n\n");
+  }
+
+  /** Identify display copies once, without reporting a carrier copy again.
+   * @param {ParseResult} result @returns {Map<import('./types.js').ParseWarning,string>} */
+  function attachmentDiagnosticOwners(result) {
+    const owners=new Map();
+    for(const stage of result.stages??[]) {
+      const pending=(stage.output??[]).map((token,index)=>({token,path:`token ${index}`,attached:false}));
+      while(pending.length) {
+        const {token,path,attached}=/** @type {NonNullable<ReturnType<typeof pending.pop>>} */(pending.pop());
+        if(attached)for(const diagnostic of [...token.errors??[],...token.warnings??[]])owners.set(diagnostic,`Display owner: ${path} in the ${stage.name} stage.`);
+        for(const side of /** @type {const} */(['before','after']))for(let index=token[side].length-1;index>=0;index--)pending.push({token:/** @type {Token} */(token[side][index]),path:`${side} attachment ${index} of ${path}`,attached:true});
+      }
+    }
+    return owners;
   }
 
   // ---- Tokens --------------------------------------------------------------
@@ -16025,6 +17436,7 @@
       return { parts: [asTerm(condition.left), asTerm(condition.right)], combine: ([left, right]) => `${left} ${condition.op} ${right}` };
     }
     const term = notation.term;
+    if ("body" in term) return leaf(templateBodyText(term.body,unicode));
     if ("rule" in term) return leaf(term.rule);
     if ("classifier" in term) return leaf(term.classifier);
     if ("string" in term) return leaf(stringName(term.string, unicode));
@@ -16103,14 +17515,15 @@
    * @property {any[]} instances
    * @property {string} name
    * @property {string} resolution
+   * @property {any[]} [diagnosticNotes]
    * @property {any[]} boundaryNotes
    * @property {FamilyAudit[]} families close families in first-call order
    * @property {import("./splice.js").StageChange[]} stageChanges
    * @property {number} rules
    * @property {string[]} unreachable rules no derivation of `text` can reach
    * @property {import("./grammar.js").RuleChange[]} changes
-   * @property {{rule: string, document: string}[]} idleErasures rules marked `%erased` although nothing
-   *   under them could emit and no token could cover them
+   * @property {ReturnType<typeof erasureAudit>} erasures conservative kinds of every written erased alternative
+   * @property {{rule: string, document: string}[]} idleErasures erased definitions with no possible semantic effect
    * @property {Membership[]} memberships every membership of a key in a class
    *   that an entry of a classifier adds or removes, in the order of the
    *   first entry that touches it
@@ -16359,6 +17772,7 @@
         if (!current || typeof current !== "object") continue;
         const value = /** @type {Record<string, any>} */ (current);
         if (typeof value.rule === "string") into.add(value.rule);
+        if(value.method==="parse")for(const name of queryReferences(value.args[0].body))into.add(name);
         for (const child of clauseChildren(value)) remaining.push(child);
       }
     }
@@ -16378,7 +17792,7 @@
     /** @param {object} value */
     const frame = (value) => {
       if (hooks.work) countWork(hooks.work, "walkSteps");
-      return { value, children: clauseChildren(value), next: 0, found: typeof /** @type {Record<string, unknown>} */ (value).rule === "string" };
+      return { value, children: clauseChildren(value), next: 0, found: typeof /** @type {Record<string, unknown>} */ (value).rule === "string" || /** @type {any} */(value).method === "parse" };
     };
     const pending = [frame(node)];
     while (pending.length) {
@@ -16418,114 +17832,6 @@
     }
     return false;
   }
-
-  /**
-   * Which rules of a stage could emit a token (engine §11): one with an
-   * alternative whose emission lists anything, or that
-   * has no emission and walks a part that could.
-   * @param {Map<string, StitchedAlternative[]>} alternativesByRule
-   * @param {CaptureScopes} scopes
-   * @returns {Set<string>}
-   */
-  function emittingRules(alternativesByRule, scopes) {
-    /** @type {Set<string>} */
-    const emitting = new Set();
-    // A worklist: a rule found to emit makes each rule with an alternative
-    // that walks it emit, so the closure costs the size of the grammar, not
-    // a pass over it for each rule found.
-    /** @type {Map<string, string[]>} */
-    const walkers = new Map();
-    /** @type {string[]} */
-    const found = [];
-    /** @type {(name: string) => void} */
-    const add = (name) => {
-      if (emitting.has(name)) return;
-      emitting.add(name);
-      found.push(name);
-    };
-    for (const [name, alternatives] of alternativesByRule) {
-      for (const alternative of alternatives) {
-        if (hooks.work) countWork(hooks.work, "closures");
-        if (alternative.clauses.erased) continue;
-        if (alternative.clauses.emit) {
-          if (emitsAny(alternative, scopes)) add(name);
-          continue;
-        }
-        /** @type {Set<string>} */
-        const walked = new Set();
-        referencedRules(alternative.expr, walked);
-        for (const part of walked) {
-          const list = walkers.get(part);
-          if (list) list.push(name);
-          else walkers.set(part, [name]);
-        }
-      }
-    }
-    for (let name = found.pop(); name !== undefined; name = found.pop()) {
-      for (const walker of walkers.get(name) ?? []) {
-        if (hooks.work) countWork(hooks.work, "closures");
-        add(walker);
-      }
-    }
-    return emitting;
-  }
-
-  /**
-   * Which rules could value inside an emitted token, where what they read is
-   * part of the token's value unless it does not count (engine §5): those
-   * under a covering token, outside erased constituents.
-   * @param {Map<string, StitchedAlternative[]>} alternativesByRule
-   * @param {CaptureScopes} scopes
-   * @returns {Set<string>}
-   */
-  function coveredRules(alternativesByRule, scopes) {
-    const inside = new Set();
-    /** @type {string[]} */
-    const pending = [];
-    /** @type {(part: Expr) => void} */
-    const reach = (part) => {
-      /** @type {Set<string>} */
-      const found = new Set();
-      referencedRules(part, found);
-      for (const name of found) {
-        if (!inside.has(name)) {
-          inside.add(name);
-          pending.push(name);
-        }
-      }
-    };
-    // Covering tokens count input parts independently of recipes.
-    for (const alternatives of alternativesByRule.values()) {
-      for (const alternative of alternatives) {
-        const written = alternative.clauses.emit?.items ?? [];
-        if (!written.length) continue;
-        const structure = scopesFor(alternative, scopes);
-        const items = presentItems(written, (name) => structure.names.has(name), structure.names).map((index) => written[index]);
-        if (items.some((item) => item.capture === "")) {
-          reach(alternative.expr);
-          continue;
-        }
-        const emitted = new Set(items.flatMap((item) => (item.capture ? [item.capture] : [])));
-        if (emitted.size === 0) continue;
-        const parts = [alternative.expr];
-        for (let part = parts.pop(); part !== undefined; part = parts.pop()) {
-          if (hooks.work) countWork(hooks.work, "walkSteps");
-          if ("capture" in part && emitted.has(part.capture)) reach(part);
-          else for (const child of expressionChildren(part)) parts.push(child);
-        }
-      }
-    }
-    // Inside a token, everything counts but erased constituents, whatever any
-    // token under it says of its own value.
-    for (let name = pending.pop(); name !== undefined; name = pending.pop()) {
-      for (const alternative of alternativesByRule.get(name) || []) {
-        if (alternative.clauses.erased) continue;
-        reach(alternative.expr);
-      }
-    }
-    return inside;
-  }
-
 
   /**
    * What a grammar author should know about a pipeline's grammars: per stage,
@@ -16578,40 +17884,16 @@
           }
         }
       }
-      // `%erased` says nothing if nothing under it could emit and no token
-      // could cover it (engine §5, §11).
-      const byRule = new Map([...grammar.rules].map(([name, rule]) => [name, rule.alternatives]));
-      const emitting = emittingRules(byRule, scopes);
-      const covering = coveredRules(byRule, scopes);
-      /** @type {{rule: string, document: string}[]} */
-      const idleErasures = [];
-      /** @type {Set<object>} */
-      const seen = new Set();
-      for (const rule of grammar.rules.values()) {
-        // The alternatives of each clauses, grouped once rather than found by
-        // a scan of the rule for each.
-        /** @type {Map<object, StitchedAlternative[]>} */
-        const siblings = new Map();
-        for (const alternative of rule.alternatives) {
-          if (hooks.work) countWork(hooks.work, "clauses");
-          const group = siblings.get(alternative.clauses);
-          if (group) group.push(alternative);
-          else siblings.set(alternative.clauses, [alternative]);
-        }
-        for (const alternative of rule.alternatives) {
-          if (!alternative.clauses.erased || seen.has(alternative.clauses)) continue;
-          seen.add(alternative.clauses);
-          /** @type {Set<string>} */
-          const reached = new Set();
-          for (const sibling of /** @type {StitchedAlternative[]} */ (siblings.get(alternative.clauses))) {
-            if (hooks.work) countWork(hooks.work, "clauses");
-            referencedRules(sibling.expr, reached);
-          }
-          if (!covering.has(rule.name) && ![...reached].some((name) => emitting.has(name))) {
-            idleErasures.push({ rule: rule.name, document: alternative.document });
-          }
-        }
+      const erasures=erasureAudit(grammar,alternative=>!!alternative.clauses.emit&&emitsAny(alternative,scopes));
+      // Keep the earlier inert-erasure projection beside the complete list.
+      const erasedDefinitions=new Map();
+      for(const entry of erasures) {
+        const clauses=grammar.rules.get(entry.rule)?.alternatives[entry.alternative].clauses;
+        const prior=erasedDefinitions.get(clauses);
+        if(prior)prior.inert&&=entry.kind==='inert';
+        else erasedDefinitions.set(clauses,{rule:entry.rule,document:entry.document,inert:entry.kind==='inert'});
       }
+      const idleErasures=[...erasedDefinitions.values()].filter(entry=>entry.inert).map(({rule,document})=>({rule,document}));
       // Where each membership of each classifier is added and removed.
       /** @type {Map<string, Membership>} */
       const memberships = new Map();
@@ -16626,7 +17908,9 @@
           }
         }
       }
+      const diagnosticNotes=diagnosticAudit(grammar);
       const report = {
+        ...(diagnosticNotes.length?{diagnosticNotes}:{}),
         name: stage.name,
         stageChanges: (stage.stageChanges ?? []).slice(),
         resolution: resolution ? describeResolution(resolution) : "none",
@@ -16634,6 +17918,7 @@
         unreachable: [...grammar.rules.keys()].filter((name) => !reachable.has(name)).sort(compareCodePoints),
         changes: grammar.changes.slice(),
         ...ranking,
+        erasures,
         idleErasures,
         memberships: [...memberships.values()],
         ...templateAudit(grammar),
@@ -16690,7 +17975,12 @@
           lines.push(`  boundary note: target ${note.target} of ${atom} in ${note.rule} ${surface} at ${source} is built only by queries`);
         }
       }
-      for (const idle of stage.idleErasures) lines.push(`  ${idle.rule} in ${idle.document} erases, although nothing under it could emit and no token could cover it`);
+      for (const note of stage.diagnosticNotes ?? []) {
+        if (note.kind==="query-error") lines.push(`  diagnostic note: query target ${note.target} in ${note.rule} contains error productions. Witnesses exclude unerased own errors${note.filtered?" and carried errors outside erased parts":" but allow carried errors"}`);
+        else if (note.kind==="unused-suppression") lines.push(`  diagnostic note: ${note.rule} cannot raise suppressed code ${note.code}`);
+        else lines.push(`  diagnostic note: ${note.rule} has ${note.variants} guarded tag variants`);
+      }
+      for(const entry of stage.erasures??[])lines.push(`  ${entry.kind} erasure: ${entry.rule}, alternative ${entry.alternative+1}, at ${entry.document}:${entry.line}:${entry.column}${entry.effects.length?": "+entry.effects.join(", "):""}`);
       for (const family of stage.families) {
         lines.push(`  family ${family.family}, named by ${family.calls.map(call => `${call.rule} at ${call.document}:${call.line}:${call.column}`).join(", ")}: members ${family.members.join(", ")}`);
         for (const optional of family.permitted) lines.push(`    permits ${optional.terminal} of ${optional.owner} at ${optional.document}:${optional.line}:${optional.column}`);
@@ -16855,6 +18145,61 @@
     return notes;
   }
 
+  // ---- erased-classes.js
+  // Erased completions retain observable state, but no private bindings (§6).
+  /** @typedef {import('./types.js').Item} Item */
+  /** @typedef {{indices:number[],erased:boolean}} EdgeGroup */
+  class ErasedClasses {
+    /** @param {import("./close-observations.js").CloseObservations|null} [closes] */
+    constructor(closes=null){
+      this.closes=closes;
+      /** @type {WeakMap<object,number>} */ this.ids=new WeakMap();
+      /** @type {WeakMap<object,string>} */ this.keys=new WeakMap();
+      this.next=0;
+    }
+    /** @param {object} object */
+    id(object){let id=this.ids.get(object);if(id===undefined){id=this.next++;this.ids.set(object,id);}return id;}
+    /** @param {Item} item */
+    key(item){
+      let key=this.keys.get(item);
+      if(key===undefined){
+        // Only completed values cross a call. Prefixes describe its interior.
+        key=JSON.stringify([item.production.lhs,item.origin,item.end,item.tagId,item.structure,
+          item.production.closeRequested&&item.observation ? this.closes?.identity(item.observation) ?? item.observation.id : null,item.familySummary?.id,
+          item.production.treeRequested?/** @type {any} */(item).treeIdentity:null,item.boundary?.id,
+          item.strict,item.restores,!!item.production.closeRequested,!!item.production.treeRequested,
+          /** @type {any} */(item).restorationFrame ?? item.production.lexicalFrame?.id,item.slotScope?.id]);
+        this.keys.set(item,key);
+      }
+      return key;
+    }
+    /** @param {import('./types.js').Edge[]} edges @param {Set<number>|null|undefined} [mask] @param {(item:Item)=>boolean} [eligible] @returns {EdgeGroup[]} */
+    groups(edges,mask,eligible){
+      const groups=[],seen=new Map();
+      for(let index=0;index<edges.length;index++){
+        if(mask&&!mask.has(index))continue;
+        const edge=edges[index],erased=edge.kind==='complete'&&edge.child.production.erased;
+        if(erased&&eligible&&!eligible(edge.child))continue;
+        const key=erased?this.id(edge.previous)+'/'+this.key(edge.child):null;
+        const old=key===null?undefined:seen.get(key);
+        if(old)old.indices.push(index);
+        else {const group={indices:[index],erased};groups.push(group);if(key!==null)seen.set(key,group);}
+      }
+      return groups;
+    }
+    /** @param {Item[]} roots @returns {number[][]} */
+    roots(roots){
+      const groups=[],seen=new Map();
+      for(const [index,item] of roots.entries()){
+        const key=item.production.erased?this.key(item):null;
+        const old=key===null?undefined:seen.get(key);
+        if(old)old.push(index);
+        else {const group=[index];groups.push(group);if(key!==null)seen.set(key,group);}
+      }
+      return groups;
+    }
+  }
+
   // ---- hash.js
   // FNV-1a over the text's UTF-8 bytes, 64 bits, as 16 hexadecimal digits:
   // the hash that keys the preparsed DOMs in every library.
@@ -16964,6 +18309,86 @@
     }
   }
 
+  // ---- restoration-forest.js
+  // Ranking forgets named-close bookkeeping only after recognition (§6).
+
+  /** @typedef {import('./types.js').Item} Item */
+  /** @typedef {import('./types.js').Edge} Edge */
+  /** @param {import('./earley.js').Chart} chart */
+  function restorationForest(chart) {
+    const closes=chart.context.closes;
+    if(!closes || !chart.context.lowered.productions.some(p=>p.erased))return null;
+    const identity=(/** @type {any} */ observation)=>observation ? closes.identity(observation) : null;
+    /** @type {Map<Item,Item>} */ const plain=new Map();
+    /** @type {Map<Item,number[]>} */ const indices=new Map();
+    /** @type {Map<Item,number>} */ const numbers=new Map();
+    /** @type {WeakMap<object,number>} */ const captures=new WeakMap();
+    /** @type {Map<string,number>} */ const captureIds=new Map();
+    /** @param {any} part */
+    const capture=(part)=> {
+      const pending=[];
+      for(let at=part;at&&!captures.has(at);at=at.parent)pending.push(at);
+      for(const at of pending.reverse()) {
+        if(hooks.work)countWork(hooks.work,'groups');
+        const key=JSON.stringify([at.parent?captures.get(at.parent):null,at.index,at.start,at.end,at.tags,at.structure,identity(at.observation),at.treeIdentity]);
+        if(!captureIds.has(key))captureIds.set(key,captureIds.size);
+        captures.set(at,/** @type {number} */(captureIds.get(key)));
+      }
+      return part?captures.get(part):null;
+    };
+    const sets=chart.sets.map(set=>set?{...set,items:/** @type {Item[]} */([])}:set);
+    /** @type {Map<string,Item>} */ const byKey=new Map();
+    /** @type {Map<Item,Edge[]>} */ const edges=new Map();
+    for(const set of chart.sets)if(set)for(const raw of set.items) {
+      if(hooks.work)countWork(hooks.work,'groups');
+      const p=raw.production;
+      const key=JSON.stringify([p.id,raw.dot,raw.origin,raw.end,raw.tagId,capture(raw.slots),raw.prefix,raw.structure,
+        identity(raw.observationPrefix),identity(raw.observation),raw.familySummary?.id,
+        /** @type {any} */(raw).treePrefix,/** @type {any} */(raw).treeIdentity,/** @type {any} */(raw).treeSequence,
+        p.closeRequested,p.treeRequested,p.lexicalFrame?.restorationKey(),raw.boundary?.id,raw.strict,raw.restores]);
+      let item=byKey.get(key);
+      if(!item) {
+        item=/** @type {Item} */(Object.setPrototypeOf({...raw},Object.getPrototypeOf(raw)));
+        Object.defineProperty(item,'edges',{value:[],writable:true});
+        /** @type {any} */(item).restorationFrame=p.lexicalFrame?.restorationKey();
+        byKey.set(key,item);numbers.set(item,numbers.size);edges.set(item,[]);sets[raw.end].items.push(item);
+      }
+      plain.set(raw,item);
+    }
+    /** @type {Map<Item,Map<string,number>>} */ const edgeIds=new Map();
+    for(const set of chart.sets)if(set)for(const raw of set.items) {
+      const item=/** @type {Item} */(plain.get(raw)),list=/** @type {Edge[]} */(edges.get(item));
+      let found=edgeIds.get(item);if(!found)edgeIds.set(item,found=new Map());
+      const positions=[];
+      for(const edge of raw.edges) {
+        if(hooks.work)countWork(hooks.work,'groups');
+        const previous='previous'in edge?/** @type {Item} */(plain.get(edge.previous)):null;
+        const child=edge.kind==='complete'?/** @type {Item} */(plain.get(edge.child)):null;
+        const key=JSON.stringify([edge.kind,previous?numbers.get(previous):null,child?numbers.get(child):null,
+          'token'in edge?edge.token:null,'terminal'in edge?edge.terminal:null]);
+        let index=found.get(key);
+        if(index===undefined) {
+          index=list.length;found.set(key,index);
+          list.push(edge.kind==='complete'?{...edge,previous:/** @type {Item} */(previous),child:/** @type {Item} */(child)}:edge.kind==='scan'?{...edge,previous:/** @type {Item} */(previous)}:edge);
+        }
+        positions.push(index);
+      }
+      indices.set(raw,positions);
+    }
+    for(const [item,list]of edges)Object.defineProperty(item,'edges',{value:list});
+    return {chart:{...chart,sets},plain,indices,
+      /** @param {Map<Item,Set<number>>} marks */
+      projectMarks(marks) {
+        /** @type {Map<Item,Set<number>>} */ const result=new Map();
+        for(const [raw,marked]of marks) {
+          const item=plain.get(raw);if(!item)continue;
+          let out=result.get(item);if(!out)result.set(item,out=new Set());
+          for(const index of marked)out.add(/** @type {number[]} */(indices.get(raw))[index]);
+        }
+        return result;
+      }};
+  }
+
   // ---- restoration.js
   // Tokens and source projection shared by elision-only and restored spans.
 
@@ -17009,6 +18434,8 @@
   // ---- rank.js
 
 
+
+
   // Choosing a parse (engine §6): the profiles of the key steps of
   // `%ambiguity-resolution`, then the first-difference order over bottom-up
   // action sequences under greedy and lazy, both computed over the packed
@@ -17036,27 +18463,12 @@
    */
 
   /**
-   * A count of actions or of elided terminators. It is a number while it is
+   * A count of actions, diagnostics, or elided terminators. It is a number while it is
    * a safe integer, and a bigint beyond, since a shared sequence can hold
    * exponentially many. Infinity stands for no divergence. Counts compare
    * exactly with < and >, whatever their types.
    * @typedef {number | bigint} Count
    */
-
-  /**
-   * The sum of two counts, exact however large.
-   * @param {Count} left
-   * @param {Count} right
-   * @returns {Count}
-   */
-  function add(left, right) {
-    if (typeof left === "number" && typeof right === "number") {
-      const sum = left + right;
-      if (sum <= Number.MAX_SAFE_INTEGER || sum === Infinity) return sum;
-    }
-    if (left === Infinity || right === Infinity) return Infinity;
-    return BigInt(left) + BigInt(right);
-  }
 
   /**
    * The difference of two finite counts, the right one no greater.
@@ -17090,6 +18502,7 @@
    * @property {Rope | null} second
    * @property {[Action | null, Action | null] | null} witness
    * @property {Profile} profile
+   * @property {boolean|null} rawWitnessCounted
    * @property {boolean | null} witnessCounted with the runtime witness marks,
    *   whether the count counted W(D); null without marks
    */
@@ -17125,7 +18538,7 @@
   function concat(left, right) {
     if ("empty" in left) return right;
     if ("empty" in right) return left;
-    return { left, right, size: add(left.size, right.size) };
+    return { left, right, size: addCount(left.size, right.size) };
   }
 
   /**
@@ -17170,7 +18583,7 @@
     if (left.kind === "read" || right.kind === "read") {
       return left.kind === "read" && right.kind === "read" && left.token === right.token && left.terminal === right.terminal;
     }
-    return left.item.production.id === right.item.production.id && left.item.origin === right.item.origin && left.item.end === right.item.end;
+    return (left.item.production.sourceId ?? left.item.production.id) === (right.item.production.sourceId ?? right.item.production.id) && left.item.origin === right.item.origin && left.item.end === right.item.end;
   }
 
   // Walks a rope's actions, and can skip a whole subtree: two ropes built on
@@ -17283,7 +18696,7 @@
         const y = b.front();
         if (x === null || y === null) break;
         if (x === y || (onlyVisible && knownEqual(x, y))) {
-          index = add(index, x.size);
+          index = addCount(index, x.size);
           a.skip();
           b.skip();
           continue;
@@ -17306,7 +18719,7 @@
       if (x === null && y === null) return null;
       if (x === null || y === null) return { left: x, right: y, index };
       if (!sameAction(x, y)) return { left: x, right: y, index };
-      if (visible(x)) index = add(index, 1);
+      if (visible(x)) index = addCount(index, 1);
     }
   }
 
@@ -17384,7 +18797,7 @@
       if (x.kind !== y.kind) return x.kind === "read" ? -1 : 1;
       return compareCodePoints(/** @type {ReadAction} */ (x).terminal, /** @type {ReadAction} */ (y).terminal);
     }
-    return x.item.production.id - y.item.production.id || x.item.origin - y.item.origin || x.item.end - y.item.end;
+    return (x.item.production.sourceId ?? x.item.production.id) - (y.item.production.sourceId ?? y.item.production.id) || x.item.origin - y.item.origin || x.item.end - y.item.end;
   }
 
   /**
@@ -17396,6 +18809,12 @@
   /** @type {TraversalContext} */
   const EMPTY_CONTEXT = new Set();
 
+  /** @typedef {Extract<import('./types.js').Edge,{kind:'complete'}>} CompletionEdge */
+  /** @typedef {{all:number,measure:import('./measures.js').Measure|null,w:boolean,member:boolean}} CountSummary */
+  /** @typedef {{proof:import('./witness.js').WitnessProof,item:Item,context:TraversalContext,parts:(Rope|WitnessFrame)[]|null,result:Rope|null,before?:Rope,after?:Rope}} WitnessFrame */
+  /** @typedef {{ordinary:ElisionSummary,canonical:ElisionSummary}} SummaryPair */
+  /** @typedef {{ordinary:Candidate[],canonical:Candidate[],measure:import("./measures.js").Measure|null}} ActionPair */
+
   class Ranker {
     /**
      * @param {Token[]} tokens
@@ -17406,17 +18825,25 @@
      *   §7 gives (F19)
      */
     constructor(tokens, steps, lean, project = null) {
+      /** @type {ReturnType<typeof import("./restoration-forest.js").restorationForest>} */ this.restorationForest=null;
+      this.erasures=new ErasedClasses();
+      /** @type {Item[]} */ this.rankingRoots=[];
+      /** @type {Item[]} */ this.bestRoots=[];
+      /** @type {Item|null} */ this.witnessRoot=null;
+      /** @type {WitnessFrame|null} */ this.witnessTree=null;
       this.tokens = tokens;
+      this.measures = new Measures(tokens);
       /** @type {Profiles} */
       this.space = new Profiles(steps);
       this.space.tokens = tokens;
+      this.space.measures = this.measures;
       /** @type {(left: Item, right: Item) => boolean} */
       this.sameSpan = project === null
         ? (left, right) => left.origin === right.origin && left.end === right.end
         : (left, right) => project[left.origin] === project[right.origin] && project[left.end] === project[right.end];
       // Whether a key step can match a reachable node. The readings then
       // come from the forest of the best derivations (engine §6).
-      this.profiles = false;
+      this.profiles = this.measures.carried.some(measure=>measure[2]!==0);
       this.configured = false;
       /** @type {Set<Production>} */ this.profileProductions = new Set();
       /** @type {any} */ this.interner = null;
@@ -17424,7 +18851,7 @@
       this.profileProject = null;
       /** @type {Lean} */
       this.lean = lean;
-      /** @type {{plain: Map<Item, ElisionSummary>, contextual: Map<Item, Map<string, ElisionSummary>>}} */
+      /** @type {{plain: Map<Item, SummaryPair>, contextual: Map<Item, Map<string, SummaryPair>>}} */
       this.summaries = { plain: new Map(), contextual: new Map() };
       /** @type {Map<string, number>} */
       this.ruleGroups = new Map();
@@ -17432,9 +18859,9 @@
       // groupRules, or undefined for a rule that cannot reach itself there.
       /** @type {(rule: string) => number | undefined} */
       this.groups = (rule) => this.ruleGroups.get(rule);
-      /** @type {{plain: Map<Item, Candidate[]>, contextual: Map<Item, Map<string, Candidate[]>>}} */
+      /** @type {{plain: Map<Item, ActionPair>, contextual: Map<Item, Map<string, ActionPair>>}} */
       this.memo = { plain: new Map(), contextual: new Map() };
-      /** @type {{plain: Map<Item, {all: number} & {w: boolean}>, contextual: Map<Item, Map<string, {all: number} & {w: boolean}>>}} */
+      /** @type {{plain:Map<Item,CountSummary>,contextual:Map<Item,Map<string,CountSummary>>}} */
       this.counts = { plain: new Map(), contextual: new Map() };
       /** @type {Map<Item, RopeLeaf>} */
       this.closes = new Map();
@@ -17465,111 +18892,115 @@
     // of the other are not yet decided and are kept side by side; everything
     // else is settled here, so the list stays short.
     // Candidates preserve their cycle and admission context.
-    /**
-     * @param {Item} item
-     * @returns {Candidate[]}
-     */
-    candidateSummary(item) {
-      return this.traverse(item, this.memo, (current, dependency, key) => {
-        // Under profiles, only the edges that attain the greatest profile of
-        // the item in its context (engine §6).
-        const summary = this.profiles ? this.summaryAt(current, key) : null;
-        const admitted = this.admission?.mask(current, key);
-        /** @type {Candidate[]} */
-        let all = [];
-        // The getter builds the list on each read, so it is read once.
-        current.edges.forEach((edge, index, edges) => {
-          // A fault skips the last of two or more edges in the check (lost:select).
-          if (this.check && index > 0 && index === edges.length - 1 && fault("lost:select")) return;
-          const inAll = (summary === null || summary.kept.has(index)) && (!admitted || admitted.has(index));
-          if (!inAll) return;
-          /** @type {Candidate[]} */
-          let produced;
-          if (edge.kind === "seed") produced = [{ seq: EMPTY, alts: [], at: Infinity }];
-          // A restoration reads its synthetic token, and its own close
-          // follows (engine §7.4, §7.7).
-          // A fault gives a restoration no derivation in the ranking
-          // (lost:rank), here and in the summaries and the counts below.
-          else if (edge.kind === "restore") produced = fault("lost:rank", "candidates") ? [] : [{ seq: this.readLeaf(edge.token, edge.terminal), alts: [], at: Infinity }];
-          else if (edge.kind === "scan") {
-            const read = this.readLeaf(edge.token, edge.terminal);
-            produced = dependency(edge.previous).map((entry) => extend(entry, read));
-          } else {
-            const close = this.closeLeaf(edge.child);
-            const children = dependency(edge.child).map((entry) => extend(entry, close));
-            const earlier = dependency(edge.previous);
-            produced = [];
-            for (const before of earlier) {
-              for (const child of children) {
-                // A derivation tied with the combination differs from it first
-                // either in the earlier part or in the child.
-                /** @type {Candidate} */
-                let entry = { seq: concat(before.seq, child.seq), alts: [], at: Infinity };
-                for (const alt of before.alts) entry = this.offer(entry, concat(alt, child.seq), before.at);
-                for (const alt of child.alts) entry = this.offer(entry, concat(before.seq, alt), add(before.seq.size, child.at));
+    /** @param {Item} item @returns {Candidate[]} */
+    candidateSummary(item){return this.candidatePair(item).ordinary;}
+
+    /** @param {Item} item @param {TraversalContext} [context] @returns {ActionPair} */
+    candidatePair(item,context=EMPTY_CONTEXT) {
+      if(this.admission)this.countOf(item,context);
+      if(this.profiles)this.profileSummary(item,context);
+      return this.traverse(item,this.memo,(current,dependency,key)=>{
+        const summary=this.profiles?this.summaryAt(current,key):null;
+        const edges=current.edges,admitted=this.admission?.mask(current,key);
+        /** @type {ActionPair} */
+        const result={ordinary:[],canonical:[],measure:summary?(summary.canonical.profile?/** @type {import("./measures.js").Measure} */(summary.canonical.profile.slice(0,3)):null):ZERO_MEASURE};
+        for(const group of this.erasures.groups(edges,admitted,child=>!!dependency(child)?.canonical.length)){
+          const index=group.indices[0],edge=edges[index];
+          if(this.check&&index>0&&index===edges.length-1&&fault('lost:select'))continue;
+          if(summary&&!group.indices.some(index=>summary.ordinary.kept.has(index)||summary.canonical.kept.has(index)))continue;
+          const erased=group.erased?this.erasedChoice(group.indices.map(index=>/** @type {CompletionEdge} */(edges[index]).child),dependency):null;
+          for(const channel of /** @type {const} */(['ordinary','canonical'])){
+            if(summary&&!group.indices.some(index=>summary[channel].kept.has(index)))continue;
+            /** @type {Candidate[]} */ let produced=[];
+            if(edge.kind==='seed')produced=[{seq:EMPTY,alts:[],at:Infinity}];
+            else if(edge.kind==='restore')produced=fault('lost:rank','candidates')?[]:[{seq:this.readLeaf(edge.token,edge.terminal),alts:[],at:Infinity}];
+            else if(edge.kind==='scan')produced=dependency(edge.previous)[channel].map(entry=>extend(entry,this.readLeaf(edge.token,edge.terminal)));
+            else {
+              const children=group.erased?(erased?[{seq:erased,alts:[],at:Infinity}]:[]):dependency(edge.child)[channel].map(entry=>extend(entry,this.closeLeaf(edge.child)));
+              for(const before of dependency(edge.previous)[channel])for(const child of children){
+                /** @type {Candidate} */ let entry={seq:concat(before.seq,child.seq),alts:/** @type {Rope[]} */([]),at:Infinity};
+                if(channel==='ordinary'){
+                  for(const alt of before.alts)entry=this.offer(entry,concat(alt,child.seq),before.at);
+                  for(const alt of child.alts)entry=this.offer(entry,concat(before.seq,alt),addCount(before.seq.size,child.at));
+                }
                 produced.push(entry);
               }
             }
+            for(const entry of produced)result[channel]=this.keep(result[channel],entry,channel==='canonical');
           }
-          for (const entry of produced) {
-            all = this.keep(all, entry);
-          }
-        });
-        return all;
-      }, [], this.profiles ? (current, key) => this.keptEdges(current, key) : null);
+        }
+        return result;
+      },{ordinary:[],canonical:[],measure:null},this.profiles?(current,key)=>this.keptEdges(current,key):null,context);
     }
 
-    // Each context holds its greatest profile and retained edges.
-    /**
-     * @param {Item} item
-     * @returns {ElisionSummary}
-     */
-    profileSummary(item) {
-      const space = this.space;
-      return this.traverse(item, this.summaries, (current, dependency, key) => {
-        const all = noDerivation();
-        const admitted = this.admission?.mask(current, key);
-        current.edges.forEach((edge, index) => {
-          if (admitted && !admitted.has(index)) return;
-          /** @type {Profile} */
-          let profile;
-          let least;
-          let total;
-          if (edge.kind === "seed" || edge.kind === "restore") {
-            // The helper of an elidable optional that derives ε elides its
-            // terminator where it is empty. A restoration elides nothing.
-            profile = edge.kind === "seed" && isElided(current) && this.profileProject === null
-              ? space.occurrence({terminal:current.production.elided,tags:new Set([current.production.elided,'_Elided']),value:''},current.origin,current.origin) : space.zero;
-            least = 1;
-            total = 1;
-          } else if (edge.kind === "scan") {
-            const before = dependency(edge.previous);
-            if (before.total === 0) return;
-            const p = this.profileProject?.[edge.token] ?? edge.token;
-            const q = this.profileProject?.[edge.token+1] ?? edge.token+1;
-            const token = this.tokens[edge.token];
-            profile = p < q ? space.sum(/** @type {Profile} */ (before.profile),space.occurrence({terminal:edge.terminal,tags:token.tags,value:token.value},p,q)) : /** @type {Profile} */ (before.profile);
-            least = before.least;
-            total = before.total;
-          } else {
-            const before = dependency(edge.previous);
-            const child = dependency(edge.child);
-            if (before.total === 0 || child.total === 0) return;
-            profile = space.sum(/** @type {Profile} */ (before.profile), /** @type {Profile} */ (child.profile));
-            least = Math.min(2, before.least * child.least);
-            total = Math.min(2, before.total * child.total);
+    /** @param {Item[]} items @param {(item:Item)=>ActionPair} dependency @returns {Rope|null} */
+    erasedChoice(items,dependency){
+      /** @type {import('./measures.js').Measure|null} */ let measure=null;
+      /** @type {Rope|null} */ let best=null;
+      for(const item of items){
+        const pair=dependency(item);
+        if(!pair.canonical.length||pair.measure===null)continue;
+        const order=measure===null?-1:compareMeasure(pair.measure,measure);
+        if(order>0)continue;
+        if(order<0){measure=/** @type {import('./measures.js').Measure} */(pair.measure);best=null;}
+        for(const entry of pair.canonical){
+          const seq=concat(entry.seq,this.closeLeaf(item));
+          if(best===null||totalOrder(seq,best,'none')<0)best=seq;
+        }
+      }
+      return best;
+    }
+
+    /** @param {Item} item @param {TraversalContext} [context] @returns {SummaryPair} */
+    profileSummary(item,context=EMPTY_CONTEXT) {
+      const space=this.space;
+      return this.traverse(item,this.summaries,(current,dependency,key)=>{
+        const result={ordinary:noDerivation(),canonical:noDerivation()};
+        const edges=current.edges,admitted=this.admission?.mask(current,key);
+        for(const group of this.erasures.groups(edges,admitted,child=>!!dependency(child)?.canonical.total)){
+          const edge=edges[group.indices[0]];
+          for(const channel of /** @type {const} */(['ordinary','canonical'])){
+            /** @type {Profile} */ let profile;
+            let least,total;
+            if(edge.kind==='seed'||edge.kind==='restore'){
+              profile=channel==='ordinary'&&edge.kind==='seed'&&isElided(current)&&this.profileProject===null
+                ?space.occurrence({terminal:current.production.elided,tags:new Set([current.production.elided,'_Elided']),value:''},current.origin,current.origin):space.zero;
+              least=total=1;
+            }else if(edge.kind==='scan'){
+              const before=dependency(edge.previous)[channel];if(!before.total)continue;
+              const p=this.profileProject?.[edge.token]??edge.token,q=this.profileProject?.[edge.token+1]??edge.token+1,token=this.tokens[edge.token];
+              profile=/** @type {Profile} */(before.profile);
+              if(channel==='ordinary'&&p<q)profile=space.sum(profile,space.occurrence({terminal:edge.terminal,tags:token.tags,value:token.value},p,q));
+              profile=space.charge(profile,this.measures.carried[edge.token]);least=before.least;total=before.total;
+            }else{
+              const before=dependency(edge.previous)[channel];if(!before.total)continue;
+              const children=group.indices.map(index=>dependency(/** @type {CompletionEdge} */(edges[index]).child));
+              if(group.erased){
+                if(!children.some(child=>child.canonical.total))continue;
+                profile=space.sum(/** @type {Profile} */(before.profile),channel==='ordinary'?this.erasedProfile(edge.child):space.zero);
+                least=before.least;total=before.total;
+              }else{
+                const child=children[0][channel];if(!child.total)continue;
+                profile=space.sum(/** @type {Profile} */(before.profile),/** @type {Profile} */(child.profile));
+                least=Math.min(2,before.least*child.least);total=Math.min(2,before.total*child.total);
+              }
+            }
+            if(channel==='ordinary'&&current.complete&&!current.production.helper){
+              const p=this.profileProject?.[current.origin]??current.origin,q=this.profileProject?.[current.end]??current.end;
+              if(p<q)profile=space.sum(space.occurrence({name:current.production.lhs,tags:this.interner?.get(current.tagId)??new Set()},p,q),profile);
+            }
+            if(current.complete&&current.production.error)profile=space.charge(profile,this.measures.own(current.origin,current.end));
+            addEdge(space,result[channel],group.indices,least,total,profile);
           }
-          // A completed nonempty occurrence of the production's rule counts
-          // when the step matches it, before its children (engine §6).
-          if (current.dot === current.production.rhs.length && !current.production.helper) {
-            const p = this.profileProject?.[current.origin] ?? current.origin;
-            const q = this.profileProject?.[current.end] ?? current.end;
-            if (p < q) profile = space.sum(space.occurrence({name:current.production.lhs,tags:this.interner?.get(current.tagId) ?? new Set()}, p, q), profile);
-          }
-          if (!admitted || admitted.has(index)) addEdge(space, all, index, least, total, profile);
-        });
-        return all;
-      }, noDerivation());
+        }
+        return result;
+      },{ordinary:noDerivation(),canonical:noDerivation()},null,context);
+    }
+
+    /** The external profile contains only the erased root. @param {Item} item @returns {Profile} */
+    erasedProfile(item){
+      const p=this.profileProject?.[item.origin]??item.origin,q=this.profileProject?.[item.end]??item.end;
+      return !item.production.helper&&p<q?this.space.occurrence({name:item.production.lhs,tags:this.interner?.get(item.tagId)??new Set()},p,q):this.space.zero;
     }
 
     /**
@@ -17577,7 +19008,7 @@
      * profileSummary has already computed.
      * @param {Item} item
      * @param {string} key
-     * @returns {ElisionSummary}
+     * @returns {SummaryPair}
      */
     summaryAt(item, key) {
       const found = key === "" ? this.summaries.plain.get(item) : this.summaries.contextual.get(item)?.get(key);
@@ -17593,7 +19024,7 @@
      */
     keptEdges(item, key) {
       const summary = this.summaryAt(item, key);
-      return item.edges.filter((_, index) => summary.kept.has(index));
+      return item.edges.filter((_, index) => (summary.ordinary.kept.has(index)||summary.canonical.kept.has(index)));
     }
 
     /**
@@ -17667,9 +19098,10 @@
     /**
      * @param {Candidate[]} kept
      * @param {Candidate} entry
+     * @param {boolean} [canonical]
      * @returns {Candidate[]}
      */
-    keep(kept, entry) {
+    keep(kept, entry, canonical=false) {
       const lean = this.lean;
       /** @type {Candidate[]} */
       const result = [];
@@ -17678,6 +19110,11 @@
       for (const other of kept) {
         if (current === null) {
           result.push(other);
+          continue;
+        }
+        if(canonical){
+          if(!orderSettled(other.seq,current.seq)){result.push(other);continue;}
+          if(totalOrder(other.seq,current.seq,"none")<=0){result.push(other);current=null;}
           continue;
         }
         const difference = firstDifference(other.seq, current.seq, true);
@@ -17727,53 +19164,206 @@
       return this.countOf(item).all;
     }
 
-    /**
-     * The number of an item's derivations, capped at two. With the runtime witness marks, `w`
-     * says whether the count includes a derivation made of marked edges
-     * only (tests/README.md). The same loop decides both, over the same
-     * edges, so any choice that drops W(D) from the count drops it from `w`.
-     * A dependency that closes a cycle has no derivation, and no `w`.
-     * @param {Item} item
-     * @returns {{all: number} & {w: boolean}}
-     */
-    countOf(item) {
-      const marks = this.marks;
-      return this.traverse(item, this.counts, (current, dependency, key) => {
-        const marked = marks === null ? undefined : marks.get(current.slotOriginal ?? current);
-        const edges = current.edges;
-        const admitted = this.admission?.compute(current, dependency, key);
-        let all = 0;
-        let w = false;
-        for (let index = 0; index < edges.length; index++) {
-          const edge = edges[index];
-          if (admitted && !admitted.has(index)) continue;
-          let ways;
-          let edgeW;
-          if (edge.kind === "restore" && fault("lost:rank", "count")) continue;
-          // A fault skips the last of two or more edges in the check
-          // (lost:context).
-          if (this.check && index > 0 && index === edges.length - 1 && fault("lost:context")) continue;
-          if (edge.kind === "seed" || edge.kind === "restore") {
-            ways = 1;
-            edgeW = true;
-          } else if (edge.kind === "scan") {
-            const before = dependency(edge.previous);
-            ways = before.all;
-            edgeW = before.w;
-          } else {
-            const before = dependency(edge.previous);
-            const child = dependency(edge.child);
-            ways = before.all * child.all;
-            edgeW = before.w && child.w;
+    /** @param {Item} item @param {TraversalContext} [context] @returns {CountSummary} */
+    countOf(item,context=EMPTY_CONTEXT) {
+      const marks=this.marks;
+      return this.traverse(item,this.counts,(current,dependency,key)=>{
+        const marked=marks===null?undefined:marks.get(current.slotOriginal??current);
+        const edges=current.edges,admitted=this.admission?.compute(current,dependency,key);
+        let all=0,w=false,member=false;
+        /** @type {import('./measures.js').Measure|null} */ let measure=null;
+        for(const group of this.erasures.groups(edges,admitted,child=>dependency(child).all>0)){
+          const index=group.indices[0],edge=edges[index];
+          if(edge.kind==='restore'&&fault('lost:rank','count'))continue;
+          if(this.check&&index>0&&index===edges.length-1&&fault('lost:context'))continue;
+          const owns=(/** @type {number} */ index)=>marked?.has(this.admission?.forest?.rawIndices.get(edges[index])??index)??false;
+          let ways,edgeW,edgeMember;
+          /** @type {import('./measures.js').Measure} */ let edgeMeasure;
+          if(edge.kind==='seed'||edge.kind==='restore'){
+            ways=1;edgeMeasure=ZERO_MEASURE;edgeW=edgeMember=owns(index);
+          }else if(edge.kind==='scan'){
+            const before=dependency(edge.previous);ways=before.all;if(!ways)continue;
+            edgeMeasure=sumMeasure(/** @type {import('./measures.js').Measure} */(before.measure),this.measures.carried[edge.token]);
+            edgeW=before.w&&owns(index);edgeMember=before.member&&owns(index);
+          }else{
+            const before=dependency(edge.previous);if(!before.all)continue;
+            if(group.erased){
+              const children=group.indices.map(index=>({index,summary:dependency(/** @type {CompletionEdge} */(edges[index]).child)})).filter(child=>child.summary.all);
+              if(!children.length)continue;
+              const included=children.some(child=>child.summary.member&&owns(child.index));
+              ways=before.all;edgeMeasure=/** @type {import('./measures.js').Measure} */(before.measure);
+              edgeW=before.w&&included;edgeMember=before.member&&included;
+            }else{
+              const child=dependency(edge.child);ways=before.all*child.all;if(!ways)continue;
+              edgeMeasure=sumMeasure(/** @type {import('./measures.js').Measure} */(before.measure),/** @type {import('./measures.js').Measure} */(child.measure));
+              edgeW=before.w&&child.w&&owns(index);edgeMember=before.member&&child.member&&owns(index);
+            }
           }
-          if (marked !== undefined && ways > 0 && edgeW && marked.has(this.admission?.forest?.rawIndices.get(edge) ?? index)) w = true;
-          all = Math.min(2, all + ways);
-          // The count is capped and only grows, so the loop can stop at two,
-          // but with marks only once `w` is known.
-          if (all === 2 && (marked === undefined || w)) break;
+          member ||= edgeMember;
+          if(current.complete&&current.production.error)edgeMeasure=sumMeasure(edgeMeasure,this.measures.own(current.origin,current.end));
+          const order=measure===null?-1:compareMeasure(edgeMeasure,measure);
+          if(order>0)continue;
+          if(order<0){measure=edgeMeasure;all=0;w=false;}
+          w ||= edgeW;all=Math.min(2,all+ways);
         }
-        return { all, w };
-      }, { all: 0, w: false });
+        return {all,measure,w,member};
+      },{all:0,measure:null,w:false,member:false},null,context);
+    }
+
+    /** @param {{item:Item,context:TraversalContext}} frame @param {Item} item @returns {TraversalContext} */
+    contextBelow(frame,item){
+      const group=this.groups;
+      const ruleKey=(/** @type {Item} */ item)=>`\u0000${item.production.spliceOf??item.production.lhs}`;
+        if (!this.sameSpan(frame.item, item)) return EMPTY_CONTEXT;
+        if(item.slotScope && item.production.helper && !item.production.spliceOf){
+          const helpers=/** @type {NonNullable<import("./ranked-admission.js").RankedAdmission["forest"]>} */ (this.admission?.forest).helpers;
+          const kept=new Set([...frame.context].filter(key=>!helpers.has(key.slice(1))));
+          if(frame.item.complete&&(!frame.item.production.helper || frame.item.production.spliceOf))kept.add(ruleKey(frame.item));
+          return kept.size?kept:EMPTY_CONTEXT;
+        }
+        const own = group(item.production.spliceOf ?? item.production.lhs);
+        if (own === undefined) return EMPTY_CONTEXT;
+        /** @type {TraversalContext} */
+        const context = new Set();
+        for (const key of frame.context) {
+          if (hooks.work) countWork(hooks.work, "traversal");
+          if (group(key.slice(1)) === own) context.add(key);
+        }
+        if (frame.item.complete && group(frame.item.production.spliceOf ?? frame.item.production.lhs) === own) context.add(ruleKey(frame.item));
+        return context.size === 0 ? EMPTY_CONTEXT : context;
+    }
+    /** @param {TraversalContext} context */
+    contextKey(context){
+      const keys=[];
+      for(const key of context){if(hooks.work)countWork(hooks.work,"traversal");keys.push(key);}
+      return keys.sort().join("\u0001");
+    }
+
+    /**
+     * Replace only erased interiors of concrete W(D). Every outer choice
+     * follows the walk's coherent proof, not a union of witness marks (§7.10).
+     * @param {import('./witness.js').WitnessProof} proof
+     * @returns {Rope|null}
+     */
+    witnessRepresentative(proof){
+      const source=this.restorationForest?.plain.get(proof.item)??proof.item;
+      const item=this.admission?.forest?.plain.get(source)??source;
+      this.witnessRoot=item;this.witnessTree=null;
+      if(item.production.erased){
+        const items=this.rankingRoots.filter(other=>other.production.erased&&this.erasures.key(other)===this.erasures.key(item));
+        return this.erasedChoice(items,child=>this.candidatePair(child));
+      }
+      /** @type {WitnessFrame} */ const root={proof,item,context:EMPTY_CONTEXT,parts:null,result:null};
+      this.witnessTree=root;
+      const stack=[root];
+      while(stack.length){
+        const frame=stack[stack.length-1];
+        if(frame.parts===null){
+          frame.parts=[];
+          if(frame.item.restores){frame.parts.push(this.readLeaf(frame.item.origin,/** @type {string} */(frame.item.production.elided)));continue;}
+          let current=frame.item,context=frame.context;
+          for(let index=frame.proof.links.length-1;index>=0;index--){
+            const link=frame.proof.links[index];
+            if((current.slotOriginal??current)!==(this.restorationForest?.plain.get(link.item)??link.item))return null;
+            this.countOf(current,context);
+            const admitted=this.admission?.mask(current,this.contextKey(context));
+            const edges=current.edges;
+            const number=this.restorationForest?.indices.get(link.item)?.[link.index]??link.index;
+            if(!edges[number]||(this.admission?.forest?.rawIndices.get(edges[number])??number)!==number||admitted&&!admitted.has(number))return null;
+            const edge=edges[number];
+            if(edge.kind==='scan')frame.parts.push(this.readLeaf(edge.token,edge.terminal));
+            else if(edge.kind==='complete'){
+              if(!link.child)return null;
+              if(edge.child.production.erased){
+                const group=this.erasures.groups(edges,admitted,child=>this.countOf(child,this.contextBelow({item:current,context},child)).all>0).find(group=>group.indices.includes(number));
+                if(!group)return null;
+                const children=group.indices.map(index=>/** @type {CompletionEdge} */(edges[index]).child);
+                const parent={item:current,context};
+                const seq=this.erasedChoice(children,child=>this.candidatePair(child,this.contextBelow(parent,child)));
+                if(!seq)return null;
+                frame.parts.push(seq);
+              }else frame.parts.push({proof:link.child,item:edge.child,context:this.contextBelow({item:current,context},edge.child),parts:null,result:null});
+            }else return null;
+            context=this.contextBelow({item:current,context},edge.previous);current=edge.previous;
+          }
+          frame.parts.reverse();
+          for(const part of frame.parts.slice().reverse())if('proof'in part)stack.push(part);
+          continue;
+        }
+        let seq=EMPTY;
+        for(const part of frame.parts){
+          const next='proof'in part?part.result:part;
+          if(!next)return null;
+          seq=concat(seq,next);
+        }
+        frame.result=concat(seq,this.closeLeaf(frame.item));stack.pop();
+      }
+      return root.result;
+    }
+
+    /**
+     * T-first best class other than the admitted witness (§7.10). An outside
+     * difference changes a root or one edge on its coherent proof. Shared
+     * candidate summaries supply that edge's prefixes and children. Erased
+     * interiors supply only their class representatives.
+     * @param {Rope} witness @returns {Rope|null}
+     */
+    firstCompetitor(witness){
+      /** @type {Rope|null} */ let best=null;
+      const offer=(/** @type {Rope} */ seq)=>{
+        if(firstDifference(seq,witness,false)===null)return;
+        if(best===null||totalOrder(seq,best,'none')<0)best=seq;
+      };
+      for(const indices of this.erasures.roots(this.bestRoots)){
+        const items=indices.map(index=>this.bestRoots[index]),item=items[0];
+        if(item.production.erased){
+          if(this.witnessRoot?.production.erased&&this.erasures.key(item)===this.erasures.key(this.witnessRoot))continue;
+          const seq=this.erasedChoice(items,child=>this.candidatePair(child));if(seq)offer(seq);
+        }else if(item!==this.witnessRoot)for(const entry of this.full(item))offer(entry.seq);
+      }
+      if(!this.witnessTree)return best;
+      this.witnessTree.before=EMPTY;this.witnessTree.after=EMPTY;
+      const stack=[this.witnessTree];
+      while(stack.length){
+        const frame=/** @type {WitnessFrame} */(stack.pop()),parts=frame.parts??[],before=frame.before??EMPTY;
+        /** @type {Rope[]} */ const suffix=new Array(parts.length+1);
+        suffix[parts.length]=concat(this.closeLeaf(frame.item),frame.after??EMPTY);
+        for(let index=parts.length-1;index>=0;index--){
+          const part=parts[index],seq='proof'in part?part.result:part;
+          if(!seq)throw new Error('A witness frame requires a completed representative.');
+          suffix[index]=concat(seq,suffix[index+1]);
+        }
+        let current=frame.item,context=frame.context;
+        for(let index=frame.proof.links.length-1;index>=0;index--){
+          const link=frame.proof.links[index],edges=current.edges;
+          const number=this.restorationForest?.indices.get(link.item)?.[link.index]??link.index;
+          const admitted=this.admission?.mask(current,this.contextKey(context));
+          const kept=this.profiles?this.summaryAt(current,this.contextKey(context)).ordinary.kept:null;
+          for(const group of this.erasures.groups(edges,admitted,child=>this.countOf(child,this.contextBelow({item:current,context},child)).all>0)){
+            if(group.indices.includes(number)||kept&&!group.indices.some(index=>kept.has(index)))continue;
+            const edge=edges[group.indices[0]],parent={item:current,context};
+            if(edge.kind!=='scan'&&edge.kind!=='complete')continue;
+            const prefixes=this.candidatePair(edge.previous,this.contextBelow(parent,edge.previous)).ordinary;
+            /** @type {Rope[]} */ let children;
+            if(edge.kind==='scan')children=[this.readLeaf(edge.token,edge.terminal)];
+            else if(group.erased){
+              const items=group.indices.map(index=>/** @type {CompletionEdge} */(edges[index]).child);
+              const seq=this.erasedChoice(items,child=>this.candidatePair(child,this.contextBelow(parent,child)));
+              children=seq?[seq]:[];
+            }else children=this.candidatePair(edge.child,this.contextBelow(parent,edge.child)).ordinary.map(entry=>concat(entry.seq,this.closeLeaf(edge.child)));
+            for(const prefix of prefixes)for(const child of children)offer(concat(before,concat(concat(prefix.seq,child),suffix[index+1])));
+          }
+          const edge=/** @type {Extract<import('./types.js').Edge,{previous:Item}>} */(edges[number]);
+          context=this.contextBelow({item:current,context},edge.previous);current=edge.previous;
+        }
+        let prefix=before;
+        for(let index=0;index<parts.length;index++){
+          const part=parts[index];
+          if('proof'in part){part.before=prefix;part.after=suffix[index+1];stack.push(part);prefix=concat(prefix,/** @type {Rope} */(part.result));}
+          else prefix=concat(prefix,part);
+        }
+      }
+      return best;
     }
 
     // Computes `combine(item, dependency)` for an item after every item it
@@ -17796,9 +19386,10 @@
      * @param {T} cut the value of a dependency that would close a cycle
      * @param {((item: Item, key: string) => import("./types.js").Edge[]) | null} [edgesOf]
      *   the edges whose children `combine` reads, if not all
+     * @param {TraversalContext} [initialContext]
      * @returns {T}
      */
-    traverse(root, memo, combine, cut, edgesOf = null) {
+    traverse(root, memo, combine, cut, edgesOf = null, initialContext=EMPTY_CONTEXT) {
       /** @type {(item: Item, key: string) => Item[]} */
       const dependenciesOf = (item, key) => {
         /** @type {Item[]} */
@@ -17814,7 +19405,7 @@
       /** @type {(item: Item) => boolean} */
       const complete = (item) => item.dot === item.production.rhs.length;
       /** @type {(item: Item) => string} */
-      const ruleKey = (item) => `\u0000${item.production.lhs}`;
+      const ruleKey = (item) => `\u0000${item.production.spliceOf ?? item.production.lhs}`;
       /** @type {(item: Item, key: string) => T | undefined} */
       // Almost every item is looked up with no context, so those results are
       // kept in a plain map and only the rest by context.
@@ -17843,38 +19434,8 @@
       // rule can complete again over the same span below the item. Keyed by
       // every rule above, the contexts would still differ by path wherever
       // two rules lead to the same one.
-      const group = this.groups;
-      /** @type {(frame: Frame, item: Item) => TraversalContext} */
-      const contextBelow = (frame, item) => {
-        if (!this.sameSpan(frame.item, item)) return EMPTY_CONTEXT;
-        if(item.slotScope && item.production.helper){
-          const helpers=/** @type {NonNullable<import("./ranked-admission.js").RankedAdmission["forest"]>} */ (this.admission?.forest).helpers;
-          const kept=new Set([...frame.context].filter(key=>!helpers.has(key.slice(1))));
-          if(complete(frame.item)&&!frame.item.production.helper)kept.add(ruleKey(frame.item));
-          return kept.size?kept:EMPTY_CONTEXT;
-        }
-        const own = group(item.production.lhs);
-        if (own === undefined) return EMPTY_CONTEXT;
-        /** @type {TraversalContext} */
-        const context = new Set();
-        for (const key of frame.context) {
-          if (hooks.work) countWork(hooks.work, "traversal");
-          if (group(key.slice(1)) === own) context.add(key);
-        }
-        if (complete(frame.item) && group(frame.item.production.lhs) === own) context.add(ruleKey(frame.item));
-        return context.size === 0 ? EMPTY_CONTEXT : context;
-      };
-      /** @type {(context: TraversalContext) => string} */
-      const contextKey = (context) => {
-        if (context.size === 0) return "";
-        /** @type {string[]} */
-        const keys = [];
-        for (const key of context) {
-          if (hooks.work) countWork(hooks.work, "traversal");
-          keys.push(key);
-        }
-        return keys.sort().join("\u0001");
-      };
+      const contextBelow=(/** @type {Frame} */ frame,/** @type {Item} */ item)=>this.contextBelow(frame,item);
+      const contextKey=(/** @type {TraversalContext} */ context)=>this.contextKey(context);
       /**
        * @typedef {object} Frame
        * @property {Item} item
@@ -17885,7 +19446,7 @@
        * @property {Item[]} [pending]
        */
       /** @type {Frame[]} */
-      const stack = [{ item: root, context: EMPTY_CONTEXT, results: new Map(), started: false }];
+      const stack = [{ item: root, context: initialContext, results: new Map(), started: false }];
       /** @type {T} */
       let answer = cut;
       /** @type {(value: T) => void} */
@@ -17953,8 +19514,9 @@
         if (hooks.work) countWork(hooks.work, "groups");
         if (seen.has(item)) continue;
         seen.add(item);
-        if (!this.configured && this.space.steps.length && !this.profileProductions.has(item.production)) {
+        if (!this.configured && (this.space.steps.length || (item.production.error || item.production.erased)) && !this.profileProductions.has(item.production)) {
           this.profileProductions.add(item.production);
+          if (item.production.error || item.production.erased) this.profiles=true;
           if (!item.production.helper && this.space.possible({name:item.production.lhs})) this.profiles = true;
           if (isElided(item) && this.space.possible({terminal:item.production.elided,tags:new Set([item.production.elided,'_Elided']),value:''})) this.profiles = true;
           for (const symbol of item.production.rhs) if (symbol.terminal && this.space.possible({terminal:symbol.name})) this.profiles = true;
@@ -17966,9 +19528,9 @@
           if (edge.kind !== "complete") continue;
           pending.push(edge.child);
           if (!this.sameSpan(edge.child, item)) continue;
-          let targets = arcs.get(item.production.lhs);
-          if (!targets) arcs.set(item.production.lhs, (targets = new Set()));
-          targets.add(edge.child.production.lhs);
+          let targets = arcs.get(item.production.spliceOf ?? item.production.lhs);
+          if (!targets) arcs.set(item.production.spliceOf ?? item.production.lhs, (targets = new Set()));
+          targets.add(edge.child.production.spliceOf ?? edge.child.production.lhs);
         }
       }
       // Tarjan's algorithm, with an explicit stack.
@@ -18042,12 +19604,19 @@
      * @returns {Ranking | null} null when every derivation is cyclic
      */
     rank(roots) {
+      const restoration=this.restorationForest;
+      if(restoration) {
+        roots=[...new Set(roots.map(item=>restoration.plain.get(item)??item))];
+        if(this.marks)this.marks=restoration.projectMarks(this.marks);
+      }
       const forest = this.admission?.forest;
       if (forest) roots = roots.map(item => /** @type {Item} */ (forest.plain.get(item)));
+      this.rankingRoots=roots;
       this.groupRules(this.admission ? [...roots, ...this.admission.at.keys()] : roots);
       if (this.admission) for (const root of roots) this.countOf(root);
       let count;
       let ranked = roots;
+      const rootGroups=this.erasures.roots(roots);
       let tied = false;
       /** @type {Profile} */
       let profile = this.space.zero;
@@ -18056,30 +19625,50 @@
       if (this.profiles) {
         // Every complete item of `text` is an edge of one root (engine §6).
         const root = noDerivation();
-        roots.forEach((item, index) => {
-          const summary = this.profileSummary(item);
-          if (summary.total > 0) addEdge(this.space, root, index, summary.least, summary.total, /** @type {Profile} */ (summary.profile));
-        });
+        for(const indices of rootGroups){
+          const item=roots[indices[0]];
+          const summaries=indices.map(index=>this.profileSummary(roots[index]));
+          if(item.production.erased){
+            if(summaries.some(summary=>summary.canonical.total))addEdge(this.space,root,indices,1,1,this.erasedProfile(item));
+          }else{
+            const summary=summaries[0].ordinary;
+            if(summary.total>0)addEdge(this.space,root,indices,summary.least,summary.total,/** @type {Profile} */(summary.profile));
+          }
+        }
         if (this.marks !== null) {
           const marks = this.marks;
-          witnessCounted = roots.some((item) => marks.has(item.slotOriginal ?? item) && this.countOf(item).w);
+          witnessCounted = roots.some((item) => marks.has(item.slotOriginal ?? item) && (item.production.erased?this.countOf(item).member:this.countOf(item).w));
         }
         profile = /** @type {Profile} */ (root.profile);
         count = root.total;
         tied = root.least === 2;
         ranked = roots.filter((_, index) => root.kept.has(index));
       } else {
-        count = Math.min(2, roots.reduce((sum, item) => sum + this.count(item), 0));
+        count=0;
+        for(const indices of rootGroups){
+          const item=roots[indices[0]];
+          const ways=item.production.erased?(indices.some(index=>this.count(roots[index])>0)?1:0):this.count(item);
+          count=Math.min(2,count+ways);
+        }
         // With marks, whether the count counted W(D): a root of W(D) must
         // have it (tests/README.md).
         if (this.marks !== null) {
           const marks = this.marks;
-          witnessCounted = roots.some((item) => marks.has(item.slotOriginal ?? item) && this.countOf(item).w);
+          witnessCounted = roots.some((item) => marks.has(item.slotOriginal ?? item) && (item.production.erased?this.countOf(item).member:this.countOf(item).w));
         }
       }
       /** @type {Candidate[]} */
       let kept = [];
-      for (const root of ranked) for (const entry of this.full(root)) kept = this.keep(kept, entry);
+      this.bestRoots=ranked;
+      const retained=new Set(ranked);
+      for(const indices of rootGroups){
+        const items=indices.map(index=>roots[index]).filter(item=>retained.has(item));
+        if(!items.length)continue;
+        if(items[0].production.erased){
+          const seq=this.erasedChoice(items,item=>this.candidatePair(item));
+          if(seq)kept=this.keep(kept,{seq,alts:[],at:Infinity});
+        }else for(const entry of this.full(items[0]))kept=this.keep(kept,entry);
+      }
       // At the root nothing follows: candidates still undecided are tied
       // (engine §6), and T orders them.
       if (kept.length === 0) return null;
@@ -18110,7 +19699,7 @@
         witness = difference ? [difference.left, difference.right] : null;
       }
       if (this.admission && hooks.slotAdmission) hooks.slotAdmission(this.admission.stats);
-      return { verdict, first: main.seq, second, witness, witnessCounted, profile };
+      return { verdict, first: main.seq, second, witness, witnessCounted, profile,rawWitnessCounted:this.marks===null?null:roots.some(item=>this.countOf(item).member) };
     }
   }
 
@@ -18194,8 +19783,8 @@
 
   /**
    * An item's derivations in one context under profiles: the greatest
-   * profile and the number of derivations that attain it, the number of all
-   * derivations, both capped at two, and the indices of the edges that attain
+   * profile and the number of derivations that attain it, the number of
+   * best-measure derivations, both capped at two, and the indices of edges that attain
    * the greatest profile.
    * @typedef {object} ElisionSummary
    * @property {Profile | null} profile null when there is no derivation
@@ -18220,30 +19809,32 @@
   function concatElisions(left, right) {
     if (!("first" in left)) return right;
     if (!("first" in right)) return left;
-    return { left, right, size: add(left.size, right.size), first: left.first, last: right.last };
+    return { left, right, size: addCount(left.size, right.size), first: left.first, last: right.last };
   }
 
-  // Adds an edge's derivations to a summary. The total counts every edge,
-  // losing ones included. The least count and the kept edges count only the
+  // Adds an edge's derivations to a summary. The total counts edges with
+  // the best measure. The least count and the kept edges count only the
   // edges that attain the greatest profile.
   /**
    * @param {Profiles} space
    * @param {ElisionSummary} summary
-   * @param {number} index
+   * @param {number[]} indices
    * @param {number} least
    * @param {number} total
    * @param {Profile} profile
    */
-  function addEdge(space, summary, index, least, total, profile) {
-    summary.total = Math.min(2, summary.total + total);
+  function addEdge(space, summary, indices, least, total, profile) {
+    const measureOrder=summary.profile===null?-1:compareMeasure(profile,summary.profile);
+    if(measureOrder<0)summary.total=total;
+    else if(measureOrder===0)summary.total=Math.min(2,summary.total+total);
     const order = summary.profile === null ? -1 : space.compare(profile, summary.profile);
     if (order < 0) {
       summary.profile = profile;
       summary.least = least;
-      summary.kept = new Set([index]);
+      summary.kept = new Set(indices);
     } else if (order === 0) {
       summary.least = Math.min(2, summary.least + least);
-      summary.kept.add(index);
+      for(const index of indices)summary.kept.add(index);
     }
   }
 
@@ -18288,10 +19879,10 @@
       const yLeft = subtract(y.size, b.taken);
       if (xLeft < yLeft) {
         dropFront(a);
-        b.taken = add(b.taken, xLeft);
+        b.taken = addCount(b.taken, xLeft);
       } else if (yLeft < xLeft) {
         dropFront(b);
-        a.taken = add(a.taken, yLeft);
+        a.taken = addCount(a.taken, yLeft);
       } else {
         dropFront(a);
         dropFront(b);
@@ -18356,9 +19947,8 @@
    * @typedef {SpanVector | Count | ElisionSeq} Component
    */
   /**
-   * A derivation's counts of every pattern that a key step tests, one
-   * component per key step, in the order of the steps (engine §6).
-   * @typedef {Component[]} Profile
+   * A derivation's measure followed by its grammar-key components (engine §6).
+   * @typedef {[Count,Count,Count,...Component[]]} Profile
    */
 
   /**
@@ -18378,7 +19968,8 @@
       /** @type {Map<string,string>|null} */ this.spanValues=this.valueTests.some(Boolean) ? new Map() : null;
       /** @type {Map<string,number>} */ this.tagKeys = new Map();
       /** @type {Profile} */
-      this.zero = steps.map((step) => step.step === "leftmost-longest" ? [] : step.step === "fewest" || step.step === "most" ? 0 : NO_ELISIONS);
+      this.zero = [0,0,0,...steps.map((step) => step.step === "leftmost-longest" ? [] : step.step === "fewest" || step.step === "most" ? 0 : NO_ELISIONS)];
+      /** @type {Measures|null} */ this.measures=null;
       /** @type {Map<number, ElisionSeq>} */
       this.leaves = new Map();
     }
@@ -18416,7 +20007,7 @@
         }
         if (match && (p<q || step.step!=='leftmost-longest')) {
           profile ??= this.zero.slice();
-          profile[index]=this.one(index,p,q);
+          profile[index+3]=this.one(index,p,q);
         }
       });
       return profile ?? this.zero;
@@ -18459,14 +20050,15 @@
     sum(left, right) {
       if (left === this.zero) return right;
       if (right === this.zero) return left;
-      return left.map((component, index) => {
+      return /** @type {Profile} */(left.map((component, index) => {
         const other = right[index];
-        switch (this.steps[index].step) {
+        if (index<3) return addCount(/** @type {Count} */ (component),/** @type {Count} */ (other));
+        switch (this.steps[index-3].step) {
           case "leftmost-longest": return sumSpans(/** @type {SpanVector} */ (component), /** @type {SpanVector} */ (other));
-          case "fewest": case "most": return add(/** @type {Count} */ (component), /** @type {Count} */ (other));
+          case "fewest": case "most": return addCount(/** @type {Count} */ (component), /** @type {Count} */ (other));
           default: return concatElisions(/** @type {ElisionSeq} */ (component), /** @type {ElisionSeq} */ (other));
         }
-      });
+      }));
     }
 
     /**
@@ -18478,9 +20070,11 @@
      */
     compare(left, right) {
       if (left === right) return 0;
+      const measureOrder=compareMeasure(left,right);
+      if(measureOrder)return measureOrder;
       for (let index = 0; index < this.steps.length; index++) {
-        const a = left[index];
-        const b = right[index];
+        const a = left[index+3];
+        const b = right[index+3];
         let order = 0;
         switch (this.steps[index].step) {
           case "leftmost-longest": order = compareSpans(/** @type {SpanVector} */ (a), /** @type {SpanVector} */ (b)); break;
@@ -18494,6 +20088,14 @@
       return 0;
     }
 
+    /** @param {Profile} profile @param {import("./measures.js").Measure} measure @returns {Profile} */
+    charge(profile,measure){
+      if(measure===ZERO_MEASURE)return profile;
+      const result=/** @type {Profile} */(profile.slice());
+      for(let index=0;index<3;index++)result[index]=addCount(/** @type {Count} */(result[index]),measure[index]);
+      return result;
+    }
+
     /**
      * Counts every completed nonempty occurrence in a chosen derivation,
      * and no elision (engine §7).
@@ -18503,10 +20105,17 @@
      */
     derivationProfile(root, tokens=this.tokens) {
       let profile=this.zero;
+      const measures=this.measures && this.measures.sources.tokens===tokens?this.measures:new Measures(tokens);
       const pending=[root];
       for (let node=pending.pop();node;node=pending.pop()) {
+        if (!("read" in node) && node.production.erased){
+          if(!node.production.helper&&node.start<node.end)profile=this.sum(profile,this.occurrence({name:node.production.lhs,tags:this.interner?.get(node.item.tagId)??new Set()},node.start,node.end));
+          continue;
+        }
+        if (!("read" in node) && node.production.error) profile=this.charge(profile,measures.own(node.start,node.end));
         if (node.start >= node.end) continue;
         if ('read' in node) {
+          profile=this.charge(profile,measures.carried[node.start]);
           const token=tokens?.[node.start];
           if(token) profile=this.sum(profile,this.occurrence({terminal:node.read.terminal,tags:token.tags,value:token.value},node.start,node.end));
         } else {
@@ -18558,7 +20167,7 @@
       if (order < 0) result.push(left[i++]);
       else if (order > 0) result.push(right[j++]);
       else {
-        result.push([a[0], a[1], add(a[2], b[2])]);
+        result.push([a[0], a[1], addCount(a[2], b[2])]);
         i++;
         j++;
       }
@@ -18574,9 +20183,9 @@
   /** @param {import("./earley.js").Chart} chart @param {Set<string>} names */
   function helperSlotForest(chart, names) {
     const lowered = chart.context.lowered;
-    const helpers = new Set(lowered.productions.filter(p => p.helper).map(p => p.lhs));
+    const helpers = new Set(lowered.productions.filter(p => p.helper && !p.spliceOf).map(p => p.lhs));
     const users = new Map();
-    for (const p of lowered.productions) if (p.helper) for (const s of p.rhs) {
+    for (const p of lowered.productions) if (p.helper && !p.spliceOf) for (const s of p.rhs) {
       const list = users.get(s.name) ?? [];
       list.push(p.lhs);
       users.set(s.name, list);
@@ -18648,7 +20257,7 @@
         const previous = view(edge.previous, scope);
         if (edge.kind === "scan") { append({...edge, previous}, index); continue; }
         const child = edge.child;
-        const carries = child.production.helper && wrapped.has(child.production.lhs) && (!raw.production.helper || scope);
+        const carries = wrapped.has(child.production.lhs) && (!raw.production.helper || raw.production.spliceOf || scope);
         if (!carries) { append({...edge, previous, child:view(child)}, index); continue; }
         const inner = scopeFor(edge.previous, child, scope);
         append({...edge, previous, child:view(child, inner)}, index);
@@ -18658,6 +20267,7 @@
   }
 
   // ---- ranked-admission.js
+
 
 
 
@@ -18688,19 +20298,19 @@
         const captures = [];
         for (let part = item.slots; part; part = part.parent) {
           const name = item.production.captures[part.index].name;
-          if (!name.startsWith('\u0000')) {captures.push([name,part.start,part.end,part.tags,part.structure,part.observation?.id]);if(chart.context.trees)captures[captures.length-1].push(part.treeIdentity);}
+          if (!name.startsWith('\u0000')) {captures.push([name,part.start,part.end,part.tags,part.structure,part.observation && chart.context.closes ? chart.context.closes.identity(part.observation) : null]);if(chart.context.trees)captures[captures.length-1].push(part.treeIdentity);}
         }
-        const key=[item.production.lexicalFrame?.id ?? null,written(item.production),item.origin,
+        const key=[item.restorationFrame ?? item.production.lexicalFrame?.id ?? null,written(item.production),item.production.guardConditions?.length ? item.production.id : null,item.origin,
           item.production.rhs.slice(0,item.dot).map((/** @type {any} */ s) => [helpers.has(s.name) ? written(helpers.get(s.name)) : s.name,s.terminal,s.test]),
           item.production.rhs.slice(item.dot).map((/** @type {any} */ s) => [helpers.has(s.name) ? written(helpers.get(s.name)) : s.name,s.terminal,s.test]),
-          item.prefix,captures.reverse(),item.strict,item.restores,item.boundary?.id ?? null,item.observationPrefix?.id];
+          item.prefix,captures.reverse(),item.strict,item.restores,item.boundary?.id ?? null,item.observationPrefix && chart.context.closes ? chart.context.closes.identity(item.observationPrefix) : null];
         if(chart.context.trees)key.push(item.treePrefix);
         return key;
       };
       for (const set of (this.forest?.chart ?? chart).sets) if (set) for (const item of set.items) {
         this.stats.chartFacts++;
         const group = item.production.rhs[item.dot-1]?.slot;
-        if (!group || !names.has(group.helper) || item.production.helper && !item.slotScope) continue;
+        if (!group || !names.has(group.helper) || item.production.helper && !item.production.spliceOf && !item.slotScope) continue;
         for (const [index,edge] of item.edges.entries()) {
           if (edge.kind !== 'complete') continue;
           const scope = item.slotScope;
@@ -18722,7 +20332,8 @@
 
     /** @param {any} item @param {string} context */
     availabilityKey(item,context) {
-      return JSON.stringify([context,item.complete ? item.slotScope?.frames[0].production.lhs ?? item.production.lhs : null]);
+      const production = item.slotScope?.frames[0].production ?? item.production;
+      return JSON.stringify([context,item.complete ? production.spliceOf ?? production.lhs : null]);
     }
 
     /** @param {any} item @param {string} context */
@@ -18736,6 +20347,7 @@
     compute(item,dependency,context) {
       const choices = this.at.get(item);
       if (!choices) return null;
+      const measure=(/** @type {any} */ item)=>item.complete&&item.production.erased?ZERO_MEASURE:dependency(item).measure;
       const key = this.availabilityKey(item,context), mask = new Set();
       for (const [index,{group,candidate}] of choices) {
         let contexts = this.qualified.get(group);
@@ -18744,7 +20356,8 @@
         if (kept === undefined) {
           const viable = group.filter((/** @type {any} */ proof) => dependency(proof.edge.previous).all && dependency(proof.edge.child).all);
           kept = new Set(viable.filter((/** @type {any} */ proof) => !viable.some((/** @type {any} */ higher) =>
-            higher.option < proof.option && boundaryDominates(higher.open,proof.open))));
+            higher.option < proof.option &&
+            compareMeasure(sumMeasure(measure(higher.edge.previous),measure(higher.edge.child)),sumMeasure(measure(proof.edge.previous),measure(proof.edge.child))) <= 0 && boundaryDominates(higher.open,proof.open))));
           if ([...kept].some(proof => viable.some((/** @type {any} */ higher) => higher.option < proof.option))) this.reportSplit(group);
           contexts.set(key,kept);
         }
@@ -18767,11 +20380,13 @@
   }
 
   // ---- witness.js
+  /** @typedef {{item:import("./types.js").Item,links:{item:import("./types.js").Item,index:number,child:WitnessProof|null}[]}} WitnessProof */
   /**
    * The restored chosen derivation's matched edge indices and action sequence.
    * @typedef {object} Walk
    * @property {Map<import("./types.js").Item, Set<number>>} marks
    * @property {import("./types.js").Action[]} sequence
+   * @property {WitnessProof} proof
    */
 
   /**
@@ -18903,24 +20518,35 @@
     // Bind one coherent proof to its actual reconstruction entry frames.
     /** @type {Map<import("./types.js").Derivation, import("./types.js").Item>} */
     const bound = new Map();
+    /** @type {Map<import("./types.js").Derivation,WitnessProof>} */
+    const proofs=new Map();
     /** @type {{node:import("./types.js").DerivationRule,item:import("./types.js").Item}[]} */
     const bind = [{node:/** @type {import("./types.js").DerivationRule} */ (chosen),item:/** @type {import("./types.js").Item} */ (roots.find(item => top.has(item)))}];
     while (bind.length) {
       const {node,item} = /** @type {NonNullable<ReturnType<typeof bind.pop>>} */ (bind.pop());
       bound.set(node,item);
+      proofs.set(node,{item,links:[]});
       if (witnessElided(node)) continue;
       let current = item;
       for (let index = node.children.length-1; index >= 0; index--) {
         const child = node.children[index];
-        const edge = current.edges.find((edge, number) => marks.get(current)?.has(number) && (
+        const edges=current.edges;
+        const edgeIndex = edges.findIndex((edge, number) => marks.get(current)?.has(number) && (
           "read" in child
             ? edge.kind === "scan" && edge.token === spanOf(child)[0] && edge.terminal === child.read.terminal
             : edge.kind === "complete" && found.get(child)?.has(edge.child)
         ));
+        const edge=edges[edgeIndex];
         if (!edge || !("previous" in edge)) return null;
         if (edge.kind === "complete") bind.push({node:/** @type {import("./types.js").DerivationRule} */ (child),item:edge.child});
+        /** @type {WitnessProof} */(proofs.get(node)).links.push({item:current,index:edgeIndex,child:null});
         current = edge.previous;
       }
+      /** @type {WitnessProof} */(proofs.get(node)).links.reverse();
+    }
+    for(const node of order)if(!("read" in node)&&!witnessElided(node)){
+      const proof=/** @type {WitnessProof} */(proofs.get(node));
+      for(let index=0;index<node.children.length;index++)if(!("read" in node.children[index]))proof.links[index].child=proofs.get(node.children[index])??null;
     }
     // Build actions after visiting each node's children, without ranking.
     // Each restoration reads its synthetic token and closes over it.
@@ -18936,7 +20562,7 @@
       const item = /** @type {import("./types.js").Item} */ (bound.get(node));
       sequence.push({ kind: "close", item });
     }
-    return { marks, sequence };
+    return { marks, sequence,proof:/** @type {WitnessProof} */(proofs.get(chosen)) };
   }
 
   /**
@@ -18963,7 +20589,9 @@
   function capturedNode(node, name) {
     if (name === "") return node;
     const slot = /** @type {number} */ (node.production.captureSlot.get(name));
-    return node.children[node.production.captures[slot].index];
+    const capture=node.production.captures[slot];
+    const child=node.children[capture.index];
+    return capture.terminal && !("read" in child) ? capturedNode(child,name) : child;
   }
 
   /** @param {number[]} values @param {number} target @returns {number} */
@@ -18978,10 +20606,11 @@
   }
 
   class StringWalk {
-    /** @param {ParseContext} context @param {(node:DerivationRule)=>Scope} scope */
-    constructor(context, scope) {
+    /** @param {ParseContext} context @param {(node:DerivationRule)=>Scope} scope @param {boolean} [claimGaps] */
+    constructor(context, scope, claimGaps = true) {
       this.context = context;
       this.scope = scope;
+      this.claimGaps = claimGaps;
       /** @type {WeakMap<Derivation,Map<object|string,string>>} */
       this.values = new WeakMap();
       /** @type {WeakMap<Derivation,Set<object|string>>} */
@@ -19120,7 +20749,7 @@
       if (left < l) intervals.push([left,l]);
       if (r < right) intervals.push([r,right]);
       const span = `${a}/${b}`;
-      if (!this.claims.has(span)) {
+      if (this.claimGaps && !this.claims.has(span)) {
         for (const [start,end] of intervals) {
           const limit = lowerBound(claimPoints,end);
           for (let cell = lowerBound(claimPoints,start); cell < limit; cell++) {
@@ -19135,6 +20764,10 @@
   }
 
   // ---- stage.js
+
+
+
+
 
 
 
@@ -19164,12 +20797,17 @@
    * @typedef {object} StageOptions
    * @property {Set<string>} features
    * @property {boolean | null | undefined} elisionOnly
+   * @property {number} [stageOrder]
+   * @property {boolean} [pendingErrors]
    */
 
   /** @param {import("./earley.js").Chart} chart @param {Token[]} tokens @param {import("./types.js").KeyStep[]} steps @param {import("./types.js").Lean} lean @param {number[] | null} [project] */
   function slotRanker(chart, tokens, steps, lean, project = null) {
     const ranker = new Ranker(tokens, steps, lean, project);
-    ranker.profiles = canCountProfiles(chart.context.lowered) && !(chart.context.mode === "reconstruction" && steps.every(step=>requiresElided(step.pattern)));
+    ranker.erasures.closes=chart.context.closes;
+    ranker.restorationForest=restorationForest(chart);
+    if(ranker.restorationForest)chart=ranker.restorationForest.chart;
+    ranker.profiles ||= canCountProfiles(chart.context.lowered) && !(chart.context.mode === "reconstruction" && !chart.context.lowered.productions.some(p=>p.error) && steps.every(step=>requiresElided(step.pattern)));
     ranker.configured = true;
     ranker.interner = chart.context.interner;
     ranker.space.interner = chart.context.interner;
@@ -19201,7 +20839,7 @@
     run(tokens, sourceText, unicode, options) {
       const features = options.features;
       /** @type {StageReport} */
-      const report = { name: this.name, verdict: null, witness: null, output: null, tree: null, error: null };
+      const report = { name: this.name, verdict: null, witness: null, output: null, tree: null, error: null,errors:[],warnings:[] };
       let lowered;
       let context;
       let chart;
@@ -19239,41 +20877,43 @@
         return report;
       }
       if (ranking.verdict === "tie") {
-        // A tie is an error: the stage keeps its verdict and witness, has no
-        // chosen tree, no output and no warnings, and the error holds the
-        // first and the second reading (engine §6). A tie always has a second
-        // derivation, and so a witness.
-        const readings = [ranking.first, /** @type {import("./types.js").Rope} */ (ranking.second)]
-          .map((rope) => resultTree(derivationTree(rope), context)[0]);
-        Object.assign(report, {
-          verdict: "tie",
-          witness: witnessOf(/** @type {[Action | null, Action | null]} */ (ranking.witness)),
-        });
-        report.error = {
-          kind: "ambiguous",
-          stage: this.name,
-          reason: "tie",
-          readings,
-          message: `the ${this.name} stage's text has two best readings, a tie`,
-        };
+        const derivations=[ranking.first,/** @type {import("./types.js").Rope} */(ranking.second)].map(derivationTree);
+        const flows=derivations.map(root=>new DiagnosticFlow(root,tokens));
+        Object.assign(report,{verdict:"tie",witness:witnessOf(/** @type {[Action|null,Action|null]} */(ranking.witness))});
+        try{
+          for(const flow of flows)evaluateDiagnostics(flow,context,features,this.name,options.stageOrder);
+        }catch(error){
+          if(!(error instanceof GencmuError))throw error;
+          stageDiagnostics.set(report,{collected:emptyDiagnostics(),evaluated:joinDiagnostics(flows.map(flow=>flow.messages()))});
+          report.error=runtimeGrammarError(error.withLocation({stage:undefined}),this.name);return report;
+        }
+        for(const flow of flows)competitorRejections(flow,chart);
+        stageDiagnostics.set(report,{collected:tiedDiagnostics(flows[0].events(),flows[1].events()),evaluated:joinDiagnostics(flows.map(flow=>flow.messages()))});
+        report.error={kind:"ambiguous",stage:this.name,reason:"tie",readings:derivations.map(root=>resultTree(root,context)[0]),message:`the ${this.name} stage's text has two best readings, a tie`};
         return report;
       }
-      Object.assign(report, { verdict: ranking.verdict, witness: null });
-      const derivation = derivationTree(ranking.first);
-      report.tree = resultTree(derivation, context)[0];
-      report.warnings = warningsOf(derivation, context, features, this.name);
-      try {
-        report.output = emit(derivation, context);
-      } catch (error) {
-        if (error instanceof GencmuError) {
-          report.error = runtimeGrammarError(error.withLocation({stage:undefined}),this.name);
-          return report;
-        }
-        throw error;
+      Object.assign(report,{verdict:ranking.verdict,witness:null});
+      const derivation=derivationTree(ranking.first),flow=new DiagnosticFlow(derivation,tokens);
+      report.tree=resultTree(derivation,context)[0];
+      try{evaluateDiagnostics(flow,context,features,this.name,options.stageOrder);}
+      catch(error){
+        if(!(error instanceof GencmuError))throw error;
+        stageDiagnostics.set(report,{collected:emptyDiagnostics(),evaluated:flow.messages()});
+        report.tree=null;report.error=runtimeGrammarError(error.withLocation({stage:undefined}),this.name);return report;
+      }
+      competitorRejections(flow,chart);
+      const diagnosticData={collected:flow.collected(),evaluated:flow.messages()};
+      stageDiagnostics.set(report,diagnosticData);
+      try{
+        report.output=emit(derivation,context,flow);
+        const unowned=flow.assign();report.errors=unowned.errors;report.warnings=unowned.warnings;
+      }catch(error){
+        if(!(error instanceof GencmuError))throw error;
+        report.output=null;report.error=runtimeGrammarError(error.withLocation({stage:undefined}),this.name);return report;
       }
       const elisionOnly = options.elisionOnly === undefined || options.elisionOnly === null
         ? lowered.resolution.elisionOnly : options.elisionOnly;
-      if (elisionOnly && (report.verdict === "resolved" ||
+      if (elisionOnly && !options.pendingErrors && !diagnosticData.collected.errors.length && (report.verdict === "resolved" ||
           report.verdict === "unique" && hasElided(report.tree))) {
         /** @type {ElisionCheck} */
         let check;
@@ -19301,7 +20941,9 @@
           }
           throw error;
         }
-        if (check.competitorWarnings) report.warnings = [...(report.warnings || []), ...check.competitorWarnings];
+        if (check.competitorWarnings){
+          for(const warning of check.competitorWarnings)diagnosticData.collected.warnings.push(warning);
+        }
         if (check.kind === "lost") {
           // The witness of the chosen derivation is lost: a defect of the
           // engine, which ends the stage with no output (engine §7.9).
@@ -19411,22 +21053,18 @@
       const steps = lowered.resolution.steps;
       const ranker = slotRanker(chart, restored, steps, "none", fault("F19") ? project : null);
       ranker.profileProject = project;
+      ranker.measures.original={measures:new Measures(tokens,main.sources),project};
       ranker.check = true;
       ranker.marks = walk.marks;
-      // Raw witness membership and filtered admission are separate decisions.
-      let raw = ranker;
-      if (ranker.admission) {
-        raw = new Ranker(restored, steps, "none", fault("F19") ? project : null);
-        raw.profiles = ranker.profiles;
-        raw.configured = true;
-        raw.interner = chart.context.interner;
-        raw.profileProject = project;
-        raw.check = true;
-        raw.marks = ranker.marks;
-      }
-      const rawRanking = raw.rank(roots);
-      let ranking = raw === ranker ? rawRanking : ranker.rank(roots);
-      if (fault("lost:count") || rawRanking?.witnessCounted !== true) ranking = null;
+      // Concrete membership uses the raw chart, before the ranking view (§7.10).
+      const raw = new Ranker(restored, steps, "none", fault("F19") ? project : null);
+      raw.configured=true;raw.interner=chart.context.interner;
+      raw.measures.original=ranker.measures.original;
+      raw.check=true;raw.marks=walk.marks;raw.groupRules(roots);
+      const rawCounted=roots.some(item=>raw.countOf(item).member);
+      let ranking=ranker.rank(roots);
+      if(ranking)ranking.rawWitnessCounted=rawCounted;
+      if (fault("lost:count") || !rawCounted) ranking = null;
       if (fault("F23")) {
         // A fault leaves the main grammar in the mode of the check.
         for (const [name, productions] of lowered.byLhs) {
@@ -19438,22 +21076,24 @@
         return old ? { kind: "pass" } : { kind: "lost", completion: records };
       }
       const profileOrder = ranker.profiles ? ranker.space.compare(ranking.profile, ranker.space.derivationProfile(chosen, tokens)) : 0;
-      const restoredWitness = ropeOf(walk.sequence);
       const excluded = ranking.witnessCounted !== true;
+      const representative=excluded?null:ranker.witnessRepresentative(walk.proof);
+      if(!excluded&&!representative)throw new Error("An admitted witness requires its class representative.");
+      const restoredWitness = representative??ropeOf(walk.sequence);
       const better = excluded || profileOrder < 0;
       // Observe candidate selection before arranging the diagnostic pair.
       const selectedRanking = ranking;
       if (better || ranking.verdict === "tie") {
         const first = ranking.first;
-        const second = ranking.second;
-        const competitor = firstDifference(restoredWitness, first, false) !== null ? first : second;
+        const competitor = firstDifference(restoredWitness, first, false) !== null ? first :
+          ranker.firstCompetitor(restoredWitness)??(fault("F17","diagnostic")?ranking.second:null);
         if (!competitor) throw new Error("Reconstruction requires a distinct best admitted competitor.");
         let difference = firstDifference(restoredWitness, competitor, true);
         if (!difference?.left || !difference.right) difference = firstDifference(restoredWitness, competitor, false);
         ranking = { ...ranking, second: competitor, first: restoredWitness,
           witness: difference ? [difference.left, difference.right] : null };
       }
-      if (watch) watch.ranked({ ranking: better || ranker.admission ? ranking : selectedRanking, counted: rawRanking?.witnessCounted === true });
+      if (watch) watch.ranked({ ranking: better || ranker.admission ? ranking : selectedRanking, counted: rawCounted,representative });
       if (!better && ranking.verdict !== "tie") return { kind: "pass" };
       // The readings, mapped to the stage's input (engine §7.10).
       const original = new Sources(tokens);
@@ -19504,7 +21144,7 @@
         if (fault("witness:project")) {
           if (action.kind === "read") return { kind: "read", token: action.token, terminal: action.terminal };
           const { production, origin, end } = action.item;
-          return { kind: "close", rule: production.owner, production: production.id, helper: production.helper, span: [origin, end] };
+          return { kind: "close", rule: production.owner, production: production.sourceId ?? production.id, helper: production.helper, span: [origin, end] };
         }
         if (action.kind === "read") {
           return synthetic[action.token]
@@ -19512,13 +21152,13 @@
             : { kind: "read", token: project[action.token], terminal: action.terminal };
         }
         const { production, origin, end } = action.item;
-        return { kind: "close", rule: production.owner, production: production.id, helper: production.helper, span: [project[origin], project[end]] };
+        return { kind: "close", rule: production.owner, production: production.sourceId ?? production.id, helper: production.helper, span: [project[origin], project[end]] };
       };
       const witness = /** @type {[Action | null, Action | null]} */ (ranking.witness);
       /** @type {ElisionCheck} */
       const result = {
         kind: "ambiguous",
-        readings: ropes.map((rope, index) => better && index === 0 ? tree : remap(resultTree(derivationTree(rope), r)[0])),
+        readings: ropes.map((rope, index) => excluded && index === 0 ? tree : remap(resultTree(derivationTree(rope), r)[0])),
         // F17 counts duplicated items as a false tie between identical
         // derivations. There is no differing action in that injected state.
         // Return its malformed result for the shared case to reject.
@@ -19527,7 +21167,7 @@
       };
       // A competing reading gives no warning (engine §7.10), unless a fault
       // takes its warnings (F22).
-      if (fault("F22")) result.competitorWarnings = warningsOf(derivationTree(ropes[1]), r, features, this.name);
+      if (fault("F22")) result.competitorWarnings = reportsOf(derivationTree(ropes[1]), r, features, this.name).warnings;
       return result;
     }
   }
@@ -19594,36 +21234,47 @@
   }
 
   /**
-   * The warnings of a chosen derivation (engine §12): each rule node of its
-   * tree gives one for each warning of its alternative whose feature is on, in
-   * the order a walk meets the nodes, parent before children and children left
-   * to right. The walk splices helpers as the tree does, with its own stack
-   * for the same reason.
+   * Reports follow the chosen derivation before spliced nodes disappear.
+   * Suppression covers its own occurrence and every descendant.
    * @param {Derivation} root
    * @param {ParseContext} context
    * @param {Set<string>} features
    * @param {string} stage
-   * @returns {import("./types.js").ParseWarning[]}
+   * @returns {{errors:import("./types.js").ParseWarning[],warnings:import("./types.js").ParseWarning[]}}
    */
-  function warningsOf(root, context, features, stage) {
-    /** @type {import("./types.js").ParseWarning[]} */
-    const warnings = [];
-    /** @type {Derivation[]} */
-    const stack = [root];
-    for (let node = stack.pop(); node !== undefined; node = stack.pop()) {
-      if ("read" in node) continue;
-      const production = node.production;
-      if (!production.helper) {
-        for (const feature of production.warnings) {
-          if (features.has(feature)) {
-            warnings.push({ stage, feature, rule: production.lhs, span: [node.start, node.end], source: sourceOf(context.sources, node.start, node.end) });
-          }
+  function reportsOf(root, context, features, stage) {
+    const flow=new DiagnosticFlow(root,context.tokens);
+    evaluateDiagnostics(flow,context,features,stage);
+    return flow.collected();
+  }
+
+  /**
+   * Evaluate own messages before erasure and preserve a prefix on failure (§12.1).
+   * @param {DiagnosticFlow} flow @param {ParseContext} context
+   * @param {Set<string>} features @param {string} stage @param {number} [stageOrder]
+   */
+  function evaluateDiagnostics(flow,context,features,stage,stageOrder=0){
+    const strings=new StringWalk(context,node=>new TreeScope(node,context),false);
+    const measures=new Measures(context.tokens,context.sources),scope={};
+    let ordinal=0;
+    const stack=[{node:flow.root,suppressed:new Set()}];
+    while(stack.length){
+      const {node,suppressed:inherited}=/** @type {NonNullable<ReturnType<typeof stack.pop>>} */(stack.pop());
+      if('read'in node)continue;
+      const production=node.production;
+      const suppressed=production.suppressWarnings?.length?new Set([...inherited,...production.suppressWarnings]):inherited;
+      if(production.error||production.warning){
+        const occurrence=ordinal++,code=production.spliceOf??production.lhs;
+        const recipe=production.error??(features.has(code)&&!suppressed.has('_')&&!suppressed.has(code)?production.warning:undefined);
+        if(recipe){
+          hooks.diagnosticMessage?.(node,recipe);
+          const diagnostic={stage,code,rule:code,span:/** @type {Span} */([node.start,node.end]),source:sourceOf(context.sources,node.start,node.end),message:strings.item(node,recipe,recipe)};
+          recordDiagnostic(diagnostic,production.error?measures.own(node.start,node.end):ZERO_MEASURE,{scope,stageOrder,ordinal:occurrence,rule:code});
+          flow.add(node,diagnostic,production.error?'errors':'warnings');
         }
       }
-      const children = node.children;
-      for (let index = children.length - 1; index >= 0; index--) stack.push(children[index]);
+      for(let index=node.children.length-1;index>=0;index--)stack.push({node:node.children[index],suppressed});
     }
-    return warnings;
   }
 
   /**
@@ -19689,7 +21340,7 @@
       if (action === null) throw new Error("the witness of a tie lacks an action");
       if (action.kind === "read") return { kind: "read", token: action.token, terminal: action.terminal };
       const { production, origin, end } = action.item;
-      return { kind: "close", rule: production.owner, production: production.id, helper: production.helper, span: [origin, end] };
+      return { kind: "close", rule: production.owner, production: production.sourceId ?? production.id, helper: production.helper, span: [origin, end] };
     };
     return [plain(actions[0]), plain(actions[1])];
   }
@@ -19706,9 +21357,9 @@
     }
     /** @param {string} name */
     treeIdentityOf(name) {
-      if(name === "")return derivationIdentity(this.context,this.node);
+      if(name === "")return derivationIdentity(this.context,this.node,true);
       const capture=this.node.production.captures[/** @type {number} */ (this.node.production.captureSlot.get(name))];
-      return derivationIdentity(this.context,this.node.children[capture.index]);
+      return derivationIdentity(this.context,capturedNode(this.node,name));
     }
     /** @param {any} atom */
     boundary(atom) {
@@ -19720,16 +21371,16 @@
     }
     /** @param {string} name */
     capture(name) {
-      if (name === "") return { observation: this.node.item.observation, structure: this.node.item.structure, patterns: this.context.patterns, start: this.node.start, end: this.node.end, tags: nodeTags(this.node, this.context) };
+      if (name === "") return { observation: this.node.item.observation, structure: workingStructure(this.context,this.node.item), patterns: this.context.patterns, start: this.node.start, end: this.node.end, tags: nodeTags(this.node, this.context) };
       const production = this.node.production;
       const capture = production.captures[/** @type {number} */ (production.captureSlot.get(name))];
-      const child = this.node.children[capture.index];
+      const child = capturedNode(this.node,name);
       let captured = this.node.item.slots;
       while (captured && captured.index !== production.captureSlot.get(name)) captured = captured.parent;
       const observation = captured?.observation ?? ("read" in child
         ? terminalObservation(this.context,child.read.terminal,child.start)
         : child.item.observation);
-      return { observation, structure: "read" in child ? structuralRead(this.context, child.read.terminal, child.start) : child.item.structure, patterns: this.context.patterns, start: child.start, end: child.end, tags: nodeTags(child, this.context) };
+      return { observation, structure: captured?.structure ?? ("read" in child ? structuralRead(this.context, child.read.terminal, child.start) : child.item.structure), patterns: this.context.patterns, start: child.start, end: child.end, tags: nodeTags(child, this.context) };
     }
   }
 
@@ -19739,6 +21390,7 @@
    * @property {StringWalk} strings
    * @property {boolean} forwards
    * @property {Set<import("./tokens.js").AttachedToken>} inherited
+   * @property {DiagnosticFlow} trace
    */
 
   /** @param {import("./types.js").Production} production */
@@ -19886,15 +21538,16 @@
   // attachments nest as deep as the text is long: each attachment's tokens
   // gather in a list of their own on a stack of lists.
   /**
-   * @typedef {{walk: Derivation} | {run: () => void}} EmitTask
+   * @typedef {{walk: Derivation,flow:import("./diagnostic-flow.js").EmissionScope} | {run: () => void}} EmitTask
    */
 
   /**
    * @param {Derivation} root
    * @param {ParseContext} context
+   * @param {DiagnosticFlow} [trace]
    * @returns {Token[]}
    */
-  function emit(root, context) {
+  function emit(root, context, trace=new DiagnosticFlow(root,context.tokens)) {
     // Emission atoms observe this one chosen derivation. They request no
     // recognition offers, and never split an admission group.
     const first = new Map(), last = new Map();
@@ -19911,7 +21564,7 @@
     }
     context.emissionBoundaries = {first,last};
     const strings = new StringWalk(context,node => new TreeScope(node,context));
-    return emitted(root, { context, strings, forwards: context.tokens.some(hasAttachments), inherited: new Set() });
+    return emitted(root, { context, strings, forwards: context.tokens.some(hasAttachments), inherited: new Set(),trace });
   }
 
   /**
@@ -19930,19 +21583,19 @@
     /** @type {(token: Token) => void} */
     const put = (token) => lists[lists.length - 1].push(token);
     /** @type {EmitTask[]} */
-    const tasks = [{ walk: root }];
+    const tasks = [{ walk: root,flow:emitter.trace.main }];
     for (let task = tasks.pop(); task !== undefined; task = tasks.pop()) {
       if ("run" in task) {
         task.run();
         continue;
       }
-      const node = task.walk;
+      const node = task.walk,flow=task.flow;
       if ("read" in node) continue;
       const production = node.production;
       if (production.erased) continue;
       const clause = production.emit;
       if (!clause) {
-        for (let index = node.children.length - 1; index >= 0; index--) tasks.push({ walk: node.children[index] });
+        for (let index = node.children.length - 1; index >= 0; index--) tasks.push({ walk: node.children[index],flow });
         continue;
       }
       const scope = new TreeScope(node, context);
@@ -19962,10 +21615,14 @@
       const part = (name) => capturedNode(node,name);
       // An attachment: what its captured parts emit in their place, walked
       // into a list of their own (engine §11).
-      /** @type {(names: string[] | undefined) => EmitTask[]} */
-      const walks = (names) => (names ?? []).map((name) => ({ walk: part(name) }));
+      /** @param {string[]|undefined} names @param {import("./diagnostic-flow.js").EmissionScope[]} scopes @returns {EmitTask[]} */
+      const walks = (names,scopes) => (names ?? []).map(name=>{
+        const child=part(name),scope=emitter.trace.attachment(child);scopes.push(scope);return {walk:child,flow:scope};
+      });
       // The attachments gathered last, each token without its span.
-      const gathered = () => /** @type {Token[]} */ (lists.pop()).map(attached);
+      const gathered = () => /** @type {Token[]} */ (lists.pop()).map(token=>{
+        const copy=attached(token);emitter.trace.attached(token,copy);return copy;
+      });
       // Each item's anchor, the next capture item listed after it, found in
       // one backward pass rather than by a search of the rest for each.
       /** @type {(EmitItem | undefined)[]} */
@@ -19981,7 +21638,10 @@
         if (item.insert !== undefined) {
           const next = anchors[index];
           const anchor = next && next.capture !== undefined ? part(next.before?.[0] ?? next.capture) : undefined;
-          ordered.push({ run: () => put(insertedToken(item, anchor, node, valueTags(item,tagSet()), emitter)) });
+          ordered.push({ run: () => {
+            const token=insertedToken(item,anchor,node,valueTags(item,tagSet()),emitter);
+            emitter.trace.emitted(token,null,node,flow);put(token);
+          } });
         } else if (item.capture !== undefined) {
           const child = part(item.capture);
           // Before-attachments, then the carrier with its tag term, then
@@ -19991,21 +21651,25 @@
           let before = [];
           /** @type {Token | undefined} */
           let token;
+          /** @type {import("./diagnostic-flow.js").EmissionScope[]} */ const beforeScopes=[];
+          /** @type {import("./diagnostic-flow.js").EmissionScope[]} */ const afterScopes=[];
           // One push for each step: an item can have any number of
           // attachments, more than a call takes arguments.
           ordered.push({ run: () => lists.push([]) });
-          for (const step of walks(item.before)) ordered.push(step);
+          for (const step of walks(item.before,beforeScopes)) ordered.push(step);
           ordered.push(
             { run: () => {
               before = gathered();
               token = makeToken(child, valueTags(item, nodeTags(child, context)), emitter, node, item);
+              emitter.trace.emitted(token,child,node,flow);
               lists.push([]);
             } });
-          for (const step of walks(item.after)) ordered.push(step);
+          for (const step of walks(item.after,afterScopes)) ordered.push(step);
           ordered.push(
             { run: () => {
               const after = gathered();
               const carrier = /** @type {Token} */ (token);
+              emitter.trace.attachments(carrier,beforeScopes,afterScopes,carrier.before,carrier.after);
               if (before.length) carrier.before = [...before, ...carrier.before];
               if (after.length) carrier.after = [...carrier.after, ...after];
               put(carrier);
@@ -20032,6 +21696,7 @@
   }
 
   // ---- reader.js
+
 
 
 
@@ -20069,6 +21734,7 @@
   function treeToDom(tree, tokens, positionOf, path, unicode, decodeString, deferEmission = false) {
     /** @type {WeakMap<object, boolean>} */
     const unresolvedTerms = new WeakMap();
+    const allowedMarkedCaptures = new WeakSet();
     /** @param {any} root @returns {boolean} */
     function hasUnresolved(root) {
       if (!root || typeof root !== "object") return false;
@@ -20141,6 +21807,19 @@
     const ofRule = (node, name) => parts(node).flatMap((child) => (child.kind === "rule" && child.rule === name ? [child] : []));
     /** @type {(node: ResultNode, name: string) => RuleNode | undefined} */
     const one = (node, name) => ofRule(node, name)[0];
+    /** First written occurrence, including nested body nodes (engine §9).
+     * @param {ResultNode} node @param {string} name @returns {RuleNode|undefined} */
+    const descendant = (node,name) => {
+      const pending=[node];
+      while(pending.length){
+        if(hooks.work)countWork(hooks.work,"walkSteps");
+        const current=/** @type {ResultNode} */(pending.pop());
+        if(current.kind!=="rule")continue;
+        if(current.rule===name)return current;
+        for(let index=current.children.length-1;index>=0;index--)pending.push(current.children[index]);
+      }
+      return undefined;
+    };
     // The parts that the reader reads from a node (engine §9). A node that
     // lacks one is an error of the document, which only a bootstrap of
     // another notation gives.
@@ -20324,7 +22003,6 @@
     function readEntry(node) {
       const guards = ofRule(node, "guard").map((guard) => {
         const read = readGuard(guard);
-        if (read.kind === "warning") fail("an entry of a classifier takes gates only, not a warning", guard);
         return read;
       });
       const keys = some(node, "classifier-key").map((keyNode) => {
@@ -20369,7 +22047,7 @@
     function* readConstant(node) {
       const keyword = valueOf(token(only(node, "constant-definer")));
       const name = valueOf(token(only(node, "constant-reference"))).slice(1);
-      if (!/^[A-Z][A-Za-z0-9_-]*$/.test(name)) fail("a constant requires a user name", only(node, "constant-reference"));
+      if (!/^(?!.*--)[A-Z][A-Za-z0-9_-]*$/.test(name)) fail("a constant requires a user name", only(node, "constant-reference"));
       const valueNode = only(node, "term");
       closedFor = "a constant's value";
       const value = /** @type {Term} */ (yield readTerm(valueNode));
@@ -20412,7 +22090,7 @@
       const nameToken = headCall ? token(headCall) : token(only(node, "rule-name"));
       /** @type {any} */
       const rule = { name: head ? head.call : valueOf(nameToken), ...(head ? head.args.every((/** @type {any} */ arg) => arg.param) ? {params:head.args.map((/** @type {any} */ arg) => arg.param)} : {args:head.args} : {}), op: keyword === "%extend-rule" ? "extend" : keyword === "%redefine-rule" ? "redefine" : "define" };
-      if (!unicode.isEmojiName?.(rule.name || "") && !/^[a-z][A-Za-z0-9_-]*$/.test(rule.name || "")) fail("a rule name starts with a lowercase letter or uses one eligible emoji", nameToken);
+      if (!unicode.isEmojiName?.(rule.name || "") && !/^(?!.*--)[a-z][A-Za-z0-9_-]*$/.test(rule.name || "")) fail("a rule name starts with a lowercase letter or uses one eligible emoji", nameToken);
       if (parts(node).some(child => tokenValue(child) === "=")) {
         if (head) fail("a binding requires a plain rule name", node);
         const instance = yield readCall(only(node,"call"));
@@ -20433,6 +22111,19 @@
       const conditions = [];
       if (conditionsClause) {
         for (const condition of some(conditionsClause, "implication")) conditions.push(yield readImplication(condition));
+      }
+      for (const kind of ["error", "warning"]) {
+        const diagnostic = one(node, `${kind}-clause`);
+        if (diagnostic) {
+          const recipe = yield readRecipe(only(diagnostic, "recipe"));
+          if (recipe.concat.some((/** @type {any} */ atom) => atom.receiver?.method === "emitted")) fail("a message recipe cannot read .emitted", diagnostic);
+          rule[kind] = recipe;
+        }
+      }
+      const suppression = one(node, "suppress-warnings-clause");
+      if (suppression) {
+        rule.suppressWarnings = parts(suppression).some(child => tokenValue(child) === "_") ? ["_"]
+          : some(suppression,"suppression-code").map(code => valueOf(token(code)));
       }
       const emits = one(node, "emits-clause");
       const emit = emits ? /** @type {Emission} */ (yield readEmission(emits)) : undefined;
@@ -20487,9 +22178,9 @@
     /** @param {ResultNode} node @returns {import("./types.js").Guard} */
     function readGuard(node) {
       const spelled = valueOf(token(node));
-      const found = /^(¬?)([A-Za-z][A-Za-z0-9-]*)([?!])$/.exec(spelled);
-      if (!found || (found[1] && found[3] === "!")) fail("invalid feature guard", node);
-      return { feature: found[2], kind: found[3] === "!" ? "warning" : "gate", negated: found[1] === "¬" };
+      const found = /^(¬?)(?!.*--)([A-Za-z][A-Za-z0-9-]*)(\?)$/.exec(spelled);
+      if (!found) fail("invalid feature guard", node);
+      return { feature: found[2], kind: "gate", negated: found[1] === "¬" };
     }
 
     /**
@@ -20590,6 +22281,8 @@
      * @returns {Generator<Step, Expr, any>}
      */
     function* readOptional(node) {
+      const captured = one(node,"capture");
+      if (captured) return yield readCapturedOptional(node,captured);
       // Its required part first, then its markers (engine §9).
       const choice = only(node, "choice");
       const found = parts(node);
@@ -20640,6 +22333,42 @@
       return result;
     }
 
+    /** @param {ResultNode} optional @param {ResultNode} node @returns {Generator<Step,Expr,any>} */
+    function* readCapturedOptional(optional,node) {
+      const markers=[...parts(optional),...parts(node)].filter(child=>tokenValue(child)==="+").sort((a,b)=>firstToken(a)-firstToken(b));
+      if (markers.length>1) fail("an optional has one marker + at most",markers[1]);
+      if (!markers.length || one(optional,"choice")) fail("a captured elidable optional holds only its terminator",optional);
+      const primary = only(node,"primary");
+      const head = knownOf(primary,PRIMARIES);
+      const base = ruleOf(head) === "tested" ? testBase(head) : head;
+      if (!base || !(ruleOf(base) === "parameter" || ruleOf(base) === "tag" && /^[A-Z]/.test(valueOf(token(base))))) {
+        fail("a captured elidable optional holds only its terminator",optional);
+      }
+      const previousHead=defaultHead, previousDefault=headDefault;
+      defaultHead=head;
+      headDefault=undefined;
+      allowedMarkedCaptures.add(node);
+      marked++;
+      const expr=yield readPrimary(node);
+      marked--;
+      allowedMarkedCaptures.delete(node);
+      const selectedDefault = /** @type {Term|undefined} */ (headDefault);
+      if (selectedDefault && "string" in selectedDefault) {
+        let tested="capture" in expr?expr.expr:expr;
+        while("test" in tested) {
+          if (tested.test!=="tags" && "string" in tested.value && (selectedDefault.string===tested.value.string)!==(tested.test==="=")) {
+            const position=recipeLocations.get(selectedDefault);
+            throw new GencmuError("grammar","a default fails its head test",{document:path,line:position?.[0],column:position?.[1]});
+          }
+          tested=tested.expr;
+        }
+      }
+      const result={optional:expr,elidable:/** @type {true} */ (true),...(headDefault===undefined?{}:{default:headDefault})};
+      defaultHead=previousHead;
+      headDefault=previousDefault;
+      return result;
+    }
+
     /**
      * Braces: the item, its separator if a `/` has one, and a chain's
      * direction from its marker, a `...` among the parts (engine §9).
@@ -20677,6 +22406,10 @@
      */
     function* readPrimary(node, whole = false) {
       switch (ruleOf(node)) {
+        case "splice": {
+          const target=knownOf(node,new Set(["reference","call"]));
+          return {splice:yield readPrimary(target)};
+        }
         case "call": return yield readCall(node);
         case "parameter": return readParameter(node);
         case "reference": return { ref: valueOf(token(node)) };
@@ -20689,7 +22422,7 @@
           const tests = parts(node).filter(child => ["tag-test", "value-test", "default-value"].includes(ruleOf(child)));
           if (!tests.length) lacks(node, "test");
           const symbol = testBase(node) || lacks(node, "primary");
-          checkTestOrder(tests.filter(test => ruleOf(test) !== "default-value"), ["constant-reference", "reference", "call", "parameter", "tag", "string-terminal", "range", "wildcard"].includes(ruleOf(symbol)));
+          checkTestOrder(tests.filter(test => ruleOf(test) !== "default-value"), ["constant-reference", "reference", "call", "splice", "parameter", "tag", "string-terminal", "range", "wildcard"].includes(ruleOf(symbol)));
           // Convert the base before test operands (engine §9.3).
           let expr = yield readPrimary(symbol);
           for (const test of tests) {
@@ -20709,14 +22442,14 @@
           const innermost = braces[braces.length - 1];
           if (innermost?.chain) fail("a capture cannot stand inside a chain, whose levels are constituents of its rule: a condition on $ serves each level", node);
           if (innermost && innermost.ranked > 0) fail("an item capture cannot stand inside a ranked group: name the ranked choice as a rule and capture that rule", node);
-          if (marked > 0) fail("a capture cannot stand inside an elidable optional, which elision restores as one unit", node);
+          if (marked > 0 && !allowedMarkedCaptures.has(node)) fail("a capture cannot stand inside an elidable optional, which elision restores as one unit", node);
           const captureToken = token(node);
           const inner = only(node, "primary");
           if (valueOf(captureToken) === "$") fail("$ is the whole constituent and wraps nothing", node);
           if (!CAPTURE_NAME.test(valueOf(captureToken).slice(1))) fail("a capture's name is all lower case", node);
           const wrapped = knownOf(inner, PRIMARIES);
           const base = ruleOf(wrapped) === "tested" ? testBase(wrapped) || lacks(wrapped, "primary") : wrapped;
-          if (!["constant-reference", "reference", "call", "parameter", "tag", "string-terminal", "range", "wildcard"].includes(ruleOf(base))) fail("a capture wraps one symbol", node);
+          if (!["constant-reference", "reference", "call", "splice", "parameter", "tag", "string-terminal", "range", "wildcard"].includes(ruleOf(base))) fail("a capture wraps one symbol", node);
           const name = valueOf(captureToken).slice(1);
           const expr = /** @type {Expr} */ (yield readPrimary(wrapped));
           const capture = { capture: name, expr };
@@ -21087,7 +22820,7 @@
         const inner = knownOf(node, ATOMS);
         if (ruleOf(inner) === "method") {
           const method = yield readMethod(inner);
-          if (QUERY_METHODS.has(method.method)) fail("a query method is a condition, not a term", inner);
+          if (QUERY_METHODS.has(method.method) && !["parse","error-free"].includes(method.method)) fail("a query method is a condition, not a term", inner);
           return method;
         }
         return yield readTerm(inner, argument);
@@ -21136,7 +22869,7 @@
         case "method": return yield readMethod(node);
         case "constant-reference": {
           const name = valueOf(token(node)).slice(1);
-          if (!/^[A-Z][A-Za-z0-9_-]*$/.test(name)) fail("a user constant begins with a capital", node);
+          if (!/^(?!.*--)[A-Z][A-Za-z0-9_-]*$/.test(name)) fail("a user constant begins with a capital", node);
           return { const: name, at: at(node) };
         }
         case "capture-reference": {
@@ -21309,12 +23042,28 @@
     function* readMethod(node) {
       let receiver = yield readTerm(only(only(node, "method-receiver"), "term-atom"), true);
       for (const selector of some(node, "method-selector")) {
-        const name = valueOf(token(only(selector, "method-name")));
+        const parsed = one(selector, "parse-selector");
+        const name = parsed ? "parse" : valueOf(token(only(selector, "method-name")));
         if(!METHODS.has(name)) fail(`unknown method ${name}`,node);
         if (closedFor && !["split", "ngrams"].includes(name)) fail(`${closedFor} cannot read an input method`, node);
         /** @type {any[]} */
         const args = [];
         const argumentsNode = one(selector, "arguments");
+        if (parsed) {
+          const argument = only(parsed,"parse-argument");
+          let body = yield readExpression(only(argument,"choice"),true);
+          const capture = queryCapture(body);
+          if (capture) fail("a parse argument cannot declare captures",descendant(argument,"capture") ?? argument);
+          const markers = parts(argument).filter(child => child.kind === "token" && valueOf(child) === "…");
+          if (markers.length > 1) fail("a remainder stands at one outer edge of a parse argument",markers[1]);
+          if (markers.length) {
+            const first = parts(argument)[0] === markers[0];
+            body = {seq:first ? [{remainder:true},body] : [body,{remainder:true}]};
+          }
+          const bodyProblem = queryBody(body).problem;
+          if (bodyProblem) fail(bodyProblem,argument);
+          args.push({body});
+        }
         if (argumentsNode) for (const argument of some(argumentsNode, "argument")) {
           const integer = one(argument, "integer");
           if (integer) {
@@ -21341,7 +23090,7 @@
         if ("problem" in found) fail(found.problem, node);
         const types = [];
         for (const arg of args) {
-          if (arg.rule || arg.classifier || arg.terminal || arg.integer || arg.call || arg.param) types.push("name");
+          if (arg.body || arg.rule || arg.classifier || arg.terminal || arg.integer || arg.call || arg.param) types.push("name");
           else {
             const type = featureContext ? {type:"any"} : termType(arg);
             if ("problem" in type) fail(type.problem, node);
@@ -21350,7 +23099,7 @@
         }
         const problem = methodProblem(name, receiver, args, found.type, types, recipeContext);
         if (problem && !featureContext && !args.some(hasUnresolved) && !hasUnresolved(receiver)) {
-          const specific = problem === "split has an empty delimiter" || problem.startsWith("ends requires") || problem.startsWith("without-elision");
+          const specific = problem === "split has an empty delimiter" || (problem.startsWith("ends requires") || problem.startsWith("suffix parse requires")) || problem.startsWith("without-elision");
           fail(specific ? problem : "a method has the wrong receiver or arguments", node);
         }
         if (closedFor && found.type === "span") fail(`${closedFor} cannot read an input method`, node);
@@ -21375,7 +23124,7 @@
         if (!canonical) fail("an unknown or unavailable engine tag", tokenNode);
         return canonical;
       }
-      if (!name.startsWith("_") && !/^[A-Z][A-Za-z0-9_-]*$/.test(name)) fail("a user tag begins with a capital", tokenNode);
+      if (!name.startsWith("_") && !/^(?!.*--)[A-Z][A-Za-z0-9_-]*$/.test(name)) fail("a user tag begins with a capital", tokenNode);
       return name;
     }
 
@@ -21526,7 +23275,7 @@
     return found;
   }
 
-  const PRIMARIES = new Set(["constant-reference", "call", "parameter", "reference", "tag", "string-terminal", "wildcard", "range", "tested", "capture", "group", "optional", "repetition", "empty"]);
+  const PRIMARIES = new Set(["splice", "constant-reference", "call", "parameter", "reference", "tag", "string-terminal", "wildcard", "range", "tested", "capture", "group", "optional", "repetition", "empty"]);
   const CONDITIONS = new Set(["tree-comparison", "comparison", "method", "negation", "presence", "implication"]);
   const TERMS = new Set(["union", "guarded-term"]);
   const ATOMS = new Set(["call", "parameter", "pattern-literal", "string", "tag", "tag-run", "string-run", "range", "name", "empty-set", "term", "guarded-term", "union", "term-atom", "method", "capture-reference", "constant-reference"]);
@@ -21536,8 +23285,8 @@
     ...ITEMS, ...PRIMARIES, ...CONDITIONS, ...TERMS, ...ATOMS,
     "argument-word", "argument-string", "argument-tag", "argument-term", "classifier-name", "classifier-class", "classifier-key", "classifier-operator", "classifier-entry",
     "constant-definer", "definer", "rule-name", "ranking-directive", "ranking-step", "body", "headed-body", "alternative", "ranked-alternative", "guard", "ranked-choice", "choice", "conjunction", "sequence", "primary",
-    "tag-test", "tag-requirement", "value-test", "default-value", "test", "test-operand", "tags-clause", "alternative-tags", "emit-tags", "value-clause", "image-clause", "conditions-clause", "emits-clause", "erased-clause",
-    "emit-item", "emit-target", "emit-before", "emit-after", "recipe", "recipe-atom", "method-receiver", "method-selector", "method-name", "arguments", "argument", "integer", "intersection", "concatenation", "any-of", "all-of", "condition", "comparator", "tree-comparator",
+    "tag-test", "tag-requirement", "value-test", "default-value", "test", "test-operand", "tags-clause", "alternative-tags", "emit-tags", "value-clause", "image-clause", "conditions-clause", "error-clause", "warning-clause", "suppress-warnings-clause", "suppression-code", "emits-clause", "erased-clause",
+    "emit-item", "emit-target", "emit-before", "emit-after", "recipe", "recipe-atom", "method-receiver", "method-selector", "parse-selector", "parse-argument", "method-name", "arguments", "argument", "integer", "intersection", "concatenation", "any-of", "all-of", "condition", "comparator", "tree-comparator",
     "pattern-primary", "pattern-node", "pattern-bare", "pattern-children", "child-choice", "child-alternative", "child-set", "child-intersection", "child-sequence", "child-item", "child-path", "child-primary",
     "pattern-literal", "pattern-union", "pattern-intersection", "pattern-atom", "pattern-brackets", "pattern-repeat", "pattern-path",
   ]);
@@ -22294,7 +24043,7 @@
         if ("directive" in item && item.directive.name === "features" && !selected) continue;
         if (last !== documentPath) {
           if (out.length && out[out.length - 1] !== "") out.push("");
-          out.push(`(* ${commentLabel(documentPath)} *)`);
+          out.push(`-- ${commentLabel(documentPath)}`);
           last = documentPath;
         }
         const pieces = [];
@@ -22316,13 +24065,12 @@
   }
 
   /**
-   * A document's path as a jbogenbau string, with `*)` written `*\u{29}` so
-   * that it cannot end the comment that holds it.
+   * A document's path in one line comment. Line breaks stay escaped.
    * @param {string} path
    * @returns {string}
    */
   function commentLabel(path) {
-    return `"${path.replace(/[\\"]/g, "\\$&").replace(/\*\)/g, "*\\u{29}")}"`;
+    return JSON.stringify(path);
   }
 
   /**
@@ -22338,6 +24086,7 @@
   }
 
   // ---- pipeline.js
+
 
 
 
@@ -22724,22 +24473,27 @@
    * @returns {Feature[]}
    */
   function pipelineFeatures(stages, declared) {
-    /** @type {Map<string, "gate" | "warning">} */
+    /** @type {Map<string, "gate" | "warning" | "error">} */
     const kinds = new Map();
     for (const stage of stages) {
-      // The guards of the stitched rules, and the gates of every classifier's
-      // entries (engine §13).
-      const guards = [...stage.grammar.rules.values()].flatMap((rule) => rule.alternatives.flatMap((alternative) =>
-        alternative.guards.map((guard) => ({ guard, where: { ...alternative.at, stage: stage.name } }))));
-      for (const { path: document, classifier } of stage.grammar.classifierItems) for (const entry of classifier.entries) for (const guard of entry.guards) {
-        guards.push({ guard, where: { document, line: entry.at[0], column: entry.at[1], stage: stage.name } });
+      /** @type {{name:string,kind:"gate"|"warning"|"error",where:import("./types.js").ErrorLocation}[]} */
+      const roles=[];
+      for (const rule of stage.grammar.rules.values()) for (const alternative of rule.alternatives) {
+        const where={...alternative.at,stage:stage.name};
+        for (const guard of alternative.guards) roles.push({name:guard.feature,kind:guard.kind,where});
+        if (alternative.clauses.error) roles.push({name:rule.name,kind:"error",where});
+        if (alternative.clauses.warning) roles.push({name:rule.name,kind:"warning",where});
       }
-      for (const { guard, where } of guards) {
-        const known = kinds.get(guard.feature);
-        if (known !== undefined && known !== guard.kind) {
-          throw new GencmuError("grammar", `${where.document}:${where.line}:${where.column}: the feature ${guard.feature} is used both as a gate and as a warning`, where);
+      for (const {path:document,classifier} of stage.grammar.classifierItems) for (const entry of classifier.entries) for (const guard of entry.guards) {
+        roles.push({name:guard.feature,kind:guard.kind,where:{document,line:entry.at[0],column:entry.at[1],stage:stage.name}});
+      }
+      for (const {name,kind,where} of roles) {
+        const known=kinds.get(name);
+        if (known!==undefined && known!==kind) {
+          const category=known==="error" || kind==="error" ? "name" : "feature";
+          throw new GencmuError("grammar",`the ${category} ${name} is used both as ${known} and ${kind}`,where);
         }
-        kinds.set(guard.feature, guard.kind);
+        kinds.set(name,kind);
       }
     }
     const local = stages.flatMap(stage => stage.grammar.featureItems.flatMap(({directive}) => directive.args));
@@ -22748,12 +24502,16 @@
       for (const {path:document,directive} of stage.grammar.featureItems) for (const name of directive.args) {
         if (tested.has(name)) throw new GencmuError("grammar", `${document}:${directive.at[0]}: stage ${tested.get(name)} tests local feature ${name}`, {document,line:directive.at[0],column:directive.at[1],stage:stage.name});
       }
-      for (const rule of stage.grammar.rules.values()) for (const alternative of rule.alternatives) for (const guard of alternative.guards) { if (!tested.has(guard.feature)) tested.set(guard.feature,stage.name); }
+      for (const rule of stage.grammar.rules.values()) for (const alternative of rule.alternatives) {
+        for (const guard of alternative.guards) if (!tested.has(guard.feature)) tested.set(guard.feature,stage.name);
+        if (alternative.clauses.warning && !tested.has(rule.name)) tested.set(rule.name,stage.name);
+      }
       for (const name of stage.grammar.classifierGates) { if (!tested.has(name)) tested.set(name,stage.name); }
     }
-    const names = [...new Set([...kinds.keys(), ...declared, ...local])].sort(compareCodePoints);
+    for (const name of [...declared,...local]) if (kinds.get(name)==="error") throw new GencmuError("grammar",`%features cannot name error code ${name}`);
+    const names = [...new Set([...kinds.keys()].filter(name=>kinds.get(name)!=="error").concat(declared,local))].sort(compareCodePoints);
     const defaults = new Set([...declared,...stages.flatMap(stage => stage.grammar.featureItems.filter(({directive}) => !directive.conditions).flatMap(({directive}) => directive.args))]);
-    return names.map((name) => ({ name, kind: kinds.get(name) || "gate", default: defaults.has(name) }));
+    return names.map((name) => ({ name, kind: /** @type {"gate"|"warning"} */ (kinds.get(name) || "gate"), default: defaults.has(name) }));
   }
 
   /**
@@ -22805,9 +24563,13 @@
       // mistake, and an empty one is dropped (docs/api.md). The parse copies
       // each token, its tags and its positions, so the caller's objects stay
       // as they are, and the result shares none of them.
-      if (options.tokens) {
+      const suppliedTokens=options.tokens;
+      if (suppliedTokens !== undefined) {
+        if(!Array.isArray(suppliedTokens))throw new GencmuError("usage","tokens must be an array");
+        /** @type {Token[]} */ const copiedTokens=[];
         const length = [...text].length;
-        options.tokens.forEach((token, index) => {
+        for (let index=0;index<suppliedTokens.length;index++) {
+          const token=suppliedTokens[index];
           if (!token || typeof token !== "object") throw new GencmuError("usage",`token ${index}: invalid input token`);
           for (const field of ["span","source"]) {
             const range = /** @type {any} */ (token)[field];
@@ -22818,9 +24580,15 @@
             if (value === undefined && field !== "text") continue;
             if (typeof value !== "string" || loneSurrogate(value) !== null) throw new GencmuError("usage", `token ${index}: ${field} must contain scalar values`);
           }
-          if (!token.tags || typeof token.tags[Symbol.iterator] !== "function" || ![...token.tags].every(tag => isTag(tag, this.loader.unicode))) throw new GencmuError("usage", `token ${index}: invalid tags`);
+          const suppliedTags=token.tags;
+          if (!suppliedTags || typeof suppliedTags[Symbol.iterator] !== "function") throw new GencmuError("usage", `token ${index}: invalid tags`);
+          const tags=[...suppliedTags];
+          if(!tags.every(tag=>isTag(tag,this.loader.unicode)))throw new GencmuError("usage", `token ${index}: invalid tags`);
           if ([token.before,token.after].some(list => list !== undefined && (!Array.isArray(list) || list.length > 0))) {
             throw new GencmuError("usage", `token ${index} has attachments, which a caller cannot supply`);
+          }
+          if ([token.errors,token.warnings].some(list => list !== undefined && (!Array.isArray(list) || list.length > 0))) {
+            throw new GencmuError("usage", `token ${index} has diagnostics, which a caller cannot supply`);
           }
           // A source counts code points of the text, and must lie within it.
           // Sources can overlap or lie out of order (engine §11). A span
@@ -22833,9 +24601,9 @@
           if (!(0 <= token.span[0] && token.span[0] <= token.span[1])) {
             throw new GencmuError("usage", `token ${index}: the span ${JSON.stringify(token.span)} is not a range of tokens: it starts below 0 or ends before it starts`);
           }
-        });
-        options = { ...options, tokens: options.tokens.map((token) =>
-          new Token(new Set([...token.tags].map(tag => tag.startsWith("_") ? /** @type {string} */ (this.loader.unicode.canonicalTag(tag)) : tag)), [token.span[0], token.span[1]], [token.source[0], token.source[1]], token.text, token.value, undefined, token.image)) };
+          copiedTokens.push(new Token(new Set(tags.map(tag => tag.startsWith("_") ? /** @type {string} */ (this.loader.unicode.canonicalTag(tag)) : tag)), [token.span[0], token.span[1]], [token.source[0], token.source[1]], token.text, token.value, undefined, token.image));
+        }
+        options = { ...options, tokens:copiedTokens };
       }
       // The features on are the pipeline's, with the caller's added and the
       // caller's turned off removed (engine §13).
@@ -22859,6 +24627,7 @@
       const stages = [];
       let tokens = options.tokens || characterTokens(text, this.loader.unicode);
       const last = lastStage(this.stages, options.until);
+      let pending=emptyDiagnostics(),collected=emptyDiagnostics();
       for (let index = stages.length; index <= last; index++) {
         const stage = this.stages[index];
         /** @type {ParseError|null} */
@@ -22878,15 +24647,32 @@
           if (!(error instanceof GencmuError)) throw error;
           featureError = runtimeGrammarError(error,stage.name);
         }
-        const report = featureError ? {name:stage.name,verdict:null,witness:null,tree:null,output:null,error:featureError} : stage.run(tokens, sourceText, this.loader.unicode, {
+        const report = featureError ? {name:stage.name,verdict:null,witness:null,tree:null,output:null,error:featureError,errors:[],warnings:[]} : stage.run(tokens, sourceText, this.loader.unicode, {
           features: options.features,
-          elisionOnly: options.elisionOnly,
+          elisionOnly: options.elisionOnly,stageOrder:index,pendingErrors:pending.errors.length!==0,
         });
         report.input = tokens;
         stages.push(report);
-        if (report.error) break;
-        tokens = /** @type {Token[]} */ (report.output);
-        if (index === 0) options.inspectLexical?.(tokens);
+        const data=stageDiagnostics.get(report)??{collected:emptyDiagnostics(),evaluated:emptyDiagnostics()};
+        if(index===0&&report.output!==null)options.inspectLexical?.(report.output);
+        if(report.error){
+          const error=report.error;
+          const current=error.kind==='ambiguous'?data.collected:error.kind==='rejected'
+            ?inputDiagnostics(tokens,Math.min(tokens.length,(error.token??tokens.length)+1))
+            :joinDiagnostics([data.evaluated,inputDiagnostics(tokens)]);
+          collected=joinDiagnostics([pending,current]);
+          if(error.kind!=='ambiguous'||error.reason==='tie')if(collected.errors.length)error.errors=collected.errors;
+          if(['rejected','grammar','feature-conflict'].includes(error.kind)&&collected.warnings.length)error.warnings=collected.warnings;
+          stageDiagnostics.delete(report);break;
+        }
+        if(index===last){
+          collected=joinDiagnostics([pending,data.collected]);
+          if(collected.errors.length)report.error={kind:'reported',stage:stage.name,errors:collected.errors,message:'the chosen derivation reports errors'};
+          stageDiagnostics.delete(report);break;
+        }
+        pending=joinDiagnostics([pending,{errors:report.errors,warnings:report.warnings}]);
+        stageDiagnostics.delete(report);
+        tokens=/** @type {Token[]} */(report.output);
       }
       ownTags(stages);
       const final = stages[stages.length - 1];
@@ -22894,9 +24680,9 @@
       const result = {
         ok: !error && stages.length === last + 1,
         stages,
-        tree: error ? null : final.tree,
+        tree: error && error.error?.kind!=="reported" ? null : final.tree,
         error: error ? locate(/** @type {ParseError} */ (error.error), text) : null,
-        warnings: stages.flatMap((stage) => stage.warnings || []),
+        warnings: collected.warnings,
         text,
         features: [...options.features].sort(compareCodePoints),
       };
@@ -23270,8 +25056,10 @@
    * Why a text did not parse: rejected by a stage, ambiguous with a tie or
    * under elision-only, or a defect of the grammar found while running it.
    * @typedef {object} ParseError
-   * @property {"rejected" | "ambiguous" | "grammar" | "feature-conflict"} kind
+   * @property {"rejected" | "reported" | "ambiguous" | "grammar" | "feature-conflict"} kind
    * @property {string} [feature]
+   * @property {ParseWarning[]} [errors] the envelope's collected errors
+   * @property {ParseWarning[]} [warnings] warnings of a rejected, feature, or grammar failure
    * @property {string} [stage]
    * @property {"tie" | "elision-only"} [reason] why an ambiguous error is
    *   one: a tie (engine §6) or the check of elision-only (engine §7)
@@ -23385,19 +25173,30 @@
    *   that rejected its input or tied
    * @property {ParseError | null} error
    * @property {Token[]} [input] the tokens the stage read
-   * @property {ParseWarning[]} [warnings] the warnings of the chosen tree
-   *   (engine §12), absent for a stage that rejected its input or tied
+   * @property {ParseWarning[]} errors diagnostics without a token after successful empty emission
+   * @property {ParseWarning[]} warnings diagnostics without a token after successful empty emission
    */
 
   /**
-   * A warning (engine §12): a node of a stage's chosen tree that a warned
-   * alternative built while its feature was on.
+   * An enabled, unsuppressed warning from the chosen derivation (engine §12).
    * @typedef {object} ParseWarning
    * @property {string} stage
-   * @property {string} feature
+   * @property {string} code
    * @property {string} rule
+   * @property {string} message
    * @property {Span} span the node's span over the stage's input tokens
    * @property {Span} source the node's range of the original text
+   * @property {CompetitorRejection} [rejection] default rejection evidence for an error's competing options
+   */
+
+  /**
+   * Default rejection evidence over a ranked error's competitor slice.
+   * @typedef {object} CompetitorRejection
+   * @property {number} token
+   * @property {Span} source
+   * @property {number} line
+   * @property {number} column
+   * @property {Expectation[]} expected
    */
 
   /**
@@ -23416,7 +25215,7 @@
    * @property {ResultNode | null} tree the last stage's tree
    * @property {ParseError | null} error
    * @property {string} text
-   * @property {ParseWarning[]} warnings every stage's warnings, in stage order
+   * @property {ParseWarning[]} warnings the reporting collection
    * @property {string[]} features the features enabled for this parse,
    *   including activation before failure and only stages reached.
    *   Unknown caller-enabled names are included. Not part of canonical JSON.
@@ -23433,6 +25232,8 @@
    * @property {string} [image]
    * @property {unknown[]} [before]
    * @property {unknown[]} [after]
+   * @property {unknown[]} [errors]
+   * @property {unknown[]} [warnings]
    */
 
   /**
@@ -23532,6 +25333,9 @@
    * @property {true} [erased]
    * @property {Recipe} [value]
    * @property {Recipe} [image]
+   * @property {Recipe} [error]
+   * @property {Recipe} [warning]
+   * @property {string[]} [suppressWarnings]
    * @property {Position} at
    */
 
@@ -23551,6 +25355,9 @@
    * @property {never} [erased]
    * @property {never} [value]
    * @property {never} [image]
+   * @property {never} [error]
+   * @property {never} [warning]
+   * @property {never} [suppressWarnings]
    */
 
   /**
@@ -23565,9 +25372,8 @@
   /**
    * @typedef {object} Guard
    * @property {string} feature
-   * @property {"gate" | "warning"} kind a gate keeps its alternative only while
-   *   its feature is on, or off if negated; a warning always keeps it
-   * @property {boolean} negated always false for a warning
+   * @property {"gate"} kind
+   * @property {boolean} negated
    */
 
   /** @typedef {{param:string, at:Position}} Parameter */
@@ -23576,7 +25382,7 @@
   /**
    * One argument before template expansion.
    * @typedef {Term | {rule:string} | TemplateCall | Parameter | {range:[Term,Term]}
-   *   | {wildcard:true} | TestedSymbol | {body:Expr} | {targets:QueryTarget[]}
+   *   | {wildcard:true} | Splice | TestedSymbol | {body:Expr} | {targets:QueryTarget[]}
    *   | {requirements:Requirement[]}} TemplateArgument
    */
 
@@ -23596,11 +25402,13 @@
   /** @typedef {PatternItem[]} PatternChildren */
   /** @typedef {{child:Pattern} | {siblings:true} | {optional:PatternChildren} | {repeat:PatternChildren,separator?:PatternChildren} | {choice:PatternChildren[]}} PatternItem */
 
+  /** @typedef {{splice:{ref:string}|TemplateCall}} Splice */
+
   /**
    * A rule body expression.
    * @typedef {{choice: Expr[]} | {ranked: Expr[]} | {and: Expr[]} | {seq: Expr[]}
    *   | {repeat: Expr, separator?: Expr, chain?: "left" | "right"}
-   *   | {optional: Expr, elidable?: true, default?: Term} | {capture: string, expr: Expr} | {ref: string}
+   *   | {optional: Expr, elidable?: true, default?: Term} | {capture: string, expr: Expr} | Splice | {ref: string}
    *   | {range: [Term, Term]} | {literal: Term} | {wildcard: true}
    *   | {test: "="|"≠", value: Term, expr: TestedSymbol} | {test: "tags", requirements: Requirement[], expr: TestedSymbol} | {empty: true} | TemplateCall | Parameter} Expr
    */
@@ -23612,7 +25420,7 @@
 
   /**
    * What a test follows: a reference, a terminal, a range or a property.
-   * @typedef {TemplateCall | Parameter | {ref: string} | {range: [Term, Term]} | {literal: Term} | {wildcard: true} | {test: "tags", requirements: Requirement[], expr: TestedSymbol}} TestedSymbol
+   * @typedef {TemplateCall | Parameter | Splice | {ref: string} | {range: [Term, Term]} | {literal: Term} | {wildcard: true} | {test: "tags", requirements: Requirement[], expr: TestedSymbol}} TestedSymbol
    */
 
   /**
@@ -23663,7 +25471,7 @@
   /**
    * A function's argument: a term, the name of a rule, or the name of a
    * classifier.
-   * @typedef {Term | {rule: string} | {terminal:string} | {classifier: string} | {integer: string}} Argument
+   * @typedef {Term | {body: Expr | {seq: (Expr | {remainder:true})[]}} | {rule: string} | {terminal:string} | {classifier: string} | {integer: string}} Argument
    */
 
   // ---- The engine ---------------------------------------------------------
@@ -23673,6 +25481,7 @@
    * @property {import("./ranked.js").RankedGroup} [slot]
    * @property {string} name
    * @property {boolean} terminal
+   * @property {"empty"|"written"} [optionalRoute]
    * @property {SymbolTest} [test] the test on the symbol's own span; not part
    *   of the terminal's identity (engine §4)
    * @property {string} [literal]
@@ -23708,6 +25517,7 @@
   /**
    * @typedef {object} Capture
    * @property {string} name
+   * @property {boolean} [terminal] a captured terminator forwarded through its helper
    * @property {number} index the position of the captured symbol
    */
 
@@ -23750,6 +25560,12 @@
    * @property {GrammarSymbol[]} rhs
    * @property {import("./logical.js").LogicalSymbol[]} [logical]
    * @property {boolean} helper
+   * @property {boolean} [treeRoot]
+   * @property {string} [spliceOf]
+   * @property {number} [sourceId]
+   * @property {Recipe} [error]
+   * @property {Recipe} [warning]
+   * @property {string[]} [suppressWarnings]
    * @property {string} owner the rule the production was lowered from
    * @property {string | null} elided the terminator an empty helper stands for
    * @property {SymbolTest | null} elidedTest the test of that terminator, an
@@ -23761,6 +25577,7 @@
    * @property {Map<string, number>} captureSlot each capture's name, with its
    *   index in `captures`
    * @property {ReadyCondition[]} conditions
+   * @property {ReadyCondition[]} [guardConditions]
    * @property {ReadyCondition[][]} conditionsAt the conditions ready after
    *   each position, at `readyAt + 1`, in written order
    * @property {Term | null} tags
@@ -23768,8 +25585,6 @@
    * @property {boolean} erased
    * @property {Recipe} [value]
    * @property {Recipe} [image]
-   * @property {string[]} warnings the features of the alternative's warnings,
-   *   in the order they are written; none for a helper
    */
 
   /**
@@ -23795,6 +25610,8 @@
   /**
    * A grammar lowered for one set of features.
    * @typedef {object} LoweredGrammar
+   * @property {Map<string,string>} queryTargets
+   * @property {Map<string,string>} queryNames
    * @property {boolean} treeComparisons
    * @property {WeakMap<object,WeakMap<object,{rule:string,condition:number,order:number}>>} boundarySites
    * @property {Production[]} productions
@@ -23843,7 +25660,7 @@
    * whole capture.
    * @typedef {object} SpanValue
    * @property {number} [treeIdentity]
-   * @property {string} [patternName]
+   * @property {string|null} [patternName]
    * @property {number} [patternPrefix]
    * @property {import("./close-observations.js").CloseObservation|null} [observation]
    * @property {AlignedSpan} [aligned]

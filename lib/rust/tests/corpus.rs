@@ -137,6 +137,50 @@ fn outcome(pipeline: &gencmu::Pipeline, case: &Value) -> Result<BTreeMap<&'stati
             got.insert("at", Value::Number(source.start as f64));
         }
     }
+    if let Some(error) = result.error.as_ref().filter(|e| e.kind == gencmu::ParseErrorKind::Reported) {
+        let verdict = match result.stages.last().and_then(|s| s.verdict) {
+            Some(gencmu::Verdict::Unique) => string("unique"),
+            Some(gencmu::Verdict::Resolved) => string("resolved"),
+            _ => Value::Null,
+        };
+        got.insert("verdict", verdict);
+        got.insert("error", Value::Object(vec![("kind".into(), string("reported"))]));
+        got.insert("at", Value::Number(error.errors[0].source.start as f64));
+    }
+    if let Some(error) = result.error.as_ref().filter(|error| !error.errors.is_empty()) {
+        got.insert(
+            "errors",
+            Value::Array(
+                error
+                    .errors
+                    .iter()
+                    .map(|report| {
+                        Value::Object(vec![
+                            ("stage".into(), string(&report.stage)),
+                            ("code".into(), string(&report.code)),
+                            ("at".into(), Value::Number(report.source.start as f64)),
+                        ])
+                    })
+                    .collect(),
+            ),
+        );
+    }
+    got.insert(
+        "warnings",
+        Value::Array(
+            result
+                .warnings
+                .iter()
+                .map(|report| {
+                    Value::Object(vec![
+                        ("stage".into(), string(&report.stage)),
+                        ("code".into(), string(&report.code)),
+                        ("at".into(), Value::Number(report.source.start as f64)),
+                    ])
+                })
+                .collect(),
+        ),
+    );
     // An ambiguous error pins its kind and reason, and no other error has
     // the field (tests/README.md).
     if let Some(error) = result.error.as_ref().filter(|error| error.kind == gencmu::ParseErrorKind::Ambiguous) {
@@ -170,9 +214,34 @@ fn outcome(pipeline: &gencmu::Pipeline, case: &Value) -> Result<BTreeMap<&'stati
 }
 
 fn compare(case: &Value, got: &BTreeMap<&'static str, Value>) -> Option<String> {
-    for key in ["expect", "verdict", "stage", "at", "error", "ties", "words", "brackets"] {
+    for key in ["expect", "verdict", "stage", "at", "error", "errors", "ties", "words", "brackets", "warnings"] {
         let expected = case.get(key);
-        let found = got.get(key);
+        if key == "warnings" && expected.is_none() {
+            continue;
+        }
+        let projected;
+        let mut found = got.get(key);
+        if key == "errors" {
+            if let (Some(Value::Array(wanted)), Some(Value::Array(actual))) = (expected, found) {
+                projected = Value::Array(
+                    actual
+                        .iter()
+                        .enumerate()
+                        .map(|(index, report)| {
+                            if wanted.get(index).is_some_and(|pin| pin.get("stage").is_none()) {
+                                if let Value::Object(fields) = report {
+                                    return Value::Object(
+                                        fields.iter().filter(|(key, _)| key != "stage").cloned().collect(),
+                                    );
+                                }
+                            }
+                            report.clone()
+                        })
+                        .collect(),
+                );
+                found = Some(&projected);
+            }
+        }
         if expected.is_none() && found.is_none() {
             continue;
         }
@@ -324,4 +393,40 @@ fn corpus_comparison_ignores_object_member_order_and_preserves_array_order() {
         parse_json(r#"{"nested":{"a":1,"b":2},"other":true}"#).unwrap(),
         parse_json(r#"{"other":true,"nested":{"b":2,"a":1}}"#).unwrap()
     );
+}
+
+#[test]
+fn diagnostic_projection_pins_codes_and_optional_warnings() {
+    let case =
+        parse_json(r#"{"id":"projection","pipeline":"main","grammar":"%rule text \"a\" %error \"bad\"","text":"a"}"#)
+            .unwrap();
+    let (documents, path) = common::case_documents(&case);
+    let p = gencmu::load_pipeline_sources(documents, &path).unwrap();
+    let got = outcome(&p, &case).unwrap();
+    assert_eq!(got.get("at"), Some(&Value::Number(0.0)));
+    assert_eq!(got.get("verdict"), Some(&string("unique")));
+    assert_eq!(got.get("errors"), Some(&parse_json(r#"[{"stage":"main","code":"text","at":0}]"#).unwrap()));
+    let mut expected =
+        Value::Object(got.iter().filter(|(k, _)| **k != "warnings").map(|(k, v)| (k.to_string(), v.clone())).collect());
+    assert!(compare(&expected, &got).is_none());
+    if let Value::Object(fields) = &mut expected {
+        fields.push(("warnings".into(), Value::Array(vec![Value::Null])));
+    }
+    assert!(compare(&expected, &got).is_some());
+}
+
+#[test]
+fn diagnostic_projection_keeps_raising_stages_on_rejections() {
+    // Tests, Corpus cases: every error ending can pin an earlier raising stage.
+    let source = "```jbogenbau\n%stage before\n%ambiguity-resolution greedy\n%rule text bad\n%rule bad \"a\"\n%error \"earlier\"\n%emits $ :: Word\n%stage last\n%ambiguity-resolution greedy\n%rule text B\n```\n";
+    let pipeline = gencmu::load_pipeline_sources([("p.md", source)], "p.md").unwrap();
+    let case = parse_json(r#"{"text":"a"}"#).unwrap();
+    let got = outcome(&pipeline, &case).unwrap();
+    assert_eq!(got.get("errors"), Some(&parse_json(r#"[{"stage":"before","code":"bad","at":0}]"#).unwrap()));
+    let base = Value::Object(got.iter().map(|(key, value)| (key.to_string(), value.clone())).collect());
+    assert!(compare(&base, &got).is_none());
+    let unqualified = parse_json(&base.to_text().replace("\"stage\":\"before\",", "")).unwrap();
+    assert!(compare(&unqualified, &got).is_none());
+    let wrong = parse_json(&base.to_text().replace("\"stage\":\"before\"", "\"stage\":\"last\"")).unwrap();
+    assert!(compare(&wrong, &got).is_some());
 }

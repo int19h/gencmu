@@ -11,7 +11,7 @@ pub(super) struct SuffixKey {
 
 #[derive(Default)]
 pub(super) struct SuffixState {
-    pub(super) answers: FxMap<usize, bool>,
+    pub(super) answers: FxMap<usize, (bool, bool)>,
     pub(super) retained: Option<Retained>,
     pub(super) transient: bool,
 }
@@ -28,12 +28,7 @@ pub(super) struct Retained {
 /// Ordinary nested targets own their context ends. Restored queries at any
 /// depth depend on the outer end, including through ordinary nested targets.
 fn reads_end(g: &Lowered, root: u32) -> bool {
-    enum Node<'a> {
-        Cond(&'a LCond),
-        Term(&'a LTerm),
-        Span(&'a Span),
-        Query(&'a Span, u32),
-    }
+    use crate::query_dependencies::Node;
     let plans = crate::restoration::plans_by_production(g);
     let mut pending = vec![(root, false)];
     let mut seen = FxSet::default();
@@ -41,74 +36,30 @@ fn reads_end(g: &Lowered, root: u32) -> bool {
         if !seen.insert((rule, nested)) {
             continue;
         }
+        let mut clauses = FxSet::default();
+        let mut dependent = false;
         for &id in &g.rules[rule as usize].prods {
-            let p = &g.prods[id as usize];
-            for s in &p.syms {
-                if let Sym::N(r) = s {
-                    pending.push((*r, nested));
+            let production = &g.prods[id as usize];
+            for symbol in &production.syms {
+                if let Sym::N(rule) = symbol {
+                    pending.push((*rule, nested));
                 }
             }
-            let mut nodes: Vec<_> = p.conds.iter().map(|(c, _)| Node::Cond(c)).collect();
-            nodes.extend(p.tags.iter().map(Node::Term));
-            for plan in &plans[id as usize] {
-                nodes.extend(plan.conditions.iter().flatten().map(|(c, _)| Node::Cond(c)));
-                nodes.extend(plan.whole_tags.iter().map(Node::Term));
-            }
-            while let Some(node) = nodes.pop() {
-                match node {
-                    Node::Query(s, r) => {
-                        let mut receiver = s;
-                        while let Span::From(inner) = receiver {
-                            receiver = inner;
-                        }
-                        if matches!(receiver, Span::WithoutElision(..)) {
-                            return true;
-                        }
-                        nodes.push(Node::Span(s));
-                        pending.push((r, true));
+            crate::query_dependencies::walk(production, &plans[id as usize], &mut clauses, |node| match node {
+                Node::Query(span, rule, _) => {
+                    let mut receiver = span;
+                    while let Span::From(inner) = receiver {
+                        receiver = inner;
                     }
-                    Node::Span(s) => match s {
-                        Span::From(_) | Span::After(_) if !nested => return true,
-                        Span::WithoutElision(s, _)
-                        | Span::Head(s)
-                        | Span::Tail(s)
-                        | Span::Last(s)
-                        | Span::From(s)
-                        | Span::After(s)
-                        | Span::Before(s) => nodes.push(Node::Span(s)),
-                        _ => {}
-                    },
-                    Node::Cond(c) => match c {
-                        LCond::SameTree(..) => (),
-                        LCond::Final(_) | LCond::Boundary(true, ..) if !nested => return true,
-                        LCond::Matches(s, r) | LCond::Begins(s, r) | LCond::Ends(s, r) => {
-                            nodes.push(Node::Query(s, *r))
-                        }
-                        LCond::Initial(s) | LCond::Final(s) | LCond::Boundary(_, s, ..) | LCond::Tree(s, ..) => {
-                            nodes.push(Node::Span(s))
-                        }
-                        LCond::Cmp(_, a, b) => nodes.extend([Node::Term(a), Node::Term(b)]),
-                        LCond::Not(c) => nodes.push(Node::Cond(c)),
-                        LCond::Any(cs) | LCond::All(cs) => nodes.extend(cs.iter().map(Node::Cond)),
-                        LCond::If(a, b) => nodes.extend([Node::Cond(a), Node::Cond(b)]),
-                    },
-                    Node::Term(t) => match t {
-                        LTerm::TagsRule(s, r) => nodes.push(Node::Query(s, *r)),
-                        LTerm::Value(s)
-                        | LTerm::Image(s)
-                        | LTerm::Text(s)
-                        | LTerm::DecomposedText(s)
-                        | LTerm::Tags(s)
-                        | LTerm::Classes(s) => nodes.push(Node::Span(s)),
-                        LTerm::Union(ts) | LTerm::Inter(ts) | LTerm::Concat(ts) => {
-                            nodes.extend(ts.iter().map(Node::Term))
-                        }
-                        LTerm::Diff(a, b) | LTerm::Split(a, b) => nodes.extend([Node::Term(a), Node::Term(b)]),
-                        LTerm::Ngrams(t, _) | LTerm::Classify(t, _) => nodes.push(Node::Term(t)),
-                        LTerm::If(c, t) => nodes.extend([Node::Cond(c), Node::Term(t)]),
-                        _ => {}
-                    },
+                    dependent |= matches!(receiver, Span::WithoutElision(..));
+                    pending.push((rule, true));
                 }
+                Node::Span(Span::From(_) | Span::After(_)) if !nested => dependent = true,
+                Node::Condition(LCond::Final(_) | LCond::Boundary(true, ..)) if !nested => dependent = true,
+                _ => {}
+            });
+            if dependent {
+                return true;
             }
         }
     }
@@ -178,7 +129,12 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             })
             .map(|&k| (run.e as u32, k))
             .collect();
-        let holds = self.proofs(&run.chart).eligible(&witnesses).into_iter().any(|yes| yes);
+        let flags = self.proofs(&run.chart).flags(
+            &witnesses,
+            run.tokens,
+            self.shared.carried_errors(run.base, run.tokens.len()),
+        );
+        let holds = (flags.iter().any(|yes| *yes != 0), flags.iter().any(|yes| yes & 1 != 0));
         self.shared.suffixes[id].answers.insert(end, holds);
     }
 }

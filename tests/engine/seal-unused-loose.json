@@ -1,0 +1,37 @@
+{
+  "description": "Engine §4.1 and §6: an unused root pattern does not split another erased rule and its canonical empty output.",
+  "grammar": "%ambiguity-resolution fewest #·zz\n%rule text $r:other C\n%conditions $r ≅ #·other\n%rule probe $w:wrap\n%conditions $w ≅ #r2\n%rule wrap r2\n%rule r2 X\n%rule other (r4 ≻ B) :: ∅ | [r4]\n%erased\n%rule r4 B | ε\n%rule zz B B B",
+  "tokens": [
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "other",
+            "children": []
+          },
+          {
+            "kind": "token",
+            "terminal": "C"
+          }
+        ]
+      }
+    }
+  }
+}

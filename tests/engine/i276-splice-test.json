@@ -1,0 +1,23 @@
+{
+  "description": "A splice retains the tests on the called constituent.",
+  "grammar": "%rule text *r<Mark>=\"a\"\n%rule r A :: Mark",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

@@ -73,6 +73,8 @@ type exprFrame struct {
 	// What its value is made of: a list's kind, parts and items; or the
 	// construct it passes on; or the capture, the test or the optional
 	// that wraps what it asked for.
+	spliced             bool
+	capturedNode        *Node
 	kind                string
 	parts               []*Node
 	items               []*domExpr
@@ -97,6 +99,8 @@ func (f *exprFrame) resume(b *domBuilder, in any) readStep {
 		return f.start(b)
 	}
 	switch {
+	case f.spliced:
+		return give(&domExpr{Kind: exSplice, Inner: in.(*domExpr)})
 	case f.call:
 		call := in.(*domSourceCall)
 		return give(&domExpr{Kind: exCall, Call: call, At: call.At})
@@ -114,6 +118,7 @@ func (f *exprFrame) resume(b *domBuilder, in any) readStep {
 		return give(e)
 	case f.elide != nil:
 		if f.marked {
+			delete(b.allowedMarked, f.capturedNode)
 			b.marked--
 			f.elide.Default = b.headDefault
 			f.defaultNode = b.defaultNode
@@ -127,6 +132,9 @@ func (f *exprFrame) resume(b *domBuilder, in any) readStep {
 			head := f.elide.Inner
 			if head.Kind == exSeq {
 				head = head.Items[0]
+			}
+			if head.Kind == exCapture {
+				head = head.Inner
 			}
 			for head.Kind == exTest {
 				if head.Op != "tags" && head.Value.Kind == tmString && ((value.Str == head.Value.Str) != (head.Op == "=")) {
@@ -181,6 +189,14 @@ func (f *exprFrame) next(b *domBuilder) readStep {
 func (f *exprFrame) start(b *domBuilder) readStep {
 	n := f.n
 	switch n.Rule {
+	case "splice":
+		target := b.knownOf(n, []string{"reference", "call"})
+		marker := b.token(n)
+		if b.toks[marker.Token].Source[1] != b.toks[target.Span[0]].Source[0] {
+			b.fail(n, "a splice marker stands directly before its target")
+		}
+		f.spliced = true
+		return ask(&exprFrame{n: target})
 	case "parameter":
 		parameter := b.parameter(n)
 		return give(&domExpr{Kind: exParam, Name: parameter.Str, At: parameter.At})
@@ -254,7 +270,7 @@ func (f *exprFrame) start(b *domBuilder) readStep {
 				b.fail(n, "an item capture cannot stand inside a ranked group: name the ranked choice as a rule and capture that rule")
 			}
 		}
-		if b.marked > 0 {
+		if b.marked > 0 && !b.allowedMarked[n] {
 			b.fail(n, "a capture cannot stand inside an elidable optional, which elision restores as one unit")
 		}
 		captureToken := b.token(n)
@@ -297,6 +313,9 @@ func (f *exprFrame) start(b *domBuilder) readStep {
 // parts are looked up in the order of §9: its choice, then its markers.
 func (f *exprFrame) startOptional(b *domBuilder) readStep {
 	n := f.n
+	if capture := b.one(n, "capture"); capture != nil {
+		return f.startCapturedOptional(b, capture)
+	}
 	choice := b.only(n, "choice")
 	var markers []*Node
 	for _, p := range b.parts(n) {
@@ -777,6 +796,9 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 		return give(&domCond{Kind: cdNot, Inner: in.(*domCond)})
 	}
 	t := in.(*domTerm)
+	if t.Str == "parse" || t.Str == "error-free" {
+		return give(&domCond{Kind: cdForest, Left: t})
+	}
 	if t.Str == "ends-input" {
 		return give(&domCond{Kind: cdEnd, Span: t.Items[0]})
 	}
@@ -805,4 +827,40 @@ func (b *domBuilder) patternOperand(right *Node) {
 		text := b.tokenValue(b.token(name))
 		b.fail(name, "tree comparison requires a pattern; write #%s, not %s", text, text)
 	}
+}
+
+func (f *exprFrame) startCapturedOptional(b *domBuilder, capture *Node) readStep {
+	var markers []*Node
+	for _, node := range []*Node{f.n, capture} {
+		for _, child := range b.parts(node) {
+			if child.Kind == KindToken && b.tokenValue(child) == "+" {
+				markers = append(markers, child)
+			}
+		}
+	}
+	if len(markers) > 1 {
+		b.fail(markers[1], "an optional has one marker + at most")
+	}
+	if len(markers) == 0 || b.one(f.n, "choice") != nil {
+		b.fail(f.n, "a captured elidable optional holds only its terminator")
+	}
+	head := b.knownOf(b.only(capture, "primary"), primaryRules)
+	base := head
+	if head.Rule == "tested" {
+		base = b.testBase(head)
+	}
+	if base == nil || base.Rule != "parameter" && (base.Rule != "tag" || !isCapital(b.tokenValue(b.token(base)))) {
+		b.fail(f.n, "a captured elidable optional holds only its terminator")
+	}
+	f.previousHead, f.previousDefault, f.previousDefaultNode = b.defaultHead, b.headDefault, b.defaultNode
+	b.defaultHead, b.headDefault, b.defaultNode = head, nil, nil
+	if b.allowedMarked == nil {
+		b.allowedMarked = map[*Node]bool{}
+	}
+	b.allowedMarked[capture] = true
+	b.marked++
+	f.marked = true
+	f.capturedNode = capture
+	f.elide = &domExpr{Kind: exOptional, Elidable: true}
+	return ask(&exprFrame{n: capture})
 }

@@ -1,6 +1,6 @@
 {
   "description": "Warnings come in the order a walk of the chosen tree meets their nodes, parent before children and children left to right, and for one node in the order its guards are written (engine §12).",
-  "grammar": "%rule text w! v! (a b)\n%rule a v! A\n%rule b w! B",
+  "grammar": "%rule text *w\n%rule w *v | B %warning \"warning w\"\n%rule v a b | A %warning \"warning v\"\n%rule a *v\n%rule b *w",
   "tokens": [
     {
       "text": "a",
@@ -28,8 +28,8 @@
     "warnings": [
       {
         "stage": "main",
-        "feature": "w",
-        "rule": "text",
+        "code": "w",
+        "rule": "w",
         "span": [
           0,
           2
@@ -37,12 +37,13 @@
         "source": [
           0,
           3
-        ]
+        ],
+        "message": "warning w"
       },
       {
         "stage": "main",
-        "feature": "v",
-        "rule": "text",
+        "code": "v",
+        "rule": "v",
         "span": [
           0,
           2
@@ -50,12 +51,13 @@
         "source": [
           0,
           3
-        ]
+        ],
+        "message": "warning v"
       },
       {
         "stage": "main",
-        "feature": "v",
-        "rule": "a",
+        "code": "v",
+        "rule": "v",
         "span": [
           0,
           1
@@ -63,12 +65,13 @@
         "source": [
           0,
           1
-        ]
+        ],
+        "message": "warning v"
       },
       {
         "stage": "main",
-        "feature": "w",
-        "rule": "b",
+        "code": "w",
+        "rule": "w",
         "span": [
           1,
           2
@@ -76,7 +79,8 @@
         "source": [
           2,
           3
-        ]
+        ],
+        "message": "warning w"
       }
     ],
     "brackets": "(a b)"

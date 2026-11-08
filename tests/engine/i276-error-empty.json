@@ -1,0 +1,15 @@
+{
+  "description": "Engine §3.6: an empty error production fails while loading.",
+  "grammar": "%rule text *bad A\n%rule bad ε %error \"empty\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

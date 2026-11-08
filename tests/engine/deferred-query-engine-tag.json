@@ -1,0 +1,16 @@
+{
+  "description": "Engine §3.10: an engine-tag body uses an anonymous target that retains its terminal.",
+  "grammar": "%rule text _\n%conditions $.parse(_L).error-free",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

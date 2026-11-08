@@ -1,0 +1,37 @@
+{
+  "description": "A capture of a splice retains its span, tags, and input strings.",
+  "grammar": "%rule text $x:*pair %conditions $x ∧ $x.value = \"ab\", Mark ⊆ $x.tags, $x ≇ #other %emits $x\n%rule pair A B :: Mark\n%rule other B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "ab",
+              "tags": [
+                "Mark"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

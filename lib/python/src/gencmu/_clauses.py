@@ -107,7 +107,7 @@ def duplicate_captures(expr: Any) -> list[Dom]:
         for key in ("seq", "choice", "ranked", "and"):
             if isinstance(node.get(key), list):
                 return node[key]
-        if "optional" in node and node.get("elidable") is not True:
+        if "optional" in node and (node.get("elidable") is not True or "capture" in node["optional"]):
             return [node["optional"]]
         return []
 
@@ -270,7 +270,7 @@ def capture_sequences(expr: Any, braced: list[Any] | None = None) -> tuple[list[
                 result.extend(chosen)
             return distinct(result)
         if "optional" in node:
-            if node.get("elidable") is True:
+            if node.get("elidable") is True and "capture" not in node["optional"]:
                 return [_Sequence([], set())]
             return distinct([_Sequence([], set()), *(yield visit(node["optional"]))])
         if "repeat" in node and braced is not None and (not braced or braced[-1] is not expr):
@@ -403,7 +403,7 @@ def braces_sequences(expr: Any) -> list[list[Any]]:
                 result.extend(chosen)
             return result
         if "optional" in node:
-            if node.get("elidable") is True:
+            if node.get("elidable") is True and "capture" not in node["optional"]:
                 return [[]]
             return [[], *(yield visit(node["optional"]))]
         return [[]]
@@ -1086,7 +1086,7 @@ def _capture_witness(expr, required=(), forbidden=(), order=()):
                 for child in children:
                     all_parts = join(all_parts, (yield visit(child)))
             return all_parts
-        if 'optional' in node and not node.get('elidable'):
+        if 'optional' in node and (not node.get('elidable') or 'capture' in node['optional']):
             out = {0: (0, None, 0)}
             for state, w in (yield visit(node['optional'])).items():
                 pick(out, state, (w[0], w[1], (1, w[2])))
@@ -1115,7 +1115,7 @@ def _variable_captures(expr):
         if children is not None:
             variable = variable or len(children) > 1 and any(k in node for k in ('choice', 'ranked', 'and'))
             pending.extend((child, variable) for child in reversed(children))
-        elif 'optional' in node and not node.get('elidable'):
+        elif 'optional' in node and (not node.get('elidable') or 'capture' in node['optional']):
             pending.append((node['optional'], True))
         elif 'test' in node:
             pending.append((node['expr'], variable))
@@ -1192,7 +1192,7 @@ def validation_captures(rule, alternative):
     if initial is not None:
         witnesses.append(initial)
     items = rule.get('emit', {}).get('items', [])
-    clauses = [rule.get('tags'), rule.get('value'), rule.get('image'), *rule['conditions']]
+    clauses = [rule.get('tags'), rule.get('value'), rule.get('image'), rule.get('error'), rule.get('warning'), *rule['conditions']]
     for item in items:
         clauses.extend(item.get(channel) for channel in ('tags', 'value', 'image'))
     clauses.extend(a.get(k) for a in rule['alternatives'] for k in ('tags', 'value', 'image'))
@@ -1324,7 +1324,7 @@ def _definition_issues(rule: Dom):
     alternatives = rule["alternatives"]
     # A definition with no clause has nothing to check about its captures,
     # and its productions, whose number can be exponential, are not listed.
-    if not any(k in rule for k in ("tags", "value", "image", "emit")) and not rule["conditions"] and all(not any(k in alternative for k in ("tags", "value", "image")) for alternative in alternatives):
+    if not any(k in rule for k in ("tags", "value", "image", "error", "warning", "emit")) and not rule["conditions"] and all(not any(k in alternative for k in ("tags", "value", "image")) for alternative in alternatives):
         return
     # Each production of each alternative, with the captures it reads
     # (engine §3.5, §9); productions that read the same captures in the same
@@ -1337,7 +1337,7 @@ def _definition_issues(rule: Dom):
     items: list[Dom] = emit["items"] if emit is not None else []
     places = {id(a["expr"]): found for a in alternatives if "capture" not in a["expr"] if (found := item_captures(a["expr"]))}
     item_places: set[str] = set().union(*places.values())
-    clauses: list[Any] = [rule.get("tags"), rule.get("value"), rule.get("image")]
+    clauses: list[Any] = [rule.get("tags"), rule.get("value"), rule.get("image"), rule.get("error"), rule.get("warning")]
     clauses.extend(alternative.get(channel) for alternative in alternatives for channel in ("tags", "value", "image"))
     clauses.extend(rule["conditions"])
     for item in items:
@@ -1410,6 +1410,9 @@ def _definition_issues(rule: Dom):
     def tag_issue(name: str) -> DefinitionIssue:
         return DefinitionIssue("independent", f"a tag term of {rule['name']} uses ${name}, which a production lacks; guard it with ${name} ⟹")
 
+    from ._guarded_tags import guards as tag_guards, variants as tag_variants
+    guarded_terms = {id(term) for term in [rule.get("tags"), *(a.get("tags") for a in alternatives)]
+                     if term is not None and tag_guards(term)}
     rule_missing: dict[tuple[str, ...], str | None] = {}
     # The anchor of each inserted tag is its next covering capture item.
     anchors: list[str | None] = [None] * len(items)
@@ -1432,9 +1435,16 @@ def _definition_issues(rule: Dom):
             absent = missing(alternative["tags"], present)
             if absent is not None:
                 yield tag_issue(absent)
+        effective_tags = [term for term in (rule.get("tags"), alternative.get("tags")) if term is not None]
+        if any(id(term) in guarded_terms for term in effective_tags) and not any(waits(term) for term in effective_tags):
+            terms = [prepared_terms[id(term)][1].simplified(present) for term in effective_tags]
+            try:
+                tag_variants(terms[0] if len(terms) == 1 else {"union": terms})
+            except ValueError as error:
+                yield DefinitionIssue("independent", str(error))
         value = alternative.get("value", rule.get("value"))
         image = alternative.get("image", rule.get("image", value))
-        for recipe in (value, image):
+        for recipe in (value, image, rule.get("error"), rule.get("warning")):
             if recipe is None:
                 continue
             absent = first_absent_recipe_capture(recipe, present)

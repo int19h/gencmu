@@ -388,7 +388,7 @@ func bnodeActions(n *bnode, into []action) []action {
 	for _, k := range n.kids {
 		into = bnodeActions(k, into)
 	}
-	return append(into, action{prod: n.prod, start: int32(n.start), end: int32(n.end)})
+	return append(into, action{prod: n.prod, hidden: n.prod.transparent, start: int32(n.start), end: int32(n.end)})
 }
 
 func visibleOnly(as []action) []action {
@@ -423,14 +423,14 @@ func bruteCompare(rk *ranker, x, y bderiv) bcmp {
 	n := min(len(x.vis), len(y.vis))
 	wholeDiff := func() [2]action {
 		for i := 0; i < min(len(x.whole), len(y.whole)); i++ {
-			if x.whole[i] != y.whole[i] {
+			if !x.whole[i].same(y.whole[i]) {
 				return [2]action{x.whole[i], y.whole[i]}
 			}
 		}
 		panic("identical derivations")
 	}
 	for i := 0; i < n; i++ {
-		if x.vis[i] != y.vis[i] {
+		if !x.vis[i].same(y.vis[i]) {
 			c := bcmp{visDiff: true, pos: i, outcome: rk.decide(x.vis[i], y.vis[i]), pair: [2]action{x.vis[i], y.vis[i]}}
 			switch c.outcome {
 			case oA:
@@ -618,7 +618,7 @@ func actionsText(g *lowered, as []action) string {
 			parts = append(parts, fmt.Sprintf("read %d %s", a.tok, g.terminals[a.term]))
 		} else {
 			mark := ""
-			if a.prod.transparent {
+			if a.hidden {
 				mark = "~"
 			}
 			parts = append(parts, fmt.Sprintf("%sclose %s#%d [%d,%d]", mark, g.rules[a.prod.lhs].name, a.prod.num, a.start, a.end))
@@ -632,7 +632,7 @@ func sameActions(a, b []action) bool {
 		return false
 	}
 	for i := range a {
-		if a[i] != b[i] {
+		if !a[i].same(b[i]) {
 			return false
 		}
 	}

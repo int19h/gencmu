@@ -1,0 +1,11 @@
+{
+  "description": "Engine §9: a nested parse capture fails at its binder.",
+  "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n%conditions $.parse({A / $x:B})\n```\n",
+  "expect": {
+    "error": {
+      "line": 4,
+      "column": 26,
+      "message": "a parse argument cannot declare captures"
+    }
+  }
+}

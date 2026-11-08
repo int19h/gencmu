@@ -1,8 +1,28 @@
 {
-  "description": "eberban-tree-collision",
+  "description": "The resumed quote differs in structure, so pa reports unmatched-resume.",
   "input": "a mi ca mi a mo cai meon pa ca mia mo cai vo mo",
   "expect": {
-    "error": "rejected"
+    "error": "reported",
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "reported",
+        "stage": "syntax",
+        "errors": [
+          {
+            "code": "unmatched-resume",
+            "span": [
+              8,
+              13
+            ],
+            "source": [
+              25,
+              41
+            ]
+          }
+        ]
+      }
+    }
   },
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../grammars/eberban/refgram/pipeline.md\"\n```\n"

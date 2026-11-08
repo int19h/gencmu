@@ -1,0 +1,17 @@
+{
+  "description": "Engine §3.6: conservative error nullability before feature filtering (pure-cycle).",
+  "grammar": "%rule text A\n%rule bad one %error \"bad\"\n%rule one two\n%rule two one",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

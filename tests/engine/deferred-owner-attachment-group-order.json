@@ -1,0 +1,200 @@
+{
+  "description": "Engine §6, §11.5, and §12.1: attachment group order.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage before\n%ambiguity-resolution greedy\n%rule text $a:old $b:B\n%emits $a, $b\n%rule old A\n%warning \"old\"\n%stage last\n%ambiguity-resolution greedy\n%rule text $a:annotation $w:word\n%emits ($a) $w\n%rule annotation A\n%emits $\n%rule word B\n%warning \"new\"\n```\n"
+  },
+  "pipelineDocument": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "old",
+      "word"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "before",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "a",
+              "value": "a",
+              "image": "a",
+              "tags": [
+                "A"
+              ],
+              "span": [
+                0,
+                1
+              ],
+              "source": [
+                0,
+                1
+              ],
+              "warnings": [
+                {
+                  "stage": "before",
+                  "code": "old",
+                  "rule": "old",
+                  "span": [
+                    0,
+                    1
+                  ],
+                  "source": [
+                    0,
+                    1
+                  ],
+                  "message": "old"
+                }
+              ]
+            },
+            {
+              "text": "b",
+              "value": "b",
+              "image": "b",
+              "tags": [
+                "B"
+              ],
+              "span": [
+                1,
+                2
+              ],
+              "source": [
+                2,
+                3
+              ]
+            }
+          ]
+        },
+        {
+          "name": "last",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "b",
+              "value": "b",
+              "image": "b",
+              "tags": [
+                "B"
+              ],
+              "span": [
+                1,
+                2
+              ],
+              "source": [
+                2,
+                3
+              ],
+              "before": [
+                {
+                  "text": "a",
+                  "value": "a",
+                  "image": "a",
+                  "tags": [
+                    "A"
+                  ],
+                  "source": [
+                    0,
+                    1
+                  ],
+                  "warnings": [
+                    {
+                      "stage": "before",
+                      "code": "old",
+                      "rule": "old",
+                      "span": [
+                        0,
+                        1
+                      ],
+                      "source": [
+                        0,
+                        1
+                      ],
+                      "message": "old"
+                    }
+                  ]
+                }
+              ],
+              "warnings": [
+                {
+                  "stage": "last",
+                  "code": "word",
+                  "rule": "word",
+                  "span": [
+                    1,
+                    2
+                  ],
+                  "source": [
+                    2,
+                    3
+                  ],
+                  "message": "new"
+                },
+                {
+                  "stage": "before",
+                  "code": "old",
+                  "rule": "old",
+                  "span": [
+                    0,
+                    1
+                  ],
+                  "source": [
+                    0,
+                    1
+                  ],
+                  "message": "old"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "warnings": [
+      {
+        "stage": "before",
+        "code": "old",
+        "rule": "old",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "message": "old"
+      },
+      {
+        "stage": "last",
+        "code": "word",
+        "rule": "word",
+        "span": [
+          1,
+          2
+        ],
+        "source": [
+          2,
+          3
+        ],
+        "message": "new"
+      }
+    ]
+  }
+}

@@ -105,15 +105,15 @@ class TreeIdentities:
                 pending.pop()
                 continue
             key = self.nodes[node][0]
-            if key[0] != "Rule":
+            if key[0] not in ("Rule", "Anonymous"):
                 self.semantic_nodes[node] = json.dumps(key, separators=(",", ":"))
                 continue
-            children = self.elements(key[2])
+            children = self.elements(key[2] if key[0] == "Rule" else key[1])
             missing = next((child for child in children if child not in self.semantic_nodes), None)
             if missing is not None:
                 pending.append(missing)
                 continue
-            self.semantic_nodes[node] = '["Rule",' + json.dumps(key[1]) + ',[' + ','.join(self.semantic_nodes[child] for child in children) + ']]'
+            self.semantic_nodes[node] = '[' + json.dumps(key[0]) + (',' + json.dumps(key[1]) if key[0] == 'Rule' else '') + ',[' + ','.join(self.semantic_nodes[child] for child in children) + ']]'
         return self.semantic_nodes[identity]
 
     def sequence_semantic(self, sequence):
@@ -123,6 +123,9 @@ class TreeIdentities:
 
     def rule(self, name, sequence):
         return self.intern(("Rule", name, sequence), sequence == 0)
+
+    def anonymous(self, sequence):
+        return self.intern(("Anonymous", sequence))
 
     def written(self, terminal, value):
         return self.intern(("Written", terminal, value))
@@ -164,7 +167,7 @@ def prepare(lowered):
         if key in indexed: return indexed[key]
         bound = frames.production(p, frame) if frame is not None else p
         names = {term["capture"] for c in comparisons([bound.tags_term, bound.parent_tags, bound.conds_predict, list(bound.conds_at.values())]) for term in (c["left"], c["right"])}
-        demand = ["" in names, {p.captures[n] for n in names if n in p.captures}, names - p.captures.keys() - {""}, bool(p.helper and "" in names), 0]
+        demand = ["" in names, {p.captures[n] for n in names if n in p.captures}, names - p.captures.keys() - {""}, bool(p.helper and p.splice_of is None and "" in names), 0]
         entry = SimpleNamespace(p=p, frame=frame, demand=demand, edges=[])
         demands[key] = demand
         indexed[key] = entry
@@ -185,7 +188,7 @@ def prepare(lowered):
             if terminal or not any(lowered.productions[i].contextual for i in lowered.rule_productions[symbol]): continue
             captures = dict(frame.captures) if frame else {}
             captures.update((name, None) for name, pos in p.captures.items() if pos < index and not name.startswith("\0"))
-            child = SimpleNamespace(id=next_frame, captures=captures, present=present, known_private=known, inside=inside)
+            child = SimpleNamespace(id=next_frame, captures=captures, present=present, known_private=known, inside=inside, root=frame.root if frame else p)
             next_frame += 1
             for i in lowered.rule_productions[symbol]:
                 entry.edges.append((index, state(lowered.productions[i], child)))
@@ -208,7 +211,7 @@ def prepare(lowered):
     lowered.tree_demands = demands
 
 
-def check_cycles(lowered, structural):
+def check_cycles(lowered, structural, erased=()):
     from ._errors import GencmuError
     sites = list(lowered.tree_sites)
     for p in lowered.productions:
@@ -217,8 +220,9 @@ def check_cycles(lowered, structural):
             sites.append((comparison, p, bindings, ()))
     # A named root adds its constructor once. Only its children demand other rules.
     nullable, rows = set(), {}
-    for lhs, rhs, terminal in structural:
-        rows.setdefault(lhs, []).append((rhs, terminal))
+    for index, (lhs, rhs, terminal) in enumerate(structural):
+        if index not in erased:
+            rows.setdefault(lhs, []).append((rhs, terminal))
     changed = True
     while changed:
         changed = False
@@ -256,7 +260,7 @@ def check_cycles(lowered, structural):
                 if binding is not None and not binding[0]: roots.append(binding[1])
             else:
                 roots.extend(prefix)
-                if not p.helper:
+                if p.tree_root:
                     roots.extend(symbol for terminal, symbol in zip(p.terminal, p.rhs) if not terminal and symbol not in lowered.ranked_helpers)
         pending, reachable, known = list(reversed(roots)), [], set()
         while pending:
@@ -296,39 +300,52 @@ def check_cycles(lowered, structural):
                 stack.append((child, 0))
 
 
-def derivation_identity(context, root):
+def derivation_identity(context, root, working=False):
     if not hasattr(context, "emission_trees"):
         context.emission_trees = TreeIdentities()
         context.emission_tree_values = {}
+        context.emission_working_values = {}
+        context.emission_tree_seals = {}
     machine, memo = context.emission_trees, context.emission_tree_values
+    def table(node):
+        return context.emission_working_values if working and node is root else memo
+    def seal(node):
+        key = node.start, node.end
+        if key not in context.emission_tree_seals:
+            context.emission_tree_seals[key] = machine.seal(token.value for token in context.tokens[node.start:node.end])
+        return context.emission_tree_seals[key]
     pending = [root]
     while pending:
         node = pending[-1]
-        if node in memo:
+        cache = table(node)
+        if node in cache:
             pending.pop()
             continue
         if not hasattr(node, "production"):
             identity = machine.written(node.terminal, context.tokens[node.token].value)
-            memo[node] = identity, machine.append(0, identity)
+            cache[node] = identity, machine.append(0, identity)
             continue
-        child = next((child for index, child in enumerate(node.children)
+        sealed = node.production.erased and not (working and node is root)
+        child = None if sealed else next((child for index, child in enumerate(node.children)
                       if (node.production.terminal[index] or node.production.rhs[index] not in context.lowered.ranked_helpers)
                       and child not in memo), None)
         if child is not None:
             pending.append(child)
             continue
-        sequence = 0
-        for index, child in enumerate(node.children):
+        sequence = machine.append(0, seal(node)) if sealed else 0
+        for index, child in (() if sealed else enumerate(node.children)):
             if not node.production.terminal[index] and node.production.rhs[index] in context.lowered.ranked_helpers:
-                sequence = machine.append(sequence, machine.seal(token.value for token in context.tokens[child.start:child.end]))
+                sequence = machine.append(sequence, seal(child))
             else:
                 sequence = machine.concat(sequence, memo[child][1])
         identity = None
-        if not node.production.helper:
+        if node.production.splice_of is not None:
+            identity = machine.anonymous(sequence)
+        elif not node.production.helper:
             identity = machine.rule(node.production.rule_name, sequence)
             sequence = machine.append(0, identity)
         elif not node.children and node.production.elided is not None:
             identity = machine.omitted(node.production.elided)
             sequence = machine.append(0, identity)
-        memo[node] = identity, sequence
-    return memo[root][0]
+        cache[node] = identity, sequence
+    return table(root)[root][0]

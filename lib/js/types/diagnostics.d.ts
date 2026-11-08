@@ -1,13 +1,11 @@
+export type LineIndex = import("./source-lines.js").LineIndex;
+import { erasureAudit } from './erasure-audit.js';
 import { UnicodeTable } from "./unicode.js";
 import type { Condition, Expr, ParseResult, Span, StageReport, Argument, Production } from "./types.js";
 import type { Token } from "./tokens.js";
 import type { Pipeline } from "./pipeline.js";
 import type { TraceEvent } from "./earley.js";
 import type { StitchedAlternative } from "./grammar.js";
-export type LineIndex = {
-    characters: string[];
-    breaks: number[];
-};
 /**
  * The line of the text holding a source range, and a caret line under the
  * range: at least one caret, at the end of the line for an empty range.
@@ -51,8 +49,7 @@ export declare function explainTies(result: {
     stages: StageReport[];
 }): string;
 /**
- * Each warning of a result (engine §12) as the feature it names and an
- * excerpt of the text the warned constituent covers.
+ * Each warning's code and evaluated message, with its source excerpt.
  * @param {ParseResult} result
  * @returns {string}
  */
@@ -102,6 +99,7 @@ export type StageAudit = {
     instances: any[];
     name: string;
     resolution: string;
+    diagnosticNotes?: any[];
     boundaryNotes: any[];
     /**
      * close families in first-call order
@@ -115,8 +113,11 @@ export type StageAudit = {
     unreachable: string[];
     changes: import("./grammar.js").RuleChange[];
     /**
-     * rules marked `%erased` although nothing
-     * under them could emit and no token could cover them
+     * conservative kinds of every written erased alternative
+     */
+    erasures: ReturnType<typeof erasureAudit>;
+    /**
+     * erased definitions with no possible semantic effect
      */
     idleErasures: {
         rule: string;

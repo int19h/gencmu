@@ -1,0 +1,46 @@
+{
+  "description": "Engine §11.5, §12.1, and §13: deferred diagnostic flow and reporting (feature-conflict).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage before\n%ambiguity-resolution greedy\n%rule text fault\n%rule fault A\n%error \"bad\"\n%emits $ :: Word\n%stage last\n%ambiguity-resolution greedy\n%features forced\n%conditions Word ⊆ $.tags\n%rule text Word\n```\n"
+  },
+  "pipelineDocument": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "feature-conflict",
+    "result": {
+      "ok": false,
+      "tree": null,
+      "error": {
+        "kind": "feature-conflict",
+        "stage": "last",
+        "feature": "forced",
+        "errors": [
+          {
+            "stage": "before",
+            "code": "fault",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "options": {
+    "withoutFeatures": [
+      "forced"
+    ]
+  }
+}

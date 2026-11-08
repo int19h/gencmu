@@ -1,0 +1,30 @@
+{
+  "description": "A whole emission still observes the input of a captured elidable optional.",
+  "grammar": "%rule text [$j:+T] %emits $ :: Mark\n%rule unused A",
+  "tokens": [
+    {
+      "text": "t",
+      "tags": [
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "output": [
+            {
+              "value": "t",
+              "tags": [
+                "Mark"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

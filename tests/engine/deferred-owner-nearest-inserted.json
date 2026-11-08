@@ -1,0 +1,82 @@
+{
+  "description": "Engine §11.5 and §12.1: diagnostic ownership (nearest-inserted).",
+  "grammar": "%rule text note A\n%emits ε :: X\n%rule note ε\n%warning \"note\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "note",
+      "text",
+      "gap",
+      "annotation"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "tags": [
+                "X"
+              ],
+              "span": [
+                1,
+                1
+              ],
+              "source": [
+                1,
+                1
+              ],
+              "insertedBy": "text",
+              "warnings": [
+                {
+                  "stage": "main",
+                  "code": "note",
+                  "rule": "note",
+                  "span": [
+                    0,
+                    0
+                  ],
+                  "source": [
+                    0,
+                    0
+                  ],
+                  "message": "note"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "note",
+        "rule": "note",
+        "span": [
+          0,
+          0
+        ],
+        "source": [
+          0,
+          0
+        ],
+        "message": "note"
+      }
+    ]
+  }
+}

@@ -87,7 +87,7 @@ If a run divides into no words, the stage hands the run on as one foreign token.
 
 The stage receives the source words and hands on the words of the text. It rejects a foreign run, except in a foreign quote or after `fa'o`. For the magic words, the stage is lazy: it ends each constituent as early as the grammar allows. So each magic word acts on what exists when the stage reads it.
 
-A cmavo such as `ka'y` uses `y` as a vowel beyond the forms that CLL gives. The warning feature `y-cmavo` is off by default. With that feature on, the stage reports one warning for each such word that it reads as Lojban.
+A cmavo such as `ka'y` uses `y` as a vowel beyond the forms that CLL gives. The warning code `y-cmavo` is off by default. With that code on, the stage reports one warning for each such word that it reads as Lojban.
 
 The feature `sa-su` controls `sa` and `su`. The words stage enables it when any input token has class SA or SU.
 

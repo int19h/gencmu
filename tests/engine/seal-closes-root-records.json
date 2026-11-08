@@ -1,0 +1,23 @@
+{
+  "description": "Engine §4.2, §6 and §7.10: different omission records retain two root classes despite equal erased token values.",
+  "grammar": "%ambiguity-resolution greedy\n%elision-only\n%rule text e [+T]\n%conditions $.without-elision.matches(w)\n%rule e a [+U] | b [+V]\n%erased\n%rule a A\n%rule b A\n%rule w A [+U] [+T] | A [+V] [+T]\n",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "verdict": "tie"
+        }
+      ]
+    },
+    "error": "ambiguous"
+  }
+}

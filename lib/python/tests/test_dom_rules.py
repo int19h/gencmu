@@ -168,6 +168,7 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("guard without negated", lambda dom: alt(dom).update(guards=[{"feature": "f", "kind": "gate"}])),
     ("guard without a kind", lambda dom: alt(dom).update(guards=[{"feature": "f", "negated": False}])),
     ("guard of an unknown kind", lambda dom: alt(dom).update(guards=[{"feature": "f", "kind": "hint", "negated": False}])),
+    ("a warning guard", lambda dom: alt(dom).update(guards=[{"feature": "f", "kind": "warning", "negated": False}])),
     ("a negated warning", lambda dom: alt(dom).update(guards=[{"feature": "f", "kind": "warning", "negated": True}])),
     ("guard with another member", lambda dom: alt(dom).update(guards=[{"feature": "f", "kind": "gate", "negated": False, "extra": True}])),
     ("seq of one item", set_expr({"seq": [A]})),
@@ -670,7 +671,6 @@ class PreparsedDomRules(unittest.TestCase):
             ),
             ("🆓 as a rule's name", lambda dom: rule(dom).update(name="🆓")),
             ("a negated gate", lambda dom: alt(dom).update(guards=[{"feature": "f", "kind": "gate", "negated": True}])),
-            ("a warning", lambda dom: alt(dom).update(guards=[{"feature": "w", "kind": "warning", "negated": False}])),
             ("an implication", set_condition({"if": SAME, "then": {"op": "=", "left": TEXT, "right": STR}})),
             ("a presence test that removes an alternative", with_bare_alternative(set_condition({"captured": "x"}))),
             ("a guarded term", with_bare_alternative(set_rule_tags({"union": [TAG, {"if": {"captured": "x"}, "then": TAGS_X}]}))),
@@ -1658,7 +1658,7 @@ class Classifiers(unittest.TestCase):
         """A guard of a rule's alternative, a gate or a warning, follows the
         notation's name syntax (engine §9). A cached entry with another
         feature is a miss, so it never changes the pipeline's features."""
-        for kind in ("gate", "warning"):
+        for kind in ("gate",):
 
             def guard(feature: str) -> Dom:
                 return {"feature": feature, "kind": kind, "negated": False}

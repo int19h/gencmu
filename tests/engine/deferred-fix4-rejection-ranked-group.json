@@ -1,0 +1,59 @@
+{
+  "description": "Engine §12.1: competitor evidence uses the recognizer's frames for contextual entries, including sibling alternatives and skipped predictions.",
+  "grammar": "%rule text :: ∅ | bad ≻ good\n%rule bad A\n%error \"bad\"\n%rule good :: ∅ | (A ≻ C) B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "reported",
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "error": {
+        "kind": "reported",
+        "errors": [
+          {
+            "stage": "main",
+            "code": "bad",
+            "rule": "bad",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ],
+            "message": "bad",
+            "rejection": {
+              "token": 1,
+              "source": [
+                1,
+                1
+              ],
+              "line": 1,
+              "column": 2,
+              "expected": [
+                {
+                  "terminal": "B",
+                  "rules": [
+                    "good"
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

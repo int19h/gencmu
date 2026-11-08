@@ -1,0 +1,23 @@
+{
+  "description": "A splice observes its own anonymous identity.",
+  "grammar": "%rule text *a\n%rule a $x:*b\n%conditions $ ≅ $x\n%rule b A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

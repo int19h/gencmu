@@ -1,10 +1,10 @@
 {
-  "description": "A classifier rejects a warning guard at that guard, before its keys (engine §9.3).",
+  "description": "The lexical stage rejects the removed warning guard at its exclamation mark.",
   "document": "```jbogenbau\n%classifier c f! \"a\" ∈ A\n%rule text _\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 15
+      "column": 16
     }
   }
 }

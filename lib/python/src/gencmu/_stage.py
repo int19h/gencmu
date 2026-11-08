@@ -3,14 +3,19 @@
 
 from __future__ import annotations
 
+from copy import copy
+
 from bisect import bisect_left, bisect_right
 from dataclasses import dataclass, field
 from typing import Any, Union
 
-from ._earley import RESTORE, Evaluator, Forest, Parser, Sources, StageContext
+from ._earley import RESTORE, Evaluator, Forest, Parser, Sources, StageContext, expected_at
 from ._errors import _GrammarFault
+from ._diagnostic_flow import DiagnosticFlow, StageDiagnostics, join_diagnostics, tied_diagnostics
+from ._measures import Measures, ZERO_MEASURE, DiagnosticIdentity, record_diagnostic
+from ._competitor_rejection import competitor_rejections
+from ._source_lines import SourceLines
 from ._grammar import Lowered, Production, SymbolTest, written_symbol
-from ._markdown import line_column
 from ._model import Action, Expected, Node, ParseError, ParseWarning, Range, Restoration, Tags, Token
 from ._rank import (
     Act,
@@ -59,6 +64,26 @@ class DNode:
 
 
 DChild = Union[DNode, DRead]
+
+
+def working_structure(context, forest, node):
+    """Own post-selection clauses read the working structure (engine §4.1)."""
+    if not node.production.erased or forest.machine is None:
+        return forest.structure[node.item] if forest.structure else 0
+    prefix = forest.prefix[node.item]
+    if node.production.helper:
+        return prefix
+    machine = forest.machine
+    value = None
+    if machine.node_values:
+        cache = getattr(context, "emission_span_values", None)
+        if cache is None:
+            context.emission_span_values = cache = {}
+        span = node.start, node.end
+        if span not in cache:
+            cache[span] = "".join(token.value for token in context.tokens[node.start:node.end])
+        value = cache[span]
+    return machine.node(node.production.rule_name, prefix, tags=context.tagtab.get(node.tag), value=value)
 
 
 def derivation(forest: Forest, rope: Rope | None) -> DNode:
@@ -166,27 +191,28 @@ class Tree:
         return _range_source(self.sources, node.start, node.end)
 
 
-def warnings_of(root: DNode, tree: Tree, features: frozenset[str], stage: str) -> list[ParseWarning]:
-    """The warnings of a chosen derivation (engine §12): each rule node of its
-    tree gives one for each warning of its alternative whose feature is on,
-    in the order a walk meets the nodes, parent before children and children
-    left to right. The walk splices helpers, which are no nodes of the
-    tree, as the tree does."""
-    warnings: list[ParseWarning] = []
-    stack: list[DChild] = [root]
-    while stack:
-        node = stack.pop()
+def evaluate_diagnostics(flow, tree, context, forest, features, stage, stage_order=0):
+    strings = Emitter(context, forest, tree, flow.root, flow)
+    strings.claim_gaps = False
+    measures = Measures(context.tokens, context.sources)
+    pending = [(flow.root, frozenset())]
+    while pending:
+        node, inherited = pending.pop()
         if isinstance(node, DRead):
             continue
-        production = node.production
-        if not production.helper:
-            for feature in production.warnings:
-                if feature in features:
-                    span = (node.start, node.end)
-                    warnings.append(ParseWarning(stage, feature, production.rule_name, span, tree.source_of(node)))
-        children = node.children
-        stack.extend(reversed(children))
-    return warnings
+        p = node.production
+        suppressed = inherited | frozenset(p.suppress_warnings) if p.suppress_warnings else inherited
+        code = p.rule_name
+        recipe = p.error if p.error is not None else p.warning if code in features and code not in suppressed and "_" not in suppressed else None
+        if recipe is not None:
+            if _testing.diagnostic_message is not None:
+                _testing.diagnostic_message(node, recipe)
+            message = run(strings.recipe(node, recipe))
+            report = ParseWarning(stage, code, code, (node.start, node.end), tree.source_of(node), message)
+            record_diagnostic(report, measures.own(node.start, node.end) if p.error is not None else ZERO_MEASURE,
+                              DiagnosticIdentity(stage_order, len(flow.evaluated)))
+            flow.add(node, report, "errors" if p.error is not None else "warnings")
+        pending.extend((child, suppressed) for child in reversed(node.children))
 
 
 def has_elided(tree: Node) -> bool:
@@ -239,12 +265,14 @@ def implied(tags: Tags, lowered: Lowered) -> Tags:
 class Emitter:
     """Separate emission, channel, and ownership walks (engine §11)."""
 
-    def __init__(self, context: StageContext, forest: Forest, tree: Tree, root: DNode) -> None:
+    def __init__(self, context: StageContext, forest: Forest, tree: Tree, root: DNode, flow: DiagnosticFlow) -> None:
         self.context = context
+        self.claim_gaps = True
         self.forest = forest
         self.tokens = context.tokens
         self.tree = tree
         self.root = root
+        self.flow = flow
         self.evaluator = Evaluator(context, 0, len(context.tokens))
         self.boundary_first = self.boundary_last = None
         self.channels = {}
@@ -276,7 +304,10 @@ class Emitter:
         return self.tokens[part.token].source if isinstance(part, DRead) else self.tree.source_of(part)
 
     def capture(self, owner: DNode, name: str) -> DChild:
-        return owner if name == "" else owner.children[owner.production.captures[name]]
+        if name == "":
+            return owner
+        child = owner.children[owner.production.captures[name]]
+        return self.capture(child, name) if name in owner.production.terminal_captures and isinstance(child, DNode) else child
 
     def verbatim(self, part: DChild) -> str:
         span = part.start, part.end
@@ -306,7 +337,7 @@ class Emitter:
         extensions = [(start, left)] if start < left else []
         if right < end:
             extensions.append((right, end))
-        if span not in self.claims:
+        if self.claim_gaps and span not in self.claims:
             for a, b in extensions:
                 for cell in range(bisect_left(self.claim_points, a), bisect_left(self.claim_points, b)):
                     if cell in self.claimed_cells:
@@ -417,11 +448,12 @@ class Emitter:
         return token
 
     def item_tags(self, node: DNode, term: Any) -> Tags:
+        structure = working_structure(self.context, self.forest, node)
         bound = self.evaluator.bind(
             node.production,
             self.forest.caps[node.item],
             (node.start, node.end, node.tag),
-            self.forest.structure[node.item] if self.forest.structure else 0,
+            structure,
             self.forest.close_structure[node.item] if self.forest.close_structure else 0,
         )
         def boundary_test(atom):
@@ -434,15 +466,16 @@ class Emitter:
         bound.boundary_test = boundary_test
         from ._tree_identities import comparisons, derivation_identity
         if comparisons(term):
-            bound.tree_reader = lambda name: derivation_identity(self.context, self.capture(node, name))
+            bound.tree_reader = lambda name: derivation_identity(self.context, self.capture(node, name), working=name == "")
         return self.evaluator.tags(term, bound)
 
-    def emit_item(self, node: DNode, item: tuple, out: list[Token]) -> None:
+    def emit_item(self, node: DNode, item: tuple, out: list[Token], scope) -> None:
         tagtab = self.context.tagtab
         if item[0] == "whole":
             _, term, value, image = item
             tags = self.item_tags(node, term) if term is not None else tagtab.get(node.tag)
             out.append(self.part_token(node, node, tags, value, image))
+            self.flow.emitted(out[-1], node, node, scope)
         elif item[0] == "capture":
             _, position, term, _, _, value, image = item
             part = node.children[position]
@@ -454,6 +487,7 @@ class Emitter:
                 else tagtab.get(part.tag)
             )
             out.append(self.part_token(node, part, tags, value, image))
+            self.flow.emitted(out[-1], part, node, scope)
         else:
             _, term, anchor, value, image = item
             if anchor == -1:
@@ -477,43 +511,50 @@ class Emitter:
                     written_image,
                 )
             )
+            self.flow.emitted(out[-1], None, node, scope)
 
     def emit(self) -> list[Token]:
         return self.emitted(self.root)
 
     def emitted(self, root: DChild) -> list[Token]:
         out = []
-        work = [("walk", root, out)]
+        work = [("walk", root, out, self.flow.main)]
         while work:
             task = work.pop()
             kind = task[0]
             if kind == "walk":
-                _, node, into = task
+                _, node, into, scope = task
                 if isinstance(node, DRead) or node.production.erased:
                     continue
                 if node.production.emit is None:
-                    work.extend(("walk", child, into) for child in reversed(node.children))
+                    work.extend(("walk", child, into, scope) for child in reversed(node.children))
                 else:
-                    work.extend(("item", node, item, into) for item in reversed(node.production.emit))
+                    work.extend(("item", node, item, into, scope) for item in reversed(node.production.emit))
             elif kind == "item":
-                _, node, item, into = task
+                _, node, item, into, scope = task
                 if item[0] != "capture" or not (item[3] or item[4]):
-                    self.emit_item(node, item, into)
+                    self.emit_item(node, item, into, scope)
+                    if item[0] in ("whole", "capture"):
+                        token = into[-1]
+                        self.flow.attachments(token, [], [], token.before, token.after)
                     continue
                 before, after = [], []
-                steps = [("walk", node.children[p], before) for p in item[3]]
-                steps.append(("carrier", node, item, into))
-                steps.extend(("walk", node.children[p], after) for p in item[4])
-                steps.append(("attach", into, before, after))
+                before_scopes = [self.flow.attachment(node.children[p]) for p in item[3]]
+                after_scopes = [self.flow.attachment(node.children[p]) for p in item[4]]
+                steps = [("walk", node.children[p], before, attached) for p, attached in zip(item[3], before_scopes)]
+                steps.append(("carrier", node, item, into, scope))
+                steps.extend(("walk", node.children[p], after, attached) for p, attached in zip(item[4], after_scopes))
+                steps.append(("attach", into, before, after, before_scopes, after_scopes))
                 work.extend(reversed(steps))
             elif kind == "carrier":
-                _, node, item, into = task
-                self.emit_item(node, item, into)
+                _, node, item, into, scope = task
+                self.emit_item(node, item, into, scope)
             else:
-                _, into, before, after = task
+                _, into, before, after, before_scopes, after_scopes = task
                 for token in (*before, *after):
                     token.span = None
                 token = into[-1]
+                self.flow.attachments(token, before_scopes, after_scopes, token.before, token.after)
                 token.before = [*before, *token.before]
                 token.after = [*token.after, *after]
         return out
@@ -530,13 +571,15 @@ class StageOutcome:
     witness: tuple[Action, Action] | None = None
     error: ParseError | None = None
     warnings: list[ParseWarning] = field(default_factory=list)
+    errors: list[ParseWarning] = field(default_factory=list)
+    _diagnostics: StageDiagnostics = field(default_factory=StageDiagnostics, repr=False, compare=False)
 
 
 def _action(act: Act, lowered: Lowered) -> Action:
     if act.read:
         return Action("read", token=act.token, terminal=act.terminal)
     production = lowered.productions[act.production]
-    return Action("close", rule=production.rule_name, production=production.real_id, span=(act.start, act.end))
+    return Action("close", rule=production.rule_name, production=production.action_id, span=(act.start, act.end))
 
 
 class StageRunner:
@@ -551,6 +594,9 @@ class StageRunner:
         text: str,
         unicode: UnicodeTable,
         features: frozenset[str] = frozenset(),
+        stage_order: int = 0,
+        pending_errors: bool = False,
+        lines=None,
     ) -> None:
         self.name = name
         self.lowered = lowered
@@ -558,6 +604,9 @@ class StageRunner:
         self.text = text
         self.unicode = unicode
         self.features = features
+        self.stage_order = stage_order
+        self.pending_errors = pending_errors
+        self.lines = SourceLines(text) if lines is None else lines
 
     def fault(self, fault: _GrammarFault) -> ParseError:
         # A defect found while parsing has its stage and no position (§13).
@@ -569,6 +618,7 @@ class StageRunner:
         have read next (engine §4)."""
         tokens = self.tokens
         position = forest.furthest
+        forest.expected = expected_at(forest, position)
         expected = [Expected(terminal, sorted(rules)) for terminal, rules in sorted(forest.expected.items())]
         if position < len(tokens):
             source = tokens[position].source
@@ -577,7 +627,7 @@ class StageRunner:
             at = tokens[-1].source[1] if tokens else 0
             source = (at, at)
             shown = "the end of the input"
-        line, column = line_column(self.text, source[0])
+        line, column = self.lines.position(source[0])
         listed = ", ".join(f"{entry.terminal} ({', '.join(entry.rules)})" for entry in expected) or "nothing"
         message = f"stage {self.name} cannot read {shown}; it expected {listed}"
         candidates = []
@@ -604,6 +654,7 @@ class StageRunner:
         engine §7 where it applies. A tie ends the stage at the ranking."""
         lowered = self.lowered
         context = StageContext(lowered, self.tokens, self.text, self.unicode)
+        context.lines = self.lines
         start = lowered.rule_ids["text"]
         forest = Parser(context).parse(start)
         ranking = rank(forest, lowered.steps, lowered.lean)
@@ -616,50 +667,60 @@ class StageRunner:
         root = derivation(forest, ranking.first)
         tree = Tree(root, context.sources, context.tagtab)
         outcome = StageOutcome(verdict=ranking.verdict, tree=tree.root, derivation=root)
-        outcome.warnings = warnings_of(root, tree, self.features, self.name)
-        emitter = Emitter(context, forest, tree, root)
+        flow = DiagnosticFlow(root, self.tokens)
+        try:
+            evaluate_diagnostics(flow, tree, context, forest, self.features, self.name, self.stage_order)
+            competitor_rejections(flow, forest)
+        except _GrammarFault as fault:
+            outcome.tree = None
+            outcome._diagnostics = StageDiagnostics(evaluated=flow.messages())
+            outcome.error = self.fault(fault)
+            return outcome
+        outcome._diagnostics = StageDiagnostics(flow.collected(), flow.messages())
+        emitter = Emitter(context, forest, tree, root, flow)
         try:
             outcome.output = emitter.emit()
-            if elision_only and (ranking.verdict == "resolved" or
-                                 ranking.verdict == "unique" and has_elided(tree.root)):
-                # The stage accepted its input, so it has its output; the
-                # check makes the parse fail, and the result has no tree.
+            unowned = flow.assign()
+            outcome.errors, outcome.warnings = unowned.errors, unowned.warnings
+            if (elision_only and not self.pending_errors and not outcome._diagnostics.collected.errors
+                    and (ranking.verdict == "resolved" or ranking.verdict == "unique" and has_elided(tree.root))):
                 error = self.check_elision(context, root, tree.root)
                 if error is not None:
                     outcome.error = error
                     if error.code is not None:
-                        # A lost witness is a defect of the engine, and the
-                        # stage has no output (engine §7.9).
                         outcome.output = None
         except _GrammarFault as fault:
-            # A defect found once the stage has chosen its tree, while emitting
-            # or in the check of elision-only, leaves it without output; it
-            # keeps its verdict and warnings (engine §7.7, §11). A defect
-            # found while emitting ends the stage before the check.
             outcome.output = None
             outcome.error = self.fault(fault)
-            return outcome
         return outcome
 
     def tie(self, forest: Forest, context: StageContext, ranking: Ranking) -> StageOutcome:
-        """A tie is an error of kind ambiguous, with the reason tie. The
-        stage keeps its verdict and its witness, and has no tree, no output
-        and no warnings. The error holds the first and the second reading
-        (engine §6)."""
+        """Collect both best readings without emission (engine §12.1)."""
         lowered = forest.lowered
-        # Neither action of a witness is ever missing (engine §6, §7.10).
         if ranking.witness is None or ranking.witness[0] is None or ranking.witness[1] is None:
             raise RuntimeError("the witness of a ranking lacks an action")
-        readings = [Tree(derivation(forest, rope), context.sources, context.tagtab).root for rope in (ranking.first, ranking.second)]
-        error = ParseError(
-            "ambiguous",
-            f"stage {self.name} is ambiguous: two readings of its text are best, a tie",
-            stage=self.name,
-            reason="tie",
-            readings=readings,
-        )
+        roots = [derivation(forest, rope) for rope in (ranking.first, ranking.second)]
+        flows = [DiagnosticFlow(root, self.tokens) for root in roots]
         witness = (_action(ranking.witness[0], lowered), _action(ranking.witness[1], lowered))
-        return StageOutcome(verdict="tie", witness=witness, error=error)
+        outcome = StageOutcome(verdict="tie", witness=witness)
+        try:
+            for flow in flows:
+                tree = Tree(flow.root, context.sources, context.tagtab)
+                evaluate_diagnostics(flow, tree, context, forest, self.features, self.name, self.stage_order)
+            for flow in flows:
+                competitor_rejections(flow, forest)
+        except _GrammarFault as fault:
+            outcome._diagnostics = StageDiagnostics(evaluated=join_diagnostics([flow.messages() for flow in flows]))
+            outcome.error = self.fault(fault)
+            return outcome
+        outcome._diagnostics = StageDiagnostics(tied_diagnostics(flows[0].events(), flows[1].events()),
+                                                join_diagnostics([flow.messages() for flow in flows]))
+        outcome.error = ParseError(
+            "ambiguous", f"stage {self.name} is ambiguous: two readings of its text are best, a tie",
+            stage=self.name, reason="tie",
+            readings=[Tree(root, context.sources, context.tagtab).root for root in roots],
+        )
+        return outcome
 
     def check_elision(self, main: StageContext, chosen: DNode, tree: Node) -> ParseError | None:
         """Engine §7: the check of elision-only. It writes the chosen
@@ -705,39 +766,40 @@ class StageRunner:
             walk = walk_witness(_testing.CheckRun(chosen, forest, synthetic, original_at, record_at))
         marks = walk.marks if walk is not None else None
         preferred = bool(lowered.ranked_helpers)
-        raw_counted = True
-        if preferred and walk is not None:
-            raw = rank(forest, steps, "none", marks=marks, check=True, unfiltered=True)
-            raw_counted = raw is not None and raw.witness_counted is True
         ranking = _rank_check(forest, marks) if walk is not None else None
+        from ._rank import raw_witness_counted
+        raw_counted = walk is not None and raw_witness_counted(forest, marks)
         better = False
-        watched_selection = False
+        if not raw_counted:
+            ranking = None
         if ranking is not None:
-            assert walk is not None
             order = space.compare(ranking.profile, chosen_profile)
-            if not raw_counted or not preferred and ranking.witness_counted is not True:
-                ranking = None
-            else:
-                restored_rope = None
+            excluded = ranking.witness_counted is not True
+            representative = None if excluded else ranking._ranker.witness_representative(walk.proof)
+            if not excluded and representative is None:
+                raise RuntimeError("An admitted witness requires its class representative.")
+            restored_rope = representative
+            if restored_rope is None:
                 for act in walk.sequence:
                     restored_rope = concat(restored_rope, leaf(act))
-                excluded = ranking.witness_counted is not True
-                better = excluded or order < 0
-                if watch is not None and not better and not preferred:
-                    watch.ranked(ranking)
-                    watched_selection = True
-                if better or ranking.verdict == "tie":
-                    competitor = ranking.first if first_difference(restored_rope, ranking.first, False) is not None else ranking.second
-                    if competitor is None:
-                        raise RuntimeError("Reconstruction requires a distinct best admitted competitor.")
-                    ranking.first, ranking.second = restored_rope, competitor
-                    difference = first_difference(restored_rope, competitor, True) or first_difference(restored_rope, competitor, False)
-                    assert difference is not None
-                    ranking.witness = (difference[1], difference[2])
-                if preferred:
-                    ranking.raw_witness_counted = raw_counted
-        if watch is not None and not watched_selection:
-            watch.ranked(ranking)
+            better = excluded or order < 0
+            selected = copy(ranking)
+            selected.raw_witness_counted, selected.representative = raw_counted, representative
+            if better or ranking.verdict == "tie":
+                competitor = ranking.first if first_difference(restored_rope, ranking.first, False) is not None else ranking.second
+                if competitor is None:
+                    raise RuntimeError("Reconstruction requires a distinct best admitted competitor.")
+                ranking.first, ranking.second = restored_rope, competitor
+                difference = first_difference(restored_rope, competitor, True)
+                if difference is None or difference[1] is None or difference[2] is None:
+                    difference = first_difference(restored_rope, competitor, False)
+                assert difference is not None
+                ranking.witness = difference[1], difference[2]
+            ranking.raw_witness_counted, ranking.representative = raw_counted, representative
+            if watch is not None:
+                watch.ranked(ranking if better or preferred else selected)
+        elif watch is not None:
+            watch.ranked(None)
         if ranking is None:
             # The witness of the chosen derivation is lost: a defect of the
             # engine (engine §7.9).
@@ -754,7 +816,7 @@ class StageRunner:
         readings = []
         original = Sources(tokens)
         for rope in (ranking.first, ranking.second):
-            if better and rope is ranking.first:
+            if better and excluded and rope is ranking.first:
                 readings.append(tree)
                 continue
             reading = Tree(derivation(forest, rope), context.sources, context.tagtab).root
@@ -773,7 +835,7 @@ class StageRunner:
             if act.read:
                 return Action("read", token=project[act.token], terminal=act.terminal)
             production = lowered.productions[act.production]
-            return Action("close", rule=production.rule_name, production=production.real_id, span=(project[act.start], project[act.end]))
+            return Action("close", rule=production.rule_name, production=production.action_id, span=(project[act.start], project[act.end]))
 
         return ParseError(
             "ambiguous",

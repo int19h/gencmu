@@ -1,0 +1,30 @@
+{
+  "description": "The error count takes priority over every grammar preference.",
+  "grammar": "%ambiguity-resolution most #·bad\n%rule text bad | good\n%rule bad A %error \"bad\"\n%rule good A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": [
+          {
+            "rule": "good"
+          }
+        ]
+      },
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

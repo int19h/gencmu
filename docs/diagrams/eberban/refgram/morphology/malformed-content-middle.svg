@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="811" height="248" viewBox="0 0 811 248" role="img" aria-label="Railroad diagram of the rule malformed-content-middle">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="201.6" lengthAdjust="spacingAndGlyphs">malformed-content-middle</text>
+<path d="M10 38v16m4 -16v16M14 46h6"/>
+<path d="M20 46h20"/>
+<g class="terminal"><rect x="40" y="34" width="193" height="24" rx="12"/><text x="136.5" y="51" textLength="176.4" lengthAdjust="spacingAndGlyphs">malformed-gap(Hyphen)</text></g>
+<path d="M233 46h10"/>
+<path d="M243 46h20"/>
+<g class="rule"><rect x="263" y="34" width="201" height="24" rx="0"/><text x="363.5" y="51" textLength="184.8" lengthAdjust="spacingAndGlyphs">malformed-initial-pair</text></g>
+<path d="M464 46H484"/>
+<path d="M243 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="263" y="68" width="92" height="24" rx="0"/><text x="309" y="85" textLength="75.6" lengthAdjust="spacingAndGlyphs">consonant</text></g>
+<path d="M355 80H464a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M484 46h10"/>
+<g class="terminal"><rect x="494" y="34" width="277" height="24" rx="12"/><text x="632.5" y="51" textLength="260.4" lengthAdjust="spacingAndGlyphs">malformed-gap(hyphen-misplaced)</text></g>
+<path d="M771 46H791"/>
+<path d="M20 46a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
+<path d="M40 114h20"/>
+<g class="terminal"><rect x="60" y="102" width="277" height="24" rx="12"/><text x="198.5" y="119" textLength="260.4" lengthAdjust="spacingAndGlyphs">malformed-gap(hyphen-misplaced)</text></g>
+<path d="M337 114h10"/>
+<path d="M347 114h20"/>
+<g class="rule"><rect x="367" y="102" width="210" height="24" rx="0"/><text x="472" y="119" textLength="193.2" lengthAdjust="spacingAndGlyphs">malformed-split-cluster</text></g>
+<path d="M577 114H597"/>
+<path d="M347 114a10 10 0 0 1 10 10V138a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="367" y="136" width="134" height="24" rx="0"/><text x="434" y="153" textLength="117.6" lengthAdjust="spacingAndGlyphs">malformed-pair</text></g>
+<path d="M501 148H577a10 10 0 0 0 10 -10V124a10 10 0 0 1 10 -10"/>
+<path d="M347 114a10 10 0 0 1 10 10V172a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="367" y="170" width="201" height="24" rx="0"/><text x="467.5" y="187" textLength="184.8" lengthAdjust="spacingAndGlyphs">malformed-long-cluster</text></g>
+<path d="M568 182H577a10 10 0 0 0 10 -10V124a10 10 0 0 1 10 -10"/>
+<path d="M597 114H597a10 10 0 0 1 10 10V194a10 10 0 0 1 -10 10H60a10 10 0 0 0 -10 10V216a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="214" width="277" height="24" rx="12"/><text x="198.5" y="231" textLength="260.4" lengthAdjust="spacingAndGlyphs">malformed-gap(hyphen-misplaced)</text></g>
+<path d="M337 226H617"/>
+<path d="M617 226H771a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M791 46h6m0 -8v16m4 -16v16"/>
+</svg>

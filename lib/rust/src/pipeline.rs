@@ -4,18 +4,19 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use std::sync::{Arc, Mutex, OnceLock};
 
+use crate::diagnostic_flow::{self, DiagnosticFlow, Lists};
 use crate::dom::{FeatureKind, Guard};
-use crate::earley::{matchers, Chart, EngineError, Matcher, Recognizer, Recon, Shared, Tok};
+use crate::earley::{matchers, EngineError, Matcher, Recognizer, Recon, Shared, Tok};
 use crate::error::Error;
 use crate::grammar::{Change, ClassifierTables, KeyStep, Lean, StageGrammar};
-use crate::lower::{lower, Lowered, Prod, Sym, SymbolTest};
+use crate::lower::{lower, Lowered, SymbolTest};
 use crate::rank::{Act, Ranker, Verdict as RankVerdict};
 use crate::recent::Recent;
 use crate::result::{
     Action, AmbiguityReason, ErrorCode, Expected, Node, NodeKind, ParseError, ParseErrorKind, ParseResult, Restoration,
     Stage, Tags, Token, Verdict, Warning,
 };
-use crate::tree::{build, emit, public_tree, warnings_of, IKind, ITree, ReadingMap, Sources, TreeContext};
+use crate::tree::{build, emit, evaluate_reports, public_tree, IKind, ITree, ReadingMap, Sources, TreeContext};
 use crate::unicode::Unicode;
 use crate::witness::{self, CheckForest};
 
@@ -84,6 +85,10 @@ pub struct InputToken {
     pub value: Option<String>,
     /// The visible string. None uses the text.
     pub image: Option<String>,
+    /// Only empty diagnostic lists are accepted from a caller.
+    pub errors: Vec<crate::result::Warning>,
+    /// Only empty warning lists are accepted from a caller.
+    pub warnings: Vec<crate::result::Warning>,
 }
 
 type LoweredResult = Result<Arc<Lowered>, Error>;
@@ -190,6 +195,39 @@ struct Run {
     error: Option<ParseError>,
     /// The warnings of the stages run so far, in stage order (§12).
     warnings: Vec<Warning>,
+    pending: Lists,
+    collected: Lists,
+    evaluated: Lists,
+}
+
+impl Run {
+    fn failed(&mut self, mut error: ParseError) {
+        let input = &self.stages.last().expect("a failed stage").input;
+        let reporting = match error.kind {
+            ParseErrorKind::Ambiguous => self.collected.clone(),
+            ParseErrorKind::Rejected => {
+                let cutoff = error.token.unwrap_or(input.len()).saturating_add(1).min(input.len());
+                diagnostic_flow::join(
+                    input[..cutoff].iter().map(|token| (token.errors.as_slice(), token.warnings.as_slice())),
+                )
+            }
+            _ => {
+                let carried = diagnostic_flow::join(
+                    input.iter().map(|token| (token.errors.as_slice(), token.warnings.as_slice())),
+                );
+                diagnostic_flow::join([self.evaluated.parts(), carried.parts()])
+            }
+        };
+        let lists = diagnostic_flow::join([self.pending.parts(), reporting.parts()]);
+        if error.kind != ParseErrorKind::Ambiguous || error.reason == Some(AmbiguityReason::Tie) {
+            error.errors = lists.errors;
+        }
+        if matches!(error.kind, ParseErrorKind::Rejected | ParseErrorKind::Grammar | ParseErrorKind::FeatureConflict) {
+            error.warnings = lists.warnings.clone();
+        }
+        self.warnings = lists.warnings;
+        self.error = Some(error);
+    }
 }
 
 /// A pipeline's features (engine §13): names from guards and pipeline or
@@ -198,33 +236,49 @@ struct Run {
 /// only declarations use is a gate. A name used as both gate and warning is an error.
 fn pipeline_features(stages: &[StageGrammar], declared: &[String]) -> Result<Vec<Feature>, Error> {
     let mut kinds: BTreeMap<&str, FeatureKind> = BTreeMap::new();
+    let mut roles: BTreeMap<&str, &str> = BTreeMap::new();
     for stage in stages {
-        let rules = stage.rules.iter().flat_map(|rule| &rule.alternatives).flat_map(|alternative| {
-            alternative
-                .alternative
-                .guards
-                .iter()
-                .map(move |guard| (guard, alternative.document.as_ref(), alternative.at))
-        });
-        let entries = stage.classifiers.iter().flat_map(|(document, classifier)| {
-            classifier
-                .entries
-                .iter()
-                .flat_map(move |entry| entry.guards.iter().map(move |guard| (guard, document.as_ref(), entry.at)))
-        });
-        for (guard, document, (line, column)) in rules.chain(entries) {
-            if *kinds.entry(&guard.feature).or_insert(guard.kind) != guard.kind {
-                return Err(Error::grammar(format!(
-                    "the feature {} is used both as a gate and as a warning",
-                    guard.feature
-                ))
-                .in_document(document)
-                .at(line, column)
-                .in_stage(&stage.name));
+        let mut uses = Vec::new();
+        for rule in &stage.rules {
+            for alt in &rule.alternatives {
+                uses.extend(
+                    alt.alternative
+                        .guards
+                        .iter()
+                        .map(|guard| (guard.feature.as_str(), "gate", alt.document.as_ref(), alt.at)),
+                );
+                if alt.clauses.error.is_some() {
+                    uses.push((&rule.name, "error", &alt.document, alt.at));
+                }
+                if alt.clauses.warning.is_some() {
+                    uses.push((&rule.name, "warning", &alt.document, alt.at));
+                }
+            }
+        }
+        for (document, classifier) in &stage.classifiers {
+            for entry in &classifier.entries {
+                uses.extend(
+                    entry.guards.iter().map(|guard| (guard.feature.as_str(), "gate", document.as_ref(), entry.at)),
+                );
+            }
+        }
+        for (name, role, document, (line, column)) in uses {
+            if let Some(known) = roles.insert(name, role).filter(|known| *known != role) {
+                let category = if known == "error" || role == "error" { "name" } else { "feature" };
+                return Err(Error::grammar(format!("the {category} {name} is used both as a {known} and as a {role}"))
+                    .in_document(document)
+                    .at(line, column)
+                    .in_stage(&stage.name));
+            }
+            if role != "error" {
+                kinds.insert(name, if role == "warning" { FeatureKind::Warning } else { FeatureKind::Gate });
             }
         }
     }
     for name in declared {
+        if roles.get(name.as_str()) == Some(&"error") {
+            return Err(Error::grammar("an error code cannot be enabled or disabled"));
+        }
         kinds.entry(name).or_insert(FeatureKind::Gate);
     }
     let mut tested = BTreeMap::new();
@@ -232,6 +286,11 @@ fn pipeline_features(stages: &[StageGrammar], declared: &[String]) -> Result<Vec
     for stage in stages {
         for (document, directive) in &stage.features {
             for name in &directive.args {
+                if roles.get(name.as_str()) == Some(&"error") {
+                    return Err(Error::grammar("an error code cannot be enabled or disabled")
+                        .in_document(document)
+                        .at(directive.at.0, directive.at.1));
+                }
                 if let Some(earlier) = tested.get(name) {
                     return Err(Error::grammar(format!("stage {earlier} tests local feature {name}"))
                         .in_document(document.as_ref())
@@ -242,6 +301,11 @@ fn pipeline_features(stages: &[StageGrammar], declared: &[String]) -> Result<Vec
                 if directive.conditions.is_none() {
                     defaults.insert(name);
                 }
+            }
+        }
+        for rule in &stage.rules {
+            if rule.alternatives.iter().any(|alt| alt.clauses.warning.is_some()) {
+                tested.entry(rule.name.clone()).or_insert_with(|| stage.name.clone());
             }
         }
         for guard in stage.rules.iter().flat_map(|rule| &rule.alternatives).flat_map(|alt| &alt.alternative.guards) {
@@ -257,30 +321,6 @@ fn pipeline_features(stages: &[StageGrammar], declared: &[String]) -> Result<Vec
         .into_iter()
         .map(|(name, kind)| Feature { name: name.to_string(), kind, default: defaults.contains(name) })
         .collect())
-}
-
-/// Line and column, from 1, of a code point offset (lines end at `\n`,
-/// `\r\n` or `\r`).
-pub(crate) fn line_column(text: &[char], offset: usize) -> (usize, usize) {
-    let mut line = 1;
-    let mut column = 1;
-    let mut index = 0;
-    while index < offset.min(text.len()) {
-        match text[index] {
-            '\n' => {
-                line += 1;
-                column = 1;
-            }
-            '\r' if text.get(index + 1) == Some(&'\n') => column += 1,
-            '\r' => {
-                line += 1;
-                column = 1;
-            }
-            _ => column += 1,
-        }
-        index += 1;
-    }
-    (line, column)
 }
 
 impl Pipeline {
@@ -416,6 +456,9 @@ impl Pipeline {
     /// tests and tools (see [`InputToken`]).
     pub fn parse_tokens(&self, tokens: &[InputToken], options: &ParseOptions) -> Result<ParseResult, Error> {
         for token in tokens {
+            if !token.errors.is_empty() || !token.warnings.is_empty() {
+                return Err(Error::usage("a caller cannot supply diagnostics"));
+            }
             if let Some(tag) = token
                 .tags
                 .iter()
@@ -444,6 +487,8 @@ impl Pipeline {
                     // A caller token defaults its image to its text only when
                     // `image` is `None` (§5).
                     public.push(Token {
+                        errors: Vec::new(),
+                        warnings: Vec::new(),
                         text: token.text.clone(),
                         value: token.value.clone().unwrap_or_else(|| token.text.clone()),
                         image: token.image.clone().unwrap_or_else(|| token.text.clone()),
@@ -455,6 +500,8 @@ impl Pipeline {
                         after: Vec::new(),
                     });
                     input.push(Tok {
+                        errors: Vec::new(),
+                        warnings: Vec::new(),
                         text: token.text.clone(),
                         tags: set,
                         value: token.value.clone().unwrap_or_else(|| token.text.clone()),
@@ -499,14 +546,28 @@ impl Pipeline {
         let mut shared = Shared::new(&self.unicode, &chars);
         let (mut input, public_input) = first(&mut shared.tags, &chars);
         crate::earley::mark_quiet(&mut input);
-        let fresh = Run { stages: Vec::new(), input, public_input, tree: None, error: None, warnings: Vec::new() };
+        let fresh = Run {
+            stages: Vec::new(),
+            input,
+            public_input,
+            tree: None,
+            error: None,
+            warnings: Vec::new(),
+            pending: Lists::default(),
+            collected: Lists::default(),
+            evaluated: Lists::default(),
+        };
         let mut run = fresh;
         self.stages_between(&mut shared, &mut run, &mut features, (off, last, options.elision_only), &mut inspect)?;
         let ok = run.error.is_none();
         Ok(ParseResult {
             ok,
             stages: run.stages,
-            tree: if ok { run.tree } else { None },
+            tree: if ok || run.error.as_ref().is_some_and(|e| e.kind == ParseErrorKind::Reported) {
+                run.tree
+            } else {
+                None
+            },
             error: run.error,
             warnings: run.warnings,
             features: features.into_iter().collect(),
@@ -524,6 +585,8 @@ impl Pipeline {
         let (off, to, elision) = selection;
         for index in 0..=to {
             shared.next_stage();
+            run.collected = Lists::default();
+            run.evaluated = Lists::default();
             let mut failure = None;
             for (_, directive) in &self.stages[index].features {
                 let held = match &directive.conditions {
@@ -568,21 +631,39 @@ impl Pipeline {
             }
             if let Some(error) = failure {
                 run.stages.push(Stage {
+                    errors: Vec::new(),
+                    warnings: Vec::new(),
                     name: self.stages[index].name.clone(),
                     input: std::mem::take(&mut run.public_input),
                     output: None,
                     verdict: None,
                     witness: None,
                 });
-                run.error = Some(error);
+                run.failed(error);
                 return Ok(());
             }
             if let Err(error) = self.stage(index, shared, run, features, elision, index == to) {
-                run.error = Some(*error);
+                run.failed(*error);
                 return Ok(());
             }
             if index == 0 {
                 inspect(run.stages.last().unwrap().output.as_ref().unwrap())?;
+            }
+            if index == to {
+                let lists = diagnostic_flow::join([run.pending.parts(), run.collected.parts()]);
+                if !lists.errors.is_empty() {
+                    let mut error = self.grammar_error(
+                        index,
+                        EngineError { message: "the chosen derivation reports errors".into(), rule: None },
+                    );
+                    error.kind = ParseErrorKind::Reported;
+                    error.errors = lists.errors;
+                    run.error = Some(error);
+                }
+                run.warnings = lists.warnings;
+            } else {
+                let stage = run.stages.last().unwrap();
+                run.pending = diagnostic_flow::join([run.pending.parts(), (&stage.errors, &stage.warnings)]);
             }
         }
         Ok(())
@@ -598,6 +679,8 @@ impl Pipeline {
             None => error.message,
         };
         ParseError {
+            warnings: Vec::new(),
+            errors: Vec::new(),
             feature: None,
             boundary: None,
             kind: ParseErrorKind::Grammar,
@@ -631,8 +714,15 @@ impl Pipeline {
         let grammar = &self.stages[index];
         let input = std::mem::take(&mut run.input);
         let public_input = std::mem::take(&mut run.public_input);
-        let mut stage =
-            Stage { name: grammar.name.clone(), input: public_input, output: None, verdict: None, witness: None };
+        let mut stage = Stage {
+            errors: Vec::new(),
+            warnings: Vec::new(),
+            name: grammar.name.clone(),
+            input: public_input,
+            output: None,
+            verdict: None,
+            witness: None,
+        };
         let lowered = match self.lowered(index, features) {
             Ok(lowered) => lowered,
             Err(error) => {
@@ -672,7 +762,17 @@ impl Pipeline {
             None
         };
         let Some((ranking, chosen, second)) = ranked else {
-            let (position, expected) = rejection_of(&lowered, &chart);
+            let evidence = {
+                let mut recognizer = Recognizer { g: &lowered, matchers: &matchers, shared, recon: None };
+                crate::competitor_rejection::rejection(&chart, &mut recognizer, &input)
+            };
+            let (position, expected) = match evidence {
+                Ok(evidence) => evidence,
+                Err(error) => {
+                    run.stages.push(stage);
+                    return Err(Box::new(self.grammar_error(index, error)));
+                }
+            };
             let mut error = self.rejection(index, shared, &input, position, expected);
             error.boundary = chart
                 .boundary_failures
@@ -688,9 +788,11 @@ impl Pipeline {
             run.stages.push(stage);
             return Err(Box::new(error));
         };
-        let tag_set = |set: u32| shared.tags.to_set(set);
         let sources = Sources::new(&input);
-        let context = TreeContext { g: &lowered, sources: &sources, tag_map: &tag_set, reading: None };
+        let make_tree = |shared: &Shared, tree: &ITree| {
+            let tag_set = |set: u32| shared.tags.to_set(set);
+            public_tree(tree, &TreeContext { g: &lowered, sources: &sources, tag_map: &tag_set, reading: None })
+        };
         stage.verdict = Some(match ranking.verdict {
             RankVerdict::Unique => Verdict::Unique,
             RankVerdict::Resolved => Verdict::Resolved,
@@ -699,28 +801,88 @@ impl Pipeline {
         if let Some((first, second)) = ranking.witness {
             stage.witness = Some([action(&lowered, first), action(&lowered, second)]);
         }
-        // A tie is an error that ends the stage at its ranking: it has no
-        // chosen tree, no output and no warnings, and the error holds the
-        // first and the second reading (§6).
+        let mut flow = DiagnosticFlow::new(&lowered, &chosen, &input);
+        let reports = evaluate_reports(
+            &chosen,
+            &lowered,
+            &sources,
+            features,
+            &grammar.name,
+            index,
+            &input,
+            shared.text,
+            &mut flow,
+        );
+        run.evaluated = flow.messages();
+        if let Err(error) = reports {
+            run.stages.push(stage);
+            return Err(Box::new(self.grammar_error(index, error)));
+        }
         if ranking.verdict == RankVerdict::Tie {
-            let readings = vec![
-                public_tree(&chosen, &context),
-                public_tree(&second.expect("a tie has a second reading"), &context),
-            ];
+            let second = second.expect("a tie has a second reading");
+            let mut second_flow = DiagnosticFlow::new(&lowered, &second, &input);
+            let reports = evaluate_reports(
+                &second,
+                &lowered,
+                &sources,
+                features,
+                &grammar.name,
+                index,
+                &input,
+                shared.text,
+                &mut second_flow,
+            );
+            run.evaluated = diagnostic_flow::join([run.evaluated.parts(), second_flow.messages().parts()]);
+            if let Err(error) = reports {
+                run.stages.push(stage);
+                return Err(Box::new(self.grammar_error(index, error)));
+            }
+            let evidence = {
+                let mut recognizer = Recognizer { g: &lowered, matchers: &matchers, shared, recon: None };
+                crate::competitor_rejection::reports(grammar, &mut recognizer, &chart, &input, &chosen, &mut flow)
+                    .and_then(|()| {
+                        crate::competitor_rejection::reports(
+                            grammar,
+                            &mut recognizer,
+                            &chart,
+                            &input,
+                            &second,
+                            &mut second_flow,
+                        )
+                    })
+            };
+            run.evaluated = diagnostic_flow::join([flow.messages().parts(), second_flow.messages().parts()]);
+            if let Err(error) = evidence {
+                run.stages.push(stage);
+                return Err(Box::new(self.grammar_error(index, error)));
+            }
+            run.collected = diagnostic_flow::tied(&flow.events(), &second_flow.events());
+            let readings = vec![make_tree(shared, &chosen), make_tree(shared, &second)];
             let error = self.tie(index, readings);
             run.stages.push(stage);
             return Err(Box::new(error));
         }
-        let tree = public_tree(&chosen, &context);
-        // The chosen tree's warnings, which stand even if the emission or
-        // the `elision-only` check then fails (§12).
-        run.warnings.extend(warnings_of(&chosen, &lowered, &sources, features, &grammar.name));
+        let evidence = {
+            let mut recognizer = Recognizer { g: &lowered, matchers: &matchers, shared, recon: None };
+            crate::competitor_rejection::reports(grammar, &mut recognizer, &chart, &input, &chosen, &mut flow)
+        };
+        run.evaluated = flow.messages();
+        if let Err(error) = evidence {
+            run.stages.push(stage);
+            return Err(Box::new(self.grammar_error(index, error)));
+        }
+        let tree = make_tree(shared, &chosen);
+        run.collected = flow.collected();
         let emitted = {
             let mut recognizer = Recognizer { g: &lowered, matchers: &matchers, shared, recon: None };
-            emit(&mut recognizer, &chosen, &input, &sources)
+            emit(&mut recognizer, &chosen, &input, &sources, &mut flow)
         };
         let emitted = match emitted {
-            Ok(emitted) => emitted,
+            Ok((emitted, unowned)) => {
+                stage.errors = unowned.errors;
+                stage.warnings = unowned.warnings;
+                emitted
+            }
             Err(error) => {
                 let error = self.grammar_error(index, error);
                 run.stages.push(stage);
@@ -732,6 +894,8 @@ impl Pipeline {
         for token in emitted {
             let text = shared.source_text(token.source.0, token.source.1);
             public.push(Token {
+                errors: token.errors.clone(),
+                warnings: token.warnings.clone(),
                 text: text.clone(),
                 value: token.value.clone(),
                 image: token.image.clone(),
@@ -743,6 +907,8 @@ impl Pipeline {
                 after: token.after.clone(),
             });
             next.push(Tok {
+                errors: token.errors.clone(),
+                warnings: token.warnings.clone(),
                 text,
                 tags: token.tags,
                 value: token.value,
@@ -759,6 +925,9 @@ impl Pipeline {
         let check = elision.unwrap_or(grammar.elision_only);
         let mut ambiguous = None;
         if check
+            && run.pending.errors.is_empty()
+            && run.collected.errors.is_empty()
+            && ranking.profile.error_free()
             && (ranking.verdict == RankVerdict::Resolved || ranking.verdict == RankVerdict::Unique && has_elided(&tree))
         {
             match self.elision_check(index, shared, &input, &sources, &chosen, &lowered, &matchers, &grammar.steps) {
@@ -769,6 +938,8 @@ impl Pipeline {
                 Ok(Check::Lost(completion)) => {
                     let name = &grammar.name;
                     let error = ParseError {
+                        warnings: Vec::new(),
+                        errors: Vec::new(),
                         feature: None,
                         boundary: None,
                         kind: ParseErrorKind::Grammar,
@@ -820,6 +991,8 @@ impl Pipeline {
     fn tie(&self, index: usize, readings: Vec<Node>) -> ParseError {
         let stage = &self.stages[index].name;
         ParseError {
+            warnings: Vec::new(),
+            errors: Vec::new(),
             feature: None,
             boundary: None,
             kind: ParseErrorKind::Ambiguous,
@@ -851,7 +1024,7 @@ impl Pipeline {
         expected: Vec<Expected>,
     ) -> ParseError {
         let source = source_at(input, position);
-        let (line, column) = line_column(shared.text, source.start);
+        let (line, column) = shared.position(source.start);
         let stage = &self.stages[index].name;
         let found = input.get(position).map_or("the end of the input".to_string(), |token| format!("{:?}", token.text));
         let wanted: Vec<&str> = expected.iter().map(|expected| expected.terminal.as_str()).collect();
@@ -861,6 +1034,8 @@ impl Pipeline {
             format!("stage {stage} cannot read {found}; it expected {}", wanted.join(", "))
         };
         ParseError {
+            warnings: Vec::new(),
+            errors: Vec::new(),
             feature: None,
             boundary: None,
             kind: ParseErrorKind::Rejected,
@@ -940,6 +1115,8 @@ impl Pipeline {
             while let Some((number, record)) = next.next_if(|(_, record)| record.at == position) {
                 record_at.push(tokens.len() as u32);
                 tokens.push(Tok {
+                    errors: Vec::new(),
+                    warnings: Vec::new(),
                     text: String::new(),
                     tags: shared.tags.set_of([record.terminal.as_str()]),
                     value: record.value.clone().unwrap_or_default(),
@@ -1001,15 +1178,12 @@ impl Pipeline {
                 .checking(marks);
             let chosen_profile = ranker.tree_profile(chosen, input);
             let preferred = !g.ranked.slots.is_empty();
-            let raw_counted = if preferred {
-                Ranker::new_unfiltered(g, &chart, &tokens, shared, steps, Lean::Neither)
-                    .observing(input, &recon.project)
-                    .checking(marks)
-                    .rank()
-                    .is_some_and(|r| r.witness_counted == Some(true))
-            } else {
-                true
-            };
+            let raw_counted = Ranker::new_unfiltered(g, &chart, &tokens, shared, &[], Lean::Neither)
+                .observing(input, &recon.project)
+                .checking(marks)
+                .raw_membership()
+                .rank()
+                .is_some_and(|ranking| ranking.witness_counted == Some(true));
             ranker
                 .rank()
                 .filter(|ranking| {
@@ -1018,6 +1192,7 @@ impl Pipeline {
                         && (preferred || ranking.witness_counted == Some(true))
                 })
                 .map(|mut ranking| {
+                    ranker.witness_representative();
                     let excluded = ranking.witness_counted != Some(true);
                     let better = excluded
                         || ranker.compare_profiles(&ranking.profile, &chosen_profile) == std::cmp::Ordering::Less;
@@ -1107,7 +1282,8 @@ impl Pipeline {
         let context = TreeContext { g, sources, tag_map: &tag_set, reading: Some(&map) };
         let readings = trees.iter().map(|t| public_tree(t, &context)).collect();
         let stage = &self.stages[index].name;
-        Ok(Check::Ambiguous(Box::new(ParseError {
+        Ok(Check::Ambiguous(Box::new(ParseError {warnings: Vec::new(),
+            errors: Vec::new(),
             feature: None, boundary: None,
             kind: ParseErrorKind::Ambiguous,
             stage: Some(stage.clone()),
@@ -1140,42 +1316,9 @@ enum Check {
     Lost(Vec<Restoration>),
 }
 
-/// Where a rejected input stopped (§4): the furthest position any item
-/// reached, and the terminals the items there could have read next, each
-/// with the rules those items belong to.
-fn rejection_of(g: &Lowered, chart: &Chart) -> (usize, Vec<Expected>) {
-    let furthest = chart.reached;
-    let mut expected: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
-    let mut expect = |production: &Prod, dot: usize| {
-        if let Some(Sym::T(terminal)) = production.syms.get(dot) {
-            // A tested terminal is written with its test, and sorts by that
-            // text (docs/output.md).
-            let test = production.test(dot).map(|test| &g.tests[test as usize]);
-            expected
-                .entry(written_symbol(&g.terminals[*terminal as usize], test))
-                .or_default()
-                .insert(g.rules[production.owner as usize].name.clone());
-        }
-    };
-    for item in &chart.sets[furthest].items {
-        expect(&g.prods[item.prod as usize], item.dot as usize);
-    }
-    // The predictions the recognizer did not add, since the next token
-    // could not continue them. Those whose condition failed are not among
-    // them, since their items do not exist.
-    for &production in &chart.sets[furthest].skipped {
-        expect(&g.prods[production as usize], 0);
-    }
-    let expected = expected
-        .into_iter()
-        .map(|(terminal, rules)| Expected { terminal, rules: rules.into_iter().collect() })
-        .collect();
-    (furthest, expected)
-}
-
 /// A terminal as the diagnostics write it: its name, followed by its test
 /// if it has one, such as LE="la" (docs/output.md).
-fn written_symbol(name: &str, test: Option<&SymbolTest>) -> String {
+pub(crate) fn written_symbol(name: &str, test: Option<&SymbolTest>) -> String {
     match test {
         None => name.to_string(),
         Some(test) => format!("{name}{}", test.written),
@@ -1226,6 +1369,8 @@ fn character_tokens(unicode: &Unicode, tags: &mut crate::tags::Tags, chars: &[ch
         });
         // A character token shows its decomposed scalar (§1).
         public.push(Token {
+            errors: Vec::new(),
+            warnings: Vec::new(),
             text: text.clone(),
             value: value.clone(),
             image: value.clone(),
@@ -1237,6 +1382,8 @@ fn character_tokens(unicode: &Unicode, tags: &mut crate::tags::Tags, chars: &[ch
             after: Vec::new(),
         });
         input.push(Tok {
+            errors: Vec::new(),
+            warnings: Vec::new(),
             image: value.clone(),
             text: text.clone(),
             tags: set,

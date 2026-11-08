@@ -14,7 +14,7 @@ The stage passes names, strings, integers, captures, constants, guards, keywords
 
 The greedy reading favors the longest complete piece. It reads `...` as one symbol rather than three periods.
 
-A name ends only when no name character follows. This prevents a token from ending inside a longer name.
+If a line comment begins or no name character follows, the name ends. This prevents a token from ending inside a longer name.
 
 ```jbogenbau
 %ambiguity-resolution greedy
@@ -81,7 +81,12 @@ An engine tag starts with `_` and continues with letters, digits, or underscores
   letter | name name-character
 
 %rule name-character
-  letter | digit | "-" | "_"
+  letter | digit | name-hyphen | "_"
+
+%rule name-hyphen
+  "-"
+%conditions
+  $.following-tokens.first-token.value ≠ "-"
 
 %rule letter
   "a".."z" | "A".."Z"
@@ -119,12 +124,13 @@ An engine tag starts with `_` and continues with letters, digits, or underscores
   $.following-tokens.begins(digit)
 ```
 
-<details><summary>Railroad diagrams of the 14 rules from <code>emoji-name</code> to <code>engine-digit-dot</code></summary>
+<details><summary>Railroad diagrams of the 15 rules from <code>emoji-name</code> to <code>engine-digit-dot</code></summary>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/lexical/emoji-name.svg" alt="Railroad diagram of the rule emoji-name"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/lexical/word.svg" alt="Railroad diagram of the rule word"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/lexical/whole-name.svg" alt="Railroad diagram of the rule whole-name"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/lexical/name.svg" alt="Railroad diagram of the rule name"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/lexical/name-character.svg" alt="Railroad diagram of the rule name-character"></p>
+<p><img src="../../../docs/diagrams/gencmu/jbogenbau/lexical/name-hyphen.svg" alt="Railroad diagram of the rule name-hyphen"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/lexical/letter.svg" alt="Railroad diagram of the rule letter"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/lexical/digit.svg" alt="Railroad diagram of the rule digit"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/lexical/integer.svg" alt="Railroad diagram of the rule integer"></p>
@@ -138,7 +144,7 @@ An engine tag starts with `_` and continues with letters, digits, or underscores
 
 ## Calls and parameters
 
-A call name requires an adjacent opening parenthesis. The name does not include that parenthesis. A comment opener takes priority over a call.
+A call name requires an adjacent opening parenthesis. The name does not include that parenthesis. The opening parenthesis belongs to the call.
 
 A parameter starts with `@` and an ASCII letter. Its remaining characters follow the ordinary name rules.
 
@@ -152,11 +158,6 @@ A parameter starts with `@` and an ASCII letter. Its remaining characters follow
 
 %rule call-open
   "("
-%conditions
-  ¬$.following-tokens.begins(star-character)
-
-%rule star-character
-  "*"
 
 %rule parameter-token
   "@" whole-name
@@ -164,10 +165,9 @@ A parameter starts with `@` and an ASCII letter. Its remaining characters follow
   $ :: Parameter
 ```
 
-<details><summary>Railroad diagrams of the 4 rules from <code>call-name</code> to <code>parameter-token</code></summary>
+<details><summary>Railroad diagrams of <code>call-name</code>, <code>call-open</code> and <code>parameter-token</code></summary>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/lexical/call-name.svg" alt="Railroad diagram of the rule call-name"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/lexical/call-open.svg" alt="Railroad diagram of the rule call-open"></p>
-<p><img src="../../../docs/diagrams/gencmu/jbogenbau/lexical/star-character.svg" alt="Railroad diagram of the rule star-character"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/lexical/parameter-token.svg" alt="Railroad diagram of the rule parameter-token"></p>
 </details>
 
@@ -206,13 +206,13 @@ The boundary conditions prevent either token from ending inside its name. The sy
 
 A feature is a named switch that a grammar tests. Its name starts with a letter and continues with letters, digits, or hyphens.
 
-A guard ends with `?` for a gate or `!` for a warning. A gate can start with `¬`.
+A gate ends with `?` and can start with `¬`. Warning rules use `%warning`.
 
 A `¬` immediately before a guard belongs to that guard. Elsewhere, `negation` emits it separately for a condition.
 
 ```jbogenbau
 %rule guard
-  ["¬"] feature-name "?" | feature-name "!"
+  ["¬"] feature-name "?"
 %emits
   $ :: Guard
 
@@ -220,7 +220,7 @@ A `¬` immediately before a guard belongs to that guard. Elsewhere, `negation` e
   letter | feature-name feature-character
 
 %rule feature-character
-  letter | digit | "-"
+  letter | digit | name-hyphen
 
 %rule negation
   "¬"
@@ -307,7 +307,7 @@ An include path keeps dollar signs and backslashes literally. It excludes quotes
 
 Whitespace and comments separate tokens without contributing meaning. `layout-run` joins consecutive layout pieces for include recognition.
 
-A comment starts with `(*` and ends at the first `*)`. Stars belong to its contents unless the next character is `)`.
+A comment starts with `--` and ends before LF, CR, or the end of the file. Strings retain their comment characters. The end condition keeps every character before the line boundary inside the comment.
 
 These rules emit nothing. Their contents therefore never reach syntax recognition.
 
@@ -319,23 +319,21 @@ These rules emit nothing. Their contents therefore never reach syntax recognitio
   _White_Space | comment
 
 %rule comment
-  "(" "*" [{comment-part}] stars ")"
-
-%rule comment-part
-  $c:_ | stars $d:_
+  "-" "-" [{comment-character}]
 %conditions
-  $c.value ≠ "*", $d.value ∉ (")" "*")
+  $.following-tokens.first-token.value ∈ ("" "‹U+000A›" "‹U+000D›")
 
-%rule stars
-  "*" | stars "*"
+%rule comment-character
+  _
+%conditions
+  $.value ∉ ("‹U+000A›" "‹U+000D›")
 ```
 
-<details><summary>Railroad diagrams of <code>layout-run</code>, <code>layout</code>, <code>comment</code>, <code>comment-part</code> and <code>stars</code></summary>
+<details><summary>Railroad diagrams of <code>layout-run</code>, <code>layout</code>, <code>comment</code> and <code>comment-character</code></summary>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/lexical/layout-run.svg" alt="Railroad diagram of the rule layout-run"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/lexical/layout.svg" alt="Railroad diagram of the rule layout"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/lexical/comment.svg" alt="Railroad diagram of the rule comment"></p>
-<p><img src="../../../docs/diagrams/gencmu/jbogenbau/lexical/comment-part.svg" alt="Railroad diagram of the rule comment-part"></p>
-<p><img src="../../../docs/diagrams/gencmu/jbogenbau/lexical/stars.svg" alt="Railroad diagram of the rule stars"></p>
+<p><img src="../../../docs/diagrams/gencmu/jbogenbau/lexical/comment-character.svg" alt="Railroad diagram of the rule comment-character"></p>
 </details>
 
 ## Keywords
@@ -351,6 +349,7 @@ Value tests select known keywords. `$KEYWORDS` holds their exact names. The fall
 ```jbogenbau
 %const $KEYWORDS
   "rule" "redefine-rule" "extend-rule" "conditions"
+  "error" "warning" "suppress-warnings"
   "emits" "erased" "ambiguity-resolution" "elision-only" "stage"
   "extend-stage" "redefine-stage" "include" "features"
   "const" "redefine-const" "classifier" "implies" "names"
@@ -360,6 +359,9 @@ Value tests select known keywords. `$KEYWORDS` holds their exact names. The fall
   | "%" whole-name="redefine-rule" :: KW-REDEFINE-RULE
   | "%" whole-name="extend-rule" :: KW-EXTEND-RULE
   | "%" whole-name="conditions" :: KW-CONDITIONS
+  | "%" whole-name="error" :: KW-ERROR
+  | "%" whole-name="warning" :: KW-WARNING
+  | "%" whole-name="suppress-warnings" :: KW-SUPPRESS-WARNINGS
   | "%" whole-name="emits" :: KW-EMITS
   | "%" whole-name="erased" :: KW-ERASED
   | "%" whole-name="ambiguity-resolution" :: KW-AMBIGUITY-RESOLUTION
@@ -395,12 +397,14 @@ A symbol is punctuation that no larger lexical form contains. Symbols preserve t
 
 The greedy reading keeps `...`, `..`, `++`, `::`, `:=`, and `:-` together as compound tokens. `#` and `(` remain separate tokens.
 
+`…` marks the unread remainder at one edge of a body query.
+
 `≻` separates ranked options. `≝` gives an elided terminator its default value. `/` separates a repetition's item and separator. Pattern paths and comparisons retain their own punctuation tokens.
 
 ```jbogenbau
 %rule symbol
-  | "«" | "»" | "·"
-  | "|" | "&" | "(" | ")" | "[" | "]" | "{" | "}" | "/" | "+" | "<" | ">" | "#" | "ε" | ","
+  | "«" | "»" | "·" | "…"
+  | "*" | "|" | "&" | "(" | ")" | "[" | "]" | "{" | "}" | "/" | "+" | "<" | ">" | "#" | "ε" | ","
   | "∧" | "∨" | "⟹" | "=" | "∈" | "⊆" | "∪" | "∩" | "∖" | "∅"
   | "≅" | "≝" | "⋯" | "⋮" | "⋰" | "⋱" | "≻" | ":" | "."
   | "+" "+" | "." "." "." | "." "." | ":" ":" | ":" "=" | ":" "-"

@@ -5,6 +5,8 @@ from typing import Any, Iterator
 
 from . import _testing
 from ._model import Restoration
+from ._clause_walk import clause_children, production_clauses
+from ._query_forms import body_target
 
 
 @dataclass(frozen=True)
@@ -283,18 +285,15 @@ def needed(lowered: Any) -> frozenset[int]:
         for number in lowered.rule_productions[rule]:
             production = lowered.productions[number]
             rules.extend(symbol for symbol,terminal in zip(production.rhs,production.terminal) if not terminal)
-            pending = [production.tags_term,production.emit,production.parent_tags,production.conds_predict,production.items.conditions if production.items else None]
-            pending.extend(production.conds_at.values())
-            if production.slot is not None:
-                source = production.slot.source
-                pending.extend((source.conditions,source.tags,source.rule_tags,source.emit))
+            pending = production_clauses(production)
             while pending:
                 node = pending.pop()
                 if isinstance(node,(list,tuple)):
                     pending.extend(node)
                 elif isinstance(node,dict):
                     method = node.get("method")
-                    targets = [arg.get("rule", "\0query:" + arg.get("terminal", "")) for arg in node.get("args", [])] if method in ("matches", "begins", "ends", "tags") else []
+                    targets = [body_target(lowered, arg["body"]) if "body" in arg else arg.get("rule", "\0query:" + arg.get("terminal", ""))
+                               for arg in node.get("args", [])] if method in ("matches", "begins", "ends", "tags", "parse") else []
                     span = node.get("receiver")
                     for target in targets:
                         target = lowered.rule_ids[target]
@@ -329,11 +328,10 @@ def needed(lowered: Any) -> frozenset[int]:
     return lowered.close_rules
 
 
-def local_demand(production):
+def local_demand(production, lowered):
     """Find observations consumed here, rather than by another caller."""
     whole, positions, queries = False, set(), {}
-    stack = [production.conds_predict, production.conds_at, production.items.conditions if production.items else None,
-             production.tags_term, production.emit, production.parent_tags]
+    stack = production_clauses(production)
     if production.slot is not None or production.source is not None:
         # Deferred option gates can consume earlier public captures.
         # A private whole capture also names the written alternative.
@@ -346,7 +344,7 @@ def local_demand(production):
             continue
         seen.add(id(node))
         if isinstance(node, dict):
-            value = node.get("receiver") if node.get("method") in ("matches", "begins", "ends") else None
+            value = node.get("receiver") if node.get("method") in ("matches", "begins", "ends", "parse") else None
             aligned = value["receiver"] if isinstance(value, dict) and value.get("method") == "onward" else value
             if isinstance(aligned, dict) and aligned.get("method") in ("without-elision", "without-elision-except"):
                 name = aligned["receiver"]["capture"]
@@ -356,7 +354,7 @@ def local_demand(production):
                     if position not in queries:
                         queries[position] = set()
                     if queries[position] is not None:
-                        queries[position].update(arg.get("rule", "\0query:" + arg.get("terminal", "")) for arg in node["args"])
+                        queries[position].update(body_target(lowered, arg["body"]) if "body" in arg else arg.get("rule", "\0query:" + arg.get("terminal", "")) for arg in node["args"])
                     continue
             if node.get("method") in ("without-elision", "without-elision-except"):
                 name = node["receiver"]["capture"]

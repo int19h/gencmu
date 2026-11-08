@@ -1,0 +1,45 @@
+{
+  "description": "Covered negative target sets prune impossible assignments before the variant cap.",
+  "grammar": "%rule text x (r0 | r1 | r2 | r3 | r4)\n%rule x A :: ($.followed-by(r0) ⟹ Tag-0) ∪ ($.followed-by(r0 | r1) ⟹ Tag-1) ∪ ($.followed-by(r0 | r1 | r2) ⟹ Tag-2) ∪ ($.followed-by(r0 | r1 | r2 | r3) ⟹ Tag-3) ∪ ($.followed-by(r0 | r1 | r2 | r3 | r4) ⟹ Tag-4)\n%rule r0 B\n%rule r1 C\n%rule r2 D\n%rule r3 E\n%rule r4 F",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "tags": [
+              "Tag-0",
+              "Tag-1",
+              "Tag-2",
+              "Tag-3",
+              "Tag-4"
+            ]
+          },
+          {
+            "rule": "r0"
+          }
+        ]
+      }
+    }
+  }
+}

@@ -36,16 +36,17 @@ const (
 // dn is a derivation of a constituent (a read or a close) or a partial one
 // (a part: the derivation of an item's children so far).
 type dn struct {
-	structure  int
-	closes     int
-	kind       uint8
-	tok        int32 // read: the token, relative to the recognizer's base
-	term       int32
-	prod       *production // close
-	start, end int32       // close
-	tags       *tagset     // close
-	a          *dn         // part: the children before; close: its children
-	b          *dn         // part: the last child
+	workingStructure int
+	structure        int
+	closes           int
+	kind             uint8
+	tok              int32 // read: the token, relative to the recognizer's base
+	term             int32
+	prod             *production // close
+	start, end       int32       // close
+	tags             *tagset     // close
+	a                *dn         // part: the children before; close: its children
+	b                *dn         // part: the last child
 	// vis and whole are the numbers of its visible actions and of all its
 	// actions, and sizes holds both instead where either does not fit in an
 	// int64: a derivation over an empty span can have exponentially many.
@@ -99,6 +100,9 @@ func closeNode(p *production, start, end int32, tags *tagset, kids *dn, structur
 	if len(structure) > 1 {
 		n.closes = structure[1]
 	}
+	if len(structure) > 2 {
+		n.workingStructure = structure[2]
+	}
 	vis, whole := count{}, countOne
 	if !p.transparent {
 		vis = countOne
@@ -123,10 +127,18 @@ type action struct {
 	tok        int32
 	term       int32
 	prod       *production
+	hidden     bool
 	start, end int32
 }
 
-func (a action) visible() bool { return a.read || !a.prod.transparent }
+func (a action) visible() bool { return a.read || !a.hidden }
+
+func (a action) same(b action) bool {
+	if a.read || b.read {
+		return a.read && b.read && a.tok == b.tok && a.term == b.term
+	}
+	return a.prod == b.prod && a.start == b.start && a.end == b.end
+}
 
 type iterEl struct {
 	n    *dn
@@ -169,7 +181,7 @@ func elAction(e iterEl) action {
 	if e.n.kind == dRead {
 		return action{read: true, tok: e.n.tok, term: e.n.term}
 	}
-	return action{prod: e.n.prod, start: e.n.start, end: e.n.end}
+	return action{prod: sourceProduction(e.n.prod), hidden: e.n.prod.transparent, start: e.n.start, end: e.n.end}
 }
 
 func elWhole(e iterEl) count {
@@ -240,8 +252,12 @@ func (r cmpRes) flip() cmpRes {
 }
 
 type ranker struct {
+	restoration       *restorationViews
 	admission         *slotAdmission
 	rawWitnessCounted *bool
+	canonical         *ranker
+	witnessOnly       bool
+	witnessShown      *dn
 	rec               *recognizer
 	// lean is greedy, lazy, or "" for no lean, where any two differing
 	// derivations tie.
@@ -265,15 +281,20 @@ type ranker struct {
 
 // skips says whether a fault of the check skips this alternative: the last
 // of two or more links of an item, or completed items of a constituent
-// (tests/README.md).
+// (tests/README.md). Independent action summaries retain their complete candidates.
 func (rk *ranker) skips(fault, site string, i, n int) bool {
-	return rk.check && n > 1 && i == n-1 && rk.rec.run.ps.faultAt(fault, site)
+	return rk.check && !rk.witnessOnly && rk.canonical != rk && n > 1 && i == n-1 && rk.rec.run.ps.faultAt(fault, site)
 }
 
 // newRanker ranks by the key steps of a directive and then its lean,
 // greedy, lazy, or no lean for "" (engine §6).
 func newRanker(rec *recognizer, steps []keyStep, lean string) *ranker {
+	projection := newRestorationViews(rec)
+	if projection != nil {
+		rec = projection.rec
+	}
 	rk := newUnfilteredRanker(rec, steps, lean)
+	rk.restoration = projection
 	if len(rec.g.rankedHelpers) > 0 {
 		rk.views = newSlotViews(rk)
 		rk.admission = newSlotAdmission(rk)
@@ -286,16 +307,60 @@ func newUnfilteredRanker(rec *recognizer, steps []keyStep, lean string) *ranker 
 	rk := &ranker{rec: rec, lean: lean, space: newProfileSpace(steps), items: map[*item]*itemRank{}, syms: map[*symNode]*itemRank{}, marked: map[*item]bool{}}
 	rk.space.rec = rec
 	rk.profiles = rec.g.canCountProfiles(steps)
+	carried := false
+	for _, measure := range rec.diagnosticMeasures().carried {
+		carried = carried || !measure[2].isZero()
+	}
+	rk.profiles = rk.profiles || carried
 	if rec.recon != nil {
 		onlyOmitted := true
 		for _, step := range steps {
 			onlyOmitted = onlyOmitted && requiresElided(step.pattern)
 		}
-		if onlyOmitted {
+		if onlyOmitted && !rec.g.hasErrors && !carried {
 			rk.profiles = false
 		}
 	}
 	return rk
+}
+
+// The extra action summary cuts only to the diagnostic measure (§6).
+// Its ordinary prefix frontier keeps actions that later context can distinguish.
+func (rk *ranker) canonicalItem(it *item, f forbidden) *entry {
+	if rk.canonical == nil {
+		canonical := newUnfilteredRanker(rk.rec, nil, "")
+		canonical.profiles = true
+		canonical.canonical = canonical
+		canonical.admission, canonical.views = rk.admission, rk.views
+		canonical.restoration = rk.restoration
+		canonical.check, canonical.marks = rk.check, rk.marks
+		rk.canonical = canonical
+	}
+	return rk.canonical.itemVal(it, f)
+}
+
+// The shown W(D) preserves its exterior edges and uses kept erased interiors (§7.10).
+func (rk *ranker) witnessRepresentative(top []*symNode) *dn {
+	representative := newUnfilteredRanker(rk.rec, nil, "")
+	representative.profiles, representative.check, representative.witnessOnly = true, rk.check, true
+	representative.admission, representative.views, representative.marks = rk.admission, rk.views, rk.marks
+	representative.restoration = rk.restoration
+	if rk.restoration != nil {
+		top = rk.restoration.roots(top)
+	}
+	if representative.views != nil {
+		mapped := make([]*symNode, len(top))
+		for index, symbol := range top {
+			mapped[index] = representative.views.plainSyms[symbol]
+		}
+		top = mapped
+	}
+	result := representative.rankOriginal(top)
+	if result == nil {
+		return nil
+	}
+	rk.witnessShown = result.first
+	return result.first
 }
 
 func (rk *ranker) itemMemo(it *item) *itemRank {
@@ -385,115 +450,69 @@ func (rk *ranker) aFirst(r cmpRes) bool {
 }
 
 func (rk *ranker) compare(a, b *dn) cmpRes {
-	var ia, ib actionIter
-	ia.push(a)
-	ib.push(b)
-	var r cmpRes
-	vis := count{}
-	// The whole sequences, in step, skipping shared subtrees.
-	for {
-		ea, oka := ia.top()
-		eb, okb := ib.top()
-		if !oka && !okb {
-			return cmpRes{kind: cIdentical}
+	first := func(visible bool) cmpRes {
+		var ia, ib actionIter
+		ia.push(a)
+		ib.push(b)
+		position := count{}
+		size := elWhole
+		if visible {
+			size = elVis
 		}
-		if !oka || !okb {
-			r.aEnded = !oka
-			break
-		}
-		if ea == eb {
-			vis = vis.add(elVis(ea))
-			ia.pop()
-			ib.pop()
-			continue
-		}
-		if !isLeaf(ea) || !isLeaf(eb) {
-			// Expand the larger side first, so that the two meet at a
-			// subtree they share.
-			c := elWhole(ea).cmp(elWhole(eb))
-			if !isLeaf(ea) && c >= 0 {
-				ia.expand()
-			}
-			if !isLeaf(eb) && c <= 0 {
-				ib.expand()
-			}
-			continue
-		}
-		xa, xb := elAction(ea), elAction(eb)
-		if xa == xb {
-			if xa.visible() {
-				vis = vis.add(countOne)
-			}
-			ia.pop()
-			ib.pop()
-			continue
-		}
-		r.wa, r.wb, r.hasWhole = xa, xb, true
-		break
-	}
-	// The visible sequences, from there.
-	norm := func(it *actionIter) (iterEl, bool) {
-		for {
-			e, ok := it.top()
-			if !ok {
-				return e, false
-			}
-			if isLeaf(e) {
-				if e.leaf && e.n.prod.transparent {
-					it.pop()
-					continue
+		norm := func(it *actionIter) (iterEl, bool) {
+			for {
+				e, ok := it.top()
+				if !ok || !size(e).isZero() {
+					return e, ok
 				}
-				return e, true
-			}
-			if e.n.visCount().isZero() {
 				it.pop()
+			}
+		}
+		for {
+			ea, oka := norm(&ia)
+			eb, okb := norm(&ib)
+			switch {
+			case !oka && !okb:
+				return cmpRes{kind: cVisEqual, pos: position}
+			case !oka:
+				return cmpRes{kind: cAPrefix, pos: position}
+			case !okb:
+				return cmpRes{kind: cBPrefix, pos: position}
+			}
+			if ea == eb {
+				position = position.add(size(ea))
+				ia.pop()
+				ib.pop()
 				continue
 			}
-			return e, true
+			if !isLeaf(ea) || !isLeaf(eb) {
+				c := size(ea).cmp(size(eb))
+				if !isLeaf(ea) && c >= 0 {
+					ia.expand()
+				}
+				if !isLeaf(eb) && c <= 0 {
+					ib.expand()
+				}
+				continue
+			}
+			xa, xb := elAction(ea), elAction(eb)
+			if xa.same(xb) {
+				position = position.add(countOne)
+				ia.pop()
+				ib.pop()
+				continue
+			}
+			return cmpRes{kind: cVisDiff, pos: position, va: xa, vb: xb, outcome: rk.decide(xa, xb)}
 		}
 	}
-	for {
-		ea, oka := norm(&ia)
-		eb, okb := norm(&ib)
-		switch {
-		case !oka && !okb:
-			r.kind = cVisEqual
-			r.pos = vis
-			return r
-		case !oka:
-			r.kind, r.pos = cAPrefix, vis
-			return r
-		case !okb:
-			r.kind, r.pos = cBPrefix, vis
-			return r
-		}
-		if ea == eb {
-			vis = vis.add(elVis(ea))
-			ia.pop()
-			ib.pop()
-			continue
-		}
-		if !isLeaf(ea) || !isLeaf(eb) {
-			c := elVis(ea).cmp(elVis(eb))
-			if !isLeaf(ea) && c >= 0 {
-				ia.expand()
-			}
-			if !isLeaf(eb) && c <= 0 {
-				ib.expand()
-			}
-			continue
-		}
-		xa, xb := elAction(ea), elAction(eb)
-		if xa == xb {
-			vis = vis.add(countOne)
-			ia.pop()
-			ib.pop()
-			continue
-		}
-		r.kind, r.pos, r.va, r.vb = cVisDiff, vis, xa, xb
-		r.outcome = rk.decide(xa, xb)
-		return r
+	result, whole := first(true), first(false)
+	result.aEnded = whole.kind == cAPrefix
+	result.hasWhole = whole.kind == cVisDiff
+	result.wa, result.wb = whole.va, whole.vb
+	if result.kind == cVisEqual && whole.kind == cVisEqual {
+		result.kind = cIdentical
 	}
+	return result
 }
 
 // tiedSet holds the derivations tied with a candidate that diverge from it
@@ -633,6 +652,9 @@ func (rk *ranker) merge(cands []*cand) []*cand {
 // finish orders the last candidates, whose visible sequences are prefixes of
 // one another, as T does, and returns the least with its tied derivations.
 func (rk *ranker) finish(cands []*cand) *cand {
+	if len(cands) == 0 {
+		return nil
+	}
 	best := 0
 	for i := 1; i < len(cands); i++ {
 		if !rk.aFirst(rk.compare(cands[best].d, cands[i].d)) {
@@ -819,6 +841,9 @@ func (rk *ranker) symVal(s *symNode, f forbidden) *entry {
 // and its close follows (§7.7).
 func (rk *ranker) startItem(it *item, f forbidden) (rankFrame, *entry) {
 	if it.dot == 0 && !it.restores {
+		if rk.witnessOnly && rk.slotMarks(it) == nil {
+			return nil, nil
+		}
 		// A predicted item of W(D), such as an empty production's, is
 		// W(D)'s (tests/README.md).
 		if rk.slotMarks(it) != nil {
@@ -833,7 +858,7 @@ func (rk *ranker) startItem(it *item, f forbidden) (rankFrame, *entry) {
 	if rk.views != nil {
 		scope = rk.views.itemScopes[it]
 	}
-	f = rk.slotContext(f, it.prod.lhs, scope)
+	f = rk.slotContext(f, rk.rec.g.cycleRule(it.prod.lhs), scope)
 	slot := memoSlotFor(rk.itemMemo(it), f)
 	switch slot.state {
 	case 1:
@@ -917,6 +942,7 @@ func (fr *itemFrame) resume(rk *ranker, in *entry) (rankFrame, *entry) {
 			if l.sym == nil {
 				var profile profile
 				if rk.profiles {
+					profile = rk.space.measureProfile(rk.rec.carriedMeasure(l.tok))
 					a, b := l.tok, l.tok+1
 					if rc := rk.rec.recon; rc != nil {
 						a, b = int32(rc.project[a]), int32(rc.project[b])
@@ -926,7 +952,7 @@ func (fr *itemFrame) resume(rk *ranker, in *entry) (rankFrame, *entry) {
 						if rc := rk.rec.recon; rc != nil {
 							index = rc.original[l.tok]
 						}
-						profile = rk.space.occurrence("", rk.rec.g.terminals[l.term], rk.rec.run.toks[index].Value, rk.rec.run.tagsets[index], a, b)
+						profile = rk.space.sum(profile, rk.space.occurrence("", rk.rec.g.terminals[l.term], rk.rec.run.toks[index].Value, rk.rec.run.tagsets[index], a, b))
 					}
 				}
 				fr.child, fr.phase = &entry{cands: []*cand{{d: readNode(l.tok, l.term)}}, count: 1, least: 1, profile: profile}, linkSummarize
@@ -966,6 +992,9 @@ func (fr *itemFrame) summarize(rk *ranker, l link) {
 		if mask, ok := rk.admission.mask(it, fr.f); ok {
 			v.admitted = mask[i]
 		}
+	}
+	if rk.witnessOnly && !fr.marked[l] {
+		v.admitted = false
 	}
 	count := prev.count * child.count
 	if rk.profiles {
@@ -1019,10 +1048,10 @@ func (rk *ranker) startSym(s *symNode, f forbidden) (rankFrame, *entry) {
 	if rk.views != nil {
 		scope = rk.views.symScopes[s]
 	}
-	if f.has(s.rule) {
+	if f.has(rk.rec.g.cycleRule(s.rule)) {
 		return nil, nil
 	}
-	f = rk.slotContext(f, s.rule, scope)
+	f = rk.slotContext(f, rk.rec.g.cycleRule(s.rule), scope)
 	slot := memoSlotFor(rk.symMemo(s), f)
 	switch slot.state {
 	case 1:
@@ -1036,7 +1065,7 @@ func (rk *ranker) startSym(s *symNode, f forbidden) (rankFrame, *entry) {
 	}
 	inner := f
 	if rk.rec.g.rules[s.rule].scc >= 0 && scope == nil {
-		inner = f.with(s.rule)
+		inner = f.with(rk.rec.g.cycleRule(s.rule))
 	}
 	return &symFrame{s: s, inner: inner, slot: slot}, nil
 }
@@ -1055,11 +1084,12 @@ type symFrame struct {
 	slot  *memoSlot
 	// The item being ranked, whether its value is asked for, and the
 	// values and summary of the items before it.
-	i     int
-	asked bool
-	vals  []edgeVal
-	sum   summary
-	w     bool
+	i      int
+	asked  bool
+	vals   []edgeVal
+	sum    summary
+	w      bool
+	erased []*edgeVal
 }
 
 func (fr *symFrame) resume(rk *ranker, in *entry) (rankFrame, *entry) {
@@ -1067,7 +1097,9 @@ func (fr *symFrame) resume(rk *ranker, in *entry) (rankFrame, *entry) {
 	for ; fr.i < len(s.items); fr.i++ {
 		c := s.items[fr.i]
 		e := in
-		if !fr.asked {
+		if !fr.asked && rk.witnessOnly && c.prod.nothing {
+			e = rk.canonicalItem(c, fr.inner)
+		} else if !fr.asked {
 			call, v := rk.startItem(c, fr.inner)
 			if call != nil {
 				fr.asked = true
@@ -1081,6 +1113,11 @@ func (fr *symFrame) resume(rk *ranker, in *entry) (rankFrame, *entry) {
 		}
 		profile := e.profile
 		if rk.profiles {
+			if c.prod.nothing {
+				profile = nil
+			} else if c.prod.error != nil {
+				profile = rk.space.sum(profile, rk.space.measureProfile(rk.rec.ownMeasure(c.origin, c.set)))
+			}
 			if c.prod.restoration() && !c.restores && rk.rec.recon == nil {
 				tags := rk.rec.run.ps.in.fromList([]string{c.prod.elided, "_Elided"})
 				profile = rk.space.sum(rk.space.occurrence("", c.prod.elided, "", tags, s.start, s.start), profile)
@@ -1093,6 +1130,20 @@ func (fr *symFrame) resume(rk *ranker, in *entry) (rankFrame, *entry) {
 				profile = rk.space.sum(rk.space.occurrence(rk.rec.g.rules[s.rule].name, "", "", s.tags, a, b), profile)
 			}
 		}
+		if c.prod.nothing {
+			// Equal erased completions contribute one exterior occurrence.
+			// Their selected interior comes from the independent action summary.
+			canonical := rk.canonicalItem(c, fr.inner)
+			if canonical != nil && canonical.count > 0 {
+				inside := canonical.profile
+				if c.prod.error != nil {
+					inside = rk.canonical.space.sum(inside, rk.canonical.space.measureProfile(rk.rec.ownMeasure(c.origin, c.set)))
+				}
+				fr.erased = append(fr.erased, &edgeVal{it: c, e: canonical, profile: inside})
+				fr.w = fr.w || e.w
+			}
+			continue
+		}
 		// Faults of the check skip the last of two or more completed
 		// items, in the count or in the candidates (tests/README.md).
 		if !rk.skips("lost:context", "items", fr.i, len(s.items)) {
@@ -1103,15 +1154,56 @@ func (fr *symFrame) resume(rk *ranker, in *entry) (rankFrame, *entry) {
 			fr.vals = append(fr.vals, edgeVal{it: c, e: e, profile: profile})
 		}
 	}
+	if len(fr.erased) > 0 {
+		if rk.admission != nil || rk.witnessOnly {
+			for _, c := range s.items {
+				if c.prod.nothing && rk.slotMarks(c) != nil {
+					fr.w = true
+				}
+			}
+		}
+		var interior profile
+		var candidates []*cand
+		for _, v := range fr.erased {
+			order := v.profile.measure().cmp(interior.measure())
+			if len(candidates) == 0 || order < 0 {
+				interior, candidates = v.profile, nil
+			} else if order > 0 {
+				continue
+			}
+			for _, x := range v.e.cands {
+				candidates = append(candidates, &cand{d: closeNode(v.it.prod, s.start, s.end, s.tags, x.d, s.structure, s.closes, v.it.structure)})
+			}
+		}
+		var exterior profile
+		a, b := s.start, s.end
+		if rc := rk.rec.recon; rc != nil {
+			a, b = int32(rc.project[a]), int32(rc.project[b])
+		}
+		if rk.profiles && !rk.rec.g.rules[s.rule].helper && a < b {
+			exterior = rk.space.occurrence(rk.rec.g.rules[s.rule].name, "", "", s.tags, a, b)
+		}
+		selected := rk.canonical.finish(rk.canonical.merge(candidates))
+		if selected != nil {
+			fr.sum.add(rk.space, exterior, 1, 1)
+			fr.vals = append(fr.vals, edgeVal{e: &entry{cands: []*cand{{d: selected.d}}, count: 1, least: 1}, profile: exterior})
+		}
+	}
 	var cands []*cand
 	for _, v := range fr.vals {
 		if rk.profiles && rk.space.compare(v.profile, fr.sum.profile) != 0 {
 			continue
 		}
 		c := v.it
+		if c == nil {
+			cands = append(cands, v.e.cands...)
+			continue
+		}
 		for _, x := range v.e.cands {
-			n := &cand{d: closeNode(c.prod, s.start, s.end, s.tags, x.d, s.structure, s.closes)}
-			rk.inherit(n, x, count{}, func(t *dn) *dn { return closeNode(c.prod, s.start, s.end, s.tags, t, s.structure, s.closes) }, pastInf)
+			n := &cand{d: closeNode(c.prod, s.start, s.end, s.tags, x.d, s.structure, s.closes, c.structure)}
+			rk.inherit(n, x, count{}, func(t *dn) *dn {
+				return closeNode(c.prod, s.start, s.end, s.tags, t, s.structure, s.closes, c.structure)
+			}, pastInf)
 			cands = append(cands, n)
 		}
 	}
@@ -1195,6 +1287,9 @@ type rankResult struct {
 // text that spans it, combined as the edges of one root (engine §6). It is
 // nil when every derivation is cyclic.
 func (rk *ranker) rank(top []*symNode) *rankResult {
+	if rk.restoration != nil {
+		top = rk.restoration.roots(top)
+	}
 	if rk.admission != nil && rk.views != nil {
 		mapped := make([]*symNode, len(top))
 		for i, s := range top {
@@ -1237,6 +1332,9 @@ func (rk *ranker) rankOriginal(top []*symNode) *rankResult {
 		cands = append(cands, e.cands...)
 	}
 	m := rk.finish(rk.merge(cands))
+	if m == nil {
+		return nil
+	}
 
 	res := &rankResult{profile: root.profile, first: m.d, witnessCounted: rk.marks != nil && counted}
 	// Without a lean, the count of the best derivations decides; with one,
@@ -1290,13 +1388,19 @@ func (s *summary) add(space *profileSpace, p profile, least, total int) {
 	if total == 0 {
 		return
 	}
-	switch c := space.compare(p, s.profile); {
-	case s.total == 0 || c < 0:
+	comparison := space.compare(p, s.profile)
+	errors := p.measure().cmp(s.profile.measure())
+	if s.total == 0 || errors < 0 {
+		s.total = min(total, 2)
+	} else if errors == 0 {
+		s.total = min(s.total+total, 2)
+	}
+	switch {
+	case s.least == 0 || comparison < 0:
 		s.least, s.profile = least, p
-	case c == 0:
+	case comparison == 0:
 		s.least = min(s.least+least, 2)
 	}
-	s.total = min(s.total+total, 2)
 }
 
 // elSeq is the component of a profile under late(c) and early(c) (engine
@@ -1465,9 +1569,14 @@ func (p profile) at(i int) component {
 	return p[i]
 }
 
+func (p profile) measure() diagnosticMeasure {
+	return diagnosticMeasure{p.at(0).n, p.at(1).n, p.at(2).n}
+}
+
 // profileSpace holds the key steps of one ranking: how they count
 // occurrences, add profiles and compare them (engine §6).
 type profileSpace struct {
+	kinds      []string
 	steps      []keyStep
 	answers    map[rankingNodeKey]bool
 	values     []bool
@@ -1485,8 +1594,9 @@ type rankingNodeKey struct {
 }
 
 func newProfileSpace(steps []keyStep) *profileSpace {
-	sp := &profileSpace{steps: steps, answers: map[rankingNodeKey]bool{}, leaves: map[int32]*elSeq{}}
+	sp := &profileSpace{kinds: []string{"fewest", "fewest", "most"}, steps: steps, answers: map[rankingNodeKey]bool{}, leaves: map[int32]*elSeq{}}
 	for _, step := range steps {
+		sp.kinds = append(sp.kinds, step.step)
 		sp.values = append(sp.values, patternHasValue(step.pattern))
 		sp.nodeValues = sp.nodeValues || patternReadsNodeValue(step.pattern)
 	}
@@ -1522,17 +1632,17 @@ func (sp *profileSpace) occurrence(name, terminal, value string, tags *tagset, p
 			continue
 		}
 		if out == nil {
-			out = make(profile, len(sp.steps))
+			out = make(profile, len(sp.kinds))
 		}
 		switch step.step {
 		case "leftmost-longest":
 			if p < q {
-				out[index].spans = []profileSpan{{p, q, countOne}}
+				out[index+3].spans = []profileSpan{{p, q, countOne}}
 			}
 		case "fewest", "most":
-			out[index].n = countOne
+			out[index+3].n = countOne
 		default:
-			out[index].seq = sp.leaf(p)
+			out[index+3].seq = sp.leaf(p)
 		}
 	}
 	return out
@@ -1556,9 +1666,9 @@ func (sp *profileSpace) sum(a, b profile) profile {
 	if b == nil {
 		return a
 	}
-	out := make(profile, len(sp.steps))
-	for i, step := range sp.steps {
-		switch step.step {
+	out := make(profile, len(sp.kinds))
+	for i, step := range sp.kinds {
+		switch step {
 		case "leftmost-longest":
 			out[i].spans = sumSpans(a[i].spans, b[i].spans)
 		case "fewest", "most":
@@ -1577,10 +1687,10 @@ func (sp *profileSpace) compare(a, b profile) int {
 	if a == nil && b == nil {
 		return 0
 	}
-	for i, step := range sp.steps {
+	for i, step := range sp.kinds {
 		x, y := a.at(i), b.at(i)
 		c := 0
-		switch step.step {
+		switch step {
 		case "leftmost-longest":
 			c = compareSpans(x.spans, y.spans)
 		case "fewest":
@@ -1604,6 +1714,13 @@ func (sp *profileSpace) compare(a, b profile) int {
 // order, a parent before its children, so that the sequences of late and
 // early list their positions in order.
 func (sp *profileSpace) derivationProfile(g *lowered, d *dn) profile {
+	if sp.rec.recon != nil {
+		original, rec := *sp, *sp.rec
+		rec.recon, rec.base = nil, 0
+		rec.measures = sp.rec.diagnosticMeasures().original
+		original.rec, original.spanValues = &rec, nil
+		sp = &original
+	}
 	var out profile
 	stack := []*dn{d}
 	for len(stack) > 0 {
@@ -1612,12 +1729,19 @@ func (sp *profileSpace) derivationProfile(g *lowered, d *dn) profile {
 		if n == nil {
 			continue
 		}
+		if n.kind == dClose && n.prod.error != nil && !n.prod.nothing {
+			out = sp.sum(out, sp.measureProfile(sp.rec.ownMeasure(n.start, n.end)))
+		}
 		if n.kind == dClose && !g.rules[n.prod.lhs].helper && n.start < n.end {
 			out = sp.sum(out, sp.occurrence(g.rules[n.prod.lhs].name, "", "", n.tags, n.start, n.end))
 		} else if n.kind == dRead {
 			rec := sp.rec
 			index := rec.base + int(n.tok)
+			out = sp.sum(out, sp.measureProfile(rec.carriedMeasure(n.tok)))
 			out = sp.sum(out, sp.occurrence("", g.terminals[n.term], rec.run.toks[index].Value, rec.run.tagsets[index], n.tok, n.tok+1))
+		}
+		if n.kind == dClose && n.prod.nothing {
+			continue
 		}
 		stack = append(stack, n.b, n.a)
 	}
@@ -1681,5 +1805,16 @@ func sumSpans(x, y []profileSpan) []profileSpan {
 	}
 	out = append(out, x[i:]...)
 	out = append(out, y[j:]...)
+	return out
+}
+
+func (sp *profileSpace) measureProfile(measure diagnosticMeasure) profile {
+	if measure == (diagnosticMeasure{}) {
+		return nil
+	}
+	out := make(profile, len(sp.kinds))
+	for index, value := range measure {
+		out[index].n = value
+	}
 	return out
 }

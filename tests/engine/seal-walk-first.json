@@ -1,0 +1,15 @@
+{
+  "description": "Engine §4.1 and §6: a first-child path cannot enter an erased seal.",
+  "grammar": "%ambiguity-resolution fewest #·zz\n%rule text $e:e\n%conditions $e ≅ #(a ⋰)\n%rule e a\n%erased\n%rule a A\n%rule zz B B B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected"
+  }
+}

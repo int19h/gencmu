@@ -106,27 +106,27 @@ The opener's slot takes every leading free modifier after TO. These modifiers re
 ```jbogenbau
 
 %rule text
-  (* text <- intro_null free* paragraphs? si_clause? SI_clause* faho_clause EOF? *)
+  -- text <- intro_null free* paragraphs? si_clause? SI_clause* faho_clause EOF?
   🆓 [paragraphs]
 
 %rule paragraphs
-  (* paragraphs <- (NIhO_clause+ paragraphs_1?)+ / paragraphs_1 (NIhO_clause+ paragraphs_1?)* *)
+  -- paragraphs <- (NIhO_clause+ paragraphs_1?)+ / paragraphs_1 (NIhO_clause+ paragraphs_1?)*
   {NIhO 🆓} [paragraphs-tail] | paragraphs-tail
 
 %rule paragraphs-tail
   paragraphs-1 [{NIhO 🆓} [paragraphs-tail]]
 
 %rule paragraphs-1
-  (* paragraphs_1 <- paragraphs_2 (NIhO_clause+ joik paragraphs_2)* *)
+  -- paragraphs_1 <- paragraphs_2 (NIhO_clause+ joik paragraphs_2)*
   {paragraphs-2 / {NIhO 🆓} joik}
 
 %rule paragraphs-2
-  (* paragraphs_2 <- paragraph (NIhO_clause+ joik? tag? BO_clause paragraph)* *)
+  -- paragraphs_2 <- paragraph (NIhO_clause+ joik? tag? BO_clause paragraph)*
   {paragraph / {NIhO 🆓} [joik] [tag] BO 🆓}
 
 %rule paragraph
-  (* paragraph <- (I_clause (statement_terms / fragment)?)+
-                / (statement_terms / fragment) (I_clause (statement_terms / fragment)?)* *)
+  -- paragraph <- (I_clause (statement_terms / fragment)?)+
+-- / (statement_terms / fragment) (I_clause (statement_terms / fragment)?)*
   | {I 🆓 [statement-terms | fragment]}
   | (statement-terms | fragment) [{I 🆓 [statement-terms | fragment]}]
 ```
@@ -161,42 +161,42 @@ A structural pattern describes constructed nodes. Suppose every earlier branch i
 ```jbogenbau
 
 %rule statement-terms
-  (* statement_terms <- statement IAU_elidible terms? *)
+  -- statement_terms <- statement IAU_elidible terms?
   statement [IAU 🆓] [terms]
 
 %rule statement
-  (* statement <- statement_1 / prenex statement *)
+  -- statement <- statement_1 / prenex statement
   statement-1 | prenex statement
 
 %rule statement-1
-  (* statement_1 <- statement_2 (I_clause joik statement_2)* *)
+  -- statement_1 <- statement_2 (I_clause joik statement_2)*
   {statement-2 / I 🆓 joik}
 
 %rule statement-2
-  (* statement_2 <- statement_3 (I_clause joik? tag? BO_clause statement_3)* *)
+  -- statement_2 <- statement_3 (I_clause joik? tag? BO_clause statement_3)*
   {statement-3 / I 🆓 [joik] [tag] BO 🆓}
 
 %rule statement-3
-  (* statement_3 <- sentence / tag? TUhE_clause paragraphs TUhU_elidible / gek_statement *)
+  -- statement_3 <- sentence / tag? TUhE_clause paragraphs TUhU_elidible / gek_statement
   sentence | [tag] TUhE 🆓 paragraphs [+TUhU 🆓] | gek-statement
 
 %rule gek-statement
-  (* gek_statement <- gek statement (gik statement)+ GIhI_elidible *)
+  -- gek_statement <- gek statement (gik statement)+ GIhI_elidible
   gek $a:gek-branches gik $l:statement [+GIhI 🆓]
 %conditions
   $a ≇ #« {sentence / gik} » ∨ $l ≇ #(sentence ⋰)
 
 %rule gek-branches
-  (* statement (gik statement)*: every branch but the last. Zantufa's sentence comes first in statement_3, and it
-     succeeds where each of these is a sentence and the last branch is a sentence, perhaps with the .i links of
-     statement_1 and statement_2 after it, which then continue the statement outside the forethought *)
+  -- statement (gik statement)*: every branch but the last. Zantufa's sentence comes first in statement_3, and it
+-- succeeds where each of these is a sentence and the last branch is a sentence, perhaps with the .i links of
+-- statement_1 and statement_2 after it, which then continue the statement outside the forethought
   {statement / gik}
 
 %const $BARE-NA-FRAGMENT #« « na-clause KU="" » VAU="" »
 
 %rule fragment
-  (* fragment <- prenex / !terms gek / !terms joik / ek / gihek / NA_clause !terms !KU
-               / terms VAU_elidible !mex / mex / relative_clauses / links / linkargs *)
+  -- fragment <- prenex / !terms gek / !terms joik / ek / gihek / NA_clause !terms !KU
+-- / terms VAU_elidible !mex / mex / relative_clauses / links / linkargs
   | prenex
   | $g:gek
   | $j:joik
@@ -223,7 +223,7 @@ A structural pattern describes constructed nodes. Suppose every earlier branch i
   $t ≇ #« na-clause KU="" »
 
 %rule prenex
-  (* prenex <- terms ZOhU_clause *)
+  -- prenex <- terms ZOhU_clause
   terms ZOhU 🆓
 
 %rule na-clause
@@ -264,14 +264,14 @@ The tenses and modals before `ke` and a forethought bridi-tail are one tag. `[ta
 ```jbogenbau
 
 %rule sentence
-  (* sentence <- terms? CU_elidible bridi_tail / terms? gek sentence (gik sentence)+ GIhI_elidible tail_terms *)
+  -- sentence <- terms? CU_elidible bridi_tail / terms? gek sentence (gik sentence)+ GIhI_elidible tail_terms
   | [terms] [CU 🆓] bridi-tail
   | [terms] $g:gek sentence {gik sentence} [+GIhI 🆓] tail-terms
 %conditions
   $g ⟹ $ ≇ #« [terms] gek bridi-tail {gik bridi-tail} GIhI [🆓] tail-terms »
 
 %rule bridi-tail
-  (* bridi_tail <- bridi_tail_1 (joik_gihek tag? CU_elidible bridi_tail_1)* *)
+  -- bridi_tail <- bridi_tail_1 (joik_gihek tag? CU_elidible bridi_tail_1)*
   bridi-tail-1 [{bridi-tail-link}]
 
 %rule bridi-tail-link
@@ -281,7 +281,7 @@ The tenses and modals before `ke` and a forethought bridi-tail are one tag. `[ta
   $b ≅ #(KE ⋰)
 
 %rule bridi-tail-1
-  (* bridi_tail_1 <- bridi_tail_2 (joik_gihek !(tag? BO_clause) !(tag? KE_clause) CU_elidible bridi_tail_2 tail_terms)* *)
+  -- bridi_tail_1 <- bridi_tail_2 (joik_gihek !(tag? BO_clause) !(tag? KE_clause) CU_elidible bridi_tail_2 tail_terms)*
   bridi-tail-2 [{bridi-tail-1-link}]
 
 ```
@@ -307,13 +307,13 @@ The middle `$INITIAL-KE` arm matches a tag followed by a selbri whose first-chil
   $c ∨ $b ≇ $INITIAL-KE
 
 %rule bridi-tail-2
-  (* bridi_tail_2 <- bridi_tail_3 ((tag / joik_gihek tag?) BO_clause CU_elidible bridi_tail_3 tail_terms)* *)
+  -- bridi_tail_2 <- bridi_tail_3 ((tag / joik_gihek tag?) BO_clause CU_elidible bridi_tail_3 tail_terms)*
   bridi-tail-3 [{(tag | joik-gihek [tag]) BO 🆓 [CU 🆓] bridi-tail-3 tail-terms}]
 
 %const $BARE-SELBRI-TAIL #« selbri-2 VAU="" »
 
 %rule bridi-tail-3
-  (* bridi_tail_3 <- KE_clause !(selbri_2 KEhE) bridi_tail KEhE_elidible tail_terms / selbri tail_terms / gek_bridi_tail *)
+  -- bridi_tail_3 <- KE_clause !(selbri_2 KEhE) bridi_tail KEhE_elidible tail_terms / selbri tail_terms / gek_bridi_tail
   | $k:ke-clause bridi-tail [+KEhE 🆓] tail-terms
   | $s:selbri tail-terms
   | gek-bridi-tail
@@ -325,8 +325,8 @@ The middle `$INITIAL-KE` arm matches a tag followed by a selbri whose first-chil
   KE 🆓
 
 %rule gek-bridi-tail
-  (* gek_bridi_tail <- gek bridi_tail (gik bridi_tail)+ !(gik (term / CU)) GIhI_elidible tail_terms
-                     / tag* KE_clause gek_bridi_tail KEhE_elidible / NA_clause gek_bridi_tail *)
+  -- gek_bridi_tail <- gek bridi_tail (gik bridi_tail)+ !(gik (term / CU)) GIhI_elidible tail_terms
+-- / tag* KE_clause gek_bridi_tail KEhE_elidible / NA_clause gek_bridi_tail
   | gek bridi-tail $g:gik-bridi-tails [+GIhI 🆓] tail-terms
   | [tag] KE 🆓 gek-bridi-tail [+KEhE 🆓]
   | NA 🆓 gek-bridi-tail
@@ -340,7 +340,7 @@ The middle `$INITIAL-KE` arm matches a tag followed by a selbri whose first-chil
   gik (term | CU)
 
 %rule tail-terms
-  (* tail_terms <- term* VAU_elidible *)
+  -- tail_terms <- term* VAU_elidible
   [{term}] [+VAU 🆓]
 ```
 
@@ -376,11 +376,11 @@ The KE patterns inspect the actual body and closer. A written `ke'e` around one 
 ```jbogenbau
 
 %rule terms
-  (* terms <- term+ *)
+  -- terms <- term+
   {term}
 
 %rule term
-  (* term <- term_1 (!(joik tag BO_clause? CU) joik_ek term_1)* *)
+  -- term <- term_1 (!(joik tag BO_clause? CU) joik_ek term_1)*
   term-1 [{term-link}]
 
 %rule term-link
@@ -392,12 +392,12 @@ The KE patterns inspect the actual body and closer. A written `ke'e` around one 
   tag [BO 🆓] CU
 
 %rule term-1
-  (* term_1 <- term_2 (joik_ek? BO_clause term_2)* *)
+  -- term_1 <- term_2 (joik_ek? BO_clause term_2)*
   {term-2 / [joik-ek] BO 🆓}
 
 %rule term-2
-  (* term_2 <- XOI_clause statement SEhU_elidible / KE_clause !(sumti KEhE) term+ KEhE_elidible
-              / tag_term / !tag sumti / brigahi / gek_term *)
+  -- term_2 <- XOI_clause statement SEhU_elidible / KE_clause !(sumti KEhE) term+ KEhE_elidible
+-- / tag_term / !tag sumti / brigahi / gek_term
   | XOI 🆓 statement [+SEhU 🆓]
   | $k:ke-clause {term} [+KEhE 🆓]
   | tag-term
@@ -411,15 +411,15 @@ The KE patterns inspect the actual body and closer. A written `ke'e` around one 
   ¬$s.without-elision-except(math).onward.begins(tag)
 
 %rule brigahi
-  (* brigahi <- (POIhA_clause free* selbri / NA_clause !bridi_tail !joik_gihek) KU_elidible *)
+  -- brigahi <- (POIhA_clause free* selbri / NA_clause !bridi_tail !joik_gihek) KU_elidible
   | POIhA 🆓 selbri [+KU 🆓]
   | $n:na-clause [+KU 🆓]
 %conditions
   ¬$n.following-tokens.begins(bridi-tail | joik-gihek)
 
 %rule tag-term
-  (* tag_term <- !gek (tag !(!tag selbri) !gek_bridi_tail !BO
-                      / (FA_clause (joik FA_clause)* / JAI_clause tag?) !tanru_unit_1) (sumti / KU_elidible) *)
+  -- tag_term <- !gek (tag !(!tag selbri) !gek_bridi_tail !BO
+-- / (FA_clause (joik FA_clause)* / JAI_clause tag?) !tanru_unit_1) (sumti / KU_elidible)
   | $a:tag $s:sumti
   | fa-jai sumti
   | $t:tag [+KU 🆓]
@@ -436,7 +436,7 @@ The KE patterns inspect the actual body and closer. A written `ke'e` around one 
   {FA 🆓 / joik} | JAI 🆓 [tag]
 
 %rule gek-term
-  (* gek_term <- gek term+ (gik term+)+ GIhI_elidible *)
+  -- gek_term <- gek term+ (gik term+)+ GIhI_elidible
   gek {term} {gik {term}} [+GIhI 🆓]
 ```
 
@@ -470,18 +470,18 @@ The step `fewest #·term-link` counts the plain `term-link` rule, so a sumti con
 ```jbogenbau
 
 %rule sumti
-  (* sumti <- sumti_1 (VUhO_clause relative_clauses)? *)
+  -- sumti <- sumti_1 (VUhO_clause relative_clauses)?
   sumti-1 [VUhO 🆓 relative-clauses]
 
 %rule sumti-1
-  (* sumti_1 <- sumti_2 (joik_ek sumti_2)* *)
+  -- sumti_1 <- sumti_2 (joik_ek sumti_2)*
   sumti-1-run
 
 %rule sumti-1-run
   {sumti-2 / joik-ek}
 
 %rule sumti-2
-  (* sumti_2 <- sumti_3 (joik_ek? tag? BO_clause sumti_3)* *)
+  -- sumti_2 <- sumti_3 (joik_ek? tag? BO_clause sumti_3)*
   $r:sumti-2-run
 %conditions
   ¬$r.following-tokens.begins(sumti-2-link)
@@ -493,19 +493,19 @@ The step `fewest #·term-link` counts the plain `term-link` rule, so a sumti con
   [joik-ek] [tag] BO 🆓 sumti-3
 
 %rule sumti-3
-  (* sumti_3 <- (KE_clause sumti KEhE_elidible / sumti_4 / gek sumti (gik sumti)+ GIhI_elidible) relative_clauses? *)
+  -- sumti_3 <- (KE_clause sumti KEhE_elidible / sumti_4 / gek sumti (gik sumti)+ GIhI_elidible) relative_clauses?
   (KE 🆓 sumti [+KEhE 🆓] | sumti-4 | gek sumti {gik sumti} [+GIhI 🆓]) [relative-clauses]
 
 %rule sumti-4
-  (* sumti_4 <- quantifier? sumti_5 / quantifier selbri KU_elidible *)
+  -- sumti_4 <- quantifier? sumti_5 / quantifier selbri KU_elidible
   [quantifier] sumti-5 | quantifier selbri [+KU 🆓]
 
 %rule sumti-5
-  (* sumti_5 <- RAhOI_clause / ZO_clause / ZOI_clause / LOhU_clause
-              / lerfu_string BOI_elidible !(BO_clause* operand* !(joik_ek (sumti / relative_clause)) operator) !(operand KEhE)
-              / LU_clause text LIhU_elidible / (LAhE_clause / NAhE_clause BO_clause) relative_clauses? sumti LUhU_elidible
-              / KOhA_clause / LOhOI_clause (joik LOhOI_clause)* statement KUhAU_elidible / LE_clause sumti_tail KU_elidible
-              / li_clause / NAhE_clause sumti_3 *)
+  -- sumti_5 <- RAhOI_clause / ZO_clause / ZOI_clause / LOhU_clause
+-- / lerfu_string BOI_elidible !(BO_clause* operand* !(joik_ek (sumti / relative_clause)) operator) !(operand KEhE)
+-- / LU_clause text LIhU_elidible / (LAhE_clause / NAhE_clause BO_clause) relative_clauses? sumti LUhU_elidible
+-- / KOhA_clause / LOhOI_clause (joik LOhOI_clause)* statement KUhAU_elidible / LE_clause sumti_tail KU_elidible
+-- / li_clause / NAhE_clause sumti_3
   | RAhOI 🆓
   | ZO 🆓
   | ZOI 🆓
@@ -539,14 +539,14 @@ The step `fewest #·term-link` counts the plain `term-link` rule, so a sumti con
   operand KEhE
 
 %rule sumti-tail
-  (* sumti_tail <- relative_clauses? (!quantifier sumti)? sumti_tail_1 *)
+  -- sumti_tail <- relative_clauses? (!quantifier sumti)? sumti_tail_1
   | [relative-clauses] sumti-tail-1
   | [relative-clauses] $s:sumti sumti-tail-1
 %conditions
   ¬$s.without-elision-except(math).onward.begins(quantifier)
 
 %rule sumti-tail-1
-  (* sumti_tail_1 <- tag? quantifier? selbri / quantifier sumti *)
+  -- sumti_tail_1 <- tag? quantifier? selbri / quantifier sumti
   | tag quantifier selbri
   | $t:tag $u:selbri
   | quantifier selbri
@@ -582,11 +582,11 @@ Relative clauses can stand side by side, joined by a joik or by nothing. They fo
 ```jbogenbau
 
 %rule relative-clauses
-  (* relative_clauses <- relative_clause (joik? relative_clause)* *)
+  -- relative_clauses <- relative_clause (joik? relative_clause)*
   {relative-clause / [joik]}
 
 %rule relative-clause
-  (* relative_clause <- GOI_clause term GEhU_elidible / NOI_clause statement KUhO_elidible *)
+  -- relative_clause <- GOI_clause term GEhU_elidible / NOI_clause statement KUhO_elidible
   GOI 🆓 term [+GEhU 🆓] | NOI 🆓 statement [+KUhO 🆓]
 ```
 
@@ -620,43 +620,43 @@ A run of `cei` nests to the right. The selbri after the first `cei` already read
 ```jbogenbau
 
 %rule selbri
-  (* selbri <- selbri_1 / tag selbri / NA_clause selbri *)
+  -- selbri <- selbri_1 / tag selbri / NA_clause selbri
   selbri-1 | tag $s:selbri | NA 🆓 selbri
 %conditions
   $s ≇ #(tag ⋰)
 
 %rule selbri-1
-  (* selbri_1 <- (!KE selbri_2 KEhE_clause linkargs / selbri_2) relative_clauses? (CEI_clause selbri)* *)
+  -- selbri_1 <- (!KE selbri_2 KEhE_clause linkargs / selbri_2) relative_clauses? (CEI_clause selbri)*
   | $s:selbri-2 KEhE 🆓 linkargs [relative-clauses] [CEI 🆓 selbri]
   | selbri-2 [relative-clauses] [CEI 🆓 selbri]
 %conditions
   ¬$s.onward.begins(KE)
 
 %rule selbri-2
-  (* selbri_2 <- selbri_3 (CO_clause selbri_3)* *)
+  -- selbri_2 <- selbri_3 (CO_clause selbri_3)*
   {selbri-3 / CO 🆓}
 
 %rule selbri-3
-  (* selbri_3 <- selbri_4+ *)
+  -- selbri_3 <- selbri_4+
   selbri-4 [{later-selbri-4}]
 
 %rule later-selbri-4
   selbri-4
 
 %rule selbri-4
-  (* selbri_4 <- selbri_5 (joik selbri_5)* *)
+  -- selbri_4 <- selbri_5 (joik selbri_5)*
   {selbri-5 / joik}
 
 %rule selbri-5
-  (* selbri_5 <- selbri_6 (joik tag? BO_clause selbri_6)* *)
+  -- selbri_5 <- selbri_6 (joik tag? BO_clause selbri_6)*
   {selbri-6 / joik [tag] BO 🆓}
 
 %rule selbri-6
-  (* selbri_6 <- tanru_unit (BO_clause tanru_unit)* *)
+  -- selbri_6 <- tanru_unit (BO_clause tanru_unit)*
   {tanru-unit / BO 🆓}
 
 %rule tanru-unit
-  (* tanru_unit <- tanru_unit_1 linkargs? *)
+  -- tanru_unit <- tanru_unit_1 linkargs?
   tanru-unit-1 [linkargs]
 
 %const $PLAIN-JOIK #« JOI [🆓] [GAhO [🆓]] »
@@ -670,12 +670,12 @@ A run of `cei` nests to the right. The selbri after the first `cei` already read
 %const $SE-GEK-UNIT #« $SE-GEK selbri-2 gik-selbris GIhI [🆓] »
 
 %rule tanru-unit-1
-  (* tanru_unit_1 <- CMEVLA_clause / BRIVLA_clause / GOhA_clause / KE_clause selbri_2 KEhE_elidible
-                   / NAhE_clause? gek selbri_2 (gik selbri_2)+ !(gik? (term / CU)) GIhI_elidible
-                   / MUhOI_clause / GOhOI_clause / LUhEI_clause text LIhAU_elidible
-                   / ME_clause (sumti / operator+ / mex / tag) MEhU_elidible MOI_clause? / mex MOI_clause
-                   / (FA_clause (joik FA_clause)* / SE_clause) tanru_unit_1 / JAI_clause tag? tanru_unit_1
-                   / NAhE_clause tanru_unit_1 / NU_clause (joik NU_clause)* statement KEI_elidible *)
+  -- tanru_unit_1 <- CMEVLA_clause / BRIVLA_clause / GOhA_clause / KE_clause selbri_2 KEhE_elidible
+-- / NAhE_clause? gek selbri_2 (gik selbri_2)+ !(gik? (term / CU)) GIhI_elidible
+-- / MUhOI_clause / GOhOI_clause / LUhEI_clause text LIhAU_elidible
+-- / ME_clause (sumti / operator+ / mex / tag) MEhU_elidible MOI_clause? / mex MOI_clause
+-- / (FA_clause (joik FA_clause)* / SE_clause) tanru_unit_1 / JAI_clause tag? tanru_unit_1
+-- / NAhE_clause tanru_unit_1 / NU_clause (joik NU_clause)* statement KEI_elidible
   | CMEVLA 🆓
   | BRIVLA 🆓
   | GOhA 🆓
@@ -710,11 +710,11 @@ A run of `cei` nests to the right. The selbri after the first `cei` already read
   [gik] (term | CU)
 
 %rule linkargs
-  (* linkargs <- BE_clause term links? BEhO_elidible *)
+  -- linkargs <- BE_clause term links? BEhO_elidible
   BE 🆓 term [links] [+BEhO 🆓]
 
 %rule links
-  (* links <- BEI_clause term links? *)
+  -- links <- BEI_clause term links?
   BEI 🆓 term [links]
 ```
 
@@ -758,14 +758,14 @@ The condition removes a connective operator whose first word is SE. The alternat
 ```jbogenbau
 
 %rule quantifier
-  (* quantifier <- !sumti_5 !selbri mex relative_clauses? *)
+  -- quantifier <- !sumti_5 !selbri mex relative_clauses?
   $m:mex [relative-clauses]
 %conditions
   ¬$m.without-elision.onward.begins(sumti-5 | selbri),
   ¬$m.following-tokens.begins(ROI)
 
 %rule mex
-  (* mex <- mex_1 (operator+ mex_1?)* *)
+  -- mex <- mex_1 (operator+ mex_1?)*
   mex-1 [{mex-link}]
 
 %rule mex-link
@@ -775,8 +775,8 @@ The condition removes a connective operator whose first word is SE. The alternat
   ¬$o.following-tokens.begins(mex-1)
 
 %rule mex-1
-  (* mex_1 <- (KE_clause mex_2+ KEhE_elidible / mex_2 (BO_clause mex_2)* )
-              (BIhE_clause operator+ (KE_clause mex_2+ KEhE_elidible / mex_2 (BO_clause mex_2)* )?)* *)
+  -- mex_1 <- (KE_clause mex_2+ KEhE_elidible / mex_2 (BO_clause mex_2)* )
+-- (BIhE_clause operator+ (KE_clause mex_2+ KEhE_elidible / mex_2 (BO_clause mex_2)* )?)*
   mex-group [{bihe-link}]
 
 %rule bihe-link
@@ -789,26 +789,26 @@ The condition removes a connective operator whose first word is SE. The alternat
   KE 🆓 {mex-2} [+KEhE 🆓] | {mex-2 / BO 🆓}
 
 %rule mex-2
-  (* mex_2 <- operand / mex_rp / mex_forethought *)
+  -- mex_2 <- operand / mex_rp / mex_forethought
   operand | mex-rp | mex-forethought
 
 %rule mex-rp
-  (* mex_rp <- FUhA_clause mex_2+ operator (mex_2* operator)* KUhE_elidible *)
+  -- mex_rp <- FUhA_clause mex_2+ operator (mex_2* operator)* KUhE_elidible
   FUhA 🆓 {mex-2} operator [{[{mex-2}] operator}] [+KUhE 🆓]
 
 %rule mex-forethought
-  (* mex_forethought <- !(lerfu_string BOI_elidible) operator mex_2+ mex_forethought? KUhE_elidible
-                      / PEhO_clause operator mex_2+ mex_forethought? KUhE_elidible *)
+  -- mex_forethought <- !(lerfu_string BOI_elidible) operator mex_2+ mex_forethought? KUhE_elidible
+-- / PEhO_clause operator mex_2+ mex_forethought? KUhE_elidible
   [PEhO 🆓] operator {mex-2} [+KUhE 🆓]
 
 %rule math
-  (* not a rule of the reference: the constructs that KUhE closes, a family for
-     without-elision-except *)
+  -- not a rule of the reference: the constructs that KUhE closes, a family for
+-- without-elision-except
   mex-forethought | mex-rp
 
 %rule operator
-  (* operator <- SE_clause operator / NAhE_clause operator / MAhO_clause (mex / selbri / sumti) TEhU_elidible
-               / VUhU_clause / joik_ek !CU *)
+  -- operator <- SE_clause operator / NAhE_clause operator / MAhO_clause (mex / selbri / sumti) TEhU_elidible
+-- / VUhU_clause / joik_ek !CU
   | SE 🆓 operator
   | NAhE 🆓 operator
   | MAhO 🆓 (mex ≻ selbri ≻ sumti) [+TEhU 🆓]
@@ -819,7 +819,7 @@ The condition removes a connective operator whose first word is SE. The alternat
   $j ≇ #« SE ⋯ »
 
 %rule operators
-  (* operator+, which reads every operator that follows *)
+  -- operator+, which reads every operator that follows
   $r:operator-run
 %conditions
   ¬$r.following-tokens.begins(operator)
@@ -828,9 +828,9 @@ The condition removes a connective operator whose first word is SE. The alternat
   {operator}
 
 %rule operand
-  (* operand <- number BOI_elidible / lerfu_string BOI_elidible / VEI_clause mex VEhO_elidible
-              / MOhE_clause (selbri / sumti) TEhU_elidible / (LAhE_clause / NAhE_clause BO_clause) mex LUhU_elidible
-              / NAhE_clause operand *)
+  -- operand <- number BOI_elidible / lerfu_string BOI_elidible / VEI_clause mex VEhO_elidible
+-- / MOhE_clause (selbri / sumti) TEhU_elidible / (LAhE_clause / NAhE_clause BO_clause) mex LUhU_elidible
+-- / NAhE_clause operand
   | number [+BOI 🆓]
   | lerfu-string [+BOI 🆓]
   | VEI 🆓 mex [+VEhO 🆓]
@@ -839,15 +839,15 @@ The condition removes a connective operator whose first word is SE. The alternat
   | NAhE 🆓 operand
 
 %rule number
-  (* number <- PA_clause+;  PA_post <- number_post_clause *)
+  -- number <- PA_clause+;  PA_post <- number_post_clause
   {PA 🆓}
 
 %rule lerfu-string
-  (* lerfu_string <- lerfu_word+ *)
+  -- lerfu_string <- lerfu_word+
   {lerfu-word}
 
 %rule lerfu-word
-  (* lerfu_word <- BY_clause / LAU_clause lerfu_word / TEI_clause lerfu_string FOI_clause;  BY_post <- lerfu_post_clause *)
+  -- lerfu_word <- BY_clause / LAU_clause lerfu_word / TEI_clause lerfu_string FOI_clause;  BY_post <- lerfu_post_clause
   BY 🆓 | LAU 🆓 lerfu-word | TEI 🆓 lerfu-string FOI 🆓
 ```
 
@@ -878,31 +878,31 @@ The condition removes a connective operator whose first word is SE. The alternat
 ```jbogenbau
 
 %rule ek
-  (* ek <- NA_clause? SE_clause? A_clause *)
+  -- ek <- NA_clause? SE_clause? A_clause
   [NA 🆓] [SE 🆓] A 🆓
 
 %rule gihek
-  (* gihek <- NA_clause? SE_clause? GIhA_clause *)
+  -- gihek <- NA_clause? SE_clause? GIhA_clause
   [NA 🆓] [SE 🆓] GIhA 🆓
 
 %rule joik
-  (* joik <- GAhO_clause? NA_clause? SE_clause? JOI_clause GAhO_clause? *)
+  -- joik <- GAhO_clause? NA_clause? SE_clause? JOI_clause GAhO_clause?
   [GAhO 🆓] [NA 🆓] [SE 🆓] JOI 🆓 [GAhO 🆓]
 
 %rule joik-ek
-  (* joik_ek <- joik / ek *)
+  -- joik_ek <- joik / ek
   joik | ek
 
 %rule joik-gihek
-  (* joik_gihek <- joik / gihek *)
+  -- joik_gihek <- joik / gihek
   joik | gihek
 
 %rule gek
-  (* gek <- (SE_clause? GA_clause / GI_clause (joik / tag) / (joik / tag) GI_clause) BO_clause? *)
+  -- gek <- (SE_clause? GA_clause / GI_clause (joik / tag) / (joik / tag) GI_clause) BO_clause?
   ([SE 🆓] GA 🆓 | GI 🆓 (joik | tag) | (joik | tag) GI 🆓) [BO 🆓]
 
 %rule gik
-  (* gik <- GI_clause *)
+  -- gik <- GI_clause
   GI 🆓
 ```
 
@@ -925,14 +925,14 @@ The mekso prefix pattern tests an actual NAhE or SE constructor over an operand 
 ```jbogenbau
 
 %rule tag
-  (* tag <- tcita_selci+ (joik tcita_selci+)* *)
+  -- tag <- tcita_selci+ (joik tcita_selci+)*
   {tcita-selci} [{tag-link}]
 
 %rule tag-link
   joik {tcita-selci}
 
 %rule tcita-selci
-  (* tcita_selci <- (NAhE_clause / SE_clause) tcita_selci / BAI_clause / mex? ROI_clause / FIhO_clause selbri FEhU_elidible *)
+  -- tcita_selci <- (NAhE_clause / SE_clause) tcita_selci / BAI_clause / mex? ROI_clause / FIhO_clause selbri FEhU_elidible
   | (NAhE 🆓 | SE 🆓) tcita-selci
   | BAI 🆓
   | ROI 🆓
@@ -965,9 +965,9 @@ Nested vocatives can take separate addresses. In `pe'usai doi xod ko jmina`, the
 ```jbogenbau
 
 %rule free
-  (* free <- SEI_clause statement SEhU_elidible / vocative relative_clauses? selbri DOhU_elidible
-           / vocative sumti? DOhU_elidible / mex_2 MAI_clause / TO_clause text TOI_elidible / xi_clause
-           / LOhAI_clause / (UI_clause !BU_clause)+ *)
+  -- free <- SEI_clause statement SEhU_elidible / vocative relative_clauses? selbri DOhU_elidible
+-- / vocative sumti? DOhU_elidible / mex_2 MAI_clause / TO_clause text TOI_elidible / xi_clause
+-- / LOhAI_clause / (UI_clause !BU_clause)+
   | SEI 🆓 statement [+SEhU 🆓]
   | vocative [sumti | [relative-clauses] selbri] [+DOhU 🆓]
   | mex-2 MAI 🆓
@@ -987,7 +987,7 @@ Nested vocatives can take separate addresses. In `pe'usai doi xod ko jmina`, the
   $ ≇ #(🆓 ⋰)
 
 %rule vocative
-  (* vocative <- COI_clause+;  COI_post <- vocative_post_clause *)
+  -- vocative <- COI_clause+;  COI_post <- vocative_post_clause
   {COI 🆓}
 
 ```

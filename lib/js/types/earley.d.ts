@@ -4,6 +4,7 @@ import { PatternMachine } from "./patterns.js";
 import { CloseObservations } from "./close-observations.js";
 import { FamilySummaries } from "./family-summaries.js";
 import { Sources } from "./tokens.js";
+import { rankedFrameTable } from "./ranked-frame.js";
 import type { Argument, Condition, Edge, Expectation, LoweredGrammar, Production, Scope, Captured, SpanValue, SymbolTest, TagSet, TermValue } from "./types.js";
 import type { CloseEvent, CloseObservation } from "./close-observations.js";
 import type { Token } from "./tokens.js";
@@ -22,6 +23,7 @@ export type Chart = {
      */
     furthest: number;
     context: ParseContext;
+    frames: ReturnType<typeof rankedFrameTable> | null;
     closeRequested?: boolean;
     boundaryFailures?: any[];
     family?: FamilySummaries | null;
@@ -53,6 +55,7 @@ export type QualifiedObservation = {
  *   making it: a set the recognizer never reached is empty
  * @property {number} furthest the last position whose set holds an item
  * @property {ParseContext} context
+ * @property {ReturnType<typeof rankedFrameTable>|null} frames
  * @property {boolean} [closeRequested]
  * @property {any[]} [boundaryFailures]
  * @property {FamilySummaries|null} [family]
@@ -88,6 +91,9 @@ export declare class TagInterner {
 export declare function omissionAllowed(production: Pick<Production, "elided" | "elidedTest" | "elidedValue">): boolean;
 /** @param {ParseContext} context @param {string} terminal @param {number} at @returns {number} */
 export declare function structuralRead(context: ParseContext, terminal: string, at: number): number;
+/** The definition's own post-selection clauses read its working root (§4.1).
+ * @param {ParseContext} context @param {Item} item @returns {number} */
+export declare function workingStructure(context: ParseContext, item: Item): number;
 /**
  * @param {ParseContext} context
  * @param {string} terminal
@@ -337,6 +343,7 @@ declare class Pending {
     at: [number, number] | null;
     key: string;
     unseen: boolean;
+    errorFree: boolean;
     /** The count of aligned queries when the query halted (engine §4.3). */
     asked: number;
     /** @type {import("./types.js").AlignedSpan|null} */
@@ -580,9 +587,20 @@ export declare function rejectionOf(chart: Chart): {
  * is a terminal, and the predictions the lookahead did not make items of.
  * @param {Chart} chart
  * @param {number} position
+ * @param {Production[]} [skipped]
  * @returns {Expectation[]}
  */
-export declare function expectedAt(chart: Chart, position: number): Expectation[];
+export declare function expectedAt(chart: Chart, position: number, skipped?: Production[]): Expectation[];
+/** Lookahead omissions that passed their entry conditions, as virtual entries.
+ * @param {Chart} chart @param {number} position
+ * @param {{name?:string,accept?:(production:Production)=>boolean,cache?:Map<Production,boolean>,candidates?:Iterable<string|Production>}} [selection]
+ * @returns {Production[]} */
+export declare function skippedProductions(chart: Chart, position: number, selection?: {
+    name?: string;
+    accept?: (production: Production) => boolean;
+    cache?: Map<Production, boolean>;
+    candidates?: Iterable<string | Production>;
+}): Production[];
 /**
  * @param {import("./types.js").Condition[]} conditions
  * @param {Token[]} tokens

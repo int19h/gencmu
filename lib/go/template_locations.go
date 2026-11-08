@@ -30,6 +30,10 @@ func templateAnnotateTerm(n templateObject, t *domTerm) {
 		return
 	}
 	templateLocate(n, t.At)
+	if t.Kind == tmBody {
+		templateAnnotateExpr(templateObj(n["body"]), t.Body)
+		return
+	}
 	if t.Kind == tmSourceCall {
 		annotateSourceCall(n, t.Call)
 		return
@@ -59,6 +63,10 @@ func templateAnnotateCond(n templateObject, c *domCond) {
 		return
 	}
 	templateLocate(n, c.At)
+	if c.Kind == cdForest {
+		templateAnnotateTerm(n, c.Left)
+		return
+	}
 	templateAnnotateTerm(templateObj(n["left"]), c.Left)
 	templateAnnotateTerm(templateObj(n["right"]), c.Right)
 	templateAnnotateTerm(templateObj(n["receiver"]), c.Span)

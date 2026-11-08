@@ -1,0 +1,37 @@
+{
+  "description": "Engine §4.1 and §6: no demanded tree predicate distinguishes erased interiors by structural emptiness.",
+  "grammar": "%ambiguity-resolution fewest #·zz\n%rule text r2 C\n%rule r2 (r4 ≻ B) :: ∅ | [r4]\n%erased\n%rule r4 B | ε\n%rule zz B B B",
+  "tokens": [
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "r2",
+            "children": []
+          },
+          {
+            "kind": "token",
+            "terminal": "C"
+          }
+        ]
+      }
+    }
+  }
+}

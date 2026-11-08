@@ -473,7 +473,7 @@ func (w *walk) termStep(f *frame) *nestedQuery {
 			}
 			if len(t.Items) == 2 {
 				// The same parse, and the same answer, as .matches.
-				_, tags, q := ev.run.nested(ev.g, cdMatches, t.Items[1].Str, f.s)
+				_, tags, q := ev.run.nested(ev.g, cdMatches, t.Items[1].Str, f.s, false)
 				if q != nil {
 					return q
 				}
@@ -620,7 +620,7 @@ func (w *walk) condStep(f *frame) *nestedQuery {
 		}
 		targets := c.queryTargets()
 		for f.at <= len(targets) {
-			ok, _, q := ev.run.nested(ev.g, c.Kind, queryName(targets[f.at-1]), f.s)
+			ok, _, q := ev.run.nested(ev.g, c.Kind, queryName(targets[f.at-1]), f.s, false)
 			if q != nil {
 				return q
 			}
@@ -631,6 +631,24 @@ func (w *walk) condStep(f *frame) *nestedQuery {
 			f.at++
 		}
 		w.endCond(false)
+		return nil
+	case cdForest:
+		query := c.Left
+		filtered := false
+		for query.Kind == tmCall && query.Str == "error-free" {
+			filtered = true
+			query = query.Items[0]
+		}
+		body := query.Items[1].Body
+		_, mode, _ := queryBody(body)
+		if f.at == 0 {
+			f.s, f.at = w.span(ev, query.Items[0]), 1
+		}
+		ok, _, pending := ev.run.nested(ev.g, mode, ev.g.stage.queryTargets[body], f.s, filtered)
+		if pending != nil {
+			return pending
+		}
+		w.endCond(ok)
 		return nil
 	case cdBoundary:
 		if ev.hasBoundaryValue {
@@ -757,10 +775,10 @@ func recursiveQuery(rule string) *parseFailure {
 		" in terms of itself over the same text"}
 }
 
-func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal) (bool, *tagset, *nestedQuery) {
+func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal, errorFree bool) (bool, *tagset, *nestedQuery) {
 	ps := run.ps
 	start := g.byName[rule]
-	k := nestedKey{g: g, kind: kind, rule: start, a: s.a, b: s.b}
+	k := nestedKey{g: g, kind: kind, rule: start, a: s.a, b: s.b, errorFree: errorFree}
 	contextEnd := s.b
 	if s.aligned != nil {
 		ps.alignedAsked++
@@ -771,10 +789,17 @@ func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal) (bool, *ta
 		contextEnd, k.contextEnd = s.aligned.contextEnd, s.aligned.contextEnd
 	} else if kind != cdEnds && s.b-s.a <= contentKeyLimit {
 		k.content, k.a, k.b = run.spanContent(s), -1, -1
+		if errorFree || g.readsCarriedErrors(start) {
+			k.errors = run.spanErrors(s)
+		}
 	}
 	at := spanKey{g: g, rule: start, a: s.a, b: contextEnd}
 	if ps.inProgress[at] {
-		panic(recursiveQuery(rule))
+		name := rule
+		if display, known := g.stage.queryNames[rule]; known {
+			name = display
+		}
+		panic(recursiveQuery(name))
 	}
 	if s.aligned != nil {
 		k.queryContext = ps.queryContext
@@ -791,9 +816,9 @@ func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal) (bool, *ta
 	var suffix *suffixState
 	if kind == cdEnds {
 		if ps.suffixActive > 0 {
-			suffix = &suffixState{answers: map[int]bool{}}
+			suffix = &suffixState{answers: map[int]bool{}, errorFree: errorFree}
 		} else {
-			suffix = run.suffixState(g, start, s.a, s.b)
+			suffix = run.suffixState(g, start, s.a, s.b, errorFree)
 			if answer, known := suffix.answers[s.b]; known {
 				if suffix.dependent {
 					ps.alignedAsked++
@@ -812,7 +837,7 @@ func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal) (bool, *ta
 	}
 	// Shared answers cannot hide recursive aligned or suffix requests (§4.3).
 	if k.content != 0 && ps.memoLimit > 0 && ps.alignedActive == 0 && ps.suffixActive == 0 {
-		if a, ok := g.memo.get(sharedKey{k.kind == cdBegins, start, ps.contentStrings[k.content-1]}, ps.memoLimit); ok {
+		if a, ok := g.memo.get(sharedKey{begins: k.kind == cdBegins, rule: start, content: ps.contentStrings[k.content-1], errorFree: errorFree, errors: k.errors}, ps.memoLimit); ok {
 			if memoHitHook != nil {
 				memoHitHook(start, ps.alignedActive)
 			}
@@ -856,6 +881,7 @@ type nestedQuery struct {
 // Qualification does not depend on an outer close constraint. Summaries
 // retain only eligible observations, after recognizing the whole context.
 type qualifiedQueryKey struct {
+	errorFree             bool
 	family                string
 	observation, fixedEnd int
 	at                    spanKey
@@ -870,7 +896,7 @@ type qualifiedProof struct {
 }
 
 func (q *nestedQuery) qualifiedKey() qualifiedQueryKey {
-	key := qualifiedQueryKey{at: q.at, parentContext: q.parentContext}
+	key := qualifiedQueryKey{at: q.at, parentContext: q.parentContext, errorFree: q.key.errorFree}
 	if q.aligned != nil && q.aligned.family != "" {
 		key.family, key.observation, key.fixedEnd = q.aligned.family, q.aligned.observation, q.aligned.end
 	}
@@ -891,7 +917,7 @@ func (run *stageRun) qualifiedProofs(rec *recognizer) []qualifiedProof {
 		}
 	}
 	proofs := []qualifiedProof{}
-	for _, it := range rec.eligibleItems(items) {
+	for _, it := range rec.eligibleItems(items, rec.query.key.errorFree) {
 		if rec.family != nil && run.ps.private != nil && run.ps.private.familyOracle != nil {
 			run.ps.private.familyOracle(rec, it)
 		}
@@ -1064,7 +1090,7 @@ func (run *stageRun) settle(rec *recognizer) {
 	} else if q.key.kind == cdEnds {
 		res.holds = q.suffix.answers[q.at.b]
 	} else if q.key.kind == cdBegins {
-		res.holds = rec.begun(start)
+		res.holds = rec.begun(start, q.key.errorFree)
 	} else {
 		// One search of eligibility over the items of every tag set, and
 		// then the union of the tag sets that keep an item.
@@ -1074,7 +1100,7 @@ func (run *stageRun) settle(rec *recognizer) {
 			items = append(items, c.items...)
 		}
 		kept := map[*item]bool{}
-		for _, it := range rec.eligibleItems(items) {
+		for _, it := range rec.eligibleItems(items, q.key.errorFree) {
 			kept[it] = true
 		}
 		var sets []*tagset
@@ -1113,7 +1139,7 @@ func (run *stageRun) remember(q *nestedQuery, res *nestedResult) {
 	if q.key.kind != cdBegins && res.tags != nil {
 		a.tags = res.tags.names
 	}
-	q.g.memo.insert(sharedKey{q.key.kind == cdBegins, q.start, ps.contentStrings[q.key.content-1]}, a, ps.memoLimit)
+	q.g.memo.insert(sharedKey{begins: q.key.kind == cdBegins, rule: q.start, content: ps.contentStrings[q.key.content-1], errorFree: q.key.errorFree, errors: q.key.errors}, a, ps.memoLimit)
 }
 
 // spanContent is the number of everything a nested parse of a span can
@@ -1193,6 +1219,8 @@ type spanKey struct {
 // nestedKey is what the answer of one kind of query about a span as a rule
 // is remembered by: a short span's content, or a long span's position.
 type nestedKey struct {
+	errorFree                         bool
+	errors                            string
 	g                                 *lowered
 	kind                              string
 	rule                              int32

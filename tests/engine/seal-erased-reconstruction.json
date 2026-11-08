@@ -1,0 +1,22 @@
+{
+  "description": "Engine §4.1 and §6 and §7: restored and unrestored interiors remain members of one erased reconstruction class.",
+  "grammar": "%ambiguity-resolution fewest #·zz\n%elision-only\n%rule text e\n%rule e A T | A [+T]\n%erased\n%rule zz B B B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

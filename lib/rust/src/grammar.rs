@@ -61,6 +61,9 @@ pub(crate) struct RuleClauses {
     pub strings: Channels,
     pub emit: Option<Vec<EmitItem>>,
     pub conditions: Vec<Cond>,
+    pub error: Option<Term>,
+    pub warning: Option<Term>,
+    pub suppress_warnings: Vec<String>,
 }
 
 /// An alternative after stitching, with the clauses of the rule that
@@ -80,6 +83,7 @@ pub(crate) struct StitchedAlternative {
 
 #[derive(Debug, Clone)]
 pub(crate) struct StitchedRule {
+    pub query: bool,
     pub name: String,
     pub alternatives: Vec<StitchedAlternative>,
     pub document: Arc<str>,
@@ -101,6 +105,7 @@ pub struct Change {
 
 #[derive(Debug, Clone)]
 pub(crate) struct StageGrammar {
+    pub query_targets: FxMap<usize, String>,
     pub tree_comparisons: bool,
     pub tree_expressions: bool,
     pub features: Vec<(Arc<str>, crate::dom::Directive)>,
@@ -255,6 +260,7 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
         }
     }
     let mut grammar = StageGrammar {
+        query_targets: Default::default(),
         tree_comparisons: false,
         tree_expressions: false,
         unicode: Arc::new(unicode.clone()),
@@ -282,8 +288,14 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
     let mut checks = Vec::new();
     let mut resolution: Option<(Arc<str>, (usize, usize))> = None;
     let mut elision_only = false;
-    let mut constants =
-        Constants { stage, unicode, values: HashMap::new(), versions: Vec::new(), latest: HashMap::new() };
+    let mut constants = Constants {
+        stage,
+        unicode,
+        patterns: Default::default(),
+        values: HashMap::new(),
+        versions: Vec::new(),
+        latest: HashMap::new(),
+    };
     let mut deferred = Vec::new();
     let mut text_order = 0;
     for (index, (document, dom)) in documents.iter().enumerate() {
@@ -315,6 +327,8 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
                         deferred.push(located(problem.message.clone(), document, rule.at));
                     }
                     if !constants_in_rule(rule).is_empty()
+                        || value_parts(ValuePart::Rule(rule))
+                            .any(|part| matches!(part, ValuePart::Pattern(_) | ValuePart::Term(Term::Pattern(_))))
                         || arguments_by_site.contains_key(&(run, document.clone(), rule.at))
                     {
                         checks.push((run, rule.at, 0, Check::Rule(document, rule)));
@@ -323,6 +337,9 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
                     // alternative. Each condition counts as it is copied.
                     let copy_clauses = || {
                         Arc::new(RuleClauses {
+                            error: rule.error.clone(),
+                            warning: rule.warning.clone(),
+                            suppress_warnings: rule.suppress_warnings.clone(),
                             tags: rule.tags.clone(),
                             strings: rule.strings.clone(),
                             emit: rule.emit.clone(),
@@ -364,6 +381,7 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
                     text_order += rule.alternatives.len();
                     let error = |message: String| Err(located(message, document, rule.at));
                     let stitched = || StitchedRule {
+                        query: false,
                         name: rule.name.clone(),
                         alternatives: alternatives.clone(),
                         document: document.clone(),
@@ -544,6 +562,7 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
         }
     }
     constants.substitute_rules(&mut grammar);
+    crate::query_forms::prepare(&mut grammar)?;
     constants.evaluate_tests(&mut grammar)?;
     grammar.implications = implications.into();
     if resolution.is_none() {
@@ -552,6 +571,12 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
     if !grammar.index.contains_key("text") {
         return Err(Error::grammar("has no rule text").in_stage(stage));
     }
+    crate::diagnostics::check(
+        &grammar,
+        documents,
+        &constants.patterns.borrow(),
+        expansion.as_ref().map(|x| x.erasure_checks.as_slice()),
+    )?;
     crate::boundary::reachable(&grammar)?;
     // Shared clauses are checked once, with the first alternative that
     // holds them.
@@ -584,6 +609,7 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
         recipe_cycles(alternative)?;
     }
     emission_overlap(&grammar)?;
+    crate::nullable_errors::check(&grammar)?;
     grammar.tree_comparisons = tree_comparisons;
     grammar.tree_expressions = tree_expressions;
     Ok(grammar)
@@ -632,6 +658,7 @@ fn close_families(grammar: &StageGrammar) -> Vec<FxSet<u32>> {
                 _ => {}
             },
             Part::Cond(condition) => match condition {
+                Cond::Forest(term) => pending.push(Part::Term(term)),
                 Cond::Compare(_, a, b, _) => pending.extend([Part::Term(a), Part::Term(b)]),
                 Cond::Matches(t, _)
                 | Cond::Begins(t, _)
@@ -657,7 +684,7 @@ fn close_families(grammar: &StageGrammar) -> Vec<FxSet<u32>> {
                     out.push(rule as u32);
                 }
             }
-            Expr::Capture(_, inner) | Expr::Tested(_, _, inner) => edges(inner, grammar, out),
+            Expr::Capture(_, inner) | Expr::Splice(inner) | Expr::Tested(_, _, inner) => edges(inner, grammar, out),
             Expr::Choice(branches) => {
                 for branch in branches {
                     edges(branch, grammar, out);
@@ -704,7 +731,9 @@ fn consuming(expr: &Expr, rules: &FxSet<String>) -> bool {
                 return true
             }
             Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => pending.extend(items),
-            Expr::Capture(_, inner) | Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => pending.push(inner),
+            Expr::Capture(_, inner) | Expr::Splice(inner) | Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => {
+                pending.push(inner)
+            }
             Expr::Repeat(item, separator, _) => {
                 pending.push(item);
                 pending.extend(separator.as_deref());
@@ -748,7 +777,9 @@ fn emission_overlap(grammar: &StageGrammar) -> Result<(), Error> {
                     Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                         pending.extend(items)
                     }
-                    Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => pending.push(inner),
+                    Expr::Splice(inner) | Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => {
+                        pending.push(inner)
+                    }
                     Expr::Repeat(item, separator, _) => {
                         pending.push(item);
                         pending.extend(separator.as_deref());
@@ -924,6 +955,7 @@ struct Version {
     previous: Option<usize>,
 }
 struct Constants<'a> {
+    patterns: std::cell::RefCell<Vec<(Pattern, String)>>,
     versions: Vec<Version>,
     latest: HashMap<String, usize>,
     stage: &'a str,
@@ -1407,6 +1439,9 @@ impl Constants<'_> {
                 }
             }
         }
+        if matches!(term, Term::Pattern(_)) {
+            self.patterns.borrow_mut().push((pattern.clone(), document.to_owned()));
+        }
         Ok(Value::Pattern(pattern))
     }
     fn evaluate_plain(&self, root: &Term, document: &str, item: (usize, usize)) -> Result<Value, Error> {
@@ -1429,6 +1464,7 @@ impl Constants<'_> {
             let mut operands = values.split_off(values.len() - children.len()).into_iter();
             let value = match term {
                 Term::Source(_) => unreachable!("source symbols expand before constant binding"),
+                Term::Body(_) => return Err(Error::grammar("a parse body cannot be a constant").in_document(document)),
                 Term::Str(text) => Value::Str(text.clone()),
                 Term::Tag(tag) => Value::Set(BTreeSet::from([tag.clone()])),
                 Term::EmptySet => Value::Set(BTreeSet::new()),
@@ -1861,7 +1897,14 @@ impl Constants<'_> {
                         for term in terms {
                             self.substitute_term(term);
                         }
-                        for recipe in clauses.strings.value.iter_mut().chain(&mut clauses.strings.image) {
+                        for recipe in clauses
+                            .strings
+                            .value
+                            .iter_mut()
+                            .chain(&mut clauses.strings.image)
+                            .chain(&mut clauses.error)
+                            .chain(&mut clauses.warning)
+                        {
                             self.substitute_term(recipe);
                         }
                         for item in clauses.emit.iter_mut().flatten() {
@@ -1969,7 +2012,7 @@ impl Constants<'_> {
                     }
                     pending.push(inner)
                 }
-                Expr::Capture(_, inner) | Expr::Tested(_, _, inner) => pending.push(inner),
+                Expr::Capture(_, inner) | Expr::Splice(inner) | Expr::Tested(_, _, inner) => pending.push(inner),
                 Expr::Repeat(item, separator, _) => {
                     pending.extend(separator.as_deref());
                     pending.push(item);
@@ -2009,7 +2052,7 @@ impl Constants<'_> {
                             }
                             stack.push(inner);
                         }
-                        Expr::Capture(_, inner) => stack.push(inner),
+                        Expr::Capture(_, inner) | Expr::Splice(inner) => stack.push(inner),
                         Expr::Repeat(item, separator, _) => {
                             stack.push(item);
                             stack.extend(separator.as_deref_mut());
@@ -2031,7 +2074,8 @@ impl Constants<'_> {
                         | Expr::Terminal(_)
                         | Expr::Range(..)
                         | Expr::Wildcard
-                        | Expr::Empty => {}
+                        | Expr::Empty
+                        | Expr::Remainder => {}
                     }
                 }
             }
@@ -2042,11 +2086,15 @@ impl Constants<'_> {
     /// A copy of a rule definition in which each constant is its value.
     fn substitute_rule(&self, rule: &RuleDef) -> RuleDef {
         let mut rule = rule.clone();
-        let terms = rule.tags.iter_mut().chain(rule.alternatives.iter_mut().filter_map(|a| a.tags.as_mut())).chain(
-            rule.emit.iter_mut().flatten().filter_map(|item| match item {
+        let terms = rule
+            .error
+            .iter_mut()
+            .chain(&mut rule.warning)
+            .chain(rule.tags.iter_mut())
+            .chain(rule.alternatives.iter_mut().filter_map(|a| a.tags.as_mut()))
+            .chain(rule.emit.iter_mut().flatten().filter_map(|item| match item {
                 EmitItem::Capture(_, tags, ..) | EmitItem::Insert(tags, _) => tags.as_mut(),
-            }),
-        );
+            }));
         for term in terms {
             self.substitute_term(term);
         }
@@ -2065,6 +2113,7 @@ impl Constants<'_> {
             return;
         }
         match term {
+            Term::Body(body) => self.substitute_body(Arc::make_mut(body)),
             Term::Source(_) => (),
             Term::Const(name, _) => *term = self.values[name.as_str()].value.term(),
             Term::Union(items) | Term::Intersection(items) => {
@@ -2089,9 +2138,43 @@ impl Constants<'_> {
         }
     }
 
+    fn substitute_body(&self, body: &mut Expr) {
+        let mut pending = vec![body];
+        while let Some(expression) = pending.pop() {
+            work::count(Work::Stitched, 1);
+            match expression {
+                Expr::Literal(term) => self.substitute_term(term),
+                Expr::ScalarRange(left, right) => {
+                    self.substitute_term(left);
+                    self.substitute_term(right);
+                }
+                Expr::Tested(_, term, inner) => {
+                    self.substitute_term(term);
+                    pending.push(inner);
+                }
+                Expr::Optional(inner, _, default) => {
+                    if let Some(default) = default {
+                        self.substitute_term(&mut default.term);
+                    }
+                    pending.push(inner);
+                }
+                Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
+                    pending.extend(items.iter_mut())
+                }
+                Expr::Capture(_, inner) | Expr::Splice(inner) => pending.push(inner),
+                Expr::Repeat(inner, separator, _) => {
+                    pending.push(inner);
+                    pending.extend(separator.as_deref_mut());
+                }
+                _ => {}
+            }
+        }
+    }
+
     fn substitute_cond(&self, cond: &mut Cond) {
         work::count(Work::Stitched, 1);
         match cond {
+            Cond::Forest(term) => self.substitute_term(term),
             Cond::SourceQuery(_, args, _) => {
                 for arg in args {
                     if let Arg::Term(term) = arg {
@@ -2231,7 +2314,7 @@ impl<'a> Iterator for ValueParts<'a> {
             }
             ValuePart::Source(_) => (),
             ValuePart::Rule(rule) => {
-                children.extend(rule.tags.iter().map(ValuePart::Term));
+                children.extend(rule.error.iter().chain(&rule.warning).chain(&rule.tags).map(ValuePart::Term));
                 value_channels(&mut children, &rule.strings);
                 children.extend(rule.alternatives.iter().map(ValuePart::Alternative));
                 children.extend(rule.conditions.iter().map(ValuePart::Cond));
@@ -2261,7 +2344,7 @@ impl<'a> Iterator for ValueParts<'a> {
                         children.push(ValuePart::Term(&default.term));
                     }
                 }
-                Expr::Capture(_, e) => children.push(ValuePart::Expr(e)),
+                Expr::Capture(_, e) | Expr::Splice(e) => children.push(ValuePart::Expr(e)),
                 Expr::Repeat(e, separator, _) => {
                     children.push(ValuePart::Expr(e));
                     children.extend(separator.iter().map(|e| ValuePart::Expr(e)));
@@ -2374,7 +2457,7 @@ fn check_expr(grammar: &StageGrammar, expr: &Expr) -> Result<(), String> {
             check_expr(grammar, item)?;
             separator.as_deref().map_or(Ok(()), |separator| check_expr(grammar, separator))
         }
-        Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => check_expr(grammar, inner),
+        Expr::Splice(inner) | Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => check_expr(grammar, inner),
         Expr::Ref(name) => {
             if is_terminal_name(name) {
                 Ok(())
@@ -2387,7 +2470,8 @@ fn check_expr(grammar: &StageGrammar, expr: &Expr) -> Result<(), String> {
         | Expr::ScalarRange(..)
         | Expr::Range(..)
         | Expr::Wildcard
-        | Expr::Empty => Ok(()),
+        | Expr::Empty
+        | Expr::Remainder => Ok(()),
         // The reader, or the check of a DOM, has made sure that a capture
         // wraps one symbol (§9).
         Expr::Capture(_, inner) => check_expr(grammar, inner),
@@ -2415,6 +2499,12 @@ fn check_span_references(grammar: &StageGrammar, term: &Term) -> Result<(), Stri
 
 fn check_term(grammar: &StageGrammar, term: &Term, compared: &mut bool) -> Result<(), String> {
     match term {
+        Term::Body(body) => {
+            if let Some(problem) = crate::query_forms::body_problem(body) {
+                return Err(problem.into());
+            }
+            check_expr(grammar, body)
+        }
         Term::Source(_) => unreachable!("source symbols expand before grammar checks"),
         // Stitching has checked every constant (engine §2).
         Term::Pattern(_) | Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Const(..) => Ok(()),
@@ -2434,6 +2524,14 @@ fn check_term(grammar: &StageGrammar, term: &Term, compared: &mut bool) -> Resul
             check_term(grammar, then, compared)
         }
         Term::Call(name, args) => match (name.as_str(), &args[..]) {
+            ("parse", [Arg::Term(receiver), Arg::Term(Term::Body(body))]) => {
+                if crate::query_forms::suffix_body(body) && crate::dom::restored_span(receiver) {
+                    return Err("suffix parse requires an ordinary span, not a restored span".into());
+                }
+                check_span_references(grammar, receiver)?;
+                check_term(grammar, &Term::Body(body.clone()), compared)
+            }
+            ("error-free", [Arg::Term(receiver)]) => check_term(grammar, receiver, compared),
             ("value" | "image", [Arg::Term(Term::Call(method, args))]) if method == "emitted" => {
                 if let [Arg::Term(Term::Capture(_))] = &args[..] {
                     Ok(())
@@ -2507,6 +2605,7 @@ fn check_term(grammar: &StageGrammar, term: &Term, compared: &mut bool) -> Resul
 fn check_cond(grammar: &StageGrammar, cond: &Cond, compared: &mut bool) -> Result<(), String> {
     work::count(Work::Stitched, 1);
     match cond {
+        Cond::Forest(term) => check_term(grammar, term, compared),
         Cond::SourceQuery(..) => unreachable!("source queries expand before grammar checks"),
         Cond::Compare(op, left, right, _) => {
             *compared |= matches!(op.as_str(), "≅" | "≇") && matches!(right, Term::Capture(_));
@@ -2566,6 +2665,9 @@ mod tests {
                 Cond::Compare("=".into(), Term::Const("k".into(), (1, 1)), Term::Str("a".into()), Default::default())
             };
             let rule = RuleDef {
+                error: None,
+                warning: None,
+                suppress_warnings: Vec::new(),
                 source: Default::default(),
                 strings: Default::default(),
                 deferred_emission: None,
@@ -2635,6 +2737,7 @@ mod tests {
             let entries =
                 (0..n).map(|index| entry(index, true)).chain((0..n).map(|index| entry(index, false))).collect();
             StageGrammar {
+                query_targets: Default::default(),
                 tree_comparisons: false,
                 tree_expressions: false,
                 features: Vec::new(),

@@ -1,0 +1,11 @@
+{
+  "description": "Engine §4 and §9: body queries retain capture, receiver, and forest restrictions.",
+  "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n%conditions $.without-elision.parse(… A)\n```\n",
+  "expect": {
+    "error": {
+      "line": 4,
+      "column": 13,
+      "message": "suffix parse requires an ordinary span, not a restored span"
+    }
+  }
+}

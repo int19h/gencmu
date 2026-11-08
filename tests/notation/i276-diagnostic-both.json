@@ -1,0 +1,10 @@
+{
+  "description": "A definition carries one diagnostic directive at most.",
+  "document": "```jbogenbau\n%rule text A %error \"error\" %warning \"warning\"\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 29
+    }
+  }
+}

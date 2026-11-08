@@ -1,0 +1,30 @@
+{
+  "description": "Engine §6 and §7.10: erased classes and their canonical representatives (outer-routes).",
+  "grammar": "%ambiguity-resolution fewest #·second\n%rule text first | second\n%rule first gone\n%rule second gone\n%rule gone A\n%erased",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "first"
+          }
+        ]
+      }
+    }
+  }
+}

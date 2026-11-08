@@ -405,6 +405,7 @@ function diagramTermText(term) {
 }
 
 function symbolText(expr) {
+  if (expr.splice) return "*"+symbolText(expr.splice);
   if (expr.param || expr.call) return canonicalArgument(expr,unicode);
   if (expr.test) return symbolText(expr.expr) + testText(expr);
   if (expr.literal) return diagramTermText(expr.literal);
@@ -457,10 +458,10 @@ export function testedElisions(rule) {
       return;
     }
     if ("optional" in expr && expr.elidable) {
-      const first = "seq" in expr.optional ? expr.optional.seq[0] : expr.optional;
+      const first = expr.optional.capture ? expr.optional.expr : "seq" in expr.optional ? expr.optional.seq[0] : expr.optional;
       if ("test" in first) found.push(expr);
     }
-    for (const key of ["seq", "choice", "ranked", "and", "optional", "repeat", "separator", "expr"]) if (key in expr) visit(expr[key]);
+    for (const key of ["seq", "choice", "ranked", "and", "optional", "repeat", "separator", "expr", "splice"]) if (key in expr) visit(expr[key]);
   };
   for (const alternative of rule.alternatives??[]) visit(alternative.expr);
   return found;
@@ -517,7 +518,7 @@ export function elisionOutcomes(loader, pipelines, documents) {
         dom.rules.forEach((/** @type {any} */ rule) => {
           const ruleKey = rule.at.join(":");
           testedElisions(rule).forEach((optional, ordinal) => {
-            const first = "seq" in optional.optional ? optional.optional.seq[0] : optional.optional;
+            const first = optional.optional.capture ? optional.optional.expr : "seq" in optional.optional ? optional.optional.seq[0] : optional.optional;
             if (hasUnresolved(first) || hasUnresolved(optional.default)) return;
             const grammar = holdsConstant(first) || holdsConstant(optional.default) ? (pipeline ??= loader.pipeline(documentPath)).stages[index].grammar : stageless;
             const test = grammar.symbolTest(first, document, { document, line: rule.at[0], column: rule.at[1] });
@@ -607,7 +608,7 @@ export function expressionPiece(expr, limit = MAX_WIDTH, omission = unknownOmiss
     if (!expr.elidable) return optional(framed(expr.optional));
     // The terminator's test can forbid its omission (engine §3.8): then
     // only the written route is left.
-    const first = "seq" in expr.optional ? expr.optional.seq[0] : expr.optional;
+    const first = expr.optional.capture ? expr.optional.expr : "seq" in expr.optional ? expr.optional.seq[0] : expr.optional;
     const allowed = "test" in first ? omission(expr) : true;
     if (allowed === false) return expressionPiece(expr.optional, limit, omission);
     const kind = "elided";
@@ -631,7 +632,7 @@ export function expressionPiece(expr, limit = MAX_WIDTH, omission = unknownOmiss
  * @returns {string}
  */
 export function guardText(guards) {
-  return guards.map((guard) => `${guard.negated ? "¬" : ""}${guard.feature}${guard.kind === "warning" ? "!" : "?"}`).join(" ");
+  return guards.map((guard) => `${guard.negated ? "¬" : ""}${guard.feature}?`).join(" ");
 }
 
 /**
@@ -674,7 +675,7 @@ function hasRankedChoice(rule) {
     if (Array.isArray(expression)) {for (const child of expression) pending.push(child);continue;}
     if (!expression || typeof expression !== "object") continue;
     if ("ranked" in expression) return true;
-    for (const key of ["seq", "choice", "and", "optional", "repeat", "separator", "expr"]) if (key in expression) pending.push(expression[key]);
+    for (const key of ["seq", "choice", "and", "optional", "repeat", "separator", "expr", "splice"]) if (key in expression) pending.push(expression[key]);
   }
   return false;
 }

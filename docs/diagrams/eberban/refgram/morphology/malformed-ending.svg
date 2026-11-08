@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="755" height="156" viewBox="0 0 755 156" role="img" aria-label="Railroad diagram of the rule malformed-ending">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}.rank-frame{fill:none;stroke:#777;stroke-width:1;stroke-dasharray:3 3}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="134.4" lengthAdjust="spacingAndGlyphs">malformed-ending</text>
+<text class="label" x="164.4" y="24" textLength="115.2" lengthAdjust="spacingAndGlyphs">conditions apply</text>
+<path d="M10 52v16m4 -16v16M14 60h6"/>
+<path d="M20 60h88"/>
+<text class="label" x="24" y="55" textLength="79.2" lengthAdjust="spacingAndGlyphs">≻ same span</text>
+<path d="M108 60h10"/>
+<g class="ranked-choice"><rect class="rank-frame" x="123" y="39" width="361" height="76" rx="4"/>
+<path d="M118 60h10"/>
+<path d="M128 60h20"/>
+<path d="M148 60h16"/>
+<text class="label" x="152" y="55" textLength="7.2" lengthAdjust="spacingAndGlyphs">1</text>
+<path d="M164 60h10"/>
+<g class="rule"><rect x="174" y="48" width="134" height="24" rx="0"/><text x="241" y="65" textLength="117.6" lengthAdjust="spacingAndGlyphs">malformed-pair</text></g>
+<path d="M308 60H479"/>
+<path d="M128 60a10 10 0 0 1 10 10V88a10 10 0 0 0 10 10"/>
+<path d="M148 98h16"/>
+<text class="label" x="152" y="93" textLength="7.2" lengthAdjust="spacingAndGlyphs">2</text>
+<path d="M164 98h10"/>
+<g class="rule"><rect x="174" y="86" width="285" height="24" rx="0"/><text x="316.5" y="103" textLength="268.8" lengthAdjust="spacingAndGlyphs">freeform-multi-consonents-ending</text></g>
+<path d="M459 98H459a10 10 0 0 0 10 -10V70a10 10 0 0 1 10 -10"/>
+<path d="M479 60h10"/>
+</g>
+<path d="M489 60h6m0 -8v16m4 -16v16"/>
+<text class="label" x="10" y="142" textLength="734.4" lengthAdjust="spacingAndGlyphs">A qualified higher proof removes a lower proof only over the same span and with dominating open facts.</text>
+</svg>

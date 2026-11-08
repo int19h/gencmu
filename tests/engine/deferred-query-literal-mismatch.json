@@ -1,0 +1,15 @@
+{
+  "description": "Engine §3.10 and §4: parse keeps its body and uses the selected query mode.",
+  "grammar": "%rule text {_}\n%conditions $.parse(\"b\").error-free",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected"
+  }
+}

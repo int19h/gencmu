@@ -40,7 +40,16 @@ fn partial(value: &Json, kind: &str) -> Json {
                         let mut next = kind;
                         if matches!(
                             key.as_str(),
-                            "expr" | "seq" | "choice" | "ranked" | "and" | "optional" | "repeat" | "separator"
+                            "splice"
+                                | "body"
+                                | "expr"
+                                | "seq"
+                                | "choice"
+                                | "ranked"
+                                | "and"
+                                | "optional"
+                                | "repeat"
+                                | "separator"
                         ) && kind != "pattern"
                         {
                             next = "expr";

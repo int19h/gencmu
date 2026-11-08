@@ -1,0 +1,23 @@
+{
+  "description": "Engine §3.10 and §4: body queries preserve tests, substitution, and correlated witness eligibility.",
+  "grammar": "%rule check(@C) A\n%conditions $.parse(@C).error-free\n%rule text = check(A=\"a\")",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

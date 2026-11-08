@@ -1,0 +1,43 @@
+{
+  "description": "Engine §4.1 and §6: a wrapper child list retains the erased root and keeps the canonical empty interior.",
+  "grammar": "%ambiguity-resolution fewest #·zz\n%rule text $w:w C\n%conditions $w ≅ #·w« r2 »\n%rule w r2\n%rule r2 (r4 ≻ B) :: ∅ | [r4]\n%erased\n%rule r4 B | ε\n%rule zz B B B",
+  "tokens": [
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "w",
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "r2",
+                "children": []
+              }
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "C"
+          }
+        ]
+      }
+    }
+  }
+}
