@@ -202,7 +202,7 @@ The `@Open` bar rejects a words route only for an error-free sentence witness. O
 
 `invalid-head` needs a later `ra`, which `erasure-reach` tests. This query reads every token before that `ra`, including malformed words and unclassified junk. Without it, every failed text keeps a speculative erasure reading and reports only a missing `ra` at input end.
 
-When its own first word is an elider, `erased-words` publishes `Closer-Head`. When its own sentence contains either marked erasure, `erased-sentence` publishes `Contains-Closer-Head`. This forwards the fact through nested erased sentences. Quote guards inspect those tags because the seal hides the real children.
+When its own first word is an elider, `erased-words` publishes `Closer-Head`. A quote guard reads this tag because the seal hides the real head. Its pattern follows only that quote's own paragraphs and sentences. It does not enter nested text.
 
 The chapter says that `ra` "must be surrounded by spaces or pauses". The start of a text counts as a pause, as it does for hesitation in the [word forms](morphology.md). So a text can start with `ra`.
 
@@ -224,10 +224,11 @@ Erased text can follow an erasure too, because the later `ra` erases it. So `aft
   $.following-tokens.begins(after-erasure)
 
 %const $CLOSER-HEAD-ERASURE
-  #(⋮ erased-words<Closer-Head>) ∪ #(⋮ erased-sentence<Contains-Closer-Head>)
+  #open-quote-text« ⋯ open-quote-paragraphs« ⋯ open-quote-sentences« ⋯
+    words-erasure« erased-words<Closer-Head> ⋯ » ⋯ » ⋯ » »
 
 %rule erased-sentence
-  $s:sentence-choice :: ($s ≅ $CLOSER-HEAD-ERASURE ⟹ Contains-Closer-Head)
+  sentence-choice
 %erased
 
 %rule erased-words
@@ -484,7 +485,7 @@ The [quotes chapter](https://eberban.github.io/eberban/books/refgram/book/gramma
 
 The chapter does not say that `cai` can be left out. The PEG lets the speaker leave it out where the quoted text can end, and this grammar follows the PEG.
 
-A quote with a written `cai` reads `text`, like the whole text, because no closer inside it can end it. In a quote whose `cai` is left out, a particle that closes an outer construct ends the quoted text instead of starting erasable text. The second and third alternatives read such a quote. Their terminator `[+CAI=""]` allows only the omitted `cai`, because a written `cai` has the value `cai`. Their first conditions exclude an erased stretch whose head is such a particle. The test also reaches erased words nested inside an erased sentence through its published tag.
+A quote with a written `cai` reads `text`, like the whole text, because no closer inside it can end it. In a quote whose `cai` is left out, a particle that closes an outer construct ends the quoted text instead of starting erasable text. The second and third alternatives read such a quote. Their terminator `[+CAI=""]` allows only the omitted `cai`, because a written `cai` has the value `cai`. Their first conditions exclude a closer-headed words erasure only in that quote's own sentence list. A nested quote with written `cai` or a closed parenthetical keeps its own closers.
 
 Where a quote of several sentences leaves out its `cai` before the end of the text, the PEG warns. The end of the quote is then hard to see. The third alternative splices the warning rule `multi-sentence-cai-elided`.
 
@@ -1061,7 +1062,11 @@ The PEG reads `ra` only after a space character, so a text that starts with `ra`
 
 The PEG warns about a `cai` left out after a quote of several sentences. Its paragraph rule stores the erased sentence in a sequence, and the warning reads the field `eraser` on that sequence. The sentence inside the sequence has that field, but the sequence has none. So the PEG counts the erased sentence. This grammar counts only sentences that are not erased. So the PEG warns about `a mi pe ca a mo ra ke ra a ke bu ke` and this grammar does not.
 
-The omitted-`cai` guard excludes a closer-headed words erasure anywhere in its quoted text. It also excludes that fact inside an erased sentence, through `Contains-Closer-Head`. This retains reach through nested erased sentences without inspecting sealed children.
+The omitted-`cai` guard ends the quote before a closer-headed words erasure in its own text skeleton. It does not enter a nested written quote or a closed parenthetical. Thus `a mi vi ca a ca vei ra a mo cai a ke` keeps its inner quote and following sentence together.
+
+The PEG bars closer-headed erasure at every quote depth, including inside written quotes. This grammar already permits that erasure inside a written quote, so the depth-blind bar cannot govern an outer quote. Its own sentence list determines whether the outer quote ends.
+
+A sentence contains another text only through a quote or parenthetical. An omitted quote applies its own guard. An unclosed parenthetical ends at input end and cannot precede an erasure's `ra`. Thus no closer-headed erasure can require forwarding through an erased sentence without crossing a closed construct. The sealed sentence needs no forwarding tag.
 
 ### Diagnostic codes and PEG sources
 
