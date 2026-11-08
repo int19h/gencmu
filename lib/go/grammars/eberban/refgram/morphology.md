@@ -939,7 +939,9 @@ An unfinished level of a compound lacks a required component, holds an unfinishe
 
 As in a complete compound, no quote starts in a component slot of an unfinished one. An eraser is no component, so it ends the compound. So in `a e co [ra a mo`, `co` is a plain particle and the bracket is a gap. Then `ra` erases the unfinished compound, and the text keeps `a mo`.
 
-The rule `open-compound` reads an unfinished compound. It follows `compound` level by level, with the same slot rules. Each level that it reads is unfinished, as defined above. An `e` level needs two components, and an `en` level needs three. An `er` level normally lacks its closing `e`. The exception is an empty `er e`, which lacks a component instead of a closer. So the rule counts the open slots of every prefix at every depth.
+The rule `open-compound` reads an unfinished compound. It follows `compound` level by level, with the same slot rules. Each level that it reads is unfinished, as defined above. An `e` level needs two components, and an `en` level needs three.
+
+An `er` level normally lacks its closing `e`. The exception is an empty `er e`, which lacks a component instead of a closer. So the rule counts the open slots of every prefix at every depth.
 
 So in `a ei mi co [ra a mo`, the inner `i` has its two components `mi` and `co`. The outer `e` still lacks its second component, so `co` starts no quote. In the same way, `a ene mi mo co [ra a ke` reads `e mi mo` and `co` as the first two components of `en`. The third is missing.
 
@@ -1291,7 +1293,9 @@ Two conditions keep junk from standing where a word reads. First, a run whose wo
 
 The query reads its words from the start of the run and cannot see what stands before the run. So the bar does not apply where a digit stands before a run that starts with a vowel or a sonorant, as `spaced-start` reads it. No word reading of that run exists, because such a word needs a space before it. So `a 1anco[x ra a mo` is junk that `ra` erases, while `a 1 anco[x ra a mo` is rejected.
 
-Second, a single hyphen beside a digit belongs to the digit word, so it is no junk. A row of hyphens beside a digit stays junk, so the syntax stage accepts it only where `ra` erases it. So `a mi 1--2 ra a mo` is a text, and `mi 1--2 bjan` is not. A hyphen with no digit beside it stays junk, so `a mi - bjan mo` is rejected. Before a longer junk run, a hyphen beside a digit belongs to the digit, with its warning. Thus `a mi 1-an mo` warns about the hyphen, and the junk `an` stops the text. The smaller junk span has less blame than a run that includes the hyphen.
+Second, a single hyphen beside a digit belongs to the digit word, so it is no junk. A row of hyphens beside a digit stays junk, so the syntax stage accepts it only where `ra` erases it. So `a mi 1--2 ra a mo` is a text, and `mi 1--2 bjan` is not. A hyphen with no digit beside it stays junk, so `a mi - bjan mo` is rejected.
+
+Before a longer junk run, a hyphen beside a digit belongs to the digit, with its warning. Thus `a mi 1-an mo` warns about the hyphen, and the junk `an` stops the text. The smaller junk span has less blame than a run that includes the hyphen.
 
 ```jbogenbau
 %rule junk-run
@@ -1469,7 +1473,9 @@ A bare medial pair or quadruplet can retain its root error without a vowel frame
 
 A borrowing or freeform retains its prefix and its complete content. Its cluster slots accept the freeform triplet shapes. A sonorant before an initial-shaped pair retains a fault on that pair, as in `unsba`.
 
-A final consonant cluster reports as one ending. A shared pair fault takes precedence at the same span, so `ubobs` reports its voicing mismatch. The no-vowel branch reaches `ubd` without pretending that `bd` contains a vowel. It tries a long cluster before the generic ending, so `ubcdf` reports its quadruplet. A bare quadruplet similarly retains one root token. A framed cluster retains consonants after its first four, so `pabcdfga` reports on `bcdf`. Longer consonant-only runs retain junk where no skeleton reads them.
+A final consonant cluster reports as one ending. A shared pair fault takes precedence at the same span, so `ubobs` reports its voicing mismatch. The no-vowel branch reaches `ubd` without pretending that `bd` contains a vowel. It tries a long cluster before the generic ending, so `ubcdf` reports its quadruplet.
+
+A bare quadruplet similarly retains one root token. A framed cluster retains consonants after its first four, so `pabcdfga` reports on `bcdf`. Longer consonant-only runs retain junk where no skeleton reads them.
 
 ```jbogenbau
 %rule malformed-content
