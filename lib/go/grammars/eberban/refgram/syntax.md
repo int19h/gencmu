@@ -995,7 +995,8 @@ Number recovery normally ends at written `JI`, before a token outside `number-st
 %error "repeating digits need a fractional part introduced by jo"
 
 %rule number-without-digits
-  JO [JI] | TI JU [JO] [JI]
+  | JO [JI]
+  | TI JU [JO] [JI]
 %conditions
   JI ⊆ $.last-token.tags ∨ ¬$.following-tokens.begins(TI | JI | JO | JA | JE)
 %error "a number needs integer digits, fractional digits, or a magnitude"
