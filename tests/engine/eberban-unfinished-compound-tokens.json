@@ -1,5 +1,5 @@
 {
-  "description": "In the eberban/refgram pipeline, the unfinished outer prefix emits junk with its fault class. The complete inner compound keeps its canonical value. The following gap contains no quote.",
+  "description": "Unfinished compounds: an unfinished outer prefix emits Stray-Prefix with its forms error. The complete inner compound keeps its canonical value. Engine §13: until forms reports that error.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../grammars/eberban/refgram/pipeline.md\"\n```\n"
   },
@@ -10,7 +10,7 @@
   },
   "expect": {
     "result": {
-      "ok": true,
+      "ok": false,
       "stages": [
         {},
         {
@@ -25,8 +25,22 @@
             {
               "value": "e",
               "tags": [
-                "Fault-incomplete-compound",
-                "Junk"
+                "Stray-Prefix"
+              ],
+              "errors": [
+                {
+                  "stage": "forms",
+                  "code": "incomplete-compound",
+                  "rule": "incomplete-compound",
+                  "span": [
+                    2,
+                    3
+                  ],
+                  "source": [
+                    2,
+                    3
+                  ]
+                }
               ]
             },
             {
@@ -56,7 +70,26 @@
             }
           ]
         }
-      ]
+      ],
+      "error": {
+        "kind": "reported",
+        "stage": "forms",
+        "errors": [
+          {
+            "stage": "forms",
+            "code": "incomplete-compound",
+            "rule": "incomplete-compound",
+            "span": [
+              2,
+              3
+            ],
+            "source": [
+              2,
+              3
+            ]
+          }
+        ]
+      }
     },
     "warnings": [
       {
@@ -73,6 +106,7 @@
         ],
         "message": "this letter is outside the Eberban alphabet"
       }
-    ]
+    ],
+    "error": "reported"
   }
 }

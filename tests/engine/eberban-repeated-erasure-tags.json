@@ -1,5 +1,5 @@
 {
-  "description": "Repeated erasers preserve their empty inherited tag set and their flat token children.",
+  "description": "Sentences and erasure: sentence-erasure keeps ra-run outside its sealed erased-sentence. Repeated erasers retain their empty inherited tags and flat token children.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../grammars/eberban/refgram/pipeline.md\"\n```\n"
   },
@@ -21,9 +21,11 @@
                     "rule": "sentence",
                     "children": [
                       {
-                        "rule": "erased-valid",
+                        "rule": "sentence-erasure",
                         "children": [
-                          {},
+                          {
+                            "rule": "erased-sentence"
+                          },
                           {
                             "rule": "ra-run",
                             "tags": [],
