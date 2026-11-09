@@ -104,8 +104,7 @@ The redefined `run-words` keeps the join conditions of [../common/forms.md](../c
   Hesitation ⊈ $v.tags ∨ (Spacing ∪ Opener-Space) ∩ $r.tags = ∅ ∧ $r.classes ∩ $TEXT-OPENERS = ∅,
   RAhOI ⊈ $r.tags ∨ ¬$v.onward.begins(rahoi-form),
   (Continued ∪ Cy ∪ Name-Intro ∪ Open-Stress) ∩ $r.tags ≠ ∅,
-  Cy ⊆ $r.tags ∧ Cy ⊆ $v.tags ∨
-  Continued ⊆ $r.tags ∧ Open-Stress ⊈ $r.tags ∧ Onset ⊆ $v.tags ∨
+  Cy ⊆ $r.tags ∧ Cy ⊆ $v.tags ∨ Continued ⊆ $r.tags ∧ Open-Stress ⊈ $r.tags ∧ Onset ⊆ $v.tags ∨
   Name-Intro ⊆ $r.tags ∧ Name-Onset ⊆ $v.tags ∨
   Open-Stress ⊆ $r.tags ∧ Cy ⊈ $r.tags ∧ Onset ⊆ $v.tags,
   Final-Stress ⊈ $r.tags ∨ (Stress-Guard ∪ Initial-Stress) ∩ $v.tags = ∅,

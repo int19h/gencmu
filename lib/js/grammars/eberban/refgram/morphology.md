@@ -244,8 +244,7 @@ A freeform variable or borrowing has a third shape: `X` is a sonorant and `YZ` i
 %rule sonorant-triplet
   sonorant [Hyphen] $y:ns-consonant [hyphen-misplaced] $z:consonant
 %conditions
-  $y.value ++ $z.value ∈ $INITIAL-PAIRS ∨
-  $y.value ++ $z.value ∈ $MEDIAL-PAIRS ∧ Sonorant ⊆ $z.tags
+  $y.value ++ $z.value ∈ $INITIAL-PAIRS ∨ $y.value ++ $z.value ∈ $MEDIAL-PAIRS ∧ Sonorant ⊆ $z.tags
 ```
 
 <details><summary>Railroad diagrams of the 4 rules from <code>root-triplet-of</code> to <code>sonorant-triplet</code></summary>
@@ -1309,8 +1308,8 @@ Before a longer junk run, a hyphen beside a digit belongs to the digit, with its
 %rule junk-run
   {run-char} run-end
 %conditions
-  ¬$.onward.begins(run-opener) ∨ $.preceding-tokens.ends(after-digit) ∧
-    $.onward.begins(spaced-start),
+  ¬$.onward.begins(run-opener) ∨
+  $.preceding-tokens.ends(after-digit) ∧ $.onward.begins(spaced-start),
   ¬$.matches(Hyphen) ∨ ¬$.preceding-tokens.ends(Digit) ∧ ¬$.following-tokens.begins(Digit)
 %error "the run " ++ $.source-text ++ " has no word reading"
 %emits
@@ -1385,8 +1384,7 @@ The edge readers collect faulty `h` letters and their hyphens before or after a 
   | sonorant malformed-gap(Hyphen) $y:ns-consonant
       malformed-gap(hyphen-misplaced) $z:consonant
 %conditions
-  $y.value ++ $z.value ∈ $INITIAL-PAIRS ∨
-  $y.value ++ $z.value ∈ $MEDIAL-PAIRS ∧ Sonorant ⊆ $z.tags
+  $y.value ++ $z.value ∈ $INITIAL-PAIRS ∨ $y.value ++ $z.value ∈ $MEDIAL-PAIRS ∧ Sonorant ⊆ $z.tags
 
 %rule malformed-final-sonorant
   malformed-gap(hyphen-misplaced) sonorant
