@@ -31,9 +31,8 @@ The left-recursive `text` gives each shorter text its own constituent. Greedy ra
   ε | text piece
 
 %rule piece
-  | call-name | parameter-token | emoji-name | word | string | engine-tag
-  | capture-token | constant-token | guard
-  | include | names | keyword | integer | symbol | negation | layout
+  | call-name | parameter-token | emoji-name | word | string | engine-tag | capture-token
+  | constant-token | guard | include | names | keyword | integer | symbol | negation | layout
 ```
 
 <details><summary>Railroad diagrams of <code>text</code> and <code>piece</code></summary>
@@ -89,7 +88,8 @@ An engine tag starts with `_` and continues with letters, digits, or underscores
   $.following-tokens.first-token.value ≠ "-"
 
 %rule letter
-  "a".."z" | "A".."Z"
+  "a".."z"
+  | "A".."Z"
 
 %rule digit
   "0".."9"
@@ -100,10 +100,12 @@ An engine tag starts with `_` and continues with letters, digits, or underscores
   $ :: Integer
 
 %rule lower-name
-  "a".."z" | lower-name name-character
+  "a".."z"
+  | lower-name name-character
 
 %rule upper-name
-  "A".."Z" | upper-name name-character
+  "A".."Z"
+  | upper-name name-character
 
 %rule engine-tag
   "_" [engine-name]
@@ -150,7 +152,8 @@ A parameter starts with `@` and an ASCII letter. Its remaining characters follow
 
 ```jbogenbau
 %rule call-name
-  lower-name | _Emoji_Presentation<¬_Emoji_Component>
+  lower-name
+  | _Emoji_Presentation<¬_Emoji_Component>
 %conditions
   $.following-tokens.begins(call-open)
 %emits
@@ -183,7 +186,8 @@ The boundary conditions prevent either token from ending inside its name. The sy
 
 ```jbogenbau
 %rule capture-token
-  "$" | "$" $n:lower-name
+  "$"
+  | "$" $n:lower-name
 %conditions
   ¬$n.following-tokens.begins(name-character)
 %emits
@@ -252,7 +256,8 @@ The lexical stage keeps escapes as written. A separate inspection validates each
   $ :: String
 
 %rule ordinary-string-character
-  "‹U+0000›".."‹U+0021›" | "‹U+0023›".."‹U+10FFFF›"
+  "‹U+0000›".."‹U+0021›"
+  | "‹U+0023›".."‹U+10FFFF›"
 ```
 
 <details><summary>Railroad diagrams of <code>string</code> and <code>ordinary-string-character</code></summary>
@@ -403,10 +408,9 @@ The greedy reading keeps `...`, `..`, `++`, `::`, `:=`, and `:-` together as com
 
 ```jbogenbau
 %rule symbol
-  | "«" | "»" | "·" | "…"
-  | "*" | "|" | "&" | "(" | ")" | "[" | "]" | "{" | "}" | "/" | "+" | "<" | ">" | "#" | "ε" | ","
-  | "∧" | "∨" | "⟹" | "=" | "∈" | "⊆" | "∪" | "∩" | "∖" | "∅"
-  | "≅" | "≝" | "⋯" | "⋮" | "⋰" | "⋱" | "≻" | ":" | "."
+  | "«" | "»" | "·" | "…" | "*" | "|" | "&" | "(" | ")" | "[" | "]" | "{" | "}"
+  | "/" | "+" | "<" | ">" | "#" | "ε" | "," | "∧" | "∨" | "⟹" | "=" | "∈" | "⊆"
+  | "∪" | "∩" | "∖" | "∅" | "≅" | "≝" | "⋯" | "⋮" | "⋰" | "⋱" | "≻" | ":" | "."
   | "+" "+" | "." "." "." | "." "." | ":" ":" | ":" "=" | ":" "-"
   | ("=" | "∈" | "⊆" | "≅") "‹U+0338›"
 %emits

@@ -199,7 +199,9 @@ So a brivla with marked stress has `S2`, and one without any capital vowel has `
   Single-End ⊈ $s.tags ∨ ¬$s.last-token.onward.begins(brivla-diphthong)
 
 %rule brivla-item
-  | consonant | "y"<¬Stressed> | "'" | Syllable-Break
+  | consonant
+  | "y"<¬Stressed>
+  | "'" | Syllable-Break
   | $v:vowel :: Counted ∪ Single-End ∪ ($v.matches(capital-vowel) ⟹ Marked)
   | $d:brivla-diphthong :: Counted ∪ ($d.matches(stress-mark) ⟹ Marked)
 

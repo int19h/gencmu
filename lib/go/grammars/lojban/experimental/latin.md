@@ -330,9 +330,12 @@ A breve on `i` or `u` makes a glide letter, which the next section reads. The vo
   | latin-vowel<Stressed ¬Folded ¬Dieresis>
 
 %redefine-rule folded-vowel :: (($.first-token.value ≠ "y" ∧ $.first-token.value ≠ "Y") ⟹ Vowel)
-  | latin-vowel<Capital ¬Stressed ¬Dieresis> | latin-vowel<Accented ¬Dieresis>
-  | latin-diphthong-i<Capital ¬Stressed ¬Dieresis> | latin-diphthong-i<Accented ¬Dieresis>
-  | latin-diphthong-u<Capital ¬Stressed ¬Dieresis> | latin-diphthong-u<Accented ¬Dieresis>
+  | latin-vowel<Capital ¬Stressed ¬Dieresis>
+  | latin-vowel<Accented ¬Dieresis>
+  | latin-diphthong-i<Capital ¬Stressed ¬Dieresis>
+  | latin-diphthong-i<Accented ¬Dieresis>
+  | latin-diphthong-u<Capital ¬Stressed ¬Dieresis>
+  | latin-diphthong-u<Accented ¬Dieresis>
 ```
 
 <details><summary>Railroad diagrams of the 4 rules from <code>latin-vowel</code> to <code>folded-vowel</code></summary>
@@ -417,7 +420,8 @@ An ogonek and a caron together on `a` give no reading, so the run is foreign. On
   $ :: ($.tags ∩ Stressed) ∪ Vowel, ε :: Vowel := "u"
 
 %extend-rule vowel
-  latin-diphthong-i<¬Folded ¬Dieresis> | latin-diphthong-u<¬Folded ¬Dieresis>
+  latin-diphthong-i<¬Folded ¬Dieresis>
+  | latin-diphthong-u<¬Folded ¬Dieresis>
 
 %extend-rule any-lojban-char
   latin-diphthong-u
@@ -448,7 +452,8 @@ A dieresis on a vowel letter means an apostrophe before it, as in an orthography
   dieresis-apostrophe dieresis-letter
 
 %rule dieresis-letter
-  | latin-vowel<Dieresis ¬Folded> | latin-diphthong-i<Dieresis ¬Folded>
+  | latin-vowel<Dieresis ¬Folded>
+  | latin-diphthong-i<Dieresis ¬Folded>
   | latin-diphthong-u<Dieresis ¬Folded>
 
 %extend-rule vowel-group
@@ -481,9 +486,12 @@ An accented capital keeps its stress in an all-capital run, as [../common/latin.
   dieresis-apostrophe folded-dieresis-letter
 
 %rule folded-dieresis-letter
-  | latin-vowel<Dieresis Capital ¬Stressed> | latin-vowel<Dieresis Accented>
-  | latin-diphthong-i<Dieresis Capital ¬Stressed> | latin-diphthong-i<Dieresis Accented>
-  | latin-diphthong-u<Dieresis Capital ¬Stressed> | latin-diphthong-u<Dieresis Accented>
+  | latin-vowel<Dieresis Capital ¬Stressed>
+  | latin-vowel<Dieresis Accented>
+  | latin-diphthong-i<Dieresis Capital ¬Stressed>
+  | latin-diphthong-i<Dieresis Accented>
+  | latin-diphthong-u<Dieresis Capital ¬Stressed>
+  | latin-diphthong-u<Dieresis Accented>
 
 %extend-rule folded-vowel-group
   folded-dieresis-start

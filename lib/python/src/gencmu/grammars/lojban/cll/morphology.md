@@ -46,19 +46,24 @@ A cmavo's stress is free (CLL[^cll-s3-9]), so any of its vowels can be a capital
 %rule cmavo-shape
   | $c:plain-cmavo-body
       :: Onset ∪ Continued
-       ∪ ($c.matches(first-marked-cmavo) ⟹ Initial-Stress) ∪ ($c.matches(last-marked-cmavo) ⟹ Final-Stress)
+       ∪ ($c.matches(first-marked-cmavo) ⟹ Initial-Stress) ∪ ($c.matches(last-marked-cmavo) ⟹
+         Final-Stress)
        ∪ ($c.matches(name-intro-cmavo) ⟹ Name-Intro)
   | $v:vowel-cmavo
       :: Continued
-       ∪ ($v.matches(first-marked-cmavo) ⟹ Initial-Stress) ∪ ($v.matches(last-marked-cmavo) ⟹ Final-Stress)
+       ∪ ($v.matches(first-marked-cmavo) ⟹ Initial-Stress) ∪ ($v.matches(last-marked-cmavo) ⟹
+         Final-Stress)
   | $l:letter-cmavo
       :: Onset ∪ Cy ∪ Uncounted ∪ ($l.matches(stress-mark) ⟹ Initial-Stress ∪ Final-Stress)
   | $p:y-pair-cmavo
       :: Continued ∪ ($p.matches(y-letters) ⟹ Uncounted)
-       ∪ ($p.matches(first-marked-cmavo) ⟹ Initial-Stress) ∪ ($p.matches(last-marked-cmavo) ⟹ Final-Stress)
+       ∪ ($p.matches(first-marked-cmavo) ⟹ Initial-Stress) ∪ ($p.matches(last-marked-cmavo) ⟹
+         Final-Stress)
   | $w:warned-cmavo
-      :: Continued ∪ Cmavo-Warning ∪ ($w.first-token.matches(consonant) ⟹ Onset) ∪ ($w.matches(y-letters) ⟹ Uncounted)
-       ∪ ($w.matches(first-marked-cmavo) ⟹ Initial-Stress) ∪ ($w.matches(last-marked-cmavo) ⟹ Final-Stress)
+      :: Continued ∪ Cmavo-Warning ∪ ($w.first-token.matches(consonant) ⟹ Onset) ∪
+        ($w.matches(y-letters) ⟹ Uncounted)
+       ∪ ($w.matches(first-marked-cmavo) ⟹ Initial-Stress) ∪ ($w.matches(last-marked-cmavo) ⟹
+         Final-Stress)
 %conditions
   ¬$c.matches(has-comma),
   ¬$v.matches(has-comma),
@@ -89,8 +94,7 @@ A cmavo's stress is free (CLL[^cll-s3-9]), so any of its vowels can be a capital
   ¬$w.matches(y-pair-cmavo)
 
 %rule warned-units
-  | "y" "'" any-units
-  | cmavo-unit "'" warned-tail
+  "y" "'" any-units | cmavo-unit "'" warned-tail
 
 %rule warned-tail
   | "y" | "y" "'" any-units
@@ -186,8 +190,7 @@ A gismu is CVCCV with a permissible pair, or CCVCV with an initial pair (CLL[^cl
 
 ```jbogenbau
 %rule gismu-form
-  | consonant vowel consonant-pair vowel
-  | initial-pair vowel consonant vowel
+  consonant vowel consonant-pair vowel | initial-pair vowel consonant vowel
 ```
 
 <details><summary>Railroad diagram of <code>gismu-form</code></summary>
@@ -218,8 +221,7 @@ A y-hyphen must be unstressed. `hyphen-y` tests its lowercase value and rejects 
   "y"<¬Stressed>
 
 %rule lujvo-form
-  | ccv-rafsi lujvo-rest
-  | initial-pair vowel consonant hyphen-y lujvo-rest
+  | ccv-rafsi lujvo-rest | initial-pair vowel consonant hyphen-y lujvo-rest
   | consonant vowel lujvo-after-cv
   | consonant $a:vowel $t:lujvo-after-cvv
   | consonant vowel "'" vowel cvv-first-rest
@@ -240,11 +242,8 @@ A y-hyphen must be unstressed. `hyphen-y` tests its lowercase value and rejects 
   $n.begins(r-letter)
 
 %rule lujvo-rest
-  | final-rafsi
-  | ccv-rafsi lujvo-rest
-  | cvv-rafsi lujvo-rest
-  | consonant vowel cvc-rest
-  | initial-pair vowel consonant hyphen-y lujvo-rest
+  | final-rafsi | ccv-rafsi lujvo-rest | cvv-rafsi lujvo-rest
+  | consonant vowel cvc-rest | initial-pair vowel consonant hyphen-y lujvo-rest
 
 %rule cvc-rest
   | $k:consonant lujvo-rest
@@ -322,16 +321,13 @@ If the test examines at least one pair and every examined pair is an initial pai
   $l.onward.begins(mandatory-y) ∨ $.matches(tosmabru-y)
 
 %rule tosmabru-positive
-  | initial-pair vowel tosmabru-chain
-  | initial-pair vowel initial-pair vowel
+  initial-pair vowel tosmabru-chain | initial-pair vowel initial-pair vowel
 
 %rule tosmabru-chain
-  | consonant hyphen-y any-letters
-  | tosmabru-positive
+  consonant hyphen-y any-letters | tosmabru-positive
 
 %rule tosmabru-y
-  | initial-pair-across-y vowel tosmabru-chain
-  | initial-pair-across-y vowel initial-pair vowel
+  initial-pair-across-y vowel tosmabru-chain | initial-pair-across-y vowel initial-pair vowel
 
 %rule initial-pair-across-y
   $l:consonant hyphen-y $r:consonant
@@ -377,9 +373,7 @@ The slinku'i test of CLL[^cll-s4-7] says that a CV cmavo joined to the front of 
   ¬$f.matches(one-syllable | combination)
 
 %rule fuhivla-form
-  | fuhivla-body
-  | consonant fuhivla-body
-  | initial-cluster fuhivla-body
+  fuhivla-body | consonant fuhivla-body | initial-cluster fuhivla-body
 
 %rule fuhivla-body
   | vowel-group
@@ -403,7 +397,8 @@ The slinku'i test of CLL[^cll-s4-7] says that a CV cmavo joined to the front of 
   (plain-cmavo-body | vowel-cmavo) combination-rest
 
 %rule combination-rest
-  | gismu-form | lujvo-form | $f:fuhivla-word
+  | gismu-form | lujvo-form
+  | $f:fuhivla-word
   | plain-cmavo-body combination-rest
 %conditions
   $f.first-token.matches(consonant)
@@ -447,18 +442,19 @@ Pauses surround a name (rules 2 and 4), so its shape carries neither `Onset` nor
   | [permissible-run] name-body
 
 %rule name-body
-  | name-vowels permissible-run
-  | name-vowels permissible-run name-body
+  name-vowels permissible-run | name-vowels permissible-run name-body
 
 %rule name-vowels
-  name-vowel | name-vowels name-vowel | name-vowels "'" name-vowel | name-vowels Syllable-Break name-vowel
+  name-vowel | name-vowels name-vowel | name-vowels "'" name-vowel | name-vowels Syllable-Break
+    name-vowel
 
 %rule la-doi-inside
   | la-or-doi [any-letters]
   | [any-letters] name-vowel la-or-doi [any-letters]
 
 %rule la-or-doi
-  "l" "a" | "d" "o" [Syllable-Break] "i"
+  "l" "a"
+  | "d" "o" [Syllable-Break] "i"
 ```
 
 <details><summary>Railroad diagrams of the 6 rules from <code>cmevla-shape</code> to <code>la-or-doi</code></summary>
@@ -492,7 +488,8 @@ A name needs one more test. Its `doi` test applies at its start or after a vowel
 
 ```jbogenbau
 %rule falling-vowels
-  falling-diphthong | "a" Syllable-Break "i" | "e" Syllable-Break "i" | "o" Syllable-Break "i" | "a" Syllable-Break "u"
+  falling-diphthong | "a" Syllable-Break "i" | "e" Syllable-Break "i" | "o" Syllable-Break "i" | "a"
+    Syllable-Break "u"
 
 %rule rising-vowels
   rising-diphthong | i-or-u Syllable-Break vowel

@@ -184,7 +184,8 @@ A quote word that opens no quote is an ordinary word in Zantufa, which `si` eras
   $b.following-tokens.begins(bare-marker-tail)
 
 %rule bare-marker-tail
-  skipped si-word | skipped cmavo-token<BU>
+  skipped si-word
+  | skipped cmavo-token<BU>
 
 %rule bare-marker
   $q:read-word

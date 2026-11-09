@@ -91,7 +91,8 @@ Joined vowels use the same public tags as isolated vowels. The emission filter k
   cyrillic-vowel<Stressed ¬Folded>
 
 %redefine-rule cyrillic-folded-vowel
-  cyrillic-vowel<Capital ¬Stressed> | cyrillic-vowel<Accented>
+  cyrillic-vowel<Capital ¬Stressed>
+  | cyrillic-vowel<Accented>
 
 %redefine-rule joined-vowel-with(@V)
   $v:@V :: $v.tags

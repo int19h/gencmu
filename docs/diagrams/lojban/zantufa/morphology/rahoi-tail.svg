@@ -5,13 +5,15 @@
 <text class="label" x="114" y="24" textLength="115.2" lengthAdjust="spacingAndGlyphs">conditions apply</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
 <path d="M20 46h20"/>
-<g class="rule"><rect x="40" y="34" width="100" height="24" rx="0"/><text x="90" y="51" textLength="84" lengthAdjust="spacingAndGlyphs">later-word</text></g>
-<path d="M140 46H329"/>
-<path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="68" width="100" height="24" rx="0"/><text x="90" y="85" textLength="84" lengthAdjust="spacingAndGlyphs">rahoi-tail</text></g>
-<path d="M140 80h10"/>
-<g class="rule"><rect x="150" y="68" width="100" height="24" rx="0"/><text x="200" y="85" textLength="84" lengthAdjust="spacingAndGlyphs">later-word</text></g>
-<path d="M250 80H309a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M40 46h20"/>
+<g class="rule"><rect x="60" y="34" width="100" height="24" rx="0"/><text x="110" y="51" textLength="84" lengthAdjust="spacingAndGlyphs">later-word</text></g>
+<path d="M160 46H290"/>
+<path d="M40 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="60" y="68" width="100" height="24" rx="0"/><text x="110" y="85" textLength="84" lengthAdjust="spacingAndGlyphs">rahoi-tail</text></g>
+<path d="M160 80h10"/>
+<g class="rule"><rect x="170" y="68" width="100" height="24" rx="0"/><text x="220" y="85" textLength="84" lengthAdjust="spacingAndGlyphs">later-word</text></g>
+<path d="M270 80H270a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M290 46H329"/>
 <path d="M20 46a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="40" y="102" width="100" height="24" rx="0"/><text x="90" y="119" textLength="84" lengthAdjust="spacingAndGlyphs">rahoi-tail</text></g>
 <path d="M140 114h10"/>

@@ -12,7 +12,8 @@ The stage gives the warning where it reads the word as a Lojban word. That is, t
 
 ```jbogenbau
 %redefine-rule cmavo-token
-  Cmavo<¬Cmavo-Warning> | *y-cmavo
+  Cmavo<¬Cmavo-Warning>
+  | *y-cmavo
 
 %rule y-cmavo
   Cmavo<Cmavo-Warning>

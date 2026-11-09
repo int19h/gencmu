@@ -118,8 +118,7 @@ The redefined `run-words` keeps the join conditions of [../common/forms.md](../c
 
 %rule rahoi-tail
   -- The first word after a quoted form is not run-initial. Keep quote state, opener spacing, and the existing word joins.
-  | $v:later-word :: $v.tags
-  | $r:rahoi-tail $v:later-word :: $v.tags
+  | ($v:later-word | $r:rahoi-tail $v:later-word) :: $v.tags
   | $s:rahoi-tail $y:joined-hesitation :: $y.tags
   | $o:rahoi-tail $n:opener-space :: $n.tags ∪ Opener-Space
 %conditions
@@ -155,7 +154,9 @@ The redefined `run-words` keeps the join conditions of [../common/forms.md](../c
 
 %rule only-hesitation
   -- A run of hesitation preserves a pending quote opener for the next run.
-  first-word<Hesitation> | only-hesitation later-word<Hesitation> | only-hesitation joined-hesitation
+  first-word<Hesitation>
+  | only-hesitation later-word<Hesitation>
+  | only-hesitation joined-hesitation
 
 %rule rahoi-form
   -- The quote takes the longest rafsi or gismu form in a complete reading. Stress separates equal-letter forms.

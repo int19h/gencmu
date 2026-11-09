@@ -82,7 +82,9 @@ Ordinary word forms divide each run in one way only. Zantufa's `ra'oi` quote is 
   nonpause-phoneme | phoneme-sequence nonpause-phoneme
 
 %rule nonpause-phoneme
-  | "a" | "e" | "i" | "o" | "u" | "y" | "'"<¬PAUSE> | Syllable-Break
+  | "a" | "e" | "i" | "o" | "u" | "y"
+  | "'"<¬PAUSE>
+  | Syllable-Break
   | "b" | "c" | "d" | "f" | "g" | "j" | "k" | "l" | "m"
   | "n" | "p" | "r" | "s" | "t" | "v" | "x" | "z"
 ```

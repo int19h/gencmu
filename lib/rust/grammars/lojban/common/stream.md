@@ -47,9 +47,7 @@ The rule `empty` reads a prefix that leaves no units. Its alternatives use `text
   $.starts-input
 
 %rule empty
-  | text-start spacing
-  | empty si-word spacing
-  | empty erasure spacing
+  | text-start spacing | empty si-word spacing | empty erasure spacing
   | sa-su? empty su-word spacing
   | sa-su? ¬su-boundary? stream spacing su-word spacing
   | su-cleared
@@ -72,10 +70,12 @@ The rule `empty` reads a prefix that leaves no units. Its alternatives use `text
   word | quote | lerfu-word | zei-compound | fault-unit | su-survivor
 
 %rule constructor-word
-  cmavo-token<BU> | cmavo-token<ZEI>
+  cmavo-token<BU>
+  | cmavo-token<ZEI>
 
 %rule erasure
-  si-erasure | sa-su? sa-erasure
+  si-erasure
+  | sa-su? sa-erasure
 
 %rule fault-unit
   | empty cmavo-token<BU> :: Word ∪ BY ∪ Fault
@@ -128,24 +128,29 @@ A quiet pause carries only a spacing boundary. A material pause preserves punctu
 
 %rule pause-run
   | $p:PAUSE :: $p.tags ∩ (Quote-Material ∪ Punctuation-Material) := " " :- " "
-  | $r:pause-run $q:PAUSE :: ($r.tags ∪ $q.tags) ∩ (Quote-Material ∪ Punctuation-Material) := " " :- " "
+  | $r:pause-run $q:PAUSE :: ($r.tags ∪ $q.tags) ∩ (Quote-Material ∪ Punctuation-Material) := " " :-
+    " "
 
 %rule spacing
   [$p:pause-run] [$h:hesitations [$q:pause-run]]
-    :: ($p ⟹ Gap-Pause) ∪ ($q ⟹ Gap-Pause) ∪ ($h ⟹ $h.tags ∩ (Gap-Pause ∪ Quote-Material ∪ Punctuation-Material))
-     ∪ ($p ⟹ $p.tags ∩ (Quote-Material ∪ Punctuation-Material)) ∪ ($q ⟹ $q.tags ∩ (Quote-Material ∪ Punctuation-Material))
+    :: ($p ⟹ Gap-Pause) ∪ ($q ⟹ Gap-Pause) ∪ ($h ⟹ $h.tags ∩ (Gap-Pause ∪ Quote-Material ∪
+      Punctuation-Material))
+     ∪ ($p ⟹ $p.tags ∩ (Quote-Material ∪ Punctuation-Material)) ∪ ($q ⟹ $q.tags ∩ (Quote-Material ∪
+       Punctuation-Material))
 %conditions
   Punctuation-Material ⊈ $.tags ∨ ¬$.following-tokens.begins(zei-spelling)
 
 %rule skipped
   $s:spacing [$e:erasures $t:spacing]
-    :: ($s.tags ∪ ($e ⟹ $e.tags) ∪ ($t ⟹ $t.tags)) ∩ (Gap-Pause ∪ Quote-Material ∪ Punctuation-Material)
+    :: ($s.tags ∪ ($e ⟹ $e.tags) ∪ ($t ⟹ $t.tags)) ∩ (Gap-Pause ∪ Quote-Material ∪
+      Punctuation-Material)
 %conditions
   Punctuation-Material ⊈ $.tags ∨ ¬$.following-tokens.begins(zei-spelling)
 
 %rule erasures
   | erasure :: ∅
-  | $e:erasures $s:spacing erasure :: ($e.tags ∪ $s.tags) ∩ (Gap-Pause ∪ Quote-Material ∪ Punctuation-Material)
+  | $e:erasures $s:spacing erasure :: ($e.tags ∪ $s.tags) ∩ (Gap-Pause ∪ Quote-Material ∪
+    Punctuation-Material)
 
 %rule hesitation
   $h:y-run :: ∅
@@ -158,7 +163,8 @@ A quiet pause carries only a spacing boundary. A material pause preserves punctu
 
 %rule hesitations
   | hesitation :: ∅
-  | $h:hesitations $p:pause-run hesitation :: Gap-Pause ∪ (($h.tags ∪ $p.tags) ∩ (Quote-Material ∪ Punctuation-Material))
+  | $h:hesitations $p:pause-run hesitation :: Gap-Pause ∪ (($h.tags ∪ $p.tags) ∩ (Quote-Material ∪
+    Punctuation-Material))
   | $h:hesitations hesitation :: $h.tags ∩ (Gap-Pause ∪ Quote-Material ∪ Punctuation-Material)
 ```
 
@@ -269,12 +275,12 @@ Quotes and the right operand of ZEI share this rule. It executes no erasure. Quo
 
 ```jbogenbau
 %rule quiet-gap
-  | hesitation
-  | quiet-gap hesitation
+  hesitation | quiet-gap hesitation
 
 %rule pause-gap
   [quiet-gap] $p:pause-run [$h:hesitations [$q:pause-run]]
-    :: ($p.tags ∪ ($h ⟹ $h.tags) ∪ ($q ⟹ $q.tags)) ∩ (Quote-Material ∪ Punctuation-Material) := $PAUSE
+    :: ($p.tags ∪ ($h ⟹ $h.tags) ∪ ($q ⟹ $q.tags)) ∩ (Quote-Material ∪ Punctuation-Material) :=
+      $PAUSE
 
 %rule word-gap
   ε | quiet-gap | pause-gap
@@ -299,11 +305,11 @@ An attached opening mark supplies one gap space, even without whitespace. `quote
 `$WORD-QUOTE-MARKERS` names the classes of the one-word quote marker. Such a marker quotes one word or one standalone material stretch.
 
 ```jbogenbau
-%rule quoted-word
+%rule quoted-word :: $m.tags
   | $m:word-quote-marker $g:word-quote-gap $w:word-quote-target
-      :: $m.tags :- $m.source-text ++ $g.source-text ++ $w.verbatim-text
+      :- $m.source-text ++ $g.source-text ++ $w.verbatim-text
   | $m:word-quote-marker $g:word-gap<¬Quote-Material> $w:zo-punctuation
-      :: $m.tags :- $m.source-text ++ $g.source-text ++ $w.verbatim-text
+      :- $m.source-text ++ $g.source-text ++ $w.verbatim-text
 %emits
   $
 
@@ -370,10 +376,10 @@ ZOhOI and MEhOI quote one raw stretch between whitespace or periods in the exper
 The hesitation rule refuses a raw y letteral. In `zo'oi .y. bu`, the quote therefore takes the y run as its payload. BU then forms a letteral from the whole quote. The same rule keeps the prolonged run in `zo'oi .yyy. bu`.
 
 ```jbogenbau
-%rule single-word-quote
-  | $m:single-marker $r:zohoi-payload :: $m.tags :- $m.source-text ++ $r.emitted.image
+%rule single-word-quote :: $m.tags
+  | $m:single-marker $r:zohoi-payload :- $m.source-text ++ $r.emitted.image
   | $m:single-marker $g:zohoi-gap $s:zohoi-payload
-      :: $m.tags :- $m.source-text ++ $g.source-text ++ $s.emitted.image
+      :- $m.source-text ++ $g.source-text ++ $s.emitted.image
 %conditions
   ¬$r.following-tokens.begins(quote-run-token),
   ¬$s.following-tokens.begins(quote-run-token),
@@ -400,7 +406,8 @@ The hesitation rule refuses a raw y letteral. In `zo'oi .y. bu`, the quote there
 %erased
 
 %rule zohoi-hesitations
-  zohoi-hesitation | zohoi-hesitations [quote-gap-pauses] zohoi-hesitation
+  zohoi-hesitation
+  | zohoi-hesitations [quote-gap-pauses] zohoi-hesitation
 
 %rule zohoi-gap
   quote-gap-pauses [zohoi-hesitations [quote-gap-pauses]] := $PAUSE
@@ -444,8 +451,10 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
   Word ∪ BY ∪ Y-Letter ∪ Run-Initial ∪ Run-Final
 
 %rule zoi-y-quote :: $m.tags :- $.source-text
-  | $m:zoi-marker $g:delimiter-gap $open:delimiter $b:delimiter-body-gap $content:zoi-body PAUSE [quote-attachment] $close:raw-close [quote-end-mark]
-  | $m:zoi-marker $g:delimiter-gap $open:delimiter $b:delimiter-body-gap $content:empty-zoi-body [quote-attachment] $close:raw-close [quote-end-mark]
+  | $m:zoi-marker $g:delimiter-gap $open:delimiter $b:delimiter-body-gap $content:zoi-body PAUSE
+    [quote-attachment] $close:raw-close [quote-end-mark]
+  | $m:zoi-marker $g:delimiter-gap $open:delimiter $b:delimiter-body-gap $content:empty-zoi-body
+    [quote-attachment] $close:raw-close [quote-end-mark]
 %conditions
   Y-Letter ⊆ $open.tags,
   ¬$.following-tokens.begins(quote-end-mark),
@@ -457,8 +466,10 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
   $
 
 %rule zoi-quote :: $m.tags :- $.source-text
-  | $m:zoi-marker $g:delimiter-gap $open:delimiter $b:delimiter-body-gap $content:zoi-body PAUSE [quote-attachment] $close:raw-close [quote-end-mark]
-  | $m:zoi-marker $g:delimiter-gap $open:delimiter $b:delimiter-body-gap $content:empty-zoi-body [quote-attachment] $close:raw-close [quote-end-mark]
+  | $m:zoi-marker $g:delimiter-gap $open:delimiter $b:delimiter-body-gap $content:zoi-body PAUSE
+    [quote-attachment] $close:raw-close [quote-end-mark]
+  | $m:zoi-marker $g:delimiter-gap $open:delimiter $b:delimiter-body-gap $content:empty-zoi-body
+    [quote-attachment] $close:raw-close [quote-end-mark]
 %conditions
   Y-Letter ⊈ $open.tags,
   ¬$.following-tokens.begins(quote-end-mark),
@@ -491,8 +502,8 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
   | $p:PAUSE<¬Quote-Material> :: $p.tags ∩ Period-Only := $PAUSE
   | quote-end-mark PAUSE<¬Quote-Material> :: ∅ := $PAUSE
   | interword-mark := $PAUSE
-  | period-pause quote-end-mark PAUSE<¬Quote-Material> :: Delimiter-Edge := $PAUSE
-  | period-pause interword-mark :: Delimiter-Edge := $PAUSE
+  | (period-pause quote-end-mark PAUSE<¬Quote-Material>
+      | period-pause interword-mark) :: Delimiter-Edge := $PAUSE
 
 %rule period-pause
   PAUSE<¬Quote-Material Period-Only>
@@ -505,13 +516,15 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
 
 %rule delimiter-spacing
   | [delimiter-quiet-gap]
-  | [delimiter-quiet-gap] pause-run<¬Quote-Material> [delimiter-hesitations [pause-run<¬Quote-Material>]] := $PAUSE
+  | [delimiter-quiet-gap] pause-run<¬Quote-Material> [delimiter-hesitations
+    [pause-run<¬Quote-Material>]] := $PAUSE
 
 %rule delimiter-quiet-gap
   delimiter-hesitation | delimiter-quiet-gap delimiter-hesitation
 
 %rule delimiter-hesitations
-  delimiter-hesitation | delimiter-hesitations [pause-run<¬Quote-Material>] delimiter-hesitation
+  delimiter-hesitation
+  | delimiter-hesitations [pause-run<¬Quote-Material>] delimiter-hesitation
 
 %rule delimiter-hesitation
   $h:y-run
@@ -579,7 +592,8 @@ The raw rule rejoins every piece of one y run. Its internal gap accepts pauses, 
   matched-close-token | raw-run-parts matched-close-token
 
 %rule matched-close-token
-  cmavo-token | payload-token<¬Cmavo ¬PAUSE>
+  cmavo-token
+  | payload-token<¬Cmavo ¬PAUSE>
 
 %rule raw-y-close
   $y:raw-y-key [raw-y-gap] $b:matched-close-token :: $y.tags
@@ -647,10 +661,8 @@ A LOhU quote ends at the first LEhU. Its body reads Lojban words through the sha
   $ :: LEhU
 
 %rule lohu-stream
-  | lohu-word
-  | lohu-stream pause-gap lohu-word
-  | lohu-stream quiet-gap lohu-word
-  | lohu-stream lohu-word
+  | lohu-word | lohu-stream pause-gap lohu-word
+  | lohu-stream quiet-gap lohu-word | lohu-stream lohu-word
 
 %rule lohu-word
   $w:read-word
@@ -676,18 +688,17 @@ Only `zohoi-payload` defines a body image recipe. Its `.verbatim-text` preserves
 
 ```jbogenbau
 %rule raw-tokens
-  | any-token
-  | raw-tokens any-token
+  any-token | raw-tokens any-token
 
 %rule zohoi-payload :- $.verbatim-text
-  | quote-run-token
-  | zohoi-payload quote-run-token
+  | quote-run-token | zohoi-payload quote-run-token
 
 %rule quote-run-token
   payload-token
 
 %rule any-token
-  payload-token | PAUSE<¬Quote-Material>
+  payload-token
+  | PAUSE<¬Quote-Material>
 
 %rule payload-token
   | Word | Hesitation | FOREIGN
@@ -737,8 +748,10 @@ lojban/cll requires pauses around a direct name base of BU. It tests the source 
   $
 
 %rule zei-compound :: Word ∪ BRIVLA ∪ Fault ∩ $l.tags
-  | $l:unit<¬Trailing-Pause> compound-gap<¬Punctuation-Material> cmavo-token<ZEI> zei-right-gap $r:read-word
-  | su-boundary? $l:unit<Trailing-Pause> suppressed-gap<¬Punctuation-Material> cmavo-token<ZEI> zei-right-gap $r:read-word
+  | $l:unit<¬Trailing-Pause> compound-gap<¬Punctuation-Material> cmavo-token<ZEI> zei-right-gap
+    $r:read-word
+  | su-boundary? $l:unit<Trailing-Pause> suppressed-gap<¬Punctuation-Material> cmavo-token<ZEI>
+    zei-right-gap $r:read-word
 %emits
   $
 
@@ -854,7 +867,8 @@ The rule `sa-key` refuses an SA key because a run of SA forms one counted erasur
   spacing $w:read-word [raw-tokens] :: $w.classes ∪ Has-Word
 
 %rule sa-run
-  cmavo-token<SA> | sa-run spacing cmavo-token<SA>
+  cmavo-token<SA>
+  | sa-run spacing cmavo-token<SA>
 
 %rule sa-run-twice
   cmavo-token<SA> spacing sa-run
@@ -879,17 +893,16 @@ The rule `sa-key` refuses an SA key because a run of SA forms one counted erasur
 %const $SU-STOPS
   NIhO ∪ LU ∪ TUhE ∪ TO
 
-%rule su-survivor := $b.emitted.value :- $b.emitted.image
-  | sa-su? su-boundary? $b:unit<Trailing-Pause> skipped su-suffix :: $b.tags
+%rule su-survivor :: $b.tags := $b.emitted.value :- $b.emitted.image
+  | sa-su? su-boundary? $b:unit<Trailing-Pause> skipped su-suffix
   | sa-su? su-boundary? $b:unit<¬Trailing-Pause> skipped<Gap-Pause> su-suffix
-      :: $b.tags ∪ Trailing-Pause := $b.emitted.value ++ $PAUSE :- $b.emitted.image ++ $PAUSE
-  | sa-su? su-boundary? $b:unit<¬Trailing-Pause> skipped<¬Gap-Pause> su-suffix :: $b.tags
+      :: Trailing-Pause := $b.emitted.value ++ $PAUSE :- $b.emitted.image ++ $PAUSE
+  | sa-su? su-boundary? $b:unit<¬Trailing-Pause> skipped<¬Gap-Pause> su-suffix
 %conditions
   $b.classes ∩ $SU-STOPS ≠ ∅
 
 %rule su-suffix
-  | su-word
-  | su-reach spacing su-word
+  su-word | su-reach spacing su-word
 %erased
 
 %rule su-reach

@@ -111,7 +111,8 @@ The opener's slot takes every leading free modifier after TO. These modifiers re
 
 %rule paragraphs
   -- paragraphs <- (NIhO_clause+ paragraphs_1?)+ / paragraphs_1 (NIhO_clause+ paragraphs_1?)*
-  {NIhO 🆓} [paragraphs-tail] | paragraphs-tail
+  {NIhO 🆓} [paragraphs-tail]
+  | paragraphs-tail
 
 %rule paragraphs-tail
   paragraphs-1 [{NIhO 🆓} [paragraphs-tail]]
@@ -178,7 +179,9 @@ A structural pattern describes constructed nodes. Suppose every earlier branch i
 
 %rule statement-3
   -- statement_3 <- sentence / tag? TUhE_clause paragraphs TUhU_elidible / gek_statement
-  sentence | [tag] TUhE 🆓 paragraphs [+TUhU 🆓] | gek-statement
+  sentence
+  | [tag] TUhE 🆓 paragraphs [+TUhU 🆓]
+  | gek-statement
 
 %rule gek-statement
   -- gek_statement <- gek statement (gik statement)+ GIhI_elidible
@@ -200,14 +203,11 @@ A structural pattern describes constructed nodes. Suppose every earlier branch i
   | prenex
   | $g:gek
   | $j:joik
-  | ek
-  | gihek
+  | ek | gihek
   | $n:na-clause
   | $t:terms-vau
   | $m:mex
-  | relative-clauses
-  | links
-  | linkargs
+  | relative-clauses | links | linkargs
 %conditions
   ¬$n.following-tokens.begins(terms),
   KU ⊈ $n.following-tokens.first-token.tags,
@@ -433,7 +433,8 @@ The KE patterns inspect the actual body and closer. A written `ke'e` around one 
   ¬$f.following-tokens.begins(tanru-unit-1)
 
 %rule fa-jai
-  {FA 🆓 / joik} | JAI 🆓 [tag]
+  {FA 🆓 / joik}
+  | JAI 🆓 [tag]
 
 %rule gek-term
   -- gek_term <- gek term+ (gik term+)+ GIhI_elidible
@@ -498,7 +499,8 @@ The step `fewest #·term-link` counts the plain `term-link` rule, so a sumti con
 
 %rule sumti-4
   -- sumti_4 <- quantifier? sumti_5 / quantifier selbri KU_elidible
-  [quantifier] sumti-5 | quantifier selbri [+KU 🆓]
+  [quantifier] sumti-5
+  | quantifier selbri [+KU 🆓]
 
 %rule sumti-5
   -- sumti_5 <- RAhOI_clause / ZO_clause / ZOI_clause / LOhU_clause
@@ -506,10 +508,7 @@ The step `fewest #·term-link` counts the plain `term-link` rule, so a sumti con
 -- / LU_clause text LIhU_elidible / (LAhE_clause / NAhE_clause BO_clause) relative_clauses? sumti LUhU_elidible
 -- / KOhA_clause / LOhOI_clause (joik LOhOI_clause)* statement KUhAU_elidible / LE_clause sumti_tail KU_elidible
 -- / li_clause / NAhE_clause sumti_3
-  | RAhOI 🆓
-  | ZO 🆓
-  | ZOI 🆓
-  | LOhU 🆓
+  | RAhOI 🆓 | ZO 🆓 | ZOI 🆓 | LOhU 🆓
   | $l:lerfu-boi
   | LU text [+LIhU 🆓]
   | (LAhE 🆓 | NAhE 🆓 BO 🆓) [relative-clauses] sumti [+LUhU 🆓]
@@ -587,7 +586,8 @@ Relative clauses can stand side by side, joined by a joik or by nothing. They fo
 
 %rule relative-clause
   -- relative_clause <- GOI_clause term GEhU_elidible / NOI_clause statement KUhO_elidible
-  GOI 🆓 term [+GEhU 🆓] | NOI 🆓 statement [+KUhO 🆓]
+  GOI 🆓 term [+GEhU 🆓]
+  | NOI 🆓 statement [+KUhO 🆓]
 ```
 
 <details><summary>Railroad diagrams of <code>relative-clauses</code> and <code>relative-clause</code></summary>
@@ -621,7 +621,9 @@ A run of `cei` nests to the right. The selbri after the first `cei` already read
 
 %rule selbri
   -- selbri <- selbri_1 / tag selbri / NA_clause selbri
-  selbri-1 | tag $s:selbri | NA 🆓 selbri
+  selbri-1
+  | tag $s:selbri
+  | NA 🆓 selbri
 %conditions
   $s ≇ #(tag ⋰)
 
@@ -676,14 +678,11 @@ A run of `cei` nests to the right. The selbri after the first `cei` already read
 -- / ME_clause (sumti / operator+ / mex / tag) MEhU_elidible MOI_clause? / mex MOI_clause
 -- / (FA_clause (joik FA_clause)* / SE_clause) tanru_unit_1 / JAI_clause tag? tanru_unit_1
 -- / NAhE_clause tanru_unit_1 / NU_clause (joik NU_clause)* statement KEI_elidible
-  | CMEVLA 🆓
-  | BRIVLA 🆓
-  | GOhA 🆓
+  | CMEVLA 🆓 | BRIVLA 🆓 | GOhA 🆓
   | KE 🆓 selbri-2 [+KEhE 🆓]
   | NAhE 🆓 gek selbri-2 $g:gik-selbris [+GIhI 🆓]
   | $k:gek selbri-2 $g:gik-selbris [+GIhI 🆓]
-  | MUhOI 🆓
-  | GOhOI 🆓
+  | MUhOI 🆓 | GOhOI 🆓
   | LUhEI text [+LIhAU 🆓]
   | ME 🆓 (sumti | $m:mex | $t:tag) [+MEhU 🆓] [MOI 🆓]
   | ME 🆓 {operator} [+MEhU 🆓] [MOI 🆓]
@@ -769,7 +768,8 @@ The condition removes a connective operator whose first word is SE. The alternat
   mex-1 [{mex-link}]
 
 %rule mex-link
-  $o:operators | operators $x:mex-1
+  $o:operators
+  | operators $x:mex-1
 %conditions
   $x ≇ #(operator ⋰),
   ¬$o.following-tokens.begins(mex-1)
@@ -780,13 +780,15 @@ The condition removes a connective operator whose first word is SE. The alternat
   mex-group [{bihe-link}]
 
 %rule bihe-link
-  BIhE 🆓 $o:operators | BIhE 🆓 operators $x:mex-group
+  BIhE 🆓 $o:operators
+  | BIhE 🆓 operators $x:mex-group
 %conditions
   $x ≇ #(operator ⋰),
   ¬$o.following-tokens.begins(mex-group)
 
 %rule mex-group
-  KE 🆓 {mex-2} [+KEhE 🆓] | {mex-2 / BO 🆓}
+  KE 🆓 {mex-2} [+KEhE 🆓]
+  | {mex-2 / BO 🆓}
 
 %rule mex-2
   -- mex_2 <- operand / mex_rp / mex_forethought
@@ -809,8 +811,7 @@ The condition removes a connective operator whose first word is SE. The alternat
 %rule operator
   -- operator <- SE_clause operator / NAhE_clause operator / MAhO_clause (mex / selbri / sumti) TEhU_elidible
 -- / VUhU_clause / joik_ek !CU
-  | SE 🆓 operator
-  | NAhE 🆓 operator
+  | SE 🆓 operator | NAhE 🆓 operator
   | MAhO 🆓 (mex ≻ selbri ≻ sumti) [+TEhU 🆓]
   | VUhU 🆓
   | $j:joik-ek
@@ -934,8 +935,7 @@ The mekso prefix pattern tests an actual NAhE or SE constructor over an operand 
 %rule tcita-selci
   -- tcita_selci <- (NAhE_clause / SE_clause) tcita_selci / BAI_clause / mex? ROI_clause / FIhO_clause selbri FEhU_elidible
   | (NAhE 🆓 | SE 🆓) tcita-selci
-  | BAI 🆓
-  | ROI 🆓
+  | BAI 🆓 | ROI 🆓
   | $m:mex ROI 🆓
   | FIhO 🆓 selbri [+FEhU 🆓]
 %conditions

@@ -86,7 +86,8 @@ The rules `space-before` and `space-after` hold beside a space, a bracket of a g
   $ :: Space := " "
 
 %rule space-unit
-  Space<¬Foreign-Letter> | *non-eberban-letter
+  Space<¬Foreign-Letter>
+  | *non-eberban-letter
 
 %rule non-eberban-letter
   Space<Foreign-Letter>
@@ -165,8 +166,7 @@ Two vowels written in a row are two letters, because the letters stage merges a 
 
 ```jbogenbau
 %rule vowels
-  | vowel
-  | vowels vowel
+  | vowel | vowels vowel
   | $a:vowels Hyphen $b:vowel
 %conditions
   $a.last-token.value ≠ $b.value
@@ -408,13 +408,12 @@ The particle families of `n`, `a` and `o` are `NI`, `A` and `O`. The `n` can tak
 %rule particle-tail = particle-tail-of(hyphen-misplaced)
 
 %rule consonant-particle
-  | mi-particle | fi-particle | vi-particle | vei-particle | ti-particle | si-particle
-  | zi-particle | ki-particle | gi-particle | pi-particle | pe-particle | pei-particle
-  | pa-particle | po-particle | pu-particle | bi-particle | be-particle | ba-particle
-  | bo-particle | bu-particle | di-particle | de-particle | da-particle | dai-particle
-  | do-particle | du-particle | ci-particle | ce-particle | cei-particle | ca-particle
-  | cai-particle | co-particle | coi-particle | cu-particle | ji-particle | je-particle
-  | ja-particle | jo-particle | ju-particle
+  | mi-particle | fi-particle | vi-particle | vei-particle | ti-particle | si-particle | zi-particle
+  | ki-particle | gi-particle | pi-particle | pe-particle | pei-particle | pa-particle | po-particle
+  | pu-particle | bi-particle | be-particle | ba-particle | bo-particle | bu-particle | di-particle
+  | de-particle | da-particle | dai-particle | do-particle | du-particle | ci-particle | ce-particle
+  | cei-particle | ca-particle | cai-particle | co-particle | coi-particle | cu-particle
+  | ji-particle | je-particle | ja-particle | jo-particle | ju-particle
 
 %rule vowel-particle
   a-particle | o-particle
@@ -594,7 +593,8 @@ The PEG warns about a hyphen before or after the prefix, and about content that 
   $x.value ≠ $y.value
 
 %rule pair-opener
-  sonorant | Letter="m"
+  sonorant
+  | Letter="m"
 ```
 
 <details><summary>Railroad diagrams of the 11 rules from <code>freeform-word</code> to <code>pair-opener</code></summary>
@@ -732,7 +732,8 @@ The rule `first-prefix` reads a prefix that starts a run, and `attached-prefix` 
   Letter="i" [Hyphen]
 
 %rule prefix-arity
-  Letter="n" | Letter="r"
+  Letter="n"
+  | Letter="r"
 
 %classifier prefix-length
   "e" ∈ E-PREFIX
@@ -1078,7 +1079,8 @@ The morphology chapter allows a hyphen at a syllable boundary. A consonant unit 
   | spelling-gap $u:unit
 
 %rule unit-join
-  [hyphen-misplaced] | spelling-gap
+  [hyphen-misplaced]
+  | spelling-gap
 
 %rule spelling-gap
   [hyphen-misplaced] gap [hyphen-misplaced]
@@ -1194,7 +1196,8 @@ The recovery keeps the quote's class, value, and emission. It leaves no later er
   *unclosed-foreign-quote
 
 %rule unclosed-foreign-quote
-  $q:quote-co [opening-gap] $t:unclosed-quoted-text :: Word ∪ Particle ∪ CO ∪ Quote := $q.value ++ " " ++
+  $q:quote-co [opening-gap] $t:unclosed-quoted-text :: Word ∪ Particle ∪ CO ∪ Quote := $q.value ++
+    " " ++
     $t.emitted.value :- $.source-text
 %conditions
   $.ends-input
@@ -1497,9 +1500,7 @@ A bare quadruplet similarly retains one root token. A framed cluster retains con
       malformed-gap(hyphen-misplaced)
 
 %rule malformed-split-cluster
-  | recovering-freeform-triplet
-  | malformed-medial-pair
-  | malformed-sonorant-pair
+  | recovering-freeform-triplet | malformed-medial-pair | malformed-sonorant-pair
   | sonorant malformed-gap(Hyphen) malformed-pair
   | (triplet-middle-m ≻ triplet-yz-sonorant-x ≻ triplet-freeform-first-pair
       ≻ triplet-freeform-shape) :: ∅
@@ -1544,8 +1545,7 @@ The particle tail retains its family even with two adjacent sonorants. An errone
 
 ```jbogenbau
 %rule malformed-vowels
-  | vowel
-  | malformed-vowels vowel
+  | vowel | malformed-vowels vowel
   | $a:malformed-vowels Hyphen $b:vowel
   | malformed-vowels hyphen-same-vowels vowel
   | malformed-vowels [Hyphen] h-not-between-vowels
