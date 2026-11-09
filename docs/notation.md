@@ -1885,7 +1885,7 @@ The convention covers only the top-level alternatives of a rule. A choice inside
 A comment on a whole rule stands on its own lines before the rule. A comment on one alternative stands on its own lines before that alternative. A comment does not follow a rule header or an alternative on the same line.
 
 ```jbogenbau
-(* A glide stands before a vowel or a diphthong. *)
+-- A glide stands before a vowel or a diphthong.
 %rule glide
   "i" | "u"
 ```
