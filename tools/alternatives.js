@@ -402,7 +402,10 @@ export function clauseTermProblems(markdown, dom, path) {
       }
       // Rule 2: a term over several lines ends each line with `∪`.
       // Lines before the first operand and blank lines after the last
-      // operand are not lines of the term.
+      // operand are not lines of the term. A long condition in the
+      // guard of a term breaks like any long condition instead: each
+      // of its lines ends with its own operator, and its next line
+      // stands in the column where the condition begins.
       const rawTermLines = scrubComments(termChars).join("").split("\n");
       let firstTermLine = 0;
       for (let k = 0; k < lead; k++) if (termChars[k] === "\n") firstTermLine++;
@@ -410,7 +413,13 @@ export function clauseTermProblems(markdown, dom, path) {
       while (lastTermLine > firstTermLine && !rawTermLines[lastTermLine].trim()) lastTermLine--;
       const termLines = rawTermLines.slice(firstTermLine, lastTermLine + 1);
       if (termLines.length < 2) continue;
+      const operandStarts = operands.map((o) => {
+        const [line, col] = at(base + c.at + 2 + o.at);
+        return { line, col };
+      });
       let depth = 0;
+      /** @type {number | null} */
+      let conditionColumn = null;
       termLines.forEach((termLine, i) => {
         const startDepth = depth;
         const scrubbed = [...termLine]; let string = false;
@@ -423,10 +432,22 @@ export function clauseTermProblems(markdown, dom, path) {
         const trimmed = termLine.trimStart();
         if (!trimmed) return;
         const lineNumber = startLine + i;
-        if (i + 1 < termLines.length && startDepth === 0 && depth === 0 && !termLine.trimEnd().endsWith("∪")) problems.push(`${path}:${lineNumber}: a tag term of ${where} runs over several lines, and each line ends with its ∪`);
+        const trimmedEnd = termLine.trimEnd();
+        const endsUnion = trimmedEnd.endsWith("∪");
+        const endsCondition = "∧∨⟹⊆⊈=≠≅≇∩∖".includes(trimmedEnd[trimmedEnd.length - 1]);
+        if (i + 1 < termLines.length && startDepth === 0 && depth === 0 && !endsUnion && !endsCondition) problems.push(`${path}:${lineNumber}: a tag term of ${where} runs over several lines, and each line ends with its ∪`);
         if (i > 0 && startDepth === 0) {
+          const col = [...(lines[lineNumber - 1] ?? "")].findIndex((ch) => ch !== " ") + 1;
           if (trimmed.startsWith("∪")) problems.push(`${path}:${lineNumber}: a tag term of ${where} starts a line with ∪`);
-          else if ([...(lines[lineNumber - 1] ?? "")].findIndex((ch) => ch !== " ") + 1 !== firstCol) problems.push(`${path}:${lineNumber}: an operand of a tag term of ${where} does not stand in the column of its first operand`);
+          else if (conditionColumn !== null && col !== conditionColumn) problems.push(`${path}:${lineNumber}: a continued line of a condition in a tag term of ${where} does not stand in the column where the condition begins`);
+          else if (conditionColumn === null && col !== firstCol) problems.push(`${path}:${lineNumber}: an operand of a tag term of ${where} does not stand in the column of its first operand`);
+        }
+        if (startDepth === 0 && depth === 0) {
+          if (endsUnion) conditionColumn = null;
+          else if (endsCondition) {
+            const active = operandStarts.filter((s) => s.line <= lineNumber).pop();
+            conditionColumn = active ? active.col : firstCol;
+          }
         }
       });
     }
@@ -514,10 +535,12 @@ function conditionProblems(markdown, path) {
     const definition = /^%(rule|redefine-rule|extend-rule|template|const|classifier)\s+(\S+)/.exec(textLines[li]);
     if (definition) { where = `%${definition[1]} ${definition[2]}`; continue; }
     if (!/^%conditions\b/.test(textLines[li])) continue;
-    let section = "";
+    // A condition can start on the %conditions line itself, so the
+    // section starts with what follows the keyword on that line.
+    let section = textLines[li].slice("%conditions".length) + "\n";
     let lj = li + 1;
     for (; lj < textLines.length && !/^%/.test(textLines[lj]); lj++) section += textLines[lj] + "\n";
-    const base = (lineStarts[li + 1] ?? chars.length);
+    const base = (lineStarts[li] ?? 0) + "%conditions".length;
     const sectionChars = [...section];
     let depth = 0, itemStart = 0;
     /** @type {[number, number][]} */
@@ -606,6 +629,7 @@ function bracketProblems(markdown, path) {
       else if (CLOSE.includes(ch)) depth--;
       else if (depth === 0 && ch === "|") hasBar = true;
       else if (depth === 0 && "∧∨⟹∪∩∖⊆⊈=≠≅≇".includes(ch)) hasOperator = true;
+      else if (depth === 0 && ch === "+" && chars[j + 1] === "+") hasOperator = true;
     }
     if (hasBar || !hasOperator) continue;
     let openTextLine = 0;
@@ -635,7 +659,7 @@ function bracketProblems(markdown, path) {
       if (first >= 0 && startDepth === 0) {
         const line = positions[segmentStart + first][0];
         const trimmed = segment.trim();
-        if (j < i && segmentDepth === 0 && !"∧∨⟹∪∩∖⊆⊈=≠≅≇".includes(trimmed[trimmed.length - 1])) problems.push(`${path}:${line}: a line inside brackets of ${name} does not end with its operator`);
+        if (j < i && segmentDepth === 0 && !"∧∨⟹∪∩∖⊆⊈=≠≅≇".includes(trimmed[trimmed.length - 1]) && !trimmed.endsWith("++")) problems.push(`${path}:${line}: a line inside brackets of ${name} does not end with its operator`);
         if (!firstSegment && !trimmed.startsWith(")") && !trimmed.startsWith("]") && !trimmed.startsWith("}")) {
           const col = positions[segmentStart + first][1];
           const endOperator = trimmed[trimmed.length - 1];
