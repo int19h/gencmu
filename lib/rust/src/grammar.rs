@@ -658,6 +658,7 @@ fn close_families(grammar: &StageGrammar) -> Vec<FxSet<u32>> {
                 _ => {}
             },
             Part::Cond(condition) => match condition {
+                Cond::Truthy(term) => pending.push(Part::Term(term)),
                 Cond::Forest(term) => pending.push(Part::Term(term)),
                 Cond::Compare(_, a, b, _) => pending.extend([Part::Term(a), Part::Term(b)]),
                 Cond::Matches(t, _)
@@ -2174,6 +2175,7 @@ impl Constants<'_> {
     fn substitute_cond(&self, cond: &mut Cond) {
         work::count(Work::Stitched, 1);
         match cond {
+            Cond::Truthy(term) => self.substitute_term(term),
             Cond::Forest(term) => self.substitute_term(term),
             Cond::SourceQuery(_, args, _) => {
                 for arg in args {
@@ -2606,6 +2608,7 @@ fn check_term(grammar: &StageGrammar, term: &Term, compared: &mut bool) -> Resul
 fn check_cond(grammar: &StageGrammar, cond: &Cond, compared: &mut bool) -> Result<(), String> {
     work::count(Work::Stitched, 1);
     match cond {
+        Cond::Truthy(term) => check_term(grammar, term, compared),
         Cond::Forest(term) => check_term(grammar, term, compared),
         Cond::SourceQuery(..) => unreachable!("source queries expand before grammar checks"),
         Cond::Compare(op, left, right, _) => {

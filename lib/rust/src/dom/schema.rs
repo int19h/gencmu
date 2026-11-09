@@ -985,6 +985,10 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                 } else if exact(value, &["if", "then"], &[]) {
                     pending.push((Part::Condition, value.get("if").unwrap(), next));
                     pending.push((Part::Condition, value.get("then").unwrap(), next));
+                } else if ["union", "intersection", "difference", "tag", "emptySet"].iter().any(|key| exact(value, &[key], &[]))
+                    || exact(value, &["const", "at"], &[])
+                {
+                    pending.push((Part::Term, value, next));
                 } else if exact(value, &["op", "left", "right"], &[]) {
                     if !matches!(
                         value.get("op").and_then(Json::as_str),
@@ -1025,6 +1029,7 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                                                 })
                                     })
                             }
+                            (Some("tags" | "classes" | "split" | "ngrams" | "classify"), Some(_)) => true,
                             (Some(name @ ("matches" | "begins" | "ends")), Some(args)) => {
                                 (name != "ends" || !restored_span(receiver))
                                     && !args.is_empty()

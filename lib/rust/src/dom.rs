@@ -297,6 +297,7 @@ pub(crate) struct BoundaryLocation {
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Cond {
     Forest(Term),
+    Truthy(Term),
     SourceQuery(String, Vec<Arg>, BoundaryLocation),
     Compare(String, Term, Term, Option<(usize, usize)>),
     Matches(Term, Vec<String>),
@@ -872,6 +873,20 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                     children.push((field(value, "receiver")?, false));
                     if matches!(value.get("method").and_then(Json::as_str), Some("parse")) {
                         children.extend(array(value, "args")?.iter().map(|argument| (argument, false)));
+                    } else if matches!(
+                        value.get("method").and_then(Json::as_str),
+                        Some("tags" | "classes" | "split" | "ngrams" | "classify")
+                    ) {
+                        children.extend(
+                            array(value, "args")?
+                                .iter()
+                                .filter(|arg| {
+                                    arg.get("rule").is_none()
+                                        && arg.get("classifier").is_none()
+                                        && arg.get("integer").is_none()
+                                })
+                                .map(|argument| (argument, false)),
+                        );
                     }
                 }
                 "not" => children.push((field(value, "not")?, true)),
@@ -880,7 +895,10 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                     children.push((field(value, "if")?, true));
                     children.push((field(value, "then")?, true));
                 }
-                "captured" => {}
+                "captured" | "tag" | "emptySet" | "const" => {}
+                "union" | "intersection" | "difference" => {
+                    children.extend(array(value, key)?.iter().map(|child| (child, false)))
+                }
                 _ => return Err(format!("an unknown condition {key:?}")),
             }
         } else {
@@ -926,6 +944,19 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                 "method" => {
                     let receiver = operands.next().unwrap().term();
                     let name = string(value, "method")?;
+                    if matches!(name.as_str(), "tags" | "classes" | "split" | "ngrams" | "classify") {
+                        let mut args = vec![Arg::Term(receiver)];
+                        for arg in array(value, "args")? {
+                            args.push(match (arg.get("rule"), arg.get("classifier"), arg.get("integer")) {
+                                (Some(Json::Str(name)), _, _) => Arg::Rule(name.clone()),
+                                (_, Some(Json::Str(name)), _) => Arg::Classifier(name.clone()),
+                                (_, _, Some(Json::Str(digits))) => Arg::Integer(digits.clone()),
+                                _ => Arg::Term(operands.next().unwrap().term()),
+                            });
+                        }
+                        values.push(ReadValue::Cond(Cond::Truthy(Term::Call(name, args))));
+                        continue;
+                    }
                     if matches!(name.as_str(), "parse" | "error-free") {
                         let args = std::iter::once(Arg::Term(receiver))
                             .chain(operands.map(|operand| Arg::Term(operand.term())))
@@ -974,6 +1005,16 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                         _ => return Err("a malformed predicate method".into()),
                     }
                 }
+                "union" => Cond::Truthy(Term::Union(operands.map(ReadValue::term).collect())),
+                "intersection" => Cond::Truthy(Term::Intersection(operands.map(ReadValue::term).collect())),
+                "difference" => {
+                    let left = operands.next().ok_or("a difference lacks its left operand")?.term();
+                    let right = operands.next().ok_or("a difference lacks its right operand")?.term();
+                    Cond::Truthy(Term::Difference(Box::new(left), Box::new(right)))
+                }
+                "tag" => Cond::Truthy(Term::Tag(string(value, "tag")?)),
+                "emptySet" => Cond::Truthy(Term::EmptySet),
+                "const" => Cond::Truthy(Term::Const(string(value, "const")?, position(value)?)),
                 "not" => Cond::Not(Box::new(operands.next().unwrap().cond())),
                 "any" => Cond::Any(operands.map(ReadValue::cond).collect()),
                 "all" => Cond::All(operands.map(ReadValue::cond).collect()),
@@ -1527,6 +1568,7 @@ fn constants_in<'t>(start: Nested<'t>, out: &mut Vec<(&'t str, (usize, usize))>,
                 Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Capture(_) => {}
             },
             Nested::Cond(cond) => match cond {
+                Cond::Truthy(term) => stack.push(Nested::Term(term)),
                 Cond::Forest(term) => stack.push(Nested::Term(term)),
                 Cond::SourceQuery(_, args, _) => stack.extend(args.iter().rev().filter_map(|arg| match arg {
                     Arg::Term(term) => Some(Nested::Term(term)),
@@ -1736,6 +1778,7 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
             }
             Nested::Cond(cond) => match cond {
                 // The forest term is the condition itself, not a child.
+                Cond::Truthy(term) => stack.push((Nested::Term(term), depth)),
                 Cond::Forest(term) => stack.push((Nested::Term(term), depth)),
                 Cond::SourceQuery(_, args, _) => stack.extend(args.iter().filter_map(|arg| match arg {
                     Arg::Term(term) => Some((Nested::Term(term), below)),
@@ -2121,6 +2164,10 @@ pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type
 /// that disagrees, or `None` (engine §10).
 pub(crate) fn cond_type_fault(cond: &Cond, constants: ConstantTypes) -> Option<Fault> {
     match cond {
+        Cond::Truthy(term) => term_type_in(term, constants).err().or_else(|| {
+            (!matches!(term_type_in(term, constants).ok(), Some(Type::Tags | Type::Strings | Type::Set | Type::Any)))
+                .then(|| Fault::in_term("a condition requires a set, a forest, or a query method".into(), term))
+        }),
         Cond::Forest(term) => term_type_in(term, constants).err().or_else(|| {
             (term_type_in(term, constants).ok() != Some(Type::Forest))
                 .then(|| Fault::in_term("a condition requires a forest".into(), term))
@@ -2495,6 +2542,7 @@ impl Term {
 impl Cond {
     fn take_parts(&mut self, stack: &mut Vec<Dropping>) {
         match self {
+            Cond::Truthy(term) => stack.push(Dropping::Term(std::mem::replace(term, Term::EmptySet))),
             Cond::Forest(term) => stack.push(Dropping::Term(std::mem::replace(term, Term::EmptySet))),
             Cond::SourceQuery(_, args, _) => {
                 stack.extend(args.drain(..).filter_map(|arg| match arg {

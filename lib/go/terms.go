@@ -669,6 +669,14 @@ func (w *walk) condStep(f *frame) *nestedQuery {
 		}
 		w.endCond(ok)
 		return nil
+	case cdTruthy:
+		if f.at == 0 {
+			f.at = 1
+			w.push(ev, nil, c.Left)
+			return nil
+		}
+		w.endCond(len(setValue(w.v, ev.in()).names) > 0)
+		return nil
 	case cdBoundary:
 		if ev.hasBoundaryValue {
 			w.endCond(ev.boundaryValue)

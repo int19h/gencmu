@@ -1608,6 +1608,8 @@ func (c *domChecker) condition(d *domCond, depth int) {
 		return
 	}
 	switch d.Kind {
+	case cdTruthy:
+		c.term(d.Left, depth, false)
 	case cdForest:
 		if !forestTerm(d.Left) {
 			c.fail("a condition requires a forest")
@@ -2246,6 +2248,14 @@ func condTypeOnce(c *domCond, ct constTypes, memo *typeMemo) *typeFault {
 		w.readerSteps.add("reader steps")
 	}
 	switch c.Kind {
+	case cdTruthy:
+		ty, fault := termTypeMemo(c.Left, ct, memo)
+		if fault != nil {
+			return fault
+		}
+		if ty != tyTags && ty != tyStrings && ty != tySet && ty != tyAny && ty != tyForest {
+			return &typeFault{"a condition requires a set, a forest, or a query method", c}
+		}
 	case cdForest:
 		ty, fault := termTypeMemo(c.Left, ct, memo)
 		if fault != nil {
@@ -2657,7 +2667,7 @@ func inputConditionsProblem(conditions []*domCond) string {
 					if c.Capture != "" {
 						problem = "feature conditions can read only $"
 					}
-				case cdNot, cdAny, cdAll, cdIf:
+				case cdNot, cdAny, cdAll, cdIf, cdTruthy:
 				default:
 					problem = "feature conditions can read only tokens"
 				}

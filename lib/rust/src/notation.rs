@@ -1792,13 +1792,19 @@ impl<'a> Reader<'a> {
                     if let Some(binder) = first_of_rule(argument, "capture") {
                         return Err(self.error(binder, "a parse argument cannot declare captures"));
                     }
-                    for (index, part) in self.parts(argument).iter().enumerate() {
-                        if part.kind == NodeKind::Token && self.value(part) == "…" {
-                            body = if index == 0 {
-                                Expr::Seq(vec![Expr::Remainder, body])
-                            } else {
-                                Expr::Seq(vec![body, Expr::Remainder])
-                            };
+                    {
+                        let mut sequence: Vec<Expr> = Vec::new();
+                        for part in self.parts(argument) {
+                            if part.kind == NodeKind::Token && self.value(part) == "…" {
+                                sequence.push(Expr::Remainder);
+                            } else if rule_name(part) == "choice" {
+                                sequence.push(body.clone());
+                            }
+                        }
+                        if sequence.len() > 1 {
+                            body = Expr::Seq(sequence);
+                        } else if sequence.len() == 1 && matches!(sequence[0], Expr::Remainder) {
+                            body = Expr::Seq(vec![Expr::Remainder, body]);
                         }
                     }
                     if let Some(problem) = crate::query_forms::body_problem(&body) {
@@ -2000,7 +2006,11 @@ impl<'a> Reader<'a> {
             })
         } else {
             if last && frame.condition {
-                return Err(self.error(frame.node, "a condition requires a query method"));
+                let term = Term::Call(name.into(), args.clone());
+                return Ok(Step::Done(match call_type(name) {
+                    Type::Tags | Type::Strings | Type::Forest => Val::Cond(Cond::Truthy(term)),
+                    _ => return Err(self.error(frame.node, "a condition requires a query method")),
+                }));
             }
             Val::Term(Term::Call(name.into(), args), call_type(name))
         };
@@ -2138,6 +2148,21 @@ impl<'a> Reader<'a> {
                     Step::Done(Val::Cond(Cond::Captured(self.value(token).strip_prefix('$').unwrap_or("").to_string())))
                 }
                 "method" => Step::Call(Frame::Method(MethodFrame::new(inner, true))),
+                "term-condition" => {
+                    let operation = self.inner(inner, &["union-operation", "intersection-operation", "set-atom"])?;
+                    match rule_name(operation) {
+                        "union-operation" => Step::Call(Frame::Union(Joined::new(operation, false))),
+                        "intersection-operation" => Step::Call(Frame::Intersection(Joined::new(operation, false))),
+                        _ => {
+                            let atom = self
+                                .parts(operation)
+                                .into_iter()
+                                .find(|child| child.kind == NodeKind::Rule)
+                                .ok_or_else(|| self.shape_error(operation, "set atom"))?;
+                            Step::Call(Frame::Atom(Atom::new(atom, false)))
+                        }
+                    }
+                }
                 other => return Err(self.unknown(frame.node, other)),
             });
         };
@@ -2175,6 +2200,13 @@ impl<'a> Reader<'a> {
             "negation" => {
                 let Val::Cond(cond) = value else { unreachable!("a negation holds a condition") };
                 Ok(Step::Done(Val::Cond(Cond::Not(Box::new(cond)))))
+            }
+            "term-condition" => {
+                let Val::Term(term, ty) = value else { unreachable!("a set term is a term") };
+                if !self.feature_context.get() && !matches!(ty, Type::Tags | Type::Strings | Type::Set | Type::Any | Type::Forest) {
+                    return Err(self.error(inner, "a condition requires a set, a forest, or a query method"));
+                }
+                Ok(Step::Done(Val::Cond(Cond::Truthy(term))))
             }
             _ => Ok(Step::Done(value)),
         }
@@ -2899,6 +2931,10 @@ const KNOWN: &[&str] = &[
     "comparator",
     "negation",
     "presence",
+    "term-condition",
+    "union-operation",
+    "intersection-operation",
+    "set-atom",
     "argument",
     "term",
     "guarded-term",
@@ -2931,7 +2967,7 @@ const PRIMARIES: &[&str] = &[
     "empty",
     "constant-reference",
 ];
-const CONDITIONS: &[&str] = &["tree-comparison", "comparison", "method", "negation", "presence", "implication"];
+const CONDITIONS: &[&str] = &["tree-comparison", "comparison", "method", "negation", "presence", "implication", "term-condition"];
 const TERMS: [&str; 2] = ["union", "guarded-term"];
 const ATOMS: &[&str] = &[
     "call",
@@ -3041,6 +3077,7 @@ pub(crate) fn reads_own_tags(term: &Term) -> bool {
                 | Term::Capture(_) => {}
             },
             Part::Cond(cond) => match cond {
+                Cond::Truthy(term) => stack.push(Part::Term(term)),
                 Cond::Forest(term) => stack.push(Part::Term(term)),
                 Cond::SourceQuery(_, args, _) => stack.extend(args.iter().filter_map(|arg| match arg {
                     Arg::Term(term) => Some(Part::Term(term)),

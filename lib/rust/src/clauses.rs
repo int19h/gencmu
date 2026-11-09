@@ -25,6 +25,7 @@ pub(crate) enum Simple {
 pub(crate) fn simplify_cond(cond: &Cond, has: &dyn Fn(&str) -> bool) -> Simple {
     work::count(Work::Walked, 1);
     match cond {
+        Cond::Truthy(_) => Simple::Cond(cond.clone()),
         Cond::SourceQuery(..) => unreachable!("source queries expand before clause checks"),
         Cond::Captured(name) => {
             if has(name) {
@@ -218,6 +219,7 @@ fn walk_captures<'a>(start: Part<'a>, values: bool, presences: bool, out: &mut V
                 }
             },
             Part::Cond(cond) => match cond {
+                Cond::Truthy(term) => stack.push(Part::Term(term)),
                 Cond::Forest(term) => stack.push(Part::Term(term)),
                 Cond::SourceQuery(_, args, _) => stack.extend(args.iter().filter_map(|arg| match arg {
                     Arg::Term(term) => Some(Part::Term(term)),
@@ -356,6 +358,7 @@ impl<'a> Shaped<'a> {
                     }
                 },
                 Part::Cond(cond) => match cond {
+                    Cond::Truthy(_) => used,
                     Cond::Forest(_) => used,
                     Cond::SourceQuery(..) => unreachable!("source queries expand before grammar checks"),
                     Cond::Captured(name) => {

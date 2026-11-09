@@ -455,8 +455,15 @@ def _condition_typing_once(condition: Any, constants: ConstantTypes, memo: Memo)
         kind, fault = yield _term_typing(condition, constants, memo)
         if fault:
             return fault
-        if kind not in ("predicate", "forest"):
+        if kind not in ("predicate", "forest", "tags", "strings"):
             return "a condition requires a predicate", condition
+        return None
+    if any(k in condition for k in ("union", "intersection", "difference", "tag", "emptySet", "const")):
+        kind, fault = yield _term_typing(condition, constants, memo)
+        if fault:
+            return fault
+        if kind not in ("tags", "strings", "set", "any"):
+            return "a condition requires a set, a forest, or a query method", condition
     return None
 
 

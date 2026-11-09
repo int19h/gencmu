@@ -217,6 +217,7 @@ const (
 	cdCaptured = "captured"
 	cdIf       = "if"
 	cdForest   = "forest"
+	cdTruthy   = "truthy"
 )
 
 type domCond struct {
@@ -688,6 +689,8 @@ func (t *domTerm) writeJSON(w *jsonWriter) {
 
 func (c *domCond) writeJSON(w *jsonWriter) {
 	switch c.Kind {
+	case cdTruthy:
+		c.Left.writeJSON(w)
 	case cdForest:
 		c.Left.writeJSON(w)
 	case cdCompare:
@@ -1394,6 +1397,7 @@ var termForms = [][]string{
 
 var condForms = [][]string{
 	{"op", "left", "right"}, {"method", "receiver", "args"}, {cdNot}, {cdAny}, {cdAll}, {cdCaptured}, {cdIf, "then"},
+	{tmUnion}, {tmIntersection}, {tmDifference}, {tmTag}, {tmEmptySet}, {"const", "at"},
 }
 
 // hasOneForm says whether a node has exactly the members of one of its
@@ -1532,6 +1536,8 @@ func (dc *domDecoder) decodeCondNode(raw any, depth int) (*domCond, error) {
 			return nil, err
 		}
 		switch {
+		case name == "tags" || name == "classes" || name == "split" || name == "ngrams" || name == "classify":
+			return &domCond{Kind: cdTruthy, Left: &domTerm{Kind: tmCall, Str: name, Items: append([]*domTerm{receiver}, args...)}}, nil
 		case name == "parse" || name == "error-free":
 			return &domCond{Kind: cdForest, Left: &domTerm{Kind: tmCall, Str: name, Items: append([]*domTerm{receiver}, args...)}}, nil
 		case name == "ends-input" && len(args) == 0:
@@ -1544,6 +1550,12 @@ func (dc *domDecoder) decodeCondNode(raw any, depth int) (*domCond, error) {
 			return &domCond{Kind: name, Span: receiver, Targets: args}, nil
 		}
 		return nil, fmt.Errorf("a malformed predicate method")
+	}
+	for _, k := range []string{tmUnion, tmIntersection, tmDifference, tmTag, tmEmptySet, "const"} {
+		if _, ok := o[k]; ok {
+			term, err := dc.decodeTermAt(raw, depth+1)
+			return &domCond{Kind: cdTruthy, Left: term}, err
+		}
 	}
 	if v, ok := o["not"]; ok {
 		inner, err := dc.decodeCondAt(v, depth+1)

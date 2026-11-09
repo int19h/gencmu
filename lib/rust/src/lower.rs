@@ -1148,6 +1148,7 @@ impl<'a> Scope<'a> {
             Cond::Compare(op, left, right, location) if matches!(op.as_str(), "≅" | "≇") => {
                 LCond::SameTree(self.span(left)?, op == "≅", self.span(right)?, *location)
             }
+            Cond::Truthy(term) => LCond::Cmp(CmpOp::NotSubset, self.term(term)?, LTerm::Empty),
             Cond::Compare(op, left, right, _) => {
                 let op = match op.as_str() {
                     "=" => CmpOp::Eq,

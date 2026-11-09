@@ -691,11 +691,13 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: l
                 if keys != {"if", "then"}:
                     return "a malformed condition"
                 pending.extend(("condition", node[k], below, False, False) for k in ("if", "then"))
+            elif any(k in node for k in ("union", "intersection", "difference", "tag", "emptySet", "const")):
+                pending.append(("term", node, below, False, False))
             elif not (
                 keys == {"captured"}
                 and _capture(node["captured"])
                 or keys == {"method", "receiver", "args"}
-                and node["method"] in ("matches", "begins", "ends", "starts-input", "ends-input", "parse", "error-free", "followed-by", "preceded-by")
+                and node["method"] in ("matches", "begins", "ends", "starts-input", "ends-input", "parse", "error-free", "followed-by", "preceded-by", "tags", "classes", "split", "ngrams", "classify")
             ):
                 return "a malformed condition"
             keep_type(None if id(node) in deferred else condition_type_fault(node, memo=types), node)
