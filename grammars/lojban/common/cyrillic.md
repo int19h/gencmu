@@ -118,12 +118,14 @@ The `Vowel` tag marks the five full vowels and not `y`. So each vowel rule below
   $
 ```
 
-<details><summary>Railroad diagrams of the 6 rules from <code>cyrillic-plain-full-vowel</code> to <code>cyrillic-folded-vowel</code></summary>
+<details><summary>Railroad diagrams of the 8 rules from <code>cyrillic-plain-full-vowel</code> to <code>cyrillic-folded-vowel</code></summary>
 <p><img src="../../../docs/diagrams/lojban/common/cyrillic/cyrillic-plain-full-vowel.svg" alt="Railroad diagram of the rule cyrillic-plain-full-vowel"></p>
+<p><img src="../../../docs/diagrams/lojban/common/cyrillic/cyrillic-plain-glide.svg" alt="Railroad diagram of the rule cyrillic-plain-glide"></p>
 <p><img src="../../../docs/diagrams/lojban/common/cyrillic/cyrillic-plain-vowel.svg" alt="Railroad diagram of the rule cyrillic-plain-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/common/cyrillic/cyrillic-stressed-full-vowel.svg" alt="Railroad diagram of the rule cyrillic-stressed-full-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/common/cyrillic/cyrillic-stressed-vowel.svg" alt="Railroad diagram of the rule cyrillic-stressed-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/common/cyrillic/cyrillic-folded-full-vowel.svg" alt="Railroad diagram of the rule cyrillic-folded-full-vowel"></p>
+<p><img src="../../../docs/diagrams/lojban/common/cyrillic/cyrillic-folded-glide.svg" alt="Railroad diagram of the rule cyrillic-folded-glide"></p>
 <p><img src="../../../docs/diagrams/lojban/common/cyrillic/cyrillic-folded-vowel.svg" alt="Railroad diagram of the rule cyrillic-folded-vowel"></p>
 </details>
 

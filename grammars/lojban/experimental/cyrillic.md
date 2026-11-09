@@ -107,10 +107,11 @@ Joined vowels use the same public tags as isolated vowels. The emission filter k
 
 ```
 
-<details><summary>Railroad diagrams of the 8 rules from <code>cyrillic-consonant</code> to <code>joined-vowel-with</code></summary>
+<details><summary>Railroad diagrams of the 9 rules from <code>cyrillic-consonant</code> to <code>joined-vowel-with</code></summary>
 <p><img src="../../../docs/diagrams/lojban/experimental/cyrillic/cyrillic-consonant.svg" alt="Railroad diagram of the rule cyrillic-consonant"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/cyrillic/cyrillic-apostrophe.svg" alt="Railroad diagram of the rule cyrillic-apostrophe"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/cyrillic/cyrillic-full-vowel.svg" alt="Railroad diagram of the rule cyrillic-full-vowel"></p>
+<p><img src="../../../docs/diagrams/lojban/experimental/cyrillic/cyrillic-glide.svg" alt="Railroad diagram of the rule cyrillic-glide"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/cyrillic/cyrillic-vowel.svg" alt="Railroad diagram of the rule cyrillic-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/cyrillic/cyrillic-plain-vowel.svg" alt="Railroad diagram of the rule cyrillic-plain-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/cyrillic/cyrillic-stressed-vowel.svg" alt="Railroad diagram of the rule cyrillic-stressed-vowel"></p>
