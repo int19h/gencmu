@@ -557,6 +557,34 @@
       "(q [t r])",
       "(q s)",
       "rejected"
+    ],
+    "term-condition": [
+      "rejected",
+      "rejected",
+      "(q [t r])",
+      "(q s)",
+      "rejected"
+    ],
+    "union-operation": [
+      "rejected",
+      "rejected",
+      "(q [t r])",
+      "(q s)",
+      "rejected"
+    ],
+    "intersection-operation": [
+      "rejected",
+      "rejected",
+      "(q [t r])",
+      "(q s)",
+      "rejected"
+    ],
+    "set-atom": [
+      "rejected",
+      "rejected",
+      "(q [t r])",
+      "(q s)",
+      "rejected"
     ]
   },
   "extraParts": [

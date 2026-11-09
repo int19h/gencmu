@@ -72,7 +72,8 @@ func TestDeferredNestedCaptureErrorsUseTheirBinder(t *testing.T) {
 }
 
 func TestDeferredPreparsedBodiesRejectCapturesAndNestedRemainders(t *testing.T) {
-	// Engine §9: the supplied DOM permits a remainder at one outer edge only.
+	// Engine §9: the supplied DOM permits a remainder at each outer edge,
+	// and no remainder inside.
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
@@ -80,9 +81,7 @@ func TestDeferredPreparsedBodiesRejectCapturesAndNestedRemainders(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, body := range []string{`{"remainder":true}`, `{"seq":[{"remainder":true},{"ref":"A"},{"remainder":true}]}`,
-		`{"seq":[{"ref":"A"},{"optional":{"remainder":true}}]}`, `{"capture":"x","expr":{"ref":"A"}}`,
-		`{"seq":[{"ref":"A"},{"remainder":true}],"extra":true}`} {
+	replace := func(body string) []byte {
 		var wire map[string]any
 		if err := json.Unmarshal(dom.json(), &wire); err != nil {
 			t.Fatal(err)
@@ -94,7 +93,15 @@ func TestDeferredPreparsedBodiesRejectCapturesAndNestedRemainders(t *testing.T) 
 		condition := wire["rules"].([]any)[0].(map[string]any)["conditions"].([]any)[0].(map[string]any)
 		condition["receiver"].(map[string]any)["args"].([]any)[0].(map[string]any)["body"] = replacement
 		raw, _ := json.Marshal(wire)
-		if supplied, err := decodeDOM(raw, bundled.uni); err == nil && checkDOM(supplied, bundled.uni) == nil {
+		return raw
+	}
+	if supplied, err := decodeDOM(replace(`{"seq":[{"remainder":true},{"ref":"A"},{"remainder":true}]}`), bundled.uni); err != nil || checkDOM(supplied, bundled.uni) != nil {
+		t.Fatal("rejected a remainder at both edges")
+	}
+	for _, body := range []string{`{"remainder":true}`,
+		`{"seq":[{"ref":"A"},{"optional":{"remainder":true}}]}`, `{"capture":"x","expr":{"ref":"A"}}`,
+		`{"seq":[{"ref":"A"},{"remainder":true}],"extra":true}`} {
+		if supplied, err := decodeDOM(replace(body), bundled.uni); err == nil && checkDOM(supplied, bundled.uni) == nil {
 			t.Fatal("accepted malformed body", body)
 		}
 	}
