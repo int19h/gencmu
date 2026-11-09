@@ -508,7 +508,10 @@ The step `fewest #·term-link` counts the plain `term-link` rule, so a sumti con
 -- / KOhA_clause / LOhOI_clause (joik LOhOI_clause)* statement KUhAU_elidible / LE_clause sumti_tail KU_elidible
 -- / li_clause / NAhE_clause sumti_3
 %rule sumti-5
-  | RAhOI 🆓 | ZO 🆓 | ZOI 🆓 | LOhU 🆓
+  | RAhOI 🆓
+  | ZO 🆓
+  | ZOI 🆓
+  | LOhU 🆓
   | $l:lerfu-boi
   | LU text [+LIhU 🆓]
   | (LAhE 🆓 | NAhE 🆓 BO 🆓) [relative-clauses] sumti [+LUhU 🆓]
@@ -678,11 +681,14 @@ A run of `cei` nests to the right. The selbri after the first `cei` already read
 -- / (FA_clause (joik FA_clause)* / SE_clause) tanru_unit_1 / JAI_clause tag? tanru_unit_1
 -- / NAhE_clause tanru_unit_1 / NU_clause (joik NU_clause)* statement KEI_elidible
 %rule tanru-unit-1
-  | CMEVLA 🆓 | BRIVLA 🆓 | GOhA 🆓
+  | CMEVLA 🆓
+  | BRIVLA 🆓
+  | GOhA 🆓
   | KE 🆓 selbri-2 [+KEhE 🆓]
   | NAhE 🆓 gek selbri-2 $g:gik-selbris [+GIhI 🆓]
   | $k:gek selbri-2 $g:gik-selbris [+GIhI 🆓]
-  | MUhOI 🆓 | GOhOI 🆓
+  | MUhOI 🆓
+  | GOhOI 🆓
   | LUhEI text [+LIhAU 🆓]
   | ME 🆓 (sumti | $m:mex | $t:tag) [+MEhU 🆓] [MOI 🆓]
   | ME 🆓 {operator} [+MEhU 🆓] [MOI 🆓]
@@ -811,7 +817,8 @@ The condition removes a connective operator whose first word is SE. The alternat
 -- operator <- SE_clause operator / NAhE_clause operator / MAhO_clause (mex / selbri / sumti) TEhU_elidible
 -- / VUhU_clause / joik_ek !CU
 %rule operator
-  | SE 🆓 operator | NAhE 🆓 operator
+  | SE 🆓 operator
+  | NAhE 🆓 operator
   | MAhO 🆓 (mex ≻ selbri ≻ sumti) [+TEhU 🆓]
   | VUhU 🆓
   | $j:joik-ek
@@ -935,7 +942,8 @@ The mekso prefix pattern tests an actual NAhE or SE constructor over an operand 
 -- tcita_selci <- (NAhE_clause / SE_clause) tcita_selci / BAI_clause / mex? ROI_clause / FIhO_clause selbri FEhU_elidible
 %rule tcita-selci
   | (NAhE 🆓 | SE 🆓) tcita-selci
-  | BAI 🆓 | ROI 🆓
+  | BAI 🆓
+  | ROI 🆓
   | $m:mex ROI 🆓
   | FIhO 🆓 selbri [+FEhU 🆓]
 %conditions

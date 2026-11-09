@@ -339,7 +339,8 @@ A step is a verb with its free suffixes and binds, then the rest of the chain. T
   $ ≇ #(⋱ chain-inner« bi-free chain »)
 
 %rule chain-inner
-  bi-free chain | step
+  | bi-free chain
+  | step
 
 %rule bi-free
   [{prefix}] BI [{postfix}]
@@ -594,7 +595,8 @@ The chapter says that a `JI` other than `jie` "must follow positive integer (no 
   | digits JO [digits] [JA digits] [JE digits]
   | JO digits [JA digits] [JE digits]
   | JO JA digits [JE digits]
-  | JO JE digits | JE digits
+  | JO JE digits
+  | JE digits
 
 %rule digits
   {TI}
@@ -669,16 +671,17 @@ A quote with written `cai` retains its own recovery scope. Without `cai`, a quot
 
 ```jbogenbau
 %extend-rule sentence-of(@Open)
-  | sentence-body unmatched-tail | sentence-erasure unmatched-tail
+  | sentence-body unmatched-tail
+  | sentence-erasure unmatched-tail
   | $i:words-erasure unmatched-tail
-  | empty-erasure unmatched-tail | unmatched-tail
+  | empty-erasure unmatched-tail
+  | unmatched-tail
 %conditions
   ¬$i.onward.parse(@Open …).error-free,
   ¬$i.onward.begins(po-head)
 
 %extend-rule base-verb
-  *select-empty
-  | *modified-empty
+  *select-empty | *modified-empty
 
 %rule unmatched-tail :: ($t ⟹ $t.tags)
   | (unmatched-resume step-tail [ri-continuation] [$t:unmatched-tail]
@@ -937,13 +940,8 @@ Number recovery normally ends at written `JI`, before a token outside `number-st
 
 ```jbogenbau
 %extend-rule base-verb
-  | *number-end-alone
-  | *empty-base-number
-  | *empty-repeat-number
-  | *empty-magnitude-number
-  | *number-repeat-without-fraction
-  | *number-without-digits
-  | *number-part-order
+  | *number-end-alone | *empty-base-number | *empty-repeat-number | *empty-magnitude-number
+  | *number-repeat-without-fraction | *number-without-digits | *number-part-order
 
 %rule number-part
   loose-base | loose-digits | loose-fraction | JA loose-digits | JE loose-digits

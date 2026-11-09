@@ -47,7 +47,9 @@ The rule `empty` reads a prefix that leaves no units. Its alternatives use `text
   $.starts-input
 
 %rule empty
-  | text-start spacing | empty si-word spacing | empty erasure spacing
+  | text-start spacing
+  | empty si-word spacing
+  | empty erasure spacing
   | sa-su? empty su-word spacing
   | sa-su? ¬su-boundary? stream spacing su-word spacing
   | su-cleared
@@ -275,7 +277,8 @@ Quotes and the right operand of ZEI share this rule. It executes no erasure. Quo
 
 ```jbogenbau
 %rule quiet-gap
-  hesitation | quiet-gap hesitation
+  | hesitation
+  | quiet-gap hesitation
 
 %rule pause-gap
   [quiet-gap] $p:pause-run [$h:hesitations [$q:pause-run]]
@@ -660,8 +663,10 @@ A LOhU quote ends at the first LEhU. Its body reads Lojban words through the sha
   $ :: LEhU
 
 %rule lohu-stream
-  | lohu-word | lohu-stream pause-gap lohu-word
-  | lohu-stream quiet-gap lohu-word | lohu-stream lohu-word
+  | lohu-word
+  | lohu-stream pause-gap lohu-word
+  | lohu-stream quiet-gap lohu-word
+  | lohu-stream lohu-word
 
 %rule lohu-word
   $w:read-word
@@ -687,10 +692,12 @@ Only `zohoi-payload` defines a body image recipe. Its `.verbatim-text` preserves
 
 ```jbogenbau
 %rule raw-tokens
-  any-token | raw-tokens any-token
+  | any-token
+  | raw-tokens any-token
 
 %rule zohoi-payload :- $.verbatim-text
-  | quote-run-token | zohoi-payload quote-run-token
+  | quote-run-token
+  | zohoi-payload quote-run-token
 
 %rule quote-run-token
   payload-token
@@ -901,7 +908,8 @@ The rule `sa-key` refuses an SA key because a run of SA forms one counted erasur
   $b.classes ∩ $SU-STOPS ≠ ∅
 
 %rule su-suffix
-  su-word | su-reach spacing su-word
+  | su-word
+  | su-reach spacing su-word
 %erased
 
 %rule su-reach

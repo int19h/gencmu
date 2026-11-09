@@ -44,7 +44,8 @@ An ignored character at a pause edge is a comma or a non-breaking format charact
   [left-pause-edge] pause-cores [right-pause-edge]
 
 %rule pause-cores
-  pause-core | pause-cores pause-material pause-core
+  | pause-core
+  | pause-cores pause-material pause-core
 
 %rule left-pause-edge
   punctuation-edge | commas
@@ -234,13 +235,15 @@ The `Vowel` tag marks the five full vowels `a`, `e`, `i`, `o` and `u`, and it do
   [capital-consonants [commas]] capital-groups [[commas] capital-consonants]
 
 %rule capital-groups
-  folded-vowel-group capital-gap folded-vowel-group | capital-groups capital-gap folded-vowel-group
+  | folded-vowel-group capital-gap folded-vowel-group
+  | capital-groups capital-gap folded-vowel-group
 
 %rule capital-gap
   [commas] capital-consonants [commas]
 
 %rule capital-consonants
-  | capital-non-vowel | capital-consonants capital-non-vowel
+  | capital-non-vowel
+  | capital-consonants capital-non-vowel
   | capital-consonants commas capital-non-vowel
   | $c:capital-consonants decimal-point digit
 %conditions

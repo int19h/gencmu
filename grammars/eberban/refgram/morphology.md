@@ -166,7 +166,8 @@ Two vowels written in a row are two letters, because the letters stage merges a 
 
 ```jbogenbau
 %rule vowels
-  | vowel | vowels vowel
+  | vowel
+  | vowels vowel
   | $a:vowels Hyphen $b:vowel
 %conditions
   $a.last-token.value ≠ $b.value
@@ -1545,7 +1546,8 @@ The particle tail retains its family even with two adjacent sonorants. An errone
 
 ```jbogenbau
 %rule malformed-vowels
-  | vowel | malformed-vowels vowel
+  | vowel
+  | malformed-vowels vowel
   | $a:malformed-vowels Hyphen $b:vowel
   | malformed-vowels hyphen-same-vowels vowel
   | malformed-vowels [Hyphen] h-not-between-vowels

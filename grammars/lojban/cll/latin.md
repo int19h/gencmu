@@ -207,7 +207,9 @@ A foreign run has at least one character that no rule of `any-lojban-char` reads
   $ :: FOREIGN :- $.source-text
 
 %rule chars-with-non-lojban-char
-  non-lojban-char | lojban-chars non-lojban-char | chars-with-non-lojban-char run-char
+  | non-lojban-char
+  | lojban-chars non-lojban-char
+  | chars-with-non-lojban-char run-char
 
 %rule lojban-chars
   lojban-char | lojban-chars lojban-char
