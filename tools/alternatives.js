@@ -519,11 +519,11 @@ export function clauseTermProblems(markdown, dom, path) {
 }
 
 // The layout of a long constant: its value stands on the lines after
-// its header, each line ends with its operator, and the next line
-// stands two columns deeper than the header. Only a value with an
-// operator at its top level has lines that can end with one, so a
-// list of strings and a single pattern keep their own layout. Lines
-// inside brackets follow the bracket rules.
+// its header, two columns deeper than the header. Where the value
+// breaks at an operator, each line ends with that operator. A table
+// of items without operators puts one row on each line. A pattern
+// breaks between two items of a child list, and its continuation
+// stands two columns deeper than the line where the pattern starts.
 /** @param {string} markdown @param {string} path @returns {string[]} */
 function constantProblems(markdown, path) {
   const { text, positions } = extractGrammarText(markdown, path, unicode);
@@ -554,6 +554,10 @@ function constantProblems(markdown, path) {
       if (textLines[lj].trim()) valueLines.push({ text: textLines[lj], at: lineStarts[lj] });
     }
     if (!valueLines.length) continue;
+    // A constant is long when its value spans lines: it starts on
+    // the header and continues, or it stands on two or more lines
+    // after the header.
+    if (!rest.trim() && valueLines.length < 2) continue;
     const joined = [...[rest, ...valueLines.map((l) => l.text)].join(" ")];
     let depth = 0, hasOperator = false;
     for (let j = 0; j < joined.length; j++) {
@@ -563,10 +567,15 @@ function constantProblems(markdown, path) {
       else if (depth === 0 && "∧∨⟹∪∩∖".includes(ch)) hasOperator = true;
       else if (depth === 0 && ch === "+" && joined[j + 1] === "+") hasOperator = true;
     }
-    if (!hasOperator) continue;
     const headerColumn = positions[lineStarts[li]][1];
     const headerLine = positions[lineStarts[li]][0];
     if (rest.trim()) problems.push(`${path}:${headerLine}: the value of a long constant ${label} does not stand on the lines after its header`);
+    // A value without a top-level operator is a table of items or a
+    // pattern. A table puts one row on each line, in the column of
+    // the other rows. A pattern breaks between two items of a child
+    // list, and its continuation stands two columns deeper than the
+    // line where the pattern starts.
+    const isPattern = !hasOperator && /[«»([{<]|#/.test(joined.join(""));
     let valueDepth = 0;
     valueLines.forEach((valueLine, index) => {
       const startDepth = valueDepth;
@@ -574,11 +583,16 @@ function constantProblems(markdown, path) {
         if ("([{<«".includes(ch)) valueDepth++;
         else if (")]}>»".includes(ch)) valueDepth--;
       }
-      if (startDepth !== 0) return;
       const first = valueLine.text.search(/\S/);
       if (first < 0) return;
       const [line, col] = positions[valueLine.at + first];
+      if (isPattern && index > 0) {
+        if (col !== headerColumn + 4) problems.push(`${path}:${line}: a continued line of the value of ${label} does not stand two columns deeper than the line where its pattern starts`);
+        return;
+      }
+      if (startDepth !== 0) return;
       if (col !== headerColumn + 2) problems.push(`${path}:${line}: a line of the value of ${label} does not stand two columns deeper than its header`);
+      if (!hasOperator) return;
       const trimmed = valueLine.text.trimEnd();
       if (index + 1 < valueLines.length && valueDepth === 0 && !"∧∨⟹∪∩∖⊆⊈=≠≅≇∈∉".includes(trimmed[trimmed.length - 1]) && !trimmed.endsWith("++")) problems.push(`${path}:${line}: a line of the value of ${label} does not end with its operator`);
     });
