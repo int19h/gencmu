@@ -410,6 +410,15 @@ impl<'a> PartialClause<'a> {
                 }
             }
             Part::Cond(Cond::Compare(_, _, _, _)) => first(child(0), child(1)),
+            // A set term that simplifies to the empty set is false (§3.6).
+            Part::Cond(Cond::Truthy(_)) => {
+                let inner = child(0);
+                if inner.shape == Outcome::Empty {
+                    plain(Outcome::False)
+                } else {
+                    Reduction { shape: used, guard: inner.guard }
+                }
+            }
             _ => unreachable!("a variable clause node"),
         }
     }

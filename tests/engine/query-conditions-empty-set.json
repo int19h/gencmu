@@ -1,0 +1,16 @@
+{
+  "description": "Engine §3.6 and §10: a bare empty set as the only condition is a document error.",
+  "grammar": "%rule text {_}\n%conditions ∅",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "message": "a condition of text is the empty set"
+  }
+}

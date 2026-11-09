@@ -1,0 +1,15 @@
+{
+  "description": "Engine §4: begins(S) and parse(S …) give the same result where neither holds.",
+  "grammar": "%rule text {_}\n%conditions $.begins(word), $.parse(word …)\n%rule word A :: Word\n%rule word2 B :: Word Other",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected"
+  }
+}

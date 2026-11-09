@@ -873,9 +873,7 @@ func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal, errorFree 
 			// The answer enters the memo of the parse, as the answer of its
 			// nested parse does.
 			res := &nestedResult{holds: a.holds}
-			if k.kind != cdBegins {
-				res.tags = ps.in.make(slices.Clone(a.tags))
-			}
+			res.tags = ps.in.make(slices.Clone(a.tags))
 			ps.nested[k] = res
 			return res.holds, res.tags, nil
 		}
@@ -1175,7 +1173,7 @@ func (run *stageRun) remember(q *nestedQuery, res *nestedResult) {
 		return
 	}
 	a := sharedAnswer{holds: res.holds}
-	if q.key.kind != cdBegins && res.tags != nil {
+	if res.tags != nil {
 		a.tags = res.tags.names
 	}
 	q.g.memo.insert(sharedKey{begins: q.key.kind == cdBegins, rule: q.start, content: ps.contentStrings[q.key.content-1], errorFree: q.key.errorFree, errors: q.key.errors}, a, ps.memoLimit)

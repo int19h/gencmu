@@ -1,0 +1,29 @@
+{
+  "description": "Engine §4: a part query inside the conditions of an ends target holds.",
+  "grammar": "%rule text {_} {_}\n%conditions $.ends(tail)\n%rule tail {_} {_}\n%conditions $.parse(… B …)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

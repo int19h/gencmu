@@ -1809,6 +1809,16 @@
       "options": [
         {}
       ]
+    },
+    {
+      "grammar": "%rule text \"a\"\n%conditions P ⊆ $.parse(inner …).tags\n%rule inner ε ::P",
+      "texts": [
+        "a",
+        "a"
+      ],
+      "options": [
+        {}
+      ]
     }
   ]
 }

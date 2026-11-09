@@ -1,0 +1,15 @@
+{
+  "description": "Engine §4: tags(R) and parse(R).tags give the same result where neither holds.",
+  "grammar": "%rule text {_}\n%conditions Word ⊆ $.tags(word), Word ⊆ $.parse(word).tags\n%rule word A :: Word\n%rule word2 B :: Word Other",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected"
+  }
+}

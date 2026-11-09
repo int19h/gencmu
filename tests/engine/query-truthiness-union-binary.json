@@ -1,0 +1,23 @@
+{
+  "description": "Engine §4 and §10: a binary union in a Boolean position tests that the union is not empty.",
+  "grammar": "%rule text $x:word\n%conditions Other ∪ Word\n%rule word A :: Word",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "description": "Engine §4 and §10: a set constant as a whole condition tests that the set is not empty.",
+  "grammar": "%const $Words Word\n%rule text $x:word\n%conditions $Words\n%rule word A :: Word",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

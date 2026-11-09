@@ -1386,7 +1386,11 @@ impl<'a> Reader<'a> {
                 }
             }
         }
-        self.parts(node).into_iter().any(|child| child.kind == NodeKind::Rule && self.query_method_operand(child))
+        self.parts(node).into_iter().any(|child| {
+            child.kind == NodeKind::Rule
+                && !matches!(rule_name(child), "guarded-term" | "implication")
+                && self.query_method_operand(child)
+        })
     }
 
     /// Parts joined by `∪` and `∖`, which group from the left: a run joined

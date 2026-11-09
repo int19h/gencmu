@@ -185,6 +185,7 @@ impl<'a> Part<'a> {
                 vec![Part::Cond(antecedent), Part::Cond(consequent)]
             }
             Part::Cond(Cond::Compare(_, left, right, _)) => vec![Part::Term(left), Part::Term(right)],
+            Part::Cond(Cond::Truthy(term)) => vec![Part::Term(term)],
             _ => Vec::new(),
         }
     }
@@ -362,7 +363,11 @@ impl<'a> Shaped<'a> {
                     }
                 },
                 Part::Cond(cond) => match cond {
-                    Cond::Truthy(_) => used,
+                    // A set term that simplifies to the empty set is false (§3.6).
+                    Cond::Truthy(_) => match done.pop().expect("the term") {
+                        Outcome::Empty => Outcome::False,
+                        _ => used,
+                    },
                     Cond::Forest(_) => used,
                     Cond::SourceQuery(..) => unreachable!("source queries expand before grammar checks"),
                     Cond::Captured(name) => {
