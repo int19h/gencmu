@@ -497,9 +497,10 @@ The quote reads its own `co` through the particle rule, so the bar never meets t
   consonant-particle-word | root-word | spelling-quote
 
 %rule consonant-particle-word
-  *h-before-word $p:consonant-particle *h-after-word [hyphen-misplaced] :: Word Particle ∪
-                                                                           $p.tags ∪
-                                                                           (CE ⊆ $p.tags ∧ ¬$.following-tokens.begins(first-unit) ⟹ Missing-spelling-unit)
+  *h-before-word $p:consonant-particle *h-after-word [hyphen-misplaced]
+      :: Word Particle ∪
+         $p.tags ∪
+         (CE ⊆ $p.tags ∧ ¬$.following-tokens.begins(first-unit) ⟹ Missing-spelling-unit)
 %conditions
   CO ⊆ $p.tags ⟹ ¬$.onward.begins(quote-opener)
 %emits
@@ -707,8 +708,9 @@ The rule `first-prefix` reads a prefix that starts a run, and `attached-prefix` 
   first-prefix | attached-prefix
 
 %rule first-prefix
-  Letter="e" [[hyphen-misplaced] prefix-arity] :: $.value.classify(prefix-length) ∪
-                                                  (¬$.following-tokens.begins(later-letter) ⟹ Standalone)
+  Letter="e" [[hyphen-misplaced] prefix-arity]
+      :: $.value.classify(prefix-length) ∪
+         (¬$.following-tokens.begins(later-letter) ⟹ Standalone)
 %conditions
   ¬$.preceding-tokens.ends(after-digit),
   ¬$.preceding-tokens.ends(after-letter)
@@ -828,9 +830,10 @@ A hyphen after a prefix or at the start of a run carries `hyphen-misplaced`, as 
   | [hyphen-misplaced] $n:compound :: $n.tags
 
 %rule component-particle
-  *h-before-word $p:consonant-particle *h-after-word [hyphen-misplaced] :: Word Particle ∪
-                                                                           $p.tags ∪
-                                                                           (CE ⊆ $p.tags ∧ ¬$.following-tokens.begins(first-unit) ⟹ Missing-spelling-unit)
+  *h-before-word $p:consonant-particle *h-after-word [hyphen-misplaced]
+      :: Word Particle ∪
+         $p.tags ∪
+         (CE ⊆ $p.tags ∧ ¬$.following-tokens.begins(first-unit) ⟹ Missing-spelling-unit)
 %emits
   $ :- $.value
 ```

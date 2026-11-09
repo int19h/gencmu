@@ -674,8 +674,8 @@ A description can take a forethought sentence in place of a selbri, and so can a
 
 %redefine-rule sumti-1
   | sumti-2
-  | sumti-2 connective [stag] KE 🆓 $i:sumti [+KEhE] 🆓 :: KEhE ⊈ $i.following-tokens.first-token.tags
-    ⟹ $i.tags ∩ $EXTENSIBLE-END
+  | sumti-2 connective [stag] KE 🆓 $i:sumti [+KEhE] 🆓
+      :: KEhE ⊈ $i.following-tokens.first-token.tags ⟹ $i.tags ∩ $EXTENSIBLE-END
 
 %redefine-rule sumti-2
   | {... sumti-3 / connective} :: $EXTENSIBLE-END

@@ -68,7 +68,7 @@ Ordinary word forms divide each run in one way only. Zantufa's `ra'oi` quote is 
 %rule foreign-token
   $f:FOREIGN
 %emits
-  $ :: $f.tags ∪ Run-Initial ∪ Run-Final
+  $ :: Run-Initial Run-Final ∪ $f.tags
 
 %rule unsegmentable-run
   $f:phoneme-sequence
@@ -76,7 +76,7 @@ Ordinary word forms divide each run in one way only. Zantufa's `ra'oi` quote is 
   ¬$f.following-tokens.begins(nonpause-phoneme),
   ¬$f.matches(word-run)
 %emits
-  $ :: FOREIGN ∪ Run-Initial ∪ Run-Final := $.decomposed-source-text :- $.image
+  $ :: FOREIGN Run-Initial Run-Final := $.decomposed-source-text :- $.image
 
 %rule phoneme-sequence
   nonpause-phoneme | phoneme-sequence nonpause-phoneme
@@ -131,7 +131,8 @@ The BPFK word forms set only `Onset` and `Continued`, with the meaning that the 
 %rule run-words
   | $f:first-word :: $f.tags
   | $r:run-words $v:later-word
-      :: $v.tags ∪ (Uncounted ⊆ $v.tags ⟹ Open-Stress ∩ $r.tags)
+      :: $v.tags ∪
+         (Uncounted ⊆ $v.tags ⟹ Open-Stress ∩ $r.tags)
 %conditions
   (Continued ∪ Cy ∪ Name-Intro ∪ Open-Stress) ∩ $r.tags ≠ ∅,
   Cy ⊆ $r.tags ∧ Cy ⊆ $v.tags
@@ -171,7 +172,7 @@ The words stage needs to know where a run begins and ends. A name that `bu` take
 %conditions
   ¬$w.onward.begins(split-first-y)
 %emits
-  $ :: $w.tags ∪ Run-Initial ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
+  $ :: Run-Initial ∪ $w.tags ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
 %rule later-word
   ordinary-later-word | split-later-y
@@ -190,7 +191,7 @@ The words stage needs to know where a run begins and ends. A name that `bu` take
   $.following-tokens.begins(bu-form-ahead)
 %emits
   $p :: $.tags(source-word) ∪ Run-Initial,
-  $y :: $.tags(source-word) ∪ Spacing ∪ (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
+  $y :: Spacing ∪ $.tags(source-word) ∪ (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
 %rule split-later-y
   $p:y-prefix $y:y-atom :: $.tags(source-word)
@@ -199,7 +200,7 @@ The words stage needs to know where a run begins and ends. A name that `bu` take
   $.following-tokens.begins(bu-form-ahead)
 %emits
   $p :: $.tags(source-word),
-  $y :: $.tags(source-word) ∪ Spacing ∪ (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
+  $y :: Spacing ∪ $.tags(source-word) ∪ (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
 %rule y-prefix
   y-atom | y-prefix y-atom
@@ -240,9 +241,11 @@ A source word is a cmavo, a brivla, a name, or hesitation. The stage hands it on
 
 ```jbogenbau
 %rule source-word
-  | $c:cmavo-shape :: Word ∪ Cmavo ∪ $c.tags ∪ $c.value.classify(lexicon)
-  | $b:brivla-shape :: Word ∪ BRIVLA ∪ $b.tags
-  | $n:cmevla-shape :: Word ∪ CMEVLA ∪ $n.tags
+  | $c:cmavo-shape :: Word Cmavo ∪
+                      $c.tags ∪
+                      $c.value.classify(lexicon)
+  | $b:brivla-shape :: Word BRIVLA ∪ $b.tags
+  | $n:cmevla-shape :: Word CMEVLA ∪ $n.tags
   | $h:hesitation-shape :: Hesitation ∪ $h.tags
 ```
 
@@ -260,7 +263,7 @@ The words stage drops hesitation, or reads it as the base of the letter word `.y
 
 ```jbogenbau
 %rule hesitation-shape
-  $h:y-run :: Continued ∪ Uncounted ∪ $h.tags
+  $h:y-run :: Continued Uncounted ∪ $h.tags
 
 %rule y-run
   "y" | "y" y-run | "y" Syllable-Break y-run

@@ -32,11 +32,13 @@ Zantufa's Y is `y` and `ie'o`, and its `spaces` read both as space. So `ie'o` is
 ```jbogenbau
 -- The lexicon classifies Y forms as hesitation, including ie'o. Other particles remain words.
 %redefine-rule source-word
-  | $c:cmavo-shape :: Word ∪ Cmavo ∪ $c.tags ∪ $c.value.classify(lexicon)
+  | $c:cmavo-shape :: Word Cmavo ∪
+                      $c.tags ∪
+                      $c.value.classify(lexicon)
   | $y:cmavo-shape :: Hesitation ∪ $y.tags
-  | $b:brivla-shape :: Word ∪ BRIVLA ∪ $b.tags
-  | $n:cmevla-shape :: Word ∪ CMEVLA ∪ $n.tags
-  | $h:hesitation-shape :: Hesitation ∪ Y-Letters ∪ $h.tags
+  | $b:brivla-shape :: Word BRIVLA ∪ $b.tags
+  | $n:cmevla-shape :: Word CMEVLA ∪ $n.tags
+  | $h:hesitation-shape :: Hesitation Y-Letters ∪ $h.tags
 %conditions
   Y ⊈ $c.value.classify(lexicon),
   Y ⊆ $y.value.classify(lexicon)
@@ -69,7 +71,8 @@ The redefined `run-words` keeps the join conditions of [../common/forms.md](../c
 -- Preserve quote state across pauses and hesitation. A quoted form belongs to rahoi-rest, not an ordinary run.
 %redefine-rule runs
   | $r:run :: $r.tags
-  | $p:runs pause-token $r:run :: $r.tags ∪ (RAhOI ⊆ $p.tags ∧ $r.matches(only-hesitation) ⟹ RAhOI)
+  | $p:runs pause-token $r:run :: $r.tags ∪
+                                  (RAhOI ⊆ $p.tags ∧ $r.matches(only-hesitation) ⟹ RAhOI)
   | $q:runs pause-token $s:rahoi-rest :: $s.tags
 %conditions
   RAhOI ⊈ $p.tags ∨ ¬$r.matches(rahoi-rest),
@@ -80,13 +83,15 @@ The redefined `run-words` keeps the join conditions of [../common/forms.md](../c
 
 -- Keep the inherited word joins, stress boundaries, and hesitation spacing. A pending ra'oi reserves its quoted form.
 %redefine-rule run-words
-  | $f:first-word :: $f.tags ∪ (Hesitation ⊆ $f.tags ⟹ Spacing)
+  | $f:first-word :: $f.tags ∪
+                     (Hesitation ⊆ $f.tags ⟹ Spacing)
   | $r:run-words $v:later-word
-      :: $v.tags ∪ (Uncounted ⊆ $v.tags ⟹ Open-Stress ∩ $r.tags)
+      :: $v.tags ∪
+         (Uncounted ⊆ $v.tags ⟹ Open-Stress ∩ $r.tags)
   | $s:run-words $y:joined-hesitation :: $y.tags
-  | $t:run-words $u:space-hesitation :: $u.tags ∪ Spacing
-  | $q:run-words $x:space-piece :: $x.tags ∪ Spacing
-  | $o:run-words $n:opener-space :: $n.tags ∪ Opener-Space
+  | $t:run-words $u:space-hesitation :: Spacing ∪ $u.tags
+  | $q:run-words $x:space-piece :: Spacing ∪ $x.tags
+  | $o:run-words $n:opener-space :: Opener-Space ∪ $n.tags
 %conditions
   Y-Letters ⊆ $s.tags,
   (Spacing ∪ Opener-Space) ∩ $s.tags = ∅,
@@ -120,7 +125,7 @@ The redefined `run-words` keeps the join conditions of [../common/forms.md](../c
 %rule rahoi-tail
   | ($v:later-word | $r:rahoi-tail $v:later-word) :: $v.tags
   | $s:rahoi-tail $y:joined-hesitation :: $y.tags
-  | $o:rahoi-tail $n:opener-space :: $n.tags ∪ Opener-Space
+  | $o:rahoi-tail $n:opener-space :: Opener-Space ∪ $n.tags
 %conditions
   RAhOI ⊈ $r.tags ∨ ¬$v.onward.begins(rahoi-form),
   Y-Letters ⊈ $r.tags ∨ Y-Letters ⊈ $v.tags,
@@ -133,13 +138,13 @@ The redefined `run-words` keeps the join conditions of [../common/forms.md](../c
 %rule space-hesitation
   $w:source-word<Hesitation>
 %emits
-  $ :: $w.tags ∪ Spacing ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
+  $ :: Spacing ∪ $w.tags ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
 -- A hesitation after a text opener counts as space where that opener opens a text. The tag carries through following hesitation.
 %rule opener-space
   $w:source-word<Hesitation>
 %emits
-  $ :: $w.tags ∪ Opener-Space ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
+  $ :: Opener-Space ∪ $w.tags ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
 %rule space-piece
   ordinary-space-piece | split-later-y
@@ -150,7 +155,7 @@ The redefined `run-words` keeps the join conditions of [../common/forms.md](../c
 %conditions
   ¬$w.onward.begins(split-later-y)
 %emits
-  $ :: $w.tags ∪ Spacing ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
+  $ :: Spacing ∪ $w.tags ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
 -- A run of hesitation preserves a pending quote opener for the next run.
 %rule only-hesitation

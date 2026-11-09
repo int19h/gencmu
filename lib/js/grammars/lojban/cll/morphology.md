@@ -45,25 +45,27 @@ A cmavo's stress is free (CLL[^cll-s3-9]), so any of its vowels can be a capital
 ```jbogenbau
 %rule cmavo-shape
   | $c:plain-cmavo-body
-      :: Onset ∪ Continued
-       ∪ ($c.matches(first-marked-cmavo) ⟹ Initial-Stress)
-       ∪ ($c.matches(last-marked-cmavo) ⟹ Final-Stress)
-       ∪ ($c.matches(name-intro-cmavo) ⟹ Name-Intro)
+      :: Onset Continued ∪
+         ($c.matches(first-marked-cmavo) ⟹ Initial-Stress) ∪
+         ($c.matches(last-marked-cmavo) ⟹ Final-Stress) ∪
+         ($c.matches(name-intro-cmavo) ⟹ Name-Intro)
   | $v:vowel-cmavo
-      :: Continued
-       ∪ ($v.matches(first-marked-cmavo) ⟹ Initial-Stress)
-       ∪ ($v.matches(last-marked-cmavo) ⟹ Final-Stress)
+      :: Continued ∪
+         ($v.matches(first-marked-cmavo) ⟹ Initial-Stress) ∪
+         ($v.matches(last-marked-cmavo) ⟹ Final-Stress)
   | $l:letter-cmavo
-      :: Onset ∪ Cy ∪ Uncounted ∪ ($l.matches(stress-mark) ⟹ Initial-Stress ∪ Final-Stress)
+      :: Onset Cy Uncounted ∪ ($l.matches(stress-mark) ⟹ Initial-Stress ∪ Final-Stress)
   | $p:y-pair-cmavo
-      :: Continued ∪ ($p.matches(y-letters) ⟹ Uncounted)
-       ∪ ($p.matches(first-marked-cmavo) ⟹ Initial-Stress)
-       ∪ ($p.matches(last-marked-cmavo) ⟹ Final-Stress)
+      :: Continued ∪
+         ($p.matches(y-letters) ⟹ Uncounted) ∪
+         ($p.matches(first-marked-cmavo) ⟹ Initial-Stress) ∪
+         ($p.matches(last-marked-cmavo) ⟹ Final-Stress)
   | $w:warned-cmavo
-      :: Continued ∪ Cmavo-Warning
-       ∪ ($w.first-token.matches(consonant) ⟹ Onset) ∪ ($w.matches(y-letters) ⟹ Uncounted)
-       ∪ ($w.matches(first-marked-cmavo) ⟹ Initial-Stress)
-       ∪ ($w.matches(last-marked-cmavo) ⟹ Final-Stress)
+      :: Continued Cmavo-Warning ∪
+         ($w.first-token.matches(consonant) ⟹ Onset) ∪
+         ($w.matches(y-letters) ⟹ Uncounted) ∪
+         ($w.matches(first-marked-cmavo) ⟹ Initial-Stress) ∪
+         ($w.matches(last-marked-cmavo) ⟹ Final-Stress)
 %conditions
   ¬$c.matches(has-comma),
   ¬$v.matches(has-comma),
@@ -164,17 +166,21 @@ A brivla is a gismu, a lujvo or a borrowing (CLL[^cll-s4-3]). It ends in a vowel
 ```jbogenbau
 %rule brivla-shape :: Stress-Guard
   | $m:brivla-word
-      :: $m.tags ∪ Continued ∪ (First-Marked ⊆ $m.tags(brivla-scan) ⟹ Initial-Stress)
+      :: Continued ∪
+         $m.tags ∪
+         (First-Marked ⊆ $m.tags(brivla-scan) ⟹ Initial-Stress)
   | $u:brivla-word
-      :: $u.tags ∪ Open-Stress ∪ (N2 ⊆ $u.tags(brivla-scan) ⟹ Initial-Stress)
+      :: Open-Stress ∪
+         $u.tags ∪
+         (N2 ⊆ $u.tags(brivla-scan) ⟹ Initial-Stress)
 %conditions
   S2 ⊆ $m.tags(brivla-scan),
   S0 ⊆ $u.tags(brivla-scan),
   (N2 ∪ N3) ∩ $u.tags(brivla-scan) ≠ ∅
 
 %rule brivla-word
-  | gismu-form :: Gismu ∪ Onset
-  | $l:lujvo-form :: Lujvo ∪ Onset
+  | gismu-form :: Gismu Onset
+  | $l:lujvo-form :: Lujvo Onset
   | $f:fuhivla-word :: Fuhivla ∪ ($f.first-token.matches(consonant) ⟹ Onset)
 %conditions
   ¬$l.matches(has-comma)
@@ -440,11 +446,11 @@ Pauses surround a name (rules 2 and 4), so its shape carries neither `Onset` nor
 ```jbogenbau
 %rule cmevla-shape
   $n:cmevla
-    :: ($n.first-token.matches(consonant) ⟹ Name-Onset)
-     ∪ (First-Marked ⊆ $n.tags(name-scan)
-        ∨ Any-Marked ⊈ $n.tags(name-scan) ∧ First-Counted ⊆ $n.tags(name-scan)
-          ∧ (N1 ∪ N2) ∩ $n.tags(name-scan) ≠ ∅
-        ⟹ Initial-Stress)
+      :: ($n.first-token.matches(consonant) ⟹ Name-Onset) ∪
+         (First-Marked ⊆ $n.tags(name-scan)
+            ∨ Any-Marked ⊈ $n.tags(name-scan) ∧ First-Counted ⊆ $n.tags(name-scan)
+              ∧ (N1 ∪ N2) ∩ $n.tags(name-scan) ≠ ∅
+            ⟹ Initial-Stress)
 %conditions
   ¬$n.matches(la-doi-inside)
 

@@ -176,7 +176,7 @@ The `Vowel` tag marks the five full vowels and not `y`. So `zbalermorna-plain-fu
 %rule stressed-two-phonemes(@C, @A, @Image, @B)
   @C zbalermorna-stress
 %emits
-  $ :: Stressed ∪ Vowel := @A :- @Image, ε :: Vowel := @B
+  $ :: Stressed Vowel := @A :- @Image, ε :: Vowel := @B
 
 %rule zbalermorna-stressed-ai = stressed-two-phonemes(
   ("‹ZBALERMORNA HUMBERT VOWEL SIGN AIBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN AIBU›"),
@@ -201,7 +201,7 @@ The `Vowel` tag marks the five full vowels and not `y`. So `zbalermorna-plain-fu
 
 %rule zbalermorna-marked-vowel
   zbalermorna-shorthand-mark $v:zbalermorna-shorthand-vowel
-    :: $v.tags := $v.emitted.value :- $v.emitted.image
+      :: $v.tags := $v.emitted.value :- $v.emitted.image
 
 %rule zbalermorna-shorthand-vowel
   plain-vowel | stressed-vowel

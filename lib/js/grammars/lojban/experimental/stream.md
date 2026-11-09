@@ -89,7 +89,10 @@ The spelling guard also covers `ze'ei`, so punctuation cannot escape into an ear
 %extend-rule constructor-word
   zehei-word
 
-%rule zehei-compound :: Word ∪ $r.classes ∪ ($r.tags ∩ (Cmavo ∪ Indicator ∪ Y-Letter)) ∪ (Fault ∩ $l.tags)
+%rule zehei-compound :: Word ∪
+                        $r.classes ∪
+                        ($r.tags ∩ (Cmavo ∪ Indicator ∪ Y-Letter)) ∪
+                        (Fault ∩ $l.tags)
   | $l:unit<¬Trailing-Pause> compound-gap<¬Punctuation-Material> zehei-word zei-right-gap
     $r:nonmagic-zehei-right
   | su-boundary? $l:unit<Trailing-Pause> suppressed-gap<¬Punctuation-Material> zehei-word

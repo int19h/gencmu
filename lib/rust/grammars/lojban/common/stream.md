@@ -65,7 +65,8 @@ The rule `empty` reads a prefix that leaves no units. Its alternatives use `text
 
 %rule stream
   | empty $u:unit :: $u.tags
-  | $s:stream spacing $u:unit :: $s.tags ∪ $u.tags
+  | $s:stream spacing $u:unit :: $s.tags ∪
+                                 $u.tags
   | $s:stream spacing erasure :: $s.tags
 
 %rule unit
@@ -79,7 +80,7 @@ The rule `empty` reads a prefix that leaves no units. Its alternatives use `text
   si-erasure
   | sa-su? sa-erasure
 
-%rule fault-unit :: Word ∪ Fault
+%rule fault-unit :: Word Fault
   | empty cmavo-token<BU> :: BY
   | lehu-marker :: LEhU
 %emits
@@ -139,14 +140,17 @@ A quiet pause carries only a spacing boundary. A material pause preserves punctu
 
 %rule spacing
   [$p:pause-run] [$h:hesitations [$q:pause-run]]
-    :: ($p ⟹ Gap-Pause) ∪ ($q ⟹ Gap-Pause) ∪ ($h ⟹ $h.tags ∩ (Gap-Pause ∪ $MATERIAL))
-     ∪ ($p ⟹ $p.tags ∩ $MATERIAL) ∪ ($q ⟹ $q.tags ∩ $MATERIAL)
+      :: ($p ⟹ Gap-Pause) ∪
+         ($q ⟹ Gap-Pause) ∪
+         ($h ⟹ $h.tags ∩ (Gap-Pause ∪ $MATERIAL)) ∪
+         ($p ⟹ $p.tags ∩ $MATERIAL) ∪
+         ($q ⟹ $q.tags ∩ $MATERIAL)
 %conditions
   Punctuation-Material ⊈ $.tags ∨ ¬$.following-tokens.begins(zei-spelling)
 
 %rule skipped
   $s:spacing [$e:erasures $t:spacing]
-    :: ($s.tags ∪ ($e ⟹ $e.tags) ∪ ($t ⟹ $t.tags)) ∩ (Gap-Pause ∪ $MATERIAL)
+      :: ($s.tags ∪ ($e ⟹ $e.tags) ∪ ($t ⟹ $t.tags)) ∩ (Gap-Pause ∪ $MATERIAL)
 %conditions
   Punctuation-Material ⊈ $.tags ∨ ¬$.following-tokens.begins(zei-spelling)
 
@@ -221,8 +225,10 @@ Without SA or SU input, both feature states admit the same plain words. The rule
 
 %rule y-bu-word
   $b:y-key [pause-run] $u:cmavo-token<BU>
-    :: Word ∪ BY ∪ Y-Letter ∪ $b.tags
-     ∪ Run-Initial ∩ $b.first-token.tags ∪ Run-Final ∩ $u.last-token.tags
+      :: Word BY Y-Letter ∪
+         $b.tags ∪
+         Run-Initial ∩ $b.first-token.tags ∪
+         Run-Final ∩ $u.last-token.tags
 %emits
   $
 
@@ -281,7 +287,7 @@ Quotes and the right operand of ZEI share this rule. It executes no erasure. Quo
 
 %rule pause-gap
   [quiet-gap] $p:pause-run [$h:hesitations [$q:pause-run]]
-    :: ($p.tags ∪ ($h ⟹ $h.tags) ∪ ($q ⟹ $q.tags)) ∩ $MATERIAL := $PAUSE
+      :: ($p.tags ∪ ($h ⟹ $h.tags) ∪ ($q ⟹ $q.tags)) ∩ $MATERIAL := $PAUSE
 
 %rule word-gap
   ε | quiet-gap | pause-gap
@@ -347,7 +353,7 @@ An attached opening mark supplies one gap space, even without whitespace. `quote
   ZO
 
 %rule word-quote-marker
-  $q:read-word [quote-marker-end] :: $q.classes ∪ Word ∪ Cmavo
+  $q:read-word [quote-marker-end] :: Word Cmavo ∪ $q.classes
 %conditions
   $q.classes ∩ $WORD-QUOTE-MARKERS ≠ ∅,
   ¬$.following-tokens.begins(quote-marker-end)
@@ -391,7 +397,7 @@ The hesitation rule refuses a raw y letteral. In `zo'oi .y. bu`, the quote there
   ZOhOI ∪ MEhOI
 
 %rule single-marker
-  $q:read-word [quote-marker-end] :: $q.classes ∪ Word ∪ Cmavo
+  $q:read-word [quote-marker-end] :: Word Cmavo ∪ $q.classes
 %conditions
   $q.classes ∩ $SINGLE-QUOTE-MARKERS ≠ ∅,
   ¬$.following-tokens.begins(quote-marker-end)
@@ -484,7 +490,7 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
   ZOI
 
 %rule zoi-marker
-  $q:read-word [quote-marker-end] :: $q.classes ∪ Word ∪ Cmavo
+  $q:read-word [quote-marker-end] :: Word Cmavo ∪ $q.classes
 %conditions
   $q.classes ∩ $ZOI-MARKERS ≠ ∅,
   ¬$.following-tokens.begins(quote-marker-end)
@@ -577,7 +583,8 @@ The raw rule rejoins every piece of one y run. Its internal gap accepts pauses, 
 
 ```jbogenbau
 %rule y-key
-  $y:y-run :: ($y.value = "ie'o" ⟹ Ieho) ∪ ($y.value = "y" ⟹ Y-Key)
+  $y:y-run :: ($y.value = "ie'o" ⟹ Ieho) ∪
+              ($y.value = "y" ⟹ Y-Key)
 
 %rule raw-close
   raw-run | raw-y-close
@@ -612,7 +619,8 @@ The raw rule rejoins every piece of one y run. Its internal gap accepts pauses, 
   $h.value ≠ "ie'o"
 
 %rule raw-y-key
-  $y:raw-y-base :: ($y.value = "ie'o" ⟹ Ieho) ∪ ($y.value = "y" ⟹ Y-Key)
+  $y:raw-y-base :: ($y.value = "ie'o" ⟹ Ieho) ∪
+                   ($y.value = "y" ⟹ Y-Key)
 
 %rule body-with-y-close :: $c.tags
   | [quote-attachment] $c:raw-y-close [raw-tokens]
@@ -646,14 +654,14 @@ A LOhU quote ends at the first LEhU. Its body reads Lojban words through the sha
   $
 
 %rule lohu-marker
-  $q:read-word :: $q.classes ∪ Word ∪ Cmavo
+  $q:read-word :: Word Cmavo ∪ $q.classes
 %conditions
   LOhU ⊆ $q.classes
 %emits
   $
 
 %rule lehu-marker
-  $q:read-word :: $q.classes ∪ Word ∪ Cmavo
+  $q:read-word :: Word Cmavo ∪ $q.classes
 %conditions
   LEhU ⊆ $q.classes
 %emits
@@ -744,13 +752,13 @@ lojban/cll requires pauses around a direct name base of BU. It tests the source 
 %rule suppressed-gap
   skipped := ""
 
-%rule lerfu-word :: Word ∪ BY ∪ Fault ∩ $u.tags
+%rule lerfu-word :: Word BY ∪ Fault ∩ $u.tags
   | $u:unit<¬Trailing-Pause> compound-gap cmavo-token<BU>
   | su-boundary? $u:unit<Trailing-Pause> suppressed-gap cmavo-token<BU>
 %emits
   $
 
-%rule zei-compound :: Word ∪ BRIVLA ∪ Fault ∩ $l.tags
+%rule zei-compound :: Word BRIVLA ∪ Fault ∩ $l.tags
   | $l:unit<¬Trailing-Pause> compound-gap<¬Punctuation-Material> cmavo-token<ZEI> zei-right-gap
     $r:read-word
   | su-boundary? $l:unit<Trailing-Pause> suppressed-gap<¬Punctuation-Material> cmavo-token<ZEI>
@@ -867,7 +875,7 @@ The rule `sa-key` refuses an SA key because a run of SA forms one counted erasur
   SA ⊈ $.tags
 
 %rule next-word-class
-  spacing $w:read-word [raw-tokens] :: $w.classes ∪ Has-Word
+  spacing $w:read-word [raw-tokens] :: Has-Word ∪ $w.classes
 
 %rule sa-run
   cmavo-token<SA>

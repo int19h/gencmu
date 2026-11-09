@@ -21,7 +21,8 @@ In the experimental pipeline, an unfinished marker carries `Fault` unless a [`co
 ```jbogenbau
 %redefine-rule word
   $c:read-word
-    :: $c.tags ∪ (LOhAI ⊆ $c.classes ∧ ¬$c.following-tokens.begins(lohai-constructor-tail) ⟹ Fault)
+      :: $c.tags ∪
+         (LOhAI ⊆ $c.classes ∧ ¬$c.following-tokens.begins(lohai-constructor-tail) ⟹ Fault)
 %conditions
   $c.classes ∩ $MAGIC-WORDS = ∅,
   ¬$c.onward.begins(quote)
@@ -39,7 +40,7 @@ In the experimental pipeline, an unfinished marker carries `Fault` unless a [`co
   | $e:lehai-marker :: $e.tags
   | $r:lohai-run word-gap [lohai-run word-gap] lehai-marker :: $r.tags
 %emits
-  $ :: $.tags ∪ Quote
+  $ :: Quote ∪ $.tags
 
 %rule lohai-run :: $m.tags
   | $m:lohai-marker
@@ -59,14 +60,14 @@ In the experimental pipeline, an unfinished marker carries `Fault` unless a [`co
   $ :: Word
 
 %rule lohai-marker
-  $q:read-word :: $q.classes ∪ Word ∪ Cmavo
+  $q:read-word :: Word Cmavo ∪ $q.classes
 %conditions
   LOhAI ⊆ $q.classes
 %emits
   $
 
 %rule lehai-marker
-  $q:LEhAI :: $q.classes ∪ Word ∪ Cmavo
+  $q:LEhAI :: Word Cmavo ∪ $q.classes
 %emits
   $
 ```

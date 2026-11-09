@@ -237,7 +237,7 @@ The Latin letters `q`, `w`, `x` and `y` are not Eberban letters. Like every othe
 %rule foreign-letter
   plain(foreign-char)
 %emits
-  $ :: Space ∪ Foreign-Letter := " "
+  $ :: Space Foreign-Letter := " "
 
 %rule foreign-char
   "q" | "Q" | "w" | "W" | "x" | "X" | "y" | "Y"

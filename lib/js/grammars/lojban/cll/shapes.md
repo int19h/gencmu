@@ -179,22 +179,24 @@ So a brivla with marked stress has `S2`, and one without any capital vowel has `
 ```jbogenbau
 %rule brivla-scan
   | $i:brivla-item
-      :: (Counted ⊆ $i.tags ⟹ N1) ∪ (Counted ⊈ $i.tags ⟹ N0)
-       ∪ (Marked ⊆ $i.tags ⟹ S1 ∪ First-Marked) ∪ (Marked ⊈ $i.tags ⟹ S0)
-       ∪ Single-End ∩ $i.tags
+      :: Single-End ∩ $i.tags ∪
+         (Counted ⊆ $i.tags ⟹ N1) ∪
+         (Counted ⊈ $i.tags ⟹ N0) ∪
+         (Marked ⊆ $i.tags ⟹ S1 ∪ First-Marked) ∪
+         (Marked ⊈ $i.tags ⟹ S0)
   | $s:brivla-scan $j:brivla-item
-      :: (S0 ⊆ $s.tags ∧ Marked ⊈ $j.tags ⟹ S0)
-       ∪ (S0 ⊆ $s.tags ∧ Marked ⊆ $j.tags ⟹ S1)
-       ∪ (S1 ⊆ $s.tags ∧ Counted ⊈ $j.tags ⟹ S1)
-       ∪ (S1 ⊆ $s.tags ∧ Counted ⊆ $j.tags ∧ Marked ⊈ $j.tags ⟹ S2)
-       ∪ (S2 ⊆ $s.tags ∧ Counted ⊈ $j.tags ⟹ S2)
-       ∪ (Counted ⊈ $j.tags ⟹ (N0 ∪ N1 ∪ N2 ∪ N3) ∩ $s.tags)
-       ∪ (Counted ⊆ $j.tags ∧ N0 ⊆ $s.tags ⟹ N1)
-       ∪ (Counted ⊆ $j.tags ∧ N1 ⊆ $s.tags ⟹ N2)
-       ∪ (Counted ⊆ $j.tags ∧ (N2 ∪ N3) ∩ $s.tags ≠ ∅ ⟹ N3)
-       ∪ First-Marked ∩ $s.tags
-       ∪ (N0 ⊆ $s.tags ∧ Marked ⊆ $j.tags ⟹ First-Marked)
-       ∪ Single-End ∩ $j.tags
+      :: First-Marked ∩ $s.tags ∪
+         Single-End ∩ $j.tags ∪
+         (S0 ⊆ $s.tags ∧ Marked ⊈ $j.tags ⟹ S0) ∪
+         (S0 ⊆ $s.tags ∧ Marked ⊆ $j.tags ⟹ S1) ∪
+         (S1 ⊆ $s.tags ∧ Counted ⊈ $j.tags ⟹ S1) ∪
+         (S1 ⊆ $s.tags ∧ Counted ⊆ $j.tags ∧ Marked ⊈ $j.tags ⟹ S2) ∪
+         (S2 ⊆ $s.tags ∧ Counted ⊈ $j.tags ⟹ S2) ∪
+         (Counted ⊈ $j.tags ⟹ (N0 ∪ N1 ∪ N2 ∪ N3) ∩ $s.tags) ∪
+         (Counted ⊆ $j.tags ∧ N0 ⊆ $s.tags ⟹ N1) ∪
+         (Counted ⊆ $j.tags ∧ N1 ⊆ $s.tags ⟹ N2) ∪
+         (Counted ⊆ $j.tags ∧ (N2 ∪ N3) ∩ $s.tags ≠ ∅ ⟹ N3) ∪
+         (N0 ⊆ $s.tags ∧ Marked ⊆ $j.tags ⟹ First-Marked)
 %conditions
   Single-End ⊈ $s.tags ∨ ¬$s.last-token.onward.begins(brivla-diphthong)
 
@@ -202,7 +204,7 @@ So a brivla with marked stress has `S2`, and one without any capital vowel has `
   | consonant
   | "y"<¬Stressed>
   | "'" | Syllable-Break
-  | $v:vowel :: Counted ∪ Single-End ∪ ($v.matches(capital-vowel) ⟹ Marked)
+  | $v:vowel :: Counted Single-End ∪ ($v.matches(capital-vowel) ⟹ Marked)
   | $d:brivla-diphthong :: Counted ∪ ($d.matches(stress-mark) ⟹ Marked)
 
 %rule brivla-diphthong
@@ -231,32 +233,34 @@ The forms stage uses the stress on the first syllable of a name, for the pause r
 ```jbogenbau
 %rule name-scan
   | $i:name-item
-      :: (Nucleus ⊆ $i.tags ⟹ V1) ∪ (Nucleus ⊈ $i.tags ⟹ V0)
-       ∪ (Counted ⊆ $i.tags ⟹ N1 ∪ First-Counted) ∪ (Counted ⊈ $i.tags ⟹ N0)
-       ∪ (Marked ⊆ $i.tags ⟹ First-Marked ∪ Any-Marked)
-       ∪ Single-End ∩ $i.tags
+      :: Single-End ∩ $i.tags ∪
+         (Nucleus ⊆ $i.tags ⟹ V1) ∪
+         (Nucleus ⊈ $i.tags ⟹ V0) ∪
+         (Counted ⊆ $i.tags ⟹ N1 ∪ First-Counted) ∪
+         (Counted ⊈ $i.tags ⟹ N0) ∪
+         (Marked ⊆ $i.tags ⟹ First-Marked ∪ Any-Marked)
   | $s:name-scan $j:name-item
-      :: (V1 ⊆ $s.tags ∨ Nucleus ⊆ $j.tags ⟹ V1)
-       ∪ (V0 ⊆ $s.tags ∧ Nucleus ⊈ $j.tags ⟹ V0)
-       ∪ First-Counted ∩ $s.tags
-       ∪ (V0 ⊆ $s.tags ∧ Counted ⊆ $j.tags ⟹ First-Counted)
-       ∪ First-Marked ∩ $s.tags
-       ∪ (V0 ⊆ $s.tags ∧ Marked ⊆ $j.tags ⟹ First-Marked)
-       ∪ Any-Marked ∩ $s.tags
-       ∪ (Marked ⊆ $j.tags ⟹ Any-Marked)
-       ∪ (Counted ⊈ $j.tags ⟹ (N0 ∪ N1 ∪ N2 ∪ N3) ∩ $s.tags)
-       ∪ (Counted ⊆ $j.tags ∧ N0 ⊆ $s.tags ⟹ N1)
-       ∪ (Counted ⊆ $j.tags ∧ N1 ⊆ $s.tags ⟹ N2)
-       ∪ (Counted ⊆ $j.tags ∧ (N2 ∪ N3) ∩ $s.tags ≠ ∅ ⟹ N3)
-       ∪ Single-End ∩ $j.tags
+      :: First-Counted ∩ $s.tags ∪
+         First-Marked ∩ $s.tags ∪
+         Any-Marked ∩ $s.tags ∪
+         Single-End ∩ $j.tags ∪
+         (V1 ⊆ $s.tags ∨ Nucleus ⊆ $j.tags ⟹ V1) ∪
+         (V0 ⊆ $s.tags ∧ Nucleus ⊈ $j.tags ⟹ V0) ∪
+         (V0 ⊆ $s.tags ∧ Counted ⊆ $j.tags ⟹ First-Counted) ∪
+         (V0 ⊆ $s.tags ∧ Marked ⊆ $j.tags ⟹ First-Marked) ∪
+         (Marked ⊆ $j.tags ⟹ Any-Marked) ∪
+         (Counted ⊈ $j.tags ⟹ (N0 ∪ N1 ∪ N2 ∪ N3) ∩ $s.tags) ∪
+         (Counted ⊆ $j.tags ∧ N0 ⊆ $s.tags ⟹ N1) ∪
+         (Counted ⊆ $j.tags ∧ N1 ⊆ $s.tags ⟹ N2) ∪
+         (Counted ⊆ $j.tags ∧ (N2 ∪ N3) ∩ $s.tags ≠ ∅ ⟹ N3)
 %conditions
   Single-End ⊈ $s.tags ∨ ¬$s.last-token.onward.begins(brivla-diphthong | y-diphthong)
 
 %rule name-item
   | consonant | "'" | Syllable-Break
-  | $v:vowel :: Nucleus ∪ Counted ∪ Single-End ∪ ($v.matches(capital-vowel) ⟹ Marked)
+  | $v:vowel :: Nucleus Counted Single-End ∪ ($v.matches(capital-vowel) ⟹ Marked)
   | $y:"y" :: Nucleus ∪ ($y.matches(stress-mark) ⟹ Marked)
-  | $d:brivla-diphthong :: Nucleus ∪ Counted ∪ ($d.matches(stress-mark) ⟹ Marked)
+  | $d:brivla-diphthong :: Nucleus Counted ∪ ($d.matches(stress-mark) ⟹ Marked)
   | $e:y-diphthong :: Nucleus ∪ ($e.matches(stress-mark) ⟹ Marked)
 
 %rule name-vowel
