@@ -1122,6 +1122,7 @@ Before lowering attaches a clause, it simplifies the clause for the production, 
 - Lowering reduces `¬`, `∧` and `∨` over a true or false part as logic says.
 - A constant is its value here. So a constant whose value is the empty set is an empty set.
 - In a Boolean position, a set term that simplifies to the empty set becomes false.
+- In a Boolean position, a set term that simplifies to a closed set that is not empty becomes true. A closed term holds no capture, no parameter and no query.
 - Lowering drops a term's empty set, written `∅` or left by a guard, from a union. A union of nothing but empty sets is the empty set, as is an intersection with one. A difference whose first part is empty is empty. If its second part is empty, the difference is its first part. A guarded term whose term is the empty set is the empty set.
 
 Since the engine never evaluates a reduced part, the reduction is part of the order of evaluation (§10). The clause uses each capture that it still mentions after simplification. Then the simplified clauses attach as follows:
@@ -1317,9 +1318,9 @@ The order between steps, between items and between sets is not observable either
 
 A target choice is a nonempty ordered list of ordinary rules, exact instances, and user terminal tags. Written alternatives use `|`, and repeated targets change nothing. Each terminal target reads exactly one original token carrying its tag. Whole, prefix, suffix, and part terminal queries use a helper (§3.10). A rule target runs a nested parse of that rule.
 
-`span.matches(S)`, `span.begins(S)`, and `span.ends(S)` try the targets in written order until one succeeds or raises a grammar error. Every target must resolve, even where an earlier target always succeeds. `span.tags(rule)` accepts only one rule target. A rule target resolves where its rule or exact instance is defined in the stage (§9). A terminal target resolves by its name alone (§10).
+The targets of a shorthand run in written order, as the operands of `∨` do (§10). Every target must resolve, even where an earlier target always succeeds. `span.tags(rule)` accepts only one rule target. A rule target resolves where its rule or exact instance is defined in the stage (§9). A terminal target resolves by its name alone (§10).
 
-Whole, prefix, suffix, part, and tag queries run nested recognition for a rule target. Suffix recognition follows §4.4. For an ordinary span, a nested parse recognizes only its tokens, with `rule` as the start rule, over the same lowered grammar. It applies tests and conditions as the main parse does. Whole, prefix, suffix, and part recognition of a terminal starts from its query helper (§3.10). For those queries, `rule` below names that helper.
+Queries in every mode run nested recognition for a rule target. Suffix recognition follows §4.4. For an ordinary span, a nested parse recognizes only its tokens, with `rule` as the start rule, over the same lowered grammar. It applies tests and conditions as the main parse does. Whole, prefix, suffix, and part recognition of a terminal starts from its query helper (§3.10). For those queries, `rule` below names that helper.
 
 `view.parse(C)` returns the forest of eligible witnesses of C over that view. C is any body constituent. No part of its argument syntax can bind a capture. Called rules can retain their own captures.
 
@@ -1327,7 +1328,7 @@ The mark `…` denotes unread remainder at an outer edge of C. It can stand at o
 
 Without the mark, the query covers the whole view. A final mark selects prefix mode, and an initial mark selects suffix mode. Both marks select part mode, where some part of the view is a witness. So `parse(… x …)` holds where an `x` witness stands anywhere in the view. The remainder never becomes a witness part.
 
-The four shorthands rewrite before recognition. `matches(A | B)` becomes `parse(A) ∨ parse(B)`, one `parse` for each target, in written order. `begins(A | B)` becomes `parse(A …) ∨ parse(B …)`, and `ends(A | B)` becomes `parse(… A) ∨ parse(… B)`. `tags(R)` becomes `parse(R).tags`, with one rule target `R`. So each shorthand stays a condition, and the shorthands share the target, memo entry, and recursive-query test of `parse`.
+The four shorthands rewrite before recognition. `matches(A | B)` becomes `(parse(A) ∨ parse(B))`, one `parse` for each target, in written order. `begins(A | B)` becomes `(parse(A …) ∨ parse(B …))`, and `ends(A | B)` becomes `(parse(… A) ∨ parse(… B))`. Each rewrite is one condition in its position. `tags(R)` becomes `parse(R).tags`, with one rule target `R`. So each shorthand stays a condition, and the shorthands share the target, memo entry, and recursive-query test of `parse`.
 
 Alignment, tags, and error filtering observe only the witness. A `parse` with an initial mark on a restored view is a document error. A final mark alone raises no such error (§4.4).
 
@@ -3222,7 +3223,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
   | Expression `seq`, `choice`, `ranked`, `and`, `optional`, `repeat`, `capture`, `splice`, or `test` | Parent depth plus one |
   | Expression `literal` or `range` | Parent depth for the string term or each endpoint |
   | Term `union`, `intersection`, `difference`, `if`, `concat`, `method`, or `pattern` | Parent depth plus one |
-  | Condition `any`, `all`, `not`, `if`, `method`, or comparison | Parent depth plus one |
+  | Condition `any`, `all`, `not`, `if`, `method`, `nonempty`, or comparison | Parent depth plus one |
   | Pattern `union`, `intersection`, `difference`, path, or `test` | Parent depth plus one |
   | Pattern `literal` or `range` | Parent depth for the string term or each endpoint |
   | Node test or bare list with `children` | Each child item is at the node's depth plus one |
@@ -3527,7 +3528,7 @@ In a set operation, a scalar string converts to its singleton string set. This i
 
 `∪`, `∩`, and `∖` combine tag sets, string sets, or patterns of one type. Plain parentheses preserve type. `∩` binds tighter than `∪` and `∖`. Those two bind equally and group from the left, so `a ∖ b ∪ c` is `(a ∖ b) ∪ c`.
 
-`∅` takes its kind from the other side of its operator or comparison. A tag term, emission item or tag test also gives it the required tag-set type. A guarded term supplies the set kind of its consequent. A Boolean position gives `∅` no kind. A condition that is only `∅` is an error of the document.
+`∅` takes its kind from the other side of its operator or comparison. A tag term, emission item or tag test also gives it the required tag-set type. A guarded term supplies the set kind of its consequent. A Boolean position gives `∅` no kind. So a bare `∅` in a Boolean position is an error of the document, as in `∅`, `¬∅` or `$y ∨ ∅`.
 
 In a `%redefine-const`, the type that the constant keeps (§2) gives the value its kind in the same way. So after `%const $A A`, `%redefine-const $A ∅` makes `$A` the empty tag set. An expression whose kind nothing gives is an error of the document. So `%const $E ∅` is an error.
 
@@ -3541,7 +3542,7 @@ Repeated targets are accepted and change nothing. Engine tags cannot be targets.
 
 Targets use `|` separators, without constants or strings. Commas inside an exact instance call separate its arguments only. Parentheses around one target preserve that target. A grouped choice is invalid.
 
-A terminal target reads exactly one token carrying its tag. Query alternatives evaluate left to right and stop at the first success or grammar error. Every target must resolve, including alternatives that evaluation never reaches.
+A terminal target reads exactly one token carrying its tag. Boundary alternatives evaluate left to right and stop at the first success or grammar error. Every target must resolve, including alternatives that evaluation never reaches.
 
 A rule target resolves where its rule or exact instance is defined in the stage (§9). A terminal target resolves by its name alone. It need not stand in any body or tag term. If no input token carries its tag, the query never holds. A boundary target must also be buildable (§9.3).
 

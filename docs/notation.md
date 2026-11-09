@@ -1138,12 +1138,12 @@ For example, `$x.tags ∩ UI` and `$x.tags ∩ UI ⊈ ∅` give the same conditi
 
 The four query shorthands are defined by rewriting:
 
-- `span.matches(A | B)` is `span.parse(A) ∨ span.parse(B)`.
-- `span.begins(A | B)` is `span.parse(A …) ∨ span.parse(B …)`.
-- `span.ends(A | B)` is `span.parse(… A) ∨ span.parse(… B)`.
+- `span.matches(A | B)` is `(span.parse(A) ∨ span.parse(B))`.
+- `span.begins(A | B)` is `(span.parse(A …) ∨ span.parse(B …))`.
+- `span.ends(A | B)` is `(span.parse(… A) ∨ span.parse(… B))`.
 - `span.tags(R)` is `span.parse(R).tags`.
 
-Each shorthand rewrites each target of `S` on its own, in written order. So each shorthand stays a condition, and a target list runs from left to right as `∨` does. `R` is one rule target, and it becomes the body of its `parse`. Every other rule about the shorthands follows from the rules for `parse` and for `∨`. The rules below are the only ones that the rewrite does not give.
+Each rewrite is one condition in its position. Each shorthand rewrites each target of `S` on its own, in written order. So each shorthand stays a condition, and a target list runs from left to right as `∨` does. `R` is one rule target, and it becomes the body of its `parse`. Every other rule about the shorthands follows from the rules for `parse` and for `∨`. Besides the argument form of `S` above, the only rule that the rewrite does not give is this.
 
 `span.tags(R)` takes one rule target. A choice of targets or a terminal tag there is an error.
 
