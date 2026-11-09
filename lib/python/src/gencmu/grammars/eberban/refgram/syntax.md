@@ -680,11 +680,11 @@ A quote with written `cai` retains its own recovery scope. Without `cai`, a quot
   *select-empty
   | *modified-empty
 
-%rule unmatched-tail
+%rule unmatched-tail :: ($t ⟹ $t.tags)
   | (unmatched-resume step-tail [ri-continuation] [$t:unmatched-tail]
-      | *resume-chain-empty step-tail [ri-continuation] [$t:unmatched-tail]) :: ($t ⟹ $t.tags)
+      | *resume-chain-empty step-tail [ri-continuation] [$t:unmatched-tail])
   | $c:unmatched-closer [ri-continuation | definition] [$t:unmatched-tail]
-      :: ($c.tags ∩ DAI) ∪ ($t ⟹ $t.tags)
+      :: ($c.tags ∩ DAI)
 
 %rule unmatched-closer
   unmatched-fi | unmatched-vei | unmatched-be | unmatched-pei | unmatched-bu | unmatched-dai

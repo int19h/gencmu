@@ -30,8 +30,8 @@ A diphthong combines two vowels in one syllable. A nucleus is a syllable's vowel
 Zantufa's Y is `y` and `ie'o`, and its `spaces` read both as space. So `ie'o` is hesitation here, as `y` is. The words stage is the stage after the forms stage. It drops the hesitation where it is space, and reads it as the base of a letter word before `bu`. A Y word attached to a word before it is not space ([stream.md](stream.md)). It keeps the form of a cmavo, so the pause rules hold for it as for any cmavo.
 
 ```jbogenbau
+-- The lexicon classifies Y forms as hesitation, including ie'o. Other particles remain words.
 %redefine-rule source-word
-  -- The lexicon classifies Y forms as hesitation, including ie'o. Other particles remain words.
   | $c:cmavo-shape :: Word ∪ Cmavo ∪ $c.tags ∪ $c.value.classify(lexicon)
   | $y:cmavo-shape :: Hesitation ∪ $y.tags
   | $b:brivla-shape :: Word ∪ BRIVLA ∪ $b.tags
@@ -66,8 +66,8 @@ This document extends the rule `word-run` of [../common/forms.md](../common/form
 The redefined `run-words` keeps the join conditions of [../common/forms.md](../common/forms.md). The condition that requires a joining tag follows from the condition that lists permitted tag combinations. The separate tag test lets the parser drop a join early, as [../common/forms.md](../common/forms.md) explains.
 
 ```jbogenbau
+-- Preserve quote state across pauses and hesitation. A quoted form belongs to rahoi-rest, not an ordinary run.
 %redefine-rule runs
-  -- Preserve quote state across pauses and hesitation. A quoted form belongs to rahoi-rest, not an ordinary run.
   | $r:run :: $r.tags
   | $p:runs pause-token $r:run :: $r.tags ∪ (RAhOI ⊆ $p.tags ∧ $r.matches(only-hesitation) ⟹ RAhOI)
   | $q:runs pause-token $s:rahoi-rest :: $s.tags
@@ -78,8 +78,8 @@ The redefined `run-words` keeps the join conditions of [../common/forms.md](../c
 %extend-rule word-run
   run-words<RAhOI> $s:rahoi-rest :: $s.tags
 
+-- Keep the inherited word joins, stress boundaries, and hesitation spacing. A pending ra'oi reserves its quoted form.
 %redefine-rule run-words
-  -- Keep the inherited word joins, stress boundaries, and hesitation spacing. A pending ra'oi reserves its quoted form.
   | $f:first-word :: $f.tags ∪ (Hesitation ⊆ $f.tags ⟹ Spacing)
   | $r:run-words $v:later-word
       :: $v.tags ∪ (Uncounted ⊆ $v.tags ⟹ Open-Stress ∩ $r.tags)
@@ -106,8 +106,8 @@ The redefined `run-words` keeps the join conditions of [../common/forms.md](../c
   Final-Stress ⊈ $r.tags ∨ (Stress-Guard ∪ Initial-Stress) ∩ $v.tags = ∅,
   Open-Stress ⊈ $r.tags ∨ Uncounted ⊆ $v.tags
 
+-- Read a quoted form and its continuation. Pass quote state through pure hesitation and repeated quotes.
 %rule rahoi-rest
-  -- Read a quoted form and its continuation. Pass quote state through pure hesitation and repeated quotes.
   | $p:rahoi-form :: ∅
   | rahoi-form $w:rahoi-tail :: $w.tags
   | rahoi-form $v:rahoi-tail $s:rahoi-rest :: $s.tags
@@ -116,8 +116,8 @@ The redefined `run-words` keeps the join conditions of [../common/forms.md](../c
   RAhOI ⊆ $v.tags,
   $h.matches(only-hesitation)
 
+-- The first word after a quoted form is not run-initial. Keep quote state, opener spacing, and the existing word joins.
 %rule rahoi-tail
-  -- The first word after a quoted form is not run-initial. Keep quote state, opener spacing, and the existing word joins.
   | ($v:later-word | $r:rahoi-tail $v:later-word) :: $v.tags
   | $s:rahoi-tail $y:joined-hesitation :: $y.tags
   | $o:rahoi-tail $n:opener-space :: $n.tags ∪ Opener-Space
@@ -129,14 +129,14 @@ The redefined `run-words` keeps the join conditions of [../common/forms.md](../c
   Opener-Space ⊈ $s.tags,
   Opener-Space ⊆ $o.tags ∨ $o.classes ∩ $TEXT-OPENERS ≠ ∅
 
+-- A hesitation after space counts as space. Before BU, the split rules reserve the final y for its letter word.
 %rule space-hesitation
-  -- A hesitation after space counts as space. Before BU, the split rules reserve the final y for its letter word.
   $w:source-word<Hesitation>
 %emits
   $ :: $w.tags ∪ Spacing ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
+-- A hesitation after a text opener counts as space where that opener opens a text. The tag carries through following hesitation.
 %rule opener-space
-  -- A hesitation after a text opener counts as space where that opener opens a text. The tag carries through following hesitation.
   $w:source-word<Hesitation>
 %emits
   $ :: $w.tags ∪ Opener-Space ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
@@ -144,22 +144,22 @@ The redefined `run-words` keeps the join conditions of [../common/forms.md](../c
 %rule space-piece
   ordinary-space-piece | split-later-y
 
+-- Reserve the final y before BU for the letter word, rather than emitting the whole run as space.
 %rule ordinary-space-piece
-  -- Reserve the final y before BU for the letter word, rather than emitting the whole run as space.
   $w:source-word<Y-Letters>
 %conditions
   ¬$w.onward.begins(split-later-y)
 %emits
   $ :: $w.tags ∪ Spacing ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
+-- A run of hesitation preserves a pending quote opener for the next run.
 %rule only-hesitation
-  -- A run of hesitation preserves a pending quote opener for the next run.
   first-word<Hesitation>
   | only-hesitation later-word<Hesitation>
   | only-hesitation joined-hesitation
 
+-- The quote takes the longest rafsi or gismu form in a complete reading. Stress separates equal-letter forms.
 %rule rahoi-form
-  -- The quote takes the longest rafsi or gismu form in a complete reading. Stress separates equal-letter forms.
   y-rafsi | long-rafsi | y-less-rafsi | gismu
 %emits
   $ :: Rafsi-Form ∪ (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
@@ -195,8 +195,8 @@ The stage gives `Opener-Space` to a hesitation directly after a text opener, and
 %rule joined-hesitation
   ordinary-joined-hesitation | split-later-y
 
+-- Reserve the final y before BU for the letter word, rather than emitting the whole attached run.
 %rule ordinary-joined-hesitation
-  -- Reserve the final y before BU for the letter word, rather than emitting the whole attached run.
   $w:source-word<Y-Letters>
 %conditions
   ¬$w.onward.begins(split-later-y)

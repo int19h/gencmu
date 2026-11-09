@@ -161,11 +161,11 @@ A brivla is a gismu, a lujvo or a borrowing (CLL[^cll-s4-3]). It ends in a vowel
 `brivla-scan` of [shapes.md](shapes.md) finds where the stress of a brivla is. A brivla whose stress is marked has every capital vowel in its penultimate counted syllable. A word can follow it with no pause. A brivla with no capital vowel is `Open-Stress`. A capital `Y` never stands in a brivla, because no rule below reads one.
 
 ```jbogenbau
-%rule brivla-shape
+%rule brivla-shape :: Stress-Guard
   | $m:brivla-word
-      :: $m.tags ∪ Stress-Guard ∪ Continued ∪ (First-Marked ⊆ $m.tags(brivla-scan) ⟹ Initial-Stress)
+      :: $m.tags ∪ Continued ∪ (First-Marked ⊆ $m.tags(brivla-scan) ⟹ Initial-Stress)
   | $u:brivla-word
-      :: $u.tags ∪ Stress-Guard ∪ Open-Stress ∪ (N2 ⊆ $u.tags(brivla-scan) ⟹ Initial-Stress)
+      :: $u.tags ∪ Open-Stress ∪ (N2 ⊆ $u.tags(brivla-scan) ⟹ Initial-Stress)
 %conditions
   S2 ⊆ $m.tags(brivla-scan),
   S0 ⊆ $u.tags(brivla-scan),

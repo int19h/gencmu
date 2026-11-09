@@ -180,8 +180,8 @@ A written KEhE also closes a KE-wrapped forethought bridi. A later reset permits
 %rule reset-head
   [CU 🆓] {terms / CU 🆓} [CU 🆓]
 
+-- I_clause !jek !joik !joik_jek in camxes-exp's paragraph, whose joik includes A. Here VUhU can follow the `.i`.
 %rule lone-i
-  -- I_clause !jek !joik !joik_jek in camxes-exp's paragraph, whose joik includes A. Here VUhU can follow the `.i`.
   $i:I
 %conditions
   ¬$i.following-tokens.begins(joik-jek-ek)
@@ -291,8 +291,8 @@ An open tail can take terms after a reset. A closed tail can take only resets an
 %rule top-subsentence
   [reset-opening] (top-sentence | prenex top-subsentence)
 
+-- sentence <- terms? bridi_tail_t1 ... (joik_jek (stag? BO_clause)? I_clause free* subsentence)*
 %redefine-rule sentence
-  -- sentence <- terms? bridi_tail_t1 ... (joik_jek (stag? BO_clause)? I_clause free* subsentence)*
   headed-bridi-tail [sentence-link]
 
 %rule sentence-link
@@ -554,8 +554,8 @@ No step names these terms. Their contained predicates use the `fewest` and `late
 %conditions
   Link-Extensible-End ⊈ $t.tags ∨ Sumti-Start ⊈ $l.tags
 
+-- term_2 <- term_3 (joik_ek stag? BO_clause term_3)*
 %rule term-bo-group
-  -- term_2 <- term_3 (joik_ek stag? BO_clause term_3)*
   | term-3
   | $g:term-3 $l:term-bo-link :: ($g.tags ∩ Sumti-Start) ∪ ($l.tags ∩ $EXTENSIBLE-END)
 %conditions
@@ -574,15 +574,15 @@ No step names these terms. Their contained predicates use the `fewest` and `late
 %const $BARE-TAG #« tag KU="" [🆓] »
 %const $BARE-NA #« NA [🆓] KU="" [🆓] »
 
+-- term_3 <- sumti / tag_term / termset
 %rule term-3
-  -- term_3 <- sumti / tag_term / termset
   | $s:sumti :: $s.tags ∪ Sumti-Start
   | tagged-term | termset | bare-na
   | soi-clause? soi-term
   | noiha-term | sohoi-term | cahei-term
 
+-- !gek !ek !joik_jek !gihek NA_clause free* KU_elidible free*
 %rule bare-na
-  -- !gek !ek !joik_jek !gihek NA_clause free* KU_elidible free*
   $n:NA 🆓 [+KU] 🆓
 %conditions
   ¬$n.onward.begins(na-connective),
@@ -603,20 +603,20 @@ No step names these terms. Their contained predicates use the `fewest` and `late
 %rule cahei-term
   CAhEI 🆓 subsentence [+KUhEI] 🆓
 
+-- tag_term: !gek tag free* followed by a sumti or KU_elidible free*
 %rule tagged-term
-  -- tag_term: !gek tag free* followed by a sumti or KU_elidible free*
   | tag $s:sumti :: $s.tags ∩ $EXTENSIBLE-END
   | tag [+KU] 🆓
 %conditions
   $ ≇ $BARE-TAG ∨ $.ends-input ∨ ($PLACE-CLOSE ∩ $.following-tokens.first-token.tags) ⊈ ∅ ∨ $.followed-by(gihek)
 
+-- termset <- gek_termset / NUhI_clause free* gek terms NUhU_elidible free* gik terms NUhU_elidible free* / NUhI_clause free* terms NUhU_elidible free*
 %redefine-rule termset
-  -- termset <- gek_termset / NUhI_clause free* gek terms NUhU_elidible free* gik terms NUhU_elidible free* / NUhI_clause free* terms NUhU_elidible free*
   | gek termset-branch gik terms [+NUhU] 🆓
   | termset-with-nuhi
 
+-- NUhI_clause free* gek terms NUhU_elidible free* gik terms: tried before NUhI_clause free* terms
 %rule gek-termset-body
-  -- NUhI_clause free* gek terms NUhU_elidible free* gik terms: tried before NUhI_clause free* terms
   gek terms [+NUhU] 🆓 gik terms
 
 %rule termset-branch
@@ -911,8 +911,8 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
 %conditions
   $m ≇ #(forethought-operator ⋰)
 
+-- quantifier <- !selbri !sumti_6 mex
 %rule mekso-fragment
-  -- quantifier <- !selbri !sumti_6 mex
   $m:mex
 %conditions
   ¬$m.without-elision.onward.begins(sumti-6 | gek-barrier | selbri)

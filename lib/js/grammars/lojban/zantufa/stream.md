@@ -75,8 +75,8 @@ Zantufa reads `y` and `ie'o` as space only after a pause or at the start of the 
 In a `lo'u` or `lo'ai` quote, the stage tags such a word `Word` only, like every other quoted word. The shared reader handles both quote bodies.
 
 ```jbogenbau
+-- spaces <- !Y initial_spaces
 %redefine-rule hesitation
-  -- spaces <- !Y initial_spaces
   $h:y-run :: ∅
 %conditions
   ¬$h.onward.begins(y-bu-word),
@@ -140,8 +140,8 @@ A word of LU, TO or LUhEI, the classes of `$TEXT-OPENERS`, that this stage reads
   $h:opener-space-token [opener-spaces]
 %erased
 
+-- initial_spaces <- (space_char / !ybu Y)+: a hesitation before bu is no space
 %rule opener-space-token
-  -- initial_spaces <- (space_char / !ybu Y)+: a hesitation before bu is no space
   $h:Hesitation
 %conditions
   Opener-Space ⊆ $h.tags,

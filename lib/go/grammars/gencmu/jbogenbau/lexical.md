@@ -62,9 +62,9 @@ An engine tag starts with `_` and continues with letters, digits, or underscores
 %emits
   $ :: Emoji-Name
 
-%rule word
-  | $lower:lower-name :: Identifier Lowercase-Name
-  | upper-name :: Identifier Uppercase-Name
+%rule word :: Identifier
+  | $lower:lower-name :: Lowercase-Name
+  | upper-name :: Uppercase-Name
 %conditions
   ¬$.following-tokens.begins(name-character),
   $lower ⟹ ¬$.following-tokens.begins(call-open)
