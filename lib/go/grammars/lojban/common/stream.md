@@ -210,7 +210,7 @@ Without SA or SU input, both feature states admit the same plain words. The rule
 ```jbogenbau
 %const $MAGIC-WORDS
   $WORD-QUOTE-MARKERS ∪ $ZOI-MARKERS ∪ $SINGLE-QUOTE-MARKERS ∪ LOhU ∪ LEhU ∪ FAhO ∪ BU ∪ ZEI ∪
-    SI ∪ SA ∪ SU
+  SI ∪ SA ∪ SU
 
 %rule read-word
   | $c:cmavo-token :: $c.tags

@@ -81,7 +81,7 @@ In a `lo'u` or `lo'ai` quote, the stage tags such a word `Word` only, like every
 %conditions
   ¬$h.onward.begins(y-bu-word),
   (Run-Initial ∪ Spacing) ∩ $h.tags ≠ ∅ ∨
-  Y-Letters ⊆ $h.tags ∧ $h.following-tokens.begins(y-letter-ahead)
+    Y-Letters ⊆ $h.tags ∧ $h.following-tokens.begins(y-letter-ahead)
 %erased
 
 %rule y-letter-ahead

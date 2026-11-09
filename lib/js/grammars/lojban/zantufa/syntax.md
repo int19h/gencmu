@@ -297,9 +297,9 @@ The middle `$INITIAL-KE` arm matches a tag followed by a selbri whose first-chil
 
 ```jbogenbau
 %const $INITIAL-KE
-  #(KE ⋰)
-  ∪ #(« tag KE ⋰ » ⋰)
-  ∪ #(« tag KE ⋯ » ⋰)
+  #(KE ⋰) ∪
+  #(« tag KE ⋰ » ⋰) ∪
+  #(« tag KE ⋯ » ⋰)
 
 %rule bridi-tail-1-link
   joik-gihek [$c:CU 🆓] $b:bridi-tail-2 tail-terms
@@ -666,8 +666,8 @@ A run of `cei` nests to the right. The selbri after the first `cei` already read
 %const $PLAIN-JOIK #« JOI [🆓] [GAhO [🆓]] »
 
 %const $SE-GEK
-  #« GA [🆓] [BO [🆓]] »
-  ∪ #« (tag ∪ $PLAIN-JOIK) GI [🆓] [BO [🆓]] »
+  #« GA [🆓] [BO [🆓]] » ∪
+  #« (tag ∪ $PLAIN-JOIK) GI [🆓] [BO [🆓]] »
 
 %const $GEK-UNIT #« gek selbri-2 gik-selbris GIhI [🆓] »
 

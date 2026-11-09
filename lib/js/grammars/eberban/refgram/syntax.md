@@ -495,8 +495,8 @@ A quote holds several sentences in two cases: it has several paragraphs, or its 
 
 ```jbogenbau
 %const $SEVERAL-SENTENCES
-  #« ⋯ open-quote-paragraphs« ⋯ open-quote-sentences po-head ⋯ » »
-  ∪ #« ⋯ open-quote-paragraphs« [po-head] open-quote-sentences« ⋯ sentence-choice ⋯
+  #« ⋯ open-quote-paragraphs« ⋯ open-quote-sentences po-head ⋯ » » ∪
+  #« ⋯ open-quote-paragraphs« [po-head] open-quote-sentences« ⋯ sentence-choice ⋯
     sentence-choice ⋯ » ⋯ » »
 
 %rule grammatical-quote
@@ -651,8 +651,8 @@ At equal engine measures, a specific construct failure precedes an unmatched clo
 
 ```jbogenbau
 %const $UNMATCHED-ERRORS
-  #(·unmatched-fi ∪ ·unmatched-vei ∪ ·unmatched-be ∪ ·unmatched-pei
-    ∪ ·unmatched-bu ∪ ·unmatched-dai ∪ ·unmatched-resume)
+  #(·unmatched-fi ∪ ·unmatched-vei ∪ ·unmatched-be ∪ ·unmatched-pei ∪
+    ·unmatched-bu ∪ ·unmatched-dai ∪ ·unmatched-resume)
 ```
 
 Named errors preserve a complete reading of faulty text. A reading without counted errors takes precedence, including erasure. Ordinary queries admit tokens with carried errors. Their witnesses exclude their own unerased error productions. The explicit `.error-free` bar also requires zero measure.

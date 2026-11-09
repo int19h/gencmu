@@ -233,8 +233,8 @@ A freeform variable or borrowing has a third shape: `X` is a sonorant and `YZ` i
   $x:consonant [Hyphen] $y:consonant [@Hyphen] $z:consonant
 %conditions
   $x.value ++ $y.value ∈ $MEDIAL-PAIRS ∧ $y.value ++ $z.value ∈ $INITIAL-PAIRS ∨
-  ($x.value ++ $y.value ∈ $MEDIAL-PAIRS ∨ $x.value ++ $y.value ∈ $INITIAL-PAIRS) ∧
-    $y.value ∉ $NOT-BEFORE-LIQUID ∧ $z.value ∈ $LIQUIDS
+    ($x.value ++ $y.value ∈ $MEDIAL-PAIRS ∨ $x.value ++ $y.value ∈ $INITIAL-PAIRS) ∧
+      $y.value ∉ $NOT-BEFORE-LIQUID ∧ $z.value ∈ $LIQUIDS
 
 %rule root-triplet = root-triplet-of(hyphen-misplaced)
 
@@ -1309,7 +1309,7 @@ Before a longer junk run, a hyphen beside a digit belongs to the digit, with its
   {run-char} run-end
 %conditions
   ¬$.onward.begins(run-opener) ∨
-  $.preceding-tokens.ends(after-digit) ∧ $.onward.begins(spaced-start),
+    $.preceding-tokens.ends(after-digit) ∧ $.onward.begins(spaced-start),
   ¬$.matches(Hyphen) ∨ ¬$.preceding-tokens.ends(Digit) ∧ ¬$.following-tokens.begins(Digit)
 %error "the run " ++ $.source-text ++ " has no word reading"
 %emits
@@ -1376,8 +1376,8 @@ The edge readers collect faulty `h` letters and their hyphens before or after a 
     malformed-gap(hyphen-misplaced) $z:consonant
 %conditions
   $x.value ++ $y.value ∈ $MEDIAL-PAIRS ∧ $y.value ++ $z.value ∈ $INITIAL-PAIRS ∨
-  ($x.value ++ $y.value ∈ $MEDIAL-PAIRS ∨ $x.value ++ $y.value ∈ $INITIAL-PAIRS) ∧
-    $y.value ∉ $NOT-BEFORE-LIQUID ∧ $z.value ∈ $LIQUIDS
+    ($x.value ++ $y.value ∈ $MEDIAL-PAIRS ∨ $x.value ++ $y.value ∈ $INITIAL-PAIRS) ∧
+      $y.value ∉ $NOT-BEFORE-LIQUID ∧ $z.value ∈ $LIQUIDS
 
 %rule recovering-freeform-triplet
   | recovering-root-triplet
