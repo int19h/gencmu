@@ -1891,6 +1891,8 @@ No line of a rule body holds more than 100 characters, counted as Unicode code p
                                := $r.value
 ```
 
+Inside brackets, a long condition or term breaks in the same way. Each line ends with its operator, such as `∧`, `∨`, `⟹` or `∪`. The next line stands one column after the opening bracket, so that the nesting shows. These rules cover emission items too.
+
 A tag term lists its parts in a fixed order. Bare tags come first, as one run without `∪`, as in `:: Gismu Onset`. Expressions without a guard come next, such as `$x.tags`. Guarded expressions come last. If a term has two or more expressions, each expression stands on a line of its own. A run of tags and one expression can share a line, as in `:: Word Cmavo ∪ $c.tags`.
 
 If a bracketed part alone is too long for one line, it breaks before one of its own `|` separators. A bracketed sequence without `|` breaks between two of its items. The continuation then stands deeper than the alternative, so that it does not read as a new alternative.
