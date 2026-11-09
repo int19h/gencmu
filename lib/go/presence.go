@@ -552,6 +552,7 @@ func (tc *termCheck) lacks(names []string, has func(string) bool) bool {
 // captures the production has. A fixed condition that uses captures is
 // indexed under one of them, since a production without it lacks it.
 type condCheck struct {
+	conds []*domCond
 	split *clauseSplit
 	req   [][]string
 	// applied marks each condition found to apply, and left counts those
@@ -566,7 +567,7 @@ type condCheck struct {
 
 // newCondCheck splits the conditions; skip says which need no check.
 func newCondCheck(conds []*domCond, skip func(*domCond) bool) *condCheck {
-	cc := &condCheck{split: &clauseSplit{byCapture: map[string][]int{}}, junctions: map[int]*junction{}}
+	cc := &condCheck{conds: conds, split: &clauseSplit{byCapture: map[string][]int{}}, junctions: map[int]*junction{}}
 	s := cc.split
 	n := len(conds)
 	s.parts, s.shape = make([]clausePart, n), make([]partShape, n)
@@ -628,6 +629,14 @@ func newCondCheck(conds []*domCond, skip func(*domCond) bool) *condCheck {
 func (cc *condCheck) applies(i int, names []string, has func(string) bool) bool {
 	if j := cc.junctions[i]; j != nil {
 		kind, lacks := j.outcome(names, has)
+		if kind == oTrue && conditionHasSetTerm(cc.conds[i]) {
+			for _, name := range orderedMentions(clausePart{c: cc.conds[i]}) {
+				if !has(name) {
+					return false
+				}
+			}
+			return true
+		}
 		return kind == oFalse || (kind == oUses && !lacks)
 	}
 	for _, name := range cc.req[i] {
@@ -663,8 +672,7 @@ func (cc *condCheck) see(names []string, has func(string) bool) {
 			kept = append(kept, i)
 			continue
 		}
-		o := simplifiedOutcome(cc.split.parts[i], has, nil)
-		if o.kind == oFalse || (o.kind == oUses && !o.lacks) {
+		if conditionApplies(cc.conds[i], has) {
 			mark(i)
 			continue
 		}

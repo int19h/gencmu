@@ -895,7 +895,7 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                     children.push((field(value, "if")?, true));
                     children.push((field(value, "then")?, true));
                 }
-                "captured" | "tag" | "emptySet" | "const" => {}
+                "captured" | "tag" | "emptySet" | "const" | "param" | "call" => {}
                 "union" | "intersection" | "difference" => {
                     children.extend(array(value, key)?.iter().map(|child| (child, false)))
                 }
@@ -1014,6 +1014,7 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                 }
                 "tag" => Cond::Truthy(Term::Tag(string(value, "tag")?)),
                 "emptySet" => Cond::Truthy(Term::EmptySet),
+                "param" | "call" => Cond::Truthy(Term::Source(SourceSymbol::from_json(value)?)),
                 "const" => Cond::Truthy(Term::Const(string(value, "const")?, position(value)?)),
                 "not" => Cond::Not(Box::new(operands.next().unwrap().cond())),
                 "any" => Cond::Any(operands.map(ReadValue::cond).collect()),

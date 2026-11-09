@@ -1,0 +1,23 @@
+{
+  "description": "Engine §4 and §10: a parameter can stand as a set term in a Boolean position.",
+  "grammar": "%rule text check(Word)\n%rule check(@S) A\n%conditions @S",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

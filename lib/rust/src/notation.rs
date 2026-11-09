@@ -1365,9 +1365,33 @@ impl<'a> Reader<'a> {
         }
     }
 
+    /// Whether a set-operation operand holds a Boolean method as its last
+    /// step, which is a condition and not a term (engine §9.3).
+    fn query_method_operand(&self, node: &'a Node) -> bool {
+        if rule_name(node) == "method" {
+            let selectors: Vec<&Node> = self.rules(node, "method-selector").collect();
+            if let Some(last) = selectors.last() {
+                let name = if self.rules(last, "parse-selector").next().is_some() {
+                    "parse"
+                } else if let Ok(found) = self.one(last, "method-name").and_then(|part| self.token(part)) {
+                    self.value(found)
+                } else {
+                    ""
+                };
+                if matches!(name, "starts-input" | "ends-input" | "followed-by" | "preceded-by" | "matches" | "begins" | "ends") {
+                    return true;
+                }
+            }
+        }
+        self.parts(node).into_iter().any(|child| child.kind == NodeKind::Rule && self.query_method_operand(child))
+    }
+
     /// Parts joined by `∪` and `∖`, which group from the left: a run joined
     /// by `∪` is one union, and each `∖` takes what stands before it (§9).
     fn resume_union(&self, frame: &mut Joined<'a>, input: Option<Val>) -> R<Step<'a>> {
+        if frame.defer && frame.parts.is_none() && self.query_method_operand(frame.node) {
+            return Err(self.error(frame.node, "a query method is a condition, not a term"));
+        }
         if frame.parts.is_none() {
             let parts: Vec<&Node> = self.rules(frame.node, "intersection").collect();
             match parts[..] {
@@ -1407,7 +1431,7 @@ impl<'a> Reader<'a> {
             return Err(self.shape_error(frame.node, "operator"));
         }
         let operator = if operators.contains(&"∖") { "∖" } else { "∪" };
-        let ty = if self.feature_context.get() || frame.defer {
+        let ty = if self.feature_context.get() {
             Type::Any
         } else {
             joined_type(&frame.types, operator).map_err(|problem| self.error(frame.node, problem))?
@@ -1432,6 +1456,9 @@ impl<'a> Reader<'a> {
     }
 
     fn resume_intersection(&self, frame: &mut Joined<'a>, input: Option<Val>) -> R<Step<'a>> {
+        if frame.defer && frame.parts.is_none() && self.query_method_operand(frame.node) {
+            return Err(self.error(frame.node, "a query method is a condition, not a term"));
+        }
         if frame.parts.is_none() {
             let atoms: Vec<&Node> = self.rules(frame.node, "concatenation").collect();
             match atoms[..] {
@@ -1456,7 +1483,7 @@ impl<'a> Reader<'a> {
         if let Some(&atom) = atoms.get(frame.items.len()) {
             return Ok(Step::Call(Frame::Concatenation(Joined::new(atom, false))));
         }
-        let ty = if self.feature_context.get() || frame.defer {
+        let ty = if self.feature_context.get() {
             Type::Any
         } else {
             joined_type(&frame.types, "∩").map_err(|problem| self.error(frame.node, problem))?

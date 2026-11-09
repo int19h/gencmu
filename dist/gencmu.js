@@ -6604,7 +6604,7 @@
       }
       // Unresolved leaves still obey the category of their position.
       if ("param" in value) {
-        if (!["expr", "arg", "term", "tags", "target", "pattern", "pattern-part"].includes(kind)) return `a malformed ${kind}`;
+        if (!["expr", "arg", "term", "tags", "target", "pattern", "pattern-part", "condition"].includes(kind)) return `a malformed ${kind}`;
         if (!exact(value,["param","at"]) || !position(value.at) || typeof value.param !== "string" || !task.params.has(value.param)) return "an undeclared or malformed parameter";
         continue;
       }
@@ -7378,6 +7378,28 @@
     return names;
   }
 
+  /** The methods whose result is a Boolean, not a set or a forest. */
+  const BOOLEAN_METHODS = ["matches", "begins", "ends", "starts-input", "ends-input", "followed-by", "preceded-by"];
+
+  /**
+   * Whether a condition holds a set or a forest term in a Boolean position.
+   * Presence parts can simplify such a condition to true for a production.
+   * That production still applies, because its captures include the term.
+   * @param {unknown} node
+   * @returns {boolean}
+   */
+  function conditionHasSetTerm(node) {
+    if (!isDomObject(node)) return false;
+    if (Array.isArray(node.any)) return node.any.some(conditionHasSetTerm);
+    if (Array.isArray(node.all)) return node.all.some(conditionHasSetTerm);
+    if ("not" in node) return conditionHasSetTerm(node.not);
+    if ("if" in node) return conditionHasSetTerm(node.if) || conditionHasSetTerm(node.then);
+    if (Array.isArray(node.union) || Array.isArray(node.intersection) || Array.isArray(node.difference)) return true;
+    if (typeof node.tag === "string" || node.emptySet === true) return true;
+    if (typeof node.method === "string") return !BOOLEAN_METHODS.includes(node.method);
+    return typeof node.const === "string" || typeof node.param === "string";
+  }
+
   /**
    * The captures a clause mentions at all, presence tests included.
    * @param {unknown} node
@@ -7571,7 +7593,7 @@
           // The condition reads no item capture of this alternative, so
           // here it is an ordinary condition of the alternative's
           // productions.
-          if (!applies) applies = ordinaryApplies(prepared, alternative);
+          if (!applies) applies = ordinaryApplies(prepared, alternative, condition);
           continue;
         }
         const first = /** @type {{braces: any, outer: any}} */ (place.get(here[0]));
@@ -7597,7 +7619,8 @@
             items.forEach((name, position) => captures.set(name, position));
             const has = (/** @type {string} */ name) => captures.has(name);
             const simple = simplifyFor(/** @type {any} */ (prepared), has, captures);
-            if ((applies = simple !== DOM_TRUE && capturesUsed(simple).every(has))) break;
+            if ((applies = simple !== DOM_TRUE ? capturesUsed(simple).every(has)
+              : conditionHasSetTerm(condition) && capturesUsed(condition).every(has))) break;
           }
         }
       }
@@ -7626,11 +7649,12 @@
    * @param {any} alternative
    * @returns {boolean}
    */
-  function ordinaryApplies(prepared, alternative) {
+  function ordinaryApplies(prepared, alternative, condition = undefined) {
     return alternativeCaptures(alternative).some((captures) => {
       const has = (/** @type {string} */ name) => captures.has(name);
       const simple = simplifyFor(prepared, has, captures);
-      return simple !== DOM_TRUE && capturesUsed(simple).every(has);
+      if (simple !== DOM_TRUE) return capturesUsed(simple).every(has);
+      return condition !== undefined && conditionHasSetTerm(condition) && capturesUsed(condition).every(has);
     });
   }
 
@@ -8210,7 +8234,8 @@
         const captures = alternatives[index];
         const has = (/** @type {string} */ name) => captures.has(name);
         const simple = simplifyFor(prepared, has, captures);
-        return simple !== DOM_TRUE && capturesUsed(simple).every(has);
+        if (simple !== DOM_TRUE) return capturesUsed(simple).every(has);
+        return conditionHasSetTerm(condition) && capturesUsed(condition).every(has);
       };
       // A condition made only of guarded parts is true for a production
       // that has none of their captures, so only those that have one can
@@ -22823,7 +22848,19 @@
           if (ruleOf(operation) === "intersection-operation") {
             /** @type {Term[]} */
             const items = [];
-            for (const item of some(operation, "concatenation")) items.push(yield readTerm(item));
+            try {
+              for (const item of some(operation, "concatenation")) items.push(yield readTerm(item));
+            } catch (error) {
+              // A Boolean method as an operand is a fault of the operation.
+              if (error instanceof GencmuError && error.message.includes("a query method is a condition, not a term")) fail("a query method is a condition, not a term", operation);
+              throw error;
+            }
+            const joined = joinedType(items.map((item) => {
+              const type = termType(item);
+              return "problem" in type ? (featureContext ? "any" : fail(type.problem, operation)) : type.type;
+            }), "∩");
+            if ("problem" in joined && !featureContext) fail(joined.problem, operation);
+            if (items.length === 1) return /** @type {Condition} */ (/** @type {unknown} */ (items[0]));
             return /** @type {Condition} */ (/** @type {unknown} */ ({ intersection: items }));
           }
           const found = some(operation, "intersection");
@@ -22831,9 +22868,22 @@
             const written = tokenValue(child);
             return written === "∪" || written === "∖" ? [written] : [];
           });
+          // A leading ∪ is a separator, not an operator.
+          operators.splice(0, Math.max(0, operators.length - found.length + 1));
           /** @type {Term[]} */
           const items = [];
-          for (const item of found) items.push(yield readTerm(item));
+          try {
+            for (const item of found) items.push(yield readTerm(item));
+          } catch (error) {
+            // A Boolean method as an operand is a fault of the operation.
+            if (error instanceof GencmuError && error.message.includes("a query method is a condition, not a term")) fail("a query method is a condition, not a term", operation);
+            throw error;
+          }
+          const joined = joinedType(items.map((item) => {
+            const type = termType(item);
+            return "problem" in type ? (featureContext ? "any" : fail(type.problem, operation)) : type.type;
+          }), operators.includes("∖") ? "∖" : "∪");
+          if ("problem" in joined && !featureContext) fail(joined.problem, operation);
           /** @type {Term} */
           let result = items[0];
           let open = false;

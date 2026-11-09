@@ -8673,7 +8673,7 @@
         1
       ]
     },
-    "malformed": true
+    "malformed": false
   },
   {
     "description": "Unresolved leaf: call cannot replace condition",
@@ -8774,7 +8774,7 @@
         1
       ]
     },
-    "malformed": true
+    "malformed": false
   },
   {
     "description": "Unresolved leaf: call cannot replace negated condition",
@@ -8882,7 +8882,7 @@
         1
       ]
     },
-    "malformed": true
+    "malformed": false
   },
   {
     "description": "Unresolved leaf: call cannot replace disjunct",
@@ -8995,7 +8995,7 @@
         1
       ]
     },
-    "malformed": true
+    "malformed": false
   },
   {
     "description": "Unresolved leaf: call cannot replace conjunct",
@@ -9106,7 +9106,7 @@
         1
       ]
     },
-    "malformed": true
+    "malformed": false
   },
   {
     "description": "Unresolved leaf: call cannot replace implication antecedent",
@@ -9215,7 +9215,7 @@
         1
       ]
     },
-    "malformed": true
+    "malformed": false
   },
   {
     "description": "Unresolved leaf: call cannot replace implication consequent",
@@ -9323,7 +9323,7 @@
         }
       }
     },
-    "malformed": true
+    "malformed": false
   },
   {
     "description": "Unresolved leaf: call cannot replace term guard",

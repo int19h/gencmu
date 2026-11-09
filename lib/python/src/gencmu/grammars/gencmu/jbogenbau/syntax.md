@@ -541,7 +541,7 @@ An emoji rule name is also a method argument. A classifier name starts with a lo
 
 ## Boolean conditions
 
-A condition is a comparison, tree comparison, method, presence test, negation, grouped condition, or set term. A bare capture tests its presence. A set term as a condition holds where the set is not empty.
+A condition is a comparison, tree comparison, method, presence test, negation, grouped condition, or set term. A bare capture tests its presence. A set term as a condition holds where the set is not empty. A parameter can stand as a set term. A lone string is a scalar, so it is not a set term. A leading `∪` or `∩` in a set operation is a separator, not an operator.
 
 `∧`, `∨`, and `⟹` bind in that order. Implication groups to the right. `¬` negates the following condition.
 
@@ -566,13 +566,15 @@ A tree comparison requires a bare capture on the left. On the right, a pattern t
   union-operation | intersection-operation | set-atom
 
 %rule union-operation
-  intersection ("∪" | "∖") {intersection / ("∪" | "∖")}
+  ["∪"] intersection ("∪" | "∖") {intersection / ("∪" | "∖")}
+  | "∪" intersection
 
 %rule intersection-operation
-  concatenation "∩" {concatenation / "∩"}
+  ["∩"] concatenation "∩" {concatenation / "∩"}
+  | "∩" concatenation
 
 %rule set-atom
-  tag | tag-run | string | string-run | empty-set | constant-reference
+  tag | tag-run | string-run | empty-set | constant-reference | parameter
 
 %rule presence
   Capture

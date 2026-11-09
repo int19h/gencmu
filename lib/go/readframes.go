@@ -720,6 +720,39 @@ func (f *anyOfFrame) resume(b *domBuilder, in any) readStep {
 	return give(&domCond{Kind: cdAny, Items: f.items})
 }
 
+// truthyOperand reads one operand of the set operation at op. A Boolean
+// method as an operand is a fault of the operation (engine §9.3).
+func (b *domBuilder) truthyOperand(op, n *Node) (t *domTerm) {
+	defer func() {
+		if e := recover(); e != nil {
+			if err, ok := e.(*Error); ok && strings.Contains(err.Message, "a query method is a condition, not a term") {
+				b.fail(op, "a query method is a condition, not a term")
+			}
+			panic(e)
+		}
+	}()
+	return b.run(&termFrame{n: n}).(*domTerm)
+}
+
+// truthyCheck fails at op when the operands of a set operation in a
+// term-condition do not join (engine §9.3).
+func (b *domBuilder) truthyCheck(op *Node, items []*domTerm, operator string) {
+	if b.featureContext {
+		return
+	}
+	types := make([]termType, len(items))
+	for i, item := range items {
+		ty, problem := b.typeOf(item)
+		if problem != "" {
+			b.fail(op, "%s", problem)
+		}
+		types[i] = ty
+	}
+	if _, problem := joinedType(types, operator); problem != "" {
+		b.fail(op, "%s", problem)
+	}
+}
+
 // truthyTerm reads the set term of a term-condition (§9).
 func (b *domBuilder) truthyTerm(n *Node) *domTerm {
 	op := b.knownOf(n, []string{"union-operation", "intersection-operation", "set-atom"})
@@ -734,14 +767,18 @@ func (b *domBuilder) truthyTerm(n *Node) *domTerm {
 	case "intersection-operation":
 		var items []*domTerm
 		for _, item := range b.some(op, "concatenation", 1) {
-			items = append(items, b.run(&termFrame{n: item}).(*domTerm))
+			items = append(items, b.truthyOperand(op, item))
+		}
+		b.truthyCheck(op, items, "∩")
+		if len(items) == 1 {
+			return items[0]
 		}
 		return &domTerm{Kind: tmIntersection, Items: items}
 	}
 	found := b.some(op, "intersection", 1)
 	var items []*domTerm
 	for _, item := range found {
-		items = append(items, b.run(&termFrame{n: item}).(*domTerm))
+		items = append(items, b.truthyOperand(op, item))
 	}
 	var operators []string
 	for _, part := range b.parts(op) {
@@ -751,6 +788,17 @@ func (b *domBuilder) truthyTerm(n *Node) *domTerm {
 			}
 		}
 	}
+	// A leading ∪ is a separator, not an operator.
+	if len(operators) > len(items)-1 {
+		operators = operators[len(operators)-(len(items)-1):]
+	}
+	joinOperator := "∪"
+	for _, operator := range operators {
+		if operator == "∖" {
+			joinOperator = "∖"
+		}
+	}
+	b.truthyCheck(op, items, joinOperator)
 	result := items[0]
 	open := false
 	for index, operator := range operators {

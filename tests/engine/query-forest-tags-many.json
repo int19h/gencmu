@@ -1,0 +1,23 @@
+{
+  "description": "Engine §4: the tags of a forest union the tags of all its witnesses.",
+  "grammar": "%rule text {_}\n%conditions (Word ∪ Other) ⊆ $.parse(word).tags\n%rule word\n  | A :: Word\n  | A :: Other",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

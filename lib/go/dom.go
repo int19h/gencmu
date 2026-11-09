@@ -1397,7 +1397,7 @@ var termForms = [][]string{
 
 var condForms = [][]string{
 	{"op", "left", "right"}, {"method", "receiver", "args"}, {cdNot}, {cdAny}, {cdAll}, {cdCaptured}, {cdIf, "then"},
-	{tmUnion}, {tmIntersection}, {tmDifference}, {tmTag}, {tmEmptySet}, {"const", "at"},
+	{tmUnion}, {tmIntersection}, {tmDifference}, {tmTag}, {tmEmptySet}, {"const", "at"}, {"param", "at"},
 }
 
 // hasOneForm says whether a node has exactly the members of one of its
@@ -1551,7 +1551,7 @@ func (dc *domDecoder) decodeCondNode(raw any, depth int) (*domCond, error) {
 		}
 		return nil, fmt.Errorf("a malformed predicate method")
 	}
-	for _, k := range []string{tmUnion, tmIntersection, tmDifference, tmTag, tmEmptySet, "const"} {
+	for _, k := range []string{tmUnion, tmIntersection, tmDifference, tmTag, tmEmptySet, "const", "param"} {
 		if _, ok := o[k]; ok {
 			term, err := dc.decodeTermAt(raw, depth+1)
 			return &domCond{Kind: cdTruthy, Left: term}, err

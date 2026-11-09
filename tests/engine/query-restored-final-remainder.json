@@ -1,0 +1,23 @@
+{
+  "description": "Engine §4: a parse with a remainder only at the end is legal on a restored view.",
+  "grammar": "%rule text $x:word\n%conditions $x.without-elision.parse(word …)\n%rule word A :: Word",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

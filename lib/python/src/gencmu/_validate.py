@@ -525,7 +525,7 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: l
             continue
         # Unresolved leaves still obey the category of their position.
         if 'param' in node:
-            if kind not in ('expr', 'arg', 'term', 'tags', 'string', 'target'):
+            if kind not in ('expr', 'arg', 'term', 'tags', 'string', 'target', 'condition'):
                 return f'a malformed {kind}'
             if keys != {'param', 'at'} or not isinstance(node['param'], str) or re.fullmatch(r'(?!.*--)[A-Za-z][A-Za-z0-9_-]*', node['param']) is None or not _is_position(node['at']):
                 return 'an undeclared or malformed parameter'

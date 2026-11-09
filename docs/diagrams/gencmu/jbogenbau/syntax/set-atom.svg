@@ -10,16 +10,16 @@
 <g class="rule"><rect x="40" y="68" width="75" height="24" rx="0"/><text x="77.5" y="85" textLength="58.8" lengthAdjust="spacingAndGlyphs">tag-run</text></g>
 <path d="M115 80H208a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="102" width="67" height="24" rx="0"/><text x="73.5" y="119" textLength="50.4" lengthAdjust="spacingAndGlyphs">string</text></g>
-<path d="M107 114H208a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="40" y="102" width="100" height="24" rx="0"/><text x="90" y="119" textLength="84" lengthAdjust="spacingAndGlyphs">string-run</text></g>
+<path d="M140 114H208a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V138a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="136" width="100" height="24" rx="0"/><text x="90" y="153" textLength="84" lengthAdjust="spacingAndGlyphs">string-run</text></g>
-<path d="M140 148H208a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="40" y="136" width="92" height="24" rx="0"/><text x="86" y="153" textLength="75.6" lengthAdjust="spacingAndGlyphs">empty-set</text></g>
+<path d="M132 148H208a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V172a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="170" width="92" height="24" rx="0"/><text x="86" y="187" textLength="75.6" lengthAdjust="spacingAndGlyphs">empty-set</text></g>
-<path d="M132 182H208a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="40" y="170" width="168" height="24" rx="0"/><text x="124" y="187" textLength="151.2" lengthAdjust="spacingAndGlyphs">constant-reference</text></g>
+<path d="M208 182H208a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V206a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="204" width="168" height="24" rx="0"/><text x="124" y="221" textLength="151.2" lengthAdjust="spacingAndGlyphs">constant-reference</text></g>
-<path d="M208 216H208a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="40" y="204" width="92" height="24" rx="0"/><text x="86" y="221" textLength="75.6" lengthAdjust="spacingAndGlyphs">parameter</text></g>
+<path d="M132 216H208a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M228 46h6m0 -8v16m4 -16v16"/>
 </svg>

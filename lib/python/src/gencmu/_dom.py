@@ -931,6 +931,31 @@ class DomBuilder:
 
     # -- conditions
 
+    def _truthy_operand(self, operation: Node, item: Node) -> Walk:
+        """One operand of a set operation in a term-condition. A Boolean
+        method as an operand is a fault of the operation (engine §9.3)."""
+        try:
+            term = yield self._term(item)
+        except GencmuError as error:
+            if "a query method is a condition, not a term" in error.message:
+                raise self.fail(operation, "a query method is a condition, not a term") from None
+            raise
+        return term
+
+    def _truthy_check(self, operation: Node, items: list, operator: str) -> None:
+        """Fail at the operation when its operands do not join (§9.3)."""
+        if self.feature_context:
+            return
+        types = []
+        for item in items:
+            kind, problem = term_type(item, memo=self.types)
+            if problem is not None:
+                raise self.fail(operation, problem)
+            types.append(kind)
+        _, problem = joined_type(types, operator)  # type: ignore[arg-type]
+        if problem is not None:
+            raise self.fail(operation, problem)
+
     def _condition(self, node: Node) -> Walk:
         """A condition: ``⟹`` groups to the right, and a group of the same
         connective, ``∧`` or ``∨``, is folded into the one around it, since
@@ -1005,14 +1030,18 @@ class DomBuilder:
             elif operation.rule == "intersection-operation":
                 items = []
                 for item in self.some(operation, "concatenation"):
-                    items.append((yield self._term(item)))
-                term = {"intersection": items}
+                    items.append((yield self._truthy_operand(operation, item)))
+                self._truthy_check(operation, items, "∩")
+                term = items[0] if len(items) == 1 else {"intersection": items}
             else:
                 found = self.some(operation, "intersection")
                 operators = [self.token_value(kid) for kid in self.kids(operation) if kid.kind == "token" and self.token_value(kid) in ("∪", "∖")]
+                # A leading ∪ is a separator, not an operator.
+                operators = operators[max(0, len(operators) - len(found) + 1):]
                 items = []
                 for item in found:
-                    items.append((yield self._term(item)))
+                    items.append((yield self._truthy_operand(operation, item)))
+                self._truthy_check(operation, items, "∖" if "∖" in operators else "∪")
                 term = items[0]
                 open_union = False
                 for index, operator in enumerate(operators):
