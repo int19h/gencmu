@@ -629,14 +629,6 @@ func newCondCheck(conds []*domCond, skip func(*domCond) bool) *condCheck {
 func (cc *condCheck) applies(i int, names []string, has func(string) bool) bool {
 	if j := cc.junctions[i]; j != nil {
 		kind, lacks := j.outcome(names, has)
-		if kind == oTrue && conditionHasSetTerm(cc.conds[i]) {
-			for _, name := range orderedMentions(clausePart{c: cc.conds[i]}) {
-				if !has(name) {
-					return false
-				}
-			}
-			return true
-		}
 		return kind == oFalse || (kind == oUses && !lacks)
 	}
 	for _, name := range cc.req[i] {

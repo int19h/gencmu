@@ -7378,28 +7378,6 @@
     return names;
   }
 
-  /** The methods whose result is a Boolean, not a set or a forest. */
-  const BOOLEAN_METHODS = ["matches", "begins", "ends", "starts-input", "ends-input", "followed-by", "preceded-by"];
-
-  /**
-   * Whether a condition holds a set or a forest term in a Boolean position.
-   * Presence parts can simplify such a condition to true for a production.
-   * That production still applies, because its captures include the term.
-   * @param {unknown} node
-   * @returns {boolean}
-   */
-  function conditionHasSetTerm(node) {
-    if (!isDomObject(node)) return false;
-    if (Array.isArray(node.any)) return node.any.some(conditionHasSetTerm);
-    if (Array.isArray(node.all)) return node.all.some(conditionHasSetTerm);
-    if ("not" in node) return conditionHasSetTerm(node.not);
-    if ("if" in node) return conditionHasSetTerm(node.if) || conditionHasSetTerm(node.then);
-    if (Array.isArray(node.union) || Array.isArray(node.intersection) || Array.isArray(node.difference)) return true;
-    if (typeof node.tag === "string" || node.emptySet === true) return true;
-    if (typeof node.method === "string") return !BOOLEAN_METHODS.includes(node.method);
-    return typeof node.const === "string" || typeof node.param === "string";
-  }
-
   /**
    * The captures a clause mentions at all, presence tests included.
    * @param {unknown} node
@@ -7593,7 +7571,7 @@
           // The condition reads no item capture of this alternative, so
           // here it is an ordinary condition of the alternative's
           // productions.
-          if (!applies) applies = ordinaryApplies(prepared, alternative, condition);
+          if (!applies) applies = ordinaryApplies(prepared, alternative);
           continue;
         }
         const first = /** @type {{braces: any, outer: any}} */ (place.get(here[0]));
@@ -7619,8 +7597,7 @@
             items.forEach((name, position) => captures.set(name, position));
             const has = (/** @type {string} */ name) => captures.has(name);
             const simple = simplifyFor(/** @type {any} */ (prepared), has, captures);
-            if ((applies = simple !== DOM_TRUE ? capturesUsed(simple).every(has)
-              : conditionHasSetTerm(condition) && capturesUsed(condition).every(has))) break;
+            if ((applies = simple !== DOM_TRUE && capturesUsed(simple).every(has))) break;
           }
         }
       }
@@ -7649,12 +7626,11 @@
    * @param {any} alternative
    * @returns {boolean}
    */
-  function ordinaryApplies(prepared, alternative, condition = undefined) {
+  function ordinaryApplies(prepared, alternative) {
     return alternativeCaptures(alternative).some((captures) => {
       const has = (/** @type {string} */ name) => captures.has(name);
       const simple = simplifyFor(prepared, has, captures);
-      if (simple !== DOM_TRUE) return capturesUsed(simple).every(has);
-      return condition !== undefined && conditionHasSetTerm(condition) && capturesUsed(condition).every(has);
+      return simple !== DOM_TRUE && capturesUsed(simple).every(has);
     });
   }
 
@@ -8234,8 +8210,7 @@
         const captures = alternatives[index];
         const has = (/** @type {string} */ name) => captures.has(name);
         const simple = simplifyFor(prepared, has, captures);
-        if (simple !== DOM_TRUE) return capturesUsed(simple).every(has);
-        return conditionHasSetTerm(condition) && capturesUsed(condition).every(has);
+        return simple !== DOM_TRUE && capturesUsed(simple).every(has);
       };
       // A condition made only of guarded parts is true for a production
       // that has none of their captures, so only those that have one can

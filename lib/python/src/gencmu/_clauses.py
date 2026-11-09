@@ -28,39 +28,6 @@ evaluate while parsing."""
 EMPTY_SET: Dom = {"emptySet": True}
 
 
-_BOOLEAN_METHODS = frozenset(("matches", "begins", "ends", "starts-input", "ends-input", "followed-by", "preceded-by"))
-
-
-def condition_has_set_term(condition: Any) -> bool:
-    """Whether a condition holds a set or a forest term in a Boolean
-    position. Presence parts can simplify such a condition to true for a
-    production. That production still applies, because its captures
-    include the term."""
-    stack = [condition]
-    while stack:
-        node = stack.pop()
-        if not isinstance(node, dict):
-            continue
-        if any(isinstance(node.get(key), list) for key in ("union", "intersection", "difference")):
-            return True
-        if isinstance(node.get("tag"), str) or node.get("emptySet") is True:
-            return True
-        if isinstance(node.get("method"), str):
-            if node["method"] not in _BOOLEAN_METHODS:
-                return True
-            continue
-        if isinstance(node.get("const"), str) or isinstance(node.get("param"), str):
-            return True
-        for key in ("any", "all"):
-            if isinstance(node.get(key), list):
-                stack.extend(node[key])
-        if "not" in node:
-            stack.append(node["not"])
-        if "if" in node:
-            stack.extend((node["if"], node["then"]))
-    return False
-
-
 def captures_in(dom: Any) -> set[str]:
     """The capture names a condition or term uses, ``WHOLE`` for ``$``; a
     presence test is not a use (engine §3.6)."""
@@ -509,7 +476,7 @@ def _item_capture_problem(rule: Dom, places: dict[int, dict[str, ItemCapture]], 
                 # The condition reads no item capture of this alternative,
                 # so here it is an ordinary condition of its productions.
                 if not applies:
-                    applies = any(applies_prepared(prepared, present, condition) is not None for owner, present in productions if owner is alternative)
+                    applies = any(applies_prepared(prepared, present) is not None for owner, present in productions if owner is alternative)
                 continue
             first = place[here[0]]
             other = next((name for name in here if place[name].braces is not first.braces), None)
@@ -538,7 +505,7 @@ def _item_capture_problem(rule: Dom, places: dict[int, dict[str, ItemCapture]], 
                 # captures that the frame holds, those bound before the
                 # braces (engine §4).
                 before = {WHOLE, *(name for name in sequence[:at] if isinstance(name, str))}
-                applies = any(applies_prepared(prepared, before | items, condition) is not None for items in helper)
+                applies = any(applies_prepared(prepared, before | items) is not None for items in helper)
         if not applies:
             return f"a condition of {rule['name']} applies to no production"
     return None
@@ -707,10 +674,7 @@ def applies(condition: Dom, present: AbstractSet[str]) -> Simplified | None:
     ``present``: ``None`` where it does not apply, having simplified to true
     or using a capture the production lacks; ``False`` where it removes the
     production; else what is left to evaluate (engine §3.6)."""
-    simplified = simplify_condition(condition, present)
-    if simplified is True and condition_has_set_term(condition) and captures_in(condition) <= present:
-        return True
-    return _applied(simplified, present)
+    return _applied(simplify_condition(condition, present), present)
 
 
 def tests_no_presence(node: Any) -> bool:
@@ -924,12 +888,9 @@ def prepare_conditions(conditions: list[Dom]) -> Prepared:
     return Prepared(conditions, "all", True, True)
 
 
-def applies_prepared(prepared: Prepared, present: AbstractSet[str], condition: Any = None) -> Simplified | None:
+def applies_prepared(prepared: Prepared, present: AbstractSet[str]) -> Simplified | None:
     """What :func:`applies` gives, for a prepared condition."""
-    simplified = prepared.simplified(present)
-    if simplified is True and condition is not None and condition_has_set_term(condition) and captures_in(condition) <= present:
-        return True
-    return _applied(simplified, present)
+    return _applied(prepared.simplified(present), present)
 
 
 def _applied(simplified: Simplified, present: AbstractSet[str]) -> Simplified | None:
@@ -1427,7 +1388,7 @@ def _definition_issues(rule: Dom):
             used = captures_in(prepared.values[0]) - {WHOLE}
             if used:
                 candidates = iter(capturing.get(min(used), ()))
-        if all(applies_prepared(prepared, present, condition) is None for present in candidates):
+        if all(applies_prepared(prepared, present) is None for present in candidates):
             yield DefinitionIssue("independent", f"a condition of {rule['name']} applies to none of its productions")
 
     # Each term is prepared, and looked at for constants, once, though the

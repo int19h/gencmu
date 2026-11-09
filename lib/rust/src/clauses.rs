@@ -1576,33 +1576,13 @@ fn read_product<'e>(left: Vec<Vec<Read<'e>>>, right: &[Vec<Read<'e>>]) -> Vec<Ve
     out
 }
 
-/// Whether a condition holds a set or a forest term in a Boolean position.
-fn condition_has_set_term(cond: &Cond) -> bool {
-    match cond {
-        Cond::Truthy(_) | Cond::Forest(_) => true,
-        Cond::Not(inner) => condition_has_set_term(inner),
-        Cond::Any(items) | Cond::All(items) => items.iter().any(condition_has_set_term),
-        Cond::If(first, second) => condition_has_set_term(first) || condition_has_set_term(second),
-        _ => false,
-    }
-}
-
 /// Whether a condition applies to a production whose captures `has`
 /// answers: it does not simplify to true, and the production has every
 /// capture its simplified form uses (engine §3.6). One that simplifies to
-/// false applies, and removes the production. A condition with a set or
-/// forest term that presence parts simplify to true still applies to a
-/// production that has every capture the term uses.
+/// false applies, and removes the production.
 fn applies_with(cond: &Cond, has: &dyn Fn(&str) -> bool) -> bool {
     match simplified_outcome(Part::Cond(cond), has) {
-        Outcome::True => {
-            if !condition_has_set_term(cond) {
-                return false;
-            }
-            let mut used = Vec::new();
-            walk_captures(Part::Cond(cond), true, false, &mut used);
-            used.iter().all(|name| has(name))
-        }
+        Outcome::True => false,
         Outcome::False => true,
         Outcome::Uses(missing) => missing.is_none(),
         Outcome::Empty => unreachable!("a condition is not empty"),
@@ -1972,15 +1952,7 @@ fn definition_fault(rule: &RuleDef, defer_issue: &mut impl FnMut(&DefinitionIssu
                 check.outcome(positions[index].keys().copied(), &has)
             };
             match outcome {
-                Outcome::True => {
-                    if !condition_has_set_term(cond) {
-                        false
-                    } else {
-                        let mut used = Vec::new();
-                        walk_captures(Part::Cond(cond), true, false, &mut used);
-                        used.iter().all(|name| has(name))
-                    }
-                }
+                Outcome::True => false,
                 Outcome::False => true,
                 Outcome::Uses(missing) => missing.is_none(),
                 Outcome::Empty => unreachable!("a condition is not empty"),

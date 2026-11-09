@@ -751,42 +751,11 @@ func itemCaptureProblem(r *domRule, itemsByAlt []map[string]itemPlace, items map
 	return ""
 }
 
-// conditionHasSetTerm says whether a condition holds a set or a forest
-// term in a Boolean position.
-func conditionHasSetTerm(c *domCond) bool {
-	if c == nil {
-		return false
-	}
-	switch c.Kind {
-	case cdTruthy, cdForest:
-		return true
-	case cdNot:
-		return conditionHasSetTerm(c.Inner)
-	case cdAny, cdAll, cdIf:
-		for _, item := range c.Items {
-			if conditionHasSetTerm(item) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 // conditionApplies says whether a condition applies to a production with
 // the captures has says it has: simplified, it is not true, and it uses
-// only captures the production has (engine §3.6). A condition with a set
-// or forest term that presence parts simplify to true still applies to a
-// production that has every capture it mentions.
+// only captures the production has (engine §3.6).
 func conditionApplies(c *domCond, has func(string) bool) bool {
 	o := simplifiedOutcome(clausePart{c: c}, has, nil)
-	if o.kind == oTrue && conditionHasSetTerm(c) {
-		for _, name := range orderedMentions(clausePart{c: c}) {
-			if !has(name) {
-				return false
-			}
-		}
-		return true
-	}
 	return o.kind == oFalse || o.kind == oUses && !o.lacks
 }
 
