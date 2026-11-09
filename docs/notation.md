@@ -495,8 +495,9 @@ A stage reads its input with one grammar. The loader assembles that grammar from
 - `%extend-rule` adds alternatives to a rule defined before it in the stage. It is an error if none was.
 
 ```jbogenbau
-%extend-rule consonant
-  "б"  :: ∅ := "b" | "в"  :: ∅ := "v"
+%extend-rule consonant :: ∅
+  | "б" := "b"
+  | "в" := "v"
 %emits
   $
 

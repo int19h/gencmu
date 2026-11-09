@@ -249,7 +249,7 @@ Names can stress any syllable.[^cll-s3-9][^cll-s4-8] A cmavo is a particle. Cmav
 
 `stressed-vowel-with` takes six patterns, one for each vowel in a script. Named instances keep each script's vowel rule in the phoneme tree.
 
-The `Vowel` tag marks the five full vowels and not `y`. So `stressed-full-vowel-with` holds the five full vowels and carries `Stressed` and `Vowel` on its header. The `y` pattern stays in `stressed-vowel-with`.
+The `Vowel` tag marks the five full vowels and not `y`. So `stressed-full-vowel-with` holds the five full vowels and carries `Vowel` on its header. The outer rule's header supplies `Stressed`, and the `y` pattern stays in `stressed-vowel-with`.
 
 CLL[^cll-s3-1] omits `h` from the alphabet. CLL[^cll-s3-3] says that `h` does not write the apostrophe. This stage treats `h` as foreign text. [../common/latin.md](../common/latin.md) reads `h` as the apostrophe.
 
@@ -281,7 +281,7 @@ CLL[^cll-s3-1] omits `h` from the alphabet. CLL[^cll-s3-3] says that `h` does no
 %emits
   $
 
-%rule stressed-full-vowel-with(@A, @E, @I, @O, @U) :: Stressed ∪ Vowel
+%rule stressed-full-vowel-with(@A, @E, @I, @O, @U) :: Vowel
   | @A := "a" :- "A"
   | @E := "e" :- "E"
   | @I := "i" :- "I"
