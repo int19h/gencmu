@@ -327,7 +327,7 @@ function resultPatternProblems(value){
 }
 
 // DOM expectations stay partial. Body queries require their argument wrapper
-// and permit a remainder only at one outer edge. Malformed supplied DOMs
+// and permit a remainder at each outer edge. Malformed supplied DOMs
 // remain opaque inputs to the libraries.
 function domQueryPatternProblems(value){
   const problems=[],pending=[value];

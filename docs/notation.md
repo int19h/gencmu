@@ -1124,7 +1124,7 @@ The mark `…` denotes unread remainder at an outer edge of the argument. It can
 
 For example, `$.parse(… B …)` holds on tokens `A B C`. The witness reads only the `B` token.
 
-The remainder is not read and belongs to no witness. Alignment and filtering see the witness alone. A query with `…` at the start is a loading error on a restored view. A query with `…` only at the end is legal on a restored view.
+The remainder belongs to no witness. Alignment and filtering see the witness alone. A query with `…` at the start is a loading error on a restored view. A query with `…` only at the end is legal on a restored view.
 
 As a condition, a nonempty forest holds. `.error-free` keeps only witnesses with measure `(0,0,0)`. It includes carried errors in counted input parts, while errors inside erased witness subtrees contribute zero. The same holds for the witness's own erased error occurrences. Repeated filtering changes nothing. A forest has no implicit string or set conversion.
 

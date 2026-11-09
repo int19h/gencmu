@@ -8629,7 +8629,7 @@
     "malformed": true
   },
   {
-    "description": "Unresolved leaf: parameter cannot replace condition",
+    "description": "Unresolved leaf: parameter as a set term in a condition",
     "rule": {
       "name": "use",
       "params": [
@@ -8728,7 +8728,7 @@
     "malformed": true
   },
   {
-    "description": "Unresolved leaf: parameter cannot replace negated condition",
+    "description": "Unresolved leaf: parameter as a set term in a negated condition",
     "rule": {
       "name": "use",
       "params": [
@@ -8831,7 +8831,7 @@
     "malformed": true
   },
   {
-    "description": "Unresolved leaf: parameter cannot replace disjunct",
+    "description": "Unresolved leaf: parameter as a set term in a disjunct",
     "rule": {
       "name": "use",
       "params": [
@@ -8944,7 +8944,7 @@
     "malformed": true
   },
   {
-    "description": "Unresolved leaf: parameter cannot replace conjunct",
+    "description": "Unresolved leaf: parameter as a set term in a conjunct",
     "rule": {
       "name": "use",
       "params": [
@@ -9057,7 +9057,7 @@
     "malformed": true
   },
   {
-    "description": "Unresolved leaf: parameter cannot replace implication antecedent",
+    "description": "Unresolved leaf: parameter as a set term in an implication antecedent",
     "rule": {
       "name": "use",
       "params": [
@@ -9166,7 +9166,7 @@
     "malformed": true
   },
   {
-    "description": "Unresolved leaf: parameter cannot replace implication consequent",
+    "description": "Unresolved leaf: parameter as a set term in an implication consequent",
     "rule": {
       "name": "use",
       "params": [
@@ -9275,7 +9275,7 @@
     "malformed": true
   },
   {
-    "description": "Unresolved leaf: parameter cannot replace term guard",
+    "description": "Unresolved leaf: parameter as a set term in a term guard",
     "rule": {
       "name": "use",
       "params": [

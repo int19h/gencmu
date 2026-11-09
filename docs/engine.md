@@ -1324,7 +1324,7 @@ Whole, prefix, suffix, part, and tag queries run nested recognition for a rule t
 
 The mark `…` denotes unread remainder at an outer edge of C. It can stand at one edge or at both edges. It cannot stand alone, inside a nested constituent, or between constituents. An explicit `ε` permits an empty target.
 
-Without the mark, the query covers the whole view. A final mark selects prefix mode, and an initial mark selects suffix mode. Both marks select part mode, where some part of the view is a witness. So `parse(… x …)` holds where an `x` witness stands anywhere in the view. The remainder never becomes a witness part and is never read.
+Without the mark, the query covers the whole view. A final mark selects prefix mode, and an initial mark selects suffix mode. Both marks select part mode, where some part of the view is a witness. So `parse(… x …)` holds where an `x` witness stands anywhere in the view. The remainder never becomes a witness part.
 
 The four old forms rewrite before recognition. `matches(S)` becomes `parse(S)`, and `begins(S)` becomes `parse(S …)`. `ends(S)` becomes `parse(… S)`, and `tags(R)` becomes `parse(R).tags`. Each target of `S` rewrites on its own, in written order. So the old forms share the target, memo entry, and recursive-query test of `parse`.
 
@@ -2641,8 +2641,8 @@ all-of = ["∧"] condition {"∧" condition}
 condition = comparison | tree-comparison | method-chain | capture-reference
           | "¬" condition | "(" implication ")" | term-condition
 term-condition = union-operation | intersection-operation | set-atom
-union-operation = ["∪"] intersection ("∪" | "∖") {("∪" | "∖") intersection}
-intersection-operation = ["∩"] concatenation "∩" {"∩" concatenation}
+union-operation = ["∪"] intersection ("∪" | "∖") intersection {("∪" | "∖") intersection} | "∪" intersection
+intersection-operation = ["∩"] concatenation "∩" concatenation {"∩" concatenation} | "∩" concatenation
 set-atom = tag | tag-run | string-run | "∅" | constant-reference | parameter
 comparison = union comparator union
 comparator = "=" | "≠" | "∈" | "∉" | "⊆" | "⊈"
