@@ -452,10 +452,12 @@ export function clauseTermProblems(markdown, dom, path) {
     const definition = /^%(rule|redefine-rule|extend-rule|template)\s+(\S+)/.exec(textLines[li]);
     if (definition) { where = `%${definition[1]} ${definition[2]}`; continue; }
     if (!/^%emits\b/.test(textLines[li])) continue;
-    let section = "";
+    // An item can start on the %emits line itself, so the section
+    // starts with what follows the keyword on that line.
+    let section = textLines[li].slice("%emits".length) + "\n";
     let lj = li + 1;
     for (; lj < textLines.length && !/^%/.test(textLines[lj]); lj++) section += textLines[lj] + "\n";
-    const base = (lineStarts[li + 1] ?? chars.length);
+    const base = (lineStarts[li] ?? 0) + "%emits".length;
     let depth = 0, string = false, itemStart = 0;
     const sectionChars = [...section];
     const flush = (end) => {
@@ -516,15 +518,16 @@ function bracketProblems(markdown, path) {
     const open = stack.pop();
     if (!open || positions[i][0] === open.line) continue;
     if (open.at > 0 && chars[open.at - 1] === "#") continue;
-    const closeLine = positions[i][0];
     // Operators at the top level of this span, and any top-level bar.
+    // Every condition and term operator makes a span subject to the
+    // rule, not only the joining ones.
     let depth = 0, hasBar = false, hasOperator = false;
     for (let j = open.at + 1; j < i; j++) {
       const ch = chars[j];
       if (OPEN.includes(ch)) depth++;
       else if (CLOSE.includes(ch)) depth--;
       else if (depth === 0 && ch === "|") hasBar = true;
-      else if (depth === 0 && "∧∨⟹∪∩∖".includes(ch)) hasOperator = true;
+      else if (depth === 0 && "∧∨⟹∪∩∖⊆⊈=≠≅≇".includes(ch)) hasOperator = true;
     }
     if (hasBar || !hasOperator) continue;
     let openTextLine = 0;
@@ -532,17 +535,25 @@ function bracketProblems(markdown, path) {
     const name = whereByLine[openTextLine] ?? "";
     // Each line of the span, as a range of code-point indexes. The
     // first range starts after the opening bracket, and the last ends
-    // before the closing bracket.
+    // before the closing bracket. Only the lines at the top level of
+    // this span are checked. A line inside a nested bracket belongs
+    // to that bracket's span, so each problem is reported once.
     let segmentStart = open.at + 1;
     let firstSegment = true;
+    let segmentDepth = 0;
     for (let j = open.at + 1; j <= i; j++) {
       if (j < i && chars[j] !== "\n") continue;
       const segment = chars.slice(segmentStart, j).join("");
+      const startDepth = segmentDepth;
+      for (const ch of segment) {
+        if (OPEN.includes(ch)) segmentDepth++;
+        else if (CLOSE.includes(ch)) segmentDepth--;
+      }
       const first = segment.search(/\S/);
-      if (first >= 0) {
+      if (first >= 0 && startDepth === 0) {
         const line = positions[segmentStart + first][0];
         const trimmed = segment.trim();
-        if (j < i && !"∧∨⟹∪∩∖⊆⊈".includes(trimmed[trimmed.length - 1])) problems.push(`${path}:${line}: a line inside brackets of ${name} does not end with its operator`);
+        if (j < i && segmentDepth === 0 && !"∧∨⟹∪∩∖⊆⊈=≠≅≇".includes(trimmed[trimmed.length - 1])) problems.push(`${path}:${line}: a line inside brackets of ${name} does not end with its operator`);
         if (!firstSegment && !trimmed.startsWith(")") && !trimmed.startsWith("]") && !trimmed.startsWith("}")) {
           if (positions[segmentStart + first][1] !== open.col + 1) problems.push(`${path}:${line}: a line inside brackets of ${name} does not stand one column after the opening bracket`);
         }
