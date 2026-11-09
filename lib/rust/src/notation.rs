@@ -601,6 +601,11 @@ impl<'a> Reader<'a> {
             let (line, column) = at.unwrap_or(rule.at);
             return Err(Error::grammar(message).at(line, column));
         }
+        // A bare empty set in a Boolean position is an error, read as
+        // written, before any constant is substituted (engine §10).
+        if checked.conditions.iter().any(crate::clauses::has_bare_empty_set) {
+            return Err(Error::grammar(format!("a condition of {} is the empty set", rule.name)).at(line, column));
+        }
         // The definition is checked as a whole once it is read (§9).
         let result = crate::clauses::check_definition(checked, self.defer_emission);
         if let Some(issue) = result.problem {
@@ -1386,9 +1391,16 @@ impl<'a> Reader<'a> {
                 }
             }
         }
+        // A guarded term's guards are conditions, where a query method is
+        // legal. Only its value side is an operand (§10).
+        if rule_name(node) == "guarded-term" {
+            return self.parts(node).into_iter().any(|child| {
+                child.kind == NodeKind::Rule && rule_name(child) == "union" && self.query_method_operand(child)
+            });
+        }
         self.parts(node).into_iter().any(|child| {
             child.kind == NodeKind::Rule
-                && !matches!(rule_name(child), "guarded-term" | "implication")
+                && !matches!(rule_name(child), "implication")
                 && self.query_method_operand(child)
         })
     }
@@ -1992,6 +2004,9 @@ impl<'a> Reader<'a> {
                 Val::Term(term, Type::Forest)
             }
         } else if query && !last {
+            if !frame.condition {
+                return Err(self.error(frame.node, "a query method is a condition, not a term"));
+            }
             Val::Term(Term::Call(name.into(), args), Type::Any)
         } else if query {
             if !frame.condition {
@@ -2253,6 +2268,16 @@ impl<'a> Reader<'a> {
                     && !matches!(ty, Type::Tags | Type::Strings | Type::Set | Type::Any | Type::Forest)
                 {
                     return Err(self.error(inner, "a condition requires a set, a forest, or a query method"));
+                }
+                // An operation joins sets, so a forest operand faults at
+                // the operation, not later at the rule (§10).
+                if ty == Type::Forest {
+                    if let Some(operation) = self.parts(inner).into_iter().find(|child| {
+                        child.kind == NodeKind::Rule
+                            && matches!(rule_name(child), "union-operation" | "intersection-operation")
+                    }) {
+                        return Err(self.error(operation, "a condition requires a set, a forest, or a query method"));
+                    }
                 }
                 Ok(Step::Done(Val::Cond(Cond::Truthy(term))))
             }

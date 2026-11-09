@@ -462,7 +462,7 @@ def _condition_typing_once(condition: Any, constants: ConstantTypes, memo: Memo)
         kind, fault = yield _term_typing(condition["nonempty"], constants, memo)
         if fault:
             return fault
-        if kind not in ("tags", "strings", "set", "forest", "any"):
+        if kind not in ("tags", "strings", "set", "any"):
             return "a condition requires a set, a forest, or a query method", condition
     return None
 

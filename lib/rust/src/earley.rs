@@ -954,6 +954,7 @@ enum NestedKey {
         observation: u32,
         family: Option<(u32, u32)>,
         active: Vec<Place>,
+        filtered: bool,
     },
 }
 
@@ -3923,6 +3924,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     .as_ref()
                     .unwrap()
                     .normalized(a.observation),
+                filtered: matches!(query, Query::ErrorFree(_) | Query::ForestTags(_, true)),
             },
             None => self.nested_key(
                 tokens,

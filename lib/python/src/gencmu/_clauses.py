@@ -587,6 +587,10 @@ def _condition(dom: Dom, present: AbstractSet[str], absent: AbstractSet[str] | N
         # A set term that simplifies to the empty set is false (§3.6).
         if is_empty_set(term):
             return False, guard
+        # A closed set term that is not empty is true (§3.6).
+        closed = closed_set_value(term)
+        if closed:
+            return True, guard
         return (dom if term is dom["nonempty"] else {"nonempty": term}), guard
     if "op" in dom:
         left, guard = yield _term(dom["left"], present, absent, fixed)
@@ -594,6 +598,54 @@ def _condition(dom: Dom, present: AbstractSet[str], absent: AbstractSet[str] | N
         value = dom if left is dom["left"] and right is dom["right"] else {"op": dom["op"], "left": left, "right": right}
         return value, guard if guard is not None else next_guard
     return dom, None
+
+
+def has_bare_empty_set(condition: Any) -> bool:
+    """Whether a bare empty set stands as the term of a set-as-condition
+    anywhere in a condition (engine §10)."""
+    pending = [condition]
+    while pending:
+        node = pending.pop()
+        if isinstance(node, dict):
+            inner = node.get("nonempty")
+            if isinstance(inner, dict) and inner.get("emptySet") is True and len(inner) == 1:
+                return True
+            pending.extend(value for key, value in node.items() if key != "at")
+        elif isinstance(node, list):
+            pending.extend(node)
+    return False
+
+
+def closed_set_value(dom: Any) -> frozenset | None:
+    """The value of a closed set term, or None where the term is not
+    closed or its value is not fixed. A closed term holds no capture, no
+    parameter, no call and no method (engine §3.6)."""
+    if not isinstance(dom, dict):
+        return None
+    if dom.get("emptySet") is True and len(dom) == 1:
+        return frozenset()
+    if isinstance(dom.get("tag"), str) and len(dom) == 1:
+        return frozenset((dom["tag"],))
+    if isinstance(dom.get("string"), str) and len(dom) == 1:
+        return frozenset((dom["string"],))
+    if isinstance(dom.get("const"), str) and isinstance(dom.get("value"), frozenset):
+        return dom["value"]
+    for key in ("union", "intersection"):
+        if isinstance(dom.get(key), list):
+            result: frozenset | None = None
+            for part in dom[key]:
+                value = closed_set_value(part)
+                if value is None:
+                    return None
+                result = value if result is None else (result | value if key == "union" else result & value)
+            return result if result is not None else frozenset()
+    if isinstance(dom.get("difference"), list) and len(dom["difference"]) == 2:
+        left = closed_set_value(dom["difference"][0])
+        right = closed_set_value(dom["difference"][1])
+        if left is None or right is None:
+            return None
+        return left - right
+    return None
 
 
 def is_empty_set(dom: Any) -> bool:
@@ -1371,9 +1423,9 @@ def _definition_issues(rule: Dom):
         for name in names:
             capturing.setdefault(name, []).append(present)
     for condition in rule["conditions"]:
-        # A bare empty set in a Boolean position is a literal false, which
-        # a valid document does not hold (engine §3.6).
-        if isinstance(condition.get("nonempty"), dict) and is_empty_set(condition["nonempty"]):
+        # A bare empty set in a Boolean position has no kind, so it is an
+        # error wherever it stands in a condition (engine §10).
+        if has_bare_empty_set(condition):
             yield DefinitionIssue("independent", f"a condition of {rule['name']} is the empty set")
             continue
         if waits(condition):
@@ -1399,8 +1451,15 @@ def _definition_issues(rule: Dom):
             used = captures_in(prepared.values[0]) - {WHOLE}
             if used:
                 candidates = iter(capturing.get(min(used), ()))
-        if all(applies_prepared(prepared, present) is None for present in candidates):
-            yield DefinitionIssue("independent", f"a condition of {rule['name']} applies to none of its productions")
+        candidate_list = list(candidates)
+        if all(applies_prepared(prepared, present) is None for present in candidate_list):
+            # An expanded instance has a canonical name. Its conditions
+            # held a parameter as written, and a parameter is not closed
+            # (engine §3.6), so one that simplifies to true in the
+            # instance still applies.
+            instance = "(" in rule["name"] and rule["name"].endswith(")")
+            if not (instance and any(prepared.simplified(present) is True for present in candidate_list)):
+                yield DefinitionIssue("independent", f"a condition of {rule['name']} applies to none of its productions")
 
     # Each term is prepared, and looked at for constants, once, though the
     # checks below ask again for each production.

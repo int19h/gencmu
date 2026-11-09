@@ -289,7 +289,9 @@ type condLowering struct {
 	// simplified is each fixed condition simplified, and each guarded
 	// condition's consequent, with the captures each uses.
 	simplified []*domCond
-	uses       []map[string]bool
+	// truth is what each fixed condition simplified to.
+	truth []truth
+	uses  []map[string]bool
 	// always are the fixed conditions that use no capture but $.
 	always []int
 	// junctions holds each ∧ and ∨ split into its parts.
@@ -302,6 +304,7 @@ func newCondLowering(conds []*domCond) *condLowering {
 	s.parts = make([]clausePart, len(conds))
 	s.shape = make([]partShape, len(conds))
 	cl.simplified = make([]*domCond, len(conds))
+	cl.truth = make([]truth, len(conds))
 	cl.uses = make([]map[string]bool, len(conds))
 	none := func(string) bool { return false }
 	var others []int
@@ -317,7 +320,11 @@ func newCondLowering(conds []*domCond) *condLowering {
 		var simplified *domCond
 		if shape != partOther {
 			// A condition without a presence test stays open.
-			simplified, _ = simplifyCond(body.c, none)
+			var tv truth
+			simplified, tv = simplifyCond(body.c, none)
+			if shape == partFixed {
+				cl.truth[i] = tv
+			}
 		}
 		s.shape[i] = shape
 		if j := junctionOf(c, shape); j != nil {
@@ -389,6 +396,12 @@ func (cl *condLowering) forProduction(names []string, has func(string) bool) ([]
 			if _, ok := usesAll(used, has); ok {
 				conds = append(conds, s)
 			}
+			continue
+		}
+		if cl.truth[i] == alwaysFalse {
+			return nil, false
+		}
+		if cl.truth[i] == alwaysTrue {
 			continue
 		}
 		if usesAllCounted(cl.uses[i], has) {
@@ -561,6 +574,8 @@ type condCheck struct {
 	applied []bool
 	left    int
 	others  []int
+	// constant marks each fixed condition that is always true.
+	constant []bool
 	// junctions holds each ∧ and ∨ split into its parts.
 	junctions map[int]*junction
 }
@@ -603,8 +618,16 @@ func newCondCheck(conds []*domCond, skip func(*domCond) bool) *condCheck {
 			body = guardedBody(p)
 		}
 		var req []string
-		simplifiedOutcome(body, nil, &req)
+		outcome := simplifiedOutcome(body, nil, &req)
 		cc.req[i] = req
+		if shape == partFixed && outcome.kind == oTrue {
+			// A fixed condition that is always true applies to no
+			// production (§3.6).
+			if cc.constant == nil {
+				cc.constant = make([]bool, n)
+			}
+			cc.constant[i] = true
+		}
 		key := capture
 		if shape == partFixed {
 			for _, name := range req {
@@ -627,6 +650,9 @@ func newCondCheck(conds []*domCond, skip func(*domCond) bool) *condCheck {
 // applies says whether a condition of either indexed shape applies to a
 // production, by has.
 func (cc *condCheck) applies(i int, names []string, has func(string) bool) bool {
+	if cc.constant != nil && cc.constant[i] {
+		return false
+	}
 	if j := cc.junctions[i]; j != nil {
 		kind, lacks := j.outcome(names, has)
 		return kind == oFalse || (kind == oUses && !lacks)

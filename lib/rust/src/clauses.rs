@@ -28,7 +28,11 @@ pub(crate) fn simplify_cond(cond: &Cond, has: &dyn Fn(&str) -> bool) -> Simple {
         // A set term that simplifies to the empty set is false (§3.6).
         Cond::Truthy(term) => match simplify_term(term, has) {
             None => Simple::False,
-            Some(term) => Simple::Cond(Cond::Truthy(term)),
+            // A closed set term that is not empty is true (§3.6).
+            Some(term) => match closed_set_value(&term) {
+                Some(value) if !value.is_empty() => Simple::True,
+                _ => Simple::Cond(Cond::Truthy(term)),
+            },
         },
         Cond::SourceQuery(..) => unreachable!("source queries expand before clause checks"),
         Cond::Captured(name) => {
@@ -135,6 +139,55 @@ pub(crate) fn simplify_term(term: &Term, has: &dyn Fn(&str) -> bool) -> Option<T
             })
         }
         _ => Some(term.clone()),
+    }
+}
+
+/// Whether a bare empty set stands as the term of a set-as-condition
+/// anywhere in a condition, in a Boolean position or in the guard of a
+/// term inside one (engine §10). The check reads a rule as written,
+/// before its constants are substituted: an empty constant is not bare.
+pub(crate) fn has_bare_empty_set(cond: &Cond) -> bool {
+    let mut stack = vec![Part::Cond(cond)];
+    while let Some(part) = stack.pop() {
+        if matches!(part, Part::Cond(Cond::Truthy(Term::EmptySet))) {
+            return true;
+        }
+        stack.extend(part.children());
+    }
+    false
+}
+
+/// The value of a closed set term, or `None` where the term is not closed
+/// or its value is not fixed. A closed term holds no capture, no
+/// parameter, no call and no method (engine §3.6).
+pub(crate) fn closed_set_value(term: &Term) -> Option<FxSet<String>> {
+    match term {
+        Term::EmptySet => Some(FxSet::default()),
+        Term::Tag(name) => Some([name.clone()].into_iter().collect()),
+        Term::Str(text) => Some([text.clone()].into_iter().collect()),
+        Term::Union(items) => {
+            let mut out = FxSet::default();
+            for item in items {
+                out.extend(closed_set_value(item)?);
+            }
+            Some(out)
+        }
+        Term::Intersection(items) => {
+            let mut items = items.iter();
+            let mut out = closed_set_value(items.next()?)?;
+            for item in items {
+                let value = closed_set_value(item)?;
+                out.retain(|name| value.contains(name));
+            }
+            Some(out)
+        }
+        Term::Difference(left, right) => {
+            let mut out = closed_set_value(left)?;
+            let right = closed_set_value(right)?;
+            out.retain(|name| !right.contains(name));
+            Some(out)
+        }
+        _ => None,
     }
 }
 
@@ -363,8 +416,11 @@ impl<'a> Shaped<'a> {
                     }
                 },
                 Part::Cond(cond) => match cond {
-                    // A set term that simplifies to the empty set is false (§3.6).
-                    Cond::Truthy(_) => match done.pop().expect("the term") {
+                    // A set term that simplifies to the empty set is
+                    // false, and a closed one that is not empty is true
+                    // (§3.6).
+                    Cond::Truthy(term) => match done.pop().expect("the term") {
+                        _ if matches!(closed_set_value(term), Some(value) if !value.is_empty()) => Outcome::True,
                         Outcome::Empty => Outcome::False,
                         _ => used,
                     },
@@ -1945,17 +2001,17 @@ fn definition_fault(rule: &RuleDef, defer_issue: &mut impl FnMut(&DefinitionIssu
         }
     }
     for cond in rule.conditions.iter().filter(|cond| !cond_waits(cond)) {
-        // A bare empty set in a Boolean position is a literal false, which
-        // a valid document does not hold (engine §3.6).
-        if matches!(cond, Cond::Truthy(term) if matches!(term, Term::EmptySet)) {
-            return immediate(format!("a condition of {} is the empty set", rule.name));
-        }
         // An item condition applies to the productions of its braces'
         // helper (engine §3.6), which are not listed here.
         if !item_names.is_empty() && mentioned_in(Part::Cond(cond)).iter().any(|name| item_names.contains(name)) {
             continue;
         }
         let check = CondCheck::new(cond);
+        // An expanded instance has a canonical name. Its conditions held a
+        // parameter as written, and a parameter is not closed (engine
+        // §3.6), so one that simplifies to true in the instance still
+        // applies.
+        let instance = rule.name.contains('(') && rule.name.ends_with(')');
         let applies_to = |index: usize| {
             let has = captures_of(index);
             let outcome = if each_part {
@@ -1966,7 +2022,7 @@ fn definition_fault(rule: &RuleDef, defer_issue: &mut impl FnMut(&DefinitionIssu
                 check.outcome(positions[index].keys().copied(), &has)
             };
             match outcome {
-                Outcome::True => false,
+                Outcome::True => instance,
                 Outcome::False => true,
                 Outcome::Uses(missing) => missing.is_none(),
                 Outcome::Empty => unreachable!("a condition is not empty"),

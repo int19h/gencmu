@@ -40,6 +40,7 @@ impl Node<'_> {
             },
             Self::Term(term) => match term {
                 LTerm::TagsRule(span, rule) => vec![Self::Query(span, *rule, false)],
+                LTerm::ForestTags(span, rule, _, filtered) => vec![Self::Query(span, *rule, *filtered)],
                 LTerm::Value(span)
                 | LTerm::Image(span)
                 | LTerm::Text(span)

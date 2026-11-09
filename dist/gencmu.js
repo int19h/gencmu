@@ -6719,7 +6719,7 @@
       } else if (kind === "condition") {
         if (!hasOneForm(value, [["method", "receiver", "args"], ["op", "left", "right"], ["not"], ["any"], ["all"], ["captured"], ["if", "then"], ["nonempty"]])) return "a malformed condition";
         if ("method" in value) { if (!QUERY_METHODS.has(value.method)) return "a malformed query"; push("term", value, depth, { query: true }); }
-        else if ("nonempty" in value) push("term", value.nonempty, depth, {});
+        else if ("nonempty" in value) push("term", value.nonempty, depth + 1, {});
         else if (value.op) {
           if (!DOM_COMPARATORS.has(value.op) || ["≅", "≇"].includes(value.op) && !(typeof value.left?.capture === "string" && Object.keys(value.left).length === 1)) return "a malformed comparison";
           child("term", value.left); child("term", value.right);
@@ -6749,7 +6749,9 @@
               const parsed = queryBody(arg.body);
               if (parsed.problem) return parsed.problem;
               if (queryCapture(parsed.body)) return "a parse argument cannot declare captures";
-              push("expr",parsed.body,depth + (arg.body.seq ? arg.body.seq.filter((/** @type {any} */ part) => part.remainder).length + 1 : 1),{params:task.params,whole:true});
+              // A stripped outer sequence charges one level, however many
+              // remainder leaves it held (engine §9).
+              push("expr",parsed.body,depth + (Array.isArray(arg.body.seq) && !Array.isArray(parsed.body.seq) ? 2 : 1),{params:task.params,whole:true});
             } else if (object(arg) && typeof arg.rule === "string") { if (Object.keys(arg).length !== 1 || !["tags", "matches", "begins", "ends", "without-elision-except", "followed-by", "preceded-by"].includes(value.method) || !ruleName(arg.rule)) return "a malformed rule argument"; }
             else if (object(arg) && typeof arg.terminal === "string") { if (Object.keys(arg).length !== 1 || !TARGET_METHODS.has(value.method) || !/^(?!.*--)[A-Z][A-Za-z0-9_-]*$/.test(arg.terminal)) return "a malformed boundary target"; }
             else if (object(arg) && "integer" in arg) { if (Object.keys(arg).length !== 1 || value.method !== "ngrams" || typeof arg.integer !== "string" || !/^[1-9][0-9]*$/.test(arg.integer)) return "a malformed integer argument"; }
@@ -6955,6 +6957,9 @@
       const [term, guard] = yield simplifying(node.nonempty, has, fixed);
       // A set term that simplifies to the empty set is false (engine §3.6).
       if (isEmptySet(term)) return [DOM_FALSE, guard];
+      // A closed set term that is not empty is true (engine §3.6).
+      const closed = closedSetValue(term);
+      if (closed !== null && closed.size > 0) return [DOM_TRUE, guard];
       return [term === node.nonempty ? node : {nonempty:term}, guard];
     }
     if (Array.isArray(node.union) || Array.isArray(node.intersection)) {
@@ -6992,6 +6997,58 @@
    * @param {any} node
    * @returns {boolean}
    */
+  /**
+   * Whether a bare empty set stands as the term of a wrapper anywhere in a
+   * condition, in a Boolean position or in the guard of a term inside one.
+   * @param {any} condition
+   * @returns {boolean}
+   */
+  function hasBareEmptySet(condition) {
+    const pending = [condition];
+    while (pending.length) {
+      const node = pending.pop();
+      if (!node || typeof node !== "object") continue;
+      if (Array.isArray(node)) { pending.push(...node); continue; }
+      if (isDomObject(node.nonempty) && node.nonempty.emptySet === true && Object.keys(node.nonempty).length === 1) return true;
+      for (const key of Object.keys(node)) if (key !== "at") pending.push(node[key]);
+    }
+    return false;
+  }
+
+  /**
+   * The value of a closed set term, or null where the term is not closed or
+   * its value is not fixed. A closed term holds no capture, no parameter,
+   * no call and no method (engine §3.6).
+   * @param {any} node
+   * @returns {Set<string> | null}
+   */
+  function closedSetValue(node) {
+    if (!isDomObject(node)) return null;
+    if (node.emptySet === true && Object.keys(node).length === 1) return new Set();
+    if (typeof node.tag === "string" && Object.keys(node).length === 1) return new Set([node.tag]);
+    if (typeof node.string === "string" && Object.keys(node).length === 1) return new Set([node.string]);
+    if (typeof node.const === "string" && isDomObject(node.value) && node.value.set instanceof Set) return /** @type {Set<string>} */ (node.value.set);
+    if (Array.isArray(node.union) || Array.isArray(node.intersection)) {
+      const key = node.union ? "union" : "intersection";
+      /** @type {Set<string> | null} */
+      let result = node.union ? new Set() : null;
+      for (const part of /** @type {any[]} */ (node[key])) {
+        const value = closedSetValue(part);
+        if (value === null) return null;
+        result = result === null ? value : node.union ? new Set([...result, ...value]) : new Set([...result].filter((/** @type {string} */ item) => value.has(item)));
+      }
+      return result ?? new Set();
+    }
+    if (Array.isArray(node.difference)) {
+      const left = closedSetValue(node.difference[0]);
+      const right = closedSetValue(node.difference[1]);
+      if (left === null || right === null) return null;
+      return new Set([...left].filter((item) => !right.has(item)));
+    }
+    return null;
+  }
+
+  /** @param {any} node @returns {boolean} */
   function isEmptySet(node) {
     if (!isDomObject(node)) return false;
     if (node.emptySet === true && Object.keys(node).length === 1) return true;
@@ -8207,20 +8264,24 @@
       if (problem) yield {kind:"independent", problem};
     }
     for (const condition of rule.conditions) {
-      // A bare empty set in a Boolean position is a literal false, which a
-      // valid document does not hold (engine §3.6).
-      if (isDomObject(condition) && isDomObject(condition.nonempty) && isEmptySet(condition.nonempty)) { yield {kind:"independent", problem:`a condition of ${rule.name} is the empty set`}; continue; }
+      // A bare empty set in a Boolean position has no kind, so it is an
+      // error wherever it stands in a condition (engine §10).
+      if (hasBareEmptySet(condition)) { yield {kind:"independent", problem:`a condition of ${rule.name} is the empty set`}; continue; }
       if (waits(condition)) continue;
       // An item condition applies to the productions of its braces' helper
       // (engine §3.6), which itemCaptureProblem checks.
       if (itemNames.size > 0 && capturesMentioned(condition).some((name) => itemNames.has(name))) continue;
       const prepared = prepareClause(condition);
+      // An expanded instance has a canonical name. Its conditions held a
+      // parameter as written, and a parameter is not closed (engine §3.6),
+      // so one that simplifies to true in the instance still applies.
+      const instance = rule.name.includes("(") && rule.name.endsWith(")");
       const applies = (/** @type {number} */ index) => {
         if (hooks.work) countWork(hooks.work, "clauses");
         const captures = alternatives[index];
         const has = (/** @type {string} */ name) => captures.has(name);
         const simple = simplifyFor(prepared, has, captures);
-        return simple !== DOM_TRUE && capturesUsed(simple).every(has);
+        return (simple !== DOM_TRUE || instance) && capturesUsed(simple).every(has);
       };
       // A condition made only of guarded parts is true for a production
       // that has none of their captures, so only those that have one can
@@ -8633,7 +8694,7 @@
     if ("nonempty" in condition) {
       const found = yield typing(condition.nonempty, constants);
       if ("problem" in found) return found;
-      return ["tags","strings","set","forest","any"].includes(found.type) ? null : { problem: "a condition requires a set, a forest, or a query method", node: condition };
+      return ["tags","strings","set","any"].includes(found.type) ? null : { problem: "a condition requires a set, a forest, or a query method", node: condition };
     }
     if (Array.isArray(condition.any) || Array.isArray(condition.all)) {
       for (const item of condition.any ?? condition.all) {
@@ -25594,7 +25655,7 @@
   /**
    * A condition.
    * @typedef {{method: string, receiver: Term, args: Argument[]} | {any: Condition[]} | {all: Condition[]} | {not: Condition} | {captured: string}
-   *   | {if: Condition, then: Condition}
+   *   | {if: Condition, then: Condition} | {nonempty: Term}
    *   | {op: Comparator, left: Term, right: Term}} Condition
    */
 

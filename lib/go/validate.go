@@ -2253,7 +2253,7 @@ func condTypeOnce(c *domCond, ct constTypes, memo *typeMemo) *typeFault {
 		if fault != nil {
 			return fault
 		}
-		if ty != tyTags && ty != tyStrings && ty != tySet && ty != tyAny && ty != tyForest {
+		if ty != tyTags && ty != tyStrings && ty != tySet && ty != tyAny {
 			return &typeFault{"a condition requires a set, a forest, or a query method", c}
 		}
 	case cdForest:

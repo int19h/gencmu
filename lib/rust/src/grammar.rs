@@ -1688,6 +1688,11 @@ impl Constants<'_> {
         } else {
             self.check_arguments(arguments, Some((document, rule)))?;
         }
+        // A bare empty set in a Boolean position is an error, read as
+        // written, before any constant is substituted (engine §10).
+        if rule.conditions.iter().any(crate::clauses::has_bare_empty_set) {
+            return Err(located(format!("a condition of {} is the empty set", rule.name), document, rule.at));
+        }
         // The checks that simplification decides, which the reader left
         // to the loader, now with the constants' values (§9).
         let resolved = self.substitute_rule(rule);

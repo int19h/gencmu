@@ -28,6 +28,86 @@ func isEmptySet(t *domTerm) bool {
 	return t.Kind == tmEmptySet || (t.Kind == tmConst && t.value != nil && t.value.ty != tyString && len(t.value.names) == 0)
 }
 
+// closedSetValue is the value of a closed set term, or false where the
+// term is not closed or its value is not fixed. A closed term holds no
+// capture, no parameter, no call and no method (engine §3.6).
+func closedSetValue(t *domTerm) (map[string]bool, bool) {
+	switch t.Kind {
+	case tmEmptySet:
+		return map[string]bool{}, true
+	case tmTag, tmString:
+		return map[string]bool{t.Str: true}, true
+	case tmConst:
+		if t.value == nil {
+			return nil, false
+		}
+		if t.value.ty == tyString {
+			return map[string]bool{t.value.s: true}, true
+		}
+		out := make(map[string]bool, len(t.value.names))
+		for _, name := range t.value.names {
+			out[name] = true
+		}
+		return out, true
+	case tmUnion, tmIntersection:
+		var out map[string]bool
+		for _, item := range t.Items {
+			value, ok := closedSetValue(item)
+			if !ok {
+				return nil, false
+			}
+			if out == nil {
+				out = value
+				continue
+			}
+			if t.Kind == tmUnion {
+				for name := range value {
+					out[name] = true
+				}
+			} else {
+				for name := range out {
+					if !value[name] {
+						delete(out, name)
+					}
+				}
+			}
+		}
+		if out == nil {
+			out = map[string]bool{}
+		}
+		return out, true
+	case tmDifference:
+		left, ok := closedSetValue(t.Items[0])
+		if !ok {
+			return nil, false
+		}
+		right, ok := closedSetValue(t.Items[1])
+		if !ok {
+			return nil, false
+		}
+		for name := range right {
+			delete(left, name)
+		}
+		return left, true
+	}
+	return nil, false
+}
+
+// hasBareEmptySet says whether a bare empty set stands as the term of a
+// set-as-condition anywhere in a condition (engine §10).
+func hasBareEmptySet(c *domCond) bool {
+	stack := []clausePart{{c: c}}
+	for len(stack) > 0 {
+		p := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if p.c != nil && p.c.Kind == cdTruthy && p.c.Left != nil && p.c.Left.Kind == tmEmptySet {
+			return true
+		}
+		stack = append(stack, p.children()...)
+	}
+	return false
+}
+
 // simplifyCond simplifies a condition for a production that has the
 // captures has says it has (engine §3.6): each presence test becomes true
 // or false, A ⟹ B becomes B where A is true and true where A is false, a
@@ -152,6 +232,10 @@ func simplifyCondPartial(c *domCond, has func(string) truth, fixed map[clausePar
 		left, guard := simplifyTermPartial(c.Left, has, fixed)
 		if isEmptySet(left) {
 			return nil, alwaysFalse, ""
+		}
+		// A closed set term that is not empty is true (§3.6).
+		if value, ok := closedSetValue(left); ok && len(value) > 0 {
+			return nil, alwaysTrue, ""
 		}
 		if left == c.Left {
 			return c, open, guard
@@ -412,7 +496,7 @@ func simplifiedOutcome(start clausePart, has func(string) bool, req *[]string) o
 			return nil
 		}
 		switch p.c.Kind {
-		case cdNot, cdAny, cdAll, cdIf, cdCompare:
+		case cdNot, cdAny, cdAll, cdIf, cdCompare, cdTruthy:
 			return p.children()
 		}
 		return nil
@@ -545,6 +629,16 @@ func simplifiedOutcome(start clausePart, has func(string) bool, req *[]string) o
 					o = premise
 				default:
 					o = first(premise, then)
+				}
+			case cdTruthy:
+				// A set term that simplifies to the empty set is false,
+				// and a closed one that is not empty is true (§3.6).
+				if value, ok := closedSetValue(p.c.Left); ok && len(value) > 0 {
+					o = outcome{kind: oTrue}
+				} else if parts[0].kind == oEmpty {
+					o = outcome{kind: oFalse}
+				} else {
+					o = asWritten(p)
 				}
 			case cdCompare:
 				// An empty side is ∅, which uses nothing.
@@ -989,7 +1083,7 @@ func definitionFault(r *domRule, deferIssue func(definitionKind, string) bool) *
 	for _, c := range r.Conditions {
 		// A bare empty set in a Boolean position is a literal false, which
 		// a valid document does not hold (engine §3.6).
-		if c.Kind == cdTruthy && c.Left != nil && c.Left.Kind == tmEmptySet {
+		if hasBareEmptySet(c) {
 			return immediate(fmt.Sprintf("a condition of %s is the empty set", r.Name))
 		}
 	}

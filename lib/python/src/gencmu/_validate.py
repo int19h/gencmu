@@ -740,7 +740,10 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: l
                         return problem
                     if query_capture(body):
                         return "a parse argument cannot declare captures"
-                    depth = below + (1 if mode != "matches" and len(arg["body"]["seq"]) == 2 else 0)
+                    # A stripped outer sequence charges one level, however
+                    # many remainder leaves it held (engine §9).
+                    stripped = isinstance(arg["body"], dict) and "seq" in arg["body"] and not (isinstance(body, dict) and "seq" in body)
+                    depth = below + (1 if stripped else 0)
                     pending.append(("expr", body, depth, False, True))
                 elif isinstance(arg, dict) and set(arg) in ({"rule"}, {"classifier"}, {"terminal"}, {"integer"}):
                     key = next(iter(arg))
