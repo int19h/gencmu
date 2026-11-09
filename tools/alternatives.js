@@ -448,7 +448,7 @@ export function layoutProblems(markdown, dom, path, limit = LINE_LIMIT) {
   const lines = splitLines(markdown);
   /** @type {string[]} */
   const problems = clauseLayoutProblems(markdown, dom, path);
-  problems.push(...commentLayoutProblems(markdown, path));
+  for (const problem of commentLayoutProblems(markdown, path)) problems.push(problem);
   for (const { rule, keyword, line, indent, alternatives, comments } of alternativeLayouts(markdown, dom, path)) {
     // How many alternatives occupy each line of the body.
     /** @type {Map<number, number>} */
