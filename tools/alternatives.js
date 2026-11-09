@@ -484,6 +484,77 @@ export function clauseTermProblems(markdown, dom, path) {
     li = lj - 1;
   }
   for (const problem of bracketProblems(markdown, path)) problems.push(problem);
+  for (const problem of conditionProblems(markdown, path)) problems.push(problem);
+  return problems;
+}
+
+// The layout of a long condition outside brackets: each continued
+// line of a condition ends with its operator. The %conditions section
+// of a definition holds its conditions as items split at top-level
+// commas. Lines inside brackets follow the bracket rules instead, so
+// this check only reads a boundary at the top level of an item.
+/** @param {string} markdown @param {string} path @returns {string[]} */
+function conditionProblems(markdown, path) {
+  const { text, positions } = extractGrammarText(markdown, path, unicode);
+  /** @type {string[]} */
+  const problems = [];
+  const chars = scrubComments([...text]);
+  let string = false;
+  for (let i = 0; i < chars.length; i++) {
+    const c = chars[i];
+    if (string) { if (c === '"') string = false; else if (c !== "\n") chars[i] = " "; continue; }
+    if (c === '"') string = true;
+  }
+  /** @type {number[]} */
+  const lineStarts = [0];
+  chars.forEach((c, i) => { if (c === "\n") lineStarts.push(i + 1); });
+  const textLines = chars.join("").split("\n");
+  let where = "";
+  for (let li = 0; li < textLines.length; li++) {
+    const definition = /^%(rule|redefine-rule|extend-rule|template|const|classifier)\s+(\S+)/.exec(textLines[li]);
+    if (definition) { where = `%${definition[1]} ${definition[2]}`; continue; }
+    if (!/^%conditions\b/.test(textLines[li])) continue;
+    let section = "";
+    let lj = li + 1;
+    for (; lj < textLines.length && !/^%/.test(textLines[lj]); lj++) section += textLines[lj] + "\n";
+    const base = (lineStarts[li + 1] ?? chars.length);
+    const sectionChars = [...section];
+    let depth = 0, itemStart = 0;
+    /** @type {[number, number][]} */
+    const items = [];
+    for (let i = 0; i < sectionChars.length; i++) {
+      const c = sectionChars[i];
+      if ("([{<«".includes(c)) depth++;
+      else if (")]}>»".includes(c)) depth--;
+      else if (depth === 0 && c === ",") { items.push([itemStart, i]); itemStart = i + 1; }
+    }
+    items.push([itemStart, sectionChars.length]);
+    for (const [from, to] of items) {
+      const itemLines = sectionChars.slice(from, to).join("").split("\n");
+      let itemDepth = 0;
+      /** @type {{text: string, startDepth: number, endDepth: number, offset: number}[]} */
+      const linesOfItem = [];
+      let offset = from;
+      for (const itemLine of itemLines) {
+        const startDepth = itemDepth;
+        for (const ch of itemLine) {
+          if ("([{<«".includes(ch)) itemDepth++;
+          else if (")]}>»".includes(ch)) itemDepth--;
+        }
+        linesOfItem.push({ text: itemLine, startDepth, endDepth: itemDepth, offset });
+        offset += [...itemLine].length + 1;
+      }
+      const content = linesOfItem.filter((l) => l.text.trim());
+      for (let k = 0; k + 1 < content.length; k++) {
+        if (content[k].startDepth !== 0 || content[k].endDepth !== 0) continue;
+        const trimmed = content[k].text.trimEnd();
+        if ("∧∨⟹∪∩∖⊆⊈=≠≅≇".includes(trimmed[trimmed.length - 1]) || trimmed.endsWith("++")) continue;
+        const first = content[k].text.search(/\S/);
+        problems.push(`${path}:${positions[base + content[k].offset + first][0]}: a line of a condition of ${where} does not end with its operator`);
+      }
+    }
+    li = lj - 1;
+  }
   return problems;
 }
 
