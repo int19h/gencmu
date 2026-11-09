@@ -329,11 +329,11 @@ The `Vowel` tag marks the five full vowels and not `y`. So `latin-full-vowel` ho
   $ :: $.tags ∩ (Stressed ∪ Glide ∪ Onglide ∪ Vowel)
 
 %redefine-rule plain-vowel
-  | latin-vowel<¬Stressed ¬Folded ¬Dieresis>
+  latin-vowel<¬Stressed ¬Folded ¬Dieresis>
       :: (($.first-token.value ≠ "y" ∧ $.first-token.value ≠ "Y") ⟹ Vowel)
 
 %redefine-rule stressed-vowel
-  | latin-vowel<Stressed ¬Folded ¬Dieresis>
+  latin-vowel<Stressed ¬Folded ¬Dieresis>
       :: Stressed ∪ (($.first-token.value ≠ "y" ∧ $.first-token.value ≠ "Y") ⟹ Vowel)
 
 %redefine-rule folded-vowel :: (($.first-token.value ≠ "y" ∧ $.first-token.value ≠ "Y") ⟹ Vowel)

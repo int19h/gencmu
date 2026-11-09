@@ -449,7 +449,7 @@ Pauses surround a name (rules 2 and 4), so its shape carries neither `Onset` nor
       :: ($n.first-token.matches(consonant) ⟹ Name-Onset) ∪
          (First-Marked ⊆ $n.tags(name-scan) ∨
           Any-Marked ⊈ $n.tags(name-scan) ∧ First-Counted ⊆ $n.tags(name-scan) ∧
-          (N1 ∪ N2) ∩ $n.tags(name-scan) ≠ ∅ ⟹
+            (N1 ∪ N2) ∩ $n.tags(name-scan) ≠ ∅ ⟹
           Initial-Stress)
 %conditions
   ¬$n.matches(la-doi-inside)
