@@ -28,10 +28,6 @@ const unicode = new UnicodeTable(fs.readFileSync(new URL("../data/unicode/unicod
 
 export const LINE_LIMIT = 100;
 
-// Temporary exemption: another branch rewrites these documents, so the
-// layout check does not apply to them for now.
-export const TEMPORARY_LAYOUT_EXEMPTIONS = ["grammars/eberban/"];
-
 /**
  * Whether an expression of the DOM is a single symbol.
  * @param {Record<string, unknown>} expr
@@ -120,15 +116,10 @@ export function scanComments(chars) {
     const c = chars[i];
     if (string) { if (c === '"') string = false; continue; }
     if (c === '"') { string = true; continue; }
-    if (c === "(" && chars[i + 1] === "*") {
+    if (c === "-" && chars[i + 1] === "-") {
       const from = i;
-      let depth = 1;
       i += 2;
-      while (i < chars.length && depth) {
-        if (chars[i] === "(" && chars[i + 1] === "*") { depth++; i += 2; continue; }
-        if (chars[i] === "*" && chars[i + 1] === ")") { depth--; i += 2; continue; }
-        i++;
-      }
+      while (i < chars.length && chars[i] !== "\n" && chars[i] !== "\r") i++;
       comments.push({ from, to: i });
       i--;
     }
@@ -454,7 +445,6 @@ export function suggestLayout(symbols, indent, limit = LINE_LIMIT, leadingBar = 
  * @returns {string[]}
  */
 export function layoutProblems(markdown, dom, path, limit = LINE_LIMIT) {
-  if (TEMPORARY_LAYOUT_EXEMPTIONS.some((prefix) => path.startsWith(prefix))) return [];
   const lines = splitLines(markdown);
   /** @type {string[]} */
   const problems = clauseLayoutProblems(markdown, dom, path);
