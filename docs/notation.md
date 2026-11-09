@@ -1890,9 +1890,9 @@ A comment on a whole rule stands on its own lines before the rule. A comment on 
   "i" | "u"
 ```
 
-Alternatives do not repeat a tag clause that they share. Tags that every alternative carries stand on the header, because header tags and alternative tags are unioned. Each alternative then keeps only the tags that the others lack. If adjacent alternatives have no guard and share all their clauses, a group holds their bodies, and the clauses follow the group.
+Alternatives do not repeat a tag clause that they share. Tags that every alternative carries stand on the header, because header tags and alternative tags are unioned. Each alternative then keeps only the tags that the others lack. If adjacent alternatives share all their clauses, a group holds their bodies, and the clauses follow the group. A guard that the alternatives share stands before the group, as in `f? ("a" | "b") :: T`. Alternatives with different guards stay apart.
 
-A repeated tag can show that a rule mixes two kinds of constituent, and that one tag marks one of the kinds. Then a rule of its own holds the kind that carries the tag, and that rule's header carries it. For example, the Latin `Vowel` tag marks `a`, `e`, `i`, `o` and `u`, but not `y`. Each stressed vowel has its own value and image, so a group cannot hold the tag. So the five tagged vowels form a rule of their own:
+A repeated tag can show that a rule mixes two kinds of constituent, and that one tag set marks one of the kinds. Then a rule of its own holds the kind that carries the tag, and that rule's header carries it. For example, the Latin `Vowel` tag marks `a`, `e`, `i`, `o` and `u`, but not `y`. Each stressed vowel has its own value and image, so a group cannot hold the tag. So the five tagged vowels form a rule of their own:
 
 ```jbogenbau
 %rule stressed-full-vowel :: Vowel
@@ -1907,9 +1907,9 @@ A repeated tag can show that a rule mixes two kinds of constituent, and that one
   | ("y" | "Y") stress-mark := "y" :- "Y"
 ```
 
-The outer alternative writes `:: Vowel` again, because a header tag clause stops a single symbol from passing on its tags (see "Tags"). This is one clause on one alternative, not a repeated clause. A split can change the order of the alternatives. If no input matches two of the moved alternatives, their order changes no result.
+The outer alternative writes `:: Vowel` again, because a header tag clause stops a single symbol from passing on its tags (see "Tags"). This is one clause on one alternative, not a repeated clause. A split can change the order of the alternatives. If no input matches two of the moved alternatives, their order changes no reading. It changes only the production numbers that a witness records.
 
-If no header, group or split can hold a shared tag clause, the alternatives repeat it. This happens in a table of letters where each alternative has its own value or image clause, and no one tag marks a kind of letter. It also happens where a group changes the order of alternatives that one input can match.
+Alternatives repeat a shared tag clause in two cases. The first is a table whose rows have their own value or image clauses and different sets of tags, such as the Latin diphthong letters. No one tag set marks a kind of row there, so no split applies. The second is where a group changes the order of alternatives that one input can match.
 
 ## Railroad diagrams
 
