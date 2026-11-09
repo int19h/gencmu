@@ -7008,7 +7008,7 @@
     while (pending.length) {
       const node = pending.pop();
       if (!node || typeof node !== "object") continue;
-      if (Array.isArray(node)) { pending.push(...node); continue; }
+      if (Array.isArray(node)) { for (let index = node.length - 1; index >= 0; index--) pending.push(node[index]); continue; }
       if (isDomObject(node.nonempty) && node.nonempty.emptySet === true && Object.keys(node.nonempty).length === 1) return true;
       for (const key of Object.keys(node)) if (key !== "at") pending.push(node[key]);
     }
