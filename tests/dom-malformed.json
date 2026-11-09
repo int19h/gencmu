@@ -24034,5 +24034,163 @@
       ]
     },
     "malformed": true
+  },
+  {
+    "description": "Wrapper: a bare set term as a condition",
+    "rule": {
+      "name": "use",
+      "op": "define",
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "tag": "A"
+        }
+      ],
+      "at": [
+        3,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Wrapper: a wrapped string as a condition",
+    "rule": {
+      "name": "use",
+      "op": "define",
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "nonempty": {
+            "string": "a"
+          }
+        }
+      ],
+      "at": [
+        3,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Wrapper: a wrapped parse forest as a condition",
+    "rule": {
+      "name": "use",
+      "op": "define",
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "nonempty": {
+            "method": "parse",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "body": {
+                  "ref": "word"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "at": [
+        3,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Wrapper: a wrapped error-free forest as a condition",
+    "rule": {
+      "name": "use",
+      "op": "define",
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "nonempty": {
+            "method": "error-free",
+            "receiver": {
+              "method": "parse",
+              "receiver": {
+                "capture": ""
+              },
+              "args": [
+                {
+                  "body": {
+                    "ref": "word"
+                  }
+                }
+              ]
+            },
+            "args": []
+          }
+        }
+      ],
+      "at": [
+        3,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Wrapper: a wrapper with an extra member",
+    "rule": {
+      "name": "use",
+      "op": "define",
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "nonempty": {
+            "tag": "A"
+          },
+          "x": 1
+        }
+      ],
+      "at": [
+        3,
+        1
+      ]
+    },
+    "malformed": true
   }
 ]

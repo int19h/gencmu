@@ -1,6 +1,6 @@
 {
-  "description": "Engine §4 and §10: a parameter can stand as a set term in a Boolean position.",
-  "grammar": "%rule text check(Word)\n%rule check(@S) A\n%conditions @S",
+  "description": "Engine §4 and §10: a parameter as a set term beside a capture tests that the set is not empty.",
+  "grammar": "%rule text check(Word)\n%rule check(@S) $x:word\n%conditions @S ∩ $x.tags\n%rule word A :: Word",
   "tokens": [
     {
       "text": "a",

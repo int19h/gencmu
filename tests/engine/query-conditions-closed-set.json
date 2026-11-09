@@ -1,0 +1,15 @@
+{
+  "description": "Engine §3.6: a closed set that is not empty as a whole condition is a trivial condition.",
+  "grammar": "%rule text A\n%conditions Word",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "description": "Engine §3.6 and §10: an empty constant as a whole condition becomes false and removes the production.",
+  "grammar": "%const $E \"a\" ∖ \"a\"\n%rule text A\n%conditions $E",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "description": "Engine §3.6: a negated empty constant becomes true, so the condition applies to no production.",
+  "grammar": "%const $E \"a\" ∖ \"a\"\n%rule text A\n%conditions ¬$E",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

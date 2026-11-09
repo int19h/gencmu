@@ -1,6 +1,6 @@
 {
   "description": "Engine §4 and §10: an implication with a set consequent holds when its antecedent capture is absent.",
-  "grammar": "%rule text $x:word [$y:B]\n%conditions $y ⟹ Word\n%rule word A :: Word",
+  "grammar": "%rule text $x:word [$y:B]\n%conditions $y ⟹ $x.tags ∩ Word\n%rule word A :: Word",
   "tokens": [
     {
       "text": "a",

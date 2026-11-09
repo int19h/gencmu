@@ -1,0 +1,45 @@
+{
+  "description": "Engine §9.3: an implication with a set consequent reads as an if whose then side is the nonempty wrapper.",
+  "document": "```jbogenbau\n%rule text $x:A [$y:B]\n%conditions ($y ⟹ Word) ∧ $x.tags ∩ Other\n```",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "name": "text",
+          "conditions": [
+            {
+              "all": [
+                {
+                  "if": {
+                    "captured": "y"
+                  },
+                  "then": {
+                    "nonempty": {
+                      "tag": "Word"
+                    }
+                  }
+                },
+                {
+                  "nonempty": {
+                    "intersection": [
+                      {
+                        "method": "tags",
+                        "receiver": {
+                          "capture": "x"
+                        },
+                        "args": []
+                      },
+                      {
+                        "tag": "Other"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,6 +1,6 @@
 {
-  "description": "Engine §4 and §10: a bare string run as a whole condition tests that the set is not empty.",
-  "grammar": "%rule text $x:word\n%conditions \"a\" \"b\"\n%rule word A :: Word",
+  "description": "Engine §4 and §10: a string run as a set term beside a capture tests that the set is not empty.",
+  "grammar": "%rule text $x:word\n%conditions (\"a\" \"b\") ∩ $x.value.split(\" \")\n%rule word A :: Word",
   "tokens": [
     {
       "text": "a",

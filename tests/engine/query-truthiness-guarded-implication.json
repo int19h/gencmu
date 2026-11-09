@@ -1,11 +1,11 @@
 {
-  "description": "Engine §4 and §10: the condition side of a guarded term can hold an implication with a set, and an absent antecedent capture makes the implication hold.",
-  "grammar": "%rule text [$w:word] :: (($w ⟹ $w.tags ∩ Word) ⟹ Guarded)\n%conditions Guarded ⊆ $.tags\n%rule word A :: Word",
+  "description": "Engine §4 and §10: the condition side of a guarded term can hold an implication whose set consequent is decided by absence.",
+  "grammar": "%rule text [$w:word] B :: (($w ⟹ $w.tags ∩ Word) ⟹ Guarded)\n%conditions Guarded ⊆ $.tags\n%rule word A :: Word",
   "tokens": [
     {
-      "text": "a",
+      "text": "b",
       "tags": [
-        "A"
+        "B"
       ]
     }
   ],
