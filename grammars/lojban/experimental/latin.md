@@ -290,7 +290,7 @@ A breve on `i` or `u` makes a glide letter, which the next section reads. The vo
 The `Vowel` tag marks the five full vowels and not `y`. So `latin-full-vowel` holds the full vowels of `latin-vowel`, and the `y` forms and the glide letter stay in `latin-vowel`.
 
 ```jbogenbau
-%rule latin-full-vowel :: Vowel
+%rule latin-full-vowel :: Vowel ∪ ($m ⟹ $m.tags ∩ Dieresis)
   | "a" [$m:letter-marks<¬Accent ¬Ogonek ¬Caron>] := "a"
   | "a" $m:letter-marks<Accent ¬Ogonek ¬Caron> :: Stressed := "a" :- "A"
   | "A" $m:letter-marks<Accent ¬Ogonek ¬Caron> :: Stressed Capital Accented := "a" :- "A"
