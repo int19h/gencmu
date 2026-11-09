@@ -1881,7 +1881,7 @@ Each marked alternative stands on lines of its own, and no other top-level alter
   | initial-pair vowel consonant vowel
 ```
 
-No line of a rule body holds more than 100 characters, counted as Unicode code points. An alternative can run over several lines, and each of these lines counts. A comment line does not count, because a comment stays on one line. A long alternative breaks before a clause or before a top-level operator of a term, not inside brackets.
+No line of a rule body holds more than 100 characters, counted as Unicode code points. An alternative can run over several lines, and each of these lines counts. A comment line does not count, because a comment stays on one line. A long alternative breaks before a clause or before a top-level operator of a term, not inside brackets. If a bracketed part alone is too long for one line, it breaks before one of its own `|` separators. The continuation then stands deeper than the alternative, so that it does not read as a new alternative.
 
 The convention covers only the top-level alternatives of a rule. A choice inside a group, and the options of a ranked choice, can stand on one line. So `("a" | "e") :: Vowel` and `a ≻ b` are each one alternative.
 
