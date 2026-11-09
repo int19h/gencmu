@@ -608,7 +608,7 @@ A ranking step can name a template family, which matches every instance, or one 
 
 A bare template atom in a pattern matches every instance of that template, including named instances. `#pair` matches the family, while `#pair("a", "b")` names one instance. Its public name identifies it too.
 
-A recognition or neighbor query must name one instance or an ordinary rule. A bare template target is a load error. The same restriction applies to the shorthand `span.tags(R)` and to `.without-elision-except(family)`.
+A recognition or neighbor query must name one instance or an ordinary rule. A bare template target is a load error. The same restriction applies to `.without-elision-except(family)`.
 
 The loader rejects unbounded expansion through a static parameter-flow analysis. Passing a parameter unchanged creates an unchanged edge. Placing it inside another wrapping form creates a growing edge. A parenthesized single parameter adds no growth. A cycle containing a growing edge is an error, even in an uncalled template. Unchanged recursion, parameter permutations, and self-passing rule names remain valid.
 
@@ -1124,7 +1124,7 @@ The mark `…` denotes unread remainder at an outer edge of the argument. It can
 
 For example, `$.parse(… B …)` holds on tokens `A B C`. The witness reads only the `B` token.
 
-The remainder is not read and belongs to no witness. Alignment and filtering see the witness alone. Every rule for one edge applies to each edge. A query with `…` at the start is a loading error on a restored view. A query with `…` only at the end is not.
+The remainder is not read and belongs to no witness. Alignment and filtering see the witness alone. A query with `…` at the start is a loading error on a restored view. A query with `…` only at the end is legal on a restored view.
 
 As a condition, a nonempty forest holds. `.error-free` keeps only witnesses with measure `(0,0,0)`. It includes carried errors in counted input parts, while errors inside erased witness subtrees contribute zero. The same holds for the witness's own erased error occurrences. Repeated filtering changes nothing. A forest has no implicit string or set conversion.
 
@@ -1134,7 +1134,7 @@ The `.tags` of a forest is the union of the tags of its witnesses. For an empty 
 
 A set or a forest in a Boolean position holds when it is not empty. A Boolean position is a condition, or a part under `¬`, `∧`, `∨`, or `⟹`. The condition side of a guarded term is a Boolean position. A `%features` condition is a Boolean position too. The term keeps its own precedence inside that position. So `$x.tags ∩ UI ∧ $y` first forms the intersection, and then joins it with `∧`. And `¬($x.tags ∩ UI)` negates the test of the whole intersection. A string set works the same way. So `"a b".split(" ") ∩ $x.value.split(" ")` holds when the two texts share a word. This rule means "not empty" and nothing else. It gives no string, set, or pattern conversion in any other position.
 
-For example, `$x.tags ∩ UI` can stand where `$x.tags ∩ UI ⊈ ∅` stood before. The two forms give the same condition.
+For example, `$x.tags ∩ UI` and `$x.tags ∩ UI ⊈ ∅` give the same condition.
 
 The four old query forms are shorthands. Each one rewrites to a `parse` form:
 
@@ -1143,9 +1143,9 @@ The four old query forms are shorthands. Each one rewrites to a `parse` form:
 - `span.ends(S)` is `span.parse(… S)`.
 - `span.tags(R)` is `span.parse(R).tags`.
 
-Here `S` becomes a body choice inside `parse`, and `R` becomes its body. Every other rule about the old forms follows from the rules for `parse`. The rules below are the only ones that the rewrite does not give. They stay in force for the old forms.
+Here each target of `S` rewrites on its own, in written order. `R` becomes the body of its `parse`. Every other rule about the old forms follows from the rules for `parse`. The rules below are the only ones that the rewrite does not give. They stay in force for the old forms.
 
-Target lists of the old forms run from left to right until one query holds. A choice inside `parse(C)` is a body choice within one nested recognition. An error from an evaluated query ends the parse. So an old form can hold before a later target raises an error. The rewritten `parse` form cannot skip that error in the same way.
+Target lists of the old forms run from left to right until one query holds. Each target is a separate query. An error from an evaluated query ends the parse. So an old form can hold before a later target raises an error. A body choice inside one `parse(C)` cannot skip that error in the same way.
 
 The empty prefix counts for a rule target of `begins`, and the empty suffix counts for a rule target of `ends`. A terminal target reads one token, so it never counts as empty. This follows from the rewrite where the target is a rule. It needs a rule of its own only for terminal targets.
 
@@ -1198,7 +1198,7 @@ Projection maps restored positions back to original input positions.
 
 `.onward` preserves the restoration view, including through repeated calls. Other span methods first project to original tokens and return ordinary spans. `$x.without-elision.following-tokens` therefore reads the raw suffix. `.first-token`, `.tokens-after-first`, and `.last-token` expose original tokens.
 
-`.source-text`, `.decomposed-source-text`, `.value`, `.starts-input`, and `.tags` also observe original tokens. The restored span carries no constituent tags. A forest `.tags` there unions the tags of its aligned whole witnesses.
+`.source-text`, `.decomposed-source-text`, `.value`, `.starts-input`, and `.tags` also observe original tokens. The restored span carries no constituent tags. A forest `.tags` there unions the tags of its aligned witnesses. A prefix forest unions the tags of its prefix witnesses.
 
 For example, these rules hold an omitted BOI fixed:
 
@@ -1256,7 +1256,7 @@ The receiver and composition rules of `.without-elision` apply unchanged. `$x.on
 
 ### Fixed-window suffix queries
 
-A suffix query tests suffixes inside one fixed input window. The shorthand `s.ends(R)` and the form `s.parse(… R)` both do this. Every candidate keeps the receiver's start and end as its context. It is not a sequence of whole queries on shorter suffixes. Conditions such as `.starts-input` and nested `.preceding-tokens` therefore see the whole window.
+A suffix query tests suffixes inside one fixed input window. The shorthand `s.ends(R)` and the form `s.parse(… R)` both do this. Every candidate keeps the receiver's start and end as its context. It is not a sequence of whole queries on shorter suffixes. Conditions such as `.starts-input` and nested `.preceding-tokens` therefore see the whole window. A part query keeps the whole view as the context of every witness too. So `.starts-input` inside a witness of `parse(… C …)` sees the start of the view. The same holds for `.ends-input` and `.onward`.
 
 For example, a target that reads `"a"` and requires `$.starts-input` does not match the suffix of two tokens valued `b` and `a`. A nullable target can match the empty suffix. A tag target reads the last token and fails on an empty span.
 

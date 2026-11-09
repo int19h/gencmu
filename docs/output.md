@@ -297,7 +297,7 @@ A `redefine` binding can replace an ordinary rule or rebind a named instance to 
 
 A call is `{"call":"pair","args":[ARG,ARG...],"at":[line,column]}`. A parameter is `{"param":"Left","at":[line,column]}`. Both require positive source coordinates. Call names use the rule-name repertoire. A call requires at least one argument. A parameter requires a declaring template and a matching parameter name.
 
-Both forms obey the shape of their position. Parameters can replace operands inside conditions, but cannot replace whole conditions. Neither form replaces an emission or pattern-child expression. Calls retain their rule identity in unresolved term positions. Ordinary type requirements apply when the stage resolves those calls.
+Both forms obey the shape of their position. Parameters can replace operands inside conditions. A parameter can also stand as a set term in a Boolean position, because that position is a term position. Neither form replaces an emission or pattern-child expression. Calls retain their rule identity in unresolved term positions. Ordinary type requirements apply when the stage resolves those calls.
 
 ARG has one of these forms:
 

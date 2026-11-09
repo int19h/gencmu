@@ -1219,7 +1219,7 @@ Every expansion of the alternative that goes through a helper's place shares tha
 
 ### 3.10 Query helpers
 
-For each distinct user tag named by `matches`, `begins`, `ends`, or undecorated `parse`, stage lowering creates one query helper. Every occurrence of that terminal target shares the helper. Its single production reads one token through that terminal. The helper has no symbol tests, conditions, or written clauses. It inherits the token's tags.
+For each distinct user tag named by `matches`, `begins`, `ends`, or a `parse` in any mode, stage lowering creates one query helper. Every occurrence of that terminal target shares the helper. Its single production reads one token through that terminal. The helper has no symbol tests, conditions, or written clauses. It inherits the token's tags.
 
 Query helpers follow every production from the written grammar, including its helpers, in tag-name order. Other anonymous query targets follow the terminal helpers in first written-use order. No body can name a query helper. Query helpers appear in no grammar DOM, written-grammar analysis, output tree, or audit.
 
@@ -1227,7 +1227,7 @@ Query helpers follow every production from the written grammar, including its he
 
 An undecorated rule call reuses that rule's query target. An undecorated user-tag terminal reuses its helper, including a tag that only `parse` names. Every other constituent uses a structurally keyed anonymous target that retains its tests and decorations. This includes literals, ranges, wildcards, engine tags, and tested symbols.
 
-Thus `begins(x)` and `parse(x …)` share their target, memo entry, and recursive-query test. Lowering fixes only identity and target. Recognition uses the same whole, prefix, or suffix machinery as the corresponding query. An anonymous target's diagnostic name is its canonical constituent spelling, without remainder. A single nominal target keeps its public name.
+Thus `begins(x)` and `parse(x …)` share their target, memo entry, and recursive-query test. Lowering fixes only identity and target. Recognition uses the same whole, prefix, suffix, or part machinery as the corresponding query. An anonymous target's diagnostic name is its canonical constituent spelling, without remainder. A single nominal target keeps its public name.
 
 ### 3.11 Spliced calls
 
@@ -1314,11 +1314,11 @@ Two orders are free:
 
 The order between steps, between items and between sets is not observable either. Every step that the rules of this section reach runs in the end, so the same errors happen. §7.4 removes steps, and their errors with them. Two such errors differ only in their message.
 
-A target choice is a nonempty ordered list of ordinary rules, exact instances, and user terminal tags. Written alternatives use `|`, and repeated targets change nothing. Each terminal target reads exactly one original token carrying its tag. Whole, prefix, and suffix terminal queries use a helper (§3.10). A rule target runs a nested parse of that rule.
+A target choice is a nonempty ordered list of ordinary rules, exact instances, and user terminal tags. Written alternatives use `|`, and repeated targets change nothing. Each terminal target reads exactly one original token carrying its tag. Whole, prefix, suffix, and part terminal queries use a helper (§3.10). A rule target runs a nested parse of that rule.
 
 `span.matches(S)`, `span.begins(S)`, and `span.ends(S)` try the targets in written order until one succeeds or raises a grammar error. Every target must resolve, even where an earlier target always succeeds. `span.tags(rule)` accepts only one rule target. A rule target resolves where its rule or exact instance is defined in the stage (§9). A terminal target resolves by its name alone (§10).
 
-Whole, prefix, suffix, and tag queries run nested recognition for a rule target. Suffix recognition follows §4.4. For an ordinary span, a nested parse recognizes only its tokens, with `rule` as the start rule, over the same lowered grammar. It applies tests and conditions as the main parse does. Whole, prefix, and suffix recognition of a terminal starts from its query helper (§3.10). For those queries, `rule` below names that helper.
+Whole, prefix, suffix, part, and tag queries run nested recognition for a rule target. Suffix recognition follows §4.4. For an ordinary span, a nested parse recognizes only its tokens, with `rule` as the start rule, over the same lowered grammar. It applies tests and conditions as the main parse does. Whole, prefix, suffix, and part recognition of a terminal starts from its query helper (§3.10). For those queries, `rule` below names that helper.
 
 `view.parse(C)` returns the forest of eligible witnesses of C over that view. C is any body constituent. No part of its argument syntax can bind a capture. Called rules can retain their own captures.
 
@@ -1764,7 +1764,7 @@ Alternatively, an implementation applies `.error-free` per view instead of shari
 
 Only a nested parse that completes leaves an entry. A parse that ends in an error of the grammar leaves none, so every parse that meets the error finds it again. An entry for `matches` and `tags` holds whether the span is accepted, and the names of its tags.
 
-An entry for `begins` holds whether a prefix is accepted. An entry for `ends` holds whether a suffix is accepted. An entry for part mode holds whether a part is accepted. Each of these entries also holds its witness tags. So a Boolean answer and a `.tags` answer share one entry. A choice of targets (§10) keeps one entry for each rule target. A terminal target of `matches` or `begins` keeps the shared entry of its helper (§3.10). A terminal target of `ends` keeps the suffix answer of its helper for the parse (§4.4).
+An entry for `begins` holds whether a prefix is accepted. An entry for `ends` holds whether a suffix is accepted. An entry for part mode holds whether a part is accepted. Each of these entries also holds its witness tags. So a Boolean answer and a `.tags` answer share one entry. A choice of targets (§10) keeps one entry for each rule target. A terminal target of `matches` or `begins` keeps the shared entry of its helper (§3.10). A terminal target of `ends` keeps the suffix answer of its helper for the parse (§4.4). A terminal target in part mode keeps the part answer of its helper.
 
 A shared memo must never change a result. A warm shared memo holds entries from earlier parses. A parse with a warm shared memo gives exactly the result of the same parse with an empty one. This holds for every order of parses, and for parses that run at the same time on other threads.
 
@@ -1790,7 +1790,7 @@ Let the current input context be `[c,d)` and the receiver's projected span be `[
 
 The context is the stage input or the input window of the current nested query. A backward query inside a forward query cannot see tokens before that forward query's start. `.last-token` retains its ordinary meaning. Thus `$x.preceding-tokens.last-token` is the token immediately before `$x`, within that context.
 
-An ordinary `s.ends(R)` recognizes the fixed window `[a,b)`. It permits a target root at every boundary `k` with `a≤k≤b` and requires its completion at `b`. Conditions of every candidate use the same context `[a,b)`. No candidate receives `[k,b)` as a new context.
+An ordinary `s.ends(R)` recognizes the fixed window `[a,b)`. It permits a target root at every boundary `k` with `a≤k≤b` and requires its completion at `b`. Conditions of every candidate use the same context `[a,b)`. No candidate receives `[k,b)` as a new context. A part query over `[a,b)` keeps that whole view as the context of every witness. So `.starts-input` inside a witness sees `a`, and `.ends-input` sees `b`. The same holds for `.onward` inside a witness.
 
 The method holds when some permitted completion has an eligible proof tree. A nullable target can supply the empty suffix. A user-tag target tests the last original token and fails on an empty receiver. The user-tag test is its query helper's single production (§3.10). Suffix recognition retains that answer for the parse. Target choices retain written-order evaluation and error behavior.
 
@@ -1813,7 +1813,7 @@ A grammar error ends the stage. The shared recognition therefore serves no later
 
 A span method that drops restoration can supply an ordinary receiver. For example, `$x.without-elision.preceding-tokens.ends(R)` queries the raw prefix. It applies no suffix alignment constraint.
 
-Query answer keys distinguish suffix mode from whole and prefix modes. They include the target instance and fixed window. The active-query identity remains the target and projected context interval, across `matches`, `begins`, `ends`, and `tags`. Changing direction cannot evade the recursive-query error.
+Query answer keys distinguish suffix mode from whole and prefix modes. They include the target instance and fixed window. The active-query identity remains the target and projected context interval, across `matches`, `begins`, `ends`, `tags`, and `parse` in any mode. Changing direction cannot evade the recursive-query error.
 
 Requests outside active suffix queries share recognition when they have one lowered target and window start, and that target reads no window end. The shared recognition starts the target at every position from that window start. It retains one answer for each requested end boundary. The total cost is that recognition, including its nested queries, plus constant work per request. Complex targets can cost more than linear time even with sharing.
 
@@ -2259,7 +2259,7 @@ Written-terminator priority applies to the tokens that it reads. It does not ran
 
 Inside the query, `.starts-input`, `.onward`, `.preceding-tokens`, and `.following-tokens` read the query's span of O. Its start and end are positions of O.
 
-A query is about a rule and a span of O. For the recursive-query rule of §4, `matches`, `begins`, `ends`, and `s.tags(R)` of one rule and span are one query. The rule is unchanged. A query is an error of the grammar where a query about the same rule and span is active. Only queries are active.
+A query is about a rule and a span of O. For the recursive-query rule of §4, `matches`, `begins`, `ends`, `s.tags(R)`, and equivalent `parse` forms of one rule and span are one query. The rule is unchanged. A query is an error of the grammar where a query about the same rule and span is active. Only queries are active.
 
 The reconstruction's recognition of R is not a query. This holds also where the span of `$` projects to all of O and the query asks about `text`. So a condition of the reconstruction can ask whether the original input parses as `text`. That query runs with G over O, and it is active while it runs. It is an error only where a query inside it asks about `text` over all of O.
 
@@ -2630,7 +2630,7 @@ method-chain = method-receiver method-selector {method-selector}
 method-receiver = term-atom
 method-selector = parse-selector | ordinary-selector
 parse-selector = "." "parse" "(" parse-argument ")"
-parse-argument = choice | "…" choice | choice "…"
+parse-argument = "…" choice "…" | "…" choice | choice "…" | choice
 ordinary-selector = "." method-name ["(" arguments ")"]
 arguments = argument {("," | "|") argument}
 argument = term | integer
@@ -2639,7 +2639,11 @@ implication = any-of {"⟹" any-of}
 any-of = ["∨"] all-of {"∨" all-of}
 all-of = ["∧"] condition {"∧" condition}
 condition = comparison | tree-comparison | method-chain | capture-reference
-          | "¬" condition | "(" implication ")"
+          | "¬" condition | "(" implication ")" | term-condition
+term-condition = union-operation | intersection-operation | set-atom
+union-operation = ["∪"] intersection ("∪" | "∖") {("∪" | "∖") intersection}
+intersection-operation = ["∩"] concatenation "∩" {"∩" concatenation}
+set-atom = tag | tag-run | string-run | "∅" | constant-reference | parameter
 comparison = union comparator union
 comparator = "=" | "≠" | "∈" | "∉" | "⊆" | "⊈"
 tree-comparison = capture-reference ("≅" | "≇") union
@@ -3532,13 +3536,11 @@ Repeated targets are accepted and change nothing. Engine tags cannot be targets.
 
 Targets use `|` separators, without constants or strings. Commas inside an exact instance call separate its arguments only. Parentheses around one target preserve that target. A grouped choice is invalid.
 
-`s.matches(S)` holds when the span parses as any target, and `s.begins(S)` when a prefix does, and `s.ends(S)` when a suffix does (§4.4). Nullable rule targets include the empty prefix or suffix for the corresponding method. A terminal target reads exactly one token carrying its tag. Query alternatives evaluate left to right and stop at the first success or grammar error. Every target must resolve, including alternatives that evaluation never reaches.
+A terminal target reads exactly one token carrying its tag. Query alternatives evaluate left to right and stop at the first success or grammar error. Every target must resolve, including alternatives that evaluation never reaches.
 
 A rule target resolves where its rule or exact instance is defined in the stage (§9). A terminal target resolves by its name alone. It need not stand in any body or tag term. If no input token carries its tag, the query never holds. A boundary target must also be buildable (§9.3).
 
-Lowering gives each terminal target of `matches`, `begins`, or `ends` a helper (§3.10). Its single production reads one token through that terminal. Lowering adds the helper outside the written grammar, so the identities of the ranked groups do not change. The same lowering applies in ranked alternatives and in ordinary alternatives. A terminal target of a boundary atom has no helper. It names the token nodes that its terminal read (§4.2).
-
-Each alternative keeps the ordinary query bounds, recursion checks, and cache identity of a single-target query. All three read only eligible proof trees (§4). For `matches` and `begins`, a restored span adds alignment and preserves its separate context bound. A restored `.ends` receiver is a load error.
+Each terminal target keeps the helper of §3.10, in ranked alternatives and in ordinary alternatives. A terminal target of a boundary atom has no helper. It names the token nodes that its terminal read (§4.2).
 
 If the span begins at its evaluating parse's input start, `s.starts-input` holds. That is the start of the stage's input, or, in a nested parse (§4), the start of the span that the parse reads. As a condition, a nonempty query forest holds. A tag set or string set in a Boolean position holds where it is not empty. Forests admit `.error-free` and `.tags`. They admit no string conversion, comparison, or set operator.
 
