@@ -1891,7 +1891,13 @@ No line of a grammar block holds more than 100 characters, counted as Unicode co
                                := $r.value
 ```
 
-A long condition breaks in the same way, outside brackets too. This covers the guard of a tag term. Each line ends with its operator. In a list of conditions, the next line stands two columns deeper than the start of the condition. So it does not read as a new condition. In a guard, the next line stands in the column where the condition begins. Inside brackets, a long condition or term breaks in the same way too. Each line ends with its operator, such as `∧`, `∨`, `⟹` or `∪`. The next line stands one column after the opening bracket, so that the nesting shows. A long condition breaks first at its loosest operator. Then each part of that operator can stand on a line of its own, as in a table. A part of a tighter operator that must wrap stands deeper than the line that starts it. The break rules cover emission items too. A long constant puts its value on the lines after its header. Each line ends with its operator. The next line stands two columns deeper than the header.
+A long condition breaks in the same way, outside brackets too. This covers the guard of a tag term. Each line ends with its operator. In a list of conditions, the next line stands two columns deeper than the start of the condition. So it does not read as a new condition. In a guard, the next line stands in the column where the condition begins.
+
+Inside brackets, a long condition or term breaks in the same way too. Each line ends with its operator, such as `∧`, `∨`, `⟹` or `∪`. The next line stands one column after the opening bracket, so that the nesting shows.
+
+A long condition breaks first at its loosest operator. Then each part of that operator can stand on a line of its own, as in a table. A part of a tighter operator that must wrap stands deeper than the line that starts it. The break rules cover emission items too.
+
+A long constant puts its value on the lines after its header. Each line ends with its operator. The next line stands two columns deeper than the header.
 
 The rules for tag terms below cover the top level of the tag term of a clause or an emission item. Inside brackets, in constants and in conditions, tags keep their `∪`. A term with a top-level `∖` keeps its written order, because a difference does not commute.
 
@@ -1917,7 +1923,7 @@ A comment on a whole definition stands on its own lines before the definition. T
 
 Alternatives do not repeat a clause that they share. This covers tag, value and image clauses. Tags that every alternative carries stand on the header, because header tags and alternative tags are unioned. Each alternative then keeps only the tags that not every alternative carries. A value or an image that most alternatives share can stand on the header as the default. An alternative with its own recipe overrides it. A sole alternative keeps its clauses after its body, except where its body is a ranked choice. Under a bare header, a sole alternative stands without a leading `|`. If adjacent alternatives share a clause and have the same other clauses, a group holds their bodies, and the clauses follow the group. Bodies that share a first or last part keep that part outside the group. A guard that the alternatives share stands before the group, as in `f? ("a" | "b") :: T`. Alternatives with different guards stay apart.
 
-A repeated tag can show that a rule mixes two kinds of constituent, and that the tag marks one of the kinds. A tag of this kind says what a constituent is. For example, `Vowel` marks `a`, `e`, `i`, `o` and `u` as against `y`. Then a rule of its own holds the kind that carries the tag, and that rule's header carries it. For example, the Latin `Vowel` tag marks `a`, `e`, `i`, `o` and `u`, but not `y`. Each stressed vowel has its own value and image, so a group cannot hold the tag. So the five tagged vowels form a rule of their own:
+A repeated tag can show that a rule mixes two kinds of constituent, and that the tag marks one of the kinds. A tag of this kind says what a constituent is. For example, `Vowel` marks `a`, `e`, `i`, `o` and `u` as against `y`. Then a rule of its own holds the kind that carries the tag, and that rule's header carries it. In the Latin letters, each stressed vowel has its own value and image, so a group cannot hold the tag. So the five tagged vowels form a rule of their own:
 
 ```jbogenbau
 %rule stressed-full-vowel :: Vowel
