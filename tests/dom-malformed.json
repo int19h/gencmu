@@ -6872,7 +6872,7 @@
         1
       ]
     },
-    "malformed": true
+    "malformed": false
   },
   {
     "description": "Unresolved template: body-term-union",
@@ -7086,7 +7086,7 @@
         1
       ]
     },
-    "malformed": true
+    "malformed": false
   },
   {
     "description": "Unresolved template: condition body sequence",

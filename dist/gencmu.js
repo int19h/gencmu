@@ -22824,7 +22824,7 @@
             /** @type {Term[]} */
             const items = [];
             for (const item of some(operation, "concatenation")) items.push(yield readTerm(item));
-            return { intersection: items };
+            return /** @type {Condition} */ (/** @type {unknown} */ ({ intersection: items }));
           }
           const found = some(operation, "intersection");
           const operators = parts(operation).flatMap((child) => {
@@ -22849,7 +22849,7 @@
               open = true;
             }
           });
-          return result;
+          return /** @type {Condition} */ (/** @type {unknown} */ (result));
         }
         case "method": {
           const method = yield readMethod(inner);
