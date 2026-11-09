@@ -1881,7 +1881,19 @@ Each marked alternative stands on lines of its own, and no other top-level alter
   | initial-pair vowel consonant vowel
 ```
 
-No line of a rule body holds more than 100 characters, counted as Unicode code points. An alternative can run over several lines, and each of these lines counts. A comment line does not count, because a comment stays on one line. A long alternative breaks before a clause or before a top-level operator of a term, not inside brackets. If a bracketed part alone is too long for one line, it breaks before one of its own `|` separators. A bracketed sequence without `|` breaks between two of its items. The continuation then stands deeper than the alternative, so that it does not read as a new alternative.
+No line of a rule body holds more than 100 characters, counted as Unicode code points. An alternative can run over several lines, and each of these lines counts. A comment line does not count, because a comment stays on one line. A long alternative breaks before a clause, not inside brackets. A clause that starts a new line stands in the column of `::`. A tag term that runs over several lines ends each line with its `∪`. Its next operand stands in the column of its first operand:
+
+```jbogenbau
+%rule runs
+  | $r:run :: $r.tags
+  | $p:runs pause-token $r:run :: $r.tags ∪
+                                  (RAhOI ⊆ $p.tags ∧ $r.matches(only-hesitation) ⟹ RAhOI)
+                               := $r.value
+```
+
+A tag term lists its parts in a fixed order. Bare tags come first, as one run without `∪`, as in `:: Gismu Onset`. Expressions without a guard come next, such as `$x.tags`. Guarded expressions come last. If a term has two or more expressions, each expression stands on a line of its own. A run of tags and one expression can share a line, as in `:: Word Cmavo ∪ $c.tags`.
+
+If a bracketed part alone is too long for one line, it breaks before one of its own `|` separators. A bracketed sequence without `|` breaks between two of its items. The continuation then stands deeper than the alternative, so that it does not read as a new alternative.
 
 The convention covers only the top-level alternatives of a rule. A choice inside a group, and the options of a ranked choice, can stand on one line. So `("a" | "e") :: Vowel` and `a ≻ b` are each one alternative.
 
