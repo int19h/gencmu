@@ -1063,8 +1063,8 @@ The morphology chapter allows a hyphen at a syllable boundary. A consonant unit 
 ```jbogenbau
 %rule spelling-quote
   $s:ce-particle $u:units unit-join $e:cei-particle [hyphen-misplaced]
-    :: Word ∪ Particle ∪ CE ∪ Quote := $s.value ++ " " ++ $u.emitted.value ++ " " ++ $e.value :-
-    $.source-text
+    :: Word ∪ Particle ∪ CE ∪ Quote := $s.value ++ " " ++ $u.emitted.value ++ " " ++ $e.value
+    :- $.source-text
 %emits
   $
 

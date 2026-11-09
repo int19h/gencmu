@@ -419,17 +419,17 @@ An ogonek and a caron together on `a` give no reading, so the run is foreign. On
 %emits
   $ :: ($.tags ∩ Stressed) ∪ Vowel, ε :: Vowel := "i"
 
-%rule latin-diphthong-u :: ($m ⟹ $m.tags ∩ Dieresis)
-  | "a" $m:letter-marks<Caron ¬Accent ¬Ogonek> := "a"
-  | "a" $m:letter-marks<Caron Accent ¬Ogonek> :: Stressed := "a" :- "A"
-  | "A" $m:letter-marks<Caron Accent ¬Ogonek> :: Stressed Capital Accented := "a" :- "A"
-  | "A" $m:letter-marks<Caron ¬Accent ¬Ogonek> :: Stressed Capital := "a" :- "A"
-  | "A" $m:letter-marks<Caron ¬Accent ¬Ogonek> :: Folded Capital := "a"
-  | "ꜷ" [$m:letter-marks<¬Accent>] := "a"
-  | "ꜷ" $m:letter-marks<Accent> :: Stressed := "a" :- "A"
-  | "Ꜷ" $m:letter-marks<Accent> :: Stressed Capital Accented := "a" :- "A"
-  | "Ꜷ" [$m:letter-marks<¬Accent>] :: Stressed Capital := "a" :- "A"
-  | "Ꜷ" [$m:letter-marks<¬Accent>] :: Folded Capital := "a"
+%rule latin-diphthong-u :: ($m ⟹ $m.tags ∩ Dieresis) := "a"
+  | "a" $m:letter-marks<Caron ¬Accent ¬Ogonek>
+  | "a" $m:letter-marks<Caron Accent ¬Ogonek> :: Stressed :- "A"
+  | "A" $m:letter-marks<Caron Accent ¬Ogonek> :: Stressed Capital Accented :- "A"
+  | "A" $m:letter-marks<Caron ¬Accent ¬Ogonek> :: Stressed Capital :- "A"
+  | "A" $m:letter-marks<Caron ¬Accent ¬Ogonek> :: Folded Capital
+  | "ꜷ" [$m:letter-marks<¬Accent>]
+  | "ꜷ" $m:letter-marks<Accent> :: Stressed :- "A"
+  | "Ꜷ" $m:letter-marks<Accent> :: Stressed Capital Accented :- "A"
+  | "Ꜷ" [$m:letter-marks<¬Accent>] :: Stressed Capital :- "A"
+  | "Ꜷ" [$m:letter-marks<¬Accent>] :: Folded Capital
 %emits
   $ :: ($.tags ∩ Stressed) ∪ Vowel, ε :: Vowel := "u"
 
