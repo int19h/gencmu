@@ -803,10 +803,11 @@ class Parser {
       if (!COMPARATORS.has(this.kindAt())) {
         const intersections = left.children.filter(child => child.rule === "intersection");
         let operation;
-        if (intersections.length > 1) operation = this.node("union-operation", start, left.children);
+        // A leading separator is an operation, not part of a lone atom.
+        if (intersections.length > 1 || left.children[0].kind === "token") operation = this.node("union-operation", start, left.children);
         else {
           const concatenations = intersections[0].children.filter(child => child.rule === "concatenation");
-          if (concatenations.length > 1) operation = this.node("intersection-operation", start, intersections[0].children);
+          if (concatenations.length > 1 || intersections[0].children[0].kind === "token") operation = this.node("intersection-operation", start, intersections[0].children);
           else {
             const atom = concatenations[0].children.find(child => child.rule === "term-atom");
             const inner = atom ? atom.children.find(child => child.kind === "rule") : null;
