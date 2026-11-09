@@ -254,17 +254,17 @@ The `Vowel` tag marks the five full vowels `a`, `e`, `i`, `o` and `u`, and it do
 %rule folded-vowel-group-joined = vowel-group-joined-with(folded-vowel)
 %rule joined-folded-vowel = joined-vowel-with(folded-vowel)
 
-%rule folded-full-vowel
-  | "A" :: Vowel := "a"
-  | "E" :: Vowel := "e"
-  | "I" [glide-mark] :: Vowel := "i"
-  | "O" :: Vowel := "o"
-  | "U" [glide-mark] :: Vowel := "u"
-  | "A" stress-mark :: Stressed ∪ Vowel := "a" :- "A"
-  | "E" stress-mark :: Stressed ∪ Vowel := "e" :- "E"
-  | "I" stress-mark :: Stressed ∪ Vowel := "i" :- "I"
-  | "O" stress-mark :: Stressed ∪ Vowel := "o" :- "O"
-  | "U" stress-mark :: Stressed ∪ Vowel := "u" :- "U"
+%rule folded-full-vowel :: Vowel
+  | "A" := "a"
+  | "E" := "e"
+  | "I" [glide-mark] := "i"
+  | "O" := "o"
+  | "U" [glide-mark] := "u"
+  | "A" stress-mark :: Stressed := "a" :- "A"
+  | "E" stress-mark :: Stressed := "e" :- "E"
+  | "I" stress-mark :: Stressed := "i" :- "I"
+  | "O" stress-mark :: Stressed := "o" :- "O"
+  | "U" stress-mark :: Stressed := "u" :- "U"
 
 %rule folded-vowel :: ∅
   | folded-full-vowel

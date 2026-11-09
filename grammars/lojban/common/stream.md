@@ -77,9 +77,9 @@ The rule `empty` reads a prefix that leaves no units. Its alternatives use `text
   si-erasure
   | sa-su? sa-erasure
 
-%rule fault-unit
-  | empty cmavo-token<BU> :: Word ∪ BY ∪ Fault
-  | lehu-marker :: Word ∪ LEhU ∪ Fault
+%rule fault-unit :: Word ∪ Fault
+  | empty cmavo-token<BU> :: BY
+  | lehu-marker :: LEhU
 %emits
   $
 

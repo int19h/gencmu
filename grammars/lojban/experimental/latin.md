@@ -216,9 +216,9 @@ Stage zero sorts each uninterrupted run of marks of nonzero combining class by c
 A letter rule tests only the marks that mean something on its letter. Any other mark is ignored. So a breve on `a` and an ogonek on `i` change nothing. `named-mark` lists the five meaningful marks with their tags once. `letter-mark` reads a named mark, which keeps its tags, or any other combining mark with no tag.
 
 ```jbogenbau
-%rule letter-marks
-  | $m:letter-mark :: $m.tags
-  | $l:letter-marks $m:letter-mark :: $l.tags ∪ $m.tags
+%rule letter-marks :: $m.tags
+  | $m:letter-mark
+  | $l:letter-marks $m:letter-mark :: $l.tags
 
 %rule letter-mark
   | named-mark
@@ -290,32 +290,32 @@ A breve on `i` or `u` makes a glide letter, which the next section reads. The vo
 The `Vowel` tag marks the five full vowels and not `y`. So `latin-full-vowel` holds the full vowels of `latin-vowel`, and the `y` forms and the glide letter stay in `latin-vowel`.
 
 ```jbogenbau
-%rule latin-full-vowel
-  | "a" [$m:letter-marks<¬Accent ¬Ogonek ¬Caron>] :: Vowel := "a"
-  | "a" $m:letter-marks<Accent ¬Ogonek ¬Caron> :: Stressed ∪ Vowel := "a" :- "A"
-  | "A" $m:letter-marks<Accent ¬Ogonek ¬Caron> :: Stressed Capital Accented ∪ Vowel := "a" :- "A"
-  | "A" [$m:letter-marks<¬Accent ¬Ogonek ¬Caron>] :: Stressed Capital ∪ Vowel := "a" :- "A"
-  | "A" [$m:letter-marks<¬Accent ¬Ogonek ¬Caron>] :: Folded Capital ∪ Vowel := "a"
-  | "e" [$m:letter-marks<¬Accent ¬Ogonek>] :: Vowel := "e"
-  | "e" $m:letter-marks<Accent ¬Ogonek> :: Stressed ∪ Vowel := "e" :- "E"
-  | "E" $m:letter-marks<Accent ¬Ogonek> :: Stressed Capital Accented ∪ Vowel := "e" :- "E"
-  | "E" [$m:letter-marks<¬Accent ¬Ogonek>] :: Stressed Capital ∪ Vowel := "e" :- "E"
-  | "E" [$m:letter-marks<¬Accent ¬Ogonek>] :: Folded Capital ∪ Vowel := "e"
-  | "i" [$m:letter-marks<¬Accent ¬Breve>] :: Vowel := "i"
-  | "i" $m:letter-marks<Accent ¬Breve> :: Stressed ∪ Vowel := "i" :- "I"
-  | "I" $m:letter-marks<Accent ¬Breve> :: Stressed Capital Accented ∪ Vowel := "i" :- "I"
-  | "I" [$m:letter-marks<¬Accent ¬Breve>] :: Stressed Capital ∪ Vowel := "i" :- "I"
-  | "I" [$m:letter-marks<¬Accent ¬Breve>] :: Folded Capital ∪ Vowel := "i"
-  | "o" [$m:letter-marks<¬Accent ¬Ogonek>] :: Vowel := "o"
-  | "o" $m:letter-marks<Accent ¬Ogonek> :: Stressed ∪ Vowel := "o" :- "O"
-  | "O" $m:letter-marks<Accent ¬Ogonek> :: Stressed Capital Accented ∪ Vowel := "o" :- "O"
-  | "O" [$m:letter-marks<¬Accent ¬Ogonek>] :: Stressed Capital ∪ Vowel := "o" :- "O"
-  | "O" [$m:letter-marks<¬Accent ¬Ogonek>] :: Folded Capital ∪ Vowel := "o"
-  | "u" [$m:letter-marks<¬Accent ¬Breve>] :: Vowel := "u"
-  | "u" $m:letter-marks<Accent ¬Breve> :: Stressed ∪ Vowel := "u" :- "U"
-  | "U" $m:letter-marks<Accent ¬Breve> :: Stressed Capital Accented ∪ Vowel := "u" :- "U"
-  | "U" [$m:letter-marks<¬Accent ¬Breve>] :: Stressed Capital ∪ Vowel := "u" :- "U"
-  | "U" [$m:letter-marks<¬Accent ¬Breve>] :: Folded Capital ∪ Vowel := "u"
+%rule latin-full-vowel :: Vowel
+  | "a" [$m:letter-marks<¬Accent ¬Ogonek ¬Caron>] := "a"
+  | "a" $m:letter-marks<Accent ¬Ogonek ¬Caron> :: Stressed := "a" :- "A"
+  | "A" $m:letter-marks<Accent ¬Ogonek ¬Caron> :: Stressed Capital Accented := "a" :- "A"
+  | "A" [$m:letter-marks<¬Accent ¬Ogonek ¬Caron>] :: Stressed Capital := "a" :- "A"
+  | "A" [$m:letter-marks<¬Accent ¬Ogonek ¬Caron>] :: Folded Capital := "a"
+  | "e" [$m:letter-marks<¬Accent ¬Ogonek>] := "e"
+  | "e" $m:letter-marks<Accent ¬Ogonek> :: Stressed := "e" :- "E"
+  | "E" $m:letter-marks<Accent ¬Ogonek> :: Stressed Capital Accented := "e" :- "E"
+  | "E" [$m:letter-marks<¬Accent ¬Ogonek>] :: Stressed Capital := "e" :- "E"
+  | "E" [$m:letter-marks<¬Accent ¬Ogonek>] :: Folded Capital := "e"
+  | "i" [$m:letter-marks<¬Accent ¬Breve>] := "i"
+  | "i" $m:letter-marks<Accent ¬Breve> :: Stressed := "i" :- "I"
+  | "I" $m:letter-marks<Accent ¬Breve> :: Stressed Capital Accented := "i" :- "I"
+  | "I" [$m:letter-marks<¬Accent ¬Breve>] :: Stressed Capital := "i" :- "I"
+  | "I" [$m:letter-marks<¬Accent ¬Breve>] :: Folded Capital := "i"
+  | "o" [$m:letter-marks<¬Accent ¬Ogonek>] := "o"
+  | "o" $m:letter-marks<Accent ¬Ogonek> :: Stressed := "o" :- "O"
+  | "O" $m:letter-marks<Accent ¬Ogonek> :: Stressed Capital Accented := "o" :- "O"
+  | "O" [$m:letter-marks<¬Accent ¬Ogonek>] :: Stressed Capital := "o" :- "O"
+  | "O" [$m:letter-marks<¬Accent ¬Ogonek>] :: Folded Capital := "o"
+  | "u" [$m:letter-marks<¬Accent ¬Breve>] := "u"
+  | "u" $m:letter-marks<Accent ¬Breve> :: Stressed := "u" :- "U"
+  | "U" $m:letter-marks<Accent ¬Breve> :: Stressed Capital Accented := "u" :- "U"
+  | "U" [$m:letter-marks<¬Accent ¬Breve>] :: Stressed Capital := "u" :- "U"
+  | "U" [$m:letter-marks<¬Accent ¬Breve>] :: Folded Capital := "u"
 
 %rule latin-vowel :: ($m ⟹ $m.tags ∩ Dieresis)
   | latin-full-vowel

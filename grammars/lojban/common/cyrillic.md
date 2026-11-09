@@ -91,17 +91,17 @@ The `Vowel` tag marks the five full vowels and not `y`. So each vowel rule below
 %emits
   $
 
-%rule cyrillic-folded-full-vowel
-  | "А" :: Syllabic ∪ Vowel := "a"
-  | ("Е" | "Э" | "Є") :: Syllabic ∪ Vowel := "e"
-  | ("И" | "І") :: Syllabic ∪ Vowel := "i"
-  | "О" :: Syllabic ∪ Vowel := "o"
-  | "У" :: Syllabic ∪ Vowel := "u"
-  | "А" stress-mark :: Stressed ∪ Syllabic ∪ Vowel := "a" :- "A"
-  | ("Е" | "Э" | "Є") stress-mark :: Stressed ∪ Syllabic ∪ Vowel := "e" :- "E"
-  | ("И" | "І") stress-mark :: Stressed ∪ Syllabic ∪ Vowel := "i" :- "I"
-  | "О" stress-mark :: Stressed ∪ Syllabic ∪ Vowel := "o" :- "O"
-  | "У" stress-mark :: Stressed ∪ Syllabic ∪ Vowel := "u" :- "U"
+%rule cyrillic-folded-full-vowel :: Syllabic ∪ Vowel
+  | "А" := "a"
+  | ("Е" | "Э" | "Є") := "e"
+  | ("И" | "І") := "i"
+  | "О" := "o"
+  | "У" := "u"
+  | "А" stress-mark :: Stressed := "a" :- "A"
+  | ("Е" | "Э" | "Є") stress-mark :: Stressed := "e" :- "E"
+  | ("И" | "І") stress-mark :: Stressed := "i" :- "I"
+  | "О" stress-mark :: Stressed := "o" :- "O"
+  | "У" stress-mark :: Stressed := "u" :- "U"
 
 %rule cyrillic-folded-vowel
   | cyrillic-folded-full-vowel
