@@ -133,9 +133,9 @@ A quiet pause carries only a spacing boundary. A material pause preserves punctu
 %const $MATERIAL
   Quote-Material ∪ Punctuation-Material
 
-%rule pause-run
-  | $p:PAUSE :: $p.tags ∩ $MATERIAL := " " :- " "
-  | $r:pause-run $q:PAUSE :: ($r.tags ∪ $q.tags) ∩ $MATERIAL := " " :- " "
+%rule pause-run := " " :- " "
+  | $p:PAUSE :: $p.tags ∩ $MATERIAL
+  | $r:pause-run $q:PAUSE :: ($r.tags ∪ $q.tags) ∩ $MATERIAL
 
 %rule spacing
   [$p:pause-run] [$h:hesitations [$q:pause-run]]
@@ -498,12 +498,11 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
   | delimiter-spacing
   | delimiter-spacing quote-attachment :: Delimiter-Mark := $PAUSE
 
-%rule delimiter-body-gap
-  | $p:PAUSE<¬Quote-Material> :: $p.tags ∩ Period-Only := $PAUSE
-  | quote-end-mark PAUSE<¬Quote-Material> :: ∅ := $PAUSE
-  | interword-mark := $PAUSE
-  | (period-pause quote-end-mark PAUSE<¬Quote-Material>
-      | period-pause interword-mark) :: Delimiter-Edge := $PAUSE
+%rule delimiter-body-gap := $PAUSE
+  | $p:PAUSE<¬Quote-Material> :: $p.tags ∩ Period-Only
+  | quote-end-mark PAUSE<¬Quote-Material> :: ∅
+  | interword-mark
+  | period-pause (quote-end-mark PAUSE<¬Quote-Material> | interword-mark) :: Delimiter-Edge
 
 %rule period-pause
   PAUSE<¬Quote-Material Period-Only>
