@@ -8,6 +8,8 @@ The two read the same letters differently, so a pipeline or a caller chooses one
 
 The rules map 23 letters to phonemes. Five are the vowel letters `а`, `е`, `и`, `о` and `у`. Seventeen are the consonants `б`, `в`, `г`, `д`, `ж`, `з`, `к`, `л`, `м`, `н`, `п`, `р`, `с`, `т`, `ф`, `х` and `ш`. The Bulgarian hard sign `ъ` maps to `y`. Their images use these Latin phoneme letters. So `ж` is `j`, `х` is `x` and `ш` is `c`.
 
+The `Vowel` tag marks the five full vowels and not `y`, so `cll-cyrillic-plain-full-vowel` holds them and carries `Vowel` on its header. The hard sign stays in `cll-cyrillic-plain-vowel`.
+
 The apostrophe and period are those of the Latin orthography. In `lojban/cll`, a comma run marks a syllable break only between vowel groups and otherwise emits nothing on its own. The other pipelines discard it through [../common/latin.md](../common/latin.md#the-comma). The orthography writes a diphthong as a vowel pair, as in the Latin orthography, so `маи` is `mai`. A capital vowel marks stress, and a capital consonant preserves its phoneme. The all-capital runs of [../common/latin.md](../common/latin.md) do not apply to these letters, so in every Lojban pipeline a capital vowel here marks stress.
 
 A capital `Ъ` writes stressed `y`, with value `y` and image `Y`. The [Latin stress rules](latin.md#letters) apply: names can stress any syllable,[^cll-s3-9][^cll-s4-8] and particles can stress any syllable or none.[^cll-s3-9] So `Ъ` can stand in names and particles. In lojban/cll, a compound hyphen stays unstressed. The other pipelines ignore a stress mark on `y`, so they read `bajЪkla` as a brivla.
@@ -43,12 +45,15 @@ A capital `Ъ` writes stressed `y`, with value `y` and image `Y`. The [Latin str
 %emits
   $
 
+%rule cll-cyrillic-plain-full-vowel :: Vowel
+  | "а" := "a"
+  | "е" := "e"
+  | "и" := "i"
+  | "о" := "o"
+  | "у" := "u"
+
 %rule cll-cyrillic-plain-vowel :: ∅
-  | "а" :: Vowel := "a"
-  | "е" :: Vowel := "e"
-  | "и" :: Vowel := "i"
-  | "о" :: Vowel := "o"
-  | "у" :: Vowel := "u"
+  | cll-cyrillic-plain-full-vowel
   | "ъ" := "y"
 %emits
   $

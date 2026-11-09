@@ -10,6 +10,8 @@ The Cyrillic glides carry no `Glide` tag, and the word forms find them by positi
 
 `cyrillic-vowel` reads every Cyrillic vowel letter with its marks. Its tags work as those of `latin-vowel`. A capital full vowel without an accent has a stressed and a folded reading. An accented capital has one reading, stressed and `Accented`, which an all-capital run keeps, as "Capital runs" in [../common/latin.md](../common/latin.md) says. The three restated vowel rules take the readings that fit them.
 
+The `Vowel` tag marks the five full vowels and not `y`. So `cyrillic-full-vowel` holds the full vowels of `cyrillic-vowel`, and the `y` forms, the glides and the consonants stay in `cyrillic-vowel`.
+
 Joined vowels use the same public tags as isolated vowels. The emission filter keeps only `Stressed`, `Syllabic` and `Vowel`. Bookkeeping tags stay inside the phoneme stage.
 
 ```jbogenbau
@@ -39,7 +41,7 @@ Joined vowels use the same public tags as isolated vowels. The emission filter k
 %emits
   $ :: ∅ := "'"
 
-%rule cyrillic-vowel
+%rule cyrillic-full-vowel
   | "а" [letter-marks<¬Accent>] :: Syllabic ∪ Vowel := "a"
   | "а" letter-marks<Accent> :: Stressed Syllabic ∪ Vowel := "a" :- "A"
   | "А" letter-marks<Accent> :: Stressed Syllabic ∪ Vowel Accented := "a" :- "A"
@@ -70,6 +72,9 @@ Joined vowels use the same public tags as isolated vowels. The emission filter k
   | "У" letter-marks<Accent ¬Breve> :: Stressed Syllabic ∪ Vowel Accented := "u" :- "U"
   | "У" [letter-marks<¬Accent ¬Breve>] :: Stressed Syllabic ∪ Vowel Capital := "u" :- "U"
   | "У" [letter-marks<¬Accent ¬Breve>] :: Folded Syllabic ∪ Vowel Capital := "u"
+
+%rule cyrillic-vowel
+  | cyrillic-full-vowel
   | ("ъ" | "ы" | "ә") [letter-marks<¬Accent>] :: Syllabic := "y"
   | ("ъ" | "ы" | "ә") letter-marks<Accent> :: Stressed Syllabic := "y" :- "Y"
   | ("Ъ" | "Ы" | "Ә") letter-marks<Accent> :: Stressed Syllabic Accented := "y" :- "Y"
@@ -113,6 +118,8 @@ Joined vowels use the same public tags as isolated vowels. The emission filter k
 
 The Cyrillic of CLL, in [../cll/cyrillic.md](../cll/cyrillic.md), ignores unknown marks too. It writes a diphthong as two plain vowels, as the Latin orthography does, so it has no glide letters. An accent on a vowel marks stress, as on a Latin vowel. Every other mark is ignored, the breve and the dieresis included. So `май` is `mai`, `мёи` is `mei` and `ма́и` is `mAi`. A capital vowel still marks stress, because this orthography has no all-capital runs.
 
+The `Vowel` tag marks the five full vowels and not `y`, so the restated `cll-cyrillic-plain-full-vowel` holds them and carries `Vowel` on its header. The hard sign stays in `cll-cyrillic-plain-vowel`.
+
 ```jbogenbau
 %redefine-rule cll-cyrillic-consonant :: Consonant
   | ("б" | "Б") [letter-marks] := "b"
@@ -135,12 +142,15 @@ The Cyrillic of CLL, in [../cll/cyrillic.md](../cll/cyrillic.md), ignores unknow
 %emits
   $
 
+%redefine-rule cll-cyrillic-plain-full-vowel :: Vowel
+  | "а" [letter-marks<¬Accent>] := "a"
+  | "е" [letter-marks<¬Accent>] := "e"
+  | "и" [letter-marks<¬Accent>] := "i"
+  | "о" [letter-marks<¬Accent>] := "o"
+  | "у" [letter-marks<¬Accent>] := "u"
+
 %redefine-rule cll-cyrillic-plain-vowel :: ∅
-  | "а" [letter-marks<¬Accent>] :: Vowel := "a"
-  | "е" [letter-marks<¬Accent>] :: Vowel := "e"
-  | "и" [letter-marks<¬Accent>] :: Vowel := "i"
-  | "о" [letter-marks<¬Accent>] :: Vowel := "o"
-  | "у" [letter-marks<¬Accent>] :: Vowel := "u"
+  | cll-cyrillic-plain-full-vowel
   | "ъ" [letter-marks<¬Accent>] := "y"
 %emits
   $

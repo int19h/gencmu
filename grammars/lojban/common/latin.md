@@ -216,6 +216,8 @@ An accent on a capital still marks stress there, and the other capitals fold. So
 
 `capital-run` reads that shape with every vowel folded. An ordinary run is any other run of letters, which the condition states by exclusion. In an ordinary run, a capital vowel marks stress. No capital run matches `chars-with-non-lojban-char` in the bundled grammars, so `non-lojban-char-run` needs no separate test for it.
 
+The `Vowel` tag marks the five full vowels `a`, `e`, `i`, `o` and `u`, and it does not mark `y`. So `folded-full-vowel` holds the full vowels and carries `Vowel` on its header, and `folded-vowel` adds the two `y` forms.
+
 ```jbogenbau
 %extend-rule run
   capital-run
@@ -252,18 +254,21 @@ An accent on a capital still marks stress there, and the other capitals fold. So
 %rule folded-vowel-group-joined = vowel-group-joined-with(folded-vowel)
 %rule joined-folded-vowel = joined-vowel-with(folded-vowel)
 
-%rule folded-vowel :: ∅
+%rule folded-full-vowel
   | "A" :: Vowel := "a"
   | "E" :: Vowel := "e"
   | "I" [glide-mark] :: Vowel := "i"
   | "O" :: Vowel := "o"
   | "U" [glide-mark] :: Vowel := "u"
-  | "Y" := "y"
   | "A" stress-mark :: Stressed ∪ Vowel := "a" :- "A"
   | "E" stress-mark :: Stressed ∪ Vowel := "e" :- "E"
   | "I" stress-mark :: Stressed ∪ Vowel := "i" :- "I"
   | "O" stress-mark :: Stressed ∪ Vowel := "o" :- "O"
   | "U" stress-mark :: Stressed ∪ Vowel := "u" :- "U"
+
+%rule folded-vowel :: ∅
+  | folded-full-vowel
+  | "Y" := "y"
   | "Y" stress-mark :: Stressed := "y" :- "Y"
 %emits
   $
@@ -291,6 +296,8 @@ A vowel with an acute or a grave accent is the stressed phoneme, as a capital vo
 
 A combining mark that no letter rule takes makes its run foreign, whatever its category. So in `lojban/bpfk` and `lojban/zantufa`, `mï` and `mi` followed by U+093E are foreign. The experimental layer reads both marks ([../experimental/latin.md](../experimental/latin.md)).
 
+The `Vowel` tag marks the five full vowels and not `y`, so `stressed-full-vowel` holds the stressed full vowels and carries `Vowel` on its header. The stressed `y` form stays in `stressed-vowel`.
+
 ```jbogenbau
 %extend-rule plain-vowel :: Vowel
   | ("i" | "I") glide-mark := "i"
@@ -298,12 +305,15 @@ A combining mark that no letter rule takes makes its run foreign, whatever its c
 %emits
   $
 
+%rule stressed-full-vowel :: Vowel
+  | ("a" | "A") stress-mark := "a" :- "A"
+  | ("e" | "E") stress-mark := "e" :- "E"
+  | ("i" | "I") stress-mark := "i" :- "I"
+  | ("o" | "O") stress-mark := "o" :- "O"
+  | ("u" | "U") stress-mark := "u" :- "U"
+
 %extend-rule stressed-vowel :: Stressed
-  | ("a" | "A") stress-mark :: Vowel := "a" :- "A"
-  | ("e" | "E") stress-mark :: Vowel := "e" :- "E"
-  | ("i" | "I") stress-mark :: Vowel := "i" :- "I"
-  | ("o" | "O") stress-mark :: Vowel := "o" :- "O"
-  | ("u" | "U") stress-mark :: Vowel := "u" :- "U"
+  | stressed-full-vowel
   | ("y" | "Y") stress-mark := "y" :- "Y"
 %emits
   $

@@ -287,8 +287,10 @@ A capital without an accent has two readings. One is stressed, for an ordinary r
 
 A breve on `i` or `u` makes a glide letter, which the next section reads. The vowel emits itself, with `Stressed` where it is stressed and `Glide` where it is a glide letter.
 
+The `Vowel` tag marks the five full vowels and not `y`. So `latin-full-vowel` holds the full vowels of `latin-vowel`, and the `y` forms and the glide letter stay in `latin-vowel`.
+
 ```jbogenbau
-%rule latin-vowel :: ($m ⟹ $m.tags ∩ Dieresis)
+%rule latin-full-vowel
   | "a" [$m:letter-marks<¬Accent ¬Ogonek ¬Caron>] :: Vowel := "a"
   | "a" $m:letter-marks<Accent ¬Ogonek ¬Caron> :: Stressed ∪ Vowel := "a" :- "A"
   | "A" $m:letter-marks<Accent ¬Ogonek ¬Caron> :: Stressed Capital Accented ∪ Vowel := "a" :- "A"
@@ -314,6 +316,9 @@ A breve on `i` or `u` makes a glide letter, which the next section reads. The vo
   | "U" $m:letter-marks<Accent ¬Breve> :: Stressed Capital Accented ∪ Vowel := "u" :- "U"
   | "U" [$m:letter-marks<¬Accent ¬Breve>] :: Stressed Capital ∪ Vowel := "u" :- "U"
   | "U" [$m:letter-marks<¬Accent ¬Breve>] :: Folded Capital ∪ Vowel := "u"
+
+%rule latin-vowel :: ($m ⟹ $m.tags ∩ Dieresis)
+  | latin-full-vowel
   | "y" [$m:letter-marks<¬Accent>] := "y"
   | "y" $m:letter-marks<Accent> :: Stressed := "y" :- "Y"
   | "Y" $m:letter-marks<Accent> :: Stressed Capital Accented := "y" :- "Y"
@@ -355,14 +360,19 @@ A glide letter is a glide wherever it stands. This stage reads it as `i` or `u` 
 
 `ɩ`, `q` and `w` also carry `Onglide`. krulermorna writes an offglide with a diphthong letter, so these letters write only a glide before a vowel, and `kaw` divides into no words. A breve glide carries no `Onglide`, so it can also end a diphthong: `maĭ` is `mai`.
 
+The `Onglide` tag marks those dedicated glide letters and not the breve glides. So `onglide-letter` holds them and carries `Onglide` on its header, and the breve glides stay in `glide-letter`.
+
 A capital glide letter is plain. A glide is never stressed, so an accent on a glide letter is ignored: `ĭ́` is the glide `i`.
 
 ```jbogenbau
+%rule onglide-letter :: Onglide ∪ ($m ⟹ $m.tags ∩ Dieresis)
+  | ("ɩ" | "q") [$m:letter-marks] := "i"
+  | ("Ɩ" | "Q") [$m:letter-marks] :: Capital := "i"
+  | "w" [$m:letter-marks] := "u"
+  | "W" [$m:letter-marks] :: Capital := "u"
+
 %rule glide-letter :: Glide ∪ ($m ⟹ $m.tags ∩ Dieresis)
-  | ("ɩ" | "q") [$m:letter-marks] :: Onglide := "i"
-  | ("Ɩ" | "Q") [$m:letter-marks] :: Onglide Capital := "i"
-  | "w" [$m:letter-marks] :: Onglide := "u"
-  | "W" [$m:letter-marks] :: Onglide Capital := "u"
+  | onglide-letter
   | "i" $m:letter-marks<Breve> := "i"
   | "I" $m:letter-marks<Breve> :: Capital := "i"
   | "u" $m:letter-marks<Breve> := "u"
