@@ -22813,9 +22813,47 @@
         }
         case "negation":
           return { not: yield readCondition(only(inner, "condition")) };
+        case "term-condition": {
+          const operation = knownOf(inner, new Set(["union-operation", "intersection-operation", "set-atom"]));
+          if (ruleOf(operation) === "set-atom") {
+            const atom = parts(operation).find((child) => child.kind === "rule");
+            if (!atom) return fail("a set atom", operation);
+            return yield readTerm(atom);
+          }
+          if (ruleOf(operation) === "intersection-operation") {
+            /** @type {Term[]} */
+            const items = [];
+            for (const item of some(operation, "concatenation")) items.push(yield readTerm(item));
+            return { intersection: items };
+          }
+          const found = some(operation, "intersection");
+          const operators = parts(operation).flatMap((child) => {
+            const written = tokenValue(child);
+            return written === "∪" || written === "∖" ? [written] : [];
+          });
+          /** @type {Term[]} */
+          const items = [];
+          for (const item of found) items.push(yield readTerm(item));
+          /** @type {Term} */
+          let result = items[0];
+          let open = false;
+          operators.forEach((operator, index) => {
+            const next = items[index + 1];
+            if (operator === "∖") {
+              result = { difference: [result, next] };
+              open = false;
+            } else if (open && "union" in result) {
+              result.union.push(next);
+            } else {
+              result = { union: [result, next] };
+              open = true;
+            }
+          });
+          return result;
+        }
         case "method": {
           const method = yield readMethod(inner);
-          if (!QUERY_METHODS.has(method.method)) fail("a condition requires a query method", inner);
+          if (!QUERY_METHODS.has(method.method) && !["tags", "classes", "split", "ngrams", "classify"].includes(method.method)) fail("a condition requires a query method", inner);
           return method;
         }
         default:
@@ -23157,10 +23195,15 @@
           const capture = queryCapture(body);
           if (capture) fail("a parse argument cannot declare captures",descendant(argument,"capture") ?? argument);
           const markers = parts(argument).filter(child => child.kind === "token" && valueOf(child) === "…");
-          if (markers.length > 1) fail("a remainder stands at one outer edge of a parse argument",markers[1]);
+          if (markers.length > 2) fail("a remainder stands at one outer edge of a parse argument",markers[2]);
           if (markers.length) {
-            const first = parts(argument)[0] === markers[0];
-            body = {seq:first ? [{remainder:true},body] : [body,{remainder:true}]};
+            const sequence = [];
+            for (const child of parts(argument)) {
+              if (child.kind === "token" && valueOf(child) === "…") sequence.push({remainder:true});
+              else if (ruleOf(child) === "choice") sequence.push(body);
+            }
+            if (!sequence.some(part => part === body)) sequence.push(body);
+            body = {seq:sequence};
           }
           const bodyProblem = queryBody(body).problem;
           if (bodyProblem) fail(bodyProblem,argument);
@@ -23378,7 +23421,7 @@
   }
 
   const PRIMARIES = new Set(["splice", "constant-reference", "call", "parameter", "reference", "tag", "string-terminal", "wildcard", "range", "tested", "capture", "group", "optional", "repetition", "empty"]);
-  const CONDITIONS = new Set(["tree-comparison", "comparison", "method", "negation", "presence", "implication"]);
+  const CONDITIONS = new Set(["tree-comparison", "comparison", "method", "negation", "presence", "implication", "term-condition"]);
   const TERMS = new Set(["union", "guarded-term"]);
   const ATOMS = new Set(["call", "parameter", "pattern-literal", "string", "tag", "tag-run", "string-run", "range", "name", "empty-set", "term", "guarded-term", "union", "term-atom", "method", "capture-reference", "constant-reference"]);
   const ITEMS = new Set(["directive", "ranking-directive", "rule", "constant-definition", "classifier", "implication-declaration"]);

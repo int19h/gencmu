@@ -1132,7 +1132,7 @@ For example, `¬$i.onward.parse(@Open …).error-free` bars an error-free openin
 
 The `.tags` of a forest is the union of the tags of its witnesses. For an empty forest, it is the empty set. So `Word ⊆ $x.parse(word-shape).tags` asks for a witness with that tag. The filter `.error-free` applies first where it stands. So `$x.parse(C).error-free.tags` unions only error-free witnesses.
 
-A set or a forest in a Boolean position holds when it is not empty. A Boolean position is a condition, or a part under `¬`, `∧`, `∨`, or `⟹`. The term keeps its own precedence inside that position. So `$x.tags ∩ UI ∧ $y` first forms the intersection, and then joins it with `∧`. And `¬($x.tags ∩ UI)` negates the test of the whole intersection. A string set works the same way. So `"a b".split(" ") ∩ $x.value.split(" ")` holds when the two texts share a word. This rule means "not empty" and nothing else. It gives no string, set, or pattern conversion in any other position.
+A set or a forest in a Boolean position holds when it is not empty. A Boolean position is a condition, or a part under `¬`, `∧`, `∨`, or `⟹`. The condition side of a guarded term is a Boolean position. A `%features` condition is a Boolean position too. The term keeps its own precedence inside that position. So `$x.tags ∩ UI ∧ $y` first forms the intersection, and then joins it with `∧`. And `¬($x.tags ∩ UI)` negates the test of the whole intersection. A string set works the same way. So `"a b".split(" ") ∩ $x.value.split(" ")` holds when the two texts share a word. This rule means "not empty" and nothing else. It gives no string, set, or pattern conversion in any other position.
 
 For example, `$x.tags ∩ UI` can stand where `$x.tags ∩ UI ⊈ ∅` stood before. The two forms give the same condition.
 

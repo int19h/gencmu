@@ -2945,7 +2945,7 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `implication` | One or more `any-of`, then optional nested implication | Right-nested condition `if`, or sole condition |
 | `any-of` | One or more `all-of` | `any`, or sole condition. Flatten nested `any`. |
 | `all-of` | One or more `condition` | `all`, or sole condition. Flatten nested `all`. |
-| `condition` | One comparison, tree comparison, method, negation, presence, or grouped implication | Child condition |
+| `condition` | One comparison, tree comparison, method, negation, presence, grouped implication, or set term | Child condition. A set term becomes a test that the set is not empty |
 | `comparison` | Comparator, then two `union` parts | `op`, `left`, `right` |
 | `comparator` | One ordinary comparison token | Precomposed comparator from the token value |
 | `negation` | One `condition` | `not` |
