@@ -1112,13 +1112,13 @@ A comparison `$x ≅ $y` uses both captures, as any condition with two captures 
 
 A comparison of a capture or `$` with itself is an error of the document, as a condition that applies to no production is. The forms are `$x ≅ $x`, `$x ≇ $x`, `$ ≅ $` and `$ ≇ $`. Two different captures of one rule make no such error. Nor does `$ ≅ $x`, which can hold where `$x` stands inside a ranked group of `$`. Take `r → ("a" ≻ "b") | ($x:r ≻ "c")` with `$ ≅ $x` in the `%conditions` clause of `r`. On the text `a`, both trees are an `r` node over one seal of `a`, because a seal carries no group identity. The condition is a private condition of the option that binds `$x`. The group is final, so `$` is ready at the completion of the group.
 
-The methods `.followed-by(S)` and `.preceded-by(S)` take one argument form. The four query shorthands below take it too. `S` is a nonempty choice of ordinary rules, exact instances, and user terminal tags, separated by `|`. For example, `selbri | gek-sentence | KOhA` names three alternatives. `🆓` is a rule name.
+The methods `.followed-by(S)` and `.preceded-by(S)` take one argument form. Three of the query shorthands below take it too: `matches`, `begins` and `ends`. `S` is a nonempty choice of ordinary rules, exact instances, and user terminal tags, separated by `|`. For example, `selbri | gek-sentence | KOhA` names three alternatives. `🆓` is a rule name.
 
 Repeated targets are accepted and change nothing. Engine tags are excluded because these shared arguments identify grammar-built targets. Strings, constants, grouped choices, and commas between targets are errors. Commas inside a call separate its arguments. Parentheses around one target preserve that target.
 
 An ordinary query ignores carried diagnostics and reads a faulty token like any other token. Its witness contains no own error occurrence outside erased subtrees. This applies to `parse`, including aligned queries. Queries evaluate no diagnostic message.
 
-`span.parse(C)` returns a forest, the shared set of eligible query witnesses. C is any body constituent. No part of its argument syntax can bind a capture. Called rules retain their own captures. The anonymous query target has structural identity after lowering. Equivalent old and new forms share memo entries and recursive-query detection (engine §4).
+`span.parse(C)` returns a forest, the shared set of eligible query witnesses. C is any body constituent. No part of its argument syntax can bind a capture. Called rules retain their own captures. The anonymous query target has structural identity after lowering. A shorthand and its `parse` form share memo entries and recursive-query detection (engine §4).
 
 The mark `…` denotes unread remainder at an outer edge of the argument. It can stand at one edge or at both edges. It never stands inside an optional, group, or other nested constituent. `parse(C)` covers the whole view, and `parse(C …)` covers a prefix. `parse(… C)` covers a suffix, and `parse(… C …)` covers some part of the view. The mark cannot stand alone, but `ε` can supply an explicit empty target. It differs from the chain marker `...` and pattern gap `⋯`.
 
@@ -1132,22 +1132,20 @@ For example, `¬$i.onward.parse(@Open …).error-free` bars an error-free openin
 
 The `.tags` of a forest is the union of the tags of its witnesses. For an empty forest, it is the empty set. So `Word ⊆ $x.parse(word-shape).tags` asks for a witness with that tag. The filter `.error-free` applies first where it stands. So `$x.parse(C).error-free.tags` unions only error-free witnesses.
 
-A set or a forest in a Boolean position holds when it is not empty. A Boolean position is a condition, or a part under `¬`, `∧`, `∨`, or `⟹`. The condition side of a guarded term is a Boolean position. A `%features` condition is a Boolean position too. The term keeps its own precedence inside that position. So `$x.tags ∩ UI ∧ $y` first forms the intersection, and then joins it with `∧`. And `¬($x.tags ∩ UI)` negates the test of the whole intersection. A string set works the same way. So `"a b".split(" ") ∩ $x.value.split(" ")` holds when the two texts share a word. This rule means "not empty" and nothing else. It gives no string, set, or pattern conversion in any other position.
+A set or a forest in a Boolean position holds when it is not empty. A Boolean position is a whole condition or an operand of `¬`, `∧` or `∨`. Each side of an implication is one too, and so is the condition side of a guarded term. The value side of a guarded term is a term position. A `%features` condition is a Boolean position too. `⟹` at the level of a condition is always an implication. A guarded term in a Boolean position stands in parentheses as an operand of a set operation, as in `($y ⟹ Word) ∩ $x.tags`. The term keeps its own precedence inside that position. So `$x.tags ∩ UI ∧ $y` first forms the intersection, and then joins it with `∧`. `¬` applies to the whole set term, so `¬$x.tags ∩ UI` is `¬($x.tags ∩ UI)`. A string set works the same way. So `"a b".split(" ") ∩ $x.value.split(" ")` holds when the two texts share a word. This rule means "not empty" and nothing else. It gives no string, set, or pattern conversion in any other position.
 
 For example, `$x.tags ∩ UI` and `$x.tags ∩ UI ⊈ ∅` give the same condition.
 
-The four old query forms are shorthands. Each one rewrites to a `parse` form:
+The four query shorthands are defined by rewriting:
 
-- `span.matches(S)` is `span.parse(S)`.
-- `span.begins(S)` is `span.parse(S …)`.
-- `span.ends(S)` is `span.parse(… S)`.
+- `span.matches(A | B)` is `span.parse(A) ∨ span.parse(B)`.
+- `span.begins(A | B)` is `span.parse(A …) ∨ span.parse(B …)`.
+- `span.ends(A | B)` is `span.parse(… A) ∨ span.parse(… B)`.
 - `span.tags(R)` is `span.parse(R).tags`.
 
-Here each target of `S` rewrites on its own, in written order. `R` becomes the body of its `parse`. Every other rule about the old forms follows from the rules for `parse`. The rules below are the only ones that the rewrite does not give. They stay in force for the old forms.
+Each shorthand rewrites each target of `S` on its own, in written order. So each shorthand stays a condition, and a target list runs from left to right as `∨` does. `R` is one rule target, and it becomes the body of its `parse`. Every other rule about the shorthands follows from the rules for `parse` and for `∨`. The rules below are the only ones that the rewrite does not give.
 
-Target lists of the old forms run from left to right until one query holds. Each target is a separate query. An error from an evaluated query ends the parse. So an old form can hold before a later target raises an error. A body choice inside one `parse(C)` cannot skip that error in the same way.
-
-The empty prefix counts for a rule target of `begins`, and the empty suffix counts for a rule target of `ends`. A terminal target reads one token, so it never counts as empty. This follows from the rewrite where the target is a rule. It needs a rule of its own only for terminal targets.
+`span.tags(R)` takes one rule target. A choice of targets or a terminal tag there is an error.
 
 For an ordinary span, a query parses the captured span alone, with the same grammar. So a condition can ask whether a part also reads as something else. The word grammar of `lojban/cll` uses this for the slinku'i test of borrowed words (fu'ivla). A CV cmavo is a particle of one consonant and one vowel. The test says that such a particle before a borrowed word must not make a compound word (lujvo). That is `¬$f.parse(lujvo-after-cv)`, because the rule is the part of a lujvo after its first two letters. The shorthand `¬$f.matches(lujvo-after-cv)` says the same thing.
 
@@ -1198,7 +1196,7 @@ Projection maps restored positions back to original input positions.
 
 `.onward` preserves the restoration view, including through repeated calls. Other span methods first project to original tokens and return ordinary spans. `$x.without-elision.following-tokens` therefore reads the raw suffix. `.first-token`, `.tokens-after-first`, and `.last-token` expose original tokens.
 
-`.source-text`, `.decomposed-source-text`, `.value`, `.starts-input`, and `.tags` also observe original tokens. The restored span carries no constituent tags. A forest `.tags` there unions the tags of its aligned witnesses. A prefix forest unions the tags of its prefix witnesses.
+`.source-text`, `.decomposed-source-text`, `.value`, `.starts-input`, and `.tags` also observe original tokens. The restored span carries no constituent tags. A forest `.tags` there unions the tags of its aligned witnesses.
 
 For example, these rules hold an omitted BOI fixed:
 
@@ -1264,7 +1262,7 @@ For example, a target that reads `"a"` and requires `$.starts-input` does not ma
 
 A suffix query on a restored span is a load error, including after `.onward`, which preserves restoration. This covers `.ends` and every `parse` with `…` at the start. This applies to both restoration methods. Restored suffix queries can be added when a grammar needs them. [Engine §4.4](engine.md#44-backward-token-queries) defines the ordinary query and its sharing rules.
 
-With one target and window start, requests that read no window end share recognition. Its cost is one recognition starting the target at every position, plus constant work per request. That recognition includes any nested queries and can grow faster than linear for complex targets. A target that reads the window end requires separate recognition for each distinct end. Restored nested queries at any depth prevent this sharing. Use `.ends` sparingly.
+With one target and window start, requests that read no window end share recognition. Its cost is one recognition starting the target at every position, plus constant work per request. That recognition includes any nested queries and can grow faster than linear for complex targets. A target that reads the window end requires separate recognition for each distinct end. Restored nested queries at any depth prevent this sharing. Use `.ends`, `parse(… C)` and `parse(… C …)` sparingly.
 
 ### Neighbours in the parse
 

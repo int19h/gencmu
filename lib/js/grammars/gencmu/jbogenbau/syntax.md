@@ -543,6 +543,8 @@ An emoji rule name is also a method argument. A classifier name starts with a lo
 
 A condition is a comparison, tree comparison, method, presence test, negation, grouped condition, or set term. A bare capture tests its presence. A set term as a condition holds where the set is not empty. A parameter can stand as a set term. A lone string is a scalar, so it is not a set term. A leading `∪` or `∩` in a set operation is a separator, not an operator.
 
+These rules restate `union` and `intersection` with at least one operator. A single method, capture or group already reads as a condition, so `union` here gives two readings of one form. The reader checks the type of every set term. The grammar leaves out only the lone forms that can never be sets.
+
 `∧`, `∨`, and `⟹` bind in that order. Implication groups to the right. `¬` negates the following condition.
 
 The flat implication list preserves every operand for the reader's grouping. This keeps recognition work proportional to the list rather than its nested completions.

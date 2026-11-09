@@ -249,9 +249,9 @@ The authoritative constructor contract is [engine §9.3](engine.md#93-conversion
 
 A grammar DOM (document object model) is the parsed form of a grammar document (engine §8, §9). A library makes it when it reads the document. The per-family preparsed files hold this data, including the entries that bootstrap the notation reader.
 
-Its envelope is `{"format":46,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. All five declaration arrays are present, including empty arrays. The envelope has no other members. Every declared item has `at:[line,column]`, counted from 1. Both coordinates must be integers from 1 to 9007199254740991 (2^53 − 1). This bound applies to every DOM source position.
+Its envelope is `{"format":47,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. All five declaration arrays are present, including empty arrays. The envelope has no other members. Every declared item has `at:[line,column]`, counted from 1. Both coordinates must be integers from 1 to 9007199254740991 (2^53 − 1). This bound applies to every DOM source position.
 
-`format` is the version of the DOM, 46. A library refuses a bootstrap of another version and treats an optional cached DOM of another version as a cache miss. A format match alone never excuses invalid schema data.
+`format` is the version of the DOM, 47. A library refuses a bootstrap of another version and treats an optional cached DOM of another version as a cache miss. A format match alone never excuses invalid schema data.
 
 An optional member is absent only when its key is absent. A present `null` does not replace an omitted member. Every present member must satisfy its stated form, including exclusive targets and optional clauses.
 
@@ -297,7 +297,7 @@ A `redefine` binding can replace an ordinary rule or rebind a named instance to 
 
 A call is `{"call":"pair","args":[ARG,ARG...],"at":[line,column]}`. A parameter is `{"param":"Left","at":[line,column]}`. Both require positive source coordinates. Call names use the rule-name repertoire. A call requires at least one argument. A parameter requires a declaring template and a matching parameter name.
 
-Both forms obey the shape of their position. Parameters can replace operands inside conditions. A parameter can also stand as a set term in a Boolean position, because that position is a term position. Neither form replaces an emission or pattern-child expression. Calls retain their rule identity in unresolved term positions. Ordinary type requirements apply when the stage resolves those calls.
+Both forms obey the shape of their position. Parameters can replace operands inside conditions. A parameter can also stand as the set term of the `nonempty` wrapper below. Neither form replaces an emission or pattern-child expression. Calls retain their rule identity in unresolved term positions. Ordinary type requirements apply when the stage resolves those calls.
 
 ARG has one of these forms:
 
@@ -477,7 +477,7 @@ Source and supplied DOM accept repeated targets, which change nothing. All five 
 
 Boundary receivers are `{"capture":"x"}`, or `{"capture":""}` for `$`. `matches` and `begins` accept captures or spans, including restored spans. `ends` accepts only captures or ordinary spans. A restored receiver causes a load error. `.preceding-tokens` uses the ordinary zero-argument method shape and returns an ordinary projected span.
 
-`.parse` takes exactly one `{"body":EXPR}` argument. Its receiver is a capture or span, including a restored span except in suffix mode. The body contains no capture at any depth, but referenced rules retain their own captures. It can add the leaf `{"remainder":true}` once, as the first or last child of its outer `seq`.
+`.parse` takes exactly one `{"body":EXPR}` argument. Its receiver is a capture or span, including a restored span except in suffix or part mode. The body contains no capture at any depth, but referenced rules retain their own captures. It can add the leaf `{"remainder":true}` at the first edge, at the last edge, or at both edges of its outer `seq`.
 
 That leaf has no other members and is legal nowhere else. It cannot be the complete body. Without it, the query uses whole mode.
 
@@ -487,7 +487,7 @@ For example, `$i.onward.parse(@Open …).error-free` in a template uses this unr
 {"method":"error-free","receiver":{"method":"parse","receiver":{"method":"onward","receiver":{"capture":"i"},"args":[]},"args":[{"body":{"seq":[{"param":"Open","at":[2,20]},{"remainder":true}]}}]},"args":[]}
 ```
 
-A first remainder selects suffix mode, and a last remainder selects prefix mode. It is unread and excluded from the witness. `.error-free` takes no arguments, accepts a forest receiver, and returns a forest. A bare `parse` result or its filtered result can stand as a condition. A forest supports no other method, operator, or implicit string conversion. Body wrappers add no DOM depth, and the remainder is a leaf.
+A first remainder selects suffix mode, and a last remainder selects prefix mode. A remainder at both edges selects part mode. Each remainder is unread and excluded from the witness. `.error-free` takes no arguments, accepts a forest receiver, and returns a forest. A bare `parse` result or its filtered result can stand as a condition. A forest also has `.tags`, which unions the tag sets of its witnesses. A forest supports no other method, operator, or implicit string conversion. Body wrappers add no DOM depth, and the remainder is a leaf.
 
 `.ngrams` takes exactly one `{"integer":"2"}` argument. Its digits match `[1-9][0-9]*`, without a size limit. This argument is not a value term and occurs only in `.ngrams`.
 
@@ -534,6 +534,7 @@ Conditions have these forms:
 {"method":"preceded-by","receiver":CAPTURE,"args":[TARGET,TARGET...]}
 {"not":COND}             {"any":[COND,COND...]}       {"all":[COND,COND...]}
 {"captured":"x"}        {"if":COND,"then":COND}
+{"nonempty":TERM}
 ```
 
 Comparators are `=`, `≠`, `∈`, `∉`, `⊆`, `⊈`, `≅`, and `≇`. Operand types follow engine §10. Tree comparison requires a bare capture or `$` on the left. Its right member is any term, and the loader checks its type (engine §10). A presence predicate uses `captured`, with an empty name for `$`.
@@ -541,6 +542,8 @@ Comparators are `=`, `≠`, `∈`, `∉`, `⊆`, `⊈`, `≅`, and `≇`. Operan
 TARGET follows the definition after the ARG forms. A CAPTURE is `{"capture":"x"}`, with an empty name for `$`. A boundary atom is a condition, so `not`, `any`, `all` and `if` can hold it (engine §4.2).
 
 A `parse` method or an `error-free` method over it is also a condition, with the forest forms above. A condition has no member but those of its one form.
+
+A set term used as a condition stands as `{"nonempty":TERM}`. It tests that the set is not empty. TERM is a `union`, `intersection`, `difference`, `tag`, `emptySet`, `const`, or `param` term. TERM can also be a set-valued method: `tags`, `classes`, `split`, `ngrams`, or `classify`. A `.tags` method over a forest is such a term too. An `if` node in a condition position is always the condition form `{"if":COND,"then":COND}`. A guarded term therefore stands under the wrapper only as an operand of a set operation.
 
 An emission is `{"items":[ITEM...]}` with a nonempty array. An item is either `{"capture":"x"}` or `{"insert":true}`, followed by optional `tags`, `value`, `image`, `before`, and `after`. The empty capture name denotes `$`. Only named capture items accept nonempty attachment arrays. Each attachment array contains capture names without `$`, in written order. Empty attachment arrays are omitted.
 
@@ -735,7 +738,7 @@ The DOM holds no lowered helper, admission key, [seal](notation.md#the-structura
 
 The names dependency of a cached document is a resource map. If source conversion loads no names data, the entry omits `names`.
 
-`data/preparsed/FAMILY.json` holds the DOMs of all grammar documents under `grammars/FAMILY/`. `tools/sync.js` generates each file and copies it into every package. Its shape is `{"format":46,"bootstrap":HASH,"unicode":HASH,"properties":HASH_OR_NULL,"bundledNames":{RESOURCE:HASH},"documents":{PATH:{"hash":HASH,"names":{RESOURCE:HASH},"dom":DOM}}}`. `PATH` is relative to the package root, including the `grammars/` prefix. Each `HASH` is the FNV-1a hash of engine §8. `unicode` hashes the text of `data/unicode/unicode.txt`.
+`data/preparsed/FAMILY.json` holds the DOMs of all grammar documents under `grammars/FAMILY/`. `tools/sync.js` generates each file and copies it into every package. Its shape is `{"format":47,"bootstrap":HASH,"unicode":HASH,"properties":HASH_OR_NULL,"bundledNames":{RESOURCE:HASH},"documents":{PATH:{"hash":HASH,"names":{RESOURCE:HASH},"dom":DOM}}}`. `PATH` is relative to the package root, including the `grammars/` prefix. Each `HASH` is the FNV-1a hash of engine §8. `unicode` hashes the text of `data/unicode/unicode.txt`.
 
 The required `gencmu.json` omits the `bootstrap` header member. The hash of its complete text supplies that fingerprint for every other family. The notation reader uses its required entries without checking their source text hashes. Ordinary cache lookups still compare all other applicable identity members. Each document key selects its own family's preparsed file (engine §8), besides the required `gencmu.json`. Missing or malformed optional files give cache misses.
 

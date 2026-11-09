@@ -12611,20 +12611,6 @@
   // ---- earley.js
 
 
-  /** @param {any} arg @returns {any} */
-  function queryTargetBody(arg) {
-    if (arg && typeof arg.rule === "string") return {ref:arg.rule};
-    if (arg && typeof arg.terminal === "string") return {ref:arg.terminal};
-    return arg;
-  }
-
-  /** @param {any} condition @returns {any} */
-  function rewrittenParse(condition) {
-    const body = queryTargetBody(condition.args[0]);
-    const wrapped = condition.method === "begins" ? {seq:[body,{remainder:true}]} : condition.method === "ends" ? {seq:[{remainder:true},body]} : body;
-    return {method:"parse",receiver:condition.receiver,args:[{body:wrapped}]};
-  }
-
 
 
 
@@ -14333,7 +14319,7 @@
               }
               if (set.head >= set.queue.length) {
                 if (retainSuffix) retainSuffix(set);
-                if (suffix && at === end) {
+                if (scanning && at === end) {
                   position = at;
                   stopped = true;
                   break;
@@ -15480,7 +15466,16 @@
         }
         case "tags": {
           if (receiver && (/** @type {any} */ (receiver).method === "parse" || /** @type {any} */ (receiver).method === "error-free")) return forestTags(context, receiver, scope);
-          if (args.length) return forestTags(context, {method:"parse",receiver,args:[{body:queryTargetBody(args[0])}]}, scope);
+          if (args.length) {
+            // The tags shorthand reads the tags of the whole-mode query of
+            // its one rule target (engine §4).
+            const span = spanOf(context, receiver, scope);
+            const target = queryTarget(context, span, scope);
+            const argument = args[0];
+            const rule = "terminal" in argument ? "\u0000query:" + argument.terminal : ruleName(argument);
+            const tags = nested(target.context, "tags", rule, target.start, target.end, target);
+            return tags === HALT ? pause(asSetValue) : { set: /** @type {TagSet} */ (tags) };
+          }
           const span = spanOf(context, receiver, scope);
           if ("capture" in receiver) {
             const tags = /** @type {TagSet | Halt} */ (span.tags);
@@ -15701,8 +15696,14 @@
           target.start,target.end,{...target,errorFree}));
       }
       if (["matches","begins","ends"].includes(condition.method)) {
+        // The shorthands dispatch by mode, as the one query entry does
+        // (engine §4): no synthetic parse condition is built.
         if (condition.args.length > 1) return anyFrom(context, condition.args.map(arg => ({...condition,args:[arg]})), 0, scope);
-        return holds(context, rewrittenParse(condition), scope);
+        const span = spanOf(context, condition.receiver, scope);
+        const target = queryTarget(context, span, scope);
+        const argument = condition.args[0];
+        const rule = "terminal" in argument ? "\u0000query:" + argument.terminal : ruleName(argument);
+        return /** @type {boolean | Halt} */ (nested(target.context, /** @type {"matches"|"begins"|"ends"} */ (condition.method), rule, target.start, target.end, /** @type {any} */ (target)));
       }
       if (["tags","classes","split","ngrams","classify"].includes(condition.method)) {
         const value = evaluate(context, /** @type {any} */ (condition), scope);
@@ -15721,13 +15722,8 @@
         const where = observe(context, span, scope, "starts-input");
         return where.start === where.context.inputStart;
       }
-      if (condition.args.length > 1) return anyFrom(context, condition.args.map(arg => ({...condition,args:[arg]})), 0, scope);
-      const target = queryTarget(context, span, scope);
-      const argument = condition.args[0];
-      const rule = "terminal" in argument ? "\u0000query:" + argument.terminal : ruleName(argument);
-      if (condition.method === "ends") return /** @type {boolean | Halt} */ (nested(target.context, "ends", rule, target.start, target.end, /** @type {any} */ (target)));
-      if (condition.method === "matches") return nestedMatches(target.context, rule, target.start, target.end, target);
-      return nestedBegins(target.context, rule, target.start, target.end, target);
+      // Every other method is a term, and its type fault is found at load.
+      throw new GencmuError("grammar", "a method outlived lowering as a condition");
     }
     if ("nonempty" in condition) {
       const value = evaluate(context, /** @type {any} */ ((/** @type {any} */ (condition)).nonempty), scope);
@@ -16230,44 +16226,8 @@
     return tags === HALT ? pause(asSetValue) : { set: /** @type {TagSet} */ (tags) };
   }
 
-  /**
-   * @param {ParseContext} context
-   * @param {string} rule
-   * @param {number} start
-   * @param {number} end
-   * @param {any} [target]
-   * @returns {boolean | Halt}
-   */
-  function nestedMatches(context, rule, start, end, target = null) {
-    return /** @type {boolean | Halt} */ (nested(context, "matches", rule, start, end, target));
-  }
 
-  /**
-   * Whether a prefix of [start, end) parses as `rule`: a completed item of it
-   * with an eligible witness has its origin at `start`, in any set (engine
-   * §4).
-   * @param {ParseContext} context
-   * @param {string} rule
-   * @param {number} start
-   * @param {number} end
-   * @param {{key: [number, number] | null, aligned?: import("./types.js").AlignedSpan, errorFree?: boolean} | null} [target]
-   * @returns {boolean | Halt}
-   */
-  function nestedBegins(context, rule, start, end, target = null) {
-    return /** @type {boolean | Halt} */ (nested(context, "begins", rule, start, end, target));
-  }
 
-  /**
-   * @param {ParseContext} context
-   * @param {string} rule
-   * @param {number} start
-   * @param {number} end
-   * @param {{key: [number, number] | null, aligned?: import("./types.js").AlignedSpan, errorFree?: boolean} | null} [target]
-   * @returns {TagSet | Halt}
-   */
-  function nestedTags(context, rule, start, end, target = null) {
-    return /** @type {TagSet | Halt} */ (nested(context, "tags", rule, start, end, target));
-  }
 
   // The furthest position the parse reached, and what could have been read
   // there, with the rules that could have read it.
@@ -22829,7 +22789,7 @@
           if (ruleOf(operation) === "set-atom") {
             const atom = parts(operation).find((child) => child.kind === "rule");
             if (!atom) return fail("a set atom", operation);
-            return { nonempty: yield readTerm(atom) };
+            return /** @type {Condition} */ (/** @type {unknown} */ ({ nonempty: yield readTerm(atom) }));
           }
           if (ruleOf(operation) === "intersection-operation") {
             /** @type {Term[]} */
@@ -22892,7 +22852,7 @@
           if (!QUERY_METHODS.has(method.method) && !["tags", "classes", "split", "ngrams", "classify"].includes(method.method)) fail("a condition requires a query method", inner);
           // A set-valued method in a Boolean position tests that its set is
           // not empty, through the wrapper of engine §9.2.
-          if (["tags", "classes", "split", "ngrams", "classify"].includes(method.method)) return { nonempty: method };
+          if (["tags", "classes", "split", "ngrams", "classify"].includes(method.method)) return /** @type {Condition} */ (/** @type {unknown} */ ({ nonempty: method }));
           return method;
         }
         default:

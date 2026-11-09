@@ -2752,6 +2752,8 @@ struct Joined<'a> {
     pass: bool,
     items: Vec<Term>,
     types: Vec<Type>,
+    /// In a term-condition, a Boolean method as an operand faults at the
+    /// operation, so the operand check waits for the joined parts.
     defer: bool,
 }
 
