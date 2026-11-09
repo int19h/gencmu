@@ -353,6 +353,7 @@ class SuffixState:
     """A retained recognition and its eligible answers at completed boundaries."""
 
     answers: dict[int, bool] = field(default_factory=dict)
+    tags: dict[int, Any] = field(default_factory=dict)
     parser: Any = None
     walk: Walk | None = None
     dependent: bool = False
@@ -559,10 +560,50 @@ class StageContext:
         key = self.query_key(rule, start, end, error_free)
         found = self.begins_memo.get(key) if not self.suffix_active else None
         if found is None:
-            return (yield self.answer(rule, start, end, key, True, error_free))
+            return (yield self.answer(rule, start, end, key, True, error_free)).accepted
         elif self.tainted and (True, key) in self.tainted:
             self.aligned_asked += 1
-        return found
+        return found.accepted
+
+    def forest_answer(self, rule: str, start: int, end: int, mode: str, error_free: bool = False):
+        """The NestedAnswer of a parse forest in any mode (§4)."""
+        if mode == "begins":
+            key = self.query_key(rule, start, end, error_free)
+            found = self.begins_memo.get(key) if not self.suffix_active else None
+            if found is not None:
+                return found
+            return (yield self.answer(rule, start, end, key, True, error_free))
+        if mode == "ends":
+            return (yield self.ends_answer(rule, start, end, error_free))
+        if mode == "contains":
+            return (yield self.contains_answer(rule, start, end, error_free))
+        return (yield self.nested(rule, start, end, error_free))
+
+    def ends_answer(self, rule: str, start: int, end: int, error_free: bool = False):
+        """The NestedAnswer of a suffix query (§4)."""
+        yield self.ends(rule, start, end, error_free)
+        number = self.lowered.rule_ids[rule]
+        key = (number, start, end, error_free) if suffix_reads_end(self.lowered, number) else (number, start, error_free)
+        state = self.suffixes.get(key)
+        if state is None or end not in state.answers:
+            return NestedAnswer(False, EMPTY)
+        return NestedAnswer(state.answers[end], state.tags.get(end, EMPTY))
+
+    def contains_answer(self, rule: str, start: int, end: int, error_free: bool = False):
+        """The NestedAnswer of a part query (§4)."""
+        yield self.ends(rule, start, end, error_free)
+        number = self.lowered.rule_ids[rule]
+        key = (number, start, end, error_free) if suffix_reads_end(self.lowered, number) else (number, start, error_free)
+        state = self.suffixes.get(key)
+        if state is None:
+            return NestedAnswer(False, EMPTY)
+        gathered = Gathered()
+        accepted = False
+        for position in range(start, end + 1):
+            if state.answers.get(position):
+                accepted = True
+                gathered.add(state.tags.get(position, EMPTY))
+        return NestedAnswer(accepted, gathered.value())
 
     def query_key(self, rule, start, end, error_free):
         key = self.nested_key(rule, start, end)
@@ -780,7 +821,11 @@ class StageContext:
             if item in forest.tag and origin == 0 and productions[prod].lhs == number and dot == len(productions[prod].rhs) and not productions[prod].close_requested
         ]
         # Only an item with an eligible proof tree counts (engine §4).
-        return bool(eligible(forest, boundary_witnesses(forest, witnesses), error_free))
+        found_items = eligible(forest, boundary_witnesses(forest, witnesses), error_free)
+        gathered = Gathered()
+        for item in found_items:
+            gathered.add(self.tagtab.get(forest.tag[item]))
+        return NestedAnswer(bool(found_items), gathered.value())
 
 
 def _plain(text: str) -> str:
@@ -946,6 +991,17 @@ class Evaluator:
                     return split_string(text, delimiter)
                 table = self.context.lowered.classifiers[args[0]["classifier"]]
                 return table.get(text, EMPTY)
+            if name == "tags" and isinstance(receiver, dict) and receiver.get("method") in ("parse", "error-free"):
+                query, error_free = receiver, False
+                while query["method"] == "error-free":
+                    error_free, query = True, query["receiver"]
+                span = yield self._span(query["receiver"], bound)
+                rule = body_target(self.context.lowered, query["args"][0]["body"])
+                mode = query_body(query["args"][0]["body"])[1]
+                if isinstance(span, RestoredSpan):
+                    return (yield self.context.aligned(rule, span, mode == "begins", error_free)).tags
+                start, end, _ = span
+                return (yield self.context.forest_answer(rule, start, end, mode, error_free)).tags
             span = yield self._span(receiver, bound)
             if name == "tags" and args:
                 if isinstance(span, RestoredSpan):
@@ -1014,8 +1070,12 @@ class Evaluator:
                 inside = _as_set(left) <= _as_set(right)
                 return inside if op == "⊆" else not inside
             raise _GrammarFault(f"an unknown comparison {op}")
+        if "union" in dom or "intersection" in dom or "difference" in dom or "tag" in dom or "emptySet" in dom or "const" in dom:
+            return len(_as_set((yield self.walk_value(dom, bound)))) > 0
         if "method" in dom:
             name = dom["method"]
+            if name in ("tags", "classes", "split", "ngrams", "classify"):
+                return len(_as_set((yield self.walk_value(dom, bound)))) > 0
             if name in ("parse", "error-free"):
                 query, error_free = dom, False
                 while query["method"] == "error-free":
@@ -1028,6 +1088,8 @@ class Evaluator:
                 start, end, _ = span
                 if mode == "ends":
                     return (yield self.context.ends(rule, start, end, error_free))
+                if mode == "contains":
+                    return (yield self.context.contains_answer(rule, start, end, error_free)).accepted
                 if mode == "begins":
                     return (yield self.context.begins(rule, start, end, error_free))
                 return (yield self.context.nested(rule, start, end, error_free)).accepted
@@ -1997,7 +2059,12 @@ class Parser:
                                     annotations, failures, context=context, base=base)
                 if trees is not None: proofs.tree_prefix = tree_prefixes
                 proofs.furthest = j
-                suffix.answers[base + j] = bool(eligible(proofs,boundary_witnesses(proofs,witnesses), suffix.error_free))
+                found = eligible(proofs,boundary_witnesses(proofs,witnesses), suffix.error_free)
+                suffix.answers[base + j] = bool(found)
+                gathered = Gathered()
+                for item in found:
+                    gathered.add(self.context.tagtab.get(tag[item]))
+                suffix.tags[base + j] = gathered.value()
                 if base + j == self.end:
                     yield _SUFFIX_BOUNDARY
                     n = self.end - base

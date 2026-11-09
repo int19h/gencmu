@@ -2098,7 +2098,9 @@ pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type
                     if call == "concat" && !matches!(ty, Type::String | Type::Any) {
                         return Err(Fault::in_term("++ requires string operands".into(), term));
                     }
-                    if let Some(problem) = expected_problem(ty, expected) {
+                    if call == "tags" && index == 0 && ty == Type::Forest {
+                        // A forest receiver gives its witness tags (§4).
+                    } else if let Some(problem) = expected_problem(ty, expected) {
                         return Err(if matches!(call.as_str(), "requirements" | "forbid") {
                             Fault::in_term(problem, arg)
                         } else {

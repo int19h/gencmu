@@ -12,6 +12,8 @@ pub(super) struct SuffixKey {
 #[derive(Default)]
 pub(super) struct SuffixState {
     pub(super) answers: FxMap<usize, (bool, bool)>,
+    pub(super) tags: FxMap<usize, SetId>,
+    pub(super) clean_tags: FxMap<usize, SetId>,
     pub(super) retained: Option<Retained>,
     pub(super) transient: bool,
 }
@@ -135,6 +137,20 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             self.shared.carried_errors(run.base, run.tokens.len()),
         );
         let holds = (flags.iter().any(|yes| *yes != 0), flags.iter().any(|yes| yes & 1 != 0));
+        let tags = &self.shared.tags;
+        let list = union_all(
+            witnesses.iter().zip(&flags).filter(|(_, yes)| **yes != 0).map(|((_, k), _)| tags.list(set.tagset[*k as usize])),
+        );
+        let clean_list = union_all(
+            witnesses
+                .iter()
+                .zip(&flags)
+                .filter(|(_, yes)| *yes & 1 != 0)
+                .map(|((_, k), _)| tags.list(set.tagset[*k as usize])),
+        );
+        let (tags, clean_tags) = (self.shared.tags.set(list), self.shared.tags.set(clean_list));
         self.shared.suffixes[id].answers.insert(end, holds);
+        self.shared.suffixes[id].tags.insert(end, tags);
+        self.shared.suffixes[id].clean_tags.insert(end, clean_tags);
     }
 }

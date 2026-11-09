@@ -97,7 +97,7 @@ def method_shape_problem(name: Any, receiver: Any, args: Any, recipe: bool = Fal
         if len(args) != 1 or not isinstance(args[0], dict) or set(args[0]) != {"body"} or not isinstance(args[0]["body"], dict):
             return "a method has the wrong receiver or arguments"
         from ._query_forms import query_body
-        if _restored_shape(receiver) and query_body(args[0]["body"])[1] == "ends":
+        if _restored_shape(receiver) and query_body(args[0]["body"])[1] in ("ends", "contains"):
             return "suffix parse requires an ordinary span, not a restored span"
         valid = span
     elif name == "error-free":
@@ -109,7 +109,7 @@ def method_shape_problem(name: Any, receiver: Any, args: Any, recipe: bool = Fal
     elif name == "classify":
         valid = len(args) == 1 and named(args[0], "classifier")
     elif name == "tags":
-        valid = span and (not args or len(args) == 1 and rule(args[0]))
+        valid = (span and (not args or len(args) == 1 and rule(args[0]))) or receiver_method in ("parse", "error-free") and not args
     elif name in ("matches", "begins", "ends"):
         valid = span and bool(args) and all(rule(arg) or named(arg, "terminal") for arg in args)
     elif name in ("followed-by", "preceded-by"):
@@ -135,7 +135,7 @@ def method_type(name: str, receiver: TermType, args: list[Any], bare: bool = Fal
     if name == "parse":
         valid = receiver in spans and len(args) == 1 and isinstance(args[0], dict) and "body" in args[0]
         from ._query_forms import query_body
-        if valid and receiver == "restored" and query_body(args[0]["body"])[1] == "ends":
+        if valid and receiver == "restored" and query_body(args[0]["body"])[1] in ("ends", "contains"):
             return None, "suffix parse requires an ordinary span, not a restored span"
         result, arity = "forest", 1
     elif name == "error-free":
@@ -156,7 +156,7 @@ def method_type(name: str, receiver: TermType, args: list[Any], bare: bool = Fal
         result = "restored" if name == "onward" and receiver == "restored" else "span"
         arity = 0
     elif name in ("tags", "classes"):
-        valid, result, arity = receiver in spans, "tags", None if name == "tags" else 0
+        valid, result, arity = receiver in spans or name == "tags" and receiver == "forest", "tags", None if name == "tags" else 0
         if name == "tags" and (len(args) > 1 or args and set(args[0]) != {"rule"}):
             valid = False
     elif name in ("followed-by", "preceded-by"):

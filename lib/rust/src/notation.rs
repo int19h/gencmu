@@ -1866,7 +1866,8 @@ impl<'a> Reader<'a> {
             match (method, arguments) {
                 (MethodKind::Parse, [Arg::Term(Term::Body(_))]) => span,
                 (MethodKind::ErrorFree, []) => self.feature_context.get() || matches!(ty, Type::Forest | Type::Any),
-                (MethodKind::Span | MethodKind::Tags, []) => span,
+                (MethodKind::Span, []) => span,
+                (MethodKind::Tags, []) => span || matches!(ty, Type::Forest | Type::Any),
                 (MethodKind::Restored, []) if name == "without-elision" => bare,
                 (MethodKind::Recipe, []) => bare,
                 (MethodKind::Tags, [Arg::Rule(_) | Arg::Term(Term::Source(_))]) => span,

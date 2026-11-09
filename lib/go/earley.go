@@ -1366,16 +1366,31 @@ func (r *recognizer) accepted(start int32) []*symNode {
 // input, in any set, with an eligible proof tree: whether a prefix of the
 // input, the empty one included, parses as the start rule.
 func (r *recognizer) begun(start int32, errorFree bool) bool {
+	holds, _ := r.begunTags(start, errorFree)
+	return holds
+}
+
+// begunTags also unions the tags of the eligible prefix witnesses (§4).
+func (r *recognizer) begunTags(start int32, errorFree bool) (bool, *tagset) {
 	var items []*item
+	tagsOf := map[*item]*tagset{}
 	for _, s := range r.sets {
 		for key, c := range s.syms {
 			if key.rule == start && key.origin == 0 && key.requested == closeKinds(r.closeRequested) && (r.boundaries == nil || r.boundaries.accepts(c.boundary, func(*boundaryLiteral) {})) {
 				items = append(items, c.items...)
+				for _, it := range c.items {
+					tagsOf[it] = c.tags
+				}
 			}
 		}
 	}
 	// Only an item with an eligible proof tree counts (§4).
-	return len(r.eligibleItems(items, errorFree)) > 0
+	eligible := r.eligibleItems(items, errorFree)
+	var sets []*tagset
+	for _, it := range eligible {
+		sets = append(sets, tagsOf[it])
+	}
+	return len(eligible) > 0, r.run.ps.in.unionAll(sets)
 }
 
 func sortSyms(s []*symNode) {

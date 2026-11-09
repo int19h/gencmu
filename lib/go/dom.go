@@ -207,6 +207,7 @@ const (
 	cdMatches  = "matches"
 	cdBegins   = "begins"
 	cdEnds     = "ends"
+	cdContains = "contains"
 	cdInitial  = "initial"
 	cdEnd      = "ends-input"
 	cdBoundary = "boundary"
