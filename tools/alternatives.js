@@ -4,16 +4,15 @@
 //
 // A plain alternative is a juxtaposition of plain items, with no guard
 // and no clause. A plain item is a rule reference without arguments, a
-// string, a tag terminal, an engine tag, ε or a parameter. `_<T>` with
-// one tag `T` is also a plain item. Any other alternative is a marked
-// alternative. Each marked alternative stands on lines of its own. Plain
-// alternatives can share lines, but a run of two or more plain
-// alternatives does not put exactly one of them on each line, unless no
-// two adjacent alternatives of the run fit together on one line. No line
-// of a rule body holds more than LINE_LIMIT code points. A comment
+// splice, a string, a tag terminal, an engine tag, ε or a parameter.
+// `_<T>` with one tag `T` is also a plain item. Any other alternative is
+// a marked alternative. Each marked alternative stands on lines of its
+// own. Plain alternatives can share lines, and they can also stand one
+// on each line. No line of a rule body holds more than LINE_LIMIT code
+// points. A comment line does not count toward that limit. A comment
 // stands on its own lines, before the rule or the alternative that it
 // describes. No comment shares a line with a rule header, an alternative
-// or any other grammar code. Part 3 of the section, shared tag clauses,
+// or any other grammar code. Part 3 of the section, shared clauses,
 // needs judgment, so this check does not test it.
 //
 // The rules and their lines come from the Markdown extraction of the engine
@@ -29,15 +28,6 @@ const unicode = new UnicodeTable(fs.readFileSync(new URL("../data/unicode/unicod
 export const LINE_LIMIT = 100;
 
 /**
- * Whether an expression of the DOM is a single symbol.
- * @param {Record<string, unknown>} expr
- * @returns {boolean}
- */
-export function isSingleSymbol(expr) {
-  return !!expr.splice || !!expr.call || !!expr.param || typeof expr.ref === "string" || "literal" in expr || "wildcard" in expr || "terminal" in expr || "range" in expr || "property" in expr || "test" in expr || expr.empty === true;
-}
-
-/**
  * Whether an expression of the DOM is one plain item.
  * @param {Record<string, unknown>} expr
  * @returns {boolean}
@@ -45,6 +35,10 @@ export function isSingleSymbol(expr) {
 export function isPlainItem(expr) {
   if (!expr || typeof expr !== "object") return false;
   if (typeof expr.ref === "string") return true;
+  if (expr.splice !== undefined) return true;
+  // A splice under one test, as in `*chain-empty<RI>`, is still a splice.
+  const inner = /** @type {any} */ (expr).test !== undefined ? /** @type {any} */ (expr).expr : undefined;
+  if (inner && inner.splice !== undefined) return true;
   if (typeof expr.param === "string") return true;
   if (expr.empty === true) return true;
   const literal = /** @type {any} */ (expr).literal;
@@ -89,21 +83,6 @@ export function isPlainAlternative(alternative, text, hasInternalComment = false
 }
 
 /**
- * A symbol as written, with the lines it occupies, from its first to its
- * last. Its text keeps its own line breaks.
- * @typedef {{text: string, lines: number[]}} WrittenSymbol
- * @typedef {{rule: any, keyword: string, line: number, indent: string, symbols: WrittenSymbol[]}} EligibleRule
- */
-
-/**
- * The eligible rules of a document, each with its symbols as written and the
- * lines of each. `dom` is the document's DOM.
- * @param {string} markdown
- * @param {{rules: any[]}} dom
- * @param {string} path
- * @returns {EligibleRule[]}
- */
-/**
  * Every comment of the extracted grammar text, as a range of indexes.
  * @param {string[]} chars
  * @returns {{from: number, to: number}[]}
@@ -131,7 +110,7 @@ export function scanComments(chars) {
  * The layout of every rule of a document: each top-level alternative as
  * written, the lines its code occupies, and whether it is plain.
  * @typedef {{text: string, lines: number[], plain: boolean, from: number, to: number}} WrittenAlternative
- * @typedef {{rule: any, keyword: string, line: number, indent: string, alternatives: WrittenAlternative[], comments: {from: number, to: number, lines: number[]}[]}} RuleLayout
+ * @typedef {{rule: any, keyword: string, line: number, indent: string, alternatives: WrittenAlternative[], comments: {from: number, to: number}[]}} RuleLayout
  * @param {string} markdown
  * @param {{rules: any[]}} dom
  * @param {string} path
@@ -141,7 +120,7 @@ export function alternativeLayouts(markdown, dom, path) {
   const { text, positions } = extractGrammarText(markdown, path, unicode);
   const chars = [...text];
   const lines = splitLines(markdown);
-  const comments = scanComments(chars).map(({ from, to }) => ({ from, to, lines: [...new Set(positions.slice(from, to).map(([line]) => line))] }));
+  const comments = scanComments(chars);
   /** @type {Map<string, number>} */
   const indexOf = new Map();
   positions.forEach(([line, column], index) => {
@@ -177,6 +156,11 @@ export function alternativeLayouts(markdown, dom, path) {
 }
 
 /**
+ * A symbol as written, with the lines it occupies, from its first to its
+ * last. Its text keeps its own line breaks.
+ * @typedef {{text: string, lines: number[]}} WrittenSymbol
+ * @typedef {{rule: any, keyword: string, line: number, indent: string, symbols: WrittenSymbol[]}} EligibleRule
+ *
  * The rules of a document whose alternatives are all plain, each with
  * its alternatives as written and the lines of each.
  * @param {string} markdown
@@ -449,7 +433,7 @@ export function layoutProblems(markdown, dom, path, limit = LINE_LIMIT) {
   /** @type {string[]} */
   const problems = clauseLayoutProblems(markdown, dom, path);
   for (const problem of commentLayoutProblems(markdown, path)) problems.push(problem);
-  for (const { rule, keyword, line, indent, alternatives, comments } of alternativeLayouts(markdown, dom, path)) {
+  for (const { rule, keyword, alternatives } of alternativeLayouts(markdown, dom, path)) {
     // How many alternatives occupy each line of the body.
     /** @type {Map<number, number>} */
     const occupants = new Map();
@@ -466,30 +450,6 @@ export function layoutProblems(markdown, dom, path, limit = LINE_LIMIT) {
       for (const number of alternative.lines) if ((occupants.get(number) ?? 0) > 1) markedShared.add(number);
     }
     for (const number of [...markedShared].sort((a, b) => a - b)) problems.push(`${path}:${number}: a marked alternative of ${keyword} ${rule.name} shares its line with another alternative; put it on lines of its own`);
-    // A run of plain alternatives does not put one of them on each line.
-    let runStart = 0;
-    while (runStart < alternatives.length) {
-      if (!alternatives[runStart].plain) { runStart++; continue; }
-      let runEnd = runStart;
-      // A comment on its own lines between two plain alternatives breaks
-      // the run, because it stands before the alternative after it.
-      while (runEnd + 1 < alternatives.length && alternatives[runEnd + 1].plain && !comments.some((comment) => comment.from > alternatives[runEnd].to && comment.to < alternatives[runEnd + 1].from)) runEnd++;
-      const run = alternatives.slice(runStart, runStart = runEnd + 1);
-      if (run.length < 2) continue;
-      const runLines = [...new Set(run.flatMap((alternative) => alternative.lines))].sort((a, b) => a - b);
-      if (runLines.length < 2) continue;
-      if (runLines.some((number) => (occupants.get(number) ?? 0) !== 1)) continue;
-      const coversAll = run.length === alternatives.length;
-      const header = rule.tags !== undefined || rule.value !== undefined || rule.image !== undefined;
-      const suggestion = suggestLayout(run.map((alternative) => alternative.text.trim()), indent, limit, header || !coversAll);
-      // When no two adjacent alternatives fit on one line, one per line
-      // is the only layout. A suggestion with fewer lines puts two
-      // alternatives on one line.
-      if (suggestion.length < runLines.length) {
-        const at = coversAll ? line : run[0].lines[0];
-        problems.push(`${path}:${at}: ${keyword} ${rule.name} puts one plain alternative on each of its ${runLines.length} lines; write:\n${suggestion.join("\n")}`);
-      }
-    }
   }
   return problems;
 }
