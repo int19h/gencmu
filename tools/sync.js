@@ -217,10 +217,10 @@ if (familyTexts.get(BOOTSTRAP_PATH) !== bootstrapText) throw new Error("the prep
 
 // The top-level alternatives of a rule keep the layout of
 // docs/notation.md, "Layout of the bundled grammars": each marked
-// alternative stands on lines of its own, a run of plain alternatives
-// does not put one of them on each line, no line of a rule body holds
-// more than 100 characters, and a comment stands on its own lines
-// (tools/alternatives.js).
+// alternative stands on lines of its own, plain alternatives can share
+// lines or stand one on each line, no line of a rule body holds more
+// than 100 characters, a comment line does not count toward that limit,
+// and a comment stands on its own lines (tools/alternatives.js).
 const sprawling = [];
 for (const [file, { dom }] of Object.entries(documents)) {
   for (const problem of layoutProblems(fs.readFileSync(path.join(root, file), "utf8"), dom, file)) sprawling.push(problem);

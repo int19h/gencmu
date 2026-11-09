@@ -21,7 +21,6 @@
 import fs from "node:fs";
 import { UnicodeTable } from "../lib/js/src/unicode.js";
 import { extractGrammarText, splitLines } from "../lib/js/src/markdown.js";
-import { countWork, hooks } from "../lib/js/src/testing.js";
 
 const unicode = new UnicodeTable(fs.readFileSync(new URL("../data/unicode/unicode.txt", import.meta.url), "utf8"));
 
@@ -36,9 +35,6 @@ export function isPlainItem(expr) {
   if (!expr || typeof expr !== "object") return false;
   if (typeof expr.ref === "string") return true;
   if (expr.splice !== undefined) return true;
-  // A splice under one test, as in `*chain-empty<RI>`, is still a splice.
-  const inner = /** @type {any} */ (expr).test !== undefined ? /** @type {any} */ (expr).expr : undefined;
-  if (inner && inner.splice !== undefined) return true;
   if (typeof expr.param === "string") return true;
   if (expr.empty === true) return true;
   const literal = /** @type {any} */ (expr).literal;
@@ -63,20 +59,33 @@ function sourceWithoutStrings(text) {
   return out;
 }
 
+// The written text with comments removed, so that punctuation inside a
+// comment does not mark the alternative. A comment is whitespace.
+/** @param {string} text */
+function sourceWithoutComments(text) {
+  let out = "";
+  let string = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (string) { out += c; if (c === '"') string = false; continue; }
+    if (c === '"') { string = true; out += c; continue; }
+    if (c === "-" && text[i + 1] === "-") { while (i < text.length && text[i] !== "\n" && text[i] !== "\r") i++; out += "\n"; continue; }
+    out += c;
+  }
+  return out;
+}
+
 /**
  * Whether a DOM alternative, as written, is a plain alternative.
- * `hasInternalComment` says a comment stands between its first and last
- * written code points.
  * @param {any} alternative
  * @param {string} text the alternative as written
  * @param {boolean} [hasInternalComment]
  * @returns {boolean}
  */
-export function isPlainAlternative(alternative, text, hasInternalComment = false) {
+export function isPlainAlternative(alternative, text) {
   if (!alternative || (alternative.guards && alternative.guards.length !== 0)) return false;
   if (alternative.tags !== undefined || alternative.value !== undefined || alternative.image !== undefined) return false;
-  if (hasInternalComment) return false;
-  if (/[\[\]{}()&≻]/.test(sourceWithoutStrings(text))) return false;
+  if (/[\[\]{}()&≻]/.test(sourceWithoutStrings(sourceWithoutComments(text)))) return false;
   const expr = alternative.expr;
   const items = expr && Array.isArray(expr.seq) ? expr.seq : [expr];
   return items.every((item) => isPlainItem(item));
@@ -110,7 +119,7 @@ export function scanComments(chars) {
  * The layout of every rule of a document: each top-level alternative as
  * written, the lines its code occupies, and whether it is plain.
  * @typedef {{text: string, lines: number[], plain: boolean, from: number, to: number}} WrittenAlternative
- * @typedef {{rule: any, keyword: string, line: number, indent: string, alternatives: WrittenAlternative[], comments: {from: number, to: number}[]}} RuleLayout
+ * @typedef {{rule: any, keyword: string, alternatives: WrittenAlternative[]}} RuleLayout
  * @param {string} markdown
  * @param {{rules: any[]}} dom
  * @param {string} path
@@ -119,8 +128,6 @@ export function scanComments(chars) {
 export function alternativeLayouts(markdown, dom, path) {
   const { text, positions } = extractGrammarText(markdown, path, unicode);
   const chars = [...text];
-  const lines = splitLines(markdown);
-  const comments = scanComments(chars);
   /** @type {Map<string, number>} */
   const indexOf = new Map();
   positions.forEach(([line, column], index) => {
@@ -137,47 +144,19 @@ export function alternativeLayouts(markdown, dom, path) {
     if (starts.length !== alternatives.length) throw new Error(`${path}:${rule.at[0]}: found ${starts.length} alternatives of rule ${rule.name} in its text, but its DOM has ${alternatives.length}`);
     const written = starts.map(({ from, to }, index) => {
       const writtenText = chars.slice(from, to).join("");
-      const hasInternalComment = comments.some((comment) => comment.from > from && comment.to < to);
       return {
         text: writtenText,
         lines: [...new Set(positions.slice(from, to).map(([line]) => line))],
-        plain: isPlainAlternative(alternatives[index], writtenText, hasInternalComment),
+        plain: isPlainAlternative(alternatives[index], writtenText),
         from, to,
       };
     });
-    const headLine = lines[rule.at[0] - 1];
-    const headIndent = /^\s*/.exec(headLine)?.[0] ?? "";
-    const firstLine = written[0].lines[0];
-    const indent = firstLine === rule.at[0] ? `${headIndent}  ` : (/^\s*/.exec(lines[firstLine - 1])?.[0] ?? "");
     const keyword = { define: "%rule", redefine: "%redefine-rule", extend: "%extend-rule" }[/** @type {"define" | "redefine" | "extend"} */ (rule.op)];
-    result.push({ rule, keyword, line: rule.at[0], indent, alternatives: written, comments });
+    result.push({ rule, keyword, alternatives: written });
   }
   return result;
 }
 
-/**
- * A symbol as written, with the lines it occupies, from its first to its
- * last. Its text keeps its own line breaks.
- * @typedef {{text: string, lines: number[]}} WrittenSymbol
- * @typedef {{rule: any, keyword: string, line: number, indent: string, symbols: WrittenSymbol[]}} EligibleRule
- *
- * The rules of a document whose alternatives are all plain, each with
- * its alternatives as written and the lines of each.
- * @param {string} markdown
- * @param {{rules: any[]}} dom
- * @param {string} path
- * @returns {EligibleRule[]}
- */
-export function eligibleRules(markdown, dom, path) {
-  /** @type {EligibleRule[]} */
-  const result = [];
-  for (const layout of alternativeLayouts(markdown, dom, path)) {
-    if (layout.alternatives.length < 2) continue;
-    if (!layout.alternatives.every((alternative) => alternative.plain)) continue;
-    result.push({ rule: layout.rule, keyword: layout.keyword, line: layout.line, indent: layout.indent, symbols: layout.alternatives.map(({ text, lines }) => ({ text, lines })) });
-  }
-  return result;
-}
 
 /**
  * Where each alternative of the rule whose keyword is at `start` begins and
@@ -265,163 +244,9 @@ function scanBody(chars, start) {
 }
 
 /**
- * The lines of a layout of `symbols`, each indented by `indent`. The layout
- * has the fewest lines that hold at most `limit` code points. For that number
- * of lines, it takes the split whose longest line is shortest. One line has
- * no leading `|` unless a header clause precedes it. Every line of several
- * begins with `| `.
- *
- * A symbol keeps its own line breaks, and the lines after its first stay as
- * written. The next symbol continues its last line. A symbol that does not fit
- * by itself stands alone, and its lines that are too long do not count toward
- * the longest.
- * @param {string[]} symbols
- * @param {string} indent
- * @param {number} [limit]
- * @param {boolean} [leadingBar] whether a header clause precedes the body
- * @returns {string[]}
- */
-export function suggestLayout(symbols, indent, limit = LINE_LIMIT, leadingBar = false) {
-  const width = (/** @type {string} */ s) => [...s].length;
-  const parts = symbols.map((symbol) => symbol.split("\n"));
-  const n = symbols.length;
-  // The lines of symbols i to j - 1 as one line of the layout, which begins
-  // with `start`.
-  /** @type {(i: number, j: number, start: string) => string[]} */
-  const linesOf = (i, j, start) => {
-    const lines = [start];
-    for (let k = i; k < j; k++) {
-      const [first, ...rest] = parts[k];
-      lines[lines.length - 1] += (k === i ? "" : " | ") + first;
-      for (const line of rest) lines.push(line);
-    }
-    return lines;
-  };
-  const one = linesOf(0, n, indent + (leadingBar ? "| " : ""));
-  if (one.length === 1 && width(one[0]) <= limit) return one;
-  // cost[i][j - i - 1]: what a line of the layout of symbols i to j - 1
-  // counts toward the longest line, for each j up to the last such line
-  // that can be a line of the layout.
-  // Each row is built by adding one symbol at a time to the line, and stops
-  // once a line of two or more symbols is too long: adding symbols never
-  // shortens a line, so no longer one fits either. Rebuilding every line
-  // from its first symbol, for every pair, would cost the cube of n.
-  /** @type {number[][]} */
-  const cost = [];
-  const partWidths = parts.map((lines) => lines.map(width));
-  const startWidth = width(`${indent}| `);
-  for (let i = 0; i < n; i++) {
-    /** @type {number[]} */
-    const row = [];
-    cost.push(row);
-    let last = startWidth;
-    let most = 0;
-    let fits = true;
-    for (let j = i + 1; j <= n; j++) {
-      if (hooks.work) countWork(hooks.work, "text");
-      const widths = partWidths[j - 1];
-      last += (j - 1 === i ? 0 : 3) + widths[0];
-      // Each of the symbol's other lines counts before it is read, so that
-      // a row that read them again for each start fails its budget.
-      for (let line = 1; line < widths.length; line++) {
-        if (hooks.work) countWork(hooks.work, "text");
-        if (last <= limit) most = Math.max(most, last);
-        else fits = false;
-        last = widths[line];
-      }
-      const lastFits = last <= limit;
-      // Kept from i + 1 on: an array with holes before i would cost i to walk.
-      if ((fits && lastFits) || j - i === 1) row.push(Math.max(most, lastFits ? last : 0));
-      else break;
-    }
-  }
-  // The starts of the lines that can end before j, last first, as the
-  // search below takes them: each row is short, so this is the size of the
-  // table rather than of every pair.
-  /** @type {number[][]} */
-  const starts = Array.from({ length: n + 1 }, () => []);
-  for (let i = n - 1; i >= 0; i--) {
-    cost[i].forEach((_, index) => {
-      if (hooks.work) countWork(hooks.work, "text");
-      starts[i + 1 + index].push(i);
-    });
-  }
-  // The fewest lines of the layout for the symbols before each j, and for
-  // those from each i to the end. Every symbol can stand alone, so both are
-  // finite. The fewest for all of them is `lines`.
-  const before = [0];
-  for (let j = 1; j <= n; j++) {
-    let fewest = Infinity;
-    for (const i of starts[j]) {
-      if (hooks.work) countWork(hooks.work, "text");
-      fewest = Math.min(fewest, 1 + before[i]);
-    }
-    before.push(fewest);
-  }
-  const after = Array(n + 1).fill(0);
-  for (let i = n - 1; i >= 0; i--) {
-    let fewest = Infinity;
-    cost[i].forEach((_, index) => {
-      if (hooks.work) countWork(hooks.work, "text");
-      fewest = Math.min(fewest, 1 + after[i + 1 + index]);
-    });
-    after[i] = fewest;
-  }
-  const lines = before[n];
-  // best[k]: for each j, the shortest longest line of symbols 0 to j - 1 on
-  // k lines of the layout; from[k]: where the last of those lines begins.
-  // The lines after the first of each symbol are the same in every layout,
-  // so the fewest lines of the layout make the fewest lines. Only the j that
-  // k lines can reach, and from which the rest fits in the lines left, can
-  // be on the way to the answer, so only they are filled in: a full table
-  // for each number of lines would cost that number times the square of n.
-  /** @type {number[][]} */
-  const active = Array.from({ length: lines + 1 }, () => []);
-  for (let j = 1; j <= n; j++) {
-    for (let k = before[j]; k <= lines - after[j]; k++) {
-      if (hooks.work) countWork(hooks.work, "text");
-      active[k].push(j);
-    }
-  }
-  /** @type {Map<number, number>[]} */
-  const best = [new Map([[0, 0]])];
-  /** @type {Map<number, number>[]} */
-  const from = [new Map()];
-  for (let k = 1; k <= lines; k++) {
-    /** @type {Map<number, number>} */
-    const level = new Map();
-    /** @type {Map<number, number>} */
-    const levelFrom = new Map();
-    best.push(level);
-    from.push(levelFrom);
-    for (const j of active[k]) {
-      let shortest = Infinity;
-      for (const i of starts[j]) {
-        if (hooks.work) countWork(hooks.work, "text");
-        const previous = best[k - 1].get(i);
-        if (previous === undefined) continue;
-        const value = Math.max(previous, cost[i][j - i - 1]);
-        if (value < shortest) {
-          shortest = value;
-          levelFrom.set(j, i);
-        }
-      }
-      if (shortest < Infinity) level.set(j, shortest);
-    }
-  }
-  /** @type {string[][]} */
-  const groups = [];
-  for (let j = n, line = lines; line > 0; line--) {
-    const i = /** @type {number} */ (from[line].get(j));
-    groups.push(linesOf(i, j, `${indent}| `));
-    j = i;
-  }
-  return groups.reverse().flat();
-}
-
-/**
- * The layout problems of a document's eligible rules, each a message that
- * names the file, the line and the rule.
+ * The layout problems of a document, for every rule with an alternative.
+ * Each message names the file, the line and the rule. A line that holds
+ * only a comment does not count toward the limit, wherever it stands.
  * @param {string} markdown
  * @param {{rules: any[]}} dom
  * @param {string} path
@@ -440,6 +265,7 @@ export function layoutProblems(markdown, dom, path, limit = LINE_LIMIT) {
     for (const alternative of alternatives) for (const number of alternative.lines) occupants.set(number, (occupants.get(number) ?? 0) + 1);
     const bodyLines = [...occupants.keys()].sort((a, b) => a - b);
     for (const number of bodyLines) {
+      if (/^\s*--/.test(lines[number - 1])) continue;
       const width = [...lines[number - 1]].length;
       if (width > limit) problems.push(`${path}:${number}: a line of ${keyword} ${rule.name} holds ${width} characters, more than ${limit}`);
     }
