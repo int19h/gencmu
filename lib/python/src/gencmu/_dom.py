@@ -1054,7 +1054,7 @@ class DomBuilder:
                     else:
                         term = {"union": [term, following]}
                         open_union = True
-            return term
+            return {"nonempty": term}
         if node.rule == "negation":
             return {"not": (yield self._condition(self.only(node, "condition")))}
         if node.rule == "presence":
@@ -1063,6 +1063,10 @@ class DomBuilder:
             method = yield self._method(node)
             if method.get("method") not in _PREDICATES and method.get("method") not in ("tags", "classes", "split", "ngrams", "classify"):
                 raise self.fail(node, "a condition requires a query method")
+            # A set-valued method in a Boolean position tests that its set
+            # is not empty, through the wrapper of engine §9.2.
+            if method.get("method") in ("tags", "classes", "split", "ngrams", "classify"):
+                return {"nonempty": method}
             return method
         raise self.fail(node, f"unexpected {node.rule} in a condition")
 

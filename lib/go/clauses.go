@@ -147,6 +147,16 @@ func simplifyCondPartial(c *domCond, has func(string) truth, fixed map[clausePar
 			return c, open, firstPresence(guard, next)
 		}
 		return &domCond{Kind: cdCompare, Op: c.Op, Left: left, Right: right}, open, firstPresence(guard, next)
+	case cdTruthy:
+		// A set term that simplifies to the empty set is false (§3.6).
+		left, guard := simplifyTermPartial(c.Left, has, fixed)
+		if isEmptySet(left) {
+			return nil, alwaysFalse, ""
+		}
+		if left == c.Left {
+			return c, open, guard
+		}
+		return &domCond{Kind: cdTruthy, Left: left}, open, guard
 	}
 	return c, open, ""
 }
@@ -976,6 +986,13 @@ func definitionFault(r *domRule, deferIssue func(definitionKind, string) bool) *
 	}
 	// A condition that applies to no alternative. Each production marks
 	// the conditions that apply to it.
+	for _, c := range r.Conditions {
+		// A bare empty set in a Boolean position is a literal false, which
+		// a valid document does not hold (engine §3.6).
+		if c.Kind == cdTruthy && c.Left != nil && c.Left.Kind == tmEmptySet {
+			return immediate(fmt.Sprintf("a condition of %s is the empty set", r.Name))
+		}
+	}
 	conds := newCondCheck(r.Conditions, func(c *domCond) bool { return waits(c) || isItem(c) })
 	for _, caps := range alts {
 		if conds.left == 0 {

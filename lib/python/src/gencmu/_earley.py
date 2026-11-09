@@ -1070,8 +1070,8 @@ class Evaluator:
                 inside = _as_set(left) <= _as_set(right)
                 return inside if op == "⊆" else not inside
             raise _GrammarFault(f"an unknown comparison {op}")
-        if "union" in dom or "intersection" in dom or "difference" in dom or "tag" in dom or "emptySet" in dom or "const" in dom:
-            return len(_as_set((yield self.walk_value(dom, bound)))) > 0
+        if "nonempty" in dom:
+            return len(_as_set((yield self.walk_value(dom["nonempty"], bound)))) > 0
         if "method" in dom:
             name = dom["method"]
             if name in ("tags", "classes", "split", "ngrams", "classify"):

@@ -71,7 +71,7 @@ use crate::tags::is_name;
 use crate::unicode::Unicode;
 
 /// The DOM format version (`docs/output.md`), part of every cache key.
-pub const DOM_FORMAT: i64 = 46;
+pub const DOM_FORMAT: i64 = 47;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct Dom {
@@ -895,10 +895,8 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                     children.push((field(value, "if")?, true));
                     children.push((field(value, "then")?, true));
                 }
-                "captured" | "tag" | "emptySet" | "const" | "param" | "call" => {}
-                "union" | "intersection" | "difference" => {
-                    children.extend(array(value, key)?.iter().map(|child| (child, false)))
-                }
+                "captured" => {}
+                "nonempty" => children.push((field(value, "nonempty")?, false)),
                 _ => return Err(format!("an unknown condition {key:?}")),
             }
         } else {
@@ -945,17 +943,7 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                     let receiver = operands.next().unwrap().term();
                     let name = string(value, "method")?;
                     if matches!(name.as_str(), "tags" | "classes" | "split" | "ngrams" | "classify") {
-                        let mut args = vec![Arg::Term(receiver)];
-                        for arg in array(value, "args")? {
-                            args.push(match (arg.get("rule"), arg.get("classifier"), arg.get("integer")) {
-                                (Some(Json::Str(name)), _, _) => Arg::Rule(name.clone()),
-                                (_, Some(Json::Str(name)), _) => Arg::Classifier(name.clone()),
-                                (_, _, Some(Json::Str(digits))) => Arg::Integer(digits.clone()),
-                                _ => Arg::Term(operands.next().unwrap().term()),
-                            });
-                        }
-                        values.push(ReadValue::Cond(Cond::Truthy(Term::Call(name, args))));
-                        continue;
+                        return Err("a malformed query predicate".into());
                     }
                     if matches!(name.as_str(), "parse" | "error-free") {
                         let args = std::iter::once(Arg::Term(receiver))
@@ -1005,17 +993,7 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                         _ => return Err("a malformed predicate method".into()),
                     }
                 }
-                "union" => Cond::Truthy(Term::Union(operands.map(ReadValue::term).collect())),
-                "intersection" => Cond::Truthy(Term::Intersection(operands.map(ReadValue::term).collect())),
-                "difference" => {
-                    let left = operands.next().ok_or("a difference lacks its left operand")?.term();
-                    let right = operands.next().ok_or("a difference lacks its right operand")?.term();
-                    Cond::Truthy(Term::Difference(Box::new(left), Box::new(right)))
-                }
-                "tag" => Cond::Truthy(Term::Tag(string(value, "tag")?)),
-                "emptySet" => Cond::Truthy(Term::EmptySet),
-                "param" | "call" => Cond::Truthy(Term::Source(SourceSymbol::from_json(value)?)),
-                "const" => Cond::Truthy(Term::Const(string(value, "const")?, position(value)?)),
+                "nonempty" => Cond::Truthy(operands.next().unwrap().term()),
                 "not" => Cond::Not(Box::new(operands.next().unwrap().cond())),
                 "any" => Cond::Any(operands.map(ReadValue::cond).collect()),
                 "all" => Cond::All(operands.map(ReadValue::cond).collect()),

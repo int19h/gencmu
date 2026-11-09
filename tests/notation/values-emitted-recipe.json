@@ -2,7 +2,7 @@
   "document": "```jbogenbau\n%rule r :- $.emitted.image | A %emits\n```\n",
   "expect": {
     "dom": {
-      "format": 46,
+      "format": 47,
       "rules": [
         {
           "name": "r",

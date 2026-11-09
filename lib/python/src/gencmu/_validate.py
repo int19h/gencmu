@@ -22,7 +22,7 @@ class Marks(Protocol):
     def changes_in_document(self, code: int) -> bool: ...
 
 
-FORMAT = 46
+FORMAT = 47
 MAX_DEPTH = 256
 TOO_DEEP = "nested too deeply"
 CONSTANT_NAME = USER_NAME
@@ -525,7 +525,7 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: l
             continue
         # Unresolved leaves still obey the category of their position.
         if 'param' in node:
-            if kind not in ('expr', 'arg', 'term', 'tags', 'string', 'target', 'condition'):
+            if kind not in ('expr', 'arg', 'term', 'tags', 'string', 'target'):
                 return f'a malformed {kind}'
             if keys != {'param', 'at'} or not isinstance(node['param'], str) or re.fullmatch(r'(?!.*--)[A-Za-z][A-Za-z0-9_-]*', node['param']) is None or not _is_position(node['at']):
                 return 'an undeclared or malformed parameter'
@@ -691,13 +691,15 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: l
                 if keys != {"if", "then"}:
                     return "a malformed condition"
                 pending.extend(("condition", node[k], below, False, False) for k in ("if", "then"))
-            elif any(k in node for k in ("union", "intersection", "difference", "tag", "emptySet", "const")):
-                pending.append(("term", node, below, False, False))
+            elif "nonempty" in node:
+                if keys != {"nonempty"}:
+                    return "a malformed condition"
+                pending.append(("term", node["nonempty"], below, False, False))
             elif not (
                 keys == {"captured"}
                 and _capture(node["captured"])
                 or keys == {"method", "receiver", "args"}
-                and node["method"] in ("matches", "begins", "ends", "starts-input", "ends-input", "parse", "error-free", "followed-by", "preceded-by", "tags", "classes", "split", "ngrams", "classify")
+                and node["method"] in ("matches", "begins", "ends", "starts-input", "ends-input", "parse", "error-free", "followed-by", "preceded-by")
             ):
                 return "a malformed condition"
             keep_type(None if id(node) in deferred else condition_type_fault(node, memo=types), node)

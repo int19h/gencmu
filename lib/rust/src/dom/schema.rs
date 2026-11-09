@@ -637,10 +637,7 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
         }
         let next = depth + 1;
         if value.get("param").is_some() && !matches!(kind, Part::Pattern | Part::PatternNode | Part::Argument) {
-            if !matches!(
-                kind,
-                Part::Expr { .. } | Part::Term | Part::RecipeAtom | Part::String | Part::Target | Part::Condition
-            ) {
+            if !matches!(kind, Part::Expr { .. } | Part::Term | Part::RecipeAtom | Part::String | Part::Target) {
                 return Some("a parameter in the wrong source category".into());
             }
             if let Some(problem) = source::parameter_problem(value) {
@@ -988,12 +985,8 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                 } else if exact(value, &["if", "then"], &[]) {
                     pending.push((Part::Condition, value.get("if").unwrap(), next));
                     pending.push((Part::Condition, value.get("then").unwrap(), next));
-                } else if ["union", "intersection", "difference", "tag", "emptySet"]
-                    .iter()
-                    .any(|key| exact(value, &[key], &[]))
-                    || exact(value, &["const", "at"], &[])
-                {
-                    pending.push((Part::Term, value, next));
+                } else if exact(value, &["nonempty"], &[]) {
+                    pending.push((Part::Term, value.get("nonempty").unwrap(), next));
                 } else if exact(value, &["op", "left", "right"], &[]) {
                     if !matches!(
                         value.get("op").and_then(Json::as_str),
@@ -1010,16 +1003,6 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                     pending.push((Part::Term, value.get("right").unwrap(), next));
                 } else if exact(value, &["method", "receiver", "args"], &[]) {
                     if matches!(value.get("method").and_then(Json::as_str), Some("parse" | "error-free")) {
-                        pending.push((Part::Term, value, depth));
-                        continue;
-                    }
-                    // The tags of a forest, as a set in a Boolean position.
-                    if value.get("method").and_then(Json::as_str) == Some("tags")
-                        && value.get("receiver").is_some_and(|receiver| {
-                            exact(receiver, &["method", "receiver", "args"], &[])
-                                && matches!(receiver.get("method").and_then(Json::as_str), Some("parse" | "error-free"))
-                        })
-                    {
                         pending.push((Part::Term, value, depth));
                         continue;
                     }
@@ -1044,7 +1027,6 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                                                 })
                                     })
                             }
-                            (Some("tags" | "classes" | "split" | "ngrams" | "classify"), Some(_)) => true,
                             (Some(name @ ("matches" | "begins" | "ends")), Some(args)) => {
                                 (name != "ends" || !restored_span(receiver))
                                     && !args.is_empty()

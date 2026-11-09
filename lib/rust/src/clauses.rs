@@ -25,7 +25,11 @@ pub(crate) enum Simple {
 pub(crate) fn simplify_cond(cond: &Cond, has: &dyn Fn(&str) -> bool) -> Simple {
     work::count(Work::Walked, 1);
     match cond {
-        Cond::Truthy(_) => Simple::Cond(cond.clone()),
+        // A set term that simplifies to the empty set is false (§3.6).
+        Cond::Truthy(term) => match simplify_term(term, has) {
+            None => Simple::False,
+            Some(term) => Simple::Cond(Cond::Truthy(term)),
+        },
         Cond::SourceQuery(..) => unreachable!("source queries expand before clause checks"),
         Cond::Captured(name) => {
             if has(name) {
@@ -1936,6 +1940,11 @@ fn definition_fault(rule: &RuleDef, defer_issue: &mut impl FnMut(&DefinitionIssu
         }
     }
     for cond in rule.conditions.iter().filter(|cond| !cond_waits(cond)) {
+        // A bare empty set in a Boolean position is a literal false, which
+        // a valid document does not hold (engine §3.6).
+        if matches!(cond, Cond::Truthy(term) if matches!(term, Term::EmptySet)) {
+            return immediate(format!("a condition of {} is the empty set", rule.name));
+        }
         // An item condition applies to the productions of its braces'
         // helper (engine §3.6), which are not listed here.
         if !item_names.is_empty() && mentioned_in(Part::Cond(cond)).iter().any(|name| item_names.contains(name)) {

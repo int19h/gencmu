@@ -582,6 +582,12 @@ def _condition(dom: Dom, present: AbstractSet[str], absent: AbstractSet[str] | N
         if len(parts) == 1:
             return parts[0], guard
         return (dom if unchanged else {key: parts}), guard
+    if "nonempty" in dom:
+        term, guard = yield _term(dom["nonempty"], present, absent, fixed)
+        # A set term that simplifies to the empty set is false (§3.6).
+        if is_empty_set(term):
+            return False, guard
+        return (dom if term is dom["nonempty"] else {"nonempty": term}), guard
     if "op" in dom:
         left, guard = yield _term(dom["left"], present, absent, fixed)
         right, next_guard = yield _term(dom["right"], present, absent, fixed)
@@ -1365,6 +1371,11 @@ def _definition_issues(rule: Dom):
         for name in names:
             capturing.setdefault(name, []).append(present)
     for condition in rule["conditions"]:
+        # A bare empty set in a Boolean position is a literal false, which
+        # a valid document does not hold (engine §3.6).
+        if isinstance(condition.get("nonempty"), dict) and is_empty_set(condition["nonempty"]):
+            yield DefinitionIssue("independent", f"a condition of {rule['name']} is the empty set")
+            continue
         if waits(condition):
             continue
         # An item condition applies to the productions of its braces'

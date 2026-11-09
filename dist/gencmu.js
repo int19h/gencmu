@@ -417,6 +417,7 @@
     if (node.string !== undefined || node.tag !== undefined || node.captured !== undefined || node.rule || node.classifier) return [];
     if (typeof node.capture === "string" && !node.tags && !node.value && !node.image) return [];
     if (node.method) return [node.receiver, ...node.args];
+    if (node.nonempty) return [node.nonempty];
     if (node.op) return [node.left, node.right];
     if (node.if) return [node.if, node.then];
     if (node.not) return [node.not];
@@ -6341,7 +6342,7 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 46;
+  const DOM_FORMAT = 47;
   // A constant's name, without its `$`, begins with a capital (engine §2).
   const CONSTANT_NAME = /^(?!.*--)[A-Z][A-Za-z0-9_-]*$/;
   // A classifier name starts with a lowercase letter. A class name starts
@@ -6604,7 +6605,7 @@
       }
       // Unresolved leaves still obey the category of their position.
       if ("param" in value) {
-        if (!["expr", "arg", "term", "tags", "target", "pattern", "pattern-part", "condition"].includes(kind)) return `a malformed ${kind}`;
+        if (!["expr", "arg", "term", "tags", "target", "pattern", "pattern-part"].includes(kind)) return `a malformed ${kind}`;
         if (!exact(value,["param","at"]) || !position(value.at) || typeof value.param !== "string" || !task.params.has(value.param)) return "an undeclared or malformed parameter";
         continue;
       }
@@ -6716,9 +6717,9 @@
           child("term", atom, { recipe: true });
         }
       } else if (kind === "condition") {
-        if (!hasOneForm(value, [["method", "receiver", "args"], ["op", "left", "right"], ["not"], ["any"], ["all"], ["captured"], ["if", "then"], ["union"], ["intersection"], ["difference"], ["tag"], ["emptySet"], ["const", "at"]])) return "a malformed condition";
-        if ("method" in value) { if (!QUERY_METHODS.has(value.method) && !["tags", "classes", "split", "ngrams", "classify"].includes(value.method)) return "a malformed query"; push("term", value, depth, { query: true }); }
-        else if ("union" in value || "intersection" in value || "difference" in value || "tag" in value || "emptySet" in value || "const" in value) push("term", value, depth, {});
+        if (!hasOneForm(value, [["method", "receiver", "args"], ["op", "left", "right"], ["not"], ["any"], ["all"], ["captured"], ["if", "then"], ["nonempty"]])) return "a malformed condition";
+        if ("method" in value) { if (!QUERY_METHODS.has(value.method)) return "a malformed query"; push("term", value, depth, { query: true }); }
+        else if ("nonempty" in value) push("term", value.nonempty, depth, {});
         else if (value.op) {
           if (!DOM_COMPARATORS.has(value.op) || ["≅", "≇"].includes(value.op) && !(typeof value.left?.capture === "string" && Object.keys(value.left).length === 1)) return "a malformed comparison";
           child("term", value.left); child("term", value.right);
@@ -6748,7 +6749,7 @@
               const parsed = queryBody(arg.body);
               if (parsed.problem) return parsed.problem;
               if (queryCapture(parsed.body)) return "a parse argument cannot declare captures";
-              push("expr",parsed.body,depth + (arg.body.seq ? arg.body.seq.filter((/** @type {any} */ part) => part.remainder).length + (arg.body.seq.some((/** @type {any} */ part) => part.remainder) ? 1 : 1) : 1),{params:task.params,whole:true});
+              push("expr",parsed.body,depth + (arg.body.seq ? arg.body.seq.filter((/** @type {any} */ part) => part.remainder).length + 1 : 1),{params:task.params,whole:true});
             } else if (object(arg) && typeof arg.rule === "string") { if (Object.keys(arg).length !== 1 || !["tags", "matches", "begins", "ends", "without-elision-except", "followed-by", "preceded-by"].includes(value.method) || !ruleName(arg.rule)) return "a malformed rule argument"; }
             else if (object(arg) && typeof arg.terminal === "string") { if (Object.keys(arg).length !== 1 || !TARGET_METHODS.has(value.method) || !/^(?!.*--)[A-Z][A-Za-z0-9_-]*$/.test(arg.terminal)) return "a malformed boundary target"; }
             else if (object(arg) && "integer" in arg) { if (Object.keys(arg).length !== 1 || value.method !== "ngrams" || typeof arg.integer !== "string" || !/^[1-9][0-9]*$/.test(arg.integer)) return "a malformed integer argument"; }
@@ -6950,6 +6951,12 @@
       if (!isTerm && consequent === DOM_FALSE) return [{not:antecedent}, guard];
       return [antecedent === node.if && consequent === node.then ? node : {if:antecedent, then:consequent}, guard ?? next];
     }
+    if ("nonempty" in node) {
+      const [term, guard] = yield simplifying(node.nonempty, has, fixed);
+      // A set term that simplifies to the empty set is false (engine §3.6).
+      if (isEmptySet(term)) return [DOM_FALSE, guard];
+      return [term === node.nonempty ? node : {nonempty:term}, guard];
+    }
     if (Array.isArray(node.union) || Array.isArray(node.intersection)) {
       const key = node.union ? "union" : "intersection";
       const parts = [];
@@ -7001,7 +7008,7 @@
   function isCondition(node) {
     // Down the chain of guards, in a loop.
     let current = node;
-    while (isDomObject(current) && !(typeof current.op === "string" || "not" in current || "all" in current || "any" in current ||
+    while (isDomObject(current) && !(typeof current.op === "string" || "not" in current || "all" in current || "any" in current || "nonempty" in current ||
       (typeof current.method === "string" && ["matches", "begins", "ends", "starts-input", "ends-input", "followed-by", "preceded-by"].includes(current.method)) || "captured" in current || "constant" in current)) {
       if (!("if" in current)) return false;
       current = current.then;
@@ -8200,6 +8207,9 @@
       if (problem) yield {kind:"independent", problem};
     }
     for (const condition of rule.conditions) {
+      // A bare empty set in a Boolean position is a literal false, which a
+      // valid document does not hold (engine §3.6).
+      if (isDomObject(condition) && isDomObject(condition.nonempty) && isEmptySet(condition.nonempty)) { yield {kind:"independent", problem:`a condition of ${rule.name} is the empty set`}; continue; }
       if (waits(condition)) continue;
       // An item condition applies to the productions of its braces' helper
       // (engine §3.6), which itemCaptureProblem checks.
@@ -8620,10 +8630,10 @@
       if ("problem" in found) return found;
       return ["condition","forest","tags","strings"].includes(found.type) ? null : { problem: "a condition requires a query method", node: condition };
     }
-    if ("union" in condition || "intersection" in condition || "difference" in condition || "tag" in condition || "emptySet" in condition || "const" in condition) {
-      const found = yield typing(condition, constants);
+    if ("nonempty" in condition) {
+      const found = yield typing(condition.nonempty, constants);
       if ("problem" in found) return found;
-      return ["tags","strings","set","any"].includes(found.type) ? null : { problem: "a condition requires a set, a forest, or a query method", node: condition };
+      return ["tags","strings","set","forest","any"].includes(found.type) ? null : { problem: "a condition requires a set, a forest, or a query method", node: condition };
     }
     if (Array.isArray(condition.any) || Array.isArray(condition.all)) {
       for (const item of condition.any ?? condition.all) {
@@ -15719,8 +15729,8 @@
       if (condition.method === "matches") return nestedMatches(target.context, rule, target.start, target.end, target);
       return nestedBegins(target.context, rule, target.start, target.end, target);
     }
-    if ("union" in condition || "intersection" in condition || "difference" in condition || "tag" in condition || "emptySet" in condition || "const" in condition) {
-      const value = evaluate(context, /** @type {any} */ (condition), scope);
+    if ("nonempty" in condition) {
+      const value = evaluate(context, /** @type {any} */ ((/** @type {any} */ (condition)).nonempty), scope);
       return value === HALT ? pause((/** @type {TermValue} */ found) => asSet(found).size > 0) : asSet(value).size > 0;
     }
     const comparison = condition;
@@ -17535,6 +17545,7 @@
       if ("captured" in condition) return leaf(`$${condition.captured}`);
       if ("if" in condition) return { parts: [asCondition(condition.if), asCondition(/** @type {Condition} */ (condition.then))], combine: ([left, right]) => `(${left} ⟹ ${right})` };
       if ("method" in condition) return notationShape({ term: condition }, unicode);
+      if ("nonempty" in condition) return { parts: [asTerm((/** @type {any} */ (condition)).nonempty)], combine: ([inner]) => inner };
       return { parts: [asTerm(condition.left), asTerm(condition.right)], combine: ([left, right]) => `${left} ${condition.op} ${right}` };
     }
     const term = notation.term;
@@ -22818,7 +22829,7 @@
           if (ruleOf(operation) === "set-atom") {
             const atom = parts(operation).find((child) => child.kind === "rule");
             if (!atom) return fail("a set atom", operation);
-            return yield readTerm(atom);
+            return { nonempty: yield readTerm(atom) };
           }
           if (ruleOf(operation) === "intersection-operation") {
             /** @type {Term[]} */
@@ -22835,8 +22846,8 @@
               return "problem" in type ? (featureContext ? "any" : fail(type.problem, operation)) : type.type;
             }), "∩");
             if ("problem" in joined && !featureContext) fail(joined.problem, operation);
-            if (items.length === 1) return /** @type {Condition} */ (/** @type {unknown} */ (items[0]));
-            return /** @type {Condition} */ (/** @type {unknown} */ ({ intersection: items }));
+            if (items.length === 1) return /** @type {Condition} */ (/** @type {unknown} */ ({ nonempty: items[0] }));
+            return /** @type {Condition} */ (/** @type {unknown} */ ({ nonempty: { intersection: items } }));
           }
           const found = some(operation, "intersection");
           const operators = parts(operation).flatMap((child) => {
@@ -22874,11 +22885,14 @@
               open = true;
             }
           });
-          return /** @type {Condition} */ (/** @type {unknown} */ (result));
+          return /** @type {Condition} */ (/** @type {unknown} */ ({ nonempty: result }));
         }
         case "method": {
           const method = yield readMethod(inner);
           if (!QUERY_METHODS.has(method.method) && !["tags", "classes", "split", "ngrams", "classify"].includes(method.method)) fail("a condition requires a query method", inner);
+          // A set-valued method in a Boolean position tests that its set is
+          // not empty, through the wrapper of engine §9.2.
+          if (["tags", "classes", "split", "ngrams", "classify"].includes(method.method)) return { nonempty: method };
           return method;
         }
         default:
