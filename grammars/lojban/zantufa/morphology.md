@@ -118,8 +118,7 @@ The redefined `run-words` keeps the join conditions of [../common/forms.md](../c
 
 %rule rahoi-tail
   -- The first word after a quoted form is not run-initial. Keep quote state, opener spacing, and the existing word joins.
-  | $v:later-word :: $v.tags
-  | $r:rahoi-tail $v:later-word :: $v.tags
+  | ($v:later-word | $r:rahoi-tail $v:later-word) :: $v.tags
   | $s:rahoi-tail $y:joined-hesitation :: $y.tags
   | $o:rahoi-tail $n:opener-space :: $n.tags ∪ Opener-Space
 %conditions

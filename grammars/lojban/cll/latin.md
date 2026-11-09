@@ -272,11 +272,7 @@ CLL[^cll-s3-1] omits `h` from the alphabet. CLL[^cll-s3-3] says that `h` does no
   $
 
 %rule plain-vowel :: ∅
-  | "a" :: Vowel
-  | "e" :: Vowel
-  | "i" :: Vowel
-  | "o" :: Vowel
-  | "u" :: Vowel
+  | ("a" | "e" | "i" | "o" | "u") :: Vowel
   | "y"
 %emits
   $

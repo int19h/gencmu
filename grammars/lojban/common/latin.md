@@ -292,9 +292,9 @@ A vowel with an acute or a grave accent is the stressed phoneme, as a capital vo
 A combining mark that no letter rule takes makes its run foreign, whatever its category. So in `lojban/bpfk` and `lojban/zantufa`, `mï` and `mi` followed by U+093E are foreign. The experimental layer reads both marks ([../experimental/latin.md](../experimental/latin.md)).
 
 ```jbogenbau
-%extend-rule plain-vowel :: ∅
-  | ("i" | "I") glide-mark :: Vowel := "i"
-  | ("u" | "U") glide-mark :: Vowel := "u"
+%extend-rule plain-vowel :: Vowel
+  | ("i" | "I") glide-mark := "i"
+  | ("u" | "U") glide-mark := "u"
 %emits
   $
 

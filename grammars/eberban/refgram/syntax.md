@@ -681,8 +681,8 @@ A quote with written `cai` retains its own recovery scope. Without `cai`, a quot
   | *modified-empty
 
 %rule unmatched-tail
-  | unmatched-resume step-tail [ri-continuation] [$t:unmatched-tail] :: ($t ⟹ $t.tags)
-  | *resume-chain-empty step-tail [ri-continuation] [$t:unmatched-tail] :: ($t ⟹ $t.tags)
+  | (unmatched-resume step-tail [ri-continuation] [$t:unmatched-tail]
+      | *resume-chain-empty step-tail [ri-continuation] [$t:unmatched-tail]) :: ($t ⟹ $t.tags)
   | $c:unmatched-closer [ri-continuation | definition] [$t:unmatched-tail]
       :: ($c.tags ∩ DAI) ∪ ($t ⟹ $t.tags)
 

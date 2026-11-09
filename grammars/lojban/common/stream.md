@@ -305,11 +305,11 @@ An attached opening mark supplies one gap space, even without whitespace. `quote
 `$WORD-QUOTE-MARKERS` names the classes of the one-word quote marker. Such a marker quotes one word or one standalone material stretch.
 
 ```jbogenbau
-%rule quoted-word
+%rule quoted-word :: $m.tags
   | $m:word-quote-marker $g:word-quote-gap $w:word-quote-target
-      :: $m.tags :- $m.source-text ++ $g.source-text ++ $w.verbatim-text
+      :- $m.source-text ++ $g.source-text ++ $w.verbatim-text
   | $m:word-quote-marker $g:word-gap<¬Quote-Material> $w:zo-punctuation
-      :: $m.tags :- $m.source-text ++ $g.source-text ++ $w.verbatim-text
+      :- $m.source-text ++ $g.source-text ++ $w.verbatim-text
 %emits
   $
 
@@ -376,10 +376,10 @@ ZOhOI and MEhOI quote one raw stretch between whitespace or periods in the exper
 The hesitation rule refuses a raw y letteral. In `zo'oi .y. bu`, the quote therefore takes the y run as its payload. BU then forms a letteral from the whole quote. The same rule keeps the prolonged run in `zo'oi .yyy. bu`.
 
 ```jbogenbau
-%rule single-word-quote
-  | $m:single-marker $r:zohoi-payload :: $m.tags :- $m.source-text ++ $r.emitted.image
+%rule single-word-quote :: $m.tags
+  | $m:single-marker $r:zohoi-payload :- $m.source-text ++ $r.emitted.image
   | $m:single-marker $g:zohoi-gap $s:zohoi-payload
-      :: $m.tags :- $m.source-text ++ $g.source-text ++ $s.emitted.image
+      :- $m.source-text ++ $g.source-text ++ $s.emitted.image
 %conditions
   ¬$r.following-tokens.begins(quote-run-token),
   ¬$s.following-tokens.begins(quote-run-token),
@@ -502,8 +502,8 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
   | $p:PAUSE<¬Quote-Material> :: $p.tags ∩ Period-Only := $PAUSE
   | quote-end-mark PAUSE<¬Quote-Material> :: ∅ := $PAUSE
   | interword-mark := $PAUSE
-  | period-pause quote-end-mark PAUSE<¬Quote-Material> :: Delimiter-Edge := $PAUSE
-  | period-pause interword-mark :: Delimiter-Edge := $PAUSE
+  | (period-pause quote-end-mark PAUSE<¬Quote-Material>
+      | period-pause interword-mark) :: Delimiter-Edge := $PAUSE
 
 %rule period-pause
   PAUSE<¬Quote-Material Period-Only>
@@ -893,11 +893,11 @@ The rule `sa-key` refuses an SA key because a run of SA forms one counted erasur
 %const $SU-STOPS
   NIhO ∪ LU ∪ TUhE ∪ TO
 
-%rule su-survivor := $b.emitted.value :- $b.emitted.image
-  | sa-su? su-boundary? $b:unit<Trailing-Pause> skipped su-suffix :: $b.tags
+%rule su-survivor :: $b.tags := $b.emitted.value :- $b.emitted.image
+  | sa-su? su-boundary? $b:unit<Trailing-Pause> skipped su-suffix
   | sa-su? su-boundary? $b:unit<¬Trailing-Pause> skipped<Gap-Pause> su-suffix
-      :: $b.tags ∪ Trailing-Pause := $b.emitted.value ++ $PAUSE :- $b.emitted.image ++ $PAUSE
-  | sa-su? su-boundary? $b:unit<¬Trailing-Pause> skipped<¬Gap-Pause> su-suffix :: $b.tags
+      :: Trailing-Pause := $b.emitted.value ++ $PAUSE :- $b.emitted.image ++ $PAUSE
+  | sa-su? su-boundary? $b:unit<¬Trailing-Pause> skipped<¬Gap-Pause> su-suffix
 %conditions
   $b.classes ∩ $SU-STOPS ≠ ∅
 
