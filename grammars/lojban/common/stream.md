@@ -123,36 +123,36 @@ Spacing and skipped regions reject surviving punctuation before the word `zei`, 
 
 `Gap-Pause` marks a gap with a surviving pause. `spacing` and `hesitations` introduce it. `skipped` and `erasures` carry it across erased children.
 
+`$MATERIAL` names `Quote-Material ∪ Punctuation-Material`. It is the material that can survive in a gap, as quoted material or as visible punctuation.
+
 A quiet pause carries only a spacing boundary. A material pause preserves punctuation or ignored text. The forms stage gives both kinds the value `" "`, and `$PAUSE` names that string. Their source text retains raw material. Gap recipes contribute one space for surviving pauses.
 
 ```jbogenbau
 %const $PAUSE " "
 
+%const $MATERIAL
+  Quote-Material ∪ Punctuation-Material
+
 %rule pause-run
-  | $p:PAUSE :: $p.tags ∩ (Quote-Material ∪ Punctuation-Material) := " " :- " "
-  | $r:pause-run $q:PAUSE :: ($r.tags ∪ $q.tags) ∩ (Quote-Material ∪ Punctuation-Material) := " " :-
-    " "
+  | $p:PAUSE :: $p.tags ∩ $MATERIAL := " " :- " "
+  | $r:pause-run $q:PAUSE :: ($r.tags ∪ $q.tags) ∩ $MATERIAL := " " :- " "
 
 %rule spacing
   [$p:pause-run] [$h:hesitations [$q:pause-run]]
-    :: ($p ⟹ Gap-Pause) ∪ ($q ⟹ Gap-Pause) ∪ ($h ⟹ $h.tags ∩ (Gap-Pause ∪ Quote-Material ∪
-      Punctuation-Material))
-     ∪ ($p ⟹ $p.tags ∩ (Quote-Material ∪ Punctuation-Material)) ∪ ($q ⟹ $q.tags ∩ (Quote-Material ∪
-       Punctuation-Material))
+    :: ($p ⟹ Gap-Pause) ∪ ($q ⟹ Gap-Pause) ∪ ($h ⟹ $h.tags ∩ (Gap-Pause ∪ $MATERIAL))
+     ∪ ($p ⟹ $p.tags ∩ $MATERIAL) ∪ ($q ⟹ $q.tags ∩ $MATERIAL)
 %conditions
   Punctuation-Material ⊈ $.tags ∨ ¬$.following-tokens.begins(zei-spelling)
 
 %rule skipped
   $s:spacing [$e:erasures $t:spacing]
-    :: ($s.tags ∪ ($e ⟹ $e.tags) ∪ ($t ⟹ $t.tags)) ∩ (Gap-Pause ∪ Quote-Material ∪
-      Punctuation-Material)
+    :: ($s.tags ∪ ($e ⟹ $e.tags) ∪ ($t ⟹ $t.tags)) ∩ (Gap-Pause ∪ $MATERIAL)
 %conditions
   Punctuation-Material ⊈ $.tags ∨ ¬$.following-tokens.begins(zei-spelling)
 
 %rule erasures
   | erasure :: ∅
-  | $e:erasures $s:spacing erasure :: ($e.tags ∪ $s.tags) ∩ (Gap-Pause ∪ Quote-Material ∪
-    Punctuation-Material)
+  | $e:erasures $s:spacing erasure :: ($e.tags ∪ $s.tags) ∩ (Gap-Pause ∪ $MATERIAL)
 
 %rule hesitation
   $h:y-run :: ∅
@@ -165,9 +165,8 @@ A quiet pause carries only a spacing boundary. A material pause preserves punctu
 
 %rule hesitations
   | hesitation :: ∅
-  | $h:hesitations $p:pause-run hesitation :: Gap-Pause ∪ (($h.tags ∪ $p.tags) ∩ (Quote-Material ∪
-    Punctuation-Material))
-  | $h:hesitations hesitation :: $h.tags ∩ (Gap-Pause ∪ Quote-Material ∪ Punctuation-Material)
+  | $h:hesitations $p:pause-run hesitation :: Gap-Pause ∪ (($h.tags ∪ $p.tags) ∩ $MATERIAL)
+  | $h:hesitations hesitation :: $h.tags ∩ (Gap-Pause ∪ $MATERIAL)
 ```
 
 <details><summary>Railroad diagrams of the 7 rules from <code>pause-run</code> to <code>hesitations</code></summary>
@@ -282,8 +281,7 @@ Quotes and the right operand of ZEI share this rule. It executes no erasure. Quo
 
 %rule pause-gap
   [quiet-gap] $p:pause-run [$h:hesitations [$q:pause-run]]
-    :: ($p.tags ∪ ($h ⟹ $h.tags) ∪ ($q ⟹ $q.tags)) ∩ (Quote-Material ∪ Punctuation-Material) :=
-      $PAUSE
+    :: ($p.tags ∪ ($h ⟹ $h.tags) ∪ ($q ⟹ $q.tags)) ∩ $MATERIAL := $PAUSE
 
 %rule word-gap
   ε | quiet-gap | pause-gap
@@ -518,8 +516,8 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
 
 %rule delimiter-spacing
   | [delimiter-quiet-gap]
-  | [delimiter-quiet-gap] pause-run<¬Quote-Material> [delimiter-hesitations
-    [pause-run<¬Quote-Material>]] := $PAUSE
+  | [delimiter-quiet-gap] pause-run<¬Quote-Material>
+      [delimiter-hesitations [pause-run<¬Quote-Material>]] := $PAUSE
 
 %rule delimiter-quiet-gap
   delimiter-hesitation | delimiter-quiet-gap delimiter-hesitation

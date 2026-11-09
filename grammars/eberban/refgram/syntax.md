@@ -785,15 +785,15 @@ The boundary query recognizes annotated `vi` and `fi`, with optional `bi`, witho
   $.following-tokens.begins(missing-operand-boundary)
 
 %extend-rule enumeration
-  [{prefix}] *chain-empty<PE> $p:*recovery-postfixes [{bu-free chain | *empty-enumeration-item}]
-    [+PEI]
+  [{prefix}] *chain-empty<PE> $p:*recovery-postfixes
+    [{bu-free chain | *empty-enumeration-item}] [+PEI]
 %conditions
   $p.following-tokens.begins(missing-operand-boundary)
 
 %extend-rule separator-form
   | *empty-arguments-list [{bu-free chain | *empty-enumeration-item}]
-  | [arguments-list] {chain / bu-free} *empty-enumeration-item [{bu-free chain |
-    *empty-enumeration-item}]
+  | [arguments-list] {chain / bu-free} *empty-enumeration-item
+      [{bu-free chain | *empty-enumeration-item}]
 
 %extend-rule chain-inner
   [{prefix}] *chain-empty<BI> $p:*recovery-postfixes

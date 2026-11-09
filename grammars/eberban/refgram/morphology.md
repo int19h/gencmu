@@ -1197,9 +1197,8 @@ The recovery keeps the quote's class, value, and emission. It leaves no later er
   *unclosed-foreign-quote
 
 %rule unclosed-foreign-quote
-  $q:quote-co [opening-gap] $t:unclosed-quoted-text :: Word ∪ Particle ∪ CO ∪ Quote := $q.value ++
-    " " ++
-    $t.emitted.value :- $.source-text
+  $q:quote-co [opening-gap] $t:unclosed-quoted-text
+    :: Word ∪ Particle ∪ CO ∪ Quote := $q.value ++ " " ++ $t.emitted.value :- $.source-text
 %conditions
   $.ends-input
 %error "the foreign quote needs ] followed by its opening delimiter, if any"
