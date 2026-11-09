@@ -1909,7 +1909,7 @@ A repeated tag can show that a rule mixes two kinds of constituent, and that one
 
 The outer alternative writes `:: Vowel` again, because a header tag clause stops a single symbol from passing on its tags (see "Tags"). This is one clause on one alternative, not a repeated clause. A split can change the order of the alternatives. If no input matches two of the moved alternatives, their order changes no reading. It changes only the production numbers that a witness records.
 
-Alternatives repeat a shared tag clause in two cases. The first is a table whose rows have their own value or image clauses and different sets of tags, such as the Latin diphthong letters. No one tag set marks a kind of row there, so no split applies. The second is where a group changes the order of alternatives that one input can match.
+Alternatives repeat a shared tag clause in two cases. The first is a table whose rows have their own value or image clauses and combine several tags, such as the Latin diphthong letters. Their tags cross: `Capital` falls on stressed rows and on folded rows. So a split on one tag leaves the others repeated, and no split applies. The second is where a group changes the order of alternatives that one input can match.
 
 ## Railroad diagrams
 
