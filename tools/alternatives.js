@@ -434,7 +434,7 @@ export function clauseTermProblems(markdown, dom, path) {
         const lineNumber = startLine + i;
         const trimmedEnd = termLine.trimEnd();
         const endsUnion = trimmedEnd.endsWith("∪");
-        const endsCondition = "∧∨⟹⊆⊈=≠≅≇∩∖".includes(trimmedEnd[trimmedEnd.length - 1]) || trimmedEnd.endsWith("++");
+        const endsCondition = "∧∨⟹⊆⊈=≠≅≇∈∉∩∖".includes(trimmedEnd[trimmedEnd.length - 1]) || trimmedEnd.endsWith("++");
         if (i + 1 < termLines.length && startDepth === 0 && depth === 0 && !endsUnion && !endsCondition) problems.push(`${path}:${lineNumber}: a tag term of ${where} runs over several lines, and each line ends with its ∪`);
         if (i > 0 && startDepth === 0) {
           const col = [...(lines[lineNumber - 1] ?? "")].findIndex((ch) => ch !== " ") + 1;
@@ -506,6 +506,69 @@ export function clauseTermProblems(markdown, dom, path) {
   }
   for (const problem of bracketProblems(markdown, path)) problems.push(problem);
   for (const problem of conditionProblems(markdown, path)) problems.push(problem);
+  for (const problem of constantProblems(markdown, path)) problems.push(problem);
+  return problems;
+}
+
+// The layout of a long constant: its value stands on the lines after
+// its header, each line ends with its operator, and the next line
+// stands two columns deeper than the header. Only a value with an
+// operator at its top level has lines that can end with one, so a
+// list of strings and a single pattern keep their own layout. Lines
+// inside brackets follow the bracket rules.
+/** @param {string} markdown @param {string} path @returns {string[]} */
+function constantProblems(markdown, path) {
+  const { text, positions } = extractGrammarText(markdown, path, unicode);
+  /** @type {string[]} */
+  const problems = [];
+  const chars = scrubComments([...text]);
+  let string = false;
+  for (let i = 0; i < chars.length; i++) {
+    const c = chars[i];
+    if (string) { if (c === '"') string = false; else if (c !== "\n") chars[i] = " "; continue; }
+    if (c === '"') string = true;
+  }
+  /** @type {number[]} */
+  const lineStarts = [0];
+  chars.forEach((c, i) => { if (c === "\n") lineStarts.push(i + 1); });
+  const textLines = chars.join("").split("\n");
+  for (let li = 0; li < textLines.length; li++) {
+    const header = /^%const\s+(\$\S+)\s*(.*)$/.exec(textLines[li]);
+    if (!header) continue;
+    const name = header[1];
+    /** @type {{text: string, at: number}[]} */
+    const valueLines = [];
+    let lj = li + 1;
+    for (; lj < textLines.length && textLines[lj].trim() && !/^%/.test(textLines[lj]); lj++) valueLines.push({ text: textLines[lj], at: lineStarts[lj] });
+    if (!valueLines.length) continue;
+    const joined = [header[2], ...valueLines.map((l) => l.text)].join(" ");
+    let depth = 0, hasOperator = false;
+    for (const ch of joined) {
+      if ("([{<«".includes(ch)) depth++;
+      else if (")]}>»".includes(ch)) depth--;
+      else if (depth === 0 && "∧∨⟹∪∩∖".includes(ch)) hasOperator = true;
+    }
+    if (!hasOperator) continue;
+    const headerColumn = positions[lineStarts[li]][1];
+    const headerLine = positions[lineStarts[li]][0];
+    if (header[2].trim()) problems.push(`${path}:${headerLine}: the value of a long constant %const ${name} does not stand on the lines after its header`);
+    let valueDepth = 0;
+    valueLines.forEach((valueLine, index) => {
+      const startDepth = valueDepth;
+      for (const ch of valueLine.text) {
+        if ("([{<«".includes(ch)) valueDepth++;
+        else if (")]}>»".includes(ch)) valueDepth--;
+      }
+      if (startDepth !== 0) return;
+      const first = valueLine.text.search(/\S/);
+      if (first < 0) return;
+      const [line, col] = positions[valueLine.at + first];
+      if (col !== headerColumn + 2) problems.push(`${path}:${line}: a line of the value of %const ${name} does not stand two columns deeper than its header`);
+      const trimmed = valueLine.text.trimEnd();
+      if (index + 1 < valueLines.length && valueDepth === 0 && !"∧∨⟹∪∩∖⊆⊈=≠≅≇∈∉".includes(trimmed[trimmed.length - 1]) && !trimmed.endsWith("++")) problems.push(`${path}:${line}: a line of the value of %const ${name} does not end with its operator`);
+    });
+    li = lj - 1;
+  }
   return problems;
 }
 
@@ -568,12 +631,26 @@ function conditionProblems(markdown, path) {
         offset += [...itemLine].length + 1;
       }
       const content = linesOfItem.filter((l) => l.text.trim());
-      for (let k = 0; k + 1 < content.length; k++) {
-        if (content[k].startDepth !== 0 || content[k].endDepth !== 0) continue;
-        const trimmed = content[k].text.trimEnd();
-        if ("∧∨⟹∪∩∖⊆⊈=≠≅≇".includes(trimmed[trimmed.length - 1]) || trimmed.endsWith("++")) continue;
+      // In a list of conditions, a continued line stands two columns
+      // deeper than the start of its condition, so that it does not
+      // read as a new condition. A part of a tighter operator stands
+      // deeper again.
+      const startFirst = content.length ? content[0].text.search(/\S/) : 0;
+      const startColumn = content.length ? positions[base + content[0].offset + startFirst][1] : 0;
+      for (let k = 0; k < content.length; k++) {
         const first = content[k].text.search(/\S/);
-        problems.push(`${path}:${positions[base + content[k].offset + first][0]}: a line of a condition of ${where} does not end with its operator`);
+        const [line, col] = positions[base + content[k].offset + first];
+        const trimmed = content[k].text.trimEnd();
+        if (k + 1 < content.length && content[k].startDepth === 0 && content[k].endDepth === 0
+          && !"∧∨⟹∪∩∖⊆⊈=≠≅≇∈∉".includes(trimmed[trimmed.length - 1]) && !trimmed.endsWith("++")) {
+          problems.push(`${path}:${line}: a line of a condition of ${where} does not end with its operator`);
+        }
+        if (k > 0 && content[k].startDepth === 0 && !/^\s*[∧∨⟹∪]/.test(content[k].text)) {
+          const prev = content[k - 1].text.trimEnd();
+          const prevEnd = prev[prev.length - 1];
+          const tighter = col > startColumn + 2 && (prevEnd === "∧" || prevEnd === "∩");
+          if (col < startColumn + 2 || (col > startColumn + 2 && !tighter)) problems.push(`${path}:${line}: a continued line of a condition of ${where} does not stand two columns deeper than the start of its condition`);
+        }
       }
     }
     li = lj - 1;
@@ -628,7 +705,7 @@ function bracketProblems(markdown, path) {
       if (OPEN.includes(ch)) depth++;
       else if (CLOSE.includes(ch)) depth--;
       else if (depth === 0 && ch === "|") hasBar = true;
-      else if (depth === 0 && "∧∨⟹∪∩∖⊆⊈=≠≅≇".includes(ch)) hasOperator = true;
+      else if (depth === 0 && "∧∨⟹∪∩∖⊆⊈=≠≅≇∈∉".includes(ch)) hasOperator = true;
       else if (depth === 0 && ch === "+" && chars[j + 1] === "+") hasOperator = true;
     }
     if (hasBar || !hasOperator) continue;
@@ -644,9 +721,16 @@ function bracketProblems(markdown, path) {
     let firstSegment = true;
     let segmentDepth = 0;
     // A wrapped part of a tighter operator stands deeper than the
-    // line that starts it. `tightChain` holds while a run that starts
-    // in the bracket's column keeps ending with `∧` or `∩`.
-    let tightChain = false;
+    // line that starts it. A deeper line is justified only where a
+    // run of a tighter operator starts in the bracket's column: the
+    // line before it stands in that column and ends with an operator
+    // tighter than the one before it. A chain of one operator, such
+    // as `∧ ∧ ∧`, has no tighter part, so its lines all stand in the
+    // bracket's column. Once a deeper run starts, its later lines
+    // stand in its own column while they end with its operator.
+    const rank = (/** @type {string} */ op) => op === "⟹" ? 1 : "∨∪∖".includes(op) ? 2 : "∧∩".includes(op) || op === "++" ? 3 : "⊆⊈=≠≅≇∈∉".includes(op) ? 4 : 0;
+    let lastCol = 0, lastEndOp = "", lastFirst = true, beforeLastEndOp = "";
+    let tightRunCol = 0, tightRunOp = "";
     for (let j = open.at + 1; j <= i; j++) {
       if (j < i && chars[j] !== "\n") continue;
       const segment = chars.slice(segmentStart, j).join("");
@@ -659,13 +743,21 @@ function bracketProblems(markdown, path) {
       if (first >= 0 && startDepth === 0) {
         const line = positions[segmentStart + first][0];
         const trimmed = segment.trim();
-        if (j < i && segmentDepth === 0 && !"∧∨⟹∪∩∖⊆⊈=≠≅≇".includes(trimmed[trimmed.length - 1]) && !trimmed.endsWith("++")) problems.push(`${path}:${line}: a line inside brackets of ${name} does not end with its operator`);
-        if (!firstSegment && !trimmed.startsWith(")") && !trimmed.startsWith("]") && !trimmed.startsWith("}")) {
+        if (j < i && segmentDepth === 0 && !"∧∨⟹∪∩∖⊆⊈=≠≅≇∈∉".includes(trimmed[trimmed.length - 1]) && !trimmed.endsWith("++")) problems.push(`${path}:${line}: a line inside brackets of ${name} does not end with its operator`);
+        if (!trimmed.startsWith(")") && !trimmed.startsWith("]") && !trimmed.startsWith("}")) {
           const col = positions[segmentStart + first][1];
-          const endOperator = trimmed[trimmed.length - 1];
-          if (col !== open.col + 1 && !(col > open.col + 1 && tightChain)) problems.push(`${path}:${line}: a line inside brackets of ${name} does not stand one column after the opening bracket`);
-          if (col === open.col + 1 && (endOperator === "∧" || endOperator === "∩")) tightChain = true;
-          else if (!(col > open.col + 1 && tightChain && (endOperator === "∧" || endOperator === "∩"))) tightChain = false;
+          const endOperator = trimmed.endsWith("++") ? "++" : trimmed[trimmed.length - 1];
+          const base = open.col + 1;
+          if (!firstSegment) {
+            const justified = col > base && ((lastCol === base && !lastFirst && rank(lastEndOp) > rank(beforeLastEndOp) && rank(lastEndOp) > 0) || (tightRunCol === col && lastCol === tightRunCol && lastEndOp === tightRunOp));
+            if (col !== base && !justified) problems.push(`${path}:${line}: a line inside brackets of ${name} does not stand one column after the opening bracket`);
+            if (justified) { tightRunCol = col; tightRunOp = lastEndOp; }
+            if (col === base) tightRunCol = 0;
+          }
+          beforeLastEndOp = lastEndOp;
+          lastEndOp = endOperator;
+          lastCol = col;
+          lastFirst = firstSegment;
         }
       }
       firstSegment = false;
@@ -697,6 +789,12 @@ function alternativeLayoutsHeaderText(markdown, dom, path, start, end) {
   return [...text].slice(start, end).join("");
 }
 
+// A line whose only item is one string cannot break, so the limit
+// does not apply to it.
+function unbreakable(line) {
+  return /^\s*"(?:[^"\\]|\\.)*"\s*$/u.test(line);
+}
+
 /**
  * The layout problems of a document, for every rule with an alternative.
  * Each message names the file, the line and the rule. A line that holds
@@ -707,12 +805,6 @@ function alternativeLayoutsHeaderText(markdown, dom, path, start, end) {
  * @param {number} [limit]
  * @returns {string[]}
  */
-// A line whose only item is one string cannot break, so the limit
-// does not apply to it.
-function unbreakable(line) {
-  return /^\s*"(?:[^"\\]|\\.)*"\s*$/u.test(line);
-}
-
 export function layoutProblems(markdown, dom, path, limit = LINE_LIMIT) {
   const lines = splitLines(markdown);
   /** @type {string[]} */
@@ -733,13 +825,15 @@ export function layoutProblems(markdown, dom, path, limit = LINE_LIMIT) {
       bodyLinesAll.add(number);
       if (/^\s*--/.test(lines[number - 1])) continue;
       const width = [...lines[number - 1]].length;
-      if (width > limit) problems.push(`${path}:${number}: a line of ${keyword} ${rule.name} holds ${width} characters, more than ${limit}`);
+      if (width > limit && !unbreakable(lines[number - 1])) problems.push(`${path}:${number}: a line of ${keyword} ${rule.name} holds ${width} characters, more than ${limit}`);
     }
     // A sole alternative under a bare header stands without a leading
     // bar. A header with a clause keeps its bar.
     if (alternatives.length === 1 && rule.tags === undefined && rule.value === undefined && rule.image === undefined) {
+      const commentIndexes = new Set();
+      for (const { from, to } of scanComments(chars)) for (let i = from; i < to; i++) commentIndexes.add(i);
       let before = alternatives[0].from - 1;
-      while (before >= 0 && /\s/u.test(chars[before])) before--;
+      while (before >= 0 && (/\s/u.test(chars[before]) || commentIndexes.has(before))) before--;
       if (chars[before] === "|") problems.push(`${path}:${positions[before][0]}: a sole alternative of ${keyword} ${rule.name} follows a leading | under a bare header`);
     }
     // Each marked alternative stands on lines of its own.
