@@ -1510,8 +1510,8 @@ A bare quadruplet similarly retains one root token. A framed cluster retains con
 %conditions
   $.following-tokens.begins(freeform-ending-boundary)
 
-%rule freeform-multi-consonents-ending :: ∅
-  | consonant [Hyphen] consonant [{[Hyphen] consonant}]
+%rule freeform-multi-consonents-ending
+  | consonant [Hyphen] consonant [{[Hyphen] consonant}] :: ∅
 %conditions
   $.following-tokens.begins(freeform-ending-boundary)
 %error "the ending " ++ $.source-text ++ " has more than one consonant"
@@ -1562,12 +1562,12 @@ The particle tail retains its family even with two adjacent sonorants. An errone
     malformed-gap(hyphen-misplaced) malformed-vhowels}]
     [malformed-gap(hyphen-misplaced) (sonorant | particle-sonorant-pair)]
 
-%rule particle-sonorant-pair :: ∅
-  | sonorant [Hyphen] sonorant
+%rule particle-sonorant-pair
+  | sonorant [Hyphen] sonorant :: ∅
 %error "the particle pair " ++ $.source-text ++ " contains two sonorants"
 
-%rule h-not-between-vowels :: ∅
-  | Letter<H>
+%rule h-not-between-vowels
+  | Letter<H> :: ∅
 %conditions
   ¬$.preceding-tokens.ends(vowel-before-h) ∨ ¬$.following-tokens.begins(vowel-after-h)
 %error "the h " ++ $.source-text ++ " needs vowels on both sides, except at a freeform onset"
@@ -1578,8 +1578,8 @@ The particle tail retains its family even with two adjacent sonorants. An errone
 %rule vowel-after-h
   [Hyphen] vowel
 
-%rule hyphen-same-vowels :: ∅
-  | Hyphen
+%rule hyphen-same-vowels
+  | Hyphen :: ∅
 %conditions
   Vowel ⊆ $.preceding-tokens.last-token.tags,
   Vowel ⊆ $.following-tokens.first-token.tags,
@@ -1604,40 +1604,40 @@ Pair faults share one ordered group. Its order distinguishes overlapping faults,
 %rule malformed-pair :: ∅
   | doubled-pair ≻ pair-voiceness ≻ sibilant-pair
 
-%rule doubled-pair :: ∅
-  | $x:consonant Hyphen $y:consonant
+%rule doubled-pair
+  | $x:consonant Hyphen $y:consonant :: ∅
 %conditions
   $x.value = $y.value
 %error "the pair " ++ $.source-text ++ " repeats a consonant across a hyphen"
 
-%rule pair-voiceness :: ∅
-  | $x:consonant [Hyphen] $y:consonant
+%rule pair-voiceness
+  | $x:consonant [Hyphen] $y:consonant :: ∅
 %conditions
   Voiced ⊆ $x.tags ∧ Unvoiced ⊆ $y.tags ∨ Unvoiced ⊆ $x.tags ∧ Voiced ⊆ $y.tags
 %error "the pair " ++ $.source-text ++ " mixes voiced and unvoiced consonants"
 
-%rule sibilant-pair :: ∅
-  | Letter<Sibilant> [Hyphen] Letter<Sibilant>
+%rule sibilant-pair
+  | Letter<Sibilant> [Hyphen] Letter<Sibilant> :: ∅
 %error "the pair " ++ $.source-text ++ " contains two sibilants"
 
-%rule root-starts-with-medial-pair :: ∅
-  | $x:consonant [Hyphen] $y:consonant
+%rule root-starts-with-medial-pair
+  | $x:consonant [Hyphen] $y:consonant :: ∅
 %conditions
   $x.value ++ $y.value ∈ $MEDIAL-PAIRS
 %error "a root cannot start with the medial pair " ++ $.source-text
 
-%rule invalid-medial-pair :: ∅
-  | $x:ns-consonant [Hyphen] $y:consonant
+%rule invalid-medial-pair
+  | $x:ns-consonant [Hyphen] $y:consonant :: ∅
 %conditions
   $x.value ++ $y.value ∉ $MEDIAL-PAIRS ∪ $INITIAL-PAIRS
 %error "the pair " ++ $.source-text ++ " is neither medial nor a new word's initial pair"
 
-%rule malformed-long-cluster :: ∅
-  | quadruplet [{malformed-gap(Hyphen) consonant}]
+%rule malformed-long-cluster
+  | quadruplet [{malformed-gap(Hyphen) consonant}] :: ∅
 
-%rule quadruplet :: ∅
+%rule quadruplet
   | consonant [Hyphen] consonant
-      [Hyphen] consonant [Hyphen] consonant
+      [Hyphen] consonant [Hyphen] consonant :: ∅
 %error "the cluster " ++ $.source-text ++ " contains four consecutive consonants"
 ```
 
@@ -1655,18 +1655,18 @@ Pair faults share one ordered group. Its order distinguishes overlapping faults,
 Root and freeform triplet wrappers share the failed pair and shape restrictions. Their messages identify the containing word kind without rescanning a prefix. A sonorant-first freeform has its additional permitted shapes, so its fault uses a separate restriction.
 
 ```jbogenbau
-%rule triplet-middle-m :: ∅
-  | $x:consonant [Hyphen] $y:Letter="m" [Hyphen] consonant
+%rule triplet-middle-m
+  | $x:consonant [Hyphen] $y:Letter="m" [Hyphen] consonant :: ∅
 %conditions
   $x.value ++ $y.value ∈ $MEDIAL-PAIRS ∪ $INITIAL-PAIRS
 %error "the triplet " ++ $.source-text ++ " cannot have m in its middle"
 
-%rule triplet-root-first-pair :: ∅
-  | faulty-triplet-first-pair
+%rule triplet-root-first-pair
+  | faulty-triplet-first-pair :: ∅
 %error "the root triplet " ++ $.source-text ++ " needs a medial or initial first pair"
 
-%rule triplet-freeform-first-pair :: ∅
-  | faulty-triplet-first-pair
+%rule triplet-freeform-first-pair
+  | faulty-triplet-first-pair :: ∅
 %error "the freeform triplet " ++ $.source-text ++ " needs a medial or initial first pair"
 
 %rule faulty-triplet-first-pair
@@ -1674,12 +1674,12 @@ Root and freeform triplet wrappers share the failed pair and shape restrictions.
 %conditions
   $x.value ++ $y.value ∉ $MEDIAL-PAIRS ∪ $INITIAL-PAIRS
 
-%rule triplet-root-shape :: ∅
-  | faulty-triplet-shape
+%rule triplet-root-shape
+  | faulty-triplet-shape :: ∅
 %error "the root triplet " ++ $.source-text ++ " needs a medial-initial shape or a permitted liquid ending"
 
-%rule triplet-freeform-shape :: ∅
-  | faulty-triplet-shape
+%rule triplet-freeform-shape
+  | faulty-triplet-shape :: ∅
 %error "the freeform triplet " ++ $.source-text ++ " fits no permitted shape"
 
 %rule faulty-triplet-shape
@@ -1690,8 +1690,8 @@ Root and freeform triplet wrappers share the failed pair and shape restrictions.
   ¬($x.value ++ $y.value ∈ $MEDIAL-PAIRS ∧ $y.value ++ $z.value ∈ $INITIAL-PAIRS
     ∨ $y.value ∉ $NOT-BEFORE-LIQUID ∧ $z.value ∈ $LIQUIDS)
 
-%rule triplet-yz-sonorant-x :: ∅
-  | sonorant [Hyphen] $y:consonant [Hyphen] $z:consonant
+%rule triplet-yz-sonorant-x
+  | sonorant [Hyphen] $y:consonant [Hyphen] $z:consonant :: ∅
 %conditions
   ¬$y.onward.begins(initial-pair-shape),
   Sonorant ⊆ $y.tags ∨ Sonorant ⊈ $z.tags

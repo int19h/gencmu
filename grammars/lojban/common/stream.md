@@ -306,10 +306,10 @@ An attached opening mark supplies one gap space, even without whitespace. `quote
 `$WORD-QUOTE-MARKERS` names the classes of the one-word quote marker. Such a marker quotes one word or one standalone material stretch.
 
 ```jbogenbau
-%rule quoted-word :: $m.tags
+%rule quoted-word
   | $m:word-quote-marker ($g:word-quote-gap $w:word-quote-target
       | $g:word-gap<¬Quote-Material> $w:zo-punctuation)
-      :- $m.source-text ++ $g.source-text ++ $w.verbatim-text
+      :: $m.tags :- $m.source-text ++ $g.source-text ++ $w.verbatim-text
 %emits
   $
 
@@ -534,8 +534,8 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
 %rule empty-zoi-body
   ε
 
-%rule zoi-body :: ∅
-  | raw-tokens
+%rule zoi-body
+  | raw-tokens :: ∅
 %conditions
   PAUSE ⊈ $.last-token.tags ∨ Quote-Material ⊆ $.last-token.tags
 
