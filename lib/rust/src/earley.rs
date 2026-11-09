@@ -2278,7 +2278,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             return answer;
         }
         let retained: Vec<_> = witnesses.iter().filter(aligned).collect();
-        let list = union_all(retained.iter().filter(|w| !request.filtered || w.clean).map(|w| self.shared.tags.list(w.tags)));
+        let list =
+            union_all(retained.iter().filter(|w| !request.filtered || w.clean).map(|w| self.shared.tags.list(w.tags)));
         let answer = (!retained.is_empty(), self.shared.tags.set(list), retained.iter().any(|w| w.clean));
         if self.shared.suffix_active == 0 {
             self.shared.memo.insert(request.key, answer);
@@ -3923,7 +3924,14 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     .unwrap()
                     .normalized(a.observation),
             },
-            None => self.nested_key(tokens, base, start, end, rule, matches!(query, Query::ErrorFree(_) | Query::ForestTags(_, true))),
+            None => self.nested_key(
+                tokens,
+                base,
+                start,
+                end,
+                rule,
+                matches!(query, Query::ErrorFree(_) | Query::ForestTags(_, true)),
+            ),
         };
         let begins = matches!(
             query,

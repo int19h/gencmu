@@ -8665,11 +8665,13 @@
       ],
       "conditions": [
         {
-          "param": "X",
-          "at": [
-            3,
-            22
-          ]
+          "nonempty": {
+            "param": "X",
+            "at": [
+              3,
+              22
+            ]
+          }
         }
       ],
       "at": [
@@ -8765,11 +8767,13 @@
       "conditions": [
         {
           "not": {
-            "param": "X",
-            "at": [
-              3,
-              22
-            ]
+            "nonempty": {
+              "param": "X",
+              "at": [
+                3,
+                22
+              ]
+            }
           }
         }
       ],
@@ -8869,11 +8873,13 @@
         {
           "any": [
             {
-              "param": "X",
-              "at": [
-                3,
-                22
-              ]
+              "nonempty": {
+                "param": "X",
+                "at": [
+                  3,
+                  22
+                ]
+              }
             },
             {
               "captured": ""
@@ -8982,11 +8988,13 @@
         {
           "all": [
             {
-              "param": "X",
-              "at": [
-                3,
-                22
-              ]
+              "nonempty": {
+                "param": "X",
+                "at": [
+                  3,
+                  22
+                ]
+              }
             },
             {
               "captured": ""
@@ -9094,11 +9102,13 @@
       "conditions": [
         {
           "if": {
-            "param": "X",
-            "at": [
-              3,
-              22
-            ]
+            "nonempty": {
+              "param": "X",
+              "at": [
+                3,
+                22
+              ]
+            }
           },
           "then": {
             "captured": ""
@@ -9206,11 +9216,13 @@
             "captured": ""
           },
           "then": {
-            "param": "X",
-            "at": [
-              3,
-              22
-            ]
+            "nonempty": {
+              "param": "X",
+              "at": [
+                3,
+                22
+              ]
+            }
           }
         }
       ],
@@ -9316,11 +9328,13 @@
       ],
       "tags": {
         "if": {
-          "param": "X",
-          "at": [
-            3,
-            22
-          ]
+          "nonempty": {
+            "param": "X",
+            "at": [
+              3,
+              22
+            ]
+          }
         },
         "then": {
           "tag": "A"
