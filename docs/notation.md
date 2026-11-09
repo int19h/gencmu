@@ -1881,7 +1881,7 @@ Each marked alternative stands on lines of its own, and no other top-level alter
   | initial-pair vowel consonant vowel
 ```
 
-No line of a rule body holds more than 100 characters, counted as Unicode code points. An alternative can run over several lines, and each of these lines counts. A comment line does not count, because a comment stays on one line. A long alternative breaks before a clause, not inside brackets. A clause that starts a new line stands in the column of `::`. A tag term that runs over several lines ends each line with its `∪`. Its next operand stands in the column of its first operand:
+No line of a grammar block holds more than 100 characters, counted as Unicode code points. This covers rule bodies, headers, conditions, emission items and classifier entries. An alternative can run over several lines, and each of these lines counts. A comment line does not count, because a comment stays on one line. A long line breaks only where it is too long. It breaks first before a clause, then between two top-level items, and only then inside a term or brackets. A value recipe breaks after a `++`. A clause that starts a new line stands in the column of `::`. A tag term that runs over several lines ends each line with its `∪`. Its next operand stands in the column of its first operand:
 
 ```jbogenbau
 %rule runs
@@ -1891,9 +1891,11 @@ No line of a rule body holds more than 100 characters, counted as Unicode code p
                                := $r.value
 ```
 
-Inside brackets, a long condition or term breaks in the same way. Each line ends with its operator, such as `∧`, `∨`, `⟹` or `∪`. The next line stands one column after the opening bracket, so that the nesting shows. These rules cover emission items too.
+Inside brackets, a long condition or term breaks in the same way. Each line ends with its operator, such as `∧`, `∨`, `⟹` or `∪`. The next line stands one column after the opening bracket, so that the nesting shows. A long condition breaks first at its loosest operator. A part of a tighter operator that must wrap stands deeper than the line that starts it. These rules cover emission items too.
 
-A tag term lists its parts in a fixed order. Bare tags come first, as one run without `∪`, as in `:: Gismu Onset`. Expressions without a guard come next, such as `$x.tags`. Guarded expressions come last. If a term has two or more expressions, each expression stands on a line of its own. A run of tags and one expression can share a line, as in `:: Word Cmavo ∪ $c.tags`.
+These rules cover the top level of the tag term of a clause or an emission item. Inside brackets, in constants and in conditions, tags keep their `∪`. A term with a top-level `∖` keeps its written order, because a difference does not commute.
+
+A tag term lists its parts in a fixed order. Bare tags come first, as one run without `∪`, as in `:: Gismu Onset`. Expressions without a guard come next, such as `$x.tags`. Guarded expressions come last. If a term has two or more expressions, each expression stands on a line of its own. A run of tags and one expression can share a line, as in `:: Word Cmavo ∪ $c.tags`. Where each part stands on a line of its own, the author can order the expressions by what they mean. For example, the part that carries a state tag can stand beside the part that sets it. The bare tags still come first.
 
 If a bracketed part alone is too long for one line, it breaks before one of its own `|` separators. A bracketed sequence without `|` breaks between two of its items. The continuation then stands deeper than the alternative, so that it does not read as a new alternative.
 
@@ -1913,7 +1915,7 @@ A comment on a whole definition stands on its own lines before the definition. T
   "i" | "u"
 ```
 
-Alternatives do not repeat a clause that they share. This covers tag, value and image clauses. Tags that every alternative carries stand on the header, because header tags and alternative tags are unioned. Each alternative then keeps only the tags that not every alternative carries. A value or an image that every alternative shares stands on the header too, because an alternative's own recipe overrides the header's. A sole alternative keeps its clauses after its body, except where its body is a ranked choice. If adjacent alternatives share a clause and have the same other clauses, a group holds their bodies, and the clauses follow the group. Bodies that share a first or last part keep that part outside the group. A guard that the alternatives share stands before the group, as in `f? ("a" | "b") :: T`. Alternatives with different guards stay apart.
+Alternatives do not repeat a clause that they share. This covers tag, value and image clauses. Tags that every alternative carries stand on the header, because header tags and alternative tags are unioned. Each alternative then keeps only the tags that not every alternative carries. A value or an image that most alternatives share can stand on the header as the default. An alternative with its own recipe overrides it. A sole alternative keeps its clauses after its body, except where its body is a ranked choice. If adjacent alternatives share a clause and have the same other clauses, a group holds their bodies, and the clauses follow the group. Bodies that share a first or last part keep that part outside the group. A guard that the alternatives share stands before the group, as in `f? ("a" | "b") :: T`. Alternatives with different guards stay apart.
 
 A repeated tag can show that a rule mixes two kinds of constituent, and that the tag marks one of the kinds. A tag of this kind says what a constituent is, such as `Vowel` for a full vowel as against `y`. Then a rule of its own holds the kind that carries the tag, and that rule's header carries it. For example, the Latin `Vowel` tag marks `a`, `e`, `i`, `o` and `u`, but not `y`. Each stressed vowel has its own value and image, so a group cannot hold the tag. So the five tagged vowels form a rule of their own:
 
