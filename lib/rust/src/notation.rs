@@ -1375,7 +1375,9 @@ impl<'a> Reader<'a> {
                 [part] => {
                     frame.parts = Some(Vec::new());
                     frame.pass = true;
-                    return Ok(Step::Call(Frame::Intersection(Joined::new(part, frame.argument))));
+                    let mut joined = Joined::new(part, frame.argument);
+                    joined.defer = frame.defer;
+                    return Ok(Step::Call(Frame::Intersection(joined)));
                 }
                 _ => {}
             }
@@ -1390,7 +1392,9 @@ impl<'a> Reader<'a> {
         }
         let parts = frame.parts.as_ref().expect("the parts");
         if let Some(&part) = parts.get(frame.items.len()) {
-            return Ok(Step::Call(Frame::Intersection(Joined::new(part, false))));
+            let mut joined = Joined::new(part, false);
+            joined.defer = frame.defer;
+            return Ok(Step::Call(Frame::Intersection(joined)));
         }
         let mut operators: Vec<&str> = self
             .tokens_of(frame.node)
@@ -1403,7 +1407,7 @@ impl<'a> Reader<'a> {
             return Err(self.shape_error(frame.node, "operator"));
         }
         let operator = if operators.contains(&"∖") { "∖" } else { "∪" };
-        let ty = if self.feature_context.get() {
+        let ty = if self.feature_context.get() || frame.defer {
             Type::Any
         } else {
             joined_type(&frame.types, operator).map_err(|problem| self.error(frame.node, problem))?
@@ -1452,7 +1456,7 @@ impl<'a> Reader<'a> {
         if let Some(&atom) = atoms.get(frame.items.len()) {
             return Ok(Step::Call(Frame::Concatenation(Joined::new(atom, false))));
         }
-        let ty = if self.feature_context.get() {
+        let ty = if self.feature_context.get() || frame.defer {
             Type::Any
         } else {
             joined_type(&frame.types, "∩").map_err(|problem| self.error(frame.node, problem))?
@@ -2151,8 +2155,16 @@ impl<'a> Reader<'a> {
                 "term-condition" => {
                     let operation = self.inner(inner, &["union-operation", "intersection-operation", "set-atom"])?;
                     match rule_name(operation) {
-                        "union-operation" => Step::Call(Frame::Union(Joined::new(operation, false))),
-                        "intersection-operation" => Step::Call(Frame::Intersection(Joined::new(operation, false))),
+                        "union-operation" => {
+                            let mut joined = Joined::new(operation, false);
+                            joined.defer = true;
+                            Step::Call(Frame::Union(joined))
+                        }
+                        "intersection-operation" => {
+                            let mut joined = Joined::new(operation, false);
+                            joined.defer = true;
+                            Step::Call(Frame::Intersection(joined))
+                        }
                         _ => {
                             let atom = self
                                 .parts(operation)
@@ -2704,11 +2716,12 @@ struct Joined<'a> {
     pass: bool,
     items: Vec<Term>,
     types: Vec<Type>,
+    defer: bool,
 }
 
 impl<'a> Joined<'a> {
     fn new(node: &'a Node, argument: bool) -> Self {
-        Joined { node, argument, parts: None, pass: false, items: Vec::new(), types: Vec::new() }
+        Joined { node, argument, parts: None, pass: false, items: Vec::new(), types: Vec::new(), defer: false }
     }
 }
 

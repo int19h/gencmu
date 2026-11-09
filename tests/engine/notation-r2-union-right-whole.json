@@ -19,7 +19,7 @@
     "error": "grammar",
     "where": {
       "document": "main.md",
-      "line": 9,
+      "line": 8,
       "column": 1
     }
   }

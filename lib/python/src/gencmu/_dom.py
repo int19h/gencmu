@@ -1025,11 +1025,6 @@ class DomBuilder:
                     else:
                         term = {"union": [term, following]}
                         open_union = True
-            kind, problem = term_type(term, memo=self.types)
-            if problem is None and kind not in ("tags", "strings", "set", "any", "forest"):
-                problem = "a condition requires a set, a forest, or a query method"
-            if problem is not None and not self.feature_context:
-                raise self.fail(node, problem)
             return term
         if node.rule == "negation":
             return {"not": (yield self._condition(self.only(node, "condition")))}

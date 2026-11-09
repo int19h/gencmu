@@ -19,8 +19,8 @@
     "error": "grammar",
     "where": {
       "document": "main.md",
-      "line": 9,
-      "column": 1
+      "line": 8,
+      "column": 35
     }
   }
 }

@@ -354,7 +354,7 @@ function domQueryPatternProblems(value){
             remainders++;
           }else for(const child of Object.values(node))if(child&&typeof child==='object')for(const part of Array.isArray(child)?child:[child])work.push({node:part,outer:false});
         }
-        if(remainders>1)problems.push('a query has at most one remainder');
+        if(remainders>2)problems.push('a query has at most one remainder at each outer edge');
       }
     }
     for(const child of Object.values(node))if(child&&typeof child==='object')for(const part of Array.isArray(child)?child:[child])pending.push(part);
