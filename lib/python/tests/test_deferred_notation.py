@@ -35,7 +35,11 @@ class BodyQueries(unittest.TestCase):
     def test_preparsed_shapes_refuse_captures_and_nested_remainders(self):
         # Engine §9: both loading routes enforce the same query body contract.
         valid = read_document(document("$.parse(A …).error-free"), "probe.md")
-        for body in ({"remainder": True}, {"seq": [{"remainder": True}, {"ref": "A"}, {"remainder": True}]},
+        both = deepcopy(valid)
+        both["rules"][0]["conditions"][0]["receiver"]["args"][0]["body"] = {
+            "seq": [{"remainder": True}, {"ref": "A"}, {"remainder": True}]}
+        self.assertIsNone(dom_problem(both, self.loader.unicode))
+        for body in ({"remainder": True},
                      {"seq": [{"ref": "A"}, {"optional": {"remainder": True}}]},
                      {"capture": "x", "expr": {"ref": "A"}},
                      {"seq": [{"ref": "A"}, {"remainder": True}], "extra": True}):
