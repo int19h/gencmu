@@ -797,8 +797,8 @@ Recognition accepts wider operands than each directive permits. The reader rejec
   | empty-set | pattern-literal | "(" term ")" | Emoji-Name | "_"
 
 %rule directive-method
-  (tag | name | string | constant-reference | range | capture-reference | empty-set |
-    pattern-literal | "(" term ")") {method-selector}
+  (tag | name | string | constant-reference | range | capture-reference | empty-set
+    | pattern-literal | "(" term ")") {method-selector}
 ```
 
 <details><summary>Railroad diagrams of the 10 rules from <code>directive</code> to <code>directive-method</code></summary>

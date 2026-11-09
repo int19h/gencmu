@@ -368,7 +368,9 @@ The slinku'i test and a borrowing's head look for a string of rafsi. That is any
 
 -- The string ends a compound, or it reaches a y-hyphen of either stress.
 %rule rafsi-string-end
-  | gismu | cvv-final-rafsi | stressed-y-less-rafsi short-final-rafsi
+  | gismu
+  | cvv-final-rafsi
+  | stressed-y-less-rafsi short-final-rafsi
   | y-rafsi-of(vowel, [h])
   -- A stressed CVC or CVV rafsi differs from initial-pair in its second letter. A stressed CCV rafsi has a vowel where the following y is required. So the optional cannot consume the required pair.
   | [stressed-y-less-rafsi] initial-pair y

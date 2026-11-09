@@ -388,7 +388,8 @@ An open tail can take terms after a reset. A closed tail can take only resets an
   $c ≅ $WRITTEN-VAU
 
 %rule main-gek
-  | gek-sentence | open-gek IhAU 🆓 main-tail
+  | gek-sentence
+  | open-gek IhAU 🆓 main-tail
   | closed-gek {IhAU 🆓}
 
 %rule open-gek
@@ -675,8 +676,8 @@ A description can take a forethought sentence in place of a selbri, and so can a
   | sumti-2 connective [stag] KE 🆓 $i:sumti [+KEhE] 🆓 :: KEhE ⊈ $i.following-tokens.first-token.tags
     ⟹ $i.tags ∩ $EXTENSIBLE-END
 
-%redefine-rule sumti-2 :: $EXTENSIBLE-END
-  | {... sumti-3 / connective}
+%redefine-rule sumti-2
+  | {... sumti-3 / connective} :: $EXTENSIBLE-END
 
 %redefine-rule sumti-3
   {sumti-4 ... / connective [stag] BO 🆓}
@@ -689,14 +690,17 @@ A description can take a forethought sentence in place of a selbri, and so can a
   | (LAhE 🆓 | NAhE BO 🆓 | NAhE 🆓) [relative-clauses] sumti [+LUhU] 🆓
   | (LAhE 🆓 | NAhE BO 🆓) $t:term [+LUhU] 🆓
   | NAhE 🆓 $u:term [+LUhU] 🆓
-  | KOhA 🆓 | lerfu-string free-after-lerfu-string
+  | KOhA 🆓
+  | lerfu-string free-after-lerfu-string
   | ¬cbm? name-marker 🆓 [relative-clauses] {CMEVLA} 🆓
   | LE 🆓 sumti-tail [+KU] 🆓
   | LOhOI 🆓 subsentence [+KUhAU] 🆓
   | LI 🆓 mex [+LOhO] 🆓
   | ZO 🆓
   | LU text [+LIhU] 🆓
-  | LOhU 🆓 | ZOI 🆓 | ZOhOI 🆓
+  | LOhU 🆓
+  | ZOI 🆓
+  | ZOhOI 🆓
 %conditions
   $t ≇ #sumti,
   $u ≇ #sumti,
@@ -704,7 +708,9 @@ A description can take a forethought sentence in place of a selbri, and so can a
 
 %redefine-rule sumti-tail
   | $s:sumti sumti-tail-1
-  | sumti-tail-1 | relative-clauses sumti-tail-1 | gek-sentence
+  | sumti-tail-1
+  | relative-clauses sumti-tail-1
+  | gek-sentence
 %conditions
   $s ≇ #(quantifier ⋰)
 ```
@@ -804,7 +810,8 @@ The `ke-after` template supplies `selbri-4` and `operator`. Each named instance 
   | NUhA 🆓 operator
   | JAI 🆓 [tag] tanru-unit-2
   | abstractor-chain subsentence [+KEI] 🆓
-  | linkargs tanru-unit-1 | MEhOI 🆓
+  | linkargs tanru-unit-1
+  | MEhOI 🆓
 
 %rule me-unit
   ME 🆓 (sumti | $m:mex) [+MEhU] 🆓 [MOI 🆓]
@@ -863,7 +870,8 @@ Emphasis before an attitude or its NAI remains attached to that token. It does n
 
 ```jbogenbau
 %extend-rule tanru-unit-2
-  | GOhOI 🆓 | MUhOI 🆓
+  | GOhOI 🆓
+  | MUhOI 🆓
   | LUhEI text [+LIhAU] 🆓
   | CIhAU cihau-run [+CIhAUhU] 🆓
 
@@ -927,7 +935,8 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
   mex-2 [operator [stag] BO 🆓 mex-1]
 
 %redefine-rule mex-2
-  | number free-after-number | lerfu-string free-after-lerfu-string
+  | number free-after-number
+  | lerfu-string free-after-lerfu-string
   | VEI 🆓 mex [+VEhO] 🆓
   | gek mex gik mex-2
   | (LAhE 🆓 | NAhE 🆓 [BO 🆓]) mex [+LUhU] 🆓
@@ -943,7 +952,8 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
   mex-1 [{rp-expression operator}]
 
 %redefine-rule operator-1
-  | operator-2 | guhek operator-1 gik operator-2
+  | operator-2
+  | guhek operator-1 gik operator-2
   | operator-2 joik-jek-ek [stag] BO 🆓 operator-1
 
 %redefine-rule operator-2
@@ -951,7 +961,8 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
   | KE 🆓 operator [+KEhE] 🆓
 
 %redefine-rule mex-operator
-  | SE 🆓 mex-operator | NAhE 🆓 mex-operator
+  | SE 🆓 mex-operator
+  | NAhE 🆓 mex-operator
   | MAhO 🆓 mex [+TEhU] 🆓
   | NAhU 🆓 selbri [+TEhU] 🆓
   | $c:connective
@@ -1028,7 +1039,8 @@ The rules name the two words by their values, `GA="ga"` and `GA="gu"`, which ign
 %redefine-rule gek
   | [SE] GA 🆓
   | GA="ga" 🆓 prefixed-connective
-  | joik-jek-ek GI 🆓 | stag gik
+  | joik-jek-ek GI 🆓
+  | stag gik
 
 %redefine-rule guhek
   | [SE] GUhA 🆓

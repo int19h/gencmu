@@ -58,7 +58,8 @@ The name `$INDICATOR-BOUNDARIES` lets a pipeline layer add boundaries that open 
   [leading] [item-run] [bahe-run]
 
 %rule item-run
-  | item | item-run item
+  | item
+  | item-run item
   | $p:item-run leading
 %conditions
   $p.last-token.classes ∩ $INDICATOR-BOUNDARIES ≠ ∅

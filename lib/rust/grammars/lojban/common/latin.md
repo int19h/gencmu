@@ -44,7 +44,8 @@ An ignored character at a pause edge is a comma or a non-breaking format charact
   [left-pause-edge] pause-cores [right-pause-edge]
 
 %rule pause-cores
-  pause-core | pause-cores pause-material pause-core
+  | pause-core
+  | pause-cores pause-material pause-core
 
 %rule left-pause-edge
   punctuation-edge | commas
@@ -216,7 +217,7 @@ An accent on a capital still marks stress there, and the other capitals fold. So
 
 `capital-run` reads that shape with every vowel folded. An ordinary run is any other run of letters, which the condition states by exclusion. In an ordinary run, a capital vowel marks stress. No capital run matches `chars-with-non-lojban-char` in the bundled grammars, so `non-lojban-char-run` needs no separate test for it.
 
-The `Vowel` tag marks the five full vowels `a`, `e`, `i`, `o` and `u`, and it does not mark `y`. So `folded-full-vowel` holds the full vowels and carries `Vowel` on its header, and `folded-vowel` adds the two `y` forms.
+The `Vowel` tag marks the five full vowels `a`, `e`, `i`, `o` and `u`, and it does not mark `y`. So `folded-full-vowel` holds the full vowels and carries `Vowel` on its header, and `folded-vowel` adds the two `y` forms. `folded-vowel` writes `$v:folded-full-vowel :: $v.tags`, because its `:: ∅` header stops the inner rule from passing its tags on.
 
 ```jbogenbau
 %extend-rule run
@@ -234,13 +235,15 @@ The `Vowel` tag marks the five full vowels `a`, `e`, `i`, `o` and `u`, and it do
   [capital-consonants [commas]] capital-groups [[commas] capital-consonants]
 
 %rule capital-groups
-  folded-vowel-group capital-gap folded-vowel-group | capital-groups capital-gap folded-vowel-group
+  | folded-vowel-group capital-gap folded-vowel-group
+  | capital-groups capital-gap folded-vowel-group
 
 %rule capital-gap
   [commas] capital-consonants [commas]
 
 %rule capital-consonants
-  | capital-non-vowel | capital-consonants capital-non-vowel
+  | capital-non-vowel
+  | capital-consonants capital-non-vowel
   | capital-consonants commas capital-non-vowel
   | $c:capital-consonants decimal-point digit
 %conditions

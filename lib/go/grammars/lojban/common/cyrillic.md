@@ -59,7 +59,7 @@ So a full vowel letter carries the tag `Syllabic`, which the vowel-group rules o
 
 A capital full vowel letter, or a combining accent after one, marks stress, as in Latin. A glide never marks stress, as the Latin `ĭ` of [latin.md](latin.md) does not. The full vowel carries the syllable's stress. So a capital glide is plain, and an accent after a glide makes its run foreign. Inside an all-capital run, the stage folds a capital vowel or glide, that is, it reads the letter as plain. An accented capital keeps its stress there.
 
-The `Vowel` tag marks the five full vowels and not `y`. So each vowel rule below holds its full vowels in a rule of its own, such as `cyrillic-plain-full-vowel`, and the `y` forms and the glides stay in the outer rule.
+The `Vowel` tag marks the five full vowels and not `y`. So each vowel rule below holds its full vowels in a rule of its own, such as `cyrillic-plain-full-vowel`. The `y` forms and the glides stay in the outer rule.
 
 ```jbogenbau
 %rule cyrillic-plain-full-vowel :: Syllabic ∪ Vowel
@@ -86,8 +86,7 @@ The `Vowel` tag marks the five full vowels and not `y`. So each vowel rule below
 
 %rule cyrillic-stressed-vowel :: Stressed ∪ Syllabic
   | cyrillic-stressed-full-vowel :: Vowel
-  | (("Ъ" | "Ы" | "Ә")
-      | ("ъ" | "ы" | "ә" | "Ъ" | "Ы" | "Ә") stress-mark) := "y" :- "Y"
+  | (("Ъ" | "Ы" | "Ә") | ("ъ" | "ы" | "ә" | "Ъ" | "Ы" | "Ә") stress-mark) := "y" :- "Y"
 %emits
   $
 

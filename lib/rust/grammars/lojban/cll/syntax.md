@@ -242,7 +242,8 @@ The gek-sentence's tail terms follow the whole connection and apply to both side
   bridi-tail-3 [gihek [stag] BO 🆓 bridi-tail-2 tail-terms]
 
 %rule bridi-tail-3
-  selbri tail-terms | gek-sentence
+  | selbri tail-terms
+  | gek-sentence
 
 %rule gek-sentence
   | gek subsentence gik subsentence tail-terms
@@ -365,7 +366,8 @@ The words stage delimits each `zo`, `lo'u`, and `zoi` quote and emits it as one 
   | LI 🆓 mex [+LOhO 🆓]
   | ZO 🆓
   | LU text [+LIhU] 🆓
-  | LOhU 🆓 | ZOI 🆓
+  | LOhU 🆓
+  | ZOI 🆓
 
 %rule sumti-tail
   [sumti-6 [relative-clauses]] sumti-tail-1
@@ -481,7 +483,8 @@ The words stage builds each `zei` compound into one `BRIVLA`, which `tanru-unit-
   | KE 🆓 selbri-3 [+KEhE 🆓]
   | ME 🆓 sumti [+MEhU 🆓] [MOI 🆓]
   | (number | lerfu-string) MOI 🆓
-  | NUhA 🆓 mex-operator | SE 🆓 tanru-unit-2
+  | NUhA 🆓 mex-operator
+  | SE 🆓 tanru-unit-2
   | JAI 🆓 [tag] tanru-unit-2
   | NAhE 🆓 tanru-unit-2
   | abstractor-chain subsentence [+KEI 🆓]

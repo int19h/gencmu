@@ -24,8 +24,8 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
 For quote markers, this layer only adds classes to the shared class sets. The shared marker rules read these classes.
 
 ```jbogenbau
+-- ZO_pre <- pre_clause ZO spaces? any_word spaces?;  GOhOI_pre <- pre_clause GOhOI spaces? any_word spaces?
 %redefine-const $WORD-QUOTE-MARKERS
-  -- ZO_pre <- pre_clause ZO spaces? any_word spaces?;  GOhOI_pre <- pre_clause GOhOI spaces? any_word spaces?
   $WORD-QUOTE-MARKERS ∪ GOhOI
 
 ```
@@ -64,8 +64,8 @@ For quote markers, this layer only adds classes to the shared class sets. The sh
 `mu'oi` quotes a body between two delimiters, as `zoi` does. `zoi .ko. x .kO.` is a quote because both Lojban delimiters have stored value `ko`. Every pipeline compares exact stored values, including FOREIGN values from decomposed source text ([the word stream](../common/stream.md)). So the pipeline adds only the MUhOI class to the shared marker.
 
 ```jbogenbau
+-- ZOI_pre <- pre_clause ZOI spaces? zoi_open spaces? zoi_word* zoi_close spaces?;  MUhOI_pre likewise
 %redefine-const $ZOI-MARKERS
-  -- ZOI_pre <- pre_clause ZOI spaces? zoi_open spaces? zoi_word* zoi_close spaces?;  MUhOI_pre likewise
   $ZOI-MARKERS ∪ MUhOI
 
 ```

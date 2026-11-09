@@ -339,7 +339,8 @@ A step is a verb with its free suffixes and binds, then the rest of the chain. T
   $ ≇ #(⋱ chain-inner« bi-free chain »)
 
 %rule chain-inner
-  bi-free chain | step
+  | bi-free chain
+  | step
 
 %rule bi-free
   [{prefix}] BI [{postfix}]
@@ -594,7 +595,8 @@ The chapter says that a `JI` other than `jie` "must follow positive integer (no 
   | digits JO [digits] [JA digits] [JE digits]
   | JO digits [JA digits] [JE digits]
   | JO JA digits [JE digits]
-  | JO JE digits | JE digits
+  | JO JE digits
+  | JE digits
 
 %rule digits
   {TI}
@@ -669,20 +671,20 @@ A quote with written `cai` retains its own recovery scope. Without `cai`, a quot
 
 ```jbogenbau
 %extend-rule sentence-of(@Open)
-  | sentence-body unmatched-tail | sentence-erasure unmatched-tail
+  | sentence-body unmatched-tail
+  | sentence-erasure unmatched-tail
   | $i:words-erasure unmatched-tail
-  | empty-erasure unmatched-tail | unmatched-tail
+  | empty-erasure unmatched-tail
+  | unmatched-tail
 %conditions
   ¬$i.onward.parse(@Open …).error-free,
   ¬$i.onward.begins(po-head)
 
 %extend-rule base-verb
-  *select-empty
-  | *modified-empty
+  *select-empty | *modified-empty
 
 %rule unmatched-tail :: ($t ⟹ $t.tags)
-  | (unmatched-resume step-tail [ri-continuation] [$t:unmatched-tail]
-      | *resume-chain-empty step-tail [ri-continuation] [$t:unmatched-tail])
+  | (unmatched-resume | *resume-chain-empty) step-tail [ri-continuation] [$t:unmatched-tail]
   | $c:unmatched-closer [ri-continuation | definition] [$t:unmatched-tail]
       :: ($c.tags ∩ DAI)
 
@@ -782,15 +784,15 @@ The boundary query recognizes annotated `vi` and `fi`, with optional `bi`, witho
   $.following-tokens.begins(missing-operand-boundary)
 
 %extend-rule enumeration
-  [{prefix}] *chain-empty<PE> $p:*recovery-postfixes [{bu-free chain | *empty-enumeration-item}]
-    [+PEI]
+  [{prefix}] *chain-empty<PE> $p:*recovery-postfixes
+    [{bu-free chain | *empty-enumeration-item}] [+PEI]
 %conditions
   $p.following-tokens.begins(missing-operand-boundary)
 
 %extend-rule separator-form
   | *empty-arguments-list [{bu-free chain | *empty-enumeration-item}]
-  | [arguments-list] {chain / bu-free} *empty-enumeration-item [{bu-free chain |
-    *empty-enumeration-item}]
+  | [arguments-list] {chain / bu-free} *empty-enumeration-item
+      [{bu-free chain | *empty-enumeration-item}]
 
 %extend-rule chain-inner
   [{prefix}] *chain-empty<BI> $p:*recovery-postfixes
@@ -937,13 +939,8 @@ Number recovery normally ends at written `JI`, before a token outside `number-st
 
 ```jbogenbau
 %extend-rule base-verb
-  | *number-end-alone
-  | *empty-base-number
-  | *empty-repeat-number
-  | *empty-magnitude-number
-  | *number-repeat-without-fraction
-  | *number-without-digits
-  | *number-part-order
+  | *number-end-alone | *empty-base-number | *empty-repeat-number | *empty-magnitude-number
+  | *number-repeat-without-fraction | *number-without-digits | *number-part-order
 
 %rule number-part
   loose-base | loose-digits | loose-fraction | JA loose-digits | JE loose-digits
