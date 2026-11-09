@@ -86,8 +86,7 @@ The `Vowel` tag marks the five full vowels and not `y`. So each vowel rule below
 
 %rule cyrillic-stressed-vowel :: Stressed ∪ Syllabic
   | cyrillic-stressed-full-vowel :: Vowel
-  | (("Ъ" | "Ы" | "Ә")
-      | ("ъ" | "ы" | "ә" | "Ъ" | "Ы" | "Ә") stress-mark) := "y" :- "Y"
+  | (("Ъ" | "Ы" | "Ә") | ("ъ" | "ы" | "ә" | "Ъ" | "Ы" | "Ә") stress-mark) := "y" :- "Y"
 %emits
   $
 

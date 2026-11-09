@@ -37,8 +37,7 @@ In the experimental pipeline, an unfinished marker carries `Fault` unless a [`co
 
 %rule lohai-quote :- $.source-text
   | $e:lehai-marker :: $e.tags
-  | ($r:lohai-run word-gap lehai-marker
-      | $r:lohai-run word-gap lohai-run word-gap lehai-marker) :: $r.tags
+  | $r:lohai-run word-gap [lohai-run word-gap] lehai-marker :: $r.tags
 %emits
   $ :: $.tags ∪ Quote
 
