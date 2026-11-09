@@ -1,0 +1,29 @@
+{
+  "description": "Engine §4: ends(S) and parse(… S) give the same result.",
+  "grammar": "%rule text {_}\n%conditions $.ends(word2), $.parse(… word2)\n%rule word A :: Word\n%rule word2 B :: Word Other",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "description": "Engine §4: the tags of a suffix parse forest union its witness tags.",
+  "grammar": "%rule text {_}\n%conditions Other ⊆ $.parse(… word2).tags\n%rule word A :: Word\n%rule word2 B :: Word Other",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "description": "Engine §4: parse with a remainder at both edges fails without such a part.",
+  "grammar": "%rule text {_}\n%conditions $.parse(… D …)\n%rule word A :: Word\n%rule word2 B :: Word Other",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected"
+  }
+}
