@@ -243,6 +243,152 @@ function scanBody(chars, start) {
   return alternatives;
 }
 
+
+// The clauses of one body (a rule header or one alternative), as written:
+// each operator with the index at which it stands in `text`.
+function writtenClauses(text) {
+  const scrubbed = [...text]; let string = false;
+  for (let i = 0; i < scrubbed.length; i++) {
+    const c = scrubbed[i];
+    if (string) { if (c === '"') string = false; else scrubbed[i] = " "; continue; }
+    if (c === '"') { string = true; continue; }
+    if (c === "-" && scrubbed[i + 1] === "-") { while (i < scrubbed.length && scrubbed[i] !== "\n") { scrubbed[i] = " "; i++; } i--; continue; }
+  }
+  const ops = []; let depth = 0;
+  for (let i = 0; i < scrubbed.length; i++) {
+    const c = scrubbed[i];
+    if ("([{<«".includes(c)) depth++;
+    else if (")]}>»".includes(c)) depth--;
+    else if (depth === 0 && c === ":" && (scrubbed[i + 1] === ":" || scrubbed[i + 1] === "=" || scrubbed[i + 1] === "-")) { ops.push({ at: i, op: scrubbed.slice(i, i + 2).join("") }); i++; }
+  }
+  return ops.map((o, i) => ({ ...o, end: i + 1 < ops.length ? ops[i + 1].at : text.length }));
+}
+
+// The operands of a tag term at its top level, split at `∪`. Each keeps
+// the index at which it starts in the term text.
+function termOperands(term) {
+  const chars = [...term];
+  const parts = []; let depth = 0, string = false, start = 0;
+  const flush = (end) => { const text = chars.slice(start, end).join(""); const lead = text.length - text.trimStart().length; parts.push({ text: text.trim().replace(/\s+/g, " "), at: start + [...text.slice(0, lead)].length }); };
+  for (let i = 0; i < chars.length; i++) {
+    const c = chars[i];
+    if (string) { if (c === '"') string = false; continue; }
+    if (c === '"') { string = true; continue; }
+    if ("([{<«".includes(c)) depth++;
+    else if (")]}>»".includes(c)) depth--;
+    else if (depth === 0 && c === "∪") { flush(i); start = i + 1; }
+  }
+  flush(chars.length);
+  return parts.filter((part) => part.text);
+}
+
+const BARE_TAG = /^[A-Z_][A-Za-z0-9_-]*$/u;
+// Whether an operand of a tag term is a bare tag or a run of bare tags.
+function isBareRun(text) { return text.split(" ").every((word) => BARE_TAG.test(word)); }
+
+/**
+ * The problems of clause and tag term layout in a document: a clause
+ * that starts a new line stands in the column of the first clause; a
+ * tag term that runs over several lines ends each line with its `∪` and
+ * never starts a line with it, and each later operand stands in the
+ * column of the first; and a term with two or more expressions puts
+ * each expression on a line of its own.
+ * @param {string} markdown
+ * @param {{rules: any[]}} dom
+ * @param {string} path
+ * @returns {string[]}
+ */
+export function clauseTermProblems(markdown, dom, path) {
+  const lines = splitLines(markdown);
+  const { positions } = extractGrammarText(markdown, path, unicode);
+  /** @type {string[]} */
+  const problems = [];
+  const at = (index) => positions[Math.min(index, positions.length - 1)] ?? [1, 1];
+  for (const { rule, keyword, alternatives } of alternativeLayouts(markdown, dom, path)) {
+    const where = `${keyword} ${rule.name}`;
+    /** @type {{text: string, base: number}[]} */
+    const bodies = alternatives.map((a) => ({ text: a.text, base: a.from }));
+    if (alternatives.length && (rule.tags !== undefined || rule.value !== undefined || rule.image !== undefined)) {
+      const start = positions.findIndex(([line, col]) => line === rule.at[0] && col === rule.at[1]);
+      if (start >= 0) {
+        let headerText = alternativeLayoutsHeaderText(markdown, dom, path, start, alternatives[0].from);
+        const bar = writtenClausesBar(headerText);
+        if (bar >= 0) headerText = headerText.slice(0, bar);
+        bodies.unshift({ text: headerText, base: start });
+      }
+    }
+    for (const body of bodies) {
+      const clauses = writtenClauses(body.text);
+      if (!clauses.length) continue;
+      const placed = clauses.map((c) => ({ ...c, line: at(body.base + c.at)[0], col: at(body.base + c.at)[1] }));
+      const reference = placed[0].col;
+      // Rule 1: a clause that starts a new line stands in the column of `::`.
+      for (const c of placed.slice(1)) {
+        const before = [...(lines[c.line - 1] ?? "")].slice(0, c.col - 1).join("");
+        if (/^\s*$/.test(before) && c.col !== reference) problems.push(`${path}:${c.line}: a clause of ${where} does not stand in the column of its first clause`);
+      }
+      for (const c of clauses) {
+        if (c.op !== "::") continue;
+        const termText = body.text.slice(c.at + 2, c.end);
+        const termStart = body.base + c.at + 2 + (termText.length - termText.trimStart().length);
+        const operands = termOperands(termText);
+        const exprs = operands.filter((o) => !isBareRun(o.text));
+        const startLine = at(termStart)[0];
+        const firstCol = at(termStart)[1];
+        // Rule 4: each expression on a line of its own.
+        if (exprs.length >= 2) {
+          const starts = operands.map((o) => at(body.base + c.at + 2 + o.at)[0]);
+          if (new Set(starts).size !== starts.length) problems.push(`${path}:${startLine}: a tag term of ${where} has two or more expressions, and each expression stands on a line of its own`);
+        }
+        // Rule 2: a term over several lines ends each line with `∪`.
+        const termLines = termText.trim().split("\n");
+        if (termLines.length < 2) continue;
+        let depth = 0;
+        termLines.forEach((termLine, i) => {
+          const startDepth = depth;
+          const scrubbed = [...termLine]; let string = false;
+          for (const ch of scrubbed) {
+            if (string) { if (ch === '"') string = false; continue; }
+            if (ch === '"') { string = true; continue; }
+            if ("([{<«".includes(ch)) depth++;
+            else if (")]}>»".includes(ch)) depth--;
+          }
+          const lineNumber = startLine + i;
+          if (i + 1 < termLines.length && startDepth === 0 && depth === 0 && !termLine.trimEnd().endsWith("∪")) problems.push(`${path}:${lineNumber}: a tag term of ${where} runs over several lines, and each line ends with its ∪`);
+          if (i > 0 && startDepth === 0) {
+            const trimmed = termLine.trimStart();
+            if (trimmed.startsWith("∪")) problems.push(`${path}:${lineNumber}: a tag term of ${where} starts a line with ∪`);
+            else if ([...(lines[lineNumber - 1] ?? "")].findIndex((ch) => ch !== " ") + 1 !== firstCol && trimmed) problems.push(`${path}:${lineNumber}: an operand of a tag term of ${where} does not stand in the column of its first operand`);
+          }
+        });
+      }
+    }
+  }
+  return problems;
+}
+
+// The written text of a rule header, from its keyword to the first
+// alternative. Only its clause layout is read.
+// The index of the bar before the first alternative in a header text,
+// or -1 where the body follows the header without a bar.
+function writtenClausesBar(text) {
+  const scrubbed = [...text]; let string = false, depth = 0, bar = -1;
+  for (let i = 0; i < scrubbed.length; i++) {
+    const c = scrubbed[i];
+    if (string) { if (c === '"') string = false; continue; }
+    if (c === '"') { string = true; continue; }
+    if ("([{<«".includes(c)) depth++;
+    else if (")]}>»".includes(c)) depth--;
+    else if (depth === 0 && c === "|") bar = i;
+  }
+  return bar;
+}
+
+function alternativeLayoutsHeaderText(markdown, dom, path, start, end) {
+  const { text } = extractGrammarText(markdown, path, unicode);
+  return [...text].slice(start, end).join("");
+}
+
 /**
  * The layout problems of a document, for every rule with an alternative.
  * Each message names the file, the line and the rule. A line that holds
@@ -257,6 +403,7 @@ export function layoutProblems(markdown, dom, path, limit = LINE_LIMIT) {
   const lines = splitLines(markdown);
   /** @type {string[]} */
   const problems = clauseLayoutProblems(markdown, dom, path);
+  for (const problem of clauseTermProblems(markdown, dom, path)) problems.push(problem);
   for (const problem of commentLayoutProblems(markdown, path)) problems.push(problem);
   for (const { rule, keyword, alternatives } of alternativeLayouts(markdown, dom, path)) {
     // How many alternatives occupy each line of the body.
