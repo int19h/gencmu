@@ -75,8 +75,8 @@ An ignored character at a pause edge is a comma or a non-breaking format charact
 %rule pause-material
   pause-edge
 %emits
-  $ :: PAUSE Quote-Material ∪
-       (¬$.matches(commas) ⟹ Punctuation-Material) := $.decomposed-source-text :- $.source-text
+  $ :: PAUSE Quote-Material ∪ (¬$.matches(commas) ⟹ Punctuation-Material)
+    := $.decomposed-source-text :- $.source-text
 
 %redefine-rule pause-core
   {core-char}

@@ -69,7 +69,8 @@ The experimental terminators `ku'au` and `ku'oi` are elidable: the rules below w
 
 ```jbogenbau
 %ambiguity-resolution
-  leftmost-longest #(·tense-modal ∪ ·free), fewest #(·gi-stag-connective ∪ ·bridi-tail-connective), late #·_<_Elided>
+  leftmost-longest #(·tense-modal ∪ ·free),
+  fewest #(·gi-stag-connective ∪ ·bridi-tail-connective), late #·_<_Elided>
 ```
 
 ## The text and its paragraphs
@@ -345,11 +346,14 @@ An open tail can take terms after a reset. A closed tail can take only resets an
   selbri @T | @G
 
 %rule headed-bridi-tail = headed-bridi-tail-with(tail-terms, gek-sentence, tail-terms, gek-sentence)
-%rule headed-bridi-tail-2 = headed-bridi-tail-2-with(tail-terms, gek-sentence, tail-terms, gek-sentence)
+%rule headed-bridi-tail-2 = headed-bridi-tail-2-with(tail-terms,
+                                                     gek-sentence, tail-terms, gek-sentence)
 %redefine-rule bridi-tail = bridi-tail-with(tail-terms, gek-sentence, tail-terms, gek-sentence)
 %redefine-rule bridi-tail-1 = bridi-tail-1-with(tail-terms, gek-sentence, tail-terms, gek-sentence)
-%redefine-rule bridi-tail-1-final = bridi-tail-1-final-with(tail-terms, gek-sentence, tail-terms, gek-sentence)
-%rule connected-bridi-tail = connected-bridi-tail-with(tail-terms, gek-sentence, tail-terms, gek-sentence)
+%redefine-rule bridi-tail-1-final = bridi-tail-1-final-with(tail-terms,
+                                                            gek-sentence, tail-terms, gek-sentence)
+%rule connected-bridi-tail = connected-bridi-tail-with(tail-terms,
+                                                       gek-sentence, tail-terms, gek-sentence)
 %redefine-rule bridi-tail-2 = bridi-tail-2-with(tail-terms, gek-sentence, tail-terms, gek-sentence)
 %redefine-rule bridi-tail-3 = bridi-tail-3-with(tail-terms, gek-sentence)
 
@@ -359,9 +363,12 @@ An open tail can take terms after a reset. A closed tail can take only resets an
 %rule main-bridi-tail-1-final = bridi-tail-1-final-with(main-tail, main-gek, main-tail, main-gek)
 %rule main-bridi-tail-2 = bridi-tail-2-with(main-tail, main-gek, main-tail, main-gek)
 %rule main-bridi-tail-3 = bridi-tail-3-with(main-tail, main-gek)
-%rule connected-main-bridi-tail = connected-bridi-tail-with(tail-terms, gek-sentence, main-tail, main-gek)
+%rule connected-main-bridi-tail = connected-bridi-tail-with(tail-terms,
+                                                            gek-sentence, main-tail, main-gek)
 %rule connected-main-bridi-tail-2 = bridi-tail-2-with(tail-terms, gek-sentence, main-tail, main-gek)
-%rule headed-connected-main-bridi-tail-2 = headed-bridi-tail-2-with(tail-terms, gek-sentence, main-tail, main-gek)
+%rule headed-connected-main-bridi-tail-2 = headed-bridi-tail-2-with(tail-terms,
+                                                                    gek-sentence,
+                                                                    main-tail, main-gek)
 
 %rule top-sentence
   [$h:reset-head IhAU 🆓]
@@ -571,7 +578,9 @@ No step names these terms. Their contained predicates use the `fewest` and `late
 
 %const $EXTENSIBLE-END Link-Extensible-End ∪ Bo-Extensible-End
 
-%const $PLACE-CLOSE I ∪ NIhO ∪ CU ∪ GI ∪ BEI ∪ ZIhE ∪ ZOhU ∪ CEhE ∪ PEhE ∪ KU ∪ VAU ∪ KEI ∪ KUhO ∪ BEhO ∪ LIhU ∪ TOI ∪ NUhU ∪ GEhU ∪ SEhU ∪ LUhU ∪ TEhU ∪ MEhU ∪ BOI ∪ VEhO ∪ KEhE ∪ LOhO ∪ DOhU ∪ FEhU ∪ TUhU ∪ KUhE ∪ KUhAU ∪ KUhOI ∪ IhAU ∪ LIhAU ∪ KUhEI
+%const $PLACE-CLOSE I ∪ NIhO ∪ CU ∪ GI ∪ BEI ∪ ZIhE ∪ ZOhU ∪ CEhE ∪ PEhE ∪ KU ∪ VAU ∪ KEI ∪ KUhO ∪
+  BEhO ∪ LIhU ∪ TOI ∪ NUhU ∪ GEhU ∪ SEhU ∪ LUhU ∪ TEhU ∪ MEhU ∪ BOI ∪ VEhO ∪ KEhE ∪ LOhO ∪ DOhU ∪
+  FEhU ∪ TUhU ∪ KUhE ∪ KUhAU ∪ KUhOI ∪ IhAU ∪ LIhAU ∪ KUhEI
 
 %const $BARE-TAG #« tag KU="" [🆓] »
 %const $BARE-NA #« NA [🆓] KU="" [🆓] »
@@ -588,7 +597,8 @@ No step names these terms. Their contained predicates use the `fewest` and `late
   $n:NA 🆓 [+KU] 🆓
 %conditions
   ¬$n.onward.begins(na-connective),
-  $ ≇ $BARE-NA ∨ $.ends-input ∨ ($PLACE-CLOSE ∩ $.following-tokens.first-token.tags) ⊈ ∅ ∨ $.followed-by(gihek | term)
+  $ ≇ $BARE-NA ∨ $.ends-input ∨ ($PLACE-CLOSE ∩ $.following-tokens.first-token.tags) ⊈ ∅
+    ∨ $.followed-by(gihek | term)
 
 %rule na-connective
   gek | joik-jek-ek | gihek
@@ -610,7 +620,8 @@ No step names these terms. Their contained predicates use the `fewest` and `late
   | tag $s:sumti :: $s.tags ∩ $EXTENSIBLE-END
   | tag [+KU] 🆓
 %conditions
-  $ ≇ $BARE-TAG ∨ $.ends-input ∨ ($PLACE-CLOSE ∩ $.following-tokens.first-token.tags) ⊈ ∅ ∨ $.followed-by(gihek)
+  $ ≇ $BARE-TAG ∨ $.ends-input ∨ ($PLACE-CLOSE ∩ $.following-tokens.first-token.tags) ⊈ ∅
+    ∨ $.followed-by(gihek)
 
 -- termset <- gek_termset / NUhI_clause free* gek terms NUhU_elidible free* gik terms NUhU_elidible free* / NUhI_clause free* terms NUhU_elidible free*
 %redefine-rule termset
@@ -678,7 +689,7 @@ A description can take a forethought sentence in place of a selbri, and so can a
       :: KEhE ⊈ $i.following-tokens.first-token.tags ⟹ $i.tags ∩ $EXTENSIBLE-END
 
 %redefine-rule sumti-2
-  | {... sumti-3 / connective} :: $EXTENSIBLE-END
+  {... sumti-3 / connective} :: $EXTENSIBLE-END
 
 %redefine-rule sumti-3
   {sumti-4 ... / connective [stag] BO 🆓}

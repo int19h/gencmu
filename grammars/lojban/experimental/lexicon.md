@@ -258,7 +258,8 @@ The implication after the entries marks some words `Indicator`, which the indica
   "au'o" "bi'au" "bo'oi" "ca'e'ei" "ci'ai" "jei'u" "kai'e" "ki'au" "mau'u" "ne'au" "oi'o" ∈ UI
   "pau'ai" "pe'ai" "ra'ei" "ta'ei" "toi'u" "uau'o" "ue'e" "va'u'ai" "xa'oi" "xe'e'e" "xy'y"
     "za'oi" ∈ UI
-  "cu'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u" ∈ UI
+  "cu'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u"
+    ∈ UI
   "va" "vi" "vu" ∈ VA
   "vau" ∈ VAU
   "vei" ∈ VEI

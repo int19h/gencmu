@@ -179,15 +179,13 @@ So a brivla with marked stress has `S2`, and one without any capital vowel has `
 ```jbogenbau
 %rule brivla-scan
   | $i:brivla-item
-      :: Single-End ∩ $i.tags ∪
-         (Counted ⊆ $i.tags ⟹ N1) ∪
+      :: (Counted ⊆ $i.tags ⟹ N1) ∪
          (Counted ⊈ $i.tags ⟹ N0) ∪
          (Marked ⊆ $i.tags ⟹ S1 ∪ First-Marked) ∪
-         (Marked ⊈ $i.tags ⟹ S0)
+         (Marked ⊈ $i.tags ⟹ S0) ∪
+         Single-End ∩ $i.tags
   | $s:brivla-scan $j:brivla-item
-      :: First-Marked ∩ $s.tags ∪
-         Single-End ∩ $j.tags ∪
-         (S0 ⊆ $s.tags ∧ Marked ⊈ $j.tags ⟹ S0) ∪
+      :: (S0 ⊆ $s.tags ∧ Marked ⊈ $j.tags ⟹ S0) ∪
          (S0 ⊆ $s.tags ∧ Marked ⊆ $j.tags ⟹ S1) ∪
          (S1 ⊆ $s.tags ∧ Counted ⊈ $j.tags ⟹ S1) ∪
          (S1 ⊆ $s.tags ∧ Counted ⊆ $j.tags ∧ Marked ⊈ $j.tags ⟹ S2) ∪
@@ -196,7 +194,9 @@ So a brivla with marked stress has `S2`, and one without any capital vowel has `
          (Counted ⊆ $j.tags ∧ N0 ⊆ $s.tags ⟹ N1) ∪
          (Counted ⊆ $j.tags ∧ N1 ⊆ $s.tags ⟹ N2) ∪
          (Counted ⊆ $j.tags ∧ (N2 ∪ N3) ∩ $s.tags ≠ ∅ ⟹ N3) ∪
-         (N0 ⊆ $s.tags ∧ Marked ⊆ $j.tags ⟹ First-Marked)
+         First-Marked ∩ $s.tags ∪
+         (N0 ⊆ $s.tags ∧ Marked ⊆ $j.tags ⟹ First-Marked) ∪
+         Single-End ∩ $j.tags
 %conditions
   Single-End ⊈ $s.tags ∨ ¬$s.last-token.onward.begins(brivla-diphthong)
 
@@ -233,26 +233,26 @@ The forms stage uses the stress on the first syllable of a name, for the pause r
 ```jbogenbau
 %rule name-scan
   | $i:name-item
-      :: Single-End ∩ $i.tags ∪
-         (Nucleus ⊆ $i.tags ⟹ V1) ∪
+      :: (Nucleus ⊆ $i.tags ⟹ V1) ∪
          (Nucleus ⊈ $i.tags ⟹ V0) ∪
          (Counted ⊆ $i.tags ⟹ N1 ∪ First-Counted) ∪
          (Counted ⊈ $i.tags ⟹ N0) ∪
-         (Marked ⊆ $i.tags ⟹ First-Marked ∪ Any-Marked)
+         (Marked ⊆ $i.tags ⟹ First-Marked ∪ Any-Marked) ∪
+         Single-End ∩ $i.tags
   | $s:name-scan $j:name-item
-      :: First-Counted ∩ $s.tags ∪
-         First-Marked ∩ $s.tags ∪
-         Any-Marked ∩ $s.tags ∪
-         Single-End ∩ $j.tags ∪
-         (V1 ⊆ $s.tags ∨ Nucleus ⊆ $j.tags ⟹ V1) ∪
+      :: (V1 ⊆ $s.tags ∨ Nucleus ⊆ $j.tags ⟹ V1) ∪
          (V0 ⊆ $s.tags ∧ Nucleus ⊈ $j.tags ⟹ V0) ∪
+         First-Counted ∩ $s.tags ∪
          (V0 ⊆ $s.tags ∧ Counted ⊆ $j.tags ⟹ First-Counted) ∪
+         First-Marked ∩ $s.tags ∪
          (V0 ⊆ $s.tags ∧ Marked ⊆ $j.tags ⟹ First-Marked) ∪
+         Any-Marked ∩ $s.tags ∪
          (Marked ⊆ $j.tags ⟹ Any-Marked) ∪
          (Counted ⊈ $j.tags ⟹ (N0 ∪ N1 ∪ N2 ∪ N3) ∩ $s.tags) ∪
          (Counted ⊆ $j.tags ∧ N0 ⊆ $s.tags ⟹ N1) ∪
          (Counted ⊆ $j.tags ∧ N1 ⊆ $s.tags ⟹ N2) ∪
-         (Counted ⊆ $j.tags ∧ (N2 ∪ N3) ∩ $s.tags ≠ ∅ ⟹ N3)
+         (Counted ⊆ $j.tags ∧ (N2 ∪ N3) ∩ $s.tags ≠ ∅ ⟹ N3) ∪
+         Single-End ∩ $j.tags
 %conditions
   Single-End ⊈ $s.tags ∨ ¬$s.last-token.onward.begins(brivla-diphthong | y-diphthong)
 

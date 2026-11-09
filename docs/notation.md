@@ -1881,7 +1881,7 @@ Each marked alternative stands on lines of its own, and no other top-level alter
   | initial-pair vowel consonant vowel
 ```
 
-No line of a grammar block holds more than 100 characters, counted as Unicode code points. This covers rule bodies, headers, conditions, emission items and classifier entries. An alternative can run over several lines, and each of these lines counts. A comment line does not count, because a comment stays on one line. A long line breaks only where it is too long. It breaks first before a clause, then between two top-level items, and only then inside a term or brackets. A value recipe breaks after a `++`. A clause that starts a new line stands in the column of `::`. A tag term that runs over several lines ends each line with its `∪`. Its next operand stands in the column of its first operand:
+No line of a grammar block holds more than 100 characters, counted as Unicode code points. This covers rule bodies, headers, conditions, emission items and classifier entries. An alternative can run over several lines, and each of these lines counts. A comment line does not count, because a comment stays on one line. A string longer than the limit stands alone on its line, and that line does not count either. A long line breaks only where it is too long. It breaks first before a clause, then between two top-level items, and only then inside a term or brackets. A value recipe breaks after a `++`. A clause that starts a new line stands in the column of `::`. A tag term that runs over several lines ends each line with its `∪`. Its next operand stands in the column of its first operand:
 
 ```jbogenbau
 %rule runs

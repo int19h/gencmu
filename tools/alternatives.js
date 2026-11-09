@@ -612,6 +612,12 @@ function alternativeLayoutsHeaderText(markdown, dom, path, start, end) {
  * @param {number} [limit]
  * @returns {string[]}
  */
+// A line whose only item is one string cannot break, so the limit
+// does not apply to it.
+function unbreakable(line) {
+  return /^\s*"(?:[^"\\]|\\.)*"\s*$/u.test(line);
+}
+
 export function layoutProblems(markdown, dom, path, limit = LINE_LIMIT) {
   const lines = splitLines(markdown);
   /** @type {string[]} */
@@ -656,7 +662,7 @@ export function layoutProblems(markdown, dom, path, limit = LINE_LIMIT) {
     if (bodyLinesAll.has(number)) continue;
     if (/^\s*--/.test(lines[number - 1] ?? "")) continue;
     const width = [...(lines[number - 1] ?? "")].length;
-    if (width > limit) problems.push(`${path}:${number}: a line of a grammar block holds ${width} characters, more than ${limit}`);
+    if (width > limit && !unbreakable(lines[number - 1])) problems.push(`${path}:${number}: a line of a grammar block holds ${width} characters, more than ${limit}`);
   }
   return problems;
 }

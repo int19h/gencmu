@@ -209,7 +209,8 @@ Without SA or SU input, both feature states admit the same plain words. The rule
 
 ```jbogenbau
 %const $MAGIC-WORDS
-  $WORD-QUOTE-MARKERS ∪ $ZOI-MARKERS ∪ $SINGLE-QUOTE-MARKERS ∪ LOhU ∪ LEhU ∪ FAhO ∪ BU ∪ ZEI ∪ SI ∪ SA ∪ SU
+  $WORD-QUOTE-MARKERS ∪ $ZOI-MARKERS ∪ $SINGLE-QUOTE-MARKERS ∪ LOhU ∪ LEhU ∪ FAhO ∪ BU ∪ ZEI ∪
+    SI ∪ SA ∪ SU
 
 %rule read-word
   | $c:cmavo-token :: $c.tags
@@ -313,8 +314,8 @@ An attached opening mark supplies one gap space, even without whitespace. `quote
 
 ```jbogenbau
 %rule quoted-word
-  | $m:word-quote-marker ($g:word-quote-gap $w:word-quote-target
-      | $g:word-gap<¬Quote-Material> $w:zo-punctuation)
+  $m:word-quote-marker
+      ($g:word-quote-gap $w:word-quote-target | $g:word-gap<¬Quote-Material> $w:zo-punctuation)
       :: $m.tags :- $m.source-text ++ $g.source-text ++ $w.verbatim-text
 %emits
   $
@@ -541,7 +542,7 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
   ε
 
 %rule zoi-body
-  | raw-tokens :: ∅
+  raw-tokens :: ∅
 %conditions
   PAUSE ⊈ $.last-token.tags ∨ Quote-Material ⊆ $.last-token.tags
 
