@@ -58,8 +58,7 @@ The name `$INDICATOR-BOUNDARIES` lets a pipeline layer add boundaries that open 
   [leading] [item-run] [bahe-run]
 
 %rule item-run
-  | item
-  | item-run item
+  | item | item-run item
   | $p:item-run leading
 %conditions
   $p.last-token.classes ∩ $INDICATOR-BOUNDARIES ≠ ∅
@@ -109,8 +108,10 @@ The rule `attitudinal-nai` reads the pair with three captures: the `ba'e` run be
 
 ```jbogenbau
 %rule indicator-run
-  | [fuhe] indicator | [fuhe] attitudinal-nai
-  | indicator-run [fuhe] indicator | indicator-run [fuhe] attitudinal-nai
+  | [fuhe] indicator
+  | [fuhe] attitudinal-nai
+  | indicator-run [fuhe] indicator
+  | indicator-run [fuhe] attitudinal-nai
 
 %rule indicator
   [$b:bahe-run] $i:Word :: $i.tags
@@ -172,8 +173,10 @@ The syntax reads the attitudinal run. Suppose that the stage nested a `nai` unde
 
 ```jbogenbau
 %rule leading
-  | [fuhe] indicator | [fuhe] leading-attitudinal-nai
-  | leading [fuhe] indicator | leading [fuhe] leading-attitudinal-nai
+  | [fuhe] indicator
+  | [fuhe] leading-attitudinal-nai
+  | leading [fuhe] indicator
+  | leading [fuhe] leading-attitudinal-nai
 
 %rule leading-attitudinal-nai
   [$b:bahe-run] $u:attitudinal [$c:bahe-run] $m:Word<NAI>

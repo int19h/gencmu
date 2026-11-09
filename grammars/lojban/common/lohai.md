@@ -47,10 +47,8 @@ In the experimental pipeline, an unfinished marker carries `Fault` unless a [`co
   | $m:lohai-marker word-gap lohai-stream :: $m.tags
 
 %rule lohai-stream
-  | lohai-word
-  | lohai-stream pause-gap lohai-word
-  | lohai-stream quiet-gap lohai-word
-  | lohai-stream lohai-word
+  | lohai-word | lohai-stream pause-gap lohai-word
+  | lohai-stream quiet-gap lohai-word | lohai-stream lohai-word
 
 %rule lohai-word
   $w:read-word

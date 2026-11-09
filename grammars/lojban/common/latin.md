@@ -44,8 +44,7 @@ An ignored character at a pause edge is a comma or a non-breaking format charact
   [left-pause-edge] pause-cores [right-pause-edge]
 
 %rule pause-cores
-  | pause-core
-  | pause-cores pause-material pause-core
+  pause-core | pause-cores pause-material pause-core
 
 %rule left-pause-edge
   punctuation-edge | commas
@@ -129,7 +128,10 @@ An ignored character at a pause edge is a comma or a non-breaking format charact
 
 %rule breaking-format-char
   | "‹U+200B›"
-  | "‹U+0600›".."‹U+0605›" | "‹U+06DD›" | "‹U+070F›" | "‹U+0890›".."‹U+0891›" | "‹U+08E2›"
+  | "‹U+0600›".."‹U+0605›"
+  | "‹U+06DD›" | "‹U+070F›"
+  | "‹U+0890›".."‹U+0891›"
+  | "‹U+08E2›"
   | "‹U+110BD›" | "‹U+110CD›"
 
 %redefine-rule run-char
@@ -230,15 +232,13 @@ An accent on a capital still marks stress there, and the other capitals fold. So
   [capital-consonants [commas]] capital-groups [[commas] capital-consonants]
 
 %rule capital-groups
-  | folded-vowel-group capital-gap folded-vowel-group
-  | capital-groups capital-gap folded-vowel-group
+  folded-vowel-group capital-gap folded-vowel-group | capital-groups capital-gap folded-vowel-group
 
 %rule capital-gap
   [commas] capital-consonants [commas]
 
 %rule capital-consonants
-  | capital-non-vowel
-  | capital-consonants capital-non-vowel
+  | capital-non-vowel | capital-consonants capital-non-vowel
   | capital-consonants commas capital-non-vowel
   | $c:capital-consonants decimal-point digit
 %conditions

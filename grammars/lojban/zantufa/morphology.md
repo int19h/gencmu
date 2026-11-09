@@ -155,7 +155,9 @@ The redefined `run-words` keeps the join conditions of [../common/forms.md](../c
 
 %rule only-hesitation
   -- A run of hesitation preserves a pending quote opener for the next run.
-  first-word<Hesitation> | only-hesitation later-word<Hesitation> | only-hesitation joined-hesitation
+  first-word<Hesitation>
+  | only-hesitation later-word<Hesitation>
+  | only-hesitation joined-hesitation
 
 %rule rahoi-form
   -- The quote takes the longest rafsi or gismu form in a complete reading. Stress separates equal-letter forms.
