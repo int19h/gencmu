@@ -2486,6 +2486,7 @@ fn check_span_references(grammar: &StageGrammar, term: &Term) -> Result<(), Stri
         Term::Call(_, args) => {
             for arg in args {
                 match arg {
+                    Arg::Term(Term::Body(_)) => {}
                     Arg::Term(inner) => check_span_references(grammar, inner)?,
                     Arg::Rule(rule) => check_rule(grammar, rule)?,
                     _ => unreachable!("span method arguments were checked before stitching"),

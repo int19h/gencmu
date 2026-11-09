@@ -575,7 +575,7 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 	case methodRecipe:
 		valid = b.inRecipe && len(args) == 0 && receiver.Kind == tmCapture
 	case methodTags:
-		valid = span && (len(args) == 0 || len(args) == 1 && (args[0].Kind == tmRule || unknown(args[0])))
+		valid = span && (len(args) == 0 || len(args) == 1 && (args[0].Kind == tmRule || unknown(args[0]))) || forestTerm(receiver) && len(args) == 0
 	case methodBoundary:
 		valid = (b.featureContext || receiver.Kind == tmCapture || unknown(receiver)) && len(args) > 0
 		for _, a := range args {
