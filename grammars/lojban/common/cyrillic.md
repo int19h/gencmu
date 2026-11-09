@@ -62,7 +62,7 @@ A capital full vowel letter, or a combining accent after one, marks stress, as i
 The `Vowel` tag marks the five full vowels and not `y`. So each vowel rule below holds its full vowels in a rule of its own, such as `cyrillic-plain-full-vowel`. The `y` forms stay in the outer rule. The glides also carry `Vowel`, so `cyrillic-plain-glide` holds the plain glides and carries `Vowel` on its header. `cyrillic-folded-glide` holds the folded glides in the same way.
 
 ```jbogenbau
-%rule cyrillic-plain-full-vowel :: Syllabic ∪ Vowel
+%rule cyrillic-plain-full-vowel :: Syllabic Vowel
   | "а" := "a"
   | ("е" | "э" | "є") := "e"
   | ("и" | "і") := "i"
@@ -87,13 +87,13 @@ The `Vowel` tag marks the five full vowels and not `y`. So each vowel rule below
   | ("О" | ("о" | "О") stress-mark) := "o" :- "O"
   | ("У" | ("у" | "У") stress-mark) := "u" :- "U"
 
-%rule cyrillic-stressed-vowel :: Stressed ∪ Syllabic
+%rule cyrillic-stressed-vowel :: Stressed Syllabic
   | cyrillic-stressed-full-vowel :: Vowel
   | (("Ъ" | "Ы" | "Ә") | ("ъ" | "ы" | "ә" | "Ъ" | "Ы" | "Ә") stress-mark) := "y" :- "Y"
 %emits
   $
 
-%rule cyrillic-folded-full-vowel :: Syllabic ∪ Vowel
+%rule cyrillic-folded-full-vowel :: Syllabic Vowel
   | "А" := "a"
   | ("Е" | "Э" | "Є") := "e"
   | ("И" | "І") := "i"
@@ -113,7 +113,7 @@ The `Vowel` tag marks the five full vowels and not `y`. So each vowel rule below
   | cyrillic-folded-full-vowel
   | ("Ъ" | "Ы" | "Ә") :: Syllabic := "y"
   | cyrillic-folded-glide
-  | ("Ъ" | "Ы" | "Ә") stress-mark :: Stressed ∪ Syllabic := "y" :- "Y"
+  | ("Ъ" | "Ы" | "Ә") stress-mark :: Stressed Syllabic := "y" :- "Y"
 %emits
   $
 ```

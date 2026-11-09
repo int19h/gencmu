@@ -497,29 +497,30 @@ The quote reads its own `co` through the particle rule, so the bar never meets t
   consonant-particle-word | root-word | spelling-quote
 
 %rule consonant-particle-word
-  *h-before-word $p:consonant-particle *h-after-word [hyphen-misplaced] :: Word ∪ Particle ∪ $p.tags
-    ∪ (CE ⊆ $p.tags ∧ ¬$.following-tokens.begins(first-unit) ⟹ Missing-spelling-unit)
+  *h-before-word $p:consonant-particle *h-after-word [hyphen-misplaced] :: Word Particle ∪
+                                                                           $p.tags ∪
+                                                                           (CE ⊆ $p.tags ∧ ¬$.following-tokens.begins(first-unit) ⟹ Missing-spelling-unit)
 %conditions
   CO ⊆ $p.tags ⟹ ¬$.onward.begins(quote-opener)
 %emits
   $ :- $.value
 
 %rule ni-word
-  *h-before-word $p:ni-particle *h-after-word [hyphen-misplaced] :: Word ∪ Particle ∪ $p.tags
+  *h-before-word $p:ni-particle *h-after-word [hyphen-misplaced] :: Word Particle ∪ $p.tags
 %conditions
   ¬$.preceding-tokens.ends(after-digit)
 %emits
   $ :- $.value
 
 %rule vowel-particle-word
-  *h-before-word $p:vowel-particle *h-after-word [hyphen-misplaced] :: Word ∪ Particle ∪ $p.tags
+  *h-before-word $p:vowel-particle *h-after-word [hyphen-misplaced] :: Word Particle ∪ $p.tags
 %conditions
   ¬$.preceding-tokens.ends(after-digit)
 %emits
   $ :- $.value
 
 %rule root-word
-  malformed-root [hyphen-misplaced] :: Word ∪ Root
+  malformed-root [hyphen-misplaced] :: Word Root
 %emits
   $ :- $.value
 
@@ -558,7 +559,7 @@ The PEG warns about a hyphen before or after the prefix, and about content that 
 ```jbogenbau
 %rule freeform-word(@Prefix, @Tag)
   [hyphen-misplaced] $p:Letter prefix-gap $c:malformed-content [hyphen-misplaced] space-after
-    :: Word ∪ @Tag := @Prefix ++ $c.value
+      :: Word ∪ @Tag := @Prefix ++ $c.value
 %conditions
   $p.value = @Prefix,
   ¬$p.preceding-tokens.ends(after-digit)
@@ -627,7 +628,7 @@ The numbers chapter also says that `+`, `*` and `/` are spaces, and that verbs e
   ¬$l.preceding-tokens.ends(Hyphen),
   ¬$t.following-tokens.begins(Hyphen)
 %emits
-  $d :: Word ∪ Particle ∪ TI
+  $d :: Word Particle TI
 
 %rule digit-math
   [$m:math-symbol]
@@ -668,12 +669,12 @@ A run of `ra` is one eraser per `ra`. The syntax stage applies them. A hyphen af
   | space-before ri-word space-after
 
 %rule ra-word
-  Letter="r" [hyphen-misplaced] Letter="a" :: Word ∪ RA
+  Letter="r" [hyphen-misplaced] Letter="a" :: Word RA
 %emits
   $ :- $.value
 
 %rule ri-word
-  Letter="r" [hyphen-misplaced] Letter="i" :: Word ∪ RI
+  Letter="r" [hyphen-misplaced] Letter="i" :: Word RI
 %emits
   $ :- $.value
 ```
@@ -707,7 +708,7 @@ The rule `first-prefix` reads a prefix that starts a run, and `attached-prefix` 
 
 %rule first-prefix
   Letter="e" [[hyphen-misplaced] prefix-arity] :: $.value.classify(prefix-length) ∪
-    (¬$.following-tokens.begins(later-letter) ⟹ Standalone)
+                                                  (¬$.following-tokens.begins(later-letter) ⟹ Standalone)
 %conditions
   ¬$.preceding-tokens.ends(after-digit),
   ¬$.preceding-tokens.ends(after-letter)
@@ -827,8 +828,9 @@ A hyphen after a prefix or at the start of a run carries `hyphen-misplaced`, as 
   | [hyphen-misplaced] $n:compound :: $n.tags
 
 %rule component-particle
-  *h-before-word $p:consonant-particle *h-after-word [hyphen-misplaced] :: Word ∪ Particle ∪ $p.tags
-    ∪ (CE ⊆ $p.tags ∧ ¬$.following-tokens.begins(first-unit) ⟹ Missing-spelling-unit)
+  *h-before-word $p:consonant-particle *h-after-word [hyphen-misplaced] :: Word Particle ∪
+                                                                           $p.tags ∪
+                                                                           (CE ⊆ $p.tags ∧ ¬$.following-tokens.begins(first-unit) ⟹ Missing-spelling-unit)
 %emits
   $ :- $.value
 ```
@@ -857,7 +859,7 @@ That vowel depends on the letter before it, so a tail comes in two kinds. `compo
 
 ```jbogenbau
 %rule compound
-  $t:compound-tail :: Word ∪ Compound ∪ $t.tags := "e" ++ $t.emitted.value
+  $t:compound-tail :: Word Compound ∪ $t.tags := "e" ++ $t.emitted.value
 %emits
   $
 
@@ -884,7 +886,7 @@ That vowel depends on the letter before it, so a tail comes in two kinds. `compo
 
 %rule compound-size
   prefix<ER-PREFIX> $l:few-er-components er-closer
-    := "r" ++ $l.emitted.value ++ " e"
+      := "r" ++ $l.emitted.value ++ " e"
 %warning "this er compound has fewer than three components"
 ```
 
@@ -1063,8 +1065,8 @@ The morphology chapter allows a hyphen at a syllable boundary. A consonant unit 
 ```jbogenbau
 %rule spelling-quote
   $s:ce-particle $u:units unit-join $e:cei-particle [hyphen-misplaced]
-    :: Word ∪ Particle ∪ CE ∪ Quote := $s.value ++ " " ++ $u.emitted.value ++ " " ++ $e.value
-    :- $.source-text
+      :: Word Particle CE Quote := $s.value ++ " " ++ $u.emitted.value ++ " " ++ $e.value
+      :- $.source-text
 %emits
   $
 
@@ -1146,8 +1148,10 @@ The value is the `co` word, a space and the text from `[` to `]`. In the second 
 
 ```jbogenbau
 %rule foreign-quote
-  $q:quote-co [opening-gap] $t:quoted-text :: Word ∪ Particle ∪ CO ∪ Quote := $q.value ++ " " ++
-    $t.emitted.value :- $.source-text
+  $q:quote-co [opening-gap] $t:quoted-text :: Word Particle CO Quote
+                                           := $q.value ++ " " ++
+                                              $t.emitted.value
+                                           :- $.source-text
 %emits
   $
 
@@ -1198,7 +1202,7 @@ The recovery keeps the quote's class, value, and emission. It leaves no later er
 
 %rule unclosed-foreign-quote
   $q:quote-co [opening-gap] $t:unclosed-quoted-text
-    :: Word ∪ Particle ∪ CO ∪ Quote := $q.value ++ " " ++ $t.emitted.value :- $.source-text
+      :: Word Particle CO Quote := $q.value ++ " " ++ $t.emitted.value :- $.source-text
 %conditions
   $.ends-input
 %error "the foreign quote needs ] followed by its opening delimiter, if any"

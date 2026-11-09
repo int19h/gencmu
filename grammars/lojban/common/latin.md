@@ -58,14 +58,14 @@ An ignored character at a pause edge is a comma or a non-breaking format charact
 %conditions
   ¬$e.matches(commas)
 %emits
-  $ :: PAUSE ∪ Quote-Material ∪ Punctuation-Material := $.decomposed-source-text :- $.source-text
+  $ :: PAUSE Quote-Material Punctuation-Material := $.decomposed-source-text :- $.source-text
 
 %rule final-ignored-edge
   commas
 %conditions
   $.ends-input
 %emits
-  $ :: PAUSE ∪ Quote-Material := $.decomposed-source-text :- $.source-text
+  $ :: PAUSE Quote-Material := $.decomposed-source-text :- $.source-text
 
 %rule medial-ignored-edge
   commas
@@ -85,7 +85,7 @@ An ignored character at a pause edge is a comma or a non-breaking format charact
 %rule punctuation-pause
   [commas] punctuation [commas]
 %emits
-  $ :: PAUSE ∪ Quote-Material ∪ Punctuation-Material := $.decomposed-source-text :- $.source-text
+  $ :: PAUSE Quote-Material Punctuation-Material := $.decomposed-source-text :- $.source-text
 
 %redefine-rule pause-edge
   edge-char | pause-edge edge-char

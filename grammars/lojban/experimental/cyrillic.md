@@ -41,35 +41,35 @@ Joined vowels use the same public tags as isolated vowels. The emission filter k
 %emits
   $ :: ∅ := "'"
 
-%rule cyrillic-full-vowel :: Syllabic ∪ Vowel
+%rule cyrillic-full-vowel :: Syllabic Vowel
   | "а" [letter-marks<¬Accent>] := "a"
   | "а" letter-marks<Accent> :: Stressed := "a" :- "A"
-  | "А" letter-marks<Accent> :: Stressed ∪ Accented := "a" :- "A"
-  | "А" [letter-marks<¬Accent>] :: Stressed ∪ Capital := "a" :- "A"
-  | "А" [letter-marks<¬Accent>] :: Folded ∪ Capital := "a"
+  | "А" letter-marks<Accent> :: Stressed Accented := "a" :- "A"
+  | "А" [letter-marks<¬Accent>] :: Stressed Capital := "a" :- "A"
+  | "А" [letter-marks<¬Accent>] :: Folded Capital := "a"
   | ("е" | "э" | "є") [letter-marks<¬Accent>] := "e"
   | ("е" | "э" | "є") letter-marks<Accent> :: Stressed := "e" :- "E"
-  | ("Е" | "Э" | "Є") letter-marks<Accent> :: Stressed ∪ Accented := "e" :- "E"
-  | ("Е" | "Э" | "Є") [letter-marks<¬Accent>] :: Stressed ∪ Capital := "e" :- "E"
-  | ("Е" | "Э" | "Є") [letter-marks<¬Accent>] :: Folded ∪ Capital := "e"
+  | ("Е" | "Э" | "Є") letter-marks<Accent> :: Stressed Accented := "e" :- "E"
+  | ("Е" | "Э" | "Є") [letter-marks<¬Accent>] :: Stressed Capital := "e" :- "E"
+  | ("Е" | "Э" | "Є") [letter-marks<¬Accent>] :: Folded Capital := "e"
   | ("и" [letter-marks<¬Accent ¬Breve>] | "і" [letter-marks<¬Accent>]) := "i"
   | ("и" letter-marks<Accent ¬Breve> | "і" letter-marks<Accent>) :: Stressed := "i" :- "I"
   | ("И" letter-marks<Accent ¬Breve> | "І" letter-marks<Accent>)
-      :: Stressed ∪ Accented := "i" :- "I"
+      :: Stressed Accented := "i" :- "I"
   | ("И" [letter-marks<¬Accent ¬Breve>] | "І" [letter-marks<¬Accent>])
-      :: Stressed ∪ Capital := "i" :- "I"
+      :: Stressed Capital := "i" :- "I"
   | ("И" [letter-marks<¬Accent ¬Breve>] | "І" [letter-marks<¬Accent>])
-      :: Folded ∪ Capital := "i"
+      :: Folded Capital := "i"
   | "о" [letter-marks<¬Accent>] := "o"
   | "о" letter-marks<Accent> :: Stressed := "o" :- "O"
-  | "О" letter-marks<Accent> :: Stressed ∪ Accented := "o" :- "O"
-  | "О" [letter-marks<¬Accent>] :: Stressed ∪ Capital := "o" :- "O"
-  | "О" [letter-marks<¬Accent>] :: Folded ∪ Capital := "o"
+  | "О" letter-marks<Accent> :: Stressed Accented := "o" :- "O"
+  | "О" [letter-marks<¬Accent>] :: Stressed Capital := "o" :- "O"
+  | "О" [letter-marks<¬Accent>] :: Folded Capital := "o"
   | "у" [letter-marks<¬Accent ¬Breve>] := "u"
   | "у" letter-marks<Accent ¬Breve> :: Stressed := "u" :- "U"
-  | "У" letter-marks<Accent ¬Breve> :: Stressed ∪ Accented := "u" :- "U"
-  | "У" [letter-marks<¬Accent ¬Breve>] :: Stressed ∪ Capital := "u" :- "U"
-  | "У" [letter-marks<¬Accent ¬Breve>] :: Folded ∪ Capital := "u"
+  | "У" letter-marks<Accent ¬Breve> :: Stressed Accented := "u" :- "U"
+  | "У" [letter-marks<¬Accent ¬Breve>] :: Stressed Capital := "u" :- "U"
+  | "У" [letter-marks<¬Accent ¬Breve>] :: Folded Capital := "u"
 
 %rule cyrillic-glide :: Vowel
   | "и" letter-marks<Breve> := "i"
