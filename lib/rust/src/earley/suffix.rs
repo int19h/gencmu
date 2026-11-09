@@ -139,7 +139,11 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let holds = (flags.iter().any(|yes| *yes != 0), flags.iter().any(|yes| yes & 1 != 0));
         let tags = &self.shared.tags;
         let list = union_all(
-            witnesses.iter().zip(&flags).filter(|(_, yes)| **yes != 0).map(|((_, k), _)| tags.list(set.tagset[*k as usize])),
+            witnesses
+                .iter()
+                .zip(&flags)
+                .filter(|(_, yes)| **yes != 0)
+                .map(|((_, k), _)| tags.list(set.tagset[*k as usize])),
         );
         let clean_list = union_all(
             witnesses

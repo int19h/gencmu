@@ -88,13 +88,14 @@ pub(crate) fn body_mode(body: &Expr) -> Mode {
 pub(crate) fn body_core(body: &Expr) -> (Expr, Mode) {
     if let Expr::Seq(items) = body {
         if matches!(items.first(), Some(Expr::Remainder)) || matches!(items.last(), Some(Expr::Remainder)) {
-            let mode = if matches!(items.first(), Some(Expr::Remainder)) && matches!(items.last(), Some(Expr::Remainder)) {
-                Mode::Part
-            } else if matches!(items.first(), Some(Expr::Remainder)) {
-                Mode::Suffix
-            } else {
-                Mode::Prefix
-            };
+            let mode =
+                if matches!(items.first(), Some(Expr::Remainder)) && matches!(items.last(), Some(Expr::Remainder)) {
+                    Mode::Part
+                } else if matches!(items.first(), Some(Expr::Remainder)) {
+                    Mode::Suffix
+                } else {
+                    Mode::Prefix
+                };
             let mut parts: Vec<_> = items.iter().filter(|part| !matches!(part, Expr::Remainder)).cloned().collect();
             return (if parts.len() == 1 { parts.pop().unwrap() } else { Expr::Seq(parts) }, mode);
         }

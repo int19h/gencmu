@@ -1378,7 +1378,10 @@ impl<'a> Reader<'a> {
                 } else {
                     ""
                 };
-                if matches!(name, "starts-input" | "ends-input" | "followed-by" | "preceded-by" | "matches" | "begins" | "ends") {
+                if matches!(
+                    name,
+                    "starts-input" | "ends-input" | "followed-by" | "preceded-by" | "matches" | "begins" | "ends"
+                ) {
                     return true;
                 }
             }
@@ -2242,7 +2245,9 @@ impl<'a> Reader<'a> {
             }
             "term-condition" => {
                 let Val::Term(term, ty) = value else { unreachable!("a set term is a term") };
-                if !self.feature_context.get() && !matches!(ty, Type::Tags | Type::Strings | Type::Set | Type::Any | Type::Forest) {
+                if !self.feature_context.get()
+                    && !matches!(ty, Type::Tags | Type::Strings | Type::Set | Type::Any | Type::Forest)
+                {
                     return Err(self.error(inner, "a condition requires a set, a forest, or a query method"));
                 }
                 Ok(Step::Done(Val::Cond(Cond::Truthy(term))))
@@ -3007,7 +3012,8 @@ const PRIMARIES: &[&str] = &[
     "empty",
     "constant-reference",
 ];
-const CONDITIONS: &[&str] = &["tree-comparison", "comparison", "method", "negation", "presence", "implication", "term-condition"];
+const CONDITIONS: &[&str] =
+    &["tree-comparison", "comparison", "method", "negation", "presence", "implication", "term-condition"];
 const TERMS: [&str; 2] = ["union", "guarded-term"];
 const ATOMS: &[&str] = &[
     "call",

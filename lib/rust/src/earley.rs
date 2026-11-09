@@ -2299,7 +2299,11 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     .map(|(pos, (h, c))| {
                         holds |= h;
                         clean |= c;
-                        if request.filtered { state.clean_tags.get(pos) } else { state.tags.get(pos) }
+                        if request.filtered {
+                            state.clean_tags.get(pos)
+                        } else {
+                            state.tags.get(pos)
+                        }
                     })
                     .collect();
                 let tags = &self.shared.tags;
@@ -2307,9 +2311,13 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 return (holds, self.shared.tags.set(list), clean);
             }
             let (holds, clean) = state.answers[&(request.base + request.end)];
-            let tags = if request.filtered { state.clean_tags.get(&(request.base + request.end)) } else { state.tags.get(&(request.base + request.end)) }
-                .copied()
-                .unwrap_or(0);
+            let tags = if request.filtered {
+                state.clean_tags.get(&(request.base + request.end))
+            } else {
+                state.tags.get(&(request.base + request.end))
+            }
+            .copied()
+            .unwrap_or(0);
             return (holds, tags, clean);
         }
         let rule = request.rule;
@@ -3858,7 +3866,12 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 begins: false,
                 suffix: None,
                 aligned: None,
-                contains: matches!(query, Query::Contains | Query::ForestTags(crate::query_forms::Mode::Part, _) | Query::ErrorFree(crate::query_forms::Mode::Part)),
+                contains: matches!(
+                    query,
+                    Query::Contains
+                        | Query::ForestTags(crate::query_forms::Mode::Part, _)
+                        | Query::ErrorFree(crate::query_forms::Mode::Part)
+                ),
                 filtered: matches!(query, Query::ForestTags(_, true)),
             };
             if self.shared.running.contains(&place) {
@@ -3874,9 +3887,13 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             let state = &self.shared.suffixes[id];
             if !request.contains {
                 if let Some(&holds) = state.answers.get(&(base + end)) {
-                    let tags = if request.filtered { state.clean_tags.get(&(base + end)) } else { state.tags.get(&(base + end)) }
-                        .copied()
-                        .unwrap_or(0);
+                    let tags = if request.filtered {
+                        state.clean_tags.get(&(base + end))
+                    } else {
+                        state.tags.get(&(base + end))
+                    }
+                    .copied()
+                    .unwrap_or(0);
                     return Ok(query.out((holds.0, tags, holds.1), &self.shared.tags));
                 }
             }
@@ -3910,7 +3927,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         };
         let begins = matches!(
             query,
-            Query::Begins | Query::ErrorFree(crate::query_forms::Mode::Prefix) | Query::ForestTags(crate::query_forms::Mode::Prefix, _)
+            Query::Begins
+                | Query::ErrorFree(crate::query_forms::Mode::Prefix)
+                | Query::ForestTags(crate::query_forms::Mode::Prefix, _)
         );
         let place = (rule, base + start, base + end);
         if self.shared.running.contains(&place) {
@@ -3940,18 +3959,18 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             Some(answer) => Ok(query.out(answer, &self.shared.tags)),
             None => {
                 let request = Request {
-                tokens,
-                base,
-                start,
-                end,
-                rule,
-                key,
-                begins,
-                suffix: None,
-                aligned,
-                contains: false,
-                filtered: matches!(query, Query::ForestTags(_, true)),
-            };
+                    tokens,
+                    base,
+                    start,
+                    end,
+                    rule,
+                    key,
+                    begins,
+                    suffix: None,
+                    aligned,
+                    contains: false,
+                    filtered: matches!(query, Query::ForestTags(_, true)),
+                };
                 if aligned.is_some() && self.shared.suffix_active == 0 {
                     if let Some(qualified) = self.shared.qualified.remove(&request.qualification_key()) {
                         let context = request.qualification_key();
@@ -4244,7 +4263,15 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                             }
                         }
                         LTerm::ForestTags(span, rule, mode, filtered) => {
-                            match self.query(eval, span, *rule, Query::ForestTags(*mode, *filtered), frame, tokens, base)? {
+                            match self.query(
+                                eval,
+                                span,
+                                *rule,
+                                Query::ForestTags(*mode, *filtered),
+                                frame,
+                                tokens,
+                                base,
+                            )? {
                                 Out::Value(value) => value,
                                 _ => unreachable!("a set of tags"),
                             }

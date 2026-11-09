@@ -637,7 +637,10 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
         }
         let next = depth + 1;
         if value.get("param").is_some() && !matches!(kind, Part::Pattern | Part::PatternNode | Part::Argument) {
-            if !matches!(kind, Part::Expr { .. } | Part::Term | Part::RecipeAtom | Part::String | Part::Target | Part::Condition) {
+            if !matches!(
+                kind,
+                Part::Expr { .. } | Part::Term | Part::RecipeAtom | Part::String | Part::Target | Part::Condition
+            ) {
                 return Some("a parameter in the wrong source category".into());
             }
             if let Some(problem) = source::parameter_problem(value) {
@@ -985,7 +988,9 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                 } else if exact(value, &["if", "then"], &[]) {
                     pending.push((Part::Condition, value.get("if").unwrap(), next));
                     pending.push((Part::Condition, value.get("then").unwrap(), next));
-                } else if ["union", "intersection", "difference", "tag", "emptySet"].iter().any(|key| exact(value, &[key], &[]))
+                } else if ["union", "intersection", "difference", "tag", "emptySet"]
+                    .iter()
+                    .any(|key| exact(value, &[key], &[]))
                     || exact(value, &["const", "at"], &[])
                 {
                     pending.push((Part::Term, value, next));
@@ -1010,12 +1015,10 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                     }
                     // The tags of a forest, as a set in a Boolean position.
                     if value.get("method").and_then(Json::as_str) == Some("tags")
-                        && value
-                            .get("receiver")
-                            .is_some_and(|receiver| {
-                                exact(receiver, &["method", "receiver", "args"], &[])
-                                    && matches!(receiver.get("method").and_then(Json::as_str), Some("parse" | "error-free"))
-                            })
+                        && value.get("receiver").is_some_and(|receiver| {
+                            exact(receiver, &["method", "receiver", "args"], &[])
+                                && matches!(receiver.get("method").and_then(Json::as_str), Some("parse" | "error-free"))
+                        })
                     {
                         pending.push((Part::Term, value, depth));
                         continue;
