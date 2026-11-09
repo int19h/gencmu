@@ -576,6 +576,8 @@ type condCheck struct {
 	others  []int
 	// constant marks each fixed condition that is always true.
 	constant []bool
+	// instance says the rule is an expanded template instance.
+	instance bool
 	// junctions holds each ∧ and ∨ split into its parts.
 	junctions map[int]*junction
 }
@@ -651,11 +653,11 @@ func newCondCheck(conds []*domCond, skip func(*domCond) bool) *condCheck {
 // production, by has.
 func (cc *condCheck) applies(i int, names []string, has func(string) bool) bool {
 	if cc.constant != nil && cc.constant[i] {
-		return false
+		return cc.instance
 	}
 	if j := cc.junctions[i]; j != nil {
 		kind, lacks := j.outcome(names, has)
-		return kind == oFalse || (kind == oUses && !lacks)
+		return kind == oFalse || (kind == oUses && !lacks) || (cc.instance && kind == oTrue)
 	}
 	for _, name := range cc.req[i] {
 		presenceStep()
@@ -690,7 +692,7 @@ func (cc *condCheck) see(names []string, has func(string) bool) {
 			kept = append(kept, i)
 			continue
 		}
-		if conditionApplies(cc.conds[i], has) {
+		if conditionApplies(cc.conds[i], has, cc.instance) {
 			mark(i)
 			continue
 		}
