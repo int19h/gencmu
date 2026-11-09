@@ -575,7 +575,7 @@ function constantProblems(markdown, path) {
     // the other rows. A pattern breaks between two items of a child
     // list, and its continuation stands two columns deeper than the
     // line where the pattern starts.
-    const isPattern = !hasOperator && /[«»([{<]|#/.test(joined.join(""));
+    const isPattern = !hasOperator && /^\s*#/.test(joined.join(""));
     let valueDepth = 0;
     valueLines.forEach((valueLine, index) => {
       const startDepth = valueDepth;
