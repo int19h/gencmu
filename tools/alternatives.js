@@ -380,10 +380,17 @@ export function clauseTermProblems(markdown, dom, path) {
       // Rule 3: bare tags first as one run, then expressions without a
       // guard, then guarded expressions. A term with a top-level `∖`
       // keeps its order, because `∖` and `∪` stand at the same level.
+      // Where each part stands on a line of its own, the expressions
+      // can stand in the order of their meaning. The bare tags still
+      // come first, as one run.
       if (!hasTopLevel(termText, "∖")) {
         const rank = { bare: 0, expr: 1, guarded: 2 };
-        const outOfOrder = kinds.filter((k) => k === "bare").length > 1
-          || kinds.some((k, i) => i > 0 && rank[k] < rank[kinds[i - 1]]);
+        const operandLines = operands.map((o) => at(base + c.at + 2 + o.at)[0]);
+        const ownLines = exprs.length >= 2 && new Set(operandLines).size === operandLines.length;
+        const bareOutOfPlace = kinds.filter((k) => k === "bare").length > 1
+          || kinds.some((k, i) => k === "bare" && i > 0);
+        const outOfOrder = bareOutOfPlace
+          || (!ownLines && kinds.some((k, i) => i > 0 && rank[k] < rank[kinds[i - 1]]));
         if (outOfOrder) problems.push(`${path}:${startLine}: a tag term of ${where} lists its parts out of order: bare tags first, then expressions without a guard, then guarded expressions`);
       }
       // Rule 4: each expression on a line of its own. Only the start
@@ -541,6 +548,10 @@ function bracketProblems(markdown, path) {
     let segmentStart = open.at + 1;
     let firstSegment = true;
     let segmentDepth = 0;
+    // A wrapped part of a tighter operator stands deeper than the
+    // line that starts it. `tightChain` holds while a run that starts
+    // in the bracket's column keeps ending with `∧` or `∩`.
+    let tightChain = false;
     for (let j = open.at + 1; j <= i; j++) {
       if (j < i && chars[j] !== "\n") continue;
       const segment = chars.slice(segmentStart, j).join("");
@@ -555,7 +566,11 @@ function bracketProblems(markdown, path) {
         const trimmed = segment.trim();
         if (j < i && segmentDepth === 0 && !"∧∨⟹∪∩∖⊆⊈=≠≅≇".includes(trimmed[trimmed.length - 1])) problems.push(`${path}:${line}: a line inside brackets of ${name} does not end with its operator`);
         if (!firstSegment && !trimmed.startsWith(")") && !trimmed.startsWith("]") && !trimmed.startsWith("}")) {
-          if (positions[segmentStart + first][1] !== open.col + 1) problems.push(`${path}:${line}: a line inside brackets of ${name} does not stand one column after the opening bracket`);
+          const col = positions[segmentStart + first][1];
+          const endOperator = trimmed[trimmed.length - 1];
+          if (col !== open.col + 1 && !(col > open.col + 1 && tightChain)) problems.push(`${path}:${line}: a line inside brackets of ${name} does not stand one column after the opening bracket`);
+          if (col === open.col + 1 && (endOperator === "∧" || endOperator === "∩")) tightChain = true;
+          else if (!(col > open.col + 1 && tightChain && (endOperator === "∧" || endOperator === "∩"))) tightChain = false;
         }
       }
       firstSegment = false;
@@ -603,6 +618,10 @@ export function layoutProblems(markdown, dom, path, limit = LINE_LIMIT) {
   const problems = clauseLayoutProblems(markdown, dom, path);
   for (const problem of clauseTermProblems(markdown, dom, path)) problems.push(problem);
   for (const problem of commentLayoutProblems(markdown, path)) problems.push(problem);
+  const { text, positions } = extractGrammarText(markdown, path, unicode);
+  const chars = [...text];
+  /** @type {Set<number>} */
+  const bodyLinesAll = new Set();
   for (const { rule, keyword, alternatives } of alternativeLayouts(markdown, dom, path)) {
     // How many alternatives occupy each line of the body.
     /** @type {Map<number, number>} */
@@ -610,9 +629,17 @@ export function layoutProblems(markdown, dom, path, limit = LINE_LIMIT) {
     for (const alternative of alternatives) for (const number of alternative.lines) occupants.set(number, (occupants.get(number) ?? 0) + 1);
     const bodyLines = [...occupants.keys()].sort((a, b) => a - b);
     for (const number of bodyLines) {
+      bodyLinesAll.add(number);
       if (/^\s*--/.test(lines[number - 1])) continue;
       const width = [...lines[number - 1]].length;
       if (width > limit) problems.push(`${path}:${number}: a line of ${keyword} ${rule.name} holds ${width} characters, more than ${limit}`);
+    }
+    // A sole alternative under a bare header stands without a leading
+    // bar. A header with a clause keeps its bar.
+    if (alternatives.length === 1 && rule.tags === undefined && rule.value === undefined && rule.image === undefined) {
+      let before = alternatives[0].from - 1;
+      while (before >= 0 && /\s/u.test(chars[before])) before--;
+      if (chars[before] === "|") problems.push(`${path}:${positions[before][0]}: a sole alternative of ${keyword} ${rule.name} follows a leading | under a bare header`);
     }
     // Each marked alternative stands on lines of its own.
     const markedShared = new Set();
@@ -621,6 +648,15 @@ export function layoutProblems(markdown, dom, path, limit = LINE_LIMIT) {
       for (const number of alternative.lines) if ((occupants.get(number) ?? 0) > 1) markedShared.add(number);
     }
     for (const number of [...markedShared].sort((a, b) => a - b)) problems.push(`${path}:${number}: a marked alternative of ${keyword} ${rule.name} shares its line with another alternative; put it on lines of its own`);
+  }
+  // The limit covers every line of a grammar block, not only rule
+  // bodies: headers, conditions, emission items and classifier
+  // entries count too. A line that holds only a comment does not.
+  for (const number of [...new Set(positions.map(([line]) => line))].sort((a, b) => a - b)) {
+    if (bodyLinesAll.has(number)) continue;
+    if (/^\s*--/.test(lines[number - 1] ?? "")) continue;
+    const width = [...(lines[number - 1] ?? "")].length;
+    if (width > limit) problems.push(`${path}:${number}: a line of a grammar block holds ${width} characters, more than ${limit}`);
   }
   return problems;
 }
