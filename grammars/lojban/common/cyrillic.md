@@ -78,21 +78,16 @@ The `Vowel` tag marks the five full vowels and not `y`. So each vowel rule below
   $
 
 %rule cyrillic-stressed-full-vowel :: Vowel
-  | "А" := "a" :- "A"
-  | ("а" | "А") stress-mark := "a" :- "A"
-  | ("Е" | "Э" | "Є") := "e" :- "E"
-  | ("е" | "э" | "є" | "Е" | "Э" | "Є") stress-mark := "e" :- "E"
-  | ("И" | "І") := "i" :- "I"
-  | ("и" | "і" | "И" | "І") stress-mark := "i" :- "I"
-  | "О" := "o" :- "O"
-  | ("о" | "О") stress-mark := "o" :- "O"
-  | "У" := "u" :- "U"
-  | ("у" | "У") stress-mark := "u" :- "U"
+  | ("А" | ("а" | "А") stress-mark) := "a" :- "A"
+  | (("Е" | "Э" | "Є") | ("е" | "э" | "є" | "Е" | "Э" | "Є") stress-mark) := "e" :- "E"
+  | (("И" | "І") | ("и" | "і" | "И" | "І") stress-mark) := "i" :- "I"
+  | ("О" | ("о" | "О") stress-mark) := "o" :- "O"
+  | ("У" | ("у" | "У") stress-mark) := "u" :- "U"
 
 %rule cyrillic-stressed-vowel :: Stressed ∪ Syllabic
   | cyrillic-stressed-full-vowel
-  | ("Ъ" | "Ы" | "Ә") := "y" :- "Y"
-  | ("ъ" | "ы" | "ә" | "Ъ" | "Ы" | "Ә") stress-mark := "y" :- "Y"
+  | (("Ъ" | "Ы" | "Ә")
+      | ("ъ" | "ы" | "ә" | "Ъ" | "Ы" | "Ә") stress-mark) := "y" :- "Y"
 %emits
   $
 
