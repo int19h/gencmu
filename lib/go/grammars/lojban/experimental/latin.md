@@ -417,7 +417,7 @@ An ogonek and a caron together on `a` give no reading, so the run is foreign. On
   | "O" $m:letter-marks<Ogonek ¬Accent> :: Stressed Capital := "o" :- "O"
   | "O" $m:letter-marks<Ogonek ¬Accent> :: Folded Capital := "o"
 %emits
-  $ :: ($.tags ∩ Stressed) ∪ Vowel, ε :: Vowel := "i"
+  $ :: Vowel ∪ ($.tags ∩ Stressed), ε :: Vowel := "i"
 
 %rule latin-diphthong-u :: ($m ⟹ $m.tags ∩ Dieresis) := "a"
   | "a" $m:letter-marks<Caron ¬Accent ¬Ogonek>
@@ -431,7 +431,7 @@ An ogonek and a caron together on `a` give no reading, so the run is foreign. On
   | "Ꜷ" [$m:letter-marks<¬Accent>] :: Stressed Capital :- "A"
   | "Ꜷ" [$m:letter-marks<¬Accent>] :: Folded Capital
 %emits
-  $ :: ($.tags ∩ Stressed) ∪ Vowel, ε :: Vowel := "u"
+  $ :: Vowel ∪ ($.tags ∩ Stressed), ε :: Vowel := "u"
 
 %extend-rule vowel
   latin-diphthong-i<¬Folded ¬Dieresis>

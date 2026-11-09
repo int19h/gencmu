@@ -172,7 +172,9 @@ The words stage needs to know where a run begins and ends. A name that `bu` take
 %conditions
   ¬$w.onward.begins(split-first-y)
 %emits
-  $ :: Run-Initial ∪ $w.tags ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
+  $ :: Run-Initial ∪
+       $w.tags ∪
+       (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
 %rule later-word
   ordinary-later-word | split-later-y
@@ -182,7 +184,8 @@ The words stage needs to know where a run begins and ends. A name that `bu` take
 %conditions
   ¬$w.onward.begins(split-later-y)
 %emits
-  $ :: $w.tags ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
+  $ :: $w.tags ∪
+       (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
 %rule split-first-y
   $p:y-prefix $y:y-atom :: $.tags(source-word)
@@ -190,8 +193,10 @@ The words stage needs to know where a run begins and ends. A name that `bu` take
   $.matches(hesitation-shape),
   $.following-tokens.begins(bu-form-ahead)
 %emits
-  $p :: $.tags(source-word) ∪ Run-Initial,
-  $y :: Spacing ∪ $.tags(source-word) ∪ (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
+  $p :: Run-Initial ∪ $.tags(source-word),
+  $y :: Spacing ∪
+        $.tags(source-word) ∪
+        (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
 %rule split-later-y
   $p:y-prefix $y:y-atom :: $.tags(source-word)
@@ -200,7 +205,9 @@ The words stage needs to know where a run begins and ends. A name that `bu` take
   $.following-tokens.begins(bu-form-ahead)
 %emits
   $p :: $.tags(source-word),
-  $y :: Spacing ∪ $.tags(source-word) ∪ (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
+  $y :: Spacing ∪
+        $.tags(source-word) ∪
+        (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
 %rule y-prefix
   y-atom | y-prefix y-atom

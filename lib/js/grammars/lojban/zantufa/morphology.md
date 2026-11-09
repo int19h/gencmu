@@ -138,13 +138,17 @@ The redefined `run-words` keeps the join conditions of [../common/forms.md](../c
 %rule space-hesitation
   $w:source-word<Hesitation>
 %emits
-  $ :: Spacing ∪ $w.tags ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
+  $ :: Spacing ∪
+       $w.tags ∪
+       (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
 -- A hesitation after a text opener counts as space where that opener opens a text. The tag carries through following hesitation.
 %rule opener-space
   $w:source-word<Hesitation>
 %emits
-  $ :: Opener-Space ∪ $w.tags ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
+  $ :: Opener-Space ∪
+       $w.tags ∪
+       (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
 %rule space-piece
   ordinary-space-piece | split-later-y
@@ -155,7 +159,9 @@ The redefined `run-words` keeps the join conditions of [../common/forms.md](../c
 %conditions
   ¬$w.onward.begins(split-later-y)
 %emits
-  $ :: Spacing ∪ $w.tags ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
+  $ :: Spacing ∪
+       $w.tags ∪
+       (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
 -- A run of hesitation preserves a pending quote opener for the next run.
 %rule only-hesitation
@@ -206,7 +212,8 @@ The stage gives `Opener-Space` to a hesitation directly after a text opener, and
 %conditions
   ¬$w.onward.begins(split-later-y)
 %emits
-  $ :: $w.tags ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
+  $ :: $w.tags ∪
+       (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 ```
 
 <details><summary>Railroad diagrams of <code>joined-hesitation</code> and <code>ordinary-joined-hesitation</code></summary>

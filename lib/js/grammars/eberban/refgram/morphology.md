@@ -1694,8 +1694,9 @@ Root and freeform triplet wrappers share the failed pair and shape restrictions.
 %conditions
   $x.value ++ $y.value ∈ $MEDIAL-PAIRS ∪ $INITIAL-PAIRS,
   $y.value ≠ "m",
-  ¬($x.value ++ $y.value ∈ $MEDIAL-PAIRS ∧ $y.value ++ $z.value ∈ $INITIAL-PAIRS
-    ∨ $y.value ∉ $NOT-BEFORE-LIQUID ∧ $z.value ∈ $LIQUIDS)
+  ¬($x.value ++ $y.value ∈ $MEDIAL-PAIRS ∧
+    $y.value ++ $z.value ∈ $INITIAL-PAIRS ∨
+    $y.value ∉ $NOT-BEFORE-LIQUID ∧ $z.value ∈ $LIQUIDS)
 
 %rule triplet-yz-sonorant-x
   | sonorant [Hyphen] $y:consonant [Hyphen] $z:consonant :: ∅
