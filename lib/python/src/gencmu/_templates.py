@@ -186,10 +186,24 @@ def _print_body(n, unicode, parent=''):
 
 
 
+def mentions_parameter(node) -> bool:
+    """Whether a clause as written mentions a parameter (engine §3.6)."""
+    pending = [node]
+    while pending:
+        current = pending.pop()
+        if isinstance(current, dict):
+            if isinstance(current.get('param'), str):
+                return True
+            pending.extend(v for k, v in current.items() if k != 'at')
+        elif isinstance(current, list):
+            pending.extend(current)
+    return False
+
+
 def expand_templates(documents, unicode):
     from ._validate import dom_problem
     if not any(has_unresolved(dom) for _, dom in documents):
-        return documents, None, [], [], [], list(range(len(documents))), None
+        return documents, None, [], [], [], list(range(len(documents))), None, []
     patterns = pattern_constant_names(c for _, dom in documents for c in dom["constants"])
     normalize = lambda value: normalize_argument(value, patterns)
     erasure_checks = []
@@ -522,11 +536,12 @@ def expand_templates(documents, unicode):
                 body.pop(key, None)
             body['name'] = effective(instance)
             context = {**event, 'origin': instance['origin'], 'instance': instance['canonical']}
+            held = [mentions_parameter(c) for c in body.get('conditions', [])]
             expanded = substitute(body, env, context)
-            problem = dom_problem(empty_dom(documents[0][1]['format'], [expanded]), unicode, True, True)
+            problem = dom_problem(empty_dom(documents[0][1]['format'], [expanded]), unicode, True, True, held)
             if problem:
                 fail(context, expanded, f"rule {expanded['name']}: {problem}")
-            instance['definitions'].append({**context, 'rule': expanded})
+            instance['definitions'].append({**context, 'rule': expanded, 'held_parameter': held})
         for event in retained(instance['definitions']):
             discover(event['rule'], event)
 
@@ -556,11 +571,12 @@ def expand_templates(documents, unicode):
             body = {**event['rule'], 'name': name}
             del body['params']
             context = {**event, 'origin': origin, 'instance': name}
+            held = [mentions_parameter(c) for c in body.get('conditions', [])]
             expanded = substitute(body, env, context)
-            problem = dom_problem(empty_dom(documents[0][1]['format'], [expanded]), unicode, True, True)
+            problem = dom_problem(empty_dom(documents[0][1]['format'], [expanded]), unicode, True, True, held)
             if problem:
                 fail(context, expanded, f"rule {expanded['name']}: {problem}")
-            definition = {**context, 'rule': expanded}
+            definition = {**context, 'rule': expanded, 'held_parameter': held}
             validation_definitions.append(definition)
             discover(expanded, definition, validate_call)
 
@@ -682,7 +698,7 @@ def expand_templates(documents, unicode):
     for event in [*validation, *(argument for argument in arguments_to_check if 'rule' in argument)]:
         if 'params' in event['rule']:
             continue
-        problem = dom_problem(empty_dom(documents[0][1]['format'], [event['rule']]), unicode, True, True)
+        problem = dom_problem(empty_dom(documents[0][1]['format'], [event['rule']]), unicode, True, True, event.get('held_parameter'))
         if problem:
             fail(event, event['rule'], problem)
     output = [rewritten_definitions[id(e)] for items in ordinary.values() for e in items]
@@ -692,7 +708,8 @@ def expand_templates(documents, unicode):
     order = [n for n in slots if n in current or n in ordinary] + [effective(i) for i in queue if not i['name']]
     instance_names = {effective(i) for i in queue}
     document_runs = [*range(len(documents)), *(e["inspection_run"] for e in output)]
-    return expanded_docs, order, [name for name in order if name in instance_names], validation, arguments_to_check, document_runs, erasure_checks
+    parameter_rules = [(e["inspection_run"], e["path"], tuple(e["rule"]["at"]), e["held_parameter"]) for e in output if "held_parameter" in e]
+    return expanded_docs, order, [name for name in order if name in instance_names], validation, arguments_to_check, document_runs, erasure_checks, parameter_rules
 
 
 def effective(instance):

@@ -891,6 +891,12 @@ func (g *stageGrammar) resolveFeature(index, run int) *Error {
 			return g.constError(item.doc, directive.At, "$%s is not defined in stage %s", ref.Str, g.name)
 		}
 	}
+	// A bare empty set in a Boolean position is an error (§10).
+	for _, condition := range directive.Conditions {
+		if hasBareEmptySet(condition) {
+			return g.constError(item.doc, directive.At, "a condition of %%features is the empty set")
+		}
+	}
 	if problem := inputConditionsProblem(directive.Conditions); problem != "" {
 		return g.constError(item.doc, directive.At, "%s", problem)
 	}

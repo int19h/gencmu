@@ -82,6 +82,18 @@ export declare const DOM_FALSE: Readonly<{
  * @returns {any}
  */
 export declare function simplify(node: any, has: (name: string) => boolean | undefined): any;
+/**
+ * Whether a term is the empty set, written or left by a guard.
+ * @param {any} node
+ * @returns {boolean}
+ */
+/**
+ * Whether a bare empty set stands as the term of a wrapper anywhere in a
+ * condition, in a Boolean position or in the guard of a term inside one.
+ * @param {any} condition
+ * @returns {boolean}
+ */
+export declare function hasBareEmptySet(condition: any): boolean;
 export type PreparedClause = {
     /**
      * how the parts join, or
@@ -306,9 +318,11 @@ export declare function validationCaptures(rule: any, alternative: any): Map<str
  * without its value.
  * @param {any} rule
  * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
+ * @param {boolean[]} [heldParameter] per condition, whether it held a
+ *   parameter as written (engine §3.6)
  * @returns {string | null}
  */
-export declare function definitionProblem(rule: any, deferEmission?: boolean): string | null;
+export declare function definitionProblem(rule: any, deferEmission?: boolean, heldParameter?: boolean[]): string | null;
 /**
  * An emission item's attachment captures, before and after it, in order.
  * @param {any} item

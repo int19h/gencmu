@@ -6316,6 +6316,7 @@
 
 
 
+
   /** @import { Argument, GrammarDom, Term } from "./types.js" */
   /** @import { Step } from "./trampoline.js" */
 
@@ -6439,8 +6440,8 @@
    * @param {boolean} [deferEmission]
    * @returns {string|null}
    */
-  function expandedDomProblem(dom, unicode, deferEmission = true) {
-    return inspectDom(dom, unicode, deferEmission, true);
+  function expandedDomProblem(dom, unicode, deferEmission = true, heldParameter = undefined) {
+    return inspectDom(dom, unicode, deferEmission, true, heldParameter);
   }
 
   /**
@@ -6448,9 +6449,11 @@
    * @param {Parameters<typeof domProblem>[1]} unicode
    * @param {boolean} deferEmission
    * @param {boolean} expanded
+   * @param {boolean[]} [heldParameter] per condition of the one rule, whether
+   *   it held a parameter as written (engine §3.6)
    * @returns {string|null}
    */
-  function inspectDom(dom, unicode, deferEmission, expanded) {
+  function inspectDom(dom, unicode, deferEmission, expanded, heldParameter = undefined) {
     /** @type {(value: unknown) => value is Record<string, any>} */
     const object = isDomObject;
     if (!object(dom) || !Object.keys(dom).every(key => ["format", "rules", "directives", "constants", "classifiers", "implications"].includes(key)) || dom.format !== DOM_FORMAT || !["rules", "directives", "constants", "classifiers", "implications"].every(key => Array.isArray(dom[key]))) return `not a DOM of format ${DOM_FORMAT}`;
@@ -6785,7 +6788,7 @@
         }
         if (rule.instance) continue;
         if (rule.alternatives.some((/** @type {any} */ alternative) => duplicateCaptures(alternative.expr).length || repeatsItemCapture(alternative.expr))) return "a duplicate capture";
-        const problem = boundaryProblem(rule)?.problem || definitionProblem(rule, deferEmission) || ruleTypeProblem(rule); if (problem) return problem;
+        const problem = boundaryProblem(rule)?.problem || definitionProblem(rule, deferEmission, dom.rules.length === 1 ? heldParameter : undefined) || ruleTypeProblem(rule); if (problem) return problem;
       } else if (kind === "constant") {
         if (openPart(value.value)) return "a constant is not closed";
         if (hasEngineLiteral(value.value)) return "a constant contains an engine-tag literal";
@@ -7017,8 +7020,9 @@
 
   /**
    * The value of a closed set term, or null where the term is not closed or
-   * its value is not fixed. A closed term holds no capture, no parameter,
-   * no call and no method (engine §3.6).
+   * its value is not fixed. A closed term is the term of §10, read as the
+   * template writes it: it holds no capture, no span, no query, no
+   * classifier and no guarded term.
    * @param {any} node
    * @returns {Set<string> | null}
    */
@@ -7044,6 +7048,43 @@
       const right = closedSetValue(node.difference[1]);
       if (left === null || right === null) return null;
       return new Set([...left].filter((item) => !right.has(item)));
+    }
+    // `.split` and `.ngrams` on a closed string are closed (§10). Every
+    // other method, `.classify` among them, keeps the term open.
+    if ((node.method === "split" || node.method === "ngrams") && isDomObject(node.receiver) && Array.isArray(node.args)) {
+      const receiver = closedStringValue(node.receiver);
+      if (receiver === null) return null;
+      if (node.method === "ngrams") {
+        const arg = node.args[0];
+        if (!isDomObject(arg) || typeof arg.integer !== "string" || !/^[1-9][0-9]*$/.test(arg.integer)) return null;
+        return ngrams(receiver, arg.integer);
+      }
+      const delimiter = node.args.length === 1 ? closedStringValue(node.args[0]) : null;
+      if (delimiter === null || delimiter === "") return null;
+      return splitString(receiver, delimiter);
+    }
+    return null;
+  }
+
+  /**
+   * The value of a closed string term, or null where the term is not a
+   * closed string (§10): a string, a string constant, or a concatenation
+   * of closed strings.
+   * @param {any} node
+   * @returns {string | null}
+   */
+  function closedStringValue(node) {
+    if (!isDomObject(node)) return null;
+    if (typeof node.string === "string" && Object.keys(node).length === 1) return node.string;
+    if (typeof node.const === "string" && isDomObject(node.value) && typeof node.value.string === "string") return node.value.string;
+    if (Array.isArray(node.concat)) {
+      let result = "";
+      for (const part of node.concat) {
+        const value = closedStringValue(part);
+        if (value === null) return null;
+        result += value;
+      }
+      return result;
     }
     return null;
   }
@@ -8186,14 +8227,16 @@
    * without its value.
    * @param {any} rule
    * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
+   * @param {boolean[]} [heldParameter] per condition, whether it held a
+   *   parameter as written (engine §3.6)
    * @returns {string | null}
    */
-  function definitionProblem(rule, deferEmission = false) {
+  function definitionProblem(rule, deferEmission = false, heldParameter = undefined) {
     if (rule.error && rule.warning || rule.params && (rule.error || rule.warning)) return "a definition accepts one diagnostic, and a template accepts none";
     if (rule.suppressWarnings !== undefined && (!Array.isArray(rule.suppressWarnings) || !rule.suppressWarnings.length || !(rule.suppressWarnings.length === 1 && rule.suppressWarnings[0] === "_") && !rule.suppressWarnings.every((/** @type {any} */ code) => typeof code === "string" && FEATURE_NAME.test(code)))) return "a malformed warning suppression";
     deferredDefinitionProblems.delete(rule);
     const defer = deferEmission && ruleHasRanked(rule);
-    for (const issue of definitionIssues(rule)) {
+    for (const issue of definitionIssues(rule, heldParameter)) {
       if (defer && (issue.kind === "recipe-capture" || issue.kind === "empty-emission")) {
         const previous = deferredDefinitionProblems.get(rule);
         if (!previous || previous.kind === "empty-emission" && issue.kind === "recipe-capture") deferredDefinitionProblems.set(rule, issue);
@@ -8202,8 +8245,8 @@
     return null;
   }
 
-  /** @param {any} rule @returns {Generator<{kind:"independent"|"recipe-capture"|"empty-emission",problem:string}, void, unknown>} */
-  function* definitionIssues(rule) {
+  /** @param {any} rule @param {boolean[]} [heldParameter] @returns {Generator<{kind:"independent"|"recipe-capture"|"empty-emission",problem:string}, void, unknown>} */
+  function* definitionIssues(rule, heldParameter = undefined) {
     // A constant is its value in simplification (engine §3.6). A clause that
     // holds a constant without one waits for the loader, which checks the
     // definition again once the constants have their values (engine §9).
@@ -8263,25 +8306,28 @@
       const problem = itemCaptureProblem(rule, waits);
       if (problem) yield {kind:"independent", problem};
     }
-    for (const condition of rule.conditions) {
-      // A bare empty set in a Boolean position has no kind, so it is an
-      // error wherever it stands in a condition (engine §10).
+    // A bare empty set in a Boolean position has no kind, so it is an
+    // error wherever it stands: in a condition, or in the guard of a
+    // guarded term in a tag clause (engine §10).
+    for (const clause of clauses) {
+      if (clause !== undefined && hasBareEmptySet(clause)) yield {kind:"independent", problem:`a condition of ${rule.name} is the empty set`};
+    }
+    for (const [conditionIndex, condition] of rule.conditions.entries()) {
       if (hasBareEmptySet(condition)) { yield {kind:"independent", problem:`a condition of ${rule.name} is the empty set`}; continue; }
       if (waits(condition)) continue;
       // An item condition applies to the productions of its braces' helper
       // (engine §3.6), which itemCaptureProblem checks.
       if (itemNames.size > 0 && capturesMentioned(condition).some((name) => itemNames.has(name))) continue;
       const prepared = prepareClause(condition);
-      // An expanded instance has a canonical name. Its conditions held a
-      // parameter as written, and a parameter is not closed (engine §3.6),
-      // so one that simplifies to true in the instance still applies.
-      const instance = rule.name.includes("(") && rule.name.endsWith(")");
+      // A condition that held a parameter as written is never closed
+      // (engine §3.6), so in an instance it still applies where it
+      // simplifies to true.
       const applies = (/** @type {number} */ index) => {
         if (hooks.work) countWork(hooks.work, "clauses");
         const captures = alternatives[index];
         const has = (/** @type {string} */ name) => captures.has(name);
         const simple = simplifyFor(prepared, has, captures);
-        return (simple !== DOM_TRUE || instance) && capturesUsed(simple).every(has);
+        return (simple !== DOM_TRUE || heldParameter?.[conditionIndex] === true) && capturesUsed(simple).every(has);
       };
       // A condition made only of guarded parts is true for a production
       // that has none of their captures, so only those that have one can
@@ -9722,6 +9768,23 @@
     return canonicalArgument(n,unicode);
   }
 
+  /**
+   * Whether a clause as written mentions a parameter (engine §3.6).
+   * @param {any} node
+   * @returns {boolean}
+   */
+  function mentionsParameter(node) {
+    const pending = [node];
+    while (pending.length) {
+      const current = pending.pop();
+      if (!current || typeof current !== "object") continue;
+      if (Array.isArray(current)) { for (let index = current.length - 1; index >= 0; index--) pending.push(current[index]); continue; }
+      if (typeof current.param === "string") return true;
+      for (const key of Object.keys(current)) if (key !== "at") pending.push(current[key]);
+    }
+    return false;
+  }
+
   /** @param {any[]} documents @param {any} unicode @returns {any} */
   function expandTemplates(documents,unicode) {
     if(!documents.some((/** @type {any} */ d)=>hasUnresolved(d.dom))) return {documents,order:null,templates:[],instances:[]};
@@ -10019,10 +10082,11 @@
         const env=new Map((event.rule.params??[]).map((/** @type {string} */ name,/** @type {number} */ i)=>[name,instance.call.args[i]]));
         const body={...event.rule};delete body.params;delete body.args;delete body.instance;
         body.name=instance.name??instance.canonical;
+        const heldParameter=(body.conditions??[]).map((/** @type {any} */ condition)=>mentionsParameter(condition));
         const expanded=substitute(body,env,{...event,origin:instance.origin,instance:instance.canonical});
-        const problem=expandedDomProblem({format:documents[0].dom.format,rules:[expanded],directives:[],constants:[],classifiers:[],implications:[]},unicode,true);
+        const problem=expandedDomProblem({format:documents[0].dom.format,rules:[expanded],directives:[],constants:[],classifiers:[],implications:[]},unicode,true,heldParameter);
         if(problem) fail({...event,origin:instance.origin,instance:instance.canonical},expanded,`rule ${expanded.name}: ${problem}`);
-        instance.definitions.push({...event,origin:instance.origin,instance:instance.canonical,rule:expanded});
+        instance.definitions.push({...event,origin:instance.origin,instance:instance.canonical,rule:expanded,heldParameter});
       }
       for(const event of retained(instance.definitions)) discover(event.rule,event);
     }
@@ -10048,10 +10112,11 @@
         const env=new Map(event.rule.params.map((/** @type {string} */ parameter,/** @type {number} */ i)=>[parameter,call.args[i]]));
         const body={...event.rule,name};delete body.params;
         const context={...event,origin,instance:name};
+        const heldParameter=(body.conditions??[]).map((/** @type {any} */ condition)=>mentionsParameter(condition));
         const expanded=substitute(body,env,context);
-        const problem=expandedDomProblem({format:documents[0].dom.format,rules:[expanded],directives:[],constants:[],classifiers:[],implications:[]},unicode,true);
+        const problem=expandedDomProblem({format:documents[0].dom.format,rules:[expanded],directives:[],constants:[],classifiers:[],implications:[]},unicode,true,heldParameter);
         if(problem) fail(context,expanded,`rule ${expanded.name}: ${problem}`);
-        const definition={...context,rule:expanded};
+        const definition={...context,rule:expanded,heldParameter};
         validationDefinitions.push(definition);
         discover(expanded,definition,validateCall);
       }
@@ -10143,7 +10208,7 @@
     for(const event of validationDefinitions) inspectArguments(event);
     for(const event of [...validation,...argumentsToCheck.filter(argument=>argument.rule)]) {
       if(event.rule.params) continue;
-      const problem=expandedDomProblem({format:documents[0].dom.format,rules:[event.rule],directives:[],constants:[],classifiers:[],implications:[]},unicode,true);
+      const problem=expandedDomProblem({format:documents[0].dom.format,rules:[event.rule],directives:[],constants:[],classifiers:[],implications:[]},unicode,true,event.heldParameter);
       if(problem) fail(event,event.rule,problem);
     }
     const output=[];
@@ -10151,7 +10216,8 @@
     for(const instance of queue) for(const event of instance.definitions) output.push(rewrittenDefinitions.get(event));
     const expandedDocs=documents.map((/** @type {any} */ d,inspectionRun)=>({...d,inspectionRun,dom:{...d.dom,rules:[],...Object.fromEntries(['constants','directives','classifiers','implications'].map(key=>[key,d.dom[key].map((/** @type {any} */ item)=>rewrite(item,{path:d.path,rule:item}))]))}}));
     for(const event of output) expandedDocs.push({path:event.path,inspectionRun:event.inspectionRun,dom:{format:documents[0].dom.format,rules:[event.rule],directives:[],constants:[],classifiers:[],implications:[]}});
-    return {documents:expandedDocs,validation,argumentsToCheck,erasureChecks,order:[...slots.filter((/** @type {any} */ n)=>current.has(n)||ordinary.has(n)),...queue.filter((/** @type {any} */ x)=>!x.name).map(effective)],templates:[...templates.values()],instances:queue};
+    const parameterRules=output.filter((/** @type {any} */ event)=>event.heldParameter).map((/** @type {any} */ event)=>({path:event.path,inspectionRun:event.inspectionRun,at:event.rule.at,name:event.rule.name,heldParameter:event.heldParameter}));
+    return {documents:expandedDocs,validation,argumentsToCheck,erasureChecks,parameterRules,order:[...slots.filter((/** @type {any} */ n)=>current.has(n)||ordinary.has(n)),...queue.filter((/** @type {any} */ x)=>!x.name).map(effective)],templates:[...templates.values()],instances:queue};
   }
 
   /** @param {any} grammar @returns {{templates:any[],instances:any[]}} */
@@ -10736,9 +10802,12 @@
         this.erasureChecks=expansion.erasureChecks;
         this.templates=expansion.templates;
         this.instances=expansion.instances;
+        // Which conditions of each template rule held a parameter as
+        // written, keyed as the arguments are (engine §3.6).
+        this.parameterFlags = new Map((expansion.parameterRules ?? []).map((/** @type {any} */ entry) => [argumentSite(entry.inspectionRun,entry.path,entry.at), entry.heldParameter]));
         for (const [index, {path, dom, inspectionRun = index}] of expansion.documents.entries()) {
           if (expansion.order) for (const rule of dom.rules) {
-            const problem = definitionProblem(rule,true);
+            const problem = definitionProblem(rule,true,this.parameterFlags.get(argumentSite(inspectionRun,path,rule.at)));
             if (problem) throw this.documentError(path,rule.at,problem);
           }
           this.addDocument(path, dom, inspectionRun);
@@ -11325,7 +11394,7 @@
       for(const term of [checked.tags,...(checked.alternatives??[]).map((/** @type {any} */ a)=>a.tags)]) {
         if(term && readsOwnTags(term)) throw this.documentError(path,rule.at,"a constituent reads its own tags");
       }
-      const problem = definitionProblem(checked, true);
+      const problem = definitionProblem(checked, true, this.parameterFlags?.get(key));
       if (!rule.params && (deferredEmissionProblem(checked) || deferredRecipeProblem(checked))) this.emissionUsers.push({path, rule:checked, run:inspectionRun});
       if (problem) throw this.documentError(path, rule.at, problem);
       return checked;
@@ -11383,6 +11452,10 @@
     resolveFeature(path, directive, inspectionRun) {
       try {
         if (!directive.conditions) return {path,directive};
+        // A bare empty set in a Boolean position is an error (§10).
+        for (const condition of directive.conditions) {
+          if (hasBareEmptySet(condition)) throw this.documentError(path,directive.at,"a condition of %features is the empty set");
+        }
         const uses=argumentUses.get(this)?.get(argumentSite(inspectionRun,path,directive.at))??[];
         const references=constantsIn(directive.conditions);
         for (const use of uses) for (const reference of constantsIn(use.rule??use.term)) references.push(reference);

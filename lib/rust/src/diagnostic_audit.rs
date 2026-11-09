@@ -323,6 +323,7 @@ pub(crate) fn notes(g: &StageGrammar) -> Vec<DiagnosticNote> {
                 alternatives: vec![alt.alternative.clone()],
                 emit: alt.clauses.emit.clone(),
                 conditions: alt.clauses.conditions.clone(),
+                held_parameter: Vec::new(),
                 erased: alt.erased,
                 at: alt.at,
                 error: alt.clauses.error.clone(),

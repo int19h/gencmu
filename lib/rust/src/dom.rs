@@ -165,6 +165,9 @@ pub(crate) struct RuleDef {
     pub alternatives: Vec<Alternative>,
     pub emit: Option<Vec<EmitItem>>,
     pub conditions: Vec<Cond>,
+    /// Per condition, whether it held a parameter as written, for a rule
+    /// that template expansion wrote (engine §3.6).
+    pub held_parameter: Vec<bool>,
     /// `%erased` contributes no strings or emission parts (engine §11).
     pub erased: bool,
     pub error: Option<Term>,
@@ -433,7 +436,7 @@ pub(crate) fn decode_checked(value: &Json, _unicode: &Unicode) -> R<Dom> {
     Ok(dom)
 }
 
-fn decode_nodes(value: &Json) -> R<Dom> {
+pub(crate) fn decode_nodes(value: &Json) -> R<Dom> {
     let rules = array(value, "rules")?.iter().map(rule_from_json).collect::<R<Vec<_>>>()?;
     let directives = array(value, "directives")?
         .iter()
@@ -654,6 +657,7 @@ pub(crate) fn rule_from_json(value: &Json) -> R<RuleDef> {
             .collect::<R<Vec<_>>>()?,
         emit: value.get("emit").map(emit_from_json).transpose()?,
         conditions: array(value, "conditions")?.iter().map(cond_from_json).collect::<R<Vec<_>>>()?,
+        held_parameter: Vec::new(),
         error: value.get("error").map(term_from_json).transpose()?,
         warning: value.get("warning").map(term_from_json).transpose()?,
         suppress_warnings: value

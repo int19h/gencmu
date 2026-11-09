@@ -597,7 +597,7 @@ class _Constants:
         for term in [resolved.get("tags"), *(alt.get("tags") for alt in resolved.get("alternatives", []))]:
             if term is not None and term_reads_own_tags(term):
                 raise _error("a constituent reads its own tags", path, rule["at"], self.stage)
-        result = check_definition(resolved, True)
+        result = check_definition(resolved, True, getattr(self, "held_flags", {}).get((inspection_run, path, tuple(rule['at']))))
         if result.problem is not None:
             raise _error(result.problem.message, path, rule['at'], self.stage)
         if result.deferred is not None:
@@ -837,10 +837,12 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
     controls canonical terminal spellings in diagnostics."""
     from ._templates import expand_templates
     from ._ranked import expression_locations
-    documents, template_order, _, validation, arguments_to_check, document_runs, erasure_checks = expand_templates(documents, unicode)
+    documents, template_order, _, validation, arguments_to_check, document_runs, erasure_checks, parameter_rules = expand_templates(documents, unicode)
+    held_flags = {(entry[0], entry[1], tuple(entry[2])): entry[3] for entry in parameter_rules}
     rules: dict[str, Rule] = {}
     written_alternatives: list[Alternative] = []
     constants = _Constants(stage, unicode)
+    constants.held_flags = held_flags
     for argument in arguments_to_check:
         constants.arguments.setdefault((argument['inspection_run'], argument['path'], tuple(argument['at'])), []).append(argument)
     changes: list[Change] = []
@@ -859,7 +861,7 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                 elif rule_has_ranked(rule):
                     # Readers and DOM admission cover ordinary definitions.
                     # Ranked definitions can retain deferred problems.
-                    result = check_definition(rule, True)
+                    result = check_definition(rule, True, held_flags.get((inspection_run, path, tuple(rule["at"]))))
                     if result.problem is not None:
                         raise _error(result.problem.message, path, rule["at"], stage)
                     if result.deferred is not None:
@@ -1020,6 +1022,10 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                 for reference in references:
                     if reference["const"] not in constants.values:
                         raise _error(f"${reference['const']} is not defined in stage {stage}", path, directive["at"], stage)
+                # A bare empty set in a Boolean position is an error (§10).
+                from ._clauses import has_bare_empty_set
+                if any(has_bare_empty_set(condition) for condition in directive["conditions"]):
+                    raise _error("a condition of %features is the empty set", path, directive["at"], stage)
                 problem = input_conditions_problem(directive["conditions"])
                 if problem:
                     raise _error(problem, path, directive["at"], stage)

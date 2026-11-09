@@ -1,0 +1,9 @@
+{
+  "description": "Engine §10: a bare empty set in a feature condition is a document error.",
+  "grammar": "%features f\n%conditions ∅\n%rule text \"a\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "message": "a condition of %features is the empty set"
+  }
+}

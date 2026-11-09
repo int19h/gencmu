@@ -1838,6 +1838,10 @@ impl Constants<'_> {
                     ));
                 }
             }
+            // A bare empty set in a Boolean position is an error (§10).
+            if conditions.iter().any(crate::clauses::has_bare_empty_set) {
+                return Err(located("a condition of %features is the empty set".to_string(), document, directive.at));
+            }
             crate::features::problem(conditions).map_err(|message| located(message, document, directive.at))?;
             for condition in conditions.iter() {
                 if let Some(fault) = crate::dom::cond_type_fault(condition, &|name| self.ty(name)) {
@@ -2674,6 +2678,7 @@ mod tests {
                 Cond::Compare("=".into(), Term::Const("k".into(), (1, 1)), Term::Str("a".into()), Default::default())
             };
             let rule = RuleDef {
+                held_parameter: Vec::new(),
                 error: None,
                 warning: None,
                 suppress_warnings: Vec::new(),

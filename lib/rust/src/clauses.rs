@@ -157,9 +157,22 @@ pub(crate) fn has_bare_empty_set(cond: &Cond) -> bool {
     false
 }
 
+/// Whether a bare empty set stands in a Boolean position inside a term:
+/// in the guard of a guarded term that the term holds (engine §10).
+pub(crate) fn term_has_bare_empty_set(term: &Term) -> bool {
+    let mut stack = vec![Part::Term(term)];
+    while let Some(part) = stack.pop() {
+        if matches!(part, Part::Cond(Cond::Truthy(Term::EmptySet))) {
+            return true;
+        }
+        stack.extend(part.children());
+    }
+    false
+}
+
 /// The value of a closed set term, or `None` where the term is not closed
-/// or its value is not fixed. A closed term holds no capture, no
-/// parameter, no call and no method (engine §3.6).
+/// or its value is not fixed. A closed term is the term of §10, read as
+/// the template writes it.
 pub(crate) fn closed_set_value(term: &Term) -> Option<FxSet<String>> {
     match term {
         Term::EmptySet => Some(FxSet::default()),
@@ -185,6 +198,43 @@ pub(crate) fn closed_set_value(term: &Term) -> Option<FxSet<String>> {
             let mut out = closed_set_value(left)?;
             let right = closed_set_value(right)?;
             out.retain(|name| !right.contains(name));
+            Some(out)
+        }
+        // `.split` and `.ngrams` on a closed string are closed (§10).
+        // Every other call, `.classify` among them, keeps the term open.
+        Term::Call(name, args) if name == "split" || name == "ngrams" => {
+            let [Arg::Term(receiver), rest @ ..] = &args[..] else { return None };
+            let receiver = closed_string_value(receiver)?;
+            if name == "ngrams" {
+                let [Arg::Integer(digits)] = rest else { return None };
+                if !crate::dom::valid_integer(digits) {
+                    return None;
+                }
+                Some(crate::dom::ngrams(&receiver, digits).into_iter().collect())
+            } else {
+                let [Arg::Term(delimiter)] = rest else { return None };
+                let delimiter = closed_string_value(delimiter)?;
+                if delimiter.is_empty() {
+                    return None;
+                }
+                Some(receiver.split(delimiter.as_str()).filter(|piece| !piece.is_empty()).map(str::to_string).collect())
+            }
+        }
+        _ => None,
+    }
+}
+
+/// The value of a closed string term, or None where the term is not a
+/// closed string (§10): a string or a concatenation of closed strings.
+fn closed_string_value(term: &Term) -> Option<String> {
+    match term {
+        Term::Str(text) => Some(text.clone()),
+        Term::Call(name, args) if name == "concat" => {
+            let mut out = String::new();
+            for arg in args {
+                let Arg::Term(part) = arg else { return None };
+                out.push_str(&closed_string_value(part)?);
+            }
             Some(out)
         }
         _ => None,
@@ -1886,6 +1936,37 @@ fn definition_fault(rule: &RuleDef, defer_issue: &mut impl FnMut(&DefinitionIssu
     {
         return None;
     }
+    // A bare empty set in the guard of a guarded term in a tag clause is
+    // an error, as in a condition (engine §10).
+    let mut tag_terms: Vec<&Term> = Vec::new();
+    if let Some(tags) = &rule.tags {
+        tag_terms.push(tags);
+    }
+    for alternative in &rule.alternatives {
+        if let Some(tags) = &alternative.tags {
+            tag_terms.push(tags);
+        }
+        for term in [&alternative.strings.value, &alternative.strings.image].into_iter().flatten() {
+            tag_terms.push(term);
+        }
+    }
+    if let Some(items) = &rule.emit {
+        for item in items {
+            let (tags, channels) = match item {
+                crate::dom::EmitItem::Capture(_, tags, attachments) => (tags, &attachments.strings),
+                crate::dom::EmitItem::Insert(tags, channels) => (tags, channels),
+            };
+            if let Some(tags) = tags {
+                tag_terms.push(tags);
+            }
+            for term in [&channels.value, &channels.image].into_iter().flatten() {
+                tag_terms.push(term);
+            }
+        }
+    }
+    if tag_terms.iter().any(|term| term_has_bare_empty_set(term)) {
+        return immediate(format!("a condition of {} is the empty set", rule.name));
+    }
     // Each production of each alternative, as the alternative and the
     // captures it reads in order (engine §3.5, §9); productions that read
     // the same captures in the same order are one.
@@ -2000,18 +2081,17 @@ fn definition_fault(rule: &RuleDef, defer_issue: &mut impl FnMut(&DefinitionIssu
             }
         }
     }
-    for cond in rule.conditions.iter().filter(|cond| !cond_waits(cond)) {
+    for (condition_index, cond) in rule.conditions.iter().enumerate().filter(|(_, cond)| !cond_waits(cond)) {
         // An item condition applies to the productions of its braces'
         // helper (engine §3.6), which are not listed here.
         if !item_names.is_empty() && mentioned_in(Part::Cond(cond)).iter().any(|name| item_names.contains(name)) {
             continue;
         }
         let check = CondCheck::new(cond);
-        // An expanded instance has a canonical name. Its conditions held a
-        // parameter as written, and a parameter is not closed (engine
-        // §3.6), so one that simplifies to true in the instance still
-        // applies.
-        let instance = rule.name.contains('(') && rule.name.ends_with(')');
+        // A condition that held a parameter as written is never closed
+        // (engine §3.6), so in an instance it still applies where it
+        // simplifies to true.
+        let instance = rule.held_parameter.get(condition_index).copied().unwrap_or(false);
         let applies_to = |index: usize| {
             let has = captures_of(index);
             let outcome = if each_part {
@@ -2486,6 +2566,7 @@ mod tests {
                 .chain(names.iter().map(|name| EmitItem::Capture(name.clone(), None, Attachments::default())))
                 .collect();
             RuleDef {
+                held_parameter: Vec::new(),
                 error: None,
                 warning: None,
                 suppress_warnings: Vec::new(),

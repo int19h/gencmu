@@ -1,0 +1,8 @@
+{
+  "description": "Engine §3.6 and §10: split on a closed string is closed, so a nonempty result as a whole condition is a trivial condition.",
+  "grammar": "%rule text \"a\"\n%conditions \"a b\".split(\" \")",
+  "input": "a",
+  "expect": {
+    "error": "grammar"
+  }
+}

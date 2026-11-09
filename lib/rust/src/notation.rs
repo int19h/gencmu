@@ -511,6 +511,7 @@ impl<'a> Reader<'a> {
                 strings: Default::default(),
                 alternatives: Vec::new(),
                 conditions: Vec::new(),
+                held_parameter: Vec::new(),
                 emit: None,
                 erased: false,
                 at: self.at(definer),
@@ -576,6 +577,7 @@ impl<'a> Reader<'a> {
             alternatives,
             emit,
             conditions,
+            held_parameter: Vec::new(),
             erased: self.rules(node, "erased-clause").next().is_some(),
             at: self.at(definer),
         };

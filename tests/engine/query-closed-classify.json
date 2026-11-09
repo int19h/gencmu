@@ -1,0 +1,10 @@
+{
+  "description": "Engine §10: classify is never closed, so it stays a condition that parsing evaluates.",
+  "grammar": "%classifier lex \"a\" ∈ C\n%rule text \"a\"\n%conditions \"a\".classify(lex)",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

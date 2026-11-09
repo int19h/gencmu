@@ -1,0 +1,8 @@
+{
+  "description": "Engine §3.6 and §10: the bare empty-set rule reads the instance, so an empty-set argument in a Boolean position is that error.",
+  "grammar": "%rule text t(∅)\n%rule t(@S) \"a\"\n%conditions @S",
+  "input": "a",
+  "expect": {
+    "error": "grammar"
+  }
+}

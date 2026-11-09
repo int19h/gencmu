@@ -5,11 +5,7 @@ import (
 	"strings"
 )
 
-// isInstanceName says whether a rule name is the canonical name of an
-// expanded template instance, as in use(A).
-func isInstanceName(name string) bool {
-	return strings.Contains(name, "(") && strings.HasSuffix(name, ")")
-}
+
 
 // A rule's clauses against the captures of its alternatives (engine §3.6,
 // §9): simplifying a clause for one production, the captures a clause uses
@@ -96,14 +92,82 @@ func closedSetValue(t *domTerm) (map[string]bool, bool) {
 			delete(left, name)
 		}
 		return left, true
+	case tmCall:
+		// `.split` and `.ngrams` on a closed string are closed (§10).
+		// Every other call, `.classify` among them, keeps the term open.
+		if (t.Str != "split" && t.Str != "ngrams") || len(t.Items) != 2 {
+			return nil, false
+		}
+		receiver, ok := closedStringValue(t.Items[0])
+		if !ok {
+			return nil, false
+		}
+		out := map[string]bool{}
+		if t.Str == "ngrams" {
+			if t.Items[1].Kind != tmInteger || !validInteger(t.Items[1].Str) {
+				return nil, false
+			}
+			for _, gram := range ngrams(receiver, t.Items[1].Str) {
+				out[gram] = true
+			}
+			return out, true
+		}
+		delimiter, ok := closedStringValue(t.Items[1])
+		if !ok || delimiter == "" {
+			return nil, false
+		}
+		for _, piece := range splitString(receiver, delimiter) {
+			out[piece] = true
+		}
+		return out, true
 	}
 	return nil, false
+}
+
+// closedStringValue is the value of a closed string term, or false
+// where the term is not a closed string (§10): a string, a string
+// constant, or a concatenation of closed strings.
+func closedStringValue(t *domTerm) (string, bool) {
+	switch t.Kind {
+	case tmString:
+		return t.Str, true
+	case tmConst:
+		if t.value != nil && t.value.ty == tyString {
+			return t.value.s, true
+		}
+	case tmConcat:
+		var out strings.Builder
+		for _, item := range t.Items {
+			part, ok := closedStringValue(item)
+			if !ok {
+				return "", false
+			}
+			out.WriteString(part)
+		}
+		return out.String(), true
+	}
+	return "", false
 }
 
 // hasBareEmptySet says whether a bare empty set stands as the term of a
 // set-as-condition anywhere in a condition (engine §10).
 func hasBareEmptySet(c *domCond) bool {
 	stack := []clausePart{{c: c}}
+	for len(stack) > 0 {
+		p := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if p.c != nil && p.c.Kind == cdTruthy && p.c.Left != nil && p.c.Left.Kind == tmEmptySet {
+			return true
+		}
+		stack = append(stack, p.children()...)
+	}
+	return false
+}
+
+// termHasBareEmptySet says whether a bare empty set stands in a Boolean
+// position inside a term: in the guard of a guarded term (§10).
+func termHasBareEmptySet(t *domTerm) bool {
+	stack := []clausePart{{t: t}}
 	for len(stack) > 0 {
 		p := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
@@ -756,7 +820,7 @@ func itemCaptureProblem(r *domRule, itemsByAlt []map[string]itemPlace, items map
 	// alternative whose item captures they read (engine §3.6).
 	sequences := make([][][]string, len(r.Alternatives))
 	helperSequences := map[*domExpr][][]string{}
-	for _, c := range r.Conditions {
+	for conditionIndex, c := range r.Conditions {
 		mentioned := orderedMentions(clausePart{c: c})
 		var inside []string
 		whole := false
@@ -791,7 +855,7 @@ func itemCaptureProblem(r *domRule, itemsByAlt []map[string]itemPlace, items map
 			if len(here) == 0 {
 				if !applies {
 					for _, caps := range validationCaptures(r, a) {
-						if conditionApplies(c, hasIn(caps), isInstanceName(r.Name)) {
+						if conditionApplies(c, hasIn(caps), conditionIndex < len(r.HeldParameter) && r.HeldParameter[conditionIndex]) {
 							applies = true
 							break
 						}
@@ -848,7 +912,7 @@ func itemCaptureProblem(r *domRule, itemsByAlt []map[string]itemPlace, items map
 					for j, name := range own {
 						caps[name] = j
 					}
-					if conditionApplies(c, hasIn(caps), isInstanceName(r.Name)) {
+					if conditionApplies(c, hasIn(caps), conditionIndex < len(r.HeldParameter) && r.HeldParameter[conditionIndex]) {
 						applies = true
 						break
 					}
@@ -1096,11 +1160,28 @@ func definitionFault(r *domRule, deferIssue func(definitionKind, string) bool) *
 			return immediate(fmt.Sprintf("a condition of %s is the empty set", r.Name))
 		}
 	}
+	// A bare empty set in the guard of a guarded term in a tag clause
+	// is an error, as in a condition (§10).
+	var bareTerms []*domTerm
+	bareTerms = append(bareTerms, r.Tags, r.Value, r.Image)
+	for _, a := range r.Alternatives {
+		bareTerms = append(bareTerms, a.Tags, a.Value, a.Image)
+	}
+	if r.Emit != nil {
+		for _, item := range r.Emit.Items {
+			bareTerms = append(bareTerms, item.Tags, item.Value, item.Image)
+		}
+	}
+	for _, t := range bareTerms {
+		if t != nil && termHasBareEmptySet(t) {
+			return immediate(fmt.Sprintf("a condition of %s is the empty set", r.Name))
+		}
+	}
 	conds := newCondCheck(r.Conditions, func(c *domCond) bool { return waits(c) || isItem(c) })
-	// An expanded instance has a canonical name. Its conditions held a
-	// parameter as written, and a parameter is not closed (§3.6), so one
-	// that simplifies to true in the instance still applies.
-	conds.instance = isInstanceName(r.Name)
+	// A condition that held a parameter as written is never closed
+	// (§3.6), so in an instance it still applies where it simplifies
+	// to true.
+	conds.held = r.HeldParameter
 	for _, caps := range alts {
 		if conds.left == 0 {
 			break

@@ -2669,6 +2669,7 @@ mod tests {
             Unicode::parse(crate::loader::bundled("data/unicode/unicode.txt").expect("the table")).expect("the table");
         {
             let rule = |name: String, alternatives: Vec<Expr>| RuleDef {
+                held_parameter: Vec::new(),
                 error: None,
                 warning: None,
                 suppress_warnings: Vec::new(),
@@ -2762,6 +2763,7 @@ mod tests {
             Term::If(Box::new(Cond::Captured(format!("c{index}"))), Box::new(Term::Tag(format!("t{index}"))))
         });
         RuleDef {
+            held_parameter: Vec::new(),
             error: None,
             warning: None,
             suppress_warnings: Vec::new(),

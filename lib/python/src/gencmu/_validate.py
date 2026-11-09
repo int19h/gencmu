@@ -176,10 +176,10 @@ def known_dom_members(dom):
     return dom
 
 
-def dom_problem(dom: Any, unicode: Marks, defer_emission: bool = True, expanded: bool = False) -> str | None:
+def dom_problem(dom: Any, unicode: Marks, defer_emission: bool = True, expanded: bool = False, held: Any = None) -> str | None:
     try:
         dom = known_dom_members(dom)
-        problem = _dom_problem(dom, unicode, defer_emission, expanded)
+        problem = _dom_problem(dom, unicode, defer_emission, expanded, held)
         if problem is not None:
             return problem
         pending = [dom[key] for key in ("rules", "directives", "constants", "classifiers", "implications")]
@@ -198,7 +198,7 @@ def dom_problem(dom: Any, unicode: Marks, defer_emission: bool = True, expanded:
         return "a malformed DOM"
 
 
-def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expanded: bool = False) -> str | None:
+def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expanded: bool = False, held: Any = None) -> str | None:
     def rule_name(name):
         return isinstance(name, str) and (CLASSIFIER_NAME.fullmatch(name) is not None or unicode.is_emoji_name(name)
                                          or expanded and "(" in name and name.endswith(")"))
@@ -445,7 +445,12 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
             boundary = boundary_problem(r)
             if boundary:
                 return boundary[0]
-            issue = check_definition(r, defer_emission).problem
+            # A bare empty set on the condition side of a guarded term in
+            # a tag clause is an error (engine §10).
+            from ._clauses import guarded_clause_bare_empty_set
+            if guarded_clause_bare_empty_set(r):
+                return f"a condition of {r['name']} is the empty set"
+            issue = check_definition(r, defer_emission, held if len(dom["rules"]) == 1 else None).problem
             if issue:
                 return issue.message
             problem = rule_type_problem(r)
