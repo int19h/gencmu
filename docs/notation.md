@@ -73,7 +73,7 @@ Outside line comments, line breaks and indentation mean nothing. So a long list 
   | VUhU 🆓
 ```
 
-The bundled grammars put a sole alternative's clauses after its body. Shared clauses stay on headers for multiple alternatives. Each alternative with its own clause occupies a separate line.
+The example shows what the notation permits. The bundled grammars put these four plain alternatives on one line, as "Layout of the bundled grammars" says. There, a sole alternative's clauses follow its body, and the header carries the clauses that every alternative shares.
 
 These separators can also stand first: `&` in bodies, `∪` and `∩` in terms, `∧` and `∨` in conditions, and clause-list commas. `∖` in terms, `/` in braces, and `≻` in ranked choices cannot stand first.
 
@@ -1866,11 +1866,11 @@ The `lojban/experimental` and `lojban/zantufa` pipelines do not declare `%elisio
 
 ## Layout of the bundled grammars
 
-The bundled grammars keep a layout convention. Its purpose is that a reader sees at once where each top-level alternative of a rule ends. The notation does not require it. `tools/sync.js --check` makes sure that the bundled grammars keep it.
+The bundled grammars keep a layout convention. Its purpose is that a reader sees at once where each top-level alternative of a rule ends. The notation does not require it. `tools/sync.js --check` makes sure that the bundled grammars keep the rules for alternatives and comments. The rule for tags needs judgment, so reviews check it.
 
-A plain alternative is a juxtaposition of plain items. A plain item is a rule reference without arguments, a string, a tag terminal, an engine tag, `ε` or a parameter. `_<T>` with one tag `T` is also a plain item. A plain alternative has no guard and no clause. Any other alternative is a marked alternative. A marked alternative contains brackets, a call, another test, a range, a capture, a constant, `&`, `≻` or a comment. Brackets are parentheses, square brackets and braces.
+A plain alternative is one or more plain items in a row, with no guard and no clause. A plain item is a rule reference without arguments, a string, a tag terminal, an engine tag, `ε` or a parameter. `_<T>` with one tag `T` is also a plain item. Any other alternative is a marked alternative. So brackets, a call, another test, a range, a capture, a constant, `&`, `≻`, a guard or a clause makes an alternative marked. Brackets are parentheses, square brackets and braces. A bare `_` and a `_` with a test of several tags are not plain items.
 
-Each marked alternative stands on lines of its own, and no other top-level alternative shares them. Plain alternatives can share lines. A rule with two or more plain alternatives in a row does not put exactly one of them on each line. The exception is a run in which no two adjacent alternatives fit together on one line.
+Each marked alternative stands on lines of its own, and no other top-level alternative shares them. Plain alternatives can share lines. A rule with two or more plain alternatives in a row does not put exactly one of them on each line. The exception is a run in which no two adjacent alternatives fit together on one line. If the line that holds two alternatives has at most 100 characters, with its indentation and its `|` separators, the two fit together. A marked alternative or a comment ends a run of plain alternatives.
 
 No line of a rule body holds more than 100 characters, counted as Unicode code points. An alternative can run over several lines, and each of these lines counts. Apart from this, the author chooses the groups of plain alternatives, such as the vowels on one line and the consonants on the next. For a run with one plain alternative per line, `tools/sync.js --check` suggests a layout.
 
@@ -1882,7 +1882,7 @@ The convention covers only the top-level alternatives of a rule. A choice inside
   | "y"
 ```
 
-A comment on a whole rule stands on its own lines before the rule. A comment on one alternative stands on its own lines before that alternative. A comment does not follow a rule header or an alternative on the same line.
+A comment on a whole rule stands on its own lines before the rule. A comment on one alternative stands on its own lines before that alternative. A comment does not follow a rule header or an alternative on the same line. A comment between a rule header and the first alternative describes that alternative, so a comment on the whole rule does not stand there. The check sees only where a comment stands, and the author decides what it describes.
 
 ```jbogenbau
 -- A glide stands before a vowel or a diphthong.
@@ -1890,7 +1890,24 @@ A comment on a whole rule stands on its own lines before the rule. A comment on 
   "i" | "u"
 ```
 
-Alternatives do not repeat a tag clause that they share. If every alternative carries the same tags, the tags stand on the header, because header tags and alternative tags are unioned. If some alternatives share tags, a group holds them, and the tag clause follows the group.
+Alternatives do not repeat a tag clause that they share. Tags that every alternative carries stand on the header, because header tags and alternative tags are unioned. Each alternative then keeps only the tags that the others lack. If adjacent alternatives share all their clauses, a group holds their bodies, and the clauses follow the group.
+
+A repeated tag can show that a rule mixes two kinds of constituent. Then a rule of its own holds the kind that carries the tag, and that rule's header carries it. For example, the Latin `Vowel` tag marks `a`, `e`, `i`, `o` and `u`, but not `y`. Each stressed vowel has its own value and image, so a group cannot hold the tag. So the five tagged vowels form a rule of their own:
+
+```jbogenbau
+%rule stressed-full-vowel :: Vowel
+  | ("a" | "A") stress-mark := "a" :- "A"
+  | ("e" | "E") stress-mark := "e" :- "E"
+  | ("i" | "I") stress-mark := "i" :- "I"
+  | ("o" | "O") stress-mark := "o" :- "O"
+  | ("u" | "U") stress-mark := "u" :- "U"
+
+%rule stressed-vowel :: Stressed
+  | stressed-full-vowel
+  | ("y" | "Y") stress-mark := "y" :- "Y"
+```
+
+If neither form can hold a shared tag clause, the alternatives repeat it. This happens where each alternative has its own value or image clause, as in a table of letters and their values. It also happens where a group would change the order of the alternatives.
 
 ## Railroad diagrams
 
