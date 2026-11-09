@@ -241,8 +241,8 @@ function scanBody(chars, start) {
       if (chars[i] === "\"") {
         i++;
         while (i < chars.length && chars[i] !== "\"") i++;
-      } else if (chars[i] === "(") headerDepth++;
-      else if (chars[i] === ")") headerDepth--;
+      } else if (chars[i] === "(" || chars[i] === "«") headerDepth++;
+      else if (chars[i] === ")" || chars[i] === "»") headerDepth--;
       else if (chars[i] === "|" && headerDepth === 0) break;
       i++;
     }
@@ -269,8 +269,8 @@ function scanBody(chars, start) {
       while (i < chars.length && chars[i] !== c) i++;
       i++;
     } else {
-      if (c === "(" || c === "[" || c === "{" || c === "<") depth++;
-      else if (c === ")" || c === "]" || c === "}" || c === ">") depth--;
+      if (c === "(" || c === "[" || c === "{" || c === "<" || c === "«") depth++;
+      else if (c === ")" || c === "]" || c === "}" || c === ">" || c === "»") depth--;
       i++;
     }
     if (current) current.to = i;
