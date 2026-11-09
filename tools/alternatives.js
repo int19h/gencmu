@@ -434,7 +434,7 @@ export function clauseTermProblems(markdown, dom, path) {
         const lineNumber = startLine + i;
         const trimmedEnd = termLine.trimEnd();
         const endsUnion = trimmedEnd.endsWith("∪");
-        const endsCondition = "∧∨⟹⊆⊈=≠≅≇∩∖".includes(trimmedEnd[trimmedEnd.length - 1]);
+        const endsCondition = "∧∨⟹⊆⊈=≠≅≇∩∖".includes(trimmedEnd[trimmedEnd.length - 1]) || trimmedEnd.endsWith("++");
         if (i + 1 < termLines.length && startDepth === 0 && depth === 0 && !endsUnion && !endsCondition) problems.push(`${path}:${lineNumber}: a tag term of ${where} runs over several lines, and each line ends with its ∪`);
         if (i > 0 && startDepth === 0) {
           const col = [...(lines[lineNumber - 1] ?? "")].findIndex((ch) => ch !== " ") + 1;
