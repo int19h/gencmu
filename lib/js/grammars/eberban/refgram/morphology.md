@@ -191,8 +191,8 @@ The morphology chapter lists the consonant pairs. An initial pair can begin a wo
 ```jbogenbau
 %const $INITIAL-PAIRS
   "bj" "bz" "dj" "dz" "gj" "gz" "vj" "vz" "fc" "fs" "kc" "ks" "pc" "ps" "tc" "ts"
-  "jb" "jd" "jg" "jv" "jm" "zb" "zd" "zg" "zv" "zm" "cf" "ck" "cp" "ct" "cm" "sf" "sk" "sp" "st"
-    "sm"
+  "jb" "jd" "jg" "jv" "jm" "zb" "zd" "zg" "zv" "zm"
+  "cf" "ck" "cp" "ct" "cm" "sf" "sk" "sp" "st" "sm"
 
 %const $MEDIAL-PAIRS
   "bd" "bg" "bv" "db" "dg" "dv" "gb" "gd" "gv" "vb" "vd" "vg" "bm" "dm" "gm" "vm"

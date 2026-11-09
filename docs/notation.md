@@ -1897,7 +1897,7 @@ Inside brackets, a long condition or term breaks in the same way too. Each line 
 
 A long condition breaks first at its loosest operator. Then each part of that operator can stand on a line of its own, as in a table. A part of a tighter operator that must wrap stands deeper than the line that starts it. The break rules cover emission items too.
 
-A long constant puts its value on the lines after its header. Each line ends with its operator. The next line stands two columns deeper than the header.
+A long constant puts its value on the lines after its header, two columns deeper than the header. Where the value breaks at an operator, each line ends with that operator. A table of items without operators, such as a list of strings, puts one row on each line. A pattern breaks by the rules for brackets above.
 
 The rules for tag terms below cover the top level of the tag term of a clause or an emission item. Inside brackets, in constants and in conditions, tags keep their `∪`. A term with a top-level `∖` keeps its written order, because a difference does not commute.
 
