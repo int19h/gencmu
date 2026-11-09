@@ -1122,7 +1122,9 @@ Before lowering attaches a clause, it simplifies the clause for the production, 
 - Lowering reduces `¬`, `∧` and `∨` over a true or false part as logic says.
 - A constant is its value here. So a constant whose value is the empty set is an empty set.
 - In a Boolean position, a set term that simplifies to the empty set becomes false.
-- In a Boolean position, a set term that simplifies to a closed set that is not empty becomes true. A closed term holds no capture, no parameter and no query.
+- In a Boolean position, a set term that simplifies to a closed set (§10) that is not empty becomes true.
+
+Closed reads the term as its template writes it. A condition of a template instance is closed only where its template writes it closed. A parameter is never closed, whatever its argument. The bare-`∅` rule of §10 reads the instance instead. So an argument `∅` in a Boolean position is that error.
 - Lowering drops a term's empty set, written `∅` or left by a guard, from a union. A union of nothing but empty sets is the empty set, as is an intersection with one. A difference whose first part is empty is empty. If its second part is empty, the difference is its first part. A guarded term whose term is the empty set is the empty set.
 
 Since the engine never evaluates a reduced part, the reduction is part of the order of evaluation (§10). The clause uses each capture that it still mentions after simplification. Then the simplified clauses attach as follows:
@@ -3528,7 +3530,7 @@ In a set operation, a scalar string converts to its singleton string set. This i
 
 `∪`, `∩`, and `∖` combine tag sets, string sets, or patterns of one type. Plain parentheses preserve type. `∩` binds tighter than `∪` and `∖`. Those two bind equally and group from the left, so `a ∖ b ∪ c` is `(a ∖ b) ∪ c`.
 
-`∅` takes its kind from the other side of its operator or comparison. A tag term, emission item or tag test also gives it the required tag-set type. A guarded term supplies the set kind of its consequent. A Boolean position gives `∅` no kind. So a bare `∅` in a Boolean position is an error of the document, as in `∅`, `¬∅` or `$y ∨ ∅`.
+`∅` takes its kind from the other side of its operator or comparison. A tag term, emission item or tag test also gives it the required tag-set type. A guarded term supplies the set kind of its consequent. A Boolean position gives `∅` no kind. So a bare `∅` in a Boolean position is an error of the document, as in `∅`, `¬∅` or `$y ∨ ∅`. The same holds in a `%features` condition and in the guard of a guarded term.
 
 In a `%redefine-const`, the type that the constant keeps (§2) gives the value its kind in the same way. So after `%const $A A`, `%redefine-const $A ∅` makes `$A` the empty tag set. An expression whose kind nothing gives is an error of the document. So `%const $E ∅` is an error.
 
@@ -3542,7 +3544,7 @@ Repeated targets are accepted and change nothing. Engine tags cannot be targets.
 
 Targets use `|` separators, without constants or strings. Commas inside an exact instance call separate its arguments only. Parentheses around one target preserve that target. A grouped choice is invalid.
 
-A terminal target reads exactly one token carrying its tag. Boundary alternatives evaluate left to right and stop at the first success or grammar error. Every target must resolve, including alternatives that evaluation never reaches.
+A terminal target reads exactly one token carrying its tag. Every target must resolve, including alternatives that evaluation never reaches.
 
 A rule target resolves where its rule or exact instance is defined in the stage (§9). A terminal target resolves by its name alone. It need not stand in any body or tag term. If no input token carries its tag, the query never holds. A boundary target must also be buildable (§9.3).
 
