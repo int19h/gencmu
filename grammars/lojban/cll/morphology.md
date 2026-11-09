@@ -46,20 +46,24 @@ A cmavo's stress is free (CLL[^cll-s3-9]), so any of its vowels can be a capital
 %rule cmavo-shape
   | $c:plain-cmavo-body
       :: Onset ∪ Continued
-       ∪ ($c.matches(first-marked-cmavo) ⟹ Initial-Stress) ∪ ($c.matches(last-marked-cmavo) ⟹ Final-Stress)
+       ∪ ($c.matches(first-marked-cmavo) ⟹ Initial-Stress)
+       ∪ ($c.matches(last-marked-cmavo) ⟹ Final-Stress)
        ∪ ($c.matches(name-intro-cmavo) ⟹ Name-Intro)
   | $v:vowel-cmavo
       :: Continued
-       ∪ ($v.matches(first-marked-cmavo) ⟹ Initial-Stress) ∪ ($v.matches(last-marked-cmavo) ⟹ Final-Stress)
+       ∪ ($v.matches(first-marked-cmavo) ⟹ Initial-Stress)
+       ∪ ($v.matches(last-marked-cmavo) ⟹ Final-Stress)
   | $l:letter-cmavo
       :: Onset ∪ Cy ∪ Uncounted ∪ ($l.matches(stress-mark) ⟹ Initial-Stress ∪ Final-Stress)
   | $p:y-pair-cmavo
       :: Continued ∪ ($p.matches(y-letters) ⟹ Uncounted)
-       ∪ ($p.matches(first-marked-cmavo) ⟹ Initial-Stress) ∪ ($p.matches(last-marked-cmavo) ⟹ Final-Stress)
+       ∪ ($p.matches(first-marked-cmavo) ⟹ Initial-Stress)
+       ∪ ($p.matches(last-marked-cmavo) ⟹ Final-Stress)
   | $w:warned-cmavo
       :: Continued ∪ Cmavo-Warning
        ∪ ($w.first-token.matches(consonant) ⟹ Onset) ∪ ($w.matches(y-letters) ⟹ Uncounted)
-       ∪ ($w.matches(first-marked-cmavo) ⟹ Initial-Stress) ∪ ($w.matches(last-marked-cmavo) ⟹ Final-Stress)
+       ∪ ($w.matches(first-marked-cmavo) ⟹ Initial-Stress)
+       ∪ ($w.matches(last-marked-cmavo) ⟹ Final-Stress)
 %conditions
   ¬$c.matches(has-comma),
   ¬$v.matches(has-comma),
