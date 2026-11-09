@@ -79,7 +79,6 @@ function sourceWithoutComments(text) {
  * Whether a DOM alternative, as written, is a plain alternative.
  * @param {any} alternative
  * @param {string} text the alternative as written
- * @param {boolean} [hasInternalComment]
  * @returns {boolean}
  */
 export function isPlainAlternative(alternative, text) {
@@ -261,13 +260,30 @@ function writtenClauses(text) {
     else if (")]}>»".includes(c)) depth--;
     else if (depth === 0 && c === ":" && (scrubbed[i + 1] === ":" || scrubbed[i + 1] === "=" || scrubbed[i + 1] === "-")) { ops.push({ at: i, op: scrubbed.slice(i, i + 2).join("") }); i++; }
   }
-  return ops.map((o, i) => ({ ...o, end: i + 1 < ops.length ? ops[i + 1].at : text.length }));
+  return ops.map((o, i) => ({ ...o, end: i + 1 < ops.length ? ops[i + 1].at : scrubbed.length }));
+}
+
+// The code points of a text with each comment replaced by spaces, so
+// that punctuation in a comment makes no operand, bracket or operator.
+// New lines and string contents stay, and every index still counts code
+// points of the original text.
+/** @param {string[]} chars @returns {string[]} */
+function scrubComments(chars) {
+  const out = [...chars];
+  let string = false;
+  for (let i = 0; i < out.length; i++) {
+    const c = out[i];
+    if (string) { if (c === '"') string = false; continue; }
+    if (c === '"') { string = true; continue; }
+    if (c === "-" && out[i + 1] === "-") { while (i < out.length && out[i] !== "\n") { out[i] = " "; i++; } i--; }
+  }
+  return out;
 }
 
 // The operands of a tag term at its top level, split at `∪`. Each keeps
 // the index at which it starts in the term text.
 function termOperands(term) {
-  const chars = [...term];
+  const chars = scrubComments([...term]);
   const parts = []; let depth = 0, string = false, start = 0;
   const flush = (end) => { const text = chars.slice(start, end).join(""); const lead = text.length - text.trimStart().length; parts.push({ text: text.trim().replace(/\s+/g, " "), at: start + [...text.slice(0, lead)].length }); };
   for (let i = 0; i < chars.length; i++) {
@@ -286,13 +302,43 @@ const BARE_TAG = /^[A-Z_][A-Za-z0-9_-]*$/u;
 // Whether an operand of a tag term is a bare tag or a run of bare tags.
 function isBareRun(text) { return text.split(" ").every((word) => BARE_TAG.test(word)); }
 
+// The kind of one operand of a tag term, for the fixed order of rule 3:
+// a run of bare tags, an expression without a guard, or a guarded
+// expression. String contents do not make a guard.
+/** @param {string} text @returns {"bare" | "expr" | "guarded"} */
+function operandKind(text) {
+  if (isBareRun(text)) return "bare";
+  const withoutStrings = text.replace(/"[^"]*"/g, '""');
+  return withoutStrings.includes("⟹") ? "guarded" : "expr";
+}
+
+// Whether `op` stands at the top level of a term text, outside brackets,
+// strings and comments.
+/** @param {string} text @param {string} op */
+function hasTopLevel(text, op) {
+  const chars = scrubComments([...text]);
+  let depth = 0, string = false;
+  for (const c of chars) {
+    if (string) { if (c === '"') string = false; continue; }
+    if (c === '"') { string = true; continue; }
+    if ("([{<«".includes(c)) depth++;
+    else if (")]}>»".includes(c)) depth--;
+    else if (depth === 0 && c === op) return true;
+  }
+  return false;
+}
+
 /**
  * The problems of clause and tag term layout in a document: a clause
  * that starts a new line stands in the column of the first clause; a
  * tag term that runs over several lines ends each line with its `∪` and
  * never starts a line with it, and each later operand stands in the
- * column of the first; and a term with two or more expressions puts
- * each expression on a line of its own.
+ * column of the first; a term lists bare tags first as one run, then
+ * expressions without a guard, then guarded expressions; and a term
+ * with two or more expressions puts each expression on a line of its
+ * own. Emission items follow the same rules. Inside brackets, a long
+ * condition or term ends each line with its operator, and the next
+ * line stands one column after the opening bracket.
  * @param {string} markdown
  * @param {{rules: any[]}} dom
  * @param {string} path
@@ -300,10 +346,84 @@ function isBareRun(text) { return text.split(" ").every((word) => BARE_TAG.test(
  */
 export function clauseTermProblems(markdown, dom, path) {
   const lines = splitLines(markdown);
-  const { positions } = extractGrammarText(markdown, path, unicode);
+  const { text, positions } = extractGrammarText(markdown, path, unicode);
   /** @type {string[]} */
   const problems = [];
   const at = (index) => positions[Math.min(index, positions.length - 1)] ?? [1, 1];
+  // The clause and tag-term rules of one written body: a rule header,
+  // one alternative, or one emission item. `base` is the code-point
+  // index of the body's first code point in the extracted text.
+  /** @param {string} bodyText @param {number} base @param {string} where */
+  const checkBody = (bodyText, base, where) => {
+    const clauses = writtenClauses(bodyText);
+    if (!clauses.length) return;
+    const bodyChars = [...bodyText];
+    const placed = clauses.map((c) => ({ ...c, line: at(base + c.at)[0], col: at(base + c.at)[1] }));
+    const reference = placed[0].col;
+    // Rule 1: a clause that starts a new line stands in the column of `::`.
+    for (const c of placed.slice(1)) {
+      const before = [...(lines[c.line - 1] ?? "")].slice(0, c.col - 1).join("");
+      if (/^\s*$/.test(before) && c.col !== reference) problems.push(`${path}:${c.line}: a clause of ${where} does not stand in the column of its first clause`);
+    }
+    for (const c of clauses) {
+      if (c.op !== "::") continue;
+      const termText = bodyChars.slice(c.at + 2, c.end).join("");
+      const termChars = [...termText];
+      let lead = 0;
+      while (lead < termChars.length && /\s/u.test(termChars[lead])) lead++;
+      const termStart = base + c.at + 2 + lead;
+      const operands = termOperands(termText);
+      const kinds = operands.map((o) => operandKind(o.text));
+      const exprs = operands.filter((_, i) => kinds[i] !== "bare");
+      const startLine = at(termStart)[0];
+      const firstCol = at(termStart)[1];
+      // Rule 3: bare tags first as one run, then expressions without a
+      // guard, then guarded expressions. A term with a top-level `∖`
+      // keeps its order, because `∖` and `∪` stand at the same level.
+      if (!hasTopLevel(termText, "∖")) {
+        const rank = { bare: 0, expr: 1, guarded: 2 };
+        const outOfOrder = kinds.filter((k) => k === "bare").length > 1
+          || kinds.some((k, i) => i > 0 && rank[k] < rank[kinds[i - 1]]);
+        if (outOfOrder) problems.push(`${path}:${startLine}: a tag term of ${where} lists its parts out of order: bare tags first, then expressions without a guard, then guarded expressions`);
+      }
+      // Rule 4: each expression on a line of its own. Only the start
+      // lines of the expressions count. A run of bare tags can share
+      // the line of the first expression.
+      if (exprs.length >= 2) {
+        const starts = exprs.map((o) => at(base + c.at + 2 + o.at)[0]);
+        if (new Set(starts).size !== starts.length) problems.push(`${path}:${startLine}: a tag term of ${where} has two or more expressions, and each expression stands on a line of its own`);
+      }
+      // Rule 2: a term over several lines ends each line with `∪`.
+      // Lines before the first operand and blank lines after the last
+      // operand are not lines of the term.
+      const rawTermLines = scrubComments(termChars).join("").split("\n");
+      let firstTermLine = 0;
+      for (let k = 0; k < lead; k++) if (termChars[k] === "\n") firstTermLine++;
+      let lastTermLine = rawTermLines.length - 1;
+      while (lastTermLine > firstTermLine && !rawTermLines[lastTermLine].trim()) lastTermLine--;
+      const termLines = rawTermLines.slice(firstTermLine, lastTermLine + 1);
+      if (termLines.length < 2) continue;
+      let depth = 0;
+      termLines.forEach((termLine, i) => {
+        const startDepth = depth;
+        const scrubbed = [...termLine]; let string = false;
+        for (const ch of scrubbed) {
+          if (string) { if (ch === '"') string = false; continue; }
+          if (ch === '"') { string = true; continue; }
+          if ("([{<«".includes(ch)) depth++;
+          else if (")]}>»".includes(ch)) depth--;
+        }
+        const trimmed = termLine.trimStart();
+        if (!trimmed) return;
+        const lineNumber = startLine + i;
+        if (i + 1 < termLines.length && startDepth === 0 && depth === 0 && !termLine.trimEnd().endsWith("∪")) problems.push(`${path}:${lineNumber}: a tag term of ${where} runs over several lines, and each line ends with its ∪`);
+        if (i > 0 && startDepth === 0) {
+          if (trimmed.startsWith("∪")) problems.push(`${path}:${lineNumber}: a tag term of ${where} starts a line with ∪`);
+          else if ([...(lines[lineNumber - 1] ?? "")].findIndex((ch) => ch !== " ") + 1 !== firstCol) problems.push(`${path}:${lineNumber}: an operand of a tag term of ${where} does not stand in the column of its first operand`);
+        }
+      });
+    }
+  };
   for (const { rule, keyword, alternatives } of alternativeLayouts(markdown, dom, path)) {
     const where = `${keyword} ${rule.name}`;
     /** @type {{text: string, base: number}[]} */
@@ -313,55 +433,122 @@ export function clauseTermProblems(markdown, dom, path) {
       if (start >= 0) {
         let headerText = alternativeLayoutsHeaderText(markdown, dom, path, start, alternatives[0].from);
         const bar = writtenClausesBar(headerText);
-        if (bar >= 0) headerText = headerText.slice(0, bar);
+        if (bar >= 0) headerText = [...headerText].slice(0, bar).join("");
         bodies.unshift({ text: headerText, base: start });
       }
     }
-    for (const body of bodies) {
-      const clauses = writtenClauses(body.text);
-      if (!clauses.length) continue;
-      const placed = clauses.map((c) => ({ ...c, line: at(body.base + c.at)[0], col: at(body.base + c.at)[1] }));
-      const reference = placed[0].col;
-      // Rule 1: a clause that starts a new line stands in the column of `::`.
-      for (const c of placed.slice(1)) {
-        const before = [...(lines[c.line - 1] ?? "")].slice(0, c.col - 1).join("");
-        if (/^\s*$/.test(before) && c.col !== reference) problems.push(`${path}:${c.line}: a clause of ${where} does not stand in the column of its first clause`);
-      }
-      for (const c of clauses) {
-        if (c.op !== "::") continue;
-        const termText = body.text.slice(c.at + 2, c.end);
-        const termStart = body.base + c.at + 2 + (termText.length - termText.trimStart().length);
-        const operands = termOperands(termText);
-        const exprs = operands.filter((o) => !isBareRun(o.text));
-        const startLine = at(termStart)[0];
-        const firstCol = at(termStart)[1];
-        // Rule 4: each expression on a line of its own.
-        if (exprs.length >= 2) {
-          const starts = operands.map((o) => at(body.base + c.at + 2 + o.at)[0]);
-          if (new Set(starts).size !== starts.length) problems.push(`${path}:${startLine}: a tag term of ${where} has two or more expressions, and each expression stands on a line of its own`);
+    for (const body of bodies) checkBody(body.text, body.base, where);
+  }
+  // Emission items follow the same rules. The DOM gives no position
+  // for an item, so the source text finds them: an item of the %emits
+  // section after a definition, split at its top-level commas.
+  const chars = scrubComments([...text]);
+  /** @type {number[]} */
+  const lineStarts = [0];
+  chars.forEach((c, i) => { if (c === "\n") lineStarts.push(i + 1); });
+  const textLines = chars.join("").split("\n");
+  let where = "";
+  for (let li = 0; li < textLines.length; li++) {
+    const definition = /^%(rule|redefine-rule|extend-rule|template)\s+(\S+)/.exec(textLines[li]);
+    if (definition) { where = `%${definition[1]} ${definition[2]}`; continue; }
+    if (!/^%emits\b/.test(textLines[li])) continue;
+    let section = "";
+    let lj = li + 1;
+    for (; lj < textLines.length && !/^%/.test(textLines[lj]); lj++) section += textLines[lj] + "\n";
+    const base = (lineStarts[li + 1] ?? chars.length);
+    let depth = 0, string = false, itemStart = 0;
+    const sectionChars = [...section];
+    const flush = (end) => {
+      const item = sectionChars.slice(itemStart, end).join("");
+      const first = item.search(/\S/);
+      if (first >= 0) checkBody(item, base + itemStart, where);
+    };
+    for (let i = 0; i < sectionChars.length; i++) {
+      const c = sectionChars[i];
+      if (string) { if (c === '"') string = false; continue; }
+      if (c === '"') { string = true; continue; }
+      if ("([{<«".includes(c)) depth++;
+      else if (")]}>»".includes(c)) depth--;
+      else if (depth === 0 && c === ",") { flush(i); itemStart = i + 1; }
+    }
+    flush(sectionChars.length);
+    li = lj - 1;
+  }
+  for (const problem of bracketProblems(markdown, path)) problems.push(problem);
+  return problems;
+}
+
+// The layout inside brackets: a long condition or term ends each line
+// with its operator, and the next line stands one column after the
+// opening bracket. A ranked choice `#(...)` and a bracketed choice with
+// `|` follow their own rules, so this check skips them. String contents
+// and comments make no brackets or operators.
+/** @param {string} markdown @param {string} path @returns {string[]} */
+function bracketProblems(markdown, path) {
+  const { text, positions } = extractGrammarText(markdown, path, unicode);
+  /** @type {string[]} */
+  const problems = [];
+  const chars = scrubComments([...text]);
+  let string = false;
+  for (let i = 0; i < chars.length; i++) {
+    const c = chars[i];
+    if (string) { if (c === '"') string = false; else if (c !== "\n") chars[i] = " "; continue; }
+    if (c === '"') string = true;
+  }
+  /** @type {number[]} */
+  const lineStarts = [0];
+  chars.forEach((c, i) => { if (c === "\n") lineStarts.push(i + 1); });
+  /** @type {string[]} */
+  const whereByLine = [];
+  let where = "";
+  for (const lineText of chars.join("").split("\n")) {
+    const definition = /^%(rule|redefine-rule|extend-rule|template|const|classifier)\s+(\S+)/.exec(lineText);
+    if (definition) where = `%${definition[1]} ${definition[2]}`;
+    whereByLine.push(where);
+  }
+  const OPEN = "([{<«", CLOSE = ")]}>»";
+  /** @type {{at: number, line: number, col: number}[]} */
+  const stack = [];
+  for (let i = 0; i < chars.length; i++) {
+    const c = chars[i];
+    if (OPEN.includes(c)) { stack.push({ at: i, line: positions[i][0], col: positions[i][1] }); continue; }
+    if (!CLOSE.includes(c)) continue;
+    const open = stack.pop();
+    if (!open || positions[i][0] === open.line) continue;
+    if (open.at > 0 && chars[open.at - 1] === "#") continue;
+    const closeLine = positions[i][0];
+    // Operators at the top level of this span, and any top-level bar.
+    let depth = 0, hasBar = false, hasOperator = false;
+    for (let j = open.at + 1; j < i; j++) {
+      const ch = chars[j];
+      if (OPEN.includes(ch)) depth++;
+      else if (CLOSE.includes(ch)) depth--;
+      else if (depth === 0 && ch === "|") hasBar = true;
+      else if (depth === 0 && "∧∨⟹∪∩∖".includes(ch)) hasOperator = true;
+    }
+    if (hasBar || !hasOperator) continue;
+    let openTextLine = 0;
+    while (openTextLine + 1 < lineStarts.length && lineStarts[openTextLine + 1] <= open.at) openTextLine++;
+    const name = whereByLine[openTextLine] ?? "";
+    // Each line of the span, as a range of code-point indexes. The
+    // first range starts after the opening bracket, and the last ends
+    // before the closing bracket.
+    let segmentStart = open.at + 1;
+    let firstSegment = true;
+    for (let j = open.at + 1; j <= i; j++) {
+      if (j < i && chars[j] !== "\n") continue;
+      const segment = chars.slice(segmentStart, j).join("");
+      const first = segment.search(/\S/);
+      if (first >= 0) {
+        const line = positions[segmentStart + first][0];
+        const trimmed = segment.trim();
+        if (j < i && !"∧∨⟹∪∩∖⊆⊈".includes(trimmed[trimmed.length - 1])) problems.push(`${path}:${line}: a line inside brackets of ${name} does not end with its operator`);
+        if (!firstSegment && !trimmed.startsWith(")") && !trimmed.startsWith("]") && !trimmed.startsWith("}")) {
+          if (positions[segmentStart + first][1] !== open.col + 1) problems.push(`${path}:${line}: a line inside brackets of ${name} does not stand one column after the opening bracket`);
         }
-        // Rule 2: a term over several lines ends each line with `∪`.
-        const termLines = termText.trim().split("\n");
-        if (termLines.length < 2) continue;
-        let depth = 0;
-        termLines.forEach((termLine, i) => {
-          const startDepth = depth;
-          const scrubbed = [...termLine]; let string = false;
-          for (const ch of scrubbed) {
-            if (string) { if (ch === '"') string = false; continue; }
-            if (ch === '"') { string = true; continue; }
-            if ("([{<«".includes(ch)) depth++;
-            else if (")]}>»".includes(ch)) depth--;
-          }
-          const lineNumber = startLine + i;
-          if (i + 1 < termLines.length && startDepth === 0 && depth === 0 && !termLine.trimEnd().endsWith("∪")) problems.push(`${path}:${lineNumber}: a tag term of ${where} runs over several lines, and each line ends with its ∪`);
-          if (i > 0 && startDepth === 0) {
-            const trimmed = termLine.trimStart();
-            if (trimmed.startsWith("∪")) problems.push(`${path}:${lineNumber}: a tag term of ${where} starts a line with ∪`);
-            else if ([...(lines[lineNumber - 1] ?? "")].findIndex((ch) => ch !== " ") + 1 !== firstCol && trimmed) problems.push(`${path}:${lineNumber}: an operand of a tag term of ${where} does not stand in the column of its first operand`);
-          }
-        });
       }
+      firstSegment = false;
+      segmentStart = j + 1;
     }
   }
   return problems;
