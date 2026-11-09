@@ -1891,7 +1891,7 @@ No line of a grammar block holds more than 100 characters, counted as Unicode co
                                := $r.value
 ```
 
-Inside brackets, a long condition or term breaks in the same way. Each line ends with its operator, such as `∧`, `∨`, `⟹` or `∪`. The next line stands one column after the opening bracket, so that the nesting shows. A long condition breaks first at its loosest operator. A part of a tighter operator that must wrap stands deeper than the line that starts it. These rules cover emission items too.
+A long condition breaks in the same way, also outside brackets. Inside brackets, a long condition or term breaks in the same way too. Each line ends with its operator, such as `∧`, `∨`, `⟹` or `∪`. The next line stands one column after the opening bracket, so that the nesting shows. A long condition breaks first at its loosest operator. A part of a tighter operator that must wrap stands deeper than the line that starts it. These rules cover emission items too.
 
 These rules cover the top level of the tag term of a clause or an emission item. Inside brackets, in constants and in conditions, tags keep their `∪`. A term with a top-level `∖` keeps its written order, because a difference does not commute.
 
