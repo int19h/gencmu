@@ -318,7 +318,7 @@ The `Vowel` tag marks the five full vowels and not `y`. So `latin-full-vowel` ho
   | "U" [$m:letter-marks<¬Accent ¬Breve>] :: Folded Capital := "u"
 
 %rule latin-vowel :: ($m ⟹ $m.tags ∩ Dieresis)
-  | latin-full-vowel
+  | $v:latin-full-vowel :: $v.tags
   | "y" [$m:letter-marks<¬Accent>] := "y"
   | "y" $m:letter-marks<Accent> :: Stressed := "y" :- "Y"
   | "Y" $m:letter-marks<Accent> :: Stressed Capital Accented := "y" :- "Y"
@@ -343,7 +343,8 @@ The `Vowel` tag marks the five full vowels and not `y`. So `latin-full-vowel` ho
   | latin-diphthong-u<Accented ¬Dieresis>
 ```
 
-<details><summary>Railroad diagrams of the 4 rules from <code>latin-vowel</code> to <code>folded-vowel</code></summary>
+<details><summary>Railroad diagrams of the 5 rules from <code>latin-full-vowel</code> to <code>folded-vowel</code></summary>
+<p><img src="../../../docs/diagrams/lojban/experimental/latin/latin-full-vowel.svg" alt="Railroad diagram of the rule latin-full-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/latin/latin-vowel.svg" alt="Railroad diagram of the rule latin-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/latin/plain-vowel.svg" alt="Railroad diagram of the rule plain-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/latin/stressed-vowel.svg" alt="Railroad diagram of the rule stressed-vowel"></p>
@@ -372,14 +373,15 @@ A capital glide letter is plain. A glide is never stressed, so an accent on a gl
   | "W" [$m:letter-marks] :: Capital := "u"
 
 %rule glide-letter :: Glide ∪ ($m ⟹ $m.tags ∩ Dieresis)
-  | onglide-letter
+  | $g:onglide-letter :: $g.tags
   | "i" $m:letter-marks<Breve> := "i"
   | "I" $m:letter-marks<Breve> :: Capital := "i"
   | "u" $m:letter-marks<Breve> := "u"
   | "U" $m:letter-marks<Breve> :: Capital := "u"
 ```
 
-<details><summary>Railroad diagram of <code>glide-letter</code></summary>
+<details><summary>Railroad diagrams of <code>onglide-letter</code> and <code>glide-letter</code></summary>
+<p><img src="../../../docs/diagrams/lojban/experimental/latin/onglide-letter.svg" alt="Railroad diagram of the rule onglide-letter"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/latin/glide-letter.svg" alt="Railroad diagram of the rule glide-letter"></p>
 </details>
 

@@ -104,9 +104,10 @@ Joined vowels use the same public tags as isolated vowels. The emission filter k
 
 ```
 
-<details><summary>Railroad diagrams of the 7 rules from <code>cyrillic-consonant</code> to <code>joined-vowel-with</code></summary>
+<details><summary>Railroad diagrams of the 8 rules from <code>cyrillic-consonant</code> to <code>joined-vowel-with</code></summary>
 <p><img src="../../../docs/diagrams/lojban/experimental/cyrillic/cyrillic-consonant.svg" alt="Railroad diagram of the rule cyrillic-consonant"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/cyrillic/cyrillic-apostrophe.svg" alt="Railroad diagram of the rule cyrillic-apostrophe"></p>
+<p><img src="../../../docs/diagrams/lojban/experimental/cyrillic/cyrillic-full-vowel.svg" alt="Railroad diagram of the rule cyrillic-full-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/cyrillic/cyrillic-vowel.svg" alt="Railroad diagram of the rule cyrillic-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/cyrillic/cyrillic-plain-vowel.svg" alt="Railroad diagram of the rule cyrillic-plain-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/cyrillic/cyrillic-stressed-vowel.svg" alt="Railroad diagram of the rule cyrillic-stressed-vowel"></p>
@@ -148,7 +149,7 @@ The `Vowel` tag marks the five full vowels and not `y`, so the restated `cll-cyr
   | "у" [letter-marks<¬Accent>] := "u"
 
 %redefine-rule cll-cyrillic-plain-vowel :: ∅
-  | cll-cyrillic-plain-full-vowel
+  | cll-cyrillic-plain-full-vowel :: Vowel
   | "ъ" [letter-marks<¬Accent>] := "y"
 %emits
   $
@@ -162,8 +163,9 @@ The `Vowel` tag marks the five full vowels and not `y`, so the restated `cll-cyr
   ("ъ" letter-marks<Accent> | "Ъ" [letter-marks]))
 ```
 
-<details><summary>Railroad diagrams of the 3 rules from <code>cll-cyrillic-consonant</code> to <code>cll-cyrillic-stressed-vowel</code></summary>
+<details><summary>Railroad diagrams of the 4 rules from <code>cll-cyrillic-consonant</code> to <code>cll-cyrillic-stressed-vowel</code></summary>
 <p><img src="../../../docs/diagrams/lojban/experimental/cyrillic/cll-cyrillic-consonant.svg" alt="Railroad diagram of the rule cll-cyrillic-consonant"></p>
+<p><img src="../../../docs/diagrams/lojban/experimental/cyrillic/cll-cyrillic-plain-full-vowel.svg" alt="Railroad diagram of the rule cll-cyrillic-plain-full-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/cyrillic/cll-cyrillic-plain-vowel.svg" alt="Railroad diagram of the rule cll-cyrillic-plain-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/cyrillic/cll-cyrillic-stressed-vowel.svg" alt="Railroad diagram of the rule cll-cyrillic-stressed-vowel"></p>
 </details>

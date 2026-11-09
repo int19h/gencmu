@@ -267,14 +267,14 @@ The `Vowel` tag marks the five full vowels `a`, `e`, `i`, `o` and `u`, and it do
   | "U" stress-mark :: Stressed := "u" :- "U"
 
 %rule folded-vowel :: ∅
-  | folded-full-vowel
+  | $v:folded-full-vowel :: $v.tags
   | "Y" := "y"
   | "Y" stress-mark :: Stressed := "y" :- "Y"
 %emits
   $
 ```
 
-<details><summary>Railroad diagrams of the 13 rules from <code>run</code> to <code>folded-vowel</code></summary>
+<details><summary>Railroad diagrams of the 14 rules from <code>run</code> to <code>folded-vowel</code></summary>
 <p><img src="../../../docs/diagrams/lojban/common/latin/run.svg" alt="Railroad diagram of the rule run"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/ordinary-run.svg" alt="Railroad diagram of the rule ordinary-run"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/capital-run.svg" alt="Railroad diagram of the rule capital-run"></p>
@@ -287,6 +287,7 @@ The `Vowel` tag marks the five full vowels `a`, `e`, `i`, `o` and `u`, and it do
 <p><img src="../../../docs/diagrams/lojban/common/latin/folded-vowel-group-plain.svg" alt="Railroad diagram of the rule folded-vowel-group-plain"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/folded-vowel-group-joined.svg" alt="Railroad diagram of the rule folded-vowel-group-joined"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/joined-folded-vowel.svg" alt="Railroad diagram of the rule joined-folded-vowel"></p>
+<p><img src="../../../docs/diagrams/lojban/common/latin/folded-full-vowel.svg" alt="Railroad diagram of the rule folded-full-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/folded-vowel.svg" alt="Railroad diagram of the rule folded-vowel"></p>
 </details>
 
@@ -313,7 +314,7 @@ The `Vowel` tag marks the five full vowels and not `y`, so `stressed-full-vowel`
   | ("u" | "U") stress-mark := "u" :- "U"
 
 %extend-rule stressed-vowel :: Stressed
-  | stressed-full-vowel
+  | stressed-full-vowel :: Vowel
   | ("y" | "Y") stress-mark := "y" :- "Y"
 %emits
   $
@@ -325,8 +326,9 @@ The `Vowel` tag marks the five full vowels and not `y`, so `stressed-full-vowel`
   "‹U+0306›"
 ```
 
-<details><summary>Railroad diagrams of the 4 rules from <code>plain-vowel</code> to <code>glide-mark</code></summary>
+<details><summary>Railroad diagrams of the 5 rules from <code>plain-vowel</code> to <code>glide-mark</code></summary>
 <p><img src="../../../docs/diagrams/lojban/common/latin/plain-vowel.svg" alt="Railroad diagram of the rule plain-vowel"></p>
+<p><img src="../../../docs/diagrams/lojban/common/latin/stressed-full-vowel.svg" alt="Railroad diagram of the rule stressed-full-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/stressed-vowel.svg" alt="Railroad diagram of the rule stressed-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/stress-mark.svg" alt="Railroad diagram of the rule stress-mark"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/glide-mark.svg" alt="Railroad diagram of the rule glide-mark"></p>

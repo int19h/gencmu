@@ -53,7 +53,7 @@ A capital `Ъ` writes stressed `y`, with value `y` and image `Y`. The [Latin str
   | "у" := "u"
 
 %rule cll-cyrillic-plain-vowel :: ∅
-  | cll-cyrillic-plain-full-vowel
+  | cll-cyrillic-plain-full-vowel :: Vowel
   | "ъ" := "y"
 %emits
   $
@@ -61,11 +61,12 @@ A capital `Ъ` writes stressed `y`, with value `y` and image `Y`. The [Latin str
 %rule cll-cyrillic-stressed-vowel = stressed-vowel-with("А", "Е", "И", "О", "У", "Ъ")
 ```
 
-<details><summary>Railroad diagrams of the 6 rules from <code>consonant</code> to <code>cll-cyrillic-stressed-vowel</code></summary>
+<details><summary>Railroad diagrams of the 7 rules from <code>consonant</code> to <code>cll-cyrillic-stressed-vowel</code></summary>
 <p><img src="../../../docs/diagrams/lojban/cll/cyrillic/consonant.svg" alt="Railroad diagram of the rule consonant"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/cyrillic/plain-vowel.svg" alt="Railroad diagram of the rule plain-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/cyrillic/stressed-vowel.svg" alt="Railroad diagram of the rule stressed-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/cyrillic/cll-cyrillic-consonant.svg" alt="Railroad diagram of the rule cll-cyrillic-consonant"></p>
+<p><img src="../../../docs/diagrams/lojban/cll/cyrillic/cll-cyrillic-plain-full-vowel.svg" alt="Railroad diagram of the rule cll-cyrillic-plain-full-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/cyrillic/cll-cyrillic-plain-vowel.svg" alt="Railroad diagram of the rule cll-cyrillic-plain-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/cyrillic/cll-cyrillic-stressed-vowel.svg" alt="Railroad diagram of the rule cll-cyrillic-stressed-vowel"></p>
 </details>

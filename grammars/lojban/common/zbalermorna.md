@@ -99,7 +99,7 @@ The `Vowel` tag marks the five full vowels and not `y`. So `zbalermorna-plain-fu
     | "‹ZBALERMORNA UCSUR LETTER SEMIVOWEL UY›") := "u"
 
 %extend-rule plain-vowel :: ∅
-  | zbalermorna-plain-full-vowel
+  | zbalermorna-plain-full-vowel :: Vowel
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN YBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN YBU›"
     | "‹ZBALERMORNA HUMBERT LETTER FULL YBU›" | "‹ZBALERMORNA UCSUR LETTER FULL YBU›") := "y"
 %emits
@@ -123,7 +123,7 @@ The `Vowel` tag marks the five full vowels and not `y`. So `zbalermorna-plain-fu
     | "‹ZBALERMORNA UCSUR LETTER FULL UBU›") zbalermorna-stress := "u" :- "U"
 
 %extend-rule stressed-vowel :: Stressed
-  | zbalermorna-stressed-full-vowel
+  | zbalermorna-stressed-full-vowel :: Vowel
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN YBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN YBU›"
     | "‹ZBALERMORNA HUMBERT LETTER FULL YBU›"
     | "‹ZBALERMORNA UCSUR LETTER FULL YBU›") zbalermorna-stress := "y" :- "Y"
@@ -213,8 +213,10 @@ The `Vowel` tag marks the five full vowels and not `y`. So `zbalermorna-plain-fu
   ("‹ZBALERMORNA HUMBERT SYMBOL FOR CNIMAHO BU›" | "‹ZBALERMORNA UCSUR SYMBOL FOR CNIMAHO BU›")
 ```
 
-<details><summary>Railroad diagrams of the 24 rules from <code>plain-vowel</code> to <code>zbalermorna-shorthand-mark</code></summary>
+<details><summary>Railroad diagrams of the 26 rules from <code>zbalermorna-plain-full-vowel</code> to <code>zbalermorna-shorthand-mark</code></summary>
+<p><img src="../../../docs/diagrams/lojban/common/zbalermorna/zbalermorna-plain-full-vowel.svg" alt="Railroad diagram of the rule zbalermorna-plain-full-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/common/zbalermorna/plain-vowel.svg" alt="Railroad diagram of the rule plain-vowel"></p>
+<p><img src="../../../docs/diagrams/lojban/common/zbalermorna/zbalermorna-stressed-full-vowel.svg" alt="Railroad diagram of the rule zbalermorna-stressed-full-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/common/zbalermorna/stressed-vowel.svg" alt="Railroad diagram of the rule stressed-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/common/zbalermorna/zbalermorna-stress.svg" alt="Railroad diagram of the rule zbalermorna-stress"></p>
 <p><img src="../../../docs/diagrams/lojban/common/zbalermorna/vowel.svg" alt="Railroad diagram of the rule vowel"></p>

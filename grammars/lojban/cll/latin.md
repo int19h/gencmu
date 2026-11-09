@@ -287,7 +287,7 @@ CLL[^cll-s3-1] omits `h` from the alphabet. CLL[^cll-s3-3] says that `h` does no
   | @U := "u" :- "U"
 
 %rule stressed-vowel-with(@A, @E, @I, @O, @U, @Y) :: Stressed
-  | stressed-full-vowel-with(@A, @E, @I, @O, @U)
+  | stressed-full-vowel-with(@A, @E, @I, @O, @U) :: Vowel
   | @Y := "y" :- "Y"
 %emits
   $
@@ -303,9 +303,10 @@ CLL[^cll-s3-1] omits `h` from the alphabet. CLL[^cll-s3-3] says that `h` does no
   ","
 ```
 
-<details><summary>Railroad diagrams of the 6 rules from <code>consonant</code> to <code>comma</code></summary>
+<details><summary>Railroad diagrams of the 7 rules from <code>consonant</code> to <code>comma</code></summary>
 <p><img src="../../../docs/diagrams/lojban/cll/latin/consonant.svg" alt="Railroad diagram of the rule consonant"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/latin/plain-vowel.svg" alt="Railroad diagram of the rule plain-vowel"></p>
+<p><img src="../../../docs/diagrams/lojban/cll/latin/stressed-full-vowel-with.svg" alt="Railroad diagram of the rule stressed-full-vowel-with"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/latin/stressed-vowel-with.svg" alt="Railroad diagram of the rule stressed-vowel-with"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/latin/stressed-vowel.svg" alt="Railroad diagram of the rule stressed-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/latin/apostrophe.svg" alt="Railroad diagram of the rule apostrophe"></p>

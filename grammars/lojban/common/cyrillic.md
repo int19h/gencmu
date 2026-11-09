@@ -85,7 +85,7 @@ The `Vowel` tag marks the five full vowels and not `y`. So each vowel rule below
   | ("У" | ("у" | "У") stress-mark) := "u" :- "U"
 
 %rule cyrillic-stressed-vowel :: Stressed ∪ Syllabic
-  | cyrillic-stressed-full-vowel
+  | cyrillic-stressed-full-vowel :: Vowel
   | (("Ъ" | "Ы" | "Ә")
       | ("ъ" | "ы" | "ә" | "Ъ" | "Ы" | "Ә") stress-mark) := "y" :- "Y"
 %emits
@@ -113,9 +113,12 @@ The `Vowel` tag marks the five full vowels and not `y`. So each vowel rule below
   $
 ```
 
-<details><summary>Railroad diagrams of the 3 rules from <code>cyrillic-plain-vowel</code> to <code>cyrillic-folded-vowel</code></summary>
+<details><summary>Railroad diagrams of the 6 rules from <code>cyrillic-plain-full-vowel</code> to <code>cyrillic-folded-vowel</code></summary>
+<p><img src="../../../docs/diagrams/lojban/common/cyrillic/cyrillic-plain-full-vowel.svg" alt="Railroad diagram of the rule cyrillic-plain-full-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/common/cyrillic/cyrillic-plain-vowel.svg" alt="Railroad diagram of the rule cyrillic-plain-vowel"></p>
+<p><img src="../../../docs/diagrams/lojban/common/cyrillic/cyrillic-stressed-full-vowel.svg" alt="Railroad diagram of the rule cyrillic-stressed-full-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/common/cyrillic/cyrillic-stressed-vowel.svg" alt="Railroad diagram of the rule cyrillic-stressed-vowel"></p>
+<p><img src="../../../docs/diagrams/lojban/common/cyrillic/cyrillic-folded-full-vowel.svg" alt="Railroad diagram of the rule cyrillic-folded-full-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/common/cyrillic/cyrillic-folded-vowel.svg" alt="Railroad diagram of the rule cyrillic-folded-vowel"></p>
 </details>
 
