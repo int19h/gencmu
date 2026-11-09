@@ -109,7 +109,7 @@ class SharedMemo(unittest.TestCase):
                         self.assertEqual(len(evaluations), 1)
 
     def test_warm_memo_cannot_hide_suffix_recursion(self) -> None:
-        run = RUNS[-1]
+        run = next(run for run in RUNS if "$mode" in run.get("grammar", ""))
         pipeline = pipeline_of(run)
         self.assertTrue(pipeline.parse("paa").ok)
         result = pipeline.parse("qaa")

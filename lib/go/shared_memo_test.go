@@ -453,7 +453,13 @@ func TestSharedMemoTwoPipelines(t *testing.T) {
 
 func TestWarmMemoCannotHideSuffixRecursion(t *testing.T) {
 	runs := memoRuns(t)
-	pipeline := memoPipeline(t, runs[len(runs)-1], 1<<13)
+	var run memoRun
+	for _, candidate := range runs {
+		if strings.Contains(candidate.Grammar, "$mode") {
+			run = candidate
+		}
+	}
+	pipeline := memoPipeline(t, run, 1<<13)
 	first, err := pipeline.Parse("paa", ParseOptions{})
 	if err != nil || !first.OK {
 		t.Fatalf("warmup: %v %+v", err, first)
