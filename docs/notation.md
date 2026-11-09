@@ -73,7 +73,7 @@ Outside line comments, line breaks and indentation mean nothing. So a long list 
   | VUhU 🆓
 ```
 
-The example shows what the notation permits. The bundled grammars put these four plain alternatives on one line, as "Layout of the bundled grammars" says. There, a sole alternative's clauses follow its body, and the header carries the clauses that every alternative shares.
+The bundled grammars can lay out these four plain alternatives in this way, or on one line, as "Layout of the bundled grammars" says. There, a sole alternative's clauses follow its body, and the header carries the clauses that every alternative shares.
 
 These separators can also stand first: `&` in bodies, `∪` and `∩` in terms, `∧` and `∨` in conditions, and clause-list commas. `∖` in terms, `/` in braces, and `≻` in ranked choices cannot stand first.
 
@@ -1868,11 +1868,19 @@ The `lojban/experimental` and `lojban/zantufa` pipelines do not declare `%elisio
 
 The bundled grammars keep a layout convention. Its purpose is that a reader sees at once where each top-level alternative of a rule ends. The notation does not require it. `tools/sync.js --check` makes sure that the bundled grammars keep the rules for alternatives and comments. The rule for tags needs judgment, so reviews check it.
 
-A plain alternative is one or more plain items in a row, with no guard and no clause. A plain item is a rule reference without arguments, a string, a tag terminal, an engine tag, `ε` or a parameter. `_<T>` with one tag `T` is also a plain item. Any other alternative is a marked alternative. So brackets, a call, another test, a range, a capture, a constant, `&`, `≻`, a guard or a clause makes an alternative marked. Brackets are parentheses, square brackets and braces. A bare `_` and a `_` with a test of several tags are not plain items.
+A plain alternative is one or more plain items in a row, with no guard and no clause. A plain item is a rule reference without arguments, a splice, a string, a tag terminal, an engine tag, `ε` or a parameter. `_<T>` with one tag `T` is also a plain item. Any other alternative is a marked alternative. So brackets, a call, another test, a range, a capture, a constant, `&`, `≻`, a guard or a clause makes an alternative marked. Brackets are parentheses, square brackets and braces. A bare `_` and a `_` with a test of several tags are not plain items.
 
-Each marked alternative stands on lines of its own, and no other top-level alternative shares them. Plain alternatives can share lines. A rule with two or more plain alternatives in a row does not put exactly one of them on each line. The exception is a run in which no two adjacent alternatives fit together on one line. If the line that holds two alternatives has at most 100 characters, with its indentation and its `|` separators, the two fit together. A marked alternative or a comment ends a run of plain alternatives.
+A range or a test is marked even when it is short, as in `"a".."p"` or `Letter="n"`. Each one adds visual weight, so a line of several of them reads as one dense run. `_<T>` reads as one word, so it is plain.
 
-No line of a rule body holds more than 100 characters, counted as Unicode code points. An alternative can run over several lines, and each of these lines counts. Apart from this, the author chooses the groups of plain alternatives, such as the vowels on one line and the consonants on the next. For a run with one plain alternative per line, `tools/sync.js --check` suggests a layout.
+Each marked alternative stands on lines of its own, and no other top-level alternative shares them. Plain alternatives can share lines, and they can also stand one on each line. The author chooses the form that reads better. For example, a list of letters reads well on one line. Two sequences of the same shape read better one above the other, because the reader compares them item by item:
+
+```jbogenbau
+%rule gismu-form
+  | consonant vowel consonant-pair vowel
+  | initial-pair vowel consonant vowel
+```
+
+No line of a rule body holds more than 100 characters, counted as Unicode code points. An alternative can run over several lines, and each of these lines counts. A comment line does not count, because a comment stays on one line. A long alternative breaks before a clause or before a top-level operator of a term, not inside brackets.
 
 The convention covers only the top-level alternatives of a rule. A choice inside a group, and the options of a ranked choice, can stand on one line. So `("a" | "e") :: Vowel` and `a ≻ b` are each one alternative.
 
@@ -1882,7 +1890,7 @@ The convention covers only the top-level alternatives of a rule. A choice inside
   | "y"
 ```
 
-A comment on a whole rule stands on its own lines before the rule. A comment on one alternative stands on its own lines before that alternative. A comment does not follow a rule header or an alternative on the same line. A comment between a rule header and the first alternative describes that alternative, so a comment on the whole rule does not stand there. The check sees only where a comment stands, and the author decides what it describes.
+A comment on a whole definition stands on its own lines before the definition. This covers rules, templates, constants and classifiers. A comment on one alternative or one entry stands on its own lines before it. A comment does not follow a rule header or an alternative on the same line. A comment between a header and the first alternative or entry describes that alternative or entry. So a comment on the whole definition does not stand there. The check sees only where a comment stands, and the author decides what it describes.
 
 ```jbogenbau
 -- A glide stands before a vowel or a diphthong.
@@ -1890,9 +1898,9 @@ A comment on a whole rule stands on its own lines before the rule. A comment on 
   "i" | "u"
 ```
 
-Alternatives do not repeat a tag clause that they share. Tags that every alternative carries stand on the header, because header tags and alternative tags are unioned. Each alternative then keeps only the tags that the others lack. If adjacent alternatives share all their clauses, a group holds their bodies, and the clauses follow the group. A guard that the alternatives share stands before the group, as in `f? ("a" | "b") :: T`. Alternatives with different guards stay apart.
+Alternatives do not repeat a clause that they share. This covers tag, value and image clauses. Tags that every alternative carries stand on the header, because header tags and alternative tags are unioned. Each alternative then keeps only the tags that not every alternative carries. A value or an image that every alternative shares stands on the header too, because an alternative's own recipe overrides the header's. A sole alternative keeps its clauses after its body, except where its body is a ranked choice. If adjacent alternatives share a clause and have the same other clauses, a group holds their bodies, and the clauses follow the group. Bodies that share a first or last part keep that part outside the group. A guard that the alternatives share stands before the group, as in `f? ("a" | "b") :: T`. Alternatives with different guards stay apart.
 
-A repeated tag can show that a rule mixes two kinds of constituent, and that one tag set marks one of the kinds. Then a rule of its own holds the kind that carries the tag, and that rule's header carries it. For example, the Latin `Vowel` tag marks `a`, `e`, `i`, `o` and `u`, but not `y`. Each stressed vowel has its own value and image, so a group cannot hold the tag. So the five tagged vowels form a rule of their own:
+A repeated tag can show that a rule mixes two kinds of constituent, and that the tag marks one of the kinds. A tag of this kind says what a constituent is, such as `Vowel` for a full vowel as against `y`. Then a rule of its own holds the kind that carries the tag, and that rule's header carries it. For example, the Latin `Vowel` tag marks `a`, `e`, `i`, `o` and `u`, but not `y`. Each stressed vowel has its own value and image, so a group cannot hold the tag. So the five tagged vowels form a rule of their own:
 
 ```jbogenbau
 %rule stressed-full-vowel :: Vowel
@@ -1909,7 +1917,7 @@ A repeated tag can show that a rule mixes two kinds of constituent, and that one
 
 The outer alternative writes `:: Vowel` again, because a header tag clause stops a single symbol from passing on its tags (see "Tags"). This is one clause on one alternative, not a repeated clause. A split can change the order of the alternatives. If no input matches two of the moved alternatives, their order changes no reading. It changes only the production numbers that a witness records.
 
-Alternatives repeat a shared tag clause in two cases. The first is a table whose rows have their own value or image clauses and combine several tags, such as the Latin diphthong letters. Their tags cross: `Capital` falls on stressed rows and on folded rows. So a split on one tag leaves the others repeated, and no split applies. The second is where a group changes the order of alternatives that one input can match.
+Alternatives repeat a shared tag clause in two cases. The first is a table whose rows have their own value or image clauses. There, a tag that marks a form of each letter stays on its rows. `Stressed`, `Capital`, `Folded` and `Accented` mark such forms, and every letter has the same forms. The Latin diphthong letters and `folded-full-vowel` are examples. The second is where a group changes the order of alternatives that one input can match.
 
 ## Railroad diagrams
 
