@@ -10,7 +10,7 @@ The Cyrillic glides carry no `Glide` tag, and the word forms find them by positi
 
 `cyrillic-vowel` reads every Cyrillic vowel letter with its marks. Its tags work as those of `latin-vowel`. A capital full vowel without an accent has a stressed and a folded reading. An accented capital has one reading, stressed and `Accented`, which an all-capital run keeps, as "Capital runs" in [../common/latin.md](../common/latin.md) says. The three restated vowel rules take the readings that fit them.
 
-The `Vowel` tag marks the five full vowels and not `y`. So `cyrillic-full-vowel` holds the full vowels of `cyrillic-vowel`, and the `y` forms and the glides stay in `cyrillic-vowel`.
+The `Vowel` tag marks the five full vowels and not `y`. So `cyrillic-full-vowel` holds the full vowels of `cyrillic-vowel`, and the `y` forms stay in `cyrillic-vowel`. The glides also carry `Vowel`, so `cyrillic-glide` holds them and carries `Vowel` on its header.
 
 Joined vowels use the same public tags as isolated vowels. The emission filter keeps only `Stressed`, `Syllabic` and `Vowel`. Bookkeeping tags stay inside the phoneme stage.
 
@@ -71,6 +71,14 @@ Joined vowels use the same public tags as isolated vowels. The emission filter k
   | "У" [letter-marks<¬Accent ¬Breve>] :: Stressed ∪ Capital := "u" :- "U"
   | "У" [letter-marks<¬Accent ¬Breve>] :: Folded ∪ Capital := "u"
 
+%rule cyrillic-glide :: Vowel
+  | "и" letter-marks<Breve> := "i"
+  | "И" letter-marks<Breve> :: Capital := "i"
+  | "у" letter-marks<Breve> := "u"
+  | "У" letter-marks<Breve> :: Capital := "u"
+  | "ј" [letter-marks] := "i"
+  | "Ј" [letter-marks] :: Capital := "i"
+
 %rule cyrillic-vowel
   | cyrillic-full-vowel
   | ("ъ" | "ы" | "ә") [letter-marks<¬Accent>] :: Syllabic := "y"
@@ -78,12 +86,7 @@ Joined vowels use the same public tags as isolated vowels. The emission filter k
   | ("Ъ" | "Ы" | "Ә") letter-marks<Accent> :: Stressed Syllabic Accented := "y" :- "Y"
   | ("Ъ" | "Ы" | "Ә") [letter-marks<¬Accent>] :: Stressed Syllabic Capital := "y" :- "Y"
   | ("Ъ" | "Ы" | "Ә") [letter-marks<¬Accent>] :: Folded Syllabic Capital := "y"
-  | "и" letter-marks<Breve> :: Vowel := "i"
-  | "И" letter-marks<Breve> :: Capital ∪ Vowel := "i"
-  | "у" letter-marks<Breve> :: Vowel := "u"
-  | "У" letter-marks<Breve> :: Capital ∪ Vowel := "u"
-  | "ј" [letter-marks] :: Vowel := "i"
-  | "Ј" [letter-marks] :: Capital ∪ Vowel := "i"
+  | cyrillic-glide
 %emits
   $ :: $.tags ∩ (Stressed ∪ Syllabic ∪ Vowel)
 
