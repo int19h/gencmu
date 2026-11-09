@@ -597,8 +597,8 @@ No step names these terms. Their contained predicates use the `fewest` and `late
   $n:NA 🆓 [+KU] 🆓
 %conditions
   ¬$n.onward.begins(na-connective),
-  $ ≇ $BARE-NA ∨ $.ends-input ∨ ($PLACE-CLOSE ∩ $.following-tokens.first-token.tags) ⊈ ∅
-    ∨ $.followed-by(gihek | term)
+  $ ≇ $BARE-NA ∨ $.ends-input ∨ ($PLACE-CLOSE ∩ $.following-tokens.first-token.tags) ⊈ ∅ ∨
+  $.followed-by(gihek | term)
 
 %rule na-connective
   gek | joik-jek-ek | gihek
@@ -620,8 +620,8 @@ No step names these terms. Their contained predicates use the `fewest` and `late
   | tag $s:sumti :: $s.tags ∩ $EXTENSIBLE-END
   | tag [+KU] 🆓
 %conditions
-  $ ≇ $BARE-TAG ∨ $.ends-input ∨ ($PLACE-CLOSE ∩ $.following-tokens.first-token.tags) ⊈ ∅
-    ∨ $.followed-by(gihek)
+  $ ≇ $BARE-TAG ∨ $.ends-input ∨ ($PLACE-CLOSE ∩ $.following-tokens.first-token.tags) ⊈ ∅ ∨
+  $.followed-by(gihek)
 
 -- termset <- gek_termset / NUhI_clause free* gek terms NUhU_elidible free* gik terms NUhU_elidible free* / NUhI_clause free* terms NUhU_elidible free*
 %redefine-rule termset

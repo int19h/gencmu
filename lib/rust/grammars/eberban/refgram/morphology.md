@@ -232,9 +232,9 @@ A freeform variable or borrowing has a third shape: `X` is a sonorant and `YZ` i
 %rule root-triplet-of(@Hyphen)
   $x:consonant [Hyphen] $y:consonant [@Hyphen] $z:consonant
 %conditions
-  $x.value ++ $y.value ∈ $MEDIAL-PAIRS ∧ $y.value ++ $z.value ∈ $INITIAL-PAIRS
-    ∨ ($x.value ++ $y.value ∈ $MEDIAL-PAIRS ∨ $x.value ++ $y.value ∈ $INITIAL-PAIRS)
-      ∧ $y.value ∉ $NOT-BEFORE-LIQUID ∧ $z.value ∈ $LIQUIDS
+  $x.value ++ $y.value ∈ $MEDIAL-PAIRS ∧ $y.value ++ $z.value ∈ $INITIAL-PAIRS ∨
+  ($x.value ++ $y.value ∈ $MEDIAL-PAIRS ∨ $x.value ++ $y.value ∈ $INITIAL-PAIRS) ∧
+    $y.value ∉ $NOT-BEFORE-LIQUID ∧ $z.value ∈ $LIQUIDS
 
 %rule root-triplet = root-triplet-of(hyphen-misplaced)
 
@@ -244,8 +244,8 @@ A freeform variable or borrowing has a third shape: `X` is a sonorant and `YZ` i
 %rule sonorant-triplet
   sonorant [Hyphen] $y:ns-consonant [hyphen-misplaced] $z:consonant
 %conditions
-  $y.value ++ $z.value ∈ $INITIAL-PAIRS
-    ∨ $y.value ++ $z.value ∈ $MEDIAL-PAIRS ∧ Sonorant ⊆ $z.tags
+  $y.value ++ $z.value ∈ $INITIAL-PAIRS ∨
+  $y.value ++ $z.value ∈ $MEDIAL-PAIRS ∧ Sonorant ⊆ $z.tags
 ```
 
 <details><summary>Railroad diagrams of the 4 rules from <code>root-triplet-of</code> to <code>sonorant-triplet</code></summary>
@@ -1376,17 +1376,17 @@ The edge readers collect faulty `h` letters and their hyphens before or after a 
   $x:consonant malformed-gap(Hyphen) $y:consonant
     malformed-gap(hyphen-misplaced) $z:consonant
 %conditions
-  $x.value ++ $y.value ∈ $MEDIAL-PAIRS ∧ $y.value ++ $z.value ∈ $INITIAL-PAIRS
-    ∨ ($x.value ++ $y.value ∈ $MEDIAL-PAIRS ∨ $x.value ++ $y.value ∈ $INITIAL-PAIRS)
-      ∧ $y.value ∉ $NOT-BEFORE-LIQUID ∧ $z.value ∈ $LIQUIDS
+  $x.value ++ $y.value ∈ $MEDIAL-PAIRS ∧ $y.value ++ $z.value ∈ $INITIAL-PAIRS ∨
+  ($x.value ++ $y.value ∈ $MEDIAL-PAIRS ∨ $x.value ++ $y.value ∈ $INITIAL-PAIRS) ∧
+    $y.value ∉ $NOT-BEFORE-LIQUID ∧ $z.value ∈ $LIQUIDS
 
 %rule recovering-freeform-triplet
   | recovering-root-triplet
   | sonorant malformed-gap(Hyphen) $y:ns-consonant
       malformed-gap(hyphen-misplaced) $z:consonant
 %conditions
-  $y.value ++ $z.value ∈ $INITIAL-PAIRS
-    ∨ $y.value ++ $z.value ∈ $MEDIAL-PAIRS ∧ Sonorant ⊆ $z.tags
+  $y.value ++ $z.value ∈ $INITIAL-PAIRS ∨
+  $y.value ++ $z.value ∈ $MEDIAL-PAIRS ∧ Sonorant ⊆ $z.tags
 
 %rule malformed-final-sonorant
   malformed-gap(hyphen-misplaced) sonorant

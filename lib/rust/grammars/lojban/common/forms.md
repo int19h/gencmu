@@ -135,10 +135,10 @@ The BPFK word forms set only `Onset` and `Continued`, with the meaning that the 
          (Uncounted ⊆ $v.tags ⟹ Open-Stress ∩ $r.tags)
 %conditions
   (Continued ∪ Cy ∪ Name-Intro ∪ Open-Stress) ∩ $r.tags ≠ ∅,
-  Cy ⊆ $r.tags ∧ Cy ⊆ $v.tags
-    ∨ Continued ⊆ $r.tags ∧ Open-Stress ⊈ $r.tags ∧ Onset ⊆ $v.tags
-    ∨ Name-Intro ⊆ $r.tags ∧ Name-Onset ⊆ $v.tags
-    ∨ Open-Stress ⊆ $r.tags ∧ Cy ⊈ $r.tags ∧ Onset ⊆ $v.tags,
+  Cy ⊆ $r.tags ∧ Cy ⊆ $v.tags ∨
+  Continued ⊆ $r.tags ∧ Open-Stress ⊈ $r.tags ∧ Onset ⊆ $v.tags ∨
+  Name-Intro ⊆ $r.tags ∧ Name-Onset ⊆ $v.tags ∨
+  Open-Stress ⊆ $r.tags ∧ Cy ⊈ $r.tags ∧ Onset ⊆ $v.tags,
   Final-Stress ⊈ $r.tags ∨ (Stress-Guard ∪ Initial-Stress) ∩ $v.tags = ∅,
   Open-Stress ⊈ $r.tags ∨ Uncounted ⊆ $v.tags
 ```

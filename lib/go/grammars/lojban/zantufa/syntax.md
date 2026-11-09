@@ -531,8 +531,8 @@ The step `fewest #·term-link` counts the plain `term-link` rule, so a sumti con
 %rule lerfu-operator
   [{BO 🆓}] [{operand}] $o:operator
 %conditions
-  $o ≇ $JOIK-EK-OP
-  ∨ ¬$o.following-tokens.begins(sumti-or-relative)
+  $o ≇ $JOIK-EK-OP ∨
+  ¬$o.following-tokens.begins(sumti-or-relative)
 
 %rule sumti-or-relative
   sumti | relative-clause
