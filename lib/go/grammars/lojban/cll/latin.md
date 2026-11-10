@@ -72,9 +72,11 @@ CLL[^cll-s3-3] says that a comma "cannot be pronounced as a pause", so a comma a
 %rule spaced-pause
   [pause-edge] $c:pause-core [pause-edge]
 %emits
-  $c :: PAUSE ∪
-        ($c.first-token.matches(period-char) ⟹ Period-Initial) ∪
-        ($c.matches(period-core) ⟹ Period-Only) := " "
+  $c
+      :: PAUSE ∪
+         ($c.first-token.matches(period-char) ⟹ Period-Initial) ∪
+         ($c.matches(period-core) ⟹ Period-Only)
+      := " "
 
 %rule pause-core
   core-char | pause-core core-char | pause-core pause-edge core-char
