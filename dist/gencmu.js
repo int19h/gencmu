@@ -13609,7 +13609,7 @@
       this.key = key;
       this.unseen = unseen;
       this.errorFree = false;
-      /** @type {number|null} */ this.endingAfter = null;
+      /** @type {any} */ this.target = null;
       /** The count of aligned queries when the query halted (engine §4.3). */
       this.asked = 0;
       /** @type {import("./types.js").AlignedSpan|null} */
@@ -13900,13 +13900,15 @@
           chart.familyTrace.get(item) ?? [], chart.start, Math.min(constraint.candidateEnd,item.end)) : null,
       }));
       if (sharingOf(context).suffixActive === 0 && query.qualificationKey !== null) context.qualified.set(query.qualificationKey, qualified);
-      const entry = alignedAnswer(context, kind, /** @type {import("./types.js").AlignedSpan} */ (query.aligned), qualified.filter(item=>endsAfter(query,item.end)));
+      const entry = alignedAnswer(context, kind, /** @type {import("./types.js").AlignedSpan} */ (query.aligned), qualified,query.target?.ends,query.start);
       if (sharingOf(context).suffixActive === 0) context.nested.set(query.key, entry);
+      if(query.target)query.target.answer=entry;
       return queryAnswer(kind, entry);
     } else if (isEnds(kind)) {
       const state = /** @type {SuffixState} */ (suffixRequests.get(query));
       state.dependent ||= sharingOf(context).asked !== query.asked;
       entry = {accepted:state.answers.get(query.end) ?? false,tags:suffixTags(state).get(query.end) ?? tagSet()};
+      if(query.target?.ends && entry.accepted)entry.ends=[[originalPosition(context,query.end)-originalPosition(context,start),entry.tags]];
       answer = queryAnswer(kind, entry);
     } else if (kind === "contains" || kind === "contains-tags") {
       /** @type {Item[]} */
@@ -13915,10 +13917,10 @@
         if (set === undefined) continue;
         for (const item of set.items) if (item.complete && item.production.lhs === rule && !!item.production.closeRequested === !!chart.closeRequested) witnesses.push(item);
       }
-      const eligible = eligibleWitnesses(chart, boundaryWitnesses(chart,witnesses),query.errorFree).filter(item => endsAfter(query,item.end));
+      const eligible = eligibleWitnesses(chart, boundaryWitnesses(chart,witnesses),query.errorFree);
       const result = new TagUnion();
       for (const item of eligible) result.add(context.interner.get(item.tagId));
-      entry = {accepted:eligible.length > 0,tags:result.result()};
+      entry = {accepted:eligible.length > 0,tags:result.result(),...(query.target?.ends?{ends:witnessEnds(query,eligible)}:{})};
       answer = queryAnswer(kind, entry);
       shared = { accepted: entry.accepted, tags: [...entry.tags] };
     } else if (kind === "begins" || kind === "begins-tags") {
@@ -13929,29 +13931,35 @@
         if (set === undefined) continue;
         for (const item of set.items) if (item.complete && item.origin === start && item.production.lhs === rule && !!item.production.closeRequested === !!chart.closeRequested) witnesses.push(item);
       }
-      const eligible = eligibleWitnesses(chart, boundaryWitnesses(chart,witnesses),query.errorFree).filter(item => endsAfter(query,item.end));
+      const eligible = eligibleWitnesses(chart, boundaryWitnesses(chart,witnesses),query.errorFree);
       const union = new TagUnion();
       for (const item of eligible) union.add(context.interner.get(item.tagId));
-      entry = {accepted:eligible.length > 0,tags:union.result()};
+      entry = {accepted:eligible.length > 0,tags:union.result(),...(query.target?.ends?{ends:witnessEnds(query,eligible)}:{})};
       answer = queryAnswer(kind, entry);
       shared = { accepted: entry.accepted, tags: [...entry.tags] };
     } else {
       // One recognition answers matches and tags, so the shared memo keeps
       // both in one entry (engine §4.3).
-      const witnesses = eligibleWitnesses(chart, boundaryWitnesses(chart,rootItems(chart, rule)),query.errorFree).filter(item => endsAfter(query,item.end));
+      const witnesses = eligibleWitnesses(chart, boundaryWitnesses(chart,rootItems(chart, rule)),query.errorFree);
       const result = new TagUnion();
       for (const item of witnesses) result.add(context.interner.get(item.tagId));
       const tags = result.result();
-      entry = {accepted:witnesses.length > 0,tags};
+      entry = {accepted:witnesses.length > 0,tags,...(query.target?.ends?{ends:witnessEnds(query,witnesses)}:{})};
       answer = queryAnswer(kind, entry);
       shared = { accepted: witnesses.length > 0, tags: [...tags] };
     }
     if (sharingOf(context).suffixActive === 0) context.nested.set(query.key, entry ?? /** @type {boolean} */ (answer));
-    if (shared !== null) rememberShared(query, shared);
+    if(query.target)query.target.answer=entry;
+    if (shared !== null && !query.target?.ends) rememberShared(query, shared);
     return answer;
   }
 
-  /** @typedef {boolean|{accepted:boolean,tags:TagSet}} QueryAnswer */
+  /** @typedef {boolean|{accepted:boolean,tags:TagSet,ends?:[number,TagSet][]}} QueryAnswer */
+  /** @param {Pending} query @param {Item[]} witnesses @returns {[number,TagSet][]} */
+  function witnessEnds(query,witnesses) {
+    const base=originalPosition(query.context,query.start);
+    return witnesses.map(item=>[originalPosition(query.context,item.end)-base,query.context.interner.get(item.tagId)]);
+  }
   /** @param {string} kind @param {QueryAnswer} entry @returns {boolean|TagSet} */
   function queryAnswer(kind, entry) {
     return typeof entry === "boolean" ? entry : kind === "tags" || kind.endsWith("-tags") ? entry.tags : entry.accepted;
@@ -13965,9 +13973,10 @@
    * @param {string} kind
    * @param {import("./types.js").AlignedSpan} constraint
    * @param {QualifiedObservation[]} qualified
-   * @returns {{accepted:boolean,tags:TagSet}}
+   * @param {boolean} [ends] @param {number} [start]
+   * @returns {{accepted:boolean,tags:TagSet,ends?:[number,TagSet][]}}
    */
-  function alignedAnswer(context, kind, constraint, qualified) {
+  function alignedAnswer(context, kind, constraint, qualified,ends=false,start=0) {
     const aligned = qualified.filter(item => {
       if (item.end > constraint.matchEnd || kind.replace(/-tags$/, "") !== "begins" && item.end !== constraint.matchEnd) return false;
       const answer = !!item.observation && (item.familyAligned
@@ -13977,7 +13986,7 @@
     });
     const tags = new TagUnion();
     for (const item of aligned) tags.add(item.tags);
-    return {accepted:aligned.length !== 0,tags:tags.result()};
+    return {accepted:aligned.length !== 0,tags:tags.result(),...(ends?{ends:aligned.map(item=>/** @type {[number,TagSet]} */([originalPosition(context,item.end)-originalPosition(context,start),item.tags]))}:{})};
   }
 
   // What a run does next. A step that halts for a nested parse keeps its
@@ -14540,7 +14549,7 @@
       const chart = {sets,start,end:set.position,setAt:position => sets[position-start] || new ChartSet(position),
         furthest,context,frames:lexical,closeRequested:false,family:null,familyTrace:null,boundaryFailures};
       const witnesses = set.items.filter(item => item.complete && item.production.lhs === rule && !item.production.closeRequested);
-      const eligible = eligibleWitnesses(chart,boundaryWitnesses(chart,witnesses),!!query?.errorFree).filter(item=>!query || endsAfter(query,item.end));
+      const eligible = eligibleWitnesses(chart,boundaryWitnesses(chart,witnesses),!!query?.errorFree);
       suffix.answers.set(set.position,eligible.length !== 0);
       const union = new TagUnion();
       for (const item of eligible) union.add(context.interner.get(item.tagId));
@@ -16194,7 +16203,7 @@
    * @param {string} rule
    * @param {number} start
    * @param {number} end
-   * @param {{key: [number, number] | null, aligned?: import("./types.js").AlignedSpan, errorFree?: boolean, endingAfter?:number|null} | null} target
+   * @param {{key: [number, number] | null, aligned?: import("./types.js").AlignedSpan, errorFree?: boolean, ends?:boolean, answer?:any} | null} target
    *   where a query of the check came from
    * @returns {boolean | TagSet | Halt}
    */
@@ -16205,14 +16214,12 @@
     if (aligned) sharing.asked++;
     // One recognition answers matches and tags, so both memos share a kind (§4.3).
     const errorFree = !!target?.errorFree;
-    const endingAfter = target?.endingAfter ?? null;
-    const memoKind = (kind === "tags" ? "matches" : kind.endsWith("-tags") ? kind.slice(0, -5) : kind) + (errorFree ? ":error-free" : "");
+    const memoKind = (kind === "tags" ? "matches" : kind.endsWith("-tags") ? kind.slice(0, -5) : kind) + (errorFree ? ":error-free" : "") + (target?.ends?":ends":"");
     const ancestry = aligned ? [...context.inProgress].sort(compareCodePoints) : null;
-    let key = isEnds(kind) ? JSON.stringify(["suffix",rule,start,end,errorFree]) : aligned ? JSON.stringify(["aligned",memoKind,rule,start,end,aligned.candidateEnd,aligned.matchEnd,aligned.family,context.closes?.identity(aligned.observation),ancestry])
+    let key = isEnds(kind) ? JSON.stringify(["suffix",rule,start,end,errorFree,!!target?.ends]) : aligned ? JSON.stringify(["aligned",memoKind,rule,start,end,aligned.candidateEnd,aligned.matchEnd,aligned.family,context.closes?.identity(aligned.observation),ancestry])
       : at !== null && end - start > CONTENT_KEY_LIMIT
         ? JSON.stringify(["at", memoKind, rule, at[0], at[1]])
         : nestedKey(context, memoKind, rule, start, end);
-    if (endingAfter !== null) key=JSON.stringify([...JSON.parse(key),"ending-after",endingAfter-originalPosition(context,start)]);
     if (errorFree || readsCarriedErrors(context.lowered,rule)) {
       const parts = JSON.parse(key);
       if (key.startsWith('["of"')) {
@@ -16224,20 +16231,24 @@
     requireInactive(context,rule,start,end);
     let suffix = null;
     if (isEnds(kind)) {
-      suffix = sharing.suffixActive > 0 ? freshSuffix() : suffixState(context, rule, start, end, errorFree, endingAfter);
+      suffix = sharing.suffixActive > 0 ? freshSuffix() : suffixState(context, rule, start, end, errorFree);
       if (suffix.answers.has(end)) {
         if (suffix.dependent) sharing.asked++;
-        return queryAnswer(kind, {accepted:!!suffix.answers.get(end),tags:suffixTags(suffix).get(end) ?? tagSet()});
+        const entry={accepted:!!suffix.answers.get(end),tags:suffixTags(suffix).get(end) ?? tagSet(),ends:/** @type {[number,TagSet][]} */([])};
+        if(target?.ends && entry.accepted)entry.ends.push([originalPosition(context,end)-originalPosition(context,start),entry.tags]);
+        if(target)target.answer=entry;
+        return queryAnswer(kind, entry);
       }
     }
     const known = sharing.suffixActive > 0 ? undefined : context.nested.get(key);
     if (known !== undefined) {
       if (sharing.tainted.has(key)) sharing.asked++;
+      if(target)target.answer=known;
       return queryAnswer(kind, known);
     }
     const limit = memoLimit();
     // Shared answers cannot hide recursive aligned or suffix requests (§4.3).
-    if (!aligned && limit > 0 && sharing.alignedActive === 0 && sharing.suffixActive === 0 && key.startsWith('["of"')) {
+    if (!target?.ends && !aligned && limit > 0 && sharing.alignedActive === 0 && sharing.suffixActive === 0 && key.startsWith('["of"')) {
       const found = sharedMemoOf(context.lowered).get(key, limit);
       if (found !== undefined) {
         if (hooks.memoHit) hooks.memoHit(key, sharing.alignedActive);
@@ -16245,6 +16256,7 @@
         // nested parse does.
         const entry = typeof found === "boolean" ? found : {accepted:found.accepted,tags:tagSet(found.tags)};
         context.nested.set(key, entry);
+        if(target)target.answer=entry;
         return queryAnswer(kind, entry);
       }
     }
@@ -16252,14 +16264,15 @@
       ...(aligned.family ? [aligned.family,aligned.candidateEnd,context.closes?.identity(aligned.observation)] : [])]) : null;
     const qualified = qualificationKey !== null && sharing.suffixActive === 0 ? context.qualified.get(qualificationKey) : undefined;
     if (qualified && aligned) {
-      const entry = alignedAnswer(context,kind,aligned,qualified.filter(item=>target?.endingAfter == null || originalPosition(context,item.end)>target.endingAfter));
+      const entry = alignedAnswer(context,kind,aligned,qualified,target?.ends,start);
       context.nested.set(key, entry);
+      if(target)target.answer=entry;
       return queryAnswer(kind, entry);
     }
     // A fault finds no query cycle while the check runs (F25).
     halting = new Pending(context, /** @type {"matches" | "begins" | "ends" | "tags"} */ (/** @type {unknown} */ (kind)), rule, start, end, at, key, context.checking && fault("F25"));
     halting.errorFree = errorFree;
-    halting.endingAfter = endingAfter;
+    halting.target = target;
     halting.aligned = aligned ?? null;
     halting.qualificationKey = qualificationKey;
     halting.asked = sharing.asked;
@@ -16342,11 +16355,11 @@
     memo.set(rule,false); return false;
   }
 
-  /** @param {ParseContext} context @param {string} rule @param {number} start @param {number} end @param {boolean} errorFree @param {number|null} endingAfter @returns {SuffixState} */
-  function suffixState(context, rule, start, end, errorFree, endingAfter) {
+  /** @param {ParseContext} context @param {string} rule @param {number} start @param {number} end @param {boolean} errorFree @returns {SuffixState} */
+  function suffixState(context, rule, start, end, errorFree) {
     let states = suffixStates.get(context);
     if (!states) suffixStates.set(context,states=new Map());
-    const key = JSON.stringify(suffixReadsEnd(context.lowered,rule) ? [rule,start,end,errorFree,endingAfter] : [rule,start,errorFree,endingAfter]);
+    const key = JSON.stringify(suffixReadsEnd(context.lowered,rule) ? [rule,start,end,errorFree] : [rule,start,errorFree]);
     let state = states.get(key);
     if (!state) states.set(key,state=freshSuffix());
     return state;
@@ -16526,49 +16539,39 @@
     return result===HALT ? pause(asSetValue) : {set:/** @type {TagSet} */(result)};
   }
 
-  /** @param {Pending} query @param {number} end */
-  function endsAfter(query,end) {
-    return query.endingAfter===null || originalPosition(query.context,end)>query.endingAfter;
-  }
-
-  /** A filter evaluates its receiver before it reads its endpoint argument.
+  /** A forest query runs once before any endpoint argument is read.
    * @param {ParseContext} context @param {any} forest @param {Scope} scope
    * @param {boolean} tags @returns {boolean|TagSet|Halt} */
   function forestResult(context,forest,scope,tags) {
-    /** @param {any} term @returns {any|Halt} */
-    const request=term=>{
-      if(term.method==='local-readings') {
-        const local=/** @type {NonNullable<Scope['localReading']>} */(scope.localReading)(term.receiver);
-        return {context,start:local.start,end:context.tokens.length,key:null,rule:local.rule,mode:'begins',errorFree:false,endingAfter:null};
+    /** @type {any[]} */ const filters=[];
+    while(['error-free','ending-after'].includes(forest.method)){filters.push(forest);forest=forest.receiver;}
+    const errorFree=filters.some(filter=>filter.method==='error-free');
+    const ends=filters.some(filter=>filter.method==='ending-after');
+    let target;
+    if(forest.method==='local-readings') {
+      const local=/** @type {NonNullable<Scope['localReading']>} */(scope.localReading)(forest.receiver);
+      target={context,start:local.start,end:context.tokens.length,key:null,rule:local.rule,mode:'begins',errorFree,ends};
+    } else {
+      const receiver=queryTarget(context,spanOf(context,forest.receiver,scope),scope);
+      target={...receiver,rule:bodyTarget(receiver.context.lowered,forest.args[0].body),mode:queryBody(forest.args[0].body).mode,errorFree,ends};
+    }
+    /** @type {any} */ const request=target;
+    const answer=nested(target.context,tags?target.mode==='matches'?'tags':target.mode+'-tags':target.mode,
+      target.rule,target.start,target.end,request);
+    /** @param {boolean|TagSet} value @returns {boolean|TagSet} */
+    const finish=value=>{
+      if(!ends)return value;
+      let witnesses=request.answer.ends??[];
+      const base=originalPosition(target.context,target.start);
+      for(const filter of filters.reverse())if(filter.method==='ending-after') {
+        const endpoint=observe(context,spanOf(context,filter.args[0],scope),scope,'ends-input').end;
+        witnesses=witnesses.filter((/** @type {[number,TagSet]} */ witness)=>witness[0]+base>endpoint);
       }
-      if(term.method==='parse') {
-        const target=queryTarget(context,spanOf(context,term.receiver,scope),scope);
-        return {...target,rule:bodyTarget(target.context.lowered,term.args[0].body),mode:queryBody(term.args[0].body).mode,errorFree:false,endingAfter:null};
-      }
-      const receiver=request(term.receiver);
-      if(receiver===HALT)return pause(value=>filter(term,value));
-      return filter(term,receiver);
+      if(!tags)return witnesses.length!==0;
+      const union=new TagUnion();for(const witness of witnesses)union.add(witness[1]);return union.result();
     };
-    /** @param {any} term @param {any} receiver @returns {any|Halt} */
-    const filter=(term,receiver)=>{
-      if(term.method==='error-free')return {...receiver,errorFree:true};
-      // Running the receiver preserves its runtime errors before an absent
-      // endpoint can fail a check condition. The query memo keeps its answer.
-      const answer=nested(receiver.context,receiver.mode,receiver.rule,receiver.start,receiver.end,receiver);
-      const finish=()=>term.method==='error-free' ? {...receiver,errorFree:true}
-        : {...receiver,endingAfter:Math.max(receiver.endingAfter??-1,
-          observe(context,spanOf(context,term.args[0],scope),scope,'ends-input').end)};
-      return answer===HALT ? pause(finish) : finish();
-    };
-    /** @param {any} target @returns {boolean|TagSet|Halt} */
-    const finish=target=>nested(target.context,tags ? target.mode==='matches'?'tags':target.mode+'-tags':target.mode,
-      target.rule,target.start,target.end,target);
-    const target=request(forest);
-    return target===HALT ? pause(finish) : finish(target);
+    return answer===HALT?pause(finish):finish(answer);
   }
-
-
-
 
   // The furthest position the parse reached, and what could have been read
   // there, with the rules that could have read it.

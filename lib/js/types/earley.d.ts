@@ -344,7 +344,7 @@ declare class Pending {
     key: string;
     unseen: boolean;
     errorFree: boolean;
-    /** @type {number|null} */ endingAfter: number | null;
+    /** @type {any} */ target: any;
     /** The count of aligned queries when the query halted (engine §4.3). */
     asked: number;
     /** @type {import("./types.js").AlignedSpan|null} */
@@ -429,6 +429,7 @@ export declare function settled<T>(evaluation: () => T | Halt): T;
 export type QueryAnswer = boolean | {
     accepted: boolean;
     tags: TagSet;
+    ends?: [number, TagSet][];
 };
 export type Advanced = {
     dot: number;

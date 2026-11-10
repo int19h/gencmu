@@ -933,9 +933,9 @@ impl Contents {
 /// What a nested parse's answer is remembered by (§4).
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum NestedKey {
-    Ending {
+    WitnessEnds {
         key: Box<NestedKey>,
-        after: usize,
+        filtered: bool,
     },
     Context {
         key: Box<NestedKey>,
@@ -983,6 +983,7 @@ pub(crate) struct Shared<'a> {
     /// Whether a span parses as a rule, and its tags as it: what `matches`
     /// and `tags` read of one nested parse.
     memo: FxMap<NestedKey, Answer>,
+    witness_ends: FxMap<NestedKey, Vec<(usize, SetId)>>,
     /// The contents that the keys of the memo and of `begins` number.
     contents: Contents,
     /// Original qualified witnesses, shared by alignment constraints and endpoints.
@@ -1022,6 +1023,7 @@ impl<'a> Shared<'a> {
             text,
             source_lines: OnceCell::new(),
             memo: FxMap::default(),
+            witness_ends: FxMap::default(),
             contents: Contents::default(),
             qualified: FxMap::default(),
             begins: FxMap::default(),
@@ -1099,6 +1101,7 @@ impl<'a> Shared<'a> {
         self.emission_targets.clear();
         self.pattern_grammar = 0;
         self.memo.clear();
+        self.witness_ends.clear();
         self.contents.clear();
         self.qualified.clear();
         self.begins.clear();
@@ -1297,7 +1300,7 @@ pub(crate) struct Request<'t> {
     aligned: Option<Alignment>,
     contains: bool,
     filtered: bool,
-    after: Option<usize>,
+    witness_ends: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1324,7 +1327,7 @@ impl Request<'_> {
     }
     fn qualification_key(&self) -> QualificationKey {
         let mut key = &self.key;
-        while let NestedKey::Context { key: inner, .. } | NestedKey::Ending { key: inner, .. } = key {
+        while let NestedKey::Context { key: inner, .. } | NestedKey::WitnessEnds { key: inner, .. } = key {
             key = inner;
         }
         match key {
@@ -1457,6 +1460,7 @@ enum Task<'n> {
     Whole(Wanted),
     /// A query that halted the evaluation, which its answer resumes.
     Await(Query),
+    Filtered(Query, NestedKey, &'n [Span], usize),
 }
 
 /// An evaluation of a step's conditions or of a tag term, as a stack of
@@ -2271,34 +2275,36 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let start = if request.begins { 0 } else { witnesses.partition_point(|w| w.end < a.match_end) };
         let witnesses = &witnesses[start..limit];
         let mut m = self.shared.machine.as_ref().unwrap().borrow_mut();
-        let mut aligned = |w: &&QualifiedWitness| {
-            request.after.map_or(true, |after| w.end > after)
-                && match a.family {
-                    Some((_, context)) => {
-                        let actual = w.observation != crate::restoration::INVALID
-                            && m.families.accepts(context, w.family, w.end);
-                        if w.observation != crate::restoration::INVALID {
-                            m.families.compare_oracle(context, w.oracle, w.end, actual);
-                        }
-                        actual
-                    }
-                    None => {
-                        m.observations.as_mut().unwrap().aligns(a.observation, w.observation, a.fixed_end.min(w.end))
-                    }
+        let mut aligned = |w: &&QualifiedWitness| match a.family {
+            Some((_, context)) => {
+                let actual =
+                    w.observation != crate::restoration::INVALID && m.families.accepts(context, w.family, w.end);
+                if w.observation != crate::restoration::INVALID {
+                    m.families.compare_oracle(context, w.oracle, w.end, actual);
                 }
+                actual
+            }
+            None => m.observations.as_mut().unwrap().aligns(a.observation, w.observation, a.fixed_end.min(w.end)),
         };
         if request.begins {
             let mut accepted = false;
             let mut clean = false;
             let mut lists = Vec::new();
+            let mut ends = Vec::new();
             for w in witnesses {
                 if aligned(&w) {
                     accepted = true;
                     clean |= w.clean;
                     if !request.filtered || w.clean {
                         lists.push(w.tags);
+                        if request.witness_ends {
+                            ends.push((w.end - request.base - request.start, w.tags));
+                        }
                     }
                 }
+            }
+            if request.witness_ends {
+                self.shared.witness_ends.insert(request.key.clone(), ends);
             }
             let list = union_all(lists.iter().map(|set| self.shared.tags.list(*set)));
             let answer = (accepted, self.shared.tags.set(list), clean);
@@ -2311,6 +2317,14 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let list =
             union_all(retained.iter().filter(|w| !request.filtered || w.clean).map(|w| self.shared.tags.list(w.tags)));
         let answer = (!retained.is_empty(), self.shared.tags.set(list), retained.iter().any(|w| w.clean));
+        if request.witness_ends {
+            let ends = retained
+                .iter()
+                .filter(|w| !request.filtered || w.clean)
+                .map(|w| (w.end - request.base - request.start, w.tags))
+                .collect();
+            self.shared.witness_ends.insert(request.key.clone(), ends);
+        }
         if self.shared.suffix_active == 0 {
             self.shared.memo.insert(request.key, answer);
         }
@@ -2326,7 +2340,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 let lists: Vec<_> = state
                     .answers
                     .iter()
-                    .filter(|(pos, _)| range.contains(pos) && request.after.map_or(true, |after| **pos > after))
+                    .filter(|(pos, _)| range.contains(pos))
                     .map(|(pos, (h, c))| {
                         holds |= h;
                         clean |= c;
@@ -2339,10 +2353,26 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     .collect();
                 let tags = &self.shared.tags;
                 let list = union_all(lists.into_iter().flatten().map(|set| tags.list(*set)));
-                return (holds, self.shared.tags.set(list), clean);
-            }
-            if request.after.is_some_and(|after| request.base + request.end <= after) {
-                return (false, 0, false);
+                let set = self.shared.tags.set(list);
+                if request.witness_ends {
+                    let ends = state
+                        .answers
+                        .iter()
+                        .filter(|(pos, (holds, clean))| {
+                            range.contains(pos) && if request.filtered { *clean } else { *holds }
+                        })
+                        .map(|(pos, _)| {
+                            (
+                                *pos - request.base - request.start,
+                                if request.filtered { state.clean_tags.get(pos) } else { state.tags.get(pos) }
+                                    .copied()
+                                    .unwrap_or(0),
+                            )
+                        })
+                        .collect();
+                    self.shared.witness_ends.insert(request.key, ends);
+                }
+                return (holds, set, clean);
             }
             let (holds, clean) = state.answers[&(request.base + request.end)];
             let tags = if request.filtered {
@@ -2352,6 +2382,14 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             }
             .copied()
             .unwrap_or(0);
+            if request.witness_ends {
+                let ends = if if request.filtered { clean } else { holds } {
+                    vec![(request.end - request.start, tags)]
+                } else {
+                    vec![]
+                };
+                self.shared.witness_ends.insert(request.key, ends);
+            }
             return (holds, tags, clean);
         }
         let rule = request.rule;
@@ -2423,13 +2461,18 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let retained: Vec<_> = witnesses
             .into_iter()
             .zip(eligible)
-            .filter_map(|(witness, flags)| {
-                (flags != 0 && request.after.map_or(true, |after| query_base + witness.0 as usize > after))
-                    .then_some((witness, flags & 1 != 0))
-            })
+            .filter_map(|(witness, flags)| (flags != 0).then_some((witness, flags & 1 != 0)))
             .collect();
         let accepted = !retained.is_empty();
         let clean = retained.iter().any(|(_, clean)| *clean);
+        if request.witness_ends {
+            let ends = retained
+                .iter()
+                .filter(|(_, clean)| !request.filtered || *clean)
+                .map(|&((set, index), _)| (set as usize, chart.sets[set as usize].tagset[index as usize]))
+                .collect();
+            self.shared.witness_ends.insert(request.key.clone(), ends);
+        }
         if request.begins {
             let tags = &self.shared.tags;
             let list = union_all(
@@ -3862,16 +3905,16 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     /// A query's answer from the memo. One not yet known halts the
     /// evaluation, which waits for it in `Task::Await`.
     #[allow(clippy::too_many_arguments)]
-    fn query<'t>(
+    fn query<'n, 't>(
         &mut self,
-        eval: &mut Eval<'_>,
-        span: &Span,
+        eval: &mut Eval<'n>,
+        span: &'n Span,
         target: QueryTarget,
         query: Query,
         frame: &Frame,
         tokens: &'t [Tok],
         base: usize,
-        after: &[Span],
+        after: &'n [Span],
     ) -> Result<Out, Halt<'t>> {
         self.shared.prepare_errors(tokens, base);
         let (start, match_end, _) = self.checked_bounds(span, frame, tokens.len())?;
@@ -3882,11 +3925,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 tree.target(root, span).expect("a prepared local reading target")
             }
         };
-        let mut ending_after = None;
-        for end in after {
-            let high = base + self.checked_bounds(end, frame, tokens.len())?.1;
-            ending_after = Some(ending_after.map_or(high, |previous: usize| previous.max(high)));
-        }
+        let witness_ends = !after.is_empty();
         let mut anchor = span;
         while let Span::From(inner) = anchor {
             anchor = inner;
@@ -3912,13 +3951,17 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 start,
                 end,
                 rule,
-                key: NestedKey::Suffix(place),
+                key: if witness_ends {
+                    NestedKey::WitnessEnds { key: Box::new(NestedKey::Suffix(place)), filtered: query.filtered() }
+                } else {
+                    NestedKey::Suffix(place)
+                },
                 begins: false,
                 suffix: None,
                 aligned: None,
                 contains: query.mode() == crate::query_forms::Mode::Part,
                 filtered: query.filtered(),
-                after: ending_after,
+                witness_ends,
             };
             if self.shared.running.contains(&place) {
                 return Err(Halt::Error(self.start_query(&request).expect_err("an active recursive query")));
@@ -3940,16 +3983,33 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     }
                     .copied()
                     .unwrap_or(0);
-                    let answer = if request.after.is_some_and(|after| base + end <= after) {
-                        (false, 0, false)
-                    } else {
-                        (holds.0, tags, holds.1)
-                    };
-                    return Ok(query.out(answer, &self.shared.tags));
+                    let answer = (holds.0, tags, holds.1);
+                    if witness_ends {
+                        let ends = if if request.filtered { holds.1 } else { holds.0 } {
+                            vec![(end - start, tags)]
+                        } else {
+                            vec![]
+                        };
+                        self.shared.witness_ends.insert(request.key.clone(), ends);
+                    }
+                    return self.filtered_query(
+                        query,
+                        answer,
+                        &request.key,
+                        after,
+                        frame,
+                        tokens.len(),
+                        base,
+                        base + start,
+                    );
                 }
             }
             request.suffix = Some(id);
-            eval.tasks.push(Task::Await(query));
+            if witness_ends {
+                eval.tasks.push(Task::Filtered(query, request.key.clone(), after, base + start));
+            } else {
+                eval.tasks.push(Task::Await(query));
+            }
             return Err(Halt::Pending(Box::new(request)));
         }
         let key = match aligned {
@@ -3977,11 +4037,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             },
             None => self.nested_key(tokens, base, start, end, rule, query.filtered()),
         };
-        let key = if let Some(after) = ending_after.filter(|&after| after >= base + start) {
-            NestedKey::Ending { key: Box::new(key), after: after - (base + start) }
-        } else {
-            key
-        };
+        let key =
+            if witness_ends { NestedKey::WitnessEnds { key: Box::new(key), filtered: query.filtered() } } else { key };
         let begins = query.mode() == crate::query_forms::Mode::Prefix;
         let place = (rule, base + start, base + end);
         if self.shared.running.contains(&place) {
@@ -3997,7 +4054,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 aligned,
                 contains: false,
                 filtered: query.filtered(),
-                after: ending_after,
+                witness_ends,
             };
             return Err(Halt::Error(self.start_query(&request).expect_err("an active recursive query")));
         }
@@ -4009,7 +4066,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             self.shared.memo.get(&key).copied()
         };
         match known {
-            Some(answer) => Ok(query.out(answer, &self.shared.tags)),
+            Some(answer) => self.filtered_query(query, answer, &key, after, frame, tokens.len(), base, base + start),
             None => {
                 let request = Request {
                     tokens,
@@ -4023,20 +4080,64 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     aligned,
                     contains: false,
                     filtered: query.filtered(),
-                    after: ending_after,
+                    witness_ends,
                 };
                 if aligned.is_some() && self.shared.suffix_active == 0 {
                     if let Some(qualified) = self.shared.qualified.remove(&request.qualification_key()) {
                         let context = request.qualification_key();
+                        let key = request.key.clone();
                         let answer = self.aligned_answer(request, &qualified);
                         self.shared.qualified.insert(context, qualified);
-                        return Ok(query.out(answer, &self.shared.tags));
+                        return self.filtered_query(
+                            query,
+                            answer,
+                            &key,
+                            after,
+                            frame,
+                            tokens.len(),
+                            base,
+                            base + start,
+                        );
                     }
                 }
-                eval.tasks.push(Task::Await(query));
+                if witness_ends {
+                    eval.tasks.push(Task::Filtered(query, request.key.clone(), after, base + start));
+                } else {
+                    eval.tasks.push(Task::Await(query));
+                }
                 Err(Halt::Pending(Box::new(request)))
             }
         }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn filtered_query<'t>(
+        &mut self,
+        query: Query,
+        answer: Answer,
+        key: &NestedKey,
+        after: &[Span],
+        frame: &Frame,
+        length: usize,
+        base: usize,
+        start: usize,
+    ) -> Result<Out, Halt<'t>> {
+        if after.is_empty() {
+            return Ok(query.out(answer, &self.shared.tags));
+        }
+        let mut endpoint = 0;
+        for span in after {
+            endpoint = endpoint.max(base + self.checked_bounds(span, frame, length)?.1);
+        }
+        let witnesses = self.shared.witness_ends.get(key).expect("the receiver forest answer");
+        let lists: Vec<_> = witnesses
+            .iter()
+            .filter(|(end, _)| start + end > endpoint)
+            .map(|(_, set)| self.shared.tags.list(*set))
+            .collect();
+        let holds = !lists.is_empty();
+        let set = self.shared.tags.set(union_all(lists));
+        Ok(query.out((holds, set, holds), &self.shared.tags))
     }
 
     /// A set value, with scalar strings converted to singleton sets (§10).
@@ -4393,6 +4494,10 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     })
                 }
                 Task::Await(query) => query.out(eval.answer.take().expect("the answer"), &self.shared.tags),
+                Task::Filtered(query, key, after, start) => {
+                    let answer = eval.answer.take().expect("the receiver answer");
+                    self.filtered_query(query, answer, &key, after, frame, tokens.len(), base, start)?
+                }
                 Task::BoundaryYes(cond) => {
                     let yes = took(&mut last).holds();
                     eval.boundary_value = Some(false);

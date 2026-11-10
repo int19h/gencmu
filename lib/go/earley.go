@@ -1388,8 +1388,9 @@ func (r *recognizer) begunTags(start int32, errorFree bool, query ...*nestedQuer
 	eligible := r.eligibleItems(items, errorFree)
 	var sets []*tagset
 	for _, it := range eligible {
-		if len(query) > 0 && query[0].key.ending && r.base+int(it.set) <= query[0].at.a+query[0].key.after {
-			continue
+		if len(query) > 0 && query[0].key.witnessEnds {
+			q := query[0]
+			q.ends = append(q.ends, witnessEnd{r.base + int(it.set) - q.at.a, tagsOf[it]})
 		}
 		sets = append(sets, tagsOf[it])
 	}
