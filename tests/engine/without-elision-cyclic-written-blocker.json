@@ -1,6 +1,6 @@
 {
   "description": "Original eligibility keeps a written blocker whose content uses a finite recursive proof (engine §4 and §10).",
-  "grammar": "%rule text ($x:candidate T Y) %conditions ¬($x.without-elision.parse(rival))\n\n%rule candidate (X [+T=\"other\"])\n%rule rival (X [+T r<Recursive>])\n%rule r (r [+U]) :: Recursive | Y :: ∅",
+  "grammar": "%rule text ($x:candidate T Y) %conditions ¬$x.without-elision.parse(rival)\n\n%rule candidate (X [+T=\"other\"])\n%rule rival (X [+T r<Recursive>])\n%rule r (r [+U]) :: Recursive | Y :: ∅",
   "tokens": [
     {
       "text": "x",

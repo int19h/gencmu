@@ -1,5 +1,5 @@
 {
-  "grammar": "%rule text (Q $x:choice) %conditions ¬($x.without-elision.parse(choice))\n\n%rule choice ((a & b) (c ≻ d))\n%rule a X %conditions ¬($.starts-input)\n\n%rule b X %conditions $.starts-input\n\n%rule c (Y [+T])\n%rule d (Y [+U])",
+  "grammar": "%rule text (Q $x:choice) %conditions ¬$x.without-elision.parse(choice)\n\n%rule choice ((a & b) (c ≻ d))\n%rule a X %conditions ¬($.starts-input)\n\n%rule b X %conditions $.starts-input\n\n%rule c (Y [+T])\n%rule d (Y [+U])",
   "tokens": [
     {
       "text": "q",

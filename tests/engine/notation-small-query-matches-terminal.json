@@ -1,5 +1,5 @@
 {
-  "description": "Engine §4 accepts rule and terminal alternatives in one target choice for `.matches`.",
+  "description": "Engine §4 accepts rule and terminal alternatives in one target choice for a whole parse.",
   "grammar": "%rule text $x:A %conditions ($x.parse(B) ∨ $x.parse(A))",
   "tokens": [
     {

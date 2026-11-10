@@ -1,5 +1,5 @@
 {
-  "description": "The .classify argument names a classifier, while .tags and .matches arguments name rules. All three methods retain their string or span receivers in the DOM (engine §9.3, §10).",
+  "description": "The .classify argument names a classifier, while .tags and parse-body references name rules. All three methods retain their string or span receivers in the DOM (engine §9.3, §10).",
   "document": "```jbogenbau\n%classifier lex \n%rule text $w:W :: (\"mi\".classify(lex) ∪ $w.value.classify(lex) ∪ $w.parse(text).tags) %conditions $w.parse(text)\n\n```\n",
   "expect": {
     "dom": {

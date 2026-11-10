@@ -1,6 +1,6 @@
 {
   "description": "Moving T across Y changes the close boundary (engine §4 and §10).",
-  "grammar": "%rule text $x:candidate %conditions ¬($x.without-elision.parse(rival))\n\n%rule candidate (X [+T] Y)\n%rule rival (X Y [+T])",
+  "grammar": "%rule text $x:candidate %conditions ¬$x.without-elision.parse(rival)\n\n%rule candidate (X [+T] Y)\n%rule rival (X Y [+T])",
   "tokens": [
     {
       "text": "x",

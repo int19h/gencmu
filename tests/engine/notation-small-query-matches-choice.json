@@ -1,5 +1,5 @@
 {
-  "description": "Engine §4 tests alternatives in written order for `.matches`.",
+  "description": "Engine §4 tests alternatives in written order for a whole parse.",
   "grammar": "%rule text $x:A B %conditions ($x.parse(no) ∨ $x.parse(yes) ∨ $x.parse(C))\n%rule no B\n%rule yes A",
   "tokens": [
     {

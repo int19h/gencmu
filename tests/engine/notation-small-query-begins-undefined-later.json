@@ -1,5 +1,5 @@
 {
-  "description": "Engine §9.3 rejects an undefined target even after an earlier successful alternative for `.begins`.",
+  "description": "Engine §9.3 rejects an undefined target even after an earlier successful alternative for a prefix parse.",
   "grammar": "%rule text $x:A %conditions ($x.parse(A …) ∨ $x.parse(missing …))",
   "tokens": [
     {

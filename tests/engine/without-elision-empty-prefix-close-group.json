@@ -1,6 +1,6 @@
 {
   "description": "An empty prefix cannot ignore a close at the start boundary (engine §4 and §10).",
-  "grammar": "%rule text $x:candidate %conditions ¬($x.without-elision.parse(rival …))\n\n%rule candidate ([+T] X)\n%rule rival ε",
+  "grammar": "%rule text $x:candidate %conditions ¬$x.without-elision.parse(rival …)\n\n%rule candidate ([+T] X)\n%rule rival ε",
   "tokens": [
     {
       "text": "x",

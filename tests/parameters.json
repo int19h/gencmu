@@ -1265,48 +1265,6 @@
     }
   },
   {
-    "name": "uncalled template: matches fixed arity",
-    "grammar": "%rule unused(@X) @X %conditions @X.matches\n%rule text \"a\"",
-    "expect": {
-      "error": "grammar"
-    }
-  },
-  {
-    "name": "called template: matches fixed arity",
-    "grammar": "%rule unused(@X) @X %conditions @X.matches\n%rule text unused(\"a\")",
-    "expect": {
-      "error": "grammar"
-    }
-  },
-  {
-    "name": "replaced template: matches fixed arity",
-    "grammar": "%rule unused(@X) @X %conditions @X.matches\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
-    "expect": {
-      "error": "grammar"
-    }
-  },
-  {
-    "name": "uncalled template: begins fixed arity",
-    "grammar": "%rule unused(@X) @X %conditions @X.begins\n%rule text \"a\"",
-    "expect": {
-      "error": "grammar"
-    }
-  },
-  {
-    "name": "called template: begins fixed arity",
-    "grammar": "%rule unused(@X) @X %conditions @X.begins\n%rule text unused(\"a\")",
-    "expect": {
-      "error": "grammar"
-    }
-  },
-  {
-    "name": "replaced template: begins fixed arity",
-    "grammar": "%rule unused(@X) @X %conditions @X.begins\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
-    "expect": {
-      "error": "grammar"
-    }
-  },
-  {
     "name": "uncalled template: starts-input fixed arity",
     "grammar": "%rule unused(@X) @X %conditions @X.starts-input(\"a\")\n%rule text \"a\"",
     "expect": {

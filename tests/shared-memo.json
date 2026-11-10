@@ -132,7 +132,7 @@
       ]
     },
     {
-      "grammar": "%rule text ($x:candidate {Y}) %conditions ¬($x.parse(driver)), $x.onward.parse(driver …)\n\n%rule candidate (X [+T])\n%rule driver $y:candidate %conditions $y.without-elision.parse(rival)\n\n%rule rival (X [+T]) %conditions $.following-tokens.parse(tail …)\n\n%rule tail Y\n",
+      "grammar": "%rule text ($x:candidate {Y}) %conditions ¬$x.parse(driver), $x.onward.parse(driver …)\n\n%rule candidate (X [+T])\n%rule driver $y:candidate %conditions $y.without-elision.parse(rival)\n\n%rule rival (X [+T]) %conditions $.following-tokens.parse(tail …)\n\n%rule tail Y\n",
       "inputs": [
         [
           {
@@ -196,7 +196,7 @@
       ]
     },
     {
-      "grammar": "%rule text ($x:pair $y:pair) %conditions $x.parse(probe), ¬($y.parse(probe))\n\n%rule pair (W W)\n%rule probe ($f:W W) %conditions $f.image = \"x\"\n",
+      "grammar": "%rule text ($x:pair $y:pair) %conditions $x.parse(probe), ¬$y.parse(probe)\n\n%rule pair (W W)\n%rule probe ($f:W W) %conditions $f.image = \"x\"\n",
       "inputs": [
         [
           {
@@ -502,7 +502,7 @@
       ]
     },
     {
-      "grammar": "%rule text ($x:candidate {Y}) %conditions ¬($x.parse(driver)), ¬($x.parse(wrap))\n%rule wrap $z:candidate %conditions $z.parse(driver)\n\n%rule candidate (X [+T])\n%rule driver $y:candidate %conditions $y.without-elision.parse(rival)\n\n%rule rival (X [+T]) %conditions $.following-tokens.parse(tail …)\n\n%rule tail Y\n",
+      "grammar": "%rule text ($x:candidate {Y}) %conditions ¬$x.parse(driver), ¬$x.parse(wrap)\n%rule wrap $z:candidate %conditions $z.parse(driver)\n\n%rule candidate (X [+T])\n%rule driver $y:candidate %conditions $y.without-elision.parse(rival)\n\n%rule rival (X [+T]) %conditions $.following-tokens.parse(tail …)\n\n%rule tail Y\n",
       "inputs": [
         [
           {

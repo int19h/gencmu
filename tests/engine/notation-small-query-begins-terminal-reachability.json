@@ -1,5 +1,5 @@
 {
-  "description": "Engine §9.3 includes every terminal alternative when it finds buildable boundary targets for `.begins`.",
+  "description": "Engine §9.3 includes every terminal alternative when it finds buildable boundary targets for a prefix parse.",
   "grammar": "%rule text $x:A %conditions ($x.parse(no …) ∨ $x.parse(T …)), ¬$.followed-by(T)\n%rule no B",
   "tokens": [
     {

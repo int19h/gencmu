@@ -1,5 +1,5 @@
 {
-  "description": "Engine §4 preserves the alignment constraint for every restored query alternative for `.begins`.",
+  "description": "Engine §4 preserves the alignment constraint for every restored query alternative for a prefix parse.",
   "grammar": "%rule text $x:yes %conditions ($x.without-elision.parse(no …) ∨ $x.without-elision.parse(yes …))\n%rule yes A [+T]\n%rule no B",
   "tokens": [
     {

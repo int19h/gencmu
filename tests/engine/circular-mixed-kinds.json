@@ -1,6 +1,6 @@
 {
-  "description": "The circularity check does not depend on the kind of query: a begins about the span that a matches of the same rule is reading is an error (engine §4).",
-  "grammar": "%rule text $a:x %conditions ¬($a.onward.parse(probe))\n%rule probe $b:x %conditions ¬($b.onward.parse(probe …))\n%rule x A",
+  "description": "The circularity check does not depend on the kind of query: a prefix parse about the span that a whole parse of the same rule is reading is an error (engine §4).",
+  "grammar": "%rule text $a:x %conditions ¬$a.onward.parse(probe)\n%rule probe $b:x %conditions ¬$b.onward.parse(probe …)\n%rule x A",
   "tokens": [
     {
       "text": "a",

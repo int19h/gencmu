@@ -772,9 +772,9 @@ fn guarded_condition_terms_keep_their_boundary_atom() {
 #[test]
 fn invalid_restorations_are_local_to_the_boundary_assignment() {
     for (condition, expected) in [
-        ("¬($y.without-elision.parse(rival)) ∨ $.followed-by(B)", r#"{"result":{"ok":true}}"#),
-        ("$.followed-by(B) ∨ ¬($y.without-elision.parse(rival))", r#"{"result":{"ok":true}}"#),
-        ("¬$.followed-by(B) ∨ ¬($y.without-elision.parse(rival))", r#"{"error":"rejected"}"#),
+        ("¬$y.without-elision.parse(rival) ∨ $.followed-by(B)", r#"{"result":{"ok":true}}"#),
+        ("$.followed-by(B) ∨ ¬$y.without-elision.parse(rival)", r#"{"result":{"ok":true}}"#),
+        ("¬$.followed-by(B) ∨ ¬$y.without-elision.parse(rival)", r#"{"error":"rejected"}"#),
     ] {
         let grammar=format!("%ambiguity-resolution greedy\n%rule text $x:X B\n%conditions $x.parse(q).tags = ∅\n%rule q $y:r\n%conditions {condition}\n%rule r (r [+U]) :: Recursive | X :: ∅\n%rule rival X");
         let case = format!(

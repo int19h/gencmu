@@ -1,5 +1,5 @@
 {
-  "description": "Engine §4 accepts the free-modifier rule as a target alternative for `.begins`.",
+  "description": "Engine §4 accepts the free-modifier rule as a target alternative for a prefix parse.",
   "grammar": "%rule text $x:A %conditions ($x.parse(no …) ∨ $x.parse(🆓 …))\n%rule no B\n%rule 🆓 A",
   "tokens": [
     {

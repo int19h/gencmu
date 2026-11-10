@@ -1,5 +1,5 @@
 {
-  "description": "Engine §4 permits a target choice inside a guarded tag term for `.matches`.",
+  "description": "Engine §4 permits a target choice inside a guarded tag term for a whole parse.",
   "grammar": "%rule text A :: (($.parse(B) ∨ $.parse(A)) ⟹ Good) %emits $",
   "tokens": [
     {

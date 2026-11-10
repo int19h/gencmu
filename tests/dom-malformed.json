@@ -1001,7 +1001,7 @@
     "malformed": false
   },
   {
-    "description": "The rule name 🆓 is a supplied matches argument (engine §9.3 and §10).",
+    "description": "The rule name 🆓 is a supplied parse body in whole mode (engine §9.3 and §10).",
     "rule": {
       "name": "text",
       "op": "define",
@@ -1036,7 +1036,7 @@
     "malformed": false
   },
   {
-    "description": "The rule name 🆓 is a supplied begins argument (engine §9.3 and §10).",
+    "description": "The rule name 🆓 is a supplied parse body in prefix mode (engine §9.3 and §10).",
     "rule": {
       "name": "text",
       "op": "define",
@@ -1078,7 +1078,7 @@
     "malformed": false
   },
   {
-    "description": "The rule name 🆓 is a supplied tags argument (engine §9.3 and §10).",
+    "description": "The rule name 🆓 is a supplied parse body in a tags term (engine §9.3 and §10).",
     "rule": {
       "name": "text",
       "op": "define",
@@ -3007,7 +3007,7 @@
     "malformed": true
   },
   {
-    "description": "A feature condition retains the structural signature of matches (engine §§9, 13).",
+    "description": "A feature condition retains the structural signature of a whole parse (engine §§9, 13).",
     "directive": {
       "name": "features",
       "args": [
@@ -3036,7 +3036,7 @@
     "malformed": false
   },
   {
-    "description": "A feature condition rejects the wrong argument count for matches (engine §§9, 13).",
+    "description": "A feature condition rejects the wrong argument count for a whole parse (engine §§9, 13).",
     "directive": {
       "name": "features",
       "args": [
@@ -3059,7 +3059,7 @@
     "malformed": true
   },
   {
-    "description": "A feature condition admits a target choice structurally for matches (engine §§9, 13).",
+    "description": "A feature condition admits a body choice structurally for a whole parse (engine §§9, 13).",
     "directive": {
       "name": "features",
       "args": [
@@ -3095,7 +3095,7 @@
     "malformed": false
   },
   {
-    "description": "A feature condition retains the structural signature of begins (engine §§9, 13).",
+    "description": "A feature condition retains the structural signature of a prefix parse (engine §§9, 13).",
     "directive": {
       "name": "features",
       "args": [
@@ -3131,7 +3131,7 @@
     "malformed": false
   },
   {
-    "description": "A feature condition rejects the wrong argument count for begins (engine §§9, 13).",
+    "description": "A feature condition rejects the wrong argument count for a prefix parse (engine §§9, 13).",
     "directive": {
       "name": "features",
       "args": [
@@ -3154,7 +3154,7 @@
     "malformed": true
   },
   {
-    "description": "A feature condition admits a target choice structurally for begins (engine §§9, 13).",
+    "description": "A feature condition admits a body choice structurally for a prefix parse (engine §§9, 13).",
     "directive": {
       "name": "features",
       "args": [
@@ -3634,7 +3634,7 @@
     "malformed": true
   },
   {
-    "description": "A feature condition rejects the wrong named argument form for matches (engine §§9, 13).",
+    "description": "A feature condition rejects the wrong named argument form for a whole parse (engine §§9, 13).",
     "directive": {
       "name": "features",
       "args": [
@@ -3663,7 +3663,7 @@
     "malformed": true
   },
   {
-    "description": "A feature condition rejects the wrong named argument form for begins (engine §§9, 13).",
+    "description": "A feature condition rejects the wrong named argument form for a prefix parse (engine §§9, 13).",
     "directive": {
       "name": "features",
       "args": [
@@ -4732,7 +4732,7 @@
     "malformed": true
   },
   {
-    "description": "matches accepts a target choice.",
+    "description": "a whole parse accepts a body choice.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -4774,7 +4774,7 @@
     "malformed": false
   },
   {
-    "description": "begins accepts a target choice.",
+    "description": "a prefix parse accepts a body choice.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -5141,36 +5141,7 @@
     "malformed": true
   },
   {
-    "description": "Engine §10 rejects an empty begins target choice.",
-    "rule": {
-      "name": "text",
-      "op": "define",
-      "alternatives": [
-        {
-          "guards": [],
-          "expr": {
-            "empty": true
-          }
-        }
-      ],
-      "conditions": [
-        {
-          "method": "parse",
-          "receiver": {
-            "capture": ""
-          },
-          "args": []
-        }
-      ],
-      "at": [
-        1,
-        1
-      ]
-    },
-    "malformed": true
-  },
-  {
-    "description": "Engine §10 rejects an empty matches target choice.",
+    "description": "Engine §10 rejects a parse with no body.",
     "rule": {
       "name": "text",
       "op": "define",

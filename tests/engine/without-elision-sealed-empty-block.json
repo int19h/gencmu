@@ -1,6 +1,6 @@
 {
   "description": "An empty ranked block remains an opaque observation (engine §4 and §10).",
-  "grammar": "%rule text $x:choice %conditions $x.without-elision.parse(choice), ¬($x.without-elision.parse(unrelated))\n\n%rule choice (ε ≻ empty)\n%rule empty ε\n%rule unrelated ε",
+  "grammar": "%rule text $x:choice %conditions $x.without-elision.parse(choice), ¬$x.without-elision.parse(unrelated)\n\n%rule choice (ε ≻ empty)\n%rule empty ε\n%rule unrelated ε",
   "tokens": [],
   "expect": {
     "result": {

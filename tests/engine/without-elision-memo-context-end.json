@@ -1,6 +1,6 @@
 {
   "description": "The same capture starts queries with different original context ends (engine §4 and §10).",
-  "grammar": "%rule text ($x:candidate Y) %conditions ¬($x.parse(driver)), $x.onward.parse(driver …)\n\n%rule candidate (X [+T])\n%rule driver $y:candidate %conditions $y.without-elision.parse(rival)\n\n%rule rival (X [+T]) %conditions $.following-tokens.parse(tail …)\n\n%rule tail Y",
+  "grammar": "%rule text ($x:candidate Y) %conditions ¬$x.parse(driver), $x.onward.parse(driver …)\n\n%rule candidate (X [+T])\n%rule driver $y:candidate %conditions $y.without-elision.parse(rival)\n\n%rule rival (X [+T]) %conditions $.following-tokens.parse(tail …)\n\n%rule tail Y",
   "tokens": [
     {
       "text": "x",

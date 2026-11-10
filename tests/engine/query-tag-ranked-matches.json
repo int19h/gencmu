@@ -1,5 +1,5 @@
 {
-  "description": "The matches method uses a tag target in a ranked expression.",
+  "description": "A whole parse uses a tag target in a ranked expression.",
   "grammar": "%rule text ($x:part ≻ fallback) ::∅ %conditions $x.parse(T)\n%rule part A [A]\n%rule fallback A [A]\n%rule never Z Z Z",
   "tokens": [
     {

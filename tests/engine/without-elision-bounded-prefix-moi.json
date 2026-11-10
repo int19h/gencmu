@@ -1,6 +1,6 @@
 {
   "description": "A bounded prefix cannot read the following MOI (engine §4 and §10).",
-  "grammar": "%rule text ($x:candidate MOI) %conditions ¬($x.without-elision.parse(rival …))\n\n%rule candidate (X [+T])\n%rule rival (X [+T] MOI)",
+  "grammar": "%rule text ($x:candidate MOI) %conditions ¬$x.without-elision.parse(rival …)\n\n%rule candidate (X [+T])\n%rule rival (X [+T] MOI)",
   "tokens": [
     {
       "text": "x",

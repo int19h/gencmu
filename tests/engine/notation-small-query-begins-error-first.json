@@ -1,5 +1,5 @@
 {
-  "description": "Engine §4 propagates a recursive error before trying a later successful alternative for `.begins`.",
+  "description": "Engine §4 propagates a recursive error before trying a later successful alternative for a prefix parse.",
   "grammar": "%rule text $x:A %conditions ($x.parse(loop …) ∨ $x.parse(A …))\n%rule loop A %conditions $.parse(loop …)",
   "tokens": [
     {

@@ -1,5 +1,5 @@
 {
-  "description": "The begins method reads the rule named 🆓 (engine §10).",
+  "description": "A prefix parse reads the rule named 🆓 (engine §10).",
   "grammar": "%rule text $c:c %conditions $c.parse(🆓 …)\n%rule c X B\n%rule 🆓 X B :: X",
   "tokens": [
     {

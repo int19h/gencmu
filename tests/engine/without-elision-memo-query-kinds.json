@@ -1,6 +1,6 @@
 {
   "description": "Whole and prefix requests keep their different endpoints (engine §4 and §10).",
-  "grammar": "%rule text $x:candidate %conditions $x.without-elision.parse(rival …), ¬($x.without-elision.parse(rival))\n\n%rule candidate (X [+T] Y [+U])\n%rule rival (X [+T])",
+  "grammar": "%rule text $x:candidate %conditions $x.without-elision.parse(rival …), ¬$x.without-elision.parse(rival)\n\n%rule candidate (X [+T] Y [+U])\n%rule rival (X [+T])",
   "tokens": [
     {
       "text": "x",

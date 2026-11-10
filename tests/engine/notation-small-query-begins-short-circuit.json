@@ -1,5 +1,5 @@
 {
-  "description": "Engine §4 stops before a recursive later alternative after an earlier success for `.begins`.",
+  "description": "Engine §4 stops before a recursive later alternative after an earlier success for a prefix parse.",
   "grammar": "%rule text $x:A %conditions ($x.parse(A …) ∨ $x.parse(loop …))\n%rule loop A %conditions $.parse(loop …)",
   "tokens": [
     {

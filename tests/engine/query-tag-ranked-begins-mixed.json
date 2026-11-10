@@ -1,5 +1,5 @@
 {
-  "description": "The begins method uses a mixed target choice in a ranked expression.",
+  "description": "A prefix parse uses a mixed target choice in a ranked expression.",
   "grammar": "%rule text ($x:part ≻ fallback) ::∅ %conditions ($x.parse(Z …) ∨ $x.parse(never …) ∨ $x.parse(T …) ∨ $x.parse(T …))\n%rule part A [A]\n%rule fallback A [A]\n%rule never Z Z Z",
   "tokens": [
     {
