@@ -187,7 +187,7 @@ A structural pattern describes constructed nodes. Suppose every earlier branch i
 %rule gek-statement
   gek $a:gek-branches gik $l:statement [+GIhI 🆓]
 %conditions
-  $a ≇ #« {sentence / gik} » ∨ $l ≇ #(sentence ⋰)
+  $a ≇ #⁅ {sentence / gik} ⁆ ∨ $l ≇ #(sentence ⋰)
 
 -- statement (gik statement)*: every branch but the last. Zantufa's sentence comes first in statement_3, and it
 -- succeeds where each of these is a sentence and the last branch is a sentence, perhaps with the .i links of
@@ -195,7 +195,7 @@ A structural pattern describes constructed nodes. Suppose every earlier branch i
 %rule gek-branches
   {statement / gik}
 
-%const $BARE-NA-FRAGMENT #« « na-clause KU="" » VAU="" »
+%const $BARE-NA-FRAGMENT #⁅ ⁅ na-clause KU="" ⁆ VAU="" ⁆
 
 -- fragment <- prenex / !terms gek / !terms joik / ek / gihek / NA_clause !terms !KU
 -- / terms VAU_elidible !mex / mex / relative_clauses / links / linkargs
@@ -220,7 +220,7 @@ A structural pattern describes constructed nodes. Suppose every earlier branch i
   $t:terms
 %conditions
   ¬$t.following-tokens.begins(mex),
-  $t ≇ #« na-clause KU="" »
+  $t ≇ #⁅ na-clause KU="" ⁆
 
 -- prenex <- terms ZOhU_clause
 %rule prenex
@@ -268,7 +268,7 @@ The tenses and modals before `ke` and a forethought bridi-tail are one tag. `[ta
   | [terms] [CU 🆓] bridi-tail
   | [terms] $g:gek sentence {gik sentence} [+GIhI 🆓] tail-terms
 %conditions
-  $g ⟹ $ ≇ #« [terms] gek bridi-tail {gik bridi-tail} GIhI [🆓] tail-terms »
+  $g ⟹ $ ≇ #⁅ [terms] gek bridi-tail {gik bridi-tail} GIhI [🆓] tail-terms ⁆
 
 -- bridi_tail <- bridi_tail_1 (joik_gihek tag? CU_elidible bridi_tail_1)*
 %rule bridi-tail
@@ -298,8 +298,8 @@ The middle `$INITIAL-KE` arm matches a tag followed by a selbri whose first-chil
 ```jbogenbau
 %const $INITIAL-KE
   #(KE ⋰) ∪
-  #(« tag KE ⋰ » ⋰) ∪
-  #(« tag KE ⋯ » ⋰)
+  #(⁅ tag KE ⋰ ⁆ ⋰) ∪
+  #(⁅ tag KE ⋯ ⁆ ⋰)
 
 %rule bridi-tail-1-link
   joik-gihek [$c:CU 🆓] $b:bridi-tail-2 tail-terms
@@ -310,7 +310,7 @@ The middle `$INITIAL-KE` arm matches a tag followed by a selbri whose first-chil
 %rule bridi-tail-2
   bridi-tail-3 [{(tag | joik-gihek [tag]) BO 🆓 [CU 🆓] bridi-tail-3 tail-terms}]
 
-%const $BARE-SELBRI-TAIL #« selbri-2 VAU="" »
+%const $BARE-SELBRI-TAIL #⁅ selbri-2 VAU="" ⁆
 
 -- bridi_tail_3 <- KE_clause !(selbri_2 KEhE) bridi_tail KEhE_elidible tail_terms / selbri tail_terms / gek_bridi_tail
 %rule bridi-tail-3
@@ -318,8 +318,8 @@ The middle `$INITIAL-KE` arm matches a tag followed by a selbri whose first-chil
   | $s:selbri tail-terms
   | gek-bridi-tail
 %conditions
-  $k ⟹ $ ≇ #« ke-clause $BARE-SELBRI-TAIL KEhE≠"" [🆓] tail-terms »,
-  $s ≇ #(« KE [🆓] selbri-2 KEhE="" [🆓] » ⋰)
+  $k ⟹ $ ≇ #⁅ ke-clause $BARE-SELBRI-TAIL KEhE≠"" [🆓] tail-terms ⁆,
+  $s ≇ #(⁅ KE [🆓] selbri-2 KEhE="" [🆓] ⁆ ⋰)
 
 %rule ke-clause
   KE 🆓
@@ -405,9 +405,9 @@ The KE patterns inspect the actual body and closer. A written `ke'e` around one 
   | brigahi
   | $g:gek-term
 %conditions
-  $g ≇ #« gek sumti {gik sumti} GIhI [🆓] »,
-  $k ⟹ $ ≇ #« ke-clause sumti KEhE≠"" [🆓] »,
-  $s ≇ #« KE [🆓] sumti KEhE="" [🆓] »,
+  $g ≇ #⁅ gek sumti {gik sumti} GIhI [🆓] ⁆,
+  $k ⟹ $ ≇ #⁅ ke-clause sumti KEhE≠"" [🆓] ⁆,
+  $s ≇ #⁅ KE [🆓] sumti KEhE="" [🆓] ⁆,
   ¬$s.without-elision-except(math).onward.begins(tag)
 
 -- brigahi <- (POIhA_clause free* selbri / NA_clause !bridi_tail !joik_gihek) KU_elidible
@@ -526,7 +526,7 @@ The step `fewest #·term-link` counts the plain `term-link` rule, so a sumti con
 %rule lerfu-boi
   lerfu-string [+BOI 🆓]
 
-%const $JOIK-EK-OP #joik-ek ∪ #« SE [🆓] joik-ek »
+%const $JOIK-EK-OP #joik-ek ∪ #⁅ SE [🆓] joik-ek ⁆
 
 %rule lerfu-operator
   [{BO 🆓}] [{operand}] $o:operator
@@ -663,15 +663,15 @@ A run of `cei` nests to the right. The selbri after the first `cei` already read
 %rule tanru-unit
   tanru-unit-1 [linkargs]
 
-%const $PLAIN-JOIK #« JOI [🆓] [GAhO [🆓]] »
+%const $PLAIN-JOIK #⁅ JOI [🆓] [GAhO [🆓]] ⁆
 
 %const $SE-GEK
-  #« GA [🆓] [BO [🆓]] » ∪
-  #« (tag ∪ $PLAIN-JOIK) GI [🆓] [BO [🆓]] »
+  #⁅ GA [🆓] [BO [🆓]] ⁆ ∪
+  #⁅ (tag ∪ $PLAIN-JOIK) GI [🆓] [BO [🆓]] ⁆
 
-%const $GEK-UNIT #« gek selbri-2 gik-selbris GIhI [🆓] »
+%const $GEK-UNIT #⁅ gek selbri-2 gik-selbris GIhI [🆓] ⁆
 
-%const $SE-GEK-UNIT #« $SE-GEK selbri-2 gik-selbris GIhI [🆓] »
+%const $SE-GEK-UNIT #⁅ $SE-GEK selbri-2 gik-selbris GIhI [🆓] ⁆
 
 -- tanru_unit_1 <- CMEVLA_clause / BRIVLA_clause / GOhA_clause / KE_clause selbri_2 KEhE_elidible
 -- / NAhE_clause? gek selbri_2 (gik selbri_2)+ !(gik? (term / CU)) GIhI_elidible
@@ -823,7 +823,7 @@ The condition removes a connective operator whose first word is SE. The alternat
   | $j:joik-ek
 %conditions
   ¬$j.following-tokens.begins(CU),
-  $j ≇ #« SE ⋯ »
+  $j ≇ #⁅ SE ⋯ ⁆
 
 -- operator+, which reads every operator that follows
 %rule operators
@@ -946,7 +946,7 @@ The mekso prefix pattern tests an actual NAhE or SE constructor over an operand 
   | $m:mex ROI 🆓
   | FIhO 🆓 selbri [+FEhU 🆓]
 %conditions
-  $m ≇ #(« (NAhE ∪ SE) [🆓] (operand ∪ operator) » ⋰)
+  $m ≇ #(⁅ (NAhE ∪ SE) [🆓] (operand ∪ operator) ⁆ ⋰)
 ```
 
 <details><summary>Railroad diagrams of <code>tag</code>, <code>tag-link</code> and <code>tcita-selci</code></summary>

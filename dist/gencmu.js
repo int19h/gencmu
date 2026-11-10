@@ -4709,7 +4709,7 @@
       else text = n.choice.map(items).join(' | ');
       return array.length > 1 && (n.choice || n.child && set(n.child)) ? '('+text+')' : text;
     }).join(' ');
-    const children = (/** @type {any[]} */ array) => array.length ? '« '+items(array)+' »' : '«»';
+    const children = (/** @type {any[]} */ array) => array.length ? '⁅ '+items(array)+' ⁆' : '⁅⁆';
     /** @type {(n:any)=>string} */
     const pattern = n => {
       if (n.path) {
@@ -11498,13 +11498,13 @@
           if(collect)prohibited.add(pattern.name);
           if(!this.erasureChecks && erased.has(pattern.name) && pattern.children && !(pattern.children.length===1 && pattern.children[0].siblings)) {
             const at=patternLocations.get(pattern) ?? pattern.at;
-            throw new GencmuError("grammar",`a pattern of erased rule ${pattern.name} permits only the child list « ⋯ »`,{...where,...(at ? {line:at[0],column:at[1]} : {})});
+            throw new GencmuError("grammar",`a pattern of erased rule ${pattern.name} permits only the child list ⁅ ⋯ ⁆`,{...where,...(at ? {line:at[0],column:at[1]} : {})});
           }
         }
         for(const child of patternParts(pattern ?? {})) names(child,where,collect);
       };
       for (const check of this.erasureChecks ?? []) if(check.names.length && check.names.every((/** @type {string} */ name)=>erased.has(name))) {
-        throw new GencmuError("grammar",`a pattern of erased rule ${check.name} permits only the child list « ⋯ »`,check.where);
+        throw new GencmuError("grammar",`a pattern of erased rule ${check.name} permits only the child list ⁅ ⋯ ⁆`,check.where);
       }
       for (const use of erasurePatternUses.get(this) ?? []) names(use.pattern,use.where,false);
       erasurePatternUses.delete(this);
@@ -23380,6 +23380,21 @@
       throw new GencmuError("grammar", `${path}:${openedAt}:${column}: a jbogenbau block that is never closed`, { document: path, line: openedAt, column });
     }
     positions.push(lastEnd);
+    // `«` and `»` have no meaning in the notation (engine §9.1). Outside a
+    // string or a comment, one is a load error that names the new brackets.
+    let inString = false, inComment = false;
+    for (let index = 0; index < chars.length; index++) {
+      const character = chars[index];
+      if (character === "\n") { inComment = false; continue; }
+      if (inComment) continue;
+      if (inString) { if (character === '"') inString = false; continue; }
+      if (character === '"') { inString = true; continue; }
+      if (character === "-" && chars[index + 1] === "-") { inComment = true; continue; }
+      if (character === "«" || character === "»") {
+        const [line, column] = positions[index];
+        throw new GencmuError("grammar", "a child list uses ⁅ and ⁆, not « and »", { document: path, line, column });
+      }
+    }
     return { text: chars.join(""), positions, blocks };
   }
 
