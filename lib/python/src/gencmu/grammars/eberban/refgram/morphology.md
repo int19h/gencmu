@@ -86,7 +86,8 @@ The rules `space-before` and `space-after` hold beside a space, a bracket of a g
   $ :: Space := " "
 
 %rule space-unit
-  Space<¬Foreign-Letter> | *non-eberban-letter
+  Space<¬Foreign-Letter>
+  | *non-eberban-letter
 
 %rule non-eberban-letter
   Space<Foreign-Letter>
@@ -190,8 +191,8 @@ The morphology chapter lists the consonant pairs. An initial pair can begin a wo
 ```jbogenbau
 %const $INITIAL-PAIRS
   "bj" "bz" "dj" "dz" "gj" "gz" "vj" "vz" "fc" "fs" "kc" "ks" "pc" "ps" "tc" "ts"
-  "jb" "jd" "jg" "jv" "jm" "zb" "zd" "zg" "zv" "zm" "cf" "ck" "cp" "ct" "cm" "sf" "sk" "sp" "st"
-    "sm"
+  "jb" "jd" "jg" "jv" "jm" "zb" "zd" "zg" "zv" "zm"
+  "cf" "ck" "cp" "ct" "cm" "sf" "sk" "sp" "st" "sm"
 
 %const $MEDIAL-PAIRS
   "bd" "bg" "bv" "db" "dg" "dv" "gb" "gd" "gv" "vb" "vd" "vg" "bm" "dm" "gm" "vm"
@@ -231,9 +232,9 @@ A freeform variable or borrowing has a third shape: `X` is a sonorant and `YZ` i
 %rule root-triplet-of(@Hyphen)
   $x:consonant [Hyphen] $y:consonant [@Hyphen] $z:consonant
 %conditions
-  $x.value ++ $y.value ∈ $MEDIAL-PAIRS ∧ $y.value ++ $z.value ∈ $INITIAL-PAIRS
-    ∨ ($x.value ++ $y.value ∈ $MEDIAL-PAIRS ∨ $x.value ++ $y.value ∈ $INITIAL-PAIRS)
-      ∧ $y.value ∉ $NOT-BEFORE-LIQUID ∧ $z.value ∈ $LIQUIDS
+  $x.value ++ $y.value ∈ $MEDIAL-PAIRS ∧ $y.value ++ $z.value ∈ $INITIAL-PAIRS ∨
+    ($x.value ++ $y.value ∈ $MEDIAL-PAIRS ∨ $x.value ++ $y.value ∈ $INITIAL-PAIRS) ∧
+      $y.value ∉ $NOT-BEFORE-LIQUID ∧ $z.value ∈ $LIQUIDS
 
 %rule root-triplet = root-triplet-of(hyphen-misplaced)
 
@@ -243,8 +244,7 @@ A freeform variable or borrowing has a third shape: `X` is a sonorant and `YZ` i
 %rule sonorant-triplet
   sonorant [Hyphen] $y:ns-consonant [hyphen-misplaced] $z:consonant
 %conditions
-  $y.value ++ $z.value ∈ $INITIAL-PAIRS
-    ∨ $y.value ++ $z.value ∈ $MEDIAL-PAIRS ∧ Sonorant ⊆ $z.tags
+  $y.value ++ $z.value ∈ $INITIAL-PAIRS ∨ $y.value ++ $z.value ∈ $MEDIAL-PAIRS ∧ Sonorant ⊆ $z.tags
 ```
 
 <details><summary>Railroad diagrams of the 4 rules from <code>root-triplet-of</code> to <code>sonorant-triplet</code></summary>
@@ -408,13 +408,12 @@ The particle families of `n`, `a` and `o` are `NI`, `A` and `O`. The `n` can tak
 %rule particle-tail = particle-tail-of(hyphen-misplaced)
 
 %rule consonant-particle
-  | mi-particle | fi-particle | vi-particle | vei-particle | ti-particle | si-particle
-  | zi-particle | ki-particle | gi-particle | pi-particle | pe-particle | pei-particle
-  | pa-particle | po-particle | pu-particle | bi-particle | be-particle | ba-particle
-  | bo-particle | bu-particle | di-particle | de-particle | da-particle | dai-particle
-  | do-particle | du-particle | ci-particle | ce-particle | cei-particle | ca-particle
-  | cai-particle | co-particle | coi-particle | cu-particle | ji-particle | je-particle
-  | ja-particle | jo-particle | ju-particle
+  | mi-particle | fi-particle | vi-particle | vei-particle | ti-particle | si-particle | zi-particle
+  | ki-particle | gi-particle | pi-particle | pe-particle | pei-particle | pa-particle | po-particle
+  | pu-particle | bi-particle | be-particle | ba-particle | bo-particle | bu-particle | di-particle
+  | de-particle | da-particle | dai-particle | do-particle | du-particle | ci-particle | ce-particle
+  | cei-particle | ca-particle | cai-particle | co-particle | coi-particle | cu-particle
+  | ji-particle | je-particle | ja-particle | jo-particle | ju-particle
 
 %rule vowel-particle
   a-particle | o-particle
@@ -497,29 +496,31 @@ The quote reads its own `co` through the particle rule, so the bar never meets t
   consonant-particle-word | root-word | spelling-quote
 
 %rule consonant-particle-word
-  *h-before-word $p:consonant-particle *h-after-word [hyphen-misplaced] :: Word ∪ Particle ∪ $p.tags
-    ∪ (CE ⊆ $p.tags ∧ ¬$.following-tokens.begins(first-unit) ⟹ Missing-spelling-unit)
+  *h-before-word $p:consonant-particle *h-after-word [hyphen-misplaced]
+      :: Word Particle ∪
+         $p.tags ∪
+         (CE ⊆ $p.tags ∧ ¬$.following-tokens.begins(first-unit) ⟹ Missing-spelling-unit)
 %conditions
   CO ⊆ $p.tags ⟹ ¬$.onward.begins(quote-opener)
 %emits
   $ :- $.value
 
 %rule ni-word
-  *h-before-word $p:ni-particle *h-after-word [hyphen-misplaced] :: Word ∪ Particle ∪ $p.tags
+  *h-before-word $p:ni-particle *h-after-word [hyphen-misplaced] :: Word Particle ∪ $p.tags
 %conditions
   ¬$.preceding-tokens.ends(after-digit)
 %emits
   $ :- $.value
 
 %rule vowel-particle-word
-  *h-before-word $p:vowel-particle *h-after-word [hyphen-misplaced] :: Word ∪ Particle ∪ $p.tags
+  *h-before-word $p:vowel-particle *h-after-word [hyphen-misplaced] :: Word Particle ∪ $p.tags
 %conditions
   ¬$.preceding-tokens.ends(after-digit)
 %emits
   $ :- $.value
 
 %rule root-word
-  malformed-root [hyphen-misplaced] :: Word ∪ Root
+  malformed-root [hyphen-misplaced] :: Word Root
 %emits
   $ :- $.value
 
@@ -558,7 +559,7 @@ The PEG warns about a hyphen before or after the prefix, and about content that 
 ```jbogenbau
 %rule freeform-word(@Prefix, @Tag)
   [hyphen-misplaced] $p:Letter prefix-gap $c:malformed-content [hyphen-misplaced] space-after
-    :: Word ∪ @Tag := @Prefix ++ $c.value
+      :: Word ∪ @Tag := @Prefix ++ $c.value
 %conditions
   $p.value = @Prefix,
   ¬$p.preceding-tokens.ends(after-digit)
@@ -594,7 +595,8 @@ The PEG warns about a hyphen before or after the prefix, and about content that 
   $x.value ≠ $y.value
 
 %rule pair-opener
-  sonorant | Letter="m"
+  sonorant
+  | Letter="m"
 ```
 
 <details><summary>Railroad diagrams of the 11 rules from <code>freeform-word</code> to <code>pair-opener</code></summary>
@@ -626,7 +628,7 @@ The numbers chapter also says that `+`, `*` and `/` are spaces, and that verbs e
   ¬$l.preceding-tokens.ends(Hyphen),
   ¬$t.following-tokens.begins(Hyphen)
 %emits
-  $d :: Word ∪ Particle ∪ TI
+  $d :: Word Particle TI
 
 %rule digit-math
   [$m:math-symbol]
@@ -667,12 +669,12 @@ A run of `ra` is one eraser per `ra`. The syntax stage applies them. A hyphen af
   | space-before ri-word space-after
 
 %rule ra-word
-  Letter="r" [hyphen-misplaced] Letter="a" :: Word ∪ RA
+  Letter="r" [hyphen-misplaced] Letter="a" :: Word RA
 %emits
   $ :- $.value
 
 %rule ri-word
-  Letter="r" [hyphen-misplaced] Letter="i" :: Word ∪ RI
+  Letter="r" [hyphen-misplaced] Letter="i" :: Word RI
 %emits
   $ :- $.value
 ```
@@ -705,8 +707,9 @@ The rule `first-prefix` reads a prefix that starts a run, and `attached-prefix` 
   first-prefix | attached-prefix
 
 %rule first-prefix
-  Letter="e" [[hyphen-misplaced] prefix-arity] :: $.value.classify(prefix-length) ∪
-    (¬$.following-tokens.begins(later-letter) ⟹ Standalone)
+  Letter="e" [[hyphen-misplaced] prefix-arity]
+      :: $.value.classify(prefix-length) ∪
+         (¬$.following-tokens.begins(later-letter) ⟹ Standalone)
 %conditions
   ¬$.preceding-tokens.ends(after-digit),
   ¬$.preceding-tokens.ends(after-letter)
@@ -732,7 +735,8 @@ The rule `first-prefix` reads a prefix that starts a run, and `attached-prefix` 
   Letter="i" [Hyphen]
 
 %rule prefix-arity
-  Letter="n" | Letter="r"
+  Letter="n"
+  | Letter="r"
 
 %classifier prefix-length
   "e" ∈ E-PREFIX
@@ -825,8 +829,10 @@ A hyphen after a prefix or at the start of a run carries `hyphen-misplaced`, as 
   | [hyphen-misplaced] $n:compound :: $n.tags
 
 %rule component-particle
-  *h-before-word $p:consonant-particle *h-after-word [hyphen-misplaced] :: Word ∪ Particle ∪ $p.tags
-    ∪ (CE ⊆ $p.tags ∧ ¬$.following-tokens.begins(first-unit) ⟹ Missing-spelling-unit)
+  *h-before-word $p:consonant-particle *h-after-word [hyphen-misplaced]
+      :: Word Particle ∪
+         $p.tags ∪
+         (CE ⊆ $p.tags ∧ ¬$.following-tokens.begins(first-unit) ⟹ Missing-spelling-unit)
 %emits
   $ :- $.value
 ```
@@ -855,7 +861,7 @@ That vowel depends on the letter before it, so a tail comes in two kinds. `compo
 
 ```jbogenbau
 %rule compound
-  $t:compound-tail :: Word ∪ Compound ∪ $t.tags := "e" ++ $t.emitted.value
+  $t:compound-tail :: Word Compound ∪ $t.tags := "e" ++ $t.emitted.value
 %emits
   $
 
@@ -882,7 +888,7 @@ That vowel depends on the letter before it, so a tail comes in two kinds. `compo
 
 %rule compound-size
   prefix<ER-PREFIX> $l:few-er-components er-closer
-    := "r" ++ $l.emitted.value ++ " e"
+      := "r" ++ $l.emitted.value ++ " e"
 %warning "this er compound has fewer than three components"
 ```
 
@@ -1061,8 +1067,8 @@ The morphology chapter allows a hyphen at a syllable boundary. A consonant unit 
 ```jbogenbau
 %rule spelling-quote
   $s:ce-particle $u:units unit-join $e:cei-particle [hyphen-misplaced]
-    :: Word ∪ Particle ∪ CE ∪ Quote := $s.value ++ " " ++ $u.emitted.value ++ " " ++ $e.value :-
-    $.source-text
+      :: Word Particle CE Quote := $s.value ++ " " ++ $u.emitted.value ++ " " ++ $e.value
+      :- $.source-text
 %emits
   $
 
@@ -1078,7 +1084,8 @@ The morphology chapter allows a hyphen at a syllable boundary. A consonant unit 
   | spelling-gap $u:unit
 
 %rule unit-join
-  [hyphen-misplaced] | spelling-gap
+  [hyphen-misplaced]
+  | spelling-gap
 
 %rule spelling-gap
   [hyphen-misplaced] gap [hyphen-misplaced]
@@ -1143,8 +1150,8 @@ The value is the `co` word, a space and the text from `[` to `]`. In the second 
 
 ```jbogenbau
 %rule foreign-quote
-  $q:quote-co [opening-gap] $t:quoted-text :: Word ∪ Particle ∪ CO ∪ Quote := $q.value ++ " " ++
-    $t.emitted.value :- $.source-text
+  $q:quote-co [opening-gap] $t:quoted-text
+      :: Word Particle CO Quote := $q.value ++ " " ++ $t.emitted.value :- $.source-text
 %emits
   $
 
@@ -1194,8 +1201,8 @@ The recovery keeps the quote's class, value, and emission. It leaves no later er
   *unclosed-foreign-quote
 
 %rule unclosed-foreign-quote
-  $q:quote-co [opening-gap] $t:unclosed-quoted-text :: Word ∪ Particle ∪ CO ∪ Quote := $q.value ++ " " ++
-    $t.emitted.value :- $.source-text
+  $q:quote-co [opening-gap] $t:unclosed-quoted-text
+      :: Word Particle CO Quote := $q.value ++ " " ++ $t.emitted.value :- $.source-text
 %conditions
   $.ends-input
 %error "the foreign quote needs ] followed by its opening delimiter, if any"
@@ -1301,8 +1308,8 @@ Before a longer junk run, a hyphen beside a digit belongs to the digit, with its
 %rule junk-run
   {run-char} run-end
 %conditions
-  ¬$.onward.begins(run-opener) ∨ $.preceding-tokens.ends(after-digit) ∧
-    $.onward.begins(spaced-start),
+  ¬$.onward.begins(run-opener) ∨
+    $.preceding-tokens.ends(after-digit) ∧ $.onward.begins(spaced-start),
   ¬$.matches(Hyphen) ∨ ¬$.preceding-tokens.ends(Digit) ∧ ¬$.following-tokens.begins(Digit)
 %error "the run " ++ $.source-text ++ " has no word reading"
 %emits
@@ -1368,17 +1375,16 @@ The edge readers collect faulty `h` letters and their hyphens before or after a 
   $x:consonant malformed-gap(Hyphen) $y:consonant
     malformed-gap(hyphen-misplaced) $z:consonant
 %conditions
-  $x.value ++ $y.value ∈ $MEDIAL-PAIRS ∧ $y.value ++ $z.value ∈ $INITIAL-PAIRS
-    ∨ ($x.value ++ $y.value ∈ $MEDIAL-PAIRS ∨ $x.value ++ $y.value ∈ $INITIAL-PAIRS)
-      ∧ $y.value ∉ $NOT-BEFORE-LIQUID ∧ $z.value ∈ $LIQUIDS
+  $x.value ++ $y.value ∈ $MEDIAL-PAIRS ∧ $y.value ++ $z.value ∈ $INITIAL-PAIRS ∨
+    ($x.value ++ $y.value ∈ $MEDIAL-PAIRS ∨ $x.value ++ $y.value ∈ $INITIAL-PAIRS) ∧
+      $y.value ∉ $NOT-BEFORE-LIQUID ∧ $z.value ∈ $LIQUIDS
 
 %rule recovering-freeform-triplet
   | recovering-root-triplet
   | sonorant malformed-gap(Hyphen) $y:ns-consonant
       malformed-gap(hyphen-misplaced) $z:consonant
 %conditions
-  $y.value ++ $z.value ∈ $INITIAL-PAIRS
-    ∨ $y.value ++ $z.value ∈ $MEDIAL-PAIRS ∧ Sonorant ⊆ $z.tags
+  $y.value ++ $z.value ∈ $INITIAL-PAIRS ∨ $y.value ++ $z.value ∈ $MEDIAL-PAIRS ∧ Sonorant ⊆ $z.tags
 
 %rule malformed-final-sonorant
   malformed-gap(hyphen-misplaced) sonorant
@@ -1497,9 +1503,7 @@ A bare quadruplet similarly retains one root token. A framed cluster retains con
       malformed-gap(hyphen-misplaced)
 
 %rule malformed-split-cluster
-  | recovering-freeform-triplet
-  | malformed-medial-pair
-  | malformed-sonorant-pair
+  | recovering-freeform-triplet | malformed-medial-pair | malformed-sonorant-pair
   | sonorant malformed-gap(Hyphen) malformed-pair
   | (triplet-middle-m ≻ triplet-yz-sonorant-x ≻ triplet-freeform-first-pair
       ≻ triplet-freeform-shape) :: ∅
@@ -1509,8 +1513,8 @@ A bare quadruplet similarly retains one root token. A framed cluster retains con
 %conditions
   $.following-tokens.begins(freeform-ending-boundary)
 
-%rule freeform-multi-consonents-ending :: ∅
-  | consonant [Hyphen] consonant [{[Hyphen] consonant}]
+%rule freeform-multi-consonents-ending
+  consonant [Hyphen] consonant [{[Hyphen] consonant}] :: ∅
 %conditions
   $.following-tokens.begins(freeform-ending-boundary)
 %error "the ending " ++ $.source-text ++ " has more than one consonant"
@@ -1561,12 +1565,12 @@ The particle tail retains its family even with two adjacent sonorants. An errone
     malformed-gap(hyphen-misplaced) malformed-vhowels}]
     [malformed-gap(hyphen-misplaced) (sonorant | particle-sonorant-pair)]
 
-%rule particle-sonorant-pair :: ∅
-  | sonorant [Hyphen] sonorant
+%rule particle-sonorant-pair
+  sonorant [Hyphen] sonorant :: ∅
 %error "the particle pair " ++ $.source-text ++ " contains two sonorants"
 
-%rule h-not-between-vowels :: ∅
-  | Letter<H>
+%rule h-not-between-vowels
+  Letter<H> :: ∅
 %conditions
   ¬$.preceding-tokens.ends(vowel-before-h) ∨ ¬$.following-tokens.begins(vowel-after-h)
 %error "the h " ++ $.source-text ++ " needs vowels on both sides, except at a freeform onset"
@@ -1577,8 +1581,8 @@ The particle tail retains its family even with two adjacent sonorants. An errone
 %rule vowel-after-h
   [Hyphen] vowel
 
-%rule hyphen-same-vowels :: ∅
-  | Hyphen
+%rule hyphen-same-vowels
+  Hyphen :: ∅
 %conditions
   Vowel ⊆ $.preceding-tokens.last-token.tags,
   Vowel ⊆ $.following-tokens.first-token.tags,
@@ -1603,40 +1607,39 @@ Pair faults share one ordered group. Its order distinguishes overlapping faults,
 %rule malformed-pair :: ∅
   | doubled-pair ≻ pair-voiceness ≻ sibilant-pair
 
-%rule doubled-pair :: ∅
-  | $x:consonant Hyphen $y:consonant
+%rule doubled-pair
+  $x:consonant Hyphen $y:consonant :: ∅
 %conditions
   $x.value = $y.value
 %error "the pair " ++ $.source-text ++ " repeats a consonant across a hyphen"
 
-%rule pair-voiceness :: ∅
-  | $x:consonant [Hyphen] $y:consonant
+%rule pair-voiceness
+  $x:consonant [Hyphen] $y:consonant :: ∅
 %conditions
   Voiced ⊆ $x.tags ∧ Unvoiced ⊆ $y.tags ∨ Unvoiced ⊆ $x.tags ∧ Voiced ⊆ $y.tags
 %error "the pair " ++ $.source-text ++ " mixes voiced and unvoiced consonants"
 
-%rule sibilant-pair :: ∅
-  | Letter<Sibilant> [Hyphen] Letter<Sibilant>
+%rule sibilant-pair
+  Letter<Sibilant> [Hyphen] Letter<Sibilant> :: ∅
 %error "the pair " ++ $.source-text ++ " contains two sibilants"
 
-%rule root-starts-with-medial-pair :: ∅
-  | $x:consonant [Hyphen] $y:consonant
+%rule root-starts-with-medial-pair
+  $x:consonant [Hyphen] $y:consonant :: ∅
 %conditions
   $x.value ++ $y.value ∈ $MEDIAL-PAIRS
 %error "a root cannot start with the medial pair " ++ $.source-text
 
-%rule invalid-medial-pair :: ∅
-  | $x:ns-consonant [Hyphen] $y:consonant
+%rule invalid-medial-pair
+  $x:ns-consonant [Hyphen] $y:consonant :: ∅
 %conditions
   $x.value ++ $y.value ∉ $MEDIAL-PAIRS ∪ $INITIAL-PAIRS
 %error "the pair " ++ $.source-text ++ " is neither medial nor a new word's initial pair"
 
-%rule malformed-long-cluster :: ∅
-  | quadruplet [{malformed-gap(Hyphen) consonant}]
+%rule malformed-long-cluster
+  quadruplet [{malformed-gap(Hyphen) consonant}] :: ∅
 
-%rule quadruplet :: ∅
-  | consonant [Hyphen] consonant
-      [Hyphen] consonant [Hyphen] consonant
+%rule quadruplet
+  consonant [Hyphen] consonant [Hyphen] consonant [Hyphen] consonant :: ∅
 %error "the cluster " ++ $.source-text ++ " contains four consecutive consonants"
 ```
 
@@ -1654,18 +1657,18 @@ Pair faults share one ordered group. Its order distinguishes overlapping faults,
 Root and freeform triplet wrappers share the failed pair and shape restrictions. Their messages identify the containing word kind without rescanning a prefix. A sonorant-first freeform has its additional permitted shapes, so its fault uses a separate restriction.
 
 ```jbogenbau
-%rule triplet-middle-m :: ∅
-  | $x:consonant [Hyphen] $y:Letter="m" [Hyphen] consonant
+%rule triplet-middle-m
+  $x:consonant [Hyphen] $y:Letter="m" [Hyphen] consonant :: ∅
 %conditions
   $x.value ++ $y.value ∈ $MEDIAL-PAIRS ∪ $INITIAL-PAIRS
 %error "the triplet " ++ $.source-text ++ " cannot have m in its middle"
 
-%rule triplet-root-first-pair :: ∅
-  | faulty-triplet-first-pair
+%rule triplet-root-first-pair
+  faulty-triplet-first-pair :: ∅
 %error "the root triplet " ++ $.source-text ++ " needs a medial or initial first pair"
 
-%rule triplet-freeform-first-pair :: ∅
-  | faulty-triplet-first-pair
+%rule triplet-freeform-first-pair
+  faulty-triplet-first-pair :: ∅
 %error "the freeform triplet " ++ $.source-text ++ " needs a medial or initial first pair"
 
 %rule faulty-triplet-first-pair
@@ -1673,12 +1676,13 @@ Root and freeform triplet wrappers share the failed pair and shape restrictions.
 %conditions
   $x.value ++ $y.value ∉ $MEDIAL-PAIRS ∪ $INITIAL-PAIRS
 
-%rule triplet-root-shape :: ∅
-  | faulty-triplet-shape
-%error "the root triplet " ++ $.source-text ++ " needs a medial-initial shape or a permitted liquid ending"
+%rule triplet-root-shape
+  faulty-triplet-shape :: ∅
+%error "the root triplet " ++ $.source-text ++
+       " needs a medial-initial shape or a permitted liquid ending"
 
-%rule triplet-freeform-shape :: ∅
-  | faulty-triplet-shape
+%rule triplet-freeform-shape
+  faulty-triplet-shape :: ∅
 %error "the freeform triplet " ++ $.source-text ++ " fits no permitted shape"
 
 %rule faulty-triplet-shape
@@ -1686,15 +1690,16 @@ Root and freeform triplet wrappers share the failed pair and shape restrictions.
 %conditions
   $x.value ++ $y.value ∈ $MEDIAL-PAIRS ∪ $INITIAL-PAIRS,
   $y.value ≠ "m",
-  ¬($x.value ++ $y.value ∈ $MEDIAL-PAIRS ∧ $y.value ++ $z.value ∈ $INITIAL-PAIRS
-    ∨ $y.value ∉ $NOT-BEFORE-LIQUID ∧ $z.value ∈ $LIQUIDS)
+  ¬($x.value ++ $y.value ∈ $MEDIAL-PAIRS ∧ $y.value ++ $z.value ∈ $INITIAL-PAIRS ∨
+    $y.value ∉ $NOT-BEFORE-LIQUID ∧ $z.value ∈ $LIQUIDS)
 
-%rule triplet-yz-sonorant-x :: ∅
-  | sonorant [Hyphen] $y:consonant [Hyphen] $z:consonant
+%rule triplet-yz-sonorant-x
+  sonorant [Hyphen] $y:consonant [Hyphen] $z:consonant :: ∅
 %conditions
   ¬$y.onward.begins(initial-pair-shape),
   Sonorant ⊆ $y.tags ∨ Sonorant ⊈ $z.tags
-%error "the freeform triplet " ++ $.source-text ++ " needs an initial or consonant-sonorant final pair"
+%error "the freeform triplet " ++ $.source-text ++
+       " needs an initial or consonant-sonorant final pair"
 
 %rule initial-pair-shape
   | (Letter<Plosive> | Letter="f" | Letter="v") [Hyphen] Letter<Sibilant>

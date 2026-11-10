@@ -12,7 +12,8 @@ The stage gives the warning where it reads the word as a Lojban word. That is, t
 
 ```jbogenbau
 %redefine-rule cmavo-token
-  Cmavo<¬Cmavo-Warning> | *y-cmavo
+  Cmavo<¬Cmavo-Warning>
+  | *y-cmavo
 
 %rule y-cmavo
   Cmavo<Cmavo-Warning>
@@ -31,7 +32,7 @@ In CLL, a name that is not the first word of its run follows `la`, `lai`, `la'i`
 A replacement name keeps its source boundary. Thus `ladjan. sa .djim. bu` leaves `la` and the letteral of `djim`. The rule keeps the shared compound-gap recipes and trailing-pause tests while adding the CLL name condition. A name inside a compound is not the operand: `ladjan. zei mi bu` makes a letteral of the compound. Inside `lo'u ... le'u`, where `bu` does nothing, `lo'u ladjan.bu le'u` is valid.
 
 ```jbogenbau
-%redefine-rule lerfu-word :: Word ∪ BY ∪ Fault ∩ $u.tags
+%redefine-rule lerfu-word :: Word BY ∪ Fault ∩ $u.tags
   | $u:unit<¬Trailing-Pause> compound-gap cmavo-token<BU>
   | su-boundary? $u:unit<Trailing-Pause> suppressed-gap cmavo-token<BU>
 %conditions

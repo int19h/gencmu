@@ -58,14 +58,14 @@ An ignored character at a pause edge is a comma or a non-breaking format charact
 %conditions
   ¬$e.matches(commas)
 %emits
-  $ :: PAUSE ∪ Quote-Material ∪ Punctuation-Material := $.decomposed-source-text :- $.source-text
+  $ :: PAUSE Quote-Material Punctuation-Material := $.decomposed-source-text :- $.source-text
 
 %rule final-ignored-edge
   commas
 %conditions
   $.ends-input
 %emits
-  $ :: PAUSE ∪ Quote-Material := $.decomposed-source-text :- $.source-text
+  $ :: PAUSE Quote-Material := $.decomposed-source-text :- $.source-text
 
 %rule medial-ignored-edge
   commas
@@ -75,17 +75,20 @@ An ignored character at a pause edge is a comma or a non-breaking format charact
 %rule pause-material
   pause-edge
 %emits
-  $ :: PAUSE ∪ Quote-Material ∪ (¬$.matches(commas) ⟹ Punctuation-Material) := $.decomposed-source-text :- $.source-text
+  $ :: PAUSE Quote-Material ∪ (¬$.matches(commas) ⟹ Punctuation-Material)
+    := $.decomposed-source-text :- $.source-text
 
 %redefine-rule pause-core
   {core-char}
 %emits
-  $ :: PAUSE ∪ ($.first-token.matches(period-char) ⟹ Period-Initial) ∪ ($.matches(period-core) ⟹ Period-Only) := " "
+  $ :: PAUSE ∪
+       ($.first-token.matches(period-char) ⟹ Period-Initial) ∪
+       ($.matches(period-core) ⟹ Period-Only) := " "
 
 %rule punctuation-pause
   [commas] punctuation [commas]
 %emits
-  $ :: PAUSE ∪ Quote-Material ∪ Punctuation-Material := $.decomposed-source-text :- $.source-text
+  $ :: PAUSE Quote-Material Punctuation-Material := $.decomposed-source-text :- $.source-text
 
 %redefine-rule pause-edge
   edge-char | pause-edge edge-char
@@ -129,7 +132,10 @@ An ignored character at a pause edge is a comma or a non-breaking format charact
 
 %rule breaking-format-char
   | "‹U+200B›"
-  | "‹U+0600›".."‹U+0605›" | "‹U+06DD›" | "‹U+070F›" | "‹U+0890›".."‹U+0891›" | "‹U+08E2›"
+  | "‹U+0600›".."‹U+0605›"
+  | "‹U+06DD›" | "‹U+070F›"
+  | "‹U+0890›".."‹U+0891›"
+  | "‹U+08E2›"
   | "‹U+110BD›" | "‹U+110CD›"
 
 %redefine-rule run-char
@@ -214,6 +220,8 @@ An accent on a capital still marks stress there, and the other capitals fold. So
 
 `capital-run` reads that shape with every vowel folded. An ordinary run is any other run of letters, which the condition states by exclusion. In an ordinary run, a capital vowel marks stress. No capital run matches `chars-with-non-lojban-char` in the bundled grammars, so `non-lojban-char-run` needs no separate test for it.
 
+The `Vowel` tag marks the five full vowels `a`, `e`, `i`, `o` and `u`, and it does not mark `y`. So `folded-full-vowel` holds the full vowels and carries `Vowel` on its header, and `folded-vowel` adds the two `y` forms. `folded-vowel` writes `$v:folded-full-vowel :: $v.tags`, because its `:: ∅` header stops the inner rule from passing its tags on.
+
 ```jbogenbau
 %extend-rule run
   capital-run
@@ -252,24 +260,27 @@ An accent on a capital still marks stress there, and the other capitals fold. So
 %rule folded-vowel-group-joined = vowel-group-joined-with(folded-vowel)
 %rule joined-folded-vowel = joined-vowel-with(folded-vowel)
 
+%rule folded-full-vowel :: Vowel
+  | "A" := "a"
+  | "E" := "e"
+  | "I" [glide-mark] := "i"
+  | "O" := "o"
+  | "U" [glide-mark] := "u"
+  | "A" stress-mark :: Stressed := "a" :- "A"
+  | "E" stress-mark :: Stressed := "e" :- "E"
+  | "I" stress-mark :: Stressed := "i" :- "I"
+  | "O" stress-mark :: Stressed := "o" :- "O"
+  | "U" stress-mark :: Stressed := "u" :- "U"
+
 %rule folded-vowel :: ∅
-  | "A" :: Vowel := "a"
-  | "E" :: Vowel := "e"
-  | "I" [glide-mark] :: Vowel := "i"
-  | "O" :: Vowel := "o"
-  | "U" [glide-mark] :: Vowel := "u"
+  | $v:folded-full-vowel :: $v.tags
   | "Y" := "y"
-  | "A" stress-mark :: Stressed ∪ Vowel := "a" :- "A"
-  | "E" stress-mark :: Stressed ∪ Vowel := "e" :- "E"
-  | "I" stress-mark :: Stressed ∪ Vowel := "i" :- "I"
-  | "O" stress-mark :: Stressed ∪ Vowel := "o" :- "O"
-  | "U" stress-mark :: Stressed ∪ Vowel := "u" :- "U"
   | "Y" stress-mark :: Stressed := "y" :- "Y"
 %emits
   $
 ```
 
-<details><summary>Railroad diagrams of the 13 rules from <code>run</code> to <code>folded-vowel</code></summary>
+<details><summary>Railroad diagrams of the 14 rules from <code>run</code> to <code>folded-vowel</code></summary>
 <p><img src="../../../docs/diagrams/lojban/common/latin/run.svg" alt="Railroad diagram of the rule run"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/ordinary-run.svg" alt="Railroad diagram of the rule ordinary-run"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/capital-run.svg" alt="Railroad diagram of the rule capital-run"></p>
@@ -282,6 +293,7 @@ An accent on a capital still marks stress there, and the other capitals fold. So
 <p><img src="../../../docs/diagrams/lojban/common/latin/folded-vowel-group-plain.svg" alt="Railroad diagram of the rule folded-vowel-group-plain"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/folded-vowel-group-joined.svg" alt="Railroad diagram of the rule folded-vowel-group-joined"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/joined-folded-vowel.svg" alt="Railroad diagram of the rule joined-folded-vowel"></p>
+<p><img src="../../../docs/diagrams/lojban/common/latin/folded-full-vowel.svg" alt="Railroad diagram of the rule folded-full-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/folded-vowel.svg" alt="Railroad diagram of the rule folded-vowel"></p>
 </details>
 
@@ -291,19 +303,24 @@ A vowel with an acute or a grave accent is the stressed phoneme, as a capital vo
 
 A combining mark that no letter rule takes makes its run foreign, whatever its category. So in `lojban/bpfk` and `lojban/zantufa`, `mï` and `mi` followed by U+093E are foreign. The experimental layer reads both marks ([../experimental/latin.md](../experimental/latin.md)).
 
+The `Vowel` tag marks the five full vowels and not `y`, so `stressed-full-vowel` holds the stressed full vowels and carries `Vowel` on its header. The stressed `y` form stays in `stressed-vowel`.
+
 ```jbogenbau
-%extend-rule plain-vowel :: ∅
-  | ("i" | "I") glide-mark :: Vowel := "i"
-  | ("u" | "U") glide-mark :: Vowel := "u"
+%extend-rule plain-vowel :: Vowel
+  | ("i" | "I") glide-mark := "i"
+  | ("u" | "U") glide-mark := "u"
 %emits
   $
 
+%rule stressed-full-vowel :: Vowel
+  | ("a" | "A") stress-mark := "a" :- "A"
+  | ("e" | "E") stress-mark := "e" :- "E"
+  | ("i" | "I") stress-mark := "i" :- "I"
+  | ("o" | "O") stress-mark := "o" :- "O"
+  | ("u" | "U") stress-mark := "u" :- "U"
+
 %extend-rule stressed-vowel :: Stressed
-  | ("a" | "A") stress-mark :: Vowel := "a" :- "A"
-  | ("e" | "E") stress-mark :: Vowel := "e" :- "E"
-  | ("i" | "I") stress-mark :: Vowel := "i" :- "I"
-  | ("o" | "O") stress-mark :: Vowel := "o" :- "O"
-  | ("u" | "U") stress-mark :: Vowel := "u" :- "U"
+  | stressed-full-vowel :: Vowel
   | ("y" | "Y") stress-mark := "y" :- "Y"
 %emits
   $
@@ -315,8 +332,9 @@ A combining mark that no letter rule takes makes its run foreign, whatever its c
   "‹U+0306›"
 ```
 
-<details><summary>Railroad diagrams of the 4 rules from <code>plain-vowel</code> to <code>glide-mark</code></summary>
+<details><summary>Railroad diagrams of the 5 rules from <code>plain-vowel</code> to <code>glide-mark</code></summary>
 <p><img src="../../../docs/diagrams/lojban/common/latin/plain-vowel.svg" alt="Railroad diagram of the rule plain-vowel"></p>
+<p><img src="../../../docs/diagrams/lojban/common/latin/stressed-full-vowel.svg" alt="Railroad diagram of the rule stressed-full-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/stressed-vowel.svg" alt="Railroad diagram of the rule stressed-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/stress-mark.svg" alt="Railroad diagram of the rule stress-mark"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/glide-mark.svg" alt="Railroad diagram of the rule glide-mark"></p>

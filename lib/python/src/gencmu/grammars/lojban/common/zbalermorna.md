@@ -76,43 +76,51 @@ The shorthand stands where a non-vowel stands, because the apostrophe closes the
 
 A stress mark or a shorthand is a mark of the script, like an accent. So this document adds both to `mark-char` of [latin.md](latin.md), and no punctuation rule reads them as a pause. Neither is a Lojban character by itself. So `non-lojban-char` takes a stray mark, one that no letter takes, and the mark makes its run foreign.
 
+The `Vowel` tag marks the five full vowels and not `y`. So `zbalermorna-plain-full-vowel` and `zbalermorna-stressed-full-vowel` hold the full vowels, and each `y` form stays in the rule that it extends.
+
 ```jbogenbau
-%extend-rule plain-vowel :: ∅
+%rule zbalermorna-plain-full-vowel :: Vowel
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN ABU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN ABU›"
-    | "‹ZBALERMORNA HUMBERT LETTER FULL ABU›" | "‹ZBALERMORNA UCSUR LETTER FULL ABU›") :: Vowel := "a"
+    | "‹ZBALERMORNA HUMBERT LETTER FULL ABU›" | "‹ZBALERMORNA UCSUR LETTER FULL ABU›") := "a"
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN EBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN EBU›"
-    | "‹ZBALERMORNA HUMBERT LETTER FULL EBU›" | "‹ZBALERMORNA UCSUR LETTER FULL EBU›") :: Vowel := "e"
+    | "‹ZBALERMORNA HUMBERT LETTER FULL EBU›" | "‹ZBALERMORNA UCSUR LETTER FULL EBU›") := "e"
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN IBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN IBU›"
     | "‹ZBALERMORNA HUMBERT LETTER FULL IBU›" | "‹ZBALERMORNA UCSUR LETTER FULL IBU›"
     | "‹ZBALERMORNA HUMBERT LETTER SEMIVOWEL IY›"
-    | "‹ZBALERMORNA UCSUR LETTER SEMIVOWEL IY›") :: Vowel := "i"
+    | "‹ZBALERMORNA UCSUR LETTER SEMIVOWEL IY›") := "i"
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN OBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN OBU›"
-    | "‹ZBALERMORNA HUMBERT LETTER FULL OBU›" | "‹ZBALERMORNA UCSUR LETTER FULL OBU›") :: Vowel := "o"
+    | "‹ZBALERMORNA HUMBERT LETTER FULL OBU›" | "‹ZBALERMORNA UCSUR LETTER FULL OBU›") := "o"
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN UBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN UBU›"
     | "‹ZBALERMORNA HUMBERT LETTER FULL UBU›" | "‹ZBALERMORNA UCSUR LETTER FULL UBU›"
     | "‹ZBALERMORNA HUMBERT LETTER SEMIVOWEL UY›"
-    | "‹ZBALERMORNA UCSUR LETTER SEMIVOWEL UY›") :: Vowel := "u"
+    | "‹ZBALERMORNA UCSUR LETTER SEMIVOWEL UY›") := "u"
+
+%extend-rule plain-vowel :: ∅
+  | zbalermorna-plain-full-vowel :: Vowel
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN YBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN YBU›"
     | "‹ZBALERMORNA HUMBERT LETTER FULL YBU›" | "‹ZBALERMORNA UCSUR LETTER FULL YBU›") := "y"
 %emits
   $
 
-%extend-rule stressed-vowel :: Stressed
+%rule zbalermorna-stressed-full-vowel :: Vowel
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN ABU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN ABU›"
     | "‹ZBALERMORNA HUMBERT LETTER FULL ABU›"
-    | "‹ZBALERMORNA UCSUR LETTER FULL ABU›") zbalermorna-stress :: Vowel := "a" :- "A"
+    | "‹ZBALERMORNA UCSUR LETTER FULL ABU›") zbalermorna-stress := "a" :- "A"
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN EBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN EBU›"
     | "‹ZBALERMORNA HUMBERT LETTER FULL EBU›"
-    | "‹ZBALERMORNA UCSUR LETTER FULL EBU›") zbalermorna-stress :: Vowel := "e" :- "E"
+    | "‹ZBALERMORNA UCSUR LETTER FULL EBU›") zbalermorna-stress := "e" :- "E"
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN IBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN IBU›"
     | "‹ZBALERMORNA HUMBERT LETTER FULL IBU›"
-    | "‹ZBALERMORNA UCSUR LETTER FULL IBU›") zbalermorna-stress :: Vowel := "i" :- "I"
+    | "‹ZBALERMORNA UCSUR LETTER FULL IBU›") zbalermorna-stress := "i" :- "I"
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN OBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN OBU›"
     | "‹ZBALERMORNA HUMBERT LETTER FULL OBU›"
-    | "‹ZBALERMORNA UCSUR LETTER FULL OBU›") zbalermorna-stress :: Vowel := "o" :- "O"
+    | "‹ZBALERMORNA UCSUR LETTER FULL OBU›") zbalermorna-stress := "o" :- "O"
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN UBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN UBU›"
     | "‹ZBALERMORNA HUMBERT LETTER FULL UBU›"
-    | "‹ZBALERMORNA UCSUR LETTER FULL UBU›") zbalermorna-stress :: Vowel := "u" :- "U"
+    | "‹ZBALERMORNA UCSUR LETTER FULL UBU›") zbalermorna-stress := "u" :- "U"
+
+%extend-rule stressed-vowel :: Stressed
+  | zbalermorna-stressed-full-vowel :: Vowel
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN YBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN YBU›"
     | "‹ZBALERMORNA HUMBERT LETTER FULL YBU›"
     | "‹ZBALERMORNA UCSUR LETTER FULL YBU›") zbalermorna-stress := "y" :- "Y"
@@ -168,7 +176,7 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
 %rule stressed-two-phonemes(@C, @A, @Image, @B)
   @C zbalermorna-stress
 %emits
-  $ :: Stressed ∪ Vowel := @A :- @Image, ε :: Vowel := @B
+  $ :: Stressed Vowel := @A :- @Image, ε :: Vowel := @B
 
 %rule zbalermorna-stressed-ai = stressed-two-phonemes(
   ("‹ZBALERMORNA HUMBERT VOWEL SIGN AIBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN AIBU›"),
@@ -193,7 +201,7 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
 
 %rule zbalermorna-marked-vowel
   zbalermorna-shorthand-mark $v:zbalermorna-shorthand-vowel
-    :: $v.tags := $v.emitted.value :- $v.emitted.image
+      :: $v.tags := $v.emitted.value :- $v.emitted.image
 
 %rule zbalermorna-shorthand-vowel
   plain-vowel | stressed-vowel
@@ -202,8 +210,10 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
   ("‹ZBALERMORNA HUMBERT SYMBOL FOR CNIMAHO BU›" | "‹ZBALERMORNA UCSUR SYMBOL FOR CNIMAHO BU›")
 ```
 
-<details><summary>Railroad diagrams of the 24 rules from <code>plain-vowel</code> to <code>zbalermorna-shorthand-mark</code></summary>
+<details><summary>Railroad diagrams of the 26 rules from <code>zbalermorna-plain-full-vowel</code> to <code>zbalermorna-shorthand-mark</code></summary>
+<p><img src="../../../docs/diagrams/lojban/common/zbalermorna/zbalermorna-plain-full-vowel.svg" alt="Railroad diagram of the rule zbalermorna-plain-full-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/common/zbalermorna/plain-vowel.svg" alt="Railroad diagram of the rule plain-vowel"></p>
+<p><img src="../../../docs/diagrams/lojban/common/zbalermorna/zbalermorna-stressed-full-vowel.svg" alt="Railroad diagram of the rule zbalermorna-stressed-full-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/common/zbalermorna/stressed-vowel.svg" alt="Railroad diagram of the rule stressed-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/common/zbalermorna/zbalermorna-stress.svg" alt="Railroad diagram of the rule zbalermorna-stress"></p>
 <p><img src="../../../docs/diagrams/lojban/common/zbalermorna/vowel.svg" alt="Railroad diagram of the rule vowel"></p>

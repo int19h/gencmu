@@ -41,7 +41,8 @@ A further sentence cannot start with a paragraph mark or the end of a parenthesi
   sentence-of(@Open) [{tail-sentence-of(@Open)}]
 
 %rule tail-sentence-of(@Open)
-  starter-sentence-of(@Open) | invalid-tail
+  starter-sentence-of(@Open)
+  | invalid-tail
 
 %rule starter-sentence-of(@Open)
   $s:sentence-of(@Open)
@@ -125,8 +126,7 @@ A paragraph mark at the start of a paragraph is always the paragraph's mark, so 
 
 ```jbogenbau
 %rule sentence-of(@Open)
-  | sentence-erasure
-  | sentence-choice
+  | sentence-erasure | sentence-choice
   | $i:words-erasure
   | empty-erasure
 %conditions
@@ -145,7 +145,8 @@ A paragraph mark at the start of a paragraph is always the paragraph's mark, so 
   open-end | sentence-closer
 
 %rule sentence-closer
-  [{prefix}] (CAI | FI | BU) | DAI | VEI | PEI | PA
+  [{prefix}] (CAI | FI | BU)
+  | DAI | VEI | PEI | PA
 
 %rule open-sentence
   $s:sentence-body
@@ -241,7 +242,8 @@ Erased text can follow an erasure too, because the later `ra` erases it. So `aft
   $.following-tokens.begins(after-erasure)
 
 %rule invalid-head
-  elider-word | _<¬RA ¬FI ¬VEI ¬PEI ¬BU ¬PA>
+  elider-word
+  | _<¬RA ¬FI ¬VEI ¬PEI ¬BU ¬PA>
 %conditions
   $.onward.begins(erasure-reach)
 
@@ -493,8 +495,8 @@ A quote holds several sentences in two cases: it has several paragraphs, or its 
 
 ```jbogenbau
 %const $SEVERAL-SENTENCES
-  #« ⋯ open-quote-paragraphs« ⋯ open-quote-sentences po-head ⋯ » »
-  ∪ #« ⋯ open-quote-paragraphs« [po-head] open-quote-sentences« ⋯ sentence-choice ⋯
+  #« ⋯ open-quote-paragraphs« ⋯ open-quote-sentences po-head ⋯ » » ∪
+  #« ⋯ open-quote-paragraphs« [po-head] open-quote-sentences« ⋯ sentence-choice ⋯
     sentence-choice ⋯ » ⋯ » »
 
 %rule grammatical-quote
@@ -649,8 +651,8 @@ At equal engine measures, a specific construct failure precedes an unmatched clo
 
 ```jbogenbau
 %const $UNMATCHED-ERRORS
-  #(·unmatched-fi ∪ ·unmatched-vei ∪ ·unmatched-be ∪ ·unmatched-pei
-    ∪ ·unmatched-bu ∪ ·unmatched-dai ∪ ·unmatched-resume)
+  #(·unmatched-fi ∪ ·unmatched-vei ∪ ·unmatched-be ∪ ·unmatched-pei ∪
+    ·unmatched-bu ∪ ·unmatched-dai ∪ ·unmatched-resume)
 ```
 
 Named errors preserve a complete reading of faulty text. A reading without counted errors takes precedence, including erasure. Ordinary queries admit tokens with carried errors. Their witnesses exclude their own unerased error productions. The explicit `.error-free` bar also requires zero measure.
@@ -681,17 +683,17 @@ A quote with written `cai` retains its own recovery scope. Without `cai`, a quot
 %extend-rule base-verb
   *select-empty | *modified-empty
 
-%rule unmatched-tail
-  | unmatched-resume step-tail [ri-continuation] [$t:unmatched-tail] :: ($t ⟹ $t.tags)
-  | *resume-chain-empty step-tail [ri-continuation] [$t:unmatched-tail] :: ($t ⟹ $t.tags)
+%rule unmatched-tail :: ($t ⟹ $t.tags)
+  | (unmatched-resume | *resume-chain-empty) step-tail [ri-continuation] [$t:unmatched-tail]
   | $c:unmatched-closer [ri-continuation | definition] [$t:unmatched-tail]
-      :: ($c.tags ∩ DAI) ∪ ($t ⟹ $t.tags)
+      :: ($c.tags ∩ DAI)
 
 %rule unmatched-closer
   unmatched-fi | unmatched-vei | unmatched-be | unmatched-pei | unmatched-bu | unmatched-dai
 
 %rule ri-continuation
-  {RI} definition | [{RI}] *chain-empty<RI>
+  {RI} definition
+  | [{RI}] *chain-empty<RI>
 
 %rule unmatched-fi
   fi-free
@@ -782,13 +784,15 @@ The boundary query recognizes annotated `vi` and `fi`, with optional `bi`, witho
   $.following-tokens.begins(missing-operand-boundary)
 
 %extend-rule enumeration
-  [{prefix}] *chain-empty<PE> $p:*recovery-postfixes [{bu-free chain | *empty-enumeration-item}] [+PEI]
+  [{prefix}] *chain-empty<PE> $p:*recovery-postfixes
+    [{bu-free chain | *empty-enumeration-item}] [+PEI]
 %conditions
   $p.following-tokens.begins(missing-operand-boundary)
 
 %extend-rule separator-form
   | *empty-arguments-list [{bu-free chain | *empty-enumeration-item}]
-  | [arguments-list] {chain / bu-free} *empty-enumeration-item [{bu-free chain | *empty-enumeration-item}]
+  | [arguments-list] {chain / bu-free} *empty-enumeration-item
+      [{bu-free chain | *empty-enumeration-item}]
 
 %extend-rule chain-inner
   [{prefix}] *chain-empty<BI> $p:*recovery-postfixes

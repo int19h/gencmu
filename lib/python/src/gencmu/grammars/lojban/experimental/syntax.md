@@ -69,7 +69,8 @@ The experimental terminators `ku'au` and `ku'oi` are elidable: the rules below w
 
 ```jbogenbau
 %ambiguity-resolution
-  leftmost-longest #(·tense-modal ∪ ·free), fewest #(·gi-stag-connective ∪ ·bridi-tail-connective), late #·_<_Elided>
+  leftmost-longest #(·tense-modal ∪ ·free),
+  fewest #(·gi-stag-connective ∪ ·bridi-tail-connective), late #·_<_Elided>
 ```
 
 ## The text and its paragraphs
@@ -165,7 +166,9 @@ A written KEhE also closes a KE-wrapped forethought bridi. A later reset permits
   paragraph-item [{lone-i 🆓 [paragraph-item]}]
 
 %rule paragraph-item
-  statement | [reset-opening] fragment | reset-opening
+  statement
+  | [reset-opening] fragment
+  | reset-opening
 
 %rule reset-opening
   $f:reset-free-prefix IhAU 🆓
@@ -178,8 +181,8 @@ A written KEhE also closes a KE-wrapped forethought bridi. A later reset permits
 %rule reset-head
   [CU 🆓] {terms / CU 🆓} [CU 🆓]
 
+-- I_clause !jek !joik !joik_jek in camxes-exp's paragraph, whose joik includes A. Here VUhU can follow the `.i`.
 %rule lone-i
-  -- I_clause !jek !joik !joik_jek in camxes-exp's paragraph, whose joik includes A. Here VUhU can follow the `.i`.
   $i:I
 %conditions
   ¬$i.following-tokens.begins(joik-jek-ek)
@@ -214,7 +217,8 @@ A bare `na` forms a term. So `na` and `na na` are terms fragments. The layer omi
 
 ```jbogenbau
 %redefine-rule statement
-  statement-1 | [reset-opening] prenex statement
+  statement-1
+  | [reset-opening] prenex statement
 
 %redefine-rule statement-1
   | statement-2
@@ -227,7 +231,9 @@ A bare `na` forms a term. So `na` and `na na` are terms fragments. The layer omi
   [reset-opening] (top-sentence | [tag] TUhE 🆓 text-1 [+TUhU] 🆓)
 
 %redefine-rule fragment
-  ek 🆓 | gihek 🆓 | mekso-fragment | terms [+VAU] 🆓 | prenex | relative-clauses | links | linkargs
+  | ek 🆓 | gihek 🆓 | mekso-fragment
+  | terms [+VAU] 🆓
+  | prenex | relative-clauses | links | linkargs
 
 %redefine-rule prenex
   [terms] ZOhU 🆓
@@ -286,8 +292,8 @@ An open tail can take terms after a reset. A closed tail can take only resets an
 %rule top-subsentence
   [reset-opening] (top-sentence | prenex top-subsentence)
 
+-- sentence <- terms? bridi_tail_t1 ... (joik_jek (stag? BO_clause)? I_clause free* subsentence)*
 %redefine-rule sentence
-  -- sentence <- terms? bridi_tail_t1 ... (joik_jek (stag? BO_clause)? I_clause free* subsentence)*
   headed-bridi-tail [sentence-link]
 
 %rule sentence-link
@@ -340,11 +346,14 @@ An open tail can take terms after a reset. A closed tail can take only resets an
   selbri @T | @G
 
 %rule headed-bridi-tail = headed-bridi-tail-with(tail-terms, gek-sentence, tail-terms, gek-sentence)
-%rule headed-bridi-tail-2 = headed-bridi-tail-2-with(tail-terms, gek-sentence, tail-terms, gek-sentence)
+%rule headed-bridi-tail-2 = headed-bridi-tail-2-with(tail-terms, gek-sentence,
+                                                     tail-terms, gek-sentence)
 %redefine-rule bridi-tail = bridi-tail-with(tail-terms, gek-sentence, tail-terms, gek-sentence)
 %redefine-rule bridi-tail-1 = bridi-tail-1-with(tail-terms, gek-sentence, tail-terms, gek-sentence)
-%redefine-rule bridi-tail-1-final = bridi-tail-1-final-with(tail-terms, gek-sentence, tail-terms, gek-sentence)
-%rule connected-bridi-tail = connected-bridi-tail-with(tail-terms, gek-sentence, tail-terms, gek-sentence)
+%redefine-rule bridi-tail-1-final = bridi-tail-1-final-with(tail-terms, gek-sentence,
+                                                            tail-terms, gek-sentence)
+%rule connected-bridi-tail = connected-bridi-tail-with(tail-terms, gek-sentence,
+                                                       tail-terms, gek-sentence)
 %redefine-rule bridi-tail-2 = bridi-tail-2-with(tail-terms, gek-sentence, tail-terms, gek-sentence)
 %redefine-rule bridi-tail-3 = bridi-tail-3-with(tail-terms, gek-sentence)
 
@@ -354,9 +363,11 @@ An open tail can take terms after a reset. A closed tail can take only resets an
 %rule main-bridi-tail-1-final = bridi-tail-1-final-with(main-tail, main-gek, main-tail, main-gek)
 %rule main-bridi-tail-2 = bridi-tail-2-with(main-tail, main-gek, main-tail, main-gek)
 %rule main-bridi-tail-3 = bridi-tail-3-with(main-tail, main-gek)
-%rule connected-main-bridi-tail = connected-bridi-tail-with(tail-terms, gek-sentence, main-tail, main-gek)
+%rule connected-main-bridi-tail = connected-bridi-tail-with(tail-terms, gek-sentence,
+                                                            main-tail, main-gek)
 %rule connected-main-bridi-tail-2 = bridi-tail-2-with(tail-terms, gek-sentence, main-tail, main-gek)
-%rule headed-connected-main-bridi-tail-2 = headed-bridi-tail-2-with(tail-terms, gek-sentence, main-tail, main-gek)
+%rule headed-connected-main-bridi-tail-2 = headed-bridi-tail-2-with(tail-terms, gek-sentence,
+                                                                    main-tail, main-gek)
 
 %rule top-sentence
   [$h:reset-head IhAU 🆓]
@@ -550,10 +561,11 @@ No step names these terms. Their contained predicates use the `fewest` and `late
 %conditions
   Link-Extensible-End ⊈ $t.tags ∨ Sumti-Start ⊈ $l.tags
 
+-- term_2 <- term_3 (joik_ek stag? BO_clause term_3)*
 %rule term-bo-group
-  -- term_2 <- term_3 (joik_ek stag? BO_clause term_3)*
   | term-3
-  | $g:term-3 $l:term-bo-link :: ($g.tags ∩ Sumti-Start) ∪ ($l.tags ∩ $EXTENSIBLE-END)
+  | $g:term-3 $l:term-bo-link :: ($g.tags ∩ Sumti-Start) ∪
+                                 ($l.tags ∩ $EXTENSIBLE-END)
 %conditions
   Bo-Extensible-End ⊈ $g.tags ∨ Sumti-Start ⊈ $l.tags
 
@@ -565,28 +577,28 @@ No step names these terms. Their contained predicates use the `fewest` and `late
 
 %const $EXTENSIBLE-END Link-Extensible-End ∪ Bo-Extensible-End
 
-%const $PLACE-CLOSE I ∪ NIhO ∪ CU ∪ GI ∪ BEI ∪ ZIhE ∪ ZOhU ∪ CEhE ∪ PEhE ∪ KU ∪ VAU ∪ KEI ∪ KUhO ∪ BEhO ∪ LIhU ∪ TOI ∪ NUhU ∪ GEhU ∪ SEhU ∪ LUhU ∪ TEhU ∪ MEhU ∪ BOI ∪ VEhO ∪ KEhE ∪ LOhO ∪ DOhU ∪ FEhU ∪ TUhU ∪ KUhE ∪ KUhAU ∪ KUhOI ∪ IhAU ∪ LIhAU ∪ KUhEI
+%const $PLACE-CLOSE
+  I ∪ NIhO ∪ CU ∪ GI ∪ BEI ∪ ZIhE ∪ ZOhU ∪ CEhE ∪ PEhE ∪ KU ∪ VAU ∪ KEI ∪ KUhO ∪ BEhO ∪ LIhU ∪
+  TOI ∪ NUhU ∪ GEhU ∪ SEhU ∪ LUhU ∪ TEhU ∪ MEhU ∪ BOI ∪ VEhO ∪ KEhE ∪ LOhO ∪ DOhU ∪ FEhU ∪ TUhU ∪
+  KUhE ∪ KUhAU ∪ KUhOI ∪ IhAU ∪ LIhAU ∪ KUhEI
 
 %const $BARE-TAG #« tag KU="" [🆓] »
 %const $BARE-NA #« NA [🆓] KU="" [🆓] »
 
+-- term_3 <- sumti / tag_term / termset
 %rule term-3
-  -- term_3 <- sumti / tag_term / termset
-  | $s:sumti :: $s.tags ∪ Sumti-Start
-  | tagged-term
-  | termset
-  | bare-na
+  | $s:sumti :: Sumti-Start ∪ $s.tags
+  | tagged-term | termset | bare-na
   | soi-clause? soi-term
-  | noiha-term
-  | sohoi-term
-  | cahei-term
+  | noiha-term | sohoi-term | cahei-term
 
+-- !gek !ek !joik_jek !gihek NA_clause free* KU_elidible free*
 %rule bare-na
-  -- !gek !ek !joik_jek !gihek NA_clause free* KU_elidible free*
   $n:NA 🆓 [+KU] 🆓
 %conditions
   ¬$n.onward.begins(na-connective),
-  $ ≇ $BARE-NA ∨ $.ends-input ∨ ($PLACE-CLOSE ∩ $.following-tokens.first-token.tags) ⊈ ∅ ∨ $.followed-by(gihek | term)
+  $ ≇ $BARE-NA ∨ $.ends-input ∨ ($PLACE-CLOSE ∩ $.following-tokens.first-token.tags) ⊈ ∅ ∨
+    $.followed-by(gihek | term)
 
 %rule na-connective
   gek | joik-jek-ek | gihek
@@ -603,20 +615,21 @@ No step names these terms. Their contained predicates use the `fewest` and `late
 %rule cahei-term
   CAhEI 🆓 subsentence [+KUhEI] 🆓
 
+-- tag_term: !gek tag free* followed by a sumti or KU_elidible free*
 %rule tagged-term
-  -- tag_term: !gek tag free* followed by a sumti or KU_elidible free*
   | tag $s:sumti :: $s.tags ∩ $EXTENSIBLE-END
   | tag [+KU] 🆓
 %conditions
-  $ ≇ $BARE-TAG ∨ $.ends-input ∨ ($PLACE-CLOSE ∩ $.following-tokens.first-token.tags) ⊈ ∅ ∨ $.followed-by(gihek)
+  $ ≇ $BARE-TAG ∨ $.ends-input ∨ ($PLACE-CLOSE ∩ $.following-tokens.first-token.tags) ⊈ ∅ ∨
+    $.followed-by(gihek)
 
+-- termset <- gek_termset / NUhI_clause free* gek terms NUhU_elidible free* gik terms NUhU_elidible free* / NUhI_clause free* terms NUhU_elidible free*
 %redefine-rule termset
-  -- termset <- gek_termset / NUhI_clause free* gek terms NUhU_elidible free* gik terms NUhU_elidible free* / NUhI_clause free* terms NUhU_elidible free*
   | gek termset-branch gik terms [+NUhU] 🆓
   | termset-with-nuhi
 
+-- NUhI_clause free* gek terms NUhU_elidible free* gik terms: tried before NUhI_clause free* terms
 %rule gek-termset-body
-  -- NUhI_clause free* gek terms NUhU_elidible free* gik terms: tried before NUhI_clause free* terms
   gek terms [+NUhU] 🆓 gik terms
 
 %rule termset-branch
@@ -672,10 +685,11 @@ A description can take a forethought sentence in place of a selbri, and so can a
 
 %redefine-rule sumti-1
   | sumti-2
-  | sumti-2 connective [stag] KE 🆓 $i:sumti [+KEhE] 🆓 :: KEhE ⊈ $i.following-tokens.first-token.tags ⟹ $i.tags ∩ $EXTENSIBLE-END
+  | sumti-2 connective [stag] KE 🆓 $i:sumti [+KEhE] 🆓
+      :: KEhE ⊈ $i.following-tokens.first-token.tags ⟹ $i.tags ∩ $EXTENSIBLE-END
 
-%redefine-rule sumti-2 :: $EXTENSIBLE-END
-  | {... sumti-3 / connective}
+%redefine-rule sumti-2
+  {... sumti-3 / connective} :: $EXTENSIBLE-END
 
 %redefine-rule sumti-3
   {sumti-4 ... / connective [stag] BO 🆓}
@@ -735,7 +749,8 @@ Consecutive relative clauses can be joined by a joik, a jek or an ek, as well as
 %redefine-rule relative-clauses = relative-clause-list(relative-clause)
 
 %redefine-rule relative-clause
-  GOI 🆓 term [+GEhU] 🆓 | NOI 🆓 subsentence [+KUhO] 🆓
+  GOI 🆓 term [+GEhU] 🆓
+  | NOI 🆓 subsentence [+KUhO] 🆓
 ```
 
 <details><summary>Railroad diagrams of the 3 rules from <code>relative-clause-list</code> to <code>relative-clause</code></summary>
@@ -916,8 +931,8 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
 %conditions
   $m ≇ #(forethought-operator ⋰)
 
+-- quantifier <- !selbri !sumti_6 mex
 %rule mekso-fragment
-  -- quantifier <- !selbri !sumti_6 mex
   $m:mex
 %conditions
   ¬$m.without-elision.onward.begins(sumti-6 | gek-barrier | selbri)
@@ -972,7 +987,9 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
   ¬$.followed-by(number-part | lerfu-word)
 
 %rule number-part
-  PA | NIhE 🆓 selbri [+TEhU] 🆓 | MOhE 🆓 sumti [+TEhU] 🆓
+  PA
+  | NIhE 🆓 selbri [+TEhU] 🆓
+  | MOhE 🆓 sumti [+TEhU] 🆓
 
 %redefine-rule lerfu-string
   lerfu-word [{PA | lerfu-word}]
@@ -1019,7 +1036,8 @@ The rules name the two words by their values, `GA="ga"` and `GA="gu"`, which ign
   [NA] [SE] JA
 
 %redefine-rule joik
-  [NA] [SE] JOI | interval | GAhO interval GAhO
+  [NA] [SE] JOI
+  | interval | GAhO interval GAhO
 
 %redefine-rule interval
   [SE] BIhI
@@ -1164,7 +1182,9 @@ The first step names its free modifier, so a complete longer vocative outranks a
   | {COI} DOI
 
 %rule name-marker
-  LE="la" | LE="lai" | LE="la'i"
+  LE="la"
+  | LE="lai"
+  | LE="la'i"
 
 %rule free-after-number
   [+BOI] 🆓

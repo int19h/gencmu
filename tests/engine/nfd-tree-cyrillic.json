@@ -301,9 +301,8 @@
                                                             ],
                                                             "children": [
                                                               {
-                                                                "kind": "token",
-                                                                "terminal": "\"А\"",
-                                                                "token": 1,
+                                                                "kind": "rule",
+                                                                "rule": "cyrillic-full-vowel",
                                                                 "span": [
                                                                   1,
                                                                   2
@@ -311,6 +310,27 @@
                                                                 "source": [
                                                                   1,
                                                                   2
+                                                                ],
+                                                                "tags": [
+                                                                  "Capital",
+                                                                  "Folded",
+                                                                  "Syllabic",
+                                                                  "Vowel"
+                                                                ],
+                                                                "children": [
+                                                                  {
+                                                                    "kind": "token",
+                                                                    "terminal": "\"А\"",
+                                                                    "token": 1,
+                                                                    "span": [
+                                                                      1,
+                                                                      2
+                                                                    ],
+                                                                    "source": [
+                                                                      1,
+                                                                      2
+                                                                    ]
+                                                                  }
                                                                 ]
                                                               }
                                                             ]
@@ -370,23 +390,10 @@
                                                         ],
                                                         "children": [
                                                           {
-                                                            "kind": "token",
-                                                            "terminal": "\"И\"",
-                                                            "token": 2,
-                                                            "span": [
-                                                              2,
-                                                              3
-                                                            ],
-                                                            "source": [
-                                                              2,
-                                                              3
-                                                            ]
-                                                          },
-                                                          {
                                                             "kind": "rule",
-                                                            "rule": "letter-marks",
+                                                            "rule": "cyrillic-glide",
                                                             "span": [
-                                                              3,
+                                                              2,
                                                               4
                                                             ],
                                                             "source": [
@@ -394,12 +401,26 @@
                                                               3
                                                             ],
                                                             "tags": [
-                                                              "Breve"
+                                                              "Capital",
+                                                              "Vowel"
                                                             ],
                                                             "children": [
                                                               {
+                                                                "kind": "token",
+                                                                "terminal": "\"И\"",
+                                                                "token": 2,
+                                                                "span": [
+                                                                  2,
+                                                                  3
+                                                                ],
+                                                                "source": [
+                                                                  2,
+                                                                  3
+                                                                ]
+                                                              },
+                                                              {
                                                                 "kind": "rule",
-                                                                "rule": "letter-mark",
+                                                                "rule": "letter-marks",
                                                                 "span": [
                                                                   3,
                                                                   4
@@ -414,7 +435,7 @@
                                                                 "children": [
                                                                   {
                                                                     "kind": "rule",
-                                                                    "rule": "named-mark",
+                                                                    "rule": "letter-mark",
                                                                     "span": [
                                                                       3,
                                                                       4
@@ -429,7 +450,7 @@
                                                                     "children": [
                                                                       {
                                                                         "kind": "rule",
-                                                                        "rule": "glide-mark",
+                                                                        "rule": "named-mark",
                                                                         "span": [
                                                                           3,
                                                                           4
@@ -439,44 +460,12 @@
                                                                           3
                                                                         ],
                                                                         "tags": [
-                                                                          "_Age_V1_1",
-                                                                          "_Bidi_Class_Nonspacing_Mark",
-                                                                          "_Bidi_Paired_Bracket_Type_None",
-                                                                          "_Block_Combining_Diacritical_Marks",
-                                                                          "_Canonical_Combining_Class_Above",
-                                                                          "_Case_Ignorable",
-                                                                          "_Decomposition_Type_None",
-                                                                          "_Diacritic",
-                                                                          "_East_Asian_Width_Ambiguous",
-                                                                          "_General_Category_Mark",
-                                                                          "_General_Category_Nonspacing_Mark",
-                                                                          "_Grapheme_Cluster_Break_Extend",
-                                                                          "_Grapheme_Extend",
-                                                                          "_Hangul_Syllable_Type_Not_Applicable",
-                                                                          "_ID_Continue",
-                                                                          "_Indic_Conjunct_Break_Extend",
-                                                                          "_Indic_Positional_Category_NA",
-                                                                          "_Indic_Syllabic_Category_Other",
-                                                                          "_Joining_Group_No_Joining_Group",
-                                                                          "_Joining_Type_Transparent",
-                                                                          "_Line_Break_Combining_Mark",
-                                                                          "_NFC_Quick_Check_Maybe",
-                                                                          "_NFD_Quick_Check_Yes",
-                                                                          "_NFKC_Quick_Check_Maybe",
-                                                                          "_NFKD_Quick_Check_Yes",
-                                                                          "_Numeric_Type_None",
-                                                                          "_Script_Extensions_Inherited",
-                                                                          "_Script_Inherited",
-                                                                          "_Sentence_Break_Extend",
-                                                                          "_Vertical_Orientation_Rotated",
-                                                                          "_Word_Break_Extend",
-                                                                          "_XID_Continue"
+                                                                          "Breve"
                                                                         ],
                                                                         "children": [
                                                                           {
-                                                                            "kind": "token",
-                                                                            "terminal": "\"‹U+0306›\"",
-                                                                            "token": 3,
+                                                                            "kind": "rule",
+                                                                            "rule": "glide-mark",
                                                                             "span": [
                                                                               3,
                                                                               4
@@ -484,6 +473,55 @@
                                                                             "source": [
                                                                               2,
                                                                               3
+                                                                            ],
+                                                                            "tags": [
+                                                                              "_Age_V1_1",
+                                                                              "_Bidi_Class_Nonspacing_Mark",
+                                                                              "_Bidi_Paired_Bracket_Type_None",
+                                                                              "_Block_Combining_Diacritical_Marks",
+                                                                              "_Canonical_Combining_Class_Above",
+                                                                              "_Case_Ignorable",
+                                                                              "_Decomposition_Type_None",
+                                                                              "_Diacritic",
+                                                                              "_East_Asian_Width_Ambiguous",
+                                                                              "_General_Category_Mark",
+                                                                              "_General_Category_Nonspacing_Mark",
+                                                                              "_Grapheme_Cluster_Break_Extend",
+                                                                              "_Grapheme_Extend",
+                                                                              "_Hangul_Syllable_Type_Not_Applicable",
+                                                                              "_ID_Continue",
+                                                                              "_Indic_Conjunct_Break_Extend",
+                                                                              "_Indic_Positional_Category_NA",
+                                                                              "_Indic_Syllabic_Category_Other",
+                                                                              "_Joining_Group_No_Joining_Group",
+                                                                              "_Joining_Type_Transparent",
+                                                                              "_Line_Break_Combining_Mark",
+                                                                              "_NFC_Quick_Check_Maybe",
+                                                                              "_NFD_Quick_Check_Yes",
+                                                                              "_NFKC_Quick_Check_Maybe",
+                                                                              "_NFKD_Quick_Check_Yes",
+                                                                              "_Numeric_Type_None",
+                                                                              "_Script_Extensions_Inherited",
+                                                                              "_Script_Inherited",
+                                                                              "_Sentence_Break_Extend",
+                                                                              "_Vertical_Orientation_Rotated",
+                                                                              "_Word_Break_Extend",
+                                                                              "_XID_Continue"
+                                                                            ],
+                                                                            "children": [
+                                                                              {
+                                                                                "kind": "token",
+                                                                                "terminal": "\"‹U+0306›\"",
+                                                                                "token": 3,
+                                                                                "span": [
+                                                                                  3,
+                                                                                  4
+                                                                                ],
+                                                                                "source": [
+                                                                                  2,
+                                                                                  3
+                                                                                ]
+                                                                              }
                                                                             ]
                                                                           }
                                                                         ]
@@ -752,9 +790,8 @@
                                                     ],
                                                     "children": [
                                                       {
-                                                        "kind": "token",
-                                                        "terminal": "\"А\"",
-                                                        "token": 6,
+                                                        "kind": "rule",
+                                                        "rule": "cyrillic-full-vowel",
                                                         "span": [
                                                           6,
                                                           7
@@ -762,6 +799,27 @@
                                                         "source": [
                                                           5,
                                                           6
+                                                        ],
+                                                        "tags": [
+                                                          "Capital",
+                                                          "Folded",
+                                                          "Syllabic",
+                                                          "Vowel"
+                                                        ],
+                                                        "children": [
+                                                          {
+                                                            "kind": "token",
+                                                            "terminal": "\"А\"",
+                                                            "token": 6,
+                                                            "span": [
+                                                              6,
+                                                              7
+                                                            ],
+                                                            "source": [
+                                                              5,
+                                                              6
+                                                            ]
+                                                          }
                                                         ]
                                                       }
                                                     ]
@@ -943,9 +1001,8 @@
                                                 ],
                                                 "children": [
                                                   {
-                                                    "kind": "token",
-                                                    "terminal": "\"А\"",
-                                                    "token": 8,
+                                                    "kind": "rule",
+                                                    "rule": "cyrillic-full-vowel",
                                                     "span": [
                                                       8,
                                                       9
@@ -953,6 +1010,27 @@
                                                     "source": [
                                                       7,
                                                       8
+                                                    ],
+                                                    "tags": [
+                                                      "Capital",
+                                                      "Folded",
+                                                      "Syllabic",
+                                                      "Vowel"
+                                                    ],
+                                                    "children": [
+                                                      {
+                                                        "kind": "token",
+                                                        "terminal": "\"А\"",
+                                                        "token": 8,
+                                                        "span": [
+                                                          8,
+                                                          9
+                                                        ],
+                                                        "source": [
+                                                          7,
+                                                          8
+                                                        ]
+                                                      }
                                                     ]
                                                   }
                                                 ]

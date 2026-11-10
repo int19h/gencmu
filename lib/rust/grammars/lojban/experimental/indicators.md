@@ -29,10 +29,12 @@ The name `$INDICATOR-BOUNDARIES` also covers CIhAU, which opens no quotation. Cl
   $INDICATOR-BOUNDARIES ∪ LUhEI ∪ CIhAU
 
 %redefine-rule leading
-  | [fuhe] indicator | leading [fuhe] indicator
+  | [fuhe] indicator
+  | leading [fuhe] indicator
 
 %redefine-rule indicator-run
-  | [fuhe] indicator | [fuhe] attitudinal-nai
+  | [fuhe] indicator
+  | [fuhe] attitudinal-nai
   | indicator-run [fuhe] attitudinal-nai
   | $r:indicator-run $i:indicator
   | indicator-run fuhe indicator

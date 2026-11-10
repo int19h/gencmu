@@ -63,13 +63,16 @@ An alternative can carry its own tag, value, and image clauses. Both clause list
   Identifier | Emoji-Name
 
 %rule clauses
-  tags-clause [value-clause] [image-clause] | value-clause [image-clause] | image-clause
+  tags-clause [value-clause] [image-clause]
+  | value-clause [image-clause]
+  | image-clause
 
 %rule headed-body
   "|" (ordinary-body | ranked-alternative)
 
 %rule body
-  ["|"] ordinary-body | ranked-alternative
+  ["|"] ordinary-body
+  | ranked-alternative
 
 %rule ordinary-body
   {alternative / "|"}
@@ -84,7 +87,9 @@ An alternative can carry its own tag, value, and image clauses. Both clause list
   [{guard}] conjunction [alternative-clauses]
 
 %rule alternative-clauses
-  alternative-tags [value-clause] [image-clause] | value-clause [image-clause] | image-clause
+  alternative-tags [value-clause] [image-clause]
+  | value-clause [image-clause]
+  | image-clause
 
 %rule alternative-tags
   "::" term
@@ -166,7 +171,8 @@ Recognition also admits invalid capture targets. A captured terminator has its o
 
 ```jbogenbau
 %rule choice
-  ["|"] {conjunction / "|"} | ranked-choice
+  ["|"] {conjunction / "|"}
+  | ranked-choice
 
 %rule conjunction
   ["&"] {sequence / "&"}
@@ -175,15 +181,16 @@ Recognition also admits invalid capture targets. A captured terminator has its o
   {primary}
 
 %rule primary
-  capture<¬Captured-Terminator> | tested | untested-primary
+  capture<¬Captured-Terminator>
+  | tested | untested-primary
 
 %rule capture
   | (Capture | Constant) ":" primary :: ∅
   | *captured-terminator
 
 %rule untested-primary
-  reference | call | splice | parameter | tag | string-terminal | range | wildcard
-  | group | optional | repetition | empty
+  | reference | call | splice | parameter | tag | string-terminal
+  | range | wildcard | group | optional | repetition | empty
 
 %rule splice
   "*" (reference | call)
@@ -194,7 +201,8 @@ Recognition also admits invalid capture targets. A captured terminator has its o
   Lowercase-Name | Emoji-Name
 
 %rule tag
-  Uppercase-Name | Engine-Tag≠"_"
+  Uppercase-Name
+  | Engine-Tag≠"_"
 
 %rule string-terminal
   string | constant-reference
@@ -206,13 +214,15 @@ Recognition also admits invalid capture targets. A captured terminator has its o
   "(" choice ")"
 
 %rule optional
-  "[" ["+"] choice "]" | "[" capture<Captured-Terminator> "]"
+  "[" ["+"] choice "]"
+  | "[" capture<Captured-Terminator> "]"
 
 %rule captured-terminator
   (Capture | Constant) ":" "+" primary :: Captured-Terminator
 
 %rule repetition
-  "{" ["..."] choice ["/" choice] "}" | "{" choice "..." ["/" choice] "}"
+  "{" ["..."] choice ["/" choice] "}"
+  | "{" choice "..." ["/" choice] "}"
 
 %rule empty
   "ε"
@@ -272,7 +282,8 @@ Each tag requirement has an optional `¬`. An empty requirement list holds vacuo
   "≝" test-operand
 
 %rule operand-atom
-  call | parameter | string | constant-reference | name | tag | range | capture-reference | empty-set | pattern-literal | "(" term ")"
+  | call | parameter | string | constant-reference | name | tag | range
+  | capture-reference | empty-set | pattern-literal | "(" term ")"
 
 %rule test-operand
   operand-atom | method
@@ -343,13 +354,16 @@ Attachments are named captures in parentheses around a named carrier. The reader
   KW-EMITS [emission]
 
 %rule emission
-  [","] {emit-item / ","} | emit-clauses
+  [","] {emit-item / ","}
+  | emit-clauses
 
 %rule emit-item
   [{emit-before}] emit-target [{emit-after}] [emit-clauses]
 
 %rule emit-target
-  Capture | "ε" | Identifier | Engine-Tag≠"_" | range
+  | Capture | "ε" | Identifier
+  | Engine-Tag≠"_"
+  | range
 
 %rule emit-before
   "(" capture-reference ")"
@@ -358,7 +372,9 @@ Attachments are named captures in parentheses around a named carrier. The reader
   "(" capture-reference ")"
 
 %rule emit-clauses
-  emit-tags [value-clause] [image-clause] | value-clause [image-clause] | image-clause
+  emit-tags [value-clause] [image-clause]
+  | value-clause [image-clause]
+  | image-clause
 
 %rule emit-tags
   "::" term
@@ -462,7 +478,8 @@ An emoji rule name is also a method argument. A classifier name starts with a lo
   plain-term-atom | method
 
 %rule plain-term-atom
-  call | parameter | tag-run | string-run | tag | name | string | constant-reference | range | capture-reference | empty-set | pattern-literal | "(" term ")"
+  | call | parameter | tag-run | string-run | tag | name | string | constant-reference
+  | range | capture-reference | empty-set | pattern-literal | "(" term ")"
 
 %rule method
   method-receiver {method-selector}
@@ -627,7 +644,8 @@ Recognition admits repeated or reversed tests on node atoms. The reader restrict
   {pattern-path / "∩"}
 
 %rule pattern-path
-  ("⋮" | "⋱") pattern-primary | pattern-primary ["⋰"]
+  ("⋮" | "⋱") pattern-primary
+  | pattern-primary ["⋰"]
 
 %rule pattern-primary
   pattern-node | pattern-bare | "(" pattern-union ")"
@@ -675,7 +693,8 @@ Recognition admits repeated or reversed tests on node atoms. The reader restrict
   ¬$.last-token.onward.begins(pattern-adjacent-item)
 
 %rule child-path
-  ("⋮" | "⋱") child-primary | child-primary ["⋰"]
+  ("⋮" | "⋱") child-primary
+  | child-primary ["⋰"]
 
 %rule child-primary
   pattern-node | pattern-bare | "(" child-choice ")"
@@ -770,13 +789,16 @@ Recognition accepts wider operands than each directive permits. The reader rejec
   String | Include-Path
 
 %rule argument-tag
-  Engine-Tag≠"_" | range
+  Engine-Tag≠"_"
+  | range
 
 %rule argument-term
-  directive-method | capture-reference | constant-reference | empty-set | pattern-literal | "(" term ")" | Emoji-Name | "_"
+  | directive-method | capture-reference | constant-reference
+  | empty-set | pattern-literal | "(" term ")" | Emoji-Name | "_"
 
 %rule directive-method
-  (tag | name | string | constant-reference | range | capture-reference | empty-set | pattern-literal | "(" term ")") {method-selector}
+  (tag | name | string | constant-reference | range | capture-reference | empty-set
+    | pattern-literal | "(" term ")") {method-selector}
 ```
 
 <details><summary>Railroad diagrams of the 10 rules from <code>directive</code> to <code>directive-method</code></summary>
@@ -823,7 +845,8 @@ A classifier has a name and entries. Each entry has guards, one or more string k
   "∈" | "∉"
 
 %rule classifier-class
-  Identifier | Engine-Tag≠"_"
+  Identifier
+  | Engine-Tag≠"_"
 
 %rule implication-declaration
   KW-IMPLIES union "⟹" union
