@@ -5,6 +5,8 @@ use crate::lower::{Element, Lowered, NodeWalk, Span, Sym};
 use crate::patterns::Machine;
 use crate::tags::{SetId, Tags};
 use crate::tree::{IKind, ITree};
+use std::cell::OnceCell;
+use std::collections::BTreeSet;
 
 #[derive(Clone)]
 pub(crate) enum Kind {
@@ -39,12 +41,14 @@ pub(crate) struct Value {
     pub end: usize,
     pub target: Option<u32>,
 }
-pub(crate) struct Tree {
+pub(crate) struct Tree<'a> {
+    grammar: &'a Lowered,
+    derivation: &'a ITree,
     pub nodes: Vec<Node>,
     pub by_derivation: Vec<Option<u32>>,
     pub machine: Machine,
     parents: Vec<Option<(u32, usize)>>,
-    preceding: Vec<Option<Value>>,
+    preceding: Vec<OnceCell<Option<Value>>>,
     targets: Vec<Option<u32>>,
     first: FxMap<usize, FxSet<String>>,
     last: FxMap<usize, FxSet<String>>,
@@ -55,26 +59,41 @@ fn bounds(tree: &ITree, node: u32) -> (usize, usize) {
         IKind::Close { start, end, .. } => (start as usize, end as usize),
     }
 }
-impl Tree {
-    pub(crate) fn new(g: &Lowered, derivation: &ITree, tokens: &[Tok], tags: &mut Tags) -> Self {
+impl<'a> Tree<'a> {
+    pub(crate) fn new(
+        g: &'a Lowered,
+        derivation: &'a ITree,
+        tokens: &[Tok],
+        tags: &mut Tags,
+        features: &BTreeSet<String>,
+    ) -> Self {
         let mut patterns = Vec::new();
         let mut pending = Vec::new();
         for check in &g.checks {
+            if check.definition.error.is_none() && !features.contains(&check.definition.name) {
+                continue;
+            }
             pending.push(crate::clauses::Part::Term(&check.definition.pattern));
             pending.extend(check.definition.conditions.iter().map(crate::clauses::Part::Cond));
         }
+        let mut demanded = FxSet::default();
         while let Some(part) = pending.pop() {
+            if let crate::clauses::Part::Cond(crate::dom::Cond::Boundary(_, _, names, _)) = part {
+                demanded.extend(names.iter().cloned());
+            }
             if let crate::clauses::Part::Term(crate::dom::Term::Pattern(pattern)) = part {
                 patterns.push((**pattern).clone());
             }
             pending.extend(part.children());
         }
         let mut result = Self {
+            grammar: g,
+            derivation,
             nodes: Vec::new(),
             by_derivation: vec![None; derivation.nodes.len()],
             machine: Machine::new(&patterns),
             parents: vec![None; derivation.nodes.len()],
-            preceding: vec![None; derivation.nodes.len()],
+            preceding: (0..derivation.nodes.len()).map(|_| OnceCell::new()).collect(),
             targets: vec![None; derivation.nodes.len()],
             first: FxMap::default(),
             last: FxMap::default(),
@@ -82,6 +101,9 @@ impl Tree {
         for (index, node) in derivation.nodes.iter().enumerate() {
             for (position, &child) in node.children.iter().enumerate() {
                 result.parents[child as usize] = Some((index as u32, position));
+            }
+            if demanded.is_empty() {
+                continue;
             }
             let (start, end) = bounds(derivation, index as u32);
             let name = match node.kind {
@@ -92,7 +114,7 @@ impl Tree {
                 }
             };
             if start != end {
-                if let Some(name) = name {
+                if let Some(name) = name.filter(|name| demanded.contains(name.as_str())) {
                     result.first.entry(start).or_default().insert(name.clone());
                     result.last.entry(end).or_default().insert(name.clone());
                 }
@@ -237,9 +259,6 @@ impl Tree {
             }
         }
         for node in 0..derivation.nodes.len() {
-            if let Some((parent, at)) = result.parents[node] {
-                result.preceding[node] = result.before(g, derivation, parent, at);
-            }
             if let IKind::Close { prod, .. } = derivation.nodes[node].kind {
                 if derivation.nodes[node].children.is_empty()
                     && g.rules[g.prods[prod as usize].rule as usize].elided.is_some()
@@ -270,11 +289,12 @@ impl Tree {
     }
     fn before(&self, g: &Lowered, tree: &ITree, mut parent: u32, mut at: usize) -> Option<Value> {
         loop {
+            crate::work::count(crate::work::Work::Walked, 1);
             let IKind::Close { prod, .. } = tree.nodes[parent as usize].kind else {
                 unreachable!("a derivation parent")
             };
             let p = &g.prods[prod as usize];
-            let Some(elements) = &p.elements else { return None };
+            let elements = p.elements.as_ref()?;
             let contains = |element: &Element| {
                 let (start, end) = element.bounds();
                 start <= at && at < end
@@ -315,6 +335,12 @@ impl Tree {
             (parent, at) = self.parents[parent as usize]?;
         }
     }
+    fn preceding_value(&self, node: u32) -> Option<Value> {
+        *self.preceding[node as usize].get_or_init(|| {
+            let (parent, position) = self.parents[node as usize]?;
+            self.before(self.grammar, self.derivation, parent, position)
+        })
+    }
     pub(crate) fn walk(&self, root: u32, path: &[NodeWalk]) -> Option<u32> {
         let mut id = root;
         for step in path {
@@ -348,7 +374,7 @@ impl Tree {
             }
             Span::Element(path) => {
                 let node = &self.nodes[self.walk(root, path)? as usize];
-                let value = self.preceding[node.derivation as usize]?;
+                let value = self.preceding_value(node.derivation)?;
                 Some((value.start, value.end, None))
             }
             _ => unreachable!("a check value"),
@@ -357,9 +383,7 @@ impl Tree {
     pub(crate) fn target(&self, root: u32, span: &Span) -> Option<u32> {
         match span {
             Span::Node(path) => self.targets[self.nodes[self.walk(root, path)? as usize].derivation as usize],
-            Span::Element(path) => {
-                self.preceding[self.nodes[self.walk(root, path)? as usize].derivation as usize]?.target
-            }
+            Span::Element(path) => self.preceding_value(self.nodes[self.walk(root, path)? as usize].derivation)?.target,
             Span::From(inner) => self.target(root, inner),
             _ => unreachable!("a local reading receiver"),
         }

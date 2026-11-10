@@ -20,10 +20,10 @@ The words stage turns on the warning code `experimental-cgv`. It reports a name 
 
 The pipeline turns on two syntax features. `cbm` is the cmevla-brivla merger, which lets a name word (cmevla) also act as a predicate word (brivla). `soi-clause` makes `soi` a term that takes a subsentence, in place of CLL's free modifier of reciprocity. A caller (the program or person that asks for a parse) can turn either off to read the CLL form.
 
-The pipeline also enables `early-elision`. A longer completed local reading of the preceding element triggers this warning at an omitted terminator. A caller can disable the warning without changing the chosen parse.
+The syntax stage enables `early-elision`. A longer completed local reading of the preceding element triggers this warning at an omitted terminator. A caller can disable the warning without changing the chosen parse.
 
 ```jbogenbau
-%features cbm soi-clause su-boundary early-elision
+%features cbm soi-clause su-boundary
 ```
 
 ## Stage 1: phonemes
@@ -132,6 +132,7 @@ The word forms divide each run in one way only, so the stage's `lazy` step decid
 
 ```jbogenbau
 %stage syntax
+%features early-elision
 ```
 
 - [The CLL grammar](../cll/syntax.md)

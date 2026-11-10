@@ -310,8 +310,11 @@ pub(crate) fn evaluate_reports(
     let charges = Measures::new(tokens);
     let mut strings = crate::strings::Strings::new(g, tree, tokens, sources, recognizer.shared.text, &g.unicode);
     strings.observe();
-    let check_tree =
-        (!g.checks.is_empty()).then(|| crate::checks::Tree::new(g, tree, tokens, &mut recognizer.shared.tags));
+    let check_tree = g
+        .checks
+        .iter()
+        .any(|check| check.definition.error.is_some() || features.contains(&check.definition.name))
+        .then(|| crate::checks::Tree::new(g, tree, tokens, &mut recognizer.shared.tags, features));
     let mut occurrences = FxMap::<String, usize>::default();
     let mut stack = vec![(0u32, Rc::new(BTreeSet::<String>::new()))];
     while let Some((index, mut suppressed)) = stack.pop() {

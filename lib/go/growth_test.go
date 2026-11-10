@@ -23,6 +23,8 @@ func TestGrowth(t *testing.T) {
 	var cases []struct {
 		Description string `json:"description"`
 		Pipeline    string `json:"pipeline"`
+		Grammar     string `json:"grammar"`
+		Walks       bool   `json:"walks"`
 		Text        string `json:"text"`
 		Link        string `json:"link"`
 		Small       int    `json:"small"`
@@ -36,19 +38,32 @@ func TestGrowth(t *testing.T) {
 		t.Fatal("no cases")
 	}
 	for _, c := range cases {
-		t.Run(c.Pipeline+" with "+c.Link, func(t *testing.T) {
-			d, err := LoadPipeline(c.Pipeline)
+		name := c.Pipeline
+		if c.Grammar != "" {
+			name = "check elements"
+		}
+		t.Run(name+" with "+c.Link, func(t *testing.T) {
+			var d *Pipeline
+			var err error
+			if c.Grammar != "" {
+				d, err = LoadPipelineSources(oneStage(c.Grammar), "p.md")
+			} else {
+				d, err = LoadPipeline(c.Pipeline)
+			}
 			if err != nil {
 				t.Fatal(err)
 			}
 			// A budget of 0 is none; the count past a budget stops the
 			// parse. The keys of nested parses by content are counted too,
 			// since a key costs as much as its span is long.
-			work := func(n int, items, keys int64) (int64, int64) {
+			work := func(n int, items, keys, visits int64) (int64, int64, int64) {
 				links := strings.TrimSuffix(strings.Repeat(c.Link+" ", n), " ")
 				text := strings.Replace(c.Text, "{links}", links, 1)
 				w := countWork(t)
 				w.items.most, w.keySteps.most = items, keys
+				if c.Walks {
+					w.visits.most = visits
+				}
 				res, err := d.Parse(text, ParseOptions{})
 				if err != nil {
 					t.Fatal(err)
@@ -56,10 +71,10 @@ func TestGrowth(t *testing.T) {
 				if !res.OK {
 					t.Fatalf("%s: does not parse", text)
 				}
-				return w.items.Load(), w.keySteps.Load()
+				return w.items.Load(), w.keySteps.Load(), w.visits.Load()
 			}
-			small, smallKeys := work(c.Small, 0, 0)
-			large, largeKeys := work(c.Large, c.Most*small, c.Most*smallKeys+1)
+			small, smallKeys, smallVisits := work(c.Small, 0, 0, 0)
+			large, largeKeys, _ := work(c.Large, c.Most*small, c.Most*smallKeys+1, c.Most*smallVisits)
 			t.Logf("%d items and %d key steps for %d links, %d and %d for %d", small, smallKeys, c.Small, large, largeKeys, c.Large)
 		})
 	}

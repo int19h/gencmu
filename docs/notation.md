@@ -966,7 +966,7 @@ The DOM accepts exactly the reader's shapes, apart from source coordinates. Read
 
 ### Comparing two constituents
 
-The left operand of `≅` or `≇` is a capture, or a node walk in a check. Parentheses can enclose it, as in `($x) ≅ #·r` or `($.parent) ≅ #·text`. They retain the operand's meaning and type.
+The left operand of `≅` or `≇` is a capture, or a node walk in a check. In a check, parentheses can enclose the receiver, as in `($) ≅ #·text` or `($.parent) ≅ #·text`. They retain the operand's meaning and type.
 
 The right operand of `≅` is a term, and its type decides what the comparison does. If the term has pattern type, the comparison holds when the left constituent matches the pattern. If the term has constituent type, it holds when the two constituents have equal structural trees. A term of any other type is a type error at the operand.
 

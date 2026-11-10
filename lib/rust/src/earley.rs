@@ -1176,7 +1176,7 @@ pub(crate) struct Recognizer<'g, 's, 'a> {
 /// parts, and `$`, the whole constituent, from the item's origin to `end`.
 #[derive(Clone)]
 pub(crate) struct Frame<'c> {
-    pub check: Option<(&'c crate::checks::Tree, u32)>,
+    pub check: Option<(&'c crate::checks::Tree<'c>, u32)>,
     pub prefix: u32,
     pub parent_prefix: u32,
     pub structure: u32,

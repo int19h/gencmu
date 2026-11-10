@@ -2379,7 +2379,7 @@ impl<'a> Reader<'a> {
                 // The two sides fit the comparator (engine §10).
                 if !self.feature_context.get() {
                     let tree = matches!(frame.op.as_str(), "≅" | "≇");
-                    if tree && left == term {
+                    if tree && left == term && !self.check_context.get() {
                         return Err(self.error(inner, "a constituent comparison requires two different captures"));
                     }
                     if tree && ty == Type::Span && !matches!(term, Term::Capture(_)) {

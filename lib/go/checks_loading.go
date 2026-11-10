@@ -57,11 +57,7 @@ func (b *domBuilder) check(node *Node) *domCheck {
 	if clause := b.one(node, "error-clause"); clause != nil {
 		check.Error = b.recipe(b.only(clause, "recipe"))
 	}
-	for _, condition := range check.Conditions {
-		if fault := condTypeMemo(condition, nil, b.types); fault != nil {
-			b.fail(node, "%s", fault.problem)
-		}
-	}
+
 	return check
 }
 
@@ -146,6 +142,17 @@ func (g *stageGrammar) resolveCheck(index int) *Error {
 	at := check.PatternAt
 	if at == [2]int{} {
 		at = check.At
+		if check.Pattern.At != [2]int{} {
+			at = check.Pattern.At
+		}
+		if check.Pattern.Pattern != nil {
+			found := false
+			walkPattern(check.Pattern.Pattern, func(part *domPattern) {
+				if part.At != [2]int{} && (!found || part.At[0] < at[0] || part.At[0] == at[0] && part.At[1] < at[1]) {
+					at, found = part.At, true
+				}
+			})
+		}
 	}
 	if check.Pattern.Kind == tmConst && g.constants[check.Pattern.Str] == nil {
 		return g.constError(entry.doc, at, "$%s is not defined in stage %s", check.Pattern.Str, g.name)

@@ -8,10 +8,10 @@ A pipeline document defines an ordered sequence of stages. A stage is one step o
 
 The printed grammar is normative here, with the repairs that [the CLL grammar](syntax.md) lists. The pipeline accepts a text that the repaired grammar admits, subject to the ranking and the `elision-only` check of [Stage 5](#stage-5-syntax).
 
-`docs/notation.md` explains the notation. A feature is a named switch that the grammars test. This pipeline turns on `cll-cyrillic`, `su-boundary` and the warning code `early-elision`.
+`docs/notation.md` explains the notation. A feature is a named switch that the grammars test. This pipeline turns on `cll-cyrillic` and `su-boundary`. Its syntax stage enables the warning code `early-elision`.
 
 ```jbogenbau
-%features cll-cyrillic su-boundary early-elision
+%features cll-cyrillic su-boundary
 ```
 
 ## Stage 1: phonemes
@@ -110,6 +110,7 @@ Indicators after `lu` begin quoted content. Those after `to`, `to'i` and `tu'e` 
 
 ```jbogenbau
 %stage syntax
+%features early-elision
 ```
 
 - [The CLL grammar](syntax.md)

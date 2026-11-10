@@ -8,15 +8,18 @@ export declare class ChosenChecks {
     patterns: PatternMachine;
     /** @type {Map<any,any>} */ nodes: Map<any, any>;
     /** @type {Map<string,number>} */ identities: Map<string, number>;
-    /** @type {Map<number,Set<string>>} */ first: Map<number, Set<string>>;
-    /** @type {Map<number,Set<string>>} */ last: Map<number, Set<string>>;
+    boundaries: {
+        first: Map<number, Set<string>>;
+        last: Map<any, any>;
+    };
     /** @type {any} */ current: any;
     /** @type {import("./types.js").Scope} */
     scope: import("./types.js").Scope;
     strings: StringWalk;
     /** @param {import('./diagnostic-flow.js').DiagnosticFlow} flow
-     * @param {import('./earley.js').ParseContext} context @param {Set<string>} features */
-    constructor(flow: import('./diagnostic-flow.js').DiagnosticFlow, context: import('./earley.js').ParseContext, features: Set<string>);
+     * @param {import('./earley.js').ParseContext} context @param {Set<string>} features
+     * @param {import('./types.js').LoweredGrammar['checks']} checks */
+    constructor(flow: import('./diagnostic-flow.js').DiagnosticFlow, context: import('./earley.js').ParseContext, features: Set<string>, checks: import('./types.js').LoweredGrammar['checks']);
     /** @param {any} node @returns {any} */
     make(node: any): any;
     /** Presence is the sole observation that accepts an absent node.

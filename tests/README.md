@@ -471,9 +471,11 @@ The harness records both revisions, environment, selection manifest, raw timings
   "small": 10, "large": 40, "most": 5}, ...]
 ```
 
-Each item says that a bundled pipeline's work on a long text grows in proportion to its length. A condition that reparses each whole prefix makes work grow faster than text length. No other case exposes this cost. The library builds two texts from `text`. It replaces `{links}` with `small` copies of `link`, joined by spaces, and then with `large` copies.
+Each item says that a pipeline's work on a long text grows in proportion to its length. A condition that reparses each whole prefix makes work grow faster than text length. No other case exposes this cost. The library builds two texts from `text`. It replaces `{links}` with `small` copies of `link`, joined by spaces, and then with `large` copies.
 
 Both texts must parse. The library counts recognizer items for each text in the main parse and every nested parse. It excludes items made while loading the pipeline. A library with a shared memo (engine §4.3) counts with the memo off, so that answers from the small text never shorten the large one. The count for `large` copies must be at most `most` times the count for `small` copies.
+
+Each case supplies exactly one of `pipeline` and `grammar`. The latter loads an inline grammar through the existing source loader. Optional `walks:true` also bounds traversal through preceding elements. That count grows by at most the same `most` factor. Each library uses its existing work counter or monitored steps for this traversal.
 
 ## Notation growth cases: `notation-growth.json`
 

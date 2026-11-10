@@ -885,7 +885,8 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 	switch n.Rule {
 	case "tree-comparison":
 		f.compare.Right = in.(*domTerm)
-		if fault := condTypeMemo(f.compare, nil, b.types); fault != nil && !b.featureContext {
+		reflexive := b.checkContext && checkNodeTerm(f.compare.Left) && checkNodeTerm(f.compare.Right) && sameCheckNode(f.compare.Left, f.compare.Right)
+		if fault := condTypeMemo(f.compare, nil, b.types); fault != nil && !b.featureContext && !reflexive {
 			where := n
 			if fault.node == f.compare.Right {
 				where = b.only(n, "union")

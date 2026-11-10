@@ -61,5 +61,15 @@
     "small": 4,
     "large": 16,
     "most": 5
+  },
+  {
+    "description": "A preceding-element observation on each item of flat braces costs linear work.",
+    "grammar": "%ambiguity-resolution greedy\n%features preceding\n%rule text {\"a\" \"b\" / \" \"}\n%check preceding #·\"b\"\n%conditions $.preceding-element.value = \"a\"\n%warning \"preceding\"",
+    "text": "{links}",
+    "link": "ab",
+    "small": 1000,
+    "large": 4000,
+    "most": 5,
+    "walks": true
   }
 ]

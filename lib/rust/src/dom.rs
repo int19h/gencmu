@@ -2073,6 +2073,9 @@ pub(crate) fn joined_type(types: &[Type], operator: &str) -> Result<Type, String
 /// Why a comparison's two sides do not fit its comparator, or `None`. A
 /// side of type `Any` fits, and the loader checks it again (engine §9).
 pub(crate) fn comparison_problem(op: &str, left: Type, right: Type) -> Option<String> {
+    if left == Type::Element || right == Type::Element {
+        return Some(format!("{op} cannot compare an element value"));
+    }
     if matches!(op, "≅" | "≇") {
         if left == Type::Node {
             return (!matches!(right, Type::Node | Type::Pattern | Type::Set | Type::Any))
@@ -2302,7 +2305,12 @@ pub(crate) fn cond_type_context(cond: &Cond, constants: ConstantTypes, check: bo
             if matches!(op.as_str(), "≅" | "≇") {
                 if left == right {
                     return Some(Fault::in_cond(
-                        "a constituent comparison requires two different captures".into(),
+                        if check {
+                            "a tree comparison cannot compare a node with itself"
+                        } else {
+                            "a constituent comparison requires two different captures"
+                        }
+                        .into(),
                         cond,
                     ));
                 }

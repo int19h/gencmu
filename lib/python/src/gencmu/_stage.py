@@ -196,7 +196,9 @@ def evaluate_diagnostics(flow, tree, context, forest, features, stage, stage_ord
     strings.claim_gaps = False
     measures = Measures(context.tokens, context.sources)
     from ._checks import ChosenChecks
-    checks = ChosenChecks(flow, context, features) if context.observed is None and context.lowered.grammar.checks else None
+    enabled_checks = [check for _, check in context.lowered.grammar.checks
+                      if "error" in check or check["name"] in features]
+    checks = ChosenChecks(flow, context, features, enabled_checks) if context.observed is None and enabled_checks else None
     occurrences = {}
     pending = [(flow.root, frozenset())]
     while pending:

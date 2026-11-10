@@ -65,6 +65,11 @@ fn pattern_names(
     }
     Ok(())
 }
+fn warning_name(name: &str) -> bool {
+    name.starts_with(|c: char| c.is_ascii_alphabetic())
+        && name.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-')
+        && !name.contains("--")
+}
 pub(crate) fn check(
     grammar: &StageGrammar,
     documents: &[(Arc<str>, Arc<Dom>)],
@@ -106,10 +111,7 @@ pub(crate) fn check(
     for (document, check) in &grammar.checks {
         if check.warning.is_some() {
             warnings.insert(check.name.as_str());
-            if !check.name.starts_with(|c: char| c.is_ascii_alphabetic())
-                || !check.name.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-')
-                || check.name.contains("--")
-            {
+            if !warning_name(&check.name) {
                 return Err(Error::grammar("a warning code must be a feature name")
                     .in_document(document)
                     .at(check.at.0, check.at.1));
@@ -125,10 +127,7 @@ pub(crate) fn check(
             let fail = |message| Error::grammar(message).in_document(&alt.document).at(alt.at.0, alt.at.1);
             if alt.clauses.warning.is_some() {
                 warnings.insert(rule.name.as_str());
-                if !rule.name.starts_with(|c: char| c.is_ascii_alphabetic())
-                    || !rule.name.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-')
-                    || rule.name.contains("--")
-                {
+                if !warning_name(&rule.name) {
                     return Err(fail("a warning code must be a feature name"));
                 }
             }

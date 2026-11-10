@@ -1,0 +1,8 @@
+{
+  "description": "Issue #286 review: an element value has no implicit string conversion in equality.",
+  "grammar": "%rule text \"a\" [+T]\n%check bad #·_<_Elided>\n%conditions $.preceding-element = \"a\"\n%warning \"bad\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar"
+  }
+}

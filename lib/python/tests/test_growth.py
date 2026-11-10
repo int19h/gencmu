@@ -50,12 +50,20 @@ class Growth(unittest.TestCase):
         cases = load_json(SHARED / "growth.json")
         self.assertTrue(cases, "no cases found")
         for case in cases:
-            with self.subTest(pipeline=case["pipeline"], link=case["link"]):
-                pipeline = gencmu.load_pipeline(case["pipeline"])
+            with self.subTest(pipeline=case.get("pipeline", "check elements"), link=case["link"]):
+                if "grammar" in case:
+                    pipeline, error = load_case_pipeline({"grammar": case["grammar"]})
+                    self.assertIsNone(error)
+                else:
+                    pipeline = gencmu.load_pipeline(case["pipeline"])
+                watches = [made_items()]
+                if case.get("walks"):
+                    from gencmu._checks import ChosenChecks
+                    watches.append(steps(ChosenChecks.preceding, "parent = self.flow.info(child).parent"))
 
                 def items(n: int, budget: int | None = None) -> int:
                     text = case["text"].replace("{links}", " ".join([case["link"]] * n))
-                    with count_work(made_items(), budget=budget) as work:
+                    with count_work(*watches, budget=budget) as work:
                         result = pipeline.parse(text)
                     self.assertTrue(result.ok, text)
                     return work.count

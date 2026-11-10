@@ -29,30 +29,34 @@ class CheckNode:
     identity: int = 0
     structure: int = 0
     tags: frozenset = frozenset()
+    tag_id: int = 0
 
 
 class ChosenChecks:
     boundary_value = None
 
-    def __init__(self, flow, context, features):
+    def __init__(self, flow, context, features, checks):
         self.flow, self.context, self.features = flow, context, features
-        self.checks = [check for _, check in context.lowered.grammar.checks]
+        self.checks = checks
         patterns = [check["pattern"] for check in self.checks]
         pending = [check["conditions"] for check in self.checks]
+        boundaries = set()
         while pending:
             node = pending.pop()
             if isinstance(node, dict) and "pattern" in node:
                 patterns.append(node["pattern"])
+            if isinstance(node, dict) and node.get("method") in ("followed-by", "preceded-by"):
+                boundaries.update(target.get("rule", target.get("terminal")) for target in node["args"])
             pending.extend(clause_children(node))
         self.machine = PatternMachine(patterns)
         self.nodes, self.identities = {}, {}
         self.first, self.last = {}, {}
         self.evaluator = Evaluator(context, 0, len(context.tokens))
-        for node in flow.order:
+        for node in flow.order if boundaries else ():
             if node.start == node.end:
                 continue
             name = node.terminal if not hasattr(node, "production") else None if node.production.helper else node.production.rule_name
-            if name is not None:
+            if name in boundaries:
                 self.first.setdefault(node.start, set()).add(name)
                 self.last.setdefault(node.end, set()).add(name)
         roots, nodes = [], []
@@ -98,6 +102,7 @@ class ChosenChecks:
         values = lambda: tuple(token.value for token in context.tokens[part.start:part.end])
         node.tags = (frozenset((node.terminal,)) if node.kind == "elided" else context.tokens[part.token].tags
                      if not hasattr(part, "production") else context.tagtab.get(part.tag))
+        node.tag_id = context.tagtab.intern(node.tags)
         identity = (("rule", node.name, tuple(child.identity for child in node.children)) if node.kind == "rule"
                     else ("seal", values()) if node.kind == "seal" else ("elided", node.terminal) if node.kind == "elided"
                     else ("token", node.terminal, context.tokens[part.token].value))
@@ -143,7 +148,7 @@ class ChosenChecks:
             start, end, _ = self.preceding(self.require(term["receiver"]))
             return start, end, None
         node = self.require(term)
-        return node.derivation.start, node.derivation.end, self.context.tagtab.intern(node.tags)
+        return node.derivation.start, node.derivation.end, node.tag_id
 
     def site(self, parent, index):
         p = parent.production
@@ -183,18 +188,16 @@ class ChosenChecks:
                 start, length = element[1], 1 if element[0] == "symbol" else element[2]
                 low = parent.children[start].start if start < len(parent.children) else parent.end
                 high = parent.children[start + length - 1].end if length else low
-                expression = None
-                if self.context.lowered.grammar.local_readings:
-                    expression = (self.site(parent, start) if element[0] == "symbol"
-                                  else self.context.lowered.element_expressions[element[4]])
-                return low, high, expression
+                return low, high, (parent, element)
             if not parent.production.helper or parent.production.splice_of is not None:
                 raise AbsentCheckValue()
             child = parent
 
     def local_reading(self, term):
         if term.get("method") == "preceding-element":
-            start, _, expression = self.preceding(self.require(term["receiver"]))
+            start, _, (parent, element) = self.preceding(self.require(term["receiver"]))
+            expression = (self.site(parent, element[1]) if element[0] == "symbol"
+                          else self.context.lowered.element_expressions[element[4]])
         else:
             node = self.require(term)
             part = node.derivation

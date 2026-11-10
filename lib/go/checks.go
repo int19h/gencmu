@@ -57,13 +57,22 @@ type checkTree struct {
 	first, last map[string]map[int]bool
 }
 
-func newCheckTree(flow *diagnosticFlow) *checkTree {
+func newCheckTree(flow *diagnosticFlow, features map[string]bool) *checkTree {
 	g, run := flow.rec.g, flow.run
 	var patterns []*domPattern
+	demanded := map[string]bool{}
 	for _, entry := range g.stage.checks {
+		if entry.definition.Error == nil && !features[entry.definition.Name] {
+			continue
+		}
 		patterns = append(patterns, entry.definition.Pattern.Pattern)
 		for _, condition := range entry.definition.Conditions {
 			walkClause(clausePart{c: condition}, func(part clausePart) bool {
+				if part.c != nil && part.c.Kind == cdBoundary {
+					for _, target := range part.c.Targets {
+						demanded[target.Str] = true
+					}
+				}
 				if part.t != nil && part.t.Pattern != nil {
 					patterns = append(patterns, part.t.Pattern)
 				}
@@ -76,6 +85,9 @@ func newCheckTree(flow *diagnosticFlow) *checkTree {
 		for position, child := range source.kids {
 			tree.positions[child] = position
 		}
+		if len(demanded) == 0 {
+			continue
+		}
 		a, b, _ := run.kidSpan(flow.rec, source.d)
 		name := ""
 		if source.d.kind == dRead {
@@ -83,7 +95,7 @@ func newCheckTree(flow *diagnosticFlow) *checkTree {
 		} else if !source.d.prod.helper {
 			name = g.rules[source.d.prod.lhs].name
 		}
-		if a != b && name != "" {
+		if a != b && demanded[name] {
 			if tree.first[name] == nil {
 				tree.first[name], tree.last[name] = map[int]bool{}, map[int]bool{}
 			}
@@ -196,13 +208,7 @@ func newCheckTree(flow *diagnosticFlow) *checkTree {
 			tree.bySource[node.source] = node
 		}
 	}
-	if g.stage.hasElements {
-		for _, source := range flow.order {
-			if parent := flow.nodes[source].parent; parent != nil {
-				tree.preceding[source] = tree.before(parent, tree.positions[source])
-			}
-		}
-	}
+
 	return tree
 }
 func (tree *checkTree) site(parent *occurrence, position int) string {
@@ -226,6 +232,9 @@ func (tree *checkTree) site(parent *occurrence, position int) string {
 }
 func (tree *checkTree) before(parent *occurrence, at int) *checkValue {
 	for {
+		if w := work.Load(); w != nil {
+			w.visits.add("preceding element steps")
+		}
 		p := parent.d.prod
 		sequence := p.elements
 		type ancestor struct {
@@ -325,7 +334,15 @@ func (tree *checkTree) value(root *checkNode, term *domTerm) *checkValue {
 		if node == nil {
 			return nil
 		}
-		return tree.preceding[node.source]
+		if value, known := tree.preceding[node.source]; known {
+			return value
+		}
+		var value *checkValue
+		if parent := tree.flow.nodes[node.source].parent; parent != nil {
+			value = tree.before(parent, tree.positions[node.source])
+		}
+		tree.preceding[node.source] = value
+		return value
 	}
 	node := tree.node(root, term)
 	if node == nil {

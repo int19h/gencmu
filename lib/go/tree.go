@@ -162,8 +162,11 @@ func (run *stageRun) evaluateDiagnostics(flow *diagnosticFlow, features map[stri
 	rec := flow.rec
 	strings := &stringEmitter{run: run, rec: rec, observing: true}
 	var checks *checkTree
-	if len(rec.g.stage.checks) > 0 {
-		checks = newCheckTree(flow)
+	for _, entry := range rec.g.stage.checks {
+		if entry.definition.Error != nil || features[entry.definition.Name] {
+			checks = newCheckTree(flow, features)
+			break
+		}
 	}
 	type visit struct {
 		node       *occurrence

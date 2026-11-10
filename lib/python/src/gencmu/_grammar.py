@@ -1024,11 +1024,11 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                 elif "path" in part or not part.get("exact"):
                     raise _error("a check requires exact candidate tests without paths", path, position, stage)
             clauses = {key: value for key, value in item.items() if key != "pattern"}
-            constants.check_value_uses(path, clauses, item["at"])
-            resolved = {**run(constants.with_values(clauses)), "pattern": body["pattern"]}
-            fault = check_type_fault(resolved, lambda name: constants.values[name].type)
+            fault = check_type_fault({**clauses, "pattern": body["pattern"]}, constants.type_of)
             if fault:
                 raise constants.fault_error(path, fault[1], item["at"], fault[0])
+            constants.check_value_uses(path, clauses, item["at"])
+            resolved = {**run(constants.with_values(clauses)), "pattern": body["pattern"]}
             if "warning" in resolved and re.fullmatch(r"(?!.*--)[A-Za-z][A-Za-z0-9-]*", resolved["name"]) is None:
                 raise _error("a warning code must be a feature name", path, item["at"], stage)
             resolved_checks.append((path, resolved))
@@ -1254,9 +1254,11 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
     from ._query_forms import without_binders
     from ._clause_walk import expression_children
     contexts = [(alt, [alt.conditions, alt.tags, alt.rule_tags, alt.emit]) for rule in rules.values() for alt in rule.alternatives]
-    exemplar = rules["text"].alternatives[0]
     for path, check in resolved_checks:
-        contexts.append((replace(exemplar, document=path, at=tuple(check["at"])), [check["conditions"]]))
+        alternative = Alternative(guards=[], expr={"empty": True}, tags=None, rule_tags=None,
+                                  emit=None, conditions=[], erased=False, value=None, image=None,
+                                  rule_value=None, rule_image=None, document=path, at=tuple(check["at"]))
+        contexts.append((alternative, [check["conditions"]]))
     local = any(node.get("method") == "local-readings" for _, check in resolved_checks for node in nodes(check["conditions"]))
     grammar.local_readings = local
     if local:

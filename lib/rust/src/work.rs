@@ -395,26 +395,36 @@ mod tests {
         let number = |case: &Json, name: &str| case.get(name).and_then(Json::as_int).expect(name) as u64;
         let mut failures = Vec::new();
         for case in cases {
-            let (name, template, link) = (string(case, "pipeline"), string(case, "text"), string(case, "link"));
+            let name = case.get("pipeline").and_then(Json::as_str).unwrap_or("check elements").to_string();
+            let (template, link) = (string(case, "text"), string(case, "link"));
+            let walks = case.get("walks").and_then(Json::as_bool).unwrap_or(false);
             let (small, large, most) = (number(case, "small"), number(case, "large"), number(case, "most"));
             // Loading is outside the preceding parse budget.
             reset();
-            let pipeline = crate::load_pipeline(&name).expect("the bundled pipeline");
-            let work = |n: u64, most: Option<(u64, u64)>| {
+            let pipeline = if let Some(grammar) = case.get("grammar").and_then(Json::as_str) {
+                crate::load_pipeline_sources(single(grammar), "p.md")
+            } else {
+                crate::load_pipeline(&name)
+            }
+            .expect("the growth pipeline");
+            let work = |n: u64, most: Option<(u64, u64, u64)>| {
                 let text = template.replace("{links}", &vec![link.as_str(); n as usize].join(" "));
                 reset();
-                if let Some((items, found)) = most {
+                if let Some((items, found, walked)) = most {
                     budget(Work::Items, items);
                     budget(Work::Found, found);
+                    if walks {
+                        budget(Work::Walked, walked);
+                    }
                 }
                 let result = pipeline.parse(&text, &ParseOptions::default()).expect("a result");
                 assert!(result.ok, "{text}");
-                (counted(Work::Items), counted(Work::Found))
+                (counted(Work::Items), counted(Work::Found), counted(Work::Walked))
             };
             // The longer text's parse panics at the first item or lookup
             // past its budget.
             let few = work(small, None);
-            let many = work(large, Some((most * few.0, most * few.1)));
+            let many = work(large, Some((most * few.0, most * few.1, most * few.2)));
             if many.0 > most * few.0 || many.1 > most * few.1 {
                 failures.push(format!(
                     "{name} with {link:?}: {few:?} items and lookups for {small} links, {many:?} for {large}, more than {most} times"

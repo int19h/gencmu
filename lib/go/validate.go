@@ -2361,6 +2361,9 @@ func condTypeOnce(c *domCond, ct constTypes, memo *typeMemo) *typeFault {
 				return &typeFault{"a tree comparison requires a pattern or a bare capture on its right", c.Right}
 			}
 			if checkNodeTerm(c.Left) && checkNodeTerm(c.Right) && sameCheckNode(c.Left, c.Right) {
+				if memo != nil && memo.check {
+					return &typeFault{"a tree comparison cannot compare a node with itself", c}
+				}
 				return &typeFault{"a constituent comparison requires two different captures", c}
 			}
 		}

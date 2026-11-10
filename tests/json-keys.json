@@ -1968,6 +1968,17 @@
       "find": "\"conditions\":[]",
       "replace": "\"conditions\":[{\"op\":\"≅\",\"left\":{\"capture\":\"\"},\"right\":{\"pattern\":{\"constant\":\"MISSING\"}}}]",
       "cached": false
+    },
+    {
+      "description": "A cached check reports a candidate pattern error at its pattern",
+      "find": "\"checks\":[]",
+      "replace": "\"checks\":[{\"name\":\"bad\",\"pattern\":{\"name\":\"text\",\"at\":[10,3]},\"conditions\":[],\"warning\":{\"concat\":[{\"string\":\"bad\"}]},\"at\":[9,1]}]",
+      "cached": true,
+      "error": {
+        "document": "grammars/test/g.md",
+        "line": 10,
+        "column": 3
+      }
     }
   ],
   "grammar": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\"\n```\n",

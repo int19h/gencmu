@@ -3621,6 +3621,34 @@
     return true;
   }
 
+  // ---- chosen-boundaries.js
+  // Boundary observations of one chosen derivation (engine §4.2).
+  /** @param {import('./types.js').Derivation} root @param {Set<string>} demanded */
+  function chosenBoundaries(root,demanded) {
+    /** @type {Map<number,Set<string>>} */ const first=new Map(),last=new Map();
+    const pending=demanded.size?[root]:[];
+    const offer=(/** @type {Map<number,Set<string>>} */ map,/** @type {number} */ at,/** @type {string} */ name)=>{
+      let names=map.get(at);if(!names)map.set(at,names=new Set());names.add(name);
+    };
+    while(pending.length) {
+      const node=/** @type {import('./types.js').Derivation} */(pending.pop());
+      if(node.start<node.end) {
+        const name='read' in node?node.read.terminal:node.production.helper?null:node.production.lhs;
+        if(name!==null && demanded.has(name)){offer(first,node.start,name);offer(last,node.end,name);}
+      }
+      if(!('read' in node))for(const child of node.children)pending.push(child);
+    }
+    return {first,last};
+  }
+
+  /** @param {ReturnType<typeof chosenBoundaries>} boundaries @param {any} atom
+   * @param {{start:number,end:number}} span */
+  function chosenBoundary(boundaries,atom,span) {
+    const forward=atom.method==='followed-by';
+    const offers=(forward?boundaries.first:boundaries.last).get(forward?span.end:span.start);
+    return !!offers && atom.args.some((/** @type {any} */ target)=>offers.has(target.rule??target.terminal));
+  }
+
   // ---- pattern-shapes.js
   /** Source positions of pattern operands and tag requirements. */
   const patternLocations = new WeakMap();
@@ -8701,11 +8729,11 @@
       if ("problem" in left) return left;
       const right = /** @type {{type: TermType} | TypeFault} */ (yield typing(condition.right, constants));
       if ("problem" in right) return right;
+      if (["≅","≇"].includes(condition.op) && left.type === "node" && JSON.stringify(condition.left)===JSON.stringify(condition.right)) return {problem:"a tree comparison cannot compare a node with itself",node:condition};
       if ((condition.op === "≅" || condition.op === "≇") && typeof condition.right.capture === "string") {
         if(!["span","node"].includes(left.type))return {problem:"a tree comparison requires a constituent",node:condition.left};
         return condition.left.capture === condition.right.capture ? {problem:"a tree comparison cannot compare a capture with itself",node:condition} : null;
       }
-      if (["≅","≇"].includes(condition.op) && left.type === "node" && JSON.stringify(condition.left)===JSON.stringify(condition.right)) return {problem:"a tree comparison cannot compare a node with itself",node:condition};
       const problem = comparisonProblem(condition.op, left.type, right.type);
       return problem ? { problem, node: ["≅","≇"].includes(condition.op) ? condition.right : condition } : null;
     }
@@ -16907,6 +16935,7 @@
   }
 
   // ---- checks.js
+
   // Checks read a chosen derivation without affecting recognition or ranking.
 
 
@@ -16919,35 +16948,29 @@
 
   class ChosenChecks {
     /** @param {import('./diagnostic-flow.js').DiagnosticFlow} flow
-     * @param {import('./earley.js').ParseContext} context @param {Set<string>} features */
-    constructor(flow,context,features) {
+     * @param {import('./earley.js').ParseContext} context @param {Set<string>} features
+     * @param {import('./types.js').LoweredGrammar['checks']} checks */
+    constructor(flow,context,features,checks) {
       this.flow=flow;this.context=context;this.features=features;
-      this.checks=context.lowered.checks;
+      this.checks=checks;
       const patterns=this.checks.map(check=>check.pattern);
       const pending=/** @type {any[]} */(this.checks.flatMap(check=>check.conditions));
+      const demanded=new Set();
       while(pending.length) {
         const node=pending.pop();if(node?.pattern)patterns.push(node.pattern);
+        if(['followed-by','preceded-by'].includes(node?.method))for(const target of node.args)demanded.add(target.rule??target.terminal);
         for(const child of clauseChildren(node))pending.push(child);
       }
       this.patterns=new PatternMachine(patterns);
       /** @type {Map<any,any>} */ this.nodes=new Map();
       /** @type {Map<string,number>} */ this.identities=new Map();
-      /** @type {Map<number,Set<string>>} */ this.first=new Map();
-      /** @type {Map<number,Set<string>>} */ this.last=new Map();
+      this.boundaries=chosenBoundaries(flow.root,demanded);
       /** @type {any} */ this.current=null;
       /** @type {import("./types.js").Scope} */
       this.scope={capture:()=>this.checkValue({capture:''}),checkValue:term=>this.checkValue(term),
         checkPresence:term=>this.node(term)!==null,checkTerminal:()=>this.current.terminal??'',
         localReading:term=>this.localReading(term),boundary:atom=>this.boundary(atom)};
       this.strings=new StringWalk(context,()=>this.scope,false);
-      const offer=(/** @type {Map<number,Set<string>>} */ map,/** @type {number} */ at,/** @type {string} */ name)=>{
-        const names=map.get(at)??new Set();names.add(name);map.set(at,names);
-      };
-      for(const node of flow.order) {
-        if(node.start===node.end)continue;
-        const name='read' in node?node.read.terminal:node.production.helper?null:node.production.lhs;
-        if(name!==null){offer(this.first,node.start,name);offer(this.last,node.end,name);}
-      }
       // Flatten helpers directly into the final child lists. Retaining each
       // recursive helper's expanded list duplicates every earlier prefix.
       /** @type {any[]} */ const roots=[];
@@ -17035,6 +17058,7 @@
     preceding(node) {
       let child=node.derivation;
       for(;;) {
+        if(hooks.work)countWork(hooks.work,'walkSteps');
         const parent=this.flow.info(child).parent;if(!parent || 'read' in parent)return null;
         const at=parent.children.indexOf(child);
         let sequence=parent.production.elements??[];
@@ -17079,9 +17103,7 @@
 
     /** @param {any} atom @returns {boolean} */
     boundary(atom) {
-      const value=this.checkValue(atom.receiver),forward=atom.method==='followed-by';
-      const offers=(forward?this.first:this.last).get(forward?value.end:value.start);
-      return !!offers && atom.args.some((/** @type {any} */ target)=>offers.has(target.rule??target.terminal));
+      return chosenBoundary(this.boundaries,atom,this.checkValue(atom.receiver));
     }
 
     /** @param {any} derivation @param {Set<string>} suppressed */
@@ -21431,6 +21453,7 @@
 
 
 
+
   // Running one stage: recognition, the choice of a parse, the result tree
   // (engine §12), emission (engine §11) and elision-only (engine §7).
 
@@ -21916,7 +21939,8 @@
   function evaluateDiagnostics(flow,context,features,stage,stageOrder=0){
     const strings=new StringWalk(context,node=>new TreeScope(node,context),false);
     const measures=new Measures(context.tokens,context.sources),scope={};
-    const checks=context.mode===null && context.lowered.checks.length ? new ChosenChecks(flow,context,features) : null;
+    const enabled=context.lowered.checks.filter(check=>check.error||features.has(check.name));
+    const checks=context.mode===null && enabled.length ? new ChosenChecks(flow,context,features,enabled) : null;
     const occurrences=new Map();
     let ordinal=0;
     const stack=[{node:flow.root,suppressed:new Set()}];
@@ -22030,11 +22054,7 @@
     }
     /** @param {any} atom */
     boundary(atom) {
-      const span = this.capture(atom.receiver.capture);
-      const followed = atom.method === "followed-by";
-      const at = followed ? span.end : span.start;
-      const offers = (followed ? this.context.emissionBoundaries.first : this.context.emissionBoundaries.last).get(at);
-      return !!offers && atom.args.some((/** @type {any} */ target) => offers.has(target.rule ?? target.terminal));
+      return chosenBoundary(this.context.emissionBoundaries,atom,this.capture(atom.receiver.capture));
     }
     /** @param {string} name */
     capture(name) {
@@ -22217,19 +22237,7 @@
   function emit(root, context, trace=new DiagnosticFlow(root,context.tokens)) {
     // Emission atoms observe this one chosen derivation. They request no
     // recognition offers, and never split an admission group.
-    const first = new Map(), last = new Map();
-    const demanded = emissionTargets(context.lowered.productions);
-    const pending = demanded.size ? [root] : [];
-    const offer = (/** @type {Map<number,Set<string>>} */ map,/** @type {number} */ at,/** @type {string} */ name) => { let names = map.get(at); if (!names) map.set(at,names=new Set()); names.add(name); };
-    while (pending.length) {
-      const node = /** @type {Derivation} */ (pending.pop());
-      if (node.start < node.end) {
-        const name = "read" in node ? node.read.terminal : node.production.helper ? null : node.production.lhs;
-        if (name !== null && demanded.has(name)) { offer(first,node.start,name); offer(last,node.end,name); }
-      }
-      if (!("read" in node)) for (const child of node.children) pending.push(child);
-    }
-    context.emissionBoundaries = {first,last};
+    context.emissionBoundaries=chosenBoundaries(root,emissionTargets(context.lowered.productions));
     const strings = new StringWalk(context,node => new TreeScope(node,context));
     return emitted(root, { context, strings, forwards: context.tokens.some(hasAttachments), inherited: new Set(),trace });
   }
