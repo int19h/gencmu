@@ -64,7 +64,7 @@ pub(crate) fn suffix_body(body: &Expr) -> bool {
 }
 
 /// The old and new spellings share a target and therefore a recursion key (§4.3).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum Mode {
     Whole,
     Prefix,
@@ -279,7 +279,8 @@ pub(crate) fn prepare(grammar: &mut crate::grammar::StageGrammar) -> Result<(), 
     if local {
         // Only written sites reachable in the chosen tree need reading targets.
         // Erased alternatives contribute a seal and expose no child sites.
-        let mut rules = vec![grammar.index["text"]];
+        // Stage validation reports a missing start rule.
+        let mut rules: Vec<_> = grammar.index.get("text").copied().into_iter().collect();
         let mut seen = FxSet::default();
         while let Some(index) = rules.pop() {
             if !seen.insert(index) {

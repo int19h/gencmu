@@ -935,6 +935,7 @@ impl Contents {
 enum NestedKey {
     WitnessEnds {
         key: Box<NestedKey>,
+        mode: crate::query_forms::Mode,
         filtered: bool,
     },
     Context {
@@ -3952,7 +3953,11 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 end,
                 rule,
                 key: if witness_ends {
-                    NestedKey::WitnessEnds { key: Box::new(NestedKey::Suffix(place)), filtered: query.filtered() }
+                    NestedKey::WitnessEnds {
+                        key: Box::new(NestedKey::Suffix(place)),
+                        mode: query.mode(),
+                        filtered: query.filtered(),
+                    }
                 } else {
                     NestedKey::Suffix(place)
                 },
@@ -4037,8 +4042,11 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             },
             None => self.nested_key(tokens, base, start, end, rule, query.filtered()),
         };
-        let key =
-            if witness_ends { NestedKey::WitnessEnds { key: Box::new(key), filtered: query.filtered() } } else { key };
+        let key = if witness_ends {
+            NestedKey::WitnessEnds { key: Box::new(key), mode: query.mode(), filtered: query.filtered() }
+        } else {
+            key
+        };
         let begins = query.mode() == crate::query_forms::Mode::Prefix;
         let place = (rule, base + start, base + end);
         if self.shared.running.contains(&place) {

@@ -1,0 +1,60 @@
+{
+  "description": "Issue #286 review round 2: whole-query witnesses cannot replace a cached prefix answer.",
+  "grammar": "%rule text A B\n%rule r A\n%check c1 #·text\n%conditions $.onward.parse(r …).ending-after($.first-token.preceding-tokens)\n%warning \"c1\"\n%check c2 #·text\n%conditions $.onward.parse(r).ending-after($.first-token.preceding-tokens)\n%warning \"c2\"\n%check c3 #·text\n%conditions $.onward.parse(r …).ending-after($.first-token.preceding-tokens)\n%warning \"c3\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "c1",
+      "c2",
+      "c3"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "c1",
+        "rule": "c1",
+        "span": [
+          0,
+          2
+        ],
+        "source": [
+          0,
+          3
+        ],
+        "message": "c1"
+      },
+      {
+        "stage": "main",
+        "code": "c3",
+        "rule": "c3",
+        "span": [
+          0,
+          2
+        ],
+        "source": [
+          0,
+          3
+        ],
+        "message": "c3"
+      }
+    ]
+  }
+}
