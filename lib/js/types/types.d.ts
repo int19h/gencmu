@@ -293,11 +293,11 @@ export type ParseOptions = {
 export type GrammarDom = {
     format: number;
     rules: DomRule[];
-    checks: DomCheck[];
     directives: DomDirective[];
     constants: DomConstant[];
     classifiers: DomClassifier[];
     implications: DomImplication[];
+    checks: DomCheck[];
 };
 export type DomClassifier = {
     name: string;
@@ -1224,11 +1224,11 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {object} GrammarDom
  * @property {number} format
  * @property {DomRule[]} rules
- * @property {DomCheck[]} checks
  * @property {DomDirective[]} directives
  * @property {DomConstant[]} constants
  * @property {DomClassifier[]} classifiers
  * @property {DomImplication[]} implications
+ * @property {DomCheck[]} checks
  */
 /**
  * A `%classifier` item: the classifier's name and the entries it adds

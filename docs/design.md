@@ -1037,6 +1037,8 @@ The product provides these diagnostics and debugging tools:
   The trace position must be a finite integer. The trace clamps it to the stage's token boundaries. Printed conditions preserve method receivers with parentheses around compound terms.
 - The audit reports unreachable rules, every rule that a later document replaced or extended, and the kind of every `%erased` production. Speaker erasure drops diagnostics and collapses interiors, so it cannot serve merely to omit stream plumbing. An unlisted part already emits nothing. Only erasure that changes no emission, counted parts, diagnostics, or observable derivation choice is inert.
 
+  The audit also lists a check whose candidate predicate names only unreachable rules. Child lists do not take part in that test.
+
   The audit names each redefinition or extension of a counted rule, with the step that it affects. A counted rule is one that a key step names. The audit also labels a key step impossible where its stage cannot match it. That is the one label of a step.
 
   The audit decides reachability first. It walks body references from `text` through every alternative, including one behind a disabled gate. It does not add a rule that appears only as a query target. Without a reading rule on that walk, a terminal is unreachable.

@@ -6343,7 +6343,7 @@
   function inspectDom(dom, unicode, deferEmission, expanded, templateConditions = undefined) {
     /** @type {(value: unknown) => value is Record<string, any>} */
     const object = isDomObject;
-    if (!object(dom) || !Object.keys(dom).every(key => ["format", "rules", "checks", "directives", "constants", "classifiers", "implications"].includes(key)) || dom.format !== DOM_FORMAT || !["rules", "checks", "directives", "constants", "classifiers", "implications"].every(key => Array.isArray(dom[key]))) return `not a DOM of format ${DOM_FORMAT}`;
+    if (!object(dom) || !Object.keys(dom).every(key => ["format", "rules", "directives", "constants", "classifiers", "implications", "checks"].includes(key)) || dom.format !== DOM_FORMAT || !["rules", "directives", "constants", "classifiers", "implications", "checks"].every(key => Array.isArray(dom[key]))) return `not a DOM of format ${DOM_FORMAT}`;
     /** @type {(value: any) => boolean} */
     const position = value => isDomPosition(value) && value.every((/** @type {number} */ n) => n >= 1);
     /** @type {(value: any, fields: string[]) => boolean} */
@@ -6366,7 +6366,7 @@
     const push = (kind, value, depth = 0, context = {}) => pending.push({ kind, value, depth, params:activeParams, ...context });
     const ruleName = (/** @type {string} */ name) => typeof name === "string" && (CLASSIFIER_NAME.test(name) || unicode.isEmojiName(name) || expanded && name.includes("(") && name.endsWith(")"));
     const positions = new Set();
-    for (const item of [...dom.rules, ...dom.checks, ...dom.directives, ...dom.constants, ...dom.classifiers, ...dom.implications]) {
+    for (const item of [...dom.rules, ...dom.directives, ...dom.constants, ...dom.classifiers, ...dom.implications, ...dom.checks]) {
       if (!object(item) || !position(item.at)) return "a malformed declaration position";
       const key = `${item.at[0]}:${item.at[1]}`;
       if (positions.has(key)) return "two items at one position";
@@ -6674,9 +6674,9 @@
     // Each declaration retains its local semantic phases after shape inspection.
     const declarations = [];
     for (const rule of dom.rules) declarations.push({kind:"rule", value:rule});
-    for (const check of dom.checks) declarations.push({kind:"check",value:check});
     for (const constant of dom.constants) declarations.push({kind:"constant", value:constant});
     for (const implication of dom.implications) declarations.push({kind:"implication", value:implication});
+    for (const check of dom.checks) declarations.push({kind:"check",value:check});
     declarations.sort((a,b) => a.value.at[0]-b.value.at[0] || a.value.at[1]-b.value.at[1]);
     for (const {kind, value} of declarations) {
       if (kind === "rule") {
@@ -9753,9 +9753,9 @@
     };
     let serial=0;
     for(const [inspectionRun, document] of documents.entries()) {
-      const declarations=['rules','checks','constants','directives','classifiers','implications'].flatMap(kind=>document.dom[kind].map((/** @type {any} */ rule)=>({kind,rule}))).sort((a,b)=>a.rule.at[0]-b.rule.at[0]||a.rule.at[1]-b.rule.at[1]);
+      const declarations=['rules','directives','constants','classifiers','implications','checks'].flatMap(kind=>document.dom[kind].map((/** @type {any} */ rule)=>({kind,rule}))).sort((a,b)=>a.rule.at[0]-b.rule.at[0]||a.rule.at[1]-b.rule.at[1]);
       for(const {kind,rule} of declarations) {
-      const event={path:document.path,rule,index:serial++,inspectionRun,kind:['rules','checks','directives','constants','classifiers','implications'].indexOf(kind)};
+      const event={path:document.path,rule,index:serial++,inspectionRun,kind:['rules','directives','constants','classifiers','implications','checks'].indexOf(kind)};
       sourceEvents.push(event);
       if(kind!=='rules') {extraEvents.push(event);continue;}
       events.push(event);
@@ -10999,7 +10999,7 @@
      * @param {number} inspectionRun
      */
     addDocument(path, dom, inspectionRun) {
-      const declarations = ["rules","checks","directives","constants","classifiers","implications"]
+      const declarations = ["rules","directives","constants","classifiers","implications","checks"]
         .flatMap(kind => /** @type {any[]} */ (/** @type {any} */ (dom)[kind]).map(node => ({kind,node})))
         .sort((a,b) => a.node.at[0]-b.node.at[0] || a.node.at[1]-b.node.at[1]);
       for (const {kind,node} of declarations) {
@@ -11046,7 +11046,7 @@
         } else if (kind === "checks") {
           const entry={check:node,document:path,at:{document:path,line:node.at[0],column:node.at[1]}};
           this.checks.push(entry);
-          this.validationItems.push({run:inspectionRun,at:node.at,kind:0,check:()=>{
+          this.validationItems.push({run:inspectionRun,at:node.at,kind:5,check:()=>{
             for(const part of [node.pattern,...node.conditions,node.error??node.warning])for(const reference of constantsIn(part)) {
               if(!this.constants.has(reference.const))throw this.documentError(path,reference.at,`$${reference.const} is not defined in stage ${this.stageName}`);
             }
@@ -17825,6 +17825,23 @@
     return false;
   }
 
+  /** @param {any} grammar @returns {string[]} */
+  function unreachableChecks(grammar) {
+    if (!grammar.checks.length) return [];
+    const {reachable}=observations(grammar);
+    return grammar.checks.filter((/** @type {any} */ entry)=>{
+      const pending=[entry.check.pattern];
+      while(pending.length) {
+        const pattern=pending.pop();
+        const parts=pattern.union ?? pattern.intersection ?? pattern.difference;
+        if(parts) for(const part of parts) pending.push(part);
+        else if(pattern.test) pending.push(pattern.expr);
+        else if(!pattern.name || reachable.has(pattern.name)) return false;
+      }
+      return true;
+    }).map((/** @type {any} */ entry)=>entry.check.name);
+  }
+
   /** @param {any} grammar @returns {any} */
   function rankingAudit(grammar) {
     const steps=grammar.resolution?.steps??[];
@@ -18350,7 +18367,7 @@
    * @property {FamilyAudit[]} families close families in first-call order
    * @property {import("./splice.js").StageChange[]} stageChanges
    * @property {number} rules
-   * @property {string[]} unreachable rules no derivation of `text` can reach
+   * @property {string[]} unreachable rules and checks no derivation of `text` can reach
    * @property {import("./grammar.js").RuleChange[]} changes
    * @property {ReturnType<typeof erasureAudit>} erasures conservative kinds of every written erased alternative
    * @property {{rule: string, document: string}[]} idleErasures erased definitions with no possible semantic effect
@@ -18745,7 +18762,7 @@
         stageChanges: (stage.stageChanges ?? []).slice(),
         resolution: resolution ? describeResolution(resolution) : "none",
         rules: grammar.rules.size,
-        unreachable: [...grammar.rules.keys()].filter((name) => !reachable.has(name)).sort(compareCodePoints),
+        unreachable: [...[...grammar.rules.keys()].filter((name) => !reachable.has(name)), ...unreachableChecks(grammar)].sort(compareCodePoints),
         changes: grammar.changes.slice(),
         ...ranking,
         erasures,
@@ -22636,7 +22653,7 @@
         implications.push(run(readImplicationDeclaration(item)));
       }
     }
-    const dom = { format: DOM_FORMAT, rules, checks, directives, constants, classifiers, implications };
+    const dom = { format: DOM_FORMAT, rules, directives, constants, classifiers, implications, checks };
     flattenGroups(dom);
     return dom;
 
@@ -23366,9 +23383,9 @@
         case "presence":
           return { captured: valueOf(token(inner)).slice(1) };
         case "tree-comparison": {
-          const receiver=one(inner,"method");
+          const receiver=some(inner,"method-selector",0).length ? inner : one(inner,"method");
           const left=receiver ? yield readMethod(receiver) : {capture:valueOf(token(only(inner,"capture-reference"))).slice(1)};
-          if(receiver && !checkContext)fail("a tree comparison requires a bare capture",receiver);
+          if(!checkContext && (receiver || tokens[inner.span[0]]?.value === "("))fail("a tree comparison requires a bare capture",receiver ?? inner);
           const op = /** @type {Comparator} */ (operator(token(only(inner,"tree-comparator"))));
           const rightNode = only(inner,"union");
           const leaf = firstOfRule(rightNode,"name") ?? firstOfRule(rightNode,"tag");
@@ -23796,7 +23813,8 @@
      * @returns {Generator<Step, {method: string, receiver:Term, args: Argument[]}, any>}
      */
     function* readMethod(node) {
-      let receiver = yield readTerm(only(only(node, "method-receiver"), "term-atom"), true);
+      const start = one(node, "method-receiver");
+      let receiver = start ? yield readTerm(only(start, "term-atom"), true) : {capture:valueOf(token(only(node,"capture-reference"))).slice(1)};
       for (const selector of some(node, "method-selector")) {
         const parsed = one(selector, "parse-selector");
         const name = parsed ? "parse" : valueOf(token(only(selector, "method-name")));
@@ -24562,9 +24580,9 @@
    */
   function itemsInOrder(dom) {
     /** @type {Item[]} */
-    const items = [...dom.rules.map((rule) => ({ rule })), ...dom.checks.map(check=>({check})), ...dom.directives.map((directive) => ({ directive })),
+    const items = [...dom.rules.map((rule) => ({ rule })), ...dom.directives.map((directive) => ({ directive })),
       ...dom.constants.map((constant) => ({ constant })), ...dom.classifiers.map((classifier) => ({ classifier })),
-      ...dom.implications.map((implication) => ({ implication }))];
+      ...dom.implications.map((implication) => ({ implication })), ...dom.checks.map(check=>({check}))];
     return items.sort((a, b) => itemAt(a)[0] - itemAt(b)[0] || itemAt(a)[1] - itemAt(b)[1]);
   }
 
@@ -26026,11 +26044,11 @@
    * @typedef {object} GrammarDom
    * @property {number} format
    * @property {DomRule[]} rules
-   * @property {DomCheck[]} checks
    * @property {DomDirective[]} directives
    * @property {DomConstant[]} constants
    * @property {DomClassifier[]} classifiers
    * @property {DomImplication[]} implications
+   * @property {DomCheck[]} checks
    */
 
   /**

@@ -527,7 +527,7 @@ Classifier membership errors print keys with the canonical string spelling of §
 
 A grammar stitches one stage's items (§13): rules, checks, directives, constants, classifiers and implications. These items come from documents (§8, §9). A rule has a name and alternatives, and optionally rule-level tags, recipes, conditions, a diagnostic message, suppression, and an output directive. An alternative has guards, an expression, and optionally tags and recipes. The grammar DOM (document object model), in `docs/output.md`, is the exact data.
 
-The loader records declarations in written order within each expanded document run. Equal DOM positions retain the category order of rules, checks, directives, constants, classifiers, then implications. It rejects a duplicate resolution directive as soon as it records that directive.
+The loader records declarations in written order within each expanded document run. Equal DOM positions retain the category order of rules, directives, constants, classifiers, implications, then checks. It rejects a duplicate resolution directive as soon as it records that directive.
 
 After recording declarations, the loader binds constant versions. It then checks rule uses, feature conditions, classifier keys, and implication sides in the same declaration order. Feature conditions first require every constant reference in their complete list to resolve. Feature-shape, type, and value inspection follow in that order. Final rule references follow the expanded rule order of §2.3. The loader checks for a resolution directive and the start rule `text` before those references.
 
@@ -2675,7 +2675,8 @@ intersection-operation = ["∩"] concatenation "∩" concatenation {"∩" concat
 set-atom = tag | tag-run | string-run | "∅" | constant-reference | parameter
 comparison = union comparator union
 comparator = "=" | "≠" | "∈" | "∉" | "⊆" | "⊈"
-tree-comparison = (capture-reference | method-chain) ("≅" | "≇") union
+tree-comparison = tree-left ("≅" | "≇") union
+tree-left = (capture-reference | "(" tree-left ")") {method-selector}
 pattern-literal = "#" pattern-primary
 pattern-union = pattern-intersection {("∪" | "∖") pattern-intersection}
 pattern-intersection = pattern-path {"∩" pattern-path}
@@ -2988,7 +2989,7 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `comparator` | One ordinary comparison token | Precomposed comparator from the token value |
 | `negation` | One `condition` | `not` |
 | `presence` | One capture token | `captured`, with empty name for `$` |
-| `tree-comparison` | Capture reference, tree comparator, union | `op`, capture `left`, and a `right` term whose type the loader checks after resolution |
+| `tree-comparison` | Capture reference, optional selectors, tree comparator, union | `op`, node `left`, and a `right` term whose type the loader checks after resolution |
 | `tree-comparator` | One `≅` or `≇` token | Precomposed comparator from the token value |
 | `pattern-literal` | One `pattern-primary` | Pattern term containing that whole pattern |
 | `pattern-union` | One or more `pattern-intersection`, with operators | Fold union and difference left. Flatten every union operand that is itself a union. |

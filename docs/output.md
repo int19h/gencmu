@@ -251,7 +251,7 @@ The authoritative constructor contract is [engine §9.3](engine.md#93-conversion
 
 A grammar DOM (document object model) is the parsed form of a grammar document (engine §8, §9). A library makes it when it reads the document. The per-family preparsed files hold this data, including the entries that bootstrap the notation reader.
 
-Its envelope is `{"format":48,"rules":[RULE...],"checks":[CHECK...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. All six declaration arrays are present, including empty arrays. The envelope has no other members. Every declared item has `at:[line,column]`, counted from 1. Both coordinates must be integers from 1 to 9007199254740991 (2^53 − 1). This bound applies to every DOM source position.
+Its envelope is `{"format":48,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...],"checks":[CHECK...]}`. All six declaration arrays are present, including empty arrays. The envelope has no other members. Every declared item has `at:[line,column]`, counted from 1. Both coordinates must be integers from 1 to 9007199254740991 (2^53 − 1). This bound applies to every DOM source position.
 
 `format` is the version of the DOM, 48. A library refuses a bootstrap of another version and treats an optional cached DOM of another version as a cache miss. A format match alone never excuses invalid schema data.
 
@@ -270,7 +270,7 @@ A check has this form, in canonical member order:
 
 `pattern` is a PATTERN literal or a constant reference `{"const":NAME,"at":[line,column]}` that resolves to a pattern. Exactly one of `error` and `warning` is present. `conditions` is always an array, including an empty array. No other members are legal. In particular, a check has no `op`, alternatives, parameters, arguments, tags, strings, emission, suppression or erasure.
 
-Check names use the rule-name repertoire, with warning names further restricted to valid feature names. The stage rejects duplicate checks and rule/check name collisions. Each check's `at` is its definer's position. Declaration ordering merges all six arrays by source position, with equal positions ordered as rules, checks, directives, constants, classifiers, then implications.
+Check names use the rule-name repertoire, with warning names further restricted to valid feature names. The stage rejects duplicate checks and rule/check name collisions. Each check's `at` is its definer's position. Declaration ordering merges all six arrays by source position, with equal positions ordered as rules, directives, constants, classifiers, implications, then checks.
 
 A check pattern's candidate predicate is exact and has no path operator, as engine §2.4 defines. Nested child lists retain ordinary pattern rules. A check's named references must resolve to rules or template families, never checks.
 

@@ -108,7 +108,7 @@ export type StageAudit = {
     stageChanges: import("./splice.js").StageChange[];
     rules: number;
     /**
-     * rules no derivation of `text` can reach
+     * rules and checks no derivation of `text` can reach
      */
     unreachable: string[];
     changes: import("./grammar.js").RuleChange[];

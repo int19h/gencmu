@@ -592,6 +592,13 @@
       "(q [t r])",
       "(q s)",
       "rejected"
+    ],
+    "tree-left": [
+      "rejected",
+      "rejected",
+      "(q [t r])",
+      "(q s)",
+      "rejected"
     ]
   },
   "extraParts": [
@@ -1735,7 +1742,7 @@
     },
     {
       "description": "A tree comparison requires its comparator before its bare-name check.",
-      "find": "{\"name\":\"tree-comparison\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"choice\":[{\"ref\":\"capture-reference\"},{\"ref\":\"method\"}]},{\"ref\":\"tree-comparator\"},{\"ref\":\"union\"}]}}],\"conditions\":[],\"at\":[*]}",
+      "find": "{\"name\":\"tree-comparison\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"tree-left\"},{\"ref\":\"tree-comparator\"},{\"ref\":\"union\"}]}}],\"conditions\":[],\"at\":[*]}",
       "replace": "{\"name\":\"tree-comparison\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"capture-reference\"},{\"literal\":{\"string\":\":\"}},{\"ref\":\"union\"}]}}],\"conditions\":[],\"at\":[*]}",
       "document": "```jbogenbau\n%rule text $x:A %conditions $x : B\n```\n",
       "inputs": [],
