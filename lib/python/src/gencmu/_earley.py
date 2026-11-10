@@ -835,7 +835,7 @@ class StageContext:
                 self.stage_completions = {}
                 for item, prod in enumerate(forest.prod):
                     _testing.count("walkSteps")
-                    production = self.lowered.productions[prod]
+                    production = forest.lowered.productions[prod]
                     if forest.dot[item] == len(production.rhs) and item in forest.tag:
                         self.stage_completions.setdefault((production.lhs, forest.origin[item]), []).append(item)
             witnesses = boundary_witnesses(forest, self.stage_completions.get((symbol, start), []))
