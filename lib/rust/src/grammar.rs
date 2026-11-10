@@ -2111,6 +2111,11 @@ impl Constants<'_> {
         for cond in &mut rule.conditions {
             self.substitute_cond(cond);
         }
+        // The template forms are asked with their constants resolved,
+        // as the rule's conditions are (engine §3.6).
+        for cond in rule.template_conditions.iter_mut().flatten() {
+            self.substitute_cond(cond);
+        }
         rule
     }
 

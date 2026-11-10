@@ -1,0 +1,8 @@
+{
+  "description": "Engine §3.6: a closed constant beside a parameter in a comparison still makes the condition trivial in an instance, with its value resolved.",
+  "grammar": "%const $W (Word)\n%rule text check(Word)\n%rule check(@S) $x:word\n%conditions @S ⊆ Other ∨ $W\n%rule word A :: Word",
+  "input": "a",
+  "expect": {
+    "error": "grammar"
+  }
+}

@@ -597,7 +597,12 @@ class _Constants:
         for term in [resolved.get("tags"), *(alt.get("tags") for alt in resolved.get("alternatives", []))]:
             if term is not None and term_reads_own_tags(term):
                 raise _error("a constituent reads its own tags", path, rule["at"], self.stage)
-        result = check_definition(resolved, True, getattr(self, "held_flags", {}).get((inspection_run, path, tuple(rule['at']))))
+        # The template forms are asked with their constants resolved,
+        # as the rule's conditions are (engine §3.6).
+        templates = getattr(self, "held_flags", {}).get((inspection_run, path, tuple(rule['at'])))
+        if templates is not None:
+            templates = [run(self.with_values(template)) if template is not None else None for template in templates]
+        result = check_definition(resolved, True, templates)
         if result.problem is not None:
             raise _error(result.problem.message, path, rule['at'], self.stage)
         if result.deferred is not None:
