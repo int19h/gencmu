@@ -287,7 +287,7 @@ pub(crate) struct SlotMetadata {
 
 #[derive(Debug, Clone)]
 pub(crate) struct LRule {
-    /// Helpers split into physical routes retain one logical identity.
+    /// Helpers split into physical routes retain one element identity.
     pub splice_target: Option<u32>,
     pub family: u32,
     /// The rule's name, or for a helper the name of the rule that owns it.
@@ -450,7 +450,7 @@ impl Lowered {
     }
 }
 
-/// A logical plain optional and its physical range in one production.
+/// A plain optional element and its physical range in one production.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct OptionalBoundary {
     pub expression: usize,
@@ -465,7 +465,7 @@ struct Sequence {
     items: Vec<Item>,
     optionals: Vec<OptionalBoundary>,
     routes: FxMap<usize, u8>,
-    logical_width: usize,
+    element_width: usize,
     inherited: Option<usize>,
 }
 impl Sequence {
@@ -475,7 +475,7 @@ impl Sequence {
     fn one(item: Item) -> Self {
         Self {
             items: vec![item],
-            logical_width: 1,
+            element_width: 1,
             inherited: Some(0),
             optionals: Vec::new(),
             routes: FxMap::default(),
@@ -485,9 +485,9 @@ impl Sequence {
         self.optionals.push(OptionalBoundary { expression, start: 0, end: self.items.len() });
     }
     fn append(&mut self, other: &Self) {
-        self.inherited = if self.logical_width == 0 {
+        self.inherited = if self.element_width == 0 {
             other.inherited.map(|position| position + self.items.len())
-        } else if other.logical_width == 0 {
+        } else if other.element_width == 0 {
             self.inherited
         } else {
             None
@@ -499,7 +499,7 @@ impl Sequence {
             start: boundary.start + offset,
             end: boundary.end + offset,
         }));
-        self.logical_width += other.logical_width;
+        self.element_width += other.element_width;
         self.items.extend(other.items.iter().cloned());
     }
 }
@@ -791,10 +791,10 @@ impl<'a> Lowerer<'a> {
                 let mut out = vec![Sequence::new()];
                 out.extend(self.expand(inner));
                 for sequence in &mut out {
-                    if sequence.logical_width != 1 {
+                    if sequence.element_width != 1 {
                         sequence.inherited = None;
                     }
-                    sequence.logical_width = 1;
+                    sequence.element_width = 1;
                     sequence.optional(self.optional_id(expr));
                 }
                 out
@@ -1576,7 +1576,7 @@ pub(crate) fn lower(
                 .filter_map(|(&i, _)| pending.sequence[i].1.as_ref().map(|name| (i, name.clone())))
                 .collect(),
             optionals: pending.sequence.optionals.clone(),
-            visible: !helper && !grammar.rules[owner as usize].query && pending.sequence.logical_width != 1,
+            visible: !helper && !grammar.rules[owner as usize].query && pending.sequence.element_width != 1,
             syms,
             cap_at,
             cap_pos,

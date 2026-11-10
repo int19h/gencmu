@@ -2166,6 +2166,11 @@ impl<'a> Reader<'a> {
                 // Parentheses make no node of their own (§9).
                 "implication" => Step::Call(Frame::Implication(Conditions::new(inner))),
                 "tree-comparison" => {
+                    if !self.some(inner, "method-selector", 0)?.is_empty()
+                        || self.tokens.get(inner.span.start).is_some_and(|token| token.value == "(")
+                    {
+                        return Err(self.error(inner, "a tree comparison requires a bare capture"));
+                    }
                     let capture = self
                         .value(self.token(self.one(inner, "capture-reference")?)?)
                         .strip_prefix('$')

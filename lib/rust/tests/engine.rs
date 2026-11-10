@@ -428,10 +428,10 @@ fn a_chain_beside_an_alternative_comes_before_an_empty_item() {
     assert!(message.starts_with("g.md:4:1: an item of braces in r"), "{message}");
 }
 
-/// Engine §4 holds the prefix before a logical plain optional fixed,
+/// Engine §4 holds the prefix before a plain optional element fixed,
 /// regardless of captures or ranked groups inside that optional.
 #[test]
-fn written_terminators_keep_logical_optional_boundaries() {
+fn written_terminators_keep_element_optional_boundaries() {
     for optional in ["[c]", "[$c:c]", "[[$c:c]]", "[($c:c ≻ c)]", "[$c:c D]"] {
         for method in ["matches", "begins"] {
             for view in ["", ".without-elision", ".without-elision.onward"] {
@@ -504,7 +504,7 @@ fn skipped_source_cases_have_stage_equivalents() {
                 name.starts_with("query-logical-prefix-").then(|| name.to_string())
             })
             .collect(),
-        "logical-prefix stage equivalents",
+        "element-prefix stage equivalents",
     ));
     for name in &names {
         let name = name.as_str();
@@ -637,7 +637,7 @@ fn skipped_source_cases_have_stage_equivalents() {
     eprintln!("{} unavailable caller-source cases have local stage equivalents", names.len());
 }
 
-/// Nested per-route helpers retain their logical parent in aligned queries.
+/// Nested per-route helpers retain their parent element in aligned queries.
 #[test]
 fn nested_optional_priority_survives_alignment() {
     for view in [".without-elision", ".without-elision.onward"] {
@@ -663,7 +663,7 @@ fn nested_optional_priority_survives_alignment() {
 }
 
 /// An absent captured optional still precedes the recursive reference in
-/// logical structure. The reference is not an initial self-reference (§4).
+/// element structure. The reference is not an initial self-reference (§4).
 #[test]
 fn empty_optionals_do_not_make_recursion_initial() {
     for optional in ["[A]", "[$a:A]", "[[$a:A]]", "[($a:A ≻ A)]"] {

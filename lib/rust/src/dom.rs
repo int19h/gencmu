@@ -18,7 +18,7 @@ pub(crate) fn dom_problem(dom: &crate::json::Json, unicode: &crate::unicode::Uni
 }
 
 fn shape_problem(dom: &Json, unicode: &Unicode) -> Option<String> {
-    let roots = ["rules", "directives", "constants", "classifiers", "implications"];
+    let roots = ["rules", "directives", "constants", "classifiers", "implications", "checks"];
     for part in roots.iter().filter_map(|key| dom.get(key)).flat_map(crate::parameters::nodes) {
         for field in ["ref", "tag", "terminal"] {
             if let Some(name) = part.get(field).and_then(crate::json::Json::as_str) {
@@ -71,17 +71,30 @@ use crate::tags::is_name;
 use crate::unicode::Unicode;
 
 /// The DOM format version (`docs/output.md`), part of every cache key.
-pub const DOM_FORMAT: i64 = 47;
+pub const DOM_FORMAT: i64 = 48;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct Dom {
     pub names_dependencies: Option<std::collections::BTreeMap<String, String>>,
     pub rules: Vec<RuleDef>,
+    pub checks: Vec<CheckDef>,
     pub directives: Vec<Directive>,
     pub constants: Vec<ConstDef>,
     pub classifiers: Vec<ClassifierDef>,
     pub implications: Vec<ImplicationDef>,
     pub unresolved: bool,
+}
+
+/// A named test on the chosen tree, with one message (engine §12.1).
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct CheckDef {
+    pub name: String,
+    pub pattern: Term,
+    pub conditions: Vec<Cond>,
+    pub error: Option<Term>,
+    pub warning: Option<Term>,
+    pub at: (usize, usize),
+    pub pattern_at: Option<(usize, usize)>,
 }
 
 /// A `%classifier NAME` item (engine §2): its name, which begins with `a`
@@ -438,6 +451,25 @@ pub(crate) fn decode_checked(value: &Json, _unicode: &Unicode) -> R<Dom> {
 
 pub(crate) fn decode_nodes(value: &Json) -> R<Dom> {
     let rules = array(value, "rules")?.iter().map(rule_from_json).collect::<R<Vec<_>>>()?;
+    let checks = array(value, "checks")?
+        .iter()
+        .map(|check| {
+            let pattern = field(check, "pattern")?;
+            Ok(CheckDef {
+                name: string(check, "name")?,
+                pattern: if pattern.get("const").is_some() {
+                    term_from_json(pattern)?
+                } else {
+                    Term::Pattern(Box::new(crate::patterns::Pattern::from_json(pattern)?))
+                },
+                conditions: array(check, "conditions")?.iter().map(cond_from_json).collect::<R<Vec<_>>>()?,
+                error: check.get("error").map(term_from_json).transpose()?,
+                warning: check.get("warning").map(term_from_json).transpose()?,
+                at: position(check)?,
+                pattern_at: None,
+            })
+        })
+        .collect::<R<Vec<_>>>()?;
     let directives = array(value, "directives")?
         .iter()
         .map(|directive| {
@@ -504,7 +536,7 @@ pub(crate) fn decode_nodes(value: &Json) -> R<Dom> {
         })
         .collect::<R<Vec<_>>>()?;
     let unresolved = crate::parameters::unresolved(value);
-    Ok(Dom { rules, directives, constants, classifiers, implications, unresolved, ..Dom::default() })
+    Ok(Dom { rules, checks, directives, constants, classifiers, implications, unresolved, ..Dom::default() })
 }
 
 pub(crate) fn requirements_from_json(value: &Json) -> R<Term> {
@@ -1175,6 +1207,33 @@ pub(crate) fn literal_call_problem(call: &str, args: &[Arg]) -> Option<&'static 
 
 // ---- writing a DOM as canonical JSON
 
+pub(crate) fn write_check(out: &mut String, check: &CheckDef) {
+    out.push_str("{\"name\":");
+    write_str(out, &check.name);
+    out.push_str(",\"pattern\":");
+    match &check.pattern {
+        Term::Pattern(pattern) => writing::write(out, writing::Part::Pattern(pattern)),
+        term => write_term(out, term),
+    }
+    out.push_str(",\"conditions\":[");
+    for (index, condition) in check.conditions.iter().enumerate() {
+        if index > 0 {
+            out.push(',');
+        }
+        write_cond(out, condition);
+    }
+    out.push(']');
+    for (name, recipe) in [("error", &check.error), ("warning", &check.warning)] {
+        if let Some(recipe) = recipe {
+            out.push(',');
+            write_str(out, name);
+            out.push(':');
+            write_term(out, recipe);
+        }
+    }
+    out.push_str(&format!(",\"at\":[{},{}]}}", check.at.0, check.at.1));
+}
+
 pub(crate) fn dom_to_json(dom: &Dom) -> String {
     let mut out = String::new();
     out.push_str("{\"format\":");
@@ -1276,6 +1335,13 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
         out.push_str(",\"then\":");
         write_term(&mut out, &implication.consequent);
         out.push_str(&format!(",\"at\":[{},{}]}}", implication.at.0, implication.at.1));
+    }
+    out.push_str("],\"checks\":[");
+    for (index, check) in dom.checks.iter().enumerate() {
+        if index > 0 {
+            out.push(',');
+        }
+        write_check(&mut out, check);
     }
     out.push_str("]}");
     out

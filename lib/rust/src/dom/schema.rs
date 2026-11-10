@@ -219,7 +219,7 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
     if crate::parameters::nodes(dom).any(|node| node.get(crate::parameters::SOURCE).is_some()) {
         return Some("a private source annotation in a supplied DOM".into());
     }
-    if !exact(dom, &["format", "rules", "directives", "constants", "classifiers", "implications"], &[])
+    if !exact(dom, &["format", "rules", "directives", "constants", "classifiers", "implications", "checks"], &[])
         || dom.get("format").and_then(Json::as_int) != Some(DOM_FORMAT)
     {
         return Some("not a DOM of this format".into());
@@ -227,7 +227,7 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
     let rule = |name: &str| rule_name(name, unicode, expanded);
     let mut pending = Vec::new();
     let mut positions = FxSet::default();
-    for name in ["rules", "directives", "constants", "classifiers", "implications"] {
+    for name in ["rules", "directives", "constants", "classifiers", "implications", "checks"] {
         let Some(items) = dom.get(name).and_then(Json::as_array) else {
             return Some("missing declaration array".into());
         };
@@ -243,6 +243,21 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
                 return Some("an undeclared or malformed parameter".into());
             }
             match name {
+                "checks" => {
+                    if !exact(item, &["name", "pattern", "conditions", "at"], &["error", "warning"])
+                        || !item.get("name").and_then(Json::as_str).is_some_and(rule)
+                        || item.get("error").is_some() == item.get("warning").is_some()
+                    {
+                        return Some("a malformed check".into());
+                    }
+                    let Some(pattern) = item.get("pattern") else { return Some("a malformed check".into()) };
+                    pending.push((if pattern.get("const").is_some() { Part::Term } else { Part::Pattern }, pattern, 0));
+                    let Some(conditions) = item.get("conditions").and_then(Json::as_array) else {
+                        return Some("a malformed check".into());
+                    };
+                    pending.extend(conditions.iter().map(|condition| (Part::Condition, condition, 0)));
+                    pending.push((Part::Recipe, item.get("error").or_else(|| item.get("warning")).unwrap(), 0));
+                }
                 "directives" => {
                     let name = item.get("name").and_then(Json::as_str);
                     let valid = if name == Some("ambiguity-resolution") {
@@ -613,7 +628,7 @@ pub(crate) fn decoded_problem(raw: &Json, dom: &mut Dom) -> Option<String> {
 }
 
 pub(crate) fn names_problem(dom: &Json) -> Option<&'static str> {
-    let first_statement = ["rules", "directives", "constants", "classifiers", "implications"]
+    let first_statement = ["rules", "directives", "constants", "classifiers", "implications", "checks"]
         .into_iter()
         .flat_map(|key| array(dom, key).into_iter().flatten().map(move |item| (key, item)))
         .filter(|(key, item)| *key != "directives" || item.get("name").and_then(Json::as_str) != Some("names"))

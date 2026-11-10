@@ -142,7 +142,7 @@ fn diagnostic_audit_notes_name_rules_and_variants() {
 fn splice_dom_requires_a_nominal_target() {
     for target in [r#"{"param":"X","at":[1,1]}"#, r#"{"test":"=","value":{"string":"a"},"expr":{"ref":"piece"}}"#] {
         let dom = format!(
-            r#"{{"format":47,"rules":[{{"name":"text","params":["X"],"op":"define","alternatives":[{{"guards":[],"expr":{{"splice":{target}}}}}],"conditions":[],"at":[1,1]}}],"directives":[],"constants":[],"classifiers":[],"implications":[]}}"#
+            r#"{{"format":48,"checks":[],"rules":[{{"name":"text","params":["X"],"op":"define","alternatives":[{{"guards":[],"expr":{{"splice":{target}}}}}],"conditions":[],"at":[1,1]}}],"directives":[],"constants":[],"classifiers":[],"implications":[]}}"#
         );
         assert!(gencmu::tools::check_dom(&dom).unwrap().is_some(), "{target}");
     }

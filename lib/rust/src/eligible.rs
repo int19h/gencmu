@@ -54,7 +54,7 @@ enum Next {
 /// place, in the order of their sets.
 type CompletedIndex = FxMap<(u32, u32), Vec<Place>>;
 
-/// Logical parent, optional occurrence, origin and capture scope.
+/// Element parent, optional occurrence, origin and capture scope.
 type OptionalIndex = FxMap<(u32, usize, u32, u32), Vec<Place>>;
 
 /// The chart of one nested parse, with what reading it needs.
@@ -169,7 +169,7 @@ impl<'a> Proofs<'a> {
             .max()
     }
 
-    /// All raw chart routes through the same logical optional. The index
+    /// All raw chart routes through the same element optional. The index
     /// includes partial parent readings: a blocker need not finish its rule.
     fn optional_routes(&self, fixed: Item, expression: usize) -> &[Place] {
         let index = self.optional_index.get_or_init(|| {
@@ -212,7 +212,7 @@ impl<'a> Proofs<'a> {
     }
 
     /// The furthest optional route that reaches a written terminator,
-    /// measured from this proof's own prefix before the logical optional.
+    /// measured from this proof's own prefix before the element optional.
     fn optional_blocked_until(&self, prefix: Place, expression: usize) -> Option<u32> {
         let fixed = self.item(prefix);
         let mut until = None;
@@ -250,7 +250,7 @@ impl<'a> Proofs<'a> {
     }
 
     /// Walk one eligible route back across the physical expansion of a
-    /// logical optional. Its permitted prefix and eligibility stay together.
+    /// element optional. Its permitted prefix and eligibility stay together.
     #[allow(clippy::too_many_arguments)]
     fn optional_permitted(
         &self,
@@ -918,7 +918,7 @@ mod tests {
             Ok(false)
         }
 
-        /// Enumerate eligible physical routes to the fixed logical prefix.
+        /// Enumerate eligible physical routes to the fixed element prefix.
         /// This oracle uses a finite proof search, rather than E/P tables.
         fn search_prefix(
             &mut self,
@@ -995,7 +995,7 @@ mod tests {
     }
 
     /// Independent raw-chart oracle coverage for capture-expanded and
-    /// per-route helper optionals, including a multi-symbol logical route.
+    /// per-route helper optionals, including a multi-symbol element route.
     #[test]
     fn the_oracle_keeps_optional_blocker_routes() {
         for optional in ["[c]", "[$c:c]", "[[$c:c]]", "[($c:c ≻ c)]", "[$c:c D]", "parent", "recursive-prefix"] {
@@ -1094,7 +1094,7 @@ mod tests {
         }
         let document = format!("```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n{}\n```\n", lines.join("\n"));
         let dom = format!(
-            r#"{{"format":{},"rules":[{}],"directives":[{{"name":"ambiguity-resolution","steps":[{{"step":"greedy"}}],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}"#,
+            r#"{{"format":{},"checks":[],"rules":[{}],"directives":[{{"name":"ambiguity-resolution","steps":[{{"step":"greedy"}}],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}"#,
             crate::dom::DOM_FORMAT,
             rules.join(",")
         );

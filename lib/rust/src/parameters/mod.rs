@@ -10,7 +10,7 @@ pub(crate) mod print;
 mod tests;
 pub(crate) use expand::expand;
 pub(crate) const SOURCE: &str = "\0source";
-pub(crate) const KINDS: [&str; 5] = ["rules", "constants", "directives", "classifiers", "implications"];
+pub(crate) const KINDS: [&str; 6] = ["rules", "directives", "constants", "classifiers", "implications", "checks"];
 pub(crate) fn obj<const N: usize>(fields: [(&str, Json); N]) -> Json {
     Json::Obj(fields.into_iter().map(|(k, v)| (k.into(), v)).collect())
 }

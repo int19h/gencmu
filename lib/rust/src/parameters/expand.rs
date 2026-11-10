@@ -190,6 +190,7 @@ fn empty(rules: Vec<Json>) -> Json {
     obj([
         ("format", Json::Int(dom::DOM_FORMAT)),
         ("rules", Json::Arr(rules)),
+        ("checks", Json::Arr(Vec::new())),
         ("constants", Json::Arr(Vec::new())),
         ("directives", Json::Arr(Vec::new())),
         ("classifiers", Json::Arr(Vec::new())),
@@ -232,6 +233,7 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
                     "directives" => 1,
                     "constants" => 2,
                     "classifiers" => 3,
+                    "checks" => 5,
                     _ => 4,
                 },
                 inspection_run,

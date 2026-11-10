@@ -18,7 +18,7 @@ fn dom(text_alternative: &str, text_extra: &str, rule: &str, format: i64, steps:
         rules.push_str(rule);
     }
     format!(
-        r#"{{"format":{format},"rules":[{rules}],"directives":[{{"name":"ambiguity-resolution","steps":[{steps}],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}"#
+        r#"{{"format":{format},"checks":[],"rules":[{rules}],"directives":[{{"name":"ambiguity-resolution","steps":[{steps}],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}"#
     )
 }
 
@@ -37,7 +37,7 @@ fn with_alternative(alternative: &str) -> String {
 fn with_directive(directive: &str) -> String {
     let rule = r#"{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"literal":{"string":"b"}}}],"conditions":[],"at":[3,1]}"#;
     format!(
-        r#"{{"format":{DOM_FORMAT},"rules":[{rule}],"directives":[{{"name":"ambiguity-resolution","steps":[{{"step":"greedy"}}],"at":[2,1]}},{directive}],"constants":[],"classifiers":[],"implications":[]}}"#
+        r#"{{"format":{DOM_FORMAT},"checks":[],"rules":[{rule}],"directives":[{{"name":"ambiguity-resolution","steps":[{{"step":"greedy"}}],"at":[2,1]}},{directive}],"constants":[],"classifiers":[],"implications":[]}}"#
     )
 }
 
@@ -309,7 +309,7 @@ const MALFORMED_BESIDE_A_SEQUENCE: [&str; 4] =
 fn a_bootstrap_with_a_malformed_range_or_property_is_an_error() {
     let refusal = |dom: String| {
         let bootstrap = format!(
-            r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/gencmu/jbogenbau/pipeline.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/gencmu/jbogenbau/lexical.md":{{"hash":"0","dom":{dom}}}}}}}"#
+            r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/gencmu/jbogenbau/pipeline.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"checks":[],"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/gencmu/jbogenbau/lexical.md":{{"hash":"0","dom":{dom}}}}}}}"#
         );
         let sources = [
             ("grammars/test/p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
@@ -806,7 +806,7 @@ fn every_malformed_dom_is_a_cache_miss() {
 #[test]
 fn a_malformed_bootstrap_is_an_error() {
     let bootstrap = format!(
-        r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/gencmu/jbogenbau/pipeline.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/gencmu/jbogenbau/lexical.md":{{"hash":"0","dom":{}}}}}}}"#,
+        r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/gencmu/jbogenbau/pipeline.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"checks":[],"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/gencmu/jbogenbau/lexical.md":{{"hash":"0","dom":{}}}}}}}"#,
         with_emission(r#"{"items":[{"capture":""},{"tags":{"tag":"X"},"insert":true}]}"#)
     );
     let sources = [
@@ -825,7 +825,7 @@ fn a_refused_bootstrap_test_is_an_error() {
     let refusal = |expr: &str| {
         let alternative = format!(r#"{{"guards":[],"expr":{expr}}}"#);
         let bootstrap = format!(
-            r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/gencmu/jbogenbau/pipeline.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/gencmu/jbogenbau/lexical.md":{{"hash":"0","dom":{}}}}}}}"#,
+            r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/gencmu/jbogenbau/pipeline.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"checks":[],"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/gencmu/jbogenbau/lexical.md":{{"hash":"0","dom":{}}}}}}}"#,
             with_alternative(&alternative)
         );
         let sources = [
@@ -862,7 +862,7 @@ fn a_refused_bootstrap_test_is_an_error() {
 fn a_bootstrap_term_of_two_forms_is_an_error() {
     let refusal = |term: &str| {
         let bootstrap = format!(
-            r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/gencmu/jbogenbau/pipeline.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/gencmu/jbogenbau/lexical.md":{{"hash":"0","dom":{}}}}}}}"#,
+            r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/gencmu/jbogenbau/pipeline.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"checks":[],"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/gencmu/jbogenbau/lexical.md":{{"hash":"0","dom":{}}}}}}}"#,
             with_tags(term)
         );
         let sources = [
@@ -940,7 +940,7 @@ fn with_constants(constants: &str, condition: &str) -> String {
         r#"{{"name":"text","op":"define","alternatives":[{{"guards":[],"expr":{{"capture":"x","expr":{{"literal":{{"string":"b"}}}}}}}}],"conditions":[{conditions}],"at":[3,1]}}"#
     );
     format!(
-        r#"{{"format":{DOM_FORMAT},"rules":[{rule}],"directives":[{{"name":"ambiguity-resolution","steps":[{{"step":"greedy"}}],"at":[2,1]}}],"constants":[{constants}],"classifiers":[],"implications":[]}}"#
+        r#"{{"format":{DOM_FORMAT},"checks":[],"rules":[{rule}],"directives":[{{"name":"ambiguity-resolution","steps":[{{"step":"greedy"}}],"at":[2,1]}}],"constants":[{constants}],"classifiers":[],"implications":[]}}"#
     )
 }
 
@@ -1097,7 +1097,7 @@ fn a_preparsed_constant_serves_the_parse() {
 fn a_bootstrap_with_a_malformed_constant_is_an_error() {
     let refusal = |constants: &str| {
         let bootstrap = format!(
-            r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/gencmu/jbogenbau/pipeline.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/gencmu/jbogenbau/lexical.md":{{"hash":"0","dom":{}}}}}}}"#,
+            r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/gencmu/jbogenbau/pipeline.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"checks":[],"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/gencmu/jbogenbau/lexical.md":{{"hash":"0","dom":{}}}}}}}"#,
             with_constants(constants, "")
         );
         let sources = [
@@ -1145,7 +1145,7 @@ fn a_preparsed_constant_nested_too_deeply_is_a_miss() {
 #[test]
 fn a_bootstrap_constant_nested_too_deeply_is_an_error() {
     let bootstrap = format!(
-        r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/gencmu/jbogenbau/pipeline.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/gencmu/jbogenbau/lexical.md":{{"hash":"0","dom":{}}}}}}}"#,
+        r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/gencmu/jbogenbau/pipeline.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"checks":[],"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/gencmu/jbogenbau/lexical.md":{{"hash":"0","dom":{}}}}}}}"#,
         with_constants(&constant("K", "define", &deep_value(500), 5), "")
     );
     let sources = [
@@ -1214,7 +1214,7 @@ fn with_classifiers(tags: &str, classifiers: &str, implications: &str) -> String
         r#"{{"name":"text","op":"define","alternatives":[{{"guards":[],"expr":{{"capture":"x","expr":{{"literal":{{"string":"b"}}}}}}{tags}}}],"conditions":[],"at":[3,1]}}"#
     );
     format!(
-        r#"{{"format":{DOM_FORMAT},"rules":[{rule}],"directives":[{{"name":"ambiguity-resolution","steps":[{{"step":"greedy"}}],"at":[2,1]}}],"constants":[],"classifiers":[{classifiers}],"implications":[{implications}]}}"#
+        r#"{{"format":{DOM_FORMAT},"checks":[],"rules":[{rule}],"directives":[{{"name":"ambiguity-resolution","steps":[{{"step":"greedy"}}],"at":[2,1]}}],"constants":[],"classifiers":[{classifiers}],"implications":[{implications}]}}"#
     )
 }
 
@@ -1300,7 +1300,7 @@ fn a_preparsed_classifier_and_implication_are_checked() {
 fn a_bootstrap_with_a_malformed_classifier_is_an_error() {
     let bad = r#"{"name":"lex","entries":[{"guards":[],"keys":[{"capture":"x"}],"op":"∈","class":"KOhA","at":[6,3]}],"at":[5,1]}"#;
     let bootstrap = format!(
-        r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/gencmu/jbogenbau/pipeline.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/gencmu/jbogenbau/lexical.md":{{"hash":"0","dom":{}}}}}}}"#,
+        r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/gencmu/jbogenbau/pipeline.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"checks":[],"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/gencmu/jbogenbau/lexical.md":{{"hash":"0","dom":{}}}}}}}"#,
         with_classifiers("", bad, "")
     );
     let sources = [
@@ -1317,7 +1317,7 @@ fn a_bootstrap_with_a_malformed_classifier_is_an_error() {
 /// the grammar, or `None` when the bootstrap is read.
 fn bootstrap_refusal(dom: &str) -> Option<String> {
     let bootstrap = format!(
-        r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/gencmu/jbogenbau/pipeline.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/gencmu/jbogenbau/lexical.md":{{"hash":"0","dom":{dom}}}}}}}"#
+        r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/gencmu/jbogenbau/pipeline.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"checks":[],"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/gencmu/jbogenbau/lexical.md":{{"hash":"0","dom":{dom}}}}}}}"#
     );
     let sources = [
         ("grammars/test/p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
@@ -1508,7 +1508,7 @@ fn a_guard_of_an_alternative_has_three_members() {
 /// one alternative's expression is `expr`.
 fn expression_problem(expr: &str) -> Option<String> {
     let dom = format!(
-        r#"{{"format":{DOM_FORMAT},"rules":[{{"name":"text","op":"define","alternatives":[{{"guards":[],"expr":{expr}}}],"conditions":[],"at":[1,1]}}],"directives":[],"constants":[],"classifiers":[],"implications":[]}}"#
+        r#"{{"format":{DOM_FORMAT},"checks":[],"rules":[{{"name":"text","op":"define","alternatives":[{{"guards":[],"expr":{expr}}}],"conditions":[],"at":[1,1]}}],"directives":[],"constants":[],"classifiers":[],"implications":[]}}"#
     );
     gencmu::tools::check_dom(&dom).expect("the bundled tables")
 }
@@ -1687,7 +1687,7 @@ fn deferred_recipe_precedes_empty_emission() {
 fn template_definition_keeps_its_specific_problem() {
     for params in ["", r#","params":["X"]"#] {
         let raw = format!(
-            r#"{{"format":47,"rules":[{{"name":"pair"{params},"op":"define","alternatives":[{{"guards":[],"expr":{{"ref":"A"}}}}],"tags":{{"method":"tags","receiver":{{"capture":"y"}},"args":[]}},"conditions":[],"at":[2,1]}}],"directives":[],"constants":[],"classifiers":[],"implications":[]}}"#
+            r#"{{"format":48,"checks":[],"rules":[{{"name":"pair"{params},"op":"define","alternatives":[{{"guards":[],"expr":{{"ref":"A"}}}}],"tags":{{"method":"tags","receiver":{{"capture":"y"}},"args":[]}},"conditions":[],"at":[2,1]}}],"directives":[],"constants":[],"classifiers":[],"implications":[]}}"#
         );
         let problem = gencmu::tools::check_dom(&raw).unwrap().unwrap();
         assert!(problem.contains("$y") && problem.contains("pair"), "{problem}");
@@ -1724,7 +1724,7 @@ fn substituted_condition_keeps_its_type_reason() {
 
 #[test]
 fn span_tag_hint_uses_source_spelling() {
-    let raw = r#"{"format":47,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"capture":"x","expr":{"ref":"A"}}}],"tags":{"union":[{"capture":"x"},{"tag":"B"}]},"conditions":[],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}"#;
+    let raw = r#"{"format":48,"checks":[],"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"capture":"x","expr":{"ref":"A"}}}],"tags":{"union":[{"capture":"x"},{"tag":"B"}]},"conditions":[],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}"#;
     let problem = gencmu::tools::check_dom(raw).unwrap().unwrap();
     assert!(problem.contains("$x.tags") && !problem.contains("tags($x)"), "{problem}");
 }
