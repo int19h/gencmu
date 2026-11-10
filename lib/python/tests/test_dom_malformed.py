@@ -27,7 +27,7 @@ class DomMalformed(unittest.TestCase):
         variants = [fields for clause in (query, implication, comparison) for fields in permutations(clause.items())]
         for fields in variants:
             with self.subTest(fields=[name for name, _ in fields]):
-                dom = {"format": DOM_FORMAT, "directives": [{"name": "ambiguity-resolution", "steps": [{"step": "greedy"}], "at": [1, 1]}],
+                dom = {"format": DOM_FORMAT, "checks": [], "directives": [{"name": "ambiguity-resolution", "steps": [{"step": "greedy"}], "at": [1, 1]}],
                        "constants": [], "classifiers": [], "implications": [],
                        "rules": [{"op": "define", "name": "text", "at": [2, 1],
                                   "alternatives": [{"guards": [], "expr": {"capture": "x", "expr": {"ref": "X"}}}],
@@ -46,7 +46,7 @@ class DomMalformed(unittest.TestCase):
             ({"extra": 1, "ranked": [{"ref": "A"}, {"ref": "B"}]}, False),
             ({"ranked": [None, {"ref": "B"}]}, False),
         ]:
-            dom = {"format": DOM_FORMAT, "rules": [{"name": "text", "op": "define", "alternatives": [{"guards": [], "expr": expr}], "conditions": [], "at": [1, 1]}], "directives": [], "constants": [], "classifiers": [], "implications": []}
+            dom = {"format": DOM_FORMAT, "rules": [{"name": "text", "op": "define", "alternatives": [{"guards": [], "expr": expr}], "conditions": [], "at": [1, 1]}], "checks": [], "directives": [], "constants": [], "classifiers": [], "implications": []}
             problem = dom_problem(dom, unicode)
             self.assertIsNotNone(problem)
             self.assertEqual(problem.startswith("ranked-choice-syntax:"), coded, str(expr))
@@ -80,7 +80,7 @@ class DomMalformed(unittest.TestCase):
             with self.subTest(case=case["description"]):
                 # The directive alone in an otherwise empty DOM of the
                 # current format, checked as a preparsed one is.
-                dom = case["dom"] if "dom" in case else {"format": DOM_FORMAT, "rules": [case["rule"]] if "rule" in case else [], "directives": [case["directive"]] if "directive" in case else [], "constants": [], "classifiers": [], "implications": []}
+                dom = case["dom"] if "dom" in case else {"format": DOM_FORMAT, "rules": [case["rule"]] if "rule" in case else [], "checks": [], "directives": [case["directive"]] if "directive" in case else [], "constants": [], "classifiers": [], "implications": []}
                 table = _unicode_table(case["unicode"]) if "unicode" in case else unicode
                 problem = dom_problem(dom, table)
                 self.assertTrue(same_json(problem is not None, case["malformed"]), str(problem))

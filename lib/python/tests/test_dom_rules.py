@@ -981,6 +981,7 @@ class PreparsedDomRules(unittest.TestCase):
                         "at": [1, 1],
                     }
                 ],
+                "checks": [],
                 "directives": [],
                 "constants": [],
                 "classifiers": [],
@@ -1339,6 +1340,7 @@ class Constants(unittest.TestCase):
                     "at": [9, 1],
                 }
             ],
+            "checks": [],
             "directives": [],
             "constants": constants,
             "classifiers": [],
@@ -1527,6 +1529,7 @@ class Classifiers(unittest.TestCase):
         return {
             "format": DOM_FORMAT,
             "rules": [],
+            "checks": [],
             "directives": [],
             "constants": [],
             "classifiers": classifiers,
@@ -1703,6 +1706,7 @@ class Classifiers(unittest.TestCase):
             return {
                 "format": DOM_FORMAT,
                 "rules": [text_rule(part)],
+                "checks": [],
                 "directives": [{"name": "ambiguity-resolution", "steps": [{"step": "greedy"}], "at": [2, 1]}],
                 "constants": [],
                 "classifiers": [classifier(part, [4, 1])],

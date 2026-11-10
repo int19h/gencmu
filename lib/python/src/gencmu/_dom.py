@@ -15,6 +15,10 @@ from ._pattern_shapes import layered_pattern_problem
 from ._template_nodes import argument_of_expression
 from ._types import (
     _METHODS,
+    _NODE_METHODS,
+    _CHECK_METHODS,
+    check_constants,
+    check_type_fault,
     _PREDICATES,
     comparison_problem,
     method_shape_problem,
@@ -38,7 +42,7 @@ from ._validate import (
 
 Dom = dict[str, Any]
 
-_MAPPED = frozenset("""directive argument-word argument-string argument-tag argument-term rule definer ranking-directive ranking-step rule-name body headed-body alternative ranked-alternative ranked-choice guard splice error-clause warning-clause suppress-warnings-clause suppression-code alternative-tags
+_MAPPED = frozenset("""directive argument-word argument-string argument-tag argument-term rule check definer ranking-directive ranking-step rule-name body headed-body alternative ranked-alternative ranked-choice guard splice error-clause warning-clause suppress-warnings-clause suppression-code alternative-tags
 choice conjunction sequence primary repetition reference string-terminal string tag wildcard name tested tag-test tag-requirement value-test default-value test test-operand capture
  group optional empty tags-clause value-clause image-clause recipe recipe-atom conditions-clause emits-clause erased-clause emit-item emit-target emit-tags emit-before
 emit-after implication any-of all-of condition comparison comparator tree-comparator negation presence method method-receiver method-selector parse-selector parse-argument method-name arguments argument term guarded-term term-condition union-operation intersection-operation set-atom
@@ -49,7 +53,7 @@ _PRIMARIES = frozenset(("reference", "tag", "string-terminal", "wildcard", "rang
 _CONDITIONS = frozenset(("tree-comparison", "comparison", "method", "negation", "presence", "implication", "term-condition"))
 _TERMS = frozenset(("union", "guarded-term"))
 _ATOMS = frozenset(("term-atom", "string", "tag", "tag-run", "string-run", "range", "name", "empty-set", "term", "union", "guarded-term", "method", "capture-reference", "constant-reference", "pattern-literal", "call", "parameter", "splice"))
-_ITEMS = frozenset(("directive", "ranking-directive", "rule", "constant-definition", "classifier", "implication-declaration"))
+_ITEMS = frozenset(("directive", "ranking-directive", "rule", "check", "constant-definition", "classifier", "implication-declaration"))
 _SYMBOLS = frozenset(("reference", "tag", "string-terminal", "wildcard", "range", "constant-reference", "call", "parameter", "splice"))
 _DEFINERS = {"%rule": "define", "%redefine-rule": "redefine", "%extend-rule": "extend"}
 
@@ -99,6 +103,8 @@ class DomBuilder:
         # (engine §10).
         self.types: TypeMemo = {}
         self.recipe_context = False
+        self.check_context = False
+        self.check_types = check_constants()
         self.default_head = None
         self.head_default = None
         self.default_node = None
@@ -205,6 +211,7 @@ class DomBuilder:
 
     def document_dom(self, root: Node) -> Dom:
         rules: list[Dom] = []
+        checks: list[Dom] = []
         directives: list[Dom] = []
         constants: list[Dom] = []
         classifiers: list[Dom] = []
@@ -220,6 +227,8 @@ class DomBuilder:
             statement_seen = statement_seen or not names
             if kid.kind == "rule" and kid.rule == "rule":
                 rules.append(self.rule(kid))
+            elif kid.kind == "rule" and kid.rule == "check":
+                checks.append(self.check(kid))
             elif kid.kind == "rule" and kid.rule == "ranking-directive":
                 directives.append(self.ranking_directive(kid))
             elif kid.kind == "rule" and kid.rule == "directive":
@@ -233,7 +242,7 @@ class DomBuilder:
         dom = {
             "format": FORMAT,
             "rules": rules,
-            "checks": [],
+            "checks": checks,
             "directives": directives,
             "constants": constants,
             "classifiers": classifiers,
@@ -241,6 +250,40 @@ class DomBuilder:
         }
         flatten_groups(dom)
         return dom
+
+    def term_type(self, term, *, memo=None):
+        if self.check_context:
+            return term_type(term, self.check_types, memo)
+        return term_type(term, memo=memo)
+
+    def check(self, node):
+        from ._boundary import Located
+        allowed = {"rule-name", "pattern-literal", "constant-reference", "conditions-clause", "error-clause", "warning-clause"}
+        if any(kid.kind == "rule" and kid.rule not in allowed for kid in self.kids(node)):
+            raise self.fail(node, "a check accepts one pattern, conditions and one diagnostic")
+        names = self.some(node, "rule-name")
+        bodies = [kid for kid in self.kids(node) if kid.rule in ("pattern-literal", "constant-reference")]
+        clauses = self.rules(node, "conditions-clause")
+        messages = [(kind, item) for kind in ("error", "warning") for item in self.rules(node, kind + "-clause")]
+        if len(names) != 1 or len(bodies) != 1 or len(clauses) > 1 or len(messages) != 1:
+            raise self.fail(node, "a check requires one name, one pattern and one diagnostic")
+        name = self.token_value(self.token(names[0]))
+        previous, self.types = self.types, {}
+        self.check_context = True
+        try:
+            value = self.value(bodies[0])
+            pattern = Located(value.get("pattern", value), self.position(bodies[0]))
+            conditions = [run(self._condition(item)) for clause in clauses for item in self.some(clause, "implication")]
+            kind, diagnostic = messages[0]
+            check = dict(name=name, pattern=pattern, conditions=conditions,
+                         **{kind: self.recipe(self.only(diagnostic, "recipe"))}, at=list(self.position(node)))
+            fault = check_type_fault(check)
+            if fault:
+                raise self.fail(node, fault[0])
+            return check
+        finally:
+            self.check_context = False
+            self.types = previous
 
     def classifier(self, node: Node) -> Dom:
         """A ``%classifier`` item: its name, which begins with a lower-case
@@ -281,7 +324,7 @@ class DomBuilder:
                 term = self.value(side)
             finally:
                 self.closed_for = None
-            kind, problem = term_type(term, memo=self.types)
+            kind, problem = self.term_type(term, memo=self.types)
             if problem is None:
                 problem = expected_problem(kind, "tags")  # type: ignore[arg-type]
             if problem is not None:
@@ -404,7 +447,7 @@ class DomBuilder:
                 if "method" in value:
                     receiver = value["receiver"]
                     emitted = receiver.get("method") == "emitted" and receiver.get("args") == [] and set(receiver.get("receiver", {})) == {"capture"}
-                    if value["args"] or not (value["method"] in ("value", "image", "source-text", "decomposed-source-text", "verbatim-text") and set(receiver) == {"capture"}
+                    if value["args"] or not (value["method"] in (("terminal",) if self.check_context else ()) + ("value", "image", "source-text", "decomposed-source-text", "verbatim-text") and set(receiver) == {"capture"}
                         or value["method"] in ("value", "image") and emitted):
                         raise self.fail(atom, "invalid recipe method chain")
                 elif "string" not in value and "const" not in value and "param" not in value:
@@ -876,7 +919,7 @@ class DomBuilder:
                         value = yield self._term(base)
                     if "tag" not in value and "const" not in value and "param" not in value:
                         raise self.fail(operand, "a tag test requires a tag or tag-set constant")
-                    problem = expected_problem(term_type(value, memo=self.types)[0], "tags")
+                    problem = expected_problem(self.term_type(value, memo=self.types)[0], "tags")
                     if problem:
                         raise self.fail(operand, problem)
                     requirements.append({"negated": negated, "value": value})
@@ -949,7 +992,7 @@ class DomBuilder:
             return
         types = []
         for item in items:
-            kind, problem = term_type(item, memo=self.types)
+            kind, problem = self.term_type(item, memo=self.types)
             if problem is not None:
                 raise self.fail(operation, problem)
             types.append(kind)
@@ -992,7 +1035,15 @@ class DomBuilder:
 
     def _simple_condition(self, node: Node) -> Walk:
         if node.rule == "tree-comparison":
-            left = {"capture":self.token_value(self.token(self.only(node, "capture-reference")))[1:]}
+            capture = self.one(node, "capture-reference")
+            if capture is not None:
+                left = {"capture": self.token_value(self.token(capture))[1:]}
+            else:
+                if not self.check_context:
+                    raise self.fail(node, "a tree comparison requires a bare capture")
+                left = yield self._method(self.only(node, "method"))
+                if left.get("method") not in _NODE_METHODS:
+                    raise self.fail(node, "a tree comparison requires a constituent")
             op = self.operator(self.token(self.only(node, "tree-comparator")))
             operand = self.only(node, "union")
             name = self._first_of_rule(operand, "name") or self._first_of_rule(operand, "tag")
@@ -1000,11 +1051,13 @@ class DomBuilder:
                 text = self.token_value(self.token(name))
                 raise self.fail(name, f"tree comparison requires a pattern; write #{text}, not {text}")
             right = yield self._term(operand)
-            kind, problem = term_type(right, memo=self.types)
+            kind, problem = self.term_type(right, memo=self.types)
             if "capture" in right:
                 problem = "a tree comparison cannot compare a capture with itself" if left == right else None
             elif problem is None:
-                problem = comparison_problem(op, "capture", kind)
+                problem = comparison_problem(op, "node" if self.check_context else "capture", kind)
+            if self.check_context and left == right:
+                problem = "a tree comparison cannot compare a node with itself"
             if problem is not None and not self.feature_context:
                 raise self.fail(node if "capture" in right else operand, problem)
             from ._boundary import Located
@@ -1015,9 +1068,9 @@ class DomBuilder:
             left = yield self._term(terms[0])
             right = yield self._term(terms[1])
             # The two sides fit the comparator (engine §10).
-            left_type, problem = term_type(left, memo=self.types)
+            left_type, problem = self.term_type(left, memo=self.types)
             if problem is None:
-                right_type, problem = term_type(right, memo=self.types)
+                right_type, problem = self.term_type(right, memo=self.types)
                 if problem is None:
                     problem = comparison_problem(op, left_type, right_type)  # type: ignore[arg-type]
             if problem is not None and not self.feature_context:
@@ -1062,6 +1115,8 @@ class DomBuilder:
             return {"captured": self.token_value(self.token(node))[1:]}
         if node.rule == "method":
             method = yield self._method(node)
+            if self.check_context and method.get("method") in _NODE_METHODS:
+                return {"present": method}
             if method.get("method") not in _PREDICATES and method.get("method") not in ("tags", "classes", "split", "ngrams", "classify"):
                 raise self.fail(node, "a condition requires a query method")
             # A set-valued method in a Boolean position tests that its set
@@ -1104,6 +1159,10 @@ class DomBuilder:
         for selector in self.some(node, "method-selector"):
             parsed = self.one(selector, "parse-selector")
             name = "parse" if parsed is not None else self.token_value(self.token(self.only(selector, "method-name")))
+            if name in _CHECK_METHODS and (not self.check_context or name == "terminal" and not self.recipe_context):
+                raise self.fail(node, "a check method is outside its permitted clause")
+            if self.check_context and name in ("without-elision", "without-elision-except"):
+                raise self.fail(node, "a check cannot restore elision")
             if name not in _METHODS:
                 raise self.fail(node, 'unknown method ' + name)
             if self.closed_for and name not in ("split", "ngrams"):
@@ -1178,7 +1237,7 @@ class DomBuilder:
                 problem = method_shape_problem(name, receiver, args, self.recipe_context)
                 if problem:
                     raise self.fail(node, problem)
-            kind, problem = term_type(receiver, memo=self.types)
+            kind, problem = self.term_type(receiver, memo=self.types)
             if problem is None:
                 _, problem = method_type(name, kind, args, set(receiver) == {"capture"}, self.recipe_context)
             if name in ("without-elision", "without-elision-except") and set(receiver) != {"capture"}:
@@ -1197,7 +1256,7 @@ class DomBuilder:
             from ._boundary import Located
             receiver = Located({"method": name, "receiver": receiver, "args": args}, self.position(node))
             self.boundary_nodes[id(receiver)] = node
-            kind, problem = term_type(receiver, memo=self.types)
+            kind, problem = self.term_type(receiver, memo=self.types)
             if problem and not self.feature_context:
                 specific = problem.startswith(("without-elision", "ends requires", "suffix parse requires")) or problem == "split has an empty delimiter"
                 raise self.fail(node, problem if specific else "a method has the wrong receiver or arguments")
@@ -1210,7 +1269,7 @@ class DomBuilder:
             return
         types = []
         for item in items:
-            kind, problem = term_type(item, memo=self.types)
+            kind, problem = self.term_type(item, memo=self.types)
             if problem is not None:
                 raise self.fail(node, problem)
             types.append(kind)
@@ -1427,7 +1486,7 @@ class DomBuilder:
                 conditions.append((yield self._condition(guard)))
             last = self.one(node, "union") or self.only(node, "term")
             guarded = yield self._term(last)
-            kind, problem = term_type(guarded, memo=self.types)
+            kind, problem = self.term_type(guarded, memo=self.types)
             if problem is None:
                 _, problem = joined_type([kind], "⟹")
                 if kind == "pattern":
@@ -1474,7 +1533,7 @@ class DomBuilder:
             for part in nodes:
                 value = yield self._term(part, argument and len(nodes) == 1)
                 if len(nodes) > 1:
-                    kind, problem = term_type(value, memo=self.types)
+                    kind, problem = self.term_type(value, memo=self.types)
                     if not self.feature_context and (problem or kind not in ("string", "any")):
                         raise self.fail(node, problem or "++ requires string operands")
                 items.append(value)
@@ -1528,7 +1587,7 @@ class DomBuilder:
             return {"const": name, "at": list(self.position(node))}
         if rule == "method":
             result = yield self._method(node)
-            if term_type(result, memo=self.types)[0] == "predicate":
+            if self.term_type(result, memo=self.types)[0] == "predicate":
                 raise self.fail(node, "a query method is a condition, not a term")
             return result
         raise self.fail(node, f"unexpected {rule} in a term")

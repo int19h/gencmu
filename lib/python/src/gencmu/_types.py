@@ -1,8 +1,9 @@
 """The types of terms and conditions (engine §10).
 
-A term is a string, a set, a capture, or a span. Captures and spans convert
-to input values where a string is required. Methods first select on the
-actual receiver type. The reader refuses a term whose
+Terms include strings, sets, patterns, captures, spans and forests.
+Check conditions also have nodes and element values.
+Captures, nodes and spans convert to input values where a string is required.
+Methods first select on the actual receiver type. The reader refuses a term whose
 parts do not agree (engine §9); a DOM from elsewhere is held to the same
 rules. ``set`` is a set whose kind nothing has given yet, such as ``∅``.
 ``any`` is a constant whose type the reader cannot know, which fits any
@@ -21,7 +22,7 @@ from ._patterns import walk_pattern
 from ._template_nodes import has_unresolved, nodes, source_keys
 
 TermType = str
-"""``"string"``, ``"strings"``, ``"tags"``, ``"span"``, ``"pattern"``, ``"set"`` or ``"any"``."""
+"""A term's receiver type or result type."""
 
 Found = Union[tuple[TermType, None], tuple[None, str]]
 """A type and no problem, or no type and why the parts do not agree."""
@@ -39,6 +40,8 @@ reader knows none, and gives every constant the type ``any``."""
 
 _SET_KINDS = frozenset(["strings", "tags", "set", "pattern"])
 _NAMES = {
+    "node": "a check node",
+    "element": "an element value",
     "pattern": "a tree pattern",
     "string": "a string",
     "strings": "a set of strings",
@@ -64,11 +67,15 @@ def _unknown_constants(name: str) -> TermType:
     return "any"
 
 
+_NODE_METHODS = {"parent", "preceding-node", "following-node"}
+_CHECK_METHODS = _NODE_METHODS | {"preceding-element", "local-readings", "terminal"}
+_FOREST_METHODS = {"parse", "error-free", "ending-after", "local-readings"}
+
 _SPAN_METHODS = {"first-token", "tokens-after-first", "last-token", "onward", "following-tokens", "preceding-tokens"}
 _STRING_METHODS = {"value", "image", "source-text", "decomposed-source-text", "verbatim-text"}
-_PREDICATES = {"matches", "begins", "ends", "starts-input", "ends-input", "parse", "error-free", "ending-after", "followed-by", "preceded-by"}
+_PREDICATES = {"matches", "begins", "ends", "starts-input", "ends-input", "parse", "error-free", "ending-after", "local-readings", "followed-by", "preceded-by"}
 _SPAN_SHAPES = _SPAN_METHODS | {"without-elision", "without-elision-except"}
-_METHODS = _SPAN_SHAPES | _STRING_METHODS | _PREDICATES | {"tags", "classes", "split", "ngrams", "classify", "emitted"}
+_METHODS = _CHECK_METHODS | _SPAN_SHAPES | _STRING_METHODS | _PREDICATES | {"tags", "classes", "split", "ngrams", "classify", "emitted"}
 
 
 def method_shape_problem(name: Any, receiver: Any, args: Any, recipe: bool = False) -> str | None:
@@ -82,7 +89,9 @@ def method_shape_problem(name: Any, receiver: Any, args: Any, recipe: bool = Fal
     from ._template_nodes import has_unresolved
     bare = set(receiver) == {"capture"} and isinstance(receiver["capture"], str) or bool({"param", "call"} & receiver.keys())
     receiver_method = receiver.get("method")
-    span = bare or isinstance(receiver_method, str) and receiver_method in _SPAN_SHAPES
+    node = bare or receiver_method in _NODE_METHODS
+    element = receiver_method == "preceding-element"
+    span = node or element or isinstance(receiver_method, str) and receiver_method in _SPAN_SHAPES
 
     def named(arg, key):
         return isinstance(arg, dict) and set(arg) == {key} and isinstance(arg[key], str)
@@ -93,7 +102,11 @@ def method_shape_problem(name: Any, receiver: Any, args: Any, recipe: bool = Fal
     def term(arg):
         return isinstance(arg, dict) and not ({"rule", "classifier", "terminal", "integer"} & arg.keys())
 
-    if name == "parse":
+    if name in _NODE_METHODS or name in ("preceding-element", "terminal"):
+        valid = node and not args
+    elif name == "local-readings":
+        valid = (node or element) and not args
+    elif name == "parse":
         if len(args) != 1 or not isinstance(args[0], dict) or set(args[0]) != {"body"} or not isinstance(args[0]["body"], dict):
             return "a method has the wrong receiver or arguments"
         from ._query_forms import query_body
@@ -101,9 +114,9 @@ def method_shape_problem(name: Any, receiver: Any, args: Any, recipe: bool = Fal
             return "suffix parse requires an ordinary span, not a restored span"
         valid = span
     elif name == "error-free":
-        valid = receiver_method in ("parse", "error-free", "ending-after") and not args
+        valid = receiver_method in _FOREST_METHODS and not args
     elif name == "ending-after":
-        valid = receiver_method in ("parse", "error-free", "ending-after") and len(args) == 1 and isinstance(args[0], dict) and ("capture" in args[0] or args[0].get("method") in _SPAN_SHAPES)
+        valid = receiver_method in _FOREST_METHODS and len(args) == 1 and isinstance(args[0], dict) and ("capture" in args[0] or args[0].get("method") in _SPAN_SHAPES | _NODE_METHODS | {"preceding-element"})
     elif name == "ngrams":
         valid = len(args) == 1 and named(args[0], "integer") and re.fullmatch(r"[1-9][0-9]*", args[0]["integer"]) is not None
     elif name == "split":
@@ -111,11 +124,11 @@ def method_shape_problem(name: Any, receiver: Any, args: Any, recipe: bool = Fal
     elif name == "classify":
         valid = len(args) == 1 and named(args[0], "classifier")
     elif name == "tags":
-        valid = (span and (not args or len(args) == 1 and rule(args[0]))) or receiver_method in ("parse", "error-free", "ending-after") and not args
+        valid = (span and (not args or len(args) == 1 and rule(args[0]))) or receiver_method in _FOREST_METHODS and not args
     elif name in ("matches", "begins", "ends"):
         valid = span and bool(args) and all(rule(arg) or named(arg, "terminal") for arg in args)
     elif name in ("followed-by", "preceded-by"):
-        valid = bare and bool(args) and all(rule(arg) or named(arg, "terminal") for arg in args)
+        valid = node and bool(args) and all(rule(arg) or named(arg, "terminal") for arg in args)
     elif name == "without-elision-except":
         valid = bare and len(args) == 1 and rule(args[0])
     elif name == "without-elision":
@@ -134,8 +147,16 @@ def method_type(name: str, receiver: TermType, args: list[Any], bare: bool = Fal
     if name == "ends" and receiver == "restored":
         return None, "ends requires an ordinary span, not a restored span"
     spans = {"capture", "span", "restored"}
-    if name == "parse":
-        valid = receiver in spans and len(args) == 1 and isinstance(args[0], dict) and "body" in args[0]
+    if name in _NODE_METHODS:
+        valid, result, arity = receiver == "node", "node", 0
+    elif name == "preceding-element":
+        valid, result, arity = receiver == "node", "element", 0
+    elif name == "local-readings":
+        valid, result, arity = receiver in ("node", "element"), "forest", 0
+    elif name == "terminal":
+        valid, result, arity = recipe and bare and receiver == "node", "string", 0
+    elif name == "parse":
+        valid = receiver in spans | {"node"} and len(args) == 1 and isinstance(args[0], dict) and "body" in args[0]
         from ._query_forms import query_body
         if valid and receiver == "restored" and query_body(args[0]["body"])[1] in ("ends", "contains"):
             return None, "suffix parse requires an ordinary span, not a restored span"
@@ -143,9 +164,9 @@ def method_type(name: str, receiver: TermType, args: list[Any], bare: bool = Fal
     elif name == "error-free":
         valid, result, arity = receiver == "forest", "forest", 0
     elif name == "ending-after":
-        valid, result, arity = receiver == "forest" and len(args) == 1 and isinstance(args[0], dict) and ("capture" in args[0] or args[0].get("method") in _SPAN_SHAPES), "forest", 1
+        valid, result, arity = receiver == "forest" and len(args) == 1 and isinstance(args[0], dict) and ("capture" in args[0] or args[0].get("method") in _SPAN_SHAPES | _NODE_METHODS | {"preceding-element"}), "forest", 1
     elif name in _STRING_METHODS:
-        valid = receiver in spans or (receiver == "emitted" and name in ("value", "image"))
+        valid = receiver in spans | {"node", "element"} or (receiver == "emitted" and name in ("value", "image"))
         if name == "verbatim-text":
             valid = recipe and bare
         result, arity = "string", 0
@@ -156,26 +177,26 @@ def method_type(name: str, receiver: TermType, args: list[Any], bare: bool = Fal
         if arity and (len(args) != 1 or set(args[0]) != {"rule"}):
             valid = False
     elif name in _SPAN_METHODS:
-        valid = receiver in spans
+        valid = receiver in spans | {"node", "element"}
         result = "restored" if name == "onward" and receiver == "restored" else "span"
         arity = 0
     elif name in ("tags", "classes"):
-        valid, result, arity = receiver in spans or name == "tags" and receiver == "forest", "tags", None if name == "tags" else 0
+        valid, result, arity = receiver in spans | {"node"} or name == "tags" and receiver == "forest", "tags", None if name == "tags" else 0
         if name == "tags" and (len(args) > 1 or args and set(args[0]) != {"rule"}):
             valid = False
     elif name in ("followed-by", "preceded-by"):
-        valid = bare and bool(args) and all(set(arg) == {"rule"} or set(arg) == {"terminal"} and isinstance(arg["terminal"], str) and arg["terminal"][:1].isupper() and not arg["terminal"].startswith("_") for arg in args)
+        valid = (bare or receiver == "node") and bool(args) and all(set(arg) == {"rule"} or set(arg) == {"terminal"} and isinstance(arg["terminal"], str) and arg["terminal"][:1].isupper() and not arg["terminal"].startswith("_") for arg in args)
         result, arity = "predicate", None
     elif name in ("matches", "begins", "ends"):
-        valid = receiver in spans and bool(args) and all(set(arg) == {"rule"} or set(arg) == {"terminal"} and isinstance(arg["terminal"], str) and arg["terminal"][:1].isupper() and not arg["terminal"].startswith("_") for arg in args)
+        valid = receiver in spans | {"node"} and bool(args) and all(set(arg) == {"rule"} or set(arg) == {"terminal"} and isinstance(arg["terminal"], str) and arg["terminal"][:1].isupper() and not arg["terminal"].startswith("_") for arg in args)
         result, arity = "predicate", None
     elif name in ("starts-input", "ends-input"):
-        valid, result, arity = receiver in spans, "predicate", 0
+        valid, result, arity = receiver in spans | {"node", "element"}, "predicate", 0
     elif name == "ngrams":
-        valid = receiver in spans | {"string", "any"} and len(args) == 1 and set(args[0]) == {"integer"} and isinstance(args[0]["integer"], str) and re.fullmatch(r"[1-9][0-9]*", args[0]["integer"]) is not None
+        valid = receiver in spans | {"node", "string", "any"} and len(args) == 1 and set(args[0]) == {"integer"} and isinstance(args[0]["integer"], str) and re.fullmatch(r"[1-9][0-9]*", args[0]["integer"]) is not None
         result, arity = "strings", 1
     elif name in ("split", "classify"):
-        valid, result, arity = receiver in spans | {"string", "any"}, "strings" if name == "split" else "tags", 1
+        valid, result, arity = receiver in spans | {"node", "string", "any"}, "strings" if name == "split" else "tags", 1
         if name == "classify" and (len(args) != 1 or set(args[0]) != {"classifier"}):
             valid = False
     else:
@@ -207,11 +228,15 @@ def comparison_problem(op: str, left: TermType, right: TermType) -> str | None:
     """Why a comparison's two sides do not fit its comparator, or None. A
     side of type ``any`` fits, and the loader checks it again."""
     if op in ("≅", "≇"):
+        if left == "node":
+            return None if right in ("node", "pattern", "set", "any") else "a tree comparison requires a node or pattern"
         if left != "capture":
             return "a tree comparison requires a bare capture on its left"
         if right not in ("pattern", "set", "any"):
             return "a tree comparison requires a tree pattern on its right"
         return None
+    left = "capture" if left == "node" else left
+    right = "capture" if right == "node" else right
     spans = {"capture", "span", "restored"}
     if (op not in ("∈", "∉") and (left in spans or right in spans) and (left in {"strings", "tags", "set"} or right in {"strings", "tags", "set"})) or (op in ("∈", "∉") and right in spans):
         return SPAN_NOT_VALUE
@@ -248,7 +273,7 @@ def expected_problem(kind: TermType, expected: TermType) -> str | None:
         kind == expected
         or kind == "any"
         or (kind == "set" and expected in ("tags", "strings", "pattern"))
-        or (expected == "string" and kind in ("capture", "span", "restored"))
+        or (expected == "string" and kind in ("capture", "node", "span", "restored"))
     ):
         return None
     if kind in ("capture", "span", "restored"):
@@ -271,6 +296,34 @@ def test_type_problem(op: str, kind: TermType) -> str | None:
     if problem is None:
         return None
     return f"{op} tests {'a string' if value else 'a tag set'}: {problem}"
+
+
+def check_constants(constants: ConstantTypes = _unknown_constants):
+    def types(name):
+        return constants(name)
+    types.check_nodes = True
+    return types
+
+
+def check_type_fault(check, constants: ConstantTypes = _unknown_constants):
+    from ._clauses import has_bare_empty_set
+    for node in nodes([check["conditions"], check.get("error", check.get("warning"))]):
+        if any(isinstance(node.get(key), str) and node[key] for key in ("capture", "captured")):
+            return "a check cannot name a capture", node
+        if node.get("method") in ("without-elision", "without-elision-except"):
+            return "a check cannot restore elision", node
+    types, memo = check_constants(constants), {}
+    for condition in check["conditions"]:
+        if has_bare_empty_set(condition):
+            return "a condition is the empty set", condition
+        fault = condition_type_fault(condition, types, memo)
+        if fault is not None:
+            return fault
+    recipe = check.get("error", check.get("warning"))
+    for atom in recipe["concat"]:
+        if "method" in atom and (atom["receiver"] != {"capture": ""} or atom["method"] == "emitted"):
+            return "a check message reads only $", atom
+    return term_type_fault(recipe, types, memo)[1]
 
 
 def term_type_fault(term: Any, constants: ConstantTypes = _unknown_constants, memo: Optional[Memo] = None) -> FoundFault:
@@ -347,7 +400,7 @@ def _term_typing_once(term: Any, constants: ConstantTypes, memo: Memo) -> Walk:
     if term.get("emptySet") is True:
         return "set", None
     if isinstance(term.get("capture"), str):
-        return "capture", None
+        return ("node" if getattr(constants, "check_nodes", False) else "capture"), None
     if "concat" in term:
         for part in term["concat"]:
             kind, fault = yield _term_typing(part, constants, memo)
@@ -388,7 +441,7 @@ def _term_typing_once(term: Any, constants: ConstantTypes, memo: Memo) -> Walk:
         kind, fault = yield _term_typing(term["receiver"], constants, memo)
         if fault is not None:
             return None, fault
-        recipe = name in ("verbatim-text", "emitted") or kind == "emitted"
+        recipe = name in ("verbatim-text", "emitted", "terminal") or kind == "emitted"
         selection_kind = "capture" if kind == "any" and has_unresolved(term["receiver"]) else kind
         nominal = name in ("tags", "matches", "begins", "ends", "followed-by", "preceded-by", "without-elision-except")
         args = [{"rule": "unresolved"} if nominal and ("param" in arg or "call" in arg) else arg for arg in term["args"]]
@@ -396,6 +449,12 @@ def _term_typing_once(term: Any, constants: ConstantTypes, memo: Memo) -> Walk:
         result, problem = method_type(name, selection_kind, args, bare, recipe)
         if problem is not None:
             return None, (problem, term)
+        if name == "ending-after":
+            argument, fault = yield _term_typing(term["args"][0], constants, memo)
+            if fault is not None:
+                return None, fault
+            if argument not in ("capture", "node", "element", "span", "restored"):
+                return None, ("a method has the wrong receiver or arguments", term)
         if name == "split":
             argument, fault = yield _term_typing(term["args"][0], constants, memo)
             if fault is not None:
@@ -444,6 +503,9 @@ def _condition_typing_once(condition: Any, constants: ConstantTypes, memo: Memo)
         return (yield _condition_typing(condition["not"], constants, memo))
     if "if" in condition:
         return (yield _condition_typing(condition["if"], constants, memo)) or (yield _condition_typing(condition["then"], constants, memo))
+    if "present" in condition:
+        kind, fault = yield _term_typing(condition["present"], constants, memo)
+        return fault if fault else None if kind == "node" else ("presence requires a node", condition)
     if isinstance(condition.get("op"), str):
         left, fault = yield _term_typing(condition["left"], constants, memo)
         if fault is not None:
@@ -452,7 +514,11 @@ def _condition_typing_once(condition: Any, constants: ConstantTypes, memo: Memo)
         if fault is not None:
             return fault
         if condition["op"] in ("≅", "≇") and "capture" in condition["right"]:
-            return ("a tree comparison cannot compare a capture with itself", condition) if condition["left"]["capture"] == condition["right"]["capture"] else None
+            if left not in ("capture", "node"):
+                return "a tree comparison requires a constituent", condition["left"]
+            return ("a tree comparison cannot compare a capture with itself", condition) if condition["left"].get("capture") == condition["right"]["capture"] else None
+        if condition["op"] in ("≅", "≇") and left == "node" and condition["left"] == condition["right"]:
+            return "a tree comparison cannot compare a node with itself", condition
         problem = comparison_problem(condition["op"], left, right)
         return (problem, condition["right"] if condition["op"] in ("≅", "≇") else condition) if problem is not None else None
     if "method" in condition:
