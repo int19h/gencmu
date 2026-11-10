@@ -103,48 +103,150 @@ pub(crate) fn body_core(body: &Expr) -> (Expr, Mode) {
     (body.clone(), Mode::Whole)
 }
 
-fn structural_key(body: &Expr) -> String {
-    let mut raw = String::new();
-    crate::dom::write_expr(&mut raw, body);
-    let raw = crate::json::parse_unbounded(&raw).expect("a query body DOM");
-    crate::parameters::map_nodes(&raw, |mut node| {
-        work::count(Work::Walked, 1);
-        if let crate::json::Json::Obj(fields) = &mut node {
-            fields.retain(|(key, _)| key != "at" && key != crate::parameters::SOURCE);
-            for (key, value) in fields.iter_mut() {
-                if matches!(key.as_str(), "seq" | "choice") {
-                    if let crate::json::Json::Arr(items) = value {
-                        let flat = std::mem::take(items)
-                            .into_iter()
-                            .flat_map(|item| {
-                                item.get(key)
-                                    .and_then(crate::json::Json::as_array)
-                                    .map_or_else(|| vec![item.clone()], |items| items.to_vec())
-                            })
-                            .collect();
-                        *items = flat;
-                    }
+// Normalize native expressions for query identity. Source locations do not
+// distinguish readings, and transparent sequences and choices flatten.
+fn reading_expression(body: &Expr, binders: bool, identity: bool) -> Expr {
+    use crate::dom::DefaultValue;
+    work::count(Work::Walked, 1);
+    let child = |e: &Expr| reading_expression(e, binders, identity);
+    match body {
+        Expr::Capture(_, inner) if binders => child(inner),
+        Expr::Seq(items) | Expr::Choice(items) => {
+            let sequence = matches!(body, Expr::Seq(_));
+            let mut parts = Vec::new();
+            for item in items {
+                let mut item = child(item);
+                match &mut item {
+                    Expr::Seq(inner) if identity && sequence => parts.extend(std::mem::take(inner)),
+                    Expr::Choice(inner) if identity && !sequence => parts.extend(std::mem::take(inner)),
+                    _ => parts.push(item),
                 }
             }
-            fields.sort_by(|a, b| a.0.cmp(&b.0));
+            if sequence {
+                Expr::Seq(parts)
+            } else {
+                Expr::Choice(parts)
+            }
         }
-        node
-    })
-    .to_json()
+        Expr::Ranked(items, at) => Expr::Ranked(items.iter().map(child).collect(), if identity { None } else { *at }),
+        Expr::And(items) => Expr::And(items.iter().map(child).collect()),
+        Expr::Optional(inner, mark, default) => Expr::Optional(
+            Box::new(child(inner)),
+            *mark,
+            default.as_ref().map(|d| DefaultValue {
+                term: if identity { identity_term(&d.term) } else { d.term.clone() },
+                at: if identity { None } else { d.at },
+            }),
+        ),
+        Expr::Repeat(inner, sep, chain) => {
+            Expr::Repeat(Box::new(child(inner)), sep.as_deref().map(|e| Box::new(child(e))), *chain)
+        }
+        Expr::Splice(inner) => Expr::Splice(Box::new(child(inner))),
+        Expr::Capture(name, inner) => Expr::Capture(name.clone(), Box::new(child(inner))),
+        Expr::Tested(op, term, inner) => {
+            Expr::Tested(op.clone(), if identity { identity_term(term) } else { term.clone() }, Box::new(child(inner)))
+        }
+        Expr::Literal(term) if identity => Expr::Literal(identity_term(term)),
+        Expr::ScalarRange(a, b) if identity => Expr::ScalarRange(identity_term(a), identity_term(b)),
+        _ => body.clone(),
+    }
+}
+
+fn identity_term(term: &Term) -> Term {
+    use crate::dom::Arg;
+    match term {
+        Term::Body(body) => Term::Body(std::sync::Arc::new(reading_expression(body, false, true))),
+        Term::Pattern(pattern) => Term::Pattern(Box::new(identity_pattern(pattern))),
+        Term::Union(parts) => Term::Union(parts.iter().map(identity_term).collect()),
+        Term::Intersection(parts) => Term::Intersection(parts.iter().map(identity_term).collect()),
+        Term::Difference(a, b) => Term::Difference(Box::new(identity_term(a)), Box::new(identity_term(b))),
+        Term::Call(name, args) => Term::Call(
+            name.clone(),
+            args.iter()
+                .map(|arg| match arg {
+                    Arg::Term(term) => Arg::Term(identity_term(term)),
+                    _ => arg.clone(),
+                })
+                .collect(),
+        ),
+        Term::If(cond, term) => Term::If(Box::new(identity_cond(cond)), Box::new(identity_term(term))),
+        Term::Const(name, _) => Term::Const(name.clone(), (0, 0)),
+        _ => term.clone(),
+    }
+}
+
+fn identity_cond(cond: &crate::dom::Cond) -> crate::dom::Cond {
+    use crate::dom::{Arg, BoundaryLocation, Cond};
+    match cond {
+        Cond::Present(t) => Cond::Present(identity_term(t)),
+        Cond::Forest(t) => Cond::Forest(identity_term(t)),
+        Cond::Truthy(t) => Cond::Truthy(identity_term(t)),
+        Cond::SourceQuery(name, args, _) => Cond::SourceQuery(
+            name.clone(),
+            args.iter()
+                .map(|a| match a {
+                    Arg::Term(t) => Arg::Term(identity_term(t)),
+                    _ => a.clone(),
+                })
+                .collect(),
+            BoundaryLocation::default(),
+        ),
+        Cond::Compare(op, a, b, _) => Cond::Compare(op.clone(), identity_term(a), identity_term(b), None),
+        Cond::Matches(t, names) => Cond::Matches(identity_term(t), names.clone()),
+        Cond::Begins(t, names) => Cond::Begins(identity_term(t), names.clone()),
+        Cond::Ends(t, names) => Cond::Ends(identity_term(t), names.clone()),
+        Cond::Initial(t) => Cond::Initial(identity_term(t)),
+        Cond::Final(t) => Cond::Final(identity_term(t)),
+        Cond::Boundary(dir, t, names, _) => Cond::Boundary(*dir, identity_term(t), names.clone(), Default::default()),
+        Cond::Not(c) => Cond::Not(Box::new(identity_cond(c))),
+        Cond::Any(parts) => Cond::Any(parts.iter().map(identity_cond).collect()),
+        Cond::All(parts) => Cond::All(parts.iter().map(identity_cond).collect()),
+        Cond::If(a, b) => Cond::If(Box::new(identity_cond(a)), Box::new(identity_cond(b))),
+        Cond::Captured(_) => cond.clone(),
+    }
+}
+
+fn identity_pattern(pattern: &crate::patterns::Pattern) -> crate::patterns::Pattern {
+    use crate::patterns::Pattern as P;
+    match pattern {
+        P::Name(n, _) => P::Name(n.clone(), (0, 0)),
+        P::Terminal(n, _) => P::Terminal(n.clone(), (0, 0)),
+        P::Literal(t, _) => P::Literal(identity_term(t), (0, 0)),
+        P::Range(a, b, _) => P::Range(identity_term(a), identity_term(b), (0, 0)),
+        P::Wildcard(_) => P::Wildcard((0, 0)),
+        P::Constant(n, _) => P::Constant(n.clone(), (0, 0)),
+        P::Test(op, t, p, _) => P::Test(op.clone(), identity_term(t), Box::new(identity_pattern(p)), None),
+        P::Node(p, exact, children) => {
+            P::Node(Box::new(identity_pattern(p)), *exact, children.as_ref().map(identity_children))
+        }
+        P::Path(path, p) => P::Path(path.clone(), Box::new(identity_pattern(p))),
+        P::Union(parts) => P::Union(parts.iter().map(identity_pattern).collect()),
+        P::Intersection(parts) => P::Intersection(parts.iter().map(identity_pattern).collect()),
+        P::Difference(a, b) => P::Difference(Box::new(identity_pattern(a)), Box::new(identity_pattern(b))),
+        _ => pattern.clone(),
+    }
+}
+
+fn identity_children(children: &crate::patterns::Children) -> crate::patterns::Children {
+    use crate::patterns::Children as C;
+    match children {
+        C::Node(p) => C::Node(Box::new(identity_pattern(p))),
+        C::Sequence(parts) => C::Sequence(parts.iter().map(identity_children).collect()),
+        C::Choice(parts) => C::Choice(parts.iter().map(identity_children).collect()),
+        C::Optional(c) => C::Optional(Box::new(identity_children(c))),
+        C::Repeat(c, sep) => {
+            C::Repeat(Box::new(identity_children(c)), sep.as_deref().map(|c| Box::new(identity_children(c))))
+        }
+        C::Siblings => C::Siblings,
+    }
+}
+
+fn structural_key(body: &Expr) -> String {
+    format!("{:?}", reading_expression(body, false, true))
 }
 
 fn without_binders(body: &Expr) -> Expr {
-    let mut raw = String::new();
-    crate::dom::write_expr(&mut raw, body);
-    let raw = crate::json::parse_unbounded(&raw).expect("a reading expression DOM");
-    let raw = crate::parameters::map_nodes(&raw, |node| {
-        if node.get("capture").is_some() && node.get("expr").is_some() {
-            node.get("expr").unwrap().clone()
-        } else {
-            node
-        }
-    });
-    crate::dom::expr_from_json(&raw).expect("a reading expression without binders")
+    reading_expression(body, true, false)
 }
 
 pub(crate) fn prepare(grammar: &mut crate::grammar::StageGrammar) -> Result<(), crate::error::Error> {
@@ -175,20 +277,37 @@ pub(crate) fn prepare(grammar: &mut crate::grammar::StageGrammar) -> Result<(), 
     });
     let mut local_queries = Vec::new();
     if local {
-        for rule in &grammar.rules {
-            for alternative in &rule.alternatives {
-                let mut pending = vec![&alternative.alternative.expr];
-                while let Some(expr) = pending.pop() {
-                    if !matches!(
-                        expr,
-                        Expr::Seq(_)
-                            | Expr::Choice(_)
-                            | Expr::And(_)
-                            | Expr::Capture(..)
-                            | Expr::Empty
-                            | Expr::Remainder
-                            | Expr::Repeat(_, _, Some(_))
-                    ) {
+        // Only written sites reachable in the chosen tree need reading targets.
+        // Erased alternatives contribute a seal and expose no child sites.
+        let mut rules = vec![grammar.index["text"]];
+        let mut seen = FxSet::default();
+        while let Some(index) = rules.pop() {
+            if !seen.insert(index) {
+                continue;
+            }
+            for alternative in &grammar.rules[index].alternatives {
+                if alternative.erased {
+                    continue;
+                }
+                let mut pending = vec![(&alternative.alternative.expr, true)];
+                while let Some((expr, site)) = pending.pop() {
+                    if let Expr::Ref(name) = expr {
+                        if let Some(&index) = grammar.index.get(name) {
+                            rules.push(index);
+                        }
+                    }
+                    if site
+                        && !matches!(
+                            expr,
+                            Expr::Seq(_)
+                                | Expr::Choice(_)
+                                | Expr::And(_)
+                                | Expr::Capture(..)
+                                | Expr::Empty
+                                | Expr::Remainder
+                                | Expr::Repeat(_, _, Some(_))
+                        )
+                    {
                         let body = Arc::new(without_binders(expr));
                         let term = Term::Call(
                             "parse".into(),
@@ -196,7 +315,12 @@ pub(crate) fn prepare(grammar: &mut crate::grammar::StageGrammar) -> Result<(), 
                         );
                         local_queries.push((expr as *const Expr as usize, alternative, body, term));
                     }
-                    pending.extend(expression_children(expr));
+                    // Tests and splices replace the inner symbol's site.
+                    // Their containers still expose their own child sites.
+                    match expr {
+                        Expr::Tested(_, _, inner) | Expr::Splice(inner) => pending.push((inner, false)),
+                        _ => pending.extend(expression_children(expr).into_iter().map(|child| (child, true))),
+                    }
                 }
             }
         }

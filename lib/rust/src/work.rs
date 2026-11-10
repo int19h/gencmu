@@ -425,6 +425,7 @@ mod tests {
             // past its budget.
             let few = work(small, None);
             let many = work(large, Some((most * few.0, most * few.1, most * few.2)));
+            eprintln!("{name} with {link:?}: {few:?} for {small}, {many:?} for {large}");
             if many.0 > most * few.0 || many.1 > most * few.1 {
                 failures.push(format!(
                     "{name} with {link:?}: {few:?} items and lookups for {small} links, {many:?} for {large}, more than {most} times"
