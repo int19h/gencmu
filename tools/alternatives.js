@@ -337,9 +337,11 @@ function hasTopLevel(text, op) {
 }
 
 /**
- * The problems of clause and tag term layout in a document: a clause
- * that starts a new line stands in the column of the first clause; a
- * tag term that runs over several lines ends each line with its `∪` and
+ * The problems of clause and tag term layout in a document: if the
+ * clauses of an alternative, a header or an emission item do not all
+ * fit on its line, each clause stands on a line of its own, four
+ * columns deeper than the line that it belongs to; a tag term that
+ * runs over several lines ends each line with its `∪` and
  * never starts a line with it, and each later operand stands in the
  * column of the first; a term lists bare tags first as one run, then
  * expressions without a guard, then guarded expressions; and a term
@@ -361,17 +363,33 @@ export function clauseTermProblems(markdown, dom, path) {
   // The clause and tag-term rules of one written body: a rule header,
   // one alternative, or one emission item. `base` is the code-point
   // index of the body's first code point in the extracted text.
-  /** @param {string} bodyText @param {number} base @param {string} where */
-  const checkBody = (bodyText, base, where) => {
+  // `ownerCol` is the column of the line that the body belongs to: the
+  // `|` of an alternative, the `%` of a header, or the first token of
+  // an emission item.
+  /** @param {string} bodyText @param {number} base @param {string} where @param {number} ownerCol */
+  const checkBody = (bodyText, base, where, ownerCol) => {
     const clauses = writtenClauses(bodyText);
     if (!clauses.length) return;
     const bodyChars = [...bodyText];
     const placed = clauses.map((c) => ({ ...c, line: at(base + c.at)[0], col: at(base + c.at)[1] }));
-    const reference = placed[0].col;
-    // Rule 1: a clause that starts a new line stands in the column of `::`.
-    for (const c of placed.slice(1)) {
-      const before = [...(lines[c.line - 1] ?? "")].slice(0, c.col - 1).join("");
-      if (/^\s*$/.test(before) && c.col !== reference) problems.push(`${path}:${c.line}: a clause of ${where} does not stand in the column of its first clause`);
+    // Rules 1 and 2: the clauses do not all fit on the body's line when
+    // the body, with its clauses and their contents, stands on more
+    // than one line. Then each clause stands on a line of its own,
+    // four columns deeper than the line that it belongs to.
+    let spanEnd = bodyChars.length;
+    while (spanEnd > 0 && /\s/u.test(bodyChars[spanEnd - 1])) spanEnd--;
+    /** @type {Set<number>} */
+    const contentLines = new Set();
+    for (let index = 0; index < spanEnd; index++) if (!/\s/u.test(bodyChars[index])) contentLines.add(at(base + index)[0]);
+    if (contentLines.size > 1) {
+      /** @type {Map<number, number>} */
+      const startsPerLine = new Map();
+      for (const c of placed) startsPerLine.set(c.line, (startsPerLine.get(c.line) ?? 0) + 1);
+      for (const c of placed) {
+        const before = [...(lines[c.line - 1] ?? "")].slice(0, c.col - 1).join("");
+        if (!/^\s*$/.test(before) || (startsPerLine.get(c.line) ?? 0) > 1) problems.push(`${path}:${c.line}: a ${c.op} clause of ${where} does not stand on a line of its own`);
+        else if (c.col !== ownerCol + 4) problems.push(`${path}:${c.line}: a ${c.op} clause of ${where} does not stand four columns deeper than the line it belongs to`);
+      }
     }
     for (const c of clauses) {
       if (c.op !== "::") continue;
@@ -460,20 +478,32 @@ export function clauseTermProblems(markdown, dom, path) {
       });
     }
   };
+  const extractedChars = [...text];
+  /** @type {Set<number>} */
+  const commentIndexes = new Set();
+  for (const { from, to } of scanComments(extractedChars)) for (let index = from; index < to; index++) commentIndexes.add(index);
   for (const { rule, keyword, alternatives } of alternativeLayouts(markdown, dom, path)) {
     const where = `${keyword} ${rule.name}`;
-    /** @type {{text: string, base: number}[]} */
-    const bodies = alternatives.map((a) => ({ text: a.text, base: a.from }));
+    /** @type {{text: string, base: number, ownerCol: number}[]} */
+    const bodies = alternatives.map((a) => {
+      // The line that an alternative belongs to is the line of its
+      // `|`. An alternative without a bar belongs to the line of its
+      // first token.
+      let before = a.from - 1;
+      while (before >= 0 && (/\s/u.test(extractedChars[before]) || commentIndexes.has(before))) before--;
+      const ownerCol = extractedChars[before] === "|" ? positions[before][1] : positions[a.from][1];
+      return { text: a.text, base: a.from, ownerCol };
+    });
     if (alternatives.length && (rule.tags !== undefined || rule.value !== undefined || rule.image !== undefined)) {
       const start = positions.findIndex(([line, col]) => line === rule.at[0] && col === rule.at[1]);
       if (start >= 0) {
         let headerText = alternativeLayoutsHeaderText(markdown, dom, path, start, alternatives[0].from);
         const bar = writtenClausesBar(headerText);
         if (bar >= 0) headerText = [...headerText].slice(0, bar).join("");
-        bodies.unshift({ text: headerText, base: start });
+        bodies.unshift({ text: headerText, base: start, ownerCol: rule.at[1] });
       }
     }
-    for (const body of bodies) checkBody(body.text, body.base, where);
+    for (const body of bodies) checkBody(body.text, body.base, where, body.ownerCol);
   }
   // Emission items follow the same rules. The DOM gives no position
   // for an item, so the source text finds them: an item of the %emits
@@ -499,7 +529,7 @@ export function clauseTermProblems(markdown, dom, path) {
     const flush = (end) => {
       const item = sectionChars.slice(itemStart, end).join("");
       const first = item.search(/\S/);
-      if (first >= 0) checkBody(item, base + itemStart, where);
+      if (first >= 0) checkBody(item, base + itemStart, where, at(base + itemStart + first)[1]);
     };
     for (let i = 0; i < sectionChars.length; i++) {
       const c = sectionChars[i];
@@ -969,7 +999,16 @@ function clauseLayoutProblems(markdown, dom, path) {
     const line = rule.at[0];
     const header = visible.get(line) ?? "";
     if (!header.includes("::") || /::\s*$/.test(header)) {
-      problems.push(`${path}:${line}: put the common tag clause on the definition header`);
+      // A header whose clauses do not fit on its line can put each
+      // clause on a line of its own, with its content on that line.
+      let ownLine = false;
+      for (let next = line + 1; next <= lines.length; next++) {
+        const text = visible.get(next) ?? "";
+        if (/^\s*\|/.test(text) || /^\s*%/.test(text)) break;
+        if (/^\s*::\s+\S/.test(text)) { ownLine = true; break; }
+        if (text.trim() && !/^\s*(?:::|:=|:-)/.test(text)) break;
+      }
+      if (!ownLine) problems.push(`${path}:${line}: put the common tag clause on the definition header`);
     }
   }
   for (const line of codeLines) {
