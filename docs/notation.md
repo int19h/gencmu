@@ -595,6 +595,8 @@ Local readings have exactly the results and runtime errors of these queries. Reu
 
 `.ending-after(S)` keeps witnesses whose end follows the end of `S`. The argument is a capture, node, element value or span. It is legal wherever a forest is, including rule conditions.
 
+A filter evaluates its receiver forest before its argument, as a method chain reads from left to right. It filters the witnesses of that one answer without repeating recognition.
+
 Ends compare stage-input token positions. Restored forests and arguments project their ends to original positions before comparison. A synthetic token alone cannot make a witness end later. Each filter retains witness eligibility and measure. Chained filters, such as `.error-free.ending-after(S)`, must hold of the same witness.
 
 For example, `$x.onward.parse(sumti-tail …).ending-after($x)` tests for a longer reading in a rule condition. The `early-elision` check instead queries the preceding element, which can be a list or optional.
@@ -964,6 +966,8 @@ The DOM accepts exactly the reader's shapes, apart from source coordinates. Read
 
 ### Comparing two constituents
 
+The left operand of `≅` or `≇` is a capture, or a node walk in a check. Parentheses can enclose it, as in `($x) ≅ #·r` or `($.parent) ≅ #·text`. They retain the operand's meaning and type.
+
 The right operand of `≅` is a term, and its type decides what the comparison does. If the term has pattern type, the comparison holds when the left constituent matches the pattern. If the term has constituent type, it holds when the two constituents have equal structural trees. A term of any other type is a type error at the operand.
 
 The right operand takes its type by these rules:
@@ -1086,7 +1090,7 @@ A plain optional without a capture stays one optional. gencmu does not expand it
 
 Either way, a rule node holds the parts that its production reads, and an optional adds no node. A helper is an unnamed rule for an expression.
 
-An element is one symbol of a production as written, before captures expand optionals. Each optional, flat braces, ranked group, and splice counts as one element. The engine interprets a plain optional through one helper, with or without captures. `A [$b:B]` therefore counts as two symbols and inherits no default tags, including with B absent. Expansion still binds captures.
+An element follows the definition in [Element values](#element-values). Each optional, flat braces, ranked group, and splice counts as one element. The engine interprets a plain optional through one helper, with or without captures. `A [$b:B]` therefore counts as two symbols and inherits no default tags, including with B absent. Expansion still binds captures.
 
 A query gives a written terminator priority over an omission. For a preceding plain optional, it checks both absence and presence when looking for the written terminator. `a [$b:b] [+KU]` therefore follows the same query rule as `a [b] [+KU]`. An omission names no separate constituent that it ends. Diagnostic production numbers and recorded parse actions can follow expansion. [Engine §4](engine.md#4-recognition) defines the complete query rule.
 
@@ -1501,7 +1505,7 @@ Every token and every constituent carries a set of tags, and a terminal matches 
 
 Sometimes no tags are written at all, neither on the alternative nor on its header. Then a constituent built from one symbol has that symbol's tags, and a constituent built from several symbols has none. So a rule `word` whose body is `cmavo | brivla | cmevla` needs no tags. In the Lojban grammars, the chain of rules that builds a `mi` gives it tags for the next stage in this way.
 
-Each optional, flat repetition and ranked group counts as one element here. If an optional or flat braces reads one element, it has that symbol's tags. Otherwise it has none. Ranked groups follow the restrictions in "Ranked choices". So `%rule terms {terms-1}` over one `terms-1` has its tags, and over two has none. An empty optional has none.
+Each optional, flat braces and ranked group counts as one element here. If an optional or flat braces reads one element, it has that symbol's tags. Otherwise it has none. Ranked groups follow the restrictions in "Ranked choices". So `%rule terms {terms-1}` over one `terms-1` has its tags, and over two has none. An empty optional has none.
 
 A chain's levels follow the same inheritance rule. Plain optionals keep their own helper, including when they hold captures. An absent optional has empty tags. A present optional counts its content's symbols as if no captures were written. Ranking, ranked tag safety, and query priority use that same structure.
 

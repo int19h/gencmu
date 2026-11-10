@@ -661,7 +661,7 @@ For guarded tag terms, ranked tag safety examines every tag set that normalizati
 
 The ranked helper uses the logical tag constructors of §3.7. An untagged unary production inherits its child's tags. Untagged zero-symbol and multi-symbol productions return empty tags. Explicit tag terms replace inheritance.
 
-Compute provable emptiness over all element alternatives and helpers, including disabled features. If an explicit tag term differs from literal `∅` after constant expansion, mark the rule or helper unsafe. If it has no explicit term and its only element is a terminal, mark it unsafe.
+Compute provable emptiness over all alternatives and helpers in element structure, including disabled features. If an explicit tag term differs from literal `∅` after constant expansion, mark the rule or helper unsafe. If it has no explicit term and its only element is a terminal, mark it unsafe.
 
 The loader derives these facts from written expressions and shared element helpers. It records empty element routes and possible unary inheritance without enumerating their combinations. A capturing plain optional retains one element slot, including its absent route. Its unary content supplies inheritance without an extra helper site. Other optionals and flat repetitions retain their written helper sites. A chain uses its named rule instead of a repetition helper.
 
@@ -1090,7 +1090,7 @@ Every level of a chain is then a constituent of `r`. The ranking sees its closes
 
 An item of braces, flat or chain, that can derive the empty sequence is an error of the grammar. Lowering decides this over the structural grammar of the enabled features. That is every production that §3.1 to §3.5 make from the stitched stage, helpers included. Clause attachment (§3.6) does not yet remove any production whose condition simplifies to false. Tests are ignored. So a production that a false condition removes still counts, and so does a production that a test can never pass.
 
-Element optional markers consume no symbols and name no rules in this structural grammar.
+The optional markers of element structure consume no symbols and name no rules in this structural grammar.
 
 When one sequence continues along one route, lowering extends its owned physical and element prefixes in place. Branches receive independent prefixes before either branch extends them.
 
@@ -3665,7 +3665,7 @@ An evaluated read of an absent node or element makes its whole condition false, 
 
 An element value carries an expression and its chosen span. Span selectors give ordinary spans, and input string methods and positional tests read that span. Elements have no tags, capture binders, tree identity, boundary methods, walks or message use. They support `.local-readings`, but direct ordinary query methods require a node, capture or span.
 
-To find `.preceding-element`, locate the candidate's reading symbol in its production's element structure (§3.2). An omitted terminator uses its elidable optional as that symbol. While it is first in an optional, flat-repeat helper or ranked group, move to that helper's position in the enclosing sequence. Captured plain optionals keep their element positions after physical expansion.
+To find `.preceding-element`, locate the candidate's reading symbol in its production's element structure (§3.2). An omitted terminator uses its elidable optional as that symbol. While it is first in an optional, a helper of flat braces or a ranked group, move to that helper's position in the enclosing sequence. Captured plain optionals keep their element positions after physical expansion.
 
 At a named production's first symbol, no predecessor exists. Otherwise the previous element supplies its expression and chosen span. Never cross a named production boundary.
 
@@ -3684,6 +3684,8 @@ The enclosing definition contributes no clause to this query. This excludes its 
 Witnesses must complete, but the following text need not fit them. Ordinary query eligibility and written-terminator priority apply, and witnesses contain no own counted error occurrence (§4).
 
 Local readings must reproduce that query's runtime errors as well as its results. Memo or chart reuse requires equal context, target, frames and eligibility. A completed stage item alone proves neither witness existence nor eligibility.
+
+A forest filter evaluates its receiver before its argument, as a method chain reads from left to right. It filters that answer's witnesses without repeating recognition.
 
 For any forest f, `f.ending-after(S)` retains witnesses whose ends exceed S's end in stage-input positions. S is a capture, node, element or span. Project restored ends to original positions first (§7.3), for both witnesses and S. Synthetic tokens alone cannot extend an end. Filtering retains each witness's eligibility and measure, so chained filters must hold on the same witness.
 
@@ -3789,7 +3791,7 @@ An implied image evaluates the selected value recipe as a string for image use. 
 
 ### 11.3 Recipe evaluation and cycles
 
-An ordinary recipe contains only string literals, string constants, and seven captured string methods. A check message adds `.terminal` on `$` (§12.1). They are `.value`, `.image`, `.source-text`, `.decomposed-source-text`, `.verbatim-text`, `.emitted.value`, and `.emitted.image`. Its atoms join with `++` from left to right without a separator. Every other atom is a document error.
+An ordinary recipe contains only string literals, string constants, and seven captured string methods. They are `.value`, `.image`, `.source-text`, `.decomposed-source-text`, `.verbatim-text`, `.emitted.value`, and `.emitted.image`. A check message adds `.terminal` on `$` (§12.1). Its atoms join with `++` from left to right without a separator. Every other atom is a document error.
 
 Juxtaposed literals form a string set everywhere terms permit them. A recipe requires a string. The reader rejects a string set at its first literal and tells the author to use `++`. It rejects a second recipe term at its first token with the same instruction. Recipe atoms cannot use grouping parentheses or method arguments.
 
@@ -3883,7 +3885,7 @@ A stage whose verdict is `tie` emits nothing (§6), at whichever stage it is. Th
 
 After message evaluation and successful emission, assign each surviving diagnostic to one emitted token. Consider both own-stage occurrences and carried diagnostics on input tokens, including tokens that emit nothing directly. For an own rule diagnostic, its constituent is the occurrence and its position is that occurrence's input start. A check diagnostic uses its candidate node and that node's input start. For a carried diagnostic, its constituent is the leaf that reads its carrier and its position is that leaf's start.
 
-For a check on a leaf, the nearest enclosing rule supplies the first emission considered for ownership. For a check on a rule node, that rule supplies it.
+For a check on a leaf, rule 3 starts at the nearest enclosing occurrence in the derivation, spliced calls included. For a check on a rule node, that rule supplies it.
 
 Assignment uses the first applicable rule:
 

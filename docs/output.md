@@ -606,7 +606,7 @@ A directive of any other name is malformed (engine §9). An argument is a name o
 
 A library ignores unknown members of a directive. Its known members, `name`, `args`, `steps`, `conditions`, and `at`, keep their rules. An unknown member does not excuse a malformed known member.
 
-`rules`, `checks`, `directives`, `constants`, `classifiers` and `implications` each keep the order in which the document has them. `at` is the line and column of an item's first token. So the order of all of a document's items is the order of their positions. No two items of a DOM share a position (engine §9).
+`rules`, `directives`, `constants`, `classifiers`, `implications` and `checks` each keep the order in which the document has them. `at` is the line and column of an item's first token. So the order of all of a document's items is the order of their positions. No two items of a DOM share a position (engine §9).
 
 DOMs store unresolved references and source positions, never stage-resolved constant or classifier values. Source, cached, and supplied DOMs obey the same arity, type, capture, clause, and depth rules.
 
