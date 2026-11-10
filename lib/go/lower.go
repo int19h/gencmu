@@ -21,6 +21,7 @@ type slotMetadata struct {
 }
 
 type production struct {
+	chartSites        []chartReading
 	siteExpressions   []*domExpr
 	elements          []*checkElement
 	error, warning    *domTerm
@@ -114,6 +115,7 @@ type lrule struct {
 }
 
 type lowered struct {
+	chartRules          []chartReading
 	carriedOnce         sync.Once
 	carriedDependencies []bool
 	hasErrors           bool
@@ -392,6 +394,7 @@ func lower(g *stageGrammar, features map[string]bool) *lowered {
 		l.prepareTreeDemands()
 		l.checkTreeCycles(lw.structural)
 	}
+	l.prepareChartReadings()
 	return l
 }
 

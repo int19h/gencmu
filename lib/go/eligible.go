@@ -106,9 +106,30 @@ func (e *eligibility) next(it *item) int {
 // eligibleItems keeps of the completed items those that have an eligible
 // proof tree (§4).
 func (r *recognizer) eligibleItems(items []*item, errorFree bool) []*item {
+	states := r.eligibilityStates(items, errorFree)
+	var out []*item
+	for _, it := range items {
+		if states[it] != 0 && (!errorFree || states[it]&1 != 0) {
+			out = append(out, it)
+		}
+	}
+	return out
+}
+
+func eligibilityStep() {
+	if w := work.Load(); w != nil {
+		w.visits.add("eligibility steps")
+	}
+}
+
+func (r *recognizer) eligibilityStates(items []*item, errorFree bool) map[*item]uint8 {
 	helpers := r.g.elidable
 	if !r.g.anyElidable && !r.g.hasErrors && !errorFree || len(items) == 0 {
-		return items
+		states := map[*item]uint8{}
+		for _, item := range items {
+			states[item] = 1
+		}
+		return states
 	}
 	if w := work.Load(); w != nil {
 		w.eligibilityRuns.add("eligibilityRuns")
@@ -123,15 +144,18 @@ func (r *recognizer) eligibleItems(items []*item, errorFree bool) []*item {
 		kid  int
 	}
 	for _, root := range items {
+		eligibilityStep()
 		if _, ok := e.index[root]; ok {
 			continue
 		}
 		e.index[root] = -1
 		stack := []frame{{it: root}}
 		for len(stack) > 0 {
+			eligibilityStep()
 			f := &stack[len(stack)-1]
 			var below *item
 			for below == nil && f.next < 2*len(f.it.links) {
+				eligibilityStep()
 				l := f.it.links[f.next/2]
 				if f.next%2 == 0 {
 					below = r.before(f.it, l)
@@ -165,7 +189,11 @@ func (r *recognizer) eligibleItems(items []*item, errorFree bool) []*item {
 	// With no omission, every item of a chart has a finite proof tree, made
 	// from predicted items in the order in which the recognizer made it.
 	if !omits && !r.g.hasErrors && !errorFree {
-		return items
+		states := map[*item]uint8{}
+		for _, item := range items {
+			states[item] = 1
+		}
+		return states
 	}
 	// The prefixes that the chart advances over a written optional, from
 	// the whole chart, and for each item before a constituent Y, the
@@ -174,7 +202,9 @@ func (r *recognizer) eligibleItems(items []*item, errorFree bool) []*item {
 	reads := map[*item]bool{}
 	for _, s := range r.sets {
 		for _, it := range s.items {
+			eligibilityStep()
 			for _, l := range it.links {
+				eligibilityStep()
 				if e.written(l) {
 					reads[r.before(it, l)] = true
 				}
@@ -184,6 +214,7 @@ func (r *recognizer) eligibleItems(items []*item, errorFree bool) []*item {
 	further := map[*item]int32{}
 	for it := range reads {
 		for _, l := range it.links {
+			eligibilityStep()
 			if l.sym == nil {
 				continue
 			}
@@ -216,6 +247,7 @@ func (r *recognizer) eligibleItems(items []*item, errorFree bool) []*item {
 	children := func(sym *symNode, states []uint8) uint8 {
 		var result uint8
 		for _, child := range sym.items {
+			eligibilityStep()
 			result |= states[e.index[child]]
 		}
 		return result
@@ -223,6 +255,7 @@ func (r *recognizer) eligibleItems(items []*item, errorFree bool) []*item {
 	for changed := true; changed; {
 		changed = false
 		for x, it := range e.order {
+			eligibilityStep()
 			for channel := 0; channel < 2; channel++ {
 				states, permissions := R, RP
 				if channel == 1 {
@@ -258,6 +291,7 @@ func (r *recognizer) eligibleItems(items []*item, errorFree bool) []*item {
 				}
 				if !it.restores {
 					for _, edge := range it.links {
+						eligibilityStep()
 						through := advance(it, edge)
 						if through == 0 {
 							continue
@@ -342,13 +376,11 @@ func (r *recognizer) eligibleItems(items []*item, errorFree bool) []*item {
 			}
 		}
 	}
-	var out []*item
-	for _, it := range items {
-		if E[e.index[it]] != 0 && (!errorFree || E[e.index[it]]&1 != 0) {
-			out = append(out, it)
-		}
+	states := map[*item]uint8{}
+	for x, item := range e.order {
+		states[item] = E[x]
 	}
-	return out
+	return states
 }
 
 func combineProofStates(left, right uint8) uint8 {

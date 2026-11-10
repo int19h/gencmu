@@ -35,6 +35,7 @@ func checkElements(body []slot) []*checkElement {
 }
 
 type checkValue struct {
+	site   *chartReading
 	span   spanVal
 	target string
 }
@@ -283,7 +284,11 @@ func (tree *checkTree) before(parent *occurrence, at int) *checkValue {
 			if e.expression == nil {
 				target = tree.site(parent, e.position)
 			}
-			return &checkValue{span: spanVal{a: start, b: end}, target: target}
+			var site *chartReading
+			if e.expression == nil {
+				site = chartSite(p, e.position)
+			}
+			return &checkValue{span: spanVal{a: start, b: end}, target: target, site: site}
 		}
 		if !p.helper || p.spliceTarget != nil {
 			return nil
@@ -357,7 +362,13 @@ func (tree *checkTree) value(root *checkNode, term *domTerm) *checkValue {
 	} else if source.d.kind == dClose {
 		target = tree.flow.rec.g.rules[source.d.prod.lhs].name
 	}
-	return &checkValue{span: node.span, target: target}
+	var site *chartReading
+	if parent := tree.flow.nodes[source].parent; parent != nil {
+		site = chartSite(parent.d.prod, tree.positions[source])
+	} else if source.d.kind == dClose && len(tree.flow.rec.g.chartRules) > 0 {
+		site = &tree.flow.rec.g.chartRules[source.d.prod.lhs]
+	}
+	return &checkValue{span: node.span, target: target, site: site}
 }
 func (tree *checkTree) boundary(atom *domCond, span spanVal) bool {
 	for _, target := range atom.Targets {

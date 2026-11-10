@@ -233,6 +233,8 @@ const (
 )
 
 type recognizer struct {
+	localCompletions                      map[[2]int32][]*symNode
+	localEligibility                      map[*item]uint8
 	predictionIndexes                     map[int]map[predictionName][]rankedPrediction
 	skippedCache                          map[int]map[*production]bool
 	measures                              *diagnosticMeasures

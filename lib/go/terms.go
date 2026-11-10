@@ -491,7 +491,10 @@ func (w *walk) termStep(f *frame) *nestedQuery {
 					f.at = 1
 				}
 				request := f.forest
-				_, _, q := ev.run.nested(ev.g, request.mode, request.rule, request.span, request.clean, request)
+				var q *nestedQuery
+				if request.answer == nil {
+					_, _, q = ev.run.nested(ev.g, request.mode, request.rule, request.span, request.clean, request)
+				}
 				if q != nil {
 					return q
 				}
@@ -675,7 +678,10 @@ func (w *walk) condStep(f *frame) *nestedQuery {
 			f.at = 1
 		}
 		request := f.forest
-		_, _, pending := ev.run.nested(ev.g, request.mode, request.rule, request.span, request.clean, request)
+		var pending *nestedQuery
+		if request.answer == nil {
+			_, _, pending = ev.run.nested(ev.g, request.mode, request.rule, request.span, request.clean, request)
+		}
 		if pending != nil {
 			return pending
 		}
@@ -823,6 +829,7 @@ func (w *walk) forestRequest(ev *evaluator, term *domTerm) *forestRequest {
 		request.mode, request.rule, request.span = cdBegins, local.target, local.span
 		request.span.tags, request.span.whole, request.span.lazy = nil, false, nil
 		request.span.b = ev.run.inputEnd
+		request.answer = ev.check.flow.rec.chartReading(local, request.clean)
 	} else {
 		body := query.Items[1].Body
 		_, request.mode, _ = queryBody(body)
