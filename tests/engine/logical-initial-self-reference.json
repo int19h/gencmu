@@ -26,7 +26,7 @@
       ]
     }
   ],
-  "description": "An absent logical optional prevents an immediate self-reference from becoming initial (engine §4).",
+  "description": "An absent element optional prevents an immediate self-reference from becoming initial (engine §4).",
   "expect": {
     "error": "rejected",
     "result": {

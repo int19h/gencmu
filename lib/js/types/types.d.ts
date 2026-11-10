@@ -689,7 +689,7 @@ export type Production = {
     walksTrees?: boolean;
     treePrefixUntil?: number;
     source?: import("./grammar.js").StitchedAlternative;
-    logicalSource?: import("./grammar.js").StitchedAlternative;
+    elementSource?: import("./grammar.js").StitchedAlternative;
     writtenExpression?: Expr;
     rankedGroup?: import("./ranked.js").RankedGroup;
     rankedOption?: number;
@@ -721,7 +721,7 @@ export type Production = {
     id: number;
     lhs: string;
     rhs: GrammarSymbol[];
-    logical?: import("./logical.js").LogicalSymbol[];
+    elements?: import("./elements.js").Element[];
     helper: boolean;
     treeRoot?: boolean;
     spliceOf?: string;
@@ -1450,7 +1450,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {boolean} [walksTrees]
  * @property {number} [treePrefixUntil]
  * @property {import("./grammar.js").StitchedAlternative} [source]
- * @property {import("./grammar.js").StitchedAlternative} [logicalSource]
+ * @property {import("./grammar.js").StitchedAlternative} [elementSource]
  * @property {Expr} [writtenExpression]
  * @property {import("./ranked.js").RankedGroup} [rankedGroup]
  * @property {number} [rankedOption]
@@ -1470,7 +1470,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {number} id
  * @property {string} lhs
  * @property {GrammarSymbol[]} rhs
- * @property {import("./logical.js").LogicalSymbol[]} [logical]
+ * @property {import("./elements.js").Element[]} [elements]
  * @property {boolean} helper
  * @property {boolean} [treeRoot]
  * @property {string} [spliceOf]

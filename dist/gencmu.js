@@ -4073,7 +4073,7 @@
     const old = localDemands.get(base);
     if (old) return old;
     const result = {whole:false, parts:new Set(), queries:new Map()};
-    const stack = [...productionClauses(base).slice(0, -1), (base.source ?? base.logicalSource)?.clauses.conditions];
+    const stack = [...productionClauses(base).slice(0, -1), (base.source ?? base.elementSource)?.clauses.conditions];
     const seen = new Set();
     while (stack.length) {
       const node = /** @type {any} */ (stack.pop());
@@ -4474,7 +4474,7 @@
         }
       }
     }
-    const ordinal=(/** @type {any} */ site)=>order.get(site.comparison)??hints.get(JSON.stringify([(site.production.logicalSource??site.production.source)?.document,boundaryLocations.get(site.comparison)?.at,site.comparison]))??nextOrder;
+    const ordinal=(/** @type {any} */ site)=>order.get(site.comparison)??hints.get(JSON.stringify([(site.production.elementSource??site.production.source)?.document,boundaryLocations.get(site.comparison)?.at,site.comparison]))??nextOrder;
     sites.sort((a,b)=>ordinal(a)-ordinal(b)||a.production.id-b.production.id);
     for(const {comparison,production,bindings,prefix} of sites) {
         const roots=[];
@@ -5872,7 +5872,7 @@
         }
       }
       // One helper already joins all its optional's routes in the chart.
-      // Only distinct names of one written site need the logical group key.
+      // Only distinct names of one written site need the element group key.
       for (const [expression,names] of sites) {
         if (names.size > 1) for (const name of names) helpers.optional.set(name,expression);
       }
@@ -5903,12 +5903,12 @@
 
   /**
    * @param {Item} item
-   * @returns {{node:import("./logical.js").LogicalSymbol|undefined, initial:boolean}|null}
+   * @returns {{node:import("./elements.js").Element|undefined, initial:boolean}|null}
    */
-  function logicalPredecessor(item) {
-    const roots = item.production.logical;
+  function elementPredecessor(item) {
+    const roots = item.production.elements;
     if (!roots) return null;
-    /** @param {import("./logical.js").LogicalSymbol[]} nodes @param {boolean} root @returns {{node:import("./logical.js").LogicalSymbol|undefined,initial:boolean}|null} */
+    /** @param {import("./elements.js").Element[]} nodes @param {boolean} root @returns {{node:import("./elements.js").Element|undefined,initial:boolean}|null} */
     const find = (nodes,root) => {
       for (let index=0;index<nodes.length;index++) {
         const node = nodes[index];
@@ -6023,16 +6023,16 @@
     // has a constituent: not at the start, not after a terminal, and not
     // after the first symbol of a production whose first symbol is its own
     // rule (engine §4).
-    /** @type {Map<Item,import("./logical.js").LogicalSymbol>} */
+    /** @type {Map<Item,import("./elements.js").Element>} */
     const precedingGroups = new Map();
     /** @param {Item} item @returns {"none"|"alone"|"constituent"|"group"} */
     const nextKind = item => {
       const rhs = item.production.rhs;
       const symbol = rhs[item.dot];
       if (symbol === undefined || symbol.terminal || !helpers.has(symbol.name)) return "none";
-      const logical = logicalPredecessor(item);
-      if (logical) {
-        const previous = logical.node;
+      const elements = elementPredecessor(item);
+      if (elements) {
+        const previous = elements.node;
         if (!previous || previous.symbol?.terminal) return "alone";
         const optional = previous.symbol && optionals.get(previous.symbol.name);
         if (previous.children || optional) {
@@ -6041,7 +6041,7 @@
           precedingGroups.set(item,optional ? {...previous,written:optional} : previous);
           return "group";
         }
-        if (logical.initial && previous.symbol?.name === item.production.lhs) return "alone";
+        if (elements.initial && previous.symbol?.name === item.production.lhs) return "alone";
         return "constituent";
       }
       if (item.dot === 0 || rhs[item.dot-1].terminal) return "alone";
@@ -6058,7 +6058,7 @@
       if (id === undefined) identities.set(object,id=++identityCount);
       return id;
     };
-    /** @param {Item} item @param {import("./logical.js").LogicalSymbol} group */
+    /** @param {Item} item @param {import("./elements.js").Element} group */
     const fixedKey = (item,group) => {
       const captures = [];
       for (let slot=item.slots;slot;slot=slot.parent) {
@@ -6068,12 +6068,12 @@
       const symbols = item.production.rhs.map((symbol,index) => [symbol.name,symbol.test?.written,
         item.production.captures.filter(capture => capture.index === index && !capture.name.startsWith("\u0000")).map(capture => capture.name)]);
       // Only the preceding optional's route varies. Every outside expansion
-      // remains part of the same logical production and fixed prefix.
+      // remains part of the same element production and fixed prefix.
       const outside = [...symbols.slice(0,group.from),["optional"],...symbols.slice(group.to)];
       // A surrounding optional can also have one helper per expanded route.
       const owner = optionals.get(item.production.lhs);
       const scope = owner ? ["optional",identity(owner)] : item.production.lhs;
-      return JSON.stringify([identity(item.production.logicalSource ?? item.production.source),scope,identity(group.written),
+      return JSON.stringify([identity(item.production.elementSource ?? item.production.source),scope,identity(group.written),
         item.origin,item.end,item.structure,item.observationPrefix?.sequence,item.boundary?.id,outside,captures.reverse()]);
     };
     /** @param {Item} item @param {number} dot @returns {Item[]} */
@@ -6090,7 +6090,7 @@
     };
     const groupFurther = new Map();
     for (const item of reads) if (nextKind(item) === "group") {
-      const group = /** @type {import("./logical.js").LogicalSymbol} */ (precedingGroups.get(item));
+      const group = /** @type {import("./elements.js").Element} */ (precedingGroups.get(item));
       for (const prefix of boundaries(item,group.from)) {
         const key = fixedKey(prefix,group);
         groupFurther.set(key,Math.max(groupFurther.get(key) ?? -1,item.end));
@@ -6108,11 +6108,11 @@
     /** @param {Edge} edge */
     const dirtyRead = edge => (edge.kind === "scan" || edge.kind === "restore") && (chart.context.tokens[edge.token].errors?.length ?? 0) !== 0;
     /**
-     * Find a permitted proof of one F state through a logical optional.
+     * Find a permitted proof of one F state through an optional element.
      * Reverse advances retain that state, so a dirty permitted proof cannot
      * lend permission to a clean forbidden proof of the same chart item.
      * @param {Item} item
-     * @param {import("./logical.js").LogicalSymbol} group
+     * @param {import("./elements.js").Element} group
      * @param {number} end
      * @param {Uint8Array} states
      * @param {Uint8Array} permissions
@@ -6162,7 +6162,7 @@
             e |= through;
             if (next[x] === "alone" && !reads.has(item)) p |= through;
             else if (next[x] === "group") {
-              const group = /** @type {import("./logical.js").LogicalSymbol} */ (precedingGroups.get(item));
+              const group = /** @type {import("./elements.js").Element} */ (precedingGroups.get(item));
               for (const bit of [1,2]) if (through & bit && groupPermits(item,group,item.end,states,permissions,bit)) p |= bit;
             } else if (next[x] === "constituent" && edge.kind === "complete") {
               const end = further.get(edge.previous);
@@ -9431,7 +9431,7 @@
     return value?.emptySet === true || value?.set instanceof Set && value.set.size === 0;
   }
 
-  /** Logical empty routes and unary inheritance, without products.
+  /** Element empty routes and unary inheritance, without products.
    * @param {Map<string,import("./grammar.js").StitchedRule>} rules
    * @param {RankedGroups} ranked
    */
@@ -10276,43 +10276,43 @@
     };
   }
 
-  // ---- logical.js
-  // Logical helper boundaries beside physical capture expansions (engine §3.2).
+  // ---- elements.js
+  // Element boundaries beside physical capture expansions (engine §3.2).
   /** @import { GrammarSymbol } from "./types.js" */
-  /** @typedef {{from:number,to:number,symbol?:GrammarSymbol,children?:LogicalSymbol[],written?:object}} LogicalSymbol */
-  /** @type {WeakMap<object,LogicalSymbol[]>} */
+  /** @typedef {{from:number,to:number,symbol?:GrammarSymbol,children?:Element[],written?:object}} Element */
+  /** @type {WeakMap<object,Element[]>} */
   const structures = new WeakMap();
 
-  /** @param {{symbol:GrammarSymbol}[]} sequence @returns {LogicalSymbol[]} */
-  function logicalOf(sequence) {
-    let logical = structures.get(sequence);
-    if (!logical) structures.set(sequence, logical = sequence.map((item,index) => ({from:index,to:index+1,symbol:item.symbol})));
-    return logical;
+  /** @param {{symbol:GrammarSymbol}[]} sequence @returns {Element[]} */
+  function elementsOf(sequence) {
+    let elements = structures.get(sequence);
+    if (!elements) structures.set(sequence, elements = sequence.map((item,index) => ({from:index,to:index+1,symbol:item.symbol})));
+    return elements;
   }
 
-  /** @param {LogicalSymbol} node @param {number} offset @returns {LogicalSymbol} */
+  /** @param {Element} node @param {number} offset @returns {Element} */
   function shifted(node,offset) {
     return {...node,from:node.from+offset,to:node.to+offset,
       ...(node.children ? {children:node.children.map(child => shifted(child,offset))} : {})};
   }
 
-  /** @param {object} sequence @param {LogicalSymbol[]} left @param {LogicalSymbol[]} right @param {number} offset @param {boolean} [owned] */
-  function joinedLogical(sequence,left,right,offset,owned=false) {
+  /** @param {object} sequence @param {Element[]} left @param {Element[]} right @param {number} offset @param {boolean} [owned] */
+  function joinedElements(sequence,left,right,offset,owned=false) {
     const suffix = right.map(node => shifted(node,offset));
-    const logical = owned ? left : [...left];
-    for (const node of suffix) logical.push(node);
-    structures.set(sequence,logical);
+    const elements = owned ? left : [...left];
+    for (const node of suffix) elements.push(node);
+    structures.set(sequence,elements);
   }
 
   /** @param {{symbol:GrammarSymbol}[]} sequence @param {object} written */
-  function optionalLogical(sequence,written) {
-    const children = logicalOf(sequence);
+  function optionalElement(sequence,written) {
+    const children = elementsOf(sequence);
     structures.set(sequence,[{from:0,to:sequence.length,children,written}]);
   }
 
-  /** @param {LogicalSymbol[]} logical @returns {number|null} */
-  function inheritedIndex(logical) {
-    let children = logical;
+  /** @param {Element[]} elements @returns {number|null} */
+  function inheritedIndex(elements) {
+    let children = elements;
     while (children.length === 1) {
       const node = children[0];
       if (node.symbol) return node.from;
@@ -12070,7 +12070,7 @@
         prepareTreeDemands(this,rankedFrameTable({lowered:this}));
         const cycle=treeIdentityCycle(this);
         if(cycle) {
-          const source=cycle.production.logicalSource ?? cycle.production.source;
+          const source=cycle.production.elementSource ?? cycle.production.source;
           const location=boundaryLocations.get(cycle.comparison)?.at;
           const at={...source.at,...(location ? {line:location[0],column:location[1]} : {})};
           const error = loweringError(at,`tree comparison demands a cycle ${cycle.cycle.join(" → ")} that can repeat a demanded rule over one span`);
@@ -12128,7 +12128,7 @@
       }
       /** @type {Production} */
       const production = { ...fields, captureAt, captureSlot, conditionsAt, id: this.productions.length };
-      production.logicalSource = this.source;
+      production.elementSource = this.source;
       if (this.grammar.ranked.groups.length) {
         const source = this.source;
         Object.assign(production, {source, writtenExpression: fields.helper ? this.helperExpressions.get(fields.lhs) : source?.expr});
@@ -12269,8 +12269,8 @@
         for (const sequence of bodies) {
           // A helper with one symbol has that symbol's tags, like any
           // production (engine §3.7).
-          const logical = logicalOf(sequence);
-          const inherited = inheritedIndex(logical);
+          const elements = elementsOf(sequence);
+          const inherited = inheritedIndex(elements);
           const single = inherited !== null;
           const ranked = this.rankedSequences.get(sequence);
           // The item captures inside braces bind to the helper's productions
@@ -12281,7 +12281,7 @@
           this.addProduction({
             lhs: helper.name,
             rhs: sequence.map((item) => item.symbol),
-            logical,
+            elements,
             helper: true,
             owner: rule.name,
             elided: helper.elided,
@@ -12335,8 +12335,8 @@
       const written = [definitionTags, alternativeTags].filter((term) => term !== null);
       /** @type {Term | null} */
       let tags = written.length === 0 ? null : written.length === 1 ? written[0] : { union: written };
-      const logical = logicalOf(sequence);
-      const inherited = inheritedIndex(logical);
+      const elements = elementsOf(sequence);
+      const inherited = inheritedIndex(elements);
       if (!tags && inherited !== null) {
         // A production with one symbol has that symbol's tags (engine §3.7),
         // whether or not the author captured it.
@@ -12419,7 +12419,7 @@
       const fields = {
         lhs: rule.name,
         rhs: sequence.map((item) => item.symbol),
-        logical,
+        elements,
         helper: false,
         owner: rule.name,
         elided: null,
@@ -12494,7 +12494,7 @@
         // (engine §3.2).
         if (expr.elidable !== true && holdsCapture(inner)) {
           const routes = [/** @type {SequenceItem[]} */ ([]),...this.expand(inner,where)];
-          for (const route of routes) optionalLogical(route,expr);
+          for (const route of routes) optionalElement(route,expr);
           return routes;
         }
         if (expr.elidable !== true && this.grammar.ranked.groups.length && holdsCapture(inner, true)) {
@@ -12642,7 +12642,7 @@
             sequence.push(item);
           }
         }
-        joinedLogical(sequence,logicalOf(a),logicalOf(b),a.length);
+        joinedElements(sequence,elementsOf(a),elementsOf(b),a.length);
         result.push(sequence);
       }
     }
@@ -12663,7 +12663,7 @@
     /** @type {SequenceItem[][]} */
     const result = [];
     for (const a of left) {
-      const logical = logicalOf(a);
+      const elements = elementsOf(a);
       const offset = a.length;
       for (let index = 0; index < right.length; index++) {
         /** @type {SequenceItem[]} */
@@ -12675,12 +12675,12 @@
             sequence.push(item);
           }
         }
-        const suffix = logicalOf(right[index]);
+        const suffix = elementsOf(right[index]);
         for (const item of right[index]) {
           if (hooks.work) countWork(hooks.work, "lowering");
           sequence.push(item);
         }
-        joinedLogical(sequence,logical,suffix,offset,sequence===a);
+        joinedElements(sequence,elements,suffix,offset,sequence===a);
         result.push(sequence);
       }
     }
@@ -12885,7 +12885,7 @@
     const old = patternDemands.get(productions);
     if (old) return old;
     // Clauses share terms across expansions. Deduplicate only those terms,
-    // never the productions, captures, logical symbols or their metadata.
+    // never the productions, captures, elements or their metadata.
     const seen = new WeakSet();
     const found = [];
     for (let index = productions.length - 1; index >= 0; index--) {
@@ -16470,7 +16470,7 @@
           const production = scope.production;
           if (atom.receiver.capture === "" && !wholeBoundary) return true;
           const machine = context.boundaries ?? scope.context.boundaries;
-          const source = production.lexicalFrame?.root.logicalSource ?? production.logicalSource;
+          const source = production.lexicalFrame?.root.elementSource ?? production.elementSource;
           (step.obligations ??= []).push({atom,condition,literal:machine.literal(atom,!!value),
             site:scope.context.lowered.boundarySites.get(source?.clauses)?.get(atom)});
         }
@@ -16629,7 +16629,7 @@
     /** @param {Production} production */
     const competitor=production=> {
       if(production.rankedGroup===group)return production.rankedOption!==option.rankedOption&&production.lexicalFrame===option.lexicalFrame;
-      const source=production.logicalSource;
+      const source=production.elementSource;
       return !production.helper&&production.lhs===group.parent&&source!==group.source&&source?.clauses===group.source.clauses;
     };
     /** @param {Item} item */
@@ -18782,7 +18782,7 @@
    * @returns {boolean}
    */
   function isTransparent(production) {
-    return production.helper || (production.logical?.length ?? production.rhs.length) === 1;
+    return production.helper || (production.elements?.length ?? production.rhs.length) === 1;
   }
 
   /**
@@ -25828,7 +25828,7 @@
    * @property {boolean} [walksTrees]
    * @property {number} [treePrefixUntil]
    * @property {import("./grammar.js").StitchedAlternative} [source]
-   * @property {import("./grammar.js").StitchedAlternative} [logicalSource]
+   * @property {import("./grammar.js").StitchedAlternative} [elementSource]
    * @property {Expr} [writtenExpression]
    * @property {import("./ranked.js").RankedGroup} [rankedGroup]
    * @property {number} [rankedOption]
@@ -25848,7 +25848,7 @@
    * @property {number} id
    * @property {string} lhs
    * @property {GrammarSymbol[]} rhs
-   * @property {import("./logical.js").LogicalSymbol[]} [logical]
+   * @property {import("./elements.js").Element[]} [elements]
    * @property {boolean} helper
    * @property {boolean} [treeRoot]
    * @property {string} [spliceOf]
