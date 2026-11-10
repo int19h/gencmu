@@ -44,6 +44,15 @@ pub(crate) enum Span {
 }
 
 #[derive(Debug, Clone)]
+pub(crate) struct LForest {
+    pub span: Span,
+    pub rule: u32,
+    pub mode: crate::query_forms::Mode,
+    pub clean: bool,
+    pub after: Vec<Span>,
+}
+
+#[derive(Debug, Clone)]
 pub(crate) enum LTerm {
     /// A string.
     Str(String),
@@ -65,7 +74,7 @@ pub(crate) enum LTerm {
     Ngrams(Box<LTerm>, String),
     Tags(Span),
     TagsRule(Span, u32),
-    ForestTags(Span, u32, crate::query_forms::Mode, bool),
+    ForestTags(LForest),
     Classes(Span),
     /// `classify(a, C)`: the classes that the classifier named `C` gives
     /// the string `a` (§10).
@@ -86,7 +95,7 @@ pub(crate) enum CmpOp {
 
 #[derive(Debug, Clone)]
 pub(crate) enum LCond {
-    ErrorFree(Span, u32, crate::query_forms::Mode),
+    Forest(LForest),
     Tree(Span, bool, crate::patterns::Pattern),
     SameTree(Span, bool, Span, Option<(usize, usize)>),
     Cmp(CmpOp, LTerm, LTerm),
@@ -95,7 +104,6 @@ pub(crate) enum LCond {
     /// as `R`.
     Begins(Span, u32),
     Ends(Span, u32),
-    Contains(Span, u32),
     /// `initial(s)`: whether the span begins where the parse's input does.
     Initial(Span),
     Final(Span),
@@ -1087,55 +1095,39 @@ impl<'a> Scope<'a> {
         }
     }
 
-    fn forest(&mut self, mut term: &Term) -> Result<LCond, Missing> {
-        let mut filtered = false;
+    fn forest_value(&mut self, mut term: &Term) -> Result<Option<LForest>, Missing> {
+        let mut clean = false;
+        let mut after = Vec::new();
         while let Term::Call(name, args) = term {
-            if let ("error-free", [Arg::Term(inner)]) = (name.as_str(), args.as_slice()) {
-                work::count(Work::Walked, 1);
-                term = inner;
-                filtered = true;
-            } else {
-                break;
+            match (name.as_str(), args.as_slice()) {
+                ("error-free", [Arg::Term(inner)]) => {
+                    clean = true;
+                    term = inner;
+                }
+                ("ending-after", [Arg::Term(inner), Arg::Term(end)]) => {
+                    after.push(self.span(end)?);
+                    term = inner;
+                }
+                _ => break,
             }
+            work::count(Work::Walked, 1);
         }
-        let Term::Call(name, args) = term else { return Err(Missing) };
-        let ("parse", [Arg::Term(receiver), Arg::Term(Term::Body(body))]) = (name.as_str(), args.as_slice()) else {
-            return Err(Missing);
-        };
-        let target = self.body_targets.get(&(Arc::as_ptr(body) as usize)).ok_or(Missing)?;
-        let rule = self.query_target(target)?;
-        let span = self.span(receiver)?;
-        let mode = crate::query_forms::body_mode(body);
-        if filtered {
-            return Ok(LCond::ErrorFree(span, rule, mode));
-        }
-        Ok(match mode {
-            crate::query_forms::Mode::Whole => LCond::Matches(span, rule),
-            crate::query_forms::Mode::Prefix => LCond::Begins(span, rule),
-            crate::query_forms::Mode::Suffix => LCond::Ends(span, rule),
-            crate::query_forms::Mode::Part => LCond::Contains(span, rule),
-        })
-    }
-
-    fn forest_tags(&mut self, term: &Term) -> Result<Option<LTerm>, Missing> {
-        let mut filtered = false;
-        let mut inner = term;
-        while let Term::Call(name, args) = inner {
-            if let ("error-free", [Arg::Term(next)]) = (name.as_str(), args.as_slice()) {
-                filtered = true;
-                inner = next;
-            } else {
-                break;
-            }
-        }
-        let Term::Call(name, args) = inner else { return Ok(None) };
+        let Term::Call(name, args) = term else { return Ok(None) };
         let ("parse", [Arg::Term(receiver), Arg::Term(Term::Body(body))]) = (name.as_str(), args.as_slice()) else {
             return Ok(None);
         };
-        let target = self.body_targets.get(&(std::sync::Arc::as_ptr(body) as usize)).ok_or(Missing)?;
+        let target = self.body_targets.get(&(Arc::as_ptr(body) as usize)).ok_or(Missing)?;
         let rule = self.query_target(target)?;
-        let mode = crate::query_forms::body_mode(body);
-        Ok(Some(LTerm::ForestTags(self.span(receiver)?, rule, mode, filtered)))
+        after.reverse();
+        Ok(Some(LForest { span: self.span(receiver)?, rule, mode: crate::query_forms::body_mode(body), clean, after }))
+    }
+
+    fn forest(&mut self, term: &Term) -> Result<LCond, Missing> {
+        Ok(LCond::Forest(self.forest_value(term)?.ok_or(Missing)?))
+    }
+
+    fn forest_tags(&mut self, term: &Term) -> Result<Option<LTerm>, Missing> {
+        Ok(self.forest_value(term)?.map(LTerm::ForestTags))
     }
 
     fn cond(&mut self, cond: &Cond) -> Result<LCond, Missing> {

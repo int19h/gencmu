@@ -933,6 +933,10 @@ impl Contents {
 /// What a nested parse's answer is remembered by (§4).
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum NestedKey {
+    Ending {
+        key: Box<NestedKey>,
+        after: usize,
+    },
     Context {
         key: Box<NestedKey>,
         filtered: bool,
@@ -1286,6 +1290,7 @@ pub(crate) struct Request<'t> {
     aligned: Option<Alignment>,
     contains: bool,
     filtered: bool,
+    after: Option<usize>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1312,7 +1317,7 @@ impl Request<'_> {
     }
     fn qualification_key(&self) -> QualificationKey {
         let mut key = &self.key;
-        while let NestedKey::Context { key: inner, .. } = key {
+        while let NestedKey::Context { key: inner, .. } | NestedKey::Ending { key: inner, .. } = key {
             key = inner;
         }
         match key {
@@ -1365,21 +1370,31 @@ fn took(last: &mut Option<Out>) -> Out {
 /// The kind of a nested query, which says what its answer gives.
 #[derive(Debug, Clone, Copy)]
 enum Query {
-    ErrorFree(crate::query_forms::Mode),
+    Forest(crate::query_forms::Mode, bool, bool),
     Matches,
     Begins,
     Ends,
-    Contains,
     TagsRule,
-    ForestTags(crate::query_forms::Mode, bool),
 }
 
 impl Query {
+    fn mode(self) -> crate::query_forms::Mode {
+        use crate::query_forms::Mode;
+        match self {
+            Self::Forest(mode, ..) => mode,
+            Self::Begins => Mode::Prefix,
+            Self::Ends => Mode::Suffix,
+            _ => Mode::Whole,
+        }
+    }
+    fn filtered(self) -> bool {
+        matches!(self, Self::Forest(_, true, _))
+    }
     fn out(self, (holds, set, clean): Answer, tags: &Tags) -> Out {
         match self {
-            Query::Matches | Query::Begins | Query::Ends | Query::Contains => Out::Bool(holds),
-            Query::ErrorFree(_) => Out::Bool(clean),
-            Query::TagsRule | Query::ForestTags(..) => Out::Value(Value::Set(tags.shared(set))),
+            Self::Forest(_, _, true) | Self::TagsRule => Out::Value(Value::Set(tags.shared(set))),
+            Self::Forest(_, true, false) => Out::Bool(clean),
+            _ => Out::Bool(holds),
         }
     }
 }
@@ -2247,16 +2262,21 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let start = if request.begins { 0 } else { witnesses.partition_point(|w| w.end < a.match_end) };
         let witnesses = &witnesses[start..limit];
         let mut m = self.shared.machine.as_ref().unwrap().borrow_mut();
-        let mut aligned = |w: &&QualifiedWitness| match a.family {
-            Some((_, context)) => {
-                let actual =
-                    w.observation != crate::restoration::INVALID && m.families.accepts(context, w.family, w.end);
-                if w.observation != crate::restoration::INVALID {
-                    m.families.compare_oracle(context, w.oracle, w.end, actual);
+        let mut aligned = |w: &&QualifiedWitness| {
+            request.after.map_or(true, |after| w.end > after)
+                && match a.family {
+                    Some((_, context)) => {
+                        let actual = w.observation != crate::restoration::INVALID
+                            && m.families.accepts(context, w.family, w.end);
+                        if w.observation != crate::restoration::INVALID {
+                            m.families.compare_oracle(context, w.oracle, w.end, actual);
+                        }
+                        actual
+                    }
+                    None => {
+                        m.observations.as_mut().unwrap().aligns(a.observation, w.observation, a.fixed_end.min(w.end))
+                    }
                 }
-                actual
-            }
-            None => m.observations.as_mut().unwrap().aligns(a.observation, w.observation, a.fixed_end.min(w.end)),
         };
         if request.begins {
             let mut accepted = false;
@@ -2297,7 +2317,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 let lists: Vec<_> = state
                     .answers
                     .iter()
-                    .filter(|(pos, _)| range.contains(pos))
+                    .filter(|(pos, _)| range.contains(pos) && request.after.map_or(true, |after| **pos > after))
                     .map(|(pos, (h, c))| {
                         holds |= h;
                         clean |= c;
@@ -2311,6 +2331,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 let tags = &self.shared.tags;
                 let list = union_all(lists.into_iter().flatten().map(|set| tags.list(*set)));
                 return (holds, self.shared.tags.set(list), clean);
+            }
+            if request.after.is_some_and(|after| request.base + request.end <= after) {
+                return (false, 0, false);
             }
             let (holds, clean) = state.answers[&(request.base + request.end)];
             let tags = if request.filtered {
@@ -2391,7 +2414,10 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let retained: Vec<_> = witnesses
             .into_iter()
             .zip(eligible)
-            .filter_map(|(witness, flags)| (flags != 0).then_some((witness, flags & 1 != 0)))
+            .filter_map(|(witness, flags)| {
+                (flags != 0 && request.after.map_or(true, |after| query_base + witness.0 as usize > after))
+                    .then_some((witness, flags & 1 != 0))
+            })
             .collect();
         let accepted = !retained.is_empty();
         let clean = retained.iter().any(|(_, clean)| *clean);
@@ -3830,9 +3856,15 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         frame: &Frame,
         tokens: &'t [Tok],
         base: usize,
+        after: &[Span],
     ) -> Result<Out, Halt<'t>> {
         self.shared.prepare_errors(tokens, base);
         let (start, match_end, _) = self.checked_bounds(span, frame, tokens.len())?;
+        let mut ending_after = None;
+        for end in after {
+            let high = base + self.checked_bounds(end, frame, tokens.len())?.1;
+            ending_after = Some(ending_after.map_or(high, |previous: usize| previous.max(high)));
+        }
         let mut anchor = span;
         while let Span::From(inner) = anchor {
             anchor = inner;
@@ -3850,13 +3882,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             None
         };
         let end = if aligned.is_some() { tokens.len() } else { match_end };
-        if matches!(
-            query,
-            Query::Ends
-                | Query::Contains
-                | Query::ForestTags(crate::query_forms::Mode::Suffix | crate::query_forms::Mode::Part, _)
-                | Query::ErrorFree(crate::query_forms::Mode::Suffix | crate::query_forms::Mode::Part)
-        ) {
+        if matches!(query.mode(), crate::query_forms::Mode::Suffix | crate::query_forms::Mode::Part) {
             let place = (rule, base + start, base + end);
             let mut request = Request {
                 tokens,
@@ -3868,13 +3894,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 begins: false,
                 suffix: None,
                 aligned: None,
-                contains: matches!(
-                    query,
-                    Query::Contains
-                        | Query::ForestTags(crate::query_forms::Mode::Part, _)
-                        | Query::ErrorFree(crate::query_forms::Mode::Part)
-                ),
-                filtered: matches!(query, Query::ForestTags(_, true)),
+                contains: query.mode() == crate::query_forms::Mode::Part,
+                filtered: query.filtered(),
+                after: ending_after,
             };
             if self.shared.running.contains(&place) {
                 return Err(Halt::Error(self.start_query(&request).expect_err("an active recursive query")));
@@ -3896,7 +3918,12 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     }
                     .copied()
                     .unwrap_or(0);
-                    return Ok(query.out((holds.0, tags, holds.1), &self.shared.tags));
+                    let answer = if request.after.is_some_and(|after| base + end <= after) {
+                        (false, 0, false)
+                    } else {
+                        (holds.0, tags, holds.1)
+                    };
+                    return Ok(query.out(answer, &self.shared.tags));
                 }
             }
             request.suffix = Some(id);
@@ -3924,23 +3951,16 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     .as_ref()
                     .unwrap()
                     .normalized(a.observation),
-                filtered: matches!(query, Query::ErrorFree(_) | Query::ForestTags(_, true)),
+                filtered: query.filtered(),
             },
-            None => self.nested_key(
-                tokens,
-                base,
-                start,
-                end,
-                rule,
-                matches!(query, Query::ErrorFree(_) | Query::ForestTags(_, true)),
-            ),
+            None => self.nested_key(tokens, base, start, end, rule, query.filtered()),
         };
-        let begins = matches!(
-            query,
-            Query::Begins
-                | Query::ErrorFree(crate::query_forms::Mode::Prefix)
-                | Query::ForestTags(crate::query_forms::Mode::Prefix, _)
-        );
+        let key = if let Some(after) = ending_after.filter(|&after| after >= base + start) {
+            NestedKey::Ending { key: Box::new(key), after: after - (base + start) }
+        } else {
+            key
+        };
+        let begins = query.mode() == crate::query_forms::Mode::Prefix;
         let place = (rule, base + start, base + end);
         if self.shared.running.contains(&place) {
             let request = Request {
@@ -3954,7 +3974,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 suffix: None,
                 aligned,
                 contains: false,
-                filtered: matches!(query, Query::ForestTags(_, true)),
+                filtered: query.filtered(),
+                after: ending_after,
             };
             return Err(Halt::Error(self.start_query(&request).expect_err("an active recursive query")));
         }
@@ -3979,7 +4000,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     suffix: None,
                     aligned,
                     contains: false,
-                    filtered: matches!(query, Query::ForestTags(_, true)),
+                    filtered: query.filtered(),
+                    after: ending_after,
                 };
                 if aligned.is_some() && self.shared.suffix_active == 0 {
                     if let Some(qualified) = self.shared.qualified.remove(&request.qualification_key()) {
@@ -4163,18 +4185,24 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                             eval.push(Task::Implies(consequent), Task::Cond(antecedent));
                             continue;
                         }
-                        LCond::ErrorFree(span, rule, mode) => {
-                            self.query(eval, span, *rule, Query::ErrorFree(*mode), frame, tokens, base)?
-                        }
+                        LCond::Forest(forest) => self.query(
+                            eval,
+                            &forest.span,
+                            forest.rule,
+                            Query::Forest(forest.mode, forest.clean, false),
+                            frame,
+                            tokens,
+                            base,
+                            &forest.after,
+                        )?,
                         LCond::Matches(span, rule) => {
-                            self.query(eval, span, *rule, Query::Matches, frame, tokens, base)?
+                            self.query(eval, span, *rule, Query::Matches, frame, tokens, base, &[])?
                         }
                         LCond::Begins(span, rule) => {
-                            self.query(eval, span, *rule, Query::Begins, frame, tokens, base)?
+                            self.query(eval, span, *rule, Query::Begins, frame, tokens, base, &[])?
                         }
-                        LCond::Ends(span, rule) => self.query(eval, span, *rule, Query::Ends, frame, tokens, base)?,
-                        LCond::Contains(span, rule) => {
-                            self.query(eval, span, *rule, Query::Contains, frame, tokens, base)?
+                        LCond::Ends(span, rule) => {
+                            self.query(eval, span, *rule, Query::Ends, frame, tokens, base, &[])?
                         }
                         // Where the input of the parse that reads the
                         // condition begins (§10). Positions count from the
@@ -4267,20 +4295,21 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                             (start, end, Whose::Tokens) => Value::Set(self.token_tags(tokens, start, end)),
                         },
                         LTerm::TagsRule(span, rule) => {
-                            match self.query(eval, span, *rule, Query::TagsRule, frame, tokens, base)? {
+                            match self.query(eval, span, *rule, Query::TagsRule, frame, tokens, base, &[])? {
                                 Out::Value(value) => value,
                                 _ => unreachable!("a set of tags"),
                             }
                         }
-                        LTerm::ForestTags(span, rule, mode, filtered) => {
+                        LTerm::ForestTags(forest) => {
                             match self.query(
                                 eval,
-                                span,
-                                *rule,
-                                Query::ForestTags(*mode, *filtered),
+                                &forest.span,
+                                forest.rule,
+                                Query::Forest(forest.mode, forest.clean, true),
                                 frame,
                                 tokens,
                                 base,
+                                &forest.after,
                             )? {
                                 Out::Value(value) => value,
                                 _ => unreachable!("a set of tags"),

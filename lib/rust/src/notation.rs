@@ -1924,6 +1924,10 @@ impl<'a> Reader<'a> {
             match (method, arguments) {
                 (MethodKind::Parse, [Arg::Term(Term::Body(_))]) => span,
                 (MethodKind::ErrorFree, []) => self.feature_context.get() || matches!(ty, Type::Forest | Type::Any),
+                (MethodKind::EndingAfter, [Arg::Term(end)]) => {
+                    (self.feature_context.get() || matches!(ty, Type::Forest | Type::Any))
+                        && matches!(crate::dom::term_type(end), Ok(Type::Span | Type::Any))
+                }
                 (MethodKind::Span, []) => span,
                 (MethodKind::Tags, []) => span || matches!(ty, Type::Forest | Type::Any),
                 (MethodKind::Restored, []) if name == "without-elision" => bare,
@@ -1997,7 +2001,7 @@ impl<'a> Reader<'a> {
             name,
             "starts-input" | "ends-input" | "followed-by" | "preceded-by" | "matches" | "begins" | "ends"
         );
-        let forest = matches!(name, "parse" | "error-free");
+        let forest = matches!(name, "parse" | "error-free" | "ending-after");
         let value = if forest {
             let term = Term::Call(name.into(), args);
             if last && frame.condition {
@@ -3076,6 +3080,7 @@ const ATOMS: &[&str] = &[
 enum MethodKind {
     Parse,
     ErrorFree,
+    EndingAfter,
     Span,
     Restored,
     Recipe,
@@ -3092,6 +3097,7 @@ fn known_method(name: &str) -> Option<MethodKind> {
     Some(match name {
         "parse" => MethodKind::Parse,
         "error-free" => MethodKind::ErrorFree,
+        "ending-after" => MethodKind::EndingAfter,
         "value"
         | "image"
         | "source-text"

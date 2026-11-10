@@ -2550,6 +2550,10 @@ fn check_term(grammar: &StageGrammar, term: &Term, compared: &mut bool) -> Resul
                 check_term(grammar, &Term::Body(body.clone()), compared)
             }
             ("error-free", [Arg::Term(receiver)]) => check_term(grammar, receiver, compared),
+            ("ending-after", [Arg::Term(receiver), Arg::Term(end)]) => {
+                check_term(grammar, receiver, compared)?;
+                check_term(grammar, end, compared)
+            }
             ("value" | "image", [Arg::Term(Term::Call(method, args))]) if method == "emitted" => {
                 if let [Arg::Term(Term::Capture(_))] = &args[..] {
                     Ok(())

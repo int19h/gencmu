@@ -981,7 +981,7 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                     if matches!(name.as_str(), "tags" | "classes" | "split" | "ngrams" | "classify") {
                         return Err("a malformed query predicate".into());
                     }
-                    if matches!(name.as_str(), "parse" | "error-free") {
+                    if matches!(name.as_str(), "parse" | "error-free" | "ending-after") {
                         let args = std::iter::once(Arg::Term(receiver))
                             .chain(operands.map(|operand| Arg::Term(operand.term())))
                             .collect();
@@ -2020,7 +2020,7 @@ pub(crate) fn call_type(call: &str) -> Type {
     match call {
         "value" | "source-text" | "decomposed-source-text" | "image" | "verbatim-text" | "concat" => Type::String,
         "split" | "ngrams" => Type::Strings,
-        "parse" | "error-free" => Type::Forest,
+        "parse" | "error-free" | "ending-after" => Type::Forest,
         "tags" | "classes" | "classify" | "requirements" | "forbid" => Type::Tags,
         _ => Type::Span,
     }
@@ -2184,6 +2184,8 @@ pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type
                         "requirements" | "forbid" => Type::Tags,
                         "parse" if index == 1 => Type::Body,
                         "error-free" => Type::Forest,
+                        "ending-after" if index == 0 => Type::Forest,
+                        "ending-after" => Type::Span,
                         _ if index == 0 => Type::Span,
                         _ => continue,
                     };

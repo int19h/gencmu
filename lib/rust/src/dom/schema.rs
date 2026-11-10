@@ -98,7 +98,8 @@ fn span(value: &Json) -> bool {
 }
 
 fn forest(value: &Json) -> bool {
-    source::leaf(value) || matches!(value.get("method").and_then(Json::as_str), Some("parse" | "error-free"))
+    source::leaf(value)
+        || matches!(value.get("method").and_then(Json::as_str), Some("parse" | "error-free" | "ending-after"))
 }
 
 fn body_json_problem(body: &Json) -> Option<&'static str> {
@@ -921,6 +922,7 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                                         .is_some_and(|first| first.get("remainder").is_some()))
                         }
                         ("error-free", []) => forest(receiver),
+                        ("ending-after", [arg]) => forest(receiver) && span(arg),
                         ("without-elision", []) => capture,
                         ("without-elision-except", [arg]) => capture && rule_arg(arg),
                         ("verbatim-text", []) => matches!(kind, Part::RecipeAtom) && capture,
@@ -1017,7 +1019,10 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                     pending.push((Part::Term, value.get("left").unwrap(), next));
                     pending.push((Part::Term, value.get("right").unwrap(), next));
                 } else if exact(value, &["method", "receiver", "args"], &[]) {
-                    if matches!(value.get("method").and_then(Json::as_str), Some("parse" | "error-free")) {
+                    if matches!(
+                        value.get("method").and_then(Json::as_str),
+                        Some("parse" | "error-free" | "ending-after")
+                    ) {
                         pending.push((Part::Term, value, depth));
                         continue;
                     }

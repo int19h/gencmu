@@ -19,16 +19,18 @@ impl Node<'_> {
             Self::Query(value, _, _) => (3, value as *const _ as usize),
         }
     }
+    fn forest(forest: &crate::lower::LForest) -> Vec<Node<'_>> {
+        let mut children = vec![Node::Query(&forest.span, forest.rule, forest.clean)];
+        children.extend(forest.after.iter().map(Node::Span));
+        children
+    }
     fn children(self) -> Vec<Self> {
         match self {
             Self::Condition(condition) => match condition {
-                LCond::Matches(span, rule)
-                | LCond::Begins(span, rule)
-                | LCond::Ends(span, rule)
-                | LCond::Contains(span, rule) => {
+                LCond::Matches(span, rule) | LCond::Begins(span, rule) | LCond::Ends(span, rule) => {
                     vec![Self::Query(span, *rule, false)]
                 }
-                LCond::ErrorFree(span, rule, _) => vec![Self::Query(span, *rule, true)],
+                LCond::Forest(forest) => Self::forest(forest),
                 LCond::Tree(span, ..) | LCond::Initial(span) | LCond::Final(span) | LCond::Boundary(_, span, ..) => {
                     vec![Self::Span(span)]
                 }
@@ -40,7 +42,7 @@ impl Node<'_> {
             },
             Self::Term(term) => match term {
                 LTerm::TagsRule(span, rule) => vec![Self::Query(span, *rule, false)],
-                LTerm::ForestTags(span, rule, _, filtered) => vec![Self::Query(span, *rule, *filtered)],
+                LTerm::ForestTags(forest) => Self::forest(forest),
                 LTerm::Value(span)
                 | LTerm::Image(span)
                 | LTerm::Text(span)
