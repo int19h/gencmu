@@ -25,6 +25,8 @@ type defaultUse struct {
 }
 
 type stageGrammar struct {
+	localTargets        map[*domExpr]string
+	hasElements         bool
 	checks              []stageCheck
 	erasureChecks       []erasurePatternCheck
 	erasurePatterns     []erasurePatternUse

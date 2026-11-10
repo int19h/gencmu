@@ -185,6 +185,14 @@ func (em *stringEmitter) strings(root *occurrence, channel int, recipe *domTerm)
 		a, b, _ := em.span(part)
 		s := spanVal{a: a, b: b}
 		switch atom.Str {
+		case "terminal":
+			terminal := ""
+			if part.d.kind == dRead {
+				terminal = em.rec.g.terminals[part.d.term]
+			} else if part.d.prod.helper && len(part.kids) == 0 {
+				terminal = part.d.prod.elided
+			}
+			result = literalParts(terminal)
 		case "value":
 			result = literalParts(em.run.spanValue(s))
 		case "image":

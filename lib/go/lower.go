@@ -21,6 +21,8 @@ type slotMetadata struct {
 }
 
 type production struct {
+	siteExpressions   []*domExpr
+	elements          []*checkElement
 	error, warning    *domTerm
 	suppressWarnings  []string
 	spliceTarget      *int32
@@ -161,6 +163,7 @@ type lowered struct {
 }
 
 type slot struct {
+	site            *domExpr
 	captureTerminal bool
 	elementMark     int
 	elementExpr     *domExpr
@@ -350,6 +353,16 @@ func lower(g *stageGrammar, features map[string]bool) *lowered {
 					walkClause(clausePart{t: it.Tags}, scanQuery)
 				}
 			}
+		}
+	}
+	for _, entry := range g.checks {
+		for _, condition := range entry.definition.Conditions {
+			walkClause(clausePart{c: condition}, scanQuery)
+		}
+	}
+	for _, target := range g.localTargets {
+		if len(target) > 7 && target[:7] == "\x00query:" {
+			terminals[target[7:]] = true
 		}
 	}
 	names := make([]string, 0, len(terminals))
@@ -702,13 +715,23 @@ func appendSlots(out, xs []slot) []slot {
 }
 
 func (lw *lowerer) newProduction(lhs int32, body []slot) *production {
+	var elements []*checkElement
+	if lw.g.hasElements {
+		elements = checkElements(body)
+	}
 	groups := elementGroupsOf(body)
 	physical, count, inherit := elementBody(body)
 	body = physical
-	p := &production{elementGroups: groups, num: len(lw.l.prods), lhs: lhs, slotOf: map[string]int32{}, elementCount: count, inheritIndex: inherit}
+	p := &production{elements: elements, elementGroups: groups, num: len(lw.l.prods), lhs: lhs, slotOf: map[string]int32{}, elementCount: count, inheritIndex: inherit}
 	p.capName = make([]string, len(body))
 	p.capSlot = make([]int32, len(body))
+	if len(lw.g.localTargets) > 0 {
+		p.siteExpressions = make([]*domExpr, len(body))
+	}
 	for i, s := range body {
+		if len(p.siteExpressions) > 0 {
+			p.siteExpressions[i] = s.site
+		}
 		p.rhs = append(p.rhs, s.sym)
 		p.capSlot[i] = -1
 		if s.capture != "" {
@@ -991,6 +1014,15 @@ func (lw *lowerer) expand(e *domExpr, a *sAlt, ruleName string) [][]slot {
 	lw.currentExpr = e
 	x := lw.expandPlace(e, a, ruleName)
 	lw.currentExpr = outer
+	if len(lw.g.localTargets) > 0 && e.Kind != exSeq && e.Kind != exChoice && e.Kind != exAnd && e.Kind != exCapture && e.Kind != exEmpty && e.Kind != exRemainder && !(e.Kind == exOptional && !e.Elidable && holdsCapture(e.Inner, false)) {
+		for i, row := range x {
+			if len(row) == 1 && row[0].elementMark == 0 {
+				row = append([]slot(nil), row...)
+				row[0].site = e
+				x[i] = row
+			}
+		}
+	}
 	lw.memo[e] = x
 	return x
 }

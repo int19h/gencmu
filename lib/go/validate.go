@@ -2032,6 +2032,9 @@ func comparisonProblem(op string, left, right termType) string {
 // a tag set is needed, or "". A set of open kind takes the kind it is
 // given, and a constant of unknown type fits.
 func expectedProblem(t, expected termType) string {
+	if t == tyNode {
+		t = tySpan
+	}
 	if t == expected || t == tySpan && expected == tyString || t == tyAny || (t == tySet && expected == tyTags) {
 		return ""
 	}

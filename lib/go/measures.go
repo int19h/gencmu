@@ -21,7 +21,11 @@ func (a diagnosticMeasure) cmp(b diagnosticMeasure) int {
 }
 
 // Identity and fixed charge remain private when a public diagnostic moves.
-type diagnosticIdentity struct{ stageOrder, ordinal int }
+type diagnosticIdentity struct {
+	stageOrder, ordinal int
+	check               string
+	occurrence          int
+}
 type diagnosticRecord struct {
 	measure  diagnosticMeasure
 	identity *diagnosticIdentity

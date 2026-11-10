@@ -50,6 +50,8 @@ type value struct {
 // evaluator is what an evaluation reads: the stage run, the grammar, and
 // the captures of the item or the constituent that it evaluates.
 type evaluator struct {
+	check                           *checkTree
+	checkNode                       *checkNode
 	stageInput                      bool // conditional features read the whole stage input (§13)
 	hasBoundaryValue, boundaryValue bool
 	boundary                        func(*domCond) bool
@@ -201,6 +203,7 @@ func (w *walk) endTerm(v value) {
 func (w *walk) endSet(set *tagset) { w.endTerm(value{kind: vSet, set: set}) }
 
 type invalidRestoration struct{}
+type absentCheckValue struct{}
 
 // resume goes on with the walk until it ends, or halts for the nested parse
 // that it returns. Each step works on the frame on top: it enters a child,
@@ -209,7 +212,9 @@ type invalidRestoration struct{}
 func (w *walk) resume() (query *nestedQuery) {
 	defer func() {
 		if failure := recover(); failure != nil {
-			if _, invalid := failure.(invalidRestoration); !invalid {
+			_, invalid := failure.(invalidRestoration)
+			_, absent := failure.(absentCheckValue)
+			if !invalid && !absent {
 				panic(failure)
 			}
 			w.frames = w.frames[:0]
@@ -252,12 +257,22 @@ func (w *walk) span(ev *evaluator, t *domTerm) spanVal {
 		w.chain = append(w.chain, t)
 		t = t.Items[0]
 	}
-	if t.Kind != tmCapture {
-		panic(&parseFailure{message: "not a span: " + t.Kind})
-	}
-	s, ok := ev.capture(t.Str)
-	if !ok {
-		s = spanVal{}
+	var s spanVal
+	if ev.check != nil {
+		value := ev.check.value(ev.checkNode, t)
+		if value == nil {
+			panic(absentCheckValue{})
+		}
+		s = value.span
+	} else {
+		if t.Kind != tmCapture {
+			panic(&parseFailure{message: "not a span: " + t.Kind})
+		}
+		var ok bool
+		s, ok = ev.capture(t.Str)
+		if !ok {
+			s = spanVal{}
+		}
 	}
 	for i := len(w.chain) - 1; i >= 0; i-- {
 		call := w.chain[i]
@@ -335,6 +350,10 @@ func (w *walk) fillLazy(s spanVal) bool {
 func (w *walk) termStep(f *frame) *nestedQuery {
 	ev, t := f.ev, f.t
 	in := ev.in()
+	if ev.check != nil && checkNodeTerm(t) {
+		w.endTerm(value{kind: vString, s: ev.run.spanValue(w.span(ev, t))})
+		return nil
+	}
 	switch t.Kind {
 	case tmConcat:
 		if f.at == 0 {
@@ -558,10 +577,13 @@ func (w *walk) termStep(f *frame) *nestedQuery {
 func (w *walk) condStep(f *frame) *nestedQuery {
 	ev, c := f.ev, f.c
 	switch c.Kind {
+	case cdPresent:
+		w.endCond(ev.check.node(ev.checkNode, c.Span) != nil)
+		return nil
 	case cdCompare:
 		if c.Op == "≅" || c.Op == "≇" {
 			s := w.span(ev, c.Left)
-			if c.Right.Kind == tmCapture {
+			if c.Right.Kind == tmCapture || ev.check != nil && checkNodeTerm(c.Right) {
 				right := w.span(ev, c.Right)
 				leftIdentity, rightIdentity := s.tree, right.tree
 				if s.treeReader != nil {
@@ -691,6 +713,10 @@ func (w *walk) condStep(f *frame) *nestedQuery {
 		w.endCond(!w.b)
 		return nil
 	case cdCaptured:
+		if ev.check != nil {
+			w.endCond(true)
+			return nil
+		}
 		if ev.stageInput && c.Capture == "" {
 			w.endCond(true)
 			return nil
@@ -789,10 +815,17 @@ func (w *walk) forestRequest(ev *evaluator, term *domTerm) *forestRequest {
 		}
 		query = query.Items[0]
 	}
-	body := query.Items[1].Body
-	_, request.mode, _ = queryBody(body)
-	request.rule = ev.g.stage.queryTargets[body]
-	request.span = w.span(ev, query.Items[0])
+	if query.Str == "local-readings" {
+		local := ev.check.local(ev.checkNode, query.Items[0])
+		request.mode, request.rule, request.span = cdBegins, local.target, local.span
+		request.span.tags, request.span.whole, request.span.lazy = nil, false, nil
+		request.span.b = ev.run.inputEnd
+	} else {
+		body := query.Items[1].Body
+		_, request.mode, _ = queryBody(body)
+		request.rule = ev.g.stage.queryTargets[body]
+		request.span = w.span(ev, query.Items[0])
+	}
 	for i := len(endpoints) - 1; i >= 0; i-- {
 		end := w.span(ev, endpoints[i]).b
 		if len(request.after) == 0 {
