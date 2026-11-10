@@ -1498,6 +1498,7 @@ class Production:
     private_names: set = field(default_factory=set,repr=False,compare=False)
     ranked_bindings: tuple = field(default=(),repr=False,compare=False)
     parent_tags: Any = field(default=None,repr=False,compare=False)
+    chart_sites: tuple = field(default=(), repr=False, compare=False)
 
     @property
     def real_id(self):
@@ -1569,6 +1570,7 @@ class Lowered:
     element_expressions: dict = field(default_factory=dict)
     helper_expressions: dict = field(default_factory=dict)
     local_targets: dict = field(default_factory=dict)
+    chart_rules: dict = field(default_factory=dict)
     # Whether some production is contextual, so that the recognizer keeps a
     # table of frames (engine §4); lowering and the ranked preparation set it.
     contextual: bool = False
@@ -2268,6 +2270,8 @@ def lower(grammar: Grammar, features: frozenset[str]) -> Lowered:
     lowered = _Lowerer(grammar, features).lower()
     lowered.classifiers = classifiers
     lowered.implications = grammar.implications
+    from ._chart_readings import prepare
+    prepare(lowered)
     return lowered
 
 

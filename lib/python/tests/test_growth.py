@@ -59,7 +59,12 @@ class Growth(unittest.TestCase):
                 watches = [made_items()]
                 if case.get("walks"):
                     from gencmu._checks import ChosenChecks
-                    watches.append(steps(ChosenChecks.preceding, "parent = self.flow.info(child).parent"))
+                    from gencmu._eligible import eligibility
+                    watches.extend([
+                        steps(ChosenChecks.preceding, "parent = self.flow.info(child).parent"),
+                        steps(eligibility, '_testing.count("walkSteps")'),
+                        steps(StageContext.chart_reading, '_testing.count("walkSteps")'),
+                    ])
 
                 def items(n: int, budget: int | None = None) -> int:
                     text = case["text"].replace("{links}", " ".join([case["link"]] * n))

@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from ._chart_readings import site as chart_site
 from ._clause_walk import clause_children
 from ._earley import Evaluator
 from ._patterns import PatternMachine
@@ -194,8 +195,11 @@ class ChosenChecks:
             child = parent
 
     def local_reading(self, term):
+        site = None
         if term.get("method") == "preceding-element":
             start, _, (parent, element) = self.preceding(self.require(term["receiver"]))
+            if element[0] == "symbol":
+                site = chart_site(self.context.lowered, parent.production, element[1])
             expression = (self.site(parent, element[1]) if element[0] == "symbol"
                           else self.context.lowered.element_expressions[element[4]])
         else:
@@ -203,13 +207,17 @@ class ChosenChecks:
             part = node.derivation
             start = part.start
             parent = self.flow.info(part).parent
+            if parent is not None:
+                site = chart_site(self.context.lowered, parent.production, parent.children.index(part))
+            else:
+                site = chart_site(self.context.lowered, rule=part.production.lhs)
             if node.kind == "elided":
                 expression = self.context.lowered.helper_expressions[part.production.lhs]
             elif parent is None:
                 expression = {"ref": part.production.rule_name}
             else:
                 expression = self.site(parent, parent.children.index(part))
-        return start, local_target(self.context.lowered, expression)
+        return start, local_target(self.context.lowered, expression), site
 
     def boundary_test(self, atom):
         start, end, _ = self.check_value(atom["receiver"])

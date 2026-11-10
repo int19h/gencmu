@@ -287,6 +287,7 @@ class Forest:
     candidate_factory: Any = None
     entry_for: Any = None
     skipped_cache: dict = field(default_factory=dict)
+    query_eligibility: Any = None
 
 
 @dataclass
@@ -432,6 +433,8 @@ class StageContext:
     # How many aligned queries are active now.
     aligned_active: int = 0
     suffix_active: int = 0
+    stage_chart: Any = None
+    stage_completions: Any = None
 
     def __post_init__(self) -> None:
         self.token_tags = [self.tagtab.intern(token.tags) for token in self.tokens]
@@ -812,6 +815,39 @@ class StageContext:
             ),
         )
 
+    def chart_reading(self, start, site, error_free):
+        forest = self.stage_chart
+        if forest is None or self.observed is not None or site is None:
+            return None
+        symbol, terminal, test, qualified, settles_entry = site
+        if not qualified or start == forest.base and settles_entry:
+            return None
+        rows = []
+        if terminal:
+            if start < len(self.tokens):
+                token = self.tokens[start]
+                reads = self.carries(symbol, start) if symbol in self.lowered.characters else symbol in token.tags
+                if (reads and (not error_free or not token.errors)
+                        and (test is None or self.test_holds(test, start, start + 1, self.token_tags[start]))):
+                    rows.append((1, token.tags))
+        else:
+            if self.stage_completions is None:
+                self.stage_completions = {}
+                for item, prod in enumerate(forest.prod):
+                    _testing.count("walkSteps")
+                    production = self.lowered.productions[prod]
+                    if forest.dot[item] == len(production.rhs) and item in forest.tag:
+                        self.stage_completions.setdefault((production.lhs, forest.origin[item]), []).append(item)
+            witnesses = boundary_witnesses(forest, self.stage_completions.get((symbol, start), []))
+            from ._eligible import chart_eligible
+            for item in chart_eligible(forest, witnesses, error_free):
+                if test is None or self.test_holds(test, start, forest.end[item], forest.tag[item]):
+                    rows.append((forest.end[item] - start, self.tagtab.get(forest.tag[item])))
+        gathered = Gathered()
+        for _, tags in rows:
+            gathered.add(tags)
+        return NestedAnswer(bool(rows), gathered.value(), tuple(rows))
+
     def settle(self, number: int, begins: bool, forest: Forest, error_free: bool = False, witness_ends: bool = False) -> NestedAnswer | bool:
         """Compute the current query answer without retaining it."""
         if not begins:
@@ -929,18 +965,21 @@ class Evaluator:
             dom = dom["receiver"]
         clean = any(term["method"] == "error-free" for term in filters)
         ends = any(term["method"] == "ending-after" for term in filters)
+        answer = None
         if dom["method"] == "local-readings":
-            start, rule = bound.local_reading(dom["receiver"])
+            start, rule, site = bound.local_reading(dom["receiver"])
+            answer = self.context.chart_reading(start, site, clean)
             span, mode = (start, len(self.context.tokens), None), "begins"
         else:
             span = yield self._span(dom["receiver"], bound)
             body = dom["args"][0]["body"]
             rule, mode = body_target(self.context.lowered, body), query_body(body)[1]
-        if isinstance(span, RestoredSpan):
-            answer = yield self.context.aligned(rule, span, mode == "begins", clean, ends)
-        else:
-            start, end, _ = span
-            answer = yield self.context.forest_answer(rule, start, end, mode, clean, ends)
+        if answer is None:
+            if isinstance(span, RestoredSpan):
+                answer = yield self.context.aligned(rule, span, mode == "begins", clean, ends)
+            else:
+                start, end, _ = span
+                answer = yield self.context.forest_answer(rule, start, end, mode, clean, ends)
         if not ends:
             return answer
         start, _, _ = span

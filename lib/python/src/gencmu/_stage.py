@@ -673,6 +673,7 @@ class StageRunner:
         context.lines = self.lines
         start = lowered.rule_ids["text"]
         forest = Parser(context).parse(start)
+        context.stage_chart = forest
         ranking = rank(forest, lowered.steps, lowered.lean)
         if ranking is None:
             if forest.roots:
