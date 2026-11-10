@@ -490,15 +490,6 @@ func (w *walk) termStep(f *frame) *nestedQuery {
 					return nil
 				}
 			}
-			if len(t.Items) == 2 {
-				// The same parse, and the same answer, as .matches.
-				_, tags, q := ev.run.nested(ev.g, cdMatches, t.Items[1].Str, f.s, false)
-				if q != nil {
-					return q
-				}
-				w.endSet(tags)
-				return nil
-			}
 			w.endSet(ev.spanTags(f.s))
 			return nil
 		case "classify":

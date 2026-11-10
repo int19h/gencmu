@@ -152,7 +152,7 @@ func templateCanonical(n templateObject, uni *unicodeTable) string {
 	if n["method"] != nil {
 		name := templateText(n["method"])
 		sep := ", "
-		if name == "matches" || name == "begins" || name == "ends" || name == "followed-by" || name == "preceded-by" {
+		if name == "followed-by" || name == "preceded-by" {
 			sep = " | "
 		}
 		args := ""

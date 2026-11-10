@@ -144,9 +144,6 @@ fn targets(root: Part<'_>, cache: &mut FxMap<(u8, usize), Arc<Targets>>) -> Arc<
         let mut found = Vec::new();
         let mut filter = false;
         match part {
-            Part::Cond(Cond::Matches(_, targets) | Cond::Begins(_, targets) | Cond::Ends(_, targets)) => {
-                found.extend(targets.iter().cloned())
-            }
             Part::Term(Term::Call(method, args)) => {
                 filter = method == "error-free";
                 if method == "tags" {
@@ -360,7 +357,8 @@ mod tests {
                 let grammar = if family == "query annotations" {
                     let alternatives = (0..n).map(|i| format!("$c{i}:A :: T{i}")).collect::<Vec<_>>().join(" | ");
                     let conditions = (0..n).map(|i| format!("$c{i}.parse(r0)")).collect::<Vec<_>>().join(", ");
-                    let mut grammar = format!("%rule text :: $.parse(r0).tags | {alternatives}\n%conditions {conditions}");
+                    let mut grammar =
+                        format!("%rule text :: $.parse(r0).tags | {alternatives}\n%conditions {conditions}");
                     for i in 0..n {
                         grammar.push_str(&format!(
                             "\n%rule r{i} {}",

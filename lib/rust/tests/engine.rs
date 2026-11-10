@@ -433,11 +433,12 @@ fn a_chain_beside_an_alternative_comes_before_an_empty_item() {
 #[test]
 fn written_terminators_keep_logical_optional_boundaries() {
     for optional in ["[c]", "[$c:c]", "[[$c:c]]", "[($c:c ≻ c)]", "[$c:c D]"] {
-        for method in ["matches", "begins"] {
+        for method in ["whole", "prefix"] {
             for view in ["", ".without-elision", ".without-elision.onward"] {
                 let suffix = if optional == "[$c:c D]" { "D D T" } else { "D T" };
+                let query = if method == "prefix" { ".parse(r …)" } else { ".parse(r)" };
                 let grammar = format!(
-                    "%rule text $r:r\n%conditions $r{view}.{method}(r)\n%rule r B {optional} [+T] {suffix}\n%rule c D"
+                    "%rule text $r:r\n%conditions $r{view}{query}\n%rule r B {optional} [+T] {suffix}\n%rule c D"
                 );
                 let tokens = if optional == "[$c:c D]" { "B D D T" } else { "B D T" };
                 let token_json = tokens
@@ -641,11 +642,13 @@ fn skipped_source_cases_have_stage_equivalents() {
 #[test]
 fn nested_optional_priority_survives_alignment() {
     for view in [".without-elision", ".without-elision.onward"] {
-        for method in ["matches", "begins", "tags"] {
+        for method in ["whole", "prefix", "tags"] {
             let (clause, expect) = if method == "tags" {
                 (format!(" :: $r{view}.parse(r).tags"), r#"{"result":{"ok":true,"tree":{"tags":[]}}}"#)
+            } else if method == "prefix" {
+                (format!("\n%conditions $r{view}.parse(r …)"), r#"{"error":"rejected"}"#)
             } else {
-                (format!("\n%conditions $r{view}.{method}(r)"), r#"{"error":"rejected"}"#)
+                (format!("\n%conditions $r{view}.parse(r)"), r#"{"error":"rejected"}"#)
             };
             let grammar = format!("%rule text $r:input{clause}\n%rule input B D T Z\n%rule r :: Queried | B [[($c:c ≻ c)] [+T] D T] Z\n%rule c D");
             let tokens = ["B", "D", "T", "Z"]
@@ -688,9 +691,14 @@ fn empty_optionals_do_not_make_recursion_initial() {
 #[test]
 fn inserted_tags_keep_restored_query_observations() {
     for view in [".without-elision", ".without-elision.onward"] {
-        for method in ["matches", "begins", "tags"] {
-            let condition =
-                if method == "tags" { format!("Seen ⊆ $r{view}.parse(r).tags") } else { format!("$r{view}.{method}(r)") };
+        for method in ["whole", "prefix", "tags"] {
+            let condition = if method == "tags" {
+                format!("Seen ⊆ $r{view}.parse(r).tags")
+            } else if method == "prefix" {
+                format!("$r{view}.parse(r …)")
+            } else {
+                format!("$r{view}.parse(r)")
+            };
             let grammar = format!("%rule text $r:r\n%emits ε :: ({condition} ⟹ X) := \"v\"\n%rule r :: Seen | B [+T]");
             let case = format!(
                 r#"{{"grammar":{},"tokens":[{{"text":"b","tags":["B"]}}],"expect":{{"result":{{"ok":true,"stages":[{{"output":[{{"tags":["X"],"value":"v","insertedBy":"text"}}]}}]}}}}}}"#,

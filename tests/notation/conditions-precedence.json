@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%rule a ($x:A $y:B) %conditions (P ⊆ $x.tags ∨ (Q ⊆ $y.tags ∧ R ⊆ $x.tags))\n%rule b ($x:A $y:B) %conditions ((P ⊆ $x.tags ∨ Q ⊆ $y.tags) ∧ ¬((R ⊆ $x.tags ∧ $y.parse(a))))\n%rule c $x:A %conditions (P ⊆ $x.tags ⟹ (Q ⊆ $x.tags ⟹ R ⊆ $x.tags))\n```\n",
   "expect": {
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [
         {
           "name": "a",

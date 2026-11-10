@@ -66,7 +66,7 @@ def _unknown_constants(name: str) -> TermType:
 
 _SPAN_METHODS = {"first-token", "tokens-after-first", "last-token", "onward", "following-tokens", "preceding-tokens"}
 _STRING_METHODS = {"value", "image", "source-text", "decomposed-source-text", "verbatim-text"}
-_PREDICATES = {"matches", "begins", "ends", "starts-input", "ends-input", "parse", "error-free", "followed-by", "preceded-by"}
+_PREDICATES = {"starts-input", "ends-input", "parse", "error-free", "followed-by", "preceded-by"}
 _SPAN_SHAPES = _SPAN_METHODS | {"without-elision", "without-elision-except"}
 _METHODS = _SPAN_SHAPES | _STRING_METHODS | _PREDICATES | {"tags", "classes", "split", "ngrams", "classify", "emitted"}
 
@@ -77,8 +77,6 @@ def method_shape_problem(name: Any, receiver: Any, args: Any, recipe: bool = Fal
         return "unknown method name"
     if not isinstance(receiver, dict) or not isinstance(args, list):
         return "a malformed method"
-    if name == "ends" and _restored_shape(receiver):
-        return "ends requires an ordinary span, not a restored span"
     from ._template_nodes import has_unresolved
     bare = set(receiver) == {"capture"} and isinstance(receiver["capture"], str) or bool({"param", "call"} & receiver.keys())
     receiver_method = receiver.get("method")
@@ -109,9 +107,7 @@ def method_shape_problem(name: Any, receiver: Any, args: Any, recipe: bool = Fal
     elif name == "classify":
         valid = len(args) == 1 and named(args[0], "classifier")
     elif name == "tags":
-        valid = (span and (not args or len(args) == 1 and rule(args[0]))) or receiver_method in ("parse", "error-free") and not args
-    elif name in ("matches", "begins", "ends"):
-        valid = span and bool(args) and all(rule(arg) or named(arg, "terminal") for arg in args)
+        valid = (span or receiver_method in ("parse", "error-free")) and not args
     elif name in ("followed-by", "preceded-by"):
         valid = bare and bool(args) and all(rule(arg) or named(arg, "terminal") for arg in args)
     elif name == "without-elision-except":
@@ -129,8 +125,6 @@ def method_shape_problem(name: Any, receiver: Any, args: Any, recipe: bool = Fal
 
 def method_type(name: str, receiver: TermType, args: list[Any], bare: bool = False, recipe: bool = False) -> Found:
     """Select a method on its actual receiver before string conversion."""
-    if name == "ends" and receiver == "restored":
-        return None, "ends requires an ordinary span, not a restored span"
     spans = {"capture", "span", "restored"}
     if name == "parse":
         valid = receiver in spans and len(args) == 1 and isinstance(args[0], dict) and "body" in args[0]
@@ -157,13 +151,10 @@ def method_type(name: str, receiver: TermType, args: list[Any], bare: bool = Fal
         arity = 0
     elif name in ("tags", "classes"):
         valid, result, arity = receiver in spans or name == "tags" and receiver == "forest", "tags", None if name == "tags" else 0
-        if name == "tags" and (len(args) > 1 or args and set(args[0]) != {"rule"}):
+        if name == "tags" and args:
             valid = False
     elif name in ("followed-by", "preceded-by"):
         valid = bare and bool(args) and all(set(arg) == {"rule"} or set(arg) == {"terminal"} and isinstance(arg["terminal"], str) and arg["terminal"][:1].isupper() and not arg["terminal"].startswith("_") for arg in args)
-        result, arity = "predicate", None
-    elif name in ("matches", "begins", "ends"):
-        valid = receiver in spans and bool(args) and all(set(arg) == {"rule"} or set(arg) == {"terminal"} and isinstance(arg["terminal"], str) and arg["terminal"][:1].isupper() and not arg["terminal"].startswith("_") for arg in args)
         result, arity = "predicate", None
     elif name in ("starts-input", "ends-input"):
         valid, result, arity = receiver in spans, "predicate", 0
@@ -386,7 +377,7 @@ def _term_typing_once(term: Any, constants: ConstantTypes, memo: Memo) -> Walk:
             return None, fault
         recipe = name in ("verbatim-text", "emitted") or kind == "emitted"
         selection_kind = "capture" if kind == "any" and has_unresolved(term["receiver"]) else kind
-        nominal = name in ("tags", "matches", "begins", "ends", "followed-by", "preceded-by", "without-elision-except")
+        nominal = name in ("tags", "followed-by", "preceded-by", "without-elision-except")
         args = [{"rule": "unresolved"} if nominal and ("param" in arg or "call" in arg) else arg for arg in term["args"]]
         bare = set(term["receiver"]) == {"capture"} or bool({"param", "call"} & term["receiver"].keys())
         result, problem = method_type(name, selection_kind, args, bare, recipe)

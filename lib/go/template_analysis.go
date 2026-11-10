@@ -198,7 +198,7 @@ func partialSourceRule(rule *domRule) *domRule {
 
 func partialQuery(name string) bool {
 	switch name {
-	case "matches", "begins", "ends", "starts-input", "ends-input", "followed-by", "preceded-by":
+	case "starts-input", "ends-input", "followed-by", "preceded-by":
 		return true
 	}
 	return false

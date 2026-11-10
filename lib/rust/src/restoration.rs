@@ -611,10 +611,8 @@ mod tests {
                     rules += &format!("\n%rule r{i} r{} r{}", i - 1, i - 1);
                 }
                 if witness {
-                    rules = rules.replace(
-                        "$x.without-elision.parse(empty)",
-                        &format!("¬$x.without-elision.parse(r{depth})"),
-                    );
+                    rules = rules
+                        .replace("$x.without-elision.parse(empty)", &format!("¬$x.without-elision.parse(r{depth})"));
                 }
                 let source = format!("```jbogenbau\n%stage main\n{rules}\n```\n");
                 let pipeline = crate::load_pipeline_sources([("p.md", source.as_str())], "p.md").unwrap();

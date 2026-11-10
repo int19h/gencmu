@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%rule a $x:B %conditions $x.without-elision.onward.onward.parse(r …)\n```\n",
   "expect": {
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [
         {
           "name": "a",

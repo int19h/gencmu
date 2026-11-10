@@ -296,8 +296,12 @@ def validate_targets(rules, stage):
                 if isinstance(part, list):
                     pending.extend(part)
                 else:
-                    if part.get('method') in ('matches', 'begins', 'ends', 'tags'):
-                        queries.extend(arg.get('rule', arg.get('terminal')) for arg in part.get('args', []) if 'terminal' in arg or 'rule' in arg)
+                    if part.get('method') == 'parse':
+                        # The references and terminals of a parse body
+                        # are query roots, as a shorthand target was
+                        # (engine §9.3).
+                        from ._query_forms import query_references
+                        queries.extend(query_references(part['args'][0]['body']))
                     pending.extend(part.values())
     reached, terminals, pending = set(), set(), ['text', *queries]
     while pending:

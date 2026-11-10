@@ -26,7 +26,8 @@ fn source_dom_decodes_into_native_nodes() {
         let expected = j(&dom::dom_to_json(&decoded));
         decoded.unresolved = false;
         assert_eq!(j(&dom::dom_to_json(&decoded)), expected, "{source}");
-    })
+    }
+}
 fn located(s: &str) -> Dom {
     crate::loader::read_grammar_dom(&format!("```jbogenbau\n{s}\n```\n"), "").unwrap()
 }
@@ -233,15 +234,15 @@ fn uncalled_source_validation() {
         ("%rule unused(@X) [+| @X]", "without | or &"),
         (
             "%rule unused(@X) @X %conditions $.without-elision.parse(… text)",
-            "ends requires an ordinary span, not a restored span",
+            "suffix parse requires an ordinary span, not a restored span",
         ),
         (
             "%rule unused(@X) @X %conditions $.without-elision.onward.parse(… @X)",
-            "ends requires an ordinary span, not a restored span",
+            "suffix parse requires an ordinary span, not a restored span",
         ),
         (
             "%rule unused(@X) @X %conditions $.starts-input ∧ $.without-elision-except(text).onward.parse(… text)",
-            "ends requires an ordinary span, not a restored span",
+            "suffix parse requires an ordinary span, not a restored span",
         ),
     ] {
         let error =

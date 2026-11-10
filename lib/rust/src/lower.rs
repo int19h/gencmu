@@ -1161,23 +1161,6 @@ impl<'a> Scope<'a> {
                 };
                 LCond::Cmp(op, self.term(left)?, self.term(right)?)
             }
-            Cond::Matches(span, targets) | Cond::Begins(span, targets) | Cond::Ends(span, targets) => {
-                let mut choices = Vec::new();
-                for rule in targets {
-                    choices.push(if matches!(cond, Cond::Matches(..)) {
-                        LCond::Matches(self.span(span)?, self.query_target(rule)?)
-                    } else if matches!(cond, Cond::Ends(..)) {
-                        LCond::Ends(self.span(span)?, self.query_target(rule)?)
-                    } else {
-                        LCond::Begins(self.span(span)?, self.query_target(rule)?)
-                    })
-                }
-                if choices.len() == 1 {
-                    choices.pop().unwrap()
-                } else {
-                    LCond::Any(choices)
-                }
-            }
             Cond::Initial(span) => LCond::Initial(self.span(span)?),
             Cond::Final(span) => LCond::Final(self.span(span)?),
             Cond::Boundary(forward, span, targets, _) => {
@@ -2589,9 +2572,6 @@ fn query_terminals(grammar: &StageGrammar) -> BTreeSet<String> {
         match p {
             Part::C(c) => match c {
                 Cond::Forest(term) => stack.push(Part::T(term)),
-                Cond::Matches(_, targets) | Cond::Begins(_, targets) | Cond::Ends(_, targets) => {
-                    result.extend(targets.iter().filter(|s| is_terminal_name(s)).cloned())
-                }
                 Cond::Compare(_, a, b, _) => stack.extend([Part::T(a), Part::T(b)]),
                 Cond::Not(c) => stack.push(Part::C(c)),
                 Cond::Any(cs) | Cond::All(cs) => stack.extend(cs.iter().map(Part::C)),

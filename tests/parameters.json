@@ -570,14 +570,6 @@
     }
   },
   {
-    "name": "body choice as query target",
-    "grammar": "%rule use(@X) $x:_ %conditions $x.parse(@X)\n%rule text use((a | b))\n%rule a \"a\"\n%rule b \"b\"",
-    "input": "",
-    "expect": {
-      "error": "grammar"
-    }
-  },
-  {
     "name": "growing self cycle uncalled",
     "grammar": "%rule use(@X) use((@X \"b\"))\n%rule text \"a\"",
     "input": "",
@@ -1036,19 +1028,6 @@
         ]
       }
     ]
-  },
-  {
-    "name": "tags rejects a target choice argument",
-    "grammar": "%rule atom(@X) @X\n%rule use(@X) $a:A :: $a.parse(@X).tags\n%rule text use(a | b)\n%rule a A\n%rule b B",
-    "input": "",
-    "expect": {
-      "error": "grammar",
-      "where": {
-        "document": "main.md",
-        "line": 4,
-        "column": 31
-      }
-    }
   },
   {
     "name": "without-elision-except rejects a target choice argument",
@@ -1874,22 +1853,8 @@
     }
   },
   {
-    "name": "uncalled template: matches requires targets",
-    "grammar": "%rule unused(@X) @X %conditions @X.parse(\"a\")\n%rule text \"a\"",
-    "expect": {
-      "error": "grammar"
-    }
-  },
-  {
     "name": "called template: matches requires targets",
     "grammar": "%rule unused(@X) @X %conditions @X.parse(\"a\")\n%rule text unused(\"a\")",
-    "expect": {
-      "error": "grammar"
-    }
-  },
-  {
-    "name": "replaced template: matches requires targets",
-    "grammar": "%rule unused(@X) @X %conditions @X.parse(\"a\")\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
     "expect": {
       "error": "grammar"
     }

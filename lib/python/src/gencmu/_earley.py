@@ -999,11 +999,6 @@ class Evaluator:
                 start, end, _ = span
                 return (yield self.context.forest_answer(rule, start, end, mode, error_free)).tags
             span = yield self._span(receiver, bound)
-            if name == "tags" and args:
-                if isinstance(span, RestoredSpan):
-                    return (yield self.context.aligned(args[0]["rule"], span, False)).tags
-                start, end, _ = span
-                return (yield self.context.nested(args[0]["rule"], start, end)).tags
             if name == "value":
                 return self.input_value(span[0], span[1])
             if name == "image":
@@ -1097,20 +1092,7 @@ class Evaluator:
                 return span[1] == self.end
             if name == "starts-input":
                 return span[0] == self.base
-            if len(dom["args"]) > 1:
-                for arg in dom["args"]:
-                    if (yield self.walk_condition({**dom, "args": [arg]}, bound)):
-                        return True
-                return False
-            arg = dom["args"][0]
-            rule = arg.get("rule", "\0query:" + arg.get("terminal", ""))
-            if isinstance(span, RestoredSpan):
-                return (yield self.context.aligned(rule, span, name == "begins")).accepted
-            start, end, _ = span
-            if name == "ends":
-                state = yield self.context.ends(rule, start, end)
-                return state.answers.get(end, False)
-            return (yield self.context.begins(rule, start, end)) if name == "begins" else (yield self.context.nested(rule, start, end)).accepted
+            raise _GrammarFault("a method outlived lowering as a condition")
         if "not" in dom:
             return not (yield self.walk_condition(dom["not"], bound))
         if "if" in dom:

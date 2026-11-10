@@ -1512,8 +1512,8 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		}
 	case tmCall:
 		// The reader's signatures (engine §9), with a span where one is due;
-		// Span methods stand only where a span is allowed, and
-		// matches, begins and starts-input never as terms.
+		// Span methods stand only where a span is allowed, and the query
+		// methods never as terms.
 		args := t.Items
 		isRule := func(a *domTerm) bool { return a != nil && (unresolvedTerm(a) || a.Kind == tmRule && c.ruleName(a.Str)) }
 		isClassifier := func(a *domTerm) bool {
@@ -1548,7 +1548,7 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		case "value", "image", "source-text", "decomposed-source-text", "classes", "first-token", "tokens-after-first", "last-token", "onward", "following-tokens", "preceding-tokens":
 			ok = len(args) == 1 && (isSpanShape(args[0]) || (t.Str == "value" || t.Str == "image") && args[0] != nil && args[0].Kind == tmCall && args[0].Str == "emitted")
 		case "tags":
-			ok = (len(args) == 1 && (isSpanShape(args[0]) || forestTerm(args[0]) || unresolvedTerm(args[0]))) || (len(args) == 2 && isSpanShape(args[0]) && isRule(args[1]))
+			ok = len(args) == 1 && (isSpanShape(args[0]) || forestTerm(args[0]) || unresolvedTerm(args[0]))
 		case "ngrams":
 			ok = len(args) == 2 && valueOperand(args[0]) && args[1] != nil && args[1].Kind == tmInteger && validInteger(args[1].Str)
 		case "split":

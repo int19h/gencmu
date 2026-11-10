@@ -1928,15 +1928,6 @@ impl<'a> Reader<'a> {
                 (MethodKind::Tags, []) => span || matches!(ty, Type::Forest | Type::Any),
                 (MethodKind::Restored, []) if name == "without-elision" => bare,
                 (MethodKind::Recipe, []) => bare,
-                (MethodKind::Tags, [Arg::Rule(_) | Arg::Term(Term::Source(_))]) => span,
-                (MethodKind::Query, args) => {
-                    span && (name != "ends" || !crate::dom::restored_span(&receiver))
-                        && !args.is_empty()
-                        && args.iter().all(|a| {
-                            matches!(a, Arg::Rule(_) | Arg::Term(Term::Source(_)))
-                                || matches!(a,Arg::Term(Term::Tag(n)) if is_capital(n))
-                        })
-                }
                 (MethodKind::Ngrams, [Arg::Integer(n)]) => string && crate::dom::valid_integer(n),
                 (MethodKind::Restored, [Arg::Rule(_) | Arg::Term(Term::Source(_))])
                     if name == "without-elision-except" =>
@@ -1993,10 +1984,7 @@ impl<'a> Reader<'a> {
             return Err(self.error(frame.node, problem));
         }
         let last = frame.index + 1 == selectors.len();
-        let query = matches!(
-            name,
-            "starts-input" | "ends-input" | "followed-by" | "preceded-by" | "matches" | "begins" | "ends"
-        );
+        let query = matches!(name, "starts-input" | "ends-input" | "followed-by" | "preceded-by");
         let forest = matches!(name, "parse" | "error-free");
         let value = if forest {
             let term = Term::Call(name.into(), args);
@@ -2043,21 +2031,7 @@ impl<'a> Reader<'a> {
                     }
                     .into(),
                 ),
-                _ => {
-                    let targets = args
-                        .map(|a| match &a {
-                            Arg::Rule(n) | Arg::Term(Term::Tag(n)) => n.clone(),
-                            _ => unreachable!(),
-                        })
-                        .collect();
-                    if name == "matches" {
-                        Cond::Matches(receiver, targets)
-                    } else if name == "ends" {
-                        Cond::Ends(receiver, targets)
-                    } else {
-                        Cond::Begins(receiver, targets)
-                    }
-                }
+                _ => unreachable!(),
             })
         } else {
             if last && frame.condition {
@@ -3076,7 +3050,6 @@ enum MethodKind {
     Recipe,
     Tags,
     Boundary,
-    Query,
     Ngrams,
     Split,
     Classify,
@@ -3104,7 +3077,6 @@ fn known_method(name: &str) -> Option<MethodKind> {
         "verbatim-text" | "emitted" => MethodKind::Recipe,
         "tags" => MethodKind::Tags,
         "followed-by" | "preceded-by" => MethodKind::Boundary,
-        "matches" | "begins" | "ends" => MethodKind::Query,
         "ngrams" => MethodKind::Ngrams,
         "split" => MethodKind::Split,
         "classify" => MethodKind::Classify,
@@ -3176,13 +3148,7 @@ pub(crate) fn reads_own_tags(term: &Term) -> bool {
                 Cond::Not(inner) => stack.push(Part::Cond(inner)),
                 Cond::Any(items) | Cond::All(items) => stack.extend(items.iter().map(Part::Cond)),
                 Cond::If(antecedent, consequent) => stack.extend([Part::Cond(antecedent), Part::Cond(consequent)]),
-                Cond::Matches(..)
-                | Cond::Begins(..)
-                | Cond::Ends(..)
-                | Cond::Initial(_)
-                | Cond::Final(_)
-                | Cond::Boundary(_, _, _, _)
-                | Cond::Captured(_) => {}
+                Cond::Initial(_) | Cond::Final(_) | Cond::Boundary(_, _, _, _) | Cond::Captured(_) => {}
             },
             Part::Symbol(symbol) => {
                 if let SourceSymbol::Call(call) = symbol {

@@ -71,7 +71,7 @@ use crate::tags::is_name;
 use crate::unicode::Unicode;
 
 /// The DOM format version (`docs/output.md`), part of every cache key.
-pub const DOM_FORMAT: i64 = 47;
+pub const DOM_FORMAT: i64 = 48;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct Dom {
@@ -303,11 +303,6 @@ pub(crate) enum Cond {
     Truthy(Term),
     SourceQuery(String, Vec<Arg>, BoundaryLocation),
     Compare(String, Term, Term, Option<(usize, usize)>),
-    Matches(Term, Vec<String>),
-    /// `begins(s, R)`: whether a prefix of the span, possibly empty, parses
-    /// as `R`.
-    Begins(Term, Vec<String>),
-    Ends(Term, Vec<String>),
     /// `initial(s)`: whether the span begins where the parse's input does.
     Initial(Term),
     Final(Term),
@@ -981,19 +976,6 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                                 .collect::<R<Vec<_>>>()?,
                             BoundaryLocation::default().into(),
                         ),
-                        ("matches" | "begins" | "ends", args) => {
-                            let targets = args
-                                .iter()
-                                .map(|arg| string(arg, if arg.get("rule").is_some() { "rule" } else { "terminal" }))
-                                .collect::<R<Vec<_>>>()?;
-                            if name == "matches" {
-                                Cond::Matches(receiver, targets)
-                            } else if name == "ends" {
-                                Cond::Ends(receiver, targets)
-                            } else {
-                                Cond::Begins(receiver, targets)
-                            }
-                        }
                         _ => return Err("a malformed predicate method".into()),
                     }
                 }
@@ -1561,12 +1543,9 @@ fn constants_in<'t>(start: Nested<'t>, out: &mut Vec<(&'t str, (usize, usize))>,
                 Cond::Not(inner) => stack.push(Nested::Cond(inner)),
                 Cond::Any(items) | Cond::All(items) => stack.extend(items.iter().rev().map(Nested::Cond)),
                 Cond::If(antecedent, consequent) => stack.extend([Nested::Cond(consequent), Nested::Cond(antecedent)]),
-                Cond::Matches(span, _)
-                | Cond::Begins(span, _)
-                | Cond::Ends(span, _)
-                | Cond::Initial(span)
-                | Cond::Final(span)
-                | Cond::Boundary(_, span, _, _) => stack.push(Nested::Term(span)),
+                Cond::Initial(span) | Cond::Final(span) | Cond::Boundary(_, span, _, _) => {
+                    stack.push(Nested::Term(span))
+                }
                 Cond::Captured(_) => {}
             },
             Nested::Expr(expr) => match expr {
@@ -1775,12 +1754,9 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
                     stack.push((Nested::Cond(antecedent), below));
                     stack.push((Nested::Cond(consequent), below));
                 }
-                Cond::Matches(span, _)
-                | Cond::Begins(span, _)
-                | Cond::Ends(span, _)
-                | Cond::Initial(span)
-                | Cond::Final(span)
-                | Cond::Boundary(_, span, _, _) => stack.push((Nested::Term(span), below)),
+                Cond::Initial(span) | Cond::Final(span) | Cond::Boundary(_, span, _, _) => {
+                    stack.push((Nested::Term(span), below))
+                }
                 Cond::Compare(_, left, right, _) => {
                     stack.push((Nested::Term(left), below));
                     stack.push((Nested::Term(right), below));
@@ -2197,15 +2173,12 @@ pub(crate) fn cond_type_fault(cond: &Cond, constants: ConstantTypes) -> Option<F
                 comparison_problem(op, left_type, right_type).map(|problem| Fault::in_cond(problem, cond))
             }
         }
-        Cond::Matches(span, _)
-        | Cond::Begins(span, _)
-        | Cond::Ends(span, _)
-        | Cond::Initial(span)
-        | Cond::Final(span)
-        | Cond::Boundary(_, span, _, _) => match term_type_in(span, constants) {
-            Err(fault) => Some(fault),
-            Ok(ty) => expected_problem(ty, Type::Span).map(|problem| Fault::in_cond(problem, cond)),
-        },
+        Cond::Initial(span) | Cond::Final(span) | Cond::Boundary(_, span, _, _) => {
+            match term_type_in(span, constants) {
+                Err(fault) => Some(fault),
+                Ok(ty) => expected_problem(ty, Type::Span).map(|problem| Fault::in_cond(problem, cond)),
+            }
+        }
         Cond::Captured(_) => None,
     }
 }
@@ -2537,12 +2510,9 @@ impl Cond {
                 stack.push(Dropping::Term(std::mem::replace(left, Term::EmptySet)));
                 stack.push(Dropping::Term(std::mem::replace(right, Term::EmptySet)));
             }
-            Cond::Matches(span, _)
-            | Cond::Begins(span, _)
-            | Cond::Ends(span, _)
-            | Cond::Initial(span)
-            | Cond::Final(span)
-            | Cond::Boundary(_, span, _, _) => stack.push(Dropping::Term(std::mem::replace(span, Term::EmptySet))),
+            Cond::Initial(span) | Cond::Final(span) | Cond::Boundary(_, span, _, _) => {
+                stack.push(Dropping::Term(std::mem::replace(span, Term::EmptySet)))
+            }
             Cond::Not(inner) => {
                 stack.push(Dropping::Cond(std::mem::replace(&mut **inner, Cond::Captured(String::new()))))
             }

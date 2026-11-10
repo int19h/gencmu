@@ -187,12 +187,7 @@ fn capture_reads(start: ReadPart<'_>, out: &mut BTreeSet<String>) {
                     out.insert(name.clone());
                 }
                 Cond::Compare(_, a, b, _) => stack.extend([ReadPart::Term(a), ReadPart::Term(b)]),
-                Cond::Matches(t, _)
-                | Cond::Begins(t, _)
-                | Cond::Ends(t, _)
-                | Cond::Initial(t)
-                | Cond::Final(t)
-                | Cond::Boundary(_, t, _, _) => stack.push(ReadPart::Term(t)),
+                Cond::Initial(t) | Cond::Final(t) | Cond::Boundary(_, t, _, _) => stack.push(ReadPart::Term(t)),
                 Cond::Not(c) => stack.push(ReadPart::Condition(c)),
                 Cond::All(items) | Cond::Any(items) => stack.extend(items.iter().map(ReadPart::Condition)),
                 Cond::If(a, b) => stack.extend([ReadPart::Condition(a), ReadPart::Condition(b)]),

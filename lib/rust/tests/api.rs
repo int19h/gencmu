@@ -1440,7 +1440,12 @@ fn stitching_stages_and_reference_order() {
             true,
             false,
         ),
-        ("%rule text A :: $.parse(norule).tags ∪ $.value.classify(nolex)", "norule is not a rule of stage main", true, false),
+        (
+            "%rule text A :: $.parse(norule).tags ∪ $.value.classify(nolex)",
+            "norule is not a rule of stage main",
+            true,
+            false,
+        ),
         (
             "%const $A $MISSING\n%rule text A",
             "$MISSING is not defined in stage main; dependency $A → $MISSING",
