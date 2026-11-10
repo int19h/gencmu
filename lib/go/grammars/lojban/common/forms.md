@@ -172,9 +172,10 @@ The words stage needs to know where a run begins and ends. A name that `bu` take
 %conditions
   ¬$w.onward.begins(split-first-y)
 %emits
-  $ :: Run-Initial ∪
-       $w.tags ∪
-       (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
+  $
+      :: Run-Initial ∪
+         $w.tags ∪
+         (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
 %rule later-word
   ordinary-later-word | split-later-y
@@ -184,8 +185,9 @@ The words stage needs to know where a run begins and ends. A name that `bu` take
 %conditions
   ¬$w.onward.begins(split-later-y)
 %emits
-  $ :: $w.tags ∪
-       (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
+  $
+      :: $w.tags ∪
+         (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
 %rule split-first-y
   $p:y-prefix $y:y-atom :: $.tags(source-word)
@@ -194,9 +196,10 @@ The words stage needs to know where a run begins and ends. A name that `bu` take
   $.following-tokens.begins(bu-form-ahead)
 %emits
   $p :: Run-Initial ∪ $.tags(source-word),
-  $y :: Spacing ∪
-        $.tags(source-word) ∪
-        (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
+  $y
+      :: Spacing ∪
+         $.tags(source-word) ∪
+         (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
 %rule split-later-y
   $p:y-prefix $y:y-atom :: $.tags(source-word)
@@ -205,9 +208,10 @@ The words stage needs to know where a run begins and ends. A name that `bu` take
   $.following-tokens.begins(bu-form-ahead)
 %emits
   $p :: $.tags(source-word),
-  $y :: Spacing ∪
-        $.tags(source-word) ∪
-        (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
+  $y
+      :: Spacing ∪
+         $.tags(source-word) ∪
+         (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
 %rule y-prefix
   y-atom | y-prefix y-atom
@@ -248,9 +252,10 @@ A source word is a cmavo, a brivla, a name, or hesitation. The stage hands it on
 
 ```jbogenbau
 %rule source-word
-  | $c:cmavo-shape :: Word Cmavo ∪
-                      $c.tags ∪
-                      $c.value.classify(lexicon)
+  | $c:cmavo-shape
+      :: Word Cmavo ∪
+         $c.tags ∪
+         $c.value.classify(lexicon)
   | $b:brivla-shape :: Word BRIVLA ∪ $b.tags
   | $n:cmevla-shape :: Word CMEVLA ∪ $n.tags
   | $h:hesitation-shape :: Hesitation ∪ $h.tags

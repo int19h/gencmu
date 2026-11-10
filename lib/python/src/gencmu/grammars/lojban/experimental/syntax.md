@@ -564,8 +564,9 @@ No step names these terms. Their contained predicates use the `fewest` and `late
 -- term_2 <- term_3 (joik_ek stag? BO_clause term_3)*
 %rule term-bo-group
   | term-3
-  | $g:term-3 $l:term-bo-link :: ($g.tags ∩ Sumti-Start) ∪
-                                 ($l.tags ∩ $EXTENSIBLE-END)
+  | $g:term-3 $l:term-bo-link
+      :: ($g.tags ∩ Sumti-Start) ∪
+         ($l.tags ∩ $EXTENSIBLE-END)
 %conditions
   Bo-Extensible-End ⊈ $g.tags ∨ Sumti-Start ⊈ $l.tags
 

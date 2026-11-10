@@ -23,9 +23,10 @@ The words stage drops hesitation outside opaque bodies, except before BU. That e
 
 ```jbogenbau
 %redefine-rule source-word
-  | $c:cmavo-shape :: Word Cmavo ∪
-                      $c.tags ∪
-                      $c.value.classify(lexicon)
+  | $c:cmavo-shape
+      :: Word Cmavo ∪
+         $c.tags ∪
+         $c.value.classify(lexicon)
   | $y:cmavo-shape :: Hesitation Y Uncounted ∪ $y.tags
   | $b:brivla-shape :: Word BRIVLA ∪ $b.tags
   | $n:cmevla-shape :: Word CMEVLA ∪ $n.tags
@@ -70,13 +71,15 @@ The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The sp
 ```jbogenbau
 -- A name ends in a consonant, unlike a predicate word. It carries the template marks and its warning. The warning test inspects only this complete word.
 %redefine-rule cmevla-shape
-  $n:word-shape(cmevla) :: $n.tags ∪
-                           ($n.matches(cgv-form) ⟹ Cgv-Warning)
+  $n:word-shape(cmevla)
+      :: $n.tags ∪
+         ($n.matches(cgv-form) ⟹ Cgv-Warning)
 
 -- A predicate word ends in a vowel, unlike a name. It carries the template marks and its warning. The warning test inspects only this complete word.
 %redefine-rule brivla-shape
-  $b:word-shape(brivla-word) :: $b.tags ∪
-                                ($b.matches(cgv-form) ⟹ Cgv-Warning)
+  $b:word-shape(brivla-word)
+      :: $b.tags ∪
+         ($b.matches(cgv-form) ⟹ Cgv-Warning)
 
 -- This boolean span test requires a consonant, glide and nucleus. Several possible positions give the same truth value.
 %rule cgv-form

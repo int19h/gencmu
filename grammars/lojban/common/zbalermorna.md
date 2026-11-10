@@ -81,49 +81,67 @@ The `Vowel` tag marks the five full vowels and not `y`. So `zbalermorna-plain-fu
 ```jbogenbau
 %rule zbalermorna-plain-full-vowel :: Vowel
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN ABU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN ABU›"
-    | "‹ZBALERMORNA HUMBERT LETTER FULL ABU›" | "‹ZBALERMORNA UCSUR LETTER FULL ABU›") := "a"
+    | "‹ZBALERMORNA HUMBERT LETTER FULL ABU›" | "‹ZBALERMORNA UCSUR LETTER FULL ABU›")
+      := "a"
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN EBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN EBU›"
-    | "‹ZBALERMORNA HUMBERT LETTER FULL EBU›" | "‹ZBALERMORNA UCSUR LETTER FULL EBU›") := "e"
+    | "‹ZBALERMORNA HUMBERT LETTER FULL EBU›" | "‹ZBALERMORNA UCSUR LETTER FULL EBU›")
+      := "e"
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN IBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN IBU›"
     | "‹ZBALERMORNA HUMBERT LETTER FULL IBU›" | "‹ZBALERMORNA UCSUR LETTER FULL IBU›"
     | "‹ZBALERMORNA HUMBERT LETTER SEMIVOWEL IY›"
-    | "‹ZBALERMORNA UCSUR LETTER SEMIVOWEL IY›") := "i"
+    | "‹ZBALERMORNA UCSUR LETTER SEMIVOWEL IY›")
+      := "i"
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN OBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN OBU›"
-    | "‹ZBALERMORNA HUMBERT LETTER FULL OBU›" | "‹ZBALERMORNA UCSUR LETTER FULL OBU›") := "o"
+    | "‹ZBALERMORNA HUMBERT LETTER FULL OBU›" | "‹ZBALERMORNA UCSUR LETTER FULL OBU›")
+      := "o"
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN UBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN UBU›"
     | "‹ZBALERMORNA HUMBERT LETTER FULL UBU›" | "‹ZBALERMORNA UCSUR LETTER FULL UBU›"
     | "‹ZBALERMORNA HUMBERT LETTER SEMIVOWEL UY›"
-    | "‹ZBALERMORNA UCSUR LETTER SEMIVOWEL UY›") := "u"
+    | "‹ZBALERMORNA UCSUR LETTER SEMIVOWEL UY›")
+      := "u"
 
 %extend-rule plain-vowel :: ∅
   | zbalermorna-plain-full-vowel :: Vowel
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN YBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN YBU›"
-    | "‹ZBALERMORNA HUMBERT LETTER FULL YBU›" | "‹ZBALERMORNA UCSUR LETTER FULL YBU›") := "y"
+    | "‹ZBALERMORNA HUMBERT LETTER FULL YBU›" | "‹ZBALERMORNA UCSUR LETTER FULL YBU›")
+      := "y"
 %emits
   $
 
 %rule zbalermorna-stressed-full-vowel :: Vowel
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN ABU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN ABU›"
     | "‹ZBALERMORNA HUMBERT LETTER FULL ABU›"
-    | "‹ZBALERMORNA UCSUR LETTER FULL ABU›") zbalermorna-stress := "a" :- "A"
+    | "‹ZBALERMORNA UCSUR LETTER FULL ABU›") zbalermorna-stress
+      := "a"
+      :- "A"
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN EBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN EBU›"
     | "‹ZBALERMORNA HUMBERT LETTER FULL EBU›"
-    | "‹ZBALERMORNA UCSUR LETTER FULL EBU›") zbalermorna-stress := "e" :- "E"
+    | "‹ZBALERMORNA UCSUR LETTER FULL EBU›") zbalermorna-stress
+      := "e"
+      :- "E"
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN IBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN IBU›"
     | "‹ZBALERMORNA HUMBERT LETTER FULL IBU›"
-    | "‹ZBALERMORNA UCSUR LETTER FULL IBU›") zbalermorna-stress := "i" :- "I"
+    | "‹ZBALERMORNA UCSUR LETTER FULL IBU›") zbalermorna-stress
+      := "i"
+      :- "I"
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN OBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN OBU›"
     | "‹ZBALERMORNA HUMBERT LETTER FULL OBU›"
-    | "‹ZBALERMORNA UCSUR LETTER FULL OBU›") zbalermorna-stress := "o" :- "O"
+    | "‹ZBALERMORNA UCSUR LETTER FULL OBU›") zbalermorna-stress
+      := "o"
+      :- "O"
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN UBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN UBU›"
     | "‹ZBALERMORNA HUMBERT LETTER FULL UBU›"
-    | "‹ZBALERMORNA UCSUR LETTER FULL UBU›") zbalermorna-stress := "u" :- "U"
+    | "‹ZBALERMORNA UCSUR LETTER FULL UBU›") zbalermorna-stress
+      := "u"
+      :- "U"
 
 %extend-rule stressed-vowel :: Stressed
   | zbalermorna-stressed-full-vowel :: Vowel
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN YBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN YBU›"
     | "‹ZBALERMORNA HUMBERT LETTER FULL YBU›"
-    | "‹ZBALERMORNA UCSUR LETTER FULL YBU›") zbalermorna-stress := "y" :- "Y"
+    | "‹ZBALERMORNA UCSUR LETTER FULL YBU›") zbalermorna-stress
+      := "y"
+      :- "Y"
 %emits
   $
 
@@ -201,7 +219,9 @@ The `Vowel` tag marks the five full vowels and not `y`. So `zbalermorna-plain-fu
 
 %rule zbalermorna-marked-vowel
   zbalermorna-shorthand-mark $v:zbalermorna-shorthand-vowel
-      :: $v.tags := $v.emitted.value :- $v.emitted.image
+      :: $v.tags
+      := $v.emitted.value
+      :- $v.emitted.image
 
 %rule zbalermorna-shorthand-vowel
   plain-vowel | stressed-vowel
