@@ -152,7 +152,7 @@ func TestDeferredAuditCachesQueryReportTargets(t *testing.T) {
 			}
 			rules[index] = fmt.Sprintf("%%rule r%d %s", index, target)
 		}
-		grammar := "%rule text :: $.tags(r0) | " + strings.Join(alternatives, " | ") + "\n%conditions " + strings.Join(conditions, ", ") + "\n" + strings.Join(rules, "\n") + "\n%error \"fault\"\n%erased"
+		grammar := "%rule text :: $.parse(r0).tags | " + strings.Join(alternatives, " | ") + "\n%conditions " + strings.Join(conditions, ", ") + "\n" + strings.Join(rules, "\n") + "\n%error \"fault\"\n%erased"
 		pipeline := auditPipeline(t, grammar)
 		work := &workCounts{}
 		var notes []DiagnosticNote
@@ -174,7 +174,7 @@ func TestDeferredAuditCachesQueryReportTargets(t *testing.T) {
 
 func TestDeferredAuditKeepsAlternativeTargetsAndExtensionLocations(t *testing.T) {
 	// Engine §2: cached queries keep each definition's clauses and source position.
-	grammar := "%rule text :: $.tags(common) | A :: $.tags(first) | A :: $.tags(second)\n%conditions $.parse(target), $.parse(target).error-free\n%extend-rule text A :: $.tags(first)\n%conditions $.parse(other).error-free\n"
+	grammar := "%rule text :: $.parse(common).tags | A :: $.parse(first).tags | A :: $.parse(second).tags\n%conditions $.parse(target), $.parse(target).error-free\n%extend-rule text A :: $.parse(first).tags\n%conditions $.parse(other).error-free\n"
 	for _, name := range []string{"common", "first", "second", "target", "other"} {
 		grammar += "%rule " + name + " A\n%error \"fault\"\n%erased\n"
 	}

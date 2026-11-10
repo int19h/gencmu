@@ -1,6 +1,6 @@
 {
   "description": "A tag query never accepts an empty captured span inside a ranked choice.",
-  "grammar": "%rule text ($x:part ≻ fallback) ::∅ %conditions $x.begins(T)\n%rule part [A]\n%rule fallback ε",
+  "grammar": "%rule text ($x:part ≻ fallback) ::∅ %conditions $x.parse(T …)\n%rule part [A]\n%rule fallback ε",
   "tokens": [],
   "expect": {
     "result": {

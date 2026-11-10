@@ -46,7 +46,7 @@ fn parse_only_tag_has_a_helper() {
 #[test]
 fn old_and_new_queries_share_the_active_target() {
     // Engine §4.3: equivalent query spellings cannot escape recursive-query rejection.
-    let result = parse("%rule text A\n%conditions $.matches(a)\n%rule a A\n%conditions $.parse(a …)", &[("a", "A")]);
+    let result = parse("%rule text A\n%conditions $.parse(a)\n%rule a A\n%conditions $.parse(a …)", &[("a", "A")]);
     assert_eq!(result.error.unwrap().kind, gencmu::ParseErrorKind::Grammar);
 }
 

@@ -1,6 +1,6 @@
 {
   "description": "An extended tag query unions complete suffix witnesses and excludes shorter or misaligned readings (engine §4 and §10).",
-  "grammar": "%rule text ($x:candidate Y) %conditions $x.without-elision.onward.tags(rival) = (A ∪ B)\n\n%rule candidate (X [+T])\n%rule rival (X [+T] Y [+U]) :: A | (X [+T] Y [+V]) :: B | (X [+T]) :: Short | (X [+T] [+W] Y) :: Extra",
+  "grammar": "%rule text ($x:candidate Y) %conditions $x.without-elision.onward.parse(rival).tags = (A ∪ B)\n\n%rule candidate (X [+T])\n%rule rival (X [+T] Y [+U]) :: A | (X [+T] Y [+V]) :: B | (X [+T]) :: Short | (X [+T] [+W] Y) :: Extra",
   "tokens": [
     {
       "text": "x",

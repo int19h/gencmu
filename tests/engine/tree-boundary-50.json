@@ -1,6 +1,6 @@
 {
   "description": "The audit note of E.13 (engine §4.2 and §6, case 50).",
-  "grammar": "%rule text $x:a [Z]\n%conditions $x.matches(b)\n%rule a A\n%rule b A\n%conditions $.followed-by(Z)",
+  "grammar": "%rule text $x:a [Z]\n%conditions $x.parse(b)\n%rule a A\n%rule b A\n%conditions $.followed-by(Z)",
   "tokens": [
     {
       "text": "a",

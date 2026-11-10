@@ -311,7 +311,7 @@ func TestEligibleProperty(t *testing.T) {
 // A nested tags query over several tag sets searches eligibility once, over
 // the items of all of them (engine §4).
 func TestTagsQueryEligibleOnce(t *testing.T) {
-	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text :: $.tags(r) | A B\n%rule r A [+T] B :: X | A [+T] B :: Y | A [+T] B :: Z"))
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text :: $.parse(r).tags | A B\n%rule r A [+T] B :: X | A [+T] B :: Y | A [+T] B :: Z"))
 	toks := []Token{{Text: "a", Tags: []string{"A"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}}, {Text: "b", Tags: []string{"B"}, Span: [2]int{1, 2}, Source: [2]int{2, 3}}}
 	// A search for each tag set would pass this budget at the second.
 	w := countWork(t)
@@ -337,7 +337,7 @@ func TestSplitOptionalQueryFixedPrefix(t *testing.T) {
 	for _, prefix := range []string{"[A]", "[$a:A]"} {
 		for _, optional := range []string{"[y]", "[($c:y ≻ y)]"} {
 			for _, suffix := range []string{"", " [+U]"} {
-				for _, condition := range []string{"$all.matches(r)", "$all.begins(r)", "Queried ⊆ $all.tags(r)"} {
+				for _, condition := range []string{"$all.parse(r)", "$all.parse(r …)", "Queried ⊆ $all.parse(r).tags"} {
 					name := prefix + " " + optional + suffix + " " + condition
 					t.Run(name, func(t *testing.T) {
 						grammar := "%rule text $all:input\n%conditions " + condition +
@@ -370,7 +370,7 @@ func TestLogicalOptionalProofCorrelation(t *testing.T) {
 	for _, prefix := range []string{"[A]", "[$a:A]"} {
 		for _, optional := range []string{"[y $c:empty]", "[(y $c:empty)]", "[[y $c:empty]]", "[$c:empty y]", "[$c:y]"} {
 			for _, suffix := range []string{"", " [+U]"} {
-				for _, condition := range []string{"$all.matches(r)", "$all.begins(r)", "Queried ⊆ $all.tags(r)"} {
+				for _, condition := range []string{"$all.parse(r)", "$all.parse(r …)", "Queried ⊆ $all.parse(r).tags"} {
 					t.Run(prefix+" "+optional+suffix+" "+condition, func(t *testing.T) {
 						grammar := "%rule text $all:input\n%conditions " + condition +
 							"\n%rule input A B C T U\n%rule r :: Queried | " + prefix + " " + optional +

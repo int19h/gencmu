@@ -1,6 +1,6 @@
 {
   "description": "Uncalled templates inspect condition constants before emission constants.",
-  "grammar": "%ambiguity-resolution greedy\n%rule t(@X) \"a\"\n%rule bad(@Y) \"b\"\n%conditions $.matches(t($COND))\n%emits $ :: $.tags(t($EMIT))\n%rule text \"a\"",
+  "grammar": "%ambiguity-resolution greedy\n%rule t(@X) \"a\"\n%rule bad(@Y) \"b\"\n%conditions $.parse(t($COND))\n%emits $ :: $.parse(t($EMIT)).tags\n%rule text \"a\"",
   "input": "",
   "expect": {
     "error": "grammar",
@@ -8,7 +8,7 @@
     "where": {
       "document": "main.md",
       "line": 5,
-      "column": 25
+      "column": 23
     }
   }
 }

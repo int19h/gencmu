@@ -1,6 +1,6 @@
 {
   "description": "Repeated suffix targets are accepted. (Engine §4.4.)",
-  "grammar": "%rule text A\n%conditions $.ends(B | B | A | A)",
+  "grammar": "%rule text A\n%conditions ($.parse(… B) ∨ $.parse(… B) ∨ $.parse(… A) ∨ $.parse(… A))",
   "tokens": [
     {
       "text": "a",

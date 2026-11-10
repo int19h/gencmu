@@ -727,7 +727,7 @@ def child_position(key, position):
         return 'pattern'
     if key in ('alternatives', 'conditions', 'error', 'warning', 'emit', 'tags', 'value', 'image', 'default', 'requirements', 'range', 'literal', 'concat', 'union', 'intersection', 'difference', 'left', 'right', 'receiver', 'if', 'then', 'not', 'all', 'any', 'args'):
         return 'term'
-    if key in ('seq', 'choice', 'ranked', 'and', 'optional', 'repeat', 'separator', 'expr', 'splice') and position != 'pattern':
+    if key in ('seq', 'choice', 'ranked', 'and', 'optional', 'repeat', 'separator', 'expr', 'splice', 'body') and position != 'pattern':
         return 'expr'
     if key in ('pattern', 'child'):
         return 'pattern'

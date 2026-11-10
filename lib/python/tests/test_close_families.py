@@ -36,7 +36,7 @@ def sized_case(entry, size, family, witness=False):
         if family:
             head += "\n" + next(line for line in lines if line.startswith("%rule fam "))
         if witness:
-            head = head.replace(".matches(empty)", f".matches(r{size})")
+            head = head.replace(".parse(empty)", f".parse(r{size})")
             head = head.replace("%conditions $x", "%conditions ¬$x")
         case["grammar"] = head
     elif "input" in case:

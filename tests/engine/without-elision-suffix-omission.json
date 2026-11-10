@@ -1,6 +1,6 @@
 {
   "description": "Ordinary omission resumes after the query reads a suffix token (engine §4 and §10).",
-  "grammar": "%rule text ($x:candidate Y) %conditions $x.without-elision.onward.begins(rival)\n\n%rule candidate (X [+T])\n%rule rival (X [+T] Y [+U])",
+  "grammar": "%rule text ($x:candidate Y) %conditions $x.without-elision.onward.parse(rival …)\n\n%rule candidate (X [+T])\n%rule rival (X [+T] Y [+U])",
   "tokens": [
     {
       "text": "x",

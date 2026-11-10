@@ -1,6 +1,6 @@
 {
   "description": "Engine §4 accepts repeated rule and terminal targets without changing a query choice.",
-  "grammar": "%rule text $x:A %conditions $x.matches(r | r | A | A)\n%rule r B",
+  "grammar": "%rule text $x:A %conditions ($x.parse(r) ∨ $x.parse(r) ∨ $x.parse(A) ∨ $x.parse(A))\n%rule r B",
   "tokens": [
     {
       "text": "a",

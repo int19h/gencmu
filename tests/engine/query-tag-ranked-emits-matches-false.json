@@ -1,6 +1,6 @@
 {
   "description": "A false matches query contributes no tags in a ranked emission term.",
-  "grammar": "%rule text $p:A (B ≻ C) ::∅ %emits $p :: ($p.matches(P) ⟹ MARK)",
+  "grammar": "%rule text $p:A (B ≻ C) ::∅ %emits $p :: ($p.parse(P) ⟹ MARK)",
   "tokens": [
     {
       "text": "p",

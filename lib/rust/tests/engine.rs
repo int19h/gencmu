@@ -643,7 +643,7 @@ fn nested_optional_priority_survives_alignment() {
     for view in [".without-elision", ".without-elision.onward"] {
         for method in ["matches", "begins", "tags"] {
             let (clause, expect) = if method == "tags" {
-                (format!(" :: $r{view}.tags(r)"), r#"{"result":{"ok":true,"tree":{"tags":[]}}}"#)
+                (format!(" :: $r{view}.parse(r).tags"), r#"{"result":{"ok":true,"tree":{"tags":[]}}}"#)
             } else {
                 (format!("\n%conditions $r{view}.{method}(r)"), r#"{"error":"rejected"}"#)
             };
@@ -668,7 +668,7 @@ fn nested_optional_priority_survives_alignment() {
 fn empty_optionals_do_not_make_recursion_initial() {
     for optional in ["[A]", "[$a:A]", "[[$a:A]]", "[($a:A ≻ A)]"] {
         for view in ["", ".without-elision", ".without-elision.onward"] {
-            let grammar = format!("%rule text $x:input\n%conditions $x{view}.matches(r)\n%rule input B D T\n%rule r {optional} r [+T] D T | B | B D");
+            let grammar = format!("%rule text $x:input\n%conditions $x{view}.parse(r)\n%rule input B D T\n%rule r {optional} r [+T] D T | B | B D");
             let tokens = ["B", "D", "T"]
                 .iter()
                 .map(|t| format!(r#"{{"text":"{t}","tags":["{t}"]}}"#))
@@ -690,7 +690,7 @@ fn inserted_tags_keep_restored_query_observations() {
     for view in [".without-elision", ".without-elision.onward"] {
         for method in ["matches", "begins", "tags"] {
             let condition =
-                if method == "tags" { format!("Seen ⊆ $r{view}.tags(r)") } else { format!("$r{view}.{method}(r)") };
+                if method == "tags" { format!("Seen ⊆ $r{view}.parse(r).tags") } else { format!("$r{view}.{method}(r)") };
             let grammar = format!("%rule text $r:r\n%emits ε :: ({condition} ⟹ X) := \"v\"\n%rule r :: Seen | B [+T]");
             let case = format!(
                 r#"{{"grammar":{},"tokens":[{{"text":"b","tags":["B"]}}],"expect":{{"result":{{"ok":true,"stages":[{{"output":[{{"tags":["X"],"value":"v","insertedBy":"text"}}]}}]}}}}}}"#,
@@ -764,11 +764,11 @@ fn guarded_condition_terms_keep_their_boundary_atom() {
 #[test]
 fn invalid_restorations_are_local_to_the_boundary_assignment() {
     for (condition, expected) in [
-        ("¬($y.without-elision.matches(rival)) ∨ $.followed-by(B)", r#"{"result":{"ok":true}}"#),
-        ("$.followed-by(B) ∨ ¬($y.without-elision.matches(rival))", r#"{"result":{"ok":true}}"#),
-        ("¬$.followed-by(B) ∨ ¬($y.without-elision.matches(rival))", r#"{"error":"rejected"}"#),
+        ("¬($y.without-elision.parse(rival)) ∨ $.followed-by(B)", r#"{"result":{"ok":true}}"#),
+        ("$.followed-by(B) ∨ ¬($y.without-elision.parse(rival))", r#"{"result":{"ok":true}}"#),
+        ("¬$.followed-by(B) ∨ ¬($y.without-elision.parse(rival))", r#"{"error":"rejected"}"#),
     ] {
-        let grammar=format!("%ambiguity-resolution greedy\n%rule text $x:X B\n%conditions $x.tags(q) = ∅\n%rule q $y:r\n%conditions {condition}\n%rule r (r [+U]) :: Recursive | X :: ∅\n%rule rival X");
+        let grammar=format!("%ambiguity-resolution greedy\n%rule text $x:X B\n%conditions $x.parse(q).tags = ∅\n%rule q $y:r\n%conditions {condition}\n%rule r (r [+U]) :: Recursive | X :: ∅\n%rule rival X");
         let case = format!(
             r#"{{"grammar":{},"tokens":[{{"text":"x","tags":["X"]}},{{"text":"b","tags":["B"]}}],"expect":{expected}}}"#,
             common::Value::String(grammar).to_text()

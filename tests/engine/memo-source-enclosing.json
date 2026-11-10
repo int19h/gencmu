@@ -4,7 +4,7 @@
     "p.md": "## Letters\n\n```jbogenbau\n%stage letters\n```\n\n- [a](a.md)\n  ```jbogenbau\n  %include \"a.md\"\n  ```\n\n## Pairs\n\n```jbogenbau\n%stage pairs\n```\n\n- [b](b.md)\n  ```jbogenbau\n  %include \"b.md\"\n  ```\n\n## Triples\n\n```jbogenbau\n%stage triples\n```\n\n- [c](c.md)\n  ```jbogenbau\n  %include \"c.md\"\n  ```\n",
     "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {item}\n%rule item X | Y | Z %emits $\n```\n",
     "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {item}\n%rule item X | Y | Z %emits $\n```\n",
-    "c.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text ($x:triple $y:triple) %conditions $x.matches(probe), ¬($y.matches(probe))\n\n%rule triple (X Y Z)\n%rule probe (X $p:pair) %conditions $p.source-text = \"a\"\n\n%rule pair (Y Z)\n```\n"
+    "c.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text ($x:triple $y:triple) %conditions $x.parse(probe), ¬($y.parse(probe))\n\n%rule triple (X Y Z)\n%rule probe (X $p:pair) %conditions $p.source-text = \"a\"\n\n%rule pair (Y Z)\n```\n"
   },
   "pipelineDocument": "p.md",
   "input": "ab",

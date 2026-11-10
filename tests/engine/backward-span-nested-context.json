@@ -1,6 +1,6 @@
 {
   "description": "A backward span inside a query cannot cross that query start. (Engine §4.4.)",
-  "grammar": "%rule text A $x:pair\n%conditions $x.matches(check)\n%rule pair B C\n%rule check $b:B $c:C\n%conditions $b.preceding-tokens.value = \"\", $c.preceding-tokens.value = \"b\"",
+  "grammar": "%rule text A $x:pair\n%conditions $x.parse(check)\n%rule pair B C\n%rule check $b:B $c:C\n%conditions $b.preceding-tokens.value = \"\", $c.preceding-tokens.value = \"b\"",
   "tokens": [
     {
       "text": "a",

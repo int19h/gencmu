@@ -1,6 +1,6 @@
 {
   "description": "Engine §4: a query method in the guard of a guarded term stands as a set-operation operand.",
-  "grammar": "%rule text $x:word $y:word\n%conditions (($y.matches(word) ⟹ $x.tags) ∩ Word)\n%rule word A :: Word",
+  "grammar": "%rule text $x:word $y:word\n%conditions (($y.parse(word) ⟹ $x.tags) ∩ Word)\n%rule word A :: Word",
   "tokens": [
     {
       "text": "a",

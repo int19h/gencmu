@@ -1,6 +1,6 @@
 {
   "description": "An ordinary nested query receives original words without an inherited close constraint (engine §4 and §10).",
-  "grammar": "%rule text $x:candidate %conditions $x.without-elision.matches(rival)\n\n%rule candidate (X [+T])\n%rule rival $y:body %conditions $y.matches(raw), ¬($y.matches(bare))\n\n%rule body (X [+T])\n%rule raw (X [+U])\n%rule bare (X T)",
+  "grammar": "%rule text $x:candidate %conditions $x.without-elision.parse(rival)\n\n%rule candidate (X [+T])\n%rule rival $y:body %conditions $y.parse(raw), ¬($y.parse(bare))\n\n%rule body (X [+T])\n%rule raw (X [+U])\n%rule bare (X T)",
   "tokens": [
     {
       "text": "x",

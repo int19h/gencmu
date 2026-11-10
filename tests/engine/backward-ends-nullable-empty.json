@@ -1,6 +1,6 @@
 {
   "description": "A nullable target accepts an empty receiver. (Engine §4.4.)",
-  "grammar": "%rule text \u03b5\n%conditions $.ends(nothing)\n%rule nothing \u03b5",
+  "grammar": "%rule text ε\n%conditions $.parse(… nothing)\n%rule nothing ε",
   "tokens": [],
   "expect": {
     "result": {

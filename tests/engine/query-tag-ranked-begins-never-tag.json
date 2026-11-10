@@ -1,5 +1,5 @@
 {
-  "grammar": "%rule text ($x:A ≻ B) ::∅ %conditions $x.begins(NEVERZZ)",
+  "grammar": "%rule text ($x:A ≻ B) ::∅ %conditions $x.parse(NEVERZZ …)",
   "tokens": [
     {
       "text": "a",

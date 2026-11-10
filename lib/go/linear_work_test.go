@@ -550,7 +550,7 @@ func TestPredictionConditionsStopAtFirst(t *testing.T) {
 // with three conditions on its empty span. One asks a nested parse, which
 // halts the evaluation and resumes it where it halted.
 func TestPredictionConditionsLinear(t *testing.T) {
-	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text {A e}\n%rule e ε\n%conditions $.source-text = \"\", ¬$.matches(f), $.source-text = \"\"\n%rule f A"))
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text {A e}\n%rule e ε\n%conditions $.source-text = \"\", ¬$.parse(f), $.source-text = \"\"\n%rule f A"))
 	lg := d.lower(0, map[string]bool{})
 	if len(lg.rules[lg.byName["e"]].prods[0].predictConds) != 3 {
 		t.Fatal("e has not three conditions at prediction")

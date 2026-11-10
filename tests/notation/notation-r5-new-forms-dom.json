@@ -1,6 +1,6 @@
 {
   "description": "Engine §9 and output.md encode string runs as unions, target choices as argument arrays, and integer lengths as decimal text.",
-  "document": "```jbogenbau\n%const $S (\"ab\" \"bc\")\n%rule text $x:A %conditions $x.begins(B | A), $x.matches(A | r), $x.value.ngrams(2) ⊆ $S\n%rule r A\n```\n",
+  "document": "```jbogenbau\n%const $S (\"ab\" \"bc\")\n%rule text $x:A %conditions ($x.parse(B …) ∨ $x.parse(A …)), ($x.parse(A) ∨ $x.parse(r)), $x.value.ngrams(2) ⊆ $S\n%rule r A\n```\n",
   "cacheMisses": true,
   "expect": {
     "dom": {
@@ -22,30 +22,76 @@
           ],
           "conditions": [
             {
-              "method": "begins",
-              "receiver": {
-                "capture": "x"
-              },
-              "args": [
+              "any": [
                 {
-                  "terminal": "B"
+                  "method": "parse",
+                  "receiver": {
+                    "capture": "x"
+                  },
+                  "args": [
+                    {
+                      "body": {
+                        "seq": [
+                          {
+                            "ref": "B"
+                          },
+                          {
+                            "remainder": true
+                          }
+                        ]
+                      }
+                    }
+                  ]
                 },
                 {
-                  "terminal": "A"
+                  "method": "parse",
+                  "receiver": {
+                    "capture": "x"
+                  },
+                  "args": [
+                    {
+                      "body": {
+                        "seq": [
+                          {
+                            "ref": "A"
+                          },
+                          {
+                            "remainder": true
+                          }
+                        ]
+                      }
+                    }
+                  ]
                 }
               ]
             },
             {
-              "method": "matches",
-              "receiver": {
-                "capture": "x"
-              },
-              "args": [
+              "any": [
                 {
-                  "terminal": "A"
+                  "method": "parse",
+                  "receiver": {
+                    "capture": "x"
+                  },
+                  "args": [
+                    {
+                      "body": {
+                        "ref": "A"
+                      }
+                    }
+                  ]
                 },
                 {
-                  "rule": "r"
+                  "method": "parse",
+                  "receiver": {
+                    "capture": "x"
+                  },
+                  "args": [
+                    {
+                      "body": {
+                        "ref": "r"
+                      }
+                    }
+                  ]
                 }
               ]
             },
@@ -70,7 +116,7 @@
                 "const": "S",
                 "at": [
                   3,
-                  87
+                  112
                 ]
               }
             }

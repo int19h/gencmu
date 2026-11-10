@@ -1,14 +1,24 @@
 {
   "description": "A restored span accepts the completed enclosing capture. Engine §9 and §10.",
-  "document": "```jbogenbau\n%rule a B %conditions $.without-elision.matches(r)\n```\n",
+  "document": "```jbogenbau\n%rule a B %conditions $.without-elision.parse(r)\n```\n",
   "expect": {
     "dom": {
       "format": 47,
       "rules": [
         {
+          "name": "a",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "ref": "B"
+              }
+            }
+          ],
           "conditions": [
             {
-              "method": "matches",
+              "method": "parse",
               "receiver": {
                 "method": "without-elision",
                 "receiver": {
@@ -18,13 +28,23 @@
               },
               "args": [
                 {
-                  "rule": "r"
+                  "body": {
+                    "ref": "r"
+                  }
                 }
               ]
             }
+          ],
+          "at": [
+            2,
+            1
           ]
         }
-      ]
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
     }
   }
 }

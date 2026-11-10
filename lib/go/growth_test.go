@@ -431,12 +431,12 @@ func TestQueryDepth(t *testing.T) {
 // in recognition and in emission, with the stack of a goroutine held to
 // 1 MiB. Each nested parse asks another over a span one token shorter.
 func TestNestedChainDeep(t *testing.T) {
-	chain := "%rule c \"a\" %conditions ¬$.following-tokens.matches(c)"
+	chain := "%rule c \"a\" %conditions ¬$.following-tokens.parse(c)"
 	text := strings.Repeat("a", 20000)
 	defer debug.SetMaxStack(debug.SetMaxStack(1 << 20))
 	for _, grammar := range []string{
 		"%ambiguity-resolution greedy\n%rule text c {\"a\"}\n" + chain,
-		"%ambiguity-resolution greedy\n%rule text $x:s %emits $ :: T ∪ $x.tags(c)\n%rule s {\"a\"}\n" + chain,
+		"%ambiguity-resolution greedy\n%rule text $x:s %emits $ :: T ∪ $x.parse(c).tags\n%rule s {\"a\"}\n" + chain,
 	} {
 		d := mustLoad(t, oneStage(grammar))
 		res, err := d.Parse(text, ParseOptions{})

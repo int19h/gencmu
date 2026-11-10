@@ -476,7 +476,7 @@ Conditions, tag tests, and patterns only read tags, so `lit` does not apply to t
 | `a ∖ b` | `lit(a)` |
 | `A ⟹ t` | `lit(t)` |
 
-A forwarded term reads stored input or queried tags, such as `$c.tags` or `$.tags(r)`. Guards do not affect `lit`, and difference ignores its right operand. A tag clause with nonempty `lit` is a document error at the first engine-tag literal that `lit` keeps.
+A forwarded term reads stored input or queried tags, such as `$c.tags` or `$.parse(r).tags`. Guards do not affect `lit`, and difference ignores its right operand. A tag clause with nonempty `lit` is a document error at the first engine-tag literal that `lit` keeps.
 
 For error positions, each literal carries its source occurrence beside its tag name. Union keeps occurrences from both operands. Intersection keeps occurrences from both operands only for names present in both `lit` sets. Difference keeps only the left operand's occurrences, and a guard keeps only its result's occurrences. The first retained occurrence in written order determines the error.
 
@@ -794,7 +794,7 @@ Only two positions splice an argument's children into the surrounding list:
 %rule letter(@Char, @Forbidden)
   $c:@Char
 %conditions
-  ¬$c.following-tokens.begins(h | @Forbidden)
+  ¬($c.following-tokens.parse(h …) ∨ $c.following-tokens.parse(@Forbidden …))
 
 %rule filtered(@Char, @Excluded)
   @Char<¬Accent @Excluded>
@@ -1416,7 +1416,7 @@ The logical view contains `O[a:b]` with those records restored, followed by the 
 
 The match bound limits a completed witness. The context bound limits input visible to conditions and written-terminator priority. An ordinary query uses its span end for both bounds. A restored query keeps context `[a,N)` even when its match bound is `b`.
 
-`$x.without-elision.matches(R)` and `$x.without-elision.tags(R)` require a witness of R from `a` to `b`. The latter unions those witnesses' own tags. `$x.without-elision.begins(R)` permits any end `c` through `b`. `.onward` extends the match window through N without changing the restoration observation. Thus `$x.without-elision.onward.begins(R)` permits any end `c` through N. A whole query on that extended window requires end N.
+`$x.without-elision.parse(R)` and `$x.without-elision.parse(R).tags` require a witness of R from `a` to `b`. The latter unions those witnesses' own tags. `$x.without-elision.parse(R …)` permits any end `c` through `b`. `.onward` extends the match window through N without changing the restoration observation. Thus `$x.without-elision.onward.parse(R …)` permits any end `c` through N. A whole query on that extended window requires end N.
 
 Compare candidate and witness close groups through `min(b,c)`, including both boundaries. Equal omission counts alone are insufficient. Under `.without-elision`, every group must have the same terminals in the same order. The witness cannot add, remove, move, or reorder a close in that interval. Under `.without-elision-except(F)`, the witness can also hold the extra closes that the paragraphs below permit. It still cannot remove, move or reorder a candidate close.
 
@@ -1489,7 +1489,7 @@ Each mode needs its own entry, since its witnesses stand at other places. A `.ta
 
 An ordinary nested parse uses its span as the context for all position and surrounding-token methods. An aligned parse uses its context bounds above. It restores both when it ends, also when it fails with an error of the grammar.
 
-A nested parse's own conditions and tag terms can start further queries, so queries nest. They nest to any depth, and no bound applies to it. The depth follows the input, as in a chain of `$.following-tokens.begins(x)` across a long text. So an implementation keeps the active queries on a stack of its own, not on the call stack of its language.
+A nested parse's own conditions and tag terms can start further queries, so queries nest. They nest to any depth, and no bound applies to it. The depth follows the input, as in a chain of `$.following-tokens.parse(x …)` across a long text. So an implementation keeps the active queries on a stack of its own, not on the call stack of its language.
 
 A query is active from the start of its nested parse to its end. Take a query about a span as a rule. It is an error of the grammar where an active query is about the same span and rule. Every `parse` of that rule, in any mode, is one kind here. The methods of the two queries do not matter, nor does `.error-free`.
 
@@ -1648,7 +1648,7 @@ The demanded identities of one span need a finite domain, and recognition does n
 
 The engine does not take an identity from one noncyclic proof at the condition instead. Conditions run during recognition, before the ranking contexts of §6 exist. Such a rule needs cycle contexts, memo keys and a failure rule under negation, and the engine has none of them.
 
-The same rules apply in the main recognition, in a nested query and in the reconstruction of §7. In Eberban, `sentence-of` asks `$i.onward.begins(@Open)`. That query parses chains with `resumed-step` and its comparison, so the query builds identities too.
+The same rules apply in the main recognition, in a nested query and in the reconstruction of §7. In Eberban, `sentence-of` asks `$i.onward.parse(@Open …)`. That query parses chains with `resumed-step` and its comparison, so the query builds identities too.
 
 Under the check of §9.3, one rule has a finite number of distinct identities over one span. That number can grow exponentially with the span. `s → s s | "a"` has Catalan-many trees over a growing input. Exact identities tell them all apart, while structural states merge them. The cost counts distinct completed identities, distinct partial sequences, distinct seal spans, packed edges and frame combinations. It falls only on the demanded occurrences and the trees below them. A grammar without a comparison of two constituents pays nothing.
 
@@ -1815,7 +1815,7 @@ A grammar error ends the stage. The shared recognition therefore serves no later
 
 `.ends` requires a capture or ordinary span. A restored receiver causes a load error, including after `.onward`, which preserves restoration. This includes `.without-elision-except(F)` views. Restored suffix queries can be added when a grammar needs them.
 
-A span method that drops restoration can supply an ordinary receiver. For example, `$x.without-elision.preceding-tokens.ends(R)` queries the raw prefix. It applies no suffix alignment constraint.
+A span method that drops restoration can supply an ordinary receiver. For example, `$x.without-elision.preceding-tokens.parse(… R)` queries the raw prefix. It applies no suffix alignment constraint.
 
 Query answer keys distinguish suffix and part modes from whole and prefix modes. They include the target instance and fixed window. The active-query identity remains the target and projected context interval, across every `parse` of that target, in any mode. Changing direction cannot evade the recursive-query error.
 
@@ -3266,7 +3266,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - An attachment (§11) that holds `$` is an error, reported at the attachment. An attachment holds a named capture.
 - An attachment on a `$` item or on an inserted item is an error, reported at the item. Only a named capture carries attachments. So a constituent never attaches to itself.
 - A capture other than `$` named twice in one emission, as an item or as an attachment, is an error. So an attachment capture is never an item of its own.
-- A rule's or an alternative's tag term cannot read the tags that it defines. A read of `$.tags` or `$.classes` in that term is an error. So is a comparison of `$` with a pattern that tests rule tags, after constants and template arguments resolve. Such a pattern has a tag test on a rule, emoji, family or call atom. A value test, a terminal test, a test on `_` and a comparison of two constituents read no rule tags, so the rule allows them. `$.first-token.tags` and the like read the tokens' tags, not the constituent's, and are allowed, as is `$.tags(R)` and a pattern on a captured part. An emission item's tag clause and a `%conditions` clause define no constituent tags, so the rule does not bind them. Bare `$` in a guard reads the constituent's input value.
+- A rule's or an alternative's tag term cannot read the tags that it defines. A read of `$.tags` or `$.classes` in that term is an error. So is a comparison of `$` with a pattern that tests rule tags, after constants and template arguments resolve. Such a pattern has a tag test on a rule, emoji, family or call atom. A value test, a terminal test, a test on `_` and a comparison of two constituents read no rule tags, so the rule allows them. `$.first-token.tags` and the like read the tokens' tags, not the constituent's, and are allowed, as is `$.parse(R).tags` and a pattern on a captured part. An emission item's tag clause and a `%conditions` clause define no constituent tags, so the rule does not bind them. Bare `$` in a guard reads the constituent's input value.
 - An unknown directive or keyword is an error. The syntax grammar already refuses it.
 - A directive with the wrong operands is an error, reported at the directive. `%stage`, `%extend-stage`, and `%redefine-stage` take one name. `%include` and `%names` take one path each, and `%features` takes one or more feature names as §9.1 defines them. `%elision-only` takes no operand. `%ambiguity-resolution` takes one or more steps, separated by commas: `leftmost-longest`, `fewest`, `most`, `late` or `early`, each followed by one operand, or `greedy` or `lazy` without one. The operand is a pattern literal or a constant reference, and a constant there must resolve to a pattern. A key step without an operand, or a lean with one, is an error at the directive. A lean, `greedy` or `lazy`, can stand only as the last step. A step with the wrong form, a lean elsewhere than last, or two leans is an error at the directive. A directive with no step fails the syntax stage at the token after it, as in `%ambiguity-resolution` alone.
 

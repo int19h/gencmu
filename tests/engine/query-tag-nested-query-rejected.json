@@ -1,5 +1,5 @@
 {
-  "grammar": "%rule text $x:pair %conditions $x.matches(inner)\n%rule inner ($y:A ≻ B) ::∅ %conditions $y.matches(T)\n%rule pair A",
+  "grammar": "%rule text $x:pair %conditions $x.parse(inner)\n%rule inner ($y:A ≻ B) ::∅ %conditions $y.parse(T)\n%rule pair A",
   "tokens": [
     {
       "text": "a",

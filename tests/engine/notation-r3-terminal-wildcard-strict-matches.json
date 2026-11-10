@@ -1,6 +1,6 @@
 {
   "description": "Engine §10 runs an aligned whole query on a wildcard terminal under strict restoration.",
-  "grammar": "%rule text $x:_ B %conditions $x.without-elision.matches(probe)\n%rule family A\n%rule probe A ::Probe",
+  "grammar": "%rule text $x:_ B %conditions $x.without-elision.parse(probe)\n%rule family A\n%rule probe A ::Probe",
   "tokens": [
     {
       "text": "a",

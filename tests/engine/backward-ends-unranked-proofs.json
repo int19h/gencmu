@@ -1,6 +1,6 @@
 {
   "description": "Suffix queries use eligible proofs without ranking tied alternatives. (Engine §4.4.)",
-  "grammar": "%rule text A\n%conditions $.ends(tail)\n%rule tail A | A",
+  "grammar": "%rule text A\n%conditions $.parse(… tail)\n%rule tail A | A",
   "tokens": [
     {
       "text": "a",

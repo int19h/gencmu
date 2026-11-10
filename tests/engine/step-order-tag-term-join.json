@@ -1,6 +1,6 @@
 {
   "description": "The alternative and definition tag clauses both contain failing queries. Either failure ends the parse with a grammar error, so the case pins the error kind rather than its wording (engine §3.7, §4).",
-  "grammar": "%rule text (A x)\n%rule x :: $.tags(x) | B :: $.tokens-after-first.tags(migration-fault)\n\n\n%rule migration-fault ε | {_} %conditions \"x\" ∈ $.value.split($.value)",
+  "grammar": "%rule text (A x)\n%rule x :: $.parse(x).tags | B :: $.tokens-after-first.parse(migration-fault).tags\n\n\n%rule migration-fault ε | {_} %conditions \"x\" ∈ $.value.split($.value)",
   "tokens": [
     {
       "text": "a",

@@ -457,10 +457,10 @@ fn small_stack(body: impl FnOnce() + Send + 'static) {
 #[test]
 fn a_deep_chain_of_nested_parses_does_not_overflow() {
     small_stack(|| {
-        let chain = "%rule c \"a\" %conditions ¬$.following-tokens.matches(c)";
+        let chain = "%rule c \"a\" %conditions ¬$.following-tokens.parse(c)";
         let recognized = format!("%ambiguity-resolution greedy\n%rule text c {{\"a\"}}\n{chain}");
         let emitted = format!(
-            "%ambiguity-resolution greedy\n%rule text $x:s %emits $ :: T ∪ $x.tags(c)\n%rule s {{\"a\"}}\n{chain}"
+            "%ambiguity-resolution greedy\n%rule text $x:s %emits $ :: T ∪ $x.parse(c).tags\n%rule s {{\"a\"}}\n{chain}"
         );
         let text = "a".repeat(20_000);
         for rules in [recognized, emitted] {
@@ -1296,8 +1296,8 @@ fn private_ranked_exports_precede_recipe_cycles_and_absence() {
 #[test]
 fn inserted_tag_clauses_validate_rules_and_delimiters() {
     for (rules, message) in [
-        ("%rule text A\n%emits ε :: ($.matches(missing) ⟹ X)", "missing is not a rule of stage main"),
-        ("%rule text A\n%emits ε :: $.tags(missing)", "missing is not a rule of stage main"),
+        ("%rule text A\n%emits ε :: ($.parse(missing) ⟹ X)", "missing is not a rule of stage main"),
+        ("%rule text A\n%emits ε :: $.parse(missing).tags", "missing is not a rule of stage main"),
         ("%rule text A\n%emits ε :: $.value.classify(missing)", "missing is not a classifier of stage main"),
         (
             "%const $Z \"\"\n%rule text A\n%emits ε :: ($.value.split($Z) = $.value.split(\"!\") ⟹ X)",
@@ -1435,12 +1435,12 @@ fn stitching_stages_and_reference_order() {
         ("%rule other missing", "has no rule text", true, true),
         ("%rule text A", "has no %ambiguity-resolution", false, true),
         (
-            "%rule text A :: $.value.classify(nolex) ∪ $.tags(norule)",
+            "%rule text A :: $.value.classify(nolex) ∪ $.parse(norule).tags",
             "nolex is not a classifier of stage main",
             true,
             false,
         ),
-        ("%rule text A :: $.tags(norule) ∪ $.value.classify(nolex)", "norule is not a rule of stage main", true, false),
+        ("%rule text A :: $.parse(norule).tags ∪ $.value.classify(nolex)", "norule is not a rule of stage main", true, false),
         (
             "%const $A $MISSING\n%rule text A",
             "$MISSING is not defined in stage main; dependency $A → $MISSING",

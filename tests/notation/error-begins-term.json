@@ -1,6 +1,6 @@
 {
   "description": "begins is a condition, not a term (engine §9).",
-  "document": "```jbogenbau\n%rule g $a:A:: $a.begins(g)\n```\n",
+  "document": "```jbogenbau\n%rule g $a:A:: $a.parse(g …)\n```\n",
   "expect": {
     "error": {
       "line": 2,

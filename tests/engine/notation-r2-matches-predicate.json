@@ -1,6 +1,6 @@
 {
-  "description": "Engine §10 rejects `($x.starts-input)` as a `.matches` receiver.",
-  "grammar": "%const $S \"ab\"\n%const $Q (\"a\" \"b\")\n%const $TAG (A B)\n%const $P #A\n%const $E \"a\" ∖ \"a\"\n%rule text $x:unit B %conditions ($x.starts-input).matches(want | T)\n%rule unit A\n%rule family unit\n%rule want A",
+  "description": "Engine §10 rejects `($x.starts-input)` as a `parse` receiver.",
+  "grammar": "%const $S \"ab\"\n%const $Q (\"a\" \"b\")\n%const $TAG (A B)\n%const $P #A\n%const $E \"a\" ∖ \"a\"\n%rule text $x:unit B %conditions (($x.starts-input).parse(want) ∨ ($x.starts-input).parse(T))\n%rule unit A\n%rule family unit\n%rule want A",
   "tokens": [
     {
       "text": "a",
@@ -20,7 +20,7 @@
     "where": {
       "document": "main.md",
       "line": 8,
-      "column": 35
+      "column": 36
     }
   }
 }

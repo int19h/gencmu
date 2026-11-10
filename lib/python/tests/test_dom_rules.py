@@ -629,7 +629,7 @@ class PreparsedDomRules(unittest.TestCase):
                     self.assertEqual(dom_problem(dom) is None, allowed, dom_problem(dom))
 
     def test_what_the_reader_allows_is_allowed(self) -> None:
-        """$ in conditions, in emission and as a span of $.tags(rule), emission lists,
+        """$ in conditions, in emission and as a span of $.parse(rule).tags, emission lists,
         ∧, ⟹, presence tests, guarded terms, # as a rule's name, a negated
         gate and a warning (engine §9)."""
         for name, change in (
@@ -640,7 +640,7 @@ class PreparsedDomRules(unittest.TestCase):
                 "$.tags in an emitted term",
                 set_emit({"items": [{"capture": "x", "tags": {"method": "tags", "args": [], "receiver": WHOLE}}]}),
             ),
-            ("$.tags(rule) in an alternative's tags", set_tags({"method": "tags", "args": [{"rule": "text"}], "receiver": WHOLE})),
+            ("$.parse(rule).tags in an alternative's tags", set_tags({"method": "tags", "args": [{"rule": "text"}], "receiver": WHOLE})),
             (
                 "$.source-text in a guard of an alternative's tags",
                 set_tags({"if": {"op": "=", "left": {"method": "source-text", "args": [], "receiver": WHOLE}, "right": STR}, "then": TAG}),

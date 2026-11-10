@@ -1,6 +1,6 @@
 {
   "description": "Range membership tests token values. Stored engine tags identify letters. A nested range query separates the remaining letters (engine §§1, 4, 10).",
-  "grammar": "%rule text [{p}]\n%rule p hit | miss\n%rule hit $x:\"a\"..\"c\"\n%conditions _L ⊆ $x.tags\n%rule miss $x:_L\n%conditions ¬$x.matches(a-c)\n%rule a-c \"a\"..\"c\"",
+  "grammar": "%rule text [{p}]\n%rule p hit | miss\n%rule hit $x:\"a\"..\"c\"\n%conditions _L ⊆ $x.tags\n%rule miss $x:_L\n%conditions ¬$x.parse(a-c)\n%rule a-c \"a\"..\"c\"",
   "input": "azbð",
   "expect": {
     "result": {

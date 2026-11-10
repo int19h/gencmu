@@ -2630,7 +2630,7 @@ mod tests {
 
     #[test]
     fn close_families_compute_only_demanded_roots_and_share_memberships() {
-        let source = "%ambiguity-resolution greedy\n%rule text $x:r\n%conditions $x.without-elision-except(fam).matches(r)\n%rule fam f? r | other\n%rule r A [+T]\n%rule other B\n%rule unused U";
+        let source = "%ambiguity-resolution greedy\n%rule text $x:r\n%conditions $x.without-elision-except(fam).parse(r)\n%rule fam f? r | other\n%rule r A [+T]\n%rule other B\n%rule unused U";
         let unicode = Unicode::parse(crate::loader::bundled("data/unicode/unicode.txt").unwrap()).unwrap();
         let json = crate::tools::read_grammar_document(&format!("```jbogenbau\n{source}\n```\n"), "g.md").unwrap();
         let dom = crate::dom::dom_from_json(&crate::json::parse(&json).unwrap(), &unicode).unwrap();

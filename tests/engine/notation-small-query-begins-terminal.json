@@ -1,6 +1,6 @@
 {
   "description": "Engine §4 accepts rule and terminal alternatives in one target choice for `.begins`.",
-  "grammar": "%rule text $x:A %conditions $x.begins(B | A)",
+  "grammar": "%rule text $x:A %conditions ($x.parse(B …) ∨ $x.parse(A …))",
   "tokens": [
     {
       "text": "a",

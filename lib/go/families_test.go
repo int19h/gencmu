@@ -39,9 +39,9 @@ func TestFamilyMethodDOM(t *testing.T) {
 
 func TestFamilyReferenceOrder(t *testing.T) {
 	for _, clause := range []string{
-		`%conditions $x.without-elision-except(first).matches(second)`,
-		`:: ($x.without-elision-except(first).matches(second) ⟹ X)`,
-		`%emits $ :: ($x.without-elision-except(first).matches(second) ⟹ X)`,
+		`%conditions $x.without-elision-except(first).parse(second)`,
+		`:: ($x.without-elision-except(first).parse(second) ⟹ X)`,
+		`%emits $ :: ($x.without-elision-except(first).parse(second) ⟹ X)`,
 	} {
 		_, err := LoadPipelineSources(oneStage("%ambiguity-resolution greedy\n%rule text $x:A "+clause), "p.md")
 		var e *Error

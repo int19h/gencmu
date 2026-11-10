@@ -1,6 +1,6 @@
 {
   "description": "A query on the following tokens resolves its terminal target in a ranked alternative.",
-  "grammar": "%rule text ($x:part next ≻ fallback) ::∅ %conditions $x.following-tokens.begins(T)\n%rule part A\n%rule next B\n%rule fallback A B",
+  "grammar": "%rule text ($x:part next ≻ fallback) ::∅ %conditions $x.following-tokens.parse(T …)\n%rule part A\n%rule next B\n%rule fallback A B",
   "tokens": [
     {
       "text": "a",

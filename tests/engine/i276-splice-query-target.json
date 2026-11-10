@@ -1,6 +1,6 @@
 {
   "description": "A recognition query can name a rule that another occurrence splices.",
-  "grammar": "%rule text *r %conditions $.matches(r)\n%rule r A",
+  "grammar": "%rule text *r %conditions $.parse(r)\n%rule r A",
   "tokens": [
     {
       "text": "a",

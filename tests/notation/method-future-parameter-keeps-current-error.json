@@ -1,6 +1,6 @@
 {
   "description": "An unread selector does not change an earlier method diagnostic.",
-  "document": "```jbogenbau\n%rule r(@P) $x:A %conditions $x.value.without-elision.tags(@P)\n```\n",
+  "document": "```jbogenbau\n%rule r(@P) $x:A %conditions $x.value.without-elision.parse(@P).tags\n```\n",
   "expect": {
     "error": {
       "line": 2,

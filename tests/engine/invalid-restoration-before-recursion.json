@@ -1,6 +1,6 @@
 {
   "description": "An invalid restoration drops its step before later operands run (engine §4.1).",
-  "grammar": "%rule text $x:X %conditions $x.tags(q) = ∅\n%rule q $y:r %conditions $y.without-elision.matches(rival) ∨ $.matches(q)\n%rule r (r [+U]) :: Recursive | X :: ∅\n%rule rival X",
+  "grammar": "%rule text $x:X %conditions $x.parse(q).tags = ∅\n%rule q $y:r %conditions $y.without-elision.parse(rival) ∨ $.parse(q)\n%rule r (r [+U]) :: Recursive | X :: ∅\n%rule rival X",
   "tokens": [
     {
       "text": "x",

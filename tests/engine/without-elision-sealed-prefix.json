@@ -1,6 +1,6 @@
 {
   "description": "A witness cannot end inside a ranked block (engine §4 and §10).",
-  "grammar": "%rule text $x:choice %conditions ¬($x.without-elision.begins(rival))\n\n%rule choice (a ≻ b)\n%rule a (X Y [+T])\n%rule b (X Y [+U])\n%rule rival X",
+  "grammar": "%rule text $x:choice %conditions ¬($x.without-elision.parse(rival …))\n\n%rule choice (a ≻ b)\n%rule a (X Y [+T])\n%rule b (X Y [+U])\n%rule rival X",
   "tokens": [
     {
       "text": "x",

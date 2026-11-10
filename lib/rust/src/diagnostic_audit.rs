@@ -360,7 +360,7 @@ mod tests {
                 let grammar = if family == "query annotations" {
                     let alternatives = (0..n).map(|i| format!("$c{i}:A :: T{i}")).collect::<Vec<_>>().join(" | ");
                     let conditions = (0..n).map(|i| format!("$c{i}.parse(r0)")).collect::<Vec<_>>().join(", ");
-                    let mut grammar = format!("%rule text :: $.tags(r0) | {alternatives}\n%conditions {conditions}");
+                    let mut grammar = format!("%rule text :: $.parse(r0).tags | {alternatives}\n%conditions {conditions}");
                     for i in 0..n {
                         grammar.push_str(&format!(
                             "\n%rule r{i} {}",

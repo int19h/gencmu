@@ -96,7 +96,7 @@ class DiagnosticAudit(unittest.TestCase):
             alternatives = [f"$c{index}:A :: T{index}" for index in range(count)]
             conditions = [f"$c{index}.parse(r0)" for index in range(count)]
             rules = [f"%rule r{index} " + ("A" if index + 1 == count else f"r{index + 1}") for index in range(count)]
-            grammar = ("%rule text :: $.tags(r0) | " + " | ".join(alternatives)
+            grammar = ("%rule text :: $.parse(r0).tags | " + " | ".join(alternatives)
                        + "\n%conditions " + ", ".join(conditions) + "\n" + "\n".join(rules) + '\n%error "fault"\n%erased')
             pipeline = load(grammar)
             work = {}
@@ -111,9 +111,9 @@ class DiagnosticAudit(unittest.TestCase):
 
     def test_cached_queries_keep_alternative_targets_and_extension_locations(self):
         # Engine §2: extensions retain their own clauses and note locations.
-        grammar = ("%rule text :: $.tags(common) | A :: $.tags(first) | A :: $.tags(second)\n"
+        grammar = ("%rule text :: $.parse(common).tags | A :: $.parse(first).tags | A :: $.parse(second).tags\n"
                    "%conditions $.parse(target), $.parse(target).error-free\n"
-                   "%extend-rule text A :: $.tags(first)\n%conditions $.parse(other).error-free\n"
+                   "%extend-rule text A :: $.parse(first).tags\n%conditions $.parse(other).error-free\n"
                    + "\n".join('%rule ' + name + ' A\n%error "fault"\n%erased' for name in ("common", "first", "second", "target", "other")))
         notes = load(grammar).ranking_reports()[0]["diagnosticNotes"]
         self.assertEqual(sorted((note["line"], note["target"], note["filtered"]) for note in notes), sorted([

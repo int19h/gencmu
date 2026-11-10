@@ -808,7 +808,7 @@ A boundary atom reads the parse itself, so it has no window and no written-termi
 
 An elision is an omitted terminator. An aligned witness is a reading with the same closes. An ordinary query parses captured words afresh and can choose another omission boundary. A condition about one grammatical category sometimes needs the captured candidate's actual boundaries while it asks about another grammatical category.
 
-The span method keeps `.matches`, `.begins`, and `.tags(rule)` queries. `$x.without-elision.matches(R)` compares the whole capture. `$x.without-elision.onward.begins(R)` permits a rival category that continues beyond it. The query can still inspect following original words. This context retains following-operator conditions and written-terminator priority.
+The span method keeps `.matches`, `.begins`, and `.tags(rule)` queries. `$x.without-elision.parse(R)` compares the whole capture. `$x.without-elision.onward.parse(R …)` permits a rival category that continues beyond it. The query can still inspect following original words. This context retains following-operator conditions and written-terminator priority.
 
 Restored tokens record the constraint without creating additional mandatory words. A rival cannot read an omitted BOI as a bare required BOI. An omitted optional requires none of its remaining content. A prefix compares every close at its endpoint. These rules express a relation between original readings, rather than ordinary replay of completed spelling.
 

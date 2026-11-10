@@ -132,7 +132,7 @@
       ]
     },
     {
-      "grammar": "%rule text ($x:candidate {Y}) %conditions ¬($x.matches(driver)), $x.onward.begins(driver)\n\n%rule candidate (X [+T])\n%rule driver $y:candidate %conditions $y.without-elision.matches(rival)\n\n%rule rival (X [+T]) %conditions $.following-tokens.begins(tail)\n\n%rule tail Y\n",
+      "grammar": "%rule text ($x:candidate {Y}) %conditions ¬($x.parse(driver)), $x.onward.parse(driver …)\n\n%rule candidate (X [+T])\n%rule driver $y:candidate %conditions $y.without-elision.parse(rival)\n\n%rule rival (X [+T]) %conditions $.following-tokens.parse(tail …)\n\n%rule tail Y\n",
       "inputs": [
         [
           {
@@ -196,7 +196,7 @@
       ]
     },
     {
-      "grammar": "%rule text ($x:pair $y:pair) %conditions $x.matches(probe), ¬($y.matches(probe))\n\n%rule pair (W W)\n%rule probe ($f:W W) %conditions $f.image = \"x\"\n",
+      "grammar": "%rule text ($x:pair $y:pair) %conditions $x.parse(probe), ¬($y.parse(probe))\n\n%rule pair (W W)\n%rule probe ($f:W W) %conditions $f.image = \"x\"\n",
       "inputs": [
         [
           {
@@ -287,7 +287,7 @@
       ]
     },
     {
-      "grammar": "%rule text $x:pair %conditions $x.matches(probe)\n\n%rule pair (W W)\n%rule probe ($f:W W) %conditions $f.value = \"x\"\n",
+      "grammar": "%rule text $x:pair %conditions $x.parse(probe)\n\n%rule pair (W W)\n%rule probe ($f:W W) %conditions $f.value = \"x\"\n",
       "inputs": [
         [
           {
@@ -325,7 +325,7 @@
       ]
     },
     {
-      "grammar": "%rule text $x:pair %conditions $x.matches(probe)\n\n%rule pair (W W)\n%rule probe (Q W)\n",
+      "grammar": "%rule text $x:pair %conditions $x.parse(probe)\n\n%rule pair (W W)\n%rule probe (Q W)\n",
       "inputs": [
         [
           {
@@ -362,7 +362,7 @@
       ]
     },
     {
-      "grammar": "%rule text $x:_\n%conditions\n  $x.matches(probe)\n\n%rule probe\n  W\n",
+      "grammar": "%rule text $x:_\n%conditions\n  $x.parse(probe)\n\n%rule probe\n  W\n",
       "inputs": [
         [
           {
@@ -394,7 +394,7 @@
       ]
     },
     {
-      "grammar": "%rule text $x:pair %conditions $x.matches(probe)\n\n%rule pair (W W)\n%rule probe ($f:W W) %conditions $f.source-text = \"a\"\n",
+      "grammar": "%rule text $x:pair %conditions $x.parse(probe)\n\n%rule pair (W W)\n%rule probe ($f:W W) %conditions $f.source-text = \"a\"\n",
       "inputs": [
         [
           {
@@ -446,7 +446,7 @@
       ]
     },
     {
-      "grammar": "%rule text ($x:pair V) %conditions $x.matches(probe)\n\n%rule pair (W W)\n%rule probe (W $g:W) %conditions $g.source-text = \"x\"\n",
+      "grammar": "%rule text ($x:pair V) %conditions $x.parse(probe)\n\n%rule pair (W W)\n%rule probe (W $g:W) %conditions $g.source-text = \"x\"\n",
       "inputs": [
         [
           {
@@ -502,7 +502,7 @@
       ]
     },
     {
-      "grammar": "%rule text ($x:candidate {Y}) %conditions ¬($x.matches(driver)), ¬($x.matches(wrap))\n%rule wrap $z:candidate %conditions $z.matches(driver)\n\n%rule candidate (X [+T])\n%rule driver $y:candidate %conditions $y.without-elision.matches(rival)\n\n%rule rival (X [+T]) %conditions $.following-tokens.begins(tail)\n\n%rule tail Y\n",
+      "grammar": "%rule text ($x:candidate {Y}) %conditions ¬($x.parse(driver)), ¬($x.parse(wrap))\n%rule wrap $z:candidate %conditions $z.parse(driver)\n\n%rule candidate (X [+T])\n%rule driver $y:candidate %conditions $y.without-elision.parse(rival)\n\n%rule rival (X [+T]) %conditions $.following-tokens.parse(tail …)\n\n%rule tail Y\n",
       "inputs": [
         [
           {
@@ -566,7 +566,7 @@
       ]
     },
     {
-      "grammar": "%rule text a | b\n%rule a (A $x:W) %conditions $x.matches(probe)\n%rule b (B $x:W) %conditions $x.tags(probe) = ∅\n%rule probe W :: ∅\n",
+      "grammar": "%rule text a | b\n%rule a (A $x:W) %conditions $x.parse(probe)\n%rule b (B $x:W) %conditions $x.parse(probe).tags = ∅\n%rule probe W :: ∅\n",
       "inputs": [
         [
           {
@@ -602,7 +602,7 @@
       ]
     },
     {
-      "grammar": "%classifier lex f? \"x\" ∈ K\n%rule text $a:pair %conditions $a.matches(probe)\n%rule pair (W)\n%rule probe ($w:W) %conditions K ⊆ $w.value.classify(lex)\n",
+      "grammar": "%classifier lex f? \"x\" ∈ K\n%rule text $a:pair %conditions $a.parse(probe)\n%rule pair (W)\n%rule probe ($w:W) %conditions K ⊆ $w.value.classify(lex)\n",
       "inputs": [
         [
           {
@@ -623,7 +623,7 @@
       ]
     },
     {
-      "grammar": "%rule text a | b\n%rule a (A $x:pair) %conditions $x.begins(probe)\n%rule b (B $x:pair) %conditions $x.matches(probe)\n%rule pair (W W)\n%rule probe W\n",
+      "grammar": "%rule text a | b\n%rule a (A $x:pair) %conditions $x.parse(probe …)\n%rule b (B $x:pair) %conditions $x.parse(probe)\n%rule pair (W W)\n%rule probe W\n",
       "inputs": [
         [
           {
@@ -671,7 +671,7 @@
       ]
     },
     {
-      "grammar": "%rule text a | b\n%rule a (A $x:W) %conditions $x.matches(loop)\n%rule b (B $x:W) %conditions $x.matches(probe)\n%rule loop $y:W %conditions $y.matches(loop)\n%rule probe W\n",
+      "grammar": "%rule text a | b\n%rule a (A $x:W) %conditions $x.parse(loop)\n%rule b (B $x:W) %conditions $x.parse(probe)\n%rule loop $y:W %conditions $y.parse(loop)\n%rule probe W\n",
       "inputs": [
         [
           {
@@ -721,7 +721,7 @@
       ]
     },
     {
-      "grammar": "%features g\n%conditions\n  $.tags ∩ (Z) ≠ ∅\n%rule text ($x:W {Z}) %conditions $x.matches(probe)\n%rule probe g? W | ¬g? Q\n",
+      "grammar": "%features g\n%conditions\n  $.tags ∩ (Z) ≠ ∅\n%rule text ($x:W {Z}) %conditions $x.parse(probe)\n%rule probe g? W | ¬g? Q\n",
       "inputs": [
         [
           {
@@ -751,7 +751,7 @@
       ]
     },
     {
-      "grammar": "%rule text $x:run %conditions $x.matches(probe)\n%rule run {T}\n%rule probe {W}\n",
+      "grammar": "%rule text $x:run %conditions $x.parse(probe)\n%rule run {T}\n%rule probe {W}\n",
       "inputs": [
         [
           {
@@ -1743,7 +1743,7 @@
       ]
     },
     {
-      "grammar": "%rule text $x:pair %conditions $x.matches(probe)\n\n%rule pair (W W)\n%rule probe ($f:W W) %conditions $f.value = \"a:1|b,c\"\n",
+      "grammar": "%rule text $x:pair %conditions $x.parse(probe)\n\n%rule pair (W W)\n%rule probe ($f:W W) %conditions $f.value = \"a:1|b,c\"\n",
       "inputs": [
         [
           {
@@ -1799,7 +1799,7 @@
       ]
     },
     {
-      "grammar": "%rule text $mode:_ $x:body\n%conditions ($mode = \"p\" ⟹ $x.matches(wrap)), ($mode = \"q\" ⟹ $x.ends(r))\n%rule body \"a\" \"a\"\n%rule r \"a\" [\"a\"]\n%conditions $.starts-input ∨ $.preceding-tokens.onward.matches(wrap)\n%rule wrap $x:body\n%conditions $x.matches(r)",
+      "grammar": "%rule text $mode:_ $x:body\n%conditions ($mode = \"p\" ⟹ $x.parse(wrap)), ($mode = \"q\" ⟹ $x.parse(… r))\n%rule body \"a\" \"a\"\n%rule r \"a\" [\"a\"]\n%conditions $.starts-input ∨ $.preceding-tokens.onward.parse(wrap)\n%rule wrap $x:body\n%conditions $x.parse(r)",
       "texts": [
         "paa",
         "qaa",

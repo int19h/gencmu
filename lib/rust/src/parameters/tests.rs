@@ -16,18 +16,17 @@ fn source_dom_decodes_into_native_nodes() {
         "%rule pair(@L,@R) @L @R\n%rule text = pair(\"a\",\"b\")",
         "%rule use(@X) @X\n%rule text use((\"a\" \"b\")) use(ε) use([\"a\"]) use({\"a\"})",
         "%rule tag(@R) A<@R>\n%rule text tag(<B ¬C>)",
-        "%rule query(@R) A %conditions $.matches(@R)\n%rule text query(a | b)",
+        "%rule query(@R) A %conditions $.parse(@R)\n%rule text query(a | b)",
         "%rule pattern(@P) A %conditions $ ≅ #@P\n%rule text pattern(#a)",
         "%rule atom(@X) @X\n%rule outer(@P) A %conditions $ ≅ #atom(@P)\n%rule text outer(\"a\")",
         "%rule atom(@X) @X\n%const $P #atom(\"a\")\n%implies $P ⟹ $P",
-        "%rule atom(@X) @X\n%features f %conditions $.matches(atom(\"a\"))",
+        "%rule atom(@X) @X\n%features f %conditions $.parse(atom(\"a\"))",
     ] {
         let mut decoded = read(source);
         let expected = j(&dom::dom_to_json(&decoded));
         decoded.unresolved = false;
         assert_eq!(j(&dom::dom_to_json(&decoded)), expected, "{source}");
-    }
-}
+    })
 fn located(s: &str) -> Dom {
     crate::loader::read_grammar_dom(&format!("```jbogenbau\n{s}\n```\n"), "").unwrap()
 }
@@ -233,15 +232,15 @@ fn uncalled_source_validation() {
         ("%rule unused(@X) @X := @X %erased", "erased"),
         ("%rule unused(@X) [+| @X]", "without | or &"),
         (
-            "%rule unused(@X) @X %conditions $.without-elision.ends(text)",
+            "%rule unused(@X) @X %conditions $.without-elision.parse(… text)",
             "ends requires an ordinary span, not a restored span",
         ),
         (
-            "%rule unused(@X) @X %conditions $.without-elision.onward.ends(@X)",
+            "%rule unused(@X) @X %conditions $.without-elision.onward.parse(… @X)",
             "ends requires an ordinary span, not a restored span",
         ),
         (
-            "%rule unused(@X) @X %conditions $.starts-input ∧ $.without-elision-except(text).onward.ends(text)",
+            "%rule unused(@X) @X %conditions $.starts-input ∧ $.without-elision-except(text).onward.parse(… text)",
             "ends requires an ordinary span, not a restored span",
         ),
     ] {

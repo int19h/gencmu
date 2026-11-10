@@ -1,6 +1,6 @@
 {
   "description": "Close observations start at text regardless of rule order or unrelated names (engine §4.1).",
-  "grammar": "%rule text $x:r %conditions $x.without-elision.matches(s)\n%rule source-text A\n%rule r B [+T]\n%rule s B [+T]",
+  "grammar": "%rule text $x:r %conditions $x.without-elision.parse(s)\n%rule source-text A\n%rule r B [+T]\n%rule s B [+T]",
   "tokens": [
     {
       "text": "b",

@@ -1,6 +1,6 @@
 {
-  "description": "The plain optional contains a ranked group. The optional contains no capture. The present route reads the D tokens and then the written T, so .tags(r) returns the empty set (engine §4).",
-  "grammar": "%rule text $r:input :: $r.tags(r)\n%rule input B {D} T\n%rule r :: Queried | B [(c ≻ c)] [+T] D T\n%rule c D",
+  "description": "The plain optional contains a ranked group. The optional contains no capture. The present route reads the D tokens and then the written T, so .parse(r).tags returns the empty set (engine §4).",
+  "grammar": "%rule text $r:input :: $r.parse(r).tags\n%rule input B {D} T\n%rule r :: Queried | B [(c ≻ c)] [+T] D T\n%rule c D",
   "tokens": [
     {
       "text": "b",

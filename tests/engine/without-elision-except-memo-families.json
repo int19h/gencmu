@@ -1,6 +1,6 @@
 {
   "description": "Memo keys separate strict queries and two different families (engine §2.2, §4, and §10).",
-  "grammar": "%rule text $c:c\n%conditions ¬$c.without-elision.matches(w), $c.without-elision-except(yes).matches(w), ¬$c.without-elision-except(no).matches(w), ¬$c.without-elision.matches(w)\n%rule c X [+T] B\n%rule w X [+U] [+T] B\n%rule yes w\n%rule no Z",
+  "grammar": "%rule text $c:c\n%conditions ¬$c.without-elision.parse(w), $c.without-elision-except(yes).parse(w), ¬$c.without-elision-except(no).parse(w), ¬$c.without-elision.parse(w)\n%rule c X [+T] B\n%rule w X [+U] [+T] B\n%rule yes w\n%rule no Z",
   "tokens": [
     {
       "text": "x",

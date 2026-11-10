@@ -1,0 +1,10 @@
+{
+  "description": "Engine §4: a parse body can be a template call with a term argument, as a shorthand target could.",
+  "grammar": "%const $W \"a\"\n%rule text \"a\"\n%conditions $.parse(t($W))\n%rule t(@X) \"a\"",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

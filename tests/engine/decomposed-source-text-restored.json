@@ -1,6 +1,6 @@
 {
   "description": "Decomposed source text observes original tokens under a restored span. Synthetic omissions contribute no source text.",
-  "grammar": "%rule text $x:candidate\n%conditions $x.without-elision.decomposed-source-text = \"é\", $x.without-elision.matches(rival)\n%rule candidate X [+T]\n%rule rival X [+T]\n%conditions $.decomposed-source-text = \"é\"",
+  "grammar": "%rule text $x:candidate\n%conditions $x.without-elision.decomposed-source-text = \"é\", $x.without-elision.parse(rival)\n%rule candidate X [+T]\n%rule rival X [+T]\n%conditions $.decomposed-source-text = \"é\"",
   "tokens": [
     {
       "text": "é",

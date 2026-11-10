@@ -1,6 +1,6 @@
 {
   "description": "The before-attachment fails on a shared verbatim gap before the later inserted item evaluates its failing tag query (engine §11).",
-  "grammar": "%rule text $b:bad $w:word %emits ($b) $w, ε :: $.tags(migration-fault) := \"a\"\n%rule word \"1\"\n%rule bad $l:left $r:right %emits $l, $r\n%rule left \"b\" :- $.verbatim-text\n%rule right \"b\" :- $.verbatim-text\n%rule migration-fault ε | {_} %conditions \"x\" ∈ $.value.split($.value)",
+  "grammar": "%rule text $b:bad $w:word %emits ($b) $w, ε :: $.parse(migration-fault).tags := \"a\"\n%rule word \"1\"\n%rule bad $l:left $r:right %emits $l, $r\n%rule left \"b\" :- $.verbatim-text\n%rule right \"b\" :- $.verbatim-text\n%rule migration-fault ε | {_} %conditions \"x\" ∈ $.value.split($.value)",
   "input": "b,b1",
   "expect": {
     "error": "grammar",

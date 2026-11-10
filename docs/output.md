@@ -495,19 +495,19 @@ A first remainder selects suffix mode, and a last remainder selects prefix mode.
 
 `.without-elision-except` takes the same receiver and exactly one rule argument. `.onward` can wrap its result too. Readers reject `$x.onward.without-elision-except(f)` in the same way.
 
-For example, `$m.without-elision.matches(sumti)` uses this condition DOM:
+For example, `$m.without-elision.parse(sumti)` uses this condition DOM:
 
 ```json
 {"method":"matches","receiver":{"method":"without-elision","receiver":{"capture":"m"},"args":[]},"args":[{"rule":"sumti"}]}
 ```
 
-`$s.without-elision-except(math).onward.begins(quantifier)` uses this condition DOM:
+`$s.without-elision-except(math).onward.parse(quantifier …)` uses this condition DOM:
 
 ```json
 {"method":"begins","receiver":{"method":"onward","receiver":{"method":"without-elision-except","receiver":{"capture":"s"},"args":[{"rule":"math"}]},"args":[]},"args":[{"rule":"quantifier"}]}
 ```
 
-The extended prefix uses `$m.without-elision.onward.begins(sumti)`. Its receiver nests an `onward` method around the restored span. Query conditions use the same method schema as terms.
+The extended prefix uses `$m.without-elision.onward.parse(sumti …)`. Its receiver nests an `onward` method around the restored span. Query conditions use the same method schema as terms.
 
 A recipe is `{"concat":[ATOM...]}` with a nonempty array. Atoms are `string`, string-valued `const`, declared `param` before expansion, or one of the seven recipe string methods on a bare capture. The methods `.emitted.value` and `.emitted.image` are the two channel forms of `emitted`. An emitted-channel atom nests the channel selector around `{"method":"emitted","receiver":CAPTURE,"args":[]}`. `emitted` alone cannot be a recipe atom.
 

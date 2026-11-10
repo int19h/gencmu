@@ -80,7 +80,7 @@ class QueryKeyWork(unittest.TestCase):
 
     def test_nested_filtered_dependencies_have_linear_key_work(self):
         # Engine §4.3: transitive error sensitivity does not require long error vectors.
-        self.assert_linear_keys("¬$.onward.matches(probe)", "\n%rule probe B\n%conditions ¬$.parse(C).error-free")
+        self.assert_linear_keys("¬$.onward.parse(probe)", "\n%rule probe B\n%conditions ¬$.parse(C).error-free")
 
     def test_repeated_long_memo_hits_do_not_read_tokens(self):
         # Engine §4.3: a cached answer needs only its positional key and filter flag.

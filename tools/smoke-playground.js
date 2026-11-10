@@ -391,7 +391,7 @@ async function main() {
         edit: ["(NAhE 🆓 tanru-unit-2 ≻ mex MOI 🆓 ≻ SE 🆓 tanru-unit-2)", "(NAhE 🆓 tanru-unit-2 | mex MOI 🆓 | SE 🆓 tanru-unit-2)"], tie: true },
       { label: "ME prefers an argument (experimental)", output: /me-unit\n\s+ME "me"\n\s+sumti/,
         document: "grammars/lojban/experimental/syntax.md", rule: "%rule me-unit",
-        edit: ["%conditions\n  ¬$m.without-elision.matches(sumti)", ""], tie: true },
+        edit: ["%conditions\n  ¬$m.without-elision.parse(sumti)", ""], tie: true },
       { label: "ME accepts a number (experimental)", output: /me-unit\n\s+ME "me"\n\s+mex[\s\S]*number-part · pa/,
         document: "grammars/lojban/experimental/syntax.md", rule: "%rule me-unit" },
       { label: "The earliest, longest tense wins (CLL)", output: /^\(mi \[viska \{\(pu va\) \(\[ca gi\] do gi \[la djan\]\)\}\]\)$/,

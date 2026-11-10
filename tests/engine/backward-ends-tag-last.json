@@ -1,6 +1,6 @@
 {
   "description": "A terminal target tests the last token and makes its tag buildable. (Engine §4.4.)",
-  "grammar": "%rule text _ _\n%conditions $.ends(B)",
+  "grammar": "%rule text _ _\n%conditions $.parse(… B)",
   "tokens": [
     {
       "text": "a",

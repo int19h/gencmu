@@ -1,5 +1,5 @@
 {
-  "grammar": "%rule text ($x:part next ≻ fallback) ::∅ %conditions $x.followed-by(T)\n%rule part A\n%rule next B\n%rule fallback A B\n%rule unused $q:A %conditions $q.matches(T)",
+  "grammar": "%rule text ($x:part next ≻ fallback) ::∅ %conditions $x.followed-by(T)\n%rule part A\n%rule next B\n%rule fallback A B\n%rule unused $q:A %conditions $q.parse(T)",
   "tokens": [
     {
       "text": "a",

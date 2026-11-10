@@ -1,6 +1,6 @@
 {
   "description": "The rival cannot borrow the caller close at the capture end (engine §4 and §10).",
-  "grammar": "%rule text ($x:candidate [+U]) %conditions ¬($x.without-elision.matches(rival))\n\n%rule candidate (X [+T])\n%rule rival (X [+T] [+U])",
+  "grammar": "%rule text ($x:candidate [+U]) %conditions ¬($x.without-elision.parse(rival))\n\n%rule candidate (X [+T])\n%rule rival (X [+T] [+U])",
   "tokens": [
     {
       "text": "x",

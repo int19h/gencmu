@@ -1,6 +1,6 @@
 {
   "description": "Suffix windows with different starts retain different preceding contexts. (Engine §4.4.)",
-  "grammar": "%rule text A B\n%conditions $.ends(tail), \u00ac$.last-token.ends(tail)\n%rule tail B\n%conditions $.preceding-tokens.value = \"a\"",
+  "grammar": "%rule text A B\n%conditions $.parse(… tail), ¬$.last-token.parse(… tail)\n%rule tail B\n%conditions $.preceding-tokens.value = \"a\"",
   "tokens": [
     {
       "text": "a",

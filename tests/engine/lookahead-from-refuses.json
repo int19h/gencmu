@@ -1,6 +1,6 @@
 {
-  "description": "¬$x.onward.begins(R) refuses the parse when R begins there (engine §10).",
-  "grammar": "%rule text ($x:A B) %conditions ¬($x.onward.begins(ab))\n%rule ab (A B)",
+  "description": "¬$x.onward.parse(R …) refuses the parse when R begins there (engine §10).",
+  "grammar": "%rule text ($x:A B) %conditions ¬($x.onward.parse(ab …))\n%rule ab (A B)",
   "tokens": [
     {
       "text": "a",

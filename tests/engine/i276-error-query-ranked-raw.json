@@ -1,6 +1,6 @@
 {
   "description": "Queries inspect zero-error witnesses before ranked admission.",
-  "grammar": "%rule text A %conditions $.matches(probe)\n%rule probe (bad ≻ A) :: ∅\n%rule bad A %error \"bad\"",
+  "grammar": "%rule text A %conditions $.parse(probe)\n%rule probe (bad ≻ A) :: ∅\n%rule bad A %error \"bad\"",
   "tokens": [
     {
       "text": "a",

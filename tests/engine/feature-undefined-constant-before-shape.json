@@ -1,6 +1,6 @@
 {
   "description": "Constant references precede feature semantics.",
-  "grammar": "%features f\n%conditions $.tags(text) = A, $MISSING = \"x\"\n%rule text \"a\"",
+  "grammar": "%features f\n%conditions $.parse(text).tags = A, $MISSING = \"x\"\n%rule text \"a\"",
   "input": "a",
   "expect": {
     "error": "grammar",

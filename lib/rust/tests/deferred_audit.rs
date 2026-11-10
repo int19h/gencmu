@@ -64,7 +64,7 @@ fn extensions_keep_their_possible_derivation_choice() {
 #[test]
 fn cached_queries_keep_alternative_targets_and_extension_locations() {
     // Engine §2: each definition retains its own clauses and annotation locations.
-    let mut grammar = "%rule text :: $.tags(common) | A :: $.tags(first) | A :: $.tags(second)\n%conditions $.parse(target), $.parse(target).error-free\n%extend-rule text A :: $.tags(first)\n%conditions $.parse(other).error-free\n".to_string();
+    let mut grammar = "%rule text :: $.parse(common).tags | A :: $.parse(first).tags | A :: $.parse(second).tags\n%conditions $.parse(target), $.parse(target).error-free\n%extend-rule text A :: $.parse(first).tags\n%conditions $.parse(other).error-free\n".to_string();
     for name in ["common", "first", "second", "target", "other"] {
         grammar.push_str(&format!("%rule {name} A\n%error \"fault\"\n%erased\n"));
     }

@@ -1,6 +1,6 @@
 {
   "description": "Engine §4 permits a terminal prefix before a later restored close.",
-  "grammar": "%rule text $x:r %conditions $x.without-elision.begins(A)\n%rule r A B [+T]",
+  "grammar": "%rule text $x:r %conditions $x.without-elision.parse(A …)\n%rule r A B [+T]",
   "tokens": [
     {
       "text": "a",

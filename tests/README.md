@@ -511,7 +511,7 @@ The library loads `grammar` as the one stage of a pipeline, which reads the text
 
 ```
 [{"name": "queries-in-one-step", "description": "...", "head": "%rule text \"a\"\n%conditions ",
-  "item": "$.following-tokens.matches(r{i})", "joiner": ", ", "tail": "", "rule": "\n%rule r{i} ε",
+  "item": "$.following-tokens.parse(r{i} …)", "joiner": ", ", "tail": "", "rule": "\n%rule r{i} ε",
   "count": 400, "text": "a", "most": 8}]
 ```
 

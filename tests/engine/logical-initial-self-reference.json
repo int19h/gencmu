@@ -1,5 +1,5 @@
 {
-  "grammar": "%rule text\n  | A D T D\n%conditions\n  $.matches(r)\n\n%rule r\n  | [$b:b] r [+T] D\n  | A\n\n%rule b B",
+  "grammar": "%rule text\n  | A D T D\n%conditions\n  $.parse(r)\n\n%rule r\n  | [$b:b] r [+T] D\n  | A\n\n%rule b B",
   "tokens": [
     {
       "text": "a",

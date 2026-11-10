@@ -554,7 +554,7 @@ A query-target choice splices into one complete target entry, in written order. 
 %rule letter(@Char, @Forbidden)
   $c:@Char
 %conditions
-  ¬$c.following-tokens.begins(h | @Forbidden)
+  ¬($c.following-tokens.parse(h …) ∨ $c.following-tokens.parse(@Forbidden …))
 
 %rule filtered(@Char, @Excluded)
   @Char<¬Accent @Excluded>
@@ -958,7 +958,7 @@ The elidable optional retains its helper and one logical symbol. Its enclosing e
 %rule number
   [TI JU] number-body [$j:+JI]
 %conditions
-  $j ∨ ¬$.following-tokens.begins(number-start)
+  $j ∨ ¬$.following-tokens.parse(number-start …)
 ```
 
 Here a written `JI` bypasses the following-token condition. An omitted `JI` requires that condition to hold.
@@ -1047,7 +1047,7 @@ Each condition of the list applies to the productions that capture everything it
 
 Within one condition of the list, `∧` and `∨` join conditions, and `∧` binds tighter. `⟹` binds looser than both, and groups to the right. Parentheses group, and `¬` negates the condition after it.
 
-A method chain applies successive methods to one receiver. `¬` applies to the whole chain. `¬$s.without-elision.onward.begins(tag)` says that no `tag` begins there. It does not test whether `$s` is absent.
+A method chain applies successive methods to one receiver. `¬` applies to the whole chain. `¬$s.without-elision.onward.parse(tag …)` says that no `tag` begins there. It does not test whether `$s` is absent.
 
 The parser evaluates a condition joined with `∧` only when it can evaluate all its parts. So two conditions about different parts are better as two items of the list. The parser then evaluates each one as early as it can.
 
@@ -1148,7 +1148,7 @@ Each rewrite is one condition in its position. Each shorthand rewrites each targ
 
 `span.tags(R)` takes one rule target. A choice of targets or a terminal tag there is an error.
 
-For an ordinary span, a query parses the captured span alone, with the same grammar. So a condition can ask whether a part also reads as something else. The word grammar of `lojban/cll` uses this for the slinku'i test of borrowed words (fu'ivla). A CV cmavo is a particle of one consonant and one vowel. The test says that such a particle before a borrowed word must not make a compound word (lujvo). That is `¬$f.parse(lujvo-after-cv)`, because the rule is the part of a lujvo after its first two letters. The shorthand `¬$f.matches(lujvo-after-cv)` says the same thing.
+For an ordinary span, a query parses the captured span alone, with the same grammar. So a condition can ask whether a part also reads as something else. The word grammar of `lojban/cll` uses this for the slinku'i test of borrowed words (fu'ivla). A CV cmavo is a particle of one consonant and one vowel. The test says that such a particle before a borrowed word must not make a compound word (lujvo). That is `¬$f.parse(lujvo-after-cv)`, because the rule is the part of a lujvo after its first two letters. The shorthand `¬$f.parse(lujvo-after-cv)` says the same thing.
 
 Inside such a parse, a condition can ask about the very span that is being parsed, as the same rule. Such a condition defines the rule in terms of itself over the same text, negated or not. The parser reports it as an error of the grammar.
 
@@ -1158,7 +1158,7 @@ In the same way, the `lojban/experimental` pipeline gives `(mi [klama {na (to br
 
 A lookahead tests a rule without reading the input. A PEG is a grammar that tries alternatives in order. PEG is short for parsing expression grammar. `begins` with `.onward` or `.following-tokens` is a lookahead, like the lookahead of a PEG.
 
-`$f.following-tokens.begins(post-word)` says that what follows `$f` begins with a `post-word`. That `post-word` can lie in the words after the constituent. `¬$f.onward.begins(cmevla)` says that no `cmevla` begins where `$f` begins, as a PEG's `!cmevla` before `$f` does.
+`$f.following-tokens.parse(post-word …)` says that what follows `$f` begins with a `post-word`. That `post-word` can lie in the words after the constituent. `¬$f.onward.parse(cmevla …)` says that no `cmevla` begins where `$f` begins, as a PEG's `!cmevla` before `$f` does.
 
 The nested parse of `begins` reads only as far as the rule can read. So a lookahead costs what reading the rule costs, however long the rest of the input is. A grammar that derives from a PEG can therefore keep its lookaheads. The [BPFK word grammar](../grammars/lojban/bpfk/morphology.md) of Lojban is an example. It derives from a PEG and retains lookaheads that state its morphology rules. BPFK is a Lojban committee for language definitions.
 
@@ -1183,7 +1183,7 @@ A synthetic token is a token inserted for restoration. Each such token records i
 
 The span keeps the captured words and the candidate's closes. It restores each close as a synthetic token. Original tokens keep their fields and identity. Morphology does not run again. Caller-owned omissions contribute no close, even at the captured endpoint.
 
-`$x.without-elision.matches(R)` asks for an aligned witness over the complete capture. `$x.without-elision.begins(R)` permits a witness that ends within the capture. `$x.without-elision.onward.begins(R)` also permits a witness that ends after the capture. Following words remain raw input and permit ordinary omissions after the captured endpoint.
+`$x.without-elision.parse(R)` asks for an aligned witness over the complete capture. `$x.without-elision.parse(R …)` permits a witness that ends within the capture. `$x.without-elision.onward.parse(R …)` also permits a witness that ends after the capture. Following words remain raw input and permit ordinary omissions after the captured endpoint.
 
 Inside the shared stretch, the witness of `.without-elision` cannot add, drop, move, or reorder closes. At its end, a prefix must match the complete group of closes at that boundary. The witness of `.without-elision-except` can also add the closes that its family permits, as the paragraphs below say. It still cannot drop, move or reorder a candidate close, so a prefix still ends after the candidate's complete group. A restored terminator cannot supply a bare terminal read. The witness must qualify on the original input before ranked admission.
 
@@ -1205,7 +1205,7 @@ For example, these rules hold an omitted BOI fixed:
 %rule text
   $x:candidate
 %conditions
-  $x.without-elision.matches(rival)
+  $x.without-elision.parse(rival)
 
 %rule candidate
   LETTER [+BOI]
@@ -1247,7 +1247,7 @@ A Lojban example comes from the Zantufa grammar. It names the constructs that it
   mex-forethought | mex-rp
 ```
 
-In `le ke my .e gy ke'e broda`, the inner sumti `ke my .e gy ke'e` omits no KUhE. The competing quantifier reads `.e gy` as forethought mekso, which omits KUhE before `ke'e`. That close lies inside the shared stretch, and `mex-forethought` owns it. So `$s.without-elision-except(math).onward.begins(quantifier)` holds, and the description takes the quantifier.
+In `le ke my .e gy ke'e broda`, the inner sumti `ke my .e gy ke'e` omits no KUhE. The competing quantifier reads `.e gy` as forethought mekso, which omits KUhE before `ke'e`. That close lies inside the shared stretch, and `mex-forethought` owns it. So `$s.without-elision-except(math).onward.parse(quantifier …)` holds, and the description takes the quantifier.
 
 In `le ke my .e gy broda`, the KE group omits its own KEhE at the capture's end. The quantifier's KUhE comes just before that KEhE, so it still lies inside the shared stretch, and the description takes the quantifier again.
 
@@ -1284,7 +1284,7 @@ The test reads the actual neighbor, which a lookahead cannot do. A Lojban exampl
 %rule bare-na
   $n:NA 🆓 [+KU] 🆓
 %conditions
-  ¬$n.onward.begins(na-connective),
+  ¬$n.onward.parse(na-connective …),
   $ ≇ $BARE-NA ∨ $.ends-input ∨ ($PLACE-CLOSE ∩ $.following-tokens.first-token.tags) ⊈ ∅ ∨ $.followed-by(gihek | term)
 ```
 
@@ -1292,7 +1292,7 @@ The test reads the actual neighbor, which a lookahead cannot do. A Lojban exampl
 
 `$PLACE-CLOSE` holds the single words that close the place, such as `cu`, `.i` and the written terminators. A gihek and a term can start with many words, so the test names them as nodes of the parse. The receiver `$` ends after the term's own free modifiers, so they never count.
 
-In `mi klama na to broda`, the parenthesis stands in the term's slot, and the text ends after it. In `na da`, the parse has a term node at `da`. A lookahead `$.following-tokens.begins(term)` can instead find a term in another reading.
+In `mi klama na to broda`, the parenthesis stands in the term's slot, and the text ends after it. In `na da`, the parse has a term node at `da`. A lookahead `$.following-tokens.parse(term …)` can instead find a term in another reading.
 
 A test cannot see another parse. Where one reading must beat another, write a ranked choice or a ranking step instead (see "Ambiguity").
 
@@ -1923,7 +1923,7 @@ A tag term that runs over several lines ends each line with its `∪`. Its next 
   | $r:run :: $r.tags
   | $p:runs pause-token $r:run
       :: $r.tags ∪
-         (RAhOI ⊆ $p.tags ∧ $r.matches(only-hesitation) ⟹ RAhOI)
+         (RAhOI ⊆ $p.tags ∧ $r.parse(only-hesitation) ⟹ RAhOI)
       := $r.value
 ```
 
