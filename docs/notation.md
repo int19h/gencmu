@@ -912,7 +912,7 @@ The name of a classifier begins with a lower-case letter. A classifier belongs t
 
 An entry that adds a class that a key already has is an error. So is an entry that removes a class that a key does not have. These errors depend on the features, so they are errors of the grammar. gencmu reports one at its entry, for a parse that turns on the features that make it. A mistake in how an entry is written is an error of the document, even where the entry's gates do not hold.
 
-`string.classify(classifier)` (see "Conditions") is the set of the classes that the classifier gives the string. It is empty for a string that no entry names. A `classify` that names a classifier that no `%classifier` of the stage declares is an error. `span.parse(rule).tags` asks a rule for the tags of a span. The shorthand `span.tags(rule)` says the same thing. In the word grammar of `lojban/cll`, for example, `brivla-shape` asks `brivla-scan` in this way.
+`string.classify(classifier)` (see "Conditions") is the set of the classes that the classifier gives the string. It is empty for a string that no entry names. A `classify` that names a classifier that no `%classifier` of the stage declares is an error. `span.parse(rule).tags` asks a rule for the tags of a span. In the word grammar of `lojban/cll`, for example, `brivla-shape` asks `brivla-scan` in this way.
 
 The audit data lists every membership change, with its key, class, gates and document. The printed report shows the gated memberships and those that more than one entry changes.
 
@@ -1113,13 +1113,13 @@ A comparison `$x ≅ $y` uses both captures, as any condition with two captures 
 
 A comparison of a capture or `$` with itself is an error of the document, as a condition that applies to no production is. The forms are `$x ≅ $x`, `$x ≇ $x`, `$ ≅ $` and `$ ≇ $`. Two different captures of one rule make no such error. Nor does `$ ≅ $x`, which can hold where `$x` stands inside a ranked group of `$`. Take `r → ("a" ≻ "b") | ($x:r ≻ "c")` with `$ ≅ $x` in the `%conditions` clause of `r`. On the text `a`, both trees are an `r` node over one seal of `a`, because a seal carries no group identity. The condition is a private condition of the option that binds `$x`. The group is final, so `$` is ready at the completion of the group.
 
-The methods `.followed-by(S)` and `.preceded-by(S)` take one argument form. Three of the query shorthands below take it too: `matches`, `begins` and `ends`. `S` is a nonempty choice of ordinary rules, exact instances, and user terminal tags, separated by `|`. For example, `selbri | gek-sentence | KOhA` names three alternatives. `🆓` is a rule name.
+The methods `.followed-by(S)` and `.preceded-by(S)` take one argument form. `S` is a nonempty choice of ordinary rules, exact instances, and user terminal tags, separated by `|`. For example, `selbri | gek-sentence | KOhA` names three alternatives. `🆓` is a rule name.
 
 Repeated targets are accepted and change nothing. Engine tags are excluded because these shared arguments identify grammar-built targets. Strings, constants, grouped choices, and commas between targets are errors. Commas inside a call separate its arguments. Parentheses around one target preserve that target.
 
 An ordinary query ignores carried diagnostics and reads a faulty token like any other token. Its witness contains no own error occurrence outside erased subtrees. This applies to `parse`, including aligned queries. Queries evaluate no diagnostic message.
 
-`span.parse(C)` returns a forest, the shared set of eligible query witnesses. C is any body constituent. No part of its argument syntax can bind a capture. Called rules retain their own captures. The anonymous query target has structural identity after lowering. A shorthand and its `parse` form share memo entries and recursive-query detection (engine §4).
+`span.parse(C)` returns a forest, the shared set of eligible query witnesses. C is any body constituent. No part of its argument syntax can bind a capture. Called rules retain their own captures. The anonymous query target has structural identity after lowering.
 
 The mark `…` denotes unread remainder at an outer edge of the argument. It can stand at one edge or at both edges. It never stands inside an optional, group, or other nested constituent. `parse(C)` covers the whole view, and `parse(C …)` covers a prefix. `parse(… C)` covers a suffix, and `parse(… C …)` covers some part of the view. The mark cannot stand alone, but `ε` can supply an explicit empty target. It differs from the chain marker `...` and pattern gap `⋯`.
 
@@ -1137,30 +1137,19 @@ A set or a forest in a Boolean position holds when it is not empty. A Boolean po
 
 For example, `$x.tags ∩ UI` and `$x.tags ∩ UI ⊈ ∅` give the same condition.
 
-The four query shorthands are defined by rewriting:
-
-- `span.matches(A | B)` is `(span.parse(A) ∨ span.parse(B))`.
-- `span.begins(A | B)` is `(span.parse(A …) ∨ span.parse(B …))`.
-- `span.ends(A | B)` is `(span.parse(… A) ∨ span.parse(… B))`.
-- `span.tags(R)` is `span.parse(R).tags`.
-
-Each rewrite is one condition in its position. Each shorthand rewrites each target of `S` on its own, in written order. So each shorthand stays a condition, and a target list runs from left to right as `∨` does. `R` is one rule target, and it becomes the body of its `parse`. Every other rule about the shorthands follows from the rules for `parse` and for `∨`. Besides the argument form of `S` above, the only rule that the rewrite does not give is this.
-
-`span.tags(R)` takes one rule target. A choice of targets or a terminal tag there is an error.
-
-For an ordinary span, a query parses the captured span alone, with the same grammar. So a condition can ask whether a part also reads as something else. The word grammar of `lojban/cll` uses this for the slinku'i test of borrowed words (fu'ivla). A CV cmavo is a particle of one consonant and one vowel. The test says that such a particle before a borrowed word must not make a compound word (lujvo). That is `¬$f.parse(lujvo-after-cv)`, because the rule is the part of a lujvo after its first two letters. The shorthand `¬$f.parse(lujvo-after-cv)` says the same thing.
+For an ordinary span, a query parses the captured span alone, with the same grammar. So a condition can ask whether a part also reads as something else. The word grammar of `lojban/cll` uses this for the slinku'i test of borrowed words (fu'ivla). A CV cmavo is a particle of one consonant and one vowel. The test says that such a particle before a borrowed word must not make a compound word (lujvo). That is `¬$f.parse(lujvo-after-cv)`, because the rule is the part of a lujvo after its first two letters.
 
 Inside such a parse, a condition can ask about the very span that is being parsed, as the same rule. Such a condition defines the rule in terms of itself over the same text, negated or not. The parser reports it as an error of the grammar.
 
 Every nested query, including `parse`, follows written-terminator priority (engine §4). A nested reading cannot leave out an elidable optional where the same construct can read that whole optional as written. Two Lojban examples show this. In the Zantufa pipeline, `cy to roi toi klama` gives `([cy {to roi toi}] klama)`. A nested `tag` cannot read `cy to roi` as `cy roi` with an empty parenthesis, because the parenthesis can read on to its written `toi`.
 
-In the same way, the `lojban/experimental` pipeline gives `(mi [klama {na (to broda toi)}])` for `mi klama na to broda toi`. There `broda` stays inside the parenthesis. The priority has a cost: a positive query can fail where a parse without it succeeds. Take `r → A c [+T] T` and `c → B`. Then `matches` of `r` over `A B T` fails, because `[+T]` takes the written `T`. Several readings that the priority keeps do not cause an ambiguity error.
+In the same way, the `lojban/experimental` pipeline gives `(mi [klama {na (to broda toi)}])` for `mi klama na to broda toi`. There `broda` stays inside the parenthesis. The priority has a cost: a positive query can fail where a parse without it succeeds. Take `r → A c [+T] T` and `c → B`. Then `parse` of `r` over `A B T` fails, because `[+T]` takes the written `T`. Several readings that the priority keeps do not cause an ambiguity error.
 
-A lookahead tests a rule without reading the input. A PEG is a grammar that tries alternatives in order. PEG is short for parsing expression grammar. `begins` with `.onward` or `.following-tokens` is a lookahead, like the lookahead of a PEG.
+A lookahead tests a rule without reading the input. A PEG is a grammar that tries alternatives in order. PEG is short for parsing expression grammar. `parse(C …)` with `.onward` or `.following-tokens` is a lookahead, like the lookahead of a PEG.
 
 `$f.following-tokens.parse(post-word …)` says that what follows `$f` begins with a `post-word`. That `post-word` can lie in the words after the constituent. `¬$f.onward.parse(cmevla …)` says that no `cmevla` begins where `$f` begins, as a PEG's `!cmevla` before `$f` does.
 
-The nested parse of `begins` reads only as far as the rule can read. So a lookahead costs what reading the rule costs, however long the rest of the input is. A grammar that derives from a PEG can therefore keep its lookaheads. The [BPFK word grammar](../grammars/lojban/bpfk/morphology.md) of Lojban is an example. It derives from a PEG and retains lookaheads that state its morphology rules. BPFK is a Lojban committee for language definitions.
+The nested parse of a prefix query reads only as far as the rule can read. So a lookahead costs what reading the rule costs, however long the rest of the input is. A grammar that derives from a PEG can therefore keep its lookaheads. The [BPFK word grammar](../grammars/lojban/bpfk/morphology.md) of Lojban is an example. It derives from a PEG and retains lookaheads that state its morphology rules. BPFK is a Lojban committee for language definitions.
 
 `.starts-input` lets a rule begin only at the start of the input. The rule below matches nothing, and its condition holds only where the input begins. So an alternative that starts with `text-start` is read there and nowhere else. The parser evaluates the condition before it looks further, so such an alternative costs nothing at the other positions. In a nested parse, the input is the span being parsed, so `.starts-input` holds at the span's start.
 
@@ -1255,7 +1244,7 @@ The receiver and composition rules of `.without-elision` apply unchanged. `$x.on
 
 ### Fixed-window suffix queries
 
-A suffix query tests suffixes inside one fixed input window. The shorthand `s.ends(R)` and the form `s.parse(… R)` both do this. Every candidate keeps the receiver's start and end as its context. It is not a sequence of whole queries on shorter suffixes. Conditions such as `.starts-input` and nested `.preceding-tokens` therefore see the whole window. A part query keeps the whole view as the context of every witness too. So `.starts-input` inside a witness of `parse(… C …)` sees the start of the view. The same holds for `.ends-input` and `.onward`.
+A suffix query tests suffixes inside one fixed input window. The form `s.parse(… R)` does this. Every candidate keeps the receiver's start and end as its context. It is not a sequence of whole queries on shorter suffixes. Conditions such as `.starts-input` and nested `.preceding-tokens` therefore see the whole window. A part query keeps the whole view as the context of every witness too. So `.starts-input` inside a witness of `parse(… C …)` sees the start of the view. The same holds for `.ends-input` and `.onward`.
 
 For example, a target that reads `"a"` and requires `$.starts-input` does not match the suffix of two tokens valued `b` and `a`. A nullable target can match the empty suffix. A tag target reads the last token and fails on an empty span.
 
@@ -1296,7 +1285,7 @@ In `mi klama na to broda`, the parenthesis stands in the term's slot, and the te
 
 A test cannot see another parse. Where one reading must beat another, write a ranked choice or a ranking step instead (see "Ambiguity").
 
-A terminal target of `.begins`, `.ends`, or `.matches` makes its tag buildable, including inside another query. A `.followed-by` or `.preceded-by` target alone does not.
+A terminal in a `parse` body makes its tag buildable, including inside another query. A `.followed-by` or `.preceded-by` target alone does not.
 
 Every name in a test must be one that a parse can build, either a parse of `text` or the parse inside a query. A name that nothing reaches is an error. A name that only queries reach is legal, but outside queries the test always gets its default answer. So the audit notes it.
 

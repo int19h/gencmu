@@ -487,7 +487,7 @@ The notation sets no fixed limit on captures. A captured span before the dot for
 
 `.preceding-tokens` returns original tokens from the current context start to the receiver's start. `$x.preceding-tokens.last-token` names the token immediately before `$x` within that context. `.last-token` alone names the last token of its receiver. Nested queries cannot see before their own context start.
 
-`.ends(R)` recognizes suffixes over one fixed window. Every suffix candidate retains that window as its context. The method preserves ordinary query eligibility and errors. A restored `.ends` receiver causes a load error. Restored suffix queries can be added when a grammar needs them.
+`parse(… R)` recognizes suffixes over one fixed window. Every suffix candidate retains that window as its context. The query preserves ordinary query eligibility and errors. A restored suffix receiver causes a load error. Restored suffix queries can be added when a grammar needs them.
 
 Shareable suffix queries cost one recognition starting the target at every position, plus constant work per request. Sharing uses the target and window start. Complex targets can cost more than linear time. Targets that read a window end require separate recognition for each distinct end. Use `.ends` sparingly. Engine §4.4 defines sharing and window-end dependencies.
 
@@ -808,7 +808,7 @@ A boundary atom reads the parse itself, so it has no window and no written-termi
 
 An elision is an omitted terminator. An aligned witness is a reading with the same closes. An ordinary query parses captured words afresh and can choose another omission boundary. A condition about one grammatical category sometimes needs the captured candidate's actual boundaries while it asks about another grammatical category.
 
-The span method keeps `.matches`, `.begins`, and `.tags(rule)` queries. `$x.without-elision.parse(R)` compares the whole capture. `$x.without-elision.onward.parse(R …)` permits a rival category that continues beyond it. The query can still inspect following original words. This context retains following-operator conditions and written-terminator priority.
+The span method keeps the `parse` queries. `$x.without-elision.parse(R)` compares the whole capture. `$x.without-elision.onward.parse(R …)` permits a rival category that continues beyond it. The query can still inspect following original words. This context retains following-operator conditions and written-terminator priority.
 
 Restored tokens record the constraint without creating additional mandatory words. A rival cannot read an omitted BOI as a bare required BOI. An omitted optional requires none of its remaining content. A prefix compares every close at its endpoint. These rules express a relation between original readings, rather than ordinary replay of completed spelling.
 
