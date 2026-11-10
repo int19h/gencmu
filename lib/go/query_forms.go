@@ -244,5 +244,5 @@ func queryTerms(body *domExpr) []*domTerm {
 }
 
 func forestTerm(term *domTerm) bool {
-	return term != nil && term.Kind == tmCall && (term.Str == "parse" || term.Str == "error-free")
+	return term != nil && term.Kind == tmCall && (term.Str == "parse" || term.Str == "error-free" || term.Str == "ending-after")
 }

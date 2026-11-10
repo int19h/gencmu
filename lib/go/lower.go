@@ -29,7 +29,7 @@ type production struct {
 	forwardCaptures   map[int]string
 	guardConditions   []*domCond
 	boundaryOriginal  map[*domCond]*domCond
-	logicalGroups     []logicalGroup
+	elementGroups     []elementGroup
 	helperExpression  *domExpr // the written helper site, shared by split routes
 	sourceAlternative *sAlt
 	treeRequested     bool
@@ -65,7 +65,7 @@ type production struct {
 	posOf            map[string]int   // capture name → its first position
 	tags             *domTerm         // nil: default tags (§4)
 	inheritIndex     int
-	logicalCount     int
+	elementCount     int
 	implicit         bool // one symbol and no tags: the constituent has its symbol's tags (§3.7)
 	conds            []lcond
 	condFrom         []int32    // conds[condFrom[d]:condFrom[d+1]] are those triggered at dot d, or nil for none
@@ -162,8 +162,8 @@ type lowered struct {
 
 type slot struct {
 	captureTerminal bool
-	logicalMark     int
-	logicalExpr     *domExpr
+	elementMark     int
+	elementExpr     *domExpr
 	sym             symbol
 	capture         string
 	test            *symTest // nil for a symbol without a test
@@ -582,7 +582,7 @@ func (lw *lowerer) lowerRule(r *sRule) {
 					p := lw.newProduction(h.rule, b)
 					p.sourceAlternative = h.owner
 					p.helperExpression = h.path
-					b, _, _ = logicalBody(b)
+					b, _, _ = elementBody(b)
 					if ranked || len(lw.itemNames) > 0 {
 						p.slot = &slotMetadata{source: h.owner, path: h.path}
 					}
@@ -674,7 +674,7 @@ func holdsCapture(e *domExpr, includeRanked bool) bool {
 func symbolsOf(body []slot) []symbol {
 	out := make([]symbol, 0, len(body))
 	for _, s := range body {
-		if s.logicalMark == 0 {
+		if s.elementMark == 0 {
 			out = append(out, s.sym)
 		}
 	}
@@ -702,10 +702,10 @@ func appendSlots(out, xs []slot) []slot {
 }
 
 func (lw *lowerer) newProduction(lhs int32, body []slot) *production {
-	groups := logicalGroupsOf(body)
-	physical, count, inherit := logicalBody(body)
+	groups := elementGroupsOf(body)
+	physical, count, inherit := elementBody(body)
 	body = physical
-	p := &production{logicalGroups: groups, num: len(lw.l.prods), lhs: lhs, slotOf: map[string]int32{}, logicalCount: count, inheritIndex: inherit}
+	p := &production{elementGroups: groups, num: len(lw.l.prods), lhs: lhs, slotOf: map[string]int32{}, elementCount: count, inheritIndex: inherit}
 	p.capName = make([]string, len(body))
 	p.capSlot = make([]int32, len(body))
 	for i, s := range body {
@@ -754,7 +754,7 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt) {
 	// conditions (§3.3).
 	lw.structural = append(lw.structural, structuralProduction{lhs, symbolsOf(body), a.erased})
 	rawBody := body
-	body, _, _ = logicalBody(body)
+	body, _, _ = elementBody(body)
 	position := map[string]int{}
 	for i, s := range body {
 		if s.capture != "" {
@@ -810,7 +810,7 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt) {
 	if p.error != nil || p.warning != nil {
 		lw.l.warns = true
 	}
-	p.transparent = p.logicalCount == 1
+	p.transparent = p.elementCount == 1
 	p.implicit = false
 	p.nslots = 0
 	p.posOf = make(map[string]int, len(position))
@@ -1076,7 +1076,7 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 		if !e.Elidable && holdsCapture(inner, false) {
 			bodies := append([][]slot{{}}, lw.expand(inner, a, ruleName)...)
 			for i, body := range bodies {
-				bodies[i] = append(append([]slot{{logicalMark: 1, logicalExpr: e}}, body...), slot{logicalMark: -1, logicalExpr: e})
+				bodies[i] = append(append([]slot{{elementMark: 1, elementExpr: e}}, body...), slot{elementMark: -1, elementExpr: e})
 			}
 			return bodies
 		}
@@ -1107,7 +1107,7 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 					return [][]slot{selected}
 				})[0]
 				// Each physical helper is one route through the same written optional.
-				out = append(out, append(append([]slot{{logicalMark: 1, logicalExpr: e}}, route...), slot{logicalMark: -1, logicalExpr: e}))
+				out = append(out, append(append([]slot{{elementMark: 1, elementExpr: e}}, route...), slot{elementMark: -1, elementExpr: e}))
 			}
 			return out
 		}

@@ -23,6 +23,8 @@ const defaultMemoLimit = 1 << 13
 // writes it. That content names tags, so it holds no tag number of one
 // parse.
 type sharedKey struct {
+	ending    bool
+	after     int
 	begins    bool
 	rule      int32
 	content   string

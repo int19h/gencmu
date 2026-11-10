@@ -7,7 +7,7 @@ import (
 )
 
 // domFormat is the version of the grammar DOM (docs/output.md).
-const domFormat = 47
+const domFormat = 48
 
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what data/preparsed/gencmu.json and data/preparsed/FAMILY.json hold.
@@ -19,6 +19,16 @@ type domDoc struct {
 	Constants         []*domConst
 	Classifiers       []*domClassifier
 	Implications      []*domImplication
+	Checks            []*domCheck
+}
+
+// domCheck tests a node of the chosen tree (engine §12.1).
+type domCheck struct {
+	Name           string
+	Pattern        *domTerm
+	Conditions     []*domCond
+	Warning, Error *domTerm
+	At             [2]int
 }
 
 // domClassifier is a %classifier item (engine §2): its name, which begins
@@ -436,6 +446,35 @@ func (d *domDoc) writeJSON(w *jsonWriter) {
 		w.pair(m.At)
 		w.raw("}")
 	}
+	w.raw(`],"checks":[`)
+	for i, check := range d.Checks {
+		if i > 0 {
+			w.raw(",")
+		}
+		w.raw(`{"name":`)
+		w.str(check.Name)
+		w.raw(`,"pattern":`)
+		check.Pattern.writeJSON(w)
+		w.raw(`,"conditions":[`)
+		for j, condition := range check.Conditions {
+			if j > 0 {
+				w.raw(",")
+			}
+			condition.writeJSON(w)
+		}
+		w.raw("]")
+		if check.Warning != nil {
+			w.raw(`,"warning":`)
+			check.Warning.writeJSON(w)
+		}
+		if check.Error != nil {
+			w.raw(`,"error":`)
+			check.Error.writeJSON(w)
+		}
+		w.raw(`,"at":`)
+		w.pair(check.At)
+		w.raw("}")
+	}
 	w.raw("]}")
 }
 
@@ -849,7 +888,7 @@ func decodeDOMMode(raw json.RawMessage, uni *unicodeTable, expanded bool) (*domD
 			}
 		}
 		var roots []any
-		for _, key := range []string{"rules", "directives", "constants", "classifiers", "implications"} {
+		for _, key := range []string{"rules", "directives", "constants", "classifiers", "implications", "checks"} {
 			roots = append(roots, templateObj(node)[key])
 		}
 		for _, part := range templateNodes(roots) {
@@ -867,7 +906,7 @@ func decodeDOMMode(raw json.RawMessage, uni *unicodeTable, expanded bool) (*domD
 	if err != nil {
 		return nil, err
 	}
-	if !hasOneForm(o, [][]string{{"format", "rules", "directives", "constants", "classifiers", "implications"}}) {
+	if !hasOneForm(o, [][]string{{"format", "rules", "directives", "constants", "classifiers", "implications", "checks"}}) {
 		return nil, fmt.Errorf("a malformed DOM envelope")
 	}
 	var format int
@@ -881,11 +920,18 @@ func decodeDOMMode(raw json.RawMessage, uni *unicodeTable, expanded bool) (*domD
 	if err := domScalar(o["directives"], &dirs); err != nil {
 		return nil, err
 	}
-	var consts, classifiers, implications []any
-	if domScalar(o["constants"], &consts) != nil || domScalar(o["classifiers"], &classifiers) != nil || domScalar(o["implications"], &implications) != nil {
+	var consts, classifiers, implications, checks []any
+	if domScalar(o["constants"], &consts) != nil || domScalar(o["classifiers"], &classifiers) != nil || domScalar(o["implications"], &implications) != nil || domScalar(o["checks"], &checks) != nil {
 		return nil, fmt.Errorf("not a DOM of format %d", domFormat)
 	}
 	d := &domDoc{}
+	for _, raw := range checks {
+		check, err := dc.decodeCheck(raw)
+		if err != nil {
+			return nil, err
+		}
+		d.Checks = append(d.Checks, check)
+	}
 	for _, c := range classifiers {
 		classifier, err := dc.decodeClassifier(c)
 		if err != nil {
@@ -1082,6 +1128,39 @@ func (dc *domDecoder) decodeImplication(raw any) (*domImplication, error) {
 		return nil, err
 	}
 	return m, nil
+}
+
+func (dc *domDecoder) decodeCheck(raw any) (*domCheck, error) {
+	object, err := domObjectOf(raw)
+	if err != nil || !hasOneForm(object, [][]string{
+		{"name", "pattern", "conditions", "warning", "at"},
+		{"name", "pattern", "conditions", "error", "at"},
+	}) {
+		return nil, fmt.Errorf("a malformed check")
+	}
+	check := &domCheck{}
+	if check.Name, err = domString(object["name"]); err != nil {
+		return nil, err
+	}
+	if check.Pattern, err = dc.decodeTerm(object["pattern"]); err != nil {
+		return nil, err
+	}
+	if check.Conditions, err = domList(object["conditions"], dc.decodeCond); err != nil {
+		return nil, err
+	}
+	if recipe, exists := object["warning"]; exists {
+		if check.Warning, err = dc.decodeTerm(recipe); err != nil {
+			return nil, err
+		}
+	} else {
+		if check.Error, err = dc.decodeTerm(object["error"]); err != nil {
+			return nil, err
+		}
+	}
+	if check.At, err = domPosition(object["at"]); err != nil {
+		return nil, err
+	}
+	return check, nil
 }
 
 // decodeGuards reads a list of guards, each with exactly its feature, its
@@ -1542,7 +1621,7 @@ func (dc *domDecoder) decodeCondNode(raw any, depth int) (*domCond, error) {
 			return nil, err
 		}
 		switch {
-		case name == "parse" || name == "error-free":
+		case name == "parse" || name == "error-free" || name == "ending-after":
 			return &domCond{Kind: cdForest, Left: &domTerm{Kind: tmCall, Str: name, Items: append([]*domTerm{receiver}, args...)}}, nil
 		case name == "ends-input" && len(args) == 0:
 			return &domCond{Kind: cdEnd, Span: receiver}, nil

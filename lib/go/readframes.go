@@ -897,7 +897,7 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 	if t.Str == "tags" || t.Str == "classes" || t.Str == "split" || t.Str == "ngrams" || t.Str == "classify" {
 		return give(&domCond{Kind: cdTruthy, Left: t})
 	}
-	if t.Str == "parse" || t.Str == "error-free" {
+	if t.Str == "parse" || t.Str == "error-free" || t.Str == "ending-after" {
 		return give(&domCond{Kind: cdForest, Left: t})
 	}
 	if t.Str == "ends-input" {

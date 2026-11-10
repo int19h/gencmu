@@ -1371,7 +1371,7 @@ func (r *recognizer) begun(start int32, errorFree bool) bool {
 }
 
 // begunTags also unions the tags of the eligible prefix witnesses (§4).
-func (r *recognizer) begunTags(start int32, errorFree bool) (bool, *tagset) {
+func (r *recognizer) begunTags(start int32, errorFree bool, query ...*nestedQuery) (bool, *tagset) {
 	var items []*item
 	tagsOf := map[*item]*tagset{}
 	for _, s := range r.sets {
@@ -1388,9 +1388,12 @@ func (r *recognizer) begunTags(start int32, errorFree bool) (bool, *tagset) {
 	eligible := r.eligibleItems(items, errorFree)
 	var sets []*tagset
 	for _, it := range eligible {
+		if len(query) > 0 && query[0].key.ending && r.base+int(it.set) <= query[0].at.a+query[0].key.after {
+			continue
+		}
 		sets = append(sets, tagsOf[it])
 	}
-	return len(eligible) > 0, r.run.ps.in.unionAll(sets)
+	return len(sets) > 0, r.run.ps.in.unionAll(sets)
 }
 
 func sortSyms(s []*symNode) {

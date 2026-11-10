@@ -674,7 +674,7 @@ func (g *rankedTagGraph) node(owner string, helper bool) int {
 	return len(g.nodes) - 1
 }
 
-// newRankedTagGraph summarizes logical arity without production products.
+// newRankedTagGraph summarizes element arity without production products.
 func newRankedTagGraph(g *stageGrammar, ranked *rankedGroups) *rankedTagGraph {
 	graph := &rankedTagGraph{groups: map[*rankedGroup]int{}}
 	named := map[string]int{}

@@ -45,7 +45,7 @@ const (
 	nextNone            = iota // no elidable optional comes next
 	nextAlone                  // one comes next, and it has no constituent
 	nextConstituent            // one comes next, after the node of its constituent Y
-	nextLogicalOptional        // the preceding optional has several physical routes
+	nextElementOptional        // the preceding optional has several physical routes
 )
 
 // eligibility holds the states of the items that some queried items rest on.
@@ -94,10 +94,10 @@ func (e *eligibility) next(it *item) int {
 	if d >= len(rhs) || rhs[d].term || !e.helpers[rhs[d].id] {
 		return nextNone
 	}
-	if it.prod.precedingLogicalOptional(d) != nil {
-		return nextLogicalOptional
+	if it.prod.precedingElementOptional(d) != nil {
+		return nextElementOptional
 	}
-	if d == 0 || rhs[d-1].term || (d == 1 && rhs[0].id == it.prod.lhs && it.prod.precedingLogicalOptional(0) == nil) {
+	if d == 0 || rhs[d-1].term || (d == 1 && rhs[0].id == it.prod.lhs && it.prod.precedingElementOptional(0) == nil) {
 		return nextAlone
 	}
 	return nextConstituent
@@ -193,7 +193,7 @@ func (r *recognizer) eligibleItems(items []*item, errorFree bool) []*item {
 			}
 		}
 	}
-	logical := newLogicalPriority(r, reads)
+	element := newElementPriority(r, reads)
 	n := len(e.order)
 	next := make([]int, n)
 	for i, it := range e.order {
@@ -277,7 +277,7 @@ func (r *recognizer) eligibleItems(items []*item, errorFree bool) []*item {
 						}
 					}
 				}
-				if a != 0 && next[x] == nextLogicalOptional {
+				if a != 0 && next[x] == nextElementOptional {
 					predecessors := func(item *item, edge link, bit uint8) uint8 {
 						before := beforeStates(item, edge)
 						var allowed uint8
@@ -305,7 +305,7 @@ func (r *recognizer) eligibleItems(items []*item, errorFree bool) []*item {
 						return allowed
 					}
 					for _, bit := range []uint8{1, 2} {
-						if a&bit != 0 && logical.permitsEligible(it, bit, stateOf, predecessors) {
+						if a&bit != 0 && element.permitsEligible(it, bit, stateOf, predecessors) {
 							p |= bit
 						}
 					}

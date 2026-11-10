@@ -1537,6 +1537,8 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 					return
 				}
 			}
+		case "ending-after":
+			ok = len(args) == 2 && (forestTerm(args[0]) || unresolvedTerm(args[0])) && isSpanShape(args[1])
 		case "error-free":
 			ok = len(args) == 1 && (forestTerm(args[0]) || unresolvedTerm(args[0]))
 		case "emitted", "verbatim-text":
@@ -1859,7 +1861,7 @@ func isSetType(t termType) bool { return t == tyStrings || t == tyTags || t == t
 // callType is the type of the value a function gives.
 func callType(name string) termType {
 	switch name {
-	case "parse", "error-free":
+	case "parse", "error-free", "ending-after":
 		return tyForest
 	case "value", "image", "source-text", "decomposed-source-text", "verbatim-text":
 		return tyString
@@ -2194,7 +2196,7 @@ func termTypeOnce(t *domTerm, ct constTypes, memo *typeMemo) (termType, *typeFau
 		}
 		return kind, nil
 	case tmCall:
-		for _, a := range t.Items {
+		for index, a := range t.Items {
 			if a.Kind == tmRule || a.Kind == tmClassifier || a.Kind == tmInteger {
 				continue
 			}
@@ -2207,8 +2209,8 @@ func termTypeOnce(t *domTerm, ct constTypes, memo *typeMemo) (termType, *typeFau
 					return 0, &typeFault{"a method has the wrong receiver or arguments", t}
 				}
 			}
-			if t.Str == "error-free" && ty != tyForest && ty != tyAny {
-				return 0, &typeFault{"error-free requires a forest", t}
+			if (t.Str == "error-free" || t.Str == "ending-after" && index == 0) && ty != tyForest && ty != tyAny {
+				return 0, &typeFault{t.Str + " requires a forest", t}
 			}
 		}
 		return callType(t.Str), nil

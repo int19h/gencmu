@@ -366,7 +366,7 @@ func TestSplitOptionalQueryFixedPrefix(t *testing.T) {
 }
 
 // A common empty capture merges the resulting items without merging their proofs (§4).
-func TestLogicalOptionalProofCorrelation(t *testing.T) {
+func TestElementOptionalProofCorrelation(t *testing.T) {
 	for _, prefix := range []string{"[A]", "[$a:A]"} {
 		for _, optional := range []string{"[y $c:empty]", "[(y $c:empty)]", "[[y $c:empty]]", "[$c:empty y]", "[$c:y]"} {
 			for _, suffix := range []string{"", " [+U]"} {

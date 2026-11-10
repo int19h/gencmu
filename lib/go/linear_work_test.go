@@ -145,7 +145,7 @@ func TestEmissionLinear(t *testing.T) {
 		for i := range seq {
 			items = append(items, fmt.Sprintf(`{"capture":"c%d"}`, i))
 		}
-		return domStage(t, fmt.Sprintf(`{"format":%d,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"seq":[%s]}}],"emit":{"items":[%s]},"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`, domFormat, strings.Join(seq, ","), strings.Join(items, ",")))
+		return domStage(t, fmt.Sprintf(`{"format":%d,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"seq":[%s]}}],"emit":{"items":[%s]},"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[],"checks":[]}`, domFormat, strings.Join(seq, ","), strings.Join(items, ",")))
 	}
 	for _, n := range []int{1000, 4000} {
 		d := pipeline(n)
@@ -175,7 +175,7 @@ func TestEmissionLinear(t *testing.T) {
 // each given as the JSON of an expression, with more rules after it.
 func seqDOM(items []string, rules ...string) string {
 	all := append([]string{`{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"seq":[` + strings.Join(items, ",") + `]}}],"conditions":[],"at":[1,1]}`}, rules...)
-	return fmt.Sprintf(`{"format":%d,"rules":[%s],"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`, domFormat, strings.Join(all, ","))
+	return fmt.Sprintf(`{"format":%d,"rules":[%s],"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[],"checks":[]}`, domFormat, strings.Join(all, ","))
 }
 
 // TestLoweringLinear: lowering a long sequence copies each of its symbols
@@ -288,7 +288,7 @@ func TestSharedClausesOnce(t *testing.T) {
 	for _, n := range []int{100, 400} {
 		alts := strings.TrimSuffix(strings.Repeat(`{"guards":[],"expr":{"capture":"x","expr":{"ref":"A"}}},`, n), ",")
 		conds := strings.TrimSuffix(strings.Repeat(`{"op":"=","left":{"method":"source-text","receiver":{"capture":"x"},"args":[]},"right":{"const":"K","at":[3,1]}},`, n), ",")
-		dom := fmt.Sprintf(`{"format":%d,"rules":[{"name":"text","op":"define","tags":{"union":[{"tag":"T"},{"tag":"U"}]},"alternatives":[%s],"conditions":[%s],"at":[3,1]}],"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[1,1]}],"constants":[{"name":"K","op":"define","value":{"string":"a"},"at":[2,1]}],"classifiers":[],"implications":[]}`, domFormat, alts, conds)
+		dom := fmt.Sprintf(`{"format":%d,"rules":[{"name":"text","op":"define","tags":{"union":[{"tag":"T"},{"tag":"U"}]},"alternatives":[%s],"conditions":[%s],"at":[3,1]}],"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[1,1]}],"constants":[{"name":"K","op":"define","value":{"string":"a"},"at":[2,1]}],"classifiers":[],"implications":[],"checks":[]}`, domFormat, alts, conds)
 		w := &workCounts{}
 		w.clauseSteps.most = 20 * int64(n)
 		countWorkIn(w, func() { domStage(t, dom) })

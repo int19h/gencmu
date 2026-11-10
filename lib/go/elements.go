@@ -6,20 +6,20 @@ import (
 	"strings"
 )
 
-type logicalGroup struct {
+type elementGroup struct {
 	expression *domExpr
 	start, end int
 }
 
-func logicalGroupsOf(body []slot) []logicalGroup {
-	var groups []logicalGroup
+func elementGroupsOf(body []slot) []elementGroup {
+	var groups []elementGroup
 	var stack []int
 	position := 0
 	for _, s := range body {
-		switch s.logicalMark {
+		switch s.elementMark {
 		case 1:
 			stack = append(stack, len(groups))
-			groups = append(groups, logicalGroup{expression: s.logicalExpr, start: position})
+			groups = append(groups, elementGroup{expression: s.elementExpr, start: position})
 		case -1:
 			index := stack[len(stack)-1]
 			stack = stack[:len(stack)-1]
@@ -31,9 +31,9 @@ func logicalGroupsOf(body []slot) []logicalGroup {
 	return groups
 }
 
-func (p *production) precedingLogicalOptional(dot int) *logicalGroup {
-	for i := range p.logicalGroups {
-		g := &p.logicalGroups[i]
+func (p *production) precedingElementOptional(dot int) *elementGroup {
+	for i := range p.elementGroups {
+		g := &p.elementGroups[i]
 		if g.end == dot {
 			return g
 		}
@@ -41,10 +41,10 @@ func (p *production) precedingLogicalOptional(dot int) *logicalGroup {
 	return nil
 }
 
-// logicalPriority joins physical optional routes at their fixed prefix.
+// elementPriority joins physical optional routes at their fixed prefix.
 // A later written route can forbid an earlier omission even when that
 // route never completes its named rule (engine §4).
-type logicalPrefixKey struct {
+type elementPrefixKey struct {
 	treePrefix       int
 	treeRequested    bool
 	boundary         *boundaryRecord
@@ -59,20 +59,20 @@ type logicalPrefixKey struct {
 	captures         string
 }
 
-type logicalPrefixSearch struct {
+type elementPrefixSearch struct {
 	item *item
 	dot  int32
 }
-type logicalPriority struct {
+type elementPriority struct {
 	r       *recognizer
-	further map[logicalPrefixKey]int32
-	memo    map[logicalPrefixSearch][]*item
+	further map[elementPrefixKey]int32
+	memo    map[elementPrefixSearch][]*item
 }
 
-func newLogicalPriority(r *recognizer, reads map[*item]bool) *logicalPriority {
-	l := &logicalPriority{r: r, further: map[logicalPrefixKey]int32{}, memo: map[logicalPrefixSearch][]*item{}}
+func newElementPriority(r *recognizer, reads map[*item]bool) *elementPriority {
+	l := &elementPriority{r: r, further: map[elementPrefixKey]int32{}, memo: map[elementPrefixSearch][]*item{}}
 	for it := range reads {
-		if it.prod.precedingLogicalOptional(int(it.dot)) == nil {
+		if it.prod.precedingElementOptional(int(it.dot)) == nil {
 			continue
 		}
 		for _, prefix := range l.prefixes(it) {
@@ -85,12 +85,12 @@ func newLogicalPriority(r *recognizer, reads map[*item]bool) *logicalPriority {
 	return l
 }
 
-func (l *logicalPriority) prefixes(it *item) []*item {
-	g := it.prod.precedingLogicalOptional(int(it.dot))
+func (l *elementPriority) prefixes(it *item) []*item {
+	g := it.prod.precedingElementOptional(int(it.dot))
 	if g == nil {
 		return nil
 	}
-	key := logicalPrefixSearch{item: it, dot: int32(g.start)}
+	key := elementPrefixSearch{item: it, dot: int32(g.start)}
 	if result, ok := l.memo[key]; ok {
 		return result
 	}
@@ -116,8 +116,8 @@ func (l *logicalPriority) prefixes(it *item) []*item {
 	return result
 }
 
-func (l *logicalPriority) key(it, prefix *item) logicalPrefixKey {
-	g := it.prod.precedingLogicalOptional(int(it.dot))
+func (l *elementPriority) key(it, prefix *item) elementPrefixKey {
+	g := it.prod.precedingElementOptional(int(it.dot))
 	var names []string
 	for name, position := range prefix.prod.posOf {
 		if position < int(prefix.dot) {
@@ -133,7 +133,7 @@ func (l *logicalPriority) key(it, prefix *item) logicalPrefixKey {
 			fmt.Fprintf(&captures, "t%d/", c.tree)
 		}
 	}
-	// Split helpers of a logical parent share its written site. Named rules
+	// Split helpers of a element parent share its written site. Named rules
 	// retain their rule identity. Both keep the proof's own prefix observations.
 	rule := it.prod.lhs
 	parent := it.prod.helperExpression
@@ -144,10 +144,10 @@ func (l *logicalPriority) key(it, prefix *item) logicalPrefixKey {
 	if prefix.tree != nil {
 		treePrefix = prefix.tree.prefix
 	}
-	return logicalPrefixKey{treePrefix: treePrefix, treeRequested: it.prod.treeRequested, boundary: prefix.boundary, alternative: it.prod.sourceAlternative, expression: g.expression, parent: parent, rule: rule, origin: it.origin, position: prefix.set, prefix: prefix.prefix, closes: prefix.closes, lexical: it.prod.lexical, requested: it.prod.closeRequested, captures: captures.String()}
+	return elementPrefixKey{treePrefix: treePrefix, treeRequested: it.prod.treeRequested, boundary: prefix.boundary, alternative: it.prod.sourceAlternative, expression: g.expression, parent: parent, rule: rule, origin: it.origin, position: prefix.set, prefix: prefix.prefix, closes: prefix.closes, lexical: it.prod.lexical, requested: it.prod.closeRequested, captures: captures.String()}
 }
 
-func (l *logicalPriority) permits(it, prefix *item) bool {
+func (l *elementPriority) permits(it, prefix *item) bool {
 	end, exists := l.further[l.key(it, prefix)]
 	return !exists || end < it.set
 }
@@ -155,8 +155,8 @@ func (l *logicalPriority) permits(it, prefix *item) bool {
 // permitsEligible follows only eligible advances from a candidate to its
 // own fixed prefix. Blocker discovery still uses prefixes on the raw chart.
 // E/P grow during the fixed point, so these filtered paths are not memoized.
-func (l *logicalPriority) permitsEligible(it *item, bit uint8, state func(*item) uint8, predecessors func(*item, link, uint8) uint8) bool {
-	g := it.prod.precedingLogicalOptional(int(it.dot))
+func (l *elementPriority) permitsEligible(it *item, bit uint8, state func(*item) uint8, predecessors func(*item, link, uint8) uint8) bool {
+	g := it.prod.precedingElementOptional(int(it.dot))
 	type proof struct {
 		item *item
 		bit  uint8
@@ -189,9 +189,9 @@ func (l *logicalPriority) permitsEligible(it *item, bit uint8, state func(*item)
 	return false
 }
 
-// logicalBody keeps optional helper structure after capture expansion.
+// elementBody keeps optional helper structure after capture expansion.
 // Markers affect inheritance and visible closes, but consume no symbol.
-func logicalBody(body []slot) ([]slot, int, int) {
+func elementBody(body []slot) ([]slot, int, int) {
 	type group struct{ count, inherit int }
 	stack := []group{{inherit: -1}}
 	physical := make([]slot, 0, len(body))
@@ -205,7 +205,7 @@ func logicalBody(body []slot) ([]slot, int, int) {
 		}
 	}
 	for _, s := range body {
-		switch s.logicalMark {
+		switch s.elementMark {
 		case 1:
 			stack = append(stack, group{inherit: -1})
 		case -1:

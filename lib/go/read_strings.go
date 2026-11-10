@@ -487,7 +487,7 @@ func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 		f.receiver = b.finishMethod(f.n, name, f.receiver, f.args, f.dependent)
 		f.index++
 		if f.index == len(f.selectors) {
-			isPredicate := name == "starts-input" || name == "ends-input" || boundaryMethod(name) || name == "matches" || name == "begins" || name == "ends" || name == "parse" || name == "error-free"
+			isPredicate := name == "starts-input" || name == "ends-input" || boundaryMethod(name) || name == "matches" || name == "begins" || name == "ends" || name == "parse" || name == "error-free" || name == "ending-after"
 			if f.inCondition && (name == "tags" || name == "classes" || name == "split" || name == "ngrams" || name == "classify") {
 				isPredicate = true
 			}
@@ -517,6 +517,7 @@ const (
 	methodClassify
 	methodParse
 	methodErrorFree
+	methodEndingAfter
 )
 
 var sourceMethods = map[string]sourceMethodKind{
@@ -529,7 +530,7 @@ var sourceMethods = map[string]sourceMethodKind{
 	"tags": methodTags, "followed-by": methodBoundary, "preceded-by": methodBoundary,
 	"matches": methodQuery, "begins": methodQuery, "ends": methodQuery,
 	"ngrams": methodNgrams, "split": methodSplit, "classify": methodClassify,
-	"parse": methodParse, "error-free": methodErrorFree,
+	"parse": methodParse, "error-free": methodErrorFree, "ending-after": methodEndingAfter,
 }
 
 func knownMethod(name string) bool { return sourceMethods[name] != 0 }
@@ -568,6 +569,8 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 				b.fail(n, "suffix parse requires an ordinary span, not a restored span")
 			}
 		}
+	case methodEndingAfter:
+		valid = len(args) == 1 && (forestTerm(receiver) || unknown(receiver)) && (isSpanTerm(args[0]) || unknown(args[0]))
 	case methodErrorFree:
 		valid = len(args) == 0 && (forestTerm(receiver) || unknown(receiver))
 	case methodSpan:

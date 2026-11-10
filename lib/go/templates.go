@@ -167,7 +167,7 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 			rule templateObject
 		}
 		items := []item{}
-		for _, kind := range []string{"rules", "constants", "directives", "classifiers", "implications"} {
+		for _, kind := range []string{"rules", "constants", "directives", "classifiers", "implications", "checks"} {
 			for _, v := range templateList(raw[kind]) {
 				items = append(items, item{kind, templateObj(v)})
 			}
@@ -546,7 +546,7 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 	for index, d := range docs {
 		dom := templateCopy(rawDocs[index])
 		dom["rules"] = []any{}
-		for _, kind := range []string{"constants", "directives", "classifiers", "implications"} {
+		for _, kind := range []string{"constants", "directives", "classifiers", "implications", "checks"} {
 			items := []any{}
 			for _, v := range templateList(dom[kind]) {
 				e := &templateEvent{path: d.path, rule: templateObj(v)}
