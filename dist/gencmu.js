@@ -6903,8 +6903,8 @@
    * @param {(name: string) => boolean | undefined} has
    * @returns {any}
    */
-  function simplify(node, has) {
-    return run(simplifying(node, has))[0];
+  function simplify(node, has, noClosed = false) {
+    return run(simplifying(node, has, undefined, noClosed))[0];
   }
 
   /**
@@ -6914,11 +6914,11 @@
    * @param {WeakMap<object, any>} [fixed]
    * @returns {Generator<Step, any, any>}
    */
-  function* simplifying(node, has, fixed) {
+  function* simplifying(node, has, fixed, noClosed = false) {
     if (!isDomObject(node)) return [node, undefined];
     if (fixed?.has(node)) {
       let known = fixed.get(node);
-      if (known === null) { known = yield simplifying(node, has); fixed.set(node, known); }
+      if (known === null) { known = yield simplifying(node, has, undefined, noClosed); fixed.set(node, known); }
       return known;
     }
     if (typeof node.captured === "string") {
@@ -6926,7 +6926,7 @@
       return present === undefined ? [node, node.captured] : [present ? DOM_TRUE : DOM_FALSE, undefined];
     }
     if ("not" in node) {
-      const [inner, guard] = yield simplifying(node.not, has, fixed);
+      const [inner, guard] = yield simplifying(node.not, has, fixed, noClosed);
       return inner === DOM_TRUE ? [DOM_FALSE, undefined] : inner === DOM_FALSE ? [DOM_TRUE, undefined]
         : [inner === node.not ? node : {not:inner}, guard];
     }
@@ -6937,7 +6937,7 @@
       const parts = [];
       let guard, unchanged = true;
       for (const item of /** @type {any[]} */ (node[key])) {
-        const [part, next] = yield simplifying(item, has, fixed);
+        const [part, next] = yield simplifying(item, has, fixed, noClosed);
         if (part === deciding) return [deciding, undefined];
         if (part !== dropped) { parts.push(part); guard ??= next; }
         unchanged &&= part === item;
@@ -6946,10 +6946,10 @@
         : [unchanged ? node : {[key]:parts}, guard];
     }
     if ("if" in node) {
-      const [antecedent, guard] = yield simplifying(node.if, has, fixed);
+      const [antecedent, guard] = yield simplifying(node.if, has, fixed, noClosed);
       const isTerm = !isCondition(node.then);
       if (antecedent === DOM_FALSE) return [isTerm ? DOM_EMPTY : DOM_TRUE, undefined];
-      const [consequent, next] = yield simplifying(node.then, has, fixed);
+      const [consequent, next] = yield simplifying(node.then, has, fixed, noClosed);
       if (antecedent === DOM_TRUE) return [consequent, next];
       if (isTerm && isEmptySet(consequent)) return [DOM_EMPTY, undefined];
       if (!isTerm && consequent === DOM_TRUE) return [DOM_TRUE, undefined];
@@ -6957,11 +6957,13 @@
       return [antecedent === node.if && consequent === node.then ? node : {if:antecedent, then:consequent}, guard ?? next];
     }
     if ("nonempty" in node) {
-      const [term, guard] = yield simplifying(node.nonempty, has, fixed);
+      const [term, guard] = yield simplifying(node.nonempty, has, fixed, noClosed);
       // A set term that simplifies to the empty set is false (engine §3.6).
       if (isEmptySet(term)) return [DOM_FALSE, guard];
-      // A closed set term that is not empty is true (engine §3.6).
-      const closed = closedSetValue(term);
+      // A closed set term that is not empty is true (engine §3.6). The
+      // caller can bar this rule, for a term that held a parameter as its
+      // template writes it, which is never closed.
+      const closed = noClosed ? null : closedSetValue(term);
       if (closed !== null && closed.size > 0) return [DOM_TRUE, guard];
       return [term === node.nonempty ? node : {nonempty:term}, guard];
     }
@@ -6970,7 +6972,7 @@
       const parts = [];
       let guard, unchanged = true;
       for (const item of /** @type {any[]} */ (node[key])) {
-        const [part, next] = yield simplifying(item, has, fixed);
+        const [part, next] = yield simplifying(item, has, fixed, noClosed);
         if (isEmptySet(part)) {
           if (key === "intersection") return [DOM_EMPTY, undefined];
           unchanged = false;
@@ -6982,29 +6984,25 @@
       return [unchanged ? node : {[key]:parts}, guard];
     }
     if (Array.isArray(node.difference)) {
-      const [left, guard] = yield simplifying(node.difference[0], has, fixed);
-      const [right, next] = yield simplifying(node.difference[1], has, fixed);
+      const [left, guard] = yield simplifying(node.difference[0], has, fixed, noClosed);
+      const [right, next] = yield simplifying(node.difference[1], has, fixed, noClosed);
       return isEmptySet(left) ? [DOM_EMPTY, undefined] : isEmptySet(right) ? [left, guard]
         : [left === node.difference[0] && right === node.difference[1] ? node : {difference:[left,right]}, guard ?? next];
     }
     if (typeof node.op === "string") {
-      const [left, guard] = yield simplifying(node.left, has, fixed);
-      const [right, next] = yield simplifying(node.right, has, fixed);
+      const [left, guard] = yield simplifying(node.left, has, fixed, noClosed);
+      const [right, next] = yield simplifying(node.right, has, fixed, noClosed);
       return [left === node.left && right === node.right ? node : {op:node.op,left,right}, guard ?? next];
     }
     return [node, undefined];
   }
 
   /**
-   * Whether a term is the empty set, written or left by a guard.
-   * @param {any} node
-   * @returns {boolean}
-   */
-  /**
    * Whether a bare empty set stands as the term of a wrapper anywhere in a
    * condition, in a Boolean position or in the guard of a term inside one.
    * @param {any} condition
    * @returns {boolean}
+   * @internal
    */
   function hasBareEmptySet(condition) {
     const pending = [condition];
@@ -7089,7 +7087,11 @@
     return null;
   }
 
-  /** @param {any} node @returns {boolean} */
+  /**
+   * Whether a term is the empty set, written or left by a guard.
+   * @param {any} node
+   * @returns {boolean}
+   */
   function isEmptySet(node) {
     if (!isDomObject(node)) return false;
     if (node.emptySet === true && Object.keys(node).length === 1) return true;
@@ -8319,15 +8321,19 @@
       // (engine §3.6), which itemCaptureProblem checks.
       if (itemNames.size > 0 && capturesMentioned(condition).some((name) => itemNames.has(name))) continue;
       const prepared = prepareClause(condition);
-      // A condition that held a parameter as written is never closed
-      // (engine §3.6), so in an instance it still applies where it
-      // simplifies to true.
       const applies = (/** @type {number} */ index) => {
         if (hooks.work) countWork(hooks.work, "clauses");
         const captures = alternatives[index];
         const has = (/** @type {string} */ name) => captures.has(name);
-        const simple = simplifyFor(prepared, has, captures);
-        return (simple !== DOM_TRUE || heldParameter?.[conditionIndex] === true) && capturesUsed(simple).every(has);
+        let simple = simplifyFor(prepared, has, captures);
+        if (simple === DOM_TRUE && heldParameter?.[conditionIndex] === true) {
+          // A term that held a parameter as written does not reduce under
+          // the closed-set rule (engine §3.6). Truth for any other reason
+          // still applies to no production.
+          const open = simplify(condition, has, true);
+          if (open !== DOM_TRUE) simple = open;
+        }
+        return simple !== DOM_TRUE && capturesUsed(simple).every(has);
       };
       // A condition made only of guarded parts is true for a production
       // that has none of their captures, so only those that have one can
@@ -10731,6 +10737,8 @@
 
   /** @type {WeakMap<Grammar, Map<string, any[]>>} */
   const argumentUses = new WeakMap();
+  /** @type {WeakMap<Grammar, Map<string, boolean[]>>} */
+  const parameterFlags = new WeakMap();
   /** @param {number} run @param {string} path @param {number[]} at */
   const argumentSite = (run,path,at) => JSON.stringify([run,path,at]);
   // Stitches documents, each { path, dom }, into one grammar.
@@ -10804,10 +10812,10 @@
         this.instances=expansion.instances;
         // Which conditions of each template rule held a parameter as
         // written, keyed as the arguments are (engine §3.6).
-        this.parameterFlags = new Map((expansion.parameterRules ?? []).map((/** @type {any} */ entry) => [argumentSite(entry.inspectionRun,entry.path,entry.at), entry.heldParameter]));
+        parameterFlags.set(this, new Map((expansion.parameterRules ?? []).map((/** @type {any} */ entry) => [argumentSite(entry.inspectionRun,entry.path,entry.at), entry.heldParameter])));
         for (const [index, {path, dom, inspectionRun = index}] of expansion.documents.entries()) {
           if (expansion.order) for (const rule of dom.rules) {
-            const problem = definitionProblem(rule,true,this.parameterFlags.get(argumentSite(inspectionRun,path,rule.at)));
+            const problem = definitionProblem(rule,true,parameterFlags.get(this)?.get(argumentSite(inspectionRun,path,rule.at)));
             if (problem) throw this.documentError(path,rule.at,problem);
           }
           this.addDocument(path, dom, inspectionRun);
@@ -11394,7 +11402,7 @@
       for(const term of [checked.tags,...(checked.alternatives??[]).map((/** @type {any} */ a)=>a.tags)]) {
         if(term && readsOwnTags(term)) throw this.documentError(path,rule.at,"a constituent reads its own tags");
       }
-      const problem = definitionProblem(checked, true, this.parameterFlags?.get(key));
+      const problem = definitionProblem(checked, true, parameterFlags.get(this)?.get(key));
       if (!rule.params && (deferredEmissionProblem(checked) || deferredRecipeProblem(checked))) this.emissionUsers.push({path, rule:checked, run:inspectionRun});
       if (problem) throw this.documentError(path, rule.at, problem);
       return checked;

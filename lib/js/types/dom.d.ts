@@ -81,19 +81,7 @@ export declare const DOM_FALSE: Readonly<{
  * @param {(name: string) => boolean | undefined} has
  * @returns {any}
  */
-export declare function simplify(node: any, has: (name: string) => boolean | undefined): any;
-/**
- * Whether a term is the empty set, written or left by a guard.
- * @param {any} node
- * @returns {boolean}
- */
-/**
- * Whether a bare empty set stands as the term of a wrapper anywhere in a
- * condition, in a Boolean position or in the guard of a term inside one.
- * @param {any} condition
- * @returns {boolean}
- */
-export declare function hasBareEmptySet(condition: any): boolean;
+export declare function simplify(node: any, has: (name: string) => boolean | undefined, noClosed?: boolean): any;
 export type PreparedClause = {
     /**
      * how the parts join, or

@@ -117,7 +117,6 @@ export declare class Grammar {
     erasureChecks: any;
     templates: any;
     instances: any;
-    parameterFlags: Map<any, any>;
     /** @type {WeakMap<DomEntry,string[]>} */
     classifierKeys: WeakMap<DomEntry, string[]>;
     /** @type {StageImplication[]} */
