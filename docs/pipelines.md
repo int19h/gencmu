@@ -175,6 +175,7 @@ Use example filenames that do not clash with your own files. The commands below 
 
    ````text
    cll-cyrillic            gate     on
+   early-elision           warning  on
    sa-su                   gate     off
    su-boundary             gate     on
    y-cmavo                 warning  off
@@ -551,13 +552,17 @@ If your change needs a switch, guard its alternative with `name?`. Add `%feature
 
 Use `--feature name` to enable a feature. Use `--no-feature name` to disable it.
 
+Use `%check` for a property of the chosen tree, with a pattern, optional conditions and one diagnostic message. [Checks](notation.md#checks) defines candidate nodes, element values and local readings. Checks run after choice and before emission, so their errors cannot change their own stage's ranking.
+
+The bundled `early-elision` warning is on by default in `lojban/cll`, `lojban/bpfk`, `lojban/experimental` and the playground. It reports omitted terminators whose preceding element has a longer completed local reading. `experimental-cgv` is also on by default in `lojban/experimental`. Other bundled warnings require callers to enable them.
+
 To report an addition, put its body in a `%warning` rule named by its code. Splice that rule where the body belongs, as `*name`. Put conditions that read its captures in that rule too.
 
 Give `%warning` one message recipe after `%conditions`. Put `%suppress-warnings` after the diagnostic and before `%emits` or `%erased`.
 
-A warning changes no accepted reading or chosen tree. Callers enable or disable its code with the feature controls. `%suppress-warnings code` suppresses it within one subtree, and `_` suppresses all warning codes.
+A warning changes no accepted reading or chosen tree. An enabled check can raise a runtime grammar error and stop output. Callers enable or disable its code with the feature controls. `%suppress-warnings code` suppresses it within one subtree, and `_` suppresses all warning codes.
 
-For an invalid construct, use `%error` only where its message says more than the default rejection, or says the same more briefly. The engine prefers fewer errors before grammar ranking. A chosen error stops the pipeline without stage output and keeps the chosen tree.
+For an invalid construct, use `%error` only where its message says more than the default rejection, or says the same more briefly. The engine prefers fewer errors before grammar ranking. A chosen reporting error keeps the chosen tree, verdict and emitted output, with `ok:false`. Earlier stages carry errors onward and continue.
 
 Use `--` for comments inside grammar blocks. A comment ends at LF, CRLF, CR, or the file end. A string retains literal `--`. The notation has no block comment form.
 

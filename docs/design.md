@@ -120,7 +120,7 @@ The four libraries implement one specification, `docs/engine.md`. It defines the
 `tests/engine/` tests the specification. Each case is a small grammar, an input, and a pattern that the canonical result JSON of `docs/output.md` must match. So a fifth implementation can run the cases to make sure that it follows the specification, without the Lojban grammars at all. The cases cover every specification rule, with one or more cases per rule. They settle the edge cases that decide which parse comes out, so that the Lojban corpus does not become the specification by accident:
 
 - A tie is an error (`ok` is false) of kind `ambiguous`, with the reason `tie`. The stage has the verdict `tie` and a witness, and the error has two readings. The first reading is the least in a total order, *T*, that breaks the ranking's ties by canonical keys. The second is the tied derivation that diverges from the first earliest (engine §6). *T* orders the ambiguity diagnostics. The canonical tie-break keys never turn a tie into an accepted reading.
-- The witness of a tie is the pair of actions at the first visible difference between the two readings. A close of a helper rule, or of an alternative with one logical symbol, is transparent (not visible). An earlier difference at such a close does not decide the witness. If the two readings have no visible difference, the witness is the pair of actions at their first difference.
+- The witness of a tie is the pair of actions at the first visible difference between the two readings. A close of a helper rule, or of an alternative with one element, is transparent (not visible). An earlier difference at such a close does not decide the witness. If the two readings have no visible difference, the witness is the pair of actions at their first difference.
 - A stage with a tie emits nothing, and the pipeline stops there. Its tie stands even when every tied derivation emits the same tokens. The stage is ambiguous as written, and the error lets a grammar author fix it. The engine cases include a three-way tie and a tie whose derivations emit the same tokens.
 - The cases cover empty spans and cycles: rules that can match no tokens, empty captures and a condition on an empty span. They also cover a unary cycle of `a` to `b` and `b` to `a`. Another case is a nested parse asked about its own span as the same rule. Each case has its defined outcome.
 
@@ -364,7 +364,7 @@ The following grammar gives `x` for input `a`, and `xb` for input `ab`:
 
 The child definition recipe serves both walks. A recipe that must apply inside a parent belongs on the child alternative or definition. The [pipeline author guide](pipelines.md) uses this rule for quote bodies and gaps.
 
-Recipes use a closed string language. They join literals, string constants, and seven captured string methods with `++`. They cannot branch, inspect tags, split strings, classify words, or start queries. This keeps emission independent of recognition and makes channel dependencies explicit.
+Recipes use a closed string language. They join literals, string constants, and seven captured string methods with `++`. Check messages also accept `.terminal` on `$`. They cannot branch, inspect tags, split strings, classify words, or start queries. This keeps emission independent of recognition and makes channel dependencies explicit.
 
 Conditions do not read emitted strings. A string walk depends on recipes, which serve emission, so recognition stays independent of them. A condition that must compare two parts by their words compares their trees with `≅` (see "Structural pattern implementation"). Eberban resumes a verb only where the repeated verb has the words of the earlier one. Its reference parser compares the two trees in the same way.
 
@@ -444,7 +444,7 @@ The engine defines these rules in §3:
 
 - A flat list is a helper. The `greedy` and `lazy` rankings do not observe its prefix ends. A rule's conditions do not apply to each list prefix. A grammar that needs those prefixes uses a chain or explicit recursion.
 - Each chain level sees its rule's clauses and has its own `$`. A warning on the alternative gives one warning per level.
-- A right chain differs from `x [s r]` at its single-item level. An elidable suffix adds an omission absent from the chain. Their elision counts can therefore select different readings. A single-symbol chain item can forward tags, while the suffix form has two logical symbols. Query priority also uses their different preceding logical symbols.
+- A right chain differs from `x [s r]` at its single-item level. An elidable suffix adds an omission absent from the chain. Their elision counts can therefore select different readings. A single-symbol chain item can forward tags, while the suffix form has two elements. Query priority also uses their different preceding elements.
 
 The bundled grammars use these rules as follows:
 
@@ -461,7 +461,7 @@ A marked optional has a user tag or parameter directly after `+`. Its sole termi
 
 A DOM does not preserve groups, so its reader tests only the normalized form. A wrong test on a terminator is also a document error.
 
-An omission has an elided node and contributes to its boundary's elision count. It does not record which constituent it closes. `elision-only` reconstructs its defined routes and preserves the default value, from `≝` or from an equality test. The default serves restoration only, so the string walk sees an elided terminator as empty. Query blockers instead read the preceding logical symbol, with plain optionals retained as helpers.
+An omission has an elided node and contributes to its boundary's elision count. It does not record which constituent it closes. `elision-only` reconstructs its defined routes and preserves the default value, from `≝` or from an equality test. The default serves restoration only, so the string walk sees an elided terminator as empty. Query blockers instead read the preceding element, with plain optionals retained as helpers.
 
 A capture cannot stand inside a chain. An elidable optional can capture only its sole terminator, as `[$j:+JI]`. Inside flat braces it is an item capture. An alternative expands into productions, one per choice branch and subsequence of `&`. A plain optional with a capture expands into productions with and without the capture. A capture can therefore be present in some productions and absent in others.
 
@@ -469,11 +469,11 @@ Presence tests and `⟹` guards handle missing captures. Conditions and emission
 
 Optional captures express combinations without separate alternatives. For example, `[$b:bahe-run] $w:unit [$a:indicator-run]` expresses `$w`, `$b $w`, `$w $a`, and `$b $w $a`.
 
-Every plain optional retains one logical helper for interpretation. Physical expansion of captured optionals only binds their captures.
+Every plain optional retains one element helper for interpretation. Physical expansion of captured optionals only binds their captures.
 
 Elidable helpers preserve omission records and restoration routes. For `[$j:+JI]`, the helper remains `h → ε | $j:JI`. Enclosing expansions pair with its routes. Only an original written terminator binds `$j`, in main recognition and reconstruction. Tests and defaults follow the terminator, as in `[$j:+JI="jie"]`.
 
-Ranking, inheritance, ranked tag safety, and query priority use the same logical helper structure.
+Ranking, inheritance, ranked tag safety, and query priority use the same element structure.
 
 A capture wraps one symbol because it names one constituent with one span and one tag set. A group or optional is not a constituent. `$x:[a]` adds nothing to `[$x:a]`. `$x:(a | b)` needs a named rule, as a list does.
 
@@ -608,17 +608,29 @@ A `%warning` rule names a warning code and supplies its message recipe. A splice
 
 The `lojban/experimental` pipeline enables `experimental-cgv` by default for consonants before glides in names and borrowings. Forms marks those words with `Cgv-Warning`. The words stage warns when its chosen derivation reads a marked word.
 
-Other bundled warnings require the caller to enable them.
+The `early-elision` check is on by default in `lojban/cll`, `lojban/bpfk`, `lojban/experimental` and the playground. Other bundled warnings require the caller to enable them.
 
 A warning comes from a selected occurrence, including one of a tie's two shown readings. The parser reports no addition that only a losing reading uses. A tie has no chosen tree, but it lists warnings from its two shown readings. Erasure removes the warnings of the erased text.
 
-The experimental syntax is a layer over the CLL grammar. Its syntax additions do not carry warnings. The bundled Lojban warnings are `y-cmavo` in `lojban/cll` and `experimental-cgv` in `lojban/experimental`.
+The experimental syntax is a layer over the CLL grammar. Its syntax additions do not carry warnings. Bundled Lojban warnings include `y-cmavo` in `lojban/cll`, `experimental-cgv` in `lojban/experimental`, and `early-elision` in the three pipelines named above.
 
 A change of reading is a gate, `name?`, with the base form under `¬name?`, so that exactly one of the two is live. A warning cannot express it, because a warning rule keeps its reading whether its code is on or off. The base reading is then gone either way. A pipeline that makes such a change can declare its gate as an unconditional default. A caller who wants the base reading can disable that default. Gates are also how a grammar keeps an expensive construct out of the parses that do not need it (see below).
 
 One name has one role throughout a pipeline: gate, warning code, or error code. The loader rejects role conflicts. Warning codes must also be valid feature names. Error codes cannot be enabled or disabled.
 
 A caller selects features separately. The `lojban/experimental` pipeline uses camxes-exp as its baseline. People adopt its extensions separately. Some people use the merger and some do not. A feature that composes with the rest by plain addition stays selectable on its own. A change that cannot be made selectable without a convoluted grammar is made unconditionally in the pipeline's documents, and its documents say so.
+
+## Checks on the chosen tree
+
+A check reports a property of a chosen node without changing recognition or ranking. `%check` separates such tests from rules, whose conditions constrain every candidate. An error check counts only after its own stage chooses. Later stages count its carried charge normally. `elision-only` skips a derivation with a counted check error.
+
+The check tree exposes chosen ranked options, while ordinary condition patterns retain ranked seals. Helpers and splices flatten, empty named children disappear, and erasure remains sealed. Erased roots and their contents receive no checks. One preorder walk evaluates each rule's own message, then its node's checks in definition order, before its children. Disabled and suppressed warning checks evaluate nothing. An enabled check can meet a runtime grammar error and stop output.
+
+An element is one lowered symbol in helper structure. An element value also records its chosen span. This preserves list and optional boundaries that no constituent capture can name. Node walks instead follow the check tree. The two views let one check cover every elidable site without confusing a list with its last item.
+
+Local readings query the same element alone from its chosen start through stage-input end. They remove capture binders and enclosing clauses, but retain called rules' own clauses and ordinary query eligibility. The forest filter `.ending-after(S)` requires a completed witness beyond S, with restored ends projected to original positions. An unfinished extension is no witness.
+
+The CLL check `early-elision` tests every omitted terminator for a longer local reading of its preceding element. It names the terminator with `.terminal`. Each matching omission warns, including where nested constructs produce overlapping warnings. Rules that isolate an omission in a separate named definition supply no preceding element. The experimental syntax documents those sites.
 
 ## Diagnostic rules and splices
 
@@ -648,7 +660,7 @@ Output, actions, diagnostics, and serialized forms retain their derivation-based
 
 Each summary keeps an additional action summary whose profile contains only the measure. It retains prefix-related candidates until their common continuation settles their canonical order. An erased parent reads this summary, while a live parent reads the ordinary one. Both compose over their retained shared edges without enumerating complete derivations (engine §6).
 
-A splice is one transparent call, not an expression copy. It keeps conditions, tags, strings, emission, erasure, diagnostics, and suppression. Its close is transparent to action comparison, and it supplies one logical symbol for inheritance.
+A splice is one transparent call, not an expression copy. It keeps conditions, tags, strings, emission, erasure, diagnostics, and suppression. Its close is transparent to action comparison, and it supplies one element for inheritance.
 
 A capture of a splice observes its anonymous exported view. Its own `$` observes the anonymous working view. Each view retains the call's span, tags, strings, and observed child sequence. Presence is true even for an empty call. Tree equality compares anonymous child sequences, and a root-name test for the spliced rule fails.
 
