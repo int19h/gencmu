@@ -346,6 +346,11 @@ fn emit_requirements<'a>(out: &mut Pieces<'a>, term: &'a Term) {
 
 fn emit_cond<'a>(out: &mut Pieces<'a>, cond: &'a Cond) {
     match cond {
+        Cond::Truthy(term) => {
+            out.push_str("{\"nonempty\":");
+            write_term(out, term);
+            out.push('}');
+        }
         Cond::Forest(term) => write_term(out, term),
         Cond::SourceQuery(name, args, _) => {
             out.push_str("{\"method\":");

@@ -1,0 +1,23 @@
+{
+  "description": "Engine §4 and §10: the condition side of a guarded term can hold an implication whose set consequent is decided by absence.",
+  "grammar": "%rule text [$w:word] B :: (($w ⟹ $w.tags ∩ Word) ⟹ Guarded)\n%conditions Guarded ⊆ $.tags\n%rule word A :: Word",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

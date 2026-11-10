@@ -53,6 +53,7 @@ pub(crate) fn problem(conditions: &[Cond]) -> Result<(), String> {
     }
     fn cond(value: &Cond) -> Result<(), String> {
         match value {
+            Cond::Truthy(inner) => term(inner),
             Cond::Compare(op, left, right, _) if !matches!(op.as_str(), "≅" | "≇") => {
                 term(left)?;
                 term(right)
@@ -235,6 +236,7 @@ impl Input<'_> {
     }
     fn condition(&self, condition: &Cond) -> Result<bool, String> {
         Ok(match condition {
+            Cond::Truthy(term) => !self.value(term)?.set()?.is_empty(),
             Cond::Captured(_) => true,
             Cond::Not(inner) => !self.condition(inner)?,
             Cond::Any(items) => {

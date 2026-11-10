@@ -1,0 +1,37 @@
+{
+  "description": "Engine §4: restored forest tags, unfiltered and filtered, keep separate answers, unfiltered first.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage before\n%ambiguity-resolution greedy\n%rule text $w:word $b:bad\n%emits $w :: X, $b :: X\n%rule word A\n%rule bad A\n%error \"bad\"\n%stage last\n%ambiguity-resolution greedy\n%rule text $x:pair\n%conditions (Dirty ⊆ $x.without-elision.parse(word).tags) ∧ (Dirty ⊈ $x.without-elision.parse(word).error-free.tags) ∧ (Clean ⊆ $x.without-elision.parse(word).error-free.tags)\n%rule pair X X\n%rule word\n  | X X :: Dirty\n  | X junk :: Clean\n%rule junk X\n%erased\n```\n"
+  },
+  "pipelineDocument": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "reported",
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "before",
+          "verdict": "unique"
+        },
+        {
+          "name": "last",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

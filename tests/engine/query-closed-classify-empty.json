@@ -1,0 +1,8 @@
+{
+  "description": "Engine §10: classify is never closed, so an unknown key gives an empty set and the condition fails at parse time.",
+  "grammar": "%classifier lex \"a\" ∈ C\n%rule text \"a\"\n%conditions \"b\".classify(lex)",
+  "input": "a",
+  "expect": {
+    "error": "rejected"
+  }
+}

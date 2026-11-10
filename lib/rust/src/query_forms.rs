@@ -23,7 +23,10 @@ pub(crate) fn body_problem(body: &Expr) -> Option<&'static str> {
             .filter_map(|(index, item)| matches!(item, Expr::Remainder).then_some(index))
             .collect();
         if !markers.is_empty() {
-            if markers.len() != 1 || items.len() < 2 || markers[0] != 0 && markers[0] + 1 != items.len() {
+            if markers.len() > 2
+                || markers.iter().any(|&index| index != 0 && index + 1 != items.len())
+                || items.iter().filter(|item| !matches!(item, Expr::Remainder)).count() < 1
+            {
                 return Some(marker);
             }
             pending = items.iter().filter(|item| !matches!(item, Expr::Remainder)).collect();
@@ -66,10 +69,16 @@ pub(crate) enum Mode {
     Whole,
     Prefix,
     Suffix,
+    Part,
 }
 
 pub(crate) fn body_mode(body: &Expr) -> Mode {
     match body {
+        Expr::Seq(items)
+            if matches!(items.first(), Some(Expr::Remainder)) && matches!(items.last(), Some(Expr::Remainder)) =>
+        {
+            Mode::Part
+        }
         Expr::Seq(items) if matches!(items.first(), Some(Expr::Remainder)) => Mode::Suffix,
         Expr::Seq(items) if matches!(items.last(), Some(Expr::Remainder)) => Mode::Prefix,
         _ => Mode::Whole,
@@ -79,7 +88,14 @@ pub(crate) fn body_mode(body: &Expr) -> Mode {
 pub(crate) fn body_core(body: &Expr) -> (Expr, Mode) {
     if let Expr::Seq(items) = body {
         if matches!(items.first(), Some(Expr::Remainder)) || matches!(items.last(), Some(Expr::Remainder)) {
-            let mode = if matches!(items.first(), Some(Expr::Remainder)) { Mode::Suffix } else { Mode::Prefix };
+            let mode =
+                if matches!(items.first(), Some(Expr::Remainder)) && matches!(items.last(), Some(Expr::Remainder)) {
+                    Mode::Part
+                } else if matches!(items.first(), Some(Expr::Remainder)) {
+                    Mode::Suffix
+                } else {
+                    Mode::Prefix
+                };
             let mut parts: Vec<_> = items.iter().filter(|part| !matches!(part, Expr::Remainder)).cloned().collect();
             return (if parts.len() == 1 { parts.pop().unwrap() } else { Expr::Seq(parts) }, mode);
         }

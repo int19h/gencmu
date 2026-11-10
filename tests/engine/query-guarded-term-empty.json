@@ -1,0 +1,9 @@
+{
+  "description": "Engine §10: a bare empty set on the condition side of a guarded term is a document error.",
+  "grammar": "%rule text \"a\" :: (∅ ⟹ Word)",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "message": "a condition of text is the empty set"
+  }
+}

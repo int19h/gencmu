@@ -25,6 +25,15 @@ pub(crate) enum Simple {
 pub(crate) fn simplify_cond(cond: &Cond, has: &dyn Fn(&str) -> bool) -> Simple {
     work::count(Work::Walked, 1);
     match cond {
+        // A set term that simplifies to the empty set is false (§3.6).
+        Cond::Truthy(term) => match simplify_term(term, has) {
+            None => Simple::False,
+            // A closed set term that is not empty is true (§3.6).
+            Some(term) => match closed_set_value(&term) {
+                Some(value) if !value.is_empty() => Simple::True,
+                _ => Simple::Cond(Cond::Truthy(term)),
+            },
+        },
         Cond::SourceQuery(..) => unreachable!("source queries expand before clause checks"),
         Cond::Captured(name) => {
             if has(name) {
@@ -133,6 +142,105 @@ pub(crate) fn simplify_term(term: &Term, has: &dyn Fn(&str) -> bool) -> Option<T
     }
 }
 
+/// Whether a bare empty set stands as the term of a set-as-condition
+/// anywhere in a condition, in a Boolean position or in the guard of a
+/// term inside one (engine §10). The check reads a rule as written,
+/// before its constants are substituted: an empty constant is not bare.
+pub(crate) fn has_bare_empty_set(cond: &Cond) -> bool {
+    let mut stack = vec![Part::Cond(cond)];
+    while let Some(part) = stack.pop() {
+        if matches!(part, Part::Cond(Cond::Truthy(Term::EmptySet))) {
+            return true;
+        }
+        stack.extend(part.children());
+    }
+    false
+}
+
+/// Whether a bare empty set stands in a Boolean position inside a term:
+/// in the guard of a guarded term that the term holds (engine §10).
+pub(crate) fn term_has_bare_empty_set(term: &Term) -> bool {
+    let mut stack = vec![Part::Term(term)];
+    while let Some(part) = stack.pop() {
+        if matches!(part, Part::Cond(Cond::Truthy(Term::EmptySet))) {
+            return true;
+        }
+        stack.extend(part.children());
+    }
+    false
+}
+
+/// The value of a closed set term, or `None` where the term is not closed
+/// or its value is not fixed. A closed term is the term of §10, read as
+/// the template writes it.
+pub(crate) fn closed_set_value(term: &Term) -> Option<FxSet<String>> {
+    match term {
+        Term::EmptySet => Some(FxSet::default()),
+        Term::Tag(name) => Some([name.clone()].into_iter().collect()),
+        Term::Str(text) => Some([text.clone()].into_iter().collect()),
+        Term::Union(items) => {
+            let mut out = FxSet::default();
+            for item in items {
+                out.extend(closed_set_value(item)?);
+            }
+            Some(out)
+        }
+        Term::Intersection(items) => {
+            let mut items = items.iter();
+            let mut out = closed_set_value(items.next()?)?;
+            for item in items {
+                let value = closed_set_value(item)?;
+                out.retain(|name| value.contains(name));
+            }
+            Some(out)
+        }
+        Term::Difference(left, right) => {
+            let mut out = closed_set_value(left)?;
+            let right = closed_set_value(right)?;
+            out.retain(|name| !right.contains(name));
+            Some(out)
+        }
+        // `.split` and `.ngrams` on a closed string are closed (§10).
+        // Every other call, `.classify` among them, keeps the term open.
+        Term::Call(name, args) if name == "split" || name == "ngrams" => {
+            let [Arg::Term(receiver), rest @ ..] = &args[..] else { return None };
+            let receiver = closed_string_value(receiver)?;
+            if name == "ngrams" {
+                let [Arg::Integer(digits)] = rest else { return None };
+                if !crate::dom::valid_integer(digits) {
+                    return None;
+                }
+                Some(crate::dom::ngrams(&receiver, digits).into_iter().collect())
+            } else {
+                let [Arg::Term(delimiter)] = rest else { return None };
+                let delimiter = closed_string_value(delimiter)?;
+                if delimiter.is_empty() {
+                    return None;
+                }
+                Some(receiver.split(delimiter.as_str()).filter(|piece| !piece.is_empty()).map(str::to_string).collect())
+            }
+        }
+        _ => None,
+    }
+}
+
+/// The value of a closed string term, or None where the term is not a
+/// closed string (§10): a string or a concatenation of closed strings.
+fn closed_string_value(term: &Term) -> Option<String> {
+    match term {
+        Term::Str(text) => Some(text.clone()),
+        Term::Call(name, args) if name == "concat" => {
+            let mut out = String::new();
+            for arg in args {
+                let Arg::Term(part) = arg else { return None };
+                out.push_str(&closed_string_value(part)?);
+            }
+            Some(out)
+        }
+        _ => None,
+    }
+}
+
 /// A term simplified for a production, the empty set written out.
 pub(crate) fn simplify_value(term: &Term, has: &dyn Fn(&str) -> bool) -> Term {
     simplify_term(term, has).unwrap_or(Term::EmptySet)
@@ -180,6 +288,7 @@ impl<'a> Part<'a> {
                 vec![Part::Cond(antecedent), Part::Cond(consequent)]
             }
             Part::Cond(Cond::Compare(_, left, right, _)) => vec![Part::Term(left), Part::Term(right)],
+            Part::Cond(Cond::Truthy(term)) => vec![Part::Term(term)],
             _ => Vec::new(),
         }
     }
@@ -218,6 +327,7 @@ fn walk_captures<'a>(start: Part<'a>, values: bool, presences: bool, out: &mut V
                 }
             },
             Part::Cond(cond) => match cond {
+                Cond::Truthy(term) => stack.push(Part::Term(term)),
                 Cond::Forest(term) => stack.push(Part::Term(term)),
                 Cond::SourceQuery(_, args, _) => stack.extend(args.iter().filter_map(|arg| match arg {
                     Arg::Term(term) => Some(Part::Term(term)),
@@ -356,6 +466,14 @@ impl<'a> Shaped<'a> {
                     }
                 },
                 Part::Cond(cond) => match cond {
+                    // A set term that simplifies to the empty set is
+                    // false, and a closed one that is not empty is true
+                    // (§3.6).
+                    Cond::Truthy(term) => match done.pop().expect("the term") {
+                        _ if matches!(closed_set_value(term), Some(value) if !value.is_empty()) => Outcome::True,
+                        Outcome::Empty => Outcome::False,
+                        _ => used,
+                    },
                     Cond::Forest(_) => used,
                     Cond::SourceQuery(..) => unreachable!("source queries expand before grammar checks"),
                     Cond::Captured(name) => {
@@ -1818,6 +1936,37 @@ fn definition_fault(rule: &RuleDef, defer_issue: &mut impl FnMut(&DefinitionIssu
     {
         return None;
     }
+    // A bare empty set in the guard of a guarded term in a tag clause is
+    // an error, as in a condition (engine §10).
+    let mut tag_terms: Vec<&Term> = Vec::new();
+    if let Some(tags) = &rule.tags {
+        tag_terms.push(tags);
+    }
+    for alternative in &rule.alternatives {
+        if let Some(tags) = &alternative.tags {
+            tag_terms.push(tags);
+        }
+        for term in [&alternative.strings.value, &alternative.strings.image].into_iter().flatten() {
+            tag_terms.push(term);
+        }
+    }
+    if let Some(items) = &rule.emit {
+        for item in items {
+            let (tags, channels) = match item {
+                crate::dom::EmitItem::Capture(_, tags, attachments) => (tags, &attachments.strings),
+                crate::dom::EmitItem::Insert(tags, channels) => (tags, channels),
+            };
+            if let Some(tags) = tags {
+                tag_terms.push(tags);
+            }
+            for term in [&channels.value, &channels.image].into_iter().flatten() {
+                tag_terms.push(term);
+            }
+        }
+    }
+    if tag_terms.iter().any(|term| term_has_bare_empty_set(term)) {
+        return immediate(format!("a condition of {} is the empty set", rule.name));
+    }
     // Each production of each alternative, as the alternative and the
     // captures it reads in order (engine §3.5, §9); productions that read
     // the same captures in the same order are one.
@@ -1932,13 +2081,18 @@ fn definition_fault(rule: &RuleDef, defer_issue: &mut impl FnMut(&DefinitionIssu
             }
         }
     }
-    for cond in rule.conditions.iter().filter(|cond| !cond_waits(cond)) {
+    for (condition_index, cond) in rule.conditions.iter().enumerate().filter(|(_, cond)| !cond_waits(cond)) {
         // An item condition applies to the productions of its braces'
         // helper (engine §3.6), which are not listed here.
         if !item_names.is_empty() && mentioned_in(Part::Cond(cond)).iter().any(|name| item_names.contains(name)) {
             continue;
         }
         let check = CondCheck::new(cond);
+        // The closed-set rule reads the condition as its template
+        // writes it (engine §3.6): a parameter is never closed, and
+        // every other part keeps the rule. So where the condition held
+        // a parameter, a true outcome is asked of the template's form.
+        let template = rule.template_conditions.get(condition_index).and_then(Option::as_ref);
         let applies_to = |index: usize| {
             let has = captures_of(index);
             let outcome = if each_part {
@@ -1947,6 +2101,15 @@ fn definition_fault(rule: &RuleDef, defer_issue: &mut impl FnMut(&DefinitionIssu
                 simplified_outcome(Part::Cond(cond), &has)
             } else {
                 check.outcome(positions[index].keys().copied(), &has)
+            };
+            let outcome = if let (Some(template), Outcome::True) = (template, &outcome) {
+                if each_part {
+                    simplified_outcome(Part::Cond(template), &has)
+                } else {
+                    CondCheck::new(template).outcome(positions[index].keys().copied(), &has)
+                }
+            } else {
+                outcome
             };
             match outcome {
                 Outcome::True => false,
@@ -2413,6 +2576,7 @@ mod tests {
                 .chain(names.iter().map(|name| EmitItem::Capture(name.clone(), None, Attachments::default())))
                 .collect();
             RuleDef {
+                template_conditions: Vec::new(),
                 error: None,
                 warning: None,
                 suppress_warnings: Vec::new(),

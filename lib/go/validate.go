@@ -1532,7 +1532,7 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 					c.fail("%s", problem)
 					return
 				}
-				if mode == cdEnds && restoredTerm(args[0]) {
+				if (mode == cdEnds || mode == cdContains) && restoredTerm(args[0]) {
 					c.fail("suffix parse requires an ordinary span, not a restored span")
 					return
 				}
@@ -1548,7 +1548,7 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		case "value", "image", "source-text", "decomposed-source-text", "classes", "first-token", "tokens-after-first", "last-token", "onward", "following-tokens", "preceding-tokens":
 			ok = len(args) == 1 && (isSpanShape(args[0]) || (t.Str == "value" || t.Str == "image") && args[0] != nil && args[0].Kind == tmCall && args[0].Str == "emitted")
 		case "tags":
-			ok = (len(args) == 1 && isSpanShape(args[0])) || (len(args) == 2 && isSpanShape(args[0]) && isRule(args[1]))
+			ok = (len(args) == 1 && (isSpanShape(args[0]) || forestTerm(args[0]) || unresolvedTerm(args[0]))) || (len(args) == 2 && isSpanShape(args[0]) && isRule(args[1]))
 		case "ngrams":
 			ok = len(args) == 2 && valueOperand(args[0]) && args[1] != nil && args[1].Kind == tmInteger && validInteger(args[1].Str)
 		case "split":
@@ -1608,6 +1608,8 @@ func (c *domChecker) condition(d *domCond, depth int) {
 		return
 	}
 	switch d.Kind {
+	case cdTruthy:
+		c.term(d.Left, depth, false)
 	case cdForest:
 		if !forestTerm(d.Left) {
 			c.fail("a condition requires a forest")
@@ -2246,6 +2248,14 @@ func condTypeOnce(c *domCond, ct constTypes, memo *typeMemo) *typeFault {
 		w.readerSteps.add("reader steps")
 	}
 	switch c.Kind {
+	case cdTruthy:
+		ty, fault := termTypeMemo(c.Left, ct, memo)
+		if fault != nil {
+			return fault
+		}
+		if ty != tyTags && ty != tyStrings && ty != tySet && ty != tyAny {
+			return &typeFault{"a condition requires a set, a forest, or a query method", c}
+		}
 	case cdForest:
 		ty, fault := termTypeMemo(c.Left, ct, memo)
 		if fault != nil {
@@ -2657,7 +2667,7 @@ func inputConditionsProblem(conditions []*domCond) string {
 					if c.Capture != "" {
 						problem = "feature conditions can read only $"
 					}
-				case cdNot, cdAny, cdAll, cdIf:
+				case cdNot, cdAny, cdAll, cdIf, cdTruthy:
 				default:
 					problem = "feature conditions can read only tokens"
 				}

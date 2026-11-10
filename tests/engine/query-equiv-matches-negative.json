@@ -1,0 +1,23 @@
+{
+  "description": "Engine §4: matches(S) and parse(S) give the same result where neither holds.",
+  "grammar": "%rule text {_}\n%conditions ¬$.matches(word) ∧ ¬$.parse(word)\n%rule word A :: Word\n%rule word2 B :: Word Other",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

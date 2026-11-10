@@ -163,33 +163,34 @@ func queryBody(body *domExpr) (*domExpr, string, string) {
 	if body == nil || body.Kind != exSeq {
 		return body, cdMatches, ""
 	}
-	marker := -1
+	var markers []int
 	var parts []*domExpr
 	for i, part := range body.Items {
 		if w := work.Load(); w != nil {
 			w.clauseSteps.add("clause steps")
 		}
 		if part != nil && part.Kind == exRemainder {
-			if marker != -1 {
-				return body, cdMatches, "a remainder stands at one outer edge of a parse argument"
-			}
-			marker = i
+			markers = append(markers, i)
 		} else {
 			parts = append(parts, part)
 		}
 	}
-	if marker == -1 {
+	if len(markers) == 0 {
 		return body, cdMatches, ""
 	}
-	if len(parts) == 0 || marker != 0 && marker != len(body.Items)-1 {
-		return body, cdMatches, "a remainder stands at one outer edge of a parse argument"
+	for _, marker := range markers {
+		if len(markers) > 2 || len(parts) == 0 || marker != 0 && marker != len(body.Items)-1 {
+			return body, cdMatches, "a remainder stands at one outer edge of a parse argument"
+		}
 	}
 	core := &domExpr{Kind: exSeq, Items: parts}
 	if len(parts) == 1 {
 		core = parts[0]
 	}
 	mode := cdBegins
-	if marker == 0 {
+	if len(markers) == 2 {
+		mode = cdContains
+	} else if markers[0] == 0 {
 		mode = cdEnds
 	}
 	return core, mode, ""

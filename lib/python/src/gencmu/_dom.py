@@ -41,12 +41,12 @@ Dom = dict[str, Any]
 _MAPPED = frozenset("""directive argument-word argument-string argument-tag argument-term rule definer ranking-directive ranking-step rule-name body headed-body alternative ranked-alternative ranked-choice guard splice error-clause warning-clause suppress-warnings-clause suppression-code alternative-tags
 choice conjunction sequence primary repetition reference string-terminal string tag wildcard name tested tag-test tag-requirement value-test default-value test test-operand capture
  group optional empty tags-clause value-clause image-clause recipe recipe-atom conditions-clause emits-clause erased-clause emit-item emit-target emit-tags emit-before
-emit-after implication any-of all-of condition comparison comparator tree-comparator negation presence method method-receiver method-selector parse-selector parse-argument method-name arguments argument term guarded-term
+emit-after implication any-of all-of condition comparison comparator tree-comparator negation presence method method-receiver method-selector parse-selector parse-argument method-name arguments argument term guarded-term term-condition union-operation intersection-operation set-atom
 union intersection concatenation term-atom tag-run string-run integer empty-set capture-reference range constant-definition constant-definer
 constant-reference classifier classifier-name classifier-entry classifier-key classifier-operator classifier-class
 implication-declaration tree-comparison pattern-literal pattern-union pattern-intersection pattern-atom pattern-brackets pattern-repeat pattern-path pattern-primary pattern-node pattern-bare pattern-children child-choice child-alternative child-set child-intersection child-sequence child-item child-path child-primary call parameter call-argument requirement-argument target-argument body-argument symbol-argument""".split())
 _PRIMARIES = frozenset(("reference", "tag", "string-terminal", "wildcard", "range", "tested", "capture", "group", "optional", "repetition", "empty", "constant-reference", "call", "parameter", "splice"))
-_CONDITIONS = frozenset(("tree-comparison", "comparison", "method", "negation", "presence", "implication"))
+_CONDITIONS = frozenset(("tree-comparison", "comparison", "method", "negation", "presence", "implication", "term-condition"))
 _TERMS = frozenset(("union", "guarded-term"))
 _ATOMS = frozenset(("term-atom", "string", "tag", "tag-run", "string-run", "range", "name", "empty-set", "term", "union", "guarded-term", "method", "capture-reference", "constant-reference", "pattern-literal", "call", "parameter", "splice"))
 _ITEMS = frozenset(("directive", "ranking-directive", "rule", "constant-definition", "classifier", "implication-declaration"))
@@ -931,6 +931,31 @@ class DomBuilder:
 
     # -- conditions
 
+    def _truthy_operand(self, operation: Node, item: Node) -> Walk:
+        """One operand of a set operation in a term-condition. A Boolean
+        method as an operand is a fault of the operation (engine §9.3)."""
+        try:
+            term = yield self._term(item)
+        except GencmuError as error:
+            if "a query method is a condition, not a term" in error.message:
+                raise self.fail(operation, "a query method is a condition, not a term") from None
+            raise
+        return term
+
+    def _truthy_check(self, operation: Node, items: list, operator: str) -> None:
+        """Fail at the operation when its operands do not join (§9.3)."""
+        if self.feature_context:
+            return
+        types = []
+        for item in items:
+            kind, problem = term_type(item, memo=self.types)
+            if problem is not None:
+                raise self.fail(operation, problem)
+            types.append(kind)
+        _, problem = joined_type(types, operator)  # type: ignore[arg-type]
+        if problem is not None:
+            raise self.fail(operation, problem)
+
     def _condition(self, node: Node) -> Walk:
         """A condition: ``⟹`` groups to the right, and a group of the same
         connective, ``∧`` or ``∨``, is folded into the one around it, since
@@ -997,14 +1022,51 @@ class DomBuilder:
             if problem is not None and not self.feature_context:
                 raise self.fail(node, problem)
             return {"op": op, "left": left, "right": right}
+        if node.rule == "term-condition":
+            operation = self.known_of(node, frozenset(("union-operation", "intersection-operation", "set-atom")))
+            if operation.rule == "set-atom":
+                atom = next(kid for kid in self.kids(operation) if kid.kind == "rule")
+                term = yield self._term(atom)
+            elif operation.rule == "intersection-operation":
+                items = []
+                for item in self.some(operation, "concatenation"):
+                    items.append((yield self._truthy_operand(operation, item)))
+                self._truthy_check(operation, items, "∩")
+                term = items[0] if len(items) == 1 else {"intersection": items}
+            else:
+                found = self.some(operation, "intersection")
+                operators = [self.token_value(kid) for kid in self.kids(operation) if kid.kind == "token" and self.token_value(kid) in ("∪", "∖")]
+                # A leading ∪ is a separator, not an operator.
+                operators = operators[max(0, len(operators) - len(found) + 1):]
+                items = []
+                for item in found:
+                    items.append((yield self._truthy_operand(operation, item)))
+                self._truthy_check(operation, items, "∖" if "∖" in operators else "∪")
+                term = items[0]
+                open_union = False
+                for index, operator in enumerate(operators):
+                    following = items[index + 1]
+                    if operator == "∖":
+                        term = {"difference": [term, following]}
+                        open_union = False
+                    elif open_union and "union" in term:
+                        term["union"].append(following)
+                    else:
+                        term = {"union": [term, following]}
+                        open_union = True
+            return {"nonempty": term}
         if node.rule == "negation":
             return {"not": (yield self._condition(self.only(node, "condition")))}
         if node.rule == "presence":
             return {"captured": self.token_value(self.token(node))[1:]}
         if node.rule == "method":
             method = yield self._method(node)
-            if method.get("method") not in _PREDICATES:
+            if method.get("method") not in _PREDICATES and method.get("method") not in ("tags", "classes", "split", "ngrams", "classify"):
                 raise self.fail(node, "a condition requires a query method")
+            # A set-valued method in a Boolean position tests that its set
+            # is not empty, through the wrapper of engine §9.2.
+            if method.get("method") in ("tags", "classes", "split", "ngrams", "classify"):
+                return {"nonempty": method}
             return method
         raise self.fail(node, f"unexpected {node.rule} in a condition")
 
@@ -1066,11 +1128,18 @@ class DomBuilder:
                         pending.extend(reversed(child.children))
                     raise self.fail(binder, "a parse argument cannot declare captures")
                 markers = [child for child in self.kids(argument) if child.kind == "token" and self.token_value(child) == "…"]
-                if len(markers) > 1:
-                    raise self.fail(markers[1], "a remainder stands at one outer edge of a parse argument")
+                if len(markers) > 2:
+                    raise self.fail(markers[2], "a remainder stands at one outer edge of a parse argument")
                 if markers:
-                    first = self.kids(argument)[0] is markers[0]
-                    body = {"seq": [{"remainder": True}, body] if first else [body, {"remainder": True}]}
+                    sequence: list[Dom] = []
+                    for child in self.kids(argument):
+                        if child.kind == "token" and self.token_value(child) == "…":
+                            sequence.append({"remainder": True})
+                        elif child.rule == "choice":
+                            sequence.append(body)
+                    if not any(part is body for part in sequence):
+                        sequence.append(body)
+                    body = {"seq": sequence}
                 problem = query_body(body)[2]
                 if problem:
                     raise self.fail(argument, problem)

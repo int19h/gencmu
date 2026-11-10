@@ -1,0 +1,23 @@
+{
+  "description": "Engine §4: matches(S) and parse(S) give the same result.",
+  "grammar": "%rule text {_}\n%conditions $.matches(word), $.parse(word)\n%rule word A :: Word\n%rule word2 B :: Word Other",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

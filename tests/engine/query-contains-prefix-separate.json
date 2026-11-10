@@ -1,0 +1,35 @@
+{
+  "description": "Engine §4: the part answer and the prefix answer of one target have separate memo entries.",
+  "grammar": "%rule text {_}\n%conditions ¬$.parse(B …) ∧ $.parse(… B …)\n%rule word A :: Word\n%rule word2 B :: Word Other",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "description": "Engine §3.6 and §4: a condition that is true on every production applies to no production, with a set term as with any other condition.",
+  "grammar": "%rule text $x:word $y:B\n%conditions $x.tags ∩ Word ∨ $y\n%rule word A :: Word",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

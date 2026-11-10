@@ -1,0 +1,23 @@
+{
+  "description": "Engine §9.2: a leading ∩ in a set term as a condition is a separator.",
+  "grammar": "%rule text $w:word\n%conditions ∩ $w.tags\n%rule word A :: Word",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

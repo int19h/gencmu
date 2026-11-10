@@ -1,0 +1,23 @@
+{
+  "description": "Engine §4: the tags of an empty parse forest are empty.",
+  "grammar": "%rule text {_}\n%conditions $.parse(word).tags = ∅\n%rule word A :: Word\n%rule word2 B :: Word Other",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

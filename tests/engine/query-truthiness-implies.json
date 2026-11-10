@@ -1,0 +1,23 @@
+{
+  "description": "Engine §4 and §10: a set under ⟹ means not empty, and an empty antecedent holds.",
+  "grammar": "%rule text $x:word [$y:B]\n%conditions $x.tags ∩ Other ⟹ $y\n%rule word A :: Word",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

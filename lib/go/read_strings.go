@@ -397,14 +397,19 @@ func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 			}
 			b.fail(binder, "a parse argument cannot declare captures")
 		}
-		parts := b.parts(f.parseArgument)
-		for index, part := range parts {
-			if part.Kind == KindToken && b.tokenValue(part) == "…" {
-				if index == 0 {
-					body = &domExpr{Kind: exSeq, Items: []*domExpr{{Kind: exRemainder}, body}}
-				} else {
-					body = &domExpr{Kind: exSeq, Items: []*domExpr{body, {Kind: exRemainder}}}
+		{
+			var sequence []*domExpr
+			for _, part := range b.parts(f.parseArgument) {
+				if part.Kind == KindToken && b.tokenValue(part) == "…" {
+					sequence = append(sequence, &domExpr{Kind: exRemainder})
+				} else if part.Rule == "choice" {
+					sequence = append(sequence, body)
 				}
+			}
+			if len(sequence) > 1 {
+				body = &domExpr{Kind: exSeq, Items: sequence}
+			} else if len(sequence) == 1 && sequence[0].Kind == exRemainder {
+				body = &domExpr{Kind: exSeq, Items: []*domExpr{{Kind: exRemainder}, body}}
 			}
 		}
 		if _, _, problem := queryBody(body); problem != "" {
@@ -483,6 +488,9 @@ func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 		f.index++
 		if f.index == len(f.selectors) {
 			isPredicate := name == "starts-input" || name == "ends-input" || boundaryMethod(name) || name == "matches" || name == "begins" || name == "ends" || name == "parse" || name == "error-free"
+			if f.inCondition && (name == "tags" || name == "classes" || name == "split" || name == "ngrams" || name == "classify") {
+				isPredicate = true
+			}
 			if isPredicate != f.inCondition {
 				if isPredicate {
 					b.fail(f.n, "a query method is a condition, not a term")
@@ -556,7 +564,7 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 			if problem != "" {
 				b.fail(n, "%s", problem)
 			}
-			if mode == cdEnds && restoredTerm(receiver) {
+			if (mode == cdEnds || mode == cdContains) && restoredTerm(receiver) {
 				b.fail(n, "suffix parse requires an ordinary span, not a restored span")
 			}
 		}
@@ -575,7 +583,7 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 	case methodRecipe:
 		valid = b.inRecipe && len(args) == 0 && receiver.Kind == tmCapture
 	case methodTags:
-		valid = span && (len(args) == 0 || len(args) == 1 && (args[0].Kind == tmRule || unknown(args[0])))
+		valid = span && (len(args) == 0 || len(args) == 1 && (args[0].Kind == tmRule || unknown(args[0]))) || forestTerm(receiver) && len(args) == 0
 	case methodBoundary:
 		valid = (b.featureContext || receiver.Kind == tmCapture || unknown(receiver)) && len(args) > 0
 		for _, a := range args {

@@ -7,7 +7,7 @@ import (
 )
 
 // domFormat is the version of the grammar DOM (docs/output.md).
-const domFormat = 46
+const domFormat = 47
 
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what data/preparsed/gencmu.json and data/preparsed/FAMILY.json hold.
@@ -73,8 +73,12 @@ type domRule struct {
 	Alternatives     []*domAlt
 	Emit             *domEmit
 	Conditions       []*domCond
-	Erased           bool
-	At               [2]int
+	// TemplateConditions gives, per condition, its form as its template
+	// writes it, where it held a parameter, for a rule that template
+	// expansion wrote (§3.6).
+	TemplateConditions []*domCond
+	Erased             bool
+	At                 [2]int
 }
 
 type domAlt struct {
@@ -207,6 +211,7 @@ const (
 	cdMatches  = "matches"
 	cdBegins   = "begins"
 	cdEnds     = "ends"
+	cdContains = "contains"
 	cdInitial  = "initial"
 	cdEnd      = "ends-input"
 	cdBoundary = "boundary"
@@ -216,6 +221,7 @@ const (
 	cdCaptured = "captured"
 	cdIf       = "if"
 	cdForest   = "forest"
+	cdTruthy   = "truthy"
 )
 
 type domCond struct {
@@ -687,6 +693,10 @@ func (t *domTerm) writeJSON(w *jsonWriter) {
 
 func (c *domCond) writeJSON(w *jsonWriter) {
 	switch c.Kind {
+	case cdTruthy:
+		w.raw(`{"nonempty":`)
+		c.Left.writeJSON(w)
+		w.raw("}")
 	case cdForest:
 		c.Left.writeJSON(w)
 	case cdCompare:
@@ -1393,6 +1403,7 @@ var termForms = [][]string{
 
 var condForms = [][]string{
 	{"op", "left", "right"}, {"method", "receiver", "args"}, {cdNot}, {cdAny}, {cdAll}, {cdCaptured}, {cdIf, "then"},
+	{"nonempty"},
 }
 
 // hasOneForm says whether a node has exactly the members of one of its
@@ -1543,6 +1554,10 @@ func (dc *domDecoder) decodeCondNode(raw any, depth int) (*domCond, error) {
 			return &domCond{Kind: name, Span: receiver, Targets: args}, nil
 		}
 		return nil, fmt.Errorf("a malformed predicate method")
+	}
+	if raw, ok := o["nonempty"]; ok {
+		term, err := dc.decodeTermAt(raw, depth+1)
+		return &domCond{Kind: cdTruthy, Left: term}, err
 	}
 	if v, ok := o["not"]; ok {
 		inner, err := dc.decodeCondAt(v, depth+1)

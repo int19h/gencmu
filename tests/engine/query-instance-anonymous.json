@@ -1,0 +1,10 @@
+{
+  "description": "Engine §3.6: an anonymous instance follows the instance rule, so a parameter condition that its argument makes true still applies.",
+  "grammar": "%rule text check(Word)\n%rule check(@S) \"a\"\n%conditions @S",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

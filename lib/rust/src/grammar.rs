@@ -658,6 +658,7 @@ fn close_families(grammar: &StageGrammar) -> Vec<FxSet<u32>> {
                 _ => {}
             },
             Part::Cond(condition) => match condition {
+                Cond::Truthy(term) => pending.push(Part::Term(term)),
                 Cond::Forest(term) => pending.push(Part::Term(term)),
                 Cond::Compare(_, a, b, _) => pending.extend([Part::Term(a), Part::Term(b)]),
                 Cond::Matches(t, _)
@@ -1687,6 +1688,11 @@ impl Constants<'_> {
         } else {
             self.check_arguments(arguments, Some((document, rule)))?;
         }
+        // A bare empty set in a Boolean position is an error, read as
+        // written, before any constant is substituted (engine §10).
+        if rule.conditions.iter().any(crate::clauses::has_bare_empty_set) {
+            return Err(located(format!("a condition of {} is the empty set", rule.name), document, rule.at));
+        }
         // The checks that simplification decides, which the reader left
         // to the loader, now with the constants' values (§9).
         let resolved = self.substitute_rule(rule);
@@ -1831,6 +1837,10 @@ impl Constants<'_> {
                         directive.at,
                     ));
                 }
+            }
+            // A bare empty set in a Boolean position is an error (§10).
+            if conditions.iter().any(crate::clauses::has_bare_empty_set) {
+                return Err(located("a condition of %features is the empty set".to_string(), document, directive.at));
             }
             crate::features::problem(conditions).map_err(|message| located(message, document, directive.at))?;
             for condition in conditions.iter() {
@@ -2101,6 +2111,11 @@ impl Constants<'_> {
         for cond in &mut rule.conditions {
             self.substitute_cond(cond);
         }
+        // The template forms are asked with their constants resolved,
+        // as the rule's conditions are (engine §3.6).
+        for cond in rule.template_conditions.iter_mut().flatten() {
+            self.substitute_cond(cond);
+        }
         rule
     }
 
@@ -2174,6 +2189,7 @@ impl Constants<'_> {
     fn substitute_cond(&self, cond: &mut Cond) {
         work::count(Work::Stitched, 1);
         match cond {
+            Cond::Truthy(term) => self.substitute_term(term),
             Cond::Forest(term) => self.substitute_term(term),
             Cond::SourceQuery(_, args, _) => {
                 for arg in args {
@@ -2387,6 +2403,7 @@ impl<'a> Iterator for ValueParts<'a> {
                         ValuePart::Term(b)
                     });
                 }
+                Cond::Truthy(t) => children.push(ValuePart::Term(t)),
                 Cond::All(xs) | Cond::Any(xs) => children.extend(xs.iter().map(ValuePart::Cond)),
                 Cond::If(a, b) => children.extend([ValuePart::Cond(a), ValuePart::Cond(b)]),
                 Cond::Not(c) => children.push(ValuePart::Cond(c)),
@@ -2486,6 +2503,7 @@ fn check_span_references(grammar: &StageGrammar, term: &Term) -> Result<(), Stri
         Term::Call(_, args) => {
             for arg in args {
                 match arg {
+                    Arg::Term(Term::Body(_)) => {}
                     Arg::Term(inner) => check_span_references(grammar, inner)?,
                     Arg::Rule(rule) => check_rule(grammar, rule)?,
                     _ => unreachable!("span method arguments were checked before stitching"),
@@ -2605,6 +2623,7 @@ fn check_term(grammar: &StageGrammar, term: &Term, compared: &mut bool) -> Resul
 fn check_cond(grammar: &StageGrammar, cond: &Cond, compared: &mut bool) -> Result<(), String> {
     work::count(Work::Stitched, 1);
     match cond {
+        Cond::Truthy(term) => check_term(grammar, term, compared),
         Cond::Forest(term) => check_term(grammar, term, compared),
         Cond::SourceQuery(..) => unreachable!("source queries expand before grammar checks"),
         Cond::Compare(op, left, right, _) => {
@@ -2665,6 +2684,7 @@ mod tests {
                 Cond::Compare("=".into(), Term::Const("k".into(), (1, 1)), Term::Str("a".into()), Default::default())
             };
             let rule = RuleDef {
+                template_conditions: Vec::new(),
                 error: None,
                 warning: None,
                 suppress_warnings: Vec::new(),

@@ -1,0 +1,23 @@
+{
+  "description": "Engine §4: tags(R) and parse(R).tags give the same result.",
+  "grammar": "%rule text {_}\n%conditions Word ⊆ $.tags(word), Word ⊆ $.parse(word).tags\n%rule word A :: Word\n%rule word2 B :: Word Other",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

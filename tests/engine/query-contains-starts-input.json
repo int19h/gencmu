@@ -1,0 +1,27 @@
+{
+  "description": "Engine §4.4: a part witness keeps the whole view as its context, so starts-input sees the view start.",
+  "grammar": "%rule text {_}\n%conditions $.parse(… start-b …)\n%rule start-b B\n%conditions $.starts-input",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "description": "Engine §4 and §10: a guarded term as an operand of a set operation is empty when its capture is absent.",
+  "grammar": "%rule text $x:word [$y:B]\n%conditions ($y ⟹ Word) ∩ Word\n%rule word A :: Word",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected"
+  }
+}

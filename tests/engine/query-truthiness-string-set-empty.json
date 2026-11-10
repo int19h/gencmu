@@ -1,0 +1,15 @@
+{
+  "description": "Engine §4 and §10: an empty string set in a Boolean position does not hold.",
+  "grammar": "%rule text {_}\n%conditions $.value.split(\" \") ∩ \"z\"",
+  "tokens": [
+    {
+      "text": "a b",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected"
+  }
+}

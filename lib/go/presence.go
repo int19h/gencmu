@@ -289,7 +289,9 @@ type condLowering struct {
 	// simplified is each fixed condition simplified, and each guarded
 	// condition's consequent, with the captures each uses.
 	simplified []*domCond
-	uses       []map[string]bool
+	// truth is what each fixed condition simplified to.
+	truth []truth
+	uses  []map[string]bool
 	// always are the fixed conditions that use no capture but $.
 	always []int
 	// junctions holds each ∧ and ∨ split into its parts.
@@ -302,6 +304,7 @@ func newCondLowering(conds []*domCond) *condLowering {
 	s.parts = make([]clausePart, len(conds))
 	s.shape = make([]partShape, len(conds))
 	cl.simplified = make([]*domCond, len(conds))
+	cl.truth = make([]truth, len(conds))
 	cl.uses = make([]map[string]bool, len(conds))
 	none := func(string) bool { return false }
 	var others []int
@@ -317,7 +320,11 @@ func newCondLowering(conds []*domCond) *condLowering {
 		var simplified *domCond
 		if shape != partOther {
 			// A condition without a presence test stays open.
-			simplified, _ = simplifyCond(body.c, none)
+			var tv truth
+			simplified, tv = simplifyCond(body.c, none)
+			if shape == partFixed {
+				cl.truth[i] = tv
+			}
 		}
 		s.shape[i] = shape
 		if j := junctionOf(c, shape); j != nil {
@@ -389,6 +396,12 @@ func (cl *condLowering) forProduction(names []string, has func(string) bool) ([]
 			if _, ok := usesAll(used, has); ok {
 				conds = append(conds, s)
 			}
+			continue
+		}
+		if cl.truth[i] == alwaysFalse {
+			return nil, false
+		}
+		if cl.truth[i] == alwaysTrue {
 			continue
 		}
 		if usesAllCounted(cl.uses[i], has) {
@@ -552,6 +565,7 @@ func (tc *termCheck) lacks(names []string, has func(string) bool) bool {
 // captures the production has. A fixed condition that uses captures is
 // indexed under one of them, since a production without it lacks it.
 type condCheck struct {
+	conds []*domCond
 	split *clauseSplit
 	req   [][]string
 	// applied marks each condition found to apply, and left counts those
@@ -560,13 +574,18 @@ type condCheck struct {
 	applied []bool
 	left    int
 	others  []int
+	// constant marks each fixed condition that is always true.
+	constant []bool
+	// template gives, per condition, its form as its template writes
+	// it, where it held a parameter.
+	template []*domCond
 	// junctions holds each ∧ and ∨ split into its parts.
 	junctions map[int]*junction
 }
 
 // newCondCheck splits the conditions; skip says which need no check.
 func newCondCheck(conds []*domCond, skip func(*domCond) bool) *condCheck {
-	cc := &condCheck{split: &clauseSplit{byCapture: map[string][]int{}}, junctions: map[int]*junction{}}
+	cc := &condCheck{conds: conds, split: &clauseSplit{byCapture: map[string][]int{}}, junctions: map[int]*junction{}}
 	s := cc.split
 	n := len(conds)
 	s.parts, s.shape = make([]clausePart, n), make([]partShape, n)
@@ -602,8 +621,16 @@ func newCondCheck(conds []*domCond, skip func(*domCond) bool) *condCheck {
 			body = guardedBody(p)
 		}
 		var req []string
-		simplifiedOutcome(body, nil, &req)
+		outcome := simplifiedOutcome(body, nil, &req)
 		cc.req[i] = req
+		if shape == partFixed && outcome.kind == oTrue {
+			// A fixed condition that is always true applies to no
+			// production (§3.6).
+			if cc.constant == nil {
+				cc.constant = make([]bool, n)
+			}
+			cc.constant[i] = true
+		}
 		key := capture
 		if shape == partFixed {
 			for _, name := range req {
@@ -623,11 +650,37 @@ func newCondCheck(conds []*domCond, skip func(*domCond) bool) *condCheck {
 	return cc
 }
 
+// templateAt gives the template form of condition i, or nil.
+func templateCondAt(template []*domCond, i int) *domCond {
+	if i < len(template) {
+		return template[i]
+	}
+	return nil
+}
+
 // applies says whether a condition of either indexed shape applies to a
 // production, by has.
 func (cc *condCheck) applies(i int, names []string, has func(string) bool) bool {
+	var template *domCond
+	if i < len(cc.template) {
+		template = cc.template[i]
+	}
+	// The closed-set rule reads the condition as its template writes
+	// it (§3.6): a parameter is never closed, and every other part
+	// keeps the rule. So a true outcome for such a condition is asked
+	// of the template's form.
+	open := func() bool {
+		o := simplifiedOutcome(clausePart{c: template}, has, nil)
+		return o.kind == oFalse || o.kind == oUses && !o.lacks
+	}
+	if cc.constant != nil && cc.constant[i] {
+		return template != nil && open()
+	}
 	if j := cc.junctions[i]; j != nil {
 		kind, lacks := j.outcome(names, has)
+		if kind == oTrue && template != nil {
+			return open()
+		}
 		return kind == oFalse || (kind == oUses && !lacks)
 	}
 	for _, name := range cc.req[i] {
@@ -663,8 +716,7 @@ func (cc *condCheck) see(names []string, has func(string) bool) {
 			kept = append(kept, i)
 			continue
 		}
-		o := simplifiedOutcome(cc.split.parts[i], has, nil)
-		if o.kind == oFalse || (o.kind == oUses && !o.lacks) {
+		if conditionApplies(cc.conds[i], has, templateCondAt(cc.template, i)) {
 			mark(i)
 			continue
 		}

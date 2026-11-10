@@ -1,0 +1,8 @@
+{
+  "description": "Engine §3.6 and §10: split on a closed string is closed, so an empty result as a whole condition becomes false.",
+  "grammar": "%rule text \"a\"\n%conditions \" \".split(\" \")",
+  "input": "a",
+  "expect": {
+    "error": "rejected"
+  }
+}

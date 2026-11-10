@@ -105,6 +105,7 @@ pub(super) fn document(dom: &mut Dom) {
                 _ => (),
             },
             Part::Cond(cond) => match cond {
+                Cond::Truthy(term) => stack.push(Part::Term(term)),
                 Cond::Forest(term) => stack.push(Part::Term(term)),
                 Cond::Any(xs) => {
                     fold(xs, |c| if let Cond::Any(xs) = c { Some(std::mem::take(xs)) } else { None });

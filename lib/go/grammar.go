@@ -618,6 +618,8 @@ func (g *stageGrammar) checkAlt(a *sAlt, checked *checkedClauses) *Error {
 			w.clauseSteps.add("clause steps")
 		}
 		switch c.Kind {
+		case cdTruthy:
+			return checkTerm(c.Left)
 		case cdForest:
 			return checkTerm(c.Left)
 		case cdCompare:

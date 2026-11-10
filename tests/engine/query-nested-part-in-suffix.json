@@ -1,0 +1,21 @@
+{
+  "description": "Engine §4: a part query inside the conditions of a suffix target holds.",
+  "grammar": "%rule text \"a\"\n%conditions $.parse(… outer)\n%rule outer \"a\"\n%conditions $.parse(… inner …)\n%rule inner \"a\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": []
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

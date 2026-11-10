@@ -1,0 +1,35 @@
+{
+  "description": "Engine §4: a part query inside the conditions of a part target holds.",
+  "grammar": "%rule text {_} {_} {_}\n%conditions $.parse(… mid …)\n%rule mid B\n%conditions $.parse(… B …)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}
