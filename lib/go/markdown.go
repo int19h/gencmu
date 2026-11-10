@@ -89,7 +89,6 @@ type grammarText struct {
 	text     []rune
 	pos      [][2]int // len(text)+1 entries: line and column, from 1
 	unclosed *[2]int  // the opening fence of a jbogenbau block never closed
-	oldBracket *[2]int // a `«` or `»` outside a string or comment (engine §9.1)
 }
 
 func (g *grammarText) at(offset int) [2]int {
@@ -162,30 +161,6 @@ func extractGrammarText(doc string, uni *unicodeTable) *grammarText {
 		lineEnd = [2]int{n + 1, col}
 		if col > 1 || linesInBlock > 1 {
 			lastEnd = lineEnd
-		}
-	}
-	// `«` and `»` have no meaning in the notation (engine §9.1). Outside a
-	// string or a comment, one is a load error that names the new brackets.
-	inString, inComment := false, false
-	for index, c := range g.text {
-		switch {
-		case c == '\n':
-			inComment = false
-		case inComment:
-		case inString:
-			if c == '"' {
-				inString = false
-			}
-		case c == '"':
-			inString = true
-		case c == '-' && index+1 < len(g.text) && g.text[index+1] == '-':
-			inComment = true
-		case c == '«' || c == '»':
-			at := g.pos[index]
-			g.oldBracket = &at
-		}
-		if g.oldBracket != nil {
-			break
 		}
 	}
 	g.pos = append(g.pos, lastEnd)

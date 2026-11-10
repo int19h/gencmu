@@ -108,29 +108,6 @@ def jbogenbau_text(document: str, unicode) -> GrammarText:
             if line or row > 0:
                 last = line_end
     positions.append(last)
-    # `«` and `»` have no meaning in the notation (engine §9.1). Outside a
-    # string or a comment, one is a load error that names the new brackets.
-    in_string = False
-    in_comment = False
-    for index, char in enumerate(chars):
-        if char == "\n":
-            in_comment = False
-            continue
-        if in_comment:
-            continue
-        if in_string:
-            if char == '"':
-                in_string = False
-            continue
-        if char == '"':
-            in_string = True
-            continue
-        if char == "-" and index + 1 < len(chars) and chars[index + 1] == "-":
-            in_comment = True
-            continue
-        if char in "«»":
-            line, column = positions[index]
-            raise GencmuError("a child list uses ⁅ and ⁆, not « and »", line=line, column=column)
     return GrammarText("".join(chars), positions)
 
 

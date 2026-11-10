@@ -244,7 +244,7 @@ function lex(text, originalPositions, legacyComments = false) {
       furthest = Math.max(furthest, starting[i].reach);
       for (const [end] of starting[i].found) reached[end] = true;
     }
-    syntaxError(chars[furthest] === "@" ? "@ is reserved for parameters, which are not supported yet" : chars[furthest] === "«" || chars[furthest] === "»" ? "a child list uses ⁅ and ⁆, not « and »" : furthest >= n ? "the text ends inside a token" : `the text cannot be read as tokens at ${chars[furthest]}`, at(furthest));
+    syntaxError(chars[furthest] === "@" ? "@ is reserved for parameters, which are not supported yet" : furthest >= n ? "the text ends inside a token" : `the text cannot be read as tokens at ${chars[furthest]}`, at(furthest));
   }
   const tokens = [];
   let i = 0;
