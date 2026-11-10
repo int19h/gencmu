@@ -81,7 +81,7 @@ export declare const DOM_FALSE: Readonly<{
  * @param {(name: string) => boolean | undefined} has
  * @returns {any}
  */
-export declare function simplify(node: any, has: (name: string) => boolean | undefined, noClosed?: boolean): any;
+export declare function simplify(node: any, has: (name: string) => boolean | undefined): any;
 export type PreparedClause = {
     /**
      * how the parts join, or
@@ -306,11 +306,11 @@ export declare function validationCaptures(rule: any, alternative: any): Map<str
  * without its value.
  * @param {any} rule
  * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
- * @param {boolean[]} [heldParameter] per condition, whether it held a
- *   parameter as written (engine §3.6)
+ * @param {any[]} [templateConditions] per condition, its form as its
+ *   template writes it, where it held a parameter (engine §3.6)
  * @returns {string | null}
  */
-export declare function definitionProblem(rule: any, deferEmission?: boolean, heldParameter?: boolean[]): string | null;
+export declare function definitionProblem(rule: any, deferEmission?: boolean, templateConditions?: any[]): string | null;
 /**
  * An emission item's attachment captures, before and after it, in order.
  * @param {any} item
