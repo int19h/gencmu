@@ -5,8 +5,6 @@ import (
 	"strings"
 )
 
-
-
 // A rule's clauses against the captures of its alternatives (engine §3.6,
 // §9): simplifying a clause for one production, the captures a clause uses
 // or mentions, and the checks of a definition as a whole.

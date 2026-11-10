@@ -59,57 +59,73 @@ So a full vowel letter carries the tag `Syllabic`, which the vowel-group rules o
 
 A capital full vowel letter, or a combining accent after one, marks stress, as in Latin. A glide never marks stress, as the Latin `ĭ` of [latin.md](latin.md) does not. The full vowel carries the syllable's stress. So a capital glide is plain, and an accent after a glide makes its run foreign. Inside an all-capital run, the stage folds a capital vowel or glide, that is, it reads the letter as plain. An accented capital keeps its stress there.
 
+The `Vowel` tag marks the letters of `a`, `e`, `i`, `o` and `u`, full vowels and glides, and not `y`. Only the full vowels carry `Syllabic`. So each vowel rule below holds its full vowels in a rule of its own, such as `cyrillic-plain-full-vowel`. The glides form rules of their own too. `cyrillic-plain-glide` holds the plain glides and carries `Vowel` on its header. `cyrillic-folded-glide` holds the folded glides in the same way. The `y` forms stay in the outer rule.
+
 ```jbogenbau
+%rule cyrillic-plain-full-vowel :: Syllabic Vowel
+  | "а" := "a"
+  | ("е" | "э" | "є") := "e"
+  | ("и" | "і") := "i"
+  | "о" := "o"
+  | "у" := "u"
+
+%rule cyrillic-plain-glide :: Vowel
+  | (("и" | "И") glide-mark | "ј" | "Ј") := "i"
+  | ("у" | "У") glide-mark := "u"
+
 %rule cyrillic-plain-vowel
-  | "а" :: Syllabic ∪ Vowel := "a"
-  | ("е" | "э" | "є") :: Syllabic ∪ Vowel := "e"
-  | ("и" | "і") :: Syllabic ∪ Vowel := "i"
-  | "о" :: Syllabic ∪ Vowel := "o"
-  | "у" :: Syllabic ∪ Vowel := "u"
+  | cyrillic-plain-full-vowel
   | ("ъ" | "ы" | "ә") :: Syllabic := "y"
-  | (("и" | "И") glide-mark | "ј" | "Ј") :: Vowel := "i"
-  | ("у" | "У") glide-mark :: Vowel := "u"
+  | cyrillic-plain-glide
 %emits
   $
 
-%rule cyrillic-stressed-vowel :: Stressed ∪ Syllabic
-  | "А" :: Vowel := "a" :- "A"
-  | ("а" | "А") stress-mark :: Vowel := "a" :- "A"
-  | ("Е" | "Э" | "Є") :: Vowel := "e" :- "E"
-  | ("е" | "э" | "є" | "Е" | "Э" | "Є") stress-mark :: Vowel := "e" :- "E"
-  | ("И" | "І") :: Vowel := "i" :- "I"
-  | ("и" | "і" | "И" | "І") stress-mark :: Vowel := "i" :- "I"
-  | "О" :: Vowel := "o" :- "O"
-  | ("о" | "О") stress-mark :: Vowel := "o" :- "O"
-  | "У" :: Vowel := "u" :- "U"
-  | ("у" | "У") stress-mark :: Vowel := "u" :- "U"
-  | ("Ъ" | "Ы" | "Ә") := "y" :- "Y"
-  | ("ъ" | "ы" | "ә" | "Ъ" | "Ы" | "Ә") stress-mark := "y" :- "Y"
+%rule cyrillic-stressed-full-vowel :: Vowel
+  | ("А" | ("а" | "А") stress-mark) := "a" :- "A"
+  | (("Е" | "Э" | "Є") | ("е" | "э" | "є" | "Е" | "Э" | "Є") stress-mark) := "e" :- "E"
+  | (("И" | "І") | ("и" | "і" | "И" | "І") stress-mark) := "i" :- "I"
+  | ("О" | ("о" | "О") stress-mark) := "o" :- "O"
+  | ("У" | ("у" | "У") stress-mark) := "u" :- "U"
+
+%rule cyrillic-stressed-vowel :: Stressed Syllabic
+  | cyrillic-stressed-full-vowel :: Vowel
+  | (("Ъ" | "Ы" | "Ә") | ("ъ" | "ы" | "ә" | "Ъ" | "Ы" | "Ә") stress-mark) := "y" :- "Y"
 %emits
   $
+
+%rule cyrillic-folded-full-vowel :: Syllabic Vowel
+  | "А" := "a"
+  | ("Е" | "Э" | "Є") := "e"
+  | ("И" | "І") := "i"
+  | "О" := "o"
+  | "У" := "u"
+  | "А" stress-mark :: Stressed := "a" :- "A"
+  | ("Е" | "Э" | "Є") stress-mark :: Stressed := "e" :- "E"
+  | ("И" | "І") stress-mark :: Stressed := "i" :- "I"
+  | "О" stress-mark :: Stressed := "o" :- "O"
+  | "У" stress-mark :: Stressed := "u" :- "U"
+
+%rule cyrillic-folded-glide :: Vowel
+  | ("И" glide-mark | "Ј") := "i"
+  | "У" glide-mark := "u"
 
 %rule cyrillic-folded-vowel
-  | "А" :: Syllabic ∪ Vowel := "a"
-  | ("Е" | "Э" | "Є") :: Syllabic ∪ Vowel := "e"
-  | ("И" | "І") :: Syllabic ∪ Vowel := "i"
-  | "О" :: Syllabic ∪ Vowel := "o"
-  | "У" :: Syllabic ∪ Vowel := "u"
+  | cyrillic-folded-full-vowel
   | ("Ъ" | "Ы" | "Ә") :: Syllabic := "y"
-  | ("И" glide-mark | "Ј") :: Vowel := "i"
-  | "У" glide-mark :: Vowel := "u"
-  | "А" stress-mark :: Stressed ∪ Syllabic ∪ Vowel := "a" :- "A"
-  | ("Е" | "Э" | "Є") stress-mark :: Stressed ∪ Syllabic ∪ Vowel := "e" :- "E"
-  | ("И" | "І") stress-mark :: Stressed ∪ Syllabic ∪ Vowel := "i" :- "I"
-  | "О" stress-mark :: Stressed ∪ Syllabic ∪ Vowel := "o" :- "O"
-  | "У" stress-mark :: Stressed ∪ Syllabic ∪ Vowel := "u" :- "U"
-  | ("Ъ" | "Ы" | "Ә") stress-mark :: Stressed ∪ Syllabic := "y" :- "Y"
+  | cyrillic-folded-glide
+  | ("Ъ" | "Ы" | "Ә") stress-mark :: Stressed Syllabic := "y" :- "Y"
 %emits
   $
 ```
 
-<details><summary>Railroad diagrams of the 3 rules from <code>cyrillic-plain-vowel</code> to <code>cyrillic-folded-vowel</code></summary>
+<details><summary>Railroad diagrams of the 8 rules from <code>cyrillic-plain-full-vowel</code> to <code>cyrillic-folded-vowel</code></summary>
+<p><img src="../../../docs/diagrams/lojban/common/cyrillic/cyrillic-plain-full-vowel.svg" alt="Railroad diagram of the rule cyrillic-plain-full-vowel"></p>
+<p><img src="../../../docs/diagrams/lojban/common/cyrillic/cyrillic-plain-glide.svg" alt="Railroad diagram of the rule cyrillic-plain-glide"></p>
 <p><img src="../../../docs/diagrams/lojban/common/cyrillic/cyrillic-plain-vowel.svg" alt="Railroad diagram of the rule cyrillic-plain-vowel"></p>
+<p><img src="../../../docs/diagrams/lojban/common/cyrillic/cyrillic-stressed-full-vowel.svg" alt="Railroad diagram of the rule cyrillic-stressed-full-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/common/cyrillic/cyrillic-stressed-vowel.svg" alt="Railroad diagram of the rule cyrillic-stressed-vowel"></p>
+<p><img src="../../../docs/diagrams/lojban/common/cyrillic/cyrillic-folded-full-vowel.svg" alt="Railroad diagram of the rule cyrillic-folded-full-vowel"></p>
+<p><img src="../../../docs/diagrams/lojban/common/cyrillic/cyrillic-folded-glide.svg" alt="Railroad diagram of the rule cyrillic-folded-glide"></p>
 <p><img src="../../../docs/diagrams/lojban/common/cyrillic/cyrillic-folded-vowel.svg" alt="Railroad diagram of the rule cyrillic-folded-vowel"></p>
 </details>
 

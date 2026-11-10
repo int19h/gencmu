@@ -125,16 +125,20 @@ A fragment is what a speaker utters when the utterance is not a sentence[^cll-s1
   statement-1 | prenex statement
 
 %rule statement-1
-  statement-2 | statement-1 I joik-jek [statement-2]
+  statement-2
+  | statement-1 I joik-jek [statement-2]
 
 %rule statement-2
   statement-3 [I [jek | joik] [stag] BO 🆓 [statement-2]]
 
 %rule statement-3
-  sentence | [tag] TUhE 🆓 text-1 [+TUhU 🆓]
+  sentence
+  | [tag] TUhE 🆓 text-1 [+TUhU 🆓]
 
 %rule fragment
-  ek 🆓 | gihek 🆓 | quantifier | NA 🆓 | terms [+VAU 🆓] | prenex | relative-clauses | links | linkargs
+  | ek 🆓 | gihek 🆓 | quantifier | NA 🆓
+  | terms [+VAU 🆓]
+  | prenex | relative-clauses | links | linkargs
 
 %rule prenex
   terms ZOhU 🆓
@@ -293,10 +297,13 @@ The terms `zu'a nu'i la djordj. la'u lo mitre be li mu` and `zu'a nu'i la'u lo m
   {term / CEhE 🆓}
 
 %rule term
-  sumti | (tag | FA 🆓) (sumti | [+KU 🆓]) | termset | tag termset | NA KU 🆓
+  sumti
+  | (tag | FA 🆓) (sumti | [+KU 🆓])
+  | termset | tag termset | NA KU 🆓
 
 %rule termset
-  NUhI 🆓 gek terms [+NUhU 🆓] gik terms [+NUhU 🆓] | NUhI 🆓 terms [+NUhU 🆓]
+  NUhI 🆓 gek terms [+NUhU 🆓] gik terms [+NUhU 🆓]
+  | NUhI 🆓 terms [+NUhU 🆓]
 ```
 
 <details><summary>Railroad diagrams of <code>terms</code>, <code>terms-1</code>, <code>terms-2</code>, <code>term</code> and <code>termset</code></summary>
@@ -347,7 +354,8 @@ The words stage delimits each `zo`, `lo'u`, and `zoi` quote and emits it as one 
   sumti-5 | gek sumti gik sumti-4
 
 %rule sumti-5
-  [quantifier] sumti-6 [relative-clauses] | quantifier selbri [+KU 🆓] [relative-clauses]
+  [quantifier] sumti-6 [relative-clauses]
+  | quantifier selbri [+KU 🆓] [relative-clauses]
 
 %rule sumti-6
   | (LAhE 🆓 | NAhE BO 🆓) [relative-clauses] sumti [+LUhU 🆓]
@@ -362,10 +370,12 @@ The words stage delimits each `zo`, `lo'u`, and `zoi` quote and emits it as one 
   | ZOI 🆓
 
 %rule sumti-tail
-  [sumti-6 [relative-clauses]] sumti-tail-1 | relative-clauses sumti-tail-1
+  [sumti-6 [relative-clauses]] sumti-tail-1
+  | relative-clauses sumti-tail-1
 
 %rule sumti-tail-1
-  [quantifier] selbri [relative-clauses] | quantifier sumti
+  [quantifier] selbri [relative-clauses]
+  | quantifier sumti
 ```
 
 <details><summary>Railroad diagrams of the 9 rules from <code>sumti</code> to <code>sumti-tail-1</code></summary>
@@ -389,7 +399,8 @@ A relative clause attaches to a sumti and restricts or comments on it[^cll-c8]. 
   {relative-clause / ZIhE 🆓}
 
 %rule relative-clause
-  GOI 🆓 term [+GEhU 🆓] | NOI 🆓 subsentence [+KUhO 🆓]
+  GOI 🆓 term [+GEhU 🆓]
+  | NOI 🆓 subsentence [+KUhO 🆓]
 ```
 
 <details><summary>Railroad diagrams of <code>relative-clauses</code> and <code>relative-clause</code></summary>
@@ -457,7 +468,8 @@ The words stage builds each `zei` compound into one `BRIVLA`, which `tanru-unit-
   {selbri-6 ... / (jek | joik) [stag] BO 🆓}
 
 %rule selbri-6
-  tanru-unit [BO 🆓 selbri-6] | [NAhE 🆓] guhek selbri gik selbri-6
+  tanru-unit [BO 🆓 selbri-6]
+  | [NAhE 🆓] guhek selbri gik selbri-6
 
 %rule tanru-unit
   {tanru-unit-1 / CEI 🆓}
@@ -546,7 +558,8 @@ Operands connect in the same way. `operand` takes a `ke` group, `operand-1` the 
 
 ```jbogenbau
 %rule quantifier
-  number [+BOI 🆓] | VEI 🆓 mex [+VEhO 🆓]
+  number [+BOI 🆓]
+  | VEI 🆓 mex [+VEhO 🆓]
 
 %rule mex
   mex-chain | FUhA 🆓 rp-expression
@@ -558,7 +571,8 @@ Operands connect in the same way. `operand` takes a `ke` group, `operand-1` the 
   mex-2 [BIhE 🆓 operator mex-1]
 
 %rule mex-2
-  operand | [PEhO 🆓] operator {mex-2} [+KUhE 🆓]
+  operand
+  | [PEhO 🆓] operator {mex-2} [+KUhE 🆓]
 
 %rule rp-expression
   rp-operand rp-operand operator
@@ -569,14 +583,18 @@ Operands connect in the same way. `operand` takes a `ke` group, `operand-1` the 
 %rule operator = ke-after(operator, operator-1)
 
 %rule operator-1
-  operator-2 | guhek operator-1 gik operator-2 | operator-2 (jek | joik) [stag] BO 🆓 operator-1
+  | operator-2 | guhek operator-1 gik operator-2
+  | operator-2 (jek | joik) [stag] BO 🆓 operator-1
 
 %rule operator-2
   | mex-operator
   | KE 🆓 operator [+KEhE 🆓]
 
 %rule mex-operator
-  SE 🆓 mex-operator | NAhE 🆓 mex-operator | MAhO 🆓 mex [+TEhU 🆓] | NAhU 🆓 selbri [+TEhU 🆓] | VUhU 🆓
+  | SE 🆓 mex-operator | NAhE 🆓 mex-operator
+  | MAhO 🆓 mex [+TEhU 🆓]
+  | NAhU 🆓 selbri [+TEhU 🆓]
+  | VUhU 🆓
 
 %rule operand
   operand-1 [(ek | joik) [stag] KE 🆓 operand [+KEhE 🆓]]
@@ -671,7 +689,8 @@ A gek is a forethought logical connective, a joik used in forethought with `gi`,
   [NA] [SE] JA [NAI]
 
 %rule joik
-  [SE] JOI [NAI] | interval | GAhO interval GAhO
+  [SE] JOI [NAI]
+  | interval | GAhO interval GAhO
 
 %rule interval
   [SE] BIhI [NAI]
@@ -683,7 +702,8 @@ A gek is a forethought logical connective, a joik used in forethought with `gi`,
   joik 🆓 | jek 🆓
 
 %rule gek
-  [SE] GA [NAI] 🆓 | joik GI 🆓 | stag gik
+  [SE] GA [NAI] 🆓
+  | joik GI 🆓 | stag gik
 
 %rule guhek
   [SE] GUhA [NAI] 🆓
@@ -745,10 +765,13 @@ In this base grammar, `mi viska ba'o pu gi do gi la djan` gives `ba'o` a tag ove
   {... simple-tense-modal / jek | joik}
 
 %rule tense-modal
-  simple-tense-modal 🆓 | FIhO 🆓 selbri [+FEhU 🆓]
+  simple-tense-modal 🆓
+  | FIhO 🆓 selbri [+FEhU 🆓]
 
 %rule simple-tense-modal
-  [NAhE] [SE] BAI [NAI] [KI] | [NAhE] ((time [space] | space [time]) & CAhA) [KI] | KI | CUhE
+  [NAhE] [SE] BAI [NAI] [KI]
+  | [NAhE] ((time [space] | space [time]) & CAhA) [KI]
+  | KI | CUhE
 
 %rule time
   ZI & {time-offset} & (ZEhA [PU [NAI]]) & {interval-property}
@@ -769,7 +792,9 @@ In this base grammar, `mi viska ba'o pu gi do gi la djan` gives `ba'o` a tag ove
   {FEhE interval-property}
 
 %rule interval-property
-  number ROI [NAI] | TAhE [NAI] | ZAhO [NAI]
+  number ROI [NAI]
+  | TAhE [NAI]
+  | ZAhO [NAI]
 ```
 
 <details><summary>Railroad diagrams of the 11 rules from <code>tag</code> to <code>interval-property</code></summary>
@@ -826,7 +851,8 @@ The indicator stage attaches later indicator runs to their preceding words. This
   {[FUhE] indicator}
 
 %rule indicator
-  (UI | CAI) [NAI] | DAhO | FUhO
+  (UI | CAI) [NAI]
+  | DAhO | FUhO
 ```
 
 <details><summary>Railroad diagrams of <code>free</code>, <code>vocative</code>, <code>indicators</code> and <code>indicator</code></summary>

@@ -46,8 +46,7 @@ The book says that any character other than its 25 symbols and the digits is a s
 
 ```jbogenbau
 %rule letter
-  | i | e | a | o | u | h
-  | n | r | l | m | p | b | f | v | t | d | s | z | c | j | k | g
+  i | e | a | o | u | h | n | r | l | m | p | b | f | v | t | d | s | z | c | j | k | g
 
 %rule letter-of(@Chars, @Value, @Tags)
   {plain(@Chars)} :: Letter ∪ @Tags := @Value
@@ -238,7 +237,7 @@ The Latin letters `q`, `w`, `x` and `y` are not Eberban letters. Like every othe
 %rule foreign-letter
   plain(foreign-char)
 %emits
-  $ :: Space ∪ Foreign-Letter := " "
+  $ :: Space Foreign-Letter := " "
 
 %rule foreign-char
   "q" | "Q" | "w" | "W" | "x" | "X" | "y" | "Y"
@@ -269,10 +268,16 @@ The numbers chapter says that `+`, `*` and `/` are spaces, and that verbs expres
   ¬$c.matches(word-char | foreign-letter)
 
 %rule word-char
-  plain(letter-char) | digit-char | hyphen-char | "[" | "]"
+  plain(letter-char)
+  | digit-char | hyphen-char | "[" | "]"
 
 %rule letter-char
-  "a".."p" | "r".."v" | "z" | "A".."P" | "R".."V" | "Z"
+  "a".."p"
+  | "r".."v"
+  | "z"
+  | "A".."P"
+  | "R".."V"
+  | "Z"
 
 %rule digit-char
   "0".."9"

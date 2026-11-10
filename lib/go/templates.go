@@ -53,6 +53,7 @@ func mentionsAnyParameter(value any) bool {
 	}
 	return false
 }
+
 type ruleTemplate struct {
 	name   string
 	arity  int

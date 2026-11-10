@@ -132,7 +132,8 @@ The implication after the entries marks some words `Indicator`, which the indica
   "fo'a" "fo'e" "fo'i" "fo'o" "fo'u" "ke'a" "ko" "ko'a" "ko'e" "ko'i" "ko'o" "ko'u" "ma" ∈ KOhA
   "ma'a" "mi" "mi'a" "mi'ai" "mi'o" "nau'o" "ra" "ri" "ru" "ta" "ti" "tu" "vo'a" "vo'e" ∈ KOhA
   "vo'i" "vo'o" "vo'u" "xai" "zi'o" "zo'e" "zu'ai" "zu'i" ∈ KOhA
-  "do'au" "gi'au" "lau'u" "mi'oi" "nau'u" "ra'au" "sau'o" "voi'a" "xa'u" "xe'i" "xi'o" "zoi'i" ∈ KOhA
+  "do'au" "gi'au" "lau'u" "mi'oi" "nau'u" "ra'au" "sau'o" "voi'a" "xa'u" "xe'i" "xi'o"
+    "zoi'i" ∈ KOhA
   "bo'a" "bo'e" "bo'i" "ca'au" "da'ai" "da'au" "dei'ei" "do'ei" ∈ KOhA
   "ku" ∈ KU
   "ku'au" ∈ KUhAU
@@ -250,12 +251,15 @@ The implication after the entries marks some words `Indicator`, which the indica
   "ue'i" "ui" "uo" "uu" "va'i" "vu'e" "xo'o" "xu" "za'a" "zo'o" "zu'u" ∈ UI
   "a'au" "a'u'u" "au'a" "au'e" "au'u" "bi'a" "bu'a'a" "ci'au'u'au'i" "cu'ei" "cu'ei'ai" ∈ UI
   "cu'i'a" "dai'a" "e'e'e" "ei'au" "ei'i" "ei'u" "fu'au" "ge'ei" "ia'u" "ie'e" "ie'i" "ii'au" ∈ UI
-  "io'e" "io'u" "jai'ai" "jau'i" "je'au" "kai'a" "ki'a'au'u'au'i" "ky'u" "li'oi" "mi'au" "moi'i" ∈ UI
+  "io'e" "io'u" "jai'ai" "jau'i" "je'au" "kai'a" "ki'a'au'u'au'i" "ky'u" "li'oi" "mi'au"
+    "moi'i" ∈ UI
   "oi'u" "pei'o" "ra'i'au" "ri'ai" "roi'i" "sei'i" "si'ai" "so'ei" "te'y" "uai" "uei'e" "ui'i" ∈ UI
   "uo'o" "uu'i" "va'oi" "vei'i" "xa'a" "xa'i" "xe'o" "xu'a" "xu'o" "zai'a" "zi'a" ∈ UI
   "au'o" "bi'au" "bo'oi" "ca'e'ei" "ci'ai" "jei'u" "kai'e" "ki'au" "mau'u" "ne'au" "oi'o" ∈ UI
-  "pau'ai" "pe'ai" "ra'ei" "ta'ei" "toi'u" "uau'o" "ue'e" "va'u'ai" "xa'oi" "xe'e'e" "xy'y" "za'oi" ∈ UI
-  "cu'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u" ∈ UI
+  "pau'ai" "pe'ai" "ra'ei" "ta'ei" "toi'u" "uau'o" "ue'e" "va'u'ai" "xa'oi" "xe'e'e" "xy'y"
+    "za'oi" ∈ UI
+  "cu'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u"
+    ∈ UI
   "va" "vi" "vu" ∈ VA
   "vau" ∈ VAU
   "vei" ∈ VEI

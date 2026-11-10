@@ -21,7 +21,8 @@ In the experimental pipeline, an unfinished marker carries `Fault` unless a [`co
 ```jbogenbau
 %redefine-rule word
   $c:read-word
-    :: $c.tags ∪ (LOhAI ⊆ $c.classes ∧ ¬$c.following-tokens.begins(lohai-constructor-tail) ⟹ Fault)
+      :: $c.tags ∪
+         (LOhAI ⊆ $c.classes ∧ ¬$c.following-tokens.begins(lohai-constructor-tail) ⟹ Fault)
 %conditions
   $c.classes ∩ $MAGIC-WORDS = ∅,
   ¬$c.onward.begins(quote)
@@ -31,20 +32,19 @@ In the experimental pipeline, an unfinished marker carries `Fault` unless a [`co
 %rule lohai-constructor-tail
   skipped constructor-word
 
+-- LOhAI_pre <- pre_clause (LOhAI spaces? (!LOhAI !LEhAI any_word)* )? (LOhAI spaces? (!LOhAI !LEhAI any_word)* )? LEhAI spaces?
 %extend-rule quote
-  -- LOhAI_pre <- pre_clause (LOhAI spaces? (!LOhAI !LEhAI any_word)* )? (LOhAI spaces? (!LOhAI !LEhAI any_word)* )? LEhAI spaces?
   lohai-quote
 
 %rule lohai-quote :- $.source-text
   | $e:lehai-marker :: $e.tags
-  | $r:lohai-run word-gap lehai-marker :: $r.tags
-  | $r:lohai-run word-gap lohai-run word-gap lehai-marker :: $r.tags
+  | $r:lohai-run word-gap [lohai-run word-gap] lehai-marker :: $r.tags
 %emits
-  $ :: $.tags ∪ Quote
+  $ :: Quote ∪ $.tags
 
-%rule lohai-run
-  | $m:lohai-marker :: $m.tags
-  | $m:lohai-marker word-gap lohai-stream :: $m.tags
+%rule lohai-run :: $m.tags
+  | $m:lohai-marker
+  | $m:lohai-marker word-gap lohai-stream
 
 %rule lohai-stream
   | lohai-word
@@ -60,14 +60,14 @@ In the experimental pipeline, an unfinished marker carries `Fault` unless a [`co
   $ :: Word
 
 %rule lohai-marker
-  $q:read-word :: $q.classes ∪ Word ∪ Cmavo
+  $q:read-word :: Word Cmavo ∪ $q.classes
 %conditions
   LOhAI ⊆ $q.classes
 %emits
   $
 
 %rule lehai-marker
-  $q:LEhAI :: $q.classes ∪ Word ∪ Cmavo
+  $q:LEhAI :: Word Cmavo ∪ $q.classes
 %emits
   $
 ```

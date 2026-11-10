@@ -39,7 +39,8 @@ A run is what stands between two pauses. It is an ordinary run of letters, or a 
 
 ```jbogenbau
 %rule text
-  ε | pause | commas | [edge-pause] items [edge-pause]
+  | ε | pause | commas
+  | [edge-pause] items [edge-pause]
 
 %rule edge-pause
   spaced-pause | pause-edge
@@ -71,7 +72,9 @@ CLL[^cll-s3-3] says that a comma "cannot be pronounced as a pause", so a comma a
 %rule spaced-pause
   [pause-edge] $c:pause-core [pause-edge]
 %emits
-  $c :: PAUSE ∪ ($c.first-token.matches(period-char) ⟹ Period-Initial) ∪ ($c.matches(period-core) ⟹ Period-Only) := " "
+  $c :: PAUSE ∪
+        ($c.first-token.matches(period-char) ⟹ Period-Initial) ∪
+        ($c.matches(period-core) ⟹ Period-Only) := " "
 
 %rule pause-core
   core-char | pause-core core-char | pause-core pause-edge core-char
@@ -146,7 +149,9 @@ In `lojban/cll`, a comma between two vowels marks the syllable break of CLL[^cll
   plain-vowel | stressed-vowel
 
 %rule vowel-group-with(@V)
-  @V | vowel-group-plain-with(@V) | vowel-group-joined-with(@V)
+  @V
+  | vowel-group-plain-with(@V)
+  | vowel-group-joined-with(@V)
 
 %rule vowel-group-plain-with(@V)
   | vowel-group-with(@V)<¬Syllabic> $v:@V :: $v.tags
@@ -246,6 +251,8 @@ Names can stress any syllable.[^cll-s3-9][^cll-s4-8] A cmavo is a particle. Cmav
 
 `stressed-vowel-with` takes six patterns, one for each vowel in a script. Named instances keep each script's vowel rule in the phoneme tree.
 
+The `Vowel` tag marks the five full vowels and not `y`. So `stressed-full-vowel-with` holds the five full vowels and carries `Vowel` on its header. The outer rule's header supplies `Stressed`, and the `y` pattern stays in `stressed-vowel-with`.
+
 CLL[^cll-s3-1] omits `h` from the alphabet. CLL[^cll-s3-3] says that `h` does not write the apostrophe. This stage treats `h` as foreign text. [../common/latin.md](../common/latin.md) reads `h` as the apostrophe.
 
 ```jbogenbau
@@ -271,16 +278,20 @@ CLL[^cll-s3-1] omits `h` from the alphabet. CLL[^cll-s3-3] says that `h` does no
   $
 
 %rule plain-vowel :: ∅
-  | "a" :: Vowel | "e" :: Vowel | "i" :: Vowel | "o" :: Vowel | "u" :: Vowel | "y"
+  | ("a" | "e" | "i" | "o" | "u") :: Vowel
+  | "y"
 %emits
   $
 
+%rule stressed-full-vowel-with(@A, @E, @I, @O, @U) :: Vowel
+  | @A := "a" :- "A"
+  | @E := "e" :- "E"
+  | @I := "i" :- "I"
+  | @O := "o" :- "O"
+  | @U := "u" :- "U"
+
 %rule stressed-vowel-with(@A, @E, @I, @O, @U, @Y) :: Stressed
-  | @A :: Vowel := "a" :- "A"
-  | @E :: Vowel := "e" :- "E"
-  | @I :: Vowel := "i" :- "I"
-  | @O :: Vowel := "o" :- "O"
-  | @U :: Vowel := "u" :- "U"
+  | stressed-full-vowel-with(@A, @E, @I, @O, @U) :: Vowel
   | @Y := "y" :- "Y"
 %emits
   $
@@ -296,9 +307,10 @@ CLL[^cll-s3-1] omits `h` from the alphabet. CLL[^cll-s3-3] says that `h` does no
   ","
 ```
 
-<details><summary>Railroad diagrams of the 6 rules from <code>consonant</code> to <code>comma</code></summary>
+<details><summary>Railroad diagrams of the 7 rules from <code>consonant</code> to <code>comma</code></summary>
 <p><img src="../../../docs/diagrams/lojban/cll/latin/consonant.svg" alt="Railroad diagram of the rule consonant"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/latin/plain-vowel.svg" alt="Railroad diagram of the rule plain-vowel"></p>
+<p><img src="../../../docs/diagrams/lojban/cll/latin/stressed-full-vowel-with.svg" alt="Railroad diagram of the rule stressed-full-vowel-with"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/latin/stressed-vowel-with.svg" alt="Railroad diagram of the rule stressed-vowel-with"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/latin/stressed-vowel.svg" alt="Railroad diagram of the rule stressed-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/latin/apostrophe.svg" alt="Railroad diagram of the rule apostrophe"></p>

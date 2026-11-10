@@ -9,7 +9,8 @@ Eberban has no lexicon in its grammar. The shape of a word gives its family, and
 The pipeline turns on the warnings below by default. Each marks a text that the grammar accepts but that the book or the PEG does not recommend. A caller can turn a warning off.
 
 ```jbogenbau
-%features hyphen-misplaced prefix-i-after-sonorant math-symbol compound-size non-eberban-letter multi-sentence-cai-elided
+%features hyphen-misplaced prefix-i-after-sonorant math-symbol compound-size non-eberban-letter
+  multi-sentence-cai-elided
 ```
 
 ## Stage 1: letters

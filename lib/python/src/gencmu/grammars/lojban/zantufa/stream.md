@@ -24,8 +24,8 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
 For quote markers, this layer only adds classes to the shared class sets. The shared marker rules read these classes.
 
 ```jbogenbau
+-- ZO_pre <- pre_clause ZO spaces? any_word spaces?;  GOhOI_pre <- pre_clause GOhOI spaces? any_word spaces?
 %redefine-const $WORD-QUOTE-MARKERS
-  -- ZO_pre <- pre_clause ZO spaces? any_word spaces?;  GOhOI_pre <- pre_clause GOhOI spaces? any_word spaces?
   $WORD-QUOTE-MARKERS ∪ GOhOI
 
 ```
@@ -38,7 +38,7 @@ For quote markers, this layer only adds classes to the shared class sets. The sh
 
 %rule rahoi-quote
   $m:rahoi-marker $g:word-quote-gap $f:rafsi-quote-target
-    :: $m.tags :- $m.source-text ++ $g.source-text ++ $f.verbatim-text
+      :: $m.tags :- $m.source-text ++ $g.source-text ++ $f.verbatim-text
 %emits
   $
 
@@ -48,7 +48,7 @@ For quote markers, this layer only adds classes to the shared class sets. The sh
   ¬$.following-tokens.begins(quote-end-mark)
 
 %rule rahoi-marker
-  $q:read-word [quote-marker-end] :: $q.classes ∪ Word ∪ Cmavo
+  $q:read-word [quote-marker-end] :: Word Cmavo ∪ $q.classes
 %conditions
   RAhOI ⊆ $q.classes,
   ¬$.following-tokens.begins(quote-marker-end)
@@ -64,8 +64,8 @@ For quote markers, this layer only adds classes to the shared class sets. The sh
 `mu'oi` quotes a body between two delimiters, as `zoi` does. `zoi .ko. x .kO.` is a quote because both Lojban delimiters have stored value `ko`. Every pipeline compares exact stored values, including FOREIGN values from decomposed source text ([the word stream](../common/stream.md)). So the pipeline adds only the MUhOI class to the shared marker.
 
 ```jbogenbau
+-- ZOI_pre <- pre_clause ZOI spaces? zoi_open spaces? zoi_word* zoi_close spaces?;  MUhOI_pre likewise
 %redefine-const $ZOI-MARKERS
-  -- ZOI_pre <- pre_clause ZOI spaces? zoi_open spaces? zoi_word* zoi_close spaces?;  MUhOI_pre likewise
   $ZOI-MARKERS ∪ MUhOI
 
 ```
@@ -75,19 +75,20 @@ Zantufa reads `y` and `ie'o` as space only after a pause or at the start of the 
 In a `lo'u` or `lo'ai` quote, the stage tags such a word `Word` only, like every other quoted word. The shared reader handles both quote bodies.
 
 ```jbogenbau
+-- spaces <- !Y initial_spaces
 %redefine-rule hesitation
-  -- spaces <- !Y initial_spaces
   $h:y-run :: ∅
 %conditions
   ¬$h.onward.begins(y-bu-word),
-  (Run-Initial ∪ Spacing) ∩ $h.tags ≠ ∅ ∨ Y-Letters ⊆ $h.tags ∧ $h.following-tokens.begins(y-letter-ahead)
+  (Run-Initial ∪ Spacing) ∩ $h.tags ≠ ∅ ∨
+    Y-Letters ⊆ $h.tags ∧ $h.following-tokens.begins(y-letter-ahead)
 %erased
 
 %rule y-letter-ahead
   y-bu-word | Hesitation y-letter-ahead
 
 %rule attached-y
-  $h:Hesitation :: Word ∪ Cmavo ∪ Y
+  $h:Hesitation :: Word Cmavo Y
 %conditions
   (Run-Initial ∪ Spacing) ∩ $h.tags = ∅,
   Y-Letters ⊈ $h.tags ∨ ¬$h.following-tokens.begins(y-letter-ahead),
@@ -140,8 +141,8 @@ A word of LU, TO or LUhEI, the classes of `$TEXT-OPENERS`, that this stage reads
   $h:opener-space-token [opener-spaces]
 %erased
 
+-- initial_spaces <- (space_char / !ybu Y)+: a hesitation before bu is no space
 %rule opener-space-token
-  -- initial_spaces <- (space_char / !ybu Y)+: a hesitation before bu is no space
   $h:Hesitation
 %conditions
   Opener-Space ⊆ $h.tags,
@@ -184,7 +185,8 @@ A quote word that opens no quote is an ordinary word in Zantufa, which `si` eras
   $b.following-tokens.begins(bare-marker-tail)
 
 %rule bare-marker-tail
-  skipped si-word | skipped cmavo-token<BU>
+  skipped si-word
+  | skipped cmavo-token<BU>
 
 %rule bare-marker
   $q:read-word
@@ -208,7 +210,7 @@ The lookahead skips erased regions before BU. Thus `su mi si bu` forms the lette
 
 ```jbogenbau
 %extend-rule unit
-  $s:su-letter-base compound-gap cmavo-token<BU> :: Word ∪ BY
+  $s:su-letter-base compound-gap cmavo-token<BU> :: Word BY
 %emits
   $
 
