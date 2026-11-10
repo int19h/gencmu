@@ -17,16 +17,22 @@ type templateEvent struct {
 	instance      string
 	// heldParameter says, per condition of the generic rule, whether it
 	// held a parameter as written (§3.6).
-	heldParameter []bool
+	templateConditions []*domCond
 }
 
-// heldParameterOf says, per condition of a rule as written, whether it
-// mentions a parameter (§3.6).
-func heldParameterOf(rule templateObject) []bool {
+// templateConditionsOf gives, per condition of a rule as written, its
+// form where it mentions a parameter (§3.6). A parameter decodes to a
+// parameter term, which is never closed, so the decoded form is the
+// template's reading.
+func templateConditionsOf(rule templateObject) []*domCond {
 	conditions, _ := rule["conditions"].([]any)
-	held := make([]bool, len(conditions))
+	held := make([]*domCond, len(conditions))
 	for i, condition := range conditions {
-		held[i] = mentionsAnyParameter(condition)
+		if mentionsAnyParameter(condition) {
+			if decoded, err := decodeCondJSON(templateJSON(condition)); err == nil {
+				held[i] = decoded
+			}
+		}
 	}
 	return held
 }
@@ -319,7 +325,7 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 			delete(body, "args")
 			delete(body, "instance")
 			body["name"] = i.effective()
-			context := &templateEvent{path: e.path, rule: e.rule, index: e.index, origin: i.origin, instance: i.canonical, heldParameter: heldParameterOf(e.rule)}
+			context := &templateEvent{path: e.path, rule: e.rule, index: e.index, origin: i.origin, instance: i.canonical, templateConditions: templateConditionsOf(e.rule)}
 			expanded := x.substitute(body, env, context, "term")
 			copy := *context
 			copy.rule = templateObj(expanded)
@@ -368,7 +374,7 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 			body := templateCopy(e.rule)
 			delete(body, "params")
 			body["name"] = name
-			context := &templateEvent{path: e.path, rule: e.rule, index: e.index, origin: origin, instance: name, heldParameter: heldParameterOf(e.rule)}
+			context := &templateEvent{path: e.path, rule: e.rule, index: e.index, origin: origin, instance: name, templateConditions: templateConditionsOf(e.rule)}
 			definition := *context
 			definition.rule = templateObj(x.substitute(body, env, context, "term"))
 			x.inspectDefinition(&definition)
@@ -422,8 +428,8 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 		if err != nil {
 			x.fail(event, event.rule, err.Error())
 		}
-		if event.heldParameter != nil {
-			dom.Rules[0].HeldParameter = event.heldParameter
+		if event.templateConditions != nil {
+			dom.Rules[0].TemplateConditions = event.templateConditions
 		}
 		if problem := checkDOMMode(dom, uni, true); problem != nil {
 			x.fail(event, event.rule, problem.message)
@@ -1138,8 +1144,8 @@ func (x *templateExpander) inspectDefinition(e *templateEvent) {
 	if err != nil {
 		x.fail(e, e.rule, "rule "+templateText(e.rule["name"])+": "+err.Error())
 	}
-	if e.heldParameter != nil {
-		dom.Rules[0].HeldParameter = e.heldParameter
+	if e.templateConditions != nil {
+		dom.Rules[0].TemplateConditions = e.templateConditions
 	}
 	if problem := checkDOMMode(dom, x.uni, true); problem != nil {
 		x.fail(e, e.rule, problem.message)

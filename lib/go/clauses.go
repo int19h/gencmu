@@ -520,7 +520,7 @@ const (
 // Its outcome is then the same for every production but for what it
 // lacks, so req gets, in order, each capture whose absence makes it lack
 // one: the captures its parts use, less those of parts it reduces away.
-func simplifiedOutcome(start clausePart, has func(string) bool, req *[]string, noClosed bool) outcome {
+func simplifiedOutcome(start clausePart, has func(string) bool, req *[]string) outcome {
 	type frame struct {
 		p       clausePart
 		combine bool
@@ -701,16 +701,8 @@ func simplifiedOutcome(start clausePart, has func(string) bool, req *[]string, n
 				}
 			case cdTruthy:
 				// A set term that simplifies to the empty set is false,
-				// and a closed one that is not empty is true (§3.6). A
-				// caller can bar the closed-set rule, for a term that
-				// held a parameter as written.
-				closed := false
-				if !noClosed {
-					if value, ok := closedSetValue(p.c.Left); ok && len(value) > 0 {
-						closed = true
-					}
-				}
-				if closed {
+				// and a closed one that is not empty is true (§3.6).
+				if value, ok := closedSetValue(p.c.Left); ok && len(value) > 0 {
 					o = outcome{kind: oTrue}
 				} else if parts[0].kind == oEmpty {
 					o = outcome{kind: oFalse}
@@ -861,7 +853,7 @@ func itemCaptureProblem(r *domRule, itemsByAlt []map[string]itemPlace, items map
 			if len(here) == 0 {
 				if !applies {
 					for _, caps := range validationCaptures(r, a) {
-						if conditionApplies(c, hasIn(caps), conditionIndex < len(r.HeldParameter) && r.HeldParameter[conditionIndex]) {
+						if conditionApplies(c, hasIn(caps), templateCondAt(r.TemplateConditions, conditionIndex)) {
 							applies = true
 							break
 						}
@@ -918,7 +910,7 @@ func itemCaptureProblem(r *domRule, itemsByAlt []map[string]itemPlace, items map
 					for j, name := range own {
 						caps[name] = j
 					}
-					if conditionApplies(c, hasIn(caps), conditionIndex < len(r.HeldParameter) && r.HeldParameter[conditionIndex]) {
+					if conditionApplies(c, hasIn(caps), templateCondAt(r.TemplateConditions, conditionIndex)) {
 						applies = true
 						break
 					}
@@ -934,14 +926,14 @@ func itemCaptureProblem(r *domRule, itemsByAlt []map[string]itemPlace, items map
 
 // conditionApplies says whether a condition applies to a production with
 // the captures has says it has: simplified, it is not true, and it uses
-// only captures the production has (engine §3.6). A condition that held
-// a parameter as written does not reduce under the closed-set rule, so
-// a true outcome for such a condition is asked again with that rule
-// barred. Truth for any other reason still applies to no production.
-func conditionApplies(c *domCond, has func(string) bool, instance bool) bool {
-	o := simplifiedOutcome(clausePart{c: c}, has, nil, false)
-	if instance && o.kind == oTrue {
-		o = simplifiedOutcome(clausePart{c: c}, has, nil, true)
+// only captures the production has (engine §3.6). The closed-set rule
+// reads the condition as its template writes it, so where the condition
+// held a parameter, a true outcome is asked of the template's form,
+// which template gives where it held one.
+func conditionApplies(c *domCond, has func(string) bool, template *domCond) bool {
+	o := simplifiedOutcome(clausePart{c: c}, has, nil)
+	if template != nil && o.kind == oTrue {
+		o = simplifiedOutcome(clausePart{c: template}, has, nil)
 	}
 	return o.kind == oFalse || o.kind == oUses && !o.lacks
 }
@@ -1188,10 +1180,7 @@ func definitionFault(r *domRule, deferIssue func(definitionKind, string) bool) *
 		}
 	}
 	conds := newCondCheck(r.Conditions, func(c *domCond) bool { return waits(c) || isItem(c) })
-	// A condition that held a parameter as written is never closed
-	// (§3.6), so in an instance it still applies where it simplifies
-	// to true.
-	conds.held = r.HeldParameter
+	conds.template = r.TemplateConditions
 	for _, caps := range alts {
 		if conds.left == 0 {
 			break
@@ -1205,7 +1194,7 @@ func definitionFault(r *domRule, deferIssue func(definitionKind, string) bool) *
 		if t == nil || waits(t) {
 			return ""
 		}
-		if o := simplifiedOutcome(clausePart{t: t}, has, nil, false); o.kind == oUses && o.lacks {
+		if o := simplifiedOutcome(clausePart{t: t}, has, nil); o.kind == oUses && o.lacks {
 			return fmt.Sprintf("a tag term of %s uses $%s, which a production lacks; guard it with $%s ⟹", r.Name, o.missing, o.missing)
 		}
 		return ""

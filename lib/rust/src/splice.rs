@@ -470,7 +470,7 @@ mod tests {
                 .collect();
             // Each stage at line 2k + 2, with its rule on the next line.
             let rule = |index: usize| RuleDef {
-                held_parameter: Vec::new(),
+                template_conditions: Vec::new(),
                 error: None,
                 warning: None,
                 suppress_warnings: Vec::new(),

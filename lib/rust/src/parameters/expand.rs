@@ -15,9 +15,10 @@ pub(crate) struct Event {
     pub inspection_run: usize,
     pub origin: Option<Json>,
     pub instance: String,
-    /// Per condition, whether the template rule held a parameter there
-    /// as written, for an instance event (engine §3.6).
-    pub held: Vec<bool>,
+    /// Per condition, its form as its template writes it, where it held
+    /// a parameter, for an instance event (engine §3.6). A null entry
+    /// held no parameter.
+    pub template_conditions: Vec<Json>,
 }
 impl Event {
     fn fail(&self, n: &Json, mut message: String) -> Error {
@@ -236,7 +237,7 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
                 inspection_run,
                 origin: None,
                 instance: String::new(),
-                held: Vec::new(),
+                template_conditions: Vec::new(),
             };
             serial += 1;
             if kind != "rules" {
@@ -374,12 +375,15 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
             }
             set(&mut body, "name", string(i.effective()));
             let context = Event { origin: Some(i.origin.clone()), instance: i.canonical.clone(), ..e };
-            let held: Vec<bool> = match get(&body, "conditions") {
-                Json::Arr(conditions) => conditions.iter().map(mentions_parameter).collect(),
+            let template_conditions: Vec<Json> = match get(&body, "conditions") {
+                Json::Arr(conditions) => conditions
+                    .iter()
+                    .map(|condition| if mentions_parameter(condition) { condition.clone() } else { Json::Null })
+                    .collect(),
                 _ => Vec::new(),
             };
             let expanded = x.substitute(&body, &env, &context, "term")?;
-            let definition = Event { held, rule: expanded, ..context };
+            let definition = Event { template_conditions, rule: expanded, ..context };
             x.decode(&empty(vec![definition.rule.clone()]), &definition)?;
             x.instances[id].definitions.push(definition);
         }
@@ -413,12 +417,15 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
             remove(&mut body, "params");
             set(&mut body, "name", string(&name));
             let context = Event { origin: Some(origin.clone()), instance: name.clone(), ..e.clone() };
-            let held: Vec<bool> = match get(&body, "conditions") {
-                Json::Arr(conditions) => conditions.iter().map(mentions_parameter).collect(),
+            let template_conditions: Vec<Json> = match get(&body, "conditions") {
+                Json::Arr(conditions) => conditions
+                    .iter()
+                    .map(|condition| if mentions_parameter(condition) { condition.clone() } else { Json::Null })
+                    .collect(),
                 _ => Vec::new(),
             };
             let rule = x.substitute(&body, &env, &context, "term")?;
-            let definition = Event { held, rule, ..context };
+            let definition = Event { template_conditions, rule, ..context };
             x.decode(&empty(vec![definition.rule.clone()]), &definition)?;
             x.validation_calls(&definition.rule, &definition, &mut validation_keys, &mut validation_queue)?;
             validation_definitions.push(definition);
@@ -517,7 +524,7 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
                             inspection_run: 0,
                             origin: None,
                             instance: String::new(),
-                            held: Vec::new(),
+                            template_conditions: Vec::new(),
                         },
                         "term",
                     )
@@ -533,7 +540,7 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
             inspection_run: 0,
             origin: None,
             instance: String::new(),
-            held: Vec::new(),
+            template_conditions: Vec::new(),
         };
         expanded.push((path.clone(), Arc::new(x.decode(&raw, &e)?)));
         inspection_runs.push(index);
@@ -1232,15 +1239,29 @@ impl Expander<'_> {
         Ok(result)
     }
     fn decode(&self, root: &Json, event: &Event) -> R<Dom> {
-        // Which conditions of the template rule held a parameter as
-        // written (engine §3.6), for the instances decoded here.
-        let held_parameter: Vec<bool> = if !event.held.is_empty() {
-            event.held.clone()
-        } else {
-            match get(&event.rule, "conditions") {
-                Json::Arr(conditions) => conditions.iter().map(mentions_parameter).collect(),
-                _ => Vec::new(),
-            }
+        // The conditions of the template rule as written, where one
+        // held a parameter (engine §3.6), for the instances decoded
+        // here. A parameter decodes to a source term, which is never
+        // closed, so the decoded form is the template's reading.
+        let template_conditions: Vec<Option<dom::Cond>> = {
+            let written: Vec<Json> = if !event.template_conditions.is_empty() {
+                event.template_conditions.clone()
+            } else {
+                match get(&event.rule, "conditions") {
+                    Json::Arr(conditions) => conditions
+                        .iter()
+                        .map(|condition| if mentions_parameter(condition) { condition.clone() } else { Json::Null })
+                        .collect(),
+                    _ => Vec::new(),
+                }
+            };
+            written
+                .iter()
+                .map(|condition| match condition {
+                    Json::Null => None,
+                    condition => dom::cond_from_json(condition).ok(),
+                })
+                .collect()
         };
         let checked = clean(root);
         let failure = |message: String| {
@@ -1252,11 +1273,11 @@ impl Expander<'_> {
         if let Some(problem) = dom::schema::structure_problem(&checked, self.uni, true) {
             return Err(failure(problem));
         }
-        // The held flags go on before the definition checks, which read
-        // them (engine §3.6).
+        // The template forms go on before the definition checks, which
+        // read them (engine §3.6).
         let mut d = dom::decode_nodes(&checked).map_err(failure)?;
         for rule in &mut d.rules {
-            rule.held_parameter = held_parameter.clone();
+            rule.template_conditions = template_conditions.clone();
         }
         if let Some(problem) = dom::schema::decoded_problem(&checked, &mut d) {
             return Err(failure(problem));

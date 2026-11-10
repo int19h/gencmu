@@ -73,11 +73,12 @@ type domRule struct {
 	Alternatives     []*domAlt
 	Emit             *domEmit
 	Conditions       []*domCond
-	// HeldParameter says, per condition, whether it held a parameter as
-	// written, for a rule that template expansion wrote (§3.6).
-	HeldParameter []bool
-	Erased        bool
-	At            [2]int
+	// TemplateConditions gives, per condition, its form as its template
+	// writes it, where it held a parameter, for a rule that template
+	// expansion wrote (§3.6).
+	TemplateConditions []*domCond
+	Erased             bool
+	At                 [2]int
 }
 
 type domAlt struct {

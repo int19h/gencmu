@@ -387,8 +387,8 @@ enum Outcome<'a> {
     Uses(Option<&'a str>),
 }
 
-fn simplified_outcome<'a>(start: Part<'a>, has: &dyn Fn(&str) -> bool, no_closed: bool) -> Outcome<'a> {
-    Shaped::of(start, has, no_closed).outcome(has)
+fn simplified_outcome<'a>(start: Part<'a>, has: &dyn Fn(&str) -> bool) -> Outcome<'a> {
+    Shaped::of(start, has).outcome(has)
 }
 
 /// What a clause gives once simplified, before the captures it uses are
@@ -402,7 +402,7 @@ struct Shaped<'a> {
 impl<'a> Shaped<'a> {
     /// The shape of a clause for a production whose presence tests `has`
     /// answers. A part that reads no presence never asks it.
-    fn of(start: Part<'a>, has: &dyn Fn(&str) -> bool, no_closed: bool) -> Shaped<'a> {
+    fn of(start: Part<'a>, has: &dyn Fn(&str) -> bool) -> Shaped<'a> {
         // Each part is met twice: first to push its parts, then to combine
         // their outcomes, which stand on `done` in the order written. When
         // a part is combined, the captures of its leaves stand last in
@@ -470,12 +470,7 @@ impl<'a> Shaped<'a> {
                     // false, and a closed one that is not empty is true
                     // (§3.6).
                     Cond::Truthy(term) => match done.pop().expect("the term") {
-                        // A term that held a parameter as written does
-                        // not reduce under the closed-set rule (§3.6),
-                        // which the caller can bar with `no_closed`.
-                        _ if !no_closed && matches!(closed_set_value(term), Some(value) if !value.is_empty()) => {
-                            Outcome::True
-                        }
+                        _ if matches!(closed_set_value(term), Some(value) if !value.is_empty()) => Outcome::True,
                         Outcome::Empty => Outcome::False,
                         _ => used,
                     },
@@ -904,7 +899,7 @@ struct TermCheck<'a>(Split<'a, &'a Term, Shaped<'a>>);
 
 impl<'a> TermCheck<'a> {
     fn new(term: &'a Term) -> TermCheck<'a> {
-        let fixed = |part: &'a Term| Shaped::of(Part::Term(part), &no_presence, false);
+        let fixed = |part: &'a Term| Shaped::of(Part::Term(part), &no_presence);
         TermCheck(Split::new(
             union_parts(term),
             |part| know_term(part, &fixed),
@@ -917,7 +912,7 @@ impl<'a> TermCheck<'a> {
         for index in chosen {
             let outcome = match &self.0.parts[index] {
                 (_, Some(shaped)) => shaped.outcome(has),
-                (part, None) => simplified_outcome(Part::Term(part), has, false),
+                (part, None) => simplified_outcome(Part::Term(part), has),
             };
             if let Outcome::Uses(Some(missing)) = outcome {
                 return Some(missing);
@@ -945,8 +940,8 @@ enum CondCheck<'a> {
 }
 
 impl<'a> CondCheck<'a> {
-    fn new(cond: &'a Cond, no_closed: bool) -> CondCheck<'a> {
-        let fixed = |part: &'a Cond| Shaped::of(Part::Cond(part), &no_presence, no_closed);
+    fn new(cond: &'a Cond) -> CondCheck<'a> {
+        let fixed = |part: &'a Cond| Shaped::of(Part::Cond(part), &no_presence);
         let know = |part| know_cond(part, &fixed);
         match know(cond) {
             Known::Fixed(shaped) => CondCheck::Fixed(shaped),
@@ -978,16 +973,11 @@ impl<'a> CondCheck<'a> {
         }
     }
 
-    fn outcome<'n>(
-        &self,
-        own: impl Iterator<Item = &'n str>,
-        has: &dyn Fn(&str) -> bool,
-        no_closed: bool,
-    ) -> Outcome<'a> {
+    fn outcome<'n>(&self, own: impl Iterator<Item = &'n str>, has: &dyn Fn(&str) -> bool) -> Outcome<'a> {
         let (split, all) = match self {
             CondCheck::Fixed(shaped) => return shaped.outcome(has),
             CondCheck::Guarded(name, shaped) => return if has(name) { shaped.outcome(has) } else { Outcome::True },
-            CondCheck::Whole(cond) => return simplified_outcome(Part::Cond(cond), has, no_closed),
+            CondCheck::Whole(cond) => return simplified_outcome(Part::Cond(cond), has),
             CondCheck::All(split) => (split, true),
             CondCheck::Any(split) => (split, false),
         };
@@ -1002,7 +992,7 @@ impl<'a> CondCheck<'a> {
         for index in chosen {
             let outcome = match &split.parts[index] {
                 (_, Some(shaped)) => shaped.outcome(has),
-                (part, None) => simplified_outcome(Part::Cond(part), has, no_closed),
+                (part, None) => simplified_outcome(Part::Cond(part), has),
             };
             match outcome {
                 Outcome::Uses(part) => {
@@ -1706,7 +1696,7 @@ fn read_product<'e>(left: Vec<Vec<Read<'e>>>, right: &[Vec<Read<'e>>]) -> Vec<Ve
 /// capture its simplified form uses (engine §3.6). One that simplifies to
 /// false applies, and removes the production.
 fn applies_with(cond: &Cond, has: &dyn Fn(&str) -> bool) -> bool {
-    match simplified_outcome(Part::Cond(cond), has, false) {
+    match simplified_outcome(Part::Cond(cond), has) {
         Outcome::True => false,
         Outcome::False => true,
         Outcome::Uses(missing) => missing.is_none(),
@@ -2097,26 +2087,26 @@ fn definition_fault(rule: &RuleDef, defer_issue: &mut impl FnMut(&DefinitionIssu
         if !item_names.is_empty() && mentioned_in(Part::Cond(cond)).iter().any(|name| item_names.contains(name)) {
             continue;
         }
-        let check = CondCheck::new(cond, false);
-        // A condition that held a parameter as written does not reduce
-        // under the closed-set rule (engine §3.6). Truth for any other
-        // reason still applies to no production, so a true outcome for
-        // such a condition is asked again with that rule barred.
-        let instance = rule.held_parameter.get(condition_index).copied().unwrap_or(false);
+        let check = CondCheck::new(cond);
+        // The closed-set rule reads the condition as its template
+        // writes it (engine §3.6): a parameter is never closed, and
+        // every other part keeps the rule. So where the condition held
+        // a parameter, a true outcome is asked of the template's form.
+        let template = rule.template_conditions.get(condition_index).and_then(Option::as_ref);
         let applies_to = |index: usize| {
             let has = captures_of(index);
             let outcome = if each_part {
                 // A mutation of the tests simplifies every part of the
                 // condition for each production.
-                simplified_outcome(Part::Cond(cond), &has, false)
+                simplified_outcome(Part::Cond(cond), &has)
             } else {
-                check.outcome(positions[index].keys().copied(), &has, false)
+                check.outcome(positions[index].keys().copied(), &has)
             };
-            let outcome = if instance && matches!(outcome, Outcome::True) {
+            let outcome = if let (Some(template), Outcome::True) = (template, &outcome) {
                 if each_part {
-                    simplified_outcome(Part::Cond(cond), &has, true)
+                    simplified_outcome(Part::Cond(template), &has)
                 } else {
-                    CondCheck::new(cond, true).outcome(positions[index].keys().copied(), &has, true)
+                    CondCheck::new(template).outcome(positions[index].keys().copied(), &has)
                 }
             } else {
                 outcome
@@ -2178,7 +2168,7 @@ fn definition_fault(rule: &RuleDef, defer_issue: &mut impl FnMut(&DefinitionIssu
             // A mutation of the tests simplifies every part of each tag
             // term for each production.
             for term in [rule_tags, alternative_tags[*alternative]].into_iter().flatten() {
-                if let Outcome::Uses(Some(missing)) = simplified_outcome(Part::Term(term), &has, false) {
+                if let Outcome::Uses(Some(missing)) = simplified_outcome(Part::Term(term), &has) {
                     return immediate(unguarded(missing));
                 }
             }
@@ -2307,7 +2297,7 @@ fn definition_fault(rule: &RuleDef, defer_issue: &mut impl FnMut(&DefinitionIssu
                 if waits {
                     continue;
                 }
-                if let Outcome::Uses(Some(missing)) = simplified_outcome(Part::Term(term), &has, false) {
+                if let Outcome::Uses(Some(missing)) = simplified_outcome(Part::Term(term), &has) {
                     return immediate(unguarded(missing));
                 }
             }
@@ -2586,7 +2576,7 @@ mod tests {
                 .chain(names.iter().map(|name| EmitItem::Capture(name.clone(), None, Attachments::default())))
                 .collect();
             RuleDef {
-                held_parameter: Vec::new(),
+                template_conditions: Vec::new(),
                 error: None,
                 warning: None,
                 suppress_warnings: Vec::new(),

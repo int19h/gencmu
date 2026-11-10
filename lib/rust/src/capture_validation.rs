@@ -291,7 +291,7 @@ impl<'a> PartialClause<'a> {
             };
             let mut node = PartialNode { part, children, fixed, reads: Vec::new(), guard };
             let value = if node.children.is_empty() && !matches!(part, Part::Cond(Cond::Captured(_))) {
-                let shaped = Shaped::of(part, &|_| true, false);
+                let shaped = Shaped::of(part, &|_| true);
                 node.reads = shaped.uses;
                 Reduction::plain(shaped.shape)
             } else {

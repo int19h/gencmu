@@ -165,9 +165,9 @@ pub(crate) struct RuleDef {
     pub alternatives: Vec<Alternative>,
     pub emit: Option<Vec<EmitItem>>,
     pub conditions: Vec<Cond>,
-    /// Per condition, whether it held a parameter as written, for a rule
-    /// that template expansion wrote (engine §3.6).
-    pub held_parameter: Vec<bool>,
+    /// Per condition, its form as its template writes it, where it held
+    /// a parameter (engine §3.6), for a rule that template expansion wrote.
+    pub template_conditions: Vec<Option<Cond>>,
     /// `%erased` contributes no strings or emission parts (engine §11).
     pub erased: bool,
     pub error: Option<Term>,
@@ -657,7 +657,7 @@ pub(crate) fn rule_from_json(value: &Json) -> R<RuleDef> {
             .collect::<R<Vec<_>>>()?,
         emit: value.get("emit").map(emit_from_json).transpose()?,
         conditions: array(value, "conditions")?.iter().map(cond_from_json).collect::<R<Vec<_>>>()?,
-        held_parameter: Vec::new(),
+        template_conditions: Vec::new(),
         error: value.get("error").map(term_from_json).transpose()?,
         warning: value.get("warning").map(term_from_json).transpose()?,
         suppress_warnings: value
