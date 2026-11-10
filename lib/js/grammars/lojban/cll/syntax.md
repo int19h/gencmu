@@ -878,6 +878,19 @@ For example, `le sutra tavla` has two parses. One is a statement with the descri
 
 `late #·_<_Elided>` takes the parse that elides a terminator later, so `le sutra tavla` is a fragment. A speaker who means the statement says `le sutra cu tavla` or `le sutra ku tavla`.
 
+An element is one symbol of a production. An optional or a list forms one element with or without a node. The `early-elision` check tests each omitted terminator after the stage chooses its parse. A longer completed reading of the preceding element from the same start triggers the warning. This can explain a boundary that the rest of the text forces.
+
+```jbogenbau
+%check early-elision
+  #·_<_Elided>
+%conditions
+  $.preceding-element.local-readings.ending-after($)
+%warning "the omitted " ++ $.terminal ++
+  " closes its construct before words that can continue it"
+```
+
+The check names the terminator in its message. Each matching omission warns, including nested omissions at the same position. A written terminator does not warn. The `lojban/cll`, `lojban/bpfk` and `lojban/experimental` pipelines enable this warning by default. A caller can disable its code without changing the chosen parse.
+
 ## Differences from the printed CLL grammar
 
 This grammar departs from the EBNF printed in CLL in eleven places. The first settles a precedence that the printed text leaves open. The next three repair the EBNF's copy of the YACC grammar, used by the official parser, CLL's reference implementation. YACC is a parser generator. The EBNF cites that grammar's rule numbers. In each case, the YACC grammar has a path that the EBNF omits, and the official parser accepts the text.
@@ -1031,6 +1044,8 @@ CLL's official parser reads one lexeme ahead, which no pipeline here follows. A 
 Notation note 10 of CLL[^cll-s21-1] says that an elidable terminator "may be omitted (without change of meaning) if no grammatical ambiguity results". The note does not choose a parse when the grammar allows several. Each pipeline chooses its ranking. Nor does the note say how to check that no ambiguity results, so `elision-only` is a choice too. Both are chosen to fit the conventions of CLL. CLL does not state them.
 
 CLL gives advice about boundaries that preserve an intended reading. A complete parse can force such a boundary without a written terminator. Where nothing forces the boundary, the grammar gives the reading that CLL warns about. General advice does not override CLL's notation note 10.[^cll-s21-1]
+
+A longer completed reading of the element before an omitted terminator triggers the `early-elision` warning. A longer beginning that cannot complete gives no warning. This test compares completed readings, so it does not reproduce the official parser's lookahead.
 
 CLL[^cll-s6-2] warns about a description before a selbri. In `le broda brode gi'e brodi`, the whole text forces the description to end before `brode`.
 

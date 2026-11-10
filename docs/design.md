@@ -608,7 +608,7 @@ A `%warning` rule names a warning code and supplies its message recipe. A splice
 
 The `lojban/experimental` pipeline enables `experimental-cgv` by default for consonants before glides in names and borrowings. Forms marks those words with `Cgv-Warning`. The words stage warns when its chosen derivation reads a marked word.
 
-The `early-elision` check is on by default in `lojban/cll`, `lojban/bpfk`, `lojban/experimental` and the playground. Other bundled warnings require the caller to enable them.
+The `early-elision` check is on by default in `lojban/cll`, `lojban/bpfk`, `lojban/experimental` and the playground. Other bundled warnings, apart from `experimental-cgv`, require the caller to enable them.
 
 A warning comes from a selected occurrence, including one of a tie's two shown readings. The parser reports no addition that only a losing reading uses. A tie has no chosen tree, but it lists warnings from its two shown readings. Erasure removes the warnings of the erased text.
 

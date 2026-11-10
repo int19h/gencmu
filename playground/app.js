@@ -93,7 +93,7 @@
     pipeline: pipelineNames.includes("lojban/cll") ? "lojban/cll" : pipelineNames[0],
     // The features the page turns on, and those it turns off among the
     // ones the pipeline turns on.
-    features: new Set(),
+    features: new Set(["early-elision"]),
     without: new Set(),
     elision: "",
     until: "",

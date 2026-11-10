@@ -26,8 +26,10 @@ FUhE opens an indicator group. The [indicator document](../cll/indicators.md#dif
 
 A feature is a named switch that the grammars test. The pipeline turns on `su-boundary`. That feature makes SU stop at the last surviving `ni'o`, `no'i`, `lu`, `tu'e`, `to`, or `to'i`. With the feature off, SU erases the whole text before it.
 
+The pipeline also enables `early-elision`. A longer completed local reading of the preceding element triggers this warning at an omitted terminator. A caller can disable the warning without changing the chosen parse.
+
 ```jbogenbau
-%features su-boundary
+%features su-boundary early-elision
 ```
 
 ## Stage 1: phonemes
