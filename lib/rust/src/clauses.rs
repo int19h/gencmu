@@ -473,7 +473,9 @@ impl<'a> Shaped<'a> {
                         // A term that held a parameter as written does
                         // not reduce under the closed-set rule (§3.6),
                         // which the caller can bar with `no_closed`.
-                        _ if !no_closed && matches!(closed_set_value(term), Some(value) if !value.is_empty()) => Outcome::True,
+                        _ if !no_closed && matches!(closed_set_value(term), Some(value) if !value.is_empty()) => {
+                            Outcome::True
+                        }
                         Outcome::Empty => Outcome::False,
                         _ => used,
                     },
@@ -976,7 +978,12 @@ impl<'a> CondCheck<'a> {
         }
     }
 
-    fn outcome<'n>(&self, own: impl Iterator<Item = &'n str>, has: &dyn Fn(&str) -> bool, no_closed: bool) -> Outcome<'a> {
+    fn outcome<'n>(
+        &self,
+        own: impl Iterator<Item = &'n str>,
+        has: &dyn Fn(&str) -> bool,
+        no_closed: bool,
+    ) -> Outcome<'a> {
         let (split, all) = match self {
             CondCheck::Fixed(shaped) => return shaped.outcome(has),
             CondCheck::Guarded(name, shaped) => return if has(name) { shaped.outcome(has) } else { Outcome::True },
