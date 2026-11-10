@@ -981,16 +981,20 @@ An empty `er e` retains its closing `e` as `Stray-Prefix`, without a second erro
 %emits
   $ :: Stray-Prefix := $.decomposed-source-text :- $.source-text
 
+-- The tail of a spaced i compound is a gap, an i letter and the content after it.
+%rule spaced-i-tail
+  gap [Hyphen] Letter="i" prefix-gap content
+
 %rule spaced-i-prefix
   $p:prefix :: $p.tags
 %conditions
-  $p.following-tokens.parse(gap [Hyphen] Letter="i" prefix-gap content …)
+  $p.following-tokens.parse(spaced-i-tail …)
 %error "attach the nested prefix as ei, or write e e instead of e i"
 
 %rule compound-empty
   $p:prefix :: $p.tags
 %conditions
-  ¬$p.following-tokens.parse(gap [Hyphen] Letter="i" prefix-gap content …),
+  ¬$p.following-tokens.parse(spaced-i-tail …),
   ER-PREFIX ⊆ $p.tags,
   $p.following-tokens.parse(gap [Hyphen] Letter="e" [Hyphen] run-end …)
 %error "the er compound needs at least one component"
@@ -998,7 +1002,7 @@ An empty `er e` retains its closing `e` as `Stray-Prefix`, without a second erro
 %rule incomplete-compound
   $p:prefix :: $p.tags
 %conditions
-  ¬$p.following-tokens.parse(gap [Hyphen] Letter="i" prefix-gap content …),
+  ¬$p.following-tokens.parse(spaced-i-tail …),
   ER-PREFIX ⊈ $p.tags ∨ ¬$p.following-tokens.parse(gap [Hyphen] Letter="e" [Hyphen] run-end …)
 %error "the compound is unfinished, or its prefix does not fit its components"
 
@@ -1019,10 +1023,11 @@ An empty `er e` retains its closing `e` as `Stray-Prefix`, without a second erro
   gap [hyphen-misplaced] $o:open-compound :: $o.tags ∩ Spaced-E
 ```
 
-<details><summary>Railroad diagrams of the 10 rules from <code>stray-compound</code> to <code>open-later</code></summary>
+<details><summary>Railroad diagrams of the 11 rules from <code>stray-compound</code> to <code>open-later</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/stray-compound.svg" alt="Railroad diagram of the rule stray-compound"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/open-compound.svg" alt="Railroad diagram of the rule open-compound"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/stray-prefix.svg" alt="Railroad diagram of the rule stray-prefix"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/spaced-i-tail.svg" alt="Railroad diagram of the rule spaced-i-tail"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/spaced-i-prefix.svg" alt="Railroad diagram of the rule spaced-i-prefix"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/compound-empty.svg" alt="Railroad diagram of the rule compound-empty"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/incomplete-compound.svg" alt="Railroad diagram of the rule incomplete-compound"></p>

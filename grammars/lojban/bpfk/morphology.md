@@ -180,20 +180,25 @@ No sound in the repetition needs a test against a pause. The final consonant of 
 A cmavo is not the start of a name, and not the start of a lujvo that begins with a CVC rafsi and a y-hyphen. Its form is an onset and nuclei joined by apostrophes. A pause or another word follows it. `CVCy_lujvo` keeps `bajykerlo` one lujvo, rather than `ba jy kerlo`.
 
 ```jbogenbau
+-- A lujvo that begins with a CVC rafsi and a y-hyphen. Stress separates its two forms.
+%rule cvcy-lujvo
+  | cvc-rafsi y [h] [{initial-rafsi}] brivla-core
+  | stressed-cvc-rafsi y short-final-rafsi
+
 -- A particle is an onset and nuclei joined by apostrophes. It excludes a name start, a CVCy compound start and pure y. The pure y test says that not every letter of the span is y. It ends at a complete word boundary.
 %rule cmavo
   $o:onset [{nucleus h}] cmavo-last-nucleus
 %conditions
 -- Detect a CVC rafsi with a y-hyphen before the compound core. Stress separates the two forms. Unhyphenated initial rafsi cannot start where the core starts, because of stress and their own exclusions. Only a lookahead.
   ¬$o.onward.parse((h | cluster | cmevla
-                    | cvc-rafsi y [h] [{initial-rafsi}] brivla-core
-                    | stressed-cvc-rafsi y short-final-rafsi) …),
+                    | cvcy-lujvo) …),
   $.value.ngrams(1) ≠ "y",
   $.following-tokens.parse(post-word …)
 
 ```
 
-<details><summary>Railroad diagram of <code>cmavo</code></summary>
+<details><summary>Railroad diagrams of <code>cvcy-lujvo</code> and <code>cmavo</code></summary>
+<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cvcy-lujvo.svg" alt="Railroad diagram of the rule cvcy-lujvo"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cmavo.svg" alt="Railroad diagram of the rule cmavo"></p>
 </details>
 

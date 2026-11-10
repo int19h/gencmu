@@ -4111,7 +4111,7 @@
     "malformed": true
   },
   {
-    "description": "A feature condition retains the receiver shape for matches (engine §§9, 13).",
+    "description": "A feature condition retains the receiver shape for a whole parse (engine §§9, 13).",
     "directive": {
       "name": "features",
       "args": [

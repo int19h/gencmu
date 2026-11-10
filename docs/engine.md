@@ -1318,7 +1318,7 @@ Two orders are free:
 
 The order between steps, between items and between sets is not observable either. Every step that the rules of this section reach runs in the end, so the same errors happen. §7.4 removes steps, and their errors with them. Two such errors differ only in their message.
 
-A target choice is a nonempty ordered list of ordinary rules, exact instances, and user terminal tags. Written alternatives use `|`, and repeated targets change nothing. Each terminal target reads exactly one original token carrying its tag. Whole, prefix, suffix, and part terminal queries use a helper (§3.10). A rule target runs a nested parse of that rule.
+Each terminal target reads exactly one original token carrying its tag. Whole, prefix, suffix, and part terminal queries use a helper (§3.10). A rule target runs a nested parse of that rule.
 
 Queries in every mode run nested recognition for a rule target. Suffix recognition follows §4.4. For an ordinary span, a nested parse recognizes only its tokens, with `rule` as the start rule, over the same lowered grammar. It applies tests and conditions as the main parse does. Whole, prefix, suffix, and part recognition of a terminal starts from its query helper (§3.10). For those queries, `rule` below names that helper.
 
@@ -1371,19 +1371,19 @@ Three cases use the prefix immediately before the elidable optional: production 
 
 For `r → B [c] [+T] D T`, capturing `c` changes no query answer. Both forms use the optional helper as the preceding logical symbol. Its absent and present routes take part in the same blocker search.
 
-The blocking advances come from the unfiltered query chart. The query's chart ends with its span. A bounded `matches` sees no written continuation past that span. A `begins` with `.onward` or `.following-tokens` sees the remaining input.
+The blocking advances come from the unfiltered query chart. The query's chart ends with its span. A bounded whole query sees no written continuation past that span. A prefix query with `.onward` or `.following-tokens` sees the remaining input.
 
-The nonempty alternative is the whole content of the optional, not only its terminator. So a written terminator forbids an omission only where the whole optional can complete after it. For example, take `r → c [+T A] D` and `c → B | B D`. On `B D T`, `begins` of `r` holds. The longer `c` reaches the `T`, but `[+T A]` cannot complete. On `B D T A`, `begins` is false, because the whole written optional completes.
+The nonempty alternative is the whole content of the optional, not only its terminator. So a written terminator forbids an omission only where the whole optional can complete after it. For example, take `r → c [+T A] D` and `c → B | B D`. On `B D T`, a prefix parse of `r` holds. The longer `c` reaches the `T`, but `[+T A]` cannot complete. On `B D T A`, that parse is false, because the whole written optional completes.
 
 The advances of a blocking path come from the chart. So their tests and conditions passed. They need not belong to a proof tree of `rule`, and they need not be eligible themselves. An attempt that never completes `rule` can still forbid an omission.
 
 So eligibility belongs to a whole proof tree, not to an advance alone. Two proof trees of one item can hold different items fixed before `Y`. An omission is permitted only through a proof tree whose own fixed prefix permits it, and that same tree must be eligible. An eligible prefix of one tree never combines with the permitted omission of another.
 
-For example, take `r → [A] y [+T] C T U` and `y → A B | A B C | B z [+U]`. Also take `z → ε | C T`. On `A B C T U`, `begins` of `r` is false.
+For example, take `r → [A] y [+T] C T U` and `y → A B | A B C | B z [+U]`. Also take `z → ε | C T`. On `A B C T U`, a prefix parse of `r` is false.
 
 Two proof trees reach the omission of `[+T]` after `y`. In the first, `[A]` is empty and `y → A B`. That prefix is eligible, but the omission is forbidden, since the same prefix reads `A B C` as `y` and then the written `T`.
 
-In the second tree, `[A]` reads `A` and `y → B z [+U]`, so the omission of `[+T]` is permitted. But that tree is not eligible. Its omission of `[+U]` is forbidden, because `z` can read `C T`, and then the written `U` follows. Without the `[+U]` of `y → B z [+U]`, the second tree is eligible, and `begins` holds.
+In the second tree, `[A]` reads `A` and `y → B z [+U]`, so the omission of `[+T]` is permitted. But that tree is not eligible. Its omission of `[+U]` is forbidden, because `z` can read `C T`, and then the written `U` follows. Without the `[+U]` of `y → B z [+U]`, the second tree is eligible, and the prefix parse holds.
 
 An implementation computes E and P over the recorded advances. E says that one proof is eligible. P says that the same proof permits the next optional to be empty. A third flag F says that this proof has measure `(0,0,0)` for `.error-free`. The flags always describe the same proof, and distinct combinations remain separate.
 
@@ -1463,7 +1463,7 @@ Answer keys distinguish constraints, while active keys detect self-definition.
 
 Aligned requests share qualification by rule, start, context end, and active query context. Family requests also retain the family, candidate end, and candidate observation in that key. Each request filters the qualified witnesses for its endpoint and alignment constraints. Reusable qualification stores completed observations and tags, without retaining the recognition chart or its proof edges.
 
-An ordinary query reads the tokens of its span alone. A `matches` over a span does not look past the span's end, even where a written terminator stands after it. So the keys of the memo (below) fit its answer.
+An ordinary query reads the tokens of its span alone. A whole query over a span does not look past the span's end, even where a written terminator stands after it. So the keys of the memo (below) fit its answer.
 
 A prefix query is one recognition over the whole span, not a separate parse of each prefix. Conditions see the query's context end. For an ordinary span, that end equals the span end. A recognizer can stop at a set that holds no item, since no later set can then hold one. Otherwise it reads as far as it can. An error of the grammar that it meets is an error, even after `rule` completed once.
 

@@ -3084,8 +3084,8 @@ fn is_capital(name: &str) -> bool {
 }
 
 /// Whether a tag term, or a condition inside one, reads `$.tags` or
-/// `$.classes` (§9). Bare `$` reads the input value, and `$.tags(R)`
-/// parses the input again.
+/// `$.classes` (§9). Bare `$` reads the input value, and a parse over
+/// `$` parses the input again.
 pub(crate) fn reads_own_tags(term: &Term) -> bool {
     // The parts to look at, with an explicit stack: a term is as deep as
     // its document nests until the check of its depth (§9).
