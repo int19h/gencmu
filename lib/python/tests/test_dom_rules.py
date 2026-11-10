@@ -330,12 +330,12 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("an unknown comparator", set_condition({"op": "<", "left": STR, "right": STR})),
     ("a comparator that is a list", set_condition({"op": ["="], "left": STR, "right": STR})),
     (
-        "matches of a call that is a list",
-        set_condition({"receiver": {"method": [], "receiver": {"emptySet": True}}, "args": [{"rule": "text"}], "method": "matches"}),
+        "parse of a call that is a list",
+        set_condition({"receiver": {"method": [], "receiver": {"emptySet": True}}, "args": [{"rule": "text"}], "method": "parse"}),
     ),
-    ("begins of a tag", set_condition({"receiver": TAG, "args": [{"rule": "text"}], "method": "begins"})),
-    ("begins without a rule", set_condition({"receiver": X, "args": [], "method": "begins"})),
-    ("matches and begins in one condition", set_condition({"receiver": X, "begins": X, "args": [{"rule": "text"}], "method": "matches"})),
+    ("prefix parse of a tag", set_condition({"receiver": TAG, "args": [{"body": {"seq": [{"ref": "text"}, {"remainder": True}]}}], "method": "parse"})),
+    ("parse without a body", set_condition({"receiver": X, "args": [], "method": "parse"})),
+    ("parse and begins in one condition", set_condition({"receiver": X, "begins": X, "args": [{"rule": "text"}], "method": "parse"})),
     ("initial of a tag", set_condition({"receiver": TAG, "args": [], "method": "starts-input"})),
     ("initial with a rule", set_condition({"receiver": X, "args": [{"rule": "text"}], "method": "starts-input"})),
     ("a function that is a list", set_tags({"method": ["phonemes"], "args": [], "receiver": X})),
@@ -640,7 +640,7 @@ class PreparsedDomRules(unittest.TestCase):
                 "$.tags in an emitted term",
                 set_emit({"items": [{"capture": "x", "tags": {"method": "tags", "args": [], "receiver": WHOLE}}]}),
             ),
-            ("$.parse(rule).tags in an alternative's tags", set_tags({"method": "tags", "args": [{"rule": "text"}], "receiver": WHOLE})),
+            ("$.parse(rule).tags in an alternative's tags", set_tags({"method": "tags", "args": [], "receiver": {"method": "parse", "args": [{"body": {"ref": "text"}}], "receiver": WHOLE}})),
             (
                 "$.source-text in a guard of an alternative's tags",
                 set_tags({"if": {"op": "=", "left": {"method": "source-text", "args": [], "receiver": WHOLE}, "right": STR}, "then": TAG}),
@@ -650,14 +650,14 @@ class PreparsedDomRules(unittest.TestCase):
                 set_tags({"method": "tags", "args": [], "receiver": {"method": "first-token", "args": [], "receiver": WHOLE}}),
             ),
             ("a condition on $", set_condition({"op": "⊆", "left": TAG, "right": {"method": "tags", "args": [], "receiver": WHOLE}})),
-            ("all", set_condition({"all": [SAME, {"not": {"receiver": WHOLE, "args": [{"rule": "text"}], "method": "matches"}}]})),
+            ("all", set_condition({"all": [SAME, {"not": {"receiver": WHOLE, "args": [{"body": {"ref": "text"}}], "method": "parse"}}]})),
             (
-                "begins of $.following-tokens",
+                "prefix parse of $.following-tokens",
                 set_condition(
                     {
                         "receiver": {"method": "following-tokens", "args": [], "receiver": WHOLE},
-                        "args": [{"rule": "text"}],
-                        "method": "begins",
+                        "args": [{"body": {"seq": [{"ref": "text"}, {"remainder": True}]}}],
+                        "method": "parse",
                     }
                 ),
             ),

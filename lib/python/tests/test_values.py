@@ -105,10 +105,11 @@ class Values(unittest.TestCase):
         # routes introduced by a private capture.
         for capture in ("c", "$c:c"):
             for suffix, allowed in (("T", False), ("T U", True)):
-                for method in ("matches", "begins", "tags"):
+                for method in ("whole", "prefix", "tags"):
                     with self.subTest(capture=capture, suffix=suffix, method=method):
                         head = "%rule text $r:input"
-                        head += f" :: $r.parse(r).tags" if method == "tags" else f"\n%conditions $r.{method}(r)"
+                        query = "$r.parse(r).tags" if method == "tags" else "$r.parse(r …)" if method == "prefix" else "$r.parse(r)"
+                        head += f" :: {query}" if method == "tags" else f"\n%conditions {query}"
                         grammar = f"{head}\n%rule input B D T Z\n%rule r :: Queried | B [[({capture} ≻ c)] [+{suffix}] D T] Z\n%rule c D"
                         value, _, error, _ = run_case({"grammar": grammar, "tokens": [{"text": tag, "tags": [tag]} for tag in "BDTZ"]})
                         self.assertIsNone(error)

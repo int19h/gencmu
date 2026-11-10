@@ -143,24 +143,13 @@ fn targets(root: Part<'_>, cache: &mut FxMap<(u8, usize), Arc<Targets>>) -> Arc<
         }
         let mut found = Vec::new();
         let mut filter = false;
-        match part {
-            Part::Term(Term::Call(method, args)) => {
-                filter = method == "error-free";
-                if method == "tags" {
-                    found.extend(args.iter().filter_map(|arg| {
-                        if let Arg::Rule(name) = arg {
-                            Some(name.clone())
-                        } else {
-                            None
-                        }
-                    }));
-                } else if method == "parse" {
-                    if let Some(Arg::Term(Term::Body(body))) = args.get(1) {
-                        found.extend(references(body, true));
-                    }
+        if let Part::Term(Term::Call(method, args)) = part {
+            filter = method == "error-free";
+            if method == "parse" {
+                if let Some(Arg::Term(Term::Body(body))) = args.get(1) {
+                    found.extend(references(body, true));
                 }
             }
-            _ => {}
         }
         for name in found {
             names.add(name, if filtered { 2 } else { 1 });

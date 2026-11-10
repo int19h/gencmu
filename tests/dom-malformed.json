@@ -456,7 +456,7 @@
       ],
       "conditions": [
         {
-          "method": "matches",
+          "method": "parse",
           "receiver": {
             "method": "without-elision",
             "receiver": {
@@ -466,7 +466,9 @@
           },
           "args": [
             {
-              "rule": "text"
+              "body": {
+                "ref": "text"
+              }
             }
           ]
         }
@@ -493,7 +495,7 @@
       ],
       "conditions": [
         {
-          "method": "matches",
+          "method": "parse",
           "receiver": {
             "method": "onward",
             "receiver": {
@@ -507,7 +509,9 @@
           },
           "args": [
             {
-              "rule": "text"
+              "body": {
+                "ref": "text"
+              }
             }
           ]
         }
@@ -534,14 +538,16 @@
       ],
       "conditions": [
         {
-          "method": "matches",
+          "method": "parse",
           "receiver": {
             "method": "without-elision",
             "args": []
           },
           "args": [
             {
-              "rule": "text"
+              "body": {
+                "ref": "text"
+              }
             }
           ]
         }
@@ -568,7 +574,7 @@
       ],
       "conditions": [
         {
-          "method": "matches",
+          "method": "parse",
           "receiver": {
             "method": "without-elision",
             "receiver": {
@@ -582,7 +588,9 @@
           },
           "args": [
             {
-              "rule": "text"
+              "body": {
+                "ref": "text"
+              }
             }
           ]
         }
@@ -609,7 +617,7 @@
       ],
       "conditions": [
         {
-          "method": "matches",
+          "method": "parse",
           "receiver": {
             "method": "without-elision",
             "receiver": {
@@ -619,7 +627,9 @@
           },
           "args": [
             {
-              "rule": "text"
+              "body": {
+                "ref": "text"
+              }
             }
           ]
         }
@@ -646,7 +656,7 @@
       ],
       "conditions": [
         {
-          "method": "matches",
+          "method": "parse",
           "receiver": {
             "method": "without-elision",
             "receiver": {
@@ -660,7 +670,9 @@
           },
           "args": [
             {
-              "rule": "text"
+              "body": {
+                "ref": "text"
+              }
             }
           ]
         }
@@ -687,7 +699,7 @@
       ],
       "conditions": [
         {
-          "method": "matches",
+          "method": "parse",
           "receiver": {
             "method": "without-elision",
             "receiver": {
@@ -701,7 +713,9 @@
           },
           "args": [
             {
-              "rule": "text"
+              "body": {
+                "ref": "text"
+              }
             }
           ]
         }
@@ -728,7 +742,7 @@
       ],
       "conditions": [
         {
-          "method": "matches",
+          "method": "parse",
           "receiver": {
             "method": "without-elision",
             "receiver": {
@@ -739,7 +753,9 @@
           },
           "args": [
             {
-              "rule": "text"
+              "body": {
+                "ref": "text"
+              }
             }
           ]
         }
@@ -956,7 +972,7 @@
       ],
       "conditions": [
         {
-          "method": "matches",
+          "method": "parse",
           "receiver": {
             "method": "without-elision-except",
             "receiver": {
@@ -970,7 +986,9 @@
           },
           "args": [
             {
-              "rule": "rival"
+              "body": {
+                "ref": "rival"
+              }
             }
           ]
         }
@@ -997,13 +1015,15 @@
       ],
       "conditions": [
         {
-          "method": "matches",
+          "method": "parse",
           "receiver": {
             "capture": ""
           },
           "args": [
             {
-              "rule": "🆓"
+              "body": {
+                "ref": "🆓"
+              }
             }
           ]
         }
@@ -1030,13 +1050,22 @@
       ],
       "conditions": [
         {
-          "method": "begins",
+          "method": "parse",
           "receiver": {
             "capture": ""
           },
           "args": [
             {
-              "rule": "🆓"
+              "body": {
+                "seq": [
+                  {
+                    "ref": "🆓"
+                  },
+                  {
+                    "remainder": true
+                  }
+                ]
+              }
             }
           ]
         }
@@ -1070,13 +1099,19 @@
           "right": {
             "method": "tags",
             "receiver": {
-              "capture": ""
+              "method": "parse",
+              "receiver": {
+                "capture": ""
+              },
+              "args": [
+                {
+                  "body": {
+                    "ref": "🆓"
+                  }
+                }
+              ]
             },
-            "args": [
-              {
-                "rule": "🆓"
-              }
-            ]
+            "args": []
           }
         }
       ],
@@ -1172,13 +1207,19 @@
       "tags": {
         "method": "tags",
         "receiver": {
-          "capture": ""
+          "method": "parse",
+          "receiver": {
+            "capture": ""
+          },
+          "args": [
+            {
+              "body": {
+                "ref": "🆓"
+              }
+            }
+          ]
         },
-        "args": [
-          {
-            "rule": "🆓"
-          }
-        ]
+        "args": []
       }
     },
     "malformed": false
@@ -1197,13 +1238,19 @@
           "tags": {
             "method": "tags",
             "receiver": {
-              "capture": ""
+              "method": "parse",
+              "receiver": {
+                "capture": ""
+              },
+              "args": [
+                {
+                  "body": {
+                    "ref": "🆓"
+                  }
+                }
+              ]
             },
-            "args": [
-              {
-                "rule": "🆓"
-              }
-            ]
+            "args": []
           }
         }
       ],
@@ -1243,13 +1290,19 @@
             "tags": {
               "method": "tags",
               "receiver": {
-                "capture": ""
+                "method": "parse",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": [
+                  {
+                    "body": {
+                      "ref": "🆓"
+                    }
+                  }
+                ]
               },
-              "args": [
-                {
-                  "rule": "🆓"
-                }
-              ]
+              "args": []
             }
           }
         ]
@@ -2632,16 +2685,24 @@
           "left": {
             "method": "tags",
             "receiver": {
-              "capture": ""
-            },
-            "args": [
-              {
-                "rule": "r"
+              "method": "parse",
+              "receiver": {
+                "capture": ""
               },
-              {
-                "rule": "r"
-              }
-            ]
+              "args": [
+                {
+                  "body": {
+                    "ref": "r"
+                  }
+                },
+                {
+                  "body": {
+                    "ref": "r"
+                  }
+                }
+              ]
+            },
+            "args": []
           },
           "right": {
             "emptySet": true
@@ -2958,13 +3019,15 @@
       ],
       "conditions": [
         {
-          "method": "matches",
+          "method": "parse",
           "receiver": {
             "capture": ""
           },
           "args": [
             {
-              "rule": "r"
+              "body": {
+                "ref": "r"
+              }
             }
           ]
         }
@@ -2985,7 +3048,7 @@
       ],
       "conditions": [
         {
-          "method": "matches",
+          "method": "parse",
           "receiver": {
             "capture": ""
           },
@@ -3008,16 +3071,22 @@
       ],
       "conditions": [
         {
-          "method": "matches",
+          "method": "parse",
           "receiver": {
             "capture": ""
           },
           "args": [
             {
-              "rule": "r"
-            },
-            {
-              "rule": "r"
+              "body": {
+                "choice": [
+                  {
+                    "ref": "r"
+                  },
+                  {
+                    "ref": "r"
+                  }
+                ]
+              }
             }
           ]
         }
@@ -3038,13 +3107,22 @@
       ],
       "conditions": [
         {
-          "method": "begins",
+          "method": "parse",
           "receiver": {
             "capture": ""
           },
           "args": [
             {
-              "rule": "r"
+              "body": {
+                "seq": [
+                  {
+                    "ref": "r"
+                  },
+                  {
+                    "remainder": true
+                  }
+                ]
+              }
             }
           ]
         }
@@ -3065,7 +3143,7 @@
       ],
       "conditions": [
         {
-          "method": "begins",
+          "method": "parse",
           "receiver": {
             "capture": ""
           },
@@ -3088,16 +3166,29 @@
       ],
       "conditions": [
         {
-          "method": "begins",
+          "method": "parse",
           "receiver": {
             "capture": ""
           },
           "args": [
             {
-              "rule": "r"
-            },
-            {
-              "rule": "r"
+              "body": {
+                "seq": [
+                  {
+                    "choice": [
+                      {
+                        "ref": "r"
+                      },
+                      {
+                        "ref": "r"
+                      }
+                    ]
+                  },
+                  {
+                    "remainder": true
+                  }
+                ]
+              }
             }
           ]
         }
@@ -3454,13 +3545,19 @@
           "left": {
             "method": "tags",
             "receiver": {
-              "capture": ""
+              "method": "parse",
+              "receiver": {
+                "capture": ""
+              },
+              "args": [
+                {
+                  "body": {
+                    "classifier": "c"
+                  }
+                }
+              ]
             },
-            "args": [
-              {
-                "classifier": "c"
-              }
-            ]
+            "args": []
           },
           "right": {
             "emptySet": true
@@ -3549,13 +3646,15 @@
       ],
       "conditions": [
         {
-          "method": "matches",
+          "method": "parse",
           "receiver": {
             "capture": ""
           },
           "args": [
             {
-              "string": "x"
+              "body": {
+                "string": "x"
+              }
             }
           ]
         }
@@ -3576,13 +3675,22 @@
       ],
       "conditions": [
         {
-          "method": "begins",
+          "method": "parse",
           "receiver": {
             "capture": ""
           },
           "args": [
             {
-              "classifier": "c"
+              "body": {
+                "seq": [
+                  {
+                    "classifier": "c"
+                  },
+                  {
+                    "remainder": true
+                  }
+                ]
+              }
             }
           ]
         }
@@ -4015,13 +4123,15 @@
       ],
       "conditions": [
         {
-          "method": "matches",
+          "method": "parse",
           "receiver": {
             "string": "x"
           },
           "args": [
             {
-              "rule": "r"
+              "body": {
+                "ref": "r"
+              }
             }
           ]
         }
@@ -4176,13 +4286,19 @@
           "left": {
             "method": "tags",
             "receiver": {
-              "capture": ""
+              "method": "parse",
+              "receiver": {
+                "capture": ""
+              },
+              "args": [
+                {
+                  "body": {
+                    "ref": "r"
+                  }
+                }
+              ]
             },
-            "args": [
-              {
-                "rule": "r"
-              }
-            ]
+            "args": []
           },
           "right": {
             "emptySet": true
@@ -4277,39 +4393,6 @@
     "malformed": true
   },
   {
-    "description": "A feature tags method retains its named argument schema (engine §§9, 13).",
-    "directive": {
-      "name": "features",
-      "args": [
-        "f"
-      ],
-      "at": [
-        1,
-        1
-      ],
-      "conditions": [
-        {
-          "op": "=",
-          "left": {
-            "method": "tags",
-            "receiver": {
-              "capture": ""
-            },
-            "args": [
-              {
-                "rule": "Upper"
-              }
-            ]
-          },
-          "right": {
-            "emptySet": true
-          }
-        }
-      ]
-    },
-    "malformed": true
-  },
-  {
     "description": "A feature classify method retains its named argument schema (engine §§9, 13).",
     "directive": {
       "name": "features",
@@ -4337,88 +4420,6 @@
           "right": {
             "emptySet": true
           }
-        }
-      ]
-    },
-    "malformed": true
-  },
-  {
-    "description": "A feature matches method retains its named argument schema (engine §§9, 13).",
-    "directive": {
-      "name": "features",
-      "args": [
-        "f"
-      ],
-      "at": [
-        1,
-        1
-      ],
-      "conditions": [
-        {
-          "method": "matches",
-          "receiver": {
-            "capture": ""
-          },
-          "args": [
-            {
-              "rule": "r",
-              "extra": true
-            }
-          ]
-        }
-      ]
-    },
-    "malformed": true
-  },
-  {
-    "description": "A feature matches method requires a valid rule argument name (engine §§9, 13).",
-    "directive": {
-      "name": "features",
-      "args": [
-        "f"
-      ],
-      "at": [
-        1,
-        1
-      ],
-      "conditions": [
-        {
-          "method": "matches",
-          "receiver": {
-            "capture": ""
-          },
-          "args": [
-            {
-              "rule": "Upper"
-            }
-          ]
-        }
-      ]
-    },
-    "malformed": true
-  },
-  {
-    "description": "A feature begins method requires a valid rule argument name (engine §§9, 13).",
-    "directive": {
-      "name": "features",
-      "args": [
-        "f"
-      ],
-      "at": [
-        1,
-        1
-      ],
-      "conditions": [
-        {
-          "method": "begins",
-          "receiver": {
-            "capture": ""
-          },
-          "args": [
-            {
-              "rule": "Upper"
-            }
-          ]
         }
       ]
     },
@@ -4474,13 +4475,19 @@
           "left": {
             "method": "tags",
             "receiver": {
-              "capture": ""
+              "method": "parse",
+              "receiver": {
+                "capture": ""
+              },
+              "args": [
+                {
+                  "body": {
+                    "ref": "🆓"
+                  }
+                }
+              ]
             },
-            "args": [
-              {
-                "rule": "🆓"
-              }
-            ]
+            "args": []
           },
           "right": {
             "emptySet": true
@@ -4739,16 +4746,22 @@
       ],
       "conditions": [
         {
-          "method": "matches",
+          "method": "parse",
           "receiver": {
             "capture": ""
           },
           "args": [
             {
-              "rule": "r"
-            },
-            {
-              "terminal": "A"
+              "body": {
+                "choice": [
+                  {
+                    "ref": "r"
+                  },
+                  {
+                    "ref": "A"
+                  }
+                ]
+              }
             }
           ]
         }
@@ -4775,16 +4788,29 @@
       ],
       "conditions": [
         {
-          "method": "begins",
+          "method": "parse",
           "receiver": {
             "capture": ""
           },
           "args": [
             {
-              "rule": "r"
-            },
-            {
-              "terminal": "A"
+              "body": {
+                "seq": [
+                  {
+                    "choice": [
+                      {
+                        "ref": "r"
+                      },
+                      {
+                        "ref": "A"
+                      }
+                    ]
+                  },
+                  {
+                    "remainder": true
+                  }
+                ]
+              }
             }
           ]
         }
@@ -4854,13 +4880,19 @@
           "left": {
             "method": "tags",
             "receiver": {
-              "string": "ab"
+              "method": "parse",
+              "receiver": {
+                "string": "ab"
+              },
+              "args": [
+                {
+                  "body": {
+                    "integer": "2"
+                  }
+                }
+              ]
             },
-            "args": [
-              {
-                "integer": "2"
-              }
-            ]
+            "args": []
           },
           "right": {
             "emptySet": true
@@ -5123,44 +5155,11 @@
       ],
       "conditions": [
         {
-          "method": "begins",
+          "method": "parse",
           "receiver": {
             "capture": ""
           },
           "args": []
-        }
-      ],
-      "at": [
-        1,
-        1
-      ]
-    },
-    "malformed": true
-  },
-  {
-    "description": "Engine §10 rejects an engine tag as a begins target.",
-    "rule": {
-      "name": "text",
-      "op": "define",
-      "alternatives": [
-        {
-          "guards": [],
-          "expr": {
-            "empty": true
-          }
-        }
-      ],
-      "conditions": [
-        {
-          "method": "begins",
-          "receiver": {
-            "capture": ""
-          },
-          "args": [
-            {
-              "terminal": "_General_Category_Letter"
-            }
-          ]
         }
       ],
       "at": [
@@ -5185,44 +5184,11 @@
       ],
       "conditions": [
         {
-          "method": "matches",
+          "method": "parse",
           "receiver": {
             "capture": ""
           },
           "args": []
-        }
-      ],
-      "at": [
-        1,
-        1
-      ]
-    },
-    "malformed": true
-  },
-  {
-    "description": "Engine §10 rejects an engine tag as a matches target.",
-    "rule": {
-      "name": "text",
-      "op": "define",
-      "alternatives": [
-        {
-          "guards": [],
-          "expr": {
-            "empty": true
-          }
-        }
-      ],
-      "conditions": [
-        {
-          "method": "matches",
-          "receiver": {
-            "capture": ""
-          },
-          "args": [
-            {
-              "terminal": "_General_Category_Letter"
-            }
-          ]
         }
       ],
       "at": [
@@ -5282,22 +5248,35 @@
       ],
       "conditions": [
         {
-          "method": "begins",
+          "method": "parse",
           "receiver": {
             "capture": ""
           },
           "args": [
             {
-              "rule": "r"
-            },
-            {
-              "rule": "r"
-            },
-            {
-              "terminal": "A"
-            },
-            {
-              "terminal": "A"
+              "body": {
+                "seq": [
+                  {
+                    "choice": [
+                      {
+                        "ref": "r"
+                      },
+                      {
+                        "ref": "r"
+                      },
+                      {
+                        "ref": "A"
+                      },
+                      {
+                        "ref": "A"
+                      }
+                    ]
+                  },
+                  {
+                    "remainder": true
+                  }
+                ]
+              }
             }
           ]
         }
@@ -5324,22 +5303,28 @@
       ],
       "conditions": [
         {
-          "method": "matches",
+          "method": "parse",
           "receiver": {
             "capture": ""
           },
           "args": [
             {
-              "rule": "r"
-            },
-            {
-              "rule": "r"
-            },
-            {
-              "terminal": "A"
-            },
-            {
-              "terminal": "A"
+              "body": {
+                "choice": [
+                  {
+                    "ref": "r"
+                  },
+                  {
+                    "ref": "r"
+                  },
+                  {
+                    "ref": "A"
+                  },
+                  {
+                    "ref": "A"
+                  }
+                ]
+              }
             }
           ]
         }
@@ -6429,13 +6414,15 @@
       "conditions": [
         {
           "not": {
-            "method": "matches",
+            "method": "parse",
             "receiver": {
               "capture": "x"
             },
             "args": [
               {
-                "rule": "©"
+                "body": {
+                  "ref": "©"
+                }
               }
             ]
           }
@@ -6469,13 +6456,15 @@
       "conditions": [
         {
           "not": {
-            "method": "matches",
+            "method": "parse",
             "receiver": {
               "capture": "x"
             },
             "args": [
               {
-                "rule": "🏽"
+                "body": {
+                  "ref": "🏽"
+                }
               }
             ]
           }
@@ -6509,13 +6498,15 @@
       "conditions": [
         {
           "not": {
-            "method": "matches",
+            "method": "parse",
             "receiver": {
               "capture": "x"
             },
             "args": [
               {
-                "rule": "😀"
+                "body": {
+                  "ref": "😀"
+                }
               }
             ]
           }
@@ -6778,59 +6769,6 @@
           }
         ]
       }
-    },
-    "malformed": true
-  },
-  {
-    "description": "Unresolved template: malformed-nominal-argument",
-    "rule": {
-      "name": "unused",
-      "params": [
-        "X"
-      ],
-      "op": "define",
-      "alternatives": [
-        {
-          "guards": [],
-          "expr": {
-            "param": "X",
-            "at": [
-              2,
-              18
-            ]
-          }
-        }
-      ],
-      "conditions": [
-        {
-          "op": "=",
-          "left": {
-            "method": "tags",
-            "receiver": {
-              "capture": ""
-            },
-            "args": [
-              {
-                "rule": "text",
-                "extra": {
-                  "param": "X",
-                  "at": [
-                    2,
-                    20
-                  ]
-                }
-              }
-            ]
-          },
-          "right": {
-            "tag": "A"
-          }
-        }
-      ],
-      "at": [
-        2,
-        1
-      ]
     },
     "malformed": true
   },
@@ -7639,7 +7577,7 @@
         1
       ],
       "tags": {
-        "method": "matches",
+        "method": "parse",
         "receiver": {
           "param": "X",
           "at": [
@@ -7649,7 +7587,9 @@
         },
         "args": [
           {
-            "rule": "text"
+            "body": {
+              "ref": "text"
+            }
           }
         ]
       }
@@ -12425,17 +12365,19 @@
       ],
       "conditions": [
         {
-          "method": "matches",
+          "method": "parse",
           "receiver": {
             "capture": ""
           },
           "args": [
             {
-              "param": "X",
-              "at": [
-                3,
-                22
-              ]
+              "body": {
+                "param": "X",
+                "at": [
+                  3,
+                  22
+                ]
+              }
             }
           ]
         }
@@ -12480,22 +12422,24 @@
       ],
       "conditions": [
         {
-          "method": "matches",
+          "method": "parse",
           "receiver": {
             "capture": ""
           },
           "args": [
             {
-              "call": "atom",
-              "args": [
-                {
-                  "string": "b"
-                }
-              ],
-              "at": [
-                3,
-                22
-              ]
+              "body": {
+                "call": "atom",
+                "args": [
+                  {
+                    "string": "b"
+                  }
+                ],
+                "at": [
+                  3,
+                  22
+                ]
+              }
             }
           ]
         }
@@ -12544,17 +12488,23 @@
           "left": {
             "method": "tags",
             "receiver": {
-              "capture": ""
+              "method": "parse",
+              "receiver": {
+                "capture": ""
+              },
+              "args": [
+                {
+                  "body": {
+                    "param": "X",
+                    "at": [
+                      3,
+                      22
+                    ]
+                  }
+                }
+              ]
             },
-            "args": [
-              {
-                "param": "X",
-                "at": [
-                  3,
-                  22
-                ]
-              }
-            ]
+            "args": []
           },
           "right": {
             "tag": "A"
@@ -12605,22 +12555,28 @@
           "left": {
             "method": "tags",
             "receiver": {
-              "capture": ""
-            },
-            "args": [
-              {
-                "call": "atom",
-                "args": [
-                  {
-                    "string": "b"
+              "method": "parse",
+              "receiver": {
+                "capture": ""
+              },
+              "args": [
+                {
+                  "body": {
+                    "call": "atom",
+                    "args": [
+                      {
+                        "string": "b"
+                      }
+                    ],
+                    "at": [
+                      3,
+                      22
+                    ]
                   }
-                ],
-                "at": [
-                  3,
-                  22
-                ]
-              }
-            ]
+                }
+              ]
+            },
+            "args": []
           },
           "right": {
             "tag": "A"
@@ -15996,17 +15952,23 @@
       "tags": {
         "method": "tags",
         "receiver": {
-          "capture": "x"
+          "method": "parse",
+          "receiver": {
+            "capture": "x"
+          },
+          "args": [
+            {
+              "body": {
+                "param": "X",
+                "at": [
+                  1,
+                  15
+                ]
+              }
+            }
+          ]
         },
-        "args": [
-          {
-            "param": "X",
-            "at": [
-              1,
-              15
-            ]
-          }
-        ]
+        "args": []
       }
     },
     "malformed": false
@@ -20127,7 +20089,7 @@
           "conditions": [
             {
               "not": {
-                "method": "begins",
+                "method": "parse",
                 "receiver": {
                   "method": "following-tokens",
                   "receiver": {
@@ -20137,7 +20099,16 @@
                 },
                 "args": [
                   {
-                    "rule": "call-open"
+                    "body": {
+                      "seq": [
+                        {
+                          "ref": "call-open"
+                        },
+                        {
+                          "remainder": true
+                        }
+                      ]
+                    }
                   }
                 ]
               }
@@ -20198,7 +20169,7 @@
           "conditions": [
             {
               "not": {
-                "method": "begins",
+                "method": "parse",
                 "receiver": {
                   "method": "following-tokens",
                   "receiver": {
@@ -20208,7 +20179,16 @@
                 },
                 "args": [
                   {
-                    "rule": "name-character"
+                    "body": {
+                      "seq": [
+                        {
+                          "ref": "name-character"
+                        },
+                        {
+                          "remainder": true
+                        }
+                      ]
+                    }
                   }
                 ]
               }
@@ -20219,7 +20199,7 @@
               },
               "then": {
                 "not": {
-                  "method": "begins",
+                  "method": "parse",
                   "receiver": {
                     "method": "following-tokens",
                     "receiver": {
@@ -20229,7 +20209,16 @@
                   },
                   "args": [
                     {
-                      "rule": "call-open"
+                      "body": {
+                        "seq": [
+                          {
+                            "ref": "call-open"
+                          },
+                          {
+                            "remainder": true
+                          }
+                        ]
+                      }
                     }
                   ]
                 }
@@ -20255,7 +20244,7 @@
           "conditions": [
             {
               "not": {
-                "method": "begins",
+                "method": "parse",
                 "receiver": {
                   "method": "following-tokens",
                   "receiver": {
@@ -20265,7 +20254,16 @@
                 },
                 "args": [
                   {
-                    "rule": "name-character"
+                    "body": {
+                      "seq": [
+                        {
+                          "ref": "name-character"
+                        },
+                        {
+                          "remainder": true
+                        }
+                      ]
+                    }
                   }
                 ]
               }
@@ -20555,7 +20553,7 @@
           "conditions": [
             {
               "not": {
-                "method": "begins",
+                "method": "parse",
                 "receiver": {
                   "method": "following-tokens",
                   "receiver": {
@@ -20565,7 +20563,16 @@
                 },
                 "args": [
                   {
-                    "rule": "engine-name-part"
+                    "body": {
+                      "seq": [
+                        {
+                          "ref": "engine-name-part"
+                        },
+                        {
+                          "remainder": true
+                        }
+                      ]
+                    }
                   }
                 ]
               }
@@ -20665,7 +20672,7 @@
           ],
           "conditions": [
             {
-              "method": "begins",
+              "method": "parse",
               "receiver": {
                 "method": "following-tokens",
                 "receiver": {
@@ -20675,7 +20682,16 @@
               },
               "args": [
                 {
-                  "rule": "digit"
+                  "body": {
+                    "seq": [
+                      {
+                        "ref": "digit"
+                      },
+                      {
+                        "remainder": true
+                      }
+                    ]
+                  }
                 }
               ]
             }
@@ -20725,7 +20741,7 @@
           },
           "conditions": [
             {
-              "method": "begins",
+              "method": "parse",
               "receiver": {
                 "method": "following-tokens",
                 "receiver": {
@@ -20735,7 +20751,16 @@
               },
               "args": [
                 {
-                  "rule": "call-open"
+                  "body": {
+                    "seq": [
+                      {
+                        "ref": "call-open"
+                      },
+                      {
+                        "remainder": true
+                      }
+                    ]
+                  }
                 }
               ]
             }
@@ -20761,7 +20786,7 @@
           "conditions": [
             {
               "not": {
-                "method": "begins",
+                "method": "parse",
                 "receiver": {
                   "method": "following-tokens",
                   "receiver": {
@@ -20771,7 +20796,16 @@
                 },
                 "args": [
                   {
-                    "rule": "star-character"
+                    "body": {
+                      "seq": [
+                        {
+                          "ref": "star-character"
+                        },
+                        {
+                          "remainder": true
+                        }
+                      ]
+                    }
                   }
                 ]
               }
@@ -20881,7 +20915,7 @@
           "conditions": [
             {
               "not": {
-                "method": "begins",
+                "method": "parse",
                 "receiver": {
                   "method": "following-tokens",
                   "receiver": {
@@ -20891,7 +20925,16 @@
                 },
                 "args": [
                   {
-                    "rule": "name-character"
+                    "body": {
+                      "seq": [
+                        {
+                          "ref": "name-character"
+                        },
+                        {
+                          "remainder": true
+                        }
+                      ]
+                    }
                   }
                 ]
               }
@@ -20935,7 +20978,7 @@
           "conditions": [
             {
               "not": {
-                "method": "begins",
+                "method": "parse",
                 "receiver": {
                   "method": "following-tokens",
                   "receiver": {
@@ -20945,7 +20988,16 @@
                 },
                 "args": [
                   {
-                    "rule": "name-character"
+                    "body": {
+                      "seq": [
+                        {
+                          "ref": "name-character"
+                        },
+                        {
+                          "remainder": true
+                        }
+                      ]
+                    }
                   }
                 ]
               }
@@ -22095,7 +22147,7 @@
               },
               "then": {
                 "not": {
-                  "method": "begins",
+                  "method": "parse",
                   "receiver": {
                     "method": "following-tokens",
                     "receiver": {
@@ -22105,7 +22157,16 @@
                   },
                   "args": [
                     {
-                      "rule": "include-tail"
+                      "body": {
+                        "seq": [
+                          {
+                            "ref": "include-tail"
+                          },
+                          {
+                            "remainder": true
+                          }
+                        ]
+                      }
                     }
                   ]
                 }
@@ -22117,7 +22178,7 @@
               },
               "then": {
                 "not": {
-                  "method": "begins",
+                  "method": "parse",
                   "receiver": {
                     "method": "following-tokens",
                     "receiver": {
@@ -22127,7 +22188,16 @@
                   },
                   "args": [
                     {
-                      "rule": "include-tail"
+                      "body": {
+                        "seq": [
+                          {
+                            "ref": "include-tail"
+                          },
+                          {
+                            "remainder": true
+                          }
+                        ]
+                      }
                     }
                   ]
                 }

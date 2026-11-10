@@ -140,9 +140,9 @@ fn a_well_formed_dom_is_used() {
     )));
     // `begins` of `from` and `after` of a span, and those spans as a
     // term's argument (§9).
-    let begins = r#"{"method":"begins","receiver":{"method":"following-tokens","receiver":{"capture":"w"},"args":[]},"args":[{"rule":"text"}]}"#;
+    let begins = r#"{"method":"parse","receiver":{"method":"following-tokens","receiver":{"capture":"w"},"args":[]},"args":[{"body":{"seq":[{"ref":"text"},{"remainder":true}]}}]}"#;
     assert!(!document_was_read(&with_condition(begins)));
-    let not_begins = r#"{"not":{"method":"begins","receiver":{"method":"onward","receiver":{"method":"tokens-after-first","receiver":{"capture":"w"},"args":[]},"args":[]},"args":[{"rule":"x"}]}}"#;
+    let not_begins = r#"{"not":{"method":"parse","receiver":{"method":"onward","receiver":{"method":"tokens-after-first","receiver":{"capture":"w"},"args":[]},"args":[]},"args":[{"body":{"seq":[{"ref":"x"},{"remainder":true}]}}]}}"#;
     assert!(!document_was_read(&with_condition(not_begins)));
     assert!(!document_was_read(&with_tags(
         r#"{"method":"tags","receiver":{"method":"onward","receiver":{"capture":"x"},"args":[]},"args":[]}"#

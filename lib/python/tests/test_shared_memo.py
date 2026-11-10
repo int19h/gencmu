@@ -97,7 +97,7 @@ class SharedMemo(unittest.TestCase):
                     evaluations = []
 
                     def counted(evaluator, dom, bound):
-                        is_term = dom.get("method") == "tags" and dom.get("args") if query else "union" in dom
+                        is_term = dom.get("method") == "tags" and (dom.get("receiver") or {}).get("method") == "parse" if query else "union" in dom
                         if is_term:
                             evaluations.append(dom)
                         return (yield from walk_value(evaluator, dom, bound))

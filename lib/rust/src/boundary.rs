@@ -654,7 +654,7 @@ pub(crate) fn reachable(g: &crate::grammar::StageGrammar) -> Result<(), crate::e
                                     | crate::dom::Expr::Tested(_, _, e) => pending.push(e),
                                     crate::dom::Expr::Repeat(e, s, _) => {
                                         pending.push(e);
-                                        pending.extend(s.as_deref().into_iter());
+                                        pending.extend(s.as_deref());
                                     }
                                     _ => {}
                                 }

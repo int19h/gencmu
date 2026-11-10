@@ -2550,7 +2550,7 @@ fn query_terminals(grammar: &StageGrammar) -> BTreeSet<String> {
         C(&'a Cond),
     }
     let mut stack = Vec::new();
-    let mut result: BTreeSet<String> =
+    let result: BTreeSet<String> =
         grammar.query_targets.values().filter(|name| is_terminal_name(name)).cloned().collect();
     let mut seen = FxSet::default();
     for rule in &grammar.rules {

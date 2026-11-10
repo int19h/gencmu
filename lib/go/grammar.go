@@ -597,6 +597,13 @@ func (g *stageGrammar) checkAlt(a *sAlt, checked *checkedClauses) *Error {
 		if t.Kind == tmRule && g.byName[t.Str] == nil {
 			return fail("%s is not a rule of stage %s", t.Str, g.name)
 		}
+		// A parse body in a term names its rules here, in written
+		// order, as a shorthand target did (§2).
+		if t.Kind == tmBody && t.Body != nil {
+			if err := walk(t.Body); err != nil {
+				return err
+			}
+		}
 		// A classifier that classify names belongs to the stage (§2).
 		if t.Kind == tmClassifier && !g.classifierSet.names[t.Str] {
 			return fail("%s is not a classifier of stage %s", t.Str, g.name)

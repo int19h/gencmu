@@ -156,7 +156,7 @@ export declare class Grammar {
         queries: {
             rule: any;
             alternative: any;
-            target: any;
+            target: string;
             reached: {
                 rules: Set<any>;
                 terminals: Set<any>;

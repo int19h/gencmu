@@ -1790,13 +1790,15 @@
       "implications": []
     },
     "leaf": {
-      "method": "matches",
+      "method": "parse",
       "receiver": {
         "capture": "x"
       },
       "args": [
         {
-          "rule": "text"
+          "body": {
+            "ref": "text"
+          }
         }
       ]
     },
