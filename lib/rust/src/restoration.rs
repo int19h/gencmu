@@ -453,9 +453,11 @@ pub(crate) fn demanded(g: &crate::lower::Lowered) -> crate::fxhash::FxSet<u32> {
                     span(end, p, w);
                 }
             }
-            LCond::Initial(s) | LCond::Final(s) | LCond::Boundary(_, s, _, _, _) | LCond::Tree(s, _, _) => {
-                span(s, p, w)
-            }
+            LCond::Present(s)
+            | LCond::Initial(s)
+            | LCond::Final(s)
+            | LCond::Boundary(_, s, _, _, _)
+            | LCond::Tree(s, _, _) => span(s, p, w),
             LCond::Cmp(_, a, b) => {
                 term(a, p, w, todo);
                 term(b, p, w, todo);
@@ -823,7 +825,11 @@ pub(crate) fn local_demands(g: &crate::lower::Lowered) -> Vec<LocalDemand> {
                 }
                 query(&forest.span, forest.rule, out);
             }
-            LCond::Initial(s) | LCond::Final(s) | LCond::Boundary(_, s, _, _, _) | LCond::Tree(s, _, _) => span(s, out),
+            LCond::Present(s)
+            | LCond::Initial(s)
+            | LCond::Final(s)
+            | LCond::Boundary(_, s, _, _, _)
+            | LCond::Tree(s, _, _) => span(s, out),
             LCond::Cmp(_, a, b) => {
                 term(a, out);
                 term(b, out);

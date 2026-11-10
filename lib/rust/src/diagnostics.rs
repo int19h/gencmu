@@ -30,10 +30,16 @@ fn pattern_names(
     erased: &FxSet<String>,
     resolved_checks: bool,
     document: &str,
+    checks: &FxSet<String>,
 ) -> Result<(), Error> {
     use crate::patterns::{Children, Pattern};
     for part in pattern.walk() {
-        if let crate::patterns::Part::Pattern(Pattern::Name(name, _)) = part {
+        if let crate::patterns::Part::Pattern(Pattern::Name(name, at)) = part {
+            if checks.contains(name) {
+                return Err(Error::grammar(format!("a pattern cannot name check {name}"))
+                    .in_document(document)
+                    .at(at.0, at.1));
+            }
             names.insert(name.clone());
         }
         if let crate::patterns::Part::Pattern(Pattern::Node(atom, _, Some(children))) = part {
@@ -81,20 +87,36 @@ pub(crate) fn check(
             .at(check.at.0, check.at.1));
         }
     }
+    let check_names: FxSet<_> = grammar.checks.iter().map(|(_, check)| check.name.clone()).collect();
     // Resolved patterns include unused templates and replaced definitions (§9.3).
     let mut unused = FxSet::default();
     for (pattern, document) in checked_patterns {
-        pattern_names(pattern, &mut unused, &erased, source_checks.is_some(), document)?;
+        pattern_names(pattern, &mut unused, &erased, source_checks.is_some(), document, &check_names)?;
     }
     let mut prohibited = FxSet::default();
     let mut splices = Vec::new();
     let mut warnings = FxSet::default();
     for step in &grammar.steps {
-        pattern_names(&step.pattern, &mut prohibited, &erased, source_checks.is_some(), "")?;
+        pattern_names(&step.pattern, &mut prohibited, &erased, source_checks.is_some(), "", &check_names)?;
     }
     let mut pending = Vec::new();
     for (document, dom) in documents {
         pending.extend(dom.constants.iter().map(|c| (Part::Term(&c.value), document.as_ref())));
+    }
+    for (document, check) in &grammar.checks {
+        if check.warning.is_some() {
+            warnings.insert(check.name.as_str());
+            if !check.name.starts_with(|c: char| c.is_ascii_alphabetic())
+                || !check.name.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-')
+                || check.name.contains("--")
+            {
+                return Err(Error::grammar("a warning code must be a feature name")
+                    .in_document(document)
+                    .at(check.at.0, check.at.1));
+            }
+        }
+        pending.push((Part::Term(&check.pattern), document.as_ref()));
+        pending.extend(check.conditions.iter().map(|condition| (Part::Cond(condition), document.as_ref())));
     }
     let mut expressions = FxSet::default();
     let mut parts = FxSet::default();
@@ -168,7 +190,7 @@ pub(crate) fn check(
         }
         match part {
             Part::Term(Term::Pattern(pattern)) => {
-                pattern_names(pattern, &mut prohibited, &erased, source_checks.is_some(), document)?
+                pattern_names(pattern, &mut prohibited, &erased, source_checks.is_some(), document, &check_names)?
             }
             Part::Cond(Cond::Boundary(_, _, targets, _)) => prohibited.extend(targets.iter().cloned()),
             _ => {}

@@ -290,6 +290,9 @@ pub(crate) fn notes(g: &StageGrammar) -> Vec<DiagnosticNote> {
                 if alt.clauses.warning.is_some() {
                     possible.insert(rule.name.clone());
                 }
+                possible.extend(
+                    g.checks.iter().filter(|(_, check)| check.warning.is_some()).map(|(_, check)| check.name.clone()),
+                );
                 for code in &alt.clauses.suppress_warnings {
                     if (code == "_" && possible.is_empty()) || code != "_" && !possible.contains(code) {
                         let mut note = where_.clone();

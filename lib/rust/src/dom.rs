@@ -312,6 +312,7 @@ pub(crate) struct BoundaryLocation {
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Cond {
+    Present(Term),
     Forest(Term),
     Truthy(Term),
     SourceQuery(String, Vec<Arg>, BoundaryLocation),
@@ -466,7 +467,7 @@ pub(crate) fn decode_nodes(value: &Json) -> R<Dom> {
                 error: check.get("error").map(term_from_json).transpose()?,
                 warning: check.get("warning").map(term_from_json).transpose()?,
                 at: position(check)?,
-                pattern_at: None,
+                pattern_at: crate::parameters::nodes(pattern).filter_map(|node| position(node).ok()).min(),
             })
         })
         .collect::<R<Vec<_>>>()?;
@@ -932,7 +933,7 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                     children.push((field(value, "then")?, true));
                 }
                 "captured" => {}
-                "nonempty" => children.push((field(value, "nonempty")?, false)),
+                "nonempty" | "present" => children.push((field(value, key)?, false)),
                 _ => return Err(format!("an unknown condition {key:?}")),
             }
         } else {
@@ -1030,6 +1031,7 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                     }
                 }
                 "nonempty" => Cond::Truthy(operands.next().unwrap().term()),
+                "present" => Cond::Present(operands.next().unwrap().term()),
                 "not" => Cond::Not(Box::new(operands.next().unwrap().cond())),
                 "any" => Cond::Any(operands.map(ReadValue::cond).collect()),
                 "all" => Cond::All(operands.map(ReadValue::cond).collect()),
@@ -1538,6 +1540,8 @@ pub(crate) enum Type {
     Strings,
     Tags,
     Span,
+    Node,
+    Element,
     Forest,
     Body,
     Set,
@@ -1552,6 +1556,8 @@ impl Type {
             Type::Strings => "a set of strings",
             Type::Tags => "a tag set",
             Type::Span => "a span",
+            Type::Node => "a check node",
+            Type::Element => "an element value",
             Type::Forest => "a forest",
             Type::Body => "a parse body",
             Type::Set => "a set",
@@ -1618,7 +1624,7 @@ fn constants_in<'t>(start: Nested<'t>, out: &mut Vec<(&'t str, (usize, usize))>,
             },
             Nested::Cond(cond) => match cond {
                 Cond::Truthy(term) => stack.push(Nested::Term(term)),
-                Cond::Forest(term) => stack.push(Nested::Term(term)),
+                Cond::Present(term) | Cond::Forest(term) => stack.push(Nested::Term(term)),
                 Cond::SourceQuery(_, args, _) => stack.extend(args.iter().rev().filter_map(|arg| match arg {
                     Arg::Term(term) => Some(Nested::Term(term)),
                     _ => None,
@@ -1828,7 +1834,7 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
             Nested::Cond(cond) => match cond {
                 // The forest term is the condition itself, not a child.
                 Cond::Truthy(term) => stack.push((Nested::Term(term), depth)),
-                Cond::Forest(term) => stack.push((Nested::Term(term), depth)),
+                Cond::Present(term) | Cond::Forest(term) => stack.push((Nested::Term(term), depth)),
                 Cond::SourceQuery(_, args, _) => stack.extend(args.iter().filter_map(|arg| match arg {
                     Arg::Term(term) => Some((Nested::Term(term), below)),
                     _ => None,
@@ -2016,11 +2022,20 @@ fn first_constant_in_cond(cond: &Cond) -> Option<(usize, usize)> {
 const SPAN_NOT_VALUE: &str = "a span is not a value: $x.tags is the tag set of $x";
 
 /// The type of the value a function gives (engine §10).
+pub(crate) fn node_term(term: &Term) -> bool {
+    matches!(term, Term::Capture(_))
+        || matches!(term, Term::Call(name, _) if matches!(name.as_str(), "parent" | "preceding-node" | "following-node"))
+}
+
 pub(crate) fn call_type(call: &str) -> Type {
     match call {
-        "value" | "source-text" | "decomposed-source-text" | "image" | "verbatim-text" | "concat" => Type::String,
+        "value" | "source-text" | "decomposed-source-text" | "image" | "verbatim-text" | "terminal" | "concat" => {
+            Type::String
+        }
         "split" | "ngrams" => Type::Strings,
-        "parse" | "error-free" | "ending-after" => Type::Forest,
+        "parse" | "error-free" | "ending-after" | "local-readings" => Type::Forest,
+        "parent" | "preceding-node" | "following-node" => Type::Node,
+        "preceding-element" => Type::Element,
         "tags" | "classes" | "classify" | "requirements" | "forbid" => Type::Tags,
         _ => Type::Span,
     }
@@ -2059,6 +2074,10 @@ pub(crate) fn joined_type(types: &[Type], operator: &str) -> Result<Type, String
 /// side of type `Any` fits, and the loader checks it again (engine §9).
 pub(crate) fn comparison_problem(op: &str, left: Type, right: Type) -> Option<String> {
     if matches!(op, "≅" | "≇") {
+        if left == Type::Node {
+            return (!matches!(right, Type::Node | Type::Pattern | Type::Set | Type::Any))
+                .then(|| "a tree comparison requires a node or pattern".into());
+        }
         return if left != Type::Span {
             Some("a tree comparison reads one bare capture".into())
         } else if matches!(right, Type::Span | Type::Pattern | Type::Set | Type::Any) {
@@ -2067,6 +2086,8 @@ pub(crate) fn comparison_problem(op: &str, left: Type, right: Type) -> Option<St
             Some("a tree comparison requires a pattern or a bare capture on its right".into())
         };
     }
+    let left = if left == Type::Node { Type::Span } else { left };
+    let right = if right == Type::Node { Type::Span } else { right };
     if !matches!(op, "∈" | "∉")
         && (left == Type::Span || right == Type::Span)
         && (matches!(left, Type::Strings | Type::Tags | Type::Set)
@@ -2117,7 +2138,8 @@ pub(crate) fn comparison_problem(op: &str, left: Type, right: Type) -> Option<St
 /// given, and a constant of unknown type fits.
 pub(crate) fn expected_problem(ty: Type, expected: Type) -> Option<String> {
     if ty == expected
-        || ty == Type::Span && expected == Type::String
+        || matches!(ty, Type::Span | Type::Node) && expected == Type::String
+        || ty == Type::Node && expected == Type::Span
         || ty == Type::Any
         || (ty == Type::Set && matches!(expected, Type::Tags | Type::Pattern | Type::Strings))
     {
@@ -2144,8 +2166,12 @@ pub(crate) fn term_type(term: &Term) -> Result<Type, String> {
 /// construct that disagrees (engine §10). `constants` gives the type of
 /// each constant.
 pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type, Fault> {
+    term_type_context(term, constants, false)
+}
+
+pub(crate) fn term_type_context(term: &Term, constants: ConstantTypes, check: bool) -> Result<Type, Fault> {
     let joined = |items: &mut dyn Iterator<Item = &Term>, operator: &str| {
-        let types = items.map(|item| term_type_in(item, constants)).collect::<Result<Vec<_>, _>>()?;
+        let types = items.map(|item| term_type_context(item, constants, check)).collect::<Result<Vec<_>, _>>()?;
         joined_type(&types, operator).map_err(|problem| Fault::in_term(problem, term))
     };
     match term {
@@ -2158,17 +2184,18 @@ pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type
         Term::Str(_) => Ok(Type::String),
         Term::Tag(_) => Ok(Type::Tags),
         Term::EmptySet => Ok(Type::Set),
-        Term::Capture(_) => Ok(Type::Span),
+        Term::Capture(_) => Ok(if check { Type::Node } else { Type::Span }),
         Term::Const(name, _) => Ok(constants(name)),
         Term::Source(_) => Ok(Type::Any),
         Term::Union(items) => joined(&mut items.iter(), "∪"),
         Term::Intersection(items) => joined(&mut items.iter(), "∩"),
         Term::Difference(left, right) => joined(&mut [left.as_ref(), right.as_ref()].into_iter(), "∖"),
         Term::If(cond, then) => {
-            if let Some(fault) = cond_type_fault(cond, constants) {
+            if let Some(fault) = cond_type_context(cond, constants, check) {
                 return Err(fault);
             }
-            let kind = joined_type(&[term_type_in(then, constants)?], "⟹").map_err(|p| Fault::in_term(p, term))?;
+            let kind =
+                joined_type(&[term_type_context(then, constants, check)?], "⟹").map_err(|p| Fault::in_term(p, term))?;
             if kind == Type::Pattern {
                 Err(Fault::in_term("a guarded term requires a set".into(), term))
             } else {
@@ -2178,7 +2205,7 @@ pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type
         Term::Call(call, args) => {
             for (index, arg) in args.iter().enumerate() {
                 if let Arg::Term(arg) = arg {
-                    let ty = term_type_in(arg, constants)?;
+                    let ty = term_type_context(arg, constants, check)?;
                     let expected = match call.as_str() {
                         "split" | "ngrams" | "classify" | "concat" => Type::String,
                         "requirements" | "forbid" => Type::Tags,
@@ -2192,7 +2219,24 @@ pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type
                     if call == "concat" && !matches!(ty, Type::String | Type::Any) {
                         return Err(Fault::in_term("++ requires string operands".into(), term));
                     }
-                    if call == "tags" && index == 0 && ty == Type::Forest {
+                    let element_span = ty == Type::Element
+                        && (call == "local-readings"
+                            || call == "ending-after" && index == 1
+                            || index == 0
+                                && matches!(
+                                    call.as_str(),
+                                    "value"
+                                        | "image"
+                                        | "source-text"
+                                        | "decomposed-source-text"
+                                        | "first-token"
+                                        | "last-token"
+                                        | "tokens-after-first"
+                                        | "onward"
+                                        | "following-tokens"
+                                        | "preceding-tokens"
+                                ));
+                    if element_span || call == "tags" && index == 0 && ty == Type::Forest {
                         // A forest receiver gives its witness tags (§4).
                     } else if let Some(problem) = expected_problem(ty, expected) {
                         return Err(if matches!(call.as_str(), "requirements" | "forbid") {
@@ -2214,38 +2258,49 @@ pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type
 /// Why a condition's terms do not agree in type, at the smallest construct
 /// that disagrees, or `None` (engine §10).
 pub(crate) fn cond_type_fault(cond: &Cond, constants: ConstantTypes) -> Option<Fault> {
+    cond_type_context(cond, constants, false)
+}
+
+pub(crate) fn cond_type_context(cond: &Cond, constants: ConstantTypes, check: bool) -> Option<Fault> {
     match cond {
-        Cond::Truthy(term) => term_type_in(term, constants).err().or_else(|| {
-            (!matches!(term_type_in(term, constants).ok(), Some(Type::Tags | Type::Strings | Type::Set | Type::Any)))
-                .then(|| Fault::in_term("a condition requires a set, a forest, or a query method".into(), term))
+        Cond::Present(term) => term_type_context(term, constants, check).err().or_else(|| {
+            (!check || term_type_context(term, constants, check).ok() != Some(Type::Node))
+                .then(|| Fault::in_term("a presence test requires a check node".into(), term))
         }),
-        Cond::Forest(term) => term_type_in(term, constants).err().or_else(|| {
-            (term_type_in(term, constants).ok() != Some(Type::Forest))
+        Cond::Truthy(term) => term_type_context(term, constants, check).err().or_else(|| {
+            (!matches!(
+                term_type_context(term, constants, check).ok(),
+                Some(Type::Tags | Type::Strings | Type::Set | Type::Any)
+            ))
+            .then(|| Fault::in_term("a condition requires a set, a forest, or a query method".into(), term))
+        }),
+        Cond::Forest(term) => term_type_context(term, constants, check).err().or_else(|| {
+            (term_type_context(term, constants, check).ok() != Some(Type::Forest))
                 .then(|| Fault::in_term("a condition requires a forest".into(), term))
         }),
         Cond::SourceQuery(_, args, _) => args.iter().find_map(|arg| match arg {
-            Arg::Term(term) => term_type_in(term, constants).err(),
+            Arg::Term(term) => term_type_context(term, constants, check).err(),
             _ => None,
         }),
-        Cond::Any(items) | Cond::All(items) => items.iter().find_map(|item| cond_type_fault(item, constants)),
-        Cond::Not(inner) => cond_type_fault(inner, constants),
+        Cond::Any(items) | Cond::All(items) => items.iter().find_map(|item| cond_type_context(item, constants, check)),
+        Cond::Not(inner) => cond_type_context(inner, constants, check),
         Cond::If(antecedent, consequent) => {
-            cond_type_fault(antecedent, constants).or_else(|| cond_type_fault(consequent, constants))
+            cond_type_context(antecedent, constants, check).or_else(|| cond_type_context(consequent, constants, check))
         }
         Cond::Compare(op, left, right, _) => {
-            if matches!(op.as_str(), "≅" | "≇") && !matches!(left, Term::Capture(_)) {
+            if matches!(op.as_str(), "≅" | "≇") && !check && !matches!(left, Term::Capture(_)) {
                 return Some(Fault::in_cond("a tree comparison requires a bare capture".into(), cond));
             }
-            let left_type = match term_type_in(left, constants) {
+            let left_type = match term_type_context(left, constants, check) {
                 Ok(ty) => ty,
                 Err(fault) => return Some(fault),
             };
-            let right_type = match term_type_in(right, constants) {
+            let right_type = match term_type_context(right, constants, check) {
                 Ok(ty) => ty,
                 Err(fault) => return Some(fault),
             };
             if matches!(op.as_str(), "≅" | "≇") {
-                if matches!((left, right), (Term::Capture(a), Term::Capture(b)) if a == b) {
+                if left == right {
                     return Some(Fault::in_cond(
                         "a constituent comparison requires two different captures".into(),
                         cond,
@@ -2270,8 +2325,9 @@ pub(crate) fn cond_type_fault(cond: &Cond, constants: ConstantTypes) -> Option<F
         | Cond::Ends(span, _)
         | Cond::Initial(span)
         | Cond::Final(span)
-        | Cond::Boundary(_, span, _, _) => match term_type_in(span, constants) {
+        | Cond::Boundary(_, span, _, _) => match term_type_context(span, constants, check) {
             Err(fault) => Some(fault),
+            Ok(Type::Element) if check && matches!(cond, Cond::Initial(_) | Cond::Final(_)) => None,
             Ok(ty) => expected_problem(ty, Type::Span).map(|problem| Fault::in_cond(problem, cond)),
         },
         Cond::Captured(_) => None,
@@ -2594,7 +2650,9 @@ impl Cond {
     fn take_parts(&mut self, stack: &mut Vec<Dropping>) {
         match self {
             Cond::Truthy(term) => stack.push(Dropping::Term(std::mem::replace(term, Term::EmptySet))),
-            Cond::Forest(term) => stack.push(Dropping::Term(std::mem::replace(term, Term::EmptySet))),
+            Cond::Present(term) | Cond::Forest(term) => {
+                stack.push(Dropping::Term(std::mem::replace(term, Term::EmptySet)))
+            }
             Cond::SourceQuery(_, args, _) => {
                 stack.extend(args.drain(..).filter_map(|arg| match arg {
                     Arg::Term(term) => Some(Dropping::Term(term)),

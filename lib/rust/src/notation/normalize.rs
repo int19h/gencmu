@@ -41,6 +41,11 @@ pub(super) fn document(dom: &mut Dom) {
             channels(strings, &mut stack);
         }
     }
+    for check in &mut dom.checks {
+        stack.push(Part::Term(&mut check.pattern));
+        stack.extend(check.conditions.iter_mut().map(Part::Cond));
+        stack.extend(check.error.iter_mut().chain(&mut check.warning).map(Part::Term));
+    }
     for directive in &mut dom.directives {
         stack.extend(directive.steps.iter_mut().flatten().filter_map(|step| step.pattern.as_mut()).map(Part::Term));
         stack.extend(directive.conditions.iter_mut().flatten().map(Part::Cond));
@@ -106,7 +111,7 @@ pub(super) fn document(dom: &mut Dom) {
             },
             Part::Cond(cond) => match cond {
                 Cond::Truthy(term) => stack.push(Part::Term(term)),
-                Cond::Forest(term) => stack.push(Part::Term(term)),
+                Cond::Present(term) | Cond::Forest(term) => stack.push(Part::Term(term)),
                 Cond::Any(xs) => {
                     fold(xs, |c| if let Cond::Any(xs) = c { Some(std::mem::take(xs)) } else { None });
                     stack.extend(xs.iter_mut().map(Part::Cond));

@@ -1,5 +1,6 @@
 //! From the notation's document tree to a grammar DOM (engine §9).
 
+use crate::dom::CheckDef;
 use crate::dom::{
     call_type, comparison_problem, constant_type_problem, expected_problem, is_capture_name, is_classifier_name,
     joined_type, literal_call_problem, Alternative, Arg, Attachments, Chain, Channels, ClassifierDef, Cond, ConstDef,
@@ -45,6 +46,7 @@ pub(crate) struct Reader<'a> {
     pub default_head: std::cell::Cell<usize>,
     pub head_defaults: std::cell::RefCell<FxMap<usize, crate::dom::DefaultValue>>,
     pub in_recipe: std::cell::Cell<bool>,
+    pub check_context: std::cell::Cell<bool>,
     /// The closed operand that the reader currently reads (engine §9, §10).
     pub closed_for: std::cell::Cell<Option<&'static str>>,
 }
@@ -191,6 +193,7 @@ impl<'a> Reader<'a> {
             let mut item = Dom::default();
             match rule_name(node) {
                 "rule" => item.rules.push(self.rule(node)?),
+                "check" => item.checks.push(self.check(node)?),
                 "directive" => item.directives.push(self.directive(node)?),
                 "ranking-directive" => item.directives.push(self.ranking_directive(node)?),
 
@@ -206,12 +209,84 @@ impl<'a> Reader<'a> {
             }
             dom.unresolved |= self.unresolved.get();
             dom.rules.extend(item.rules);
+            dom.checks.extend(item.checks);
             dom.directives.extend(item.directives);
             dom.constants.extend(item.constants);
             dom.classifiers.extend(item.classifiers);
             dom.implications.extend(item.implications);
         }
         Ok(dom)
+    }
+
+    fn check(&self, node: &'a Node) -> R<CheckDef> {
+        self.check_context.set(true);
+        let result = (|| {
+            for part in self.parts(node) {
+                if part.kind == NodeKind::Rule
+                    && !matches!(
+                        rule_name(part),
+                        "rule-name"
+                            | "pattern-literal"
+                            | "constant-reference"
+                            | "conditions-clause"
+                            | "error-clause"
+                            | "warning-clause"
+                    )
+                {
+                    return Err(self.error(part, "a check has an unsupported clause"));
+                }
+            }
+            if self.some(node, "rule-name", 0)?.len() != 1
+                || self.some(node, "conditions-clause", 0)?.len() > 1
+                || self.some(node, "error-clause", 0)?.len() + self.some(node, "warning-clause", 0)?.len() != 1
+            {
+                return Err(self.error(node, "a check requires one name and one diagnostic"));
+            }
+            let name_node = self.one(node, "rule-name")?;
+            let name = self.value(self.token(name_node)?).to_owned();
+            if !self.unicode.is_emoji_name(&name) && !is_classifier_name(&name) {
+                return Err(
+                    self.error(name_node, "a check name starts with a lowercase letter or uses one eligible emoji")
+                );
+            }
+            let bodies: Vec<_> = self
+                .parts(node)
+                .into_iter()
+                .filter(|part| matches!(rule_name(part), "pattern-literal" | "constant-reference"))
+                .collect();
+            let [body] = bodies.as_slice() else { return Err(self.error(node, "a check requires one pattern")) };
+            let pattern = self.typed(Frame::Atom(Atom::new(body, false)))?.0;
+            let mut conditions = Vec::new();
+            if let Some(clause) = self.rules(node, "conditions-clause").next() {
+                for implication in self.some(clause, "implication", 1)? {
+                    conditions.push(self.implication(implication)?);
+                }
+            }
+            let error = self.rules(node, "error-clause").next().map(|clause| self.recipe(clause)).transpose()?;
+            let warning = self.rules(node, "warning-clause").next().map(|clause| self.recipe(clause)).transpose()?;
+            if crate::dom::term_too_deep(&pattern)
+                || crate::dom::conditions_too_deep(&conditions)
+                || error.iter().chain(warning.iter()).any(crate::dom::term_too_deep)
+            {
+                return Err(self.error(node, "an expression, term or condition is nested more than 256 deep"));
+            }
+            for condition in &conditions {
+                if let Some(fault) = crate::dom::cond_type_context(condition, &|_| Type::Any, true) {
+                    return Err(self.error(node, fault.problem));
+                }
+            }
+            Ok(CheckDef {
+                name,
+                pattern,
+                conditions,
+                error,
+                warning,
+                at: self.first(node),
+                pattern_at: Some(self.first(body)),
+            })
+        })();
+        self.check_context.set(false);
+        result
     }
 
     /// A `%classifier` item: its name, which begins with a lower-case
@@ -955,6 +1030,9 @@ impl<'a> Reader<'a> {
             "call" => Step::Call(Frame::SourceCall(CallFrame::new(inner))),
             "tested" => Step::Call(Frame::Tested(Tested::new(inner))),
             "capture" => {
+                if self.check_context.get() {
+                    return Err(self.error(inner, "a check cannot declare a capture"));
+                }
                 // A capture stands anywhere but in a chain or an elidable
                 // optional (§3.5, §9), and its own form is checked before
                 // what it wraps. Inside flat braces it is an item capture.
@@ -1629,7 +1707,10 @@ impl<'a> Reader<'a> {
                 if let Some(closed) = self.closed_for.get() {
                     return Err(self.error(inner, format!("{closed} is a closed term, and holds no capture")));
                 }
-                typed(Term::Capture(name), Type::Span)
+                if self.check_context.get() && !name.is_empty() {
+                    return Err(self.error(inner, "a check cannot name a capture"));
+                }
+                typed(Term::Capture(name), if self.check_context.get() { Type::Node } else { Type::Span })
             }
             "method" => Ok(Step::Call(Frame::Method(MethodFrame::new(inner, false)))),
             "pattern-literal" => {
@@ -1826,8 +1907,11 @@ impl<'a> Reader<'a> {
 
     fn resume_method(&self, frame: &mut MethodFrame<'a>, input: Option<Val>) -> R<Step<'a>> {
         if frame.receiver.is_none() && input.is_none() {
-            let receiver = self.one(frame.node, "method-receiver")?;
-            let atom = self.one(receiver, "term-atom")?;
+            let atom = if let Some(receiver) = self.rules(frame.node, "method-receiver").next() {
+                self.one(receiver, "term-atom")?
+            } else {
+                self.one(frame.node, "capture-reference")?
+            };
             frame.dependent = self.source_unresolved(atom);
             return Ok(Step::Call(Frame::Atom(Atom::new(atom, true))));
         }
@@ -1876,6 +1960,16 @@ impl<'a> Reader<'a> {
         let parsed = self.rules(selector, "parse-selector").next();
         let name = if parsed.is_some() { "parse" } else { self.value(self.token(self.one(selector, "method-name")?)?) };
         let method = known_method(name).ok_or_else(|| self.error(frame.node, format!("unknown method {name}")))?;
+        if matches!(
+            name,
+            "parent" | "preceding-node" | "following-node" | "preceding-element" | "local-readings" | "terminal"
+        ) && (!self.check_context.get() || name == "terminal" && !self.in_recipe.get())
+        {
+            return Err(self.error(selector, "a check method is outside its permitted clause"));
+        }
+        if self.check_context.get() && matches!(name, "without-elision" | "without-elision-except") {
+            return Err(self.error(selector, "a check cannot restore elision"));
+        }
         if frame.arguments.is_none() {
             if let Some(closed) = self.closed_for.get().filter(|_| name != "split" && name != "ngrams") {
                 return Err(self.error(frame.node, format!("{closed} cannot read an input method")));
@@ -1912,9 +2006,10 @@ impl<'a> Reader<'a> {
         frame.dependent |= argument_unresolved;
         let (receiver, ty) = frame.receiver.take().unwrap();
         let unresolved = matches!(&receiver, Term::Source(_));
-        let span = self.feature_context.get() || !frame.receiver_query && (unresolved || ty == Type::Span);
-        let string =
-            self.feature_context.get() || !frame.receiver_query && matches!(ty, Type::Span | Type::String | Type::Any);
+        let span = self.feature_context.get()
+            || !frame.receiver_query && (unresolved || matches!(ty, Type::Span | Type::Node));
+        let string = self.feature_context.get()
+            || !frame.receiver_query && matches!(ty, Type::Span | Type::Node | Type::String | Type::Any);
         let bare = self.feature_context.get() || matches!(&receiver, Term::Capture(_) | Term::Source(_));
         let arguments = &frame.args[..];
         let emitted_receiver = matches!(&receiver, Term::Call(name, _) if name == "emitted");
@@ -1924,11 +2019,17 @@ impl<'a> Reader<'a> {
             match (method, arguments) {
                 (MethodKind::Parse, [Arg::Term(Term::Body(_))]) => span,
                 (MethodKind::ErrorFree, []) => self.feature_context.get() || matches!(ty, Type::Forest | Type::Any),
-                (MethodKind::EndingAfter, [Arg::Term(end)]) => {
+                (MethodKind::EndingAfter, [Arg::Term(_)]) => {
                     (self.feature_context.get() || matches!(ty, Type::Forest | Type::Any))
-                        && matches!(crate::dom::term_type(end), Ok(Type::Span | Type::Any))
+                        && matches!(
+                            frame.types.first(),
+                            Some(Some(Type::Span | Type::Node | Type::Element | Type::Any))
+                        )
                 }
-                (MethodKind::Span, []) => span,
+                (MethodKind::CheckNode | MethodKind::CheckElement, []) => ty == Type::Node,
+                (MethodKind::Local, []) => matches!(ty, Type::Node | Type::Element),
+                (MethodKind::Terminal, []) => bare && ty == Type::Node,
+                (MethodKind::Span, []) => span || ty == Type::Element && name != "classes",
                 (MethodKind::Tags, []) => span || matches!(ty, Type::Forest | Type::Any),
                 (MethodKind::Restored, []) if name == "without-elision" => bare,
                 (MethodKind::Recipe, []) => bare,
@@ -1948,7 +2049,8 @@ impl<'a> Reader<'a> {
                     bare
                 }
                 (MethodKind::Boundary, args) => {
-                    bare && !args.is_empty()
+                    (bare || ty == Type::Node)
+                        && !args.is_empty()
                         && args.iter().all(|arg| {
                             matches!(arg, Arg::Rule(_) | Arg::Term(Term::Source(_)))
                                 || matches!(arg, Arg::Term(Term::Tag(name)) if is_capital(name))
@@ -1957,7 +2059,10 @@ impl<'a> Reader<'a> {
                 (MethodKind::Split, [Arg::Term(_)]) => {
                     string
                         && (self.feature_context.get()
-                            || matches!(frame.types.first(), Some(Some(Type::String | Type::Span | Type::Any))))
+                            || matches!(
+                                frame.types.first(),
+                                Some(Some(Type::String | Type::Span | Type::Node | Type::Any))
+                            ))
                 }
                 (MethodKind::Classify, [Arg::Rule(classifier)]) => string && is_classifier_name(classifier),
                 _ => false,
@@ -2001,7 +2106,7 @@ impl<'a> Reader<'a> {
             name,
             "starts-input" | "ends-input" | "followed-by" | "preceded-by" | "matches" | "begins" | "ends"
         );
-        let forest = matches!(name, "parse" | "error-free" | "ending-after");
+        let forest = matches!(name, "parse" | "error-free" | "ending-after" | "local-readings");
         let value = if forest {
             let term = Term::Call(name.into(), args);
             if last && frame.condition {
@@ -2067,6 +2172,7 @@ impl<'a> Reader<'a> {
             if last && frame.condition {
                 let term = Term::Call(name.into(), args.clone());
                 return Ok(Step::Done(match call_type(name) {
+                    Type::Node if self.check_context.get() => Val::Cond(Cond::Present(term)),
                     Type::Tags | Type::Strings | Type::Forest => Val::Cond(Cond::Truthy(term)),
                     _ => return Err(self.error(frame.node, "a condition requires a query method")),
                 }));
@@ -2170,16 +2276,21 @@ impl<'a> Reader<'a> {
                 // Parentheses make no node of their own (§9).
                 "implication" => Step::Call(Frame::Implication(Conditions::new(inner))),
                 "tree-comparison" => {
-                    if !self.some(inner, "method-selector", 0)?.is_empty()
-                        || self.tokens.get(inner.span.start).is_some_and(|token| token.value == "(")
+                    let walk = !self.some(inner, "method-selector", 0)?.is_empty()
+                        || self.rules(inner, "method").next().is_some();
+                    if !self.check_context.get()
+                        && (walk || self.tokens.get(inner.span.start).is_some_and(|token| token.value == "("))
                     {
                         return Err(self.error(inner, "a tree comparison requires a bare capture"));
                     }
-                    let capture = self
-                        .value(self.token(self.one(inner, "capture-reference")?)?)
-                        .strip_prefix('$')
-                        .unwrap_or("")
-                        .to_owned();
+                    let capture = if walk {
+                        String::new()
+                    } else {
+                        self.value(self.token(self.one(inner, "capture-reference")?)?)
+                            .strip_prefix('$')
+                            .unwrap_or("")
+                            .to_owned()
+                    };
                     frame.op = self.operator(self.token(self.one(inner, "tree-comparator")?)?).to_owned();
                     let right = self.one(inner, "union")?;
                     if let Some(name) = first_of_rule(right, "name").or_else(|| first_of_rule(right, "tag")) {
@@ -2196,8 +2307,22 @@ impl<'a> Reader<'a> {
                                 .error(at, format!("tree comparison requires a pattern; write #{name}, not {name}")));
                         }
                     }
-                    frame.left = Some((Term::Capture(capture), Type::Span));
-                    Step::Call(Frame::Union(Joined::new(right, false)))
+                    if self.check_context.get() && !capture.is_empty() {
+                        return Err(self.error(inner, "a check cannot name a capture"));
+                    }
+                    if walk {
+                        frame.right = Some(right);
+                        Step::Call(Frame::Method(MethodFrame::new(
+                            self.rules(inner, "method").next().unwrap_or(inner),
+                            false,
+                        )))
+                    } else {
+                        frame.left = Some((
+                            Term::Capture(capture),
+                            if self.check_context.get() { Type::Node } else { Type::Span },
+                        ));
+                        Step::Call(Frame::Union(Joined::new(right, false)))
+                    }
                 }
                 "comparison" => {
                     let comparator = self.one(inner, "comparator")?;
@@ -2209,7 +2334,11 @@ impl<'a> Reader<'a> {
                 "negation" => Step::Call(Frame::Condition(ConditionFrame::new(self.one(inner, "condition")?))),
                 "presence" => {
                     let token = self.token(inner)?;
-                    Step::Done(Val::Cond(Cond::Captured(self.value(token).strip_prefix('$').unwrap_or("").to_string())))
+                    let name = self.value(token).strip_prefix('$').unwrap_or("").to_string();
+                    if self.check_context.get() && !name.is_empty() {
+                        return Err(self.error(inner, "a check cannot name a capture"));
+                    }
+                    Step::Done(Val::Cond(Cond::Captured(name)))
                 }
                 "method" => Step::Call(Frame::Method(MethodFrame::new(inner, true))),
                 "term-condition" => {
@@ -2250,7 +2379,7 @@ impl<'a> Reader<'a> {
                 // The two sides fit the comparator (engine §10).
                 if !self.feature_context.get() {
                     let tree = matches!(frame.op.as_str(), "≅" | "≇");
-                    if tree && matches!((&left, &term), (Term::Capture(a), Term::Capture(b)) if a == b) {
+                    if tree && left == term {
                         return Err(self.error(inner, "a constituent comparison requires two different captures"));
                     }
                     if tree && ty == Type::Span && !matches!(term, Term::Capture(_)) {
@@ -2442,11 +2571,12 @@ impl<'a> Reader<'a> {
                     Term::Call(name, args)
                         if matches!(
                             name.as_str(),
-                            "value" | "image" | "source-text" | "decomposed-source-text" | "verbatim-text"
+                            "value" | "image" | "source-text" | "decomposed-source-text" | "verbatim-text" | "terminal"
                         ) =>
                     {
                         matches!(&args[..], [Arg::Term(Term::Capture(_))])
-                            || matches!(name.as_str(), "value" | "image")
+                            || !self.check_context.get()
+                                && matches!(name.as_str(), "value" | "image")
                                 && matches!(&args[..], [Arg::Term(Term::Call(name,args))] if name == "emitted" && matches!(&args[..], [Arg::Term(Term::Capture(_))]))
                     }
                     _ => false,
@@ -2979,6 +3109,7 @@ const KNOWN: &[&str] = &[
     "constant-definer",
     "constant-reference",
     "rule",
+    "check",
     "definer",
     "rule-name",
     "body",
@@ -3078,6 +3209,10 @@ const ATOMS: &[&str] = &[
 ];
 
 enum MethodKind {
+    CheckNode,
+    CheckElement,
+    Local,
+    Terminal,
     Parse,
     ErrorFree,
     EndingAfter,
@@ -3095,6 +3230,10 @@ enum MethodKind {
 /// The signature family of a supported method.
 fn known_method(name: &str) -> Option<MethodKind> {
     Some(match name {
+        "parent" | "preceding-node" | "following-node" => MethodKind::CheckNode,
+        "preceding-element" => MethodKind::CheckElement,
+        "local-readings" => MethodKind::Local,
+        "terminal" => MethodKind::Terminal,
         "parse" => MethodKind::Parse,
         "error-free" => MethodKind::ErrorFree,
         "ending-after" => MethodKind::EndingAfter,
@@ -3168,7 +3307,7 @@ pub(crate) fn reads_own_tags(term: &Term) -> bool {
             },
             Part::Cond(cond) => match cond {
                 Cond::Truthy(term) => stack.push(Part::Term(term)),
-                Cond::Forest(term) => stack.push(Part::Term(term)),
+                Cond::Present(term) | Cond::Forest(term) => stack.push(Part::Term(term)),
                 Cond::SourceQuery(_, args, _) => stack.extend(args.iter().filter_map(|arg| match arg {
                     Arg::Term(term) => Some(Part::Term(term)),
                     _ => None,
@@ -3313,6 +3452,7 @@ fn call_name_lookup_precedes_argument_lookup() {
         allowed_marked: Default::default(),
         position: &position,
         in_recipe: Default::default(),
+        check_context: Default::default(),
         closed_for: Default::default(),
     };
     let argument = Node {

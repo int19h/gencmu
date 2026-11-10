@@ -4185,6 +4185,10 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                             eval.push(Task::Implies(consequent), Task::Cond(antecedent));
                             continue;
                         }
+                        LCond::Present(span) => {
+                            self.checked_bounds(span, frame, tokens.len())?;
+                            Out::Bool(true)
+                        }
                         LCond::Forest(forest) => self.query(
                             eval,
                             &forest.span,

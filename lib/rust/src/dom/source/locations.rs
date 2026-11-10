@@ -219,7 +219,9 @@ fn restore(mut pending: Vec<Pair<'_>>) {
                 _ => (),
             },
             Pair::Cond(to, from) => match (to, from) {
-                (Cond::Forest(to), Cond::Forest(from)) => pending.push(Pair::Term(to, from)),
+                (Cond::Present(to), Cond::Present(from)) | (Cond::Forest(to), Cond::Forest(from)) => {
+                    pending.push(Pair::Term(to, from))
+                }
                 (Cond::SourceQuery(tn, to, tl), Cond::SourceQuery(fn_, from, fl)) => {
                     if tn == fn_ {
                         *tl = fl.clone();

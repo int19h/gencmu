@@ -31,7 +31,11 @@ impl Node<'_> {
                     vec![Self::Query(span, *rule, false)]
                 }
                 LCond::Forest(forest) => Self::forest(forest),
-                LCond::Tree(span, ..) | LCond::Initial(span) | LCond::Final(span) | LCond::Boundary(_, span, ..) => {
+                LCond::Present(span)
+                | LCond::Tree(span, ..)
+                | LCond::Initial(span)
+                | LCond::Final(span)
+                | LCond::Boundary(_, span, ..) => {
                     vec![Self::Span(span)]
                 }
                 LCond::SameTree(left, _, right, _) => vec![Self::Span(left), Self::Span(right)],

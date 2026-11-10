@@ -6,6 +6,7 @@ use std::collections::{BTreeSet, HashMap};
 use std::sync::Arc;
 
 use crate::clauses::check_definition;
+use crate::dom::CheckDef;
 use crate::dom::{
     constant_value_type, constants_in_rule, constants_in_term, expected_problem, rule_type_fault, term_type_in,
     Alternative, Arg, Channels, ClassifierDef, Cond, ConstDef, Directive, Dom, EmitItem, Expr, Fault, FeatureKind,
@@ -105,6 +106,7 @@ pub struct Change {
 
 #[derive(Debug, Clone)]
 pub(crate) struct StageGrammar {
+    pub checks: Vec<(Arc<str>, CheckDef)>,
     pub query_targets: FxMap<usize, String>,
     pub tree_comparisons: bool,
     pub tree_expressions: bool,
@@ -247,6 +249,23 @@ pub(crate) fn stitch(
 }
 
 fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unicode) -> Result<StageGrammar, Error> {
+    let rule_names: FxSet<_> =
+        documents.iter().flat_map(|(_, dom)| dom.rules.iter().map(|rule| rule.name.as_str())).collect();
+    let mut check_names = FxSet::default();
+    for (document, dom) in documents {
+        for check in &dom.checks {
+            if !check_names.insert(check.name.as_str()) {
+                return Err(located(format!("%check {} is already defined", check.name), document, check.at));
+            }
+            if rule_names.contains(check.name.as_str()) {
+                return Err(located(
+                    format!("a rule and a check cannot share the name {}", check.name),
+                    document,
+                    check.at,
+                ));
+            }
+        }
+    }
     let mut pending_templates = Vec::new();
     let expansion = crate::parameters::expand(documents, unicode)?;
     let documents = expansion.as_ref().map_or(documents, |x| x.documents.as_slice());
@@ -260,6 +279,7 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
         }
     }
     let mut grammar = StageGrammar {
+        checks: Vec::new(),
         query_targets: Default::default(),
         tree_comparisons: false,
         tree_expressions: false,
@@ -278,6 +298,7 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
         implications: Arc::from(Vec::new()),
     };
     enum Check<'a> {
+        Named(&'a Arc<str>, &'a CheckDef),
         Rule(&'a Arc<str>, &'a RuleDef),
         Arguments(&'a crate::parameters::expand::ArgumentUse),
         Feature(usize),
@@ -301,6 +322,7 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
     for (index, (document, dom)) in documents.iter().enumerate() {
         let run = expansion.as_ref().map_or(index, |expanded| expanded.inspection_runs[index]);
         enum Declaration<'a> {
+            Check(&'a CheckDef),
             Rule(&'a RuleDef),
             Directive(&'a Directive),
             Constant(&'a ConstDef),
@@ -313,8 +335,10 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
         declarations.extend(dom.constants.iter().map(Declaration::Constant));
         declarations.extend(dom.classifiers.iter().map(Declaration::Classifier));
         declarations.extend(dom.implications.iter().map(Declaration::Implication));
+        declarations.extend(dom.checks.iter().map(Declaration::Check));
         declarations.sort_by_key(|item| match item {
             Declaration::Rule(x) => x.at,
+            Declaration::Check(x) => x.at,
             Declaration::Directive(x) => x.at,
             Declaration::Constant(x) => x.at,
             Declaration::Classifier(x) => x.at,
@@ -467,6 +491,7 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
                         other => return Err(here(format!("an unknown directive %{other}"))),
                     }
                 }
+                Declaration::Check(check) => checks.push((run, check.at, 5, Check::Named(document, check))),
                 Declaration::Constant(constant) => constants.add(document, constant)?,
                 Declaration::Classifier(classifier) => {
                     checks.push((run, classifier.at, 3, Check::Classifier(grammar.classifiers.len())));
@@ -496,6 +521,9 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
     checks.sort_by_key(|(run, at, kind, _)| (*run, *at, *kind));
     for (run, _, _, check) in checks {
         match check {
+            Check::Named(document, check) => {
+                grammar.checks.push((document.clone(), constants.resolve_check(document, check)?))
+            }
             Check::Rule(document, rule) => {
                 let arguments = arguments_by_site.remove(&(run, document.clone(), rule.at)).unwrap_or_default();
                 let errors = if rule.source.params.is_some() { &mut pending_templates } else { &mut deferred };
@@ -577,6 +605,26 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
         &constants.patterns.borrow(),
         expansion.as_ref().map(|x| x.erasure_checks.as_slice()),
     )?;
+    for (document, check) in &grammar.checks {
+        let mut compared = false;
+        let mut pending = vec![crate::clauses::Part::Term(&check.pattern)];
+        pending.extend(check.conditions.iter().map(crate::clauses::Part::Cond));
+        for condition in &check.conditions {
+            check_cond(&grammar, condition, &mut compared).map_err(|message| located(message, document, check.at))?;
+        }
+        while let Some(part) = pending.pop() {
+            if let crate::clauses::Part::Term(Term::Pattern(pattern)) = part {
+                for part in pattern.walk() {
+                    if let crate::patterns::Part::Pattern(Pattern::Name(name, at)) = part {
+                        if !grammar.index.contains_key(name) {
+                            return Err(located(format!("{name} is not a rule of stage {stage}"), document, *at));
+                        }
+                    }
+                }
+            }
+            pending.extend(part.children());
+        }
+    }
     crate::boundary::reachable(&grammar)?;
     // Shared clauses are checked once, with the first alternative that
     // holds them.
@@ -659,7 +707,7 @@ fn close_families(grammar: &StageGrammar) -> Vec<FxSet<u32>> {
             },
             Part::Cond(condition) => match condition {
                 Cond::Truthy(term) => pending.push(Part::Term(term)),
-                Cond::Forest(term) => pending.push(Part::Term(term)),
+                Cond::Present(term) | Cond::Forest(term) => pending.push(Part::Term(term)),
                 Cond::Compare(_, a, b, _) => pending.extend([Part::Term(a), Part::Term(b)]),
                 Cond::Matches(t, _)
                 | Cond::Begins(t, _)
@@ -1667,6 +1715,47 @@ impl Constants<'_> {
         Ok(())
     }
 
+    fn resolve_check(&self, document: &Arc<str>, check: &CheckDef) -> Result<CheckDef, Error> {
+        let mut references = Vec::new();
+        constants_in_term(&check.pattern, &mut references);
+        for condition in &check.conditions {
+            crate::dom::constants_in_cond(condition, &mut references);
+        }
+        for recipe in check.error.iter().chain(check.warning.iter()) {
+            constants_in_term(recipe, &mut references);
+        }
+        for (name, at) in references {
+            if !self.values.contains_key(name) {
+                return Err(located(format!("${name} is not defined in stage {}", self.stage), document, at));
+            }
+        }
+        let at = check.pattern_at.or_else(|| first_constant(&check.pattern)).unwrap_or(check.at);
+        let pattern = self.evaluate_pattern(&check.pattern, document, at)?;
+        if let Some(problem) = crate::patterns::check_problem(&pattern) {
+            return Err(located(problem.into(), document, at));
+        }
+        for condition in &check.conditions {
+            if let Some(fault) = crate::dom::cond_type_context(condition, &|name| self.ty(name), true) {
+                return Err(fault_error(fault, document, check.at));
+            }
+            self.check_value_uses(ValuePart::Cond(condition), document, check.at, false)?;
+        }
+        for recipe in check.error.iter().chain(check.warning.iter()) {
+            crate::dom::term_type_context(recipe, &|name| self.ty(name), true)
+                .map_err(|fault| fault_error(fault, document, check.at))?;
+            self.check_value_uses(ValuePart::Term(recipe), document, check.at, false)?;
+        }
+        let mut resolved = check.clone();
+        resolved.pattern = Term::Pattern(Box::new(pattern));
+        for condition in &mut resolved.conditions {
+            self.substitute_cond(condition);
+        }
+        for recipe in resolved.error.iter_mut().chain(resolved.warning.iter_mut()) {
+            self.substitute_term(recipe);
+        }
+        Ok(resolved)
+    }
+
     /// Checks one definition at its declaration slot after constant binding.
     fn check_rule(
         &self,
@@ -2190,7 +2279,7 @@ impl Constants<'_> {
         work::count(Work::Stitched, 1);
         match cond {
             Cond::Truthy(term) => self.substitute_term(term),
-            Cond::Forest(term) => self.substitute_term(term),
+            Cond::Present(term) | Cond::Forest(term) => self.substitute_term(term),
             Cond::SourceQuery(_, args, _) => {
                 for arg in args {
                     if let Arg::Term(term) = arg {
@@ -2199,7 +2288,7 @@ impl Constants<'_> {
                 }
             }
             Cond::Compare(op, left, right, _) => {
-                if matches!(op.as_str(), "≅" | "≇") && !matches!(right, Term::Capture(_)) {
+                if matches!(op.as_str(), "≅" | "≇") && !crate::dom::node_term(right) {
                     if value_has_source(right) {
                         return;
                     }
@@ -2397,13 +2486,13 @@ impl<'a> Iterator for ValueParts<'a> {
                 })),
                 Cond::Compare(op, a, b, _) => {
                     children.push(ValuePart::Term(a));
-                    children.push(if matches!(op.as_str(), "≅" | "≇") && !matches!(b, Term::Capture(_)) {
+                    children.push(if matches!(op.as_str(), "≅" | "≇") && !crate::dom::node_term(b) {
                         ValuePart::Pattern(b)
                     } else {
                         ValuePart::Term(b)
                     });
                 }
-                Cond::Truthy(t) => children.push(ValuePart::Term(t)),
+                Cond::Present(t) | Cond::Forest(t) | Cond::Truthy(t) => children.push(ValuePart::Term(t)),
                 Cond::All(xs) | Cond::Any(xs) => children.extend(xs.iter().map(ValuePart::Cond)),
                 Cond::If(a, b) => children.extend([ValuePart::Cond(a), ValuePart::Cond(b)]),
                 Cond::Not(c) => children.push(ValuePart::Cond(c)),
@@ -2549,6 +2638,10 @@ fn check_term(grammar: &StageGrammar, term: &Term, compared: &mut bool) -> Resul
                 check_span_references(grammar, receiver)?;
                 check_term(grammar, &Term::Body(body.clone()), compared)
             }
+            (
+                "parent" | "preceding-node" | "following-node" | "preceding-element" | "local-readings" | "terminal",
+                [Arg::Term(receiver)],
+            ) => check_span_references(grammar, receiver),
             ("error-free", [Arg::Term(receiver)]) => check_term(grammar, receiver, compared),
             ("ending-after", [Arg::Term(receiver), Arg::Term(end)]) => {
                 check_term(grammar, receiver, compared)?;
@@ -2628,7 +2721,7 @@ fn check_cond(grammar: &StageGrammar, cond: &Cond, compared: &mut bool) -> Resul
     work::count(Work::Stitched, 1);
     match cond {
         Cond::Truthy(term) => check_term(grammar, term, compared),
-        Cond::Forest(term) => check_term(grammar, term, compared),
+        Cond::Present(term) | Cond::Forest(term) => check_term(grammar, term, compared),
         Cond::SourceQuery(..) => unreachable!("source queries expand before grammar checks"),
         Cond::Compare(op, left, right, _) => {
             *compared |= matches!(op.as_str(), "≅" | "≇") && matches!(right, Term::Capture(_));
@@ -2761,6 +2854,7 @@ mod tests {
             let entries =
                 (0..n).map(|index| entry(index, true)).chain((0..n).map(|index| entry(index, false))).collect();
             StageGrammar {
+                checks: Vec::new(),
                 query_targets: Default::default(),
                 tree_comparisons: false,
                 tree_expressions: false,

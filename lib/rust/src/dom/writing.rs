@@ -437,6 +437,11 @@ fn emit_cond<'a>(out: &mut Pieces<'a>, cond: &'a Cond) {
         }
         Cond::Any(items) => write_list(out, "any", items, write_cond),
         Cond::All(items) => write_list(out, "all", items, write_cond),
+        Cond::Present(term) => {
+            out.push_str("{\"present\":");
+            write_term(out, term);
+            out.push('}');
+        }
         Cond::Captured(name) => {
             out.push_str("{\"captured\":");
             write_str(out, name);

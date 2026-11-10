@@ -95,6 +95,7 @@ pub(crate) enum CmpOp {
 
 #[derive(Debug, Clone)]
 pub(crate) enum LCond {
+    Present(Span),
     Forest(LForest),
     Tree(Span, bool, crate::patterns::Pattern),
     SameTree(Span, bool, Span, Option<(usize, usize)>),
@@ -1132,6 +1133,7 @@ impl<'a> Scope<'a> {
 
     fn cond(&mut self, cond: &Cond) -> Result<LCond, Missing> {
         Ok(match cond {
+            Cond::Present(term) => LCond::Present(self.span(term)?),
             Cond::Forest(term) => self.forest(term)?,
             Cond::SourceQuery(..) => unreachable!("source queries expand before grammar checks"),
             Cond::Compare(op, left, Term::Pattern(p), _) if matches!(op.as_str(), "≅" | "≇") => {
@@ -2580,7 +2582,7 @@ fn query_terminals(grammar: &StageGrammar) -> BTreeSet<String> {
     while let Some(p) = stack.pop() {
         match p {
             Part::C(c) => match c {
-                Cond::Forest(term) => stack.push(Part::T(term)),
+                Cond::Present(term) | Cond::Forest(term) => stack.push(Part::T(term)),
                 Cond::Matches(_, targets) | Cond::Begins(_, targets) | Cond::Ends(_, targets) => {
                     result.extend(targets.iter().filter(|s| is_terminal_name(s)).cloned())
                 }

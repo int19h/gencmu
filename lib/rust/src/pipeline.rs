@@ -255,6 +255,14 @@ fn pipeline_features(stages: &[StageGrammar], declared: &[String]) -> Result<Vec
                 }
             }
         }
+        for (document, check) in &stage.checks {
+            uses.push((
+                &check.name,
+                if check.error.is_some() { "error" } else { "warning" },
+                document.as_ref(),
+                check.at,
+            ));
+        }
         for (document, classifier) in &stage.classifiers {
             for entry in &classifier.entries {
                 uses.extend(
@@ -306,6 +314,11 @@ fn pipeline_features(stages: &[StageGrammar], declared: &[String]) -> Result<Vec
         for rule in &stage.rules {
             if rule.alternatives.iter().any(|alt| alt.clauses.warning.is_some()) {
                 tested.entry(rule.name.clone()).or_insert_with(|| stage.name.clone());
+            }
+        }
+        for (_, check) in &stage.checks {
+            if check.warning.is_some() {
+                tested.entry(check.name.clone()).or_insert_with(|| stage.name.clone());
             }
         }
         for guard in stage.rules.iter().flat_map(|rule| &rule.alternatives).flat_map(|alt| &alt.alternative.guards) {
