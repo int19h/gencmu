@@ -254,7 +254,7 @@ func TestLostWitnessSkipsAdmission(t *testing.T) {
 
 func TestErasedWitnessRetainsWorkingStructure(t *testing.T) {
 	// Engine §4.1 and §7: W(D) retains the bound item's working view.
-	pipeline := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%elision-only\n%rule text e\n%rule e \"a\" [+T]\n%conditions $ ≅ #« \"a\" ⋯ »\n%erased"))
+	pipeline := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%elision-only\n%rule text e\n%rule e \"a\" [+T]\n%conditions $ ≅ #⁅ \"a\" ⋯ ⁆\n%erased"))
 	seen := false
 	options := ParseOptions{private: &privateOptions{elisionCheck: func(run *elisionCheckRun) elisionWatch {
 		_, w := walkWitness(run)

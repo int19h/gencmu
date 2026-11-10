@@ -1,6 +1,6 @@
 {
   "description": "Engine §4.1 and §6: combining a bare C child list with a root test still rejects the erased root.",
-  "grammar": "%ambiguity-resolution fewest #·zz\n%rule text $r:r2 C\n%conditions $ ≅ #« ·C », $r ≅ #·r2\n%rule r2 (r4 ≻ B) :: ∅ | [r4]\n%erased\n%rule r4 B | ε\n%rule zz B B B",
+  "grammar": "%ambiguity-resolution fewest #·zz\n%rule text $r:r2 C\n%conditions $ ≅ #⁅ ·C ⁆, $r ≅ #·r2\n%rule r2 (r4 ≻ B) :: ∅ | [r4]\n%erased\n%rule r4 B | ε\n%rule zz B B B",
   "tokens": [
     {
       "text": "c",

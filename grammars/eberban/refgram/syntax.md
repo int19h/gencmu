@@ -225,8 +225,8 @@ Erased text can follow an erasure too, because the later `ra` erases it. So `aft
   $.following-tokens.begins(after-erasure)
 
 %const $CLOSER-HEAD-ERASURE
-  #open-quote-text« ⋯ open-quote-paragraphs« ⋯ open-quote-sentences« ⋯
-    words-erasure« erased-words<Closer-Head> ⋯ » ⋯ » ⋯ » »
+  #open-quote-text⁅ ⋯ open-quote-paragraphs⁅ ⋯ open-quote-sentences⁅ ⋯
+    words-erasure⁅ erased-words<Closer-Head> ⋯ ⁆ ⋯ ⁆ ⋯ ⁆ ⁆
 
 %rule erased-sentence
   sentence-choice
@@ -336,7 +336,7 @@ A step is a verb with its free suffixes and binds, then the rest of the chain. T
 %rule restart-chain
   chain-inner
 %conditions
-  $ ≇ #(⋱ chain-inner« bi-free chain »)
+  $ ≇ #(⋱ chain-inner⁅ bi-free chain ⁆)
 
 %rule chain-inner
   | bi-free chain
@@ -495,9 +495,9 @@ A quote holds several sentences in two cases: it has several paragraphs, or its 
 
 ```jbogenbau
 %const $SEVERAL-SENTENCES
-  #« ⋯ open-quote-paragraphs« ⋯ open-quote-sentences po-head ⋯ » » ∪
-  #« ⋯ open-quote-paragraphs« [po-head] open-quote-sentences« ⋯ sentence-choice ⋯
-    sentence-choice ⋯ » ⋯ » »
+  #⁅ ⋯ open-quote-paragraphs⁅ ⋯ open-quote-sentences po-head ⋯ ⁆ ⁆ ∪
+  #⁅ ⋯ open-quote-paragraphs⁅ [po-head] open-quote-sentences⁅ ⋯ sentence-choice ⋯
+    sentence-choice ⋯ ⁆ ⋯ ⁆ ⁆
 
 %rule grammatical-quote
   | [{prefix}] CA text [{prefix}] CAI
@@ -580,12 +580,12 @@ The chapter says that a `JI` other than `jie` "must follow positive integer (no 
 %rule borrowing-group
   {Borrowing} [+BE]
 %conditions
-  $ ≅ #« ⋯ BE<¬_Elided> » ∨ ¬$.following-tokens.begins(Borrowing)
+  $ ≅ #⁅ ⋯ BE<¬_Elided> ⁆ ∨ ¬$.following-tokens.begins(Borrowing)
 
 %rule number
   [TI JU] number-body [+JI]
 %conditions
-  $ ≅ #« ⋯ JI<¬_Elided> » ∨ ¬$.following-tokens.begins(number-start)
+  $ ≅ #⁅ ⋯ JI<¬_Elided> ⁆ ∨ ¬$.following-tokens.begins(number-start)
 
 %rule number-start
   TI | JU | JO | JA | JE
@@ -626,10 +626,10 @@ The [annotations chapter](https://eberban.github.io/eberban/books/refgram/book/g
   DE [si-free] verb
 
 %const $TEXT-RECOVERY
-  #text-of« ⋯ paragraphs-of« ⋯ sentences-of« ⋯ sentence-of« ⋯ unmatched-tail » ⋯ » ⋯ » »
+  #text-of⁅ ⋯ paragraphs-of⁅ ⋯ sentences-of⁅ ⋯ sentence-of⁅ ⋯ unmatched-tail ⁆ ⋯ ⁆ ⋯ ⁆ ⁆
 
 %const $OWNED-DAI-RECOVERY
-  #text-of« ⋯ paragraphs-of« ⋯ sentences-of« ⋯ sentence-of« ⋯ unmatched-tail<DAI> » ⋯ » ⋯ » »
+  #text-of⁅ ⋯ paragraphs-of⁅ ⋯ sentences-of⁅ ⋯ sentence-of⁅ ⋯ unmatched-tail<DAI> ⁆ ⋯ ⁆ ⋯ ⁆ ⁆
 
 %rule parenthetical
   DA $t:text DAI

@@ -1,6 +1,6 @@
 {
   "description": "Notation Tree patterns: an erased definition's own bare list tests its real children.",
-  "grammar": "%ambiguity-resolution greedy\n%rule text $e:e\n%rule e A | B\n%conditions $ ≅ #·« A »\n%erased",
+  "grammar": "%ambiguity-resolution greedy\n%rule text $e:e\n%rule e A | B\n%conditions $ ≅ #·⁅ A ⁆\n%erased",
   "tokens": [
     {
       "text": "a",

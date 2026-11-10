@@ -1184,10 +1184,10 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                 raise _error(f"a pattern cannot name check {node['name']}", path, at, stage)
             children = node.get("children")
             if erasure_checks is None and node.get("name") in erased and children is not None and children != [{"siblings": True}]:
-                raise _error(f"a pattern of erased rule {node['name']} permits only the child list « ⋯ »", path, getattr(node, "at", None) or node.get("at") or at, stage)
+                raise _error(f"a pattern of erased rule {node['name']} permits only the child list ⁅ ⋯ ⁆", path, getattr(node, "at", None) or node.get("at") or at, stage)
     for names, name, path, at in erasure_checks or ():
         if names and all(target in erased for target in names):
-            raise _error(f"a pattern of erased rule {name} permits only the child list « ⋯ »", path, at, stage)
+            raise _error(f"a pattern of erased rule {name} permits only the child list ⁅ ⋯ ⁆", path, at, stage)
     for pattern, path, at in constants.closed_patterns or ():
         erased_pattern(pattern, path, at)
     constants.closed_patterns = None

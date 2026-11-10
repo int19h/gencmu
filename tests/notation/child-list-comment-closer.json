@@ -1,6 +1,6 @@
 {
-  "description": "comment guillemets do not close a pattern argument",
-  "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #choose(#« a -- »\n b »)\n```\n",
+  "description": "a closing bracket in a comment does not close a pattern argument",
+  "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #choose(#⁅ a -- ⁆\n b ⁆)\n```\n",
   "expect": {
     "dom": {
       "format": 48,

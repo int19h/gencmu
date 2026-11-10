@@ -1,6 +1,6 @@
 {
   "description": "An ordinary declaration: a child intersection flattens through child groups",
-  "document": "```jbogenbau\n%rule probe A\n%conditions $ ≅ #« (a ∩ (b ∩ c)) »\n```\n",
+  "document": "```jbogenbau\n%rule probe A\n%conditions $ ≅ #⁅ (a ∩ (b ∩ c)) ⁆\n```\n",
   "expect": {
     "dom": {
       "format": 48,

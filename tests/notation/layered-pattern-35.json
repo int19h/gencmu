@@ -1,6 +1,6 @@
 {
   "description": "a nested child list has a separate repeated gap level",
-  "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #« {« ⋯ » @X} »\n```\n",
+  "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #⁅ {⁅ ⋯ ⁆ @X} ⁆\n```\n",
   "expect": {
     "dom": {
       "format": 48,

@@ -1,6 +1,6 @@
 {
   "description": "Engine §9.3: erased child-list validation covers replaced definitions and uncalled templates (unused-template).",
-  "grammar": "%rule unused(@X) @X\n%conditions $ ≅ #·e«»\n%rule text A\n%rule e A\n%erased",
+  "grammar": "%rule unused(@X) @X\n%conditions $ ≅ #·e⁅⁆\n%rule text A\n%rule e A\n%erased",
   "tokens": [
     {
       "text": "a",

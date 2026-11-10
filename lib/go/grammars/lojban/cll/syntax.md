@@ -210,14 +210,14 @@ The gek-sentence's tail terms follow the whole connection and apply to both side
 
 ```jbogenbau
 %const $STAG-TAG #tag ∖ #(⋮ (FIhO ∪ free))
-%const $KE-UNIT #« KE ⋯ KEhE [🆓] »
-%const $KE-SELBRI #« [$STAG-TAG] $KE-UNIT »
-%const $KE-GEK #« [$STAG-TAG] KE [🆓] gek-sentence KEhE [🆓] »
-%const $KE-TAIL #« $KE-SELBRI tail-terms » ∪ $KE-GEK
-%const $WRITTEN-KE-UNIT #« KE ⋯ KEhE≠"" [🆓] »
-%const $WRITTEN-KE-SELBRI #« [$STAG-TAG] $WRITTEN-KE-UNIT »
-%const $WRITTEN-VAU #« [terms] VAU≠"" [🆓] »
-%const $KE-TAIL-WITH-VAU #« $WRITTEN-KE-SELBRI (tail-terms ∩ $WRITTEN-VAU) »
+%const $KE-UNIT #⁅ KE ⋯ KEhE [🆓] ⁆
+%const $KE-SELBRI #⁅ [$STAG-TAG] $KE-UNIT ⁆
+%const $KE-GEK #⁅ [$STAG-TAG] KE [🆓] gek-sentence KEhE [🆓] ⁆
+%const $KE-TAIL #⁅ $KE-SELBRI tail-terms ⁆ ∪ $KE-GEK
+%const $WRITTEN-KE-UNIT #⁅ KE ⋯ KEhE≠"" [🆓] ⁆
+%const $WRITTEN-KE-SELBRI #⁅ [$STAG-TAG] $WRITTEN-KE-UNIT ⁆
+%const $WRITTEN-VAU #⁅ [terms] VAU≠"" [🆓] ⁆
+%const $KE-TAIL-WITH-VAU #⁅ $WRITTEN-KE-SELBRI (tail-terms ∩ $WRITTEN-VAU) ⁆
 
 %rule sentence
   [terms [CU 🆓]] bridi-tail

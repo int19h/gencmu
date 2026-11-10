@@ -293,7 +293,7 @@ fn pattern_string_terminal_constructors_and_tests() {
     let rules = "%const $S \"a\"\n%const $P #($S=\"a\")\n%rule text \"a\"\n%conditions $ ≅ $P";
     assert_eq!(pattern_probe(rules, &constants, &["a"]), pattern_probe(rules, &bundled, &["a"]));
     for pattern in ["\"a\"=\"a\"<A>", "\"a\"<A><B>", "\"a\"=\"a\"=\"a\"", "\"‹U+0061›\"=\"a\"<A>"] {
-        let rules = format!("%const $P #« {pattern} »\n%rule text A");
+        let rules = format!("%const $P #⁅ {pattern} ⁆\n%rule text A");
         let ordinary = load_pattern_probe(&rules, &bundled).unwrap_err();
         let bootstrap = if pattern.starts_with('$') { &constants } else { &changed };
         let alternate = load_pattern_probe(&rules, bootstrap).unwrap_err();

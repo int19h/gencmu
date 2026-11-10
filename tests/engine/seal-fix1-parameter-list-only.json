@@ -1,6 +1,6 @@
 {
   "description": "Engine §9.3: one unresolved list parameter is not the permitted sibling gap.",
-  "grammar": "%rule probe(@P) $e:e\n%conditions $e ≅ #·e« @P »\n%rule text A\n%rule e A\n%erased",
+  "grammar": "%rule probe(@P) $e:e\n%conditions $e ≅ #·e⁅ @P ⁆\n%rule text A\n%rule e A\n%erased",
   "tokens": [
     {
       "text": "a",

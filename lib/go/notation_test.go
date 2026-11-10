@@ -853,7 +853,7 @@ func TestDecoratedPatternMemberOrder(t *testing.T) {
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
-	document := "```jbogenbau\n%const $P #·pair(\"a\")«»\n%rule f(@X) A %conditions $ ≅ #·@X«»\n```\n"
+	document := "```jbogenbau\n%const $P #·pair(\"a\")⁅⁆\n%rule f(@X) A %conditions $ ≅ #·@X⁅⁆\n```\n"
 	dom, err := bundled.reader.read(document, "order.md")
 	if err != nil {
 		t.Fatal(err)

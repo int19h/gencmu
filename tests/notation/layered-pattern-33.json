@@ -1,6 +1,6 @@
 {
   "description": "a path can target an empty bare list",
-  "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #(⋮ «»)\n```\n",
+  "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #(⋮ ⁅⁆)\n```\n",
   "expect": {
     "dom": {
       "format": 48,

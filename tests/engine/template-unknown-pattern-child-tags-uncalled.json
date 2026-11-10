@@ -1,6 +1,6 @@
 {
   "description": "Engine §9.3 defers parameter-dependent pattern-child-tags values in a uncalled template.",
-  "grammar": "%rule word _\n%rule use(@T) $x:word %conditions $x ≅ #word« _<@T> »\n%rule text \"a\"",
+  "grammar": "%rule word _\n%rule use(@T) $x:word %conditions $x ≅ #word⁅ _<@T> ⁆\n%rule text \"a\"",
   "input": "a",
   "expect": {
     "result": {

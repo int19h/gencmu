@@ -1,6 +1,6 @@
 {
   "description": "Issue #286: a check can select its candidates through a pattern constant and child searches.",
-  "grammar": "%const $P #·text« A »\n%rule text a\n%rule a A\n%check selected $P\n%warning \"selected\"",
+  "grammar": "%const $P #·text⁅ A ⁆\n%rule text a\n%rule a A\n%check selected $P\n%warning \"selected\"",
   "tokens": [
     {
       "text": "a",

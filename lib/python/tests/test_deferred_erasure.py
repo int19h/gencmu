@@ -146,7 +146,7 @@ class ErasedInteriors(unittest.TestCase):
         # Engine §4.1: serialized children never reconstruct the public identity.
         from gencmu._stage import working_structure
         from gencmu._tree_identities import derivation_identity
-        ranking, root = prepare("%rule text e\n%rule e a\n%conditions $ ≅ #« a »\n%erased\n%rule a A")
+        ranking, root = prepare("%rule text e\n%rule e a\n%conditions $ ≅ #⁅ a ⁆\n%erased\n%rule a A")
         forest = ranking._ranker.forest
         context = forest.context
         node = find(root, "e")

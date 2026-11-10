@@ -1,6 +1,6 @@
 {
   "description": "Engine §4.1: an empty token value remains a terminal leaf when a rule tag test demands tags.",
-  "grammar": "%ambiguity-resolution greedy\n%rule text $x:word\n%conditions $x ≅ #·word« \"\" », $x ≇ #·word<Z>\n%rule word \"\"",
+  "grammar": "%ambiguity-resolution greedy\n%rule text $x:word\n%conditions $x ≅ #·word⁅ \"\" ⁆, $x ≇ #·word<Z>\n%rule word \"\"",
   "tokens": [
     {
       "text": "",

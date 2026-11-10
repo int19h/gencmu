@@ -37,7 +37,7 @@ export function readResource(key) {
 
 // The symbols of one character; `..`, `...` and `¬` have rules of
 // their own in the lexer.
-const LAYERED_SYMBOLS = new Set(["«", "»", "·"]);
+const LAYERED_SYMBOLS = new Set(["⁅", "⁆", "·"]);
 const SYMBOLS = new Set(["*", "+", "|", "&", "(", ")", "[", "]", "{", "}", "/", ":", ".", "<", ">", "#", "ε", ",", "∧", "∨", "⟹", "=",
   "∈", "⊆", "∪", "∩", "∖", "∅", "≅", "⋯", "⋮", "⋰", "⋱", "≻", "≝", "…"]);
 
@@ -1006,12 +1006,12 @@ class Parser {
       children.push(this.tok());
       if (!this.adjacent()) { this.index--; this.fail('an exact pattern prefix must touch its node test'); }
     }
-    if (this.is('«')) {
+    if (this.is('⁅')) {
       children.push(yield this.layeredChildren());
       part=this.node('pattern-bare',start,children);
     } else {
       children.push(yield this.layeredAtom());
-      if (this.is('«') && this.adjacent()) children.push(yield this.layeredChildren());
+      if (this.is('⁅') && this.adjacent()) children.push(yield this.layeredChildren());
       part=this.node('pattern-node',start,children);
     }
     return this.node(child ? 'child-primary' : 'pattern-primary',start,[part]);
@@ -1035,9 +1035,9 @@ class Parser {
 
   *layeredChildren() { return yield this.layeredMemo('layeredChildren',this.layeredChildrenBody); }
   *layeredChildrenBody() {
-    const start=this.index, children=[this.expect('«')];
-    if (!this.is('»')) children.push(yield this.layeredChoice());
-    children.push(this.expect('»'));
+    const start=this.index, children=[this.expect('⁅')];
+    if (!this.is('⁆')) children.push(yield this.layeredChoice());
+    children.push(this.expect('⁆'));
     return this.node('pattern-children',start,children);
   }
 
@@ -1055,8 +1055,8 @@ class Parser {
     const set=yield this.attempt(this.layeredChildSet);
     if (set) return this.node('child-alternative',start,[set]);
     const items=[yield this.layeredItem()];
-    while (['identifier','emoji','call-name','parameter','tag','string','constant','_','«','·','(','[','{','⋯','⋮','⋱'].includes(this.kindAt())) {
-      if ((this.is('«') || this.is('·')) && this.adjacent() && !['⋯','⋰'].includes(this.tokens[this.index-1].kind)) this.fail('separate pattern items require whitespace or a comment');
+    while (['identifier','emoji','call-name','parameter','tag','string','constant','_','⁅','·','(','[','{','⋯','⋮','⋱'].includes(this.kindAt())) {
+      if ((this.is('⁅') || this.is('·')) && this.adjacent() && !['⋯','⋰'].includes(this.tokens[this.index-1].kind)) this.fail('separate pattern items require whitespace or a comment');
       items.push(yield this.layeredItem());
     }
     return this.node('child-alternative',start,[this.node('child-sequence',start,items)]);

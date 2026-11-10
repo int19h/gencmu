@@ -1,6 +1,6 @@
 {
   "description": "a sibling gap in string content remains a terminal",
-  "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #« \"⋯\" -- note\n«a» »\n```\n",
+  "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #⁅ \"⋯\" -- note\n⁅a⁆ ⁆\n```\n",
   "expect": {
     "dom": {
       "format": 48,

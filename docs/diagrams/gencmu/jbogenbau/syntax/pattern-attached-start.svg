@@ -6,6 +6,6 @@
 <path d="M10 38v16m4 -16v16M14 46h6"/>
 <g class="rule"><rect x="20" y="34" width="117" height="24" rx="0"/><text x="78.5" y="51" textLength="100.8" lengthAdjust="spacingAndGlyphs">pattern-atom</text></g>
 <path d="M137 46h10"/>
-<g class="terminal"><rect x="147" y="34" width="42" height="24" rx="12"/><text x="168" y="51" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;«&quot;</text></g>
+<g class="terminal"><rect x="147" y="34" width="42" height="24" rx="12"/><text x="168" y="51" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;⁅&quot;</text></g>
 <path d="M189 46h6m0 -8v16m4 -16v16"/>
 </svg>

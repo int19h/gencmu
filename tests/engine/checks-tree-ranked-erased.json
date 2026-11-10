@@ -1,6 +1,6 @@
 {
   "description": "Issue #286: the check tree exposes ranked options, removes empty children and seals erasure.",
-  "grammar": "%rule text kept empty ignored\n%conditions $ ≅ #·text« kept empty ignored »\n%rule kept (\"a\" ≻ \"b\") :: ∅\n%rule empty (ε ≻ \"x\") :: ∅\n%rule ignored (\"c\" ≻ \"d\") :: ∅\n%erased\n%check root\n #·text« kept« \"a\" » ignored« ⋯ » »\n%warning \"tree\"\n%check leaf\n #·_\n%warning $.terminal\n%check removed\n #·empty\n%warning \"bad\"\n%check erased-root\n #·ignored\n%warning \"bad\"",
+  "grammar": "%rule text kept empty ignored\n%conditions $ ≅ #·text⁅ kept empty ignored ⁆\n%rule kept (\"a\" ≻ \"b\") :: ∅\n%rule empty (ε ≻ \"x\") :: ∅\n%rule ignored (\"c\" ≻ \"d\") :: ∅\n%erased\n%check root\n #·text⁅ kept⁅ \"a\" ⁆ ignored⁅ ⋯ ⁆ ⁆\n%warning \"tree\"\n%check leaf\n #·_\n%warning $.terminal\n%check removed\n #·empty\n%warning \"bad\"\n%check erased-root\n #·ignored\n%warning \"bad\"",
   "input": "ac",
   "options": {
     "features": [

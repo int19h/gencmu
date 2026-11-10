@@ -1,6 +1,6 @@
 {
   "description": "plain child groups concatenate their arrays",
-  "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #« (a b)c »\n```\n",
+  "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #⁅ (a b)c ⁆\n```\n",
   "expect": {
     "dom": {
       "format": 48,
