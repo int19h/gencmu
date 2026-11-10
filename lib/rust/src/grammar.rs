@@ -2398,6 +2398,7 @@ impl<'a> Iterator for ValueParts<'a> {
                         ValuePart::Term(b)
                     });
                 }
+                Cond::Truthy(t) => children.push(ValuePart::Term(t)),
                 Cond::All(xs) | Cond::Any(xs) => children.extend(xs.iter().map(ValuePart::Cond)),
                 Cond::If(a, b) => children.extend([ValuePart::Cond(a), ValuePart::Cond(b)]),
                 Cond::Not(c) => children.push(ValuePart::Cond(c)),
@@ -2678,7 +2679,7 @@ mod tests {
                 Cond::Compare("=".into(), Term::Const("k".into(), (1, 1)), Term::Str("a".into()), Default::default())
             };
             let rule = RuleDef {
-                held_parameter: Vec::new(),
+                template_conditions: Vec::new(),
                 error: None,
                 warning: None,
                 suppress_warnings: Vec::new(),

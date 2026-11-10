@@ -1,0 +1,9 @@
+{
+  "description": "Engine §10: a split of a closed string with an empty constant delimiter in a set-term condition is a document error at load.",
+  "grammar": "%const $D \"\"\n%rule text $x:word\n%conditions \"a b\".split($D)\n%rule word A :: Word",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "message": "split has an empty delimiter"
+  }
+}
