@@ -38,7 +38,8 @@ For quote markers, this layer only adds classes to the shared class sets. The sh
 
 %rule rahoi-quote
   $m:rahoi-marker $g:word-quote-gap $f:rafsi-quote-target
-      :: $m.tags :- $m.source-text ++ $g.source-text ++ $f.verbatim-text
+      :: $m.tags
+      :- $m.source-text ++ $g.source-text ++ $f.verbatim-text
 %emits
   $
 

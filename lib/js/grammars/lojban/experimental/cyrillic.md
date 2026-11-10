@@ -55,11 +55,16 @@ Joined vowels use the same public tags as isolated vowels. The emission filter k
   | ("и" [letter-marks<¬Accent ¬Breve>] | "і" [letter-marks<¬Accent>]) := "i"
   | ("и" letter-marks<Accent ¬Breve> | "і" letter-marks<Accent>) :: Stressed := "i" :- "I"
   | ("И" letter-marks<Accent ¬Breve> | "І" letter-marks<Accent>)
-      :: Stressed Accented := "i" :- "I"
+      :: Stressed Accented
+      := "i"
+      :- "I"
   | ("И" [letter-marks<¬Accent ¬Breve>] | "І" [letter-marks<¬Accent>])
-      :: Stressed Capital := "i" :- "I"
+      :: Stressed Capital
+      := "i"
+      :- "I"
   | ("И" [letter-marks<¬Accent ¬Breve>] | "І" [letter-marks<¬Accent>])
-      :: Folded Capital := "i"
+      :: Folded Capital
+      := "i"
   | "о" [letter-marks<¬Accent>] := "o"
   | "о" letter-marks<Accent> :: Stressed := "o" :- "O"
   | "О" letter-marks<Accent> :: Stressed Accented := "o" :- "O"

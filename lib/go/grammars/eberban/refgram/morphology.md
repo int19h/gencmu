@@ -559,7 +559,8 @@ The PEG warns about a hyphen before or after the prefix, and about content that 
 ```jbogenbau
 %rule freeform-word(@Prefix, @Tag)
   [hyphen-misplaced] $p:Letter prefix-gap $c:malformed-content [hyphen-misplaced] space-after
-      :: Word ∪ @Tag := @Prefix ++ $c.value
+      :: Word ∪ @Tag
+      := @Prefix ++ $c.value
 %conditions
   $p.value = @Prefix,
   ¬$p.preceding-tokens.ends(after-digit)
@@ -868,16 +869,19 @@ That vowel depends on the letter before it, so a tail comes in two kinds. `compo
 %rule compound-tail
   | $t:fixed-tail :: $t.tags := $t.emitted.value
   | $p:prefix<E-PREFIX> prefix-join $n:joined-tail $b:later-slot
-      :: (Standalone ⊆ $p.tags ⟹ Spaced-E) := "i" ++ $n.emitted.value ++ " " ++ $b.emitted.value
+      :: (Standalone ⊆ $p.tags ⟹ Spaced-E)
+      := "i" ++ $n.emitted.value ++ " " ++ $b.emitted.value
 
 %rule joined-tail
   | $t:fixed-tail :: $t.tags := $t.emitted.value
   | $p:prefix<E-PREFIX> prefix-join $n:compound-tail $b:later-slot
-      :: (Standalone ⊆ $p.tags ⟹ Spaced-E) := "e" ++ $n.emitted.value ++ " " ++ $b.emitted.value
+      :: (Standalone ⊆ $p.tags ⟹ Spaced-E)
+      := "e" ++ $n.emitted.value ++ " " ++ $b.emitted.value
 
 %rule fixed-tail
   | $p:prefix<E-PREFIX> $a:first-slot $b:later-slot
-      :: (Standalone ⊆ $p.tags ⟹ Spaced-E) := " " ++ $a.emitted.value ++ " " ++ $b.emitted.value
+      :: (Standalone ⊆ $p.tags ⟹ Spaced-E)
+      := " " ++ $a.emitted.value ++ " " ++ $b.emitted.value
   | prefix<EN-PREFIX> $a:first-slot $b:later-slot $c:later-slot
       := "n " ++ $a.emitted.value ++ " " ++ $b.emitted.value ++ " " ++ $c.emitted.value
   | prefix<EN-PREFIX> prefix-join $n:compound-tail $b:later-slot $c:later-slot
@@ -1067,7 +1071,8 @@ The morphology chapter allows a hyphen at a syllable boundary. A consonant unit 
 ```jbogenbau
 %rule spelling-quote
   $s:ce-particle $u:units unit-join $e:cei-particle [hyphen-misplaced]
-      :: Word Particle CE Quote := $s.value ++ " " ++ $u.emitted.value ++ " " ++ $e.value
+      :: Word Particle CE Quote
+      := $s.value ++ " " ++ $u.emitted.value ++ " " ++ $e.value
       :- $.source-text
 %emits
   $
@@ -1151,7 +1156,9 @@ The value is the `co` word, a space and the text from `[` to `]`. In the second 
 ```jbogenbau
 %rule foreign-quote
   $q:quote-co [opening-gap] $t:quoted-text
-      :: Word Particle CO Quote := $q.value ++ " " ++ $t.emitted.value :- $.source-text
+      :: Word Particle CO Quote
+      := $q.value ++ " " ++ $t.emitted.value
+      :- $.source-text
 %emits
   $
 
@@ -1202,7 +1209,9 @@ The recovery keeps the quote's class, value, and emission. It leaves no later er
 
 %rule unclosed-foreign-quote
   $q:quote-co [opening-gap] $t:unclosed-quoted-text
-      :: Word Particle CO Quote := $q.value ++ " " ++ $t.emitted.value :- $.source-text
+      :: Word Particle CO Quote
+      := $q.value ++ " " ++ $t.emitted.value
+      :- $.source-text
 %conditions
   $.ends-input
 %error "the foreign quote needs ] followed by its opening delimiter, if any"
@@ -1506,7 +1515,8 @@ A bare quadruplet similarly retains one root token. A framed cluster retains con
   | recovering-freeform-triplet | malformed-medial-pair | malformed-sonorant-pair
   | sonorant malformed-gap(Hyphen) malformed-pair
   | (triplet-middle-m ≻ triplet-yz-sonorant-x ≻ triplet-freeform-first-pair
-      ≻ triplet-freeform-shape) :: ∅
+      ≻ triplet-freeform-shape)
+      :: ∅
 
 %rule malformed-ending :: ∅
   | malformed-pair ≻ freeform-multi-consonents-ending
