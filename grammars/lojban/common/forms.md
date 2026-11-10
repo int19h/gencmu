@@ -73,8 +73,8 @@ Ordinary word forms divide each run in one way only. Zantufa's `ra'oi` quote is 
 %rule unsegmentable-run
   $f:phoneme-sequence
 %conditions
-  ¬$f.following-tokens.begins(nonpause-phoneme),
-  ¬$f.matches(word-run)
+  ¬$f.following-tokens.parse(nonpause-phoneme …),
+  ¬$f.parse(word-run)
 %emits
   $ :: FOREIGN Run-Initial Run-Final := $.decomposed-source-text :- $.image
 
@@ -170,12 +170,12 @@ The words stage needs to know where a run begins and ends. A name that `bu` take
 %rule ordinary-first-word
   $w:source-word
 %conditions
-  ¬$w.onward.begins(split-first-y)
+  ¬$w.onward.parse(split-first-y …)
 %emits
   $
       :: Run-Initial ∪
          $w.tags ∪
-         (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
+         (¬$w.following-tokens.parse(nonpause-phoneme …) ⟹ Run-Final)
 
 %rule later-word
   ordinary-later-word | split-later-y
@@ -183,35 +183,35 @@ The words stage needs to know where a run begins and ends. A name that `bu` take
 %rule ordinary-later-word
   $w:source-word
 %conditions
-  ¬$w.onward.begins(split-later-y)
+  ¬$w.onward.parse(split-later-y …)
 %emits
   $
       :: $w.tags ∪
-         (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
+         (¬$w.following-tokens.parse(nonpause-phoneme …) ⟹ Run-Final)
 
 %rule split-first-y
-  $p:y-prefix $y:y-atom :: $.tags(source-word)
+  $p:y-prefix $y:y-atom :: $.parse(source-word).tags
 %conditions
-  $.matches(hesitation-shape),
-  $.following-tokens.begins(bu-form-ahead)
+  $.parse(hesitation-shape),
+  $.following-tokens.parse(bu-form-ahead …)
 %emits
-  $p :: Run-Initial ∪ $.tags(source-word),
+  $p :: Run-Initial ∪ $.parse(source-word).tags,
   $y
       :: Spacing ∪
-         $.tags(source-word) ∪
-         (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
+         $.parse(source-word).tags ∪
+         (¬$.following-tokens.parse(nonpause-phoneme …) ⟹ Run-Final)
 
 %rule split-later-y
-  $p:y-prefix $y:y-atom :: $.tags(source-word)
+  $p:y-prefix $y:y-atom :: $.parse(source-word).tags
 %conditions
-  $.matches(hesitation-shape),
-  $.following-tokens.begins(bu-form-ahead)
+  $.parse(hesitation-shape),
+  $.following-tokens.parse(bu-form-ahead …)
 %emits
-  $p :: $.tags(source-word),
+  $p :: $.parse(source-word).tags,
   $y
       :: Spacing ∪
-         $.tags(source-word) ∪
-         (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
+         $.parse(source-word).tags ∪
+         (¬$.following-tokens.parse(nonpause-phoneme …) ⟹ Run-Final)
 
 %rule y-prefix
   y-atom | y-prefix y-atom

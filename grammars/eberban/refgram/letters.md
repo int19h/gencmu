@@ -51,7 +51,7 @@ The book says that any character other than its 25 symbols and the digits is a s
 %rule letter-of(@Chars, @Value, @Tags)
   {plain(@Chars)} :: Letter ∪ @Tags := @Value
 %conditions
-  ¬$.following-tokens.begins(plain(@Chars))
+  ¬$.following-tokens.parse(plain(@Chars) …)
 %emits
   $
 
@@ -258,14 +258,14 @@ The numbers chapter says that `+`, `*` and `/` are spaces, and that verbs expres
 %rule space
   {space-char}
 %conditions
-  ¬$.following-tokens.begins(space-char)
+  ¬$.following-tokens.parse(space-char …)
 %emits
-  $ :: Space ∪ ($.matches(math-run) ⟹ Math-Symbol) := " "
+  $ :: Space ∪ ($.parse(math-run) ⟹ Math-Symbol) := " "
 
 %rule space-char
   $c:_
 %conditions
-  ¬$c.matches(word-char | foreign-letter)
+  ¬($c.parse(word-char) ∨ $c.parse(foreign-letter))
 
 %rule word-char
   plain(letter-char)
@@ -308,7 +308,7 @@ The line breaks after a hyphen belong to its token. The [new course](https://ebe
 %rule indent
   {indent-char}
 %conditions
-  ¬$.following-tokens.begins(indent-char)
+  ¬$.following-tokens.parse(indent-char …)
 
 %rule hyphen-char
   "-" | "‹U+2010›"

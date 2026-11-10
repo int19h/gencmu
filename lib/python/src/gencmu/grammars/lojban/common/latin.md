@@ -56,7 +56,7 @@ An ignored character at a pause edge is a comma or a non-breaking format charact
 %rule punctuation-edge
   $e:pause-edge
 %conditions
-  ¬$e.matches(commas)
+  ¬$e.parse(commas)
 %emits
   $ :: PAUSE Quote-Material Punctuation-Material := $.decomposed-source-text :- $.source-text
 
@@ -76,7 +76,7 @@ An ignored character at a pause edge is a comma or a non-breaking format charact
   pause-edge
 %emits
   $
-      :: PAUSE Quote-Material ∪ (¬$.matches(commas) ⟹ Punctuation-Material)
+      :: PAUSE Quote-Material ∪ (¬$.parse(commas) ⟹ Punctuation-Material)
       := $.decomposed-source-text
       :- $.source-text
 
@@ -85,8 +85,8 @@ An ignored character at a pause edge is a comma or a non-breaking format charact
 %emits
   $
       :: PAUSE ∪
-         ($.first-token.matches(period-char) ⟹ Period-Initial) ∪
-         ($.matches(period-core) ⟹ Period-Only)
+         ($.first-token.parse(period-char) ⟹ Period-Initial) ∪
+         ($.parse(period-core) ⟹ Period-Only)
       := " "
 
 %rule punctuation-pause
@@ -106,13 +106,13 @@ An ignored character at a pause edge is a comma or a non-breaking format charact
 %rule punctuation-char
   $c:other-char [{combining-mark}]
 %conditions
-  ¬$c.matches(any-lojban-char | core-char),
-  ¬$.following-tokens.begins(combining-mark)
+  ¬($c.parse(any-lojban-char) ∨ $c.parse(core-char)),
+  ¬$.following-tokens.parse(combining-mark …)
 
 %rule other-char
   $c:_
 %conditions
-  ¬$c.matches(non-punctuation-char)
+  ¬$c.parse(non-punctuation-char)
 
 %rule non-punctuation-char
   alpha-char | mark-char | digit-char | space-char
@@ -132,7 +132,7 @@ An ignored character at a pause edge is a comma or a non-breaking format charact
 %extend-rule comma
   $c:_General_Category_Format
 %conditions
-  ¬$c.matches(breaking-format-char)
+  ¬$c.parse(breaking-format-char)
 
 %rule breaking-format-char
   | "‹U+200B›"
@@ -145,7 +145,7 @@ An ignored character at a pause edge is a comma or a non-breaking format charact
 %redefine-rule run-char
   $c:_
 %conditions
-  ¬$c.matches(core-char | punctuation-char)
+  ¬($c.parse(core-char) ∨ $c.parse(punctuation-char))
 ```
 
 <details><summary>Railroad diagrams of the 25 rules from <code>pause</code> to <code>run-char</code></summary>
@@ -233,7 +233,7 @@ The `Vowel` tag marks the five full vowels `a`, `e`, `i`, `o` and `u`, and it do
 %redefine-rule ordinary-run
   $r:letters
 %conditions
-  ¬$r.matches(capital-shape)
+  ¬$r.parse(capital-shape)
 
 %rule capital-run
   capital-shape
@@ -254,7 +254,7 @@ The `Vowel` tag marks the five full vowels `a`, `e`, `i`, `o` and `u`, and it do
   | capital-consonants commas capital-non-vowel
   | $c:capital-consonants decimal-point digit
 %conditions
-  $c.last-token.matches(digit)
+  $c.last-token.parse(digit)
 
 %rule capital-non-vowel
   consonant | digit | apostrophe
@@ -361,7 +361,7 @@ A period between two digits is the decimal point in a foreign run too, so it bel
   | run
   | $i:items $p:pause $r:run
 %conditions
-  ¬$i.last-token.matches(digit) ∨ ¬$p.matches(decimal-point) ∨ ¬$r.first-token.matches(digit)
+  ¬$i.last-token.parse(digit) ∨ ¬$p.parse(decimal-point) ∨ ¬$r.first-token.parse(digit)
 
 %extend-rule non-vowel
   digit
@@ -369,7 +369,7 @@ A period between two digits is the decimal point in a foreign run too, so it bel
 %extend-rule non-vowels
   $n:non-vowels decimal-point digit
 %conditions
-  $n.last-token.matches(digit)
+  $n.last-token.parse(digit)
 
 %extend-rule any-lojban-char
   digit
@@ -377,14 +377,14 @@ A period between two digits is the decimal point in a foreign run too, so it bel
 %extend-rule lojban-chars
   $c:lojban-chars "." $d:lojban-char
 %conditions
-  $c.last-token.matches(digit-char),
-  $d.matches(digit-char)
+  $c.last-token.parse(digit-char),
+  $d.parse(digit-char)
 
 %extend-rule chars-with-non-lojban-char
   $c:chars-with-non-lojban-char "." $d:run-char
 %conditions
-  $c.last-token.matches(digit-char),
-  $d.matches(digit-char)
+  $c.last-token.parse(digit-char),
+  $d.parse(digit-char)
 
 %rule digit
   digit-0 | digit-1 | digit-2 | digit-3 | digit-4 | digit-5 | digit-6 | digit-7 | digit-8 | digit-9

@@ -673,14 +673,14 @@ Recognition admits repeated or reversed tests on node atoms. The reader restrict
 %rule pattern-node
   [$exact:"·"] $atom:pattern-atom [$list:pattern-children]
 %conditions
-  $exact ⟹ $exact.onward.begins(pattern-exact-start),
-  $list ⟹ $atom.onward.begins(pattern-attached-start),
-  ¬$list ⟹ ¬$atom.onward.begins(pattern-attached-start)
+  $exact ⟹ $exact.onward.parse(pattern-exact-start …),
+  $list ⟹ $atom.onward.parse(pattern-attached-start …),
+  ¬$list ⟹ ¬$atom.onward.parse(pattern-attached-start …)
 
 %rule pattern-bare
   [$exact:"·"] pattern-children
 %conditions
-  $exact ⟹ $exact.onward.begins(pattern-exact-start)
+  $exact ⟹ $exact.onward.parse(pattern-exact-start …)
 
 %rule pattern-atom
   (pattern-name | tag | string | range | wildcard | constant-reference) [{symbol-test}]
@@ -710,7 +710,7 @@ Recognition admits repeated or reversed tests on node atoms. The reader restrict
 %rule child-item
   child-path | pattern-brackets | pattern-repeat | "⋯"
 %conditions
-  ¬$.last-token.onward.begins(pattern-adjacent-item)
+  ¬$.last-token.onward.parse(pattern-adjacent-item …)
 
 %rule child-path
   ("⋮" | "⋱") child-primary

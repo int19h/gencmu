@@ -46,30 +46,30 @@ A cmavo's stress is free (CLL[^cll-s3-9]), so any of its vowels can be a capital
 %rule cmavo-shape
   | $c:plain-cmavo-body
       :: Onset Continued ∪
-         ($c.matches(first-marked-cmavo) ⟹ Initial-Stress) ∪
-         ($c.matches(last-marked-cmavo) ⟹ Final-Stress) ∪
-         ($c.matches(name-intro-cmavo) ⟹ Name-Intro)
+         ($c.parse(first-marked-cmavo) ⟹ Initial-Stress) ∪
+         ($c.parse(last-marked-cmavo) ⟹ Final-Stress) ∪
+         ($c.parse(name-intro-cmavo) ⟹ Name-Intro)
   | $v:vowel-cmavo
       :: Continued ∪
-         ($v.matches(first-marked-cmavo) ⟹ Initial-Stress) ∪
-         ($v.matches(last-marked-cmavo) ⟹ Final-Stress)
+         ($v.parse(first-marked-cmavo) ⟹ Initial-Stress) ∪
+         ($v.parse(last-marked-cmavo) ⟹ Final-Stress)
   | $l:letter-cmavo
-      :: Onset Cy Uncounted ∪ ($l.matches(stress-mark) ⟹ Initial-Stress ∪ Final-Stress)
+      :: Onset Cy Uncounted ∪ ($l.parse(stress-mark) ⟹ Initial-Stress ∪ Final-Stress)
   | $p:y-pair-cmavo
       :: Continued ∪
-         ($p.matches(y-letters) ⟹ Uncounted) ∪
-         ($p.matches(first-marked-cmavo) ⟹ Initial-Stress) ∪
-         ($p.matches(last-marked-cmavo) ⟹ Final-Stress)
+         ($p.parse(y-letters) ⟹ Uncounted) ∪
+         ($p.parse(first-marked-cmavo) ⟹ Initial-Stress) ∪
+         ($p.parse(last-marked-cmavo) ⟹ Final-Stress)
   | $w:warned-cmavo
       :: Continued Cmavo-Warning ∪
-         ($w.first-token.matches(consonant) ⟹ Onset) ∪
-         ($w.matches(y-letters) ⟹ Uncounted) ∪
-         ($w.matches(first-marked-cmavo) ⟹ Initial-Stress) ∪
-         ($w.matches(last-marked-cmavo) ⟹ Final-Stress)
+         ($w.first-token.parse(consonant) ⟹ Onset) ∪
+         ($w.parse(y-letters) ⟹ Uncounted) ∪
+         ($w.parse(first-marked-cmavo) ⟹ Initial-Stress) ∪
+         ($w.parse(last-marked-cmavo) ⟹ Final-Stress)
 %conditions
-  ¬$c.matches(has-comma),
-  ¬$v.matches(has-comma),
-  ¬$w.matches(has-comma)
+  ¬$c.parse(has-comma),
+  ¬$v.parse(has-comma),
+  ¬$w.parse(has-comma)
 
 %rule plain-cmavo-body
   consonant cmavo-units
@@ -93,7 +93,7 @@ A cmavo's stress is free (CLL[^cll-s3-9]), so any of its vowels can be a capital
   | $w:warned-units
   | consonant warned-units
 %conditions
-  ¬$w.matches(y-pair-cmavo)
+  ¬$w.parse(y-pair-cmavo)
 
 %rule warned-units
   | "y" "'" any-units
@@ -121,12 +121,12 @@ A cmavo's stress is free (CLL[^cll-s3-9]), so any of its vowels can be a capital
 %rule first-marked-cmavo
   [consonant] $u:cmavo-nucleus ["'" any-letters]
 %conditions
-  $u.matches(stress-mark)
+  $u.parse(stress-mark)
 
 %rule last-marked-cmavo
   [consonant] [any-letters "'"] $u:cmavo-nucleus
 %conditions
-  $u.matches(stress-mark)
+  $u.parse(stress-mark)
 
 %rule name-intro-cmavo
   "l" "a" | "l" "a" "i" | "l" "a" "'" "i" | "d" "o" "i"
@@ -168,22 +168,22 @@ A brivla is a gismu, a lujvo or a borrowing (CLL[^cll-s4-3]). It ends in a vowel
   | $m:brivla-word
       :: Continued ∪
          $m.tags ∪
-         (First-Marked ⊆ $m.tags(brivla-scan) ⟹ Initial-Stress)
+         (First-Marked ⊆ $m.parse(brivla-scan).tags ⟹ Initial-Stress)
   | $u:brivla-word
       :: Open-Stress ∪
          $u.tags ∪
-         (N2 ⊆ $u.tags(brivla-scan) ⟹ Initial-Stress)
+         (N2 ⊆ $u.parse(brivla-scan).tags ⟹ Initial-Stress)
 %conditions
-  S2 ⊆ $m.tags(brivla-scan),
-  S0 ⊆ $u.tags(brivla-scan),
-  (N2 ∪ N3) ∩ $u.tags(brivla-scan) ≠ ∅
+  S2 ⊆ $m.parse(brivla-scan).tags,
+  S0 ⊆ $u.parse(brivla-scan).tags,
+  (N2 ∪ N3) ∩ $u.parse(brivla-scan).tags ≠ ∅
 
 %rule brivla-word
   | gismu-form :: Gismu Onset
   | $l:lujvo-form :: Lujvo Onset
-  | $f:fuhivla-word :: Fuhivla ∪ ($f.first-token.matches(consonant) ⟹ Onset)
+  | $f:fuhivla-word :: Fuhivla ∪ ($f.first-token.parse(consonant) ⟹ Onset)
 %conditions
-  ¬$l.matches(has-comma)
+  ¬$l.parse(has-comma)
 ```
 
 <details><summary>Railroad diagrams of <code>brivla-shape</code> and <code>brivla-word</code></summary>
@@ -235,8 +235,8 @@ A y-hyphen must be unstressed. `hyphen-y` tests its lowercase value and rejects 
   | consonant $a:vowel $t:lujvo-after-cvv
   | consonant vowel "'" vowel cvv-first-rest
 %conditions
-  ¬$a.matches(i-or-u),
-  ¬$a.matches(e-or-o) ∨ $t.begins(falling-i)
+  ¬$a.parse(i-or-u),
+  ¬$a.parse(e-or-o) ∨ $t.parse(falling-i …)
 
 %rule lujvo-after-cvv
   [Syllable-Break] i-or-u cvv-first-rest
@@ -247,8 +247,8 @@ A y-hyphen must be unstressed. `hyphen-y` tests its lowercase value and rejects 
   | "n" $n:lujvo-rest
 %conditions
   $r ≇ #ccv-rafsi,
-  ¬$r.begins(r-letter),
-  $n.begins(r-letter)
+  ¬$r.parse(r-letter …),
+  $n.parse(r-letter …)
 
 %rule lujvo-rest
   | final-rafsi
@@ -262,9 +262,9 @@ A y-hyphen must be unstressed. `hyphen-y` tests its lowercase value and rejects 
   | $l:consonant hyphen-y lujvo-rest
   | consonant-pair hyphen-y lujvo-rest
 %conditions
-  $k.onward.begins(consonant-pair),
-  ¬$k.onward.begins(n-affricate),
-  $l.onward.begins(mandatory-y)
+  $k.onward.parse(consonant-pair …),
+  ¬$k.onward.parse(n-affricate …),
+  $l.onward.parse(mandatory-y …)
 
 %rule final-rafsi
   cvv-rafsi | ccv-rafsi | gismu-form
@@ -279,7 +279,7 @@ A y-hyphen must be unstressed. `hyphen-y` tests its lowercase value and rejects 
   | $j:y-joint
   | "n" hyphen-y affricate
 %conditions
-  ¬$j.matches(pair-across-y)
+  ¬$j.parse(pair-across-y)
 
 %rule y-joint
   consonant hyphen-y consonant
@@ -327,10 +327,10 @@ If the test examines at least one pair and every examined pair is an initial pai
   | $l:consonant hyphen-y lujvo-rest
   | consonant-pair hyphen-y lujvo-rest
 %conditions
-  $k.onward.begins(consonant-pair),
-  ¬$k.onward.begins(n-affricate),
-  $k ⟹ ¬$.matches(tosmabru-positive),
-  $l.onward.begins(mandatory-y) ∨ $.matches(tosmabru-y)
+  $k.onward.parse(consonant-pair …),
+  ¬$k.onward.parse(n-affricate …),
+  $k ⟹ ¬$.parse(tosmabru-positive),
+  $l.onward.parse(mandatory-y …) ∨ $.parse(tosmabru-y)
 
 %rule tosmabru-positive
   | initial-pair vowel tosmabru-chain
@@ -382,10 +382,11 @@ The slinku'i test of CLL[^cll-s4-7] says that a CV cmavo joined to the front of 
 %rule fuhivla-word
   $f:fuhivla-form
 %conditions
-  $f.matches(clustered-start),
-  ¬$f.matches(gismu-form | lujvo-form | lujvo-after-cv | lujvo-after-cvv),
-  (N2 ∪ N3) ∩ $f.tags(brivla-scan) ≠ ∅,
-  ¬$f.matches(one-syllable | combination)
+  $f.parse(clustered-start),
+  ¬($f.parse(gismu-form) ∨ $f.parse(lujvo-form) ∨
+    $f.parse(lujvo-after-cv) ∨ $f.parse(lujvo-after-cvv)),
+  (N2 ∪ N3) ∩ $f.parse(brivla-scan).tags ≠ ∅,
+  ¬($f.parse(one-syllable) ∨ $f.parse(combination))
 
 %rule fuhivla-form
   | fuhivla-body
@@ -396,7 +397,7 @@ The slinku'i test of CLL[^cll-s4-7] says that a CV cmavo joined to the front of 
   | vowel-group
   | vowel-group $m:permissible-run fuhivla-body
 %conditions
-  ¬$m.matches(has-n-affricate)
+  ¬$m.parse(has-n-affricate)
 
 %rule vowel-group
   vowel | vowel-group vowel | vowel-group "'" vowel | vowel-group Syllable-Break vowel
@@ -418,7 +419,7 @@ The slinku'i test of CLL[^cll-s4-7] says that a CV cmavo joined to the front of 
   | $f:fuhivla-word
   | plain-cmavo-body combination-rest
 %conditions
-  $f.first-token.matches(consonant)
+  $f.first-token.parse(consonant)
 ```
 
 <details><summary>Railroad diagrams of the 9 rules from <code>fuhivla-word</code> to <code>combination-rest</code></summary>
@@ -446,13 +447,13 @@ Pauses surround a name (rules 2 and 4), so its shape carries neither `Onset` nor
 ```jbogenbau
 %rule cmevla-shape
   $n:cmevla
-      :: ($n.first-token.matches(consonant) ⟹ Name-Onset) ∪
-         (First-Marked ⊆ $n.tags(name-scan) ∨
-          Any-Marked ⊈ $n.tags(name-scan) ∧ First-Counted ⊆ $n.tags(name-scan) ∧
-            (N1 ∪ N2) ∩ $n.tags(name-scan) ≠ ∅ ⟹
+      :: ($n.first-token.parse(consonant) ⟹ Name-Onset) ∪
+         (First-Marked ⊆ $n.parse(name-scan).tags ∨
+          Any-Marked ⊈ $n.parse(name-scan).tags ∧ First-Counted ⊆ $n.parse(name-scan).tags ∧
+            (N1 ∪ N2) ∩ $n.parse(name-scan).tags ≠ ∅ ⟹
           Initial-Stress)
 %conditions
-  ¬$n.matches(la-doi-inside)
+  ¬$n.parse(la-doi-inside)
 
 %rule cmevla
   | permissible-run

@@ -198,14 +198,14 @@ So a brivla with marked stress has `S2`, and one without any capital vowel has `
          (N0 ⊆ $s.tags ∧ Marked ⊆ $j.tags ⟹ First-Marked) ∪
          Single-End ∩ $j.tags
 %conditions
-  Single-End ⊈ $s.tags ∨ ¬$s.last-token.onward.begins(brivla-diphthong)
+  Single-End ⊈ $s.tags ∨ ¬$s.last-token.onward.parse(brivla-diphthong …)
 
 %rule brivla-item
   | consonant
   | "y"<¬Stressed>
   | "'" | Syllable-Break
-  | $v:vowel :: Counted Single-End ∪ ($v.matches(capital-vowel) ⟹ Marked)
-  | $d:brivla-diphthong :: Counted ∪ ($d.matches(stress-mark) ⟹ Marked)
+  | $v:vowel :: Counted Single-End ∪ ($v.parse(capital-vowel) ⟹ Marked)
+  | $d:brivla-diphthong :: Counted ∪ ($d.parse(stress-mark) ⟹ Marked)
 
 %rule brivla-diphthong
   falling-diphthong | rising-diphthong
@@ -254,14 +254,15 @@ The forms stage uses the stress on the first syllable of a name, for the pause r
          (Counted ⊆ $j.tags ∧ (N2 ∪ N3) ∩ $s.tags ≠ ∅ ⟹ N3) ∪
          Single-End ∩ $j.tags
 %conditions
-  Single-End ⊈ $s.tags ∨ ¬$s.last-token.onward.begins(brivla-diphthong | y-diphthong)
+  Single-End ⊈ $s.tags ∨
+    ¬($s.last-token.onward.parse(brivla-diphthong …) ∨ $s.last-token.onward.parse(y-diphthong …))
 
 %rule name-item
   | consonant | "'" | Syllable-Break
-  | $v:vowel :: Nucleus Counted Single-End ∪ ($v.matches(capital-vowel) ⟹ Marked)
-  | $y:"y" :: Nucleus ∪ ($y.matches(stress-mark) ⟹ Marked)
-  | $d:brivla-diphthong :: Nucleus Counted ∪ ($d.matches(stress-mark) ⟹ Marked)
-  | $e:y-diphthong :: Nucleus ∪ ($e.matches(stress-mark) ⟹ Marked)
+  | $v:vowel :: Nucleus Counted Single-End ∪ ($v.parse(capital-vowel) ⟹ Marked)
+  | $y:"y" :: Nucleus ∪ ($y.parse(stress-mark) ⟹ Marked)
+  | $d:brivla-diphthong :: Nucleus Counted ∪ ($d.parse(stress-mark) ⟹ Marked)
+  | $e:y-diphthong :: Nucleus ∪ ($e.parse(stress-mark) ⟹ Marked)
 
 %rule name-vowel
   vowel | "y"

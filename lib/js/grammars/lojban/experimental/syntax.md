@@ -138,7 +138,7 @@ A written KEhE also closes a KE-wrapped forethought bridi. A later reset permits
   | ¬cbm? [{NAI}] {CMEVLA} 🆓 (text-1 ≻ $c:connective $t:text-1)
   | [indicators & {free}] (text-1 ≻ $c:connective $t:text-1)
 %conditions
-  $c ≇ $NEEDS-TEXT ∨ $t.first-token.matches(text-token),
+  $c ≇ $NEEDS-TEXT ∨ $t.first-token.parse(text-token),
   ¬$c.preceded-by(free)
 
 %rule text-token
@@ -185,7 +185,7 @@ A written KEhE also closes a KE-wrapped forethought bridi. A later reset permits
 %rule lone-i
   $i:I
 %conditions
-  ¬$i.following-tokens.begins(joik-jek-ek)
+  ¬$i.following-tokens.parse(joik-jek-ek …)
 ```
 
 <details><summary>Railroad diagrams of the 14 rules from <code>text</code> to <code>lone-i</code></summary>
@@ -383,7 +383,7 @@ An open tail can take terms after a reset. A closed tail can take only resets an
   | [tag] KE 🆓 gek-sentence [+KEhE] 🆓
   | $n:NA 🆓 gek-sentence
 %conditions
-  ¬$n.onward.begins(gek)
+  ¬$n.onward.parse(gek …)
 
 %rule main-tail
   | tail-terms
@@ -403,7 +403,7 @@ An open tail can take terms after a reset. A closed tail can take only resets an
   | [tag] KE 🆓 open-gek omitted-kehe 🆓
   | $n:NA 🆓 open-gek
 %conditions
-  ¬$n.onward.begins(gek)
+  ¬$n.onward.parse(gek …)
 
 %rule closed-gek
   | gek subsentence gik subsentence written-tail
@@ -411,7 +411,7 @@ An open tail can take terms after a reset. A closed tail can take only resets an
   | [tag] KE 🆓 closed-gek omitted-kehe 🆓
   | $n:NA 🆓 closed-gek
 %conditions
-  ¬$n.onward.begins(gek)
+  ¬$n.onward.parse(gek …)
 
 %rule open-tail
   [terms] omitted-vau 🆓
@@ -597,7 +597,7 @@ No step names these terms. Their contained predicates use the `fewest` and `late
 %rule bare-na
   $n:NA 🆓 [+KU] 🆓
 %conditions
-  ¬$n.onward.begins(na-connective),
+  ¬$n.onward.parse(na-connective …),
   $ ≇ $BARE-NA ∨ $.ends-input ∨ ($PLACE-CLOSE ∩ $.following-tokens.first-token.tags) ⊈ ∅ ∨
     $.followed-by(gihek | term)
 
@@ -795,7 +795,7 @@ The `ke-after` template supplies `selbri-4` and `operator`. Each named instance 
   | selbri-2
   | $n:NA 🆓 selbri
 %conditions
-  ¬$n.onward.begins(gek)
+  ¬$n.onward.parse(gek …)
 
 %redefine-rule ke-after(@B, @U)
   | @U
@@ -829,7 +829,7 @@ The `ke-after` template supplies `selbri-4` and `operator`. Each named instance 
 %rule me-unit
   ME 🆓 (sumti | $m:mex) [+MEhU] 🆓 [MOI 🆓]
 %conditions
-  ¬$m.without-elision.matches(sumti)
+  ¬$m.without-elision.parse(sumti)
 
 %redefine-rule abstractor-chain
   {... NU 🆓 / connective}
@@ -936,7 +936,8 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
 %rule mekso-fragment
   $m:mex
 %conditions
-  ¬$m.without-elision.onward.begins(sumti-6 | gek-barrier | selbri)
+  ¬($m.without-elision.onward.parse(sumti-6 …) ∨
+    $m.without-elision.onward.parse(gek-barrier …) ∨ $m.without-elision.onward.parse(selbri …))
 
 %rule gek-barrier
   gek (sumti-6 | gek-barrier)

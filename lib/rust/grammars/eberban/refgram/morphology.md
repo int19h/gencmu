@@ -53,7 +53,7 @@ The book allows a hyphen only at a syllable boundary inside a word. Each digit i
 %rule run-end
   ε
 %conditions
-  ¬$.following-tokens.begins(run-char)
+  ¬$.following-tokens.parse(run-char …)
 ```
 
 <details><summary>Railroad diagrams of <code>text</code>, <code>item</code>, <code>run-char</code> and <code>run-end</code></summary>
@@ -81,7 +81,8 @@ The rules `space-before` and `space-after` hold beside a space, a bracket of a g
 %rule space
   {space-unit | space-open | space-close}
 %conditions
-  ¬$.following-tokens.begins(Space | Open | Close)
+  ¬($.following-tokens.parse(Space …) ∨ $.following-tokens.parse(Open …) ∨
+    $.following-tokens.parse(Close …))
 %emits
   $ :: Space := " "
 
@@ -499,23 +500,23 @@ The quote reads its own `co` through the particle rule, so the bar never meets t
   *h-before-word $p:consonant-particle *h-after-word [hyphen-misplaced]
       :: Word Particle ∪
          $p.tags ∪
-         (CE ⊆ $p.tags ∧ ¬$.following-tokens.begins(first-unit) ⟹ Missing-spelling-unit)
+         (CE ⊆ $p.tags ∧ ¬$.following-tokens.parse(first-unit …) ⟹ Missing-spelling-unit)
 %conditions
-  CO ⊆ $p.tags ⟹ ¬$.onward.begins(quote-opener)
+  CO ⊆ $p.tags ⟹ ¬$.onward.parse(quote-opener …)
 %emits
   $ :- $.value
 
 %rule ni-word
   *h-before-word $p:ni-particle *h-after-word [hyphen-misplaced] :: Word Particle ∪ $p.tags
 %conditions
-  ¬$.preceding-tokens.ends(after-digit)
+  ¬$.preceding-tokens.parse(… after-digit)
 %emits
   $ :- $.value
 
 %rule vowel-particle-word
   *h-before-word $p:vowel-particle *h-after-word [hyphen-misplaced] :: Word Particle ∪ $p.tags
 %conditions
-  ¬$.preceding-tokens.ends(after-digit)
+  ¬$.preceding-tokens.parse(… after-digit)
 %emits
   $ :- $.value
 
@@ -563,7 +564,7 @@ The PEG warns about a hyphen before or after the prefix, and about content that 
       := @Prefix ++ $c.value
 %conditions
   $p.value = @Prefix,
-  ¬$p.preceding-tokens.ends(after-digit)
+  ¬$p.preceding-tokens.parse(… after-digit)
 %emits
   $
 
@@ -626,20 +627,20 @@ The numbers chapter also says that `+`, `*` and `/` are spaces, and that verbs e
 %rule digit-word
   [$l:hyphen-misplaced] $d:Digit [$t:hyphen-misplaced] digit-math
 %conditions
-  ¬$l.preceding-tokens.ends(Hyphen),
-  ¬$t.following-tokens.begins(Hyphen)
+  ¬$l.preceding-tokens.parse(… Hyphen),
+  ¬$t.following-tokens.parse(Hyphen …)
 %emits
   $d :: Word Particle TI
 
 %rule digit-math
   [$m:math-symbol]
 %conditions
-  $m ∨ ¬$.following-tokens.begins(math-space)
+  $m ∨ ¬$.following-tokens.parse(math-space …)
 
 %rule math-symbol
   ε
 %conditions
-  $.following-tokens.begins(math-space)
+  $.following-tokens.parse(math-space …)
 %warning "a mathematical symbol follows this digit"
 
 %rule math-space
@@ -710,10 +711,10 @@ The rule `first-prefix` reads a prefix that starts a run, and `attached-prefix` 
 %rule first-prefix
   Letter="e" [[hyphen-misplaced] prefix-arity]
       :: $.value.classify(prefix-length) ∪
-         (¬$.following-tokens.begins(later-letter) ⟹ Standalone)
+         (¬$.following-tokens.parse(later-letter …) ⟹ Standalone)
 %conditions
-  ¬$.preceding-tokens.ends(after-digit),
-  ¬$.preceding-tokens.ends(after-letter)
+  ¬$.preceding-tokens.parse(… after-digit),
+  ¬$.preceding-tokens.parse(… after-letter)
 
 %rule later-letter
   [Hyphen] Letter
@@ -726,8 +727,9 @@ The rule `first-prefix` reads a prefix that starts a run, and `attached-prefix` 
   | $i:Letter="i" :: E-PREFIX
   | $i:Letter="i" [hyphen-misplaced] $r:prefix-arity :: ("e" ++ $r.value).classify(prefix-length)
 %conditions
-  $e.preceding-tokens.ends(after-e | after-i | after-arity),
-  $i.preceding-tokens.ends(after-e)
+  ($e.preceding-tokens.parse(… after-e) ∨ $e.preceding-tokens.parse(… after-i) ∨
+   $e.preceding-tokens.parse(… after-arity)),
+  $i.preceding-tokens.parse(… after-e)
 
 %rule after-e
   Letter="e" [Hyphen]
@@ -764,7 +766,7 @@ The rule `first-prefix` reads a prefix that starts a run, and `attached-prefix` 
   | $i:Letter="i" :: E-PREFIX
   | $i:Letter="i" [hyphen-misplaced] $r:prefix-arity :: ("e" ++ $r.value).classify(prefix-length)
 %conditions
-  $i.preceding-tokens.ends(after-arity)
+  $i.preceding-tokens.parse(… after-arity)
 %warning "an attached i follows a sonorant prefix"
 
 %rule after-arity
@@ -833,7 +835,7 @@ A hyphen after a prefix or at the start of a run carries `hyphen-misplaced`, as 
   *h-before-word $p:consonant-particle *h-after-word [hyphen-misplaced]
       :: Word Particle ∪
          $p.tags ∪
-         (CE ⊆ $p.tags ∧ ¬$.following-tokens.begins(first-unit) ⟹ Missing-spelling-unit)
+         (CE ⊆ $p.tags ∧ ¬$.following-tokens.parse(first-unit …) ⟹ Missing-spelling-unit)
 %emits
   $ :- $.value
 ```
@@ -992,22 +994,22 @@ An empty `er e` retains its closing `e` as `Stray-Prefix`, without a second erro
 %rule spaced-i-prefix
   $p:prefix :: $p.tags
 %conditions
-  $p.following-tokens.begins(spaced-i-tail)
+  $p.following-tokens.parse(spaced-i-tail …)
 %error "attach the nested prefix as ei, or write e e instead of e i"
 
 %rule compound-empty
   $p:prefix :: $p.tags
 %conditions
-  ¬$p.following-tokens.begins(spaced-i-tail),
+  ¬$p.following-tokens.parse(spaced-i-tail …),
   ER-PREFIX ⊆ $p.tags,
-  $p.following-tokens.begins(empty-compound-tail)
+  $p.following-tokens.parse(empty-compound-tail …)
 %error "the er compound needs at least one component"
 
 %rule incomplete-compound
   $p:prefix :: $p.tags
 %conditions
-  ¬$p.following-tokens.begins(spaced-i-tail),
-  ER-PREFIX ⊈ $p.tags ∨ ¬$p.following-tokens.begins(empty-compound-tail)
+  ¬$p.following-tokens.parse(spaced-i-tail …),
+  ER-PREFIX ⊈ $p.tags ∨ ¬$p.following-tokens.parse(empty-compound-tail …)
 %error "the compound is unfinished, or its prefix does not fit its components"
 
 %extend-rule open-compound
@@ -1106,7 +1108,7 @@ The morphology chapter allows a hyphen at a syllable boundary. A consonant unit 
 %rule consonant-unit
   $u:unit-letters
 %conditions
-  ¬$u.onward.begins(complete-cei)
+  ¬$u.onward.parse(complete-cei …)
 
 %rule vowel-unit
   vhowels
@@ -1178,7 +1180,7 @@ The value is the `co` word, a space and the text from `[` to `]`. In the second 
   $d:native-delimiter Open [{quote-char | $c:shaped-close | $k:Close}] Close $e:native-delimiter
 %conditions
   $c.tokens-after-first.value ≠ $d.value,
-  ¬$k.following-tokens.begins(delimiter-shape),
+  ¬$k.following-tokens.parse(delimiter-shape …),
   $e.value = $d.value
 
 %rule quote-char
@@ -1223,7 +1225,7 @@ The recovery keeps the quote's class, value, and emission. It leaves no later er
   | $d:native-delimiter Open [{quote-char | $c:shaped-close | $k:Close}]
 %conditions
   $c.tokens-after-first.value ≠ $d.value,
-  ¬$k.following-tokens.begins(delimiter-shape)
+  ¬$k.following-tokens.parse(delimiter-shape …)
 ```
 
 <details><summary>Railroad diagrams of the 3 rules from <code>foreign-quote</code> to <code>unclosed-quoted-text</code></summary>
@@ -1258,12 +1260,12 @@ A digit is one `TI` particle, and a digit can be a delimiter. It needs no word b
 %rule native-root-of(@Hyphen)
   $r:root-form-of(@Hyphen) [@Hyphen] word-boundary
 %conditions
-  Sonorant ⊆ $r.last-token.tags ∨ ¬$r.following-tokens.begins(root-middle-of(@Hyphen))
+  Sonorant ⊆ $r.last-token.tags ∨ ¬$r.following-tokens.parse(root-middle-of(@Hyphen) …)
 
 %rule native-particle-of(@Hyphen)
   particle-shape-of(@Hyphen) particle-end [@Hyphen] word-boundary
 %conditions
-  ¬$.onward.begins(native-root-of(@Hyphen))
+  ¬$.onward.parse(native-root-of(@Hyphen) …)
 
 %rule particle-shape-of(@Hyphen)
   | ns-consonant [@Hyphen] vhowels-of(@Hyphen)
@@ -1275,18 +1277,21 @@ A digit is one `TI` particle, and a digit can be a delimiter. It needs no word b
 %rule digit-form-of(@Hyphen)
   [$l:@Hyphen] Digit [$t:@Hyphen]
 %conditions
-  ¬$l.preceding-tokens.ends(Hyphen),
-  ¬$t.following-tokens.begins(Hyphen)
+  ¬$l.preceding-tokens.parse(… Hyphen),
+  ¬$t.following-tokens.parse(Hyphen …)
 
 %rule particle-end
   ε
 %conditions
-  ¬$.following-tokens.begins(medial-pair)
+  ¬$.following-tokens.parse(medial-pair …)
 
 %rule word-boundary
   ε
 %conditions
-  $.ends-input ∨ $.following-tokens.begins(ns-consonant | Digit | Space | Open | Close)
+  $.ends-input ∨
+    ($.following-tokens.parse(ns-consonant …) ∨ $.following-tokens.parse(Digit …) ∨
+     $.following-tokens.parse(Space …) ∨ $.following-tokens.parse(Open …) ∨
+     $.following-tokens.parse(Close …))
 ```
 
 <details><summary>Railroad diagrams of the 9 rules from <code>delimiter-of</code> to <code>word-boundary</code></summary>
@@ -1317,9 +1322,9 @@ Before a longer junk run, a hyphen beside a digit belongs to the digit, with its
 %rule junk-run
   {run-char} run-end
 %conditions
-  ¬$.onward.begins(run-opener) ∨
-    $.preceding-tokens.ends(after-digit) ∧ $.onward.begins(spaced-start),
-  ¬$.matches(Hyphen) ∨ ¬$.preceding-tokens.ends(Digit) ∧ ¬$.following-tokens.begins(Digit)
+  ¬$.onward.parse(run-opener …) ∨
+    $.preceding-tokens.parse(… after-digit) ∧ $.onward.parse(spaced-start …),
+  ¬$.parse(Hyphen) ∨ ¬$.preceding-tokens.parse(… Digit) ∧ ¬$.following-tokens.parse(Digit …)
 %error "the run " ++ $.source-text ++ " has no word reading"
 %emits
   $ :: Junk ∪ $.tags := $.decomposed-source-text :- $.source-text
@@ -1445,12 +1450,12 @@ A bare medial pair or quadruplet can retain its root error without a vowel frame
   quadruplet
 %conditions
   Sonorant ⊈ $.first-token.tags,
-  ¬$.preceding-tokens.ends(vowel-before-h)
+  ¬$.preceding-tokens.parse(… vowel-before-h)
 
 %rule bare-root-end
   ε
 %conditions
-  ¬$.following-tokens.begins(later-letter)
+  ¬$.following-tokens.parse(later-letter …)
 
 %rule malformed-root-onset
   malformed-initial-pair | faulty-root-onset
@@ -1461,7 +1466,7 @@ A bare medial pair or quadruplet can retain its root error without a vowel frame
   | malformed-long-cluster
 %conditions
   Sonorant ⊈ $.first-token.tags,
-  ¬$.preceding-tokens.ends(vowel-before-h)
+  ¬$.preceding-tokens.parse(… vowel-before-h)
 
 %rule malformed-root-middle
   | malformed-gap(Hyphen) sonorant malformed-gap(hyphen-misplaced) malformed-vhowels
@@ -1521,12 +1526,12 @@ A bare quadruplet similarly retains one root token. A framed cluster retains con
 %rule malformed-ending :: ∅
   | malformed-pair ≻ freeform-multi-consonents-ending
 %conditions
-  $.following-tokens.begins(freeform-ending-boundary)
+  $.following-tokens.parse(freeform-ending-boundary …)
 
 %rule freeform-multi-consonents-ending
   consonant [Hyphen] consonant [{[Hyphen] consonant}] :: ∅
 %conditions
-  $.following-tokens.begins(freeform-ending-boundary)
+  $.following-tokens.parse(freeform-ending-boundary …)
 %error "the ending " ++ $.source-text ++ " has more than one consonant"
 ```
 
@@ -1582,7 +1587,7 @@ The particle tail retains its family even with two adjacent sonorants. An errone
 %rule h-not-between-vowels
   Letter<H> :: ∅
 %conditions
-  ¬$.preceding-tokens.ends(vowel-before-h) ∨ ¬$.following-tokens.begins(vowel-after-h)
+  ¬$.preceding-tokens.parse(… vowel-before-h) ∨ ¬$.following-tokens.parse(vowel-after-h …)
 %error "the h " ++ $.source-text ++ " needs vowels on both sides, except at a freeform onset"
 
 %rule vowel-before-h
@@ -1706,7 +1711,7 @@ Root and freeform triplet wrappers share the failed pair and shape restrictions.
 %rule triplet-yz-sonorant-x
   sonorant [Hyphen] $y:consonant [Hyphen] $z:consonant :: ∅
 %conditions
-  ¬$y.onward.begins(initial-pair-shape),
+  ¬$y.onward.parse(initial-pair-shape …),
   Sonorant ⊆ $y.tags ∨ Sonorant ⊈ $z.tags
 %error "the freeform triplet " ++ $.source-text ++
        " needs an initial or consonant-sonorant final pair"
