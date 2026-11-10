@@ -65,8 +65,9 @@ The rule `empty` reads a prefix that leaves no units. Its alternatives use `text
 
 %rule stream
   | empty $u:unit :: $u.tags
-  | $s:stream spacing $u:unit :: $s.tags ∪
-                                 $u.tags
+  | $s:stream spacing $u:unit
+      :: $s.tags ∪
+         $u.tags
   | $s:stream spacing erasure :: $s.tags
 
 %rule unit
@@ -288,7 +289,8 @@ Quotes and the right operand of ZEI share this rule. It executes no erasure. Quo
 
 %rule pause-gap
   [quiet-gap] $p:pause-run [$h:hesitations [$q:pause-run]]
-      :: ($p.tags ∪ ($h ⟹ $h.tags) ∪ ($q ⟹ $q.tags)) ∩ $MATERIAL := $PAUSE
+      :: ($p.tags ∪ ($h ⟹ $h.tags) ∪ ($q ⟹ $q.tags)) ∩ $MATERIAL
+      := $PAUSE
 
 %rule word-gap
   ε | quiet-gap | pause-gap
@@ -316,7 +318,8 @@ An attached opening mark supplies one gap space, even without whitespace. `quote
 %rule quoted-word
   $m:word-quote-marker
       ($g:word-quote-gap $w:word-quote-target | $g:word-gap<¬Quote-Material> $w:zo-punctuation)
-      :: $m.tags :- $m.source-text ++ $g.source-text ++ $w.verbatim-text
+      :: $m.tags
+      :- $m.source-text ++ $g.source-text ++ $w.verbatim-text
 %emits
   $
 
@@ -523,7 +526,8 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
 %rule delimiter-spacing
   | [delimiter-quiet-gap]
   | [delimiter-quiet-gap] pause-run<¬Quote-Material>
-      [delimiter-hesitations [pause-run<¬Quote-Material>]] := $PAUSE
+      [delimiter-hesitations [pause-run<¬Quote-Material>]]
+      := $PAUSE
 
 %rule delimiter-quiet-gap
   delimiter-hesitation | delimiter-quiet-gap delimiter-hesitation
@@ -584,8 +588,9 @@ The raw rule rejoins every piece of one y run. Its internal gap accepts pauses, 
 
 ```jbogenbau
 %rule y-key
-  $y:y-run :: ($y.value = "ie'o" ⟹ Ieho) ∪
-              ($y.value = "y" ⟹ Y-Key)
+  $y:y-run
+      :: ($y.value = "ie'o" ⟹ Ieho) ∪
+         ($y.value = "y" ⟹ Y-Key)
 
 %rule raw-close
   raw-run | raw-y-close
@@ -620,8 +625,9 @@ The raw rule rejoins every piece of one y run. Its internal gap accepts pauses, 
   $h.value ≠ "ie'o"
 
 %rule raw-y-key
-  $y:raw-y-base :: ($y.value = "ie'o" ⟹ Ieho) ∪
-                   ($y.value = "y" ⟹ Y-Key)
+  $y:raw-y-base
+      :: ($y.value = "ie'o" ⟹ Ieho) ∪
+         ($y.value = "y" ⟹ Y-Key)
 
 %rule body-with-y-close :: $c.tags
   | [quote-attachment] $c:raw-y-close [raw-tokens]
@@ -908,7 +914,9 @@ The rule `sa-key` refuses an SA key because a run of SA forms one counted erasur
 %rule su-survivor :: $b.tags := $b.emitted.value :- $b.emitted.image
   | sa-su? su-boundary? $b:unit<Trailing-Pause> skipped su-suffix
   | sa-su? su-boundary? $b:unit<¬Trailing-Pause> skipped<Gap-Pause> su-suffix
-      :: Trailing-Pause := $b.emitted.value ++ $PAUSE :- $b.emitted.image ++ $PAUSE
+      :: Trailing-Pause
+      := $b.emitted.value ++ $PAUSE
+      :- $b.emitted.image ++ $PAUSE
   | sa-su? su-boundary? $b:unit<¬Trailing-Pause> skipped<¬Gap-Pause> su-suffix
 %conditions
   $b.classes ∩ $SU-STOPS ≠ ∅
