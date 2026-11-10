@@ -1883,19 +1883,26 @@ Each marked alternative stands on lines of its own, and no other top-level alter
 
 No line of a grammar block holds more than 100 characters, counted as Unicode code points. This covers rule bodies, headers, conditions, emission items and classifier entries. An alternative can run over several lines, and each of these lines counts. A comment line does not count, because a comment stays on one line. A line that holds only one string does not count either, because a string cannot break. A long line breaks only where it is too long. It breaks first before a clause, then between two top-level items, and only then inside a term or brackets. A value recipe breaks after a `++`.
 
-If the clauses of an alternative, a header or an emission item do not all fit on its line, each clause stands on a line of its own. A clause on its own line stands four columns deeper than the line that it belongs to. So a header clause stands deeper than the `|` of the alternatives, and does not read as one:
+An alternative, a header or an emission item can have several clauses. If they do not all fit on its line, each clause stands on a line of its own. A clause on its own line stands four columns deeper than the start of the line that it belongs to. So the clauses of an alternative stand at column 7, four columns after its `|`. The clauses of a header stand at column 5, deeper than the `|` of the alternatives, so that they do not read as an alternative:
 
 ```jbogenbau
-%rule su-survivor
-    :: $b.tags
-    := $b.emitted.value
-    :- $b.emitted.image
+%rule zehei-compound
+    :: Word ∪
+       $r.classes ∪
+       ($r.tags ∩ (Cmavo ∪ Indicator ∪ Y-Letter)) ∪
+       (Fault ∩ $l.tags)
+  | $l:unit<¬Trailing-Pause> compound-gap<¬Punctuation-Material> zehei-word zei-right-gap
+    $r:nonmagic-zehei-right
+
+%rule su-survivor :: $b.tags := $b.emitted.value :- $b.emitted.image
   | sa-su? su-boundary? $b:unit<Trailing-Pause> skipped su-suffix
   | sa-su? su-boundary? $b:unit<¬Trailing-Pause> skipped<Gap-Pause> su-suffix
       :: Trailing-Pause
       := $b.emitted.value ++ $PAUSE
       :- $b.emitted.image ++ $PAUSE
 ```
+
+The header of `su-survivor` fits on its line, so its clauses stay there.
 
 A tag term that runs over several lines ends each line with its `∪`. Its next operand stands in the column of its first operand:
 
