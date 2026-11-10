@@ -753,7 +753,7 @@ Optionals and repetitions also remain single body arguments. A tested symbol ret
 
 An argument cannot declare or read a capture, including `$` and captured string methods. Capture reads nested inside patterns or calls also fail. Constants retain their separate closure rules. An argument inside a template can use only that definition's declared parameters.
 
-Substitution copies one parsed node into each use. It never reparses text or changes the grouping around the use. A parameter can occupy a body operand, pattern operand, query target, filter requirement, or term position. Term positions include conditions, tag clauses, tests, and value or image recipes.
+Substitution copies one parsed node into each use. It never reparses text or changes the grouping around the use. A parameter can occupy a body operand, pattern operand, query body, filter requirement, or term position. Term positions include conditions, tag clauses, tests, and value or image recipes.
 
 Node decorations are exact prefixes, tests, or child lists.
 
@@ -763,7 +763,7 @@ The use determines the conversion, before ordinary validation:
 | --- | --- |
 | Body operand | Body EXPR, one symbol atom, or a target choice converted to one choice |
 | Captured or tested symbol | One symbol after argument conversion |
-| Query target | Rule name, call, user tag, or spliced target choice |
+| Boundary target | Rule name, call, user tag, or spliced target choice |
 | One rule argument | Ordinary rule name or exact instance |
 | Tag term | Tag, tag-set constant, or tag-set term |
 | Signed requirement | Tag, tag-set constant, or unnegated spliced requirement list |
@@ -787,7 +787,7 @@ Only two positions splice an argument's children into the surrounding list:
 
 | Use | Argument | Substitution |
 | --- | --- | --- |
-| One complete query-target entry | A target choice | Targets enter in written order |
+| One complete boundary-target entry | A target choice | Targets enter in written order |
 | One complete unnegated filter requirement | A requirement list | Requirements enter in written order |
 
 ```jbogenbau
@@ -805,7 +805,7 @@ Only two positions splice an argument's children into the surrounding list:
 
 A requirement list is distinct from a tag set. An empty `<>` splices no requirements. A list under `¬@X` is an error. A tag or tag-set constant under `¬@X` retains ordinary requirement negation. A requirement list in any other position is an error.
 
-A target choice can also supply one grouped body choice where a body operand accepts it. It cannot become a tag set or a pattern. Parenthesized body choices never splice into query targets. A target list must remain nonempty after substitution.
+A target choice can also supply one grouped body choice where a body operand accepts it. It cannot become a tag set or a pattern. Parenthesized body choices never splice into boundary targets. A target list must remain nonempty after substitution.
 
 Elsewhere, substitution keeps the argument as one node. Ranked groups keep their own seals and priority. Ordinary union flattening still applies after substitution.
 
@@ -1231,7 +1231,7 @@ Query helpers follow every production from the written grammar, including its he
 
 An undecorated rule call reuses that rule's query target. An undecorated user-tag terminal reuses its helper, including a tag that only `parse` names. Every other constituent uses a structurally keyed anonymous target that retains its tests and decorations. This includes literals, ranges, wildcards, engine tags, and tested symbols.
 
-Thus `parse(x)` and `parse(x …)` share their target, memo entry, and recursive-query test. Lowering fixes only identity and target. Recognition uses the same whole, prefix, suffix, or part machinery as the query of that mode. An anonymous target's diagnostic name is its canonical constituent spelling, without remainder. A single nominal target keeps its public name.
+Thus `parse(x)` and `parse(x …)` share their target and their recursive-query test. Lowering fixes only identity and target. Recognition uses the same whole, prefix, suffix, or part machinery as the query of that mode. An anonymous target's diagnostic name is its canonical constituent spelling, without remainder. A single nominal target keeps its public name.
 
 ### 3.11 Spliced calls
 
@@ -1465,7 +1465,7 @@ Aligned requests share qualification by rule, start, context end, and active que
 
 An ordinary query reads the tokens of its span alone. A `matches` over a span does not look past the span's end, even where a written terminator stands after it. So the keys of the memo (below) fit its answer.
 
-`begins` is one recognition over the whole span, not a separate parse of each prefix. Conditions see the query's context end. For an ordinary span, that end equals the span end. A recognizer can stop at a set that holds no item, since no later set can then hold one. Otherwise it reads as far as it can. An error of the grammar that it meets is an error, even after `rule` completed once.
+A prefix query is one recognition over the whole span, not a separate parse of each prefix. Conditions see the query's context end. For an ordinary span, that end equals the span end. A recognizer can stop at a set that holds no item, since no later set can then hold one. Otherwise it reads as far as it can. An error of the grammar that it meets is an error, even after `rule` completed once.
 
 For ordinary spans, an implementation can remember answers for the whole parse of a stage in a memo. A memo stores answers from earlier nested parses. This general memo is optional. Section 4.4 defines separate suffix sharing and its cost.
 
@@ -1792,7 +1792,7 @@ The context is the stage input or the input window of the current nested query. 
 
 An ordinary suffix query `s.parse(… R)` recognizes the fixed window `[a,b)`. It permits a target root at every boundary `k` with `a≤k≤b` and requires its completion at `b`. Conditions of every candidate use the same context `[a,b)`. No candidate receives `[k,b)` as a new context. A part query over `[a,b)` keeps that whole view as the context of every witness. So `.starts-input` inside a witness sees `a`, and `.ends-input` sees `b`. The same holds for `.onward` inside a witness.
 
-The method holds when some permitted completion has an eligible proof tree. A nullable target can supply the empty suffix. A user-tag target tests the last original token and fails on an empty receiver. The user-tag test is its query helper's single production (§3.10). Suffix recognition retains that answer for the parse. Target choices retain written-order evaluation and error behavior.
+The method holds when some permitted completion has an eligible proof tree. A nullable target can supply the empty suffix. A user-tag target tests the last original token and fails on an empty receiver. The user-tag test is its query helper's single production (§3.10). Suffix recognition retains that answer for the parse.
 
 ```jbogenbau
 %rule start-a
@@ -1809,7 +1809,7 @@ The query selects no longest suffix. A grammar error that this computation reach
 
 A grammar error ends the stage. The shared recognition therefore serves no later request after that error.
 
-`.ends` requires a capture or ordinary span. A restored receiver causes a load error, including after `.onward`, which preserves restoration. This includes `.without-elision-except(F)` views. Restored suffix queries can be added when a grammar needs them.
+A suffix query requires a capture or ordinary span. A restored receiver causes a load error, including after `.onward`, which preserves restoration. This includes `.without-elision-except(F)` views. Restored suffix queries can be added when a grammar needs them.
 
 A span method that drops restoration can supply an ordinary receiver. For example, `$x.without-elision.preceding-tokens.parse(… R)` queries the raw prefix. It applies no suffix alignment constraint.
 
@@ -2702,7 +2702,7 @@ The valid-form productions below also accept parameter placeholders in the posit
 
 An unresolved parameter never relaxes a node's category, field shape, method arity, or fixed argument form. These restrictions also apply to uncalled templates and definitions that later edits replace.
 
-`matches`, `begins`, `ends`, `followed-by`, and `preceded-by` separate targets with `|`. Other methods separate arguments with commas. Recognition accepts either separator, and the reader rejects a separator that does not match the method.
+`followed-by` and `preceded-by` separate targets with `|`. Other methods separate arguments with commas. Recognition accepts either separator, and the reader rejects a separator that does not match the method.
 
 Recognition names describe productions. The following mapping specifies the named constructors that the syntax stage builds. Other production names remain wrappers under §9.3. Lexical forms contribute tokens where a constructor requires tokens.
 
@@ -3207,8 +3207,8 @@ The grammar does not state the restrictions below. Each of these is an error of 
 
   A signed tag requirement and a recipe atom are separate source constructs. Their type faults name the failing operand, without private container names. Ordinary term concatenation remains one construct.
 - After method selection, a capture or span converts to its input value when a string is required or in `=` or `≠` (§10). It cannot convert to tags, sets, or patterns.
-- A bare name that does not begin with a capital is an error where a value is needed. Such a name is a rule or a classifier. A rule name is legal in `.tags`, `.matches`, `.begins`, `.ends`, `.without-elision-except`, `.followed-by`, and `.preceded-by` arguments. A classifier name is legal only in `.classify`.
-- `.matches`, `.begins`, `.ends`, `.starts-input`, `.ends-input`, `.followed-by` or `.preceded-by` as a value term is an error. This includes method arguments. Report the error at the inner query method.
+- A bare name that does not begin with a capital is an error where a value is needed. Such a name is a rule or a classifier. A rule name is legal in a parse body and in `.without-elision-except`, `.followed-by`, and `.preceded-by` arguments. A classifier name is legal only in `.classify`.
+- `.parse`, `.starts-input`, `.ends-input`, `.followed-by` or `.preceded-by` as a value term is an error. This includes method arguments. Report the error at the inner query method.
 - An `&` of more than 16 items is an error.
 - A DOM node at depth greater than 256 is an error. Depth counts compound ancestors, from zero at each root. The following rules cover every form in `docs/output.md`.
 
@@ -3311,7 +3311,7 @@ Its target is one ordinary rule, exact instance, user tag, or a choice of these.
 
 Boundary-target inspection follows expanded rule order, then alternative order. Within one alternative, it follows the targets' written order.
 
-A terminal argument of `.matches`, `.begins`, or `.ends` also makes that tag buildable. The body references and terminals of `parse` participate in this same reachability analysis. Every alternative counts, including alternatives that evaluation never reaches. Gates do not count.
+The body references and terminals of `parse` participate in this same reachability analysis. Every alternative counts, including alternatives that evaluation never reaches. Gates do not count.
 
 Each violation is a document error at the atom, at the name, or at the second atom. The condition limits bind `%conditions` only. Header and alternative tag terms follow the guard restrictions of §3.7. An emission tag clause can hold several atoms, because it reads the chosen derivation.
 
@@ -3940,7 +3940,7 @@ Here `$` is the whole input span, with token tags unioned and no constituent tag
 
 Bare `$` reads token values. Legal methods are `tags` without arguments, `classes`, `value`, `image`, `source-text`, and `decomposed-source-text`.
 
-The methods `first-token`, `tokens-after-first`, `last-token`, `split`, and `ngrams` are also legal. Apart from the ban on a rule argument to `tags`, each method keeps its usual types and arities.
+The methods `first-token`, `tokens-after-first`, `last-token`, `split`, and `ngrams` are also legal. Each method keeps its usual types and arities.
 
 All other methods, named captures, and tree comparisons are loading errors there, even in unreachable branches. The loader reports every feature-condition error at its `%features` directive. This includes type errors, unknown constants, and closed delimiter errors.
 

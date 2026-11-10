@@ -544,17 +544,17 @@ Each argument is one term. A parenthesized body expression or `ε` passes a sequ
 
 Substitution replaces parsed nodes, without reparsing or regrouping nearby syntax. A choice passed to a body position remains one grouped choice. A ranked choice retains its own priority and seal. Ordinary position restrictions still apply after expansion. For example, a choice cannot replace the symbol in `$x:@X`.
 
-Parameters can occupy body operands, pattern operands, query targets, filter requirements, and terms in conditions, tags, values, and images. A parameter cannot construct a name or occupy a declaration name, guard, method name, capture binder, carrier, or attachment. It cannot replace a directive operand, classifier name, or integer argument. The head after `[+` can be a user tag or a parameter whose argument becomes exactly one bare user-tag atom. A rule, sequence, tested argument, constant, or tag-set expression is invalid there.
+Parameters can occupy body operands, pattern operands, query bodies, filter requirements, and terms in conditions, tags, values, and images. A parameter cannot construct a name or occupy a declaration name, guard, method name, capture binder, carrier, or attachment. It cannot replace a directive operand, classifier name, or integer argument. The head after `[+` can be a user tag or a parameter whose argument becomes exactly one bare user-tag atom. A rule, sequence, tested argument, constant, or tag-set expression is invalid there.
 
 ### The two list substitutions
 
-A query-target choice splices into one complete target entry, in written order. A tag-requirement list splices into one complete unnegated filter requirement:
+A boundary-target choice splices into one complete target entry, in written order. A tag-requirement list splices into one complete unnegated filter requirement:
 
 ```jbogenbau
 %rule letter(@Char, @Forbidden)
   $c:@Char
 %conditions
-  ¬($c.following-tokens.parse(h …) ∨ $c.following-tokens.parse(@Forbidden …))
+  ¬$c.followed-by(h | @Forbidden)
 
 %rule filtered(@Char, @Excluded)
   @Char<¬Accent @Excluded>
@@ -563,9 +563,9 @@ A query-target choice splices into one complete target entry, in written order. 
 %rule a = filtered("a", <¬Ogonek ¬Caron>)
 ```
 
-Here the letter query tests `h | b | unvoiced`. The filter on `a` requires `<¬Accent ¬Ogonek ¬Caron>`. A list under `¬@Excluded` is an error. A requirement list is distinct from a tag set, and `<>` is an empty list. A query-target choice must remain nonempty.
+Here the letter query tests `h | b | unvoiced`. The filter on `a` requires `<¬Accent ¬Ogonek ¬Caron>`. A list under `¬@Excluded` is an error. A requirement list is distinct from a tag set, and `<>` is an empty list. A boundary-target choice must remain nonempty.
 
-These are the only list substitutions. A parenthesized body choice does not splice into query targets. Other terms retain their usual grouping and type rules. Recipe substitution flattens concatenations in operand order before validation, with empty operands and source attribution preserved. [Engine §2.3](engine.md#23-templates-and-instances) defines argument reading and conversion.
+These are the only list substitutions. A parenthesized body choice does not splice into boundary targets. Other terms retain their usual grouping and type rules. Recipe substitution flattens concatenations in operand order before validation, with empty operands and source attribution preserved. [Engine §2.3](engine.md#23-templates-and-instances) defines argument reading and conversion.
 
 ### Names and layering
 
@@ -1250,9 +1250,9 @@ For example, a target that reads `"a"` and requires `$.starts-input` does not ma
 
 `$x.preceding-tokens.last-token` reads the token immediately before `$x`. Inside a nested query, it cannot reach before that query's input start. On a restored receiver, `.preceding-tokens` projects to ordinary input and drops close alignment.
 
-A suffix query on a restored span is a load error, including after `.onward`, which preserves restoration. This covers `.ends` and every `parse` with `…` at the start. This applies to both restoration methods. Restored suffix queries can be added when a grammar needs them. [Engine §4.4](engine.md#44-backward-token-queries) defines the ordinary query and its sharing rules.
+A suffix query on a restored span is a load error, including after `.onward`, which preserves restoration. This applies to both restoration methods. Restored suffix queries can be added when a grammar needs them. [Engine §4.4](engine.md#44-backward-token-queries) defines the ordinary query and its sharing rules.
 
-With one target and window start, requests that read no window end share recognition. Its cost is one recognition starting the target at every position, plus constant work per request. That recognition includes any nested queries and can grow faster than linear for complex targets. A target that reads the window end requires separate recognition for each distinct end. Restored nested queries at any depth prevent this sharing. Use `.ends`, `parse(… C)` and `parse(… C …)` sparingly.
+With one target and window start, requests that read no window end share recognition. Its cost is one recognition starting the target at every position, plus constant work per request. That recognition includes any nested queries and can grow faster than linear for complex targets. A target that reads the window end requires separate recognition for each distinct end. Restored nested queries at any depth prevent this sharing. Use `parse(… C)` and `parse(… C …)` sparingly.
 
 ### Neighbours in the parse
 
@@ -1273,7 +1273,7 @@ The test reads the actual neighbor, which a lookahead cannot do. A Lojban exampl
 %rule bare-na
   $n:NA 🆓 [+KU] 🆓
 %conditions
-  ¬$n.onward.parse(na-connective …),
+  ¬$n.onward.parse((gek | joik-jek-ek | gihek) …),
   $ ≇ $BARE-NA ∨ $.ends-input ∨ ($PLACE-CLOSE ∩ $.following-tokens.first-token.tags) ⊈ ∅ ∨ $.followed-by(gihek | term)
 ```
 
@@ -1636,7 +1636,7 @@ Here `$` denotes all input tokens as one span, without a constituent or a positi
 
 Legal methods are `.tags` without an argument, `.classes`, `.value`, `.image`, `.source-text`, `.decomposed-source-text`, `.first-token`, `.tokens-after-first`, `.last-token`, `.split`, and `.ngrams`.
 
-Apart from the ban on a rule argument to `.tags`, these methods keep their usual operand types and arities. They can form chains within those types. Bare `$` reads the concatenated token values.
+These methods keep their usual operand types and arities. They can form chains within those types. Bare `$` reads the concatenated token values.
 
 Other methods and tree comparisons `≅` and `≇` are loading errors, even in a condition that cannot hold.
 
@@ -1736,7 +1736,7 @@ Two nested occurrences over one span contribute twice, so two such occurrences b
 
 `late P` and `early P` compare where occurrences begin. They count the occurrences of `P` that begin at each input boundary, from the start of the text. At the first boundary where the counts differ, `late` prefers the parse with fewer and `early` the parse with more. `late #·_<_Elided>` is the step that the Lojban syntax grammars use. In plain words, at the first place where two parses differ in leaving out a terminator, it takes the parse that reads on. The name of an elided terminator, and the constituent that it ends, do not count.
 
-The comparison uses actual input tokens. A written terminator adds width, but an elided terminator adds none. A longer constituent that prevents a complete parse cannot win. Steps do not rank `matches`, `begins`, `ends`, or `tags` queries.
+The comparison uses actual input tokens. A written terminator adds width, but an elided terminator adds none. A longer constituent that prevents a complete parse cannot win. Steps do not rank parse queries.
 
 `greedy` and `lazy` compare actions rather than occurrences. Either can stand only as the last step, and a directive can end without one. Two parses that no step tells apart are tied. So a directive whose only step is `late #·_<_Elided>` ties two parses that elide the same terminators at the same places, whatever else differs. Adding `greedy` after it would decide such a pair by its actions.
 

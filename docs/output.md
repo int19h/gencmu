@@ -465,17 +465,11 @@ For example, `A ∪ (B ∪ C)` gives this term:
 
 A method node always has `method`, `receiver`, and `args`, in that order. Its method name, receiver type, arity, and result type follow engine §10. A receiver can be a capture, span method, string term, query forest, or the recipe-only emitted pair. Before expansion, a permitted term receiver can also be a declared `param` node. Zero-argument methods have an empty argument array.
 
-Rule arguments use `{"rule":"r"}`, including `{"rule":"🆓"}`, or an unresolved call. `.tags` and `.without-elision-except` take one. Before expansion, either method can take a declared `param` node in that rule position.
+Rule arguments use `{"rule":"r"}`, including `{"rule":"🆓"}`, or an unresolved call. `.without-elision-except` takes one. Before expansion, it can take a declared `param` node in that rule position.
 
 Classifier arguments use `{"classifier":"lexicon"}`. Rule arguments are also legal compile-time ARG values. Classifier arguments occur only in `.classify` and cannot be ARG values or parameter uses.
 
 String arguments are terms. A classifier name starts with a lowercase letter, so `🆓` cannot name a classifier.
-
-`.matches`, `.begins`, `.ends`, `.followed-by`, and `.preceded-by` take one or more TARGET arguments, as defined after the ARG forms. They retain written order. Two or more arguments form a choice.
-
-Source and supplied DOM accept repeated targets, which change nothing. All five methods share TARGET's user-terminal and parameter-scope restrictions. Boundary targets identify grammar-built token classes, while engine tags describe stored character properties.
-
-Boundary receivers are `{"capture":"x"}`, or `{"capture":""}` for `$`. `matches` and `begins` accept captures or spans, including restored spans. `ends` accepts only captures or ordinary spans. A restored receiver causes a load error. `.preceding-tokens` uses the ordinary zero-argument method shape and returns an ordinary projected span.
 
 `.parse` takes exactly one `{"body":EXPR}` argument. Its receiver is a capture or span, including a restored span except in suffix or part mode. The body contains no capture at any depth, but referenced rules retain their own captures. It can add the leaf `{"remainder":true}` at the first edge, at the last edge, or at both edges of its outer `seq`.
 
