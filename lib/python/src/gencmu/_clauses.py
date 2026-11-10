@@ -535,12 +535,12 @@ def simplify_term(term: Dom, present: AbstractSet[str], absent: AbstractSet[str]
     return run(_term(term, present, absent))[0]  # type: ignore[no-any-return]
 
 
-def _condition(dom: Dom, present: AbstractSet[str], absent: AbstractSet[str] | None = None, fixed=None) -> Walk:
+def _condition(dom: Dom, present: AbstractSet[str], absent: AbstractSet[str] | None = None, fixed=None, *, no_closed: bool = False) -> Walk:
     """Return the simplified value and its first unresolved presence test."""
     if fixed is not None and id(dom) in fixed:
         known = fixed[id(dom)]
         if known is None:
-            known = yield _condition(dom, present, absent)
+            known = yield _condition(dom, present, absent, no_closed=no_closed)
             fixed[id(dom)] = known
         return known
     if "captured" in dom:
@@ -549,10 +549,10 @@ def _condition(dom: Dom, present: AbstractSet[str], absent: AbstractSet[str] | N
             return True, None
         return (dom, name) if absent is not None and name not in absent else (False, None)
     if "if" in dom:
-        premise, guard = yield _condition(dom["if"], present, absent, fixed)
+        premise, guard = yield _condition(dom["if"], present, absent, fixed, no_closed=no_closed)
         if premise is False:
             return True, None
-        consequent, next_guard = yield _condition(dom["then"], present, absent, fixed)
+        consequent, next_guard = yield _condition(dom["then"], present, absent, fixed, no_closed=no_closed)
         if premise is True or consequent is True:
             return consequent, next_guard
         if consequent is False:
@@ -560,7 +560,7 @@ def _condition(dom: Dom, present: AbstractSet[str], absent: AbstractSet[str] | N
         value = dom if premise is dom["if"] and consequent is dom["then"] else {"if": premise, "then": consequent}
         return value, guard if guard is not None else next_guard
     if "not" in dom:
-        inner, guard = yield _condition(dom["not"], present, absent, fixed)
+        inner, guard = yield _condition(dom["not"], present, absent, fixed, no_closed=no_closed)
         if isinstance(inner, bool):
             return not inner, None
         return (dom if inner is dom["not"] else {"not": inner}), guard
@@ -569,7 +569,7 @@ def _condition(dom: Dom, present: AbstractSet[str], absent: AbstractSet[str] | N
         deciding = key == "any"
         parts, guard, unchanged = [], None, True
         for item in dom[key]:
-            part, next_guard = yield _condition(item, present, absent, fixed)
+            part, next_guard = yield _condition(item, present, absent, fixed, no_closed=no_closed)
             if part is deciding:
                 return deciding, None
             if part is not (not deciding):
@@ -583,18 +583,19 @@ def _condition(dom: Dom, present: AbstractSet[str], absent: AbstractSet[str] | N
             return parts[0], guard
         return (dom if unchanged else {key: parts}), guard
     if "nonempty" in dom:
-        term, guard = yield _term(dom["nonempty"], present, absent, fixed)
+        term, guard = yield _term(dom["nonempty"], present, absent, fixed, no_closed=no_closed)
         # A set term that simplifies to the empty set is false (§3.6).
         if is_empty_set(term):
             return False, guard
-        # A closed set term that is not empty is true (§3.6).
-        closed = closed_set_value(term)
+        # A closed set term that is not empty is true (§3.6). A caller
+        # can bar this rule, for a term that held a parameter as written.
+        closed = None if no_closed else closed_set_value(term)
         if closed:
             return True, guard
         return (dom if term is dom["nonempty"] else {"nonempty": term}), guard
     if "op" in dom:
-        left, guard = yield _term(dom["left"], present, absent, fixed)
-        right, next_guard = yield _term(dom["right"], present, absent, fixed)
+        left, guard = yield _term(dom["left"], present, absent, fixed, no_closed=no_closed)
+        right, next_guard = yield _term(dom["right"], present, absent, fixed, no_closed=no_closed)
         value = dom if left is dom["left"] and right is dom["right"] else {"op": dom["op"], "left": left, "right": right}
         return value, guard if guard is not None else next_guard
     return dom, None
@@ -727,21 +728,21 @@ def is_empty_set(dom: Any) -> bool:
     return isinstance(dom.get("const"), str) and isinstance(value, frozenset) and not value
 
 
-def _term(dom: Any, present: AbstractSet[str], absent: AbstractSet[str] | None = None, fixed=None) -> Walk:
+def _term(dom: Any, present: AbstractSet[str], absent: AbstractSet[str] | None = None, fixed=None, *, no_closed: bool = False) -> Walk:
     """Reduce a term and retain its next unresolved presence test."""
     if fixed is not None and id(dom) in fixed:
         known = fixed[id(dom)]
         if known is None:
-            known = yield _term(dom, present, absent)
+            known = yield _term(dom, present, absent, no_closed=no_closed)
             fixed[id(dom)] = known
         return known
     if not isinstance(dom, dict):
         return dom, None
     if "if" in dom:
-        premise, guard = yield _condition(dom["if"], present, absent, fixed)
+        premise, guard = yield _condition(dom["if"], present, absent, fixed, no_closed=no_closed)
         if premise is False:
             return dict(EMPTY_SET), None
-        then, next_guard = yield _term(dom["then"], present, absent, fixed)
+        then, next_guard = yield _term(dom["then"], present, absent, fixed, no_closed=no_closed)
         if is_empty_set(then):
             return then, None
         if premise is True:
@@ -752,7 +753,7 @@ def _term(dom: Any, present: AbstractSet[str], absent: AbstractSet[str] | None =
         key = "union" if "union" in dom else "intersection"
         parts, guard, unchanged = [], None, True
         for item in dom[key]:
-            part, next_guard = yield _term(item, present, absent, fixed)
+            part, next_guard = yield _term(item, present, absent, fixed, no_closed=no_closed)
             if is_empty_set(part):
                 if key == "intersection":
                     return part, None
@@ -769,10 +770,10 @@ def _term(dom: Any, present: AbstractSet[str], absent: AbstractSet[str] | None =
                 return parts[0], guard
         return (dom if unchanged else {key: parts}), guard
     if isinstance(dom.get("difference"), list):
-        left, guard = yield _term(dom["difference"][0], present, absent, fixed)
+        left, guard = yield _term(dom["difference"][0], present, absent, fixed, no_closed=no_closed)
         if is_empty_set(left):
             return left, None
-        right, next_guard = yield _term(dom["difference"][1], present, absent, fixed)
+        right, next_guard = yield _term(dom["difference"][1], present, absent, fixed, no_closed=no_closed)
         if is_empty_set(right):
             return left, guard
         value = dom if left is dom["difference"][0] and right is dom["difference"][1] else {"difference": [left, right]}
@@ -780,10 +781,10 @@ def _term(dom: Any, present: AbstractSet[str], absent: AbstractSet[str] | None =
     if isinstance(dom.get("args"), list):
         args, guard, unchanged = [], None, True
         if "receiver" in dom:
-            receiver, guard = yield _term(dom["receiver"], present, absent, fixed)
+            receiver, guard = yield _term(dom["receiver"], present, absent, fixed, no_closed=no_closed)
             unchanged = receiver is dom["receiver"]
         for arg in dom["args"]:
-            value, next_guard = yield _term(arg, present, absent, fixed)
+            value, next_guard = yield _term(arg, present, absent, fixed, no_closed=no_closed)
             args.append(value)
             if guard is None:
                 guard = next_guard
@@ -984,8 +985,10 @@ class Prepared:
         return items[0] if len(items) == 1 else {self.join: items}
 
 
-def _simplify(dom: Any, present: AbstractSet[str], condition: bool) -> Any:
-    return simplify_condition(dom, present) if condition else simplify_term(dom, present)
+def _simplify(dom: Any, present: AbstractSet[str], condition: bool, no_closed: bool = False) -> Any:
+    if condition:
+        return run(_condition(dom, present, None, None, no_closed=no_closed))[0]
+    return run(_term(dom, present, None, None, no_closed=no_closed))[0]
 
 
 def prepare(clause: Any, condition: bool) -> Prepared:
@@ -1518,11 +1521,14 @@ def _definition_issues(rule: Dom, held: Any = None):
                 candidates = iter(capturing.get(min(used), ()))
         candidate_list = list(candidates)
         if all(applies_prepared(prepared, present) is None for present in candidate_list):
-            # A condition that held a parameter as written is never
-            # closed (engine §3.6), so in an instance it still applies
-            # where it simplifies to true.
-            if not (held is not None and condition_index < len(held) and held[condition_index]
-                    and any(prepared.simplified(present) is True for present in candidate_list)):
+            # A condition that held a parameter as written does not
+            # reduce under the closed-set rule (engine §3.6). Truth for
+            # any other reason still applies to no production, so the
+            # truth is asked again with that rule barred.
+            held_condition = held is not None and condition_index < len(held) and held[condition_index]
+            if not (held_condition and any(prepared.simplified(present) is True
+                                           and _simplify(condition, present, True, True) is not True
+                                           for present in candidate_list)):
                 yield DefinitionIssue("independent", f"a condition of {rule['name']} applies to none of its productions")
 
     # Each term is prepared, and looked at for constants, once, though the

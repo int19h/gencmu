@@ -153,7 +153,7 @@ func TestTermSplitAsWritten(t *testing.T) {
 			if termJSON(want) != termJSON(got) || (want == term) != (got == term) {
 				t.Fatalf("%s for %v: %s, not %s", termJSON(term), names, termJSON(got), termJSON(want))
 			}
-			o := simplifiedOutcome(clausePart{t: term}, has, nil)
+			o := simplifiedOutcome(clausePart{t: term}, has, nil, false)
 			if wantLacks := o.kind == oUses && o.lacks; tc.lacks(names, has) != wantLacks {
 				t.Fatalf("%s for %v: lacks %v", termJSON(term), names, wantLacks)
 			}
@@ -209,7 +209,7 @@ func TestCondSplitAsWritten(t *testing.T) {
 		for _, c := range conds {
 			applies := false
 			for _, caps := range prods {
-				o := simplifiedOutcome(clausePart{c: c}, hasIn(caps), nil)
+				o := simplifiedOutcome(clausePart{c: c}, hasIn(caps), nil, false)
 				if o.kind != oTrue && (o.kind == oFalse || !o.lacks) {
 					applies = true
 					break

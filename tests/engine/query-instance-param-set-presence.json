@@ -1,0 +1,15 @@
+{
+  "description": "Engine §3.6: the instance rule covers the closed-set rule only, so a parameter set joined with a presence test that every production holds is still trivial in an instance.",
+  "grammar": "%rule text t(Word)\n%rule t(@S) $y:B\n%conditions @S ∨ $y",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

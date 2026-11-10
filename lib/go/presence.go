@@ -515,7 +515,7 @@ func newTermCheck(t *domTerm) *termCheck {
 			p = guardedBody(p)
 		}
 		var req []string
-		tc.kind[i] = simplifiedOutcome(p, nil, &req).kind
+		tc.kind[i] = simplifiedOutcome(p, nil, &req, false).kind
 		tc.req[i] = req
 		if shape == partFixed && tc.kind[i] != oEmpty {
 			for _, name := range req {
@@ -552,7 +552,7 @@ func (tc *termCheck) lacks(names []string, has func(string) bool) bool {
 		}
 	}
 	for _, i := range tc.others {
-		if o := simplifiedOutcome(tc.split.parts[i], has, nil); o.kind != oEmpty && o.lacks {
+		if o := simplifiedOutcome(tc.split.parts[i], has, nil, false); o.kind != oEmpty && o.lacks {
 			return true
 		}
 	}
@@ -620,7 +620,7 @@ func newCondCheck(conds []*domCond, skip func(*domCond) bool) *condCheck {
 			body = guardedBody(p)
 		}
 		var req []string
-		outcome := simplifiedOutcome(body, nil, &req)
+		outcome := simplifiedOutcome(body, nil, &req, false)
 		cc.req[i] = req
 		if shape == partFixed && outcome.kind == oTrue {
 			// A fixed condition that is always true applies to no
@@ -652,12 +652,22 @@ func newCondCheck(conds []*domCond, skip func(*domCond) bool) *condCheck {
 // applies says whether a condition of either indexed shape applies to a
 // production, by has.
 func (cc *condCheck) applies(i int, names []string, has func(string) bool) bool {
+	held := i < len(cc.held) && cc.held[i]
+	// A true outcome for a condition that held a parameter as written is
+	// asked again with the closed-set rule barred (§3.6).
+	open := func() bool {
+		o := simplifiedOutcome(clausePart{c: cc.conds[i]}, has, nil, true)
+		return o.kind == oFalse || o.kind == oUses && !o.lacks
+	}
 	if cc.constant != nil && cc.constant[i] {
-		return i < len(cc.held) && cc.held[i]
+		return held && open()
 	}
 	if j := cc.junctions[i]; j != nil {
 		kind, lacks := j.outcome(names, has)
-		return kind == oFalse || (kind == oUses && !lacks) || (i < len(cc.held) && cc.held[i] && kind == oTrue)
+		if kind == oTrue && held {
+			return open()
+		}
+		return kind == oFalse || (kind == oUses && !lacks)
 	}
 	for _, name := range cc.req[i] {
 		presenceStep()
@@ -762,7 +772,7 @@ func newJunction(c *domCond) *junction {
 		}
 		j.simplified[i], _ = simplifyCond(body.c, none)
 		var req []string
-		j.kind[i] = simplifiedOutcome(body, nil, &req).kind
+		j.kind[i] = simplifiedOutcome(body, nil, &req, false).kind
 		j.req[i] = req
 		if shape == partGuarded {
 			continue
@@ -861,7 +871,7 @@ func (j *junction) outcome(names []string, has func(string) bool) (int8, bool) {
 		partLacks := false
 		switch j.split.shape[i] {
 		case partOther:
-			o := simplifiedOutcome(j.split.parts[i], has, nil)
+			o := simplifiedOutcome(j.split.parts[i], has, nil, false)
 			kind, partLacks = o.kind, o.lacks
 		case partGuarded:
 			if kind == oUses {
