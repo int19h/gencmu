@@ -193,7 +193,7 @@ The words stage needs to know where a run begins and ends. A name that `bu` take
   $p:y-prefix $y:y-atom :: $.parse(source-word).tags
 %conditions
   $.parse(hesitation-shape),
-  $.following-tokens.parse(([pause-run] bu-form) …)
+  $.following-tokens.parse([pause-run] bu-form …)
 %emits
   $p :: Run-Initial ∪ $.parse(source-word).tags,
   $y
@@ -205,7 +205,7 @@ The words stage needs to know where a run begins and ends. A name that `bu` take
   $p:y-prefix $y:y-atom :: $.parse(source-word).tags
 %conditions
   $.parse(hesitation-shape),
-  $.following-tokens.parse(([pause-run] bu-form) …)
+  $.following-tokens.parse([pause-run] bu-form …)
 %emits
   $p :: $.parse(source-word).tags,
   $y

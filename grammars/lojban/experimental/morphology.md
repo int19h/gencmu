@@ -73,15 +73,15 @@ The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The sp
 %redefine-rule cmevla-shape
   $n:word-shape(cmevla)
       :: $n.tags ∪
-         ($n.parse(([{nonpause-phoneme}] consonant glide [{nonpause-phoneme}])) ⟹ Cgv-Warning)
+         ($n.parse([{nonpause-phoneme}] consonant glide [{nonpause-phoneme}]) ⟹ Cgv-Warning)
+
+-- This boolean span test requires a consonant, glide and nucleus. Several possible positions give the same truth value.
 
 -- A predicate word ends in a vowel, unlike a name. It carries the template marks and its warning. The warning test inspects only this complete word.
 %redefine-rule brivla-shape
   $b:word-shape(brivla-word)
       :: $b.tags ∪
-         ($b.parse(([{nonpause-phoneme}] consonant glide [{nonpause-phoneme}])) ⟹ Cgv-Warning)
-
--- This boolean span test requires a consonant, glide and nucleus. Several possible positions give the same truth value.
+         ($b.parse([{nonpause-phoneme}] consonant glide [{nonpause-phoneme}]) ⟹ Cgv-Warning)
 
 -- An ordinary initial forbids a following glide. A CgV onset requires a consonant before its glide, unlike an ordinary glide onset.
 %rule brivla-onset
@@ -106,11 +106,10 @@ The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The sp
   $b:brivla-head stressed-syllable [{consonantal-syllable}] final-syllable
 %conditions
   ¬$b.onward.parse(rafsi-string …) ∨
-    $.parse(([{nonpause-phoneme}] consonant glide [{nonpause-phoneme}])),
+    $.parse([{nonpause-phoneme}] consonant glide [{nonpause-phoneme}]),
   ¬$.onward.parse(cgv-rafsi-continuation …),
-  $.parse(([{nonpause-phoneme}] consonant consonant [{nonpause-phoneme}]))
-
 -- This boolean span test requires adjacent consonants. Different possible cluster positions give the same truth value.
+  $.parse([{nonpause-phoneme}] consonant consonant [{nonpause-phoneme}])
 
 -- The start is a CVC or CCV rafsi of either stress. The tested single consonant directly before the glide cannot be r.
 %rule cgv-rafsi-continuation
@@ -174,7 +173,7 @@ A CCV `hy-rafsi` can otherwise begin a brivla, as in `bla'ykla`. `brivla` reject
 %redefine-rule brivla
   [{initial-rafsi}] brivla-core
 %conditions
-  ¬($.onward.parse(cmavo …) ∨ $.onward.parse(slihykru …))
+  ¬$.onward.parse((cmavo | slihykru) …)
 
 -- The forbidden start is a CCV rafsi of either stress, apostrophe-y, and a borrowing onset, including CgV.
 %rule slihykru

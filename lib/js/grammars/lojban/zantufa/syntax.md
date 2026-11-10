@@ -213,7 +213,7 @@ A structural pattern describes constructed nodes. Suppose every earlier branch i
   KU ⊈ $n.following-tokens.first-token.tags,
   ¬$t.following-tokens.parse(mex …),
   $t ≇ $BARE-NA-FRAGMENT,
-  ¬($m.following-tokens.parse(sumti-5 …) ∨ $m.following-tokens.parse(selbri …)),
+  ¬$m.following-tokens.parse((sumti-5 | selbri) …),
   ¬$m.without-elision.parse(fragment-terms)
 
 %rule fragment-terms
@@ -331,7 +331,7 @@ The middle `$INITIAL-KE` arm matches a tag followed by a selbri whose first-chil
   | [tag] KE 🆓 gek-bridi-tail [+KEhE 🆓]
   | NA 🆓 gek-bridi-tail
 %conditions
-  ¬$g.following-tokens.parse((gik (term | CU)) …)
+  ¬$g.following-tokens.parse(gik (term | CU) …)
 
 %rule gik-bridi-tails
   {gik bridi-tail}
@@ -382,7 +382,7 @@ The KE patterns inspect the actual body and closer. A written `ke'e` around one 
 %rule term-link
   $j:joik-ek term-1
 %conditions
-  $j ≇ #joik ∨ ¬$j.following-tokens.parse((tag [BO 🆓] CU) …)
+  $j ≇ #joik ∨ ¬$j.following-tokens.parse(tag [BO 🆓] CU …)
 
 -- term_1 <- term_2 (joik_ek? BO_clause term_2)*
 %rule term-1
@@ -408,7 +408,7 @@ The KE patterns inspect the actual body and closer. A written `ke'e` around one 
   | POIhA 🆓 selbri [+KU 🆓]
   | $n:na-clause [+KU 🆓]
 %conditions
-  ¬($n.following-tokens.parse(bridi-tail …) ∨ $n.following-tokens.parse(joik-gihek …))
+  ¬$n.following-tokens.parse((bridi-tail | joik-gihek) …)
 
 -- tag_term <- !gek (tag !(!tag selbri) !gek_bridi_tail !BO
 -- / (FA_clause (joik FA_clause)* / JAI_clause tag?) !tanru_unit_1) (sumti / KU_elidible)
@@ -421,9 +421,7 @@ The KE patterns inspect the actual body and closer. A written `ke'e` around one 
   GI ⊈ $a.following-tokens.first-token.tags,
   ¬$s.without-elision-except(math).onward.parse(tcita-selci …),
   GI ⊈ $t.following-tokens.first-token.tags,
-  ¬($t.following-tokens.parse(free …) ∨
-    $t.following-tokens.parse(tcita-selci …) ∨ $t.following-tokens.parse(selbri …) ∨
-    $t.following-tokens.parse(gek-bridi-tail …)),
+  ¬$t.following-tokens.parse((free | tcita-selci | selbri | gek-bridi-tail) …),
   BO ⊈ $t.following-tokens.first-token.tags,
   ¬$f.following-tokens.parse(tanru-unit-1 …)
 
@@ -515,7 +513,7 @@ The step `fewest #·term-link` counts the plain `term-link` rule, so a sumti con
   | LI 🆓 mex [+LOhO 🆓]
   | NAhE 🆓 sumti-3
 %conditions
-  ¬($l.following-tokens.parse(lerfu-operator …) ∨ $l.following-tokens.parse((operand KEhE) …))
+  ¬$l.following-tokens.parse((lerfu-operator | operand KEhE) …)
 
 %rule lerfu-boi
   lerfu-string [+BOI 🆓]
@@ -688,8 +686,8 @@ A run of `cei` nests to the right. The selbri after the first `cei` already read
   | JAI 🆓 [tag] tanru-unit-1
   | {NU 🆓 / joik} statement [+KEI 🆓]
 %conditions
-  ¬$g.following-tokens.parse(([gik] (term | CU)) …),
-  ¬($m.following-tokens.parse(sumti-5 …) ∨ $m.following-tokens.parse(selbri …)),
+  ¬$g.following-tokens.parse([gik] (term | CU) …),
+  ¬$m.following-tokens.parse((sumti-5 | selbri) …),
   $m ≇ #(operator ⋰),
   $t ≇ #(operator ⋰),
   $k ≇ #(NAhE ⋰),
@@ -751,7 +749,7 @@ The condition removes a connective operator whose first word is SE. The alternat
 %rule quantifier
   $m:mex [relative-clauses]
 %conditions
-  ¬($m.without-elision.onward.parse(sumti-5 …) ∨ $m.without-elision.onward.parse(selbri …)),
+  ¬$m.without-elision.onward.parse((sumti-5 | selbri) …),
   ¬$m.following-tokens.parse(ROI …)
 
 -- mex <- mex_1 (operator+ mex_1?)*

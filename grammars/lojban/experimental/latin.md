@@ -102,7 +102,7 @@ Between two letters, a mark has two readings: in one run, or as a pause between 
 %rule quote-letter
   $a:alpha-char
 %conditions
-  ¬($a.parse(ignored) ∨ $a.parse(period-char))
+  ¬$a.parse(ignored | period-char)
 
 %rule letter-after-ignored
   [{ignored}] quote-letter
@@ -190,7 +190,7 @@ The run's image is its source text. A quote body keeps its verbatim text, so `zo
 %redefine-rule non-lojban-char-run
   $r:chars-with-non-lojban-char
 %conditions
-  ¬($r.parse(letters) ∨ $r.parse(misplaced-quote)),
+  ¬$r.parse(letters | misplaced-quote),
   ¬$r.first-token.parse(comma),
   ¬$r.last-token.parse(comma)
 %emits

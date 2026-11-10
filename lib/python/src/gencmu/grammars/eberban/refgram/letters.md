@@ -260,13 +260,12 @@ The numbers chapter says that `+`, `*` and `/` are spaces, and that verbs expres
 %conditions
   ¬$.following-tokens.parse(space-char …)
 %emits
-  $ :: Space ∪ ($.parse(([{" "}] ("+" | "*" | "/") [{space-char}])) ⟹ Math-Symbol) := " "
+  $ :: Space ∪ ($.parse([{" "}] ("+" | "*" | "/") [{space-char}]) ⟹ Math-Symbol) := " "
 
 %rule space-char
   $c:_
 %conditions
-  ¬($c.parse((plain(letter-char) | digit-char | hyphen-char | "[" | "]")) ∨
-    $c.parse(foreign-letter))
+  ¬$c.parse(plain(letter-char) | digit-char | hyphen-char | "[" | "]" | foreign-letter)
 
 %rule letter-char
   "a".."p"

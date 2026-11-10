@@ -251,7 +251,7 @@ The forms stage uses the stress on the first syllable of a name, for the pause r
          Single-End ∩ $j.tags
 %conditions
   Single-End ⊈ $s.tags ∨
-    ¬($s.last-token.onward.parse(brivla-diphthong …) ∨ $s.last-token.onward.parse(y-diphthong …))
+    ¬$s.last-token.onward.parse((brivla-diphthong | y-diphthong) …)
 
 %rule name-item
   | consonant | "'" | Syllable-Break

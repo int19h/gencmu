@@ -335,7 +335,7 @@ An attached opening mark supplies one gap space, even without whitespace. `quote
 %rule quote-marker-end
   quote-attachment
 %conditions
-  $.onward.parse((PAUSE<Quote-Material> PAUSE<¬Quote-Material ¬Period-Initial>) …)
+  $.onward.parse(PAUSE<Quote-Material> PAUSE<¬Quote-Material ¬Period-Initial> …)
 
 %rule quote-end-mark
   quote-attachment
@@ -390,7 +390,7 @@ The hesitation rule refuses a raw y letteral. In `zo'oi .y. bu`, the quote there
   ¬$r.following-tokens.parse(quote-run-token …),
   ¬$s.following-tokens.parse(quote-run-token …),
   Hesitation ⊈ $s.first-token.tags ∨
-    $s.first-token.onward.parse((raw-y-base [pause-run] cmavo-token<BU>) …)
+    $s.first-token.onward.parse(raw-y-base [pause-run] cmavo-token<BU> …)
 %emits
   $
 
@@ -406,7 +406,7 @@ The hesitation rule refuses a raw y letteral. In `zo'oi .y. bu`, the quote there
 %rule zohoi-hesitation
   $h:y-run
 %conditions
-  ¬$h.onward.parse((raw-y-base [pause-run] cmavo-token<BU>) …)
+  ¬$h.onward.parse(raw-y-base [pause-run] cmavo-token<BU> …)
 %erased
 
 %rule zohoi-hesitations

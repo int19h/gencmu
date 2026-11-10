@@ -428,15 +428,13 @@ The empty-bind alternatives test the boundary after the postfixes that they read
   | [bi-free] vi-free definition
   | [bi-free] [{prefix}] *bind-empty-vi $p:*recovery-postfixes
 %conditions
-  $p.following-tokens.parse((starter-head | PO | RA | RI |
-                             bind-start | sentence-closer | end-of-text) …)
+  $p.following-tokens.parse(missing-operand-boundary …)
 
 %rule bind-next
   | [bi-free] fi-free definition
   | [bi-free] [{prefix}] *bind-empty-fi $p:*recovery-postfixes
 %conditions
-  $p.following-tokens.parse((starter-head | PO | RA | RI |
-                             bind-start | sentence-closer | end-of-text) …)
+  $p.following-tokens.parse(missing-operand-boundary …)
 
 %rule vi-free
   [{prefix}] VI [{postfix}]
@@ -724,22 +722,19 @@ A quote with written `cai` retains its own recovery scope. Without `cai`, a quot
 %rule resume-chain-empty
   resume-head
 %conditions
-  $.following-tokens.parse((starter-head | PO | RA | RI |
-                            bind-start | sentence-closer | end-of-text) …)
+  $.following-tokens.parse(missing-operand-boundary …)
 %error "pa needs the verb whose bindings it resumes"
 
 %rule select-empty
   si-free
 %conditions
-  $.following-tokens.parse((starter-head | PO | RA | RI |
-                            bind-start | sentence-closer | end-of-text) …)
+  $.following-tokens.parse(missing-operand-boundary …)
 %error "si needs a following verb"
 
 %rule modified-empty
   zi-free
 %conditions
-  $.following-tokens.parse((starter-head | PO | RA | RI |
-                            bind-start | sentence-closer | end-of-text) …)
+  $.following-tokens.parse(missing-operand-boundary …)
 %error "zi needs a verb to modify"
 
 ```
@@ -774,8 +769,7 @@ The boundary query recognizes annotated `vi` and `fi`, with optional `bi`, witho
 %extend-rule a-sentence
   [{prefix}] *chain-empty<A> $p:*recovery-postfixes
 %conditions
-  $p.following-tokens.parse((starter-head | PO | RA | RI |
-                             bind-start | sentence-closer | end-of-text) …)
+  $p.following-tokens.parse(missing-operand-boundary …)
 
 %extend-rule chain
   [{restart-chain RI}] restart-chain *chain-empty<RI>
@@ -783,15 +777,13 @@ The boundary query recognizes annotated `vi` and `fi`, with optional `bi`, witho
 %extend-rule o-sentence
   [{prefix}] *chain-empty<O> [{postfix}] definable
 %conditions
-  $.following-tokens.parse((starter-head | PO | RA | RI |
-                            bind-start | sentence-closer | end-of-text) …)
+  $.following-tokens.parse(missing-operand-boundary …)
 
 %extend-rule enumeration
   [{prefix}] *chain-empty<PE> $p:*recovery-postfixes
     [{bu-free chain | *empty-enumeration-item}] [+PEI]
 %conditions
-  $p.following-tokens.parse((starter-head | PO | RA | RI |
-                             bind-start | sentence-closer | end-of-text) …)
+  $p.following-tokens.parse(missing-operand-boundary …)
 
 %extend-rule separator-form
   | *empty-arguments-list [{bu-free chain | *empty-enumeration-item}]
@@ -801,8 +793,7 @@ The boundary query recognizes annotated `vi` and `fi`, with optional `bi`, witho
 %extend-rule chain-inner
   [{prefix}] *chain-empty<BI> $p:*recovery-postfixes
 %conditions
-  $p.following-tokens.parse((starter-head | PO | RA | RI |
-                             bind-start | sentence-closer | end-of-text) …)
+  $p.following-tokens.parse(missing-operand-boundary …)
 
 %rule empty-arguments-list
   [{KI | GI | ba-free}] *chain-empty<BE>
@@ -812,6 +803,11 @@ The boundary query recognizes annotated `vi` and `fi`, with optional `bi`, witho
 
 %rule recovery-postfixes
   [{postfix}]
+
+-- What can stand where an operand is missing after a binder.
+
+%rule missing-operand-boundary
+  starter-head | PO | RA | RI | bind-start | sentence-closer | end-of-text
 
 %rule bind-start
   [bi-free] [{prefix}] (VI | FI)
@@ -825,8 +821,7 @@ The boundary query recognizes annotated `vi` and `fi`, with optional `bi`, witho
 %extend-rule chain-empty
   BE | RI | BU
 %conditions
-  $.following-tokens.parse((starter-head | PO | RA | RI |
-                            bind-start | sentence-closer | end-of-text) …)
+  $.following-tokens.parse(missing-operand-boundary …)
 %error $CHAIN-EMPTY-MESSAGE
 
 %rule bind-empty-vi
@@ -838,7 +833,7 @@ The boundary query recognizes annotated `vi` and `fi`, with optional `bi`, witho
 %error "fi needs a following chain"
 ```
 
-<details><summary>Railroad diagrams of the 13 rules from <code>a-sentence</code> to <code>bind-empty-fi</code></summary>
+<details><summary>Railroad diagrams of the 14 rules from <code>a-sentence</code> to <code>bind-empty-fi</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/a-sentence.2.svg" alt="Railroad diagram of the rule a-sentence"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/chain.2.svg" alt="Railroad diagram of the rule chain"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/o-sentence.2.svg" alt="Railroad diagram of the rule o-sentence"></p>
@@ -848,6 +843,7 @@ The boundary query recognizes annotated `vi` and `fi`, with optional `bi`, witho
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/empty-arguments-list.svg" alt="Railroad diagram of the rule empty-arguments-list"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/empty-enumeration-item.svg" alt="Railroad diagram of the rule empty-enumeration-item"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/recovery-postfixes.svg" alt="Railroad diagram of the rule recovery-postfixes"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/syntax/missing-operand-boundary.svg" alt="Railroad diagram of the rule missing-operand-boundary"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/bind-start.svg" alt="Railroad diagram of the rule bind-start"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/chain-empty.svg" alt="Railroad diagram of the rule chain-empty"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/chain-empty.2.svg" alt="Railroad diagram of the rule chain-empty"></p>
@@ -920,7 +916,7 @@ A sentence after `ra` needs a written starter. A sentence without that starter i
 %rule erasure-needs-starter
   $s:a-sentence
 %conditions
-  ¬($s.onward.parse(starter-head …) ∨ $s.onward.parse(PO …) ∨ $s.onward.parse(sentence-closer …))
+  ¬$s.onward.parse((starter-head | PO | sentence-closer) …)
 %error "after ra, write a sentence starter: a, o, or ni"
 ```
 
@@ -953,12 +949,12 @@ Number recovery normally ends at written `JI`, before a token outside `number-st
 %rule loose-digits
   {TI}
 %conditions
-  ¬$.following-tokens.parse(TI …) ∨ $.following-tokens.parse(loose-base …)
+  ¬$.following-tokens.parse((TI | loose-base) …)
 
 %rule loose-fraction
   JO [$d:loose-digits]
 %conditions
-  $d ∨ ¬$.following-tokens.parse(TI …) ∨ $.following-tokens.parse(loose-base …)
+  $d ∨ ¬$.following-tokens.parse((TI | loose-base) …)
 
 %rule number-end-alone
   JI
@@ -1003,15 +999,13 @@ Number recovery normally ends at written `JI`, before a token outside `number-st
   | TI JU [JO] [JI]
 %conditions
   JI ⊆ $.last-token.tags ∨
-    ¬($.following-tokens.parse(TI …) ∨ $.following-tokens.parse(JI …) ∨
-      $.following-tokens.parse(JO …) ∨ $.following-tokens.parse(JA …) ∨
-      $.following-tokens.parse(JE …))
+    ¬$.following-tokens.parse((TI | JI | JO | JA | JE) …)
 %error "a number needs integer digits, fractional digits, or a magnitude"
 
 %rule number-part-order
   {number-part} [JI]
 %conditions
-  ¬$.parse(([TI JU] [digits] [JO [digits]] [JA digits] [JE digits] [JI]))
+  ¬$.parse([TI JU] [digits] [JO [digits]] [JA digits] [JE digits] [JI])
 %error "number parts need base, integer, fraction, repeat, then magnitude, without duplicates"
 
 ```

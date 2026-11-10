@@ -48,7 +48,7 @@ A cmavo's stress is free (CLL[^cll-s3-9]), so any of its vowels can be a capital
       :: Onset Continued ∪
          ($c.parse(first-marked-cmavo) ⟹ Initial-Stress) ∪
          ($c.parse(last-marked-cmavo) ⟹ Final-Stress) ∪
-         ($c.parse(("l" "a" | "l" "a" "i" | "l" "a" "'" "i" | "d" "o" "i")) ⟹ Name-Intro)
+         ($c.parse("l" "a" | "l" "a" "i" | "l" "a" "'" "i" | "d" "o" "i") ⟹ Name-Intro)
   | $v:vowel-cmavo
       :: Continued ∪
          ($v.parse(first-marked-cmavo) ⟹ Initial-Stress) ∪
@@ -57,13 +57,13 @@ A cmavo's stress is free (CLL[^cll-s3-9]), so any of its vowels can be a capital
       :: Onset Cy Uncounted ∪ ($l.parse(stress-mark) ⟹ Initial-Stress ∪ Final-Stress)
   | $p:y-pair-cmavo
       :: Continued ∪
-         ($p.parse(([consonant] y-units)) ⟹ Uncounted) ∪
+         ($p.parse([consonant] y-units) ⟹ Uncounted) ∪
          ($p.parse(first-marked-cmavo) ⟹ Initial-Stress) ∪
          ($p.parse(last-marked-cmavo) ⟹ Final-Stress)
   | $w:warned-cmavo
       :: Continued Cmavo-Warning ∪
          ($w.first-token.parse(consonant) ⟹ Onset) ∪
-         ($w.parse(([consonant] y-units)) ⟹ Uncounted) ∪
+         ($w.parse([consonant] y-units) ⟹ Uncounted) ∪
          ($w.parse(first-marked-cmavo) ⟹ Initial-Stress) ∪
          ($w.parse(last-marked-cmavo) ⟹ Final-Stress)
 %conditions
@@ -229,7 +229,7 @@ A y-hyphen must be unstressed. `hyphen-y` tests its lowercase value and rejects 
   | consonant vowel "'" vowel cvv-first-rest
 %conditions
   ¬$a.parse(i-or-u),
-  ¬$a.parse(("e" | "o")) ∨ $t.parse(falling-i …)
+  ¬$a.parse("e" | "o") ∨ $t.parse(falling-i …)
 
 %rule lujvo-after-cvv
   [Syllable-Break] i-or-u cvv-first-rest
@@ -375,11 +375,10 @@ The slinku'i test of CLL[^cll-s4-7] says that a CV cmavo joined to the front of 
 %rule fuhivla-word
   $f:fuhivla-form
 %conditions
-  $f.parse(([counted-lead] consonant consonant [any-letters])),
-  ¬($f.parse(gismu-form) ∨ $f.parse(lujvo-form) ∨
-    $f.parse(lujvo-after-cv) ∨ $f.parse(lujvo-after-cvv)),
+  $f.parse([counted-lead] consonant consonant [any-letters]),
+  ¬$f.parse(gismu-form | lujvo-form | lujvo-after-cv | lujvo-after-cvv),
   (N2 ∪ N3) ∩ $f.parse(brivla-scan).tags ≠ ∅,
-  ¬($f.parse(one-syllable) ∨ $f.parse(combination))
+  ¬$f.parse(one-syllable | combination)
 
 %rule fuhivla-form
   | fuhivla-body
@@ -442,7 +441,7 @@ Pauses surround a name (rules 2 and 4), so its shape carries neither `Onset` nor
             (N1 ∪ N2) ∩ $n.parse(name-scan).tags ≠ ∅ ⟹
           Initial-Stress)
 %conditions
-  ¬$n.parse((la-or-doi [any-letters] | [any-letters] name-vowel la-or-doi [any-letters]))
+  ¬$n.parse(la-or-doi [any-letters] | [any-letters] name-vowel la-or-doi [any-letters])
 
 %rule cmevla
   | permissible-run

@@ -932,8 +932,7 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
 %rule mekso-fragment
   $m:mex
 %conditions
-  ¬($m.without-elision.onward.parse(sumti-6 …) ∨
-    $m.without-elision.onward.parse(gek-barrier …) ∨ $m.without-elision.onward.parse(selbri …))
+  ¬$m.without-elision.onward.parse((sumti-6 | gek-barrier | selbri) …)
 
 %rule gek-barrier
   gek (sumti-6 | gek-barrier)

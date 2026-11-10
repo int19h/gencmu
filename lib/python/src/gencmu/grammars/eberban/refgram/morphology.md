@@ -81,8 +81,7 @@ The rules `space-before` and `space-after` hold beside a space, a bracket of a g
 %rule space
   {space-unit | space-open | space-close}
 %conditions
-  ¬($.following-tokens.parse(Space …) ∨ $.following-tokens.parse(Open …) ∨
-    $.following-tokens.parse(Close …))
+  ¬$.following-tokens.parse((Space | Open | Close) …)
 %emits
   $ :: Space := " "
 
@@ -711,18 +710,17 @@ The rule `first-prefix` reads a prefix that starts a run, and `attached-prefix` 
 %rule first-prefix
   Letter="e" [[hyphen-misplaced] prefix-arity]
       :: $.value.classify(prefix-length) ∪
-         (¬$.following-tokens.parse(([Hyphen] Letter) …) ⟹ Standalone)
+         (¬$.following-tokens.parse([Hyphen] Letter …) ⟹ Standalone)
 %conditions
   ¬$.preceding-tokens.parse(… after-digit),
-  ¬$.preceding-tokens.parse(… (Letter [Hyphen]))
+  ¬$.preceding-tokens.parse(… Letter [Hyphen])
 
 %rule attached-prefix
   | $e:Letter="e" [[hyphen-misplaced] prefix-arity] :: $.value.classify(prefix-length)
   | $i:Letter="i" :: E-PREFIX
   | $i:Letter="i" [hyphen-misplaced] $r:prefix-arity :: ("e" ++ $r.value).classify(prefix-length)
 %conditions
-  ($e.preceding-tokens.parse(… after-e) ∨ $e.preceding-tokens.parse(… after-i) ∨
-   $e.preceding-tokens.parse(… after-arity)),
+  $e.preceding-tokens.parse(… (after-e | after-i | after-arity)),
   $i.preceding-tokens.parse(… after-e)
 
 %rule after-e
@@ -986,22 +984,22 @@ An empty `er e` retains its closing `e` as `Stray-Prefix`, without a second erro
 %rule spaced-i-prefix
   $p:prefix :: $p.tags
 %conditions
-  $p.following-tokens.parse((gap [Hyphen] Letter="i" prefix-gap content) …)
+  $p.following-tokens.parse(gap [Hyphen] Letter="i" prefix-gap content …)
 %error "attach the nested prefix as ei, or write e e instead of e i"
 
 %rule compound-empty
   $p:prefix :: $p.tags
 %conditions
-  ¬$p.following-tokens.parse((gap [Hyphen] Letter="i" prefix-gap content) …),
+  ¬$p.following-tokens.parse(gap [Hyphen] Letter="i" prefix-gap content …),
   ER-PREFIX ⊆ $p.tags,
-  $p.following-tokens.parse((gap [Hyphen] Letter="e" [Hyphen] run-end) …)
+  $p.following-tokens.parse(gap [Hyphen] Letter="e" [Hyphen] run-end …)
 %error "the er compound needs at least one component"
 
 %rule incomplete-compound
   $p:prefix :: $p.tags
 %conditions
-  ¬$p.following-tokens.parse((gap [Hyphen] Letter="i" prefix-gap content) …),
-  ER-PREFIX ⊈ $p.tags ∨ ¬$p.following-tokens.parse((gap [Hyphen] Letter="e" [Hyphen] run-end) …)
+  ¬$p.following-tokens.parse(gap [Hyphen] Letter="i" prefix-gap content …),
+  ER-PREFIX ⊈ $p.tags ∨ ¬$p.following-tokens.parse(gap [Hyphen] Letter="e" [Hyphen] run-end …)
 %error "the compound is unfinished, or its prefix does not fit its components"
 
 %extend-rule open-compound
@@ -1037,9 +1035,6 @@ An empty `er e` retains its closing `e` as `Stray-Prefix`, without a second erro
 
 A stray prefix carries its own error. A spaced `i` takes precedence over an empty `er` compound and an incomplete compound. The following-token tests inspect the gap without extending the prefix's span.
 
-```jbogenbau
-
-```
 
 ## Spelling quotes
 
@@ -1272,9 +1267,7 @@ A digit is one `TI` particle, and a digit can be a delimiter. It needs no word b
   ε
 %conditions
   $.ends-input ∨
-    ($.following-tokens.parse(ns-consonant …) ∨ $.following-tokens.parse(Digit …) ∨
-     $.following-tokens.parse(Space …) ∨ $.following-tokens.parse(Open …) ∨
-     $.following-tokens.parse(Close …))
+    $.following-tokens.parse((ns-consonant | Digit | Space | Open | Close) …)
 ```
 
 <details><summary>Railroad diagrams of the 9 rules from <code>delimiter-of</code> to <code>word-boundary</code></summary>
@@ -1433,12 +1426,12 @@ A bare medial pair or quadruplet can retain its root error without a vowel frame
   quadruplet
 %conditions
   Sonorant ⊈ $.first-token.tags,
-  ¬$.preceding-tokens.parse(… (vowel [Hyphen]))
+  ¬$.preceding-tokens.parse(… vowel [Hyphen])
 
 %rule bare-root-end
   ε
 %conditions
-  ¬$.following-tokens.parse(([Hyphen] Letter) …)
+  ¬$.following-tokens.parse([Hyphen] Letter …)
 
 %rule malformed-root-onset
   malformed-initial-pair | faulty-root-onset
@@ -1449,7 +1442,7 @@ A bare medial pair or quadruplet can retain its root error without a vowel frame
   | malformed-long-cluster
 %conditions
   Sonorant ⊈ $.first-token.tags,
-  ¬$.preceding-tokens.parse(… (vowel [Hyphen]))
+  ¬$.preceding-tokens.parse(… vowel [Hyphen])
 
 %rule malformed-root-middle
   | malformed-gap(Hyphen) sonorant malformed-gap(hyphen-misplaced) malformed-vhowels
@@ -1509,12 +1502,12 @@ A bare quadruplet similarly retains one root token. A framed cluster retains con
 %rule malformed-ending :: ∅
   | malformed-pair ≻ freeform-multi-consonents-ending
 %conditions
-  $.following-tokens.parse(([{[Hyphen] Letter<H>}] [Hyphen] run-end) …)
+  $.following-tokens.parse([{[Hyphen] Letter<H>}] [Hyphen] run-end …)
 
 %rule freeform-multi-consonents-ending
   consonant [Hyphen] consonant [{[Hyphen] consonant}] :: ∅
 %conditions
-  $.following-tokens.parse(([{[Hyphen] Letter<H>}] [Hyphen] run-end) …)
+  $.following-tokens.parse([{[Hyphen] Letter<H>}] [Hyphen] run-end …)
 %error "the ending " ++ $.source-text ++ " has more than one consonant"
 ```
 
@@ -1529,8 +1522,6 @@ A bare quadruplet similarly retains one root token. A framed cluster retains con
 
 The ending query passes a possible faulty `h` suffix and the last hyphen. It reads literal `h` tokens because a query excludes live error productions. The actual suffix still uses its error rule. This keeps that suffix outside the ending diagnostic.
 
-```jbogenbau
-```
 
 A sequence of faulty `h` letters between vowels requires at least two letters. Each intervening hyphen belongs to the later letter and warns, so `bah-ha` has one division. A single `h` between vowels is legal and uses `malformed-vhowels`.
 
@@ -1564,7 +1555,7 @@ The particle tail retains its family even with two adjacent sonorants. An errone
 %rule h-not-between-vowels
   Letter<H> :: ∅
 %conditions
-  ¬$.preceding-tokens.parse(… (vowel [Hyphen])) ∨ ¬$.following-tokens.parse(([Hyphen] vowel) …)
+  ¬$.preceding-tokens.parse(… vowel [Hyphen]) ∨ ¬$.following-tokens.parse([Hyphen] vowel …)
 %error "the h " ++ $.source-text ++ " needs vowels on both sides, except at a freeform onset"
 
 %rule hyphen-same-vowels
@@ -1680,15 +1671,20 @@ Root and freeform triplet wrappers share the failed pair and shape restrictions.
 %rule triplet-yz-sonorant-x
   sonorant [Hyphen] $y:consonant [Hyphen] $z:consonant :: ∅
 %conditions
-  ¬$y.onward.parse(((Letter<Plosive> | Letter="f" | Letter="v") [Hyphen] Letter<Sibilant> |
-                   Letter<Sibilant> [Hyphen] Letter<Other>) …),
+  ¬$y.onward.parse(initial-pair-shape …),
   Sonorant ⊆ $y.tags ∨ Sonorant ⊈ $z.tags
 %error "the freeform triplet " ++ $.source-text ++
        " needs an initial or consonant-sonorant final pair"
 
+-- The shape of an initial pair.
+
+%rule initial-pair-shape
+  | (Letter<Plosive> | Letter="f" | Letter="v") [Hyphen] Letter<Sibilant>
+  | Letter<Sibilant> [Hyphen] Letter<Other>
+
 ```
 
-<details><summary>Railroad diagrams of the 8 rules from <code>triplet-middle-m</code> to <code>triplet-yz-sonorant-x</code></summary>
+<details><summary>Railroad diagrams of the 9 rules from <code>triplet-middle-m</code> to <code>initial-pair-shape</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/triplet-middle-m.svg" alt="Railroad diagram of the rule triplet-middle-m"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/triplet-root-first-pair.svg" alt="Railroad diagram of the rule triplet-root-first-pair"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/triplet-freeform-first-pair.svg" alt="Railroad diagram of the rule triplet-freeform-first-pair"></p>
@@ -1697,6 +1693,7 @@ Root and freeform triplet wrappers share the failed pair and shape restrictions.
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/triplet-freeform-shape.svg" alt="Railroad diagram of the rule triplet-freeform-shape"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/faulty-triplet-shape.svg" alt="Railroad diagram of the rule faulty-triplet-shape"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/triplet-yz-sonorant-x.svg" alt="Railroad diagram of the rule triplet-yz-sonorant-x"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/initial-pair-shape.svg" alt="Railroad diagram of the rule initial-pair-shape"></p>
 </details>
 
 ## Differences from the reference grammar and the PEG

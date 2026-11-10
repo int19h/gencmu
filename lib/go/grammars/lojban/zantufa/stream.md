@@ -219,7 +219,7 @@ The lookahead skips erased regions before BU. Thus `su mi si bu` forms the lette
   $q:read-word
 %conditions
   SU ⊆ $q.classes,
-  ¬$q.following-tokens.parse((skipped cmavo-token<BU>) …)
+  ¬$q.following-tokens.parse(skipped cmavo-token<BU> …)
 ```
 
 <details><summary>Railroad diagrams of <code>unit</code>, <code>su-letter-base</code> and <code>su-word</code></summary>
