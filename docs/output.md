@@ -609,7 +609,7 @@ Every test takes an atom, so no test object stands alone. The mark `_Elided` is 
 
 A node test can add `"exact":true`, then `"children":[ITEM...]` where permitted below. If the object has an `at` member, that member follows both additions. This order also applies to calls and parameters before expansion. Both additions are optional.
 
-`exact` occurs only as true and suppresses the search for that node alone. `children` always records the written guillemets, including an empty or one-item array. Its absence imposes no child constraint.
+`exact` occurs only as true and suppresses the search for that node alone. `children` always records the written brackets, including an empty or one-item array. Its absence imposes no child constraint.
 
 Only `name`, `call`, and compatible `param` node tests accept `children`. A terminal, `wildcard`, tested atom, or string-valued `constant` cannot carry that member. Every node-test form can carry `exact:true`. On a tested atom, the exact prefix belongs to the outermost test object, never its inner `expr`.
 
@@ -656,7 +656,7 @@ A repeat body must have a way to consume a child. Its separator can accept an em
 
 These restrictions apply before substitution. An unresolved parameter does not excuse a malformed wrapper, forbidden field, invalid arity, or gap. After substitution, the same restrictions apply to the expanded pattern. Stage resolution also enforces terminal types, consuming repeats, and name binding.
 
-Each `child` pattern can mix resolved fragments with unresolved parameters. Readers keep the item context throughout the traversal. `#« A @X »`, `#« @X A »`, and `#« ⋯ @X »` are valid unresolved forms. `#« [A] @X »` is valid too. Their closed fragments never become independent root patterns during shape inspection.
+Each `child` pattern can mix resolved fragments with unresolved parameters. Readers keep the item context throughout the traversal. `#⁅ A @X ⁆`, `#⁅ @X A ⁆`, and `#⁅ ⋯ @X ⁆` are valid unresolved forms. `#⁅ [A] @X ⁆` is valid too. Their closed fragments never become independent root patterns during shape inspection.
 
 These item shapes are malformed even inside an unresolved pattern:
 
@@ -668,7 +668,7 @@ These item shapes are malformed even inside an unresolved pattern:
 
 The first object gives an optional a forbidden separator. The second hides a gap in a repeat's optional item. The third puts a gap in the separator. A parameter cannot make any of these shapes valid.
 
-By contrast, `#« {« ⋯ » @X} »` has a valid shape. Each repeated pair has a child matching the bare list, then one child matching X. The inner gap belongs to the bare list. It never consumes siblings at the repeat's level.
+By contrast, `#⁅ {⁅ ⋯ ⁆ @X} ⁆` has a valid shape. Each repeated pair has a child matching the bare list, then one child matching X. The inner gap belongs to the bare list. It never consumes siblings at the repeat's level.
 
 A capitalized or engine tag becomes `terminal`, including KEhE, GIhI, NUhI, and `_General_Category_Uppercase_Letter`. Strings use `literal`, ranges use `range`, and `_` uses `wildcard`. Other names, including emoji names, use `name`. A name must read back as a rule name under the loaded Unicode table. A name that instead reads as a terminal is malformed.
 
@@ -682,7 +682,7 @@ A string atom records the source position of its opening quote. `#"‹U+0061›"
 {"pattern":{"literal":{"string":"a"},"at":[1,2]}}
 ```
 
-The node test `#·a« b »` has this complete DOM:
+The node test `#·a⁅ b ⁆` has this complete DOM:
 
 ```json
 {"pattern":{"name":"a","exact":true,"children":[{"child":{"name":"b","at":[1,6]}}],"at":[1,3]}}
@@ -692,9 +692,9 @@ The following examples omit source positions to show the boundaries:
 
 ```text
 #a              {"pattern":{"name":"a"}}
-#« a »          {"pattern":{"any":true,"children":[{"child":{"name":"a"}}]}}
-#·«»            {"pattern":{"any":true,"exact":true,"children":[]}}
-#« A « B C » »  {"pattern":{"any":true,"children":[{"child":{"terminal":"A"}},{"child":{"any":true,"children":[{"child":{"terminal":"B"}},{"child":{"terminal":"C"}}]}}]}}
+#⁅ a ⁆          {"pattern":{"any":true,"children":[{"child":{"name":"a"}}]}}
+#·⁅⁆            {"pattern":{"any":true,"exact":true,"children":[]}}
+#⁅ A ⁅ B C ⁆ ⁆  {"pattern":{"any":true,"children":[{"child":{"terminal":"A"}},{"child":{"any":true,"children":[{"child":{"terminal":"B"}},{"child":{"terminal":"C"}}]}}]}}
 ```
 
 Union and intersection each require at least two operands. Neither permits a direct operand of its own kind. The reader flattens those operands in written order, including across parentheses. Supplied nested forms are malformed rather than additional pattern shapes. Difference retains exactly two operands. These rules preserve order and duplicates.

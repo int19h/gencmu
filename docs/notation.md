@@ -703,7 +703,7 @@ A recipe joins its atoms with `++`, for example `:= $a.value ++ "-" ++ $b.value`
 
 ## Tree patterns
 
-A predicate is a test that holds or fails. A tree pattern is a predicate on one constructed constituent. A pattern literal starts with `#`, as in `#sumti`, `#a« b c »`, or `#(a ∩ b)`. `$x ≅ PATTERN` tests the captured constituent, and `$ ≅ PATTERN` tests the enclosing candidate. `$x ≅ $y` compares two constituents instead (see "Comparing two constituents" below). `≇` negates the answer after the ordinary missing-capture simplification. Patterns never recognize the captured text again or inspect another reading.
+A predicate is a test that holds or fails. A tree pattern is a predicate on one constructed constituent. A pattern literal starts with `#`, as in `#sumti`, `#a⁅ b c ⁆`, or `#(a ∩ b)`. `$x ≅ PATTERN` tests the captured constituent, and `$ ≅ PATTERN` tests the enclosing candidate. `$x ≅ $y` compares two constituents instead (see "Comparing two constituents" below). `≇` negates the answer after the ordinary missing-capture simplification. Patterns never recognize the captured text again or inspect another reading.
 
 The left operand must be a bare capture or `$`. The type of the right operand decides what the comparison does. [Engine §9](engine.md#9-from-notation-tree-to-dom) defines the diagnostic for a bare name in the right position.
 
@@ -727,7 +727,7 @@ An outside capture receives the exported view. Outside patterns can test the era
 
 A node test first tests the candidate. If that test fails and the candidate has one structural child, the test follows that child. The search repeats this step. A branching node or seal stops it. A node test with a child list tests both parts at the same visited node.
 
-The prefix `·` (U+00B7) makes one node test exact. It tests only the candidate, without the single-child search. It applies only to its own node test. In `#·a« b ·c »`, `a` and `c` are exact, while `b` keeps its search.
+The prefix `·` (U+00B7) makes one node test exact. It tests only the candidate, without the single-child search. It applies only to its own node test. In `#·a⁅ b ·c ⁆`, `a` and `c` are exact, while `b` keeps its search.
 
 Thus `#sumti` accepts a sumti or its unary wrappers. `#·sumti` requires the candidate itself to be sumti. Neither test passes through a branch. Set operations combine each predicate's complete answer on the same candidate. `P ∖ Q` means P holds and the whole predicate Q fails on the same candidate.
 
@@ -747,7 +747,7 @@ flowchart TB
   w --> c(["C"])
 ```
 
-`#a« B C »` holds on `x`. The test of `a` fails at `x`, and `x` has one structural child, so the test moves to `a`. There the child list tests the complete children of `a`. `B` matches its leaf. The item `C` fails at `w`, which has one child, so it moves on to the leaf `C`. `#·a« B C »` fails, because `x` itself is not `a`. `#a« B »` fails, because `a` has two children.
+`#a⁅ B C ⁆` holds on `x`. The test of `a` fails at `x`, and `x` has one structural child, so the test moves to `a`. There the child list tests the complete children of `a`. `B` matches its leaf. The item `C` fails at `w`, which has one child, so it moves on to the leaf `C`. `#·a⁅ B C ⁆` fails, because `x` itself is not `a`. `#a⁅ B ⁆` fails, because `a` has two children.
 
 ### Pattern forms and binding
 
@@ -764,24 +764,24 @@ flowchart TB
 | `#KEhE<_Elided>` | An omitted KEhE leaf |
 | `#KEhE=""` | A KEhE leaf with empty value |
 | `#KEhE≠""` | A KEhE leaf with nonempty value |
-| `#« [KEhE] »` | Zero or one KEhE child |
-| `#« KE ⋯ KEhE »` | A complete child sequence with required endpoints |
-| `#« A B »` | Two children, each with its own single-child search |
-| `#a« b c »` | An a node whose complete child list matches b then c |
-| `#a« b »` | An a node with exactly one child matching b |
-| `#« A ⋯ B ⋯ C »` | Ordered children with arbitrary sibling gaps |
-| `#«»` | A node with no structural children, possibly through single-child wrappers |
-| `#·«»` | Exactly a node with no structural children |
+| `#⁅ [KEhE] ⁆` | Zero or one KEhE child |
+| `#⁅ KE ⋯ KEhE ⁆` | A complete child sequence with required endpoints |
+| `#⁅ A B ⁆` | Two children, each with its own single-child search |
+| `#a⁅ b c ⁆` | An a node whose complete child list matches b then c |
+| `#a⁅ b ⁆` | An a node with exactly one child matching b |
+| `#⁅ A ⋯ B ⋯ C ⁆` | Ordered children with arbitrary sibling gaps |
+| `#⁅⁆` | A node with no structural children, possibly through single-child wrappers |
+| `#·⁅⁆` | Exactly a node with no structural children |
 | `#(⋮ P)` | P at an endpoint of any downward path |
 | `#(P ⋰)` | P at an endpoint of the first-child path |
 | `#(⋱ P)` | P at an endpoint of the last-child path |
 | `#(P ∪ Q)` | Either predicate on the candidate |
 | `#(P ∩ Q)` | Both predicates on the candidate |
 | `#(P ∖ Q)` | P holds and Q fails |
-| `#« {P} »` | A complete sequence of one or more P children |
-| `#« {P / S} »` | One or more P children separated by S |
-| `#« [P Q] »` | An optional sequence of those two children |
-| `#« a b \| c »` | Either the children a then b, or one child c |
+| `#⁅ {P} ⁆` | A complete sequence of one or more P children |
+| `#⁅ {P / S} ⁆` | One or more P children separated by S |
+| `#⁅ [P Q] ⁆` | An optional sequence of those two children |
+| `#⁅ a b \| c ⁆` | Either the children a then b, or one child c |
 
 A capitalized or engine tag denotes its tag terminal. A string literal, string constant, or range denotes its terminal identity. In a pattern, `_` denotes any written or omitted leaf. In a body, `_` keeps its wildcard terminal identity. Other names, including `🆓`, denote named rules. A pattern constant denotes its predicate.
 
@@ -791,25 +791,27 @@ Node decorations are exact prefixes, tests, or child lists. Each decoration appl
 
 A string constant can carry tag and value tests, as in `#$S="x"`. A tested constant must resolve to a string. A pattern-valued constant accepts no tests. A pattern `literal` holds a decoded string. User constants retain the distinct `constant` form in the DOM.
 
-A child list uses guillemets `« »` (U+00AB, U+00BB). It attaches to a node test only without intervening whitespace or comments. `#a« b c »` tests a and its complete children at the same node. Inside a list, `x« b »` is one item, while `x « b »` is two items.
+A child list uses the brackets `⁅ ⁆` (U+2045, U+2046). It attaches to a node test only without intervening whitespace or comments. `#a⁅ b c ⁆` tests a and its complete children at the same node. Inside a list, `x⁅ b ⁆` is one item, while `x ⁅ b ⁆` is two items.
 
-A separate `«` or `·` requires whitespace or a comment after a node test, `»`, `]`, `}`, or a group's `)`. The first list after an adjacent call's `)` attaches to that call. Other directly adjacent uses are errors.
+The brackets `«` and `»` have no meaning in the notation. A grammar that writes one outside a string or a comment does not load. The load error names the new brackets `⁅` and `⁆`. Inside a string or a comment, `«` and `»` keep their ordinary text meaning.
 
-A bare list has no name test. `#« a b »` tests any observable node whose children match a then b. `#·« a b »` tests those children only at the candidate itself. `#« a »` requires one child and remains distinct from `#a`.
+A separate `⁅` or `·` requires whitespace or a comment after a node test, `⁆`, `]`, `}`, or a group's `)`. The first list after an adjacent call's `)` attaches to that call. Other directly adjacent uses are errors.
 
-A child list attaches only to a rule name, emoji rule, template family, exact call, or compatible parameter. Terminals, `_`, tested atoms, and string constants cannot carry child lists. A seal passes no node test, including a bare list. On an erased splice capture, `#« ⋯ »` fails at the seal, while `#·e« ⋯ »` holds on an ordinary erased `e` root.
+A bare list has no name test. `#⁅ a b ⁆` tests any observable node whose children match a then b. `#·⁅ a b ⁆` tests those children only at the candidate itself. `#⁅ a ⁆` requires one child and remains distinct from `#a`.
 
-Take an atom that names a rule whose every definition carries `%erased`. An attached child list is a document error unless it contains only one sibling gap, `« ⋯ »`. That permitted list always holds on such a node.
+A child list attaches only to a rule name, emoji rule, template family, exact call, or compatible parameter. Terminals, `_`, tested atoms, and string constants cannot carry child lists. A seal passes no node test, including a bare list. On an erased splice capture, `#⁅ ⋯ ⁆` fails at the seal, while `#·e⁅ ⋯ ⁆` holds on an ordinary erased `e` root.
 
-For a fully erased rule, its own clauses test real children with bare lists such as `#·« A »` because the named form is an error.
+Take an atom that names a rule whose every definition carries `%erased`. An attached child list is a document error unless it contains only one sibling gap, `⁅ ⋯ ⁆`. That permitted list always holds on such a node.
+
+For a fully erased rule, its own clauses test real children with bare lists such as `#·⁅ A ⁆` because the named form is an error.
 
 For a template-family atom, this error requires at least one instance and fully erased definitions in every instance. A parameter as the atom postpones this check until substitution. A child-list parameter occupies one element, so a known erased atom takes this check on its written list.
 
-`«»` is an empty list, distinct from an absent list. It can match a terminal leaf or a directly captured empty rule. It does not assert that the input span is empty.
+`⁅⁆` is an empty list, distinct from an absent list. It can match a terminal leaf or a directly captured empty rule. It does not assert that the input span is empty.
 
 Within a child list, juxtaposition sequences items and `|` chooses complete sequences. Brackets make a sequence optional. Braces repeat a sequence one or more times, with an optional `/` separator. `{C / S}` accepts `C (S C)*`. These constructs give one Boolean answer, without ranking or greediness.
 
-`#a« b (x | y« z ») c« d e » »` tests one a node with three children. The middle child matches x. The other alternative matches y, and that y has one child that matches z. Each child test keeps its own search. A child's `·` suppresses only that child's search.
+`#a⁅ b (x | y⁅ z ⁆) c⁅ d e ⁆ ⁆` tests one a node with three children. The middle child matches x. The other alternative matches y, and that y has one child that matches z. Each child test keeps its own search. A child's `·` suppresses only that child's search.
 
 `⋯` consumes zero or more siblings at one level. It never descends. Multiple sibling gaps are legal, including empty gaps. Each path permits zero or more edges and can stop before a leaf. First and last children follow helper flattening and empty-child removal.
 
@@ -817,19 +819,19 @@ An omitted terminator is a child like a written one. When it is the last child, 
 
 Outside child lists, binding is node test with attachments, grouping, path, intersection, then union or difference, from strongest to weakest. Union and difference share precedence and associate left. First-path `⋰` follows one primary, while descendant `⋮` and last-path `⋱` precede one primary. A path operand is a whole pattern. Chained paths require parentheses.
 
-Parentheses only group. They never introduce a child list or a subtree boundary. Juxtaposition, optional brackets, braces, gaps, and `|` require a child list. A nested `#` cannot act as a pattern atom or child item. `#(a b)` is invalid, and its child-list spelling is `#« a b »`.
+Parentheses only group. They never introduce a child list or a subtree boundary. Juxtaposition, optional brackets, braces, gaps, and `|` require a child list. A nested `#` cannot act as a pattern atom or child item. `#(a b)` is invalid, and its child-list spelling is `#⁅ a b ⁆`.
 
 A call's arguments retain their own grammar, including pattern literals and grouped body expressions. Thus `#pair(#a, "b")` can name an instance with a pattern argument. Its inner `#a` belongs to the call argument rather than the enclosing pattern's child syntax.
 
 Union and intersection each flatten operands of their own kind, including through parentheses. Runs of `∩` form one flat intersection, in written order. Difference retains exactly two operands. Order and duplicates remain significant for pattern keys.
 
-As a child item, a set expression consumes one child. Beside other items, it requires parentheses. `#« a (b ∪ c) »` is valid, while `#« a b ∪ c »` is invalid. A whole choice arm can be a set expression, as in `#« a ∩ b | c »`.
+As a child item, a set expression consumes one child. Beside other items, it requires parentheses. `#⁅ a (b ∪ c) ⁆` is valid, while `#⁅ a b ∪ c ⁆` is invalid. A whole choice arm can be a set expression, as in `#⁅ a ∩ b | c ⁆`.
 
-Within a child list, paths bind before sequence, and sequence binds before `|`. In a repetition, `/` separates the whole item and separator choices. `{a / b | c}` repeats a with separator b or c. A path cannot take a child sequence directly. `#(« a b » ⋰)` searches the first-child path for a node whose children match a then b.
+Within a child list, paths bind before sequence, and sequence binds before `|`. In a repetition, `/` separates the whole item and separator choices. `{a / b | c}` repeats a with separator b or c. A path cannot take a child sequence directly. `#(⁅ a b ⁆ ⋰)` searches the first-child path for a node whose children match a then b.
 
-`#(NAhE ⋰ ∪ SE)` puts only NAhE under the path. `#((NAhE ∪ SE) ⋰)` puts both alternatives under it. In `#« A ⋰ ⋱ B »`, the first child uses first-path and the second uses last-path.
+`#(NAhE ⋰ ∪ SE)` puts only NAhE under the path. `#((NAhE ∪ SE) ⋰)` puts both alternatives under it. In `#⁅ A ⋰ ⋱ B ⁆`, the first child uses first-path and the second uses last-path.
 
-Each path tests its operand at every endpoint, including the candidate. The operand retains each node test's search or exact prefix. Set operands also retain separate searches. `#(a ∩ « b c »)` can match its parts at different depths, while `#a« b c »` requires the same node.
+Each path tests its operand at every endpoint, including the candidate. The operand retains each node test's search or exact prefix. Set operands also retain separate searches. `#(a ∩ ⁅ b c ⁆)` can match its parts at different depths, while `#a⁅ b c ⁆` requires the same node.
 
 One tag test followed by one value test can follow a terminal atom. Its value or tags must belong to the same matched leaf. Written leaves use their original token's value and tags. Omitted T leaves use empty value and `{T, _Elided}`, including during reconstruction. A written token with empty value also satisfies `T=""`.
 
@@ -841,7 +843,7 @@ Optional and repeat bodies and choice arms must contain written items. A repeat 
 
 A parameter alone can substitute one whole pattern. In a child list, that pattern consumes one child and never splices siblings. With tests, an exact prefix, or an attached list, the argument must supply the corresponding node test. A supplied compound pattern cannot acquire a node attachment. Ordinary type rules apply after substitution.
 
-Each decoration conflicts only with the same decoration on the argument. An exact prefix requires an argument without an exact prefix. An attached list requires a rule test or call without an attached list. Thus `·@X` accepts `#a« b »`, while `@X« b »` accepts `#·a`. Tests keep their ordinary target and order rules.
+Each decoration conflicts only with the same decoration on the argument. An exact prefix requires an argument without an exact prefix. An attached list requires a rule test or call without an attached list. Thus `·@X` accepts `#a⁅ b ⁆`, while `@X⁅ b ⁆` accepts `#·a`. Tests keep their ordinary target and order rules.
 
 The DOM accepts exactly the reader's shapes, apart from source coordinates. Reading any valid pattern's canonical spelling gives the same key under the same Unicode table and bindings. A name that reads back as a terminal under that table is invalid as a rule test. The ordinary reader decodes the printer's escapes. [Engine §2.3](engine.md#23-templates-and-instances) defines canonical spelling. [Output](output.md#pattern-values) defines the shapes.
 
@@ -1268,7 +1270,7 @@ A condition with such a test holds or fails as any condition does. So `¬$.follo
 The test reads the actual neighbor, which a lookahead cannot do. A Lojban example comes from the experimental grammar. There a bare `na` omits its `ku` only where its place closes, or before a term in the same reading:
 
 ```jbogenbau
-%const $BARE-NA #« NA [🆓] KU="" [🆓] »
+%const $BARE-NA #⁅ NA [🆓] KU="" [🆓] ⁆
 %rule bare-na
   $n:NA 🆓 [+KU] 🆓
 %conditions
@@ -1329,7 +1331,7 @@ Juxtaposition places expressions beside each other without an operator. Its mean
 | Position or kind | Meaning | Example |
 | --- | --- | --- |
 | A body | Sequence | `"b" c` |
-| Inside `« »` | Child sequence | `#« A (B ∪ C) »` |
+| Inside `⁅ ⁆` | Child sequence | `#⁅ A (B ∪ C) ⁆` |
 | A tag test | All requirements | `<Stressed ¬Syllable-Break>` |
 | A tag-set term | One union atom of bare tag names | `:: Word BRIVLA` |
 | A recipe | String set, rejected because a recipe requires a string | `:= "a" "b"` |
@@ -1350,7 +1352,7 @@ For example, `(#a ∩ #b) ∩ #c` flattens to `#a ∩ #b ∩ #c` in its effectiv
 
 `A ∪ (B ∪ C)`, `A ∪ (B C)`, `A ∪ B ∪ C`, and `A B C` give one union with three operands in written order. `(A ∪ B) ∩ C` keeps the union as one intersection operand. A leading `∪` inside a parenthesized run does not change its DOM.
 
-Within a child list, sequence combines items, and a grouped set expression consumes one child. `#(A B ∩ C)` requires the explicit list spelling `#(« A B » ∩ C)`. Outside child lists, set operators combine two tag sets, two string sets, or two patterns. Mixed or unresolved types are errors.
+Within a child list, sequence combines items, and a grouped set expression consumes one child. `#(A B ∩ C)` requires the explicit list spelling `#(⁅ A B ⁆ ∩ C)`. Outside child lists, set operators combine two tag sets, two string sets, or two patterns. Mixed or unresolved types are errors.
 
 String operands convert to singleton sets, so `"a" ∪ "b"` and `("a" "b")` give the same string set. String runs obey the same grouping, flattening, and operator adjacency rules as tag runs. Constant references and method calls require explicit operators.
 
@@ -1426,7 +1428,7 @@ An author who needs an outside pattern to know a fact about the interior must pu
 ```jbogenbau
 %rule text $h:hidden
 %conditions $h ≅ #·hidden<Has-A>
-%rule hidden :: ($ ≅ #« A » ⟹ Has-A)
+%rule hidden :: ($ ≅ #⁅ A ⁆ ⟹ Has-A)
   | A | B
 %erased
 ```
