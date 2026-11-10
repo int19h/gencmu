@@ -1,0 +1,31 @@
+{
+  "description": "Issue #286: an empty root stays a candidate and its terminal string is empty.",
+  "grammar": "%rule text ε\n%check root\n #·text\n%warning $.terminal",
+  "input": "",
+  "options": {
+    "features": [
+      "root"
+    ]
+  },
+  "expect": {
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "root",
+        "rule": "root",
+        "span": [
+          0,
+          0
+        ],
+        "source": [
+          0,
+          0
+        ],
+        "message": ""
+      }
+    ],
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "description": "Issue #286: feature defaults enable a warning check and callers can disable it.",
+  "grammar": "%features enabled\n%rule text \"a\"\n%check enabled #·_ %warning \"enabled\"",
+  "input": "a",
+  "parses": [
+    {
+      "options": {},
+      "expect": {
+        "warnings": [
+          {
+            "stage": "main",
+            "code": "enabled",
+            "rule": "enabled",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ],
+            "message": "enabled"
+          }
+        ],
+        "features": [
+          {
+            "name": "enabled",
+            "kind": "warning",
+            "default": true
+          }
+        ]
+      }
+    },
+    {
+      "options": {
+        "withoutFeatures": [
+          "enabled"
+        ]
+      },
+      "expect": {
+        "warnings": [],
+        "result": {
+          "ok": true
+        }
+      }
+    }
+  ]
+}

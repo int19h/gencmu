@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%const $K \"‹U+00E9›\"\n%rule text $K $K\n```",
   "expect": {
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [
         {
           "name": "text",
@@ -42,6 +42,7 @@
           ]
         }
       ],
+      "checks": [],
       "directives": [],
       "constants": [
         {

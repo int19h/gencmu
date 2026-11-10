@@ -1,0 +1,8 @@
+{
+  "description": "Issue #286: the loader rejects template.",
+  "grammar": "%rule text \"a\"\n%check bad(@X) #·_ %warning \"bad\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "description": "Issue #286: a local query retains runtime errors after it drops private ranked conditions.",
+  "grammar": "%rule text r \"b\"\n%rule r (\"a\" ≻ $x:\"a\" long) [+T]\n%conditions $x = \"x\"\n%rule long \"b\"\n%conditions $.value.split(\"\" ++ \"\")\n%check local #·_<_Elided> %conditions $.preceding-element.local-readings.ending-after($) %warning \"bad\"",
+  "input": "ab",
+  "options": {
+    "features": [
+      "local"
+    ]
+  },
+  "expect": {
+    "error": "grammar",
+    "result": {
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

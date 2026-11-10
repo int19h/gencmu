@@ -1,0 +1,8 @@
+{
+  "description": "Issue #286: the loader rejects element boundary.",
+  "grammar": "%rule text \"a\"\n%check bad #·_\n%conditions $.preceding-element.followed-by(text)\n%warning \"bad\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar"
+  }
+}

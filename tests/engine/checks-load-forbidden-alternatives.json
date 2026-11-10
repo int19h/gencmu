@@ -1,0 +1,8 @@
+{
+  "description": "Issue #286: the loader rejects forbidden alternatives.",
+  "grammar": "%rule text \"a\"\n%check bad #·_ | #·_ %warning \"bad\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar"
+  }
+}

@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%rule text :: T := \"value\" :- \"image\"\n  | f? a ≻ b :: U\n```\n",
   "expect": {
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [
         {
           "name": "text",
@@ -56,6 +56,7 @@
           ]
         }
       ],
+      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],

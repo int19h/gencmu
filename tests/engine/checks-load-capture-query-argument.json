@@ -1,0 +1,8 @@
+{
+  "description": "Issue #286: the loader rejects capture query argument.",
+  "grammar": "%rule text \"a\"\n%check bad #·_\n%conditions $.parse(\"a\"=$x.value)\n%warning \"bad\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar"
+  }
+}

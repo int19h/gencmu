@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%rule text $x:A %conditions $x.begins(🆓)\n```\n",
   "expect": {
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [
         {
           "conditions": [
@@ -20,7 +20,8 @@
             }
           ]
         }
-      ]
+      ],
+      "checks": []
     }
   }
 }

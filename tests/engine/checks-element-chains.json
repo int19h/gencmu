@@ -1,0 +1,58 @@
+{
+  "description": "Issue #286: left and right chains use the preceding element of their generated production.",
+  "grammar": "%features longer\n%rule text\n | left? left-chain\n | ¬left? right-chain\n%rule left-chain {... \"a\" / [+T]}\n%rule right-chain {\"a\" ... / [+T]}\n%check longer\n #·_<_Elided>\n%conditions $.preceding-element.local-readings.ending-after($)\n%warning $.terminal",
+  "input": "aaa",
+  "parses": [
+    {
+      "options": {
+        "features": [
+          "left"
+        ]
+      },
+      "expect": {
+        "warnings": [
+          {
+            "stage": "main",
+            "code": "longer",
+            "rule": "longer",
+            "span": [
+              1,
+              1
+            ],
+            "source": [
+              1,
+              1
+            ],
+            "message": "T"
+          },
+          {
+            "stage": "main",
+            "code": "longer",
+            "rule": "longer",
+            "span": [
+              2,
+              2
+            ],
+            "source": [
+              2,
+              2
+            ],
+            "message": "T"
+          }
+        ],
+        "result": {
+          "ok": true
+        }
+      }
+    },
+    {
+      "options": {},
+      "expect": {
+        "warnings": [],
+        "result": {
+          "ok": true
+        }
+      }
+    }
+  ]
+}

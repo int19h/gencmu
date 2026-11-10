@@ -1,0 +1,45 @@
+{
+  "description": "Issue #286: each omitted terminator reports separately and terminal gives its canonical identity.",
+  "grammar": "%rule text \"a\" [+T] [+U]\n%check omitted\n #·_<_Elided>\n%conditions $.value = \"\"\n%warning $.terminal",
+  "input": "a",
+  "options": {
+    "features": [
+      "omitted"
+    ]
+  },
+  "expect": {
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "omitted",
+        "rule": "omitted",
+        "span": [
+          1,
+          1
+        ],
+        "source": [
+          1,
+          1
+        ],
+        "message": "T"
+      },
+      {
+        "stage": "main",
+        "code": "omitted",
+        "rule": "omitted",
+        "span": [
+          1,
+          1
+        ],
+        "source": [
+          1,
+          1
+        ],
+        "message": "U"
+      }
+    ],
+    "result": {
+      "ok": true
+    }
+  }
+}

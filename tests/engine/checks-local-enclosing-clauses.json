@@ -1,0 +1,32 @@
+{
+  "description": "Issue #286: local element readings omit the enclosing production conditions and capture binders.",
+  "grammar": "%rule text r \"b\"\n%rule r [$a:\"a\" [\"b\"]] [$t:+T]\n%conditions $.value = \"a\"\n%check element\n #·_<_Elided>\n%conditions $.preceding-element.local-readings.ending-after($)\n%warning \"element\"\n%check node\n #·r\n%conditions $.local-readings.ending-after($)\n%warning \"bad\"",
+  "input": "ab",
+  "options": {
+    "features": [
+      "element",
+      "node"
+    ]
+  },
+  "expect": {
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "element",
+        "rule": "element",
+        "span": [
+          1,
+          1
+        ],
+        "source": [
+          1,
+          1
+        ],
+        "message": "element"
+      }
+    ],
+    "result": {
+      "ok": true
+    }
+  }
+}

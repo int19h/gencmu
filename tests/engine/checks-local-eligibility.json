@@ -1,0 +1,16 @@
+{
+  "description": "Issue #286: a longer local reading with its own counted error is no query witness.",
+  "grammar": "%rule text r \"b\"\n%rule r \"a\" | *bad\n%rule bad \"a\" \"b\"\n%error \"bad\"\n%check longer #·r\n%conditions $.local-readings.ending-after($)\n%warning \"bad\"",
+  "input": "ab",
+  "options": {
+    "features": [
+      "longer"
+    ]
+  },
+  "expect": {
+    "warnings": [],
+    "result": {
+      "ok": true
+    }
+  }
+}

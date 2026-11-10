@@ -1,0 +1,35 @@
+{
+  "description": "Issue #286: an error check can report on an empty root without a nullable error production.",
+  "grammar": "%rule text ε\n%check root\n #·text\n%error \"empty\"",
+  "input": "",
+  "expect": {
+    "error": "reported",
+    "result": {
+      "error": {
+        "errors": [
+          {
+            "stage": "main",
+            "code": "root",
+            "rule": "root",
+            "span": [
+              0,
+              0
+            ],
+            "source": [
+              0,
+              0
+            ],
+            "message": "empty"
+          }
+        ]
+      },
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": []
+        }
+      ]
+    }
+  }
+}

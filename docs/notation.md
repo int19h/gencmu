@@ -973,10 +973,10 @@ The right operand takes its type by these rules:
 - If every operand of a union, an intersection or a difference has pattern type, the operation has pattern type. Any other operand is a type error at the operation. Parentheses keep the type of their contents.
 - A constant and a parameter take the type of their value after they resolve. No template argument reads a capture, so no parameter has constituent type.
 - A guarded term is a type error here. It gives a tag set or a string set (see "Conditions"), and a false guard gives `∅`. To guard a comparison, guard the whole condition, as in `G ⟹ ($x ≅ $y)`.
-- A method result keeps its own type, and no method gives constituent type. So a span such as `$y.first-token`, `$y.onward` or `$y.without-elision` is a type error. So are a string, a string set and a tag set.
+- A method result keeps its own type. In check conditions, node walks give constituent type. Other methods give no constituent type. So a span such as `$y.first-token`, `$y.onward` or `$y.without-elision` is a type error. So are a string, a string set and a tag set.
 - The conversion of `=` to input values does not apply before the type is chosen. So `$x ≅ $y.value` is a type error.
 
-The compared tree is the structural tree above. Helpers are flattened, chain levels are kept, and a ranked group is one seal. Equality compares the two trees from their roots, child by child in order. It does not follow a single child, as a node test does. Two trees are equal by these rules:
+The compared tree is the structural tree above, or the check tree inside a check. Helpers flatten, and chain levels retain their nodes. Outside checks, a ranked group is one seal. Equality compares the two trees from their roots, child by child in order. It does not follow a single child, as a node test does. Two trees are equal by these rules:
 
 - If two anonymous spliced constituents have equal observed child sequences in order, they are equal. An anonymous constituent never equals a named rule node.
 - If two rule nodes have the same rule and equal children in order, they are equal. Each template instance is a rule of its own. So nodes of two different instances are not equal, and nodes of one instance compare by their children. A parent drops a structurally empty child from its sequence. A directly captured empty named rule keeps its root, with no children. So two captures of different empty rules are not equal.
@@ -1217,7 +1217,7 @@ The predicates are:
 - `=` and `≠` compare two strings, two sets of strings or two tag sets. Any other pair is an error.
 - `∈` and `∉` test whether a string is in a set of strings.
 - `⊆` and `⊈` test whether one set is in another of the same kind. So `Indicator ⊆ $i.tags` says that `$i` carries the mark `Indicator`, and `Indicator ⊈ $i.tags` says that it does not.
-- `≅` tests a bare capture, or `$`, against a tree pattern or against another capture (see "Tree patterns"). If the right side is a pattern, the constituent must match it. If the right side is a capture or `$`, the two trees must be equal. `≇` negates `≅`. Any other pair is an error.
+- `≅` tests a constituent against a tree pattern or another constituent (see "Tree patterns"). Constituents are bare captures, `$` and check nodes. A pattern requires a match, and another constituent requires equal trees. `≇` negates `≅`. Any other pair is an error.
 - `$x` holds when the production has the capture `x`.
 - `span.parse(C)` holds when its forest is not empty.
 - A tag set, a string set, or a forest holds when it is not empty.
@@ -1631,7 +1631,7 @@ Recipe priority follows this table, from strongest to weakest. A capture item's 
 
 At an inner constituent, only the alternative, rule, and concatenation rows apply. An item recipe affects only that item's token. An explicit constituent image recipe beats a constituent value recipe's implied image. Only an item's own `:-` beats that item's implied image.
 
-Recipes form a closed language. They accept string literals, string constants, and these methods on a bare capture or `$`: `.value`, `.image`, `.source-text`, `.decomposed-source-text`, `.verbatim-text`, `.emitted.value`, and `.emitted.image`. `++` joins these terms without a separator. Every other term is a document error. A bare capture and `.emitted` without a channel are errors.
+Ordinary recipes form a closed language. They accept string literals, string constants, and these methods on a bare capture or `$`: `.value`, `.image`, `.source-text`, `.decomposed-source-text`, `.verbatim-text`, `.emitted.value`, and `.emitted.image`. `++` joins these terms without a separator. Every other term is a document error. A bare capture and `.emitted` without a channel are errors.
 
 A recipe contains exactly one recipe term, which can be a `++` chain. The reader rejects a second recipe term at its first token and tells the author to use `++`. Juxtaposed literals form a string set, which a recipe rejects at its first literal with the same instruction. Recipe atoms cannot use parentheses or method arguments.
 

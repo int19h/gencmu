@@ -1,0 +1,75 @@
+{
+  "description": "Issue #286: an empty check error skips elision-only, flows on a carrier and counts in later ranking.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage before\n%ambiguity-resolution greedy\n%elision-only\n%rule text \"a\" [+T] | \"a\" T\n%emits $ :: X\n%check omission\n #·_<_Elided>\n%error \"omission\"\n%stage last\n%ambiguity-resolution greedy\n%rule text dirty | clean\n%rule dirty X\n%emits $\n%rule clean erased\n%rule erased X\n%erased\n```\n"
+  },
+  "pipelineDocument": "p.md",
+  "input": "a",
+  "parses": [
+    {
+      "options": {
+        "until": "before",
+        "withoutFeatures": [
+          "omission"
+        ]
+      },
+      "expect": {
+        "error": "reported",
+        "result": {
+          "tree": {
+            "rule": "text"
+          },
+          "stages": [
+            {
+              "name": "before",
+              "verdict": "unique",
+              "output": [
+                {
+                  "errors": [
+                    {
+                      "code": "omission",
+                      "span": [
+                        1,
+                        1
+                      ],
+                      "source": [
+                        1,
+                        1
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "options": {},
+      "expect": {
+        "result": {
+          "ok": true,
+          "tree": {
+            "rule": "text",
+            "children": [
+              {
+                "rule": "clean"
+              }
+            ]
+          },
+          "stages": [
+            {
+              "name": "before",
+              "verdict": "unique"
+            },
+            {
+              "name": "last",
+              "verdict": "unique"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

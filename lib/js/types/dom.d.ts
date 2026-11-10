@@ -7,7 +7,7 @@ export declare const LEANS: Set<string>;
 export declare function validSteps(steps: unknown): boolean;
 export declare const CAPTURE_NAME: RegExp;
 export declare const DOM_MAX_DEPTH = 256;
-export declare const DOM_FORMAT = 47;
+export declare const DOM_FORMAT = 48;
 export declare const CONSTANT_NAME: RegExp;
 export declare const CLASSIFIER_NAME: RegExp;
 export declare const TEST_OPS: Set<string>;
@@ -317,7 +317,7 @@ export declare function definitionProblem(rule: any, deferEmission?: boolean, te
  * @returns {string[]}
  */
 export declare function attachmentsOf(item: any): string[];
-export type TermType = "string" | "strings" | "tags" | "span" | "pattern" | "set" | "any" | "emitted" | "condition" | "forest";
+export type TermType = "node" | "element" | "string" | "strings" | "tags" | "span" | "pattern" | "set" | "any" | "emitted" | "condition" | "forest";
 export type ConstantTypes = (name: string) => TermType;
 /**
  * The kind of sets joined by ∪, ∩ or ∖, or why they cannot be joined: each
@@ -354,10 +354,8 @@ export type TypeFault = {
     problem: string;
     node: any;
 };
-/**
- * A disagreement of types, and the smallest construct that holds it.
- * @typedef {{problem: string, node: any}} TypeFault
- */
+/** @param {ConstantTypes} [constants] @returns {ConstantTypes} */
+export declare function checkConstantTypes(constants?: ConstantTypes): ConstantTypes;
 /**
  * The type of a term, or why its parts do not agree (engine §10), with the
  * smallest construct whose parts disagree. The term's shape must already
@@ -369,6 +367,8 @@ export type TypeFault = {
 export declare function termType(term: any, constants?: ConstantTypes): {
     type: TermType;
 } | TypeFault;
+/** @param {any} check @param {ConstantTypes} [constants] @returns {TypeFault|null} */
+export declare function checkTypeFault(check: any, constants?: ConstantTypes): TypeFault | null;
 /**
  * Why a condition's terms do not agree in type, with the smallest
  * construct that disagrees, or null (engine §10).

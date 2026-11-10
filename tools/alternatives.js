@@ -870,7 +870,7 @@ function unbreakable(line) {
  * Each message names the file, the line and the rule. A line that holds
  * only a comment does not count toward the limit, wherever it stands.
  * @param {string} markdown
- * @param {{rules: any[]}} dom
+ * @param {{rules: any[], checks?:any[]}} dom
  * @param {string} path
  * @param {number} [limit]
  * @returns {string[]}
@@ -913,6 +913,12 @@ export function layoutProblems(markdown, dom, path, limit = LINE_LIMIT) {
       for (const number of alternative.lines) if ((occupants.get(number) ?? 0) > 1) markedShared.add(number);
     }
     for (const number of [...markedShared].sort((a, b) => a - b)) problems.push(`${path}:${number}: a marked alternative of ${keyword} ${rule.name} shares its line with another alternative; put it on lines of its own`);
+  }
+  for(const check of dom.checks??[]) {
+    const header=lines[check.at[0]-1]??'';
+    if(!/^\s*%check\s+\S+\s*$/.test(header))problems.push(`${path}:${check.at[0]}: a check pattern stands on its own line after the header`);
+    const following=[...new Set(positions.map(([line])=>line))].find(line=>line>check.at[0] && (lines[line-1]??'').trim() && !/^\s*--/.test(lines[line-1]));
+    if(following!==undefined && [...lines[following-1]].findIndex(c=>c!==' ')+1!==check.at[1]+2)problems.push(`${path}:${following}: a check pattern stands two columns deeper than its header`);
   }
   // The limit covers every line of a grammar block, not only rule
   // bodies: headers, conditions, emission items and classifier

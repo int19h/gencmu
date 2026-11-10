@@ -1,4 +1,4 @@
-import type { DomClassifier, DomConstant, DomDirective, DomImplication, DomRule, GrammarDom } from "./types.js";
+import type { DomClassifier, DomConstant, DomDirective, DomImplication, DomRule, DomCheck, GrammarDom } from "./types.js";
 export type Item = {
     rule: DomRule;
 } | {
@@ -9,6 +9,8 @@ export type Item = {
     classifier: DomClassifier;
 } | {
     implication: DomImplication;
+} | {
+    check: DomCheck;
 };
 export type SplicedStage = {
     name: string;

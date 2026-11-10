@@ -81,6 +81,12 @@ export declare class Grammar {
     }[];
     /** @type {Map<string, StitchedRule>} */
     rules: Map<string, StitchedRule>;
+    /** @type {{check:import("./types.js").DomCheck,document:string,at:ErrorLocation}[]} */
+    checks: {
+        check: import("./types.js").DomCheck;
+        document: string;
+        at: ErrorLocation;
+    }[];
     alternativeOrder: number;
     /** @type {RuleChange[]} */
     changes: RuleChange[];
@@ -303,6 +309,7 @@ export declare class Grammar {
     }, path: string, at: ErrorLocation): SymbolTest;
     prepareQueries(): void;
     checkReferences(): void;
+    checkCheckReferences(): void;
     checkDiagnosticsAndSplices(): void;
     /**
      * The productions for a set of enabled features. The check of

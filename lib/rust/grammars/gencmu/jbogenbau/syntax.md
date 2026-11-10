@@ -24,7 +24,7 @@ A keyword begins every declaration. Inside each declaration, punctuation and lex
 
 ## Documents
 
-A grammar text is a sequence of rules, directives, constant definitions, classifiers, and implications. Each starts with a keyword, so the next statement determines where the preceding one ends.
+A grammar text is a sequence of rules, checks, directives, constant definitions, classifiers and implications. Each starts with a keyword, so the next statement determines where the preceding one ends.
 
 The reader converts the recognized tree into a DOM, its document object model. Constructor names preserve the parts that this conversion needs.
 
@@ -33,12 +33,26 @@ The reader converts the recognized tree into a DOM, its document object model. C
   [{statement}]
 
 %rule statement
-  rule | ranking-directive | directive | constant-definition | classifier | implication-declaration
+  rule | check | ranking-directive | directive | constant-definition | classifier
+  | implication-declaration
 ```
 
 <details><summary>Railroad diagrams of <code>text</code> and <code>statement</code></summary>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/text.svg" alt="Railroad diagram of the rule text"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/statement.svg" alt="Railroad diagram of the rule statement"></p>
+</details>
+
+## Checks
+
+A check tests nodes after the stage chooses its tree. Its pattern selects candidate nodes, and its conditions restrict which candidates report. A check has exactly one diagnostic message and no rule body or output clause.
+
+```jbogenbau
+%rule check
+  KW-CHECK rule-name (pattern-literal | constant-reference) [conditions-clause] diagnostic
+```
+
+<details><summary>Railroad diagram of <code>check</code></summary>
+<p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/check.svg" alt="Railroad diagram of the rule check"></p>
 </details>
 
 ## Rules and alternatives
@@ -566,7 +580,7 @@ These rules restate `union` and `intersection` for a condition. An operation nee
 
 The flat implication list preserves every operand for the reader's grouping. This keeps recognition work proportional to the list rather than its nested completions.
 
-A tree comparison requires a bare capture on the left. On the right, a pattern tests structure, and a bare capture compares two trees.
+A tree comparison requires a bare capture on the left, or a node walk in a check. On the right, a pattern tests structure, and a constituent compares two trees.
 
 ```jbogenbau
 %rule implication
@@ -608,7 +622,7 @@ A tree comparison requires a bare capture on the left. On the right, a pattern t
   "=" | "≠" | "∈" | "∉" | "⊆" | "⊈"
 
 %rule tree-comparison
-  capture-reference tree-comparator union
+  (capture-reference | method) tree-comparator union
 
 %rule tree-comparator
   "≅" | "≇"

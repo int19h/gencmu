@@ -293,6 +293,7 @@ export type ParseOptions = {
 export type GrammarDom = {
     format: number;
     rules: DomRule[];
+    checks: DomCheck[];
     directives: DomDirective[];
     constants: DomConstant[];
     classifiers: DomClassifier[];
@@ -332,6 +333,14 @@ export type DomConstant = {
 };
 export type Recipe = {
     concat: Term[];
+};
+export type DomCheck = {
+    name: string;
+    pattern: any;
+    conditions: Condition[];
+    error?: Recipe;
+    warning?: Recipe;
+    at: Position;
 };
 export type DomDirective = {
     conditions?: Condition[];
@@ -580,6 +589,8 @@ export type Condition = {
 } | {
     nonempty: Term;
 } | {
+    present: Term;
+} | {
     op: Comparator;
     left: Term;
     right: Term;
@@ -631,6 +642,7 @@ export type Argument = Term | {
     integer: string;
 };
 export type GrammarSymbol = {
+    expression?: Expr;
     slot?: import("./ranked.js").RankedGroup;
     name: string;
     terminal: boolean;
@@ -798,6 +810,8 @@ export type Resolution = {
     elisionOnly: boolean;
 };
 export type LoweredGrammar = {
+    checks: DomCheck[];
+    elementExpressions: Map<string, Expr>;
     queryTargets: Map<string, string>;
     queryNames: Map<string, string>;
     treeComparisons: boolean;
@@ -911,6 +925,13 @@ export type AlignedSpan = {
 export type Scope = {
     boundaryValue?: boolean;
     boundary?: (atom: any) => boolean;
+    checkValue?: (term: any) => SpanValue;
+    checkPresence?: (term: any) => boolean;
+    checkTerminal?: () => string;
+    localReading?: (term: any) => {
+        start: number;
+        rule: string;
+    };
     capture: (name: string) => SpanValue;
 };
 export type Rope = {
@@ -1203,6 +1224,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {object} GrammarDom
  * @property {number} format
  * @property {DomRule[]} rules
+ * @property {DomCheck[]} checks
  * @property {DomDirective[]} directives
  * @property {DomConstant[]} constants
  * @property {DomClassifier[]} classifiers
@@ -1244,6 +1266,15 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {Position} at
  */
 /** @typedef {{concat:Term[]}} Recipe */
+/**
+ * @typedef {object} DomCheck
+ * @property {string} name
+ * @property {any} pattern
+ * @property {Condition[]} conditions
+ * @property {Recipe} [error]
+ * @property {Recipe} [warning]
+ * @property {Position} at
+ */
 /**
  * @typedef {object} DomDirective
  * @property {Condition[]} [conditions]
@@ -1374,7 +1405,7 @@ export type ParseContext = import("./earley.js").ParseContext;
 /**
  * A condition.
  * @typedef {{method: string, receiver: Term, args: Argument[]} | {any: Condition[]} | {all: Condition[]} | {not: Condition} | {captured: string}
- *   | {if: Condition, then: Condition} | {nonempty: Term}
+ *   | {if: Condition, then: Condition} | {nonempty: Term} | {present:Term}
  *   | {op: Comparator, left: Term, right: Term}} Condition
  */
 /**
@@ -1396,6 +1427,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  */
 /**
  * @typedef {object} GrammarSymbol
+ * @property {Expr} [expression]
  * @property {import("./ranked.js").RankedGroup} [slot]
  * @property {string} name
  * @property {boolean} terminal
@@ -1518,6 +1550,8 @@ export type ParseContext = import("./earley.js").ParseContext;
 /**
  * A grammar lowered for one set of features.
  * @typedef {object} LoweredGrammar
+ * @property {DomCheck[]} checks
+ * @property {Map<string,Expr>} elementExpressions
  * @property {Map<string,string>} queryTargets
  * @property {Map<string,string>} queryNames
  * @property {boolean} treeComparisons
@@ -1597,6 +1631,10 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {object} Scope
  * @property {boolean} [boundaryValue]
  * @property {(atom:any)=>boolean} [boundary]
+ * @property {(term:any)=>SpanValue} [checkValue]
+ * @property {(term:any)=>boolean} [checkPresence]
+ * @property {()=>string} [checkTerminal]
+ * @property {(term:any)=>{start:number,rule:string}} [localReading]
  * @property {(name: string) => SpanValue} capture
  */
 /**

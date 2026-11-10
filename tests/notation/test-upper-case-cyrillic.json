@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%rule text LE = \"Ла\"\n```\n",
   "expect": {
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [
         {
           "name": "text",
@@ -29,6 +29,7 @@
           ]
         }
       ],
+      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],

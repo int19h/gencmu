@@ -1,0 +1,63 @@
+{
+  "description": "Issue #286: walks follow check siblings, and absent reads fail despite negation or disjunction.",
+  "grammar": "%rule text a [empty] b\n%rule a \"a\"\n%rule b \"b\"\n%rule empty ε\n%check root\n #·text\n%conditions ¬$.parent\n%warning \"root\"\n%check first\n #·a\n%conditions $.parent ≅ #·text, ¬$.preceding-node, $.following-node ≅ #·b, $.following-node.split($) = \"b\".split(\"a\")\n%warning \"first\"\n%check absent\n #·a\n%conditions ¬($.preceding-node.value = \"x\")\n%warning \"bad\"\n%check disjunction\n #·a\n%conditions $.preceding-node.value = \"x\" ∨ \"a\" = \"a\"\n%warning \"bad\"\n%check short\n #·a\n%conditions \"a\" = \"a\" ∨ $.preceding-node.value = \"x\"\n%warning \"short\"",
+  "input": "ab",
+  "options": {
+    "features": [
+      "root",
+      "first",
+      "absent",
+      "disjunction",
+      "short"
+    ]
+  },
+  "expect": {
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "root",
+        "rule": "root",
+        "span": [
+          0,
+          2
+        ],
+        "source": [
+          0,
+          2
+        ],
+        "message": "root"
+      },
+      {
+        "stage": "main",
+        "code": "first",
+        "rule": "first",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "message": "first"
+      },
+      {
+        "stage": "main",
+        "code": "short",
+        "rule": "short",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "message": "short"
+      }
+    ],
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -2675,7 +2675,7 @@ intersection-operation = ["∩"] concatenation "∩" concatenation {"∩" concat
 set-atom = tag | tag-run | string-run | "∅" | constant-reference | parameter
 comparison = union comparator union
 comparator = "=" | "≠" | "∈" | "∉" | "⊆" | "⊈"
-tree-comparison = capture-reference ("≅" | "≇") union
+tree-comparison = (capture-reference | method-chain) ("≅" | "≇") union
 pattern-literal = "#" pattern-primary
 pattern-union = pattern-intersection {("∪" | "∖") pattern-intersection}
 pattern-intersection = pattern-path {"∩" pattern-path}

@@ -1,0 +1,16 @@
+{
+  "description": "Issue #286: the first symbol of a named production has no preceding element.",
+  "grammar": "%rule text \"a\" r\n%rule r [+T]\n%check absent\n #·_<_Elided>\n%conditions ¬($.preceding-element.value = \"x\")\n%warning \"bad\"",
+  "input": "a",
+  "options": {
+    "features": [
+      "absent"
+    ]
+  },
+  "expect": {
+    "warnings": [],
+    "result": {
+      "ok": true
+    }
+  }
+}

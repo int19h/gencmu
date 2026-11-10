@@ -1,0 +1,8 @@
+{
+  "description": "Issue #286: the loader rejects forbidden suppression.",
+  "grammar": "%rule text \"a\"\n%check bad\n #·_\n%warning \"bad\"\n%suppress-warnings _",
+  "input": "a",
+  "expect": {
+    "error": "grammar"
+  }
+}

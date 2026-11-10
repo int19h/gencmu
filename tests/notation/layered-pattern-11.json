@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #« a«b» »\n```\n",
   "expect": {
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [
         {
           "conditions": [
@@ -30,7 +30,8 @@
             }
           ]
         }
-      ]
+      ],
+      "checks": []
     }
   }
 }

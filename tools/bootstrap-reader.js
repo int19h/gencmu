@@ -41,7 +41,7 @@ const LAYERED_SYMBOLS = new Set(["«", "»", "·"]);
 const SYMBOLS = new Set(["*", "+", "|", "&", "(", ")", "[", "]", "{", "}", "/", ":", ".", "<", ">", "#", "ε", ",", "∧", "∨", "⟹", "=",
   "∈", "⊆", "∪", "∩", "∖", "∅", "≅", "⋯", "⋮", "⋰", "⋱", "≻", "≝", "…"]);
 
-const KEYWORDS = new Set(["%rule", "%redefine-rule", "%extend-rule", "%conditions", "%error", "%warning", "%suppress-warnings", "%emits", "%erased",
+const KEYWORDS = new Set(["%check", "%rule", "%redefine-rule", "%extend-rule", "%conditions", "%error", "%warning", "%suppress-warnings", "%emits", "%erased",
   "%ambiguity-resolution", "%elision-only", "%stage", "%extend-stage", "%redefine-stage", "%include", "%names", "%features", "%const", "%redefine-const", "%classifier", "%implies"]);
 
 // A syntax error: the text cannot be read as the notation at all, which the
@@ -360,6 +360,7 @@ class Parser {
     while (this.peek()) {
       const kind = this.kindAt();
       if (DIRECTIVES.has(kind)) children.push((yield this.directive()));
+      else if (kind === "%check") children.push(yield this.check());
       else if (RULE_KEYWORDS.has(kind)) children.push((yield this.rule()));
       else if (CONSTANT_KEYWORDS.has(kind)) children.push((yield this.constantDefinition()));
       else if (kind === "%classifier") children.push(this.classifier());
@@ -451,6 +452,23 @@ class Parser {
   *implicationDeclaration() {
     const start = this.index;
     return this.node("implication-declaration", start, [this.tok(), (yield this.union()), this.expect("⟹"), (yield this.union())]);
+  }
+
+  *check() {
+    const start=this.index,children=[this.tok()];
+    children.push(this.is('identifier')||this.is('emoji') ? this.leaf('rule-name') : this.fail('expected a check name'));
+    children.push(this.is('#') ? yield this.layeredLiteral() : this.is('constant') ? this.leaf('constant-reference') : this.fail('expected a check pattern'));
+    if(this.is('%conditions')) {
+      const at=this.index,clause=[this.tok()];
+      if(this.is(','))clause.push(this.tok());
+      clause.push(yield this.implication());
+      while(this.is(','))clause.push(this.tok(),yield this.implication());
+      children.push(this.node('conditions-clause',at,clause));
+    }
+    if(!this.is('%error')&&!this.is('%warning'))this.fail('expected a check diagnostic');
+    const at=this.index,kind=this.kindAt().slice(1);
+    children.push(this.node(kind+'-clause',at,[this.tok(),yield this.recipe()]));
+    return this.node('check',start,children);
   }
 
   *rule() {
@@ -787,11 +805,14 @@ class Parser {
         }));
         if (grouped) return grouped;
       }
-      if (kind === "capture" && (this.is("≅", 1) || this.is("≇", 1))) {
-        const left = this.leaf("capture-reference");
-        const op = this.leaf("tree-comparator");
-        return this.node("condition", start, [this.node("tree-comparison", start, [left, op, (yield this.union())])]);
-      }
+      const tree=yield this.attempt(function* () {
+        const left=kind==='capture' && this.kindAt(1)!=='.' ? this.leaf('capture-reference')
+          : (yield this.termAtom()).children.find(child=>child.rule==='method');
+        if(!left || !this.is('≅')&&!this.is('≇'))throw new SyntaxFailure('expected a tree comparator',null);
+        const op=this.leaf('tree-comparator');
+        return this.node('condition',start,[this.node('tree-comparison',start,[left,op,yield this.union()])]);
+      });
+      if(tree)return tree;
       if (kind === "capture" && this.kindAt(1) !== "." && !AFTER_TERM.has(this.kindAt(1))) return this.node("condition", start, [this.leaf("presence")]);
       const method = (yield this.attempt(function* () {
         const node = (yield this.termAtom());

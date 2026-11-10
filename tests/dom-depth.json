@@ -2,6 +2,7 @@
   {
     "description": "Expression reference",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -35,6 +36,7 @@
   {
     "description": "Expression wildcard",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -68,6 +70,7 @@
   {
     "description": "Expression empty",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -101,6 +104,7 @@
   {
     "description": "Expression literal",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -136,6 +140,7 @@
   {
     "description": "Expression constant literal",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -171,6 +176,7 @@
   {
     "description": "Expression scalar constant literal",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -206,6 +212,7 @@
   {
     "description": "Expression range",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -246,6 +253,7 @@
   {
     "description": "Expression scalar constant range endpoint",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -286,6 +294,7 @@
   {
     "description": "Expression seq",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -324,6 +333,7 @@
   {
     "description": "Expression choice",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -362,6 +372,7 @@
   {
     "description": "Expression ranked",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -400,6 +411,7 @@
   {
     "description": "Expression and",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -438,6 +450,7 @@
   {
     "description": "Expression optional",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -471,6 +484,7 @@
   {
     "description": "Expression repeat item",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -504,6 +518,7 @@
   {
     "description": "Expression repeat separator",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -540,6 +555,7 @@
   {
     "description": "Expression capture",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -576,6 +592,7 @@
   {
     "description": "Expression value test",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -615,6 +632,7 @@
   {
     "description": "Expression tag test",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -659,6 +677,7 @@
   {
     "description": "Expression value and tag tests",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -709,6 +728,7 @@
   {
     "description": "Expression scalar constant test value",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -748,6 +768,7 @@
   {
     "description": "Term union",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -792,6 +813,7 @@
   {
     "description": "Term intersection",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -836,6 +858,7 @@
   {
     "description": "Term difference",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -880,6 +903,7 @@
   {
     "description": "Term guarded result",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -922,6 +946,7 @@
   {
     "description": "Term guarded condition",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -971,6 +996,7 @@
   {
     "description": "Term string",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -1017,6 +1043,7 @@
   {
     "description": "Term constant",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -1063,6 +1090,7 @@
   {
     "description": "Term concat",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -1116,6 +1144,7 @@
   {
     "description": "Term capture",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -1162,6 +1191,7 @@
   {
     "description": "Term value method",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -1212,6 +1242,7 @@
   {
     "description": "Term split argument",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -1266,6 +1297,7 @@
   {
     "description": "Term split concatenation argument",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -1327,6 +1359,7 @@
   {
     "description": "Term classify method",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -1381,6 +1414,7 @@
   {
     "description": "Term empty set",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -1425,6 +1459,7 @@
   {
     "description": "Term tag",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -1469,6 +1504,7 @@
   {
     "description": "Method receiver chain",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -1513,6 +1549,7 @@
   {
     "description": "Condition not",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -1557,6 +1594,7 @@
   {
     "description": "Condition any",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -1610,6 +1648,7 @@
   {
     "description": "Condition all",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -1663,6 +1702,7 @@
   {
     "description": "Condition if",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -1714,6 +1754,7 @@
   {
     "description": "Condition comparison",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -1760,6 +1801,7 @@
   {
     "description": "Condition query receiver",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -1808,6 +1850,7 @@
   {
     "description": "Condition boundary terminal argument",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -1856,6 +1899,7 @@
   {
     "description": "Condition guarded comparison operand",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -1907,6 +1951,7 @@
   {
     "description": "Pattern name",
     "dom": {
+      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -1949,6 +1994,7 @@
   {
     "description": "Pattern terminal",
     "dom": {
+      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -1991,6 +2037,7 @@
   {
     "description": "Pattern constant",
     "dom": {
+      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2033,6 +2080,7 @@
   {
     "description": "Pattern wildcard",
     "dom": {
+      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2075,6 +2123,7 @@
   {
     "description": "Pattern literal",
     "dom": {
+      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2119,6 +2168,7 @@
   {
     "description": "Pattern decoded scalar literal",
     "dom": {
+      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2163,6 +2213,7 @@
   {
     "description": "Pattern range",
     "dom": {
+      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2212,6 +2263,7 @@
   {
     "description": "Pattern decoded scalar range endpoint",
     "dom": {
+      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2261,6 +2313,7 @@
   {
     "description": "Pattern value test",
     "dom": {
+      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2309,6 +2362,7 @@
   {
     "description": "Pattern tag test",
     "dom": {
+      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2362,6 +2416,7 @@
   {
     "description": "Pattern value after tag test",
     "dom": {
+      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2421,6 +2476,7 @@
   {
     "description": "Pattern decoded scalar test value",
     "dom": {
+      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2469,6 +2525,7 @@
   {
     "description": "Pattern descendant path",
     "dom": {
+      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2514,6 +2571,7 @@
   {
     "description": "Pattern first path",
     "dom": {
+      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2559,6 +2617,7 @@
   {
     "description": "Pattern last path",
     "dom": {
+      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2604,6 +2663,7 @@
   {
     "description": "Pattern children node",
     "dom": {
+      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2653,6 +2713,7 @@
   {
     "description": "Pattern children siblings",
     "dom": {
+      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2696,6 +2757,7 @@
   {
     "description": "Pattern children optional",
     "dom": {
+      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2749,6 +2811,7 @@
   {
     "description": "Pattern children sequence",
     "dom": {
+      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2807,6 +2870,7 @@
   {
     "description": "Pattern children repeat item",
     "dom": {
+      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2860,6 +2924,7 @@
   {
     "description": "Pattern children repeat separator",
     "dom": {
+      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2924,6 +2989,7 @@
   {
     "description": "Pattern union",
     "dom": {
+      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2977,6 +3043,7 @@
   {
     "description": "Pattern intersection",
     "dom": {
+      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -3030,6 +3097,7 @@
   {
     "description": "Pattern difference",
     "dom": {
+      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -3072,6 +3140,7 @@
   {
     "description": "header tag root",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -3116,6 +3185,7 @@
   {
     "description": "constant root",
     "dom": {
+      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -3148,6 +3218,7 @@
   {
     "description": "implication root",
     "dom": {
+      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [],
@@ -3181,6 +3252,7 @@
   {
     "description": "emission tag root beside a recipe",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -3243,6 +3315,7 @@
   {
     "description": "Feature condition token methods",
     "dom": {
+      "checks": [],
       "rules": [],
       "directives": [
         {
@@ -3286,7 +3359,7 @@
   {
     "description": "Template expression parameter",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [
         {
           "name": "use",
@@ -3324,6 +3397,7 @@
           ]
         }
       ],
+      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
@@ -3344,7 +3418,7 @@
   {
     "description": "Call with transparent body argument",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [
         {
           "name": "use",
@@ -3386,6 +3460,7 @@
           ]
         }
       ],
+      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
@@ -3411,7 +3486,7 @@
   {
     "description": "Call with transparent target choice",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [
         {
           "name": "use",
@@ -3453,6 +3528,7 @@
           ]
         }
       ],
+      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
@@ -3483,7 +3559,7 @@
   {
     "description": "Call with transparent requirements argument",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [
         {
           "name": "use",
@@ -3525,6 +3601,7 @@
           ]
         }
       ],
+      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
@@ -3557,7 +3634,7 @@
   {
     "description": "Call with tested symbol argument",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [
         {
           "name": "use",
@@ -3599,6 +3676,7 @@
           ]
         }
       ],
+      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
@@ -3635,7 +3713,7 @@
   {
     "description": "Template literal keeps the string depth",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [
         {
           "name": "use",
@@ -3673,6 +3751,7 @@
           ]
         }
       ],
+      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
@@ -3695,7 +3774,7 @@
   {
     "description": "Template range keeps the string depth",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [
         {
           "name": "use",
@@ -3733,6 +3812,7 @@
           ]
         }
       ],
+      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
@@ -3760,6 +3840,7 @@
   {
     "description": "Engine §9: parse body depth without a wrapper charge",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "name": "text",
@@ -3807,6 +3888,7 @@
   {
     "description": "Engine §9: parse body depth with an outer remainder",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "name": "text",
@@ -3861,6 +3943,7 @@
   {
     "description": "Engine §9: parse body depth with remainders at both edges",
     "dom": {
+      "checks": [],
       "rules": [
         {
           "name": "text",

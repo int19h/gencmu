@@ -1,0 +1,8 @@
+{
+  "description": "Issue #286: the loader rejects forbidden emission.",
+  "grammar": "%rule text \"a\"\n%check bad\n #·_\n%warning \"bad\"\n%emits $",
+  "input": "a",
+  "expect": {
+    "error": "grammar"
+  }
+}

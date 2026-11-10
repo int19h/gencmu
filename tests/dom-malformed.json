@@ -16718,8 +16718,9 @@
   {
     "description": "A DOM envelope refuses unknown members.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [],
+      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
@@ -16731,8 +16732,9 @@
   {
     "description": "An empty complete DOM envelope is valid.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [],
+      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
@@ -16848,7 +16850,7 @@
   {
     "description": "Unsafe coordinates do not produce a duplicate-position problem.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [
         {
           "name": "text",
@@ -16885,6 +16887,7 @@
           ]
         }
       ],
+      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
@@ -17012,7 +17015,7 @@
   {
     "description": "An earlier malformed directive precedes excessive rule depth.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [
         {
           "name": "text",
@@ -17546,6 +17549,7 @@
           ]
         }
       ],
+      "checks": [],
       "directives": [
         {
           "name": "stage",
@@ -17917,8 +17921,9 @@
   {
     "description": "Ranked argument shape errors precede engine tags in constants.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [],
+      "checks": [],
       "directives": [],
       "constants": [
         {
@@ -17964,8 +17969,9 @@
   {
     "description": "Ranked argument shape errors precede engine tags in implications.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [],
+      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
@@ -18142,8 +18148,9 @@
   {
     "description": "Well-shaped constants still refuse engine-tag literals.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [],
+      "checks": [],
       "directives": [],
       "constants": [
         {
@@ -18166,8 +18173,9 @@
   {
     "description": "Well-shaped implications still refuse engine-tag literals.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [],
+      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
@@ -19113,8 +19121,9 @@
   {
     "description": "Ranked argument shape errors precede a non-closed constant term.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [],
+      "checks": [],
       "directives": [],
       "constants": [
         {
@@ -19158,8 +19167,9 @@
   {
     "description": "A well-shaped constant still refuses a non-closed term.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [],
+      "checks": [],
       "directives": [],
       "constants": [
         {
@@ -19198,8 +19208,9 @@
   {
     "description": "Ranked argument shape errors precede a non-closed implication term.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [],
+      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
@@ -19244,8 +19255,9 @@
   {
     "description": "A well-shaped implication still refuses a non-closed term.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [],
+      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
@@ -19715,8 +19727,9 @@
   {
     "description": "An implication checks then-side closedness before its capture type.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [],
+      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
@@ -19741,8 +19754,9 @@
   {
     "description": "An implication checks if-side closedness before its capture type.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [],
+      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
@@ -19767,7 +19781,7 @@
   {
     "description": "An earlier rule type fault precedes a later constant closedness fault.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [
         {
           "name": "extra",
@@ -19790,6 +19804,7 @@
           ]
         }
       ],
+      "checks": [],
       "directives": [],
       "constants": [
         {
@@ -19813,7 +19828,7 @@
   {
     "description": "An earlier constant closedness fault precedes a later rule type fault.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [
         {
           "name": "extra",
@@ -19836,6 +19851,7 @@
           ]
         }
       ],
+      "checks": [],
       "directives": [],
       "constants": [
         {
@@ -19859,7 +19875,7 @@
   {
     "description": "An earlier rule type fault precedes a later implication closedness fault.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [
         {
           "name": "extra",
@@ -19882,6 +19898,7 @@
           ]
         }
       ],
+      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
@@ -19906,7 +19923,7 @@
   {
     "description": "An earlier implication closedness fault precedes a later rule type fault.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [
         {
           "name": "extra",
@@ -19929,6 +19946,7 @@
           ]
         }
       ],
+      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
@@ -19953,7 +19971,7 @@
   {
     "description": "An earlier rule type fault precedes a later split delimiter fault in a supplied lexical DOM.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [
         {
           "name": "text",
@@ -22609,6 +22627,7 @@
           ]
         }
       ],
+      "checks": [],
       "directives": [
         {
           "name": "ambiguity-resolution",
@@ -22716,7 +22735,7 @@
   {
     "description": "An earlier split delimiter fault precedes a later rule type fault.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [
         {
           "name": "extra",
@@ -22739,6 +22758,7 @@
           ]
         }
       ],
+      "checks": [],
       "directives": [],
       "constants": [
         {
@@ -22770,7 +22790,7 @@
   {
     "description": "An earlier rule type fault precedes a split delimiter fault in a later rule.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [
         {
           "name": "extra",
@@ -22828,6 +22848,7 @@
           ]
         }
       ],
+      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
@@ -22839,7 +22860,7 @@
   {
     "description": "An earlier rule type fault precedes a split delimiter fault in a later implication.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [
         {
           "name": "extra",
@@ -22862,6 +22883,7 @@
           ]
         }
       ],
+      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
@@ -22894,7 +22916,7 @@
   {
     "description": "A later ranked shape error precedes an earlier split delimiter fault.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [
         {
           "name": "later",
@@ -22918,6 +22940,7 @@
           ]
         }
       ],
+      "checks": [],
       "directives": [],
       "constants": [
         {

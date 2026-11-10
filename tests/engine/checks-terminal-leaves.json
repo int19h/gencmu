@@ -1,0 +1,91 @@
+{
+  "description": "Issue #286: terminal identities ignore tests and resolve string constants.",
+  "grammar": "%const $A \"a\"\n%rule text $A=\"a\" _<Foo> A<Bar> [+T]\n%check terminal #·_ %warning $.terminal ++ \":\" ++ $.value",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": []
+    },
+    {
+      "text": "b",
+      "tags": [
+        "Foo"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "A",
+        "Bar"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "terminal"
+    ]
+  },
+  "expect": {
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "terminal",
+        "rule": "terminal",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "message": "\"a\":a"
+      },
+      {
+        "stage": "main",
+        "code": "terminal",
+        "rule": "terminal",
+        "span": [
+          1,
+          2
+        ],
+        "source": [
+          2,
+          3
+        ],
+        "message": "_:b"
+      },
+      {
+        "stage": "main",
+        "code": "terminal",
+        "rule": "terminal",
+        "span": [
+          2,
+          3
+        ],
+        "source": [
+          4,
+          5
+        ],
+        "message": "A:c"
+      },
+      {
+        "stage": "main",
+        "code": "terminal",
+        "rule": "terminal",
+        "span": [
+          3,
+          3
+        ],
+        "source": [
+          5,
+          5
+        ],
+        "message": "T:"
+      }
+    ],
+    "result": {
+      "ok": true
+    }
+  }
+}

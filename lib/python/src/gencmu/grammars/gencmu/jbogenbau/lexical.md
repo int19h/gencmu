@@ -353,13 +353,14 @@ Value tests select known keywords. `$KEYWORDS` holds their exact names. The fall
 
 ```jbogenbau
 %const $KEYWORDS
-  "rule" "redefine-rule" "extend-rule" "conditions"
+  "rule" "redefine-rule" "extend-rule" "check" "conditions"
   "error" "warning" "suppress-warnings"
   "emits" "erased" "ambiguity-resolution" "elision-only" "stage"
   "extend-stage" "redefine-stage" "include" "features"
   "const" "redefine-const" "classifier" "implies" "names"
 
 %rule keyword
+  | "%" whole-name="check" :: KW-CHECK
   | "%" whole-name="rule" :: KW-RULE
   | "%" whole-name="redefine-rule" :: KW-REDEFINE-RULE
   | "%" whole-name="extend-rule" :: KW-EXTEND-RULE

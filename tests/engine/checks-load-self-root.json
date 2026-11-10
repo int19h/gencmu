@@ -1,0 +1,8 @@
+{
+  "description": "Issue #286: the loader rejects self root.",
+  "grammar": "%rule text \"a\"\n%check bad #·_\n%conditions $ ≅ $\n%warning \"bad\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar"
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "description": "Issue #286: check boundary tests see erased interiors and walks can reach their exported roots.",
+  "grammar": "%rule text A [+T] hidden\n%rule hidden B\n%erased\n%check boundary\n #·_<_Elided>\n%conditions T ⊆ $.tags, $.followed-by(B) ∧ $.preceded-by(A), $.following-node ≅ #·hidden« ⋯ », B ⊆ $.following-node.tags\n%warning $.terminal",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "boundary"
+    ]
+  },
+  "expect": {
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "boundary",
+        "rule": "boundary",
+        "span": [
+          1,
+          1
+        ],
+        "source": [
+          1,
+          1
+        ],
+        "message": "T"
+      }
+    ],
+    "result": {
+      "ok": true
+    }
+  }
+}

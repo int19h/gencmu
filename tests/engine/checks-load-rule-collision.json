@@ -1,0 +1,8 @@
+{
+  "description": "Issue #286: the loader rejects rule collision.",
+  "grammar": "%rule text \"a\"\n%rule bad \"a\"\n%check bad\n #·_\n%warning \"bad\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar"
+  }
+}

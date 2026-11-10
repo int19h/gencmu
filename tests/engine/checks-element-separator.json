@@ -1,0 +1,31 @@
+{
+  "description": "Issue #286: the first separator element follows the recursive list prefix.",
+  "grammar": "%rule text {\"a\" / [+T]}\n%check prefix\n #·_<_Elided>\n%conditions $.preceding-element.local-readings.ending-after($), ¬$.preceding-node.local-readings.ending-after($), $.parent.onward.parse(\"a\" \"a\").ending-after($.preceding-element)\n%warning \"prefix\"",
+  "input": "aa",
+  "options": {
+    "features": [
+      "prefix"
+    ]
+  },
+  "expect": {
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "prefix",
+        "rule": "prefix",
+        "span": [
+          1,
+          1
+        ],
+        "source": [
+          1,
+          1
+        ],
+        "message": "prefix"
+      }
+    ],
+    "result": {
+      "ok": true
+    }
+  }
+}
