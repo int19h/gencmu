@@ -1,0 +1,32 @@
+{
+  "description": "Issue #286: a local query cannot reuse tags that read earlier stage input.",
+  "grammar": "%rule text \"1\" r\n%rule r \"a\"\n:: $.preceding-tokens.tags\n%check chosen #·r\n%conditions _General_Category_Decimal_Number ⊆ $.tags\n%warning \"chosen has digit\"\n%check local #·r\n%conditions _General_Category_Decimal_Number ⊆ $.local-readings.tags\n%warning \"local has digit\"",
+  "input": "1a",
+  "options": {
+    "features": [
+      "chosen",
+      "local"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "chosen",
+        "rule": "chosen",
+        "span": [
+          1,
+          2
+        ],
+        "source": [
+          1,
+          2
+        ],
+        "message": "chosen has digit"
+      }
+    ]
+  }
+}

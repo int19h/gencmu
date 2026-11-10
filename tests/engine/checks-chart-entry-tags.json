@@ -1,0 +1,31 @@
+{
+  "description": "Issue #286: entry settlement cannot hide a local witness with another tag.",
+  "grammar": "%rule text r :: D | e \"a\" :: C\n%rule e ε\n%conditions $.followed-by(r)\n%rule r \"a\" :: A | text<C> :: B\n%check probe #·r\n%conditions B ⊆ $.local-readings.tags\n%warning \"local B\"",
+  "input": "a",
+  "options": {
+    "features": [
+      "probe"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "probe",
+        "rule": "probe",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "message": "local B"
+      }
+    ]
+  }
+}

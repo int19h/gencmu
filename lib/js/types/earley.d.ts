@@ -574,6 +574,9 @@ export type SuffixState = {
     dependent: boolean;
     extend: ((end: number) => void) | null;
 };
+/** Retain the raw main chart until chosen-tree checks finish.
+ * @param {ParseContext} context @param {Chart} chart */
+export declare function retainStageChart(context: ParseContext, chart: Chart): void;
 /**
  * @param {Chart} chart
  * @returns {{position: number, expected: Expectation[], boundary?:any}}

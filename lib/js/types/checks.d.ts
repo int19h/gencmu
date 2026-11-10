@@ -31,10 +31,11 @@ export declare class ChosenChecks {
     preceding(node: any): any | null;
     /** @param {any} symbol @returns {any} */
     expression(symbol: any): any;
-    /** @param {any} term @returns {{start:number,rule:string}} */
+    /** @param {any} term @returns {{start:number,rule:string,site:any}} */
     localReading(term: any): {
         start: number;
         rule: string;
+        site: any;
     };
     /** @param {any} atom @returns {boolean} */
     boundary(atom: any): boolean;

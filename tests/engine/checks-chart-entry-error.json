@@ -1,0 +1,21 @@
+{
+  "description": "Issue #286: entry settlement requires the ordinary local query and its runtime error.",
+  "grammar": "%rule text r :: D | e \"a\" :: C\n%rule e ε\n%conditions $.followed-by(r)\n%rule r \"a\" :: A | text<C> boom :: B\n%rule boom ε\n%conditions \"x\" ∈ \"x\".split($.value)\n%check probe #·r\n%conditions $.local-readings\n%warning \"local reading\"",
+  "input": "a",
+  "options": {
+    "features": [
+      "probe"
+    ]
+  },
+  "expect": {
+    "error": "grammar",
+    "result": {
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

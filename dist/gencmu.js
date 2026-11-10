@@ -184,6 +184,7 @@
   // whose work must grow linearly with their input, each where a loop takes
   // the step. A loop that rescanned or copied a growing list would count
   // the square of the input, so the tests that read these kinds fail on it.
+  // Stage-chart eligibility counts its item and proof-edge steps too.
   // Tools outside the library count through the same hook.
 
   // The faults, one switch each. F1 has two per observer,
@@ -3621,6 +3622,88 @@
     return true;
   }
 
+  // ---- chart-readings.js
+  // Lowered, per-site qualification for answers from the main stage chart.
+
+
+
+  /** @type {WeakMap<object,{symbols:WeakMap<object,any>,rules:Map<string,any>}>} */
+  const sites=new WeakMap();
+
+  /** @param {any} expression @returns {boolean} */
+  function binds(expression) {
+    const pending=[expression];
+    while(pending.length) {
+      const node=pending.pop();if(!node)continue;
+      if(typeof node.capture==='string')return true;
+      pending.push(...expressionChildren(node));
+    }
+    return false;
+  }
+
+  /** Compute properties over the active lowered grammar, including nested queries.
+   * @param {any} lowered */
+  function prepareChartReadings(lowered) {
+    const usesLocal=lowered.checks.some((/** @type {any} */ check)=>{
+      const pending=[check.conditions];while(pending.length){const node=pending.pop();if(node?.method==='local-readings')return true;pending.push(...clauseChildren(node));}return false;
+    });
+    if(!usesLocal){sites.set(lowered,{symbols:new WeakMap(),rules:new Map()});return;}
+    const properties=new Map();
+    for(const name of lowered.byLhs.keys())properties.set(name,{outside:false,entry:name==='text',boundary:false,parents:new Set()});
+    for(const [name,productions]of lowered.byLhs) {
+      const info=properties.get(name),calls=new Set();
+      for(const production of productions) {
+        for(const symbol of production.rhs)if(!symbol.terminal)calls.add(symbol.name);
+        const pending=[production.conditions,production.tags,production.rankedConditions,production.rankedDeferred,production.parentTags,production.itemConditions];
+        while(pending.length) {
+          const node=pending.pop();if(!node||typeof node!=='object')continue;
+          if(node.method==='preceding-tokens'||node.method==='starts-input')info.outside=true;
+          if(node.method==='followed-by'||node.method==='preceded-by')info.boundary=true;
+          if(node.method==='parse')calls.add(bodyTarget(lowered,node.args[0].body));
+          else if(['matches','begins','ends','tags'].includes(node.method))for(const arg of node.args??[]) {
+            if(arg.rule)calls.add(arg.rule);
+            else if(arg.body)calls.add(bodyTarget(lowered,arg.body));
+          }
+          pending.push(...clauseChildren(node));
+        }
+      }
+      for(const child of calls)properties.get(child)?.parents.add(name);
+    }
+    const pending=[...properties.keys()],queued=new Set(pending);
+    while(pending.length) {
+      const name=pending.pop();queued.delete(name);const info=properties.get(name);
+      for(const parent of info.parents) {
+        const into=properties.get(parent);
+        if((info.outside&&!into.outside)||(info.entry&&!into.entry)||(info.boundary&&!into.boundary)) {
+          into.outside ||= info.outside;into.entry ||= info.entry;into.boundary ||= info.boundary;
+          if(!queued.has(parent)){queued.add(parent);pending.push(parent);}
+        }
+      }
+    }
+    const rules=new Map();
+    for(const [name,productions]of lowered.byLhs) {
+      const info=properties.get(name);
+      const helper=productions[0].helper&&!productions[0].spliceOf;
+      const safe=!helper||productions.every((/** @type {any} */ p)=>p.elided===null&&!binds(p.writtenExpression??lowered.elementExpressions.get(name))
+        &&p.captures.every((/** @type {any} */ c)=>c.name.startsWith('\u0000'))&&!p.conditions.length
+        &&!p.rankedConditions?.length&&!p.rankedDeferred?.length&&!p.itemConditions?.length&&!p.parentTags);
+      rules.set(name,{symbol:{name,terminal:false},qualified:safe&&!info.outside,settlesEntry:info.entry&&info.boundary});
+    }
+    const symbols=new WeakMap();
+    for(const production of lowered.productions)for(const symbol of production.rhs) {
+      const base=symbol.terminal?{qualified:true,settlesEntry:false}:rules.get(symbol.name);
+      symbols.set(symbol,{...base,symbol});
+    }
+    sites.set(lowered,{symbols,rules});
+  }
+
+  /** @param {any} lowered @param {any} symbol @returns {any} */
+  function chartReadingSite(lowered,symbol) {
+    if(!symbol)return null;
+    const table=sites.get(lowered);
+    return table?.symbols.get(symbol)??table?.rules.get(symbol.name)??null;
+  }
+
   // ---- chosen-boundaries.js
   // Boundary observations of one chosen derivation (engine §4.2).
   /** @param {import('./types.js').Derivation} root @param {Set<string>} demanded */
@@ -5750,6 +5833,7 @@
   }
 
   // ---- eligible.js
+
   // Written-terminator priority for nested queries (engine §4): which
   // completed items of a queried rule have an eligible proof tree.
 
@@ -5826,6 +5910,7 @@
     /** @param {import("./elements.js").Element[]} nodes @param {boolean} root @returns {{node:import("./elements.js").Element|undefined,initial:boolean}|null} */
     const find = (nodes,root) => {
       for (let index=0;index<nodes.length;index++) {
+        if(hooks.work)countWork(hooks.work,"walkSteps");
         const node = nodes[index];
         if (node.symbol && node.from === item.dot) return {node:nodes[index-1],initial:root && index === 1};
         if (node.children && node.from <= item.dot && item.dot < node.to) {
@@ -5866,11 +5951,33 @@
    * @returns {Item[]}
    */
   function eligibleWitnesses(chart, witnesses, errorFree = false) {
-    if (witnesses.length === 0) return witnesses;
+    const states=eligibility(chart,witnesses,errorFree);
+    return witnesses.filter(item=>errorFree?!!((states.get(item)??0)&1):!!states.get(item));
+  }
+
+  /** @type {WeakMap<object,Map<Item,number>>} */
+  const stageEligibility=new WeakMap();
+
+  /** One least fixed point shared by all local readings of the stage.
+   * @param {Chart} chart @param {Item[]} witnesses @param {boolean} errorFree */
+  function chartEligibleWitnesses(chart,witnesses,errorFree) {
+    if(!witnesses.length)return witnesses;
+    let states=stageEligibility.get(chart);
+    if(!states) {
+      const all=chart.sets.flatMap(set=>set?.items??[]);
+      states=eligibility(chart,all,true);stageEligibility.set(chart,states);
+    }
+    return witnesses.filter(item=>errorFree?!!((states.get(item)??0)&1):!!states.get(item));
+  }
+
+  /** @param {Chart} chart @param {Item[]} witnesses @param {boolean} errorFree
+   * @returns {Map<Item,number>} */
+  function eligibility(chart, witnesses, errorFree) {
+    if (witnesses.length === 0) return new Map();
     const {elidable:helpers,optional:optionals} = helpersOf(chart.context.lowered);
     let errors=errorGrammars.get(chart.context.lowered);
     if (errors===undefined) { errors=chart.context.lowered.productions.some(production=>!!production.error);errorGrammars.set(chart.context.lowered,errors); }
-    if (helpers.size === 0 && !errors && !errorFree) return witnesses;
+    if (helpers.size === 0 && !errors && !errorFree) return new Map(witnesses.map(item=>[item,1]));
     // The items the witnesses rest on, children before the items made from
     // them where the edges allow, so that one sweep settles most of them.
     /** @type {Map<Item, number>} */
@@ -5879,14 +5986,17 @@
     const order = [];
     let omits = false;
     for (const witness of witnesses) {
+      if(hooks.work)countWork(hooks.work,'walkSteps');
       if (index.has(witness)) continue;
       index.set(witness, -1);
       /** @type {{item: Item, edges: Edge[], next: number}[]} */
       const stack = [{ item: witness, edges: witness.edges, next: 0 }];
       while (stack.length > 0) {
+        if(hooks.work)countWork(hooks.work,'walkSteps');
         const frame = stack[stack.length - 1];
         let pushed = false;
         while (frame.next < frame.edges.length * 2) {
+          if(hooks.work)countWork(hooks.work,'walkSteps');
           const step = frame.next++;
           const edge = frame.edges[step >> 1];
           /** @type {Item | null} */
@@ -5911,7 +6021,7 @@
     }
     // With no omission, every item of a chart has a finite proof, made from
     // predicted items in the order in which the recognizer made it.
-    if (!omits && !errors && !errorFree) return witnesses;
+    if (!omits && !errors && !errorFree) return new Map(witnesses.map(item=>[item,1]));
 
     // The prefixes that advance over a written optional, and for each item
     // before a constituent Y, the furthest end of an advance over Y that then
@@ -5921,13 +6031,18 @@
     for (const set of chart.sets) {
       if (!set) continue;
       for (const item of set.items) {
-        for (const edge of item.edges) if (edge.kind === "complete" && written(edge.child)) reads.add(edge.previous);
+        if(hooks.work)countWork(hooks.work,'walkSteps');
+        for (const edge of item.edges) {
+          if(hooks.work)countWork(hooks.work,"walkSteps");
+          if (edge.kind === "complete" && written(edge.child)) reads.add(edge.previous);
+        }
       }
     }
     /** @type {Map<Item, number>} */
     const further = new Map();
     for (const item of reads) {
       for (const edge of item.edges) {
+        if(hooks.work)countWork(hooks.work,'walkSteps');
         if (edge.kind !== "complete") continue;
         const known = further.get(edge.previous);
         if (known === undefined || known < item.end) further.set(edge.previous, item.end);
@@ -5977,6 +6092,7 @@
     const fixedKey = (item,group) => {
       const captures = [];
       for (let slot=item.slots;slot;slot=slot.parent) {
+        if(hooks.work)countWork(hooks.work,"walkSteps");
         const name = item.production.captures[slot.index].name;
         captures.push([name,slot.start,slot.end,slot.tags,slot.structure,slot.observation?.sequence]);
       }
@@ -5995,6 +6111,7 @@
     const boundaries = (item,dot) => {
       const result = [], pending = [item], seen = new Set();
       while (pending.length) {
+        if(hooks.work)countWork(hooks.work,'walkSteps');
         const current = /** @type {Item} */ (pending.pop());
         if (seen.has(current)) continue;
         seen.add(current);
@@ -6036,6 +6153,7 @@
     const groupPermits = (item,group,end,states,permissions,bit) => {
       const pending = [{item,bit}], seen = new Set();
       while (pending.length) {
+        if(hooks.work)countWork(hooks.work,'walkSteps');
         const current = /** @type {{item:Item,bit:number}} */ (pending.pop());
         const key = at(current.item)*2 + (current.bit === 2 ? 1 : 0);
         if (seen.has(key) || !(states[at(current.item)] & current.bit)) continue;
@@ -6045,6 +6163,7 @@
           continue;
         }
         for (const edge of current.item.edges) {
+          if(hooks.work)countWork(hooks.work,"walkSteps");
           if (edge.kind === "scan") {
             for (const before of [1,2]) if (states[at(edge.previous)] & before &&
                 (dirtyRead(edge) ? 2 : before) === current.bit) pending.push({item:edge.previous,bit:before});
@@ -6063,12 +6182,14 @@
     while (changed) {
       changed = false;
       for (let x = 0; x < order.length; x++) {
+        if(hooks.work)countWork(hooks.work,'walkSteps');
         const item = order[x];
         // These are semantic support channels, not separate legacy paths.
         for (const raw of [true,false]) {
           const states = raw ? support : eligible, permissions = raw ? supportPermits : permits;
           let e = 0, p = 0;
           for (const edge of item.edges) {
+            if(hooks.work)countWork(hooks.work,'walkSteps');
             let through = 0;
             if (edge.kind === "seed" || edge.kind === "restore") through = dirtyRead(edge) ? 2 : 1;
             else if (edge.kind === "scan") through = dirtyRead(edge) ? states[at(edge.previous)] ? 2 : 0 : states[at(edge.previous)];
@@ -6098,7 +6219,7 @@
         }
       }
     }
-    return witnesses.filter(witness => errorFree ? !!(eligible[at(witness)] & 1) : eligible[at(witness)] !== 0);
+    return new Map(order.map((item,index)=>[item,eligible[index]]));
   }
 
   // ---- nullable-errors.js
@@ -10670,6 +10791,7 @@
 
 
 
+
   /** @param {any} arg @returns {any} */
   function targetBody(arg) {
     if (arg && typeof arg.rule === "string") return {ref:arg.rule};
@@ -11894,6 +12016,7 @@
         try {
           const classifiers = this.classifiers(on);
           lowered = { ...new Lowering(this, on).run(), classifiers, implications: this.implications };
+          prepareChartReadings(lowered);
         } catch (error) {
           if (error instanceof GencmuError) {
             const recovered = this.recoverTreeError ? this.recoverTreeError(on,error) : error;
@@ -12231,7 +12354,7 @@
           throw error;
         }
       }
-      return {
+      const lowered = {
         productions: this.productions,
         checks:this.grammar.checks.map(entry=>entry.check),
         elementExpressions:this.helperExpressions,
@@ -12245,6 +12368,7 @@
         queryTargets:this.grammar.queryTargets,
         queryNames:this.grammar.queryNames,
       };
+      return lowered;
     }
 
     /**
@@ -16539,6 +16663,49 @@
     return result===HALT ? pause(asSetValue) : {set:/** @type {TagSet} */(result)};
   }
 
+  /** @type {WeakMap<ParseContext,{chart:Chart,index:Map<string,Map<number,Item[]>>|null}>} */
+  const stageCharts=new WeakMap();
+
+  /** Retain the raw main chart until chosen-tree checks finish.
+   * @param {ParseContext} context @param {Chart} chart */
+  function retainStageChart(context,chart) {
+    if(context.mode===null)stageCharts.set(context,{chart,index:null});
+  }
+
+  /** @param {ParseContext} context @param {any} local @param {boolean} errorFree
+   * @returns {{accepted:boolean,tags:TagSet,ends:[number,TagSet][]}|null} */
+  function stageReading(context,local,errorFree) {
+    const saved=stageCharts.get(context),site=local.site;
+    if(context.mode!==null||!saved||!site?.qualified||local.start===saved.chart.start&&site.settlesEntry)return null;
+    const symbol=site.symbol,start=local.start;
+    /** @type {[number,TagSet][]} */const ends=[];
+    if(symbol.terminal) {
+      const token=context.tokens[start];
+      if(token&&reads(context,symbol,token,start)&&(!symbol.test||testHolds(context,symbol.test,start,start+1,token.tags))
+        &&(!errorFree||!token.errors.length))ends.push([1,token.tags]);
+    } else {
+      if(!saved.index) {
+        saved.index=new Map();
+        for(const set of saved.chart.sets)if(set)for(const item of set.items) {
+          if(hooks.work)countWork(hooks.work,'walkSteps');
+          if(!item.complete)continue;
+          let origins=saved.index.get(item.production.lhs);
+          if(!origins)saved.index.set(item.production.lhs,origins=new Map());
+          let completed=origins.get(item.origin);if(!completed)origins.set(item.origin,completed=[]);
+          completed.push(item);
+        }
+      }
+      const candidates=saved.index.get(symbol.name)?.get(start)??[];
+      const witnesses=chartEligibleWitnesses(saved.chart,boundaryWitnesses(saved.chart,candidates),errorFree);
+      for(const item of witnesses) {
+        const tags=context.interner.get(item.tagId);
+        if(!symbol.test||testHolds(context,symbol.test,start,item.end,tags))ends.push([item.end-start,tags]);
+      }
+    }
+    const tags=new TagUnion();for(const [,set]of ends)tags.add(set);
+    return {accepted:ends.length!==0,tags:tags.result(),ends};
+  }
+
   /** A forest query runs once before any endpoint argument is read.
    * @param {ParseContext} context @param {any} forest @param {Scope} scope
    * @param {boolean} tags @returns {boolean|TagSet|Halt} */
@@ -16547,17 +16714,19 @@
     while(['error-free','ending-after'].includes(forest.method)){filters.push(forest);forest=forest.receiver;}
     const errorFree=filters.some(filter=>filter.method==='error-free');
     const ends=filters.some(filter=>filter.method==='ending-after');
-    let target;
+    let target,stageAnswer=null;
     if(forest.method==='local-readings') {
       const local=/** @type {NonNullable<Scope['localReading']>} */(scope.localReading)(forest.receiver);
+      stageAnswer=stageReading(context,local,errorFree);
       target={context,start:local.start,end:context.tokens.length,key:null,rule:local.rule,mode:'begins',errorFree,ends};
     } else {
       const receiver=queryTarget(context,spanOf(context,forest.receiver,scope),scope);
       target={...receiver,rule:bodyTarget(receiver.context.lowered,forest.args[0].body),mode:queryBody(forest.args[0].body).mode,errorFree,ends};
     }
     /** @type {any} */ const request=target;
-    const answer=nested(target.context,tags?target.mode==='matches'?'tags':target.mode+'-tags':target.mode,
-      target.rule,target.start,target.end,request);
+    const answer=stageAnswer?(request.answer=stageAnswer,tags?stageAnswer.tags:stageAnswer.accepted)
+      :nested(target.context,tags?target.mode==='matches'?'tags':target.mode+'-tags':target.mode,
+        target.rule,target.start,target.end,request);
     /** @param {boolean|TagSet} value @returns {boolean|TagSet} */
     const finish=value=>{
       if(!ends)return value;
@@ -16939,6 +17108,7 @@
 
   // ---- checks.js
 
+
   // Checks read a chosen derivation without affecting recognition or ranking.
 
 
@@ -17080,7 +17250,7 @@
           const start=parent.children[element.from]?.start??parent.end;
           const end=element.to===element.from?start:parent.children[element.to-1].end;
           const expression=element.written??this.expression(element.symbol);
-          return {start,end,expression};
+          return {start,end,expression,chartSymbol:element.symbol};
         }
         if(!parent.production.helper || parent.production.spliceOf)return null;
         child=parent;
@@ -17092,16 +17262,17 @@
       return symbol.expression??this.context.lowered.elementExpressions.get(symbol.name)??{ref:symbol.name};
     }
 
-    /** @param {any} term @returns {{start:number,rule:string}} */
+    /** @param {any} term @returns {{start:number,rule:string,site:any}} */
     localReading(term) {
       const value=this.checkValue(term);
-      let expression=value.expression;
+      let expression=value.expression,symbol=value.chartSymbol;
       if(!expression) {
         const derivation=value.node.derivation,parent=this.flow.info(derivation).parent;
-        expression=parent && !('read' in parent)?this.expression(parent.production.rhs[parent.children.indexOf(derivation)])
-          :{ref:derivation.production.lhs};
+        symbol=parent && !('read' in parent)?parent.production.rhs[parent.children.indexOf(derivation)]
+          :{name:derivation.production.lhs,terminal:false};
+        expression=this.expression(symbol);
       }
-      return {start:value.start,rule:bodyTarget(this.context.lowered,withoutBinders(expression))};
+      return {start:value.start,rule:bodyTarget(this.context.lowered,withoutBinders(expression)),site:chartReadingSite(this.context.lowered,symbol)};
     }
 
     /** @param {any} atom @returns {boolean} */
@@ -21536,6 +21707,7 @@
         lowered = this.grammar.lower(features);
         context = new ParseContext(lowered, tokens, sourceText, unicode);
         chart = recognize(context, "text", 0, tokens.length);
+        retainStageChart(context,chart);
         roots = rootItems(chart, "text");
       } catch (error) {
         if (error instanceof GencmuError) {

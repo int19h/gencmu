@@ -28,3 +28,6 @@ import type { Chart } from "./earley.js";
  * @returns {Item[]}
  */
 export declare function eligibleWitnesses(chart: Chart, witnesses: Item[], errorFree?: boolean): Item[];
+/** One least fixed point shared by all local readings of the stage.
+ * @param {Chart} chart @param {Item[]} witnesses @param {boolean} errorFree */
+export declare function chartEligibleWitnesses(chart: Chart, witnesses: Item[], errorFree: boolean): Item[];
