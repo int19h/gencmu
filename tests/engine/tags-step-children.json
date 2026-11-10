@@ -1,6 +1,6 @@
 {
   "description": "A ranking step requires exact local node tests (engine §9.3).",
-  "grammar": "%ambiguity-resolution fewest #·w«»\n%rule text \"a\"\n%rule w \"a\"",
+  "grammar": "%ambiguity-resolution fewest #·w⁅⁆\n%rule text \"a\"\n%rule w \"a\"",
   "input": "a",
   "expect": {
     "error": "grammar",

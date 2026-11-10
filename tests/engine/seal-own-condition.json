@@ -1,6 +1,6 @@
 {
   "description": "Engine §4.1 and §6: an erased definition evaluates its own child list against its real working structure.",
-  "grammar": "%ambiguity-resolution fewest #·zz\n%rule text $e:e\n%conditions $e ≅ #·e\n%rule e a\n%conditions $ ≅ #« a »\n%erased\n%rule a A\n%rule zz B B B",
+  "grammar": "%ambiguity-resolution fewest #·zz\n%rule text $e:e\n%conditions $e ≅ #·e\n%rule e a\n%conditions $ ≅ #⁅ a ⁆\n%erased\n%rule a A\n%rule zz B B B",
   "tokens": [
     {
       "text": "a",

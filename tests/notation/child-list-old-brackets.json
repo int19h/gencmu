@@ -1,0 +1,11 @@
+{
+  "description": "A guillemet outside a string or a comment is a load error that names the child list brackets ⁅ and ⁆ (engine §9.1).",
+  "document": "```jbogenbau\n%rule text $x:a %conditions $x ≅ #« A »\n%rule a A\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 35,
+      "message": "a child list uses ⁅ and ⁆, not « and »"
+    }
+  }
+}

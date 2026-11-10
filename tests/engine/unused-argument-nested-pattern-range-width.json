@@ -1,6 +1,6 @@
 {
   "description": "Unused arguments receive ordinary value inspection after constant binding.",
-  "grammar": "%const $S \"ab\"\n%rule f(@X) \"a\"\n%rule text f(#root« $S..\"z\" »)",
+  "grammar": "%const $S \"ab\"\n%rule f(@X) \"a\"\n%rule text f(#root⁅ $S..\"z\" ⁆)",
   "input": "",
   "expect": {
     "error": "grammar",

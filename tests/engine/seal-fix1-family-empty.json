@@ -1,6 +1,6 @@
 {
   "description": "Engine §9.3: an uninstantiated family does not trigger the erased child-list error.",
-  "grammar": "%rule atom(@T) @T\n%erased\n%rule text A\n%rule unused $t:text\n%conditions $t ≅ #·atom« A »",
+  "grammar": "%rule atom(@T) @T\n%erased\n%rule text A\n%rule unused $t:text\n%conditions $t ≅ #·atom⁅ A ⁆",
   "tokens": [
     {
       "text": "a",

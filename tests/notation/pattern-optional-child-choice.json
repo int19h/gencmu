@@ -1,6 +1,6 @@
 {
   "description": "An ordinary declaration: an optional retains its child choice",
-  "document": "```jbogenbau\n%rule probe A\n%conditions $ ≅ #« [(a | b)] »\n```\n",
+  "document": "```jbogenbau\n%rule probe A\n%conditions $ ≅ #⁅ [(a | b)] ⁆\n```\n",
   "expect": {
     "dom": {
       "format": 46,

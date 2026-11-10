@@ -1,6 +1,6 @@
 {
   "description": "Engine §4.1 and §6: negating the parent list accepts its leading erased child and keeps one class.",
-  "grammar": "%ambiguity-resolution fewest #·zz\n%rule text r2 C | $p:p D\n%conditions $p ≇ #·p« ·A ⋯ »\n%rule p r2 A\n%rule r2 (r4 ≻ B) :: ∅ | [r4]\n%erased\n%rule r4 B | ε\n%rule zz B B B",
+  "grammar": "%ambiguity-resolution fewest #·zz\n%rule text r2 C | $p:p D\n%conditions $p ≇ #·p⁅ ·A ⋯ ⁆\n%rule p r2 A\n%rule r2 (r4 ≻ B) :: ∅ | [r4]\n%erased\n%rule r4 B | ε\n%rule zz B B B",
   "tokens": [
     {
       "text": "a",

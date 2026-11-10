@@ -1,6 +1,6 @@
 {
   "description": "first and last paths remain separate child items",
-  "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #« A ⋰ ⋱ B »\n```\n",
+  "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #⁅ A ⋰ ⋱ B ⁆\n```\n",
   "expect": {
     "dom": {
       "format": 46,

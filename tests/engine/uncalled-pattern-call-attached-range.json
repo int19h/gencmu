@@ -1,6 +1,6 @@
 {
   "description": "Uncalled pattern calls and parameters retain bound-value inspection of attached children.",
-  "grammar": "%const $W \"ab\"\n%rule g(@X) @X\n%rule unused(@P) \"a\"\n%conditions $ ≅ #g(\"a\")« $W..\"z\" »\n%rule text \"a\"",
+  "grammar": "%const $W \"ab\"\n%rule g(@X) @X\n%rule unused(@P) \"a\"\n%conditions $ ≅ #g(\"a\")⁅ $W..\"z\" ⁆\n%rule text \"a\"",
   "input": "a",
   "expect": {
     "error": "grammar",

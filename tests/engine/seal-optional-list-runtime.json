@@ -1,6 +1,6 @@
 {
   "description": "Engine §4.1 and §9.3: a bare list tests the sealed view without an attached rule list (optional-list-runtime).",
-  "grammar": "%ambiguity-resolution fewest #·zz\n%rule text $r:r2 C\n%conditions $r ≅ #(·r2 ∩ « [r4] »)\n%rule r2 (r4 ≻ B) :: ∅ | [r4]\n%erased\n%rule r4 B | ε\n%rule zz B B B",
+  "grammar": "%ambiguity-resolution fewest #·zz\n%rule text $r:r2 C\n%conditions $r ≅ #(·r2 ∩ ⁅ [r4] ⁆)\n%rule r2 (r4 ≻ B) :: ∅ | [r4]\n%erased\n%rule r4 B | ε\n%rule zz B B B",
   "tokens": [
     {
       "text": "c",

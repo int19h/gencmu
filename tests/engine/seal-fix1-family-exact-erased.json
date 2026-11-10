@@ -1,7 +1,7 @@
 {
   "description": "Engine §9.3: an exact fully erased instance rejects its child list even when the family contains a mixed instance.",
   "documents": {
-    "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule atom(@T) @T\n%erased\n%rule ia = atom(A)\n%rule ib = atom(B)\n%extend-rule atom(B) B\n%rule text $i:ib\n%conditions $i ≅ #·atom(A)« A »\n```\n"
+    "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule atom(@T) @T\n%erased\n%rule ia = atom(A)\n%rule ib = atom(B)\n%extend-rule atom(B) B\n%rule text $i:ib\n%conditions $i ≅ #·atom(A)⁅ A ⁆\n```\n"
   },
   "pipelineDocument": "p.md",
   "tokens": [
