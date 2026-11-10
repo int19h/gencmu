@@ -23381,7 +23381,7 @@
           const found = readType(right);
           const problem=checkContext ? comparisonProblem(op,/** @type {any} */(readType(left)).type,/** @type {any} */(found).type)
             : typeof /** @type {any} */ (right).capture === "string" ? left.capture === /** @type {any} */ (right).capture ? "a tree comparison cannot compare a capture with itself" : null : "problem" in found ? found.problem : expectedProblem(found.type,"pattern");
-          if(problem && !featureContext)fail(problem,rightNode);
+          if(problem && !featureContext)fail(problem,!checkContext && typeof /** @type {any} */(right).capture === "string" ? inner : rightNode);
           const comparison={op,left,right};
           boundaryLocations.set(comparison,{tree:inner,at:at(inner)});
           return comparison;

@@ -93,7 +93,7 @@
     },
     {
       "description": "Bootstrap ignores following Format (engine §9.3 and output.md)",
-      "find": "\"format\":47",
+      "find": "\"format\":48",
       "replace": "\"format\":48,\"Format\":0",
       "loads": true
     },
@@ -105,7 +105,7 @@
     },
     {
       "description": "Bootstrap uses a later invalid format (engine §9.3 and output.md)",
-      "find": "\"format\":47",
+      "find": "\"format\":48",
       "replace": "\"format\":48,\"format\":null",
       "loads": false
     },
@@ -213,8 +213,8 @@
     },
     {
       "description": "Bootstrap ignores a 400-digit integer in its manifest (engine §9.3 and output.md)",
-      "find": "{\"format\":47",
-      "replace": "{\"ignored\":9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999,\"format\":47",
+      "find": "{\"format\":48",
+      "replace": "{\"ignored\":9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999,\"format\":48",
       "loads": true,
       "rustLoads": false,
       "note": "Rust rejects ignored integers outside signed 64-bit range. Sol records this existing limit outside the numbers branch."
@@ -237,8 +237,8 @@
     },
     {
       "description": "Bootstrap refuses a 400-digit integer in its raw DOM (engine §9.3 and output.md)",
-      "find": "\"dom\":{\"format\":47",
-      "replace": "\"dom\":{\"ignored\":9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999,\"format\":47",
+      "find": "\"dom\":{\"format\":48",
+      "replace": "\"dom\":{\"ignored\":9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999,\"format\":48",
       "loads": false,
       "rustLoads": false,
       "note": "Rust rejects ignored integers outside signed 64-bit range. Sol records this existing limit outside the numbers branch."
@@ -283,13 +283,13 @@
     },
     {
       "description": "Bootstrap rejects a leading-zero integer.",
-      "find": "\"format\":47",
+      "find": "\"format\":48",
       "replace": "\"format\":042",
       "loads": false
     },
     {
       "description": "Bootstrap rejects a signed hexadecimal escape.",
-      "find": "\"format\":47",
+      "find": "\"format\":48",
       "replace": "\"form\\u+061t\":40",
       "loads": false
     }
@@ -297,31 +297,31 @@
   "preparsed": [
     {
       "description": "Preparsed cache requires exact manifest format (engine §9.3 and output.md)",
-      "find": "\"format\":47",
+      "find": "\"format\":48",
       "replace": "\"Format\":19",
       "cached": false
     },
     {
       "description": "Preparsed cache ignores preceding Format at manifest format (engine §9.3 and output.md)",
-      "find": "\"format\":47",
-      "replace": "\"Format\":0,\"format\":47",
+      "find": "\"format\":48",
+      "replace": "\"Format\":0,\"format\":48",
       "cached": true
     },
     {
       "description": "Preparsed cache ignores following Format at manifest format (engine §9.3 and output.md)",
-      "find": "\"format\":47",
+      "find": "\"format\":48",
       "replace": "\"format\":48,\"Format\":0",
       "cached": true
     },
     {
       "description": "Preparsed cache replaces an invalid manifest format (engine §9.3 and output.md)",
-      "find": "\"format\":47",
-      "replace": "\"format\":null,\"format\":47",
+      "find": "\"format\":48",
+      "replace": "\"format\":null,\"format\":48",
       "cached": true
     },
     {
       "description": "Preparsed cache uses the last manifest format (engine §9.3 and output.md)",
-      "find": "\"format\":47",
+      "find": "\"format\":48",
       "replace": "\"format\":48,\"format\":null",
       "cached": false
     },
@@ -447,31 +447,31 @@
     },
     {
       "description": "Preparsed cache requires exact DOM format (engine §9.3 and output.md)",
-      "find": "\"dom\":{\"format\":47",
+      "find": "\"dom\":{\"format\":48",
       "replace": "\"dom\":{\"Format\":19",
       "cached": false
     },
     {
       "description": "Preparsed cache refuses preceding Format at DOM format (engine §9.3 and output.md)",
-      "find": "\"dom\":{\"format\":47",
-      "replace": "\"dom\":{\"Format\":0,\"format\":47",
+      "find": "\"dom\":{\"format\":48",
+      "replace": "\"dom\":{\"Format\":0,\"format\":48",
       "cached": false
     },
     {
       "description": "Preparsed cache refuses following Format at DOM format (engine §9.3 and output.md)",
-      "find": "\"dom\":{\"format\":47",
+      "find": "\"dom\":{\"format\":48",
       "replace": "\"dom\":{\"format\":48,\"Format\":0",
       "cached": false
     },
     {
       "description": "Preparsed cache replaces an invalid DOM format (engine §9.3 and output.md)",
-      "find": "\"dom\":{\"format\":47",
-      "replace": "\"dom\":{\"format\":null,\"format\":47",
+      "find": "\"dom\":{\"format\":48",
+      "replace": "\"dom\":{\"format\":null,\"format\":48",
       "cached": true
     },
     {
       "description": "Preparsed cache uses the last DOM format (engine §9.3 and output.md)",
-      "find": "\"dom\":{\"format\":47",
+      "find": "\"dom\":{\"format\":48",
       "replace": "\"dom\":{\"format\":48,\"format\":null",
       "cached": false
     },
@@ -627,8 +627,8 @@
     },
     {
       "description": "Preparsed ignores a 400-digit integer in its manifest (engine §9.3 and output.md)",
-      "find": "{\"format\":47",
-      "replace": "{\"ignored\":9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999,\"format\":47",
+      "find": "{\"format\":48",
+      "replace": "{\"ignored\":9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999,\"format\":48",
       "cached": true,
       "rustCached": false,
       "note": "Rust rejects ignored integers outside signed 64-bit range. Sol records this existing limit outside the numbers branch."
@@ -643,8 +643,8 @@
     },
     {
       "description": "Preparsed refuses a 400-digit integer in its raw DOM (engine §9.3 and output.md)",
-      "find": "\"dom\":{\"format\":47",
-      "replace": "\"dom\":{\"ignored\":9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999,\"format\":47",
+      "find": "\"dom\":{\"format\":48",
+      "replace": "\"dom\":{\"ignored\":9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999,\"format\":48",
       "cached": false,
       "rustCached": false,
       "note": "Rust rejects ignored integers outside signed 64-bit range. Sol records this existing limit outside the numbers branch."
@@ -1882,7 +1882,7 @@
     },
     {
       "description": "A family cache cannot supply a document from another family.",
-      "find": "\"format\":47",
+      "find": "\"format\":48",
       "replace": "\"format\":0",
       "sources": {
         "data/preparsed/unrelated.json": "@matching-cache@",
@@ -1903,13 +1903,13 @@
     },
     {
       "description": "Cache rejects a leading-zero integer.",
-      "find": "\"format\":47",
+      "find": "\"format\":48",
       "replace": "\"format\":042",
       "cached": false
     },
     {
       "description": "Cache rejects a signed hexadecimal escape.",
-      "find": "\"format\":47",
+      "find": "\"format\":48",
       "replace": "\"form\\u+061t\":40",
       "cached": false
     },
