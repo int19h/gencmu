@@ -24,7 +24,7 @@ Where a rule corresponds to a PEG rule, its name uses lowercase letters and hyph
 
 A diphthong combines two vowels in one syllable. A nucleus is the vowel, diphthong or `y` at the center of a syllable. A glide is an `i` or `u` before a nucleus. An onset is the part of a syllable before its nucleus. A coda is the consonant part after a nucleus.
 
-This grammar states the morphology's rules directly. Its alternatives have no order. It retains PEG lookaheads where they state word shapes, stress, hyphens, or word boundaries. A lookahead tests the text without consuming it. The conditions use `begins` to test starts, including text beyond the word and before the next pause. They use `matches` to test a complete captured span.
+This grammar states the morphology's rules directly. Its alternatives have no order. It retains PEG lookaheads where they state word shapes, stress, hyphens, or word boundaries. A lookahead tests the text without consuming it. The conditions use a prefix parse to test starts, including text beyond the word and before the next pause. They use a whole parse to test a complete captured span.
 
 Different letters or incompatible conditions separate most alternatives. Other alternatives overlap as prefixes, but only one can complete the surrounding word. Their comments and the prose name the letters, stress, hyphens, or boundaries that force completion. At the end of a lookahead, alternative endpoints need no preference because the test asks only whether a form begins. Inside a lookahead, optionals and repetitions need an exclusion or completion argument, or an argument that every reading gives the PEG's answer.
 

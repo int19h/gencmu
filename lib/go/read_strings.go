@@ -564,7 +564,7 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 			if problem != "" {
 				b.fail(n, "%s", problem)
 			}
-			if (mode == cdEnds || mode == cdContains) && restoredTerm(receiver) {
+			if (mode == cdSuffix || mode == cdContains) && restoredTerm(receiver) {
 				b.fail(n, "suffix parse requires an ordinary span, not a restored span")
 			}
 		}

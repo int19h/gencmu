@@ -64,5 +64,5 @@ class BodyQueries(unittest.TestCase):
         self.assertEqual(query_identity(body), query_identity(flat))
         self.assertEqual(query_identity({"seq": [flat, {"remainder": True}]}), query_identity(flat))
         self.assertNotEqual(query_identity({"ref": "A"}), query_identity({"test": "=", "expr": {"ref": "A"}, "value": {"string": "x"}}))
-        self.assertEqual(query_body({"seq": [{"remainder": True}, flat]})[1], "ends")
+        self.assertEqual(query_body({"seq": [{"remainder": True}, flat]})[1], "suffix")
         self.assertEqual(query_capture({"repeat": {"ref": "A"}, "separator": {"capture": "x", "expr": {"ref": "B"}}})["capture"], "x")

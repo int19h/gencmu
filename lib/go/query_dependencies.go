@@ -83,7 +83,7 @@ func (walk *productionClauseWalk) production(p *production) {
 }
 
 func queryParts(part clausePart, g *lowered) (*domTerm, []string) {
-	if condition := part.c; condition != nil && (condition.Kind == cdMatches || condition.Kind == cdBegins || condition.Kind == cdEnds) {
+	if condition := part.c; condition != nil && (condition.Kind == cdWhole || condition.Kind == cdPrefix || condition.Kind == cdSuffix) {
 		var names []string
 		for _, target := range condition.queryTargets() {
 			names = append(names, queryName(target))

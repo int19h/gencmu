@@ -444,7 +444,7 @@ The reader groups repeated guards to the right. Flat lists retain their written 
 
 A method chain starts with a receiver and follows it with selectors. Each selector names a method and can supply nonempty parenthesized arguments. The `parse` selector takes a capture-free body constituent instead of a list of terms. A remainder mark at one outer edge selects a prefix or suffix query. Remainder marks at both edges select a query over some part of the view.
 
-The methods `.begins`, `.matches`, `.ends`, `.followed-by`, and `.preceded-by` separate target names with `|`. Other methods separate arguments with `,`. The reader enforces this distinction.
+The methods `.followed-by` and `.preceded-by` separate target names with `|`. Other methods separate arguments with `,`. The reader enforces this distinction.
 
 The reader folds selectors from left to right. It retains the receiver's actual type and applies the signature rules in engine §10.
 

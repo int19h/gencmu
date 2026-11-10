@@ -637,7 +637,7 @@ func (g *stageGrammar) checkAlt(a *sAlt, checked *checkedClauses) *Error {
 				return err
 			}
 			return checkTerm(c.Right)
-		case cdMatches, cdBegins, cdEnds:
+		case cdWhole, cdPrefix, cdSuffix:
 			if err := checkTerm(c.Span); err != nil {
 				return err
 			}

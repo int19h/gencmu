@@ -1385,10 +1385,7 @@ impl<'a> Reader<'a> {
                 } else {
                     ""
                 };
-                if matches!(
-                    name,
-                    "starts-input" | "ends-input" | "followed-by" | "preceded-by" | "matches" | "begins" | "ends"
-                ) {
+                if matches!(name, "starts-input" | "ends-input" | "followed-by" | "preceded-by") {
                     return true;
                 }
             }
@@ -1899,8 +1896,7 @@ impl<'a> Reader<'a> {
             return Ok(Step::Call(Frame::Argument(ArgumentFrame { node: argument })));
         }
         if let Some(arguments) = self.rules(selector, "arguments").next() {
-            let expected =
-                if matches!(name, "matches" | "begins" | "ends" | "followed-by" | "preceded-by") { "|" } else { "," };
+            let expected = if matches!(name, "followed-by" | "preceded-by") { "|" } else { "," };
             if self.parts(arguments).iter().any(|part| part.kind == NodeKind::Token && self.value(part) != expected) {
                 return Err(self.error(arguments, "invalid method argument separator"));
             }
@@ -1950,9 +1946,6 @@ impl<'a> Reader<'a> {
                 _ => false,
             }
         };
-        if name == "ends" && crate::dom::restored_span(&receiver) {
-            return Err(self.error(frame.node, "ends requires an ordinary span, not a restored span"));
-        }
         if name == "parse"
             && matches!(arguments,[Arg::Term(Term::Body(body))] if crate::query_forms::suffix_body(body))
             && crate::dom::restored_span(&receiver)

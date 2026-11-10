@@ -488,12 +488,12 @@
       const edges = markers.every(index => index === 0 || index === sequence.length - 1);
       if (Object.keys(body).length !== 1 || markers.length > 2 || !edges || parts.length < 1 ||
           markers.some(index => Object.keys(sequence[index]).length !== 1 || sequence[index].remainder !== true)) {
-        return {body,mode:"matches",problem:"a remainder stands at one outer edge of a parse argument"};
+        return {body,mode:"whole",problem:"a remainder stands at one outer edge of a parse argument"};
       }
-      const mode = markers.length === 2 ? "contains" : markers[0] === 0 ? "ends" : "begins";
+      const mode = markers.length === 2 ? "part" : markers[0] === 0 ? "suffix" : "prefix";
       return {body:parts.length === 1 ? parts[0] : {seq:parts},mode};
     }
-    return {body,mode:"matches"};
+    return {body,mode:"whole"};
   }
 
   /** @param {any} body @returns {any | null} */
@@ -5549,7 +5549,7 @@
     let valid;
     if (name === "parse") {
       if (args.length !== 1 || !object(args[0]) || Object.keys(args[0]).length !== 1 || !object(args[0].body)) return METHOD_SIGNATURE_PROBLEM;
-      if (restored(receiver) && ["ends","contains"].includes(queryBody(args[0].body).mode)) return "suffix parse requires an ordinary span, not a restored span";
+      if (restored(receiver) && ["suffix","part"].includes(queryBody(args[0].body).mode)) return "suffix parse requires an ordinary span, not a restored span";
       valid = span;
     } else if (name === "error-free") valid = ["parse","error-free"].includes(receiver.method) && args.length === 0;
     else if (name === "ngrams") valid = args.length === 1 && named(args[0], "integer") && /^[1-9][0-9]*$/.test(args[0].integer);
@@ -5581,7 +5581,7 @@
     const rule = (/** @type {number} */ index) => args[index] && typeof args[index].rule === "string";
     if (name === "parse") {
       if (!span || args.length !== 1 || !args[0]?.body) return METHOD_SIGNATURE_PROBLEM;
-      if (restored(receiver) && ["ends","contains"].includes(queryBody(args[0].body).mode)) return "suffix parse requires an ordinary span, not a restored span";
+      if (restored(receiver) && ["suffix","part"].includes(queryBody(args[0].body).mode)) return "suffix parse requires an ordinary span, not a restored span";
     } else if (name === "error-free") {
       if (type !== "forest" || args.length) return METHOD_SIGNATURE_PROBLEM;
     } else if (name === "without-elision") {
@@ -13404,7 +13404,7 @@
   class Pending {
     /**
      * @param {ParseContext} context
-     * @param {"matches" | "begins" | "ends" | "tags"} kind
+     * @param {"whole" | "prefix" | "suffix" | "tags"} kind
      * @param {string} rule
      * @param {number} start
      * @param {number} end
@@ -13722,7 +13722,7 @@
       state.dependent ||= sharingOf(context).asked !== query.asked;
       entry = {accepted:state.answers.get(query.end) ?? false,tags:suffixTags(state).get(query.end) ?? tagSet()};
       answer = queryAnswer(kind, entry);
-    } else if (kind === "contains" || kind === "contains-tags") {
+    } else if (kind === "part" || kind === "part-tags") {
       /** @type {Item[]} */
       const witnesses = [];
       for (const set of chart.sets) {
@@ -13735,7 +13735,7 @@
       entry = {accepted:eligible.length > 0,tags:result.result()};
       answer = queryAnswer(kind, entry);
       shared = { accepted: entry.accepted, tags: [...entry.tags] };
-    } else if (kind === "begins" || kind === "begins-tags") {
+    } else if (kind === "prefix" || kind === "prefix-tags") {
       // A completed item from the span's start, in any set (engine §4).
       /** @type {Item[]} */
       const witnesses = [];
@@ -13771,7 +13771,7 @@
     return typeof entry === "boolean" ? entry : kind === "tags" || kind.endsWith("-tags") ? entry.tags : entry.accepted;
   }
   /** @param {string} kind @returns {boolean} */
-  function isEnds(kind) { return kind === "ends" || kind === "ends-tags"; }
+  function isEnds(kind) { return kind === "suffix" || kind === "suffix-tags"; }
 
   /**
    * Filter one qualification for this request's endpoint and close constraints.
@@ -13783,7 +13783,7 @@
    */
   function alignedAnswer(context, kind, constraint, qualified) {
     const aligned = qualified.filter(item => {
-      if (item.end > constraint.matchEnd || kind.replace(/-tags$/, "") !== "begins" && item.end !== constraint.matchEnd) return false;
+      if (item.end > constraint.matchEnd || kind.replace(/-tags$/, "") !== "prefix" && item.end !== constraint.matchEnd) return false;
       const answer = !!item.observation && (item.familyAligned
         ?? !!context.closes?.aligned(constraint.observation,item.observation,Math.min(constraint.candidateEnd,item.end)));
       if (item.direct !== null && hooks.familyAlignment) hooks.familyAlignment(answer, !!item.observation?.valid && item.direct);
@@ -13828,7 +13828,7 @@
    */
   function startRun(context, rule, start, end, query) {
     const suffix = query && isEnds(query.kind) ? suffixRequests.get(query) : undefined;
-    const contains = /** @type {string | undefined} */ (query?.kind) === "contains" || /** @type {string | undefined} */ (query?.kind) === "contains-tags";
+    const contains = /** @type {string | undefined} */ (query?.kind) === "part" || /** @type {string | undefined} */ (query?.kind) === "part-tags";
     const scanning = suffix || contains;
     const outerStart = context.inputStart;
     const outerEnd = context.inputEnd;
@@ -15798,7 +15798,7 @@
         let query = /** @type {any} */ (condition), errorFree = false;
         while (query.method === "error-free") { errorFree = true; query = query.receiver; }
         const span = spanOf(context,query.receiver,scope), target = queryTarget(context,span,scope);
-        const kind = /** @type {"matches"|"begins"|"ends"} */ (queryBody(query.args[0].body).mode);
+        const kind = /** @type {"whole"|"prefix"|"suffix"} */ (queryBody(query.args[0].body).mode);
         return /** @type {boolean|Halt} */ (nested(target.context,kind,bodyTarget(target.context.lowered,query.args[0].body),
           target.start,target.end,{...target,errorFree}));
       }
@@ -15999,7 +15999,7 @@
     if (aligned) sharing.asked++;
     // One recognition answers matches and tags, so both memos share a kind (§4.3).
     const errorFree = !!target?.errorFree;
-    const memoKind = (kind === "tags" ? "matches" : kind.endsWith("-tags") ? kind.slice(0, -5) : kind) + (errorFree ? ":error-free" : "");
+    const memoKind = (kind === "tags" ? "whole" : kind.endsWith("-tags") ? kind.slice(0, -5) : kind) + (errorFree ? ":error-free" : "");
     const ancestry = aligned ? [...context.inProgress].sort(compareCodePoints) : null;
     let key = isEnds(kind) ? JSON.stringify(["suffix",rule,start,end,errorFree]) : aligned ? JSON.stringify(["aligned",memoKind,rule,start,end,aligned.candidateEnd,aligned.matchEnd,aligned.family,context.closes?.identity(aligned.observation),ancestry])
       : at !== null && end - start > CONTENT_KEY_LIMIT
@@ -16049,7 +16049,7 @@
       return queryAnswer(kind, entry);
     }
     // A fault finds no query cycle while the check runs (F25).
-    halting = new Pending(context, /** @type {"matches" | "begins" | "ends" | "tags"} */ (/** @type {unknown} */ (kind)), rule, start, end, at, key, context.checking && fault("F25"));
+    halting = new Pending(context, /** @type {"whole" | "prefix" | "suffix" | "tags"} */ (/** @type {unknown} */ (kind)), rule, start, end, at, key, context.checking && fault("F25"));
     halting.errorFree = errorFree;
     halting.aligned = aligned ?? null;
     halting.qualificationKey = qualificationKey;
@@ -16318,7 +16318,7 @@
     const span = spanOf(context, query.receiver, scope);
     const target = queryTarget(context, span, scope);
     const mode = queryBody(query.args[0].body).mode;
-    const kind = mode === "matches" ? "tags" : mode + "-tags";
+    const kind = mode === "whole" ? "tags" : mode + "-tags";
     const tags = nested(target.context, /** @type {any} */ (kind), bodyTarget(target.context.lowered, query.args[0].body), target.start, target.end, {...target, errorFree});
     return tags === HALT ? pause(asSetValue) : { set: /** @type {TagSet} */ (tags) };
   }

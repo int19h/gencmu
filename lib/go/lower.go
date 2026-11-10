@@ -322,7 +322,7 @@ func lower(g *stageGrammar, features map[string]bool) *lowered {
 				terminals[target[7:]] = true
 			}
 		}
-		if p.c != nil && (p.c.Kind == cdMatches || p.c.Kind == cdBegins || p.c.Kind == cdEnds) {
+		if p.c != nil && (p.c.Kind == cdWhole || p.c.Kind == cdPrefix || p.c.Kind == cdSuffix) {
 			for _, t := range p.c.queryTargets() {
 				if t.Kind == tmTerminal {
 					terminals[t.Str] = true

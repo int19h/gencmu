@@ -26446,7 +26446,7 @@
                   "call": "atom",
                   "args": [
                     {
-                      "method": "matches",
+                      "method": "parse",
                       "receiver": {
                         "param": "X",
                         "at": [
@@ -26456,7 +26456,9 @@
                       },
                       "args": [
                         {
-                          "rule": "A"
+                          "body": {
+                            "ref": "A"
+                          }
                         }
                       ]
                     }

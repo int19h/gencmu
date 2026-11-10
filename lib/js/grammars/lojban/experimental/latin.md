@@ -49,7 +49,7 @@ A letter is a character of category L that is neither ignored nor a script perio
 
 The silent-mark rules ignore `ー`, although its Lm category is a letter category. A zbalermorna letter has private use and fails the category test. zbalermorna writes its own apostrophe.
 
-Between two letters, a mark has two readings: in one run, or as a pause between two runs. The redefined `run` refuses the second. A run that ends in a letter, with its marks and any ignored characters, cannot stop before an inner quotation mark. `letter-final` tests the run's own end with `ends`, and `quote-after-ignored` looks ahead with `following-tokens`. So the reading with the mark inside the run is the only one, and the phoneme stage stays `unique`.
+Between two letters, a mark has two readings: in one run, or as a pause between two runs. The redefined `run` refuses the second. A run that ends in a letter, with its marks and any ignored characters, cannot stop before an inner quotation mark. `letter-final` tests the run's own end with a suffix parse, and `quote-after-ignored` looks ahead with `following-tokens`. So the reading with the mark inside the run is the only one, and the phoneme stage stays `unique`.
 
 ```jbogenbau
 %redefine-rule apostrophe

@@ -39,7 +39,6 @@ impl Node<'_> {
                 LCond::If(left, right) => vec![Self::Condition(left), Self::Condition(right)],
             },
             Self::Term(term) => match term {
-                LTerm::TagsRule(span, rule) => vec![Self::Query(span, *rule, false)],
                 LTerm::ForestTags(span, rule, _, filtered) => vec![Self::Query(span, *rule, *filtered)],
                 LTerm::Value(span)
                 | LTerm::Image(span)

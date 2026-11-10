@@ -208,9 +208,9 @@ func isSpanFunction(name string) bool {
 // for $; A ⟹ B is cdIf, its Items A and B.
 const (
 	cdCompare  = "compare"
-	cdMatches  = "matches"
-	cdBegins   = "begins"
-	cdEnds     = "ends"
+	cdWhole    = "whole"
+	cdPrefix   = "prefix"
+	cdSuffix   = "suffix"
 	cdContains = "contains"
 	cdInitial  = "initial"
 	cdEnd      = "ends-input"
@@ -707,7 +707,7 @@ func (c *domCond) writeJSON(w *jsonWriter) {
 		w.raw(`,"right":`)
 		c.Right.writeJSON(w)
 		w.raw("}")
-	case cdMatches, cdBegins, cdEnds, cdInitial, cdEnd, cdBoundary:
+	case cdInitial, cdEnd, cdBoundary:
 		name := c.Kind
 		if name == cdInitial {
 			name = "starts-input"

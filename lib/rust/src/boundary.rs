@@ -637,8 +637,7 @@ pub(crate) fn reachable(g: &crate::grammar::StageGrammar) -> Result<(), crate::e
                     },
                     Part::T(t) => match t {
                         // The references and terminals of a parse body
-                        // are query roots, as a shorthand target was
-                        // (engine §9.3).
+                        // are query roots (engine §9.3).
                         Term::Body(expr) => {
                             let mut pending = vec![expr.as_ref()];
                             while let Some(e) = pending.pop() {
@@ -663,16 +662,7 @@ pub(crate) fn reachable(g: &crate::grammar::StageGrammar) -> Result<(), crate::e
                         Term::If(c, t) => stack.extend([Part::C(c), Part::T(t)]),
                         Term::Union(ts) | Term::Intersection(ts) => stack.extend(ts.iter().map(Part::T)),
                         Term::Difference(a, b) => stack.extend([Part::T(a), Part::T(b)]),
-                        Term::Call(name, args) => {
-                            if name == "tags" {
-                                roots.extend(args.iter().filter_map(|arg| {
-                                    if let Arg::Rule(n) = arg {
-                                        Some(n.clone())
-                                    } else {
-                                        None
-                                    }
-                                }));
-                            }
+                        Term::Call(_, args) => {
                             stack.extend(args.iter().filter_map(|arg| {
                                 if let Arg::Term(t) = arg {
                                     Some(Part::T(t))

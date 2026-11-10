@@ -120,7 +120,6 @@ fn a_well_formed_dom_is_used() {
     let both = format!(r#"{{"all":[{whole},{{"not":{whole}}}]}}"#);
     assert!(!document_was_read(&with_condition(whole)));
     assert!(!document_was_read(&with_condition(&both)));
-    assert!(!document_was_read(&with_tags(r#"{"method":"tags","receiver":{"capture":""},"args":[{"rule":"text"}]}"#)));
     let text =
         r#"{"op":"≠","left":{"method":"source-text","receiver":{"capture":""},"args":[]},"right":{"string":"b"}}"#;
     assert!(!document_was_read(&with_tags(&format!(r#"{{"if":{text},"then":{{"tag":"T"}}}}"#))));
@@ -541,8 +540,8 @@ fn every_malformed_dom_is_a_cache_miss() {
             with_condition(r#"{"all":[{"op":"=","left":{"string":"a"},"right":{"string":"b"}}]}"#),
         ),
         (
-            "matches of a value",
-            with_condition(r#"{"method":"matches","receiver":{"string":"b"},"args":[{"rule":"text"}]}"#),
+            "a whole parse of a value",
+            with_condition(r#"{"method":"parse","receiver":{"string":"b"},"args":[{"body":{"ref":"text"}}]}"#),
         ),
         ("initial of a value", with_condition(r#"{"method":"starts-input","receiver":{"string":"b"},"args":[]}"#)),
         (
@@ -550,19 +549,26 @@ fn every_malformed_dom_is_a_cache_miss() {
             with_condition(r#"{"method":"starts-input","receiver":{"capture":"w"},"args":[{"rule":"text"}]}"#),
         ),
         (
-            "begins of a value",
-            with_condition(r#"{"method":"begins","receiver":{"string":"b"},"args":[{"rule":"text"}]}"#),
+            "a prefix parse of a value",
+            with_condition(
+                r#"{"method":"parse","receiver":{"string":"b"},"args":[{"body":{"seq":[{"ref":"text"},{"remainder":true}]}}]}"#,
+            ),
         ),
-        ("begins without a rule", with_condition(r#"{"method":"begins","receiver":{"capture":"w"},"args":[]}"#)),
-        (
-            "matches and begins in one condition",
-            with_condition(r#"{"method":"matches","receiver":{"capture":"w"},"args":[]}"#),
-        ),
+        ("a parse without a body", with_condition(r#"{"method":"parse","receiver":{"capture":"w"},"args":[]}"#)),
+        ("two queries in one condition", with_condition(r#"{"method":"parse","receiver":{"capture":"w"},"args":[]}"#)),
         ("an unknown comparison", with_condition(r#"{"op":"<","left":{"string":"a"},"right":{"string":"b"}}"#)),
         ("an unknown function", with_tags(r#"{"method":"uppercase","receiver":{"capture":"x"},"args":[]}"#)),
-        ("matches as a term", with_tags(r#"{"method":"matches","receiver":{"capture":"x"},"args":[{"rule":"text"}]}"#)),
+        (
+            "a whole parse as a term",
+            with_tags(r#"{"method":"parse","receiver":{"capture":"x"},"args":[{"body":{"ref":"text"}}]}"#),
+        ),
         ("initial as a term", with_tags(r#"{"method":"starts-input","receiver":{"capture":"x"},"args":[]}"#)),
-        ("begins as a term", with_tags(r#"{"method":"begins","receiver":{"capture":"x"},"args":[{"rule":"text"}]}"#)),
+        (
+            "a prefix parse as a term",
+            with_tags(
+                r#"{"method":"parse","receiver":{"capture":"x"},"args":[{"body":{"seq":[{"ref":"text"},{"remainder":true}]}}]}"#,
+            ),
+        ),
         ("head as a value", with_tags(r#"{"method":"first-token","receiver":{"capture":"x"},"args":[]}"#)),
         ("after as a value", with_tags(r#"{"method":"following-tokens","receiver":{"capture":"x"},"args":[]}"#)),
         (
@@ -1483,8 +1489,11 @@ fn a_node_of_two_forms_is_refused() {
         with_mixed(&seq(captured, c), &format!(r#"{{{compared},"not":{{"captured":"w"}}}}"#)),
         with_mixed(&seq(captured, c), &format!(r#"{{"not":{{"captured":"w"}},{compared}}}"#)),
         with_mixed(&seq(captured, c), &format!(r#"{{"captured":"w",{compared}}}"#)),
-        with_mixed(&seq(captured, c), &format!(r#"{{{compared},"matches":{{"capture":"w"}}}}"#)),
-        with_mixed(&seq(captured, c), r#"{"method":"matches","receiver":{"capture":"w"},"args":[]}"#),
+        with_mixed(&seq(captured, c), &format!(r#"{{{compared},"parse":{{"capture":"w"}}}}"#)),
+        with_mixed(
+            &seq(captured, c),
+            r#"{"method":"starts-input","receiver":{"capture":"w"},"args":[{"rule":"text"}]}"#,
+        ),
         with_mixed_emission(&seq(captured, c), &condition, r#","emit":{"items":[{"capture":"w"}],"extra":true}"#),
         with_mixed_emission(&seq(captured, c), &condition, r#","emit":{"extra":true,"items":[{"capture":"w"}]}"#),
     ];

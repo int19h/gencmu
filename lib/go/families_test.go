@@ -28,7 +28,7 @@ func TestFamilyMethodDOM(t *testing.T) {
 	} {
 		t.Run(c.receiver+c.args, func(t *testing.T) {
 			call := `{"method":"without-elision-except","receiver":` + c.receiver + `,"args":` + c.args + `}`
-			dom := fmt.Sprintf(`{"format":%d,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"capture":"x","expr":{"ref":"A"}}}],"conditions":[{"method":"matches","receiver":%s,"args":[{"rule":"r"}]}],"at":[1,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}`, domFormat, call)
+			dom := fmt.Sprintf(`{"format":%d,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"capture":"x","expr":{"ref":"A"}}}],"conditions":[{"method":"parse","receiver":%s,"args":[{"body":{"ref":"r"}}]}],"at":[1,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}`, domFormat, call)
 			_, err := decodeDOM(json.RawMessage(dom), bundled.uni)
 			if (err == nil) != c.valid {
 				t.Fatalf("valid %t: %v", c.valid, err)

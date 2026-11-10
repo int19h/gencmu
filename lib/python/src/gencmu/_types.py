@@ -95,7 +95,7 @@ def method_shape_problem(name: Any, receiver: Any, args: Any, recipe: bool = Fal
         if len(args) != 1 or not isinstance(args[0], dict) or set(args[0]) != {"body"} or not isinstance(args[0]["body"], dict):
             return "a method has the wrong receiver or arguments"
         from ._query_forms import query_body
-        if _restored_shape(receiver) and query_body(args[0]["body"])[1] in ("ends", "contains"):
+        if _restored_shape(receiver) and query_body(args[0]["body"])[1] in ("suffix", "part"):
             return "suffix parse requires an ordinary span, not a restored span"
         valid = span
     elif name == "error-free":
@@ -129,7 +129,7 @@ def method_type(name: str, receiver: TermType, args: list[Any], bare: bool = Fal
     if name == "parse":
         valid = receiver in spans and len(args) == 1 and isinstance(args[0], dict) and "body" in args[0]
         from ._query_forms import query_body
-        if valid and receiver == "restored" and query_body(args[0]["body"])[1] in ("ends", "contains"):
+        if valid and receiver == "restored" and query_body(args[0]["body"])[1] in ("suffix", "part"):
             return None, "suffix parse requires an ordinary span, not a restored span"
         result, arity = "forest", 1
     elif name == "error-free":

@@ -1532,7 +1532,7 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 					c.fail("%s", problem)
 					return
 				}
-				if (mode == cdEnds || mode == cdContains) && restoredTerm(args[0]) {
+				if (mode == cdSuffix || mode == cdContains) && restoredTerm(args[0]) {
 					c.fail("suffix parse requires an ordinary span, not a restored span")
 					return
 				}
@@ -1634,8 +1634,8 @@ func (c *domChecker) condition(d *domCond, depth int) {
 		}
 		c.term(d.Left, depth+1, d.Op == "≅" || d.Op == "≇")
 		c.term(d.Right, depth+1, false)
-	case cdMatches, cdBegins, cdEnds:
-		if d.Kind == cdEnds && restoredTerm(d.Span) {
+	case cdWhole, cdPrefix, cdSuffix:
+		if d.Kind == cdSuffix && restoredTerm(d.Span) {
 			c.fail("ends requires an ordinary span, not a restored span")
 			return
 		}
@@ -1731,7 +1731,7 @@ func readsOwnTags(t *domTerm) bool {
 				}
 				continue
 			}
-			// .matches and .begins parse the tokens again, .starts-input
+			// A parse reads the tokens again, .starts-input
 			// reads where they begin, and a presence test reads no tags.
 			switch p.c.Kind {
 			case cdCompare, cdNot, cdAny, cdAll, cdIf:

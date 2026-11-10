@@ -567,7 +567,7 @@ class StageContext:
 
     def forest_answer(self, rule: str, start: int, end: int, mode: str, error_free: bool = False):
         """The NestedAnswer of a parse forest in any mode (§4)."""
-        if mode == "begins":
+        if mode == "prefix":
             self.require_inactive(rule, start, end)
             key = self.query_key(rule, start, end, error_free)
             found = self.begins_memo.get(key) if not self.suffix_active else None
@@ -576,9 +576,9 @@ class StageContext:
                     self.aligned_asked += 1
                 return found
             return (yield self.answer(rule, start, end, key, True, error_free))
-        if mode == "ends":
+        if mode == "suffix":
             return (yield self.ends_answer(rule, start, end, error_free))
-        if mode == "contains":
+        if mode == "part":
             return (yield self.contains_answer(rule, start, end, error_free))
         return (yield self.nested(rule, start, end, error_free))
 
@@ -995,7 +995,7 @@ class Evaluator:
                 rule = body_target(self.context.lowered, query["args"][0]["body"])
                 mode = query_body(query["args"][0]["body"])[1]
                 if isinstance(span, RestoredSpan):
-                    return (yield self.context.aligned(rule, span, mode == "begins", error_free)).tags
+                    return (yield self.context.aligned(rule, span, mode == "prefix", error_free)).tags
                 start, end, _ = span
                 return (yield self.context.forest_answer(rule, start, end, mode, error_free)).tags
             span = yield self._span(receiver, bound)
@@ -1075,14 +1075,14 @@ class Evaluator:
                 rule = body_target(self.context.lowered, query["args"][0]["body"])
                 mode = query_body(query["args"][0]["body"])[1]
                 if isinstance(span, RestoredSpan):
-                    return (yield self.context.aligned(rule, span, mode == "begins", error_free)).accepted
+                    return (yield self.context.aligned(rule, span, mode == "prefix", error_free)).accepted
                 start, end, _ = span
-                if mode == "ends":
+                if mode == "suffix":
                     state = yield self.context.ends(rule, start, end, error_free)
                     return state.answers.get(end, False)
-                if mode == "contains":
+                if mode == "part":
                     return (yield self.context.contains_answer(rule, start, end, error_free)).accepted
-                if mode == "begins":
+                if mode == "prefix":
                     return (yield self.context.begins(rule, start, end, error_free))
                 return (yield self.context.nested(rule, start, end, error_free)).accepted
             if name in METHODS:

@@ -64,7 +64,6 @@ pub(crate) enum LTerm {
     Split(Box<LTerm>, Box<LTerm>),
     Ngrams(Box<LTerm>, String),
     Tags(Span),
-    TagsRule(Span, u32),
     ForestTags(Span, u32, crate::query_forms::Mode, bool),
     Classes(Span),
     /// `classify(a, C)`: the classes that the classifier named `C` gives
@@ -1064,7 +1063,6 @@ impl<'a> Scope<'a> {
                     Some(term) => term,
                     None => LTerm::Tags(self.span(span)?),
                 },
-                ("tags", [Arg::Term(span), Arg::Rule(rule)]) => LTerm::TagsRule(self.span(span)?, self.rule(rule)?),
                 ("ngrams", [Arg::Term(string), Arg::Integer(n)]) => {
                     LTerm::Ngrams(Box::new(self.term(string)?), n.clone())
                 }

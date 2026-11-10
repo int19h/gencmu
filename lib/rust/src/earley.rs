@@ -1370,7 +1370,6 @@ enum Query {
     Begins,
     Ends,
     Contains,
-    TagsRule,
     ForestTags(crate::query_forms::Mode, bool),
 }
 
@@ -1379,7 +1378,7 @@ impl Query {
         match self {
             Query::Matches | Query::Begins | Query::Ends | Query::Contains => Out::Bool(holds),
             Query::ErrorFree(_) => Out::Bool(clean),
-            Query::TagsRule | Query::ForestTags(..) => Out::Value(Value::Set(tags.shared(set))),
+            Query::ForestTags(..) => Out::Value(Value::Set(tags.shared(set))),
         }
     }
 }
@@ -4266,12 +4265,6 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                             },
                             (start, end, Whose::Tokens) => Value::Set(self.token_tags(tokens, start, end)),
                         },
-                        LTerm::TagsRule(span, rule) => {
-                            match self.query(eval, span, *rule, Query::TagsRule, frame, tokens, base)? {
-                                Out::Value(value) => value,
-                                _ => unreachable!("a set of tags"),
-                            }
-                        }
                         LTerm::ForestTags(span, rule, mode, filtered) => {
                             match self.query(
                                 eval,
