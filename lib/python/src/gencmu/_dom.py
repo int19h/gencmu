@@ -233,6 +233,7 @@ class DomBuilder:
         dom = {
             "format": FORMAT,
             "rules": rules,
+            "checks": [],
             "directives": directives,
             "constants": constants,
             "classifiers": classifiers,

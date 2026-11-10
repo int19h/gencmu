@@ -358,6 +358,7 @@ class SuffixState:
     walk: Walk | None = None
     dependent: bool = False
     error_free: bool = False
+    ending_after: int | None = None
 
     def resume(self, context: StageContext, number: int, start: int, end: int) -> Walk:
         if self.parser is None:
@@ -535,63 +536,63 @@ class StageContext:
             ),
         )
 
-    def nested(self, rule: str, start: int, end: int, error_free: bool = False) -> Walk:
+    def nested(self, rule: str, start: int, end: int, error_free: bool = False, ending_after: int | None = None) -> Walk:
         """Whether tokens start..end alone parse as rule, and the tags of
         their derivations (engine §4, nested parses): what matches and tags
         read. A walk, which runs the nested parse where its answer is not
         yet known."""
         self.require_inactive(rule, start, end)
         # Suffix activity can expose recursion that a cached whole query hides.
-        key = self.query_key(rule, start, end, error_free)
+        key = self.query_key(rule, start, end, error_free, ending_after)
         found = self.memo.get(key) if not self.suffix_active else None
         if found is None:
-            return (yield self.answer(rule, start, end, key, False, error_free))
+            return (yield self.answer(rule, start, end, key, False, error_free, ending_after))
         elif self.tainted and (False, key) in self.tainted:
             self.aligned_asked += 1
         return found
 
-    def begins(self, rule: str, start: int, end: int, error_free: bool = False) -> Walk:
+    def begins(self, rule: str, start: int, end: int, error_free: bool = False, ending_after: int | None = None) -> Walk:
         """Whether a prefix of tokens start..end, the empty one included,
         parses as rule: whether a completed item of the rule with an
         eligible proof tree begins at the span's start, in any set (engine
         §4). A walk, as for :meth:`nested`."""
         self.require_inactive(rule, start, end)
         # Suffix activity can expose recursion that a cached whole query hides.
-        key = self.query_key(rule, start, end, error_free)
+        key = self.query_key(rule, start, end, error_free, ending_after)
         found = self.begins_memo.get(key) if not self.suffix_active else None
         if found is None:
-            return (yield self.answer(rule, start, end, key, True, error_free)).accepted
+            return (yield self.answer(rule, start, end, key, True, error_free, ending_after)).accepted
         elif self.tainted and (True, key) in self.tainted:
             self.aligned_asked += 1
         return found.accepted
 
-    def forest_answer(self, rule: str, start: int, end: int, mode: str, error_free: bool = False):
+    def forest_answer(self, rule: str, start: int, end: int, mode: str, error_free: bool = False, ending_after: int | None = None):
         """The NestedAnswer of a parse forest in any mode (§4)."""
         if mode == "begins":
             self.require_inactive(rule, start, end)
-            key = self.query_key(rule, start, end, error_free)
+            key = self.query_key(rule, start, end, error_free, ending_after)
             found = self.begins_memo.get(key) if not self.suffix_active else None
             if found is not None:
                 if self.tainted and (True, key) in self.tainted:
                     self.aligned_asked += 1
                 return found
-            return (yield self.answer(rule, start, end, key, True, error_free))
+            return (yield self.answer(rule, start, end, key, True, error_free, ending_after))
         if mode == "ends":
-            return (yield self.ends_answer(rule, start, end, error_free))
+            return (yield self.ends_answer(rule, start, end, error_free, ending_after))
         if mode == "contains":
-            return (yield self.contains_answer(rule, start, end, error_free))
-        return (yield self.nested(rule, start, end, error_free))
+            return (yield self.contains_answer(rule, start, end, error_free, ending_after))
+        return (yield self.nested(rule, start, end, error_free, ending_after))
 
-    def ends_answer(self, rule: str, start: int, end: int, error_free: bool = False):
+    def ends_answer(self, rule: str, start: int, end: int, error_free: bool = False, ending_after: int | None = None):
         """The NestedAnswer of a suffix query (§4)."""
-        state = yield self.ends(rule, start, end, error_free)
+        state = yield self.ends(rule, start, end, error_free, ending_after)
         if end not in state.answers:
             return NestedAnswer(False, EMPTY)
         return NestedAnswer(state.answers[end], state.tags.get(end, EMPTY))
 
-    def contains_answer(self, rule: str, start: int, end: int, error_free: bool = False):
+    def contains_answer(self, rule: str, start: int, end: int, error_free: bool = False, ending_after: int | None = None):
         """The NestedAnswer of a part query (§4)."""
-        state = yield self.ends(rule, start, end, error_free)
+        state = yield self.ends(rule, start, end, error_free, ending_after)
         gathered = Gathered()
         accepted = False
         for position in range(start, end + 1):
@@ -600,13 +601,15 @@ class StageContext:
                 gathered.add(state.tags.get(position, EMPTY))
         return NestedAnswer(accepted, gathered.value())
 
-    def query_key(self, rule, start, end, error_free):
+    def query_key(self, rule, start, end, error_free, ending_after=None):
         key = self.nested_key(rule, start, end)
         if error_free or reads_carried_errors(self.lowered, self.lowered.rule_ids[rule]):
             key += ("carried-errors", error_free)
             # Positions already identify the errors of this context (§4.3).
             if end - start <= CONTENT_KEY_LIMIT:
                 key += (tuple(self.error_bit(index) for index in range(start, end)),)
+        if ending_after is not None:
+            key += ("ending-after", ending_after - start)
         return key
 
     def error_bit(self, index: int) -> bool:
@@ -614,17 +617,18 @@ class StageContext:
         _testing.count("keySteps")
         return bool(self.tokens[index].errors)
 
-    def ends(self, rule: str, start: int, end: int, error_free: bool = False) -> Walk:
+    def ends(self, rule: str, start: int, end: int, error_free: bool = False, ending_after: int | None = None) -> Walk:
         """Read suffixes in one fixed window, with retained answers for shareable targets."""
         self.require_inactive(rule, start, end)
         number = self.lowered.rule_ids[rule]
         key = (number, start, end, error_free) if suffix_reads_end(self.lowered, number) else (number, start, error_free)
+        key += (ending_after,)
         if self.suffix_active:
-            state = SuffixState(error_free=error_free)
+            state = SuffixState(error_free=error_free, ending_after=ending_after)
         else:
             state = self.suffixes.get(key)
             if state is None:
-                state = self.suffixes[key] = SuffixState(error_free=error_free)
+                state = self.suffixes[key] = SuffixState(error_free=error_free, ending_after=ending_after)
             if end in state.answers:
                 if state.dependent:
                     self.aligned_asked += 1
@@ -649,7 +653,7 @@ class StageContext:
                 f"the grammar defines {rule} in terms of itself over the same text"
             )
 
-    def aligned(self, rule: str, span: RestoredSpan, prefix: bool, error_free: bool = False) -> Walk:
+    def aligned(self, rule: str, span: RestoredSpan, prefix: bool, error_free: bool = False, ending_after: int | None = None) -> Walk:
         """Filter original eligible proofs with one captured observation."""
         self.aligned_asked += 1
         self.require_inactive(rule, span.start, span.context_end)
@@ -657,7 +661,7 @@ class StageContext:
         assert closes is not None
         ancestry = frozenset(self.running)
         key = (rule, span.start, span.context_end, span.end, span.captured_end, prefix,
-               closes.semantic(span.observation), span.family, ancestry, error_free)
+               closes.semantic(span.observation), span.family, ancestry, error_free, ending_after)
         found = self.aligned_memo.get(key) if not self.suffix_active else None
         if found is not None:
             return found
@@ -697,6 +701,8 @@ class StageContext:
             tags = Gathered()
             accepted = False
             for end, tag_id, observation, family_answer in qualified:
+                if ending_after is not None and end <= ending_after:
+                    continue
                 if end > span.end or not prefix and end != span.end:
                     continue
                 boundary = min(span.captured_end, end)
@@ -719,7 +725,7 @@ class StageContext:
                 _testing.aligned_query(-1)
             self.running.discard(request)
 
-    def answer(self, rule: str, start: int, end: int, key: tuple[Any, ...], begins: bool, error_free: bool = False) -> Walk:
+    def answer(self, rule: str, start: int, end: int, key: tuple[Any, ...], begins: bool, error_free: bool = False, ending_after: int | None = None) -> Walk:
         """Parses tokens start..end alone as rule, and remembers the answer
         under key. The parse is a walk on the stack of the parse that asked,
         so a chain of nested parses costs heap and not the call stack. A
@@ -731,7 +737,7 @@ class StageContext:
         if number is None:
             raise _GrammarFault(f"{rule} is not a rule of this stage")
         bound = _memo.limit()
-        shared = self.shared_key(rule, start, end, begins, error_free) if bound > 0 and not self.suffix_active and end - start <= CONTENT_KEY_LIMIT else None
+        shared = self.shared_key(rule, start, end, begins, error_free, ending_after) if bound > 0 and not self.suffix_active and end - start <= CONTENT_KEY_LIMIT else None
         # Shared answers cannot hide recursive aligned or suffix requests (§4.3).
         found = self.lowered.memo.get(shared, bound) if shared is not None and not self.aligned_active else None
         if found is not None:
@@ -751,15 +757,15 @@ class StageContext:
         finally:
             # Also when the parse failed, so that the place is free again.
             self.running.discard(running)
-        return self.remember(key, number, shared, begins, asked, bound, forest, error_free)
+        return self.remember(key, number, shared, begins, asked, bound, forest, error_free, ending_after)
 
     def remember(
-        self, key: tuple[Any, ...], number: int, shared: tuple[Any, ...] | None, begins: bool, asked: int, bound: int, forest: Forest, error_free: bool = False
+        self, key: tuple[Any, ...], number: int, shared: tuple[Any, ...] | None, begins: bool, asked: int, bound: int, forest: Forest, error_free: bool = False, ending_after: int | None = None
     ) -> NestedAnswer | bool:
         """Remembers the answer of a nested parse in the memo of the parse,
         and in the shared memo unless it depends on an aligned query (engine
         §4.3)."""
-        answer = self.settle(number, begins, forest, error_free)
+        answer = self.settle(number, begins, forest, error_free, ending_after)
         if not self.suffix_active:
             (self.begins_memo if begins else self.memo)[key] = answer
             if self.aligned_asked != asked:
@@ -771,7 +777,7 @@ class StageContext:
                 self.lowered.memo.insert(shared, stored, bound)
         return answer
 
-    def shared_key(self, rule: str, start: int, end: int, begins: bool, error_free: bool = False) -> tuple[Any, ...]:
+    def shared_key(self, rule: str, start: int, end: int, begins: bool, error_free: bool = False, ending_after: int | None = None) -> tuple[Any, ...]:
         """The key of the shared memo for a short span: the query kind, the
         rule, and the span's content with each token's tags by name (engine
         §4.3)."""
@@ -783,6 +789,7 @@ class StageContext:
             begins,
             error_free,
             rule,
+            ending_after - start if ending_after is not None else None,
             _plain(self.text[low:high]),
             tuple(
                 (
@@ -798,13 +805,15 @@ class StageContext:
             ),
         )
 
-    def settle(self, number: int, begins: bool, forest: Forest, error_free: bool = False) -> NestedAnswer | bool:
+    def settle(self, number: int, begins: bool, forest: Forest, error_free: bool = False, ending_after: int | None = None) -> NestedAnswer | bool:
         """Compute the current query answer without retaining it."""
         if not begins:
             # The answer reads the completed items of the rule over the span
             # that have an eligible proof tree, under written-terminator
             # priority (engine §4).
             found_items = eligible(forest, boundary_witnesses(forest, forest.roots), error_free)
+            if ending_after is not None:
+                found_items = [item for item in found_items if forest.base + forest.end[item] > ending_after]
             gathered = Gathered()
             for root in found_items:
                 gathered.add(self.tagtab.get(forest.tag[root]))
@@ -818,6 +827,8 @@ class StageContext:
         ]
         # Only an item with an eligible proof tree counts (engine §4).
         found_items = eligible(forest, boundary_witnesses(forest, witnesses), error_free)
+        if ending_after is not None:
+            found_items = [item for item in found_items if forest.base + forest.end[item] > ending_after]
         gathered = Gathered()
         for item in found_items:
             gathered.add(self.tagtab.get(forest.tag[item]))
@@ -903,6 +914,33 @@ class Evaluator:
             return end - 1, end, None
         raise _GrammarFault("a span is needed here")
 
+    def forest_request(self, dom, bound):
+        """Keep every forest filter on the same eligible witness."""
+        name = dom["method"]
+        if name == "parse":
+            span = yield self._span(dom["receiver"], bound)
+            body = dom["args"][0]["body"]
+            return span, body_target(self.context.lowered, body), query_body(body)[1], False, None
+        span, rule, mode, error_free, ending_after = yield self.forest_request(dom["receiver"], bound)
+        if name == "error-free":
+            return span, rule, mode, True, ending_after
+        # A receiver's runtime error precedes an absent filter argument.
+        yield self.forest_answer((span, rule, mode, error_free, ending_after))
+        endpoint = yield self._span(dom["args"][0], bound)
+        ending_after = endpoint[1] if ending_after is None else max(ending_after, endpoint[1])
+        return span, rule, mode, error_free, ending_after
+
+    def forest_answer(self, request):
+        span, rule, mode, error_free, ending_after = request
+        if isinstance(span, RestoredSpan):
+            return (yield self.context.aligned(rule, span, mode == "begins", error_free, ending_after))
+        start, end, _ = span
+        return (yield self.context.forest_answer(rule, start, end, mode, error_free, ending_after))
+
+    def forest_value(self, dom, bound):
+        request = yield self.forest_request(dom, bound)
+        return (yield self.forest_answer(request))
+
     def span_tags(self, span: tuple[int, int, int | None]) -> Tags:
         start, end, whole = span
         if whole is not None:
@@ -987,17 +1025,8 @@ class Evaluator:
                     return split_string(text, delimiter)
                 table = self.context.lowered.classifiers[args[0]["classifier"]]
                 return table.get(text, EMPTY)
-            if name == "tags" and isinstance(receiver, dict) and receiver.get("method") in ("parse", "error-free"):
-                query, error_free = receiver, False
-                while query["method"] == "error-free":
-                    error_free, query = True, query["receiver"]
-                span = yield self._span(query["receiver"], bound)
-                rule = body_target(self.context.lowered, query["args"][0]["body"])
-                mode = query_body(query["args"][0]["body"])[1]
-                if isinstance(span, RestoredSpan):
-                    return (yield self.context.aligned(rule, span, mode == "begins", error_free)).tags
-                start, end, _ = span
-                return (yield self.context.forest_answer(rule, start, end, mode, error_free)).tags
+            if name == "tags" and isinstance(receiver, dict) and receiver.get("method") in ("parse", "error-free", "ending-after"):
+                return (yield self.forest_value(receiver, bound)).tags
             span = yield self._span(receiver, bound)
             if name == "tags" and args:
                 if isinstance(span, RestoredSpan):
@@ -1072,24 +1101,8 @@ class Evaluator:
             name = dom["method"]
             if name in ("tags", "classes", "split", "ngrams", "classify"):
                 return len(_as_set((yield self.walk_value(dom, bound)))) > 0
-            if name in ("parse", "error-free"):
-                query, error_free = dom, False
-                while query["method"] == "error-free":
-                    error_free, query = True, query["receiver"]
-                span = yield self._span(query["receiver"], bound)
-                rule = body_target(self.context.lowered, query["args"][0]["body"])
-                mode = query_body(query["args"][0]["body"])[1]
-                if isinstance(span, RestoredSpan):
-                    return (yield self.context.aligned(rule, span, mode == "begins", error_free)).accepted
-                start, end, _ = span
-                if mode == "ends":
-                    state = yield self.context.ends(rule, start, end, error_free)
-                    return state.answers.get(end, False)
-                if mode == "contains":
-                    return (yield self.context.contains_answer(rule, start, end, error_free)).accepted
-                if mode == "begins":
-                    return (yield self.context.begins(rule, start, end, error_free))
-                return (yield self.context.nested(rule, start, end, error_free)).accepted
+            if name in ("parse", "error-free", "ending-after"):
+                return (yield self.forest_value(dom, bound)).accepted
             if name in METHODS:
                 return bound.boundary_value if bound.boundary_value is not None else bound.boundary_test(dom)
             span = yield self._span(dom["receiver"], bound)
@@ -2058,6 +2071,8 @@ class Parser:
                 if trees is not None: proofs.tree_prefix = tree_prefixes
                 proofs.furthest = j
                 found = eligible(proofs,boundary_witnesses(proofs,witnesses), suffix.error_free)
+                if suffix.ending_after is not None and base + j <= suffix.ending_after:
+                    found = []
                 suffix.answers[base + j] = bool(found)
                 gathered = Gathered()
                 for item in found:

@@ -66,7 +66,7 @@ def _unknown_constants(name: str) -> TermType:
 
 _SPAN_METHODS = {"first-token", "tokens-after-first", "last-token", "onward", "following-tokens", "preceding-tokens"}
 _STRING_METHODS = {"value", "image", "source-text", "decomposed-source-text", "verbatim-text"}
-_PREDICATES = {"matches", "begins", "ends", "starts-input", "ends-input", "parse", "error-free", "followed-by", "preceded-by"}
+_PREDICATES = {"matches", "begins", "ends", "starts-input", "ends-input", "parse", "error-free", "ending-after", "followed-by", "preceded-by"}
 _SPAN_SHAPES = _SPAN_METHODS | {"without-elision", "without-elision-except"}
 _METHODS = _SPAN_SHAPES | _STRING_METHODS | _PREDICATES | {"tags", "classes", "split", "ngrams", "classify", "emitted"}
 
@@ -101,7 +101,9 @@ def method_shape_problem(name: Any, receiver: Any, args: Any, recipe: bool = Fal
             return "suffix parse requires an ordinary span, not a restored span"
         valid = span
     elif name == "error-free":
-        valid = receiver_method in ("parse", "error-free") and not args
+        valid = receiver_method in ("parse", "error-free", "ending-after") and not args
+    elif name == "ending-after":
+        valid = receiver_method in ("parse", "error-free", "ending-after") and len(args) == 1 and isinstance(args[0], dict) and ("capture" in args[0] or args[0].get("method") in _SPAN_SHAPES)
     elif name == "ngrams":
         valid = len(args) == 1 and named(args[0], "integer") and re.fullmatch(r"[1-9][0-9]*", args[0]["integer"]) is not None
     elif name == "split":
@@ -109,7 +111,7 @@ def method_shape_problem(name: Any, receiver: Any, args: Any, recipe: bool = Fal
     elif name == "classify":
         valid = len(args) == 1 and named(args[0], "classifier")
     elif name == "tags":
-        valid = (span and (not args or len(args) == 1 and rule(args[0]))) or receiver_method in ("parse", "error-free") and not args
+        valid = (span and (not args or len(args) == 1 and rule(args[0]))) or receiver_method in ("parse", "error-free", "ending-after") and not args
     elif name in ("matches", "begins", "ends"):
         valid = span and bool(args) and all(rule(arg) or named(arg, "terminal") for arg in args)
     elif name in ("followed-by", "preceded-by"):
@@ -140,6 +142,8 @@ def method_type(name: str, receiver: TermType, args: list[Any], bare: bool = Fal
         result, arity = "forest", 1
     elif name == "error-free":
         valid, result, arity = receiver == "forest", "forest", 0
+    elif name == "ending-after":
+        valid, result, arity = receiver == "forest" and len(args) == 1 and isinstance(args[0], dict) and ("capture" in args[0] or args[0].get("method") in _SPAN_SHAPES), "forest", 1
     elif name in _STRING_METHODS:
         valid = receiver in spans or (receiver == "emitted" and name in ("value", "image"))
         if name == "verbatim-text":

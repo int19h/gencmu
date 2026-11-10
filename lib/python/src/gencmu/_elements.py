@@ -4,9 +4,9 @@ from __future__ import annotations
 
 
 class Expansion(list):
-    def __init__(self, symbols=(), logical=None):
+    def __init__(self, symbols=(), elements=None):
         super().__init__(symbols)
-        self.logical = tuple(("symbol", i) for i in range(len(self))) if logical is None else tuple(logical)
+        self.elements = tuple(("symbol", i) for i in range(len(self))) if elements is None else tuple(elements)
 
 
 def shift(node, offset):
@@ -32,25 +32,25 @@ def shift(node, offset):
 
 
 def combine(parts):
-    symbols, logical = [], []
+    symbols, elements = [], []
     for part in parts:
-        structure = getattr(part, "logical", None)
+        structure = getattr(part, "elements", None)
         if structure is None:
             structure = tuple(("symbol", i) for i in range(len(part)))
-        logical.extend(shift(node, len(symbols)) for node in structure)
+        elements.extend(shift(node, len(symbols)) for node in structure)
         symbols.extend(part)
-    return Expansion(symbols, logical)
+    return Expansion(symbols, elements)
 
 
 def optional(part, place):
-    logical = getattr(part, "logical", tuple(("symbol", i) for i in range(len(part))))
-    return Expansion(part, (("optional", 0, len(part), logical, place),))
+    elements = getattr(part, "elements", tuple(("symbol", i) for i in range(len(part))))
+    return Expansion(part, (("optional", 0, len(part), elements, place),))
 
 
-def inherited(logical):
-    while len(logical) == 1:
-        node = logical[0]
+def inherited(elements):
+    while len(elements) == 1:
+        node = elements[0]
         if node[0] == "symbol":
             return node[1]
-        logical = node[3]
+        elements = node[3]
     return None

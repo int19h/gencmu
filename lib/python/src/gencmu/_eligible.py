@@ -115,7 +115,7 @@ def eligible(forest: Forest, witnesses: list[int], error_free: bool = False) -> 
     # written structure, including starts inside nested optionals.
     boundaries: dict[tuple[int, int], tuple[int, tuple | None]] = {}
     for production in productions:
-        sequences = [(production.logical, True)]
+        sequences = [(production.elements, True)]
         while sequences:
             sequence, top = sequences.pop()
             previous = None
@@ -164,7 +164,7 @@ def eligible(forest: Forest, witnesses: list[int], error_free: bool = False) -> 
         )
         return (
             # Private capture routes can have separate helpers for one
-            # written parent. Their logical parent remains the same.
+            # written parent. Their element parent remains the same.
             id(production.source), lowered.written_helpers.get(production.lhs, production.lhs), place,
             production.rhs[:start], production.rhs[stop:],
             production.terminal[:start], production.terminal[stop:],

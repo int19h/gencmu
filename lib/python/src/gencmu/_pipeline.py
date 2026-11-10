@@ -328,7 +328,7 @@ class NotationReader:
             + [("implications", implication) for implication in dom["implications"]]
         )
         items.sort(key=lambda item: (item[1]["at"][0], item[1]["at"][1]))
-        empty = {"rules": [], "directives": [], "constants": [], "classifiers": [], "implications": []}
+        empty = {"rules": [], "checks": [], "directives": [], "constants": [], "classifiers": [], "implications": []}
         alone = [(item["at"], dom_problem({**dom, **empty, key: [item]}, self.unicode)) for key, item in items]
         if problem == TOO_DEEP:
             # The bound on nesting, reported at the first item too deep, or

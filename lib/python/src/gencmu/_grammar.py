@@ -41,7 +41,7 @@ from ._types import (
 )
 from ._validate import Marks, term_reads_own_tags
 from ._ranking_patterns import ranking_pattern_problem, requires_elided
-from ._logical import Expansion, combine, optional, inherited
+from ._elements import Expansion, combine, optional, inherited
 from ._strings import literal_string, spelling, ENGINE_TAGS
 
 Dom = dict[str, Any]
@@ -855,7 +855,7 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
     checks: list[tuple[int, Any, str, str, Any]] = []
     elision_only = False
     for inspection_run, (path, dom) in zip(document_runs, documents):
-        declarations = sorted(((kind, item) for kind in ("rules", "directives", "constants", "classifiers", "implications")
+        declarations = sorted(((kind, item) for kind in ("rules", "checks", "directives", "constants", "classifiers", "implications")
                                for item in dom.get(kind, [])), key=lambda entry: entry[1]["at"])
         for kind, item in declarations:
             if kind == "rules":
@@ -1369,8 +1369,8 @@ class Production:
     whole_ready: bool = False
     tags_term: Dom | None = None
     emit: Any = None
-    # Logical helpers survive capture expansion beside the physical RHS.
-    logical: tuple = ()
+    # Element helpers survive capture expansion beside the physical RHS.
+    elements: tuple = ()
     inherited: int | None = None
     source: Any = field(default=None, repr=False, compare=False)
     erased: bool = False
@@ -1422,7 +1422,7 @@ class Production:
 
     @property
     def transparent(self) -> bool:
-        return self.helper or len(self.logical) == 1
+        return self.helper or len(self.elements) == 1
 
 
 _NO_NAMES: frozenset[str] = frozenset()
@@ -1852,7 +1852,7 @@ class _Lowerer:
             elided_owner=self.rule_display[lhs] if elided is not None else None,
             tests=tests if any(test is not None for test in tests) else None,
             captures=captures,
-            logical=getattr(expansion, "logical", tuple(("symbol", i) for i in range(len(expansion)))),
+            elements=getattr(expansion, "elements", tuple(("symbol", i) for i in range(len(expansion)))),
             source=self.current_alt,
         )
         if self.grammar.ranked and self.grammar.ranked.groups:
@@ -1914,7 +1914,7 @@ class _Lowerer:
         production.optional_routes = {index: sym[3] for index, (sym, _) in enumerate(expansion) if len(sym) > 3}
         production.terminal_captures = {name for sym, name in expansion if name and len(sym) > 3 and sym[3] == "written"}
         production.forward_captures = {position: name for name, position in production.captures.items() if name in production.terminal_captures}
-        production.inherited = inherited(production.logical)
+        production.inherited = inherited(production.elements)
         if production.tags_term is None and production.inherited is not None and production.inherited not in captures.values():
             captures[IMPLICIT] = production.inherited
         slots = [-1] * len(rhs)
@@ -2053,7 +2053,7 @@ class _Lowerer:
             self.rule_names.append(name)
             self.rule_display.append(name)
             self.rule_ids[name] = lhs
-            self.productions.append(Production(id=len(self.productions), lhs=lhs, rhs=(terminal,), terminal=(True,), rule_name=name, helper=True, slots=(0,), logical=(("symbol", 0),), inherited=0))
+            self.productions.append(Production(id=len(self.productions), lhs=lhs, rhs=(terminal,), terminal=(True,), rule_name=name, helper=True, slots=(0,), elements=(("symbol", 0),), inherited=0))
         from dataclasses import replace
         for target, alias in self.splice_aliases.items():
             for original in [p for p in self.productions if p.lhs == target]:

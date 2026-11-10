@@ -304,7 +304,7 @@ class TagNode:
 
 
 class TagGraph:
-    """Logical empty routes and unary inheritance, without products."""
+    """Element empty routes and unary inheritance, without products."""
     def __init__(self, ranked):
         self.nodes, self.groups = [], {}
         named = {rule.name: self.node(rule.name, False) for rule in ranked.rules.values()}

@@ -40,6 +40,7 @@ class SplicedPipeline:
 
 _LISTS = {
     "rule": "rules",
+    "check": "checks",
     "directive": "directives",
     "constant": "constants",
     "classifier": "classifiers",
@@ -49,7 +50,7 @@ _LISTS = {
 
 
 def _empty_dom(format_: Any) -> Dom:
-    return {"format": format_, "rules": [], "directives": [], "constants": [], "classifiers": [], "implications": []}
+    return {"format": format_, "rules": [], "checks": [], "directives": [], "constants": [], "classifiers": [], "implications": []}
 
 
 def items_in_order(dom: Dom) -> list[tuple[str, Dom]]:
@@ -59,6 +60,7 @@ def items_in_order(dom: Dom) -> list[tuple[str, Dom]]:
     which is the order of their positions (engine §9)."""
     items = (
         [("rule", rule) for rule in dom["rules"]]
+        + [("check", check) for check in dom["checks"]]
         + [("directive", directive) for directive in dom["directives"]]
         + [("constant", constant) for constant in dom.get("constants", [])]
         + [("classifier", classifier) for classifier in dom.get("classifiers", [])]
@@ -157,8 +159,8 @@ def splice_pipeline(path: str, dom_of: Callable[[str, list[str]], Dom | None]) -
                 run = None
             else:
                 if selected is None:
-                    if kind == "rule":
-                        what = f"the rule {item['name']}"
+                    if kind in ("rule", "check"):
+                        what = f"the {kind} {item['name']}"
                     elif kind == "constant":
                         what = f"the constant ${item['name']}"
                     elif kind == "classifier":

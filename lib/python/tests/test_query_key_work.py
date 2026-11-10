@@ -32,12 +32,12 @@ class TokenReads:
 def tracked_keys(counts, budget):
     original = StageContext.query_key
 
-    def query_key(context, rule, start, end, error_free):
+    def query_key(context, rule, start, end, error_free, ending_after=None):
         counts["calls"] += 1
         tokens = context.tokens
         context.tokens = TokenReads(tokens, counts, end - start > CONTENT_KEY_LIMIT, budget)
         try:
-            return original(context, rule, start, end, error_free)
+            return original(context, rule, start, end, error_free, ending_after)
         finally:
             context.tokens = tokens
 

@@ -22,7 +22,7 @@ class Marks(Protocol):
     def changes_in_document(self, code: int) -> bool: ...
 
 
-FORMAT = 47
+FORMAT = 48
 MAX_DEPTH = 256
 TOO_DEEP = "nested too deeply"
 CONSTANT_NAME = USER_NAME
@@ -182,7 +182,7 @@ def dom_problem(dom: Any, unicode: Marks, defer_emission: bool = True, expanded:
         problem = _dom_problem(dom, unicode, defer_emission, expanded, held)
         if problem is not None:
             return problem
-        pending = [dom[key] for key in ("rules", "directives", "constants", "classifiers", "implications")]
+        pending = [dom[key] for key in ("rules", "checks", "directives", "constants", "classifiers", "implications")]
         while pending:
             node = pending.pop()
             if isinstance(node, list):
@@ -203,7 +203,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
         return isinstance(name, str) and (CLASSIFIER_NAME.fullmatch(name) is not None or unicode.is_emoji_name(name)
                                          or expanded and "(" in name and name.endswith(")"))
 
-    arrays = ("rules", "directives", "constants", "classifiers", "implications")
+    arrays = ("rules", "checks", "directives", "constants", "classifiers", "implications")
     if (
         not isinstance(dom, dict)
         or set(dom) != {"format", *arrays}
@@ -259,7 +259,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
             valid = args == []
         if not valid:
             return "a directive has invalid operands"
-    ordered = sorted(((item, key) for key in ("rules", "directives", "constants", "classifiers", "implications") for item in dom[key]), key=lambda pair: pair[0]["at"])
+    ordered = sorted(((item, key) for key in ("rules", "checks", "directives", "constants", "classifiers", "implications") for item in dom[key]), key=lambda pair: pair[0]["at"])
     seen_statement = False
     for item, kind in ordered:
         names = kind == "directives" and item.get("name") == "names"
@@ -704,7 +704,7 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: l
                 keys == {"captured"}
                 and _capture(node["captured"])
                 or keys == {"method", "receiver", "args"}
-                and node["method"] in ("matches", "begins", "ends", "starts-input", "ends-input", "parse", "error-free", "followed-by", "preceded-by")
+                and node["method"] in ("matches", "begins", "ends", "starts-input", "ends-input", "parse", "error-free", "ending-after", "followed-by", "preceded-by")
             ):
                 return "a malformed condition"
             keep_type(None if id(node) in deferred else condition_type_fault(node, memo=types), node)
