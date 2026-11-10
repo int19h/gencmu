@@ -720,6 +720,102 @@ func (f *anyOfFrame) resume(b *domBuilder, in any) readStep {
 	return give(&domCond{Kind: cdAny, Items: f.items})
 }
 
+// truthyOperand reads one operand of the set operation at op. A Boolean
+// method as an operand is a fault of the operation (engine §9.3).
+func (b *domBuilder) truthyOperand(op, n *Node) (t *domTerm) {
+	defer func() {
+		if e := recover(); e != nil {
+			if err, ok := e.(*Error); ok && strings.Contains(err.Message, "a query method is a condition, not a term") {
+				b.fail(op, "a query method is a condition, not a term")
+			}
+			panic(e)
+		}
+	}()
+	return b.run(&termFrame{n: n}).(*domTerm)
+}
+
+// truthyCheck fails at op when the operands of a set operation in a
+// term-condition do not join (engine §9.3).
+func (b *domBuilder) truthyCheck(op *Node, items []*domTerm, operator string) {
+	if b.featureContext {
+		return
+	}
+	types := make([]termType, len(items))
+	for i, item := range items {
+		ty, problem := b.typeOf(item)
+		if problem != "" {
+			b.fail(op, "%s", problem)
+		}
+		types[i] = ty
+	}
+	if _, problem := joinedType(types, operator); problem != "" {
+		b.fail(op, "%s", problem)
+	}
+}
+
+// truthyTerm reads the set term of a term-condition (§9).
+func (b *domBuilder) truthyTerm(n *Node) *domTerm {
+	op := b.knownOf(n, []string{"union-operation", "intersection-operation", "set-atom"})
+	switch op.Rule {
+	case "set-atom":
+		for _, child := range b.parts(op) {
+			if child.Kind == KindRule {
+				return b.run(&termFrame{n: child}).(*domTerm)
+			}
+		}
+		b.fail(op, "a set atom")
+	case "intersection-operation":
+		var items []*domTerm
+		for _, item := range b.some(op, "concatenation", 1) {
+			items = append(items, b.truthyOperand(op, item))
+		}
+		b.truthyCheck(op, items, "∩")
+		if len(items) == 1 {
+			return items[0]
+		}
+		return &domTerm{Kind: tmIntersection, Items: items}
+	}
+	found := b.some(op, "intersection", 1)
+	var items []*domTerm
+	for _, item := range found {
+		items = append(items, b.truthyOperand(op, item))
+	}
+	var operators []string
+	for _, part := range b.parts(op) {
+		if part.Kind == KindToken {
+			if v := b.tokenValue(part); v == "∪" || v == "∖" {
+				operators = append(operators, v)
+			}
+		}
+	}
+	// A leading ∪ is a separator, not an operator.
+	if len(operators) > len(items)-1 {
+		operators = operators[len(operators)-(len(items)-1):]
+	}
+	joinOperator := "∪"
+	for _, operator := range operators {
+		if operator == "∖" {
+			joinOperator = "∖"
+		}
+	}
+	b.truthyCheck(op, items, joinOperator)
+	result := items[0]
+	open := false
+	for index, operator := range operators {
+		next := items[index+1]
+		if operator == "∖" {
+			result = &domTerm{Kind: tmDifference, Items: []*domTerm{result, next}}
+			open = false
+		} else if open && result.Kind == tmUnion {
+			result.Items = append(result.Items, next)
+		} else {
+			result = &domTerm{Kind: tmUnion, Items: []*domTerm{result, next}}
+			open = true
+		}
+	}
+	return result
+}
+
 // conditionFrame reads a condition.
 type conditionFrame struct {
 	n       *Node
@@ -750,6 +846,8 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 			f.right = ps[1]
 			return ask(&termFrame{n: ps[0]})
 		case "negation", "method", "implication":
+		case "term-condition":
+			return give(&domCond{Kind: cdTruthy, Left: b.truthyTerm(n)})
 		case "presence":
 			return give(&domCond{Kind: cdCaptured, Capture: strings.TrimPrefix(b.tokenValue(b.token(n)), "$")})
 		default:
@@ -796,6 +894,9 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 		return give(&domCond{Kind: cdNot, Inner: in.(*domCond)})
 	}
 	t := in.(*domTerm)
+	if t.Str == "tags" || t.Str == "classes" || t.Str == "split" || t.Str == "ngrams" || t.Str == "classify" {
+		return give(&domCond{Kind: cdTruthy, Left: t})
+	}
 	if t.Str == "parse" || t.Str == "error-free" {
 		return give(&domCond{Kind: cdForest, Left: t})
 	}

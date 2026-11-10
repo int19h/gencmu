@@ -6856,15 +6856,17 @@
       ],
       "conditions": [
         {
-          "method": "tags",
-          "receiver": {
-            "param": "X",
-            "at": [
-              2,
-              20
-            ]
-          },
-          "args": []
+          "nonempty": {
+            "method": "tags",
+            "receiver": {
+              "param": "X",
+              "at": [
+                2,
+                20
+              ]
+            },
+            "args": []
+          }
         }
       ],
       "at": [
@@ -6872,7 +6874,7 @@
         1
       ]
     },
-    "malformed": true
+    "malformed": false
   },
   {
     "description": "Unresolved template: body-term-union",
@@ -7067,18 +7069,20 @@
       ],
       "conditions": [
         {
-          "union": [
-            {
-              "param": "X",
-              "at": [
-                2,
-                20
-              ]
-            },
-            {
-              "tag": "A"
-            }
-          ]
+          "nonempty": {
+            "union": [
+              {
+                "param": "X",
+                "at": [
+                  2,
+                  20
+                ]
+              },
+              {
+                "tag": "A"
+              }
+            ]
+          }
         }
       ],
       "at": [
@@ -7086,7 +7090,7 @@
         1
       ]
     },
-    "malformed": true
+    "malformed": false
   },
   {
     "description": "Unresolved template: condition body sequence",
@@ -8629,7 +8633,7 @@
     "malformed": true
   },
   {
-    "description": "Unresolved leaf: parameter cannot replace condition",
+    "description": "Unresolved leaf: parameter as a set term in a condition",
     "rule": {
       "name": "use",
       "params": [
@@ -8661,11 +8665,13 @@
       ],
       "conditions": [
         {
-          "param": "X",
-          "at": [
-            3,
-            22
-          ]
+          "nonempty": {
+            "param": "X",
+            "at": [
+              3,
+              22
+            ]
+          }
         }
       ],
       "at": [
@@ -8673,7 +8679,7 @@
         1
       ]
     },
-    "malformed": true
+    "malformed": false
   },
   {
     "description": "Unresolved leaf: call cannot replace condition",
@@ -8728,7 +8734,7 @@
     "malformed": true
   },
   {
-    "description": "Unresolved leaf: parameter cannot replace negated condition",
+    "description": "Unresolved leaf: parameter as a set term in a negated condition",
     "rule": {
       "name": "use",
       "params": [
@@ -8761,11 +8767,13 @@
       "conditions": [
         {
           "not": {
-            "param": "X",
-            "at": [
-              3,
-              22
-            ]
+            "nonempty": {
+              "param": "X",
+              "at": [
+                3,
+                22
+              ]
+            }
           }
         }
       ],
@@ -8774,7 +8782,7 @@
         1
       ]
     },
-    "malformed": true
+    "malformed": false
   },
   {
     "description": "Unresolved leaf: call cannot replace negated condition",
@@ -8831,7 +8839,7 @@
     "malformed": true
   },
   {
-    "description": "Unresolved leaf: parameter cannot replace disjunct",
+    "description": "Unresolved leaf: parameter as a set term in a disjunct",
     "rule": {
       "name": "use",
       "params": [
@@ -8865,11 +8873,13 @@
         {
           "any": [
             {
-              "param": "X",
-              "at": [
-                3,
-                22
-              ]
+              "nonempty": {
+                "param": "X",
+                "at": [
+                  3,
+                  22
+                ]
+              }
             },
             {
               "captured": ""
@@ -8882,7 +8892,7 @@
         1
       ]
     },
-    "malformed": true
+    "malformed": false
   },
   {
     "description": "Unresolved leaf: call cannot replace disjunct",
@@ -8944,7 +8954,7 @@
     "malformed": true
   },
   {
-    "description": "Unresolved leaf: parameter cannot replace conjunct",
+    "description": "Unresolved leaf: parameter as a set term in a conjunct",
     "rule": {
       "name": "use",
       "params": [
@@ -8978,11 +8988,13 @@
         {
           "all": [
             {
-              "param": "X",
-              "at": [
-                3,
-                22
-              ]
+              "nonempty": {
+                "param": "X",
+                "at": [
+                  3,
+                  22
+                ]
+              }
             },
             {
               "captured": ""
@@ -8995,7 +9007,7 @@
         1
       ]
     },
-    "malformed": true
+    "malformed": false
   },
   {
     "description": "Unresolved leaf: call cannot replace conjunct",
@@ -9057,7 +9069,7 @@
     "malformed": true
   },
   {
-    "description": "Unresolved leaf: parameter cannot replace implication antecedent",
+    "description": "Unresolved leaf: parameter as a set term in an implication antecedent",
     "rule": {
       "name": "use",
       "params": [
@@ -9090,11 +9102,13 @@
       "conditions": [
         {
           "if": {
-            "param": "X",
-            "at": [
-              3,
-              22
-            ]
+            "nonempty": {
+              "param": "X",
+              "at": [
+                3,
+                22
+              ]
+            }
           },
           "then": {
             "captured": ""
@@ -9106,7 +9120,7 @@
         1
       ]
     },
-    "malformed": true
+    "malformed": false
   },
   {
     "description": "Unresolved leaf: call cannot replace implication antecedent",
@@ -9166,7 +9180,7 @@
     "malformed": true
   },
   {
-    "description": "Unresolved leaf: parameter cannot replace implication consequent",
+    "description": "Unresolved leaf: parameter as a set term in an implication consequent",
     "rule": {
       "name": "use",
       "params": [
@@ -9202,11 +9216,13 @@
             "captured": ""
           },
           "then": {
-            "param": "X",
-            "at": [
-              3,
-              22
-            ]
+            "nonempty": {
+              "param": "X",
+              "at": [
+                3,
+                22
+              ]
+            }
           }
         }
       ],
@@ -9215,7 +9231,7 @@
         1
       ]
     },
-    "malformed": true
+    "malformed": false
   },
   {
     "description": "Unresolved leaf: call cannot replace implication consequent",
@@ -9275,7 +9291,7 @@
     "malformed": true
   },
   {
-    "description": "Unresolved leaf: parameter cannot replace term guard",
+    "description": "Unresolved leaf: parameter as a set term in a term guard",
     "rule": {
       "name": "use",
       "params": [
@@ -9312,18 +9328,20 @@
       ],
       "tags": {
         "if": {
-          "param": "X",
-          "at": [
-            3,
-            22
-          ]
+          "nonempty": {
+            "param": "X",
+            "at": [
+              3,
+              22
+            ]
+          }
         },
         "then": {
           "tag": "A"
         }
       }
     },
-    "malformed": true
+    "malformed": false
   },
   {
     "description": "Unresolved leaf: call cannot replace term guard",
@@ -16700,7 +16718,7 @@
   {
     "description": "A DOM envelope refuses unknown members.",
     "dom": {
-      "format": 46,
+      "format": 47,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -16713,7 +16731,7 @@
   {
     "description": "An empty complete DOM envelope is valid.",
     "dom": {
-      "format": 46,
+      "format": 47,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -16830,7 +16848,7 @@
   {
     "description": "Unsafe coordinates do not produce a duplicate-position problem.",
     "dom": {
-      "format": 46,
+      "format": 47,
       "rules": [
         {
           "name": "text",
@@ -16994,7 +17012,7 @@
   {
     "description": "An earlier malformed directive precedes excessive rule depth.",
     "dom": {
-      "format": 46,
+      "format": 47,
       "rules": [
         {
           "name": "text",
@@ -17899,7 +17917,7 @@
   {
     "description": "Ranked argument shape errors precede engine tags in constants.",
     "dom": {
-      "format": 46,
+      "format": 47,
       "rules": [],
       "directives": [],
       "constants": [
@@ -17946,7 +17964,7 @@
   {
     "description": "Ranked argument shape errors precede engine tags in implications.",
     "dom": {
-      "format": 46,
+      "format": 47,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -18124,7 +18142,7 @@
   {
     "description": "Well-shaped constants still refuse engine-tag literals.",
     "dom": {
-      "format": 46,
+      "format": 47,
       "rules": [],
       "directives": [],
       "constants": [
@@ -18148,7 +18166,7 @@
   {
     "description": "Well-shaped implications still refuse engine-tag literals.",
     "dom": {
-      "format": 46,
+      "format": 47,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -19095,7 +19113,7 @@
   {
     "description": "Ranked argument shape errors precede a non-closed constant term.",
     "dom": {
-      "format": 46,
+      "format": 47,
       "rules": [],
       "directives": [],
       "constants": [
@@ -19140,7 +19158,7 @@
   {
     "description": "A well-shaped constant still refuses a non-closed term.",
     "dom": {
-      "format": 46,
+      "format": 47,
       "rules": [],
       "directives": [],
       "constants": [
@@ -19180,7 +19198,7 @@
   {
     "description": "Ranked argument shape errors precede a non-closed implication term.",
     "dom": {
-      "format": 46,
+      "format": 47,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -19226,7 +19244,7 @@
   {
     "description": "A well-shaped implication still refuses a non-closed term.",
     "dom": {
-      "format": 46,
+      "format": 47,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -19697,7 +19715,7 @@
   {
     "description": "An implication checks then-side closedness before its capture type.",
     "dom": {
-      "format": 46,
+      "format": 47,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -19723,7 +19741,7 @@
   {
     "description": "An implication checks if-side closedness before its capture type.",
     "dom": {
-      "format": 46,
+      "format": 47,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -19749,7 +19767,7 @@
   {
     "description": "An earlier rule type fault precedes a later constant closedness fault.",
     "dom": {
-      "format": 46,
+      "format": 47,
       "rules": [
         {
           "name": "extra",
@@ -19795,7 +19813,7 @@
   {
     "description": "An earlier constant closedness fault precedes a later rule type fault.",
     "dom": {
-      "format": 46,
+      "format": 47,
       "rules": [
         {
           "name": "extra",
@@ -19841,7 +19859,7 @@
   {
     "description": "An earlier rule type fault precedes a later implication closedness fault.",
     "dom": {
-      "format": 46,
+      "format": 47,
       "rules": [
         {
           "name": "extra",
@@ -19888,7 +19906,7 @@
   {
     "description": "An earlier implication closedness fault precedes a later rule type fault.",
     "dom": {
-      "format": 46,
+      "format": 47,
       "rules": [
         {
           "name": "extra",
@@ -19935,7 +19953,7 @@
   {
     "description": "An earlier rule type fault precedes a later split delimiter fault in a supplied lexical DOM.",
     "dom": {
-      "format": 46,
+      "format": 47,
       "rules": [
         {
           "name": "text",
@@ -22698,7 +22716,7 @@
   {
     "description": "An earlier split delimiter fault precedes a later rule type fault.",
     "dom": {
-      "format": 46,
+      "format": 47,
       "rules": [
         {
           "name": "extra",
@@ -22752,7 +22770,7 @@
   {
     "description": "An earlier rule type fault precedes a split delimiter fault in a later rule.",
     "dom": {
-      "format": 46,
+      "format": 47,
       "rules": [
         {
           "name": "extra",
@@ -22821,7 +22839,7 @@
   {
     "description": "An earlier rule type fault precedes a split delimiter fault in a later implication.",
     "dom": {
-      "format": 46,
+      "format": 47,
       "rules": [
         {
           "name": "extra",
@@ -22876,7 +22894,7 @@
   {
     "description": "A later ranked shape error precedes an earlier split delimiter fault.",
     "dom": {
-      "format": 46,
+      "format": 47,
       "rules": [
         {
           "name": "later",
@@ -24013,6 +24031,164 @@
       ],
       "params": [
         "X--rest"
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Wrapper: a bare set term as a condition",
+    "rule": {
+      "name": "use",
+      "op": "define",
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "tag": "A"
+        }
+      ],
+      "at": [
+        3,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Wrapper: a wrapped string as a condition",
+    "rule": {
+      "name": "use",
+      "op": "define",
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "nonempty": {
+            "string": "a"
+          }
+        }
+      ],
+      "at": [
+        3,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Wrapper: a wrapped parse forest as a condition",
+    "rule": {
+      "name": "use",
+      "op": "define",
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "nonempty": {
+            "method": "parse",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "body": {
+                  "ref": "word"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "at": [
+        3,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Wrapper: a wrapped error-free forest as a condition",
+    "rule": {
+      "name": "use",
+      "op": "define",
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "nonempty": {
+            "method": "error-free",
+            "receiver": {
+              "method": "parse",
+              "receiver": {
+                "capture": ""
+              },
+              "args": [
+                {
+                  "body": {
+                    "ref": "word"
+                  }
+                }
+              ]
+            },
+            "args": []
+          }
+        }
+      ],
+      "at": [
+        3,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Wrapper: a wrapper with an extra member",
+    "rule": {
+      "name": "use",
+      "op": "define",
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "nonempty": {
+            "tag": "A"
+          },
+          "x": 1
+        }
+      ],
+      "at": [
+        3,
+        1
       ]
     },
     "malformed": true

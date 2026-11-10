@@ -1,0 +1,31 @@
+{
+  "description": "Engine §9.3: a set term as a condition reads as the nonempty wrapper over the intersection.",
+  "document": "```jbogenbau\n%rule text $x:A [$y:B]\n%conditions $x.tags ∩ UI\n```",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "name": "text",
+          "conditions": [
+            {
+              "nonempty": {
+                "intersection": [
+                  {
+                    "method": "tags",
+                    "receiver": {
+                      "capture": "x"
+                    },
+                    "args": []
+                  },
+                  {
+                    "tag": "UI"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

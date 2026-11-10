@@ -111,7 +111,10 @@ fn body_json_problem(body: &Json) -> Option<&'static str> {
             .filter_map(|(index, item)| item.get("remainder").is_some().then_some(index))
             .collect();
         if !markers.is_empty() {
-            if markers.len() != 1 || items.len() < 2 || markers[0] != 0 && markers[0] + 1 != items.len() {
+            if markers.len() > 2
+                || markers.iter().any(|&index| index != 0 && index + 1 != items.len())
+                || items.iter().filter(|item| item.get("remainder").is_none()).count() < 1
+            {
                 return Some(marker);
             }
             pending = items.iter().filter(|item| item.get("remainder").is_none()).collect();
@@ -919,10 +922,10 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                             | "onward"
                             | "following-tokens"
                             | "preceding-tokens"
-                            | "classes"
-                            | "tags",
+                            | "classes",
                             [],
                         ) => span(receiver),
+                        ("tags", []) => span(receiver) || forest(receiver),
                         ("tags", [arg]) => span(receiver) && rule_arg(arg),
                         ("ngrams", [arg]) => {
                             exact(arg, &["integer"], &[])
@@ -982,6 +985,8 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                 } else if exact(value, &["if", "then"], &[]) {
                     pending.push((Part::Condition, value.get("if").unwrap(), next));
                     pending.push((Part::Condition, value.get("then").unwrap(), next));
+                } else if exact(value, &["nonempty"], &[]) {
+                    pending.push((Part::Term, value.get("nonempty").unwrap(), next));
                 } else if exact(value, &["op", "left", "right"], &[]) {
                     if !matches!(
                         value.get("op").and_then(Json::as_str),

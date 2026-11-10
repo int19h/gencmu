@@ -1,0 +1,10 @@
+{
+  "description": "Engine §10: a Boolean query method in the value of a guarded term faults at the method.",
+  "document": "```jbogenbau\n%rule text $x:word $y:word\n%conditions (($y ⟹ $x.matches(word)) ∩ ∅)\n%rule word A :: Word\n```",
+  "expect": {
+    "error": {
+      "line": 3,
+      "column": 14
+    }
+  }
+}

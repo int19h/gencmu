@@ -78,6 +78,19 @@ func domPosition(value any) ([2]int, error) {
 }
 
 // Standalone callers use the same tree conversion as complete documents.
+func decodeCondJSON(raw json.RawMessage) (*domCond, error) {
+	parser := jsonDecoder{data: raw, numbers: true}
+	value, err := parser.document(nil)
+	if err != nil {
+		return nil, err
+	}
+	dc := &domDecoder{}
+	cond, err := dc.decodeCond(value)
+	if err == nil {
+		err = dc.run()
+	}
+	return cond, err
+}
 func decodeTerm(raw json.RawMessage) (*domTerm, error) {
 	parser := jsonDecoder{data: raw, numbers: true}
 	value, err := parser.document(nil)

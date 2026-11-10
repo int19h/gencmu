@@ -1,0 +1,15 @@
+{
+  "description": "Engine §4 and §10: an empty difference in a Boolean position does not hold.",
+  "grammar": "%rule text $x:word\n%conditions $x.tags ∖ Word\n%rule word A :: Word",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected"
+  }
+}

@@ -1,10 +1,39 @@
 {
-  "description": "Engine §4: a remainder has one outer edge, and a forest has no comparison or conversion.",
+  "description": "Engine §4: a parse argument can have a remainder at both outer edges.",
   "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n%conditions $.parse(… A …)\n```\n",
   "expect": {
-    "error": {
-      "line": 4,
-      "column": 25
+    "dom": {
+      "format": 47,
+      "rules": [
+        {
+          "name": "text",
+          "conditions": [
+            {
+              "method": "parse",
+              "receiver": {
+                "capture": ""
+              },
+              "args": [
+                {
+                  "body": {
+                    "seq": [
+                      {
+                        "remainder": true
+                      },
+                      {
+                        "ref": "A"
+                      },
+                      {
+                        "remainder": true
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
     }
   }
 }

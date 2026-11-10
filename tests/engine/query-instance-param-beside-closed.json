@@ -1,0 +1,8 @@
+{
+  "description": "Engine §3.6: the closed-set rule reads each term as its template writes it, so a closed set beside a parameter still becomes true in an instance.",
+  "grammar": "%rule text t(Other)\n%rule t(@S) A\n%conditions @S ∨ Word",
+  "input": "a",
+  "expect": {
+    "error": "grammar"
+  }
+}

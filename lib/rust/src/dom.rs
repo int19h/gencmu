@@ -71,7 +71,7 @@ use crate::tags::is_name;
 use crate::unicode::Unicode;
 
 /// The DOM format version (`docs/output.md`), part of every cache key.
-pub const DOM_FORMAT: i64 = 46;
+pub const DOM_FORMAT: i64 = 47;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct Dom {
@@ -165,6 +165,9 @@ pub(crate) struct RuleDef {
     pub alternatives: Vec<Alternative>,
     pub emit: Option<Vec<EmitItem>>,
     pub conditions: Vec<Cond>,
+    /// Per condition, its form as its template writes it, where it held
+    /// a parameter (engine §3.6), for a rule that template expansion wrote.
+    pub template_conditions: Vec<Option<Cond>>,
     /// `%erased` contributes no strings or emission parts (engine §11).
     pub erased: bool,
     pub error: Option<Term>,
@@ -297,6 +300,7 @@ pub(crate) struct BoundaryLocation {
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Cond {
     Forest(Term),
+    Truthy(Term),
     SourceQuery(String, Vec<Arg>, BoundaryLocation),
     Compare(String, Term, Term, Option<(usize, usize)>),
     Matches(Term, Vec<String>),
@@ -432,7 +436,7 @@ pub(crate) fn decode_checked(value: &Json, _unicode: &Unicode) -> R<Dom> {
     Ok(dom)
 }
 
-fn decode_nodes(value: &Json) -> R<Dom> {
+pub(crate) fn decode_nodes(value: &Json) -> R<Dom> {
     let rules = array(value, "rules")?.iter().map(rule_from_json).collect::<R<Vec<_>>>()?;
     let directives = array(value, "directives")?
         .iter()
@@ -653,6 +657,7 @@ pub(crate) fn rule_from_json(value: &Json) -> R<RuleDef> {
             .collect::<R<Vec<_>>>()?,
         emit: value.get("emit").map(emit_from_json).transpose()?,
         conditions: array(value, "conditions")?.iter().map(cond_from_json).collect::<R<Vec<_>>>()?,
+        template_conditions: Vec::new(),
         error: value.get("error").map(term_from_json).transpose()?,
         warning: value.get("warning").map(term_from_json).transpose()?,
         suppress_warnings: value
@@ -872,6 +877,20 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                     children.push((field(value, "receiver")?, false));
                     if matches!(value.get("method").and_then(Json::as_str), Some("parse")) {
                         children.extend(array(value, "args")?.iter().map(|argument| (argument, false)));
+                    } else if matches!(
+                        value.get("method").and_then(Json::as_str),
+                        Some("tags" | "classes" | "split" | "ngrams" | "classify")
+                    ) {
+                        children.extend(
+                            array(value, "args")?
+                                .iter()
+                                .filter(|arg| {
+                                    arg.get("rule").is_none()
+                                        && arg.get("classifier").is_none()
+                                        && arg.get("integer").is_none()
+                                })
+                                .map(|argument| (argument, false)),
+                        );
                     }
                 }
                 "not" => children.push((field(value, "not")?, true)),
@@ -881,6 +900,7 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                     children.push((field(value, "then")?, true));
                 }
                 "captured" => {}
+                "nonempty" => children.push((field(value, "nonempty")?, false)),
                 _ => return Err(format!("an unknown condition {key:?}")),
             }
         } else {
@@ -926,6 +946,9 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                 "method" => {
                     let receiver = operands.next().unwrap().term();
                     let name = string(value, "method")?;
+                    if matches!(name.as_str(), "tags" | "classes" | "split" | "ngrams" | "classify") {
+                        return Err("a malformed query predicate".into());
+                    }
                     if matches!(name.as_str(), "parse" | "error-free") {
                         let args = std::iter::once(Arg::Term(receiver))
                             .chain(operands.map(|operand| Arg::Term(operand.term())))
@@ -974,6 +997,7 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                         _ => return Err("a malformed predicate method".into()),
                     }
                 }
+                "nonempty" => Cond::Truthy(operands.next().unwrap().term()),
                 "not" => Cond::Not(Box::new(operands.next().unwrap().cond())),
                 "any" => Cond::Any(operands.map(ReadValue::cond).collect()),
                 "all" => Cond::All(operands.map(ReadValue::cond).collect()),
@@ -1527,6 +1551,7 @@ fn constants_in<'t>(start: Nested<'t>, out: &mut Vec<(&'t str, (usize, usize))>,
                 Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Capture(_) => {}
             },
             Nested::Cond(cond) => match cond {
+                Cond::Truthy(term) => stack.push(Nested::Term(term)),
                 Cond::Forest(term) => stack.push(Nested::Term(term)),
                 Cond::SourceQuery(_, args, _) => stack.extend(args.iter().rev().filter_map(|arg| match arg {
                     Arg::Term(term) => Some(Nested::Term(term)),
@@ -1736,6 +1761,7 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
             }
             Nested::Cond(cond) => match cond {
                 // The forest term is the condition itself, not a child.
+                Cond::Truthy(term) => stack.push((Nested::Term(term), depth)),
                 Cond::Forest(term) => stack.push((Nested::Term(term), depth)),
                 Cond::SourceQuery(_, args, _) => stack.extend(args.iter().filter_map(|arg| match arg {
                     Arg::Term(term) => Some((Nested::Term(term), below)),
@@ -2098,7 +2124,9 @@ pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type
                     if call == "concat" && !matches!(ty, Type::String | Type::Any) {
                         return Err(Fault::in_term("++ requires string operands".into(), term));
                     }
-                    if let Some(problem) = expected_problem(ty, expected) {
+                    if call == "tags" && index == 0 && ty == Type::Forest {
+                        // A forest receiver gives its witness tags (§4).
+                    } else if let Some(problem) = expected_problem(ty, expected) {
                         return Err(if matches!(call.as_str(), "requirements" | "forbid") {
                             Fault::in_term(problem, arg)
                         } else {
@@ -2119,6 +2147,10 @@ pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type
 /// that disagrees, or `None` (engine §10).
 pub(crate) fn cond_type_fault(cond: &Cond, constants: ConstantTypes) -> Option<Fault> {
     match cond {
+        Cond::Truthy(term) => term_type_in(term, constants).err().or_else(|| {
+            (!matches!(term_type_in(term, constants).ok(), Some(Type::Tags | Type::Strings | Type::Set | Type::Any)))
+                .then(|| Fault::in_term("a condition requires a set, a forest, or a query method".into(), term))
+        }),
         Cond::Forest(term) => term_type_in(term, constants).err().or_else(|| {
             (term_type_in(term, constants).ok() != Some(Type::Forest))
                 .then(|| Fault::in_term("a condition requires a forest".into(), term))
@@ -2493,6 +2525,7 @@ impl Term {
 impl Cond {
     fn take_parts(&mut self, stack: &mut Vec<Dropping>) {
         match self {
+            Cond::Truthy(term) => stack.push(Dropping::Term(std::mem::replace(term, Term::EmptySet))),
             Cond::Forest(term) => stack.push(Dropping::Term(std::mem::replace(term, Term::EmptySet))),
             Cond::SourceQuery(_, args, _) => {
                 stack.extend(args.drain(..).filter_map(|arg| match arg {

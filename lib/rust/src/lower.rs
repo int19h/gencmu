@@ -65,6 +65,7 @@ pub(crate) enum LTerm {
     Ngrams(Box<LTerm>, String),
     Tags(Span),
     TagsRule(Span, u32),
+    ForestTags(Span, u32, crate::query_forms::Mode, bool),
     Classes(Span),
     /// `classify(a, C)`: the classes that the classifier named `C` gives
     /// the string `a` (§10).
@@ -94,6 +95,7 @@ pub(crate) enum LCond {
     /// as `R`.
     Begins(Span, u32),
     Ends(Span, u32),
+    Contains(Span, u32),
     /// `initial(s)`: whether the span begins where the parse's input does.
     Initial(Span),
     Final(Span),
@@ -1058,7 +1060,10 @@ impl<'a> Scope<'a> {
                 ("source-text", [Arg::Term(span)]) => LTerm::Text(self.span(span)?),
                 ("decomposed-source-text", [Arg::Term(span)]) => LTerm::DecomposedText(self.span(span)?),
                 ("classes", [Arg::Term(span)]) => LTerm::Classes(self.span(span)?),
-                ("tags", [Arg::Term(span)]) => LTerm::Tags(self.span(span)?),
+                ("tags", [Arg::Term(span)]) => match self.forest_tags(span)? {
+                    Some(term) => term,
+                    None => LTerm::Tags(self.span(span)?),
+                },
                 ("tags", [Arg::Term(span), Arg::Rule(rule)]) => LTerm::TagsRule(self.span(span)?, self.rule(rule)?),
                 ("ngrams", [Arg::Term(string), Arg::Integer(n)]) => {
                     LTerm::Ngrams(Box::new(self.term(string)?), n.clone())
@@ -1108,7 +1113,29 @@ impl<'a> Scope<'a> {
             crate::query_forms::Mode::Whole => LCond::Matches(span, rule),
             crate::query_forms::Mode::Prefix => LCond::Begins(span, rule),
             crate::query_forms::Mode::Suffix => LCond::Ends(span, rule),
+            crate::query_forms::Mode::Part => LCond::Contains(span, rule),
         })
+    }
+
+    fn forest_tags(&mut self, term: &Term) -> Result<Option<LTerm>, Missing> {
+        let mut filtered = false;
+        let mut inner = term;
+        while let Term::Call(name, args) = inner {
+            if let ("error-free", [Arg::Term(next)]) = (name.as_str(), args.as_slice()) {
+                filtered = true;
+                inner = next;
+            } else {
+                break;
+            }
+        }
+        let Term::Call(name, args) = inner else { return Ok(None) };
+        let ("parse", [Arg::Term(receiver), Arg::Term(Term::Body(body))]) = (name.as_str(), args.as_slice()) else {
+            return Ok(None);
+        };
+        let target = self.body_targets.get(&(std::sync::Arc::as_ptr(body) as usize)).ok_or(Missing)?;
+        let rule = self.query_target(target)?;
+        let mode = crate::query_forms::body_mode(body);
+        Ok(Some(LTerm::ForestTags(self.span(receiver)?, rule, mode, filtered)))
     }
 
     fn cond(&mut self, cond: &Cond) -> Result<LCond, Missing> {
@@ -1121,6 +1148,7 @@ impl<'a> Scope<'a> {
             Cond::Compare(op, left, right, location) if matches!(op.as_str(), "≅" | "≇") => {
                 LCond::SameTree(self.span(left)?, op == "≅", self.span(right)?, *location)
             }
+            Cond::Truthy(term) => LCond::Cmp(CmpOp::NotSubset, self.term(term)?, LTerm::Empty),
             Cond::Compare(op, left, right, _) => {
                 let op = match op.as_str() {
                     "=" => CmpOp::Eq,
@@ -2641,6 +2669,7 @@ mod tests {
             Unicode::parse(crate::loader::bundled("data/unicode/unicode.txt").expect("the table")).expect("the table");
         {
             let rule = |name: String, alternatives: Vec<Expr>| RuleDef {
+                template_conditions: Vec::new(),
                 error: None,
                 warning: None,
                 suppress_warnings: Vec::new(),
@@ -2734,6 +2763,7 @@ mod tests {
             Term::If(Box::new(Cond::Captured(format!("c{index}"))), Box::new(Term::Tag(format!("t{index}"))))
         });
         RuleDef {
+            template_conditions: Vec::new(),
             error: None,
             warning: None,
             suppress_warnings: Vec::new(),

@@ -1,0 +1,10 @@
+{
+  "description": "Engine §10: a forest as an operand of a set operation faults at the operation.",
+  "document": "```jbogenbau\n%rule text $x:word\n%conditions ∪ $.parse(word)\n%rule word A :: Word\n```",
+  "expect": {
+    "error": {
+      "line": 3,
+      "column": 13
+    }
+  }
+}

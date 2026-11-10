@@ -1,0 +1,15 @@
+{
+  "description": "Engine §3.6: a negated empty set term becomes true, so the condition applies to no production.",
+  "grammar": "%rule text $x:word\n%conditions ¬($x.tags ∩ ∅)\n%rule word A :: Word",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

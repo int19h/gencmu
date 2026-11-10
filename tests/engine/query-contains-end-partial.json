@@ -1,0 +1,21 @@
+{
+  "description": "Engine §4: a part target partly read at the end of the view does not hold.",
+  "grammar": "%rule text {_} {_}\n%conditions $.parse(… word …)\n%rule word A B",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected"
+  }
+}

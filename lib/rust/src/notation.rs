@@ -511,6 +511,7 @@ impl<'a> Reader<'a> {
                 strings: Default::default(),
                 alternatives: Vec::new(),
                 conditions: Vec::new(),
+                template_conditions: Vec::new(),
                 emit: None,
                 erased: false,
                 at: self.at(definer),
@@ -576,6 +577,7 @@ impl<'a> Reader<'a> {
             alternatives,
             emit,
             conditions,
+            template_conditions: Vec::new(),
             erased: self.rules(node, "erased-clause").next().is_some(),
             at: self.at(definer),
         };
@@ -600,6 +602,11 @@ impl<'a> Reader<'a> {
         if let Some((message, at)) = crate::boundary::definition_problem(checked) {
             let (line, column) = at.unwrap_or(rule.at);
             return Err(Error::grammar(message).at(line, column));
+        }
+        // A bare empty set in a Boolean position is an error, read as
+        // written, before any constant is substituted (engine §10).
+        if checked.conditions.iter().any(crate::clauses::has_bare_empty_set) {
+            return Err(Error::grammar(format!("a condition of {} is the empty set", rule.name)).at(line, column));
         }
         // The definition is checked as a whole once it is read (§9).
         let result = crate::clauses::check_definition(checked, self.defer_emission);
@@ -1365,9 +1372,47 @@ impl<'a> Reader<'a> {
         }
     }
 
+    /// Whether a set-operation operand holds a Boolean method as its last
+    /// step, which is a condition and not a term (engine §9.3).
+    fn query_method_operand(&self, node: &'a Node) -> bool {
+        if rule_name(node) == "method" {
+            let selectors: Vec<&Node> = self.rules(node, "method-selector").collect();
+            if let Some(last) = selectors.last() {
+                let name = if self.rules(last, "parse-selector").next().is_some() {
+                    "parse"
+                } else if let Ok(found) = self.one(last, "method-name").and_then(|part| self.token(part)) {
+                    self.value(found)
+                } else {
+                    ""
+                };
+                if matches!(
+                    name,
+                    "starts-input" | "ends-input" | "followed-by" | "preceded-by" | "matches" | "begins" | "ends"
+                ) {
+                    return true;
+                }
+            }
+        }
+        // A guarded term's guards are conditions, where a query method is
+        // legal. Only its value side is an operand (§10).
+        if rule_name(node) == "guarded-term" {
+            return self.parts(node).into_iter().any(|child| {
+                child.kind == NodeKind::Rule && rule_name(child) == "union" && self.query_method_operand(child)
+            });
+        }
+        self.parts(node).into_iter().any(|child| {
+            child.kind == NodeKind::Rule
+                && !matches!(rule_name(child), "implication")
+                && self.query_method_operand(child)
+        })
+    }
+
     /// Parts joined by `∪` and `∖`, which group from the left: a run joined
     /// by `∪` is one union, and each `∖` takes what stands before it (§9).
     fn resume_union(&self, frame: &mut Joined<'a>, input: Option<Val>) -> R<Step<'a>> {
+        if frame.defer && frame.parts.is_none() && self.query_method_operand(frame.node) {
+            return Err(self.error(frame.node, "a query method is a condition, not a term"));
+        }
         if frame.parts.is_none() {
             let parts: Vec<&Node> = self.rules(frame.node, "intersection").collect();
             match parts[..] {
@@ -1375,7 +1420,9 @@ impl<'a> Reader<'a> {
                 [part] => {
                     frame.parts = Some(Vec::new());
                     frame.pass = true;
-                    return Ok(Step::Call(Frame::Intersection(Joined::new(part, frame.argument))));
+                    let mut joined = Joined::new(part, frame.argument);
+                    joined.defer = frame.defer;
+                    return Ok(Step::Call(Frame::Intersection(joined)));
                 }
                 _ => {}
             }
@@ -1390,7 +1437,9 @@ impl<'a> Reader<'a> {
         }
         let parts = frame.parts.as_ref().expect("the parts");
         if let Some(&part) = parts.get(frame.items.len()) {
-            return Ok(Step::Call(Frame::Intersection(Joined::new(part, false))));
+            let mut joined = Joined::new(part, false);
+            joined.defer = frame.defer;
+            return Ok(Step::Call(Frame::Intersection(joined)));
         }
         let mut operators: Vec<&str> = self
             .tokens_of(frame.node)
@@ -1428,6 +1477,9 @@ impl<'a> Reader<'a> {
     }
 
     fn resume_intersection(&self, frame: &mut Joined<'a>, input: Option<Val>) -> R<Step<'a>> {
+        if frame.defer && frame.parts.is_none() && self.query_method_operand(frame.node) {
+            return Err(self.error(frame.node, "a query method is a condition, not a term"));
+        }
         if frame.parts.is_none() {
             let atoms: Vec<&Node> = self.rules(frame.node, "concatenation").collect();
             match atoms[..] {
@@ -1792,13 +1844,19 @@ impl<'a> Reader<'a> {
                     if let Some(binder) = first_of_rule(argument, "capture") {
                         return Err(self.error(binder, "a parse argument cannot declare captures"));
                     }
-                    for (index, part) in self.parts(argument).iter().enumerate() {
-                        if part.kind == NodeKind::Token && self.value(part) == "…" {
-                            body = if index == 0 {
-                                Expr::Seq(vec![Expr::Remainder, body])
-                            } else {
-                                Expr::Seq(vec![body, Expr::Remainder])
-                            };
+                    {
+                        let mut sequence: Vec<Expr> = Vec::new();
+                        for part in self.parts(argument) {
+                            if part.kind == NodeKind::Token && self.value(part) == "…" {
+                                sequence.push(Expr::Remainder);
+                            } else if rule_name(part) == "choice" {
+                                sequence.push(body.clone());
+                            }
+                        }
+                        if sequence.len() > 1 {
+                            body = Expr::Seq(sequence);
+                        } else if sequence.len() == 1 && matches!(sequence[0], Expr::Remainder) {
+                            body = Expr::Seq(vec![Expr::Remainder, body]);
                         }
                     }
                     if let Some(problem) = crate::query_forms::body_problem(&body) {
@@ -1866,7 +1924,8 @@ impl<'a> Reader<'a> {
             match (method, arguments) {
                 (MethodKind::Parse, [Arg::Term(Term::Body(_))]) => span,
                 (MethodKind::ErrorFree, []) => self.feature_context.get() || matches!(ty, Type::Forest | Type::Any),
-                (MethodKind::Span | MethodKind::Tags, []) => span,
+                (MethodKind::Span, []) => span,
+                (MethodKind::Tags, []) => span || matches!(ty, Type::Forest | Type::Any),
                 (MethodKind::Restored, []) if name == "without-elision" => bare,
                 (MethodKind::Recipe, []) => bare,
                 (MethodKind::Tags, [Arg::Rule(_) | Arg::Term(Term::Source(_))]) => span,
@@ -1947,6 +2006,9 @@ impl<'a> Reader<'a> {
                 Val::Term(term, Type::Forest)
             }
         } else if query && !last {
+            if !frame.condition {
+                return Err(self.error(frame.node, "a query method is a condition, not a term"));
+            }
             Val::Term(Term::Call(name.into(), args), Type::Any)
         } else if query {
             if !frame.condition {
@@ -1999,7 +2061,11 @@ impl<'a> Reader<'a> {
             })
         } else {
             if last && frame.condition {
-                return Err(self.error(frame.node, "a condition requires a query method"));
+                let term = Term::Call(name.into(), args.clone());
+                return Ok(Step::Done(match call_type(name) {
+                    Type::Tags | Type::Strings | Type::Forest => Val::Cond(Cond::Truthy(term)),
+                    _ => return Err(self.error(frame.node, "a condition requires a query method")),
+                }));
             }
             Val::Term(Term::Call(name.into(), args), call_type(name))
         };
@@ -2137,6 +2203,29 @@ impl<'a> Reader<'a> {
                     Step::Done(Val::Cond(Cond::Captured(self.value(token).strip_prefix('$').unwrap_or("").to_string())))
                 }
                 "method" => Step::Call(Frame::Method(MethodFrame::new(inner, true))),
+                "term-condition" => {
+                    let operation = self.inner(inner, &["union-operation", "intersection-operation", "set-atom"])?;
+                    match rule_name(operation) {
+                        "union-operation" => {
+                            let mut joined = Joined::new(operation, false);
+                            joined.defer = true;
+                            Step::Call(Frame::Union(joined))
+                        }
+                        "intersection-operation" => {
+                            let mut joined = Joined::new(operation, false);
+                            joined.defer = true;
+                            Step::Call(Frame::Intersection(joined))
+                        }
+                        _ => {
+                            let atom = self
+                                .parts(operation)
+                                .into_iter()
+                                .find(|child| child.kind == NodeKind::Rule)
+                                .ok_or_else(|| self.shape_error(operation, "set atom"))?;
+                            Step::Call(Frame::Atom(Atom::new(atom, false)))
+                        }
+                    }
+                }
                 other => return Err(self.unknown(frame.node, other)),
             });
         };
@@ -2174,6 +2263,25 @@ impl<'a> Reader<'a> {
             "negation" => {
                 let Val::Cond(cond) = value else { unreachable!("a negation holds a condition") };
                 Ok(Step::Done(Val::Cond(Cond::Not(Box::new(cond)))))
+            }
+            "term-condition" => {
+                let Val::Term(term, ty) = value else { unreachable!("a set term is a term") };
+                if !self.feature_context.get()
+                    && !matches!(ty, Type::Tags | Type::Strings | Type::Set | Type::Any | Type::Forest)
+                {
+                    return Err(self.error(inner, "a condition requires a set, a forest, or a query method"));
+                }
+                // An operation joins sets, so a forest operand faults at
+                // the operation, not later at the rule (§10).
+                if ty == Type::Forest {
+                    if let Some(operation) = self.parts(inner).into_iter().find(|child| {
+                        child.kind == NodeKind::Rule
+                            && matches!(rule_name(child), "union-operation" | "intersection-operation")
+                    }) {
+                        return Err(self.error(operation, "a condition requires a set, a forest, or a query method"));
+                    }
+                }
+                Ok(Step::Done(Val::Cond(Cond::Truthy(term))))
             }
             _ => Ok(Step::Done(value)),
         }
@@ -2671,11 +2779,14 @@ struct Joined<'a> {
     pass: bool,
     items: Vec<Term>,
     types: Vec<Type>,
+    /// In a term-condition, a Boolean method as an operand faults at the
+    /// operation, so the operand check waits for the joined parts.
+    defer: bool,
 }
 
 impl<'a> Joined<'a> {
     fn new(node: &'a Node, argument: bool) -> Self {
-        Joined { node, argument, parts: None, pass: false, items: Vec::new(), types: Vec::new() }
+        Joined { node, argument, parts: None, pass: false, items: Vec::new(), types: Vec::new(), defer: false }
     }
 }
 
@@ -2898,6 +3009,10 @@ const KNOWN: &[&str] = &[
     "comparator",
     "negation",
     "presence",
+    "term-condition",
+    "union-operation",
+    "intersection-operation",
+    "set-atom",
     "argument",
     "term",
     "guarded-term",
@@ -2930,7 +3045,8 @@ const PRIMARIES: &[&str] = &[
     "empty",
     "constant-reference",
 ];
-const CONDITIONS: &[&str] = &["tree-comparison", "comparison", "method", "negation", "presence", "implication"];
+const CONDITIONS: &[&str] =
+    &["tree-comparison", "comparison", "method", "negation", "presence", "implication", "term-condition"];
 const TERMS: [&str; 2] = ["union", "guarded-term"];
 const ATOMS: &[&str] = &[
     "call",
@@ -3040,6 +3156,7 @@ pub(crate) fn reads_own_tags(term: &Term) -> bool {
                 | Term::Capture(_) => {}
             },
             Part::Cond(cond) => match cond {
+                Cond::Truthy(term) => stack.push(Part::Term(term)),
                 Cond::Forest(term) => stack.push(Part::Term(term)),
                 Cond::SourceQuery(_, args, _) => stack.extend(args.iter().filter_map(|arg| match arg {
                     Arg::Term(term) => Some(Part::Term(term)),

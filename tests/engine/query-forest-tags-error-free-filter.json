@@ -1,0 +1,23 @@
+{
+  "description": "Engine §4: forest tags after error-free cover only the clean witnesses.",
+  "grammar": "%rule text {_}\n%conditions (Clean ⊆ $.parse(word).error-free.tags) ∧ (Dirty ⊈ $.parse(word).error-free.tags)\n%rule word\n  | A :: Clean\n  | bad :: Dirty\n%rule bad A\n%error \"bad\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

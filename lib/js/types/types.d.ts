@@ -578,6 +578,8 @@ export type Condition = {
     if: Condition;
     then: Condition;
 } | {
+    nonempty: Term;
+} | {
     op: Comparator;
     left: Term;
     right: Term;
@@ -1372,7 +1374,7 @@ export type ParseContext = import("./earley.js").ParseContext;
 /**
  * A condition.
  * @typedef {{method: string, receiver: Term, args: Argument[]} | {any: Condition[]} | {all: Condition[]} | {not: Condition} | {captured: string}
- *   | {if: Condition, then: Condition}
+ *   | {if: Condition, then: Condition} | {nonempty: Term}
  *   | {op: Comparator, left: Term, right: Term}} Condition
  */
 /**

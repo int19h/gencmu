@@ -1,0 +1,29 @@
+{
+  "description": "Engine §4: a part target fully read at the end of the view holds.",
+  "grammar": "%rule text {_} {_}\n%conditions $.parse(… word …)\n%rule word A B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

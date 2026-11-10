@@ -1,0 +1,23 @@
+{
+  "description": "Engine §4: prefix forest tags of a restored span read the aligned witnesses.",
+  "grammar": "%rule text $x:word\n%conditions Word ⊆ $x.without-elision.parse(word …).tags\n%rule word A :: Word",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

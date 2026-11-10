@@ -1,0 +1,23 @@
+{
+  "description": "Engine §4: a part query with a nullable body holds on any view.",
+  "grammar": "%rule text {_}\n%conditions $.parse(… nil …)\n%rule nil ε\n%rule word A :: Word",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "description": "Engine §3.6: a closed constant beside a parameter still becomes true in an instance, with its value resolved.",
+  "grammar": "%const $W Word\n%rule text check(Other)\n%rule check(@S) \"a\"\n%conditions @S ∨ $W",
+  "input": "a",
+  "expect": {
+    "error": "grammar"
+  }
+}

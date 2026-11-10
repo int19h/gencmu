@@ -410,6 +410,18 @@ impl<'a> PartialClause<'a> {
                 }
             }
             Part::Cond(Cond::Compare(_, _, _, _)) => first(child(0), child(1)),
+            // A set term that simplifies to the empty set is false, and
+            // a closed one that is not empty is true (§3.6).
+            Part::Cond(Cond::Truthy(term)) => {
+                let inner = child(0);
+                if matches!(crate::clauses::closed_set_value(term), Some(value) if !value.is_empty()) {
+                    plain(Outcome::True)
+                } else if inner.shape == Outcome::Empty {
+                    plain(Outcome::False)
+                } else {
+                    Reduction { shape: used, guard: inner.guard }
+                }
+            }
             _ => unreachable!("a variable clause node"),
         }
     }

@@ -15,6 +15,7 @@ type suffixKey struct {
 type suffixState struct {
 	errorFree bool
 	answers   map[int]bool
+	tags      map[int]*tagset
 	rec       *recognizer
 	dependent bool
 }
@@ -55,7 +56,7 @@ func (run *stageRun) suffixState(g *lowered, rule int32, start, end int, errorFr
 	}
 	state := ps.suffixes[key]
 	if state == nil {
-		state = &suffixState{answers: map[int]bool{}, errorFree: errorFree}
+		state = &suffixState{answers: map[int]bool{}, tags: map[int]*tagset{}, errorFree: errorFree}
 		ps.suffixes[key] = state
 	}
 	return state
@@ -124,12 +125,25 @@ func (r *recognizer) retainSuffix(k int) {
 		return
 	}
 	var witnesses []*item
+	tagsOf := map[*item]*tagset{}
 	for key, node := range r.sets[k].syms {
 		if key.rule == r.startRule && key.requested == 0 && (r.boundaries == nil || r.boundaries.accepts(node.boundary, func(*boundaryLiteral) {})) {
 			witnesses = append(witnesses, node.items...)
+			for _, it := range node.items {
+				tagsOf[it] = node.tags
+			}
 		}
 	}
-	r.suffix.answers[at] = len(r.eligibleItems(witnesses, r.suffix.errorFree)) > 0
+	eligible := r.eligibleItems(witnesses, r.suffix.errorFree)
+	r.suffix.answers[at] = len(eligible) > 0
+	if r.suffix.tags == nil {
+		r.suffix.tags = map[int]*tagset{}
+	}
+	var sets []*tagset
+	for _, it := range eligible {
+		sets = append(sets, tagsOf[it])
+	}
+	r.suffix.tags[at] = r.run.ps.in.unionAll(sets)
 }
 
 // scan readies one terminal advance. Suffix recognition delays these

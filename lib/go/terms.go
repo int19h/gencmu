@@ -465,6 +465,25 @@ func (w *walk) termStep(f *frame) *nestedQuery {
 			}
 			return nil
 		case "tags":
+			if len(t.Items) == 1 && forestTerm(t.Items[0]) {
+				query := t.Items[0]
+				filtered := false
+				for query.Kind == tmCall && query.Str == "error-free" {
+					filtered = true
+					query = query.Items[0]
+				}
+				body := query.Items[1].Body
+				_, mode, _ := queryBody(body)
+				if f.at == 0 {
+					f.s, f.at = w.span(ev, query.Items[0]), 1
+				}
+				_, tags, q := ev.run.nested(ev.g, mode, ev.g.stage.queryTargets[body], f.s, filtered)
+				if q != nil {
+					return q
+				}
+				w.endSet(tags)
+				return nil
+			}
 			if f.at == 0 {
 				f.s, f.at = w.span(ev, t.Items[0]), 1
 				if len(t.Items) == 1 && w.fillLazy(f.s) {
@@ -650,6 +669,14 @@ func (w *walk) condStep(f *frame) *nestedQuery {
 		}
 		w.endCond(ok)
 		return nil
+	case cdTruthy:
+		if f.at == 0 {
+			f.at = 1
+			w.push(ev, nil, c.Left)
+			return nil
+		}
+		w.endCond(len(setValue(w.v, ev.in()).names) > 0)
+		return nil
 	case cdBoundary:
 		if ev.hasBoundaryValue {
 			w.endCond(ev.boundaryValue)
@@ -814,16 +841,18 @@ func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal, errorFree 
 		return answer.holds, answer.tags, nil
 	}
 	var suffix *suffixState
-	if kind == cdEnds {
+	if kind == cdEnds || kind == cdContains {
 		if ps.suffixActive > 0 {
-			suffix = &suffixState{answers: map[int]bool{}, errorFree: errorFree}
+			suffix = &suffixState{answers: map[int]bool{}, tags: map[int]*tagset{}, errorFree: errorFree}
 		} else {
 			suffix = run.suffixState(g, start, s.a, s.b, errorFree)
-			if answer, known := suffix.answers[s.b]; known {
-				if suffix.dependent {
-					ps.alignedAsked++
+			if kind == cdEnds {
+				if answer, known := suffix.answers[s.b]; known {
+					if suffix.dependent {
+						ps.alignedAsked++
+					}
+					return answer, suffix.tags[s.b], nil
 				}
-				return answer, nil, nil
 			}
 		}
 	}
@@ -836,7 +865,7 @@ func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal, errorFree 
 		}
 	}
 	// Shared answers cannot hide recursive aligned or suffix requests (§4.3).
-	if k.content != 0 && ps.memoLimit > 0 && ps.alignedActive == 0 && ps.suffixActive == 0 {
+	if k.content != 0 && kind != cdContains && ps.memoLimit > 0 && ps.alignedActive == 0 && ps.suffixActive == 0 {
 		if a, ok := g.memo.get(sharedKey{begins: k.kind == cdBegins, rule: start, content: ps.contentStrings[k.content-1], errorFree: errorFree, errors: k.errors}, ps.memoLimit); ok {
 			if memoHitHook != nil {
 				memoHitHook(start, ps.alignedActive)
@@ -844,9 +873,7 @@ func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal, errorFree 
 			// The answer enters the memo of the parse, as the answer of its
 			// nested parse does.
 			res := &nestedResult{holds: a.holds}
-			if k.kind != cdBegins {
-				res.tags = ps.in.make(slices.Clone(a.tags))
-			}
+			res.tags = ps.in.make(slices.Clone(a.tags))
 			ps.nested[k] = res
 			return res.holds, res.tags, nil
 		}
@@ -939,9 +966,7 @@ func (run *stageRun) alignedAnswer(q *nestedQuery, proofs []qualifiedProof) *nes
 		}
 		if matches {
 			answer.holds = true
-			if q.key.kind != cdBegins {
-				sets = append(sets, p.tags)
-			}
+			sets = append(sets, p.tags)
 		}
 	}
 	answer.tags = run.ps.in.unionAll(sets)
@@ -1088,9 +1113,18 @@ func (run *stageRun) settle(rec *recognizer) {
 		}
 		res = run.alignedAnswer(q, proofs)
 	} else if q.key.kind == cdEnds {
-		res.holds = q.suffix.answers[q.at.b]
+		res.holds, res.tags = q.suffix.answers[q.at.b], q.suffix.tags[q.at.b]
+	} else if q.key.kind == cdContains {
+		var sets []*tagset
+		for at, holds := range q.suffix.answers {
+			if holds && at >= q.at.a && at <= q.at.b {
+				res.holds = true
+				sets = append(sets, q.suffix.tags[at])
+			}
+		}
+		res.tags = ps.in.unionAll(sets)
 	} else if q.key.kind == cdBegins {
-		res.holds = rec.begun(start, q.key.errorFree)
+		res.holds, res.tags = rec.begunTags(start, q.key.errorFree)
 	} else {
 		// One search of eligibility over the items of every tag set, and
 		// then the union of the tag sets that keep an item.
@@ -1135,8 +1169,11 @@ func (run *stageRun) remember(q *nestedQuery, res *nestedResult) {
 	if res.aligned || ps.suffixActive > 0 || q.key.content == 0 || ps.memoLimit <= 0 {
 		return
 	}
+	if q.key.kind == cdContains {
+		return
+	}
 	a := sharedAnswer{holds: res.holds}
-	if q.key.kind != cdBegins && res.tags != nil {
+	if res.tags != nil {
 		a.tags = res.tags.names
 	}
 	q.g.memo.insert(sharedKey{begins: q.key.kind == cdBegins, rule: q.start, content: ps.contentStrings[q.key.content-1], errorFree: q.key.errorFree, errors: q.key.errors}, a, ps.memoLimit)

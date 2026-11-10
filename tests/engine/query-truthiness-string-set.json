@@ -1,0 +1,23 @@
+{
+  "description": "Engine §4 and §10: a string set in a Boolean position means not empty.",
+  "grammar": "%rule text {_}\n%conditions $.value.split(\" \") ∩ \"a\"\n%rule word A :: Word\n%rule word2 B :: Word Other",
+  "tokens": [
+    {
+      "text": "a b",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

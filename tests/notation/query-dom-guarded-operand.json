@@ -1,0 +1,32 @@
+{
+  "description": "Engine §9.3: a guarded term as an operand of a set operation reads as an if term inside the wrapper.",
+  "document": "```jbogenbau\n%rule text $x:A [$y:B]\n%conditions ($y ⟹ Word) ∩ Word\n```",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "name": "text",
+          "conditions": [
+            {
+              "nonempty": {
+                "intersection": [
+                  {
+                    "if": {
+                      "captured": "y"
+                    },
+                    "then": {
+                      "tag": "Word"
+                    }
+                  },
+                  {
+                    "tag": "Word"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

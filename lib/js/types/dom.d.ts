@@ -7,7 +7,7 @@ export declare const LEANS: Set<string>;
 export declare function validSteps(steps: unknown): boolean;
 export declare const CAPTURE_NAME: RegExp;
 export declare const DOM_MAX_DEPTH = 256;
-export declare const DOM_FORMAT = 46;
+export declare const DOM_FORMAT = 47;
 export declare const CONSTANT_NAME: RegExp;
 export declare const CLASSIFIER_NAME: RegExp;
 export declare const TEST_OPS: Set<string>;
@@ -306,9 +306,11 @@ export declare function validationCaptures(rule: any, alternative: any): Map<str
  * without its value.
  * @param {any} rule
  * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
+ * @param {any[]} [templateConditions] per condition, its form as its
+ *   template writes it, where it held a parameter (engine §3.6)
  * @returns {string | null}
  */
-export declare function definitionProblem(rule: any, deferEmission?: boolean): string | null;
+export declare function definitionProblem(rule: any, deferEmission?: boolean, templateConditions?: any[]): string | null;
 /**
  * An emission item's attachment captures, before and after it, in order.
  * @param {any} item

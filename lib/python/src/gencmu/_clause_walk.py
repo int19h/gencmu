@@ -42,6 +42,8 @@ def clause_children(node):
         return [node["left"], node["right"]]
     if "if" in node:
         return [node["if"], node["then"]]
+    if "nonempty" in node:
+        return [node["nonempty"]]
     if "not" in node:
         return [node["not"]]
     for key in ("any", "all", "union", "intersection", "difference", "concat", "items"):

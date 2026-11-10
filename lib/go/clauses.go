@@ -2,6 +2,7 @@ package gencmu
 
 import (
 	"fmt"
+	"strings"
 )
 
 // A rule's clauses against the captures of its alternatives (engine §3.6,
@@ -26,6 +27,154 @@ var reducedEmpty = &domTerm{Kind: tmEmptySet}
 // there (§3.6).
 func isEmptySet(t *domTerm) bool {
 	return t.Kind == tmEmptySet || (t.Kind == tmConst && t.value != nil && t.value.ty != tyString && len(t.value.names) == 0)
+}
+
+// closedSetValue is the value of a closed set term, or false where the
+// term is not closed or its value is not fixed. A closed term holds no
+// capture, no parameter, no call and no method (engine §3.6).
+func closedSetValue(t *domTerm) (map[string]bool, bool) {
+	switch t.Kind {
+	case tmEmptySet:
+		return map[string]bool{}, true
+	case tmTag, tmString:
+		return map[string]bool{t.Str: true}, true
+	case tmConst:
+		if t.value == nil {
+			return nil, false
+		}
+		if t.value.ty == tyString {
+			return map[string]bool{t.value.s: true}, true
+		}
+		out := make(map[string]bool, len(t.value.names))
+		for _, name := range t.value.names {
+			out[name] = true
+		}
+		return out, true
+	case tmUnion, tmIntersection:
+		var out map[string]bool
+		for _, item := range t.Items {
+			value, ok := closedSetValue(item)
+			if !ok {
+				return nil, false
+			}
+			if out == nil {
+				out = value
+				continue
+			}
+			if t.Kind == tmUnion {
+				for name := range value {
+					out[name] = true
+				}
+			} else {
+				for name := range out {
+					if !value[name] {
+						delete(out, name)
+					}
+				}
+			}
+		}
+		if out == nil {
+			out = map[string]bool{}
+		}
+		return out, true
+	case tmDifference:
+		left, ok := closedSetValue(t.Items[0])
+		if !ok {
+			return nil, false
+		}
+		right, ok := closedSetValue(t.Items[1])
+		if !ok {
+			return nil, false
+		}
+		for name := range right {
+			delete(left, name)
+		}
+		return left, true
+	case tmCall:
+		// `.split` and `.ngrams` on a closed string are closed (§10).
+		// Every other call, `.classify` among them, keeps the term open.
+		if (t.Str != "split" && t.Str != "ngrams") || len(t.Items) != 2 {
+			return nil, false
+		}
+		receiver, ok := closedStringValue(t.Items[0])
+		if !ok {
+			return nil, false
+		}
+		out := map[string]bool{}
+		if t.Str == "ngrams" {
+			if t.Items[1].Kind != tmInteger || !validInteger(t.Items[1].Str) {
+				return nil, false
+			}
+			for _, gram := range ngrams(receiver, t.Items[1].Str) {
+				out[gram] = true
+			}
+			return out, true
+		}
+		delimiter, ok := closedStringValue(t.Items[1])
+		if !ok || delimiter == "" {
+			return nil, false
+		}
+		for _, piece := range splitString(receiver, delimiter) {
+			out[piece] = true
+		}
+		return out, true
+	}
+	return nil, false
+}
+
+// closedStringValue is the value of a closed string term, or false
+// where the term is not a closed string (§10): a string, a string
+// constant, or a concatenation of closed strings.
+func closedStringValue(t *domTerm) (string, bool) {
+	switch t.Kind {
+	case tmString:
+		return t.Str, true
+	case tmConst:
+		if t.value != nil && t.value.ty == tyString {
+			return t.value.s, true
+		}
+	case tmConcat:
+		var out strings.Builder
+		for _, item := range t.Items {
+			part, ok := closedStringValue(item)
+			if !ok {
+				return "", false
+			}
+			out.WriteString(part)
+		}
+		return out.String(), true
+	}
+	return "", false
+}
+
+// hasBareEmptySet says whether a bare empty set stands as the term of a
+// set-as-condition anywhere in a condition (engine §10).
+func hasBareEmptySet(c *domCond) bool {
+	stack := []clausePart{{c: c}}
+	for len(stack) > 0 {
+		p := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if p.c != nil && p.c.Kind == cdTruthy && p.c.Left != nil && p.c.Left.Kind == tmEmptySet {
+			return true
+		}
+		stack = append(stack, p.children()...)
+	}
+	return false
+}
+
+// termHasBareEmptySet says whether a bare empty set stands in a Boolean
+// position inside a term: in the guard of a guarded term (§10).
+func termHasBareEmptySet(t *domTerm) bool {
+	stack := []clausePart{{t: t}}
+	for len(stack) > 0 {
+		p := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if p.c != nil && p.c.Kind == cdTruthy && p.c.Left != nil && p.c.Left.Kind == tmEmptySet {
+			return true
+		}
+		stack = append(stack, p.children()...)
+	}
+	return false
 }
 
 // simplifyCond simplifies a condition for a production that has the
@@ -147,6 +296,20 @@ func simplifyCondPartial(c *domCond, has func(string) truth, fixed map[clausePar
 			return c, open, firstPresence(guard, next)
 		}
 		return &domCond{Kind: cdCompare, Op: c.Op, Left: left, Right: right}, open, firstPresence(guard, next)
+	case cdTruthy:
+		// A set term that simplifies to the empty set is false (§3.6).
+		left, guard := simplifyTermPartial(c.Left, has, fixed)
+		if isEmptySet(left) {
+			return nil, alwaysFalse, ""
+		}
+		// A closed set term that is not empty is true (§3.6).
+		if value, ok := closedSetValue(left); ok && len(value) > 0 {
+			return nil, alwaysTrue, ""
+		}
+		if left == c.Left {
+			return c, open, guard
+		}
+		return &domCond{Kind: cdTruthy, Left: left}, open, guard
 	}
 	return c, open, ""
 }
@@ -402,7 +565,7 @@ func simplifiedOutcome(start clausePart, has func(string) bool, req *[]string) o
 			return nil
 		}
 		switch p.c.Kind {
-		case cdNot, cdAny, cdAll, cdIf, cdCompare:
+		case cdNot, cdAny, cdAll, cdIf, cdCompare, cdTruthy:
 			return p.children()
 		}
 		return nil
@@ -536,6 +699,16 @@ func simplifiedOutcome(start clausePart, has func(string) bool, req *[]string) o
 				default:
 					o = first(premise, then)
 				}
+			case cdTruthy:
+				// A set term that simplifies to the empty set is false,
+				// and a closed one that is not empty is true (§3.6).
+				if value, ok := closedSetValue(p.c.Left); ok && len(value) > 0 {
+					o = outcome{kind: oTrue}
+				} else if parts[0].kind == oEmpty {
+					o = outcome{kind: oFalse}
+				} else {
+					o = asWritten(p)
+				}
 			case cdCompare:
 				// An empty side is ∅, which uses nothing.
 				left, right := parts[0], parts[1]
@@ -645,7 +818,7 @@ func itemCaptureProblem(r *domRule, itemsByAlt []map[string]itemPlace, items map
 	// alternative whose item captures they read (engine §3.6).
 	sequences := make([][][]string, len(r.Alternatives))
 	helperSequences := map[*domExpr][][]string{}
-	for _, c := range r.Conditions {
+	for conditionIndex, c := range r.Conditions {
 		mentioned := orderedMentions(clausePart{c: c})
 		var inside []string
 		whole := false
@@ -680,7 +853,7 @@ func itemCaptureProblem(r *domRule, itemsByAlt []map[string]itemPlace, items map
 			if len(here) == 0 {
 				if !applies {
 					for _, caps := range validationCaptures(r, a) {
-						if conditionApplies(c, hasIn(caps)) {
+						if conditionApplies(c, hasIn(caps), templateCondAt(r.TemplateConditions, conditionIndex)) {
 							applies = true
 							break
 						}
@@ -737,7 +910,7 @@ func itemCaptureProblem(r *domRule, itemsByAlt []map[string]itemPlace, items map
 					for j, name := range own {
 						caps[name] = j
 					}
-					if conditionApplies(c, hasIn(caps)) {
+					if conditionApplies(c, hasIn(caps), templateCondAt(r.TemplateConditions, conditionIndex)) {
 						applies = true
 						break
 					}
@@ -753,9 +926,15 @@ func itemCaptureProblem(r *domRule, itemsByAlt []map[string]itemPlace, items map
 
 // conditionApplies says whether a condition applies to a production with
 // the captures has says it has: simplified, it is not true, and it uses
-// only captures the production has (engine §3.6).
-func conditionApplies(c *domCond, has func(string) bool) bool {
+// only captures the production has (engine §3.6). The closed-set rule
+// reads the condition as its template writes it, so where the condition
+// held a parameter, a true outcome is asked of the template's form,
+// which template gives where it held one.
+func conditionApplies(c *domCond, has func(string) bool, template *domCond) bool {
 	o := simplifiedOutcome(clausePart{c: c}, has, nil)
+	if template != nil && o.kind == oTrue {
+		o = simplifiedOutcome(clausePart{c: template}, has, nil)
+	}
 	return o.kind == oFalse || o.kind == oUses && !o.lacks
 }
 
@@ -976,7 +1155,32 @@ func definitionFault(r *domRule, deferIssue func(definitionKind, string) bool) *
 	}
 	// A condition that applies to no alternative. Each production marks
 	// the conditions that apply to it.
+	for _, c := range r.Conditions {
+		// A bare empty set in a Boolean position is a literal false, which
+		// a valid document does not hold (engine §3.6).
+		if hasBareEmptySet(c) {
+			return immediate(fmt.Sprintf("a condition of %s is the empty set", r.Name))
+		}
+	}
+	// A bare empty set in the guard of a guarded term in a tag clause
+	// is an error, as in a condition (§10).
+	var bareTerms []*domTerm
+	bareTerms = append(bareTerms, r.Tags, r.Value, r.Image)
+	for _, a := range r.Alternatives {
+		bareTerms = append(bareTerms, a.Tags, a.Value, a.Image)
+	}
+	if r.Emit != nil {
+		for _, item := range r.Emit.Items {
+			bareTerms = append(bareTerms, item.Tags, item.Value, item.Image)
+		}
+	}
+	for _, t := range bareTerms {
+		if t != nil && termHasBareEmptySet(t) {
+			return immediate(fmt.Sprintf("a condition of %s is the empty set", r.Name))
+		}
+	}
 	conds := newCondCheck(r.Conditions, func(c *domCond) bool { return waits(c) || isItem(c) })
+	conds.template = r.TemplateConditions
 	for _, caps := range alts {
 		if conds.left == 0 {
 			break

@@ -702,6 +702,16 @@ func (r *resolver) rule(rule *domRule) *domRule {
 	copied.Value = r.term(rule.Value)
 	copied.Image = r.term(rule.Image)
 	copied.Conditions = r.condList(rule.Conditions)
+	// The template forms are asked with their constants resolved, as
+	// the rule's conditions are (engine §3.6).
+	if rule.TemplateConditions != nil {
+		copied.TemplateConditions = make([]*domCond, len(rule.TemplateConditions))
+		for i, cond := range rule.TemplateConditions {
+			if cond != nil {
+				copied.TemplateConditions[i] = r.cond(cond)
+			}
+		}
+	}
 	copied.Emit = r.emit(rule.Emit)
 	copied.Alternatives = make([]*domAlt, len(rule.Alternatives))
 	for i, a := range rule.Alternatives {
@@ -889,6 +899,12 @@ func (g *stageGrammar) resolveFeature(index, run int) *Error {
 	for _, ref := range references {
 		if g.constants[ref.Str] == nil {
 			return g.constError(item.doc, directive.At, "$%s is not defined in stage %s", ref.Str, g.name)
+		}
+	}
+	// A bare empty set in a Boolean position is an error (§10).
+	for _, condition := range directive.Conditions {
+		if hasBareEmptySet(condition) {
+			return g.constError(item.doc, directive.At, "a condition of %%features is the empty set")
 		}
 	}
 	if problem := inputConditionsProblem(directive.Conditions); problem != "" {

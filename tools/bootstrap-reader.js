@@ -800,7 +800,23 @@ class Parser {
       }));
       if (method) return this.node("condition", start, [method]);
       const left = (yield this.union());
-      const comparator = COMPARATORS.has(this.kindAt()) ? this.leaf("comparator") : this.fail("expected a comparison");
+      if (!COMPARATORS.has(this.kindAt())) {
+        const intersections = left.children.filter(child => child.rule === "intersection");
+        let operation;
+        // A leading separator is an operation, not part of a lone atom.
+        if (intersections.length > 1 || left.children[0].kind === "token") operation = this.node("union-operation", start, left.children);
+        else {
+          const concatenations = intersections[0].children.filter(child => child.rule === "concatenation");
+          if (concatenations.length > 1 || intersections[0].children[0].kind === "token") operation = this.node("intersection-operation", start, intersections[0].children);
+          else {
+            const atom = concatenations[0].children.find(child => child.rule === "term-atom");
+            const inner = atom ? atom.children.find(child => child.kind === "rule") : null;
+            operation = this.node("set-atom", start, inner ? [inner] : []);
+          }
+        }
+        return this.node("condition", start, [this.node("term-condition", start, [operation])]);
+      }
+      const comparator = this.leaf("comparator");
       return this.node("condition", start, [this.node("comparison", start, [left, comparator, (yield this.union())])]);
     }));
   }

@@ -1,0 +1,15 @@
+{
+  "description": "Engine §4: a parse with a remainder at the start is a load error on a restored view.",
+  "grammar": "%rule text $x:word\n%conditions $x.without-elision.parse(… word …)\n%rule word A :: Word\n%rule word2 B :: Word Other",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

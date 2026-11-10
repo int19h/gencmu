@@ -1,0 +1,20 @@
+{
+  "description": "Engine §9.3: a set operation fault stands at the operation, even on its own line.",
+  "grammar": "%rule text $x:unit B\n%conditions\n  ($x) ∩ \"a\"\n%rule unit A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 3
+    }
+  }
+}

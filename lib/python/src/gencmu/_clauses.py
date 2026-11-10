@@ -582,12 +582,137 @@ def _condition(dom: Dom, present: AbstractSet[str], absent: AbstractSet[str] | N
         if len(parts) == 1:
             return parts[0], guard
         return (dom if unchanged else {key: parts}), guard
+    if "nonempty" in dom:
+        term, guard = yield _term(dom["nonempty"], present, absent, fixed)
+        # A set term that simplifies to the empty set is false (§3.6).
+        if is_empty_set(term):
+            return False, guard
+        # A closed set term that is not empty is true (§3.6).
+        closed = closed_set_value(term)
+        if closed:
+            return True, guard
+        return (dom if term is dom["nonempty"] else {"nonempty": term}), guard
     if "op" in dom:
         left, guard = yield _term(dom["left"], present, absent, fixed)
         right, next_guard = yield _term(dom["right"], present, absent, fixed)
         value = dom if left is dom["left"] and right is dom["right"] else {"op": dom["op"], "left": left, "right": right}
         return value, guard if guard is not None else next_guard
     return dom, None
+
+
+def guarded_clause_bare_empty_set(rule: Dom) -> bool:
+    """Whether a bare empty set stands on the condition side of a guarded
+    term in a tag clause of a rule (engine §10). DOM admission runs this
+    once per rule, where check_definition can run several times."""
+    clauses: list[Any] = [rule.get("tags"), rule.get("value"), rule.get("image"), rule.get("error"), rule.get("warning")]
+    clauses.extend(alternative.get(channel) for alternative in rule["alternatives"] for channel in ("tags", "value", "image"))
+    emit = rule.get("emit")
+    if emit is not None:
+        for item in emit["items"]:
+            clauses.extend([item.get("tags"), item.get("value"), item.get("image")])
+    return any(clause is not None and _guarded_bare_empty_set(clause) for clause in clauses)
+
+
+def _guarded_bare_empty_set(term: Any) -> bool:
+    """Whether a bare empty set stands on the condition side of a guarded
+    term anywhere in a tag clause (engine §10). Only a guarded term holds
+    a condition there, so other subtrees cannot hold the wrapper."""
+    pending = [term]
+    while pending:
+        node = pending.pop()
+        if isinstance(node, dict):
+            if "if" in node and has_bare_empty_set(node["if"]):
+                return True
+            pending.extend(value for key, value in node.items() if key != "at")
+        elif isinstance(node, list):
+            pending.extend(node)
+    return False
+
+
+def has_bare_empty_set(condition: Any) -> bool:
+    """Whether a bare empty set stands as the term of a set-as-condition
+    anywhere in a condition (engine §10)."""
+    pending = [condition]
+    while pending:
+        node = pending.pop()
+        if isinstance(node, dict):
+            inner = node.get("nonempty")
+            if isinstance(inner, dict) and inner.get("emptySet") is True and len(inner) == 1:
+                return True
+            pending.extend(value for key, value in node.items() if key != "at")
+        elif isinstance(node, list):
+            pending.extend(node)
+    return False
+
+
+def closed_set_value(dom: Any) -> frozenset | None:
+    """The value of a closed set term, or None where the term is not
+    closed or its value is not fixed. A closed term is the term of §10,
+    read as the template writes it."""
+    if not isinstance(dom, dict):
+        return None
+    if dom.get("emptySet") is True and len(dom) == 1:
+        return frozenset()
+    if isinstance(dom.get("tag"), str) and len(dom) == 1:
+        return frozenset((dom["tag"],))
+    if isinstance(dom.get("string"), str) and len(dom) == 1:
+        return frozenset((dom["string"],))
+    if isinstance(dom.get("const"), str) and isinstance(dom.get("value"), frozenset):
+        return dom["value"]
+    for key in ("union", "intersection"):
+        if isinstance(dom.get(key), list):
+            result: frozenset | None = None
+            for part in dom[key]:
+                value = closed_set_value(part)
+                if value is None:
+                    return None
+                result = value if result is None else (result | value if key == "union" else result & value)
+            return result if result is not None else frozenset()
+    if isinstance(dom.get("difference"), list) and len(dom["difference"]) == 2:
+        left = closed_set_value(dom["difference"][0])
+        right = closed_set_value(dom["difference"][1])
+        if left is None or right is None:
+            return None
+        return left - right
+    # `.split` and `.ngrams` on a closed string are closed (§10). Every
+    # other method, `.classify` among them, keeps the term open.
+    if dom.get("method") in ("split", "ngrams") and isinstance(dom.get("args"), list):
+        from ._tags import ngrams, split_string
+        receiver = closed_string_value(dom.get("receiver"))
+        if receiver is None:
+            return None
+        if dom["method"] == "ngrams":
+            arg = dom["args"][0] if len(dom["args"]) == 1 else None
+            digits = arg.get("integer") if isinstance(arg, dict) else None
+            if not isinstance(digits, str) or not digits.isdigit() or digits.startswith("0"):
+                return None
+            return ngrams(receiver, digits)
+        if len(dom["args"]) != 1:
+            return None
+        delimiter = closed_string_value(dom["args"][0])
+        if not delimiter:
+            return None
+        return frozenset(split_string(receiver, delimiter))
+    return None
+
+
+def closed_string_value(dom: Any) -> str | None:
+    """The value of a closed string term, or None where the term is not
+    a closed string (§10): a string, a string constant, or a
+    concatenation of closed strings."""
+    if not isinstance(dom, dict):
+        return None
+    if isinstance(dom.get("string"), str) and len(dom) == 1:
+        return dom["string"]
+    value = dom.get("value")
+    if isinstance(dom.get("const"), str) and isinstance(value, dict) and isinstance(value.get("string"), str):
+        return value["string"]
+    if isinstance(dom.get("concat"), list):
+        parts = [closed_string_value(part) for part in dom["concat"]]
+        if any(part is None for part in parts):
+            return None
+        return "".join(parts)
+    return None
 
 
 def is_empty_set(dom: Any) -> bool:
@@ -1296,10 +1421,10 @@ class DefinitionCheck:
         self.deferred: DefinitionIssue | None = None
 
 
-def check_definition(rule: Dom, defer_ranked: bool = False) -> DefinitionCheck:
+def check_definition(rule: Dom, defer_ranked: bool = False, held: Any = None) -> DefinitionCheck:
     result = DefinitionCheck()
     ranked: bool | None = None
-    for issue in _definition_issues(rule):
+    for issue in _definition_issues(rule, held):
         deferred_kind = defer_ranked and issue.kind in ("recipe-capture", "empty-emission")
         if deferred_kind and ranked is None:
             ranked = rule_has_ranked(rule)
@@ -1317,7 +1442,7 @@ def definition_problem(rule: Dom) -> str | None:
     return issue.message if issue is not None else None
 
 
-def _definition_issues(rule: Dom):
+def _definition_issues(rule: Dom, held: Any = None):
     """Yield definition faults in their established validation order."""
     if rule.get("erased") and ("emit" in rule or any(channel in owner for owner in [rule, *rule["alternatives"]] for channel in ("value", "image"))):
         yield DefinitionIssue("independent", "an erased definition cannot carry a recipe or emission")
@@ -1364,7 +1489,10 @@ def _definition_issues(rule: Dom):
     for names, present in distinct.values():
         for name in names:
             capturing.setdefault(name, []).append(present)
-    for condition in rule["conditions"]:
+    for condition_index, condition in enumerate(rule["conditions"]):
+        if has_bare_empty_set(condition):
+            yield DefinitionIssue("independent", f"a condition of {rule['name']} is the empty set")
+            continue
         if waits(condition):
             continue
         # An item condition applies to the productions of its braces'
@@ -1388,8 +1516,18 @@ def _definition_issues(rule: Dom):
             used = captures_in(prepared.values[0]) - {WHOLE}
             if used:
                 candidates = iter(capturing.get(min(used), ()))
-        if all(applies_prepared(prepared, present) is None for present in candidates):
-            yield DefinitionIssue("independent", f"a condition of {rule['name']} applies to none of its productions")
+        candidate_list = list(candidates)
+        if all(applies_prepared(prepared, present) is None for present in candidate_list):
+            # The closed-set rule reads the condition as its template
+            # writes it (engine §3.6): a parameter is never closed, and
+            # every other part keeps the rule. So where the condition
+            # held a parameter, the truth is asked of the template's
+            # form, where a parameter never reduces.
+            template = held[condition_index] if held is not None and condition_index < len(held) else None
+            if not (template is not None and any(prepared.simplified(present) is True
+                                                 and _simplify(template, present, True) is not True
+                                                 for present in candidate_list)):
+                yield DefinitionIssue("independent", f"a condition of {rule['name']} applies to none of its productions")
 
     # Each term is prepared, and looked at for constants, once, though the
     # checks below ask again for each production.

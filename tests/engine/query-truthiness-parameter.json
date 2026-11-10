@@ -1,0 +1,23 @@
+{
+  "description": "Engine §4 and §10: a parameter as a set term beside a capture tests that the set is not empty.",
+  "grammar": "%rule text check(Word)\n%rule check(@S) $x:word\n%conditions @S ∩ $x.tags\n%rule word A :: Word",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

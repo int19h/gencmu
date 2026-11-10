@@ -1,0 +1,21 @@
+{
+  "description": "Engine §4: part forest tags inside the conditions of a suffix target hold.",
+  "grammar": "%rule text \"a\"\n%conditions $.parse(… outer)\n%rule outer \"a\"\n%conditions Inner ⊆ $.parse(… inner …).tags\n%rule inner \"a\" :: Inner",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": []
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

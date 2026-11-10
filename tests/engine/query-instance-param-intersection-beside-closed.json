@@ -1,0 +1,15 @@
+{
+  "description": "Engine §3.6: a closed set beside a set term that holds a parameter still becomes true in an instance.",
+  "grammar": "%rule text t(Other)\n%rule t(@S) $x:A\n%conditions ($x.tags ∩ @S) ∨ Word",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

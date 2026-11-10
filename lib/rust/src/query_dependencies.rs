@@ -22,7 +22,10 @@ impl Node<'_> {
     fn children(self) -> Vec<Self> {
         match self {
             Self::Condition(condition) => match condition {
-                LCond::Matches(span, rule) | LCond::Begins(span, rule) | LCond::Ends(span, rule) => {
+                LCond::Matches(span, rule)
+                | LCond::Begins(span, rule)
+                | LCond::Ends(span, rule)
+                | LCond::Contains(span, rule) => {
                     vec![Self::Query(span, *rule, false)]
                 }
                 LCond::ErrorFree(span, rule, _) => vec![Self::Query(span, *rule, true)],
@@ -37,6 +40,7 @@ impl Node<'_> {
             },
             Self::Term(term) => match term {
                 LTerm::TagsRule(span, rule) => vec![Self::Query(span, *rule, false)],
+                LTerm::ForestTags(span, rule, _, filtered) => vec![Self::Query(span, *rule, *filtered)],
                 LTerm::Value(span)
                 | LTerm::Image(span)
                 | LTerm::Text(span)

@@ -1,0 +1,23 @@
+{
+  "description": "Engine §4 and §10: a set in the condition side of a guarded term means not empty.",
+  "grammar": "%rule text $w:word :: ($w.tags ∩ Word ⟹ Guarded)\n%conditions Guarded ⊆ $.tags\n%rule word A :: Word",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

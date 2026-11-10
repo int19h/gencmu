@@ -442,7 +442,7 @@ A guarded term writes a condition before `⟹`. It supplies its value only where
 
 The reader groups repeated guards to the right. Flat lists retain their written order without completing a separate recursive level for each guard.
 
-A method chain starts with a receiver and follows it with selectors. Each selector names a method and can supply nonempty parenthesized arguments. The `parse` selector takes a capture-free body constituent instead of a list of terms. Its outer remainder mark selects a prefix or suffix query.
+A method chain starts with a receiver and follows it with selectors. Each selector names a method and can supply nonempty parenthesized arguments. The `parse` selector takes a capture-free body constituent instead of a list of terms. A remainder mark at one outer edge selects a prefix or suffix query. Remainder marks at both edges select a query over some part of the view.
 
 The methods `.begins`, `.matches`, `.ends`, `.followed-by`, and `.preceded-by` separate target names with `|`. Other methods separate arguments with `,`. The reader enforces this distinction.
 
@@ -499,7 +499,7 @@ An emoji rule name is also a method argument. A classifier name starts with a lo
   "parse" "(" parse-argument ")"
 
 %rule parse-argument
-  "…" choice | choice "…" | choice
+  "…" choice "…" | "…" choice | choice "…" | choice
 
 %rule method-name
   Identifier | Call-Name
@@ -558,7 +558,9 @@ An emoji rule name is also a method argument. A classifier name starts with a lo
 
 ## Boolean conditions
 
-A condition is a comparison, tree comparison, method, presence test, negation, or grouped condition. A bare capture tests its presence.
+A condition is a comparison, tree comparison, method, presence test, negation, grouped condition, or set term. A bare capture tests its presence. A set term as a condition holds where the set is not empty. A parameter can stand as a set term. A lone string is a scalar, so it is not a set term. A leading `∪` or `∩` in a set operation is a separator, not an operator.
+
+These rules restate `union` and `intersection` for a condition. An operation needs one operator or a leading separator, and a lone operand must be a set atom. A single method, capture or group already reads as a condition, so `union` here gives two readings of one form. The reader checks the type of every set term. The grammar leaves out only the lone forms that can never be sets.
 
 `∧`, `∨`, and `⟹` bind in that order. Implication groups to the right. `¬` negates the following condition.
 
@@ -577,7 +579,21 @@ A tree comparison requires a bare capture on the left. On the right, a pattern t
   ["∧"] {condition / "∧"}
 
 %rule condition
-  comparison | tree-comparison | method | presence | negation | "(" implication ")"
+  comparison | tree-comparison | method | presence | negation | "(" implication ")" | term-condition
+
+%rule term-condition
+  union-operation | intersection-operation | set-atom
+
+%rule union-operation
+  ["∪"] intersection ("∪" | "∖") {intersection / ("∪" | "∖")}
+  | "∪" intersection
+
+%rule intersection-operation
+  ["∩"] concatenation "∩" {concatenation / "∩"}
+  | "∩" concatenation
+
+%rule set-atom
+  tag | tag-run | string-run | empty-set | constant-reference | parameter
 
 %rule presence
   Capture
@@ -598,11 +614,15 @@ A tree comparison requires a bare capture on the left. On the right, a pattern t
   "≅" | "≇"
 ```
 
-<details><summary>Railroad diagrams of the 10 rules from <code>implication</code> to <code>tree-comparator</code></summary>
+<details><summary>Railroad diagrams of the 14 rules from <code>implication</code> to <code>tree-comparator</code></summary>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/implication.svg" alt="Railroad diagram of the rule implication"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/any-of.svg" alt="Railroad diagram of the rule any-of"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/all-of.svg" alt="Railroad diagram of the rule all-of"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/condition.svg" alt="Railroad diagram of the rule condition"></p>
+<p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/term-condition.svg" alt="Railroad diagram of the rule term-condition"></p>
+<p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/union-operation.svg" alt="Railroad diagram of the rule union-operation"></p>
+<p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/intersection-operation.svg" alt="Railroad diagram of the rule intersection-operation"></p>
+<p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/set-atom.svg" alt="Railroad diagram of the rule set-atom"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/presence.svg" alt="Railroad diagram of the rule presence"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/negation.svg" alt="Railroad diagram of the rule negation"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/comparison.svg" alt="Railroad diagram of the rule comparison"></p>
