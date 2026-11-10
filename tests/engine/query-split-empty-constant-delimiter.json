@@ -1,0 +1,17 @@
+{
+  "description": "Engine §10: a split with an empty constant delimiter in a set-term condition is a document error at load.",
+  "grammar": "%const $D \"\"\n%rule text $x:A\n%conditions $x.value.split($D)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "value": "a b"
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "message": "split has an empty delimiter"
+  }
+}

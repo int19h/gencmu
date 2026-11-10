@@ -819,7 +819,7 @@ def _value_parts(root: Any):
             keys = ("left", "right")
         else:
             keys = ("seq", "choice", "ranked", "and", "optional", "repeat", "separator", "literal", "range",
-                    "not", "any", "all", "union", "intersection", "difference", "concat", "items", "tags", "value", "image", "error", "warning", "conditions", "emit")
+                    "not", "any", "all", "union", "intersection", "difference", "concat", "items", "tags", "value", "image", "error", "warning", "conditions", "emit", "nonempty")
         pending.extend((node[key], False) for key in reversed(keys) if key in node)
 
 
