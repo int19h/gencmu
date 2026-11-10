@@ -1,6 +1,6 @@
 {
-  "description": "syntax refuses #« {a /} »",
-  "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #« {a /} »\n```\n",
+  "description": "syntax refuses #⁅ {a /} ⁆",
+  "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #⁅ {a /} ⁆\n```\n",
   "expect": {
     "error": {
       "line": 3,

@@ -267,6 +267,6 @@ def _print_layered(root, term, literal=True):
             elif "any" not in value:
                 tasks.append(("term", value))
             if "children" in value:
-                tasks += [("text", "« "), ("items", value["children"]), ("text", " »")] if value["children"] else [("text", "«»")]
+                tasks += [("text", "⁅ "), ("items", value["children"]), ("text", " ⁆")] if value["children"] else [("text", "⁅⁆")]
         pending.extend(reversed(tasks))
     return "".join(out)

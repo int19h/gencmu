@@ -39,7 +39,7 @@ func (g *stageGrammar) checkDiagnosticsAndSplices() *Error {
 			all = all && erased[name]
 		}
 		if all {
-			return grammarError(check.doc, check.at, "a pattern of erased rule %s permits only the child list « ⋯ »", check.name)
+			return grammarError(check.doc, check.at, "a pattern of erased rule %s permits only the child list ⁅ ⋯ ⁆", check.name)
 		}
 	}
 	resolvedChecks := g.erasureChecks != nil
@@ -56,7 +56,7 @@ func (g *stageGrammar) checkDiagnosticsAndSplices() *Error {
 					if pos == [2]int{} {
 						pos = at
 					}
-					problem = grammarError(doc, pos, "a pattern of erased rule %s permits only the child list « ⋯ »", node.Name)
+					problem = grammarError(doc, pos, "a pattern of erased rule %s permits only the child list ⁅ ⋯ ⁆", node.Name)
 				}
 			}
 		})

@@ -203,8 +203,8 @@ function scanBody(chars, start) {
       if (chars[i] === "\"") {
         i++;
         while (i < chars.length && chars[i] !== "\"") i++;
-      } else if (chars[i] === "(" || chars[i] === "«") headerDepth++;
-      else if (chars[i] === ")" || chars[i] === "»") headerDepth--;
+      } else if (chars[i] === "(" || chars[i] === "⁅") headerDepth++;
+      else if (chars[i] === ")" || chars[i] === "⁆") headerDepth--;
       else if (chars[i] === "|" && headerDepth === 0) break;
       i++;
     }
@@ -231,8 +231,8 @@ function scanBody(chars, start) {
       while (i < chars.length && chars[i] !== c) i++;
       i++;
     } else {
-      if (c === "(" || c === "[" || c === "{" || c === "<" || c === "«") depth++;
-      else if (c === ")" || c === "]" || c === "}" || c === ">" || c === "»") depth--;
+      if (c === "(" || c === "[" || c === "{" || c === "<" || c === "⁅") depth++;
+      else if (c === ")" || c === "]" || c === "}" || c === ">" || c === "⁆") depth--;
       i++;
     }
     if (current) current.to = i;
@@ -256,8 +256,8 @@ function writtenClauses(text) {
   const ops = []; let depth = 0;
   for (let i = 0; i < scrubbed.length; i++) {
     const c = scrubbed[i];
-    if ("([{<«".includes(c)) depth++;
-    else if (")]}>»".includes(c)) depth--;
+    if ("([{<⁅".includes(c)) depth++;
+    else if (")]}>⁆".includes(c)) depth--;
     else if (depth === 0 && c === ":" && (scrubbed[i + 1] === ":" || scrubbed[i + 1] === "=" || scrubbed[i + 1] === "-")) { ops.push({ at: i, op: scrubbed.slice(i, i + 2).join("") }); i++; }
   }
   return ops.map((o, i) => ({ ...o, end: i + 1 < ops.length ? ops[i + 1].at : scrubbed.length }));
@@ -290,8 +290,8 @@ function termOperands(term) {
     const c = chars[i];
     if (string) { if (c === '"') string = false; continue; }
     if (c === '"') { string = true; continue; }
-    if ("([{<«".includes(c)) depth++;
-    else if (")]}>»".includes(c)) depth--;
+    if ("([{<⁅".includes(c)) depth++;
+    else if (")]}>⁆".includes(c)) depth--;
     else if (depth === 0 && c === "∪") { flush(i); start = i + 1; }
   }
   flush(chars.length);
@@ -329,8 +329,8 @@ function hasTopLevel(text, op) {
   for (const c of chars) {
     if (string) { if (c === '"') string = false; continue; }
     if (c === '"') { string = true; continue; }
-    if ("([{<«".includes(c)) depth++;
-    else if (")]}>»".includes(c)) depth--;
+    if ("([{<⁅".includes(c)) depth++;
+    else if (")]}>⁆".includes(c)) depth--;
     else if (depth === 0 && c === op) return true;
   }
   return false;
@@ -452,8 +452,8 @@ export function clauseTermProblems(markdown, dom, path) {
         for (const ch of scrubbed) {
           if (string) { if (ch === '"') string = false; continue; }
           if (ch === '"') { string = true; continue; }
-          if ("([{<«".includes(ch)) depth++;
-          else if (")]}>»".includes(ch)) depth--;
+          if ("([{<⁅".includes(ch)) depth++;
+          else if (")]}>⁆".includes(ch)) depth--;
         }
         const trimmed = termLine.trimStart();
         if (!trimmed) return;
@@ -535,8 +535,8 @@ export function clauseTermProblems(markdown, dom, path) {
       const c = sectionChars[i];
       if (string) { if (c === '"') string = false; continue; }
       if (c === '"') { string = true; continue; }
-      if ("([{<«".includes(c)) depth++;
-      else if (")]}>»".includes(c)) depth--;
+      if ("([{<⁅".includes(c)) depth++;
+      else if (")]}>⁆".includes(c)) depth--;
       else if (depth === 0 && c === ",") { flush(i); itemStart = i + 1; }
     }
     flush(sectionChars.length);
@@ -592,8 +592,8 @@ function constantProblems(markdown, path) {
     let depth = 0, hasOperator = false;
     for (let j = 0; j < joined.length; j++) {
       const ch = joined[j];
-      if ("([{<«".includes(ch)) depth++;
-      else if (")]}>»".includes(ch)) depth--;
+      if ("([{<⁅".includes(ch)) depth++;
+      else if (")]}>⁆".includes(ch)) depth--;
       else if (depth === 0 && "∧∨⟹∪∩∖".includes(ch)) hasOperator = true;
       else if (depth === 0 && ch === "+" && joined[j + 1] === "+") hasOperator = true;
     }
@@ -610,8 +610,8 @@ function constantProblems(markdown, path) {
     valueLines.forEach((valueLine, index) => {
       const startDepth = valueDepth;
       for (const ch of valueLine.text) {
-        if ("([{<«".includes(ch)) valueDepth++;
-        else if (")]}>»".includes(ch)) valueDepth--;
+        if ("([{<⁅".includes(ch)) valueDepth++;
+        else if (")]}>⁆".includes(ch)) valueDepth--;
       }
       const first = valueLine.text.search(/\S/);
       if (first < 0) return;
@@ -669,8 +669,8 @@ function conditionProblems(markdown, path) {
     const items = [];
     for (let i = 0; i < sectionChars.length; i++) {
       const c = sectionChars[i];
-      if ("([{<«".includes(c)) depth++;
-      else if (")]}>»".includes(c)) depth--;
+      if ("([{<⁅".includes(c)) depth++;
+      else if (")]}>⁆".includes(c)) depth--;
       else if (depth === 0 && c === ",") { items.push([itemStart, i]); itemStart = i + 1; }
     }
     items.push([itemStart, sectionChars.length]);
@@ -683,8 +683,8 @@ function conditionProblems(markdown, path) {
       for (const itemLine of itemLines) {
         const startDepth = itemDepth;
         for (const ch of itemLine) {
-          if ("([{<«".includes(ch)) itemDepth++;
-          else if (")]}>»".includes(ch)) itemDepth--;
+          if ("([{<⁅".includes(ch)) itemDepth++;
+          else if (")]}>⁆".includes(ch)) itemDepth--;
         }
         linesOfItem.push({ text: itemLine, startDepth, endDepth: itemDepth, offset });
         offset += [...itemLine].length + 1;
@@ -756,7 +756,7 @@ function bracketProblems(markdown, path) {
     if (definition) where = `%${definition[1]} ${definition[2]}`;
     whereByLine.push(where);
   }
-  const OPEN = "([{<«", CLOSE = ")]}>»";
+  const OPEN = "([{<⁅", CLOSE = ")]}>⁆";
   /** @type {{at: number, line: number, col: number}[]} */
   const stack = [];
   for (let i = 0; i < chars.length; i++) {
@@ -847,8 +847,8 @@ function writtenClausesBar(text) {
     const c = scrubbed[i];
     if (string) { if (c === '"') string = false; continue; }
     if (c === '"') { string = true; continue; }
-    if ("([{<«".includes(c)) depth++;
-    else if (")]}>»".includes(c)) depth--;
+    if ("([{<⁅".includes(c)) depth++;
+    else if (")]}>⁆".includes(c)) depth--;
     else if (depth === 0 && c === "|") bar = i;
   }
   return bar;

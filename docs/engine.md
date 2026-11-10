@@ -777,7 +777,7 @@ A name becomes `ref` in a body, `name` in a pattern, or `rule` in a rule argumen
 
 A pattern argument in a child item consumes one child. It never splices its children into the enclosing list. A node decoration requires a compatible node test after conversion. Each decoration conflicts only with the same decoration already on that argument. Written tests retain their ordinary target and order restrictions. A compound predicate cannot receive node decorations.
 
-An exact prefix requires an argument without an exact prefix. An attached list requires an argument without an attached list. Thus `·@X` accepts `#a« b »`, and `@X« b »` accepts `#·a`. Both uses produce `#·a« b »`. Neither use discards an existing decoration.
+An exact prefix requires an argument without an exact prefix. An attached list requires an argument without an attached list. Thus `·@X` accepts `#a⁅ b ⁆`, and `@X⁅ b ⁆` accepts `#·a`. Both uses produce `#·a⁅ b ⁆`. Neither use discards an existing decoration.
 
 An expanded use must satisfy the original position's syntax and type rules. For example, `$x:@P` requires one capturable symbol. A sequence or choice cannot acquire a hidden wrapper rule. A value-test operand still requires a string literal or string constant.
 
@@ -867,13 +867,13 @@ A union containing only bare tags prints as a run with single spaces. A union co
 
 For other term operators, the printer follows §9.2 binding and associativity. It adds parentheses exactly where removing them changes the normalized DOM. It prints no leading no-op operator. Pattern operators follow the binding rules in `docs/notation.md`, with the same grouping rule.
 
-Pattern literals print `#` directly before a node test, constant, parameter, or bare child list. Other whole patterns print inside `#(…)`. A node's exact prefix prints `·` without a following space. Tests follow their terminal without spaces. A child list attaches without a space and always retains its guillemets, including with one child.
+Pattern literals print `#` directly before a node test, constant, parameter, or bare child list. Other whole patterns print inside `#(…)`. A node's exact prefix prints `·` without a following space. Tests follow their terminal without spaces. A child list attaches without a space and always retains its brackets, including with one child.
 
-A nonempty list prints `« `, its items, and ` »`. An empty list prints `«»`. Child items have one separating space. Optional brackets and braces have no internal padding. A separator prints as ` / `, and a sibling gap prints `⋯`.
+A nonempty list prints `⁅ `, its items, and ` ⁆`. An empty list prints `⁅⁆`. Child items have one separating space. Optional brackets and braces have no internal padding. A separator prints as ` / `, and a sibling gap prints `⋯`.
 
 Pattern tag requirements use the ordinary term printer, including when their spelling supplies an instance name.
 
-Paths print as `⋮ P`, `⋱ P`, and `P ⋰`. If the operand is a compound pattern, the printer adds parentheses around it. A node test, constant, parameter, or bare child list takes no parentheses. Thus nested paths retain parentheses. A path over children prints `« A B » ⋰`, with the list boundary intact.
+Paths print as `⋮ P`, `⋱ P`, and `P ⋰`. If the operand is a compound pattern, the printer adds parentheses around it. A node test, constant, parameter, or bare child list takes no parentheses. Thus nested paths retain parentheses. A path over children prints `⁅ A B ⁆ ⋰`, with the list boundary intact.
 
 Pattern union, intersection, and difference use spaces around their operators. Intersection operands that are unions or differences take parentheses. Union and intersection flatten their own kind. A difference's left operand takes no parentheses. If its right operand is a union or difference, that operand takes parentheses. Other parentheses follow binding strength.
 
@@ -2529,9 +2529,9 @@ If no gate starts immediately after `¬`, the lexer reads `¬` separately. `!` h
 
 Whitespace and line comments separate tokens but add no grammar node. A comment and its newline supply whitespace for symbol tests and pattern attachment. Around a run of bare tag names, they do not change operator adjacency. Comments discard their contents, including backslashes, without escape processing.
 
-Pattern child lists use `«` U+00AB and `»` U+00BB. If no whitespace or comment separates a node test from its following list, that list must attach to the test. Otherwise, the list begins a separate bare-list pattern. The prefix `·` U+00B7 must directly precede its node atom or bare list. It never prefixes a grouped or compound pattern. Neither a second list nor a list after a group attaches to that group.
+Pattern child lists use `⁅` (U+2045) and `⁆` (U+2046). If no whitespace or comment separates a node test from its following list, that list must attach to the test. Otherwise, the list begins a separate bare-list pattern. The prefix `·` U+00B7 must directly precede its node atom or bare list. It never prefixes a grouped or compound pattern. Neither a second list nor a list after a group attaches to that group.
 
-Between child items, `«` or `·` requires separation after a node test, `»`, `]`, `}`, or a group's closing `)`. Whitespace or a comment supplies that separation. A call's first adjacent child list belongs to that node test and remains attached. Thus `a« b »` is one node, while `a« b »« c »` and `(a)« b »` are errors. `a·« b »`, `#« [a]« b » »`, and `#« {a}·b »` are also errors. `#« [a] « b » »` and `#« {a} ·b »` are valid.
+Between child items, `⁅` or `·` requires separation after a node test, `⁆`, `]`, `}`, or a group's closing `)`. Whitespace or a comment supplies that separation. A call's first adjacent child list belongs to that node test and remains attached. Thus `a⁅ b ⁆` is one node, while `a⁅ b ⁆⁅ c ⁆` and `(a)⁅ b ⁆` are errors. `a·⁅ b ⁆`, `#⁅ [a]⁅ b ⁆ ⁆`, and `#⁅ {a}·b ⁆` are also errors. `#⁅ [a] ⁅ b ⁆ ⁆` and `#⁅ {a} ·b ⁆` are valid.
 
 Punctuation separates adjacent names. A tag test can precede one value test, as in `_<Stressed>≠"y"`. Thus `$x:A<B>` is a capture of a tested tag terminal. `$x : A < B >` has the same meaning.
 
@@ -2662,7 +2662,7 @@ pattern-bare = ["·" ADJACENT] pattern-children
 pattern-atom = (pattern-name | terminal) {symbol-test}
 pattern-name = reference | call | parameter
 terminal = tag | string-terminal | range | "_"
-pattern-children = "«" [child-choice] "»"
+pattern-children = "⁅" [child-choice] "⁆"
 child-choice = child-alternative {"|" child-alternative}
 child-alternative = child-sequence | child-set
 child-sequence = child-item {ITEM-BOUNDARY child-item}
@@ -2816,19 +2816,19 @@ Pattern productions use the grouping and binding rules of `docs/notation.md`. `#
 
 Pattern-valued constant atoms accept no tests. A rule atom accepts one tag test followed by one value test, with either absent.
 
-An attached list requires a rule-name test, template family, exact call, or parameter that becomes one of these. A terminal, `_`, tested atom, or string-valued constant in that position is a document error. If substitution reveals the error, the reader reports it at the parameter use. Otherwise, it reports the error at `«`. Bare lists remain valid without a name test. Their children retain their own searches and exact prefixes.
+An attached list requires a rule-name test, template family, exact call, or parameter that becomes one of these. A terminal, `_`, tested atom, or string-valued constant in that position is a document error. If substitution reveals the error, the reader reports it at the parameter use. Otherwise, it reports the error at `⁅`. Bare lists remain valid without a name test. Their children retain their own searches and exact prefixes.
 
-ADJACENT requires zero intervening whitespace or comments. In `pattern-node`, it connects the prefix to its atom and the completed atom to its list. NO-ATTACHMENT consumes no token. If no adjacent `«` follows the completed atom, NO-ATTACHMENT succeeds. Otherwise, it fails. The two attachment routes are disjoint during recognition, before DOM conversion.
+ADJACENT requires zero intervening whitespace or comments. In `pattern-node`, it connects the prefix to its atom and the completed atom to its list. NO-ATTACHMENT consumes no token. If no adjacent `⁅` follows the completed atom, NO-ATTACHMENT succeeds. Otherwise, it fails. The two attachment routes are disjoint during recognition, before DOM conversion.
 
-ITEM-BOUNDARY also consumes no token. It enforces the separation rule of §9.1 between consecutive child items. It fails on an adjacent `«` or `·` after a node test, `»`, `]`, `}`, or group `)`. An attached list never crosses ITEM-BOUNDARY, including after a call's `)`. These assertions use original source positions, before the lexer discards whitespace and comments.
+ITEM-BOUNDARY also consumes no token. It enforces the separation rule of §9.1 between consecutive child items. It fails on an adjacent `⁅` or `·` after a node test, `⁆`, `]`, `}`, or group `)`. An attached list never crosses ITEM-BOUNDARY, including after a call's `)`. These assertions use original source positions, before the lexer discards whitespace and comments.
 
 A child set requires a set operator outside its groups. A child sequence cannot consume that operator. These alternatives therefore cannot recognize the same complete text.
 
 Inside a child list, every parenthesized group follows `child-primary`, never the whole-pattern `pattern-primary` route. A group without a path or set operator contributes its item array. If a path or set uses that group, it must contain exactly one `child` item holding a whole pattern. The reader rejects a sequence, optional, repeat, gap, or choice in that operand position. Grouping produces no DOM node.
 
-A set beside other child items requires grouping parentheses. `« a (b ∪ c) »` is valid, while `« a b ∪ c »` fails syntax recognition. A set can occupy a complete choice arm without extra parentheses.
+A set beside other child items requires grouping parentheses. `⁅ a (b ∪ c) ⁆` is valid, while `⁅ a b ∪ c ⁆` fails syntax recognition. A set can occupy a complete choice arm without extra parentheses.
 
-A pattern argument is one term that the pattern grammar consumes. The argument reader balances guillemet tokens, not characters in raw text. A guillemet inside a string or comment is not a delimiter. Inner `|`, `/`, and commas belong to that term and do not separate outer call arguments. Thus `f(#« "»" a »)` retains the complete child list as its argument.
+A pattern argument is one term that the pattern grammar consumes. The argument reader balances `⁅` and `⁆` tokens, not characters in raw text. A `⁅` or `⁆` inside a string or comment is not a delimiter. Inner `|`, `/`, and commas belong to that term and do not separate outer call arguments. Thus `f(#⁅ "⁆" a ⁆)` retains the complete child list as its argument.
 
 ### 9.3 Conversion and validation
 
@@ -3239,7 +3239,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 
   Sibling items share their depth, regardless of array length. The `children` array adds no depth. A `child`, `choice`, `optional`, or `repeat` wrapper adds one level before its contained patterns or items. A repeat's item and separator arrays share that level. An exact prefix adds no depth.
 
-  In the term `#« a b »`, the term wrapper starts at depth zero. The bare-list pattern is at depth one. Both `child` items are at depth two, and both names are at depth three. More siblings do not increase those depths.
+  In the term `#⁅ a b ⁆`, the term wrapper starts at depth zero. The bare-list pattern is at depth one. Both `child` items are at depth two, and both names are at depth three. More siblings do not increase those depths.
 
   Expression `ref`, `wildcard`, and `empty` are leaves. Term `string`, `tag`, `const`, `capture`, and `emptySet` are leaves. An integer argument is a leaf. Condition `captured` is a leaf.
 
@@ -3426,11 +3426,11 @@ Readers reject missing parts, unknown members and invalid arities. A tag test an
 
 Child arrays retain their context throughout unresolved inspection. An optional accepts no `separator`, and only a repeat accepts that member. A sibling ellipsis cannot occur at a repeat's sibling level, including through optional, choice, or repeat wrappers. A `child` pattern starts another node and therefore another sibling level for its own child list. Supplied DOMs obey the same restrictions. Stage resolution includes every pattern in replaced definitions and uncalled templates.
 
-Take an atom that names a rule whose every definition carries `%erased`. An attached child list is a document error unless it contains only one sibling gap, `« ⋯ »`. This check follows stitching. A mixed rule with an unerased definition does not trigger it.
+Take an atom that names a rule whose every definition carries `%erased`. An attached child list is a document error unless it contains only one sibling gap, `⁅ ⋯ ⁆`. This check follows stitching. A mixed rule with an unerased definition does not trigger it.
 
 For a template-family atom, this error requires at least one instance and fully erased definitions in every instance. A parameter as the atom postpones this check until substitution. A child-list parameter occupies one element, so a known erased atom takes this check on its written list.
 
-If X is declared, `#« A @X »` and `#« ⋯ @X »` remain valid. Their closed items remain child items beside the parameter. A parameter postpones only the type or binding that its value determines. It never postpones the surrounding field, arity, context, or forbidden-gap rules. Source, supplied, and cached patterns all obey the exact schema in `docs/output.md`.
+If X is declared, `#⁅ A @X ⁆` and `#⁅ ⋯ @X ⁆` remain valid. Their closed items remain child items beside the parameter. A parameter postpones only the type or binding that its value determines. It never postpones the surrounding field, arity, context, or forbidden-gap rules. Source, supplied, and cached patterns all obey the exact schema in `docs/output.md`.
 
 A comparison of two constituents needs a finite domain of tree identities (§4.1). Lowering checks this on the lowered grammar of each feature set, as it checks braces and chains in §3.3. So the gates apply, and only conditions and tests are not trusted. The nodes of the check are rules and template instances. For each recognition-time comparison whose right operand has constituent type, lowering builds the dependency graph of its demanded identities. An edge goes from a rule to each named rule whose identity its children need, through helpers and chain levels. The walk stops at ranked seals and exported erasure seals. A definition's own comparison starts a separate walk through its working structure. Unerased alternatives retain their ordinary identity dependencies.
 
@@ -3620,7 +3620,7 @@ The context is the stage's input or the nested query's bounds (§4). `.onward` a
 
 A tag literal denotes a singleton tag set. Juxtaposed bare tag names or string literals form one union atom. Both runs share grouping, flattening, and adjacency restrictions. Constant references and method calls require explicit operators.
 
-Other tag atoms need operators. Adjacent multi-name atoms beside `∩` or `∖` require parentheses. Inside pattern guillemets, juxtaposition instead constructs child sequences. A pattern constant supplies no implicit surrounding pattern literal.
+Other tag atoms need operators. Adjacent multi-name atoms beside `∩` or `∖` require parentheses. Inside a child list, juxtaposition instead constructs child sequences. A pattern constant supplies no implicit surrounding pattern literal.
 
 ## 11. Emission
 

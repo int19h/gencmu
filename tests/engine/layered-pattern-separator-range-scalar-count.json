@@ -1,6 +1,6 @@
 {
   "description": "Bound range errors retain their use position inside separator patterns.",
-  "grammar": "%const $BadLow \"aa\"\n%const $High \"z\"\n%const $Pattern #« {A / $BadLow..$High} »\n%rule text A\n%rule a A",
+  "grammar": "%const $BadLow \"aa\"\n%const $High \"z\"\n%const $Pattern #⁅ {A / $BadLow..$High} ⁆\n%rule text A\n%rule a A",
   "expect": {
     "error": "grammar",
     "where": {

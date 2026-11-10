@@ -1,6 +1,6 @@
 {
   "description": "Notation Tree patterns and engine §9.3: the loader rejects a named attached list even in that erased definition's own condition.",
-  "grammar": "%ambiguity-resolution greedy\n%rule text $e:e\n%rule e A | B\n%conditions $ ≅ #·e« A »\n%erased",
+  "grammar": "%ambiguity-resolution greedy\n%rule text $e:e\n%rule e A | B\n%conditions $ ≅ #·e⁅ A ⁆\n%erased",
   "tokens": [
     {
       "text": "a",

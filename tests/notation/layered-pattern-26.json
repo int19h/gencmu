@@ -1,6 +1,6 @@
 {
   "description": "a closed child can precede a parameter",
-  "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #« A @X »\n```\n",
+  "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #⁅ A @X ⁆\n```\n",
   "expect": {
     "dom": {
       "format": 47,

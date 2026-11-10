@@ -637,15 +637,15 @@ A pattern starts with `#` and one node test, bare child list, or grouped predica
 
 A pattern atom names a rule, terminal, constant, or wildcard. A tag test follows the atom, as in `#_<Tense>`. The reader converts it as [engine §9.3](../../../docs/engine.md#93-conversion-and-validation) says.
 
-Guillemets enclose child items. A child list attaches to the preceding atom. Only a rule name, emoji rule, template family, exact call, or compatible parameter accepts an attached list.
+The brackets `⁅` and `⁆` enclose child items. A child list attaches to the preceding atom. Only a rule name, emoji rule, template family, exact call, or compatible parameter accepts an attached list.
 
-A bare list or an exact prefix needs whitespace or a comment after a node test, `»`, `]`, `}`, or a group's `)`. Thus `« a «b» »` has two items, while `« a«b» »` attaches the list to `a`. `« (a)«b» »` is an error. After `⋯` or `⋰`, no space is necessary.
+A bare list or an exact prefix needs whitespace or a comment after a node test, `⁆`, `]`, `}`, or a group's `)`. Thus `⁅ a ⁅b⁆ ⁆` has two items, while `⁅ a⁅b⁆ ⁆` attaches the list to `a`. `⁅ (a)⁅b⁆ ⁆` is an error. After `⋯` or `⋰`, no space is necessary.
 
 The syntax stage does not see layout, which consists of whitespace and comments. The helper rules test adjacency through source text. `pattern-adjacent-item` matches two tokens whose joined source text equals the source text of their span. That equality holds only when nothing lies between them.
 
 `pattern-exact-start` keeps `·` adjacent to its node test. `pattern-attached-start` detects a list directly after the complete atom. `pattern-node` tests this condition in both directions, so an adjacent list always attaches and a separated list never does.
 
-`pattern-item-opening` reads `«` or `·`. `child-item` rejects such an adjacent opening after its last token, except after `⋯` or `⋰`.
+`pattern-item-opening` reads `⁅` or `·`. `child-item` rejects such an adjacent opening after its last token, except after `⋯` or `⋰`.
 
 A child set has at least one operator. A lone child path is therefore a one-item sequence, and never also a set.
 
@@ -689,7 +689,7 @@ Recognition admits repeated or reversed tests on node atoms. The reader restrict
   Lowercase-Name | Emoji-Name | call | parameter
 
 %rule pattern-children
-  "«" [child-choice] "»"
+  "⁅" [child-choice] "⁆"
 
 %rule child-choice
   {child-alternative / "|"}
@@ -731,12 +731,12 @@ Recognition admits repeated or reversed tests on node atoms. The reader restrict
   $.source-text = $mark.source-text ++ $next.source-text
 
 %rule pattern-attached-start
-  $atom:pattern-atom $open:"«"
+  $atom:pattern-atom $open:"⁅"
 %conditions
   $.source-text = $atom.source-text ++ $open.source-text
 
 %rule pattern-item-opening
-  "«" | "·"
+  "⁅" | "·"
 
 %rule pattern-adjacent-item
   $left:_ $right:pattern-item-opening

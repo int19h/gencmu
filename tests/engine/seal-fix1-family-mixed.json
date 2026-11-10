@@ -1,7 +1,7 @@
 {
   "description": "Engine §9.3: a mixed family loads, but an exact family test does not match the surrounding named wrapper.",
   "documents": {
-    "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule atom(@T) @T\n%erased\n%rule ia atom(A)\n%rule ib atom(B)\n%extend-rule atom(B) B\n%rule text $i:ib\n%conditions $i ≅ #·atom« B »\n```\n"
+    "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule atom(@T) @T\n%erased\n%rule ia atom(A)\n%rule ib atom(B)\n%extend-rule atom(B) B\n%rule text $i:ib\n%conditions $i ≅ #·atom⁅ B ⁆\n```\n"
   },
   "pipelineDocument": "p.md",
   "tokens": [

@@ -1,6 +1,6 @@
 {
   "description": "Engine §9.3: erased child-list validation covers replaced definitions and uncalled templates (replaced-definition).",
-  "grammar": "%rule text A\n%conditions $ ≅ #·e«»\n%redefine-rule text A\n%rule e A\n%erased",
+  "grammar": "%rule text A\n%conditions $ ≅ #·e⁅⁆\n%redefine-rule text A\n%rule e A\n%erased",
   "tokens": [
     {
       "text": "a",

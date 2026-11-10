@@ -1881,7 +1881,7 @@
       "description": "A repeated pattern list uses its first part.",
       "find": "{\"name\":\"pattern-node\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"optional\":{\"capture\":\"exact\",\"expr\":{\"literal\":{\"string\":\"·\"}}}},{\"capture\":\"atom\",\"expr\":{\"ref\":\"pattern-atom\"}},{\"optional\":{\"capture\":\"list\",\"expr\":{\"ref\":\"pattern-children\"}}}]}}],\"conditions\":[{\"if\":{\"captured\":\"exact\"},\"then\":{\"method\":\"begins\",\"receiver\":{\"method\":\"onward\",\"receiver\":{\"capture\":\"exact\"},\"args\":[]},\"args\":[{\"rule\":\"pattern-exact-start\"}]}},{\"if\":{\"captured\":\"list\"},\"then\":{\"method\":\"begins\",\"receiver\":{\"method\":\"onward\",\"receiver\":{\"capture\":\"atom\"},\"args\":[]},\"args\":[{\"rule\":\"pattern-attached-start\"}]}},{\"if\":{\"not\":{\"captured\":\"list\"}},\"then\":{\"not\":{\"method\":\"begins\",\"receiver\":{\"method\":\"onward\",\"receiver\":{\"capture\":\"atom\"},\"args\":[]},\"args\":[{\"rule\":\"pattern-attached-start\"}]}}}],\"at\":[*]}",
       "replace": "{\"name\":\"pattern-node\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"pattern-atom\"},{\"ref\":\"pattern-children\"},{\"ref\":\"pattern-children\"}]}},{\"guards\":[],\"expr\":{\"ref\":\"pattern-atom\"}}],\"conditions\":[],\"at\":[*]}",
-      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%const $P #r«»«_Nope»\n%rule r \"a\"\n%rule text r\n```\n",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%const $P #r⁅⁆⁅_Nope⁆\n%rule r \"a\"\n%rule text r\n```\n",
       "inputs": [
         "a"
       ],
@@ -1939,7 +1939,7 @@
       "description": "A child choice requires child alternatives instead of a pattern predicate.",
       "find": "{\"name\":\"child-choice\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"child-alternative\"},\"separator\":{\"literal\":{\"string\":\"|\"}}}}],\"conditions\":[],\"at\":[*]}",
       "replace": "{\"name\":\"child-choice\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"pattern-intersection\"}}],\"conditions\":[],\"at\":[*]}",
-      "document": "```jbogenbau\n%const $P #« a »\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
+      "document": "```jbogenbau\n%const $P #⁅ a ⁆\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
       "inputs": [],
       "expect": "grammar"
     },
@@ -1947,7 +1947,7 @@
       "description": "A child sequence requires child items instead of a pattern predicate.",
       "find": "{\"name\":\"child-sequence\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"child-item\"}}}],\"conditions\":[],\"at\":[*]}",
       "replace": "{\"name\":\"child-sequence\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"pattern-path\"}}],\"conditions\":[],\"at\":[*]}",
-      "document": "```jbogenbau\n%const $P #« a »\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
+      "document": "```jbogenbau\n%const $P #⁅ a ⁆\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
       "inputs": [],
       "expect": "grammar"
     },
@@ -2028,7 +2028,7 @@
       "description": "A child set requires operators after converting its whole-pattern operands.",
       "find": "{\"name\":\"child-alternative\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"child-sequence\"}},{\"guards\":[],\"expr\":{\"ref\":\"child-set\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"child-sequence\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"child-item\"}}}],\"conditions\":[],\"at\":[*]},{\"name\":\"child-set\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"child-intersection\"},{\"choice\":[{\"literal\":{\"string\":\"∪\"}},{\"literal\":{\"string\":\"∖\"}}]},{\"ref\":\"child-intersection\"},{\"optional\":{\"repeat\":{\"seq\":[{\"choice\":[{\"literal\":{\"string\":\"∪\"}},{\"literal\":{\"string\":\"∖\"}}]},{\"ref\":\"child-intersection\"}]}}}]}},{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"child-path\"},{\"literal\":{\"string\":\"∩\"}},{\"ref\":\"child-path\"},{\"optional\":{\"repeat\":{\"seq\":[{\"literal\":{\"string\":\"∩\"}},{\"ref\":\"child-path\"}]}}}]}}],\"conditions\":[],\"at\":[*]}",
       "replace": "{\"name\":\"child-alternative\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"child-set\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"child-sequence\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"child-item\"}}}],\"conditions\":[],\"at\":[*]},{\"name\":\"child-set\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"child-intersection\"},{\"ref\":\"child-intersection\"}]}}],\"conditions\":[],\"at\":[*]}",
-      "document": "```jbogenbau\n%const $P #« a b »\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
+      "document": "```jbogenbau\n%const $P #⁅ a b ⁆\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
       "inputs": [],
       "expect": "grammar",
       "where": {
@@ -2067,7 +2067,7 @@
       "description": "A child operand error precedes a missing set operator.",
       "find": "{\"name\":\"child-alternative\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"child-sequence\"}},{\"guards\":[],\"expr\":{\"ref\":\"child-set\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"child-sequence\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"child-item\"}}}],\"conditions\":[],\"at\":[*]},{\"name\":\"child-set\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"child-intersection\"},{\"choice\":[{\"literal\":{\"string\":\"∪\"}},{\"literal\":{\"string\":\"∖\"}}]},{\"ref\":\"child-intersection\"},{\"optional\":{\"repeat\":{\"seq\":[{\"choice\":[{\"literal\":{\"string\":\"∪\"}},{\"literal\":{\"string\":\"∖\"}}]},{\"ref\":\"child-intersection\"}]}}}]}},{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"child-path\"},{\"literal\":{\"string\":\"∩\"}},{\"ref\":\"child-path\"},{\"optional\":{\"repeat\":{\"seq\":[{\"literal\":{\"string\":\"∩\"}},{\"ref\":\"child-path\"}]}}}]}}],\"conditions\":[],\"at\":[*]}",
       "replace": "{\"name\":\"child-alternative\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"child-set\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"child-sequence\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"child-item\"}}}],\"conditions\":[],\"at\":[*]},{\"name\":\"child-set\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"child-intersection\"},{\"ref\":\"child-intersection\"}]}}],\"conditions\":[],\"at\":[*]}",
-      "document": "```jbogenbau\n%const $P #« a _Nope »\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
+      "document": "```jbogenbau\n%const $P #⁅ a _Nope ⁆\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
       "inputs": [],
       "expect": "grammar",
       "where": {
@@ -2080,7 +2080,7 @@
       "description": "A child set with one operand still requires its operator.",
       "find": "{\"name\":\"child-alternative\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"child-sequence\"}},{\"guards\":[],\"expr\":{\"ref\":\"child-set\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"child-sequence\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"child-item\"}}}],\"conditions\":[],\"at\":[*]},{\"name\":\"child-set\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"child-intersection\"},{\"choice\":[{\"literal\":{\"string\":\"∪\"}},{\"literal\":{\"string\":\"∖\"}}]},{\"ref\":\"child-intersection\"},{\"optional\":{\"repeat\":{\"seq\":[{\"choice\":[{\"literal\":{\"string\":\"∪\"}},{\"literal\":{\"string\":\"∖\"}}]},{\"ref\":\"child-intersection\"}]}}}]}},{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"child-path\"},{\"literal\":{\"string\":\"∩\"}},{\"ref\":\"child-path\"},{\"optional\":{\"repeat\":{\"seq\":[{\"literal\":{\"string\":\"∩\"}},{\"ref\":\"child-path\"}]}}}]}}],\"conditions\":[],\"at\":[*]}",
       "replace": "{\"name\":\"child-alternative\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"child-set\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"child-sequence\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"child-item\"}}}],\"conditions\":[],\"at\":[*]},{\"name\":\"child-set\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"child-intersection\"}}],\"conditions\":[],\"at\":[*]}",
-      "document": "```jbogenbau\n%const $P #« a »\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
+      "document": "```jbogenbau\n%const $P #⁅ a ⁆\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
       "inputs": [],
       "expect": "grammar",
       "where": {
@@ -2093,7 +2093,7 @@
       "description": "A child item cannot turn a pattern predicate into a child array.",
       "find": "{\"name\":\"child-item\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"child-path\"}},{\"guards\":[],\"expr\":{\"ref\":\"pattern-brackets\"}},{\"guards\":[],\"expr\":{\"ref\":\"pattern-repeat\"}},{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"⋯\"}}}],\"conditions\":[{\"not\":{\"method\":\"begins\",\"receiver\":{\"method\":\"onward\",\"receiver\":{\"method\":\"last-token\",\"receiver\":{\"capture\":\"\"},\"args\":[]},\"args\":[]},\"args\":[{\"rule\":\"pattern-adjacent-item\"}]}}],\"at\":[*]}",
       "replace": "{\"name\":\"child-item\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"pattern-path\"}}],\"conditions\":[],\"at\":[*]}",
-      "document": "```jbogenbau\n%const $P #« a »\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
+      "document": "```jbogenbau\n%const $P #⁅ a ⁆\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
       "inputs": [],
       "expect": "grammar"
     },
@@ -2127,7 +2127,7 @@
       "description": "A child intersection requires child paths rather than pattern paths.",
       "find": "{\"name\":\"child-intersection\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"child-path\"},\"separator\":{\"literal\":{\"string\":\"∩\"}}}}],\"conditions\":[],\"at\":[*]}",
       "replace": "{\"name\":\"child-intersection\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"pattern-path\"},\"separator\":{\"literal\":{\"string\":\"∩\"}}}}],\"conditions\":[],\"at\":[*]}",
-      "document": "```jbogenbau\n%const $P #« A ∪ B »\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
+      "document": "```jbogenbau\n%const $P #⁅ A ∪ B ⁆\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
       "inputs": [],
       "expect": "grammar",
       "where": {
@@ -2140,7 +2140,7 @@
       "description": "A child set requires child constructors rather than pattern intersections.",
       "find": "{\"name\":\"child-set\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"child-intersection\"},{\"choice\":[{\"literal\":{\"string\":\"∪\"}},{\"literal\":{\"string\":\"∖\"}}]},{\"ref\":\"child-intersection\"},{\"optional\":{\"repeat\":{\"seq\":[{\"choice\":[{\"literal\":{\"string\":\"∪\"}},{\"literal\":{\"string\":\"∖\"}}]},{\"ref\":\"child-intersection\"}]}}}]}},{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"child-path\"},{\"literal\":{\"string\":\"∩\"}},{\"ref\":\"child-path\"},{\"optional\":{\"repeat\":{\"seq\":[{\"literal\":{\"string\":\"∩\"}},{\"ref\":\"child-path\"}]}}}]}}],\"conditions\":[],\"at\":[*]}",
       "replace": "{\"name\":\"child-set\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"pattern-intersection\"},\"separator\":{\"literal\":{\"string\":\"∪\"}}}}],\"conditions\":[],\"at\":[*]}",
-      "document": "```jbogenbau\n%const $P #« A ∪ B »\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
+      "document": "```jbogenbau\n%const $P #⁅ A ∪ B ⁆\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
       "inputs": [],
       "expect": "grammar",
       "where": {
@@ -2153,7 +2153,7 @@
       "description": "A child set accepts its child-intersection operand layer.",
       "find": "{\"name\":\"child-set\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"child-intersection\"},{\"choice\":[{\"literal\":{\"string\":\"∪\"}},{\"literal\":{\"string\":\"∖\"}}]},{\"ref\":\"child-intersection\"},{\"optional\":{\"repeat\":{\"seq\":[{\"choice\":[{\"literal\":{\"string\":\"∪\"}},{\"literal\":{\"string\":\"∖\"}}]},{\"ref\":\"child-intersection\"}]}}}]}},{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"child-path\"},{\"literal\":{\"string\":\"∩\"}},{\"ref\":\"child-path\"},{\"optional\":{\"repeat\":{\"seq\":[{\"literal\":{\"string\":\"∩\"}},{\"ref\":\"child-path\"}]}}}]}}],\"conditions\":[],\"at\":[*]}",
       "replace": "{\"name\":\"child-set\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"child-intersection\"},\"separator\":{\"literal\":{\"string\":\"∪\"}}}}],\"conditions\":[],\"at\":[*]}",
-      "document": "```jbogenbau\n%const $P #« A ∪ B »\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
+      "document": "```jbogenbau\n%const $P #⁅ A ∪ B ⁆\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
       "inputs": [
         "a"
       ],
@@ -2165,7 +2165,7 @@
       "description": "A child set also accepts direct child-path operands.",
       "find": "{\"name\":\"child-set\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"child-intersection\"},{\"choice\":[{\"literal\":{\"string\":\"∪\"}},{\"literal\":{\"string\":\"∖\"}}]},{\"ref\":\"child-intersection\"},{\"optional\":{\"repeat\":{\"seq\":[{\"choice\":[{\"literal\":{\"string\":\"∪\"}},{\"literal\":{\"string\":\"∖\"}}]},{\"ref\":\"child-intersection\"}]}}}]}},{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"child-path\"},{\"literal\":{\"string\":\"∩\"}},{\"ref\":\"child-path\"},{\"optional\":{\"repeat\":{\"seq\":[{\"literal\":{\"string\":\"∩\"}},{\"ref\":\"child-path\"}]}}}]}}],\"conditions\":[],\"at\":[*]}",
       "replace": "{\"name\":\"child-set\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"child-path\"},\"separator\":{\"literal\":{\"string\":\"∪\"}}}}],\"conditions\":[],\"at\":[*]}",
-      "document": "```jbogenbau\n%const $P #« A ∪ B »\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
+      "document": "```jbogenbau\n%const $P #⁅ A ∪ B ⁆\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
       "inputs": [
         "a"
       ],

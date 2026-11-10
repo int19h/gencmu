@@ -1,6 +1,6 @@
 {
   "description": "Engine §4.1: an anonymous erased capture has no observable root and its only child is a seal.",
-  "grammar": "%rule text $x:*e\n%conditions $x ≅ #·« ⋯ »\n%rule e A\n%erased",
+  "grammar": "%rule text $x:*e\n%conditions $x ≅ #·⁅ ⋯ ⁆\n%rule e A\n%erased",
   "tokens": [
     {
       "text": "a",

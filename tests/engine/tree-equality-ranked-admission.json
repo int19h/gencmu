@@ -1,6 +1,6 @@
 {
   "description": "Ranked admission keeps demanded trees of the common prefix separate (engine §6.1).",
-  "grammar": "%ambiguity-resolution fewest #·l, greedy\n%rule text $x:w ($y:w ≻ A)\n%conditions $y ⟹ ($y ≅ #·w«l» ∧ $x ≅ $y)\n%rule w l | A\n%rule l A",
+  "grammar": "%ambiguity-resolution fewest #·l, greedy\n%rule text $x:w ($y:w ≻ A)\n%conditions $y ⟹ ($y ≅ #·w⁅l⁆ ∧ $x ≅ $y)\n%rule w l | A\n%rule l A",
   "tokens": [
     {
       "text": "a",

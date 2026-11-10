@@ -1,6 +1,6 @@
 {
   "description": "Engine §4.1: a directly captured empty rule keeps its root tags while its parent removes that empty child.",
-  "grammar": "%ambiguity-resolution greedy\n%rule text $a:a b\n%conditions $a ≅ #·a<Marked>, $ ≅ #·« b »\n%rule a ε :: Marked\n%rule b B",
+  "grammar": "%ambiguity-resolution greedy\n%rule text $a:a b\n%conditions $a ≅ #·a<Marked>, $ ≅ #·⁅ b ⁆\n%rule a ε :: Marked\n%rule b B",
   "tokens": [
     {
       "text": "b",

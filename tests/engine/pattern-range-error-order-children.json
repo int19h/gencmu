@@ -1,6 +1,6 @@
 {
   "description": "Child-list patterns report the first invalid range in written order.",
-  "grammar": "%const $A \"ab\"\n%const $B \"cd\"\n%const $P #« $A..$A $B..$B »\n%rule text \"a\"",
+  "grammar": "%const $A \"ab\"\n%const $B \"cd\"\n%const $P #⁅ $A..$A $B..$B ⁆\n%rule text \"a\"",
   "input": "",
   "expect": {
     "error": "grammar",

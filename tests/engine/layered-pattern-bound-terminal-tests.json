@@ -1,6 +1,6 @@
 {
   "description": "Bound constants preserve terminal tests in a public pattern.",
-  "grammar": "%const $S \"x\"\n%const $T Accent\n%const $Low \"a\"\n%const $High \"z\"\n%const $P #·a« A »\n%const $R #(a ∪ b)\n%const $Q #«»\n%rule text $x:\"x\"<Accent>\n%conditions $x ≅ #·$S<$T>=$S\n%rule a A\n%rule b B\n",
+  "grammar": "%const $S \"x\"\n%const $T Accent\n%const $Low \"a\"\n%const $High \"z\"\n%const $P #·a⁅ A ⁆\n%const $R #(a ∪ b)\n%const $Q #⁅⁆\n%rule text $x:\"x\"<Accent>\n%conditions $x ≅ #·$S<$T>=$S\n%rule a A\n%rule b B\n",
   "tokens": [
     {
       "text": "x",

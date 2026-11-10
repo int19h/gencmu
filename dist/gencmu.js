@@ -4712,7 +4712,7 @@
       else text = n.choice.map(items).join(' | ');
       return array.length > 1 && (n.choice || n.child && set(n.child)) ? '('+text+')' : text;
     }).join(' ');
-    const children = (/** @type {any[]} */ array) => array.length ? '« '+items(array)+' »' : '«»';
+    const children = (/** @type {any[]} */ array) => array.length ? '⁅ '+items(array)+' ⁆' : '⁅⁆';
     /** @type {(n:any)=>string} */
     const pattern = n => {
       if (n.path) {
@@ -11681,13 +11681,13 @@
           if(collect)prohibited.add(pattern.name);
           if(!this.erasureChecks && erased.has(pattern.name) && pattern.children && !(pattern.children.length===1 && pattern.children[0].siblings)) {
             const at=patternLocations.get(pattern) ?? pattern.at;
-            throw new GencmuError("grammar",`a pattern of erased rule ${pattern.name} permits only the child list « ⋯ »`,{...where,...(at ? {line:at[0],column:at[1]} : {})});
+            throw new GencmuError("grammar",`a pattern of erased rule ${pattern.name} permits only the child list ⁅ ⋯ ⁆`,{...where,...(at ? {line:at[0],column:at[1]} : {})});
           }
         }
         for(const child of patternParts(pattern ?? {})) names(child,where,collect);
       };
       for (const check of this.erasureChecks ?? []) if(check.names.length && check.names.every((/** @type {string} */ name)=>erased.has(name))) {
-        throw new GencmuError("grammar",`a pattern of erased rule ${check.name} permits only the child list « ⋯ »`,check.where);
+        throw new GencmuError("grammar",`a pattern of erased rule ${check.name} permits only the child list ⁅ ⋯ ⁆`,check.where);
       }
       for (const use of erasurePatternUses.get(this) ?? []) names(use.pattern,use.where,false);
       erasurePatternUses.delete(this);

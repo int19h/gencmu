@@ -1,6 +1,6 @@
 {
   "description": "groups inside a repeat concatenate their items",
-  "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #« {(a b)} »\n```\n",
+  "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #⁅ {(a b)} ⁆\n```\n",
   "expect": {
     "dom": {
       "format": 47,

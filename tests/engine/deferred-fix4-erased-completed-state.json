@@ -1,6 +1,6 @@
 {
   "description": "Engine §6: erased completions collapse on the completed state that a parent reads, independent of their interior prefixes.",
-  "grammar": "%rule text gone $y:w\n%conditions $y ≅ #·w« ·first »\n%rule w first\n%rule gone first | second\n%erased\n%rule first A\n%rule second A",
+  "grammar": "%rule text gone $y:w\n%conditions $y ≅ #·w⁅ ·first ⁆\n%rule w first\n%rule gone first | second\n%erased\n%rule first A\n%rule second A",
   "tokens": [
     {
       "text": "a",

@@ -1,6 +1,6 @@
 {
   "description": "Engine §4.1: a rule tag test does not keep an empty named child in its parent sequence.",
-  "grammar": "%ambiguity-resolution fewest #·zz\n%rule text $x:e\n%conditions $x ≅ #·e« b », $x ≇ #·e<Z>\n%rule e a b\n%rule a ε\n%rule b B\n%rule zz Z Z Z",
+  "grammar": "%ambiguity-resolution fewest #·zz\n%rule text $x:e\n%conditions $x ≅ #·e⁅ b ⁆, $x ≇ #·e<Z>\n%rule e a b\n%rule a ε\n%rule b B\n%rule zz Z Z Z",
   "tokens": [
     {
       "text": "b",

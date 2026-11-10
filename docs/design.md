@@ -493,17 +493,17 @@ Shareable suffix queries cost one recognition starting the target at every posit
 
 ## Structural pattern implementation
 
-A tree pattern tests a constructed constituent without recognizing its words again. The grammar uses `#` literals and `≅` or `≇` conditions. A node test names one node, and an adjacent `« »` list constrains that node's children. A bare list constrains the children. It gives the parent no name. `_` matches any written or omitted leaf, and every test needs an atom.
+A tree pattern tests a constructed constituent without recognizing its words again. The grammar uses `#` literals and `≅` or `≇` conditions. A node test names one node, and an adjacent `⁅ ⁆` list constrains that node's children. A bare list constrains the children. It gives the parent no name. `_` matches any written or omitted leaf, and every test needs an atom.
 
 `$x ≅ $y` compares two constituents instead of testing one against a pattern. The type of the right operand chooses between the two meanings. The comparison reads the structural tree that patterns read, with each ranked group as a seal of its token values. An erased occurrence exports its root over one such seal. Tags, images and recipes take no part, so the answer depends on the two derivations alone. The engine keeps a tree identity only for the occurrences that such a comparison demands (engine §4.1). A grammar without the comparison pays nothing for it.
 
-A child list requires a rule test, template family, or call. A compatible parameter can supply that test. Terminals and tested atoms cannot carry child lists. Separate items require whitespace or comments before `«` or `·` after a node test, `»`, `]`, `}`, or group `)`. A call's adjacent first list remains attached.
+A child list requires a rule test, template family, or call. A compatible parameter can supply that test. Terminals and tested atoms cannot carry child lists. Separate items require whitespace or comments before `⁅` or `·` after a node test, `⁆`, `]`, `}`, or group `)`. A call's adjacent first list remains attached.
 
 Each node test searches through sole children by default. The prefix `·` makes only its own node exact. Child items retain their own searches unless they carry `·`. The name and attached child list must hold at the same visited node. Separate set operands can hold at different depths of the candidate's sole-child chain.
 
 Child lists contain sequences, choices, optionals, repetitions with `/` separators, and sibling gaps. Parentheses only group and never create a subtree boundary. Paths and sets combine whole patterns. Branches, omitted terminator leaves, and seals preserve structural boundaries.
 
-The pattern DOM stores child sequences as arrays. Empty and singleton child lists retain their guillemets in canonical spelling. The schema accepts exactly the reader's shapes, apart from source positions. Unresolved parameters preserve the distinction between whole patterns and child items. They never relax the surrounding field or sibling-gap rules.
+The pattern DOM stores child sequences as arrays. Empty and singleton child lists retain their brackets in canonical spelling. The schema accepts exactly the reader's shapes, apart from source positions. Unresolved parameters preserve the distinction between whole patterns and child items. They never relax the surrounding field or sibling-gap rules.
 
 Pattern unions and intersections flatten operands of their own kind, including after substitution. Node decorations are exact prefixes, tests, or child lists. Keys preserve order, duplicates, node decorations, and child boundaries.
 
@@ -642,7 +642,7 @@ The definition's own conditions, tag terms and captures read their working views
 
 Sealing belongs to each definition carrying `%erased`. An extension without that clause stays unsealed by erasure. Erasure adds no restoration block, so demanded closes and existing ranked blocks retain their meanings.
 
-The loader rejects an attached child list on a rule whose every definition is erased, except `« ⋯ »`. An author exposes a needed interior fact through a named tag. Empty token spans still contribute nothing to grammar key steps, despite their seals.
+The loader rejects an attached child list on a rule whose every definition is erased, except `⁅ ⋯ ⁆`. An author exposes a needed interior fact through a named tag. Empty token spans still contribute nothing to grammar key steps, despite their seals.
 
 Output, actions, diagnostics, and serialized forms retain their derivation-based rules. The selected derivation can change because sealing changes outside observations. No seal appears in the output tree.
 

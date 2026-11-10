@@ -135,7 +135,7 @@ func TestDeferredErasurePatternStatesInternEqualParts(t *testing.T) {
 
 func TestDeferredErasurePostSelectionWorkingView(t *testing.T) {
 	// Engine §4.1: own clauses retain working observations after the choice.
-	rk, result := rankedMeasure(t, "%rule text e\n%rule e a\n%conditions $ ≅ #« a »\n%erased\n%rule a A", deferredTokens("A"))
+	rk, result := rankedMeasure(t, "%rule text e\n%rule e a\n%conditions $ ≅ #⁅ a ⁆\n%erased\n%rule a A", deferredTokens("A"))
 	node := derivationNamed(result.first, "e")
 	if rk.rec.derivationStructure(node, true) == rk.rec.derivationStructure(node, false) {
 		t.Fatal("the erased working view was sealed")

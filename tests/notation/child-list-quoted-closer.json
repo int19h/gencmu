@@ -1,6 +1,6 @@
 {
-  "description": "quoted guillemets do not close a pattern argument",
-  "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #choose(#« \"»\" a », \"b\")\n```\n",
+  "description": "a quoted closing bracket does not close a pattern argument",
+  "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #choose(#⁅ \"⁆\" a ⁆, \"b\")\n```\n",
   "expect": {
     "dom": {
       "format": 47,
@@ -19,7 +19,7 @@
                           {
                             "child": {
                               "literal": {
-                                "string": "»"
+                                "string": "⁆"
                               }
                             }
                           },

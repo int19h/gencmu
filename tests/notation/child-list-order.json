@@ -1,6 +1,6 @@
 {
   "description": "Grouped operands flatten once without changing child order or term intersections.",
-  "document": "```jbogenbau\n%const $P #r« ((a b) c) ((a | b) | c) [((a b) c)] {((a b) c) / (d e)} »\n```\n",
+  "document": "```jbogenbau\n%const $P #r⁅ ((a b) c) ((a | b) | c) [((a b) c)] {((a b) c) / (d e)} ⁆\n```\n",
   "expect": {
     "dom": {
       "constants": [
