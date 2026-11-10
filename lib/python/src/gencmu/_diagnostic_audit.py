@@ -105,6 +105,7 @@ def diagnostic_notes(grammar):
                         roots[node["ref"]] = 1
                     pending.extend(expression_children(node))
                 possible = {name} if alt.warning is not None else set()
+                possible.update(check["name"] for _, check in grammar.checks if "warning" in check)
                 for target in closure(roots.items()):
                     possible.update(warnings.get(target, ()))
                 for code in dict.fromkeys(alt.suppress_warnings):

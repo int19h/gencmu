@@ -889,6 +889,8 @@ class Evaluator:
                 raise _GrammarFault(f"${dom['capture']} is not captured here")
             return found
         name = dom.get("method")
+        if hasattr(bound, "check_value") and name in ("parent", "preceding-node", "following-node", "preceding-element"):
+            return bound.check_value(dom)
         receiver = dom.get("receiver")
         span = yield self._span(receiver, bound)
         start, end, _ = span
@@ -917,6 +919,9 @@ class Evaluator:
     def forest_request(self, dom, bound):
         """Keep every forest filter on the same eligible witness."""
         name = dom["method"]
+        if name == "local-readings":
+            start, rule = bound.local_reading(dom["receiver"])
+            return (start, len(self.context.tokens), None), rule, "begins", False, None
         if name == "parse":
             span = yield self._span(dom["receiver"], bound)
             body = dom["args"][0]["body"]
@@ -969,7 +974,7 @@ class Evaluator:
     def walk_value(self, dom: Any, bound: Bound) -> Walk:
         """A term's value (engine §10): a string, or a set, of strings or of
         tags."""
-        if "capture" in dom:
+        if "capture" in dom or hasattr(bound, "check_value") and dom.get("method") in ("parent", "preceding-node", "following-node", "preceding-element"):
             start, end, _ = yield self._span(dom, bound)
             return self.input_value(start, end)
         if "concat" in dom:
@@ -1025,7 +1030,7 @@ class Evaluator:
                     return split_string(text, delimiter)
                 table = self.context.lowered.classifiers[args[0]["classifier"]]
                 return table.get(text, EMPTY)
-            if name == "tags" and isinstance(receiver, dict) and receiver.get("method") in ("parse", "error-free", "ending-after"):
+            if name == "tags" and isinstance(receiver, dict) and receiver.get("method") in ("parse", "error-free", "ending-after", "local-readings"):
                 return (yield self.forest_value(receiver, bound)).tags
             span = yield self._span(receiver, bound)
             if name == "tags" and args:
@@ -1061,9 +1066,17 @@ class Evaluator:
         return _as_set(self.value(dom, bound))
 
     def walk_condition(self, dom: Any, bound: Bound) -> Walk:
+        if "present" in dom:
+            return bound.check_node(dom["present"]) is not None
         if "op" in dom:
             op = dom["op"]
             if op in ("≅", "≇"):
+                if hasattr(bound, "check_node"):
+                    left = bound.require(dom["left"])
+                    right = dom["right"]
+                    equal = (left.identity == bound.require(right).identity if "capture" in right or right.get("method") in ("parent", "preceding-node", "following-node")
+                             else bound.machine.matches(left.structure, right["pattern"]))
+                    return equal == (op == "≅")
                 if "capture" in dom["right"]:
                     left = bound.tree_identity(dom["left"]["capture"])
                     right = bound.tree_identity(dom["right"]["capture"])
@@ -1101,7 +1114,7 @@ class Evaluator:
             name = dom["method"]
             if name in ("tags", "classes", "split", "ngrams", "classify"):
                 return len(_as_set((yield self.walk_value(dom, bound)))) > 0
-            if name in ("parse", "error-free", "ending-after"):
+            if name in ("parse", "error-free", "ending-after", "local-readings"):
                 return (yield self.forest_value(dom, bound)).accepted
             if name in METHODS:
                 return bound.boundary_value if bound.boundary_value is not None else bound.boundary_test(dom)
@@ -1133,6 +1146,8 @@ class Evaluator:
                 return True
             return bool((yield self.walk_condition(dom["then"], bound)))
         if "captured" in dom:
+            if hasattr(bound, "check_node"):
+                return bound.check_node({"capture": dom["captured"]}) is not None
             # Decided for each production when it is lowered (engine §3.6).
             raise _GrammarFault("a presence test outlived lowering")
         if "any" in dom:

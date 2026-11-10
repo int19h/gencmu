@@ -57,6 +57,7 @@ class DiagnosticEvent:
     diagnostic: Any
     kind: str
     own: bool
+    check: bool = False
 
 
 def tied_diagnostics(first, second):
@@ -143,9 +144,9 @@ class DiagnosticFlow:
     def info(self, node):
         return self.nodes[node]
 
-    def add(self, node, diagnostic, kind):
-        event = DiagnosticEvent(node, diagnostic, kind, True)
-        self.own[node] = event
+    def add(self, node, diagnostic, kind, check=False):
+        event = DiagnosticEvent(node, diagnostic, kind, True, check)
+        self.own.setdefault(node, []).append(event)
         self.evaluated.append(event)
 
     def messages(self):
@@ -160,9 +161,7 @@ class DiagnosticFlow:
         for node in self.order:
             if self.info(node).erased:
                 continue
-            event = self.own.get(node)
-            if event is not None:
-                result.append(event)
+            result.extend(self.own.get(node, ()))
             if not hasattr(node, "production"):
                 for kind in ("errors", "warnings"):
                     result.extend(DiagnosticEvent(node, diagnostic, kind, False)

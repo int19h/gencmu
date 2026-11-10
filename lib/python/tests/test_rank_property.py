@@ -325,6 +325,7 @@ def dom_of(rules: list[list[list[Any]]], names: list[str], lean: str) -> dict[st
             }
             for number, alternatives in enumerate(rules)
         ],
+        "checks": [],
         "directives": [{"name": "ambiguity-resolution", "steps": [{"step": "lazy" if lean == "lazy" else "greedy"}], "at": [9, 1]}],
     }
 
@@ -447,6 +448,7 @@ def random_sugared(rng: random.Random) -> dict[str, Any]:
     return {
         "format": DOM_FORMAT,
         "rules": rules,
+        "checks": [],
         "directives": [{"name": "ambiguity-resolution", "steps": [{"step":"leftmost-longest","pattern":counted_pattern(counted)}, {"step": "greedy"}], "at": [9, 1]}],
         "constants": [],
     }
@@ -479,6 +481,7 @@ def random_eliding(rng: random.Random) -> dict[str, Any]:
     return {
         "format": DOM_FORMAT,
         "rules": rules,
+        "checks": [],
         "directives": [{"name": "ambiguity-resolution", "steps": [{"step":"leftmost-longest","pattern":counted_pattern(counted)}, {"step":"late","pattern":OMITTED}], "at": [9, 1]}],
         "constants": [],
     }
@@ -631,7 +634,7 @@ def random_rules_grammar(rng: random.Random) -> tuple[dict[str, Any], str, bool,
     ]
     steps = [{"step":"leftmost-longest","pattern":counted_pattern(counted)}, {"step":"late","pattern":OMITTED} if lean == "late #·_<_Elided>" else {"step": "greedy" if lean == "none" else lean}]
     directives: list[dict[str, Any]] = [{"name": "ambiguity-resolution", "steps": steps, "at": [1, 1]}]
-    dom = {"format": DOM_FORMAT, "rules": dom_rules, "directives": directives, "constants": []}
+    dom = {"format": DOM_FORMAT, "rules": dom_rules, "checks": [], "directives": directives, "constants": []}
     return dom, lean, elidable, terminals
 
 
@@ -692,6 +695,7 @@ class RankingProperty(unittest.TestCase):
                 {"name": "x", "op": "define", "alternatives": [{"guards": [], "expr": {"ref": "A"}}], "conditions": [], "at": [4, 1]},
                 {"name": "y", "op": "define", "alternatives": [{"guards": [], "expr": {"ref": "A"}}], "conditions": [], "at": [5, 1]},
             ],
+            "checks": [],
             "directives": [{"name": "ambiguity-resolution", "steps": [{"step":"late","pattern":{"name":"text","exact":True,"at":[1,1]}}], "at": [1, 1]}],
             "constants": [],
         }
@@ -949,6 +953,7 @@ class LongInputs(unittest.TestCase):
                 {"name": "text", "op": "define", "alternatives": [{"guards": [], "expr": {"repeat": ref("unit")}}], "conditions": [], "at": [3, 1]},
                 {"name": "unit", "op": "define", "alternatives": [{"guards": [], "expr": unit} for unit in units], "conditions": [], "at": [4, 1]},
             ],
+            "checks": [],
             "directives": [{"name": "ambiguity-resolution", "steps": [{"step":"late","pattern":OMITTED}], "at": [1, 1]}],
             "constants": [],
         }

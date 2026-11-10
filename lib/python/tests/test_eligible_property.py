@@ -143,6 +143,7 @@ def random_dom(rng: random.Random) -> dict[str, Any]:
             {"name": name, "op": "define", "alternatives": [{"guards": [], "expr": expr} for expr in alternatives], "conditions": [], "at": [number + 3, 1]}
             for number, (name, alternatives) in enumerate(definitions)
         ],
+        "checks": [],
         "directives": [{"name": "ambiguity-resolution", "steps": [{"step": "greedy"}], "at": [1, 1]}],
         "constants": [],
     }

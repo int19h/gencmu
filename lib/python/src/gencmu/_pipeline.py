@@ -701,6 +701,8 @@ def _pipeline_features(grammars: list[Grammar], declared: frozenset[str]) -> tup
                 for kind in ("error", "warning"):
                     if getattr(alternative, kind) is not None:
                         roles.append((rule.name, kind, alternative.document, alternative.at))
+        roles.extend((check["name"], "error" if "error" in check else "warning", document, check["at"])
+                     for document, check in grammar.checks)
         for document, classifier in grammar.classifier_items:
             for entry in classifier["entries"]:
                 roles.extend((guard["feature"], "gate", document, entry["at"]) for guard in entry["guards"])
@@ -732,6 +734,9 @@ def _pipeline_features(grammars: list[Grammar], declared: frozenset[str]) -> tup
                     tested.setdefault(guard["feature"], grammar.stage)
                 if alt.warning is not None:
                     tested.setdefault(rule.name, grammar.stage)
+        for _, check in grammar.checks:
+            if "warning" in check:
+                tested.setdefault(check["name"], grammar.stage)
         for name in grammar.classifier_gates:
             tested.setdefault(name, grammar.stage)
     return tuple(Feature(name, kinds.get(name, "gate"), name in defaults) for name in sorted((kinds.keys() | declared | local) - errors))

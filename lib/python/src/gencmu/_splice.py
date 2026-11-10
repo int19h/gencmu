@@ -60,11 +60,11 @@ def items_in_order(dom: Dom) -> list[tuple[str, Dom]]:
     which is the order of their positions (engine §9)."""
     items = (
         [("rule", rule) for rule in dom["rules"]]
-        + [("check", check) for check in dom["checks"]]
         + [("directive", directive) for directive in dom["directives"]]
         + [("constant", constant) for constant in dom.get("constants", [])]
         + [("classifier", classifier) for classifier in dom.get("classifiers", [])]
         + [("implication", implication) for implication in dom.get("implications", [])]
+        + [("check", check) for check in dom["checks"]]
     )
     items.sort(key=lambda item: (item[1]["at"][0], item[1]["at"][1]))
     return items

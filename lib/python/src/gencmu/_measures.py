@@ -26,6 +26,8 @@ def compare_measure(left, right):
 class DiagnosticIdentity:
     stage_order: int = 0
     ordinal: int = 0
+    check: str | None = None
+    occurrence: int | None = None
 
     def __deepcopy__(self, memo):
         return self

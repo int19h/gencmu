@@ -4,8 +4,9 @@ from __future__ import annotations
 
 
 class Expansion(list):
-    def __init__(self, symbols=(), elements=None):
+    def __init__(self, symbols=(), elements=None, sites=None):
         super().__init__(symbols)
+        self.sites = None if sites is None else dict(sites)
         self.elements = tuple(("symbol", i) for i in range(len(self))) if elements is None else tuple(elements)
 
 
@@ -32,19 +33,24 @@ def shift(node, offset):
 
 
 def combine(parts):
-    symbols, elements = [], []
+    symbols, elements, sites = [], [], None
     for part in parts:
         structure = getattr(part, "elements", None)
         if structure is None:
             structure = tuple(("symbol", i) for i in range(len(part)))
         elements.extend(shift(node, len(symbols)) for node in structure)
+        written = getattr(part, "sites", None)
+        if written:
+            if sites is None:
+                sites = {}
+            sites.update((index + len(symbols), expr) for index, expr in written.items())
         symbols.extend(part)
-    return Expansion(symbols, elements)
+    return Expansion(symbols, elements, sites)
 
 
 def optional(part, place):
     elements = getattr(part, "elements", tuple(("symbol", i) for i in range(len(part))))
-    return Expansion(part, (("optional", 0, len(part), elements, place),))
+    return Expansion(part, (("optional", 0, len(part), elements, place),), getattr(part, "sites", None))
 
 
 def inherited(elements):

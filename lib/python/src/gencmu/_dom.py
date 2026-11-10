@@ -242,11 +242,11 @@ class DomBuilder:
         dom = {
             "format": FORMAT,
             "rules": rules,
-            "checks": checks,
             "directives": directives,
             "constants": constants,
             "classifiers": classifiers,
             "implications": implications,
+            "checks": checks,
         }
         flatten_groups(dom)
         return dom
@@ -1036,7 +1036,14 @@ class DomBuilder:
     def _simple_condition(self, node: Node) -> Walk:
         if node.rule == "tree-comparison":
             capture = self.one(node, "capture-reference")
-            if capture is not None:
+            selectors = self.some(node, "method-selector", 0)
+            if not self.check_context and (selectors or self.tokens[node.span[0]].value == "("):
+                raise self.fail(node, "a tree comparison requires a bare capture")
+            if selectors:
+                left = yield self._method(node)
+                if left.get("method") not in _NODE_METHODS:
+                    raise self.fail(node, "a tree comparison requires a constituent")
+            elif capture is not None:
                 left = {"capture": self.token_value(self.token(capture))[1:]}
             else:
                 if not self.check_context:
@@ -1155,7 +1162,8 @@ class DomBuilder:
         return self.unresolved_terms[id(root)][1]
 
     def _method(self, node: Node) -> Walk:
-        receiver = yield self._term(self.only(self.only(node, "method-receiver"), "term-atom"))
+        start = self.one(node, "method-receiver")
+        receiver = (yield self._term(self.only(start, "term-atom"))) if start is not None else {"capture": self.token_value(self.token(self.only(node, "capture-reference")))[1:]}
         for selector in self.some(node, "method-selector"):
             parsed = self.one(selector, "parse-selector")
             name = "parse" if parsed is not None else self.token_value(self.token(self.only(selector, "method-name")))

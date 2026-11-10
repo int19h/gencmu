@@ -220,10 +220,10 @@ def expand_templates(documents, unicode):
 
     serial = 0
     for inspection_run, (path, dom) in enumerate(documents):
-        declarations = sorted([(key, r) for key in ('rules', 'checks', 'constants', 'directives', 'classifiers', 'implications') for r in dom[key]], key=lambda item: item[1]['at'])
+        declarations = sorted([(key, r) for key in ('rules', 'directives', 'constants', 'classifiers', 'implications', 'checks') for r in dom[key]], key=lambda item: item[1]['at'])
         for kind, rule in declarations:
             event = dict(path=path, rule=rule, index=serial, inspection_run=inspection_run,
-                         kind={"rules": 0, "checks": 1, "directives": 2, "constants": 3, "classifiers": 4, "implications": 5}[kind])
+                         kind={"rules": 0, "directives": 1, "constants": 2, "classifiers": 3, "implications": 4, "checks": 5}[kind])
             serial += 1
             source_events.append(event)
             if kind != 'rules':
@@ -727,7 +727,7 @@ def child_position(key, position):
         return 'pattern'
     if key in ('alternatives', 'conditions', 'error', 'warning', 'emit', 'tags', 'value', 'image', 'default', 'requirements', 'range', 'literal', 'concat', 'union', 'intersection', 'difference', 'left', 'right', 'receiver', 'if', 'then', 'not', 'all', 'any', 'args'):
         return 'term'
-    if key in ('seq', 'choice', 'ranked', 'and', 'optional', 'repeat', 'separator', 'expr', 'splice') and position != 'pattern':
+    if key in ('seq', 'choice', 'ranked', 'and', 'optional', 'repeat', 'separator', 'expr', 'splice', 'body') and position != 'pattern':
         return 'expr'
     if key in ('pattern', 'child'):
         return 'pattern'
