@@ -601,7 +601,7 @@
     },
     {
       "description": "Issue #286: every bootstrap document requires the checks array.",
-      "find": "\"checks\":[],",
+      "find": ",\"checks\":[]",
       "replace": "",
       "stage": null,
       "line": null,
