@@ -280,7 +280,7 @@ pub(crate) fn reports(
     let mut sites = Vec::new();
     for (index, event) in flow.evaluated().iter().enumerate() {
         work::count(Work::Walked, 1);
-        if !event.error {
+        if !event.error || event.check {
             continue;
         }
         let IKind::Close { prod, start, end, .. } = tree.nodes[event.node as usize].kind else { continue };

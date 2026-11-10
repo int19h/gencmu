@@ -133,12 +133,74 @@ fn structural_key(body: &Expr) -> String {
     .to_json()
 }
 
+fn without_binders(body: &Expr) -> Expr {
+    let mut raw = String::new();
+    crate::dom::write_expr(&mut raw, body);
+    let raw = crate::json::parse_unbounded(&raw).expect("a reading expression DOM");
+    let raw = crate::parameters::map_nodes(&raw, |node| {
+        if node.get("capture").is_some() && node.get("expr").is_some() {
+            node.get("expr").unwrap().clone()
+        } else {
+            node
+        }
+    });
+    crate::dom::expr_from_json(&raw).expect("a reading expression without binders")
+}
+
 pub(crate) fn prepare(grammar: &mut crate::grammar::StageGrammar) -> Result<(), crate::error::Error> {
     use crate::clauses::Part;
     use crate::dom::{Alternative, Arg, Channels};
     use crate::fxhash::{FxMap, FxSet};
     use crate::grammar::{RuleClauses, StitchedAlternative, StitchedRule};
     use std::sync::Arc;
+    let local = grammar.checks.iter().any(|(_, check)| {
+        let mut pending: Vec<_> = check.conditions.iter().map(Part::Cond).collect();
+        while let Some(part) = pending.pop() {
+            if matches!(part, Part::Term(Term::Call(name, _)) if name == "local-readings") {
+                return true;
+            }
+            pending.extend(part.children());
+        }
+        false
+    });
+    grammar.has_elements = grammar.checks.iter().any(|(_, check)| {
+        let mut pending: Vec<_> = check.conditions.iter().map(Part::Cond).collect();
+        while let Some(part) = pending.pop() {
+            if matches!(part, Part::Term(Term::Call(name, _)) if name == "preceding-element") {
+                return true;
+            }
+            pending.extend(part.children());
+        }
+        false
+    });
+    let mut local_queries = Vec::new();
+    if local {
+        for rule in &grammar.rules {
+            for alternative in &rule.alternatives {
+                let mut pending = vec![&alternative.alternative.expr];
+                while let Some(expr) = pending.pop() {
+                    if !matches!(
+                        expr,
+                        Expr::Seq(_)
+                            | Expr::Choice(_)
+                            | Expr::And(_)
+                            | Expr::Capture(..)
+                            | Expr::Empty
+                            | Expr::Remainder
+                            | Expr::Repeat(_, _, Some(_))
+                    ) {
+                        let body = Arc::new(without_binders(expr));
+                        let term = Term::Call(
+                            "parse".into(),
+                            vec![Arg::Term(Term::Capture(String::new())), Arg::Term(Term::Body(body.clone()))],
+                        );
+                        local_queries.push((expr as *const Expr as usize, alternative, body, term));
+                    }
+                    pending.extend(expression_children(expr));
+                }
+            }
+        }
+    }
     let mut identities = FxMap::default();
     let mut seen = FxSet::default();
     let mut pending_rules = Vec::new();
@@ -173,6 +235,9 @@ pub(crate) fn prepare(grammar: &mut crate::grammar::StageGrammar) -> Result<(), 
     }
     for (document, check) in &grammar.checks {
         contexts.push((document.clone(), check.at, 0, check.conditions.iter().map(Part::Cond).collect()));
+    }
+    for (_, alternative, _, query) in &local_queries {
+        contexts.push((alternative.document.clone(), alternative.at, alternative.text_order, vec![Part::Term(query)]));
     }
     for (document, at, text_order, mut pending) in contexts {
         while let Some(part) = pending.pop() {
@@ -237,6 +302,10 @@ pub(crate) fn prepare(grammar: &mut crate::grammar::StageGrammar) -> Result<(), 
             }
             pending.extend(part.children());
         }
+    }
+    for (expression, _, body, _) in &local_queries {
+        let pointer = Arc::as_ptr(body) as usize;
+        grammar.local_targets.insert(*expression, targets.remove(&pointer).expect("a prepared reading target"));
     }
     grammar.query_targets = targets;
     for rule in pending_rules {

@@ -748,7 +748,7 @@ fn first_key(value: &Json) -> R<&str> {
         .ok_or_else(|| "an empty JSON object".into())
 }
 
-fn expr_from_json(value: &Json) -> R<Expr> {
+pub(crate) fn expr_from_json(value: &Json) -> R<Expr> {
     enum Task<'a> {
         Read(&'a Json),
         List(&'a str, usize),
@@ -908,7 +908,7 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                 }
                 "method" => {
                     children.push((field(value, "receiver")?, false));
-                    if matches!(value.get("method").and_then(Json::as_str), Some("parse")) {
+                    if matches!(value.get("method").and_then(Json::as_str), Some("parse" | "ending-after")) {
                         children.extend(array(value, "args")?.iter().map(|argument| (argument, false)));
                     } else if matches!(
                         value.get("method").and_then(Json::as_str),
@@ -982,7 +982,7 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                     if matches!(name.as_str(), "tags" | "classes" | "split" | "ngrams" | "classify") {
                         return Err("a malformed query predicate".into());
                     }
-                    if matches!(name.as_str(), "parse" | "error-free" | "ending-after") {
+                    if matches!(name.as_str(), "parse" | "error-free" | "ending-after" | "local-readings") {
                         let args = std::iter::once(Arg::Term(receiver))
                             .chain(operands.map(|operand| Arg::Term(operand.term())))
                             .collect();

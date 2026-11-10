@@ -13,7 +13,7 @@ use suffix::{SuffixKey, SuffixState};
 use crate::eligible::Proofs;
 use crate::fxhash::{FxMap, FxSet};
 
-use crate::lower::{Characters, CmpOp, LCond, LTerm, Lowered, Span, Sym, SymbolTest, TestOp};
+use crate::lower::{Characters, CmpOp, LCond, LTerm, Lowered, QueryTarget, Span, Sym, SymbolTest, TestOp};
 use crate::result::Attachment;
 use crate::tags::{difference, intersection, is_subset, union_all, SetId, TagId, TagList, Tags};
 use crate::unicode::Unicode;
@@ -1176,6 +1176,7 @@ pub(crate) struct Recognizer<'g, 's, 'a> {
 /// parts, and `$`, the whole constituent, from the item's origin to `end`.
 #[derive(Clone)]
 pub(crate) struct Frame<'c> {
+    pub check: Option<(&'c crate::checks::Tree, u32)>,
     pub prefix: u32,
     pub parent_prefix: u32,
     pub structure: u32,
@@ -1220,6 +1221,11 @@ fn span_bounds(span: &Span, frame: &Frame, input: usize) -> Bounds {
         None => (start as usize, end as usize),
     };
     match span {
+        Span::Node(_) | Span::Element(_) => {
+            let (tree, root) = frame.check.expect("a chosen-tree frame");
+            let (start, end, tags) = tree.value(root, span).expect("a present check value");
+            (start, end, tags.map_or(Whose::Tokens, Whose::Cap))
+        }
         Span::Cap(slot) => {
             let cap = frame.caps.get(*slot);
             let (start, end) = projected(cap.start, cap.end);
@@ -1266,6 +1272,7 @@ pub(crate) enum Halt<'t> {
     Error(EngineError),
     Pending(Box<Request<'t>>),
     Invalid,
+    Absent,
 }
 
 impl From<EngineError> for Halt<'_> {
@@ -1577,6 +1584,7 @@ impl<'g> Held<'g> {
                     m.concat(f.seal_prefix, seal)
                 })
             }),
+            check: None,
             parent_tags: Cell::new(None),
         }
     }
@@ -2200,6 +2208,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                         }
                     }
                 }
+                Err(Halt::Absent) => unreachable!("a chosen-tree value outside a check"),
                 Err(Halt::Invalid) => unreachable!("a rejected observation is handled by its production"),
                 Err(Halt::Error(error)) => break Err(error),
                 Err(Halt::Pending(request)) => match self.start_query(&request) {
@@ -3815,6 +3824,12 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let mut pending = vec![span];
         while let Some(span) = pending.pop() {
             match span {
+                Span::Node(_) | Span::Element(_) => {
+                    let (tree, root) = frame.check.expect("a chosen-tree frame");
+                    if tree.value(root, span).is_none() {
+                        return Err(Halt::Absent);
+                    }
+                }
                 Span::WithoutElision(inner, _) => {
                     let structure = self.span_structure(inner, frame);
                     if self
@@ -3851,7 +3866,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         &mut self,
         eval: &mut Eval<'_>,
         span: &Span,
-        rule: u32,
+        target: QueryTarget,
         query: Query,
         frame: &Frame,
         tokens: &'t [Tok],
@@ -3860,6 +3875,13 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     ) -> Result<Out, Halt<'t>> {
         self.shared.prepare_errors(tokens, base);
         let (start, match_end, _) = self.checked_bounds(span, frame, tokens.len())?;
+        let rule = match target {
+            QueryTarget::Rule(rule) => rule,
+            QueryTarget::Local => {
+                let (tree, root) = frame.check.expect("a local reading frame");
+                tree.target(root, span).expect("a prepared local reading target")
+            }
+        };
         let mut ending_after = None;
         for end in after {
             let high = base + self.checked_bounds(end, frame, tokens.len())?.1;
@@ -4085,6 +4107,28 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 Task::Cond(cond) => {
                     work::count(Work::Visits, 1);
                     match cond {
+                        LCond::SameTree(left, positive, right, _) if frame.check.is_some() => {
+                            let (tree, root) = frame.check.unwrap();
+                            let left = tree.node(root, left).ok_or(Halt::Absent)?;
+                            let right = tree.node(root, right).ok_or(Halt::Absent)?;
+                            Out::Bool(
+                                (tree.nodes[left as usize].identity == tree.nodes[right as usize].identity)
+                                    == *positive,
+                            )
+                        }
+                        LCond::Tree(span, positive, pattern) if frame.check.is_some() => {
+                            let (tree, root) = frame.check.unwrap();
+                            let node = tree.node(root, span).ok_or(Halt::Absent)?;
+                            Out::Bool(tree.machine.matches(tree.nodes[node as usize].structure, pattern) == *positive)
+                        }
+                        LCond::Boundary(forward, span, targets, _, _) if frame.check.is_some() => {
+                            let (start, end, _) = self.checked_bounds(span, frame, tokens.len())?;
+                            Out::Bool(frame.check.unwrap().0.boundary(
+                                *forward,
+                                if *forward { end } else { start },
+                                targets,
+                            ))
+                        }
                         LCond::SameTree(left, positive, right, _) => {
                             let m = self.shared.machine.as_ref().expect("demanded identities").borrow();
                             let a = m.tree(self.span_structure(left, frame)).map(|tree| tree.identity);
@@ -4185,14 +4229,15 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                             eval.push(Task::Implies(consequent), Task::Cond(antecedent));
                             continue;
                         }
-                        LCond::Present(span) => {
-                            self.checked_bounds(span, frame, tokens.len())?;
-                            Out::Bool(true)
-                        }
+                        LCond::Present(span) => match self.checked_bounds(span, frame, tokens.len()) {
+                            Ok(_) => Out::Bool(true),
+                            Err(Halt::Absent) => Out::Bool(false),
+                            Err(halt) => return Err(halt),
+                        },
                         LCond::Forest(forest) => self.query(
                             eval,
                             &forest.span,
-                            forest.rule,
+                            forest.target,
                             Query::Forest(forest.mode, forest.clean, false),
                             frame,
                             tokens,
@@ -4200,13 +4245,13 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                             &forest.after,
                         )?,
                         LCond::Matches(span, rule) => {
-                            self.query(eval, span, *rule, Query::Matches, frame, tokens, base, &[])?
+                            self.query(eval, span, QueryTarget::Rule(*rule), Query::Matches, frame, tokens, base, &[])?
                         }
                         LCond::Begins(span, rule) => {
-                            self.query(eval, span, *rule, Query::Begins, frame, tokens, base, &[])?
+                            self.query(eval, span, QueryTarget::Rule(*rule), Query::Begins, frame, tokens, base, &[])?
                         }
                         LCond::Ends(span, rule) => {
-                            self.query(eval, span, *rule, Query::Ends, frame, tokens, base, &[])?
+                            self.query(eval, span, QueryTarget::Rule(*rule), Query::Ends, frame, tokens, base, &[])?
                         }
                         // Where the input of the parse that reads the
                         // condition begins (§10). Positions count from the
@@ -4299,7 +4344,16 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                             (start, end, Whose::Tokens) => Value::Set(self.token_tags(tokens, start, end)),
                         },
                         LTerm::TagsRule(span, rule) => {
-                            match self.query(eval, span, *rule, Query::TagsRule, frame, tokens, base, &[])? {
+                            match self.query(
+                                eval,
+                                span,
+                                QueryTarget::Rule(*rule),
+                                Query::TagsRule,
+                                frame,
+                                tokens,
+                                base,
+                                &[],
+                            )? {
                                 Out::Value(value) => value,
                                 _ => unreachable!("a set of tags"),
                             }
@@ -4308,7 +4362,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                             match self.query(
                                 eval,
                                 &forest.span,
-                                forest.rule,
+                                forest.target,
                                 Query::Forest(forest.mode, forest.clean, true),
                                 frame,
                                 tokens,
@@ -4520,6 +4574,30 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         Ok(last.expect("a value"))
     }
 
+    pub(crate) fn check_condition(
+        &mut self,
+        condition: &LCond,
+        frame: &Frame,
+        tokens: &[Tok],
+    ) -> Result<bool, EngineError> {
+        let mut eval = Eval {
+            tasks: vec![Task::Cond(condition)],
+            hidden: false,
+            answer: None,
+            boundary_value: None,
+            obligations: vec![],
+        };
+        loop {
+            match self.evaluate(&mut eval, frame, tokens, 0) {
+                Ok(out) => return Ok(out.holds()),
+                Err(Halt::Absent) => return Ok(false),
+                Err(Halt::Invalid) => unreachable!("restoration is forbidden in checks"),
+                Err(Halt::Error(error)) => return Err(error),
+                Err(Halt::Pending(request)) => eval.answer = Some(self.answer(*request)?),
+            }
+        }
+    }
+
     /// Tests an omitted prediction only when rejection evidence requests it (§12.1).
     pub(crate) fn omitted_allowed(
         &mut self,
@@ -4550,7 +4628,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         loop {
             match self.evaluate(&mut eval, &frame, tokens, 0) {
                 Ok(out) => return Ok(out.holds()),
-                Err(Halt::Invalid) => return Ok(false),
+                Err(Halt::Invalid | Halt::Absent) => return Ok(false),
                 Err(Halt::Error(error)) => return Err(error),
                 Err(Halt::Pending(request)) => eval.answer = Some(self.answer(*request)?),
             }
@@ -4583,6 +4661,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         loop {
             match self.evaluate(&mut eval, frame, tokens, base) {
                 Ok(out) => return self.as_set(out.value()),
+                Err(Halt::Absent) => unreachable!("a chosen-tree value in a tag term"),
                 Err(Halt::Invalid) => {
                     return Err(EngineError {
                         message: "a reached span has a cyclic restoration observation".into(),
@@ -4712,6 +4791,7 @@ mod tests {
                 parent_prefix: 0,
                 lexical: None,
                 parent_structure: u32::MAX,
+                check: None,
                 parent_tags: Cell::new(None),
                 structure: u32::MAX,
                 caps: Caps::All(&[]),
@@ -4796,6 +4876,7 @@ mod tests {
                 parent_prefix: 0,
                 lexical: None,
                 parent_structure: u32::MAX,
+                check: None,
                 parent_tags: Cell::new(None),
                 structure: u32::MAX,
                 caps: Caps::All(&[]),
@@ -5100,6 +5181,7 @@ mod tests {
             parent_prefix: 0,
             lexical: None,
             parent_structure: u32::MAX,
+            check: None,
             parent_tags: Cell::new(None),
             structure: u32::MAX,
             caps: Caps::All(&caps),
@@ -5204,6 +5286,7 @@ mod tests {
                 parent_prefix: 0,
                 lexical: None,
                 parent_structure: u32::MAX,
+                check: None,
                 parent_tags: Cell::new(None),
                 structure: u32::MAX,
                 caps: Caps::All(&caps),

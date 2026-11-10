@@ -107,6 +107,8 @@ pub struct Change {
 #[derive(Debug, Clone)]
 pub(crate) struct StageGrammar {
     pub checks: Vec<(Arc<str>, CheckDef)>,
+    pub local_targets: FxMap<usize, String>,
+    pub has_elements: bool,
     pub query_targets: FxMap<usize, String>,
     pub tree_comparisons: bool,
     pub tree_expressions: bool,
@@ -280,6 +282,8 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
     }
     let mut grammar = StageGrammar {
         checks: Vec::new(),
+        local_targets: Default::default(),
+        has_elements: false,
         query_targets: Default::default(),
         tree_comparisons: false,
         tree_expressions: false,
@@ -2855,6 +2859,8 @@ mod tests {
                 (0..n).map(|index| entry(index, true)).chain((0..n).map(|index| entry(index, false))).collect();
             StageGrammar {
                 checks: Vec::new(),
+                local_targets: Default::default(),
+                has_elements: false,
                 query_targets: Default::default(),
                 tree_comparisons: false,
                 tree_expressions: false,

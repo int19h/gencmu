@@ -20,7 +20,10 @@ impl Node<'_> {
         }
     }
     fn forest(forest: &crate::lower::LForest) -> Vec<Node<'_>> {
-        let mut children = vec![Node::Query(&forest.span, forest.rule, forest.clean)];
+        let mut children = vec![match forest.target {
+            crate::lower::QueryTarget::Rule(rule) => Node::Query(&forest.span, rule, forest.clean),
+            crate::lower::QueryTarget::Local => Node::Span(&forest.span),
+        }];
         children.extend(forest.after.iter().map(Node::Span));
         children
     }

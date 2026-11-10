@@ -66,6 +66,7 @@ pub(crate) struct Event {
     pub diagnostic: Warning,
     pub error: bool,
     pub own: bool,
+    pub check: bool,
 }
 
 #[derive(PartialEq, Eq, Hash)]
@@ -163,7 +164,7 @@ pub(crate) struct DiagnosticFlow<'a> {
     erased: Vec<bool>,
     scopes_of: Vec<usize>,
     scope_roots: Vec<Option<usize>>,
-    own: Vec<Option<Event>>,
+    own: Vec<Vec<Event>>,
     evaluated: Vec<Event>,
     scopes: Vec<Scope>,
     rows: Vec<Row>,
@@ -209,7 +210,7 @@ impl<'a> DiagnosticFlow<'a> {
             erased,
             scopes_of: vec![0; size],
             scope_roots: vec![None; size],
-            own: vec![None; size],
+            own: vec![Vec::new(); size],
             evaluated: Vec::new(),
             scopes: vec![Scope::default()],
             rows: Vec::new(),
@@ -228,8 +229,14 @@ impl<'a> DiagnosticFlow<'a> {
         self.prefix[end] - self.prefix[start]
     }
     pub(crate) fn add(&mut self, node: u32, diagnostic: Warning, error: bool) {
-        let event = Event { node, diagnostic, error, own: true };
-        self.own[node as usize] = Some(event.clone());
+        self.add_event(node, diagnostic, error, false);
+    }
+    pub(crate) fn add_check(&mut self, node: u32, diagnostic: Warning, error: bool) {
+        self.add_event(node, diagnostic, error, true);
+    }
+    fn add_event(&mut self, node: u32, diagnostic: Warning, error: bool, check: bool) {
+        let event = Event { node, diagnostic, error, own: true, check };
+        self.own[node as usize].push(event.clone());
         self.evaluated.push(event);
     }
     pub(crate) fn ordinal(&self) -> usize {
@@ -244,7 +251,13 @@ impl<'a> DiagnosticFlow<'a> {
     pub(crate) fn rejection(&mut self, index: usize, evidence: crate::result::RejectionEvidence) {
         let event = &mut self.evaluated[index];
         event.diagnostic.rejection = Some(evidence.clone());
-        self.own[event.node as usize].as_mut().unwrap().diagnostic.rejection = Some(evidence);
+        let id = identity(&event.diagnostic);
+        self.own[event.node as usize]
+            .iter_mut()
+            .find(|own| identity(&own.diagnostic) == id)
+            .unwrap()
+            .diagnostic
+            .rejection = Some(evidence);
     }
     pub(crate) fn messages(&self) -> Lists {
         let mut result = Lists::default();
@@ -263,9 +276,7 @@ impl<'a> DiagnosticFlow<'a> {
             if self.erased[index] {
                 continue;
             }
-            if let Some(event) = &self.own[index] {
-                result.push(event.clone());
-            }
+            result.extend(self.own[index].iter().cloned());
             if let IKind::Read { tok, .. } = node.kind {
                 let token = &self.tokens[tok as usize];
                 for (diagnostics, error) in [(&token.errors, true), (&token.warnings, false)] {
@@ -274,6 +285,7 @@ impl<'a> DiagnosticFlow<'a> {
                         diagnostic: diagnostic.clone(),
                         error,
                         own: false,
+                        check: false,
                     }));
                 }
             }
@@ -600,8 +612,14 @@ mod tests {
     #[test]
     fn deferred_tie_collections_keep_maximum_own_multiplicity_and_carried_identity() {
         // Engine §12.1: carried identities join once, while equal own objects keep their maximum multiplicity.
-        let own = |ordinal| Event { node: 0, diagnostic: diagnostic("same", 1, ordinal), error: true, own: true };
-        let carried = Event { node: 1, diagnostic: diagnostic("old", 0, 0), error: true, own: false };
+        let own = |ordinal| Event {
+            node: 0,
+            diagnostic: diagnostic("same", 1, ordinal),
+            error: true,
+            own: true,
+            check: false,
+        };
+        let carried = Event { node: 1, diagnostic: diagnostic("old", 0, 0), error: true, own: false, check: false };
         let first = vec![own(0), own(1), carried.clone()];
         let second = vec![own(0), carried, own(1), own(2)];
         assert_eq!(codes(&tied(&first, &second).errors), ["same", "same", "old", "same"]);

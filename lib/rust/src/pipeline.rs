@@ -817,13 +817,12 @@ impl Pipeline {
         let mut flow = DiagnosticFlow::new(&lowered, &chosen, &input);
         let reports = evaluate_reports(
             &chosen,
-            &lowered,
+            &mut Recognizer { g: &lowered, matchers: &matchers, shared, recon: None },
             &sources,
             features,
             &grammar.name,
             index,
             &input,
-            shared.text,
             &mut flow,
         );
         run.evaluated = flow.messages();
@@ -836,13 +835,12 @@ impl Pipeline {
             let mut second_flow = DiagnosticFlow::new(&lowered, &second, &input);
             let reports = evaluate_reports(
                 &second,
-                &lowered,
+                &mut Recognizer { g: &lowered, matchers: &matchers, shared, recon: None },
                 &sources,
                 features,
                 &grammar.name,
                 index,
                 &input,
-                shared.text,
                 &mut second_flow,
             );
             run.evaluated = diagnostic_flow::join([run.evaluated.parts(), second_flow.messages().parts()]);

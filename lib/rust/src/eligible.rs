@@ -1094,7 +1094,7 @@ mod tests {
         }
         let document = format!("```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n{}\n```\n", lines.join("\n"));
         let dom = format!(
-            r#"{{"format":{},"checks":[],"rules":[{}],"directives":[{{"name":"ambiguity-resolution","steps":[{{"step":"greedy"}}],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}"#,
+            r#"{{"format":{},"rules":[{}],"directives":[{{"name":"ambiguity-resolution","steps":[{{"step":"greedy"}}],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[],"checks":[]}}"#,
             crate::dom::DOM_FORMAT,
             rules.join(",")
         );

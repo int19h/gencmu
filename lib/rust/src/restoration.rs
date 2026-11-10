@@ -415,7 +415,11 @@ pub(crate) fn demanded(g: &crate::lower::Lowered) -> crate::fxhash::FxSet<u32> {
         match t {
             LTerm::TagsRule(s, r) => query(s, *r, p, w, todo),
             LTerm::ForestTags(forest) => {
-                query(&forest.span, forest.rule, p, w, todo);
+                if let crate::lower::QueryTarget::Rule(rule) = forest.target {
+                    query(&forest.span, rule, p, w, todo);
+                } else {
+                    span(&forest.span, p, w);
+                }
                 for end in &forest.after {
                     span(end, p, w);
                 }
@@ -448,7 +452,11 @@ pub(crate) fn demanded(g: &crate::lower::Lowered) -> crate::fxhash::FxSet<u32> {
             LCond::SameTree(..) => (),
             LCond::Matches(s, r) | LCond::Begins(s, r) | LCond::Ends(s, r) => query(s, *r, p, w, todo),
             LCond::Forest(forest) => {
-                query(&forest.span, forest.rule, p, w, todo);
+                if let crate::lower::QueryTarget::Rule(rule) = forest.target {
+                    query(&forest.span, rule, p, w, todo);
+                } else {
+                    span(&forest.span, p, w);
+                }
                 for end in &forest.after {
                     span(end, p, w);
                 }
@@ -789,7 +797,11 @@ pub(crate) fn local_demands(g: &crate::lower::Lowered) -> Vec<LocalDemand> {
                 for end in &forest.after {
                     span(end, out);
                 }
-                query(&forest.span, forest.rule, out);
+                if let crate::lower::QueryTarget::Rule(rule) = forest.target {
+                    query(&forest.span, rule, out);
+                } else {
+                    span(&forest.span, out);
+                }
             }
             LTerm::TagsRule(s, _)
             | LTerm::Text(s)
@@ -823,7 +835,11 @@ pub(crate) fn local_demands(g: &crate::lower::Lowered) -> Vec<LocalDemand> {
                 for end in &forest.after {
                     span(end, out);
                 }
-                query(&forest.span, forest.rule, out);
+                if let crate::lower::QueryTarget::Rule(rule) = forest.target {
+                    query(&forest.span, rule, out);
+                } else {
+                    span(&forest.span, out);
+                }
             }
             LCond::Present(s)
             | LCond::Initial(s)

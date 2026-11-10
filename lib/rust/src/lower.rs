@@ -24,8 +24,27 @@ pub(crate) enum Characters {
     Any,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum NodeWalk {
+    Parent,
+    Preceding,
+    Following,
+}
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum QueryTarget {
+    Rule(u32),
+    Local,
+}
+#[derive(Debug, Clone)]
+pub(crate) struct Check {
+    pub definition: crate::dom::CheckDef,
+    pub conditions: Vec<LCond>,
+}
+
 #[derive(Debug, Clone)]
 pub(crate) enum Span {
+    Node(Vec<NodeWalk>),
+    Element(Vec<NodeWalk>),
     Cap(u32),
     Lexical(String),
     /// `$`, the whole constituent: from the item's origin to its end.
@@ -46,7 +65,7 @@ pub(crate) enum Span {
 #[derive(Debug, Clone)]
 pub(crate) struct LForest {
     pub span: Span,
-    pub rule: u32,
+    pub target: QueryTarget,
     pub mode: crate::query_forms::Mode,
     pub clean: bool,
     pub after: Vec<Span>,
@@ -245,6 +264,8 @@ pub(crate) struct Prod {
     /// Plain optional boundaries, including routes expanded for captures (§4).
     pub optionals: Vec<OptionalBoundary>,
     pub routes: FxMap<usize, u8>,
+    pub site_targets: Vec<Option<u32>>,
+    pub elements: Option<Vec<Element>>,
     pub forward_captures: FxMap<usize, String>,
     /// For each position, its capture slot.
     pub cap_at: Vec<Option<u32>>,
@@ -346,6 +367,9 @@ impl Prod {
 
 #[derive(Debug, Clone)]
 pub(crate) struct Lowered {
+    pub checks: Vec<Check>,
+    pub helper_targets: FxMap<u32, u32>,
+    pub optional_targets: Vec<Option<u32>>,
     pub reads_errors: Vec<bool>,
     pub has_errors: bool,
     pub profile_possible: ProfilePossible,
@@ -467,12 +491,39 @@ pub(crate) struct OptionalBoundary {
     pub end: usize,
 }
 
+#[derive(Debug, Clone)]
+pub(crate) enum Element {
+    Symbol(usize),
+    Optional { start: usize, end: usize, expression: usize, children: Vec<Element> },
+}
+impl Element {
+    pub(crate) fn bounds(&self) -> (usize, usize) {
+        match self {
+            Self::Symbol(at) => (*at, *at + 1),
+            Self::Optional { start, end, .. } => (*start, *end),
+        }
+    }
+    fn shifted(&self, offset: usize) -> Self {
+        match self {
+            Self::Symbol(at) => Self::Symbol(at + offset),
+            Self::Optional { start, end, expression, children } => Self::Optional {
+                start: start + offset,
+                end: end + offset,
+                expression: *expression,
+                children: children.iter().map(|child| child.shifted(offset)).collect(),
+            },
+        }
+    }
+}
+
 /// A symbol, its capture name and the id of its test.
 type Item = (Sym, Option<String>, Option<u32>);
 #[derive(Clone, Default)]
 struct Sequence {
     items: Vec<Item>,
     optionals: Vec<OptionalBoundary>,
+    sites: FxMap<usize, usize>,
+    elements: Option<Vec<Element>>,
     routes: FxMap<usize, u8>,
     element_width: usize,
     inherited: Option<usize>,
@@ -481,16 +532,26 @@ impl Sequence {
     fn new() -> Self {
         Self::default()
     }
-    fn one(item: Item) -> Self {
+    fn one(item: Item, observe: bool) -> Self {
         Self {
             items: vec![item],
             element_width: 1,
             inherited: Some(0),
             optionals: Vec::new(),
+            sites: FxMap::default(),
+            elements: observe.then(|| vec![Element::Symbol(0)]),
             routes: FxMap::default(),
         }
     }
-    fn optional(&mut self, expression: usize) {
+    fn optional(&mut self, expression: usize, observe: bool) {
+        if observe {
+            self.elements = Some(vec![Element::Optional {
+                start: 0,
+                end: self.items.len(),
+                expression,
+                children: self.elements.take().unwrap_or_default(),
+            }]);
+        }
         self.optionals.push(OptionalBoundary { expression, start: 0, end: self.items.len() });
     }
     fn append(&mut self, other: &Self) {
@@ -502,6 +563,10 @@ impl Sequence {
             None
         };
         let offset = self.items.len();
+        if let Some(elements) = &other.elements {
+            self.elements.get_or_insert_with(Vec::new).extend(elements.iter().map(|element| element.shifted(offset)));
+        }
+        self.sites.extend(other.sites.iter().map(|(&index, &target)| (index + offset, target)));
         self.routes.extend(other.routes.iter().map(|(&i, &route)| (i + offset, route)));
         self.optionals.extend(other.optionals.iter().map(|boundary| OptionalBoundary {
             expression: boundary.expression,
@@ -735,7 +800,7 @@ impl<'a> Lowerer<'a> {
             None => vec![Sequence::new()],
         };
         let this = this.unwrap_or(Sym::N((self.grammar.rules.len() + self.helpers.len()) as u32));
-        let this: Vec<Sequence> = vec![Sequence::one((this, None, None))];
+        let this: Vec<Sequence> = vec![Sequence::one((this, None, None), self.grammar.has_elements)];
         let recursive = match chain {
             Chain::Left => product(product(this, &separators), &items),
             Chain::Right => product(product(items.clone(), &separators), &this),
@@ -746,6 +811,26 @@ impl<'a> Lowerer<'a> {
     }
 
     fn expand(&mut self, expr: &Expr) -> Vec<Sequence> {
+        let mut expanded = self.expand_body(expr);
+        let local = !self.grammar.local_targets.is_empty();
+        let retained_optional = matches!(expr, Expr::Optional(inner, Mark::Plain, _) if holds_capture(inner, false));
+        if local
+            && !retained_optional
+            && !matches!(
+                expr,
+                Expr::Seq(_) | Expr::Choice(_) | Expr::And(_) | Expr::Capture(..) | Expr::Empty | Expr::Remainder
+            )
+        {
+            for sequence in &mut expanded {
+                if sequence.len() == 1 {
+                    sequence.sites.insert(0, expr as *const Expr as usize);
+                }
+            }
+        }
+        expanded
+    }
+
+    fn expand_body(&mut self, expr: &Expr) -> Vec<Sequence> {
         match expr {
             Expr::Source(_) => unreachable!("source symbols expand before lowering"),
             Expr::Literal(_) | Expr::ScalarRange(..) => unreachable!("stitching binds terminal strings"),
@@ -768,7 +853,7 @@ impl<'a> Lowerer<'a> {
                 }
                 let sym = self.helper(prods, None, expr);
                 self.helpers.last_mut().expect("a ranked helper").options = Some(options);
-                vec![Sequence::one((sym, None, None))]
+                vec![Sequence::one((sym, None, None), self.grammar.has_elements)]
             }
             Expr::Choice(items) => {
                 let mut out = Vec::new();
@@ -804,7 +889,7 @@ impl<'a> Lowerer<'a> {
                         sequence.inherited = None;
                     }
                     sequence.element_width = 1;
-                    sequence.optional(self.optional_id(expr));
+                    sequence.optional(self.optional_id(expr), self.grammar.has_elements);
                 }
                 out
             }
@@ -832,8 +917,8 @@ impl<'a> Lowerer<'a> {
                             }
                         }
                         let sym = self.helper(vec![route], None, expr);
-                        let mut sequence = Sequence::one((sym, None, None));
-                        sequence.optional(self.optional_id(expr));
+                        let mut sequence = Sequence::one((sym, None, None), self.grammar.has_elements);
+                        sequence.optional(self.optional_id(expr), self.grammar.has_elements);
                         sequence
                     })
                     .collect()
@@ -846,9 +931,9 @@ impl<'a> Lowerer<'a> {
                 prods.extend(body);
                 let sym = self.helper(prods, Some(elided), expr);
                 let Expr::Capture(name, _) = &**inner else { unreachable!() };
-                let mut absent = Sequence::one((sym, None, None));
+                let mut absent = Sequence::one((sym, None, None), self.grammar.has_elements);
                 absent.routes.insert(0, 1);
-                let mut written = Sequence::one((sym, Some(name.clone()), None));
+                let mut written = Sequence::one((sym, Some(name.clone()), None), self.grammar.has_elements);
                 written.routes.insert(0, 2);
                 vec![absent, written]
             }
@@ -861,9 +946,9 @@ impl<'a> Lowerer<'a> {
                 let mut prods = vec![Sequence::new()];
                 prods.extend(body);
                 let sym = self.helper(prods, elided, expr);
-                let mut sequence = Sequence::one((sym, None, None));
+                let mut sequence = Sequence::one((sym, None, None), self.grammar.has_elements);
                 if *mark == Mark::Plain {
-                    sequence.optional(self.optional_id(expr));
+                    sequence.optional(self.optional_id(expr), self.grammar.has_elements);
                 }
                 vec![sequence]
             }
@@ -872,7 +957,7 @@ impl<'a> Lowerer<'a> {
                 self.enter();
                 let prods = self.braces(item, separator.as_deref(), None, Chain::Left);
                 let sym = self.helper(prods, None, expr);
-                vec![Sequence::one((sym, None, None))]
+                vec![Sequence::one((sym, None, None), self.grammar.has_elements)]
             }
             Expr::Splice(inner) => {
                 let mut sequences = self.expand(inner);
@@ -894,8 +979,10 @@ impl<'a> Lowerer<'a> {
                 }
                 sequences
             }
-            Expr::Ref(name) => vec![Sequence::one((self.symbol(name, true), None, None))],
-            Expr::Terminal(name) => vec![Sequence::one((self.symbol(name, false), None, None))],
+            Expr::Ref(name) => vec![Sequence::one((self.symbol(name, true), None, None), self.grammar.has_elements)],
+            Expr::Terminal(name) => {
+                vec![Sequence::one((self.symbol(name, false), None, None), self.grammar.has_elements)]
+            }
             // Scalar endpoints also supply the canonical diagnostic name.
             Expr::Range(first, last) => {
                 let spelling = format!(
@@ -904,11 +991,11 @@ impl<'a> Lowerer<'a> {
                     crate::tags::string_name(&last.to_string(), &self.grammar.unicode)
                 );
                 let terminal = self.terminal(&spelling, Some(Characters::Range(*first, *last)));
-                vec![Sequence::one((Sym::T(terminal), None, None))]
+                vec![Sequence::one((Sym::T(terminal), None, None), self.grammar.has_elements)]
             }
             Expr::Wildcard => {
                 let terminal = self.terminal("_", Some(Characters::Any));
-                vec![Sequence::one((Sym::T(terminal), None, None))]
+                vec![Sequence::one((Sym::T(terminal), None, None), self.grammar.has_elements)]
             }
             // A tested symbol lowers to its symbol with the test, and adds
             // no helper (§3).
@@ -980,6 +1067,7 @@ struct Scope<'a> {
     last: Option<usize>,
     /// Whether `$` has been mentioned so far.
     whole: bool,
+    checking: bool,
     site: Option<crate::boundary::Site>,
 }
 
@@ -988,7 +1076,7 @@ impl<'a> Scope<'a> {
         match term {
             Term::Capture(name) if name.is_empty() => {
                 self.whole = true;
-                Ok(Span::Whole)
+                Ok(if self.checking { Span::Node(Vec::new()) } else { Span::Whole })
             }
             Term::Capture(name) => {
                 let &slot = self.names.get(name).ok_or(Missing)?;
@@ -998,6 +1086,25 @@ impl<'a> Scope<'a> {
                 let position = self.cap_pos[slot as usize];
                 self.last = Some(self.last.map_or(position, |last| last.max(position)));
                 Ok(Span::Cap(slot))
+            }
+            Term::Call(name, args)
+                if self.checking
+                    && matches!(
+                        name.as_str(),
+                        "parent" | "preceding-node" | "following-node" | "preceding-element"
+                    ) =>
+            {
+                let [Arg::Term(receiver)] = args.as_slice() else { return Err(Missing) };
+                let Span::Node(mut path) = self.span(receiver)? else { return Err(Missing) };
+                if name == "preceding-element" {
+                    return Ok(Span::Element(path));
+                }
+                path.push(match name.as_str() {
+                    "parent" => NodeWalk::Parent,
+                    "preceding-node" => NodeWalk::Preceding,
+                    _ => NodeWalk::Following,
+                });
+                Ok(Span::Node(path))
             }
             Term::Call(name, args) => {
                 if let ("without-elision-except", [Arg::Term(inner), Arg::Rule(family)]) = (name.as_str(), &args[..]) {
@@ -1038,6 +1145,11 @@ impl<'a> Scope<'a> {
             Term::Difference(left, right) => LTerm::Diff(Box::new(self.term(left)?), Box::new(self.term(right)?)),
             // String contexts project captures and derived spans to input values (§10).
             Term::Capture(_) => LTerm::Value(self.span(term)?),
+            Term::Call(name, _)
+                if self.checking && matches!(name.as_str(), "parent" | "preceding-node" | "following-node") =>
+            {
+                LTerm::Value(self.span(term)?)
+            }
             Term::Call(name, _)
                 if matches!(
                     name.as_str(),
@@ -1114,13 +1226,29 @@ impl<'a> Scope<'a> {
             work::count(Work::Walked, 1);
         }
         let Term::Call(name, args) = term else { return Ok(None) };
+        if let ("local-readings", [Arg::Term(receiver)]) = (name.as_str(), args.as_slice()) {
+            after.reverse();
+            return Ok(Some(LForest {
+                span: Span::From(Box::new(self.span(receiver)?)),
+                target: QueryTarget::Local,
+                mode: crate::query_forms::Mode::Prefix,
+                clean,
+                after,
+            }));
+        }
         let ("parse", [Arg::Term(receiver), Arg::Term(Term::Body(body))]) = (name.as_str(), args.as_slice()) else {
             return Ok(None);
         };
         let target = self.body_targets.get(&(Arc::as_ptr(body) as usize)).ok_or(Missing)?;
         let rule = self.query_target(target)?;
         after.reverse();
-        Ok(Some(LForest { span: self.span(receiver)?, rule, mode: crate::query_forms::body_mode(body), clean, after }))
+        Ok(Some(LForest {
+            span: self.span(receiver)?,
+            target: QueryTarget::Rule(rule),
+            mode: crate::query_forms::body_mode(body),
+            clean,
+            after,
+        }))
     }
 
     fn forest(&mut self, term: &Term) -> Result<LCond, Missing> {
@@ -1184,6 +1312,7 @@ impl<'a> Scope<'a> {
                 LCond::If(Box::new(self.cond(antecedent)?), Box::new(self.cond(consequent)?))
             }
             // Simplification has decided every presence test (§3.6).
+            Cond::Captured(name) if self.checking && name.is_empty() => LCond::Present(Span::Node(Vec::new())),
             Cond::Captured(_) => return Err(Missing),
         })
     }
@@ -1529,6 +1658,24 @@ pub(crate) fn lower(
         });
     }
 
+    let local_target = |expression: usize| {
+        grammar
+            .local_targets
+            .get(&expression)
+            .and_then(|name| grammar.index.get(name).map(|&id| id as u32).or_else(|| query_rules.get(name).copied()))
+    };
+    let helper_targets: FxMap<_, _> = lowerer
+        .helpers
+        .iter()
+        .enumerate()
+        .filter_map(|(index, helper)| {
+            local_target(helper.expr).map(|target| ((grammar.rules.len() + index) as u32, target))
+        })
+        .collect();
+    let mut optional_targets = vec![None; lowerer.optional_ids.len()];
+    for (&expression, &id) in &lowerer.optional_ids {
+        optional_targets[id] = local_target(expression);
+    }
     let terminals = std::mem::take(&mut lowerer.terminals);
     let characters = std::mem::take(&mut lowerer.characters);
     let mut prods = Vec::with_capacity(order.len());
@@ -1562,6 +1709,10 @@ pub(crate) fn lower(
             rule: pending.rule,
             owner,
             routes: pending.sequence.routes.clone(),
+            elements: pending.sequence.elements.clone(),
+            site_targets: (0..if grammar.local_targets.is_empty() { 0 } else { pending.sequence.len() })
+                .map(|index| pending.sequence.sites.get(&index).and_then(|&expression| local_target(expression)))
+                .collect(),
             forward_captures: pending
                 .sequence
                 .routes
@@ -1658,6 +1809,7 @@ pub(crate) fn lower(
                 body_targets: &grammar.query_targets,
                 last: None,
                 whole: false,
+                checking: false,
                 site: None,
             };
             // Every clause is simplified for this production first (§3.6),
@@ -1886,6 +2038,8 @@ pub(crate) fn lower(
     for (rule, symbol) in query_symbols {
         rules[rule as usize].prods.push(prods.len() as u32);
         prods.push(Prod {
+            site_targets: Vec::new(),
+            elements: None,
             rule,
             owner: rule,
             syms: vec![symbol],
@@ -1936,7 +2090,37 @@ pub(crate) fn lower(
     let reads_until = reads_until(&rules, &prods);
     let tests = std::mem::take(&mut lowerer.tests);
     let elides = rules.iter().any(|rule| rule.elided.is_some());
+    let empty_names = FxMap::default();
+    let checks = grammar
+        .checks
+        .iter()
+        .map(|(document, definition)| {
+            let mut scope = Scope {
+                names: &empty_names,
+                cap_pos: &[],
+                rules: &grammar.index,
+                query_rules: &query_rules,
+                body_targets: &grammar.query_targets,
+                last: None,
+                whole: false,
+                checking: true,
+                site: None,
+            };
+            let conditions = definition
+                .conditions
+                .iter()
+                .map(|condition| scope.cond(condition))
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|_| {
+                    LowerError::at(&grammar.name, document, definition.at, "a check condition cannot be lowered".into())
+                })?;
+            Ok(Check { definition: definition.clone(), conditions })
+        })
+        .collect::<Result<Vec<_>, LowerError>>()?;
     let mut lowered = Lowered {
+        checks,
+        helper_targets,
+        optional_targets,
         reads_errors: Vec::new(),
         has_errors: prods.iter().any(|p| p.error.is_some()),
         profile_possible: Default::default(),
@@ -2206,6 +2390,7 @@ fn ranked_runtime(
                 body_targets: &grammar.query_targets,
                 last: None,
                 whole: false,
+                checking: false,
                 site: None,
             };
             let mut conditions = vec![Vec::new(); p.syms.len() + 1];
@@ -2309,6 +2494,7 @@ fn ranked_runtime(
                 body_targets: &grammar.query_targets,
                 last: None,
                 whole: false,
+                checking: false,
                 site: None,
             };
             let terms: Vec<Term> = source
@@ -2561,8 +2747,13 @@ fn query_terminals(grammar: &StageGrammar) -> BTreeSet<String> {
         C(&'a Cond),
     }
     let mut stack = Vec::new();
-    let mut result: BTreeSet<String> =
-        grammar.query_targets.values().filter(|name| is_terminal_name(name)).cloned().collect();
+    let mut result: BTreeSet<String> = grammar
+        .query_targets
+        .values()
+        .chain(grammar.local_targets.values())
+        .filter(|name| is_terminal_name(name))
+        .cloned()
+        .collect();
     let mut seen = FxSet::default();
     for rule in &grammar.rules {
         for a in &rule.alternatives {
