@@ -419,9 +419,9 @@ func layeredPatternText(root templateObject, term func(templateObject) string, l
 				}
 				if layeredHas(n, "children") {
 					if len(templateList(n["children"])) == 0 {
-						tasks = append(tasks, task{"text", "«»"})
+						tasks = append(tasks, task{"text", "⁅⁆"})
 					} else {
-						tasks = append(tasks, task{"text", "« "}, task{"items", n["children"]}, task{"text", " »"})
+						tasks = append(tasks, task{"text", "⁅ "}, task{"items", n["children"]}, task{"text", " ⁆"})
 					}
 				}
 			}

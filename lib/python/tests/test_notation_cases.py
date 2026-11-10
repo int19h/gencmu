@@ -56,7 +56,7 @@ class NotationCases(unittest.TestCase):
             self.assertIn(want, text)
 
     def test_decorated_pattern_member_order(self) -> None:
-        document = '```jbogenbau\n%const $P #·pair("a")«»\n%rule f(@X) A %conditions $ ≅ #·@X«»\n```\n'
+        document = '```jbogenbau\n%const $P #·pair("a")⁅⁆\n%rule f(@X) A %conditions $ ≅ #·@X⁅⁆\n```\n'
         dom = read_document(document, "order.md")
         json = write_json(dom)
         for want in ('"call":"pair","args":[{"string":"a"}],"exact":true,"children":[],"at":[2,13]',

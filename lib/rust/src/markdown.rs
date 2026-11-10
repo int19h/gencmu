@@ -129,6 +129,25 @@ pub(crate) fn grammar_text(document: &str, unicode: &Unicode) -> Result<GrammarT
         }
         index = end + 1;
     }
+    // `«` and `»` have no meaning in the notation (engine §9.1). Outside a
+    // string or a comment, one is a load error that names the new brackets.
+    let mut in_string = false;
+    let mut in_comment = false;
+    for (index, &c) in text.chars.iter().enumerate() {
+        match c {
+            '\n' => in_comment = false,
+            _ if in_comment => {}
+            '"' if in_string => in_string = false,
+            _ if in_string => {}
+            '"' => in_string = true,
+            '-' if text.chars.get(index + 1) == Some(&'-') => in_comment = true,
+            '«' | '»' => {
+                let (line, column) = text.position(index);
+                return Err(Error::grammar("a child list uses ⁅ and ⁆, not « and »").at(line, column));
+            }
+            _ => {}
+        }
+    }
     text.end = cursor;
     Ok(text)
 }

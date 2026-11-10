@@ -49,7 +49,7 @@ fn pattern_names(
             if let Pattern::Name(name, at) = atom {
                 if !resolved_checks && erased.contains(name) {
                     return Err(Error::grammar(format!(
-                        "a pattern of erased rule {name} permits only the child list « ⋯ »"
+                        "a pattern of erased rule {name} permits only the child list ⁅ ⋯ ⁆"
                     ))
                     .in_document(document)
                     .at(at.0, at.1));
@@ -74,7 +74,7 @@ pub(crate) fn check(
     for check in source_checks.unwrap_or_default() {
         if !check.names.is_empty() && check.names.iter().all(|name| erased.contains(name)) {
             return Err(Error::grammar(format!(
-                "a pattern of erased rule {} permits only the child list « ⋯ »",
+                "a pattern of erased rule {} permits only the child list ⁅ ⋯ ⁆",
                 check.name
             ))
             .in_document(&check.document)

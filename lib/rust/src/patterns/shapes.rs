@@ -417,9 +417,9 @@ pub(crate) fn text(root: &Json, term: &dyn Fn(&Json) -> String, literal: bool) -
                     }
                     if let Some(items) = n.get("children").and_then(Json::as_array) {
                         if items.is_empty() {
-                            tasks.push(Task::Text("«»"));
+                            tasks.push(Task::Text("⁅⁆"));
                         } else {
-                            tasks.extend([Task::Text("« "), Task::Items(items), Task::Text(" »")]);
+                            tasks.extend([Task::Text("⁅ "), Task::Items(items), Task::Text(" ⁆")]);
                         }
                     }
                 }
