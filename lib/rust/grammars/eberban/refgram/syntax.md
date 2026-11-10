@@ -53,14 +53,11 @@ A further sentence cannot start with a paragraph mark or the end of a parenthesi
   $s:words-erasure
 %conditions
   ¬$s.onward.parse(starter-head …),
-  ¬$s.onward.parse(po-or-dai …),
+  ¬$s.onward.parse((PO | DAI) …),
   ¬$s.onward.parse(closer …) ∨ $s.preceding-tokens.parse(… RA)
 
 %rule starter-head
   [{prefix}] (A | O | NI)
-
-%rule po-or-dai
-  PO | DAI
 
 %rule closer
   FI | VEI | PEI | BU | PA | CAI
@@ -80,7 +77,7 @@ A further sentence cannot start with a paragraph mark or the end of a parenthesi
 %rule open-quote-sentence = sentence-of(sentence-choice)
 ```
 
-<details><summary>Railroad diagrams of the 22 rules from <code>text-of</code> to <code>open-quote-sentence</code></summary>
+<details><summary>Railroad diagrams of the 21 rules from <code>text-of</code> to <code>open-quote-sentence</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/text-of.svg" alt="Railroad diagram of the rule text-of"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/paragraphs-of.svg" alt="Railroad diagram of the rule paragraphs-of"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/po-head.svg" alt="Railroad diagram of the rule po-head"></p>
@@ -89,7 +86,6 @@ A further sentence cannot start with a paragraph mark or the end of a parenthesi
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/starter-sentence-of.svg" alt="Railroad diagram of the rule starter-sentence-of"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/invalid-tail.svg" alt="Railroad diagram of the rule invalid-tail"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/starter-head.svg" alt="Railroad diagram of the rule starter-head"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/po-or-dai.svg" alt="Railroad diagram of the rule po-or-dai"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/closer.svg" alt="Railroad diagram of the rule closer"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/text.svg" alt="Railroad diagram of the rule text"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/paragraphs.svg" alt="Railroad diagram of the rule paragraphs"></p>
@@ -432,13 +428,15 @@ The empty-bind alternatives test the boundary after the postfixes that they read
   | [bi-free] vi-free definition
   | [bi-free] [{prefix}] *bind-empty-vi $p:*recovery-postfixes
 %conditions
-  $p.following-tokens.parse(missing-operand-boundary …)
+  $p.following-tokens.parse((starter-head | PO | RA | RI |
+                             bind-start | sentence-closer | end-of-text) …)
 
 %rule bind-next
   | [bi-free] fi-free definition
   | [bi-free] [{prefix}] *bind-empty-fi $p:*recovery-postfixes
 %conditions
-  $p.following-tokens.parse(missing-operand-boundary …)
+  $p.following-tokens.parse((starter-head | PO | RA | RI |
+                             bind-start | sentence-closer | end-of-text) …)
 
 %rule vi-free
   [{prefix}] VI [{postfix}]
@@ -726,19 +724,22 @@ A quote with written `cai` retains its own recovery scope. Without `cai`, a quot
 %rule resume-chain-empty
   resume-head
 %conditions
-  $.following-tokens.parse(missing-operand-boundary …)
+  $.following-tokens.parse((starter-head | PO | RA | RI |
+                            bind-start | sentence-closer | end-of-text) …)
 %error "pa needs the verb whose bindings it resumes"
 
 %rule select-empty
   si-free
 %conditions
-  $.following-tokens.parse(missing-operand-boundary …)
+  $.following-tokens.parse((starter-head | PO | RA | RI |
+                            bind-start | sentence-closer | end-of-text) …)
 %error "si needs a following verb"
 
 %rule modified-empty
   zi-free
 %conditions
-  $.following-tokens.parse(missing-operand-boundary …)
+  $.following-tokens.parse((starter-head | PO | RA | RI |
+                            bind-start | sentence-closer | end-of-text) …)
 %error "zi needs a verb to modify"
 
 ```
@@ -773,7 +774,8 @@ The boundary query recognizes annotated `vi` and `fi`, with optional `bi`, witho
 %extend-rule a-sentence
   [{prefix}] *chain-empty<A> $p:*recovery-postfixes
 %conditions
-  $p.following-tokens.parse(missing-operand-boundary …)
+  $p.following-tokens.parse((starter-head | PO | RA | RI |
+                             bind-start | sentence-closer | end-of-text) …)
 
 %extend-rule chain
   [{restart-chain RI}] restart-chain *chain-empty<RI>
@@ -781,13 +783,15 @@ The boundary query recognizes annotated `vi` and `fi`, with optional `bi`, witho
 %extend-rule o-sentence
   [{prefix}] *chain-empty<O> [{postfix}] definable
 %conditions
-  $.following-tokens.parse(missing-operand-boundary …)
+  $.following-tokens.parse((starter-head | PO | RA | RI |
+                            bind-start | sentence-closer | end-of-text) …)
 
 %extend-rule enumeration
   [{prefix}] *chain-empty<PE> $p:*recovery-postfixes
     [{bu-free chain | *empty-enumeration-item}] [+PEI]
 %conditions
-  $p.following-tokens.parse(missing-operand-boundary …)
+  $p.following-tokens.parse((starter-head | PO | RA | RI |
+                             bind-start | sentence-closer | end-of-text) …)
 
 %extend-rule separator-form
   | *empty-arguments-list [{bu-free chain | *empty-enumeration-item}]
@@ -797,7 +801,8 @@ The boundary query recognizes annotated `vi` and `fi`, with optional `bi`, witho
 %extend-rule chain-inner
   [{prefix}] *chain-empty<BI> $p:*recovery-postfixes
 %conditions
-  $p.following-tokens.parse(missing-operand-boundary …)
+  $p.following-tokens.parse((starter-head | PO | RA | RI |
+                             bind-start | sentence-closer | end-of-text) …)
 
 %rule empty-arguments-list
   [{KI | GI | ba-free}] *chain-empty<BE>
@@ -807,9 +812,6 @@ The boundary query recognizes annotated `vi` and `fi`, with optional `bi`, witho
 
 %rule recovery-postfixes
   [{postfix}]
-
-%rule missing-operand-boundary
-  starter-head | PO | RA | RI | bind-start | sentence-closer | end-of-text
 
 %rule bind-start
   [bi-free] [{prefix}] (VI | FI)
@@ -823,7 +825,8 @@ The boundary query recognizes annotated `vi` and `fi`, with optional `bi`, witho
 %extend-rule chain-empty
   BE | RI | BU
 %conditions
-  $.following-tokens.parse(missing-operand-boundary …)
+  $.following-tokens.parse((starter-head | PO | RA | RI |
+                            bind-start | sentence-closer | end-of-text) …)
 %error $CHAIN-EMPTY-MESSAGE
 
 %rule bind-empty-vi
@@ -835,7 +838,7 @@ The boundary query recognizes annotated `vi` and `fi`, with optional `bi`, witho
 %error "fi needs a following chain"
 ```
 
-<details><summary>Railroad diagrams of the 14 rules from <code>a-sentence</code> to <code>bind-empty-fi</code></summary>
+<details><summary>Railroad diagrams of the 13 rules from <code>a-sentence</code> to <code>bind-empty-fi</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/a-sentence.2.svg" alt="Railroad diagram of the rule a-sentence"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/chain.2.svg" alt="Railroad diagram of the rule chain"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/o-sentence.2.svg" alt="Railroad diagram of the rule o-sentence"></p>
@@ -845,7 +848,6 @@ The boundary query recognizes annotated `vi` and `fi`, with optional `bi`, witho
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/empty-arguments-list.svg" alt="Railroad diagram of the rule empty-arguments-list"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/empty-enumeration-item.svg" alt="Railroad diagram of the rule empty-enumeration-item"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/recovery-postfixes.svg" alt="Railroad diagram of the rule recovery-postfixes"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/missing-operand-boundary.svg" alt="Railroad diagram of the rule missing-operand-boundary"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/bind-start.svg" alt="Railroad diagram of the rule bind-start"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/chain-empty.svg" alt="Railroad diagram of the rule chain-empty"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/chain-empty.2.svg" alt="Railroad diagram of the rule chain-empty"></p>
@@ -958,9 +960,6 @@ Number recovery normally ends at written `JI`, before a token outside `number-st
 %conditions
   $d ∨ ¬$.following-tokens.parse(TI …) ∨ $.following-tokens.parse(loose-base …)
 
-%rule ordered-number-parts
-  [TI JU] [digits] [JO [digits]] [JA digits] [JE digits] [JI]
-
 %rule number-end-alone
   JI
 %conditions
@@ -1012,18 +1011,17 @@ Number recovery normally ends at written `JI`, before a token outside `number-st
 %rule number-part-order
   {number-part} [JI]
 %conditions
-  ¬$.parse(ordered-number-parts)
+  ¬$.parse(([TI JU] [digits] [JO [digits]] [JA digits] [JE digits] [JI]))
 %error "number parts need base, integer, fraction, repeat, then magnitude, without duplicates"
 
 ```
 
-<details><summary>Railroad diagrams of the 17 rules from <code>base-verb</code> to <code>number-part-order</code></summary>
+<details><summary>Railroad diagrams of the 16 rules from <code>base-verb</code> to <code>number-part-order</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/base-verb.4.svg" alt="Railroad diagram of the rule base-verb"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/number-part.svg" alt="Railroad diagram of the rule number-part"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/loose-base.svg" alt="Railroad diagram of the rule loose-base"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/loose-digits.svg" alt="Railroad diagram of the rule loose-digits"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/loose-fraction.svg" alt="Railroad diagram of the rule loose-fraction"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/ordered-number-parts.svg" alt="Railroad diagram of the rule ordered-number-parts"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/number-end-alone.svg" alt="Railroad diagram of the rule number-end-alone"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/empty-base-number.svg" alt="Railroad diagram of the rule empty-base-number"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/number-empty-base.svg" alt="Railroad diagram of the rule number-empty-base"></p>

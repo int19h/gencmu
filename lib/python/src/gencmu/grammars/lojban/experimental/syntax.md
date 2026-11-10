@@ -597,12 +597,9 @@ No step names these terms. Their contained predicates use the `fewest` and `late
 %rule bare-na
   $n:NA 🆓 [+KU] 🆓
 %conditions
-  ¬$n.onward.parse(na-connective …),
+  ¬$n.onward.parse((gek | joik-jek-ek | gihek) …),
   $ ≇ $BARE-NA ∨ $.ends-input ∨ ($PLACE-CLOSE ∩ $.following-tokens.first-token.tags) ⊈ ∅ ∨
     $.followed-by(gihek | term)
-
-%rule na-connective
-  gek | joik-jek-ek | gihek
 
 %rule soi-term
   SOI 🆓 subsentence [+SEhU] 🆓
@@ -640,7 +637,7 @@ No step names these terms. Their contained predicates use the `fewest` and `late
   NUhI 🆓 (gek-termset-body ≻ terms) [+NUhU] 🆓
 ```
 
-<details><summary>Railroad diagrams of the 17 rules from <code>terms-1</code> to <code>termset-with-nuhi</code></summary>
+<details><summary>Railroad diagrams of the 16 rules from <code>terms-1</code> to <code>termset-with-nuhi</code></summary>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/terms-1.svg" alt="Railroad diagram of the rule terms-1"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/term.svg" alt="Railroad diagram of the rule term"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/term-bo-group.svg" alt="Railroad diagram of the rule term-bo-group"></p>
@@ -648,7 +645,6 @@ No step names these terms. Their contained predicates use the `fewest` and `late
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/term-link.svg" alt="Railroad diagram of the rule term-link"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/term-3.svg" alt="Railroad diagram of the rule term-3"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/bare-na.svg" alt="Railroad diagram of the rule bare-na"></p>
-<p><img src="../../../docs/diagrams/lojban/experimental/syntax/na-connective.svg" alt="Railroad diagram of the rule na-connective"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/soi-term.svg" alt="Railroad diagram of the rule soi-term"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/noiha-term.svg" alt="Railroad diagram of the rule noiha-term"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/sohoi-term.svg" alt="Railroad diagram of the rule sohoi-term"></p>

@@ -331,27 +331,23 @@ The middle `$INITIAL-KE` arm matches a tag followed by a selbri whose first-chil
   | [tag] KE 🆓 gek-bridi-tail [+KEhE 🆓]
   | NA 🆓 gek-bridi-tail
 %conditions
-  ¬$g.following-tokens.parse(gik-term …)
+  ¬$g.following-tokens.parse((gik (term | CU)) …)
 
 %rule gik-bridi-tails
   {gik bridi-tail}
-
-%rule gik-term
-  gik (term | CU)
 
 -- tail_terms <- term* VAU_elidible
 %rule tail-terms
   [{term}] [+VAU 🆓]
 ```
 
-<details><summary>Railroad diagrams of the 8 rules from <code>bridi-tail-1-link</code> to <code>tail-terms</code></summary>
+<details><summary>Railroad diagrams of the 7 rules from <code>bridi-tail-1-link</code> to <code>tail-terms</code></summary>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/bridi-tail-1-link.svg" alt="Railroad diagram of the rule bridi-tail-1-link"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/bridi-tail-2.svg" alt="Railroad diagram of the rule bridi-tail-2"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/bridi-tail-3.svg" alt="Railroad diagram of the rule bridi-tail-3"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/ke-clause.svg" alt="Railroad diagram of the rule ke-clause"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/gek-bridi-tail.svg" alt="Railroad diagram of the rule gek-bridi-tail"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/gik-bridi-tails.svg" alt="Railroad diagram of the rule gik-bridi-tails"></p>
-<p><img src="../../../docs/diagrams/lojban/zantufa/syntax/gik-term.svg" alt="Railroad diagram of the rule gik-term"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/tail-terms.svg" alt="Railroad diagram of the rule tail-terms"></p>
 </details>
 
@@ -386,10 +382,7 @@ The KE patterns inspect the actual body and closer. A written `ke'e` around one 
 %rule term-link
   $j:joik-ek term-1
 %conditions
-  $j ≇ #joik ∨ ¬$j.following-tokens.parse(tag-bo-cu …)
-
-%rule tag-bo-cu
-  tag [BO 🆓] CU
+  $j ≇ #joik ∨ ¬$j.following-tokens.parse((tag [BO 🆓] CU) …)
 
 -- term_1 <- term_2 (joik_ek? BO_clause term_2)*
 %rule term-1
@@ -443,11 +436,10 @@ The KE patterns inspect the actual body and closer. A written `ke'e` around one 
   gek {term} {gik {term}} [+GIhI 🆓]
 ```
 
-<details><summary>Railroad diagrams of the 10 rules from <code>terms</code> to <code>gek-term</code></summary>
+<details><summary>Railroad diagrams of the 9 rules from <code>terms</code> to <code>gek-term</code></summary>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/terms.svg" alt="Railroad diagram of the rule terms"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/term.svg" alt="Railroad diagram of the rule term"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/term-link.svg" alt="Railroad diagram of the rule term-link"></p>
-<p><img src="../../../docs/diagrams/lojban/zantufa/syntax/tag-bo-cu.svg" alt="Railroad diagram of the rule tag-bo-cu"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/term-1.svg" alt="Railroad diagram of the rule term-1"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/term-2.svg" alt="Railroad diagram of the rule term-2"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/brigahi.svg" alt="Railroad diagram of the rule brigahi"></p>
@@ -523,7 +515,7 @@ The step `fewest #·term-link` counts the plain `term-link` rule, so a sumti con
   | LI 🆓 mex [+LOhO 🆓]
   | NAhE 🆓 sumti-3
 %conditions
-  ¬($l.following-tokens.parse(lerfu-operator …) ∨ $l.following-tokens.parse(operand-kehe …))
+  ¬($l.following-tokens.parse(lerfu-operator …) ∨ $l.following-tokens.parse((operand KEhE) …))
 
 %rule lerfu-boi
   lerfu-string [+BOI 🆓]
@@ -537,9 +529,6 @@ The step `fewest #·term-link` counts the plain `term-link` rule, so a sumti con
 
 %rule sumti-or-relative
   sumti | relative-clause
-
-%rule operand-kehe
-  operand KEhE
 
 -- sumti_tail <- relative_clauses? (!quantifier sumti)? sumti_tail_1
 %rule sumti-tail
@@ -560,7 +549,7 @@ The step `fewest #·term-link` counts the plain `term-link` rule, so a sumti con
   $s ≇ #(tag ⋰)
 ```
 
-<details><summary>Railroad diagrams of the 15 rules from <code>sumti</code> to <code>sumti-tail-1</code></summary>
+<details><summary>Railroad diagrams of the 14 rules from <code>sumti</code> to <code>sumti-tail-1</code></summary>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/sumti.svg" alt="Railroad diagram of the rule sumti"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/sumti-1.svg" alt="Railroad diagram of the rule sumti-1"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/sumti-1-run.svg" alt="Railroad diagram of the rule sumti-1-run"></p>
@@ -573,7 +562,6 @@ The step `fewest #·term-link` counts the plain `term-link` rule, so a sumti con
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/lerfu-boi.svg" alt="Railroad diagram of the rule lerfu-boi"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/lerfu-operator.svg" alt="Railroad diagram of the rule lerfu-operator"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/sumti-or-relative.svg" alt="Railroad diagram of the rule sumti-or-relative"></p>
-<p><img src="../../../docs/diagrams/lojban/zantufa/syntax/operand-kehe.svg" alt="Railroad diagram of the rule operand-kehe"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/sumti-tail.svg" alt="Railroad diagram of the rule sumti-tail"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/sumti-tail-1.svg" alt="Railroad diagram of the rule sumti-tail-1"></p>
 </details>
@@ -700,7 +688,7 @@ A run of `cei` nests to the right. The selbri after the first `cei` already read
   | JAI 🆓 [tag] tanru-unit-1
   | {NU 🆓 / joik} statement [+KEI 🆓]
 %conditions
-  ¬$g.following-tokens.parse(gik-term-or-cu …),
+  ¬$g.following-tokens.parse(([gik] (term | CU)) …),
   ¬($m.following-tokens.parse(sumti-5 …) ∨ $m.following-tokens.parse(selbri …)),
   $m ≇ #(operator ⋰),
   $t ≇ #(operator ⋰),
@@ -712,9 +700,6 @@ A run of `cei` nests to the right. The selbri after the first `cei` already read
 %rule gik-selbris
   {gik selbri-2}
 
-%rule gik-term-or-cu
-  [gik] (term | CU)
-
 -- linkargs <- BE_clause term links? BEhO_elidible
 %rule linkargs
   BE 🆓 term [links] [+BEhO 🆓]
@@ -724,7 +709,7 @@ A run of `cei` nests to the right. The selbri after the first `cei` already read
   BEI 🆓 term [links]
 ```
 
-<details><summary>Railroad diagrams of the 14 rules from <code>selbri</code> to <code>links</code></summary>
+<details><summary>Railroad diagrams of the 13 rules from <code>selbri</code> to <code>links</code></summary>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/selbri.svg" alt="Railroad diagram of the rule selbri"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/selbri-1.svg" alt="Railroad diagram of the rule selbri-1"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/selbri-2.svg" alt="Railroad diagram of the rule selbri-2"></p>
@@ -736,7 +721,6 @@ A run of `cei` nests to the right. The selbri after the first `cei` already read
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/tanru-unit.svg" alt="Railroad diagram of the rule tanru-unit"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/tanru-unit-1.svg" alt="Railroad diagram of the rule tanru-unit-1"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/gik-selbris.svg" alt="Railroad diagram of the rule gik-selbris"></p>
-<p><img src="../../../docs/diagrams/lojban/zantufa/syntax/gik-term-or-cu.svg" alt="Railroad diagram of the rule gik-term-or-cu"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/linkargs.svg" alt="Railroad diagram of the rule linkargs"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/links.svg" alt="Railroad diagram of the rule links"></p>
 </details>

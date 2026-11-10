@@ -335,10 +335,7 @@ An attached opening mark supplies one gap space, even without whitespace. `quote
 %rule quote-marker-end
   quote-attachment
 %conditions
-  $.onward.parse(marker-whitespace …)
-
-%rule marker-whitespace
-  PAUSE<Quote-Material> PAUSE<¬Quote-Material ¬Period-Initial>
+  $.onward.parse((PAUSE<Quote-Material> PAUSE<¬Quote-Material ¬Period-Initial>) …)
 
 %rule quote-end-mark
   quote-attachment
@@ -363,12 +360,11 @@ An attached opening mark supplies one gap space, even without whitespace. `quote
   ¬$.following-tokens.parse(quote-marker-end …)
 ```
 
-<details><summary>Railroad diagrams of the 9 rules from <code>quoted-word</code> to <code>word-quote-marker</code></summary>
+<details><summary>Railroad diagrams of the 8 rules from <code>quoted-word</code> to <code>word-quote-marker</code></summary>
 <p><img src="../../../docs/diagrams/lojban/common/stream/quoted-word.svg" alt="Railroad diagram of the rule quoted-word"></p>
 <p><img src="../../../docs/diagrams/lojban/common/stream/word-quote-gap.svg" alt="Railroad diagram of the rule word-quote-gap"></p>
 <p><img src="../../../docs/diagrams/lojban/common/stream/word-quote-target.svg" alt="Railroad diagram of the rule word-quote-target"></p>
 <p><img src="../../../docs/diagrams/lojban/common/stream/quote-marker-end.svg" alt="Railroad diagram of the rule quote-marker-end"></p>
-<p><img src="../../../docs/diagrams/lojban/common/stream/marker-whitespace.svg" alt="Railroad diagram of the rule marker-whitespace"></p>
 <p><img src="../../../docs/diagrams/lojban/common/stream/quote-end-mark.svg" alt="Railroad diagram of the rule quote-end-mark"></p>
 <p><img src="../../../docs/diagrams/lojban/common/stream/quote-attachment.svg" alt="Railroad diagram of the rule quote-attachment"></p>
 <p><img src="../../../docs/diagrams/lojban/common/stream/zo-punctuation.svg" alt="Railroad diagram of the rule zo-punctuation"></p>
@@ -393,7 +389,8 @@ The hesitation rule refuses a raw y letteral. In `zo'oi .y. bu`, the quote there
 %conditions
   ¬$r.following-tokens.parse(quote-run-token …),
   ¬$s.following-tokens.parse(quote-run-token …),
-  Hesitation ⊈ $s.first-token.tags ∨ $s.first-token.onward.parse(raw-y-letter …)
+  Hesitation ⊈ $s.first-token.tags ∨
+    $s.first-token.onward.parse((raw-y-base [pause-run] cmavo-token<BU>) …)
 %emits
   $
 
@@ -406,13 +403,10 @@ The hesitation rule refuses a raw y letteral. In `zo'oi .y. bu`, the quote there
   $q.classes ∩ $SINGLE-QUOTE-MARKERS ≠ ∅,
   ¬$.following-tokens.parse(quote-marker-end …)
 
-%rule raw-y-letter
-  raw-y-base [pause-run] cmavo-token<BU>
-
 %rule zohoi-hesitation
   $h:y-run
 %conditions
-  ¬$h.onward.parse(raw-y-letter …)
+  ¬$h.onward.parse((raw-y-base [pause-run] cmavo-token<BU>) …)
 %erased
 
 %rule zohoi-hesitations
@@ -426,10 +420,9 @@ The hesitation rule refuses a raw y letteral. In `zo'oi .y. bu`, the quote there
   {PAUSE<¬Quote-Material>} := $PAUSE
 ```
 
-<details><summary>Railroad diagrams of the 7 rules from <code>single-word-quote</code> to <code>quote-gap-pauses</code></summary>
+<details><summary>Railroad diagrams of the 6 rules from <code>single-word-quote</code> to <code>quote-gap-pauses</code></summary>
 <p><img src="../../../docs/diagrams/lojban/common/stream/single-word-quote.svg" alt="Railroad diagram of the rule single-word-quote"></p>
 <p><img src="../../../docs/diagrams/lojban/common/stream/single-marker.svg" alt="Railroad diagram of the rule single-marker"></p>
-<p><img src="../../../docs/diagrams/lojban/common/stream/raw-y-letter.svg" alt="Railroad diagram of the rule raw-y-letter"></p>
 <p><img src="../../../docs/diagrams/lojban/common/stream/zohoi-hesitation.svg" alt="Railroad diagram of the rule zohoi-hesitation"></p>
 <p><img src="../../../docs/diagrams/lojban/common/stream/zohoi-hesitations.svg" alt="Railroad diagram of the rule zohoi-hesitations"></p>
 <p><img src="../../../docs/diagrams/lojban/common/stream/zohoi-gap.svg" alt="Railroad diagram of the rule zohoi-gap"></p>

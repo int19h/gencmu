@@ -185,20 +185,18 @@ A cmavo is not the start of a name, and not the start of a lujvo that begins wit
   $o:onset [{nucleus h}] cmavo-last-nucleus
 %conditions
   ¬($o.onward.parse(h …) ∨ $o.onward.parse(cluster …) ∨
-    $o.onward.parse(cmevla …) ∨ $o.onward.parse(cvcy-lujvo …)),
+    $o.onward.parse(cmevla …) ∨
+    $o.onward.parse((cvc-rafsi y [h] [{initial-rafsi}] brivla-core |
+                     stressed-cvc-rafsi y short-final-rafsi) …)),
   $.value.ngrams(1) ≠ "y",
   $.following-tokens.parse(post-word …)
 
 -- Detect a CVC rafsi with a y-hyphen before the compound core. Stress separates the two forms. Unhyphenated initial rafsi cannot start where the core starts, because of stress and their own exclusions. Only a lookahead.
-%rule cvcy-lujvo
-  | cvc-rafsi y [h] [{initial-rafsi}] brivla-core
-  | stressed-cvc-rafsi y short-final-rafsi
 
 ```
 
-<details><summary>Railroad diagrams of <code>cmavo</code> and <code>cvcy-lujvo</code></summary>
+<details><summary>Railroad diagram of <code>cmavo</code></summary>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cmavo.svg" alt="Railroad diagram of the rule cmavo"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/cvcy-lujvo.svg" alt="Railroad diagram of the rule cvcy-lujvo"></p>
 </details>
 
 
@@ -599,9 +597,6 @@ If a coda stands before another syllable, omitting it leaves consonants that can
 
 ```jbogenbau
 -- A vowel-bearing syllable has a nucleus. A consonantal syllable has none, so they cannot consume the same complete syllable.
-%rule any-syllable
-  syllable-of(nucleus)
-  | consonantal-syllable
 
 -- This hook supplies the shared onset for syllables, stress tests, the brivla head and coda lookahead.
 %rule syllable-onset
@@ -625,8 +620,8 @@ If a coda stands before another syllable, omitting it leaves consonants that can
   | $c:consonant
   | [syllabic] $p:consonant
 %conditions
-  ¬$c.onward.parse(any-syllable …),
-  $c.following-tokens.parse(any-syllable …),
+  ¬$c.onward.parse((syllable-of(nucleus) | consonantal-syllable) …),
+  $c.following-tokens.parse((syllable-of(nucleus) | consonantal-syllable) …),
   $p.following-tokens.parse(pause …)
 
 -- An apostrophe, glide, or consonant initial precedes a nucleus. An empty initial before apostrophe cannot reach that nucleus. Initial forbids a following glide.
@@ -669,8 +664,7 @@ If a coda stands before another syllable, omitting it leaves consonants that can
   ¬$v.following-tokens.parse(nucleus …)
 ```
 
-<details><summary>Railroad diagrams of the 12 rules from <code>any-syllable</code> to <code>vowel</code></summary>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/any-syllable.svg" alt="Railroad diagram of the rule any-syllable"></p>
+<details><summary>Railroad diagrams of the 11 rules from <code>syllable-onset</code> to <code>vowel</code></summary>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/syllable-onset.svg" alt="Railroad diagram of the rule syllable-onset"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/syllable-of.svg" alt="Railroad diagram of the rule syllable-of"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/syllable.svg" alt="Railroad diagram of the rule syllable"></p>

@@ -115,9 +115,6 @@ The rule `any-letter` reads `Syllable-Break` to include commas in stress lookahe
 %rule i-or-u
   "i" | "u"
 
-%rule e-or-o
-  "e" | "o"
-
 %rule falling-diphthong
   "a" "i" | "e" "i" | "o" "i" | "a" "u"
 
@@ -140,12 +137,11 @@ The rule `any-letter` reads `Syllable-Break` to include commas in stress lookahe
   [any-letters] capital-letter [any-letters]
 ```
 
-<details><summary>Railroad diagrams of the 12 rules from <code>vowel</code> to <code>stress-mark</code></summary>
+<details><summary>Railroad diagrams of the 11 rules from <code>vowel</code> to <code>stress-mark</code></summary>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/vowel.svg" alt="Railroad diagram of the rule vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/capital-vowel.svg" alt="Railroad diagram of the rule capital-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/capital-letter.svg" alt="Railroad diagram of the rule capital-letter"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/i-or-u.svg" alt="Railroad diagram of the rule i-or-u"></p>
-<p><img src="../../../docs/diagrams/lojban/cll/shapes/e-or-o.svg" alt="Railroad diagram of the rule e-or-o"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/falling-diphthong.svg" alt="Railroad diagram of the rule falling-diphthong"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/rising-diphthong.svg" alt="Railroad diagram of the rule rising-diphthong"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/y-diphthong.svg" alt="Railroad diagram of the rule y-diphthong"></p>

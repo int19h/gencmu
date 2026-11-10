@@ -132,15 +132,8 @@ An ignored character at a pause edge is a comma or a non-breaking format charact
 %extend-rule comma
   $c:_General_Category_Format
 %conditions
-  ¬$c.parse(breaking-format-char)
-
-%rule breaking-format-char
-  | "‹U+200B›"
-  | "‹U+0600›".."‹U+0605›"
-  | "‹U+06DD›" | "‹U+070F›"
-  | "‹U+0890›".."‹U+0891›"
-  | "‹U+08E2›"
-  | "‹U+110BD›" | "‹U+110CD›"
+  ¬$c.parse(("‹U+200B›" | "‹U+0600›".."‹U+0605›" | "‹U+06DD›" | "‹U+070F›" |
+             "‹U+0890›".."‹U+0891›" | "‹U+08E2›" | "‹U+110BD›" | "‹U+110CD›"))
 
 %redefine-rule run-char
   $c:_
@@ -148,7 +141,7 @@ An ignored character at a pause edge is a comma or a non-breaking format charact
   ¬($c.parse(core-char) ∨ $c.parse(punctuation-char))
 ```
 
-<details><summary>Railroad diagrams of the 25 rules from <code>pause</code> to <code>run-char</code></summary>
+<details><summary>Railroad diagrams of the 24 rules from <code>pause</code> to <code>run-char</code></summary>
 <p><img src="../../../docs/diagrams/lojban/common/latin/pause.svg" alt="Railroad diagram of the rule pause"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/edge-pause.svg" alt="Railroad diagram of the rule edge-pause"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/spaced-pause.svg" alt="Railroad diagram of the rule spaced-pause"></p>
@@ -172,7 +165,6 @@ An ignored character at a pause edge is a comma or a non-breaking format charact
 <p><img src="../../../docs/diagrams/lojban/common/latin/combining-mark.svg" alt="Railroad diagram of the rule combining-mark"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/digit-char.svg" alt="Railroad diagram of the rule digit-char"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/comma.svg" alt="Railroad diagram of the rule comma"></p>
-<p><img src="../../../docs/diagrams/lojban/common/latin/breaking-format-char.svg" alt="Railroad diagram of the rule breaking-format-char"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/run-char.svg" alt="Railroad diagram of the rule run-char"></p>
 </details>
 

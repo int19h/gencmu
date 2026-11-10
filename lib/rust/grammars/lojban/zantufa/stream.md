@@ -183,11 +183,7 @@ A quote word that opens no quote is an ordinary word in Zantufa, which `si` eras
   $b:bare-marker :: $b.tags
 %conditions
   ¬$b.onward.parse(quote …),
-  $b.following-tokens.parse(bare-marker-tail …)
-
-%rule bare-marker-tail
-  skipped si-word
-  | skipped cmavo-token<BU>
+  $b.following-tokens.parse((skipped si-word | skipped cmavo-token<BU>) …)
 
 %rule bare-marker
   $q:read-word
@@ -195,9 +191,8 @@ A quote word that opens no quote is an ordinary word in Zantufa, which `si` eras
   $q.classes ∩ (ZOI ∪ MUhOI ∪ LOhU ∪ LOhAI ∪ RAhOI) ≠ ∅
 ```
 
-<details><summary>Railroad diagrams of <code>unit</code>, <code>bare-marker-tail</code> and <code>bare-marker</code></summary>
+<details><summary>Railroad diagrams of <code>unit</code> and <code>bare-marker</code></summary>
 <p><img src="../../../docs/diagrams/lojban/zantufa/stream/unit.svg" alt="Railroad diagram of the rule unit"></p>
-<p><img src="../../../docs/diagrams/lojban/zantufa/stream/bare-marker-tail.svg" alt="Railroad diagram of the rule bare-marker-tail"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/stream/bare-marker.svg" alt="Railroad diagram of the rule bare-marker"></p>
 </details>
 
@@ -220,20 +215,16 @@ The lookahead skips erased regions before BU. Thus `su mi si bu` forms the lette
 %conditions
   SU ⊆ $q.classes
 
-%rule su-letter-tail
-  skipped cmavo-token<BU>
-
 %redefine-rule su-word
   $q:read-word
 %conditions
   SU ⊆ $q.classes,
-  ¬$q.following-tokens.parse(su-letter-tail …)
+  ¬$q.following-tokens.parse((skipped cmavo-token<BU>) …)
 ```
 
-<details><summary>Railroad diagrams of <code>unit</code>, <code>su-letter-base</code>, <code>su-letter-tail</code> and <code>su-word</code></summary>
+<details><summary>Railroad diagrams of <code>unit</code>, <code>su-letter-base</code> and <code>su-word</code></summary>
 <p><img src="../../../docs/diagrams/lojban/zantufa/stream/unit.2.svg" alt="Railroad diagram of the rule unit"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/stream/su-letter-base.svg" alt="Railroad diagram of the rule su-letter-base"></p>
-<p><img src="../../../docs/diagrams/lojban/zantufa/stream/su-letter-tail.svg" alt="Railroad diagram of the rule su-letter-tail"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/stream/su-word.svg" alt="Railroad diagram of the rule su-word"></p>
 </details>
 
