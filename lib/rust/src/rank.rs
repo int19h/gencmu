@@ -2899,6 +2899,7 @@ mod tests {
                     identity: std::sync::Arc::new(crate::measures::DiagnosticIdentity {
                         stage_order: 0,
                         ordinal: index,
+                        ..Default::default()
                     }),
                     measure: crate::measures::Measure([Nat::Small(charge), Nat::ZERO, Nat::ONE]),
                 }));
@@ -2952,7 +2953,11 @@ mod tests {
         let mut original = vec![token((10, 11)), token((0, 1))];
         let mut error = crate::result::Warning::new("before".into(), "fault".into(), 0..1, 0..1, "fault".into());
         error.record = Some(std::sync::Arc::new(crate::measures::DiagnosticRecord {
-            identity: std::sync::Arc::new(crate::measures::DiagnosticIdentity { stage_order: 0, ordinal: 0 }),
+            identity: std::sync::Arc::new(crate::measures::DiagnosticIdentity {
+                stage_order: 0,
+                ordinal: 0,
+                ..Default::default()
+            }),
             measure: crate::measures::Measure([Nat::Small(7), Nat::ZERO, Nat::ONE]),
         }));
         original[1].errors.push(error);

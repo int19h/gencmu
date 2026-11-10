@@ -232,6 +232,14 @@ impl<'a> DiagnosticFlow<'a> {
         self.add_event(node, diagnostic, error, false);
     }
     pub(crate) fn add_check(&mut self, node: u32, diagnostic: Warning, error: bool) {
+        debug_assert!(diagnostic
+            .record
+            .as_ref()
+            .unwrap()
+            .identity
+            .check
+            .as_ref()
+            .is_some_and(|(code, _)| code == &diagnostic.code));
         self.add_event(node, diagnostic, error, true);
     }
     fn add_event(&mut self, node: u32, diagnostic: Warning, error: bool, check: bool) {
@@ -494,7 +502,7 @@ mod tests {
     fn diagnostic(code: &str, stage: usize, ordinal: usize) -> Warning {
         let mut diagnostic = Warning::new(format!("s{stage}"), code.into(), 0..1, 0..1, code.into());
         diagnostic.record = Some(Arc::new(DiagnosticRecord {
-            identity: Arc::new(DiagnosticIdentity { stage_order: stage, ordinal }),
+            identity: Arc::new(DiagnosticIdentity { stage_order: stage, ordinal, ..Default::default() }),
             measure: Measure::ZERO,
         }));
         diagnostic

@@ -312,6 +312,7 @@ pub(crate) fn evaluate_reports(
     strings.observe();
     let check_tree =
         (!g.checks.is_empty()).then(|| crate::checks::Tree::new(g, tree, tokens, &mut recognizer.shared.tags));
+    let mut occurrences = FxMap::<String, usize>::default();
     let mut stack = vec![(0u32, Rc::new(BTreeSet::<String>::new()))];
     while let Some((index, mut suppressed)) = stack.pop() {
         work::count(Counted::Walked, 1);
@@ -331,7 +332,11 @@ pub(crate) fn evaluate_reports(
                 crate::diagnostics::message(code)?;
                 let report = Warning {
                     record: Some(Arc::new(DiagnosticRecord {
-                        identity: Arc::new(DiagnosticIdentity { stage_order, ordinal: flow.ordinal() }),
+                        identity: Arc::new(DiagnosticIdentity {
+                            stage_order,
+                            ordinal: flow.ordinal(),
+                            ..Default::default()
+                        }),
                         measure: if is_error { charges.own(start as usize, end as usize) } else { Measure::ZERO },
                     })),
                     rejection: None,
@@ -393,9 +398,16 @@ pub(crate) fn evaluate_reports(
                     }
                     crate::diagnostics::message(&definition.name)?;
                     let recipe = definition.error.as_ref().or(definition.warning.as_ref()).expect("a check message");
+                    let occurrence = occurrences.entry(definition.name.clone()).or_default();
+                    let identity = DiagnosticIdentity {
+                        stage_order,
+                        ordinal: flow.ordinal(),
+                        check: Some((definition.name.clone(), *occurrence)),
+                    };
+                    *occurrence += 1;
                     let report = Warning {
                         record: Some(Arc::new(DiagnosticRecord {
-                            identity: Arc::new(DiagnosticIdentity { stage_order, ordinal: flow.ordinal() }),
+                            identity: Arc::new(identity),
                             measure: if error { charges.own(start as usize, end as usize) } else { Measure::ZERO },
                         })),
                         rejection: None,
