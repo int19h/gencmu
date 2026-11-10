@@ -432,7 +432,7 @@ func TestDOMRules(t *testing.T) {
 		// %erased, for one alternative and for several.
 		strings.Replace(alt(good), `"conditions":[]`, `"conditions":[],"erased":true`, 1), two(`"erased":true,"conditions":[]`),
 		emit(`{"items":[{"capture":"x"},{"insert":true,"value":{"concat":[{"string":"y"}]}},{"capture":"y","tags":{"method":"tags","receiver":{"capture":""},"args":[]}}]}`),
-		tagged(`{"method":"tags","receiver":{"capture":""},"args":[{"rule":"text"}]}`), tagged(`{"method":"tags","receiver":{"method":"first-token","receiver":{"capture":""},"args":[]},"args":[]}`),
+		tagged(`{"method":"tags","receiver":{"method":"parse","receiver":{"capture":""},"args":[{"body":{"ref":"text"}}]},"args":[]}`), tagged(`{"method":"tags","receiver":{"method":"first-token","receiver":{"capture":""},"args":[]},"args":[]}`),
 		cond(`{"all":[{"method":"parse","receiver":{"capture":""},"args":[{"body":{"ref":"text"}}]},{"op":"⊆","left":{"tag":"A"},"right":{"method":"tags","receiver":{"capture":""},"args":[]}}]}`),
 		cond(strings.Repeat(`{"all":[{"method":"parse","receiver":{"capture":"x"},"args":[{"body":{"ref":"text"}}]},`, 255) + `{"method":"parse","receiver":{"capture":"x"},"args":[{"body":{"ref":"text"}}]}` + strings.Repeat(`]}`, 255)),
 		cond(`{"op":"⊆","left":{"method":"tags","receiver":{"method":"first-token","receiver":{"capture":"x"},"args":[]},"args":[]},"right":{"tag":"A"}}`),

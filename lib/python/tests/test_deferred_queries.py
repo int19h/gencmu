@@ -49,8 +49,8 @@ class BodyWitnesses(unittest.TestCase):
                 state = context(grammar, dirty)
                 self.assertTrue(run(state.nested("target", 0, 1)).accepted)
                 self.assertEqual(run(state.nested("target", 0, 1, True)).accepted, not dirty)
-                self.assertEqual(run(state.begins("target", 0, 1, True)), not dirty)
-                self.assertEqual(run(state.ends("target", 0, 1, True)).answers[1], not dirty)
+                self.assertEqual(run(state.prefix("target", 0, 1, True)), not dirty)
+                self.assertEqual(run(state.suffix("target", 0, 1, True)).answers[1], not dirty)
 
     def test_erasure_replaces_the_error_transition(self):
         # Engine §4.3: an erased finite proof remains eligible through own errors.
