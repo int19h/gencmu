@@ -793,7 +793,7 @@ A string constant can carry tag and value tests, as in `#$S="x"`. A tested const
 
 A child list uses the brackets `⁅ ⁆` (U+2045, U+2046). It attaches to a node test only without intervening whitespace or comments. `#a⁅ b c ⁆` tests a and its complete children at the same node. Inside a list, `x⁅ b ⁆` is one item, while `x ⁅ b ⁆` is two items.
 
-The brackets `«` and `»` have no meaning in the notation. A grammar that writes one outside a string or a comment does not load. The load error names the new brackets `⁅` and `⁆`. Inside a string or a comment, `«` and `»` keep their ordinary text meaning.
+The brackets `«` and `»` have no meaning in the notation. A grammar that writes one outside a string or a comment does not load. The load error names `⁅` and `⁆`. Inside a string or a comment, `«` and `»` keep their ordinary text meaning.
 
 A separate `⁅` or `·` requires whitespace or a comment after a node test, `⁆`, `]`, `}`, or a group's `)`. The first list after an adjacent call's `)` attaches to that call. Other directly adjacent uses are errors.
 

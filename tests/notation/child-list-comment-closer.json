@@ -1,0 +1,41 @@
+{
+  "description": "a closing bracket in a comment does not close a pattern argument",
+  "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #choose(#⁅ a -- ⁆\n b ⁆)\n```\n",
+  "expect": {
+    "dom": {
+      "format": 46,
+      "rules": [
+        {
+          "conditions": [
+            {
+              "right": {
+                "pattern": {
+                  "call": "choose",
+                  "args": [
+                    {
+                      "pattern": {
+                        "any": true,
+                        "children": [
+                          {
+                            "child": {
+                              "name": "a"
+                            }
+                          },
+                          {
+                            "child": {
+                              "name": "b"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

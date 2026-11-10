@@ -2815,7 +2815,7 @@ Inside a child list, every parenthesized group follows `child-primary`, never th
 
 A set beside other child items requires grouping parentheses. `⁅ a (b ∪ c) ⁆` is valid, while `⁅ a b ∪ c ⁆` fails syntax recognition. A set can occupy a complete choice arm without extra parentheses.
 
-A pattern argument is one term that the pattern grammar consumes. The argument reader balances `⁅` and `⁆` tokens, not characters in raw text. A bracket inside a string or comment is not a delimiter. Inner `|`, `/`, and commas belong to that term and do not separate outer call arguments. Thus `f(#⁅ "»" a ⁆)` retains the complete child list as its argument.
+A pattern argument is one term that the pattern grammar consumes. The argument reader balances `⁅` and `⁆` tokens, not characters in raw text. A `⁅` or `⁆` inside a string or comment is not a delimiter. Inner `|`, `/`, and commas belong to that term and do not separate outer call arguments. Thus `f(#⁅ "⁆" a ⁆)` retains the complete child list as its argument.
 
 ### 9.3 Conversion and validation
 
