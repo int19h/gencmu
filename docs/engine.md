@@ -929,7 +929,7 @@ A bare template atom in a pattern matches every instance originating from that t
 
 An exact call in a pattern identifies one instance. An instance referenced only by patterns receives the ordinary unreachable-rule note. Its public name identifies that same instance. Template-family membership remains internal metadata.
 
-Recognition and neighbor targets accept ordinary rules, exact calls, named instances, and permitted user tags. A bare template name is a load error, including in `.tags(R)` and `.without-elision-except(F)`. An exact instance used as a close family follows §2.2 after expansion.
+Recognition and neighbor targets accept ordinary rules, exact calls, named instances, and permitted user tags. A bare template name is a load error, including in a `parse` body and `.without-elision-except(F)`. An exact instance used as a close family follows §2.2 after expansion.
 
 #### Finite expansion and errors
 
@@ -3457,7 +3457,7 @@ That input is the stage's input or, in a nested parse (§4), the span that the n
 
 `.onward` preserves a restored view and extends its match window to the context end. Repeated `.onward` retains the same fixed capture. `.first-token`, `.tokens-after-first`, `.last-token`, `.following-tokens`, and `.preceding-tokens` first project to original tokens, then return ordinary spans. They remove the alignment constraint. `$x.without-elision.following-tokens` therefore starts at the original capture end and reads the raw suffix.
 
-`.source-text`, `.decomposed-source-text`, `.value`, `.image`, `.starts-input`, and `.tags` observe the original projection. A restored span carries no constituent tags, so `$x.without-elision.tags` unions original token tags. `.tags(R)` runs the aligned whole query and unions its witnesses' own tags. Patterns inside a witness observe its own projected structure.
+`.source-text`, `.decomposed-source-text`, `.value`, `.image`, `.starts-input`, and `.tags` observe the original projection. A restored span carries no constituent tags, so `$x.without-elision.tags` unions original token tags. `.parse(R).tags` runs the aligned whole query and unions its witnesses' own tags. Patterns inside a witness observe its own projected structure.
 
 During §7 reconstruction, `.without-elision` and `.without-elision-except(F)` take their closes from the current candidate's projected omission events. Neither borrows the selected main derivation's list. Neither introduces an additional synthetic token where that event already has one.
 
