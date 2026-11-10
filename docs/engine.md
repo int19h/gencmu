@@ -1112,7 +1112,7 @@ A production's captures stand in the order in which it reads them. That is the o
 
 Conditions, tags, recipes, diagnostics, suppression, emission, and erasure attach to every production of their alternative. They attach with the clauses of the alternative's definition (§2). A production has a capture where its expansion reads the captured symbol (§3.5), and every production has `$`.
 
-A condition without a presence test remains a runtime condition. Valid documents have no literal truth values or empty conjunctions or disjunctions. A fixed term can still simplify to the empty set.
+A condition without a presence test remains a runtime condition, unless it holds a closed set term (below). Valid documents have no literal truth values or empty conjunctions or disjunctions. A fixed term can still simplify to the empty set.
 
 Before lowering attaches a clause, it simplifies the clause for the production, by these rules:
 
@@ -1123,9 +1123,9 @@ Before lowering attaches a clause, it simplifies the clause for the production, 
 - A constant is its value here. So a constant whose value is the empty set is an empty set.
 - In a Boolean position, a set term that simplifies to the empty set becomes false.
 - In a Boolean position, a set term that simplifies to a closed set (§10) that is not empty becomes true.
-
-Closed reads the term as its template writes it. A condition of a template instance is closed only where its template writes it closed. A parameter is never closed, whatever its argument. The bare-`∅` rule of §10 reads the instance instead. So an argument `∅` in a Boolean position is that error.
 - Lowering drops a term's empty set, written `∅` or left by a guard, from a union. A union of nothing but empty sets is the empty set, as is an intersection with one. A difference whose first part is empty is empty. If its second part is empty, the difference is its first part. A guarded term whose term is the empty set is the empty set.
+
+The closed-set rule reads each term as its template writes it. A condition of a template instance is closed only where its template writes it closed. A parameter is never closed, whatever its argument. The bare-`∅` rule of §10 reads the instance instead. So an argument `∅` in a Boolean position is that error.
 
 Since the engine never evaluates a reduced part, the reduction is part of the order of evaluation (§10). The clause uses each capture that it still mentions after simplification. Then the simplified clauses attach as follows:
 
