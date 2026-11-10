@@ -23,7 +23,14 @@ type erasurePatternUse struct {
 }
 
 func (g *stageGrammar) checkDiagnosticsAndSplices() *Error {
-	warnings := map[string]bool{}
+	warnings, checkNames := map[string]bool{}, map[string]bool{}
+	for _, entry := range g.checks {
+		checkNames[entry.definition.Name] = true
+		if entry.definition.Warning != nil {
+			warnings[entry.definition.Name] = true
+		}
+	}
+
 	prohibited := map[string]bool{}
 	erased := map[string]bool{}
 	for _, rule := range g.rules {
@@ -48,6 +55,9 @@ func (g *stageGrammar) checkDiagnosticsAndSplices() *Error {
 	names := func(pattern *domPattern, doc string, at [2]int, collect bool) {
 		walkPattern(pattern, func(node *domPattern) {
 			if node.Kind == "name" {
+				if checkNames[node.Name] && problem == nil {
+					problem = grammarError(doc, at, "a pattern cannot name check %s", node.Name)
+				}
 				if collect {
 					prohibited[node.Name] = true
 				}
@@ -74,6 +84,25 @@ func (g *stageGrammar) checkDiagnosticsAndSplices() *Error {
 	for _, constant := range g.constants {
 		if constant.value != nil && constant.value.pattern != nil {
 			names(constant.value.pattern, constant.doc, [2]int{}, true)
+		}
+	}
+	for _, entry := range g.checks {
+		walkPattern(entry.definition.Pattern.Pattern, func(node *domPattern) {
+			if node.Kind == "name" {
+				prohibited[node.Name] = true
+			}
+		})
+		for _, condition := range entry.definition.Conditions {
+			walkClause(clausePart{c: condition}, func(part clausePart) bool {
+				if part.t != nil && part.t.Pattern != nil {
+					walkPattern(part.t.Pattern, func(node *domPattern) {
+						if node.Kind == "name" {
+							prohibited[node.Name] = true
+						}
+					})
+				}
+				return true
+			})
 		}
 	}
 	type splice struct {

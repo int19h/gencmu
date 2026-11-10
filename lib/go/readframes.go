@@ -256,6 +256,9 @@ func (f *exprFrame) start(b *domBuilder) readStep {
 	case "tested":
 		return give(b.tested(n))
 	case "capture":
+		if b.checkContext {
+			b.fail(n, "a check cannot name a capture")
+		}
 		// Its place, then $, its name and its symbol, each at the capture,
 		// before what it wraps (engine §9).
 		// Inside flat braces it is an item capture, and the innermost
@@ -625,6 +628,9 @@ func (f *termFrame) start(b *domBuilder) readStep {
 		return give(b.constantRef(n))
 	case "capture-reference":
 		name := strings.TrimPrefix(b.tokenValue(b.token(n)), "$")
+		if b.checkContext && name != "" {
+			b.fail(n, "a check cannot name a capture")
+		}
 		if b.closedFor != "" {
 			b.fail(n, "%s is a closed term, and holds no capture", b.closedFor)
 		}
@@ -835,6 +841,16 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 			return ask(&conditionFrame{n: b.knownOf(n, conditionRules)})
 		case "tree-comparison":
 			f.compare = &domCond{Kind: cdCompare, At: b.at(n), Left: &domTerm{Kind: tmCapture, Str: strings.TrimPrefix(b.tokenValue(b.token(b.only(n, "capture-reference"))), "$")}}
+			if b.checkContext && f.compare.Left.Str != "" {
+				b.fail(n, "a check cannot name a capture")
+			}
+			for _, selector := range b.some(n, "method-selector", 0) {
+				name := b.tokenValue(b.token(b.only(selector, "method-name")))
+				if !b.checkContext || sourceMethods[name] != methodNode || b.one(selector, "arguments") != nil {
+					b.fail(selector, "a tree comparison requires a node walk")
+				}
+				f.compare.Left = b.finishMethod(selector, name, f.compare.Left, nil, false)
+			}
 			f.compare.Op = b.operator(b.token(b.only(n, "tree-comparator")))
 			right := b.only(n, "union")
 			b.patternOperand(right)
@@ -894,10 +910,13 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 		return give(&domCond{Kind: cdNot, Inner: in.(*domCond)})
 	}
 	t := in.(*domTerm)
+	if b.checkContext && checkNodeTerm(t) {
+		return give(&domCond{Kind: cdPresent, Span: t})
+	}
 	if t.Str == "tags" || t.Str == "classes" || t.Str == "split" || t.Str == "ngrams" || t.Str == "classify" {
 		return give(&domCond{Kind: cdTruthy, Left: t})
 	}
-	if t.Str == "parse" || t.Str == "error-free" || t.Str == "ending-after" {
+	if t.Str == "parse" || t.Str == "error-free" || t.Str == "ending-after" || t.Str == "local-readings" {
 		return give(&domCond{Kind: cdForest, Left: t})
 	}
 	if t.Str == "ends-input" {

@@ -24,6 +24,7 @@ type domDoc struct {
 
 // domCheck tests a node of the chosen tree (engine §12.1).
 type domCheck struct {
+	PatternAt      [2]int
 	Name           string
 	Pattern        *domTerm
 	Conditions     []*domCond
@@ -231,6 +232,7 @@ const (
 	cdCaptured = "captured"
 	cdIf       = "if"
 	cdForest   = "forest"
+	cdPresent  = "present"
 	cdTruthy   = "truthy"
 )
 
@@ -454,7 +456,11 @@ func (d *domDoc) writeJSON(w *jsonWriter) {
 		w.raw(`{"name":`)
 		w.str(check.Name)
 		w.raw(`,"pattern":`)
-		check.Pattern.writeJSON(w)
+		if check.Pattern.Kind == tmPattern {
+			w.pattern(check.Pattern.Pattern)
+		} else {
+			check.Pattern.writeJSON(w)
+		}
 		w.raw(`,"conditions":[`)
 		for j, condition := range check.Conditions {
 			if j > 0 {
@@ -735,6 +741,10 @@ func (c *domCond) writeJSON(w *jsonWriter) {
 	case cdTruthy:
 		w.raw(`{"nonempty":`)
 		c.Left.writeJSON(w)
+		w.raw("}")
+	case cdPresent:
+		w.raw(`{"present":`)
+		c.Span.writeJSON(w)
 		w.raw("}")
 	case cdForest:
 		c.Left.writeJSON(w)
@@ -1133,8 +1143,8 @@ func (dc *domDecoder) decodeImplication(raw any) (*domImplication, error) {
 func (dc *domDecoder) decodeCheck(raw any) (*domCheck, error) {
 	object, err := domObjectOf(raw)
 	if err != nil || !hasOneForm(object, [][]string{
-		{"name", "pattern", "conditions", "warning", "at"},
-		{"name", "pattern", "conditions", "error", "at"},
+		{"warning", "name", "pattern", "conditions", "at"},
+		{"error", "name", "pattern", "conditions", "at"},
 	}) {
 		return nil, fmt.Errorf("a malformed check")
 	}
@@ -1142,7 +1152,14 @@ func (dc *domDecoder) decodeCheck(raw any) (*domCheck, error) {
 	if check.Name, err = domString(object["name"]); err != nil {
 		return nil, err
 	}
-	if check.Pattern, err = dc.decodeTerm(object["pattern"]); err != nil {
+	if templateObj(object["pattern"])["const"] != nil {
+		check.Pattern, err = dc.decodeTerm(object["pattern"])
+	} else {
+		var pattern *domPattern
+		pattern, err = dc.decodeLayeredPattern(object["pattern"], 0)
+		check.Pattern = &domTerm{Kind: tmPattern, Pattern: pattern}
+	}
+	if err != nil {
 		return nil, err
 	}
 	if check.Conditions, err = domList(object["conditions"], dc.decodeCond); err != nil {
@@ -1481,7 +1498,7 @@ var termForms = [][]string{
 }
 
 var condForms = [][]string{
-	{"op", "left", "right"}, {"method", "receiver", "args"}, {cdNot}, {cdAny}, {cdAll}, {cdCaptured}, {cdIf, "then"},
+	{"op", "left", "right"}, {"method", "receiver", "args"}, {cdNot}, {cdAny}, {cdAll}, {cdCaptured}, {cdPresent}, {cdIf, "then"},
 	{"nonempty"},
 }
 
@@ -1596,6 +1613,10 @@ func (dc *domDecoder) decodeCondNode(raw any, depth int) (*domCond, error) {
 	if !hasOneForm(o, condForms) {
 		return nil, fmt.Errorf("a malformed condition")
 	}
+	if v, ok := o["present"]; ok {
+		span, err := dc.decodeTermAt(v, depth+1)
+		return &domCond{Kind: cdPresent, Span: span}, err
+	}
 	if v, ok := o["op"]; ok {
 		c := &domCond{Kind: cdCompare}
 		if c.Op, err = domString(v); err != nil {
@@ -1621,7 +1642,7 @@ func (dc *domDecoder) decodeCondNode(raw any, depth int) (*domCond, error) {
 			return nil, err
 		}
 		switch {
-		case name == "parse" || name == "error-free" || name == "ending-after":
+		case name == "parse" || name == "error-free" || name == "ending-after" || name == "local-readings":
 			return &domCond{Kind: cdForest, Left: &domTerm{Kind: tmCall, Str: name, Items: append([]*domTerm{receiver}, args...)}}, nil
 		case name == "ends-input" && len(args) == 0:
 			return &domCond{Kind: cdEnd, Span: receiver}, nil

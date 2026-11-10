@@ -167,7 +167,7 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 			rule templateObject
 		}
 		items := []item{}
-		for _, kind := range []string{"rules", "constants", "directives", "classifiers", "implications", "checks"} {
+		for _, kind := range []string{"rules", "directives", "constants", "classifiers", "implications", "checks"} {
 			for _, v := range templateList(raw[kind]) {
 				items = append(items, item{kind, templateObj(v)})
 			}
@@ -175,7 +175,7 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 		sort.SliceStable(items, func(i, j int) bool { return before(templateAt(items[i].rule), templateAt(items[j].rule)) })
 		for _, it := range items {
 			r := it.rule
-			e := &templateEvent{path: d.path, rule: r, index: serial, inspectionRun: docIndex, kind: map[string]int{"rules": 0, "directives": 1, "constants": 2, "classifiers": 3, "implications": 4}[it.kind]}
+			e := &templateEvent{path: d.path, rule: r, index: serial, inspectionRun: docIndex, kind: map[string]int{"rules": 0, "directives": 1, "constants": 2, "classifiers": 3, "implications": 4, "checks": 5}[it.kind]}
 			serial++
 			sourceEvents = append(sourceEvents, e)
 			if it.kind != "rules" {

@@ -82,6 +82,15 @@ func checkDOMMode(d *domDoc, uni *unicodeTable, expanded bool) *domProblem {
 	// The order of a document's items is the order of their positions, so
 	// no two items share one (engine §9).
 	positions := map[[2]int]bool{}
+	for _, check := range d.Checks {
+		if check == nil {
+			return &domProblem{message: "a malformed check"}
+		}
+		if positions[check.At] {
+			return &domProblem{message: "two items at one position"}
+		}
+		positions[check.At] = true
+	}
 	for _, k := range d.Constants {
 		if k == nil {
 			return &domProblem{message: "a malformed constant"}
@@ -355,7 +364,10 @@ func checkDOMMode(d *domDoc, uni *unicodeTable, expanded bool) *domProblem {
 			return nil
 		}})
 	}
-	slices.SortFunc(inspections, func(a, b inspection) int { return slices.Compare(a.at[:], b.at[:]) })
+	for _, check := range d.Checks {
+		inspections = append(inspections, inspection{check.At, func() *domProblem { return checkDOMCheck(check, uni, expanded, d) }})
+	}
+	slices.SortStableFunc(inspections, func(a, b inspection) int { return slices.Compare(a.at[:], b.at[:]) })
 	for _, inspection := range inspections {
 		if problem := inspection.run(); problem != nil {
 			return problem
@@ -461,6 +473,7 @@ func directiveOperandsOK(dir *domDirective) bool {
 }
 
 type domChecker struct {
+	check           bool
 	parseBody       bool
 	expanded        bool
 	parameters      map[string]bool
@@ -1362,7 +1375,7 @@ func literalCallProblem(call string, args []*domTerm) string {
 
 // isSpanShape identifies captures and span methods (§10).
 func isSpanShape(t *domTerm) bool {
-	return t != nil && (t.Kind == tmCapture || unresolvedTerm(t) || (t.Kind == tmCall && isSpanFunction(t.Str)))
+	return t != nil && (checkNodeTerm(t) || checkElementTerm(t) || unresolvedTerm(t) || (t.Kind == tmCall && isSpanFunction(t.Str)))
 }
 
 func isRuleName(name string, uni *unicodeTable) bool {
@@ -1403,6 +1416,9 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 			c.fail("a string is not valid UTF-8")
 		}
 	case tmCapture:
+		if c.check && t.Str != "" {
+			c.fail("a check cannot name a capture")
+		}
 		if t.Str != "" && !captureName.MatchString(t.Str) {
 			c.fail("a malformed capture name")
 		}
@@ -1522,8 +1538,25 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		valueOperand := func(a *domTerm) bool {
 			return a != nil && a.Kind != tmRule && a.Kind != tmClassifier && a.Kind != tmInteger && a.Kind != tmTerminal
 		}
+		if (sourceMethods[t.Str] == methodNode || sourceMethods[t.Str] == methodElement || sourceMethods[t.Str] == methodLocal || sourceMethods[t.Str] == methodTerminal) && !c.check {
+			c.fail("a check method is outside a check")
+			return
+		}
+		if c.check && (t.Str == "without-elision" || t.Str == "without-elision-except" || t.Str == "emitted" || t.Str == "terminal") {
+			c.fail("a check method is outside its permitted clause")
+			return
+		}
+		if c.check && len(args) > 0 && checkElementTerm(args[0]) && !(sourceMethods[t.Str] == methodLocal || sourceMethods[t.Str] == methodSpan && t.Str != "classes") {
+			c.fail("an element has no tags, walk, or boundary method")
+			return
+		}
 		var ok bool
 		switch t.Str {
+		case "parent", "preceding-node", "following-node", "preceding-element":
+			ok = c.check && len(args) == 1 && checkNodeTerm(args[0])
+		case "local-readings":
+			ok = c.check && len(args) == 1 && (checkNodeTerm(args[0]) || checkElementTerm(args[0]))
+
 		case "parse":
 			ok = len(args) == 2 && isSpanShape(args[0]) && args[1] != nil && args[1].Kind == tmBody
 			if ok {
@@ -1610,6 +1643,12 @@ func (c *domChecker) condition(d *domCond, depth int) {
 		return
 	}
 	switch d.Kind {
+	case cdPresent:
+		if !c.check || !checkNodeTerm(d.Span) {
+			c.fail("a presence test requires a check node")
+			return
+		}
+		c.term(d.Span, depth+1, true)
 	case cdTruthy:
 		c.term(d.Left, depth, false)
 	case cdForest:
@@ -1630,7 +1669,7 @@ func (c *domChecker) condition(d *domCond, depth int) {
 			c.fail("a comparison without two terms")
 			return
 		}
-		if (d.Op == "≅" || d.Op == "≇") && d.Left.Kind != tmCapture {
+		if (d.Op == "≅" || d.Op == "≇") && !(d.Left.Kind == tmCapture || c.check && checkNodeTerm(d.Left)) {
 			c.fail("a tree comparison requires a bare capture")
 			return
 		}
@@ -1651,7 +1690,7 @@ func (c *domChecker) condition(d *domCond, depth int) {
 		c.term(d.Span, depth+1, true)
 	case cdBoundary:
 		c.hasBoundary = true
-		if d.Span == nil || d.Span.Kind != tmCapture && !unresolvedTerm(d.Span) || !boundaryMethod(d.Op) || len(d.Targets) == 0 {
+		if d.Span == nil || d.Span.Kind != tmCapture && !(c.check && checkNodeTerm(d.Span)) && !unresolvedTerm(d.Span) || !boundaryMethod(d.Op) || len(d.Targets) == 0 {
 			c.fail("a malformed boundary atom")
 			return
 		}
@@ -1688,6 +1727,9 @@ func (c *domChecker) condition(d *domCond, depth int) {
 			c.condition(it, depth+1)
 		}
 	case cdCaptured:
+		if c.check && d.Capture != "" {
+			c.fail("a check cannot name a capture")
+		}
 		if c.inArgument {
 			c.fail("an argument cannot read or declare captures")
 		}
@@ -1831,9 +1873,11 @@ const (
 	tyPattern
 	tyForest
 	tyBody
+	tyNode
+	tyElement
 )
 
-var typeNames = map[termType]string{tyBody: "a parse body", tyForest: "a forest", tyPattern: "a tree pattern", tyString: "a string", tyStrings: "a set of strings", tyTags: "a tag set", tySpan: "a span", tySet: "a set", tyAny: "a value"}
+var typeNames = map[termType]string{tyNode: "a check node", tyElement: "an element value", tyBody: "a parse body", tyForest: "a forest", tyPattern: "a tree pattern", tyString: "a string", tyStrings: "a set of strings", tyTags: "a tag set", tySpan: "a span", tySet: "a set", tyAny: "a value"}
 
 const spanNotValue = "a span is not a value: $x.tags is the tag set of $x"
 
@@ -1861,9 +1905,13 @@ func isSetType(t termType) bool { return t == tyStrings || t == tyTags || t == t
 // callType is the type of the value a function gives.
 func callType(name string) termType {
 	switch name {
-	case "parse", "error-free", "ending-after":
+	case "parse", "error-free", "ending-after", "local-readings":
 		return tyForest
-	case "value", "image", "source-text", "decomposed-source-text", "verbatim-text":
+	case "parent", "preceding-node", "following-node":
+		return tyNode
+	case "preceding-element":
+		return tyElement
+	case "value", "image", "source-text", "decomposed-source-text", "verbatim-text", "terminal":
 		return tyString
 	case "split", "ngrams":
 		return tyStrings
@@ -1918,13 +1966,22 @@ func joinedType(types []termType, op string) (termType, string) {
 // again (engine §9).
 func comparisonProblem(op string, left, right termType) string {
 	if op == "≅" || op == "≇" {
-		if left != tySpan {
+		if left != tySpan && left != tyNode {
 			return "a tree comparison requires a bare capture on its left"
 		}
-		if right != tySpan && right != tyPattern && right != tySet && right != tyAny {
+		if right != tySpan && right != tyNode && right != tyPattern && right != tySet && right != tyAny {
 			return "a tree comparison requires a pattern or a bare capture on its right"
 		}
 		return ""
+	}
+	if left == tyElement || right == tyElement {
+		return "an element value is not a comparison operand"
+	}
+	if left == tyNode {
+		left = tySpan
+	}
+	if right == tyNode {
+		right = tySpan
 	}
 	if op != "∈" && op != "∉" && (left == tySpan || right == tySpan) && (isSetType(left) || isSetType(right)) || (op == "∈" || op == "∉") && right == tySpan {
 		return spanNotValue
@@ -2005,6 +2062,7 @@ func termTypeIn(t *domTerm, ct constTypes) (termType, *typeFault) {
 // terms around it, so each is found once, and a deep term costs no more
 // than its size. A DOM is never changed once read.
 type typeMemo struct {
+	check bool
 	terms map[*domTerm]typeFound
 	conds map[*domCond]*typeFault
 }
@@ -2161,6 +2219,9 @@ func termTypeOnce(t *domTerm, ct constTypes, memo *typeMemo) (termType, *typeFau
 	case tmEmptySet:
 		return tySet, nil
 	case tmCapture:
+		if memo.check {
+			return tyNode, nil
+		}
 		return tySpan, nil
 	case tmConst:
 		return ct.of(t.Str), nil
@@ -2250,6 +2311,15 @@ func condTypeOnce(c *domCond, ct constTypes, memo *typeMemo) *typeFault {
 		w.readerSteps.add("reader steps")
 	}
 	switch c.Kind {
+	case cdPresent:
+		ty, fault := termTypeMemo(c.Span, ct, memo)
+		if fault != nil {
+			return fault
+		}
+		if ty != tyNode {
+			return &typeFault{"a presence test requires a check node", c}
+		}
+		return nil
 	case cdTruthy:
 		ty, fault := termTypeMemo(c.Left, ct, memo)
 		if fault != nil {
@@ -2287,7 +2357,7 @@ func condTypeOnce(c *domCond, ct constTypes, memo *typeMemo) *typeFault {
 			if right == tySpan && c.Right.Kind != tmCapture {
 				return &typeFault{"a tree comparison requires a pattern or a bare capture on its right", c.Right}
 			}
-			if c.Left.Kind == tmCapture && c.Right.Kind == tmCapture && c.Left.Str == c.Right.Str {
+			if checkNodeTerm(c.Left) && checkNodeTerm(c.Right) && sameCheckNode(c.Left, c.Right) {
 				return &typeFault{"a constituent comparison requires two different captures", c}
 			}
 		}

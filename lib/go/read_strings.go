@@ -142,6 +142,13 @@ func (c *domChecker) recipe(t *domTerm) {
 			continue
 		}
 		r := atom.Items[0]
+		if c.check && (r.Kind != tmCapture || r.Str != "" || atom.Str == "emitted") {
+			c.fail("a check message requires the current node")
+			continue
+		}
+		if c.check && atom.Str == "terminal" && r.Kind == tmCapture && r.Str == "" {
+			continue
+		}
 		if r.Kind == tmCapture && (atom.Str == "value" || atom.Str == "image" || atom.Str == "source-text" || atom.Str == "decomposed-source-text" || atom.Str == "verbatim-text") {
 			continue
 		}
@@ -352,10 +359,13 @@ func (b *domBuilder) recipe(n *Node) *domTerm {
 			valid := stringTermShape(t) || t.Kind == tmParam || t.Kind == tmSourceCall
 			if t.Kind == tmCall && len(t.Items) == 1 {
 				receiver := t.Items[0]
-				valid = receiver.Kind == tmCapture && (t.Str == "value" || t.Str == "image" || t.Str == "source-text" || t.Str == "decomposed-source-text" || t.Str == "verbatim-text")
+				valid = receiver.Kind == tmCapture && (t.Str == "value" || t.Str == "image" || t.Str == "source-text" || t.Str == "decomposed-source-text" || t.Str == "verbatim-text" || b.checkContext && t.Str == "terminal")
 				if receiver.Kind == tmCall && receiver.Str == "emitted" && len(receiver.Items) == 1 && receiver.Items[0].Kind == tmCapture {
 					valid = t.Str == "value" || t.Str == "image"
 				}
+			}
+			if b.checkContext && t.Kind == tmCall && (len(t.Items) != 1 || t.Items[0].Kind != tmCapture || t.Items[0].Str != "") {
+				valid = false
 			}
 			if !valid {
 				b.fail(atom, "a recipe requires a string or capture string method")
@@ -487,7 +497,7 @@ func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 		f.receiver = b.finishMethod(f.n, name, f.receiver, f.args, f.dependent)
 		f.index++
 		if f.index == len(f.selectors) {
-			isPredicate := name == "starts-input" || name == "ends-input" || boundaryMethod(name) || name == "matches" || name == "begins" || name == "ends" || name == "parse" || name == "error-free" || name == "ending-after"
+			isPredicate := name == "starts-input" || name == "ends-input" || boundaryMethod(name) || name == "matches" || name == "begins" || name == "ends" || name == "parse" || name == "error-free" || name == "ending-after" || name == "local-readings" || b.checkContext && f.inCondition && checkNodeTerm(f.receiver)
 			if f.inCondition && (name == "tags" || name == "classes" || name == "split" || name == "ngrams" || name == "classify") {
 				isPredicate = true
 			}
@@ -518,6 +528,10 @@ const (
 	methodParse
 	methodErrorFree
 	methodEndingAfter
+	methodNode
+	methodElement
+	methodLocal
+	methodTerminal
 )
 
 var sourceMethods = map[string]sourceMethodKind{
@@ -531,11 +545,24 @@ var sourceMethods = map[string]sourceMethodKind{
 	"matches": methodQuery, "begins": methodQuery, "ends": methodQuery,
 	"ngrams": methodNgrams, "split": methodSplit, "classify": methodClassify,
 	"parse": methodParse, "error-free": methodErrorFree, "ending-after": methodEndingAfter,
+	"parent": methodNode, "preceding-node": methodNode, "following-node": methodNode,
+	"preceding-element": methodElement, "local-readings": methodLocal, "terminal": methodTerminal,
 }
 
 func knownMethod(name string) bool { return sourceMethods[name] != 0 }
 
 func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args []*domTerm, dependent bool) *domTerm {
+	kind := sourceMethods[name]
+	if (kind == methodNode || kind == methodElement || kind == methodLocal || kind == methodTerminal) && (!b.checkContext || kind == methodTerminal && !b.inRecipe) {
+		b.fail(n, "a check method is outside its permitted clause")
+	}
+	if b.checkContext && (name == "without-elision" || name == "without-elision-except" || name == "emitted") {
+		b.fail(n, "a check cannot restore elision or read emitted strings")
+	}
+	if b.checkContext && checkElementTerm(receiver) && !(kind == methodLocal || kind == methodSpan && name != "classes" || kind == methodEndingAfter) {
+		b.fail(n, "an element has no tags, walk, or boundary method")
+	}
+
 	fail := func() {
 		if b.featureContext || dependent {
 			b.fail(n, "a method has the wrong receiver or arguments")
@@ -558,6 +585,12 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 	span := b.featureContext || isSpanTerm(receiver)
 	valid := false
 	switch sourceMethods[name] {
+	case methodNode, methodElement:
+		valid = b.checkContext && checkNodeTerm(receiver) && len(args) == 0
+	case methodLocal:
+		valid = b.checkContext && (checkNodeTerm(receiver) || checkElementTerm(receiver)) && len(args) == 0
+	case methodTerminal:
+		valid = b.checkContext && b.inRecipe && receiver.Kind == tmCapture && receiver.Str == "" && len(args) == 0
 	case methodParse:
 		valid = span && len(args) == 1 && args[0].Kind == tmBody
 		if valid {
@@ -588,7 +621,7 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 	case methodTags:
 		valid = span && (len(args) == 0 || len(args) == 1 && (args[0].Kind == tmRule || unknown(args[0]))) || forestTerm(receiver) && len(args) == 0
 	case methodBoundary:
-		valid = (b.featureContext || receiver.Kind == tmCapture || unknown(receiver)) && len(args) > 0
+		valid = (b.featureContext || receiver.Kind == tmCapture || b.checkContext && checkNodeTerm(receiver) || unknown(receiver)) && len(args) > 0
 		for _, a := range args {
 			if a.Kind == tmTag && isCapital(a.Str) {
 				a.Kind = tmTerminal

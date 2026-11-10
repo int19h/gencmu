@@ -253,6 +253,12 @@ func diagnosticNotes(g *stageGrammar) []DiagnosticNote {
 					roots.add(name, 1)
 				}
 				possible := map[string]bool{}
+				for _, entry := range g.checks {
+					if entry.definition.Warning != nil {
+						possible[entry.definition.Name] = true
+					}
+				}
+
 				if alt.warning != nil {
 					possible[rule.name] = true
 				}
