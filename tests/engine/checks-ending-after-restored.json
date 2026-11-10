@@ -1,0 +1,17 @@
+{
+  "description": "Engine §10: synthetic tokens do not extend an end after projection, for forests and arguments.",
+  "grammar": "%rule text $x:pair\n%conditions ¬$x.without-elision.parse(pair …).ending-after($x), ¬$x.without-elision.parse(pair …).ending-after($x.without-elision)\n%rule pair A [+T]",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

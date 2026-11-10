@@ -1,0 +1,36 @@
+{
+  "description": "Engine §10: error-free and ending-after must hold on the same witness in either order.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage before\n%ambiguity-resolution greedy\n%rule text $a:A $b:bad\n%emits $a :: X, $b :: X\n%rule bad A\n%error \"bad\"\n%stage last\n%ambiguity-resolution greedy\n%rule text X X\n%conditions ¬$.parse(r …).error-free.ending-after($.first-token), ¬$.parse(r …).ending-after($.first-token).error-free, Long ⊆ $.parse(r …).ending-after($.first-token).tags, Short ⊆ $.parse(r …).error-free.tags\n%rule r\n | X :: Short\n | X X :: Long\n```\n"
+  },
+  "pipelineDocument": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "reported",
+    "result": {
+      "stages": [
+        {
+          "name": "before",
+          "verdict": "unique"
+        },
+        {
+          "name": "last",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

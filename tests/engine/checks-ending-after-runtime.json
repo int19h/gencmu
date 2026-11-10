@@ -1,0 +1,15 @@
+{
+  "description": "Engine §10: an end filter retains runtime errors of its forest receiver.",
+  "grammar": "%rule text A\n%conditions $.parse(r …).ending-after($.onward)\n%rule r A\n%conditions $.value.split(\"\" ++ \"\")",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

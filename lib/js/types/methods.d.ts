@@ -1,4 +1,5 @@
 export declare const SPAN_METHODS: Set<string>;
+export declare const FOREST_METHODS: Set<string>;
 export declare const QUERY_METHODS: Set<string>;
 export declare const INPUT_STRINGS: Set<string>;
 export declare const TARGET_METHODS: Set<string>;
