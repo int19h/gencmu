@@ -125,6 +125,16 @@ func checkCandidateProblem(pattern *domPattern) string {
 	for len(pending) > 0 {
 		node := pending[len(pending)-1]
 		pending = pending[:len(pending)-1]
+		// Contextual ∅ is the internal universal-minus-universal predicate.
+		if node.Kind == tmDifference && len(node.Items) == 2 {
+			empty := true
+			for _, part := range node.Items {
+				empty = empty && part.Kind == "any" && !part.Exact && len(part.Attached) == 1 && part.Attached[0].Kind == "siblings"
+			}
+			if empty {
+				continue
+			}
+		}
 		if node.Kind == tmUnion || node.Kind == tmIntersection || node.Kind == tmDifference {
 			pending = append(pending, node.Items...)
 			continue

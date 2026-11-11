@@ -3,6 +3,11 @@
   "grammar": "%rule text \"a\"\n%check bad #·_\n%conditions $x.value = \"a\"\n%warning \"bad\"",
   "input": "a",
   "expect": {
-    "error": "grammar"
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 13
+    }
   }
 }

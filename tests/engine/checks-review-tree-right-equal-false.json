@@ -1,0 +1,16 @@
+{
+  "description": "A node walk on the right of ≅ can give a false result.",
+  "grammar": "%rule text a b a\n%rule a \"a\"\n%rule b \"b\"\n%check c #·b\n%conditions $ ≅ $.following-node\n%warning \"comparison\"",
+  "input": "aba",
+  "options": {
+    "features": [
+      "c"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": []
+  }
+}

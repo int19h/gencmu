@@ -62,7 +62,7 @@ def prepare(lowered):
             expression = lowered.helper_expressions.get(rule)
             safe &= (expression is not None and production.elided is None and not binds(expression)
                      and all(name.startswith("\0") for name in production.captures)
-                     and not production.conds_predict and not production.conds_at
+                     and not production.conds_predict and not any(production.conds_at.values())
                      and not (production.slot and production.slot.ranked_conditions)
                      and not production.parent_tags and not (production.items and production.items.conditions))
         outside, entry, boundary = properties[rule]

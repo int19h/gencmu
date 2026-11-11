@@ -1676,6 +1676,7 @@ struct Run<'t, 'g> {
 impl<'t, 'g> Run<'t, 'g> {
     /// A run that starts with `first`, an empty set, as its set 0.
     fn new(tokens: &'t [Tok], base: usize, start: u32, recon: Option<&'g Recon<'g>>, first: ESet) -> Run<'t, 'g> {
+        work::count(Work::Recognitions, 1);
         let mut chart = Chart { boundary_root: Some(start), record_links: recon.is_some(), ..Default::default() };
         chart.caps.push(CapEntry {
             parent: 0,

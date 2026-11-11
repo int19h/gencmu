@@ -329,7 +329,9 @@ impl<'a> Tree<'a> {
                 };
                 let site = match element {
                     Element::Symbol(position) => p.chart_sites.get(*position).copied(),
-                    Element::Optional { .. } => None,
+                    Element::Optional { symbol, .. } => {
+                        symbol.and_then(|position| p.chart_sites.get(position).copied())
+                    }
                 };
                 return Some(Value { start: low, end: high, target, site });
             }

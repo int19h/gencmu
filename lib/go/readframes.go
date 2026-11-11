@@ -849,7 +849,7 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 				if !b.checkContext || sourceMethods[name] != methodNode || b.one(selector, "arguments") != nil {
 					b.fail(selector, "a tree comparison requires a node walk")
 				}
-				f.compare.Left = b.finishMethod(selector, name, f.compare.Left, nil, false)
+				f.compare.Left = b.finishMethod(selector, name, f.compare.Left, nil, false, selector)
 			}
 			f.compare.Op = b.operator(b.token(b.only(n, "tree-comparator")))
 			right := b.only(n, "union")

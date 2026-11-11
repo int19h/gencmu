@@ -10791,6 +10791,7 @@
 
 
 
+
   // A stage's grammar: its documents stitched together (engine §2) and
   // lowered to productions for one set of features (engine §3).
 
@@ -11184,6 +11185,8 @@
             const pending=[body.pattern];
             while(pending.length) {
               const pattern=pending.pop();
+              // Contextual ∅ uses this internal universal-minus-universal form.
+              if(pattern.difference?.length===2 && pattern.difference.every((/** @type {any} */ part)=>part.any && !part.exact && part.children?.length===1 && part.children[0].siblings))continue;
               if(pattern.union || pattern.intersection || pattern.difference)for(const child of pattern.union??pattern.intersection??pattern.difference)pending.push(child);
               else if(pattern.path || !pattern.exact)throw this.documentError(path,location,'a check requires exact candidate tests without paths');
             }
@@ -12018,7 +12021,7 @@
       yield part;
       if (part.pattern || node.pattern) continue;
       if (node.op === "≅" || node.op === "≇") {
-        pending.push({node:node.right,pattern:!(typeof node.right?.capture === "string")},{node:node.left,pattern:false});
+        pending.push({node:node.right,pattern:!(typeof node.right?.capture === "string" || NODE_METHODS.has(node.right?.method))},{node:node.left,pattern:false});
         continue;
       }
       const expressions = expressionChildren(node);
@@ -22784,8 +22787,8 @@
       if(ofRule(node,'rule-name').length!==1 || ofRule(node,'conditions-clause').length>1 || ofRule(node,'error-clause').length+ofRule(node,'warning-clause').length!==1)fail('a check requires one name and one diagnostic',node);
       const bodies=items.filter(part=>['pattern-literal','constant-reference'].includes(ruleOf(part)));
       if(bodies.length!==1)fail('a check requires one pattern',node);
-      const name=valueOf(token(only(node,'rule-name')));
-      if(!unicode.isEmojiName?.(name) && !/^(?!.*--)[a-z][A-Za-z0-9_-]*$/.test(name))fail('a check name starts with a lowercase letter or uses one eligible emoji',node);
+      const nameNode=only(node,'rule-name'),name=valueOf(token(nameNode));
+      if(!unicode.isEmojiName?.(name) && !/^(?!.*--)[a-z][A-Za-z0-9_-]*$/.test(name))fail('a check name starts with a lowercase letter or uses one eligible emoji',nameNode);
       const body=parts(node).find(part=>['pattern-literal','constant-reference'].includes(ruleOf(part)));
       if(!body)return lacks(node,'check pattern');
       const term=yield readTerm(body);
@@ -23500,11 +23503,15 @@
       switch (ruleOf(inner)) {
         case "implication":
           return yield readImplication(inner);
-        case "presence":
-          return { captured: valueOf(token(inner)).slice(1) };
+        case "presence": {
+          const captured=valueOf(token(inner)).slice(1);
+          if(checkContext && captured)fail("a check cannot name a capture",inner);
+          return {captured};
+        }
         case "tree-comparison": {
           const receiver=some(inner,"method-selector",0).length ? inner : one(inner,"method");
           const left=receiver ? yield readMethod(receiver) : {capture:valueOf(token(only(inner,"capture-reference"))).slice(1)};
+          if(checkContext && left.capture)fail("a check cannot name a capture",only(inner,"capture-reference"));
           if(!checkContext && (receiver || tokens[inner.span[0]]?.value === "("))fail("a tree comparison requires a bare capture",receiver ?? inner);
           const op = /** @type {Comparator} */ (operator(token(only(inner,"tree-comparator"))));
           const rightNode = only(inner,"union");
@@ -23767,6 +23774,7 @@
         }
         case "capture-reference": {
           const capture = valueOf(token(node)).slice(1);
+          if(checkContext && capture)fail("a check cannot name a capture",node);
           if (closedFor) fail(`${closedFor} is a closed term, and holds no capture`, node);
 
           return { capture };
@@ -23935,6 +23943,7 @@
     function* readMethod(node) {
       const start = one(node, "method-receiver");
       let receiver = start ? yield readTerm(only(start, "term-atom"), true) : {capture:valueOf(token(only(node,"capture-reference"))).slice(1)};
+      if(checkContext && receiver.capture)fail("a check cannot name a capture",only(node,"capture-reference"));
       for (const selector of some(node, "method-selector")) {
         const parsed = one(selector, "parse-selector");
         const name = parsed ? "parse" : valueOf(token(only(selector, "method-name")));
@@ -26619,7 +26628,7 @@
    * @property {(term:any)=>SpanValue} [checkValue]
    * @property {(term:any)=>boolean} [checkPresence]
    * @property {()=>string} [checkTerminal]
-   * @property {(term:any)=>{start:number,rule:string}} [localReading]
+   * @property {(term:any)=>{start:number,rule:string,site:any}} [localReading]
    * @property {(name: string) => SpanValue} capture
    */
 

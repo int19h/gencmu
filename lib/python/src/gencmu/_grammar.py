@@ -1018,6 +1018,8 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
             pending = [body["pattern"]]
             while pending:
                 part = pending.pop()
+                if part == empty_pattern():
+                    continue
                 key = next((key for key in ("union", "intersection", "difference") if key in part), None)
                 if key:
                     pending.extend(part[key])

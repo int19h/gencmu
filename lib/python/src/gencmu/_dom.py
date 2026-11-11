@@ -268,6 +268,8 @@ class DomBuilder:
         if len(names) != 1 or len(bodies) != 1 or len(clauses) > 1 or len(messages) != 1:
             raise self.fail(node, "a check requires one name, one pattern and one diagnostic")
         name = self.token_value(self.token(names[0]))
+        if not self.unicode.is_emoji_name(name) and CLASSIFIER_NAME.fullmatch(name) is None:
+            raise self.fail(names[0], "a check name starts with a lowercase letter or uses one eligible emoji")
         previous, self.types = self.types, {}
         self.check_context = True
         try:
@@ -1044,7 +1046,10 @@ class DomBuilder:
                 if left.get("method") not in _NODE_METHODS:
                     raise self.fail(node, "a tree comparison requires a constituent")
             elif capture is not None:
-                left = {"capture": self.token_value(self.token(capture))[1:]}
+                name = self.token_value(self.token(capture))[1:]
+                if self.check_context and name:
+                    raise self.fail(capture, "a check cannot name a capture")
+                left = {"capture": name}
             else:
                 if not self.check_context:
                     raise self.fail(node, "a tree comparison requires a bare capture")
@@ -1117,7 +1122,10 @@ class DomBuilder:
         if node.rule == "negation":
             return {"not": (yield self._condition(self.only(node, "condition")))}
         if node.rule == "presence":
-            return {"captured": self.token_value(self.token(node))[1:]}
+            captured = self.token_value(self.token(node))[1:]
+            if self.check_context and captured:
+                raise self.fail(node, "a check cannot name a capture")
+            return {"captured": captured}
         if node.rule == "method":
             method = yield self._method(node)
             if self.check_context and method.get("method") in _NODE_METHODS:
@@ -1162,11 +1170,13 @@ class DomBuilder:
     def _method(self, node: Node) -> Walk:
         start = self.one(node, "method-receiver")
         receiver = (yield self._term(self.only(start, "term-atom"))) if start is not None else {"capture": self.token_value(self.token(self.only(node, "capture-reference")))[1:]}
+        if self.check_context and receiver.get("capture"):
+            raise self.fail(self.only(node, "capture-reference"), "a check cannot name a capture")
         for selector in self.some(node, "method-selector"):
             parsed = self.one(selector, "parse-selector")
             name = "parse" if parsed is not None else self.token_value(self.token(self.only(selector, "method-name")))
             if name in _CHECK_METHODS and (not self.check_context or name == "terminal" and not self.recipe_context):
-                raise self.fail(node, "a check method is outside its permitted clause")
+                raise self.fail(selector, "a check method is outside its permitted clause")
             if self.check_context and name in ("without-elision", "without-elision-except"):
                 raise self.fail(node, "a check cannot restore elision")
             if name not in _METHODS:
@@ -1583,6 +1593,8 @@ class DomBuilder:
             return {"emptySet": True}
         if rule == "capture-reference":
             capture = self.token_value(self.token(node))[1:]
+            if self.check_context and capture:
+                raise self.fail(node, "a check cannot name a capture")
             if self.closed_for:
                 raise self.fail(node, f"{self.closed_for} is a closed term, and holds no capture")
             return {"capture": capture}

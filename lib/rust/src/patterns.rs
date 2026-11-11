@@ -1069,6 +1069,9 @@ fn positive_elided(term: &Term) -> bool {
 }
 
 pub(crate) fn check_problem(pattern: &Pattern) -> Option<&'static str> {
+    if pattern == &Pattern::empty() {
+        return None;
+    }
     match pattern {
         Pattern::Union(parts) | Pattern::Intersection(parts) => parts.iter().find_map(check_problem),
         Pattern::Difference(left, right) => check_problem(left).or_else(|| check_problem(right)),

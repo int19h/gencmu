@@ -2866,6 +2866,8 @@ Readers use common diagnostic text for unclosed grammar fences, capture restrict
 
 Binding a constant does not change method-signature text. A fault inside a receiver or argument retains that operand's own diagnostic.
 
+A malformed check name reports at the name. A check method outside its permitted clause reports at the selector's leading dot. A forbidden capture reference in a check condition reports at that reference. If that source position is absent, use the declaration's `at`.
+
 The following table is the complete constructor contract, including the template forms of §2.3. A constructor is a recognized syntax-tree part. Its row specifies required parts, lookup order, and DOM conversion. Names outside this table are wrappers, never constructors. Each wrapper contributes its children recursively in written order.
 
 The reader reads only a constructor's parts, after wrapper flattening. A missing required part causes a document error at that constructor when its lookup occurs. Unused parts are ignored. Repeated operand lists preserve written order. Unless a row says otherwise, a named lookup selects its first matching part.

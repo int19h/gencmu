@@ -494,7 +494,7 @@ func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 			b.fail(f.n, "a parameter cannot replace a classifier name or integer argument")
 		}
 		f.dependent = f.dependent || argumentUnresolved
-		f.receiver = b.finishMethod(f.n, name, f.receiver, f.args, f.dependent)
+		f.receiver = b.finishMethod(f.n, name, f.receiver, f.args, f.dependent, f.selectors[f.index])
 		f.index++
 		if f.index == len(f.selectors) {
 			isPredicate := name == "starts-input" || name == "ends-input" || boundaryMethod(name) || name == "parse" || name == "error-free" || name == "ending-after" || name == "local-readings" || b.checkContext && f.inCondition && checkNodeTerm(f.receiver)
@@ -554,10 +554,10 @@ var sourceMethods = map[string]sourceMethodKind{
 
 func knownMethod(name string) bool { return sourceMethods[name] != 0 }
 
-func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args []*domTerm, dependent bool) *domTerm {
+func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args []*domTerm, dependent bool, selector *Node) *domTerm {
 	kind := sourceMethods[name]
 	if (kind == methodNode || kind == methodElement || kind == methodLocal || kind == methodTerminal) && (!b.checkContext || kind == methodTerminal && !b.inRecipe) {
-		b.fail(n, "a check method is outside its permitted clause")
+		b.fail(selector, "a check method is outside its permitted clause")
 	}
 	if b.checkContext && (name == "without-elision" || name == "without-elision-except" || name == "emitted") {
 		b.fail(n, "a check cannot restore elision or read emitted strings")

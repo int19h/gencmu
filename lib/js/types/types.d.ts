@@ -931,6 +931,7 @@ export type Scope = {
     localReading?: (term: any) => {
         start: number;
         rule: string;
+        site: any;
     };
     capture: (name: string) => SpanValue;
 };
@@ -1634,7 +1635,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {(term:any)=>SpanValue} [checkValue]
  * @property {(term:any)=>boolean} [checkPresence]
  * @property {()=>string} [checkTerminal]
- * @property {(term:any)=>{start:number,rule:string}} [localReading]
+ * @property {(term:any)=>{start:number,rule:string,site:any}} [localReading]
  * @property {(name: string) => SpanValue} capture
  */
 /**

@@ -322,6 +322,7 @@ class NotationReader:
         # classifiers, in the order of the document.
         items = (
             [("rules", rule) for rule in dom["rules"]]
+            + [("checks", check) for check in dom["checks"]]
             + [("directives", directive) for directive in dom["directives"]]
             + [("classifiers", classifier) for classifier in dom["classifiers"]]
             + [("constants", constant) for constant in dom["constants"]]

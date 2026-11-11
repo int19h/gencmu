@@ -490,7 +490,7 @@ pub(crate) struct OptionalBoundary {
 #[derive(Debug, Clone)]
 pub(crate) enum Element {
     Symbol(usize),
-    Optional { start: usize, end: usize, expression: usize, children: Vec<Element> },
+    Optional { start: usize, end: usize, expression: usize, symbol: Option<usize>, children: Vec<Element> },
 }
 impl Element {
     pub(crate) fn bounds(&self) -> (usize, usize) {
@@ -502,10 +502,11 @@ impl Element {
     fn shifted(&self, offset: usize) -> Self {
         match self {
             Self::Symbol(at) => Self::Symbol(at + offset),
-            Self::Optional { start, end, expression, children } => Self::Optional {
+            Self::Optional { start, end, expression, symbol, children } => Self::Optional {
                 start: start + offset,
                 end: end + offset,
                 expression: *expression,
+                symbol: symbol.map(|at| at + offset),
                 children: children.iter().map(|child| child.shifted(offset)).collect(),
             },
         }
@@ -539,12 +540,13 @@ impl Sequence {
             routes: FxMap::default(),
         }
     }
-    fn optional(&mut self, expression: usize, observe: bool) {
+    fn optional(&mut self, expression: usize, observe: bool, symbol: Option<usize>) {
         if observe {
             self.elements = Some(vec![Element::Optional {
                 start: 0,
                 end: self.items.len(),
                 expression,
+                symbol,
                 children: self.elements.take().unwrap_or_default(),
             }]);
         }
@@ -885,7 +887,7 @@ impl<'a> Lowerer<'a> {
                         sequence.inherited = None;
                     }
                     sequence.element_width = 1;
-                    sequence.optional(self.optional_id(expr), self.grammar.has_elements);
+                    sequence.optional(self.optional_id(expr), self.grammar.has_elements, None);
                 }
                 out
             }
@@ -914,7 +916,7 @@ impl<'a> Lowerer<'a> {
                         }
                         let sym = self.helper(vec![route], None, expr);
                         let mut sequence = Sequence::one((sym, None, None), self.grammar.has_elements);
-                        sequence.optional(self.optional_id(expr), self.grammar.has_elements);
+                        sequence.optional(self.optional_id(expr), self.grammar.has_elements, Some(0));
                         sequence
                     })
                     .collect()
@@ -944,7 +946,7 @@ impl<'a> Lowerer<'a> {
                 let sym = self.helper(prods, elided, expr);
                 let mut sequence = Sequence::one((sym, None, None), self.grammar.has_elements);
                 if *mark == Mark::Plain {
-                    sequence.optional(self.optional_id(expr), self.grammar.has_elements);
+                    sequence.optional(self.optional_id(expr), self.grammar.has_elements, Some(0));
                 }
                 vec![sequence]
             }
