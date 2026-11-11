@@ -28,8 +28,8 @@ grammars/                  source grammars grouped by family
     bpfk/                  pipeline.md and morphology
     experimental/          pipeline.md and its layers
     zantufa/               pipeline.md and its layers
-    common/                latin, cyrillic, zbalermorna and its names file, forms, stream, lohai
-    examples/kihei/        pipeline.md for the discourse-frame example
+    common/                latin, cyrillic, consonant-tables, zbalermorna and its names file, forms, stream, lohai
+    examples/kihei/        pipeline.md for a discourse-frame example
   eberban/refgram/         pipeline.md, letters, morphology, stream and syntax
   gencmu/jbogenbau/        pipeline.md, lexical and syntax
 data/                      engine resources, independent of pipeline families
@@ -37,6 +37,7 @@ data/                      engine resources, independent of pipeline families
   preparsed/               one JSON file per grammar family
     gencmu.json            required DOMs that bootstrap the notation reader
     lojban.json            optional DOMs that speed up Lojban loading
+    eberban.json           optional DOMs that speed up Eberban loading
     README.md              the role of these files
 docs/
   design.md                design choices and their reasons
@@ -76,7 +77,7 @@ The browser grammar bundle excludes `data/unicode/unicode-properties.txt`. The p
 
 Declared extras use lazy paths under `grammars/`, including `grammars/lojban/common/zbalermorna-names.txt`. Neither standard nor extra names files enter the grammar bundle. A failed fetch prevents loading and reports the resource error.
 
-`dist/gencmu.js`, the library as one classic script, is generated too. The playground works without a build step from an HTTP server, including GitHub Pages. One Node script, `node tools/sync.js`, writes all these files without extra dependencies. CI runs it and fails if anything changes. After a change to `grammars/` or `data/`, a contributor runs that command.
+`dist/gencmu.js`, the library as one classic script, is generated too. The playground works without a build step from an HTTP server, including GitHub Pages. One Node script, `node tools/sync.js`, writes all these files. CI runs it and fails if anything changes. After a change to `grammars/` or `data/`, a contributor runs that command.
 
 ## Standard library only
 
@@ -235,7 +236,7 @@ A reference or terminal can carry one signed tag test followed by one exact valu
 - `ε` is empty.
 - `f?` and `¬f?` are gates on alternatives. Warning rules use `%warning` (see "Gates and warnings").
 - `*r` splices one rule call without its output node. The call keeps every target clause.
-- `$x:symbol` is a capture, and `$` is the whole constituent. A capture cannot stand inside a chain. An elidable optional accepts only the capture of its sole terminator, as `[$j:+JI]`. Inside flat braces it is an item capture, which only a condition reads.
+- `$x:symbol` is a capture, and `$` is the whole constituent. A capture cannot stand directly in a chain's item or separator. Flat braces inside a chain can hold item captures. An elidable optional accepts only the capture of its sole terminator, as `[$j:+JI]`. Inside flat braces it is an item capture, which only a condition reads.
 
 Rule names include single emoji scalars with `Emoji_Presentation` and without `Emoji_Component`. The grammar's Unicode version fixes this set. Other identifiers keep their ASCII rules. `#` starts a pattern, `@` starts a parameter, and `/` separates brace items from separators.
 
@@ -436,7 +437,7 @@ Braces state grouping explicitly, independently of how many alternatives feature
 
 Every kind of braces requires one or more items. ISO 14977 reads braces as zero or more, but jbogenbau writes zero or more as `[{x}]`. An item must read at least one token, so `[{x}]` reads nothing in one way only. No bundled grammar repeats an item that can be empty.
 
-A capture cannot stand around braces, or inside a chain, because a repeated part has no single captured occurrence. A grammar that needs such a capture names its list or chain as a rule. A capture inside flat braces is an item capture. It names one part of each item, and only a condition can read it, so the condition holds of every item. A capture next to flat braces remains legal, as in `$a:A {B}`.
+A capture cannot wrap braces or stand directly in a chain's item or separator, because a repeated part has no single captured occurrence. A grammar that needs such a capture names its list or chain as a rule. A capture inside flat braces is an item capture. It names one part of each item, and only a condition can read it, so the condition holds of every item. A capture next to flat braces remains legal, as in `$a:A {B}`.
 
 Independent alternatives with fixed capture lists need one validation witness per list. They do not enumerate unrelated capture-presence combinations.
 
@@ -463,7 +464,7 @@ A DOM does not preserve groups, so its reader tests only the normalized form. A 
 
 An omission has an elided node and contributes to its boundary's elision count. It does not record which constituent it closes. `elision-only` reconstructs its defined routes and preserves the default value, from `≝` or from an equality test. The default serves restoration only, so the string walk sees an elided terminator as empty. Query blockers instead read the preceding logical symbol, with plain optionals retained as helpers.
 
-A capture cannot stand inside a chain. An elidable optional can capture only its sole terminator, as `[$j:+JI]`. Inside flat braces it is an item capture. An alternative expands into productions, one per choice branch and subsequence of `&`. A plain optional with a capture expands into productions with and without the capture. A capture can therefore be present in some productions and absent in others.
+A capture cannot stand directly in a chain's item or separator. Flat braces inside a chain can hold item captures. An elidable optional can capture only its sole terminator, as `[$j:+JI]`. Inside flat braces it is an item capture. An alternative expands into productions, one per choice branch and subsequence of `&`. A plain optional with a capture expands into productions with and without the capture. A capture can therefore be present in some productions and absent in others.
 
 Presence tests and `⟹` guards handle missing captures. Conditions and emission items that require a missing capture do not apply. Tag terms must guard a missing capture or cause an error.
 
@@ -1101,7 +1102,7 @@ The playground is `index.html` with `dist/gencmu.js` and `dist/grammars.js` load
 
 The selector has one group per parent path, such as `lojban`, `lojban/examples`, or `gencmu`. Each option carries a full pipeline name. The URL parameter and worker protocol member are `pipeline`, and both carry that full name. The worker resolves the name to `grammars/NAME/pipeline.md`.
 
-The menu's preferred order is `lojban/cll`, `lojban/bpfk`, `lojban/experimental`, `lojban/zantufa`, `lojban/examples/kihei`, `eberban/refgram`, then `gencmu/jbogenbau`. Other names follow in code-point order. Groups appear in the order of their first pipeline.
+The menu's preferred order is `lojban/cll`, `lojban/bpfk`, `lojban/experimental`, `lojban/zantufa`, then the pipelines under `lojban/examples/`, `eberban/refgram`, and `gencmu/jbogenbau`. Other names follow in code-point order. Groups appear in the order of their first pipeline.
 
 Document buttons omit the `grammars/` prefix and the `.md` suffix. Download names omit `grammars/` and replace each slash with `--`. Thus `grammars/lojban/cll/morphology.md` downloads as `lojban--cll--morphology.md`.
 

@@ -23,7 +23,7 @@ Stage zero turns input characters into tokens. Each token stores every available
 
 A failed parse has error kind `rejected`, `reported`, `ambiguous`, `feature-conflict`, or `grammar` (`docs/api.md`).
 
-A `reported` error lists named diagnostics in `errors`. Each diagnostic carries its code, rule, stage, span, source, and message. The result retains the chosen tree and verdict, but the failed stage emits nothing. Warnings use the same diagnostic fields and have no `feature` member.
+A `reported` error lists named diagnostics in `errors`. Each diagnostic carries its code, rule, stage, span, source, and message. The result retains the chosen tree, verdict, and reporting-stage output. Earlier stages emit and continue despite chosen errors. Warnings use the same diagnostic fields and have no `feature` member.
 
 Every other error result has a null tree. A `grammar` error with code `elision-witness-lost` marks a library defect during `elision-only`. It also has `chosen`, the stage's chosen tree, and `completion`, the restored terminators (engine §7.9). Other parse-result errors have no top-level `code`. Ranked-choice loading errors use the separate diagnostic schema of `docs/output.md`.
 

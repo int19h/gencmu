@@ -294,7 +294,7 @@ The clauses of the rule serve every level, as they serve every alternative:
 - A warning on the chain's alternative gives one warning for each level in the chosen tree, each with the text of its level.
 - `%emits`, `%erased`, and constituent recipes serve each level. `%emits $` emits the outermost level as one token. Its string walk uses level recipes without executing inner emission lists.
 
-A chain cannot hold a capture (see "Captures"). So a clause can say nothing about a part of a chain, only about a level, `$`.
+A chain cannot directly hold a capture in its item or separator (see "Captures"). Flat braces inside a chain can hold item captures. Other clauses refer to a whole level, `$`.
 
 A right chain is not the same as an optional suffix. In a rule `r`, the body `x [s r]` and the chain `{x ... / s}` read the same words. But the level of one item is `x` alone in the chain, and `x` with an empty optional in the suffix. That makes three differences:
 
@@ -936,7 +936,7 @@ Implications apply only to the tokens that the stage emits. They do not change a
 
 Writing `$name:symbol` captures one symbol of a body. The symbol can carry a tag test followed by a value test. A capture gives the matched part a name for conditions, tags, and recipes. Its name starts lowercase and contains lowercase letters, digits, hyphens, or underscores.
 
-A capture wraps one symbol. That symbol can stand anywhere in an alternative, except inside a chain or an elidable optional with more than its captured terminator. A capture can stand in a group, choice, `&` item, plain optional, or flat braces, at any depth. Inside flat braces it is an item capture, which "Item captures" below explains.
+A capture wraps one symbol. A capture cannot stand directly in a chain's item or separator. An elidable optional accepts only its sole-terminator capture. A capture can stand in a group, choice, `&` item, plain optional, or flat braces, at any depth. Inside flat braces it is an item capture, which "Item captures" below explains.
 
 A name can stand at most once in each production (below), so two branches of a choice can capture one name, as two alternatives can. `A ($x:B | $x:C)` is valid, but `[$x:A] $x:B` and `$x:A & $x:B` are errors, because one of their productions reads `$x` twice. Before gates apply, gencmu makes sure that each capture name occurs at most once per production. A guard does not excuse a repeated capture. An alternative can have any number of captures, but each one has a cost (below). `$` alone is the whole constituent, a capture that every alternative has without writing it.
 
@@ -944,7 +944,7 @@ A capture cannot wrap anything but one symbol. So `$x:(a | b)`, `$x:(a b)` and `
 
 To capture a part that can be absent, write the capture inside the optional, as in `[$x:a]`. A presence test then says whether the part is there.
 
-A capture cannot wrap braces. A list is not a constituent, so no capture can name its span. To capture a list or a chain, define a rule for it. Capture its reference, as in `$t:tag`. A chain cannot hold a capture either. Each level of a chain is a constituent of its rule, so a condition on `$` serves it.
+A capture cannot wrap braces. A list is not a constituent, so no capture can name its span. To capture a list or a chain, define a rule for it. Capture its reference, as in `$t:tag`. A chain cannot directly hold a capture in its item or separator either. Each level of a chain is a constituent of its rule, so a condition on `$` serves it.
 
 An elidable optional can capture only its sole terminator, as in `[$j:+JI]`. The written route binds `$j`, and the omitted route lacks it. The presence test `$j` therefore says that the terminator is written.
 
@@ -1539,7 +1539,7 @@ Attachments belong to the carrier but no later stage reads them. Ownership count
 
 A verbatim recipe returns original spelling and adjacent uncovered punctuation. `:- $.verbatim-text` belongs on the constituent that reads the body. It applies when that body emits directly and when a parent covers it. Recognition and conditions still read input values. The value channel remains independent of this image recipe.
 
-The recipe serves quoted text, whose image keeps its written spelling. It says nothing about whether that text is grammatical in the language of the grammar. In Lojban, for example, a `zoi` body can contain valid Lojban words but still needs its written image. A non-Lojban character run of the phoneme stage instead joins stage-zero characters directly. Its values and images already preserve exact text, including `klama?` in the `lojban/cll` pipeline.
+The recipe serves quoted text, whose image keeps its written spelling. It says nothing about whether that text is grammatical in the language of the grammar. In Lojban, for example, a `zoi` body can contain valid Lojban words but still needs its written image. A non-Lojban character run of the phoneme stage takes its value from the decomposed run. Its `:- $.source-text` recipe preserves the original spelling as its image, including `klama?` in the `lojban/cll` pipeline.
 
 ```jbogenbau
 %rule zoi-body :- $.verbatim-text
@@ -1824,7 +1824,7 @@ Any counted error skips the check, including carried errors and pending stage-le
 
 With the check on, the stage restores the chosen parse's omitted terminators. A restored terminator has the default value of its optional (below) and the singleton tags `{T}`. Synthetic images are empty. Omitted pattern leaves still observe empty strings, whatever the default value.
 
-The default value of an elided terminator is the string after `≝`. Without `≝`, it is the string of an equality test `T=s`, or else the empty string. The default serves restoration only. The string walk and emission give an elided terminator the empty string on both channels. An equality test on the head still narrows the written forms of `T`. `≝` names a restored spelling without that narrowing. A tree pattern observes an empty value and the mark `_Elided` at the omitted leaf. So a pattern can tell a written terminator from an elided one. `#JI<¬_Elided>` says written, and `#JI<_Elided>` says elided. The older spelling `JI≠""` also says written, but only while no written `JI` can have an empty value.
+The default value of an elided terminator is the string after `≝`. Without `≝`, it is the string of an equality test `T=s`, or else the empty string. The default serves restoration only. The string walk and emission give an elided terminator the empty string on both channels. An equality test on the head still narrows the written forms of `T`. `≝` names a restored spelling without that narrowing. A tree pattern observes an empty value and the mark `_Elided` at the omitted leaf. So a pattern can tell a written terminator from an elided one. `#JI<¬_Elided>` says written, and `#JI<_Elided>` says elided. The spelling `JI≠""` also says written, but only while no written `JI` can have an empty value.
 
 An omission exists only when its test passes on this default value. Synthetic tokens are readable only by their terminator tag. Strings, ranges, and `_` never read them. A failed omission creates no marker or restoration record. Written tokens still use their own value and tags. All well-typed tests are legal, even when either route cannot succeed.
 

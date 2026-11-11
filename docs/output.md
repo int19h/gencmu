@@ -122,7 +122,7 @@ The example warns for `ka'y` in `mi ka'y` in `lojban/cll`, with warning code `y-
 An error that is itself a ranked option can also carry default-rejection evidence for its competitors (engine §12.1). Plain alternatives, descendant errors, and spliced recoveries have no such member. A warning never has it. This example uses the run `bj` in corpus text `bjé`:
 
 ```json
-{"stage":"forms","code":"junk-run","rule":"junk-run","span":[0,2],"source":[0,2],"message":"unrecognized word: bj","rejection":{"token":2,"source":[2,3],"line":1,"column":3,"expected":[{"terminal":"Hyphen","rules":["hyphen-misplaced"]},{"terminal":"Letter<Vowel>","rules":["vowel"]}]}}
+{"stage":"forms","code":"junk-run","rule":"junk-run","span":[0,2],"source":[0,2],"message":"the run bj has no word reading","rejection":{"token":2,"source":[2,3],"line":1,"column":3,"expected":[{"terminal":"Hyphen","rules":["hyphen-misplaced"]},{"terminal":"Letter<Vowel>","rules":["vowel"]}]}}
 ```
 
 The corpus identifier is `eberban.adhoc.precomposed-letter-is-space`. The letters stage represents `é` as one `Space` token, so `bj` remains junk. Neither letter breaks a fault-class restriction, and the missing vowel supplies no such class. The strict root reader reaches boundary 2, before `é`. Its live items expect `Hyphen` or `Letter<Vowel>` there. Fresh item entries at boundary 2 are outside this competitor slice.
@@ -132,7 +132,7 @@ The member order is `token`, `source`, `line`, `column`, `expected`. Positions a
 A reporting stage with counted errors gives this envelope:
 
 ```json
-{"kind":"reported","stage":"syntax","errors":[{"stage":"syntax","code":"unmatched-fi","rule":"unmatched-fi","span":[0,1],"source":[0,2],"message":"this fi has no matching opener"}],"message":"the chosen derivation reports errors"}
+{"kind":"reported","stage":"syntax","errors":[{"stage":"syntax","code":"unmatched-fi","rule":"unmatched-fi","span":[0,1],"source":[0,2],"message":"fi has no open vi binding group"}],"message":"the chosen derivation reports errors"}
 ```
 
 `errors` is nonempty and uses the collection order of engine §12.1. The envelope's `message` is a summary whose wording is free. It has no `token`, `source`, `line`, `column`, `expected`, or `readings`. Those coordinates can occur inside a diagnostic's `rejection` member.
@@ -392,7 +392,7 @@ A query parameter uses the same unresolved node in its body:
 
 After substitution, the body is a constituent like any other (engine §4).
 
-Capture names use lowercase letters, digits, `-`, and `_`. Captures cannot occur inside chains. Inside an elidable optional, only the capture of its sole terminator is legal (engine §3.8). A capture inside the braces of a flat list is an item capture, which binds in the productions of the list's helper (engine §3.5). It cannot occur inside a ranked group, and its name occurs nowhere else in its alternative. Each expanded production binds a name at most once.
+Capture names use lowercase letters, digits, `-`, and `_`. Captures cannot occur directly in a chain's item or separator. Flat braces inside a chain can hold item captures. Inside an elidable optional, only the capture of its sole terminator is legal (engine §3.8). A capture inside the braces of a flat list is an item capture, which binds in the productions of the list's helper (engine §3.5). No ranked group can separate it from its innermost flat braces. Its name occurs nowhere else in its alternative. Each expanded production binds a name at most once.
 
 A value test uses `=` or `≠`. A tag test uses `test:"tags"` and an ordered array of requirements. A requirement is `{"negated":false,"value":TERM}`. Its value is a tag literal, tag-set constant, or declared parameter before expansion. A negative requirement has `negated:true`.
 

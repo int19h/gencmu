@@ -2,7 +2,7 @@
 
 gencmu is a Lojban parser. A literate grammar document mixes prose with grammar rules. gencmu loads these Markdown documents at runtime. This is the Python library. An API is the operations that a library exposes.
 
-The library is pure Python, uses the standard library only, and needs Python 3.14 or later. It implements the engine specification of the gencmu repository, `docs/engine.md`. A document object model (DOM) stores parsed grammar rules. The library reads DOM format 46 and writes result format 17. It writes the canonical JSON of `docs/output.md`.
+The library is pure Python, uses the standard library only, and needs Python 3.14 or later. It implements the engine specification of the gencmu repository, `docs/engine.md`. A document object model (DOM) stores parsed grammar rules. The library reads DOM format 48 and writes result format 17. It writes the canonical JSON of `docs/output.md`.
 
 ```python
 import gencmu
@@ -24,7 +24,7 @@ A pipeline document lists the stages and the grammar documents that define a pip
 
 - `load_pipeline(name)` loads a pipeline of the bundled grammars. `name` is the directory path `NAME` of `grammars/NAME/pipeline.md`.
 - `load_pipeline_file(path)` loads a pipeline document from disk. The loader finds its grammar documents relative to it. The Unicode table and the bootstrap of the notation come from the bundled resources.
-- `load_pipeline_sources(sources, pipeline)` loads documents held in memory. `sources` is a mapping from `/`-separated path to text, and `pipeline` is the path of the pipeline document in it. The mapping can hold its own `data/unicode/unicode.txt`, `data/preparsed/gencmu.json` and `data/preparsed/lojban.json`. The bundled ones fill in what it lacks. A `data/unicode/unicode.txt` in the map replaces the bundled table entirely, White_Space included (`docs/api.md`).
+- `load_pipeline_sources(sources, pipeline)` loads documents held in memory. `sources` is a mapping from `/`-separated path to text, and `pipeline` is the path of the pipeline document in it. The mapping can hold its own `data/unicode/unicode.txt`, `data/preparsed/FAMILY.json`. The bundled ones fill in what it lacks. A `data/unicode/unicode.txt` in the map replaces the bundled table entirely, White_Space included (`docs/api.md`).
 
 The loader reads a grammar document through the notation only when the family's `data/preparsed/FAMILY.json` has no matching entry. The notation is the grammar of grammar documents. The cache stores parsed DOMs. Each entry requires matching document, bootstrap, Unicode, properties, and required names fingerprints. Fingerprints use 64-bit FNV-1a over resource text. The bundled preparsed data includes cache entries.
 
@@ -47,7 +47,7 @@ result = pipeline.parse(text, features=(), without_features=(), until=None, elis
 - `features` names the features that the caller turns on in every stage, besides those the pipeline turns on with `%features`.
 - `without_features` names features to disable in every stage, including unconditional defaults. A name in both lists raises `GencmuError` with `kind` `"usage"`.
 - `until` names the last stage to run. An unknown name raises `GencmuError` with `kind` `"usage"`.
-- `elision_only`, when it is `True` or `False`, overrides the grammars' `%ambiguity-resolution ... elision-only`.
+- `elision_only`, when it is `True` or `False`, overrides the `%elision-only` directive.
 
 A `text` with a lone surrogate raises `GencmuError` with `kind` `"usage"`. A text that does not parse is a result whose `ok` is false and whose `error` says why. The kind of that error is `rejected`, `ambiguous`, `feature-conflict`, `reported`, or `grammar`. An `ambiguous` error has a `reason` and two `readings`.
 
@@ -63,7 +63,7 @@ Another is an item of braces, `{x}` or `{x / s}`, that can match no tokens. A ch
 
 An error of kind `grammar` whose `code` is `"elision-witness-lost"` marks a defect of the library, not of the text or the grammar. The check of `elision-only` lost the chosen derivation, which it must always find again (`docs/engine.md`, §7.9). Such an error also has `chosen`, the stage's chosen tree, and `completion`, the terminators that the check wrote back, in their order. Each `Restoration` has its `terminal`, input position `at`, and the empty `source` of its elided node.
 
-Its `value` is the exact string of an `=` test, or `None` without that test. The stage keeps its verdict, `"unique"` or `"resolved"`, and its warnings, but it has no output. Other parse-result errors have no `code`, `chosen`, or `completion`. Ranked-choice load errors use the separate diagnostic schema of `docs/output.md`.
+Its `value` is the default from `≝` or an equality test, including an explicit empty string. Without a default, it is `None`. The stage keeps its verdict, `"unique"` or `"resolved"`, and its warnings, but it has no output. Other parse-result errors have no `code`, `chosen`, or `completion`. Ranked-choice load errors use the separate diagnostic schema of `docs/output.md`.
 
 For tests and tools, `Pipeline.parse_tokens(tokens, text, ...)` takes tokens in place of the first stage characters. A supplied token stores `text`, `value`, `image`, `tags`, `span`, and `source`. Each string defaults independently to `text` when the constructor receives `None`. An explicit empty string stays empty. Recognition reads `value`, and output shows `image`.
 
@@ -103,7 +103,7 @@ Collected errors give a `reported` result with named reports in `error.errors`. 
 
 A failed message recipe gives a `grammar` result and retains the stage verdict. The result has a null tree and no output from the failing stage. It retains carried diagnostics and messages that already evaluated outside erased subtrees. Earlier stages keep their outputs and warnings.
 
-Verdicts count only derivations with the best three-part measure. The measure minimizes blamed source width, then errors without a source, then maximizes the diagnostic count. A diagnostic retains its fixed charge across stages. `%erased` collapses equal completed observable states and keeps one interior for their shown tree.
+Verdicts count only derivations with the best three-part measure. The measure minimizes blamed source width, then errors without a source, then maximizes the error count. An error retains its fixed charge across stages. `%erased` collapses equal completed observable states and keeps one interior for their shown tree.
 
 `pipeline.ranking_reports()` includes notes for queries that reach error rules, unused suppression codes, and large expansions of guarded tags. `pipeline.format_ranking_reports()` formats these notes as text.
 

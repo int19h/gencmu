@@ -651,7 +651,7 @@ A child set has at least one operator. A lone child path is therefore a one-item
 
 Child lists contain sequences, choices, optional sequences, repeats, and sibling gaps. Paths and set operations combine whole predicates.
 
-Recognition admits repeated or reversed tests on node atoms. The reader restricts a rule atom to one tag test. Terminal and tag-only atoms also accept a value test, after their tag test.
+Recognition admits repeated or reversed tests on node atoms. Each node atom accepts one tag test, then one value test. A pattern-valued constant atom accepts neither test.
 
 ```jbogenbau
 %rule pattern-literal

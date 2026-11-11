@@ -92,11 +92,11 @@ Use example filenames that do not clash with your own files. The commands below 
    ````text
    phonemes: 5 tokens, unique
    #  text  value  image  span  source  tags
-   0  "k"   "k"    "k"    0-1   0-1
-   1  "i"   "i"    "i"    1-2   1-2
+   0  "k"   "k"    "k"    0-1   0-1     Consonant
+   1  "i"   "i"    "i"    1-2   1-2     Vowel
    2  "'"   "'"    "'"    2-3   2-3
-   3  "e"   "e"    "e"    3-4   3-4
-   4  "i"   "i"    "i"    4-5   4-5
+   3  "e"   "e"    "e"    3-4   3-4     Vowel
+   4  "i"   "i"    "i"    4-5   4-5     Vowel
 
    forms: 1 tokens, unique
    #  text     value    image    span  source  tags
@@ -557,7 +557,7 @@ Give `%warning` one message recipe after `%conditions`. Put `%suppress-warnings`
 
 A warning changes no accepted reading or chosen tree. Callers enable or disable its code with the feature controls. `%suppress-warnings code` suppresses it within one subtree, and `_` suppresses all warning codes.
 
-For an invalid construct, use `%error` only where its message says more than the default rejection, or says the same more briefly. The engine prefers fewer errors before grammar ranking. A chosen error stops the pipeline without stage output and keeps the chosen tree.
+For an invalid construct, use `%error` only where its message says more than the default rejection, or says the same more briefly. The engine prefers least source blame, then fewest sourceless errors, then most total errors, before grammar ranking. Earlier stages emit and continue despite chosen errors. A reported result keeps the chosen tree, verdict, and reporting-stage output.
 
 Use `--` for comments inside grammar blocks. A comment ends at LF, CRLF, CR, or the file end. A string retains literal `--`. The notation has no block comment form.
 

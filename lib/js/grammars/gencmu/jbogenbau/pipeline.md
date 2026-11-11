@@ -23,7 +23,7 @@ The input is the text of a grammar document's `jbogenbau` blocks, joined with a 
   %include "lexical.md"
   ```
 
-Stage zero applies Unicode Normalization Form D (NFD). The lexical stage receives one token per decomposed scalar, with that scalar as its value and image. A token is one unit that a stage reads or emits. The stage hands on the notation's tokens: names, strings, captures, constants, guards, keywords, and punctuation. Each of these tokens covers a run of decomposed scalars from the document. The stage drops spaces and comments.
+Stage zero applies Unicode Normalization Form D (NFD). The lexical stage receives one token per decomposed scalar, with that scalar as its value and image. A token is one unit that a stage reads or emits. The stage hands on the token kinds listed in [lexical.md](lexical.md). Each of these tokens covers a run of decomposed scalars from the document. The stage drops spaces and comments.
 
 ## Stage 2: syntax
 
@@ -36,4 +36,4 @@ Stage zero applies Unicode Normalization Form D (NFD). The lexical stage receive
   %include "syntax.md"
   ```
 
-The stage receives those tokens. It builds the tree of rules and directives from which a library reads the grammar. The stage recognizes methods, captures, and repeated tests before reader validation. The bootstrap and grammar DOMs use format 46.
+The stage receives those tokens. It builds the tree of rules and directives from which a library reads the grammar. The stage recognizes methods, captures, and repeated tests before reader validation. The bootstrap and grammar DOMs use the format in `docs/output.md`.

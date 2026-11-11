@@ -3,7 +3,7 @@
 
 # gencmu
 
-gencmu is a multistage Earley parser for Lojban and other loglangs. Its grammars are written in [jbogenbau](docs/notation.md), a grammar notation of its own, and a generic engine reads them at run time. An edited grammar takes effect at the next parse, with no build step.
+gencmu is a multistage Earley parser for Lojban and other loglangs. Its grammars are written in [jbogenbau](docs/notation.md), a grammar notation of its own, and a generic engine reads them at run time. An edited grammar takes effect at the next load. Disk loading reads the current text, as the CLI does on each run. Bundled copies require `node tools/sync.js`.
 
 Each grammar is a literate Markdown document. Fenced `jbogenbau` blocks hold the rules, and the prose between them explains what the rules do and why. On GitHub a grammar reads like any other document.
 

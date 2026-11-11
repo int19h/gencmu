@@ -46,7 +46,7 @@ A `FeatureConflict` result names a disabled feature whose conditional declaratio
 
   An error whose `kind` is `ParseErrorKind::Grammar` and whose `code` is `Some(ErrorCode::ElisionWitnessLost)` marks a library defect. The check loses the stage's chosen derivation (engine §7.9). Such an error also has `chosen`, the stage's chosen tree, and `completion`, the terminators that the check wrote back. Each `Restoration` has its `terminal`, input position `at`, and the empty `source` of its elided node.
 
-  A terminator with an `=` test also has its `value`. The JSON writes them after the message, as `docs/output.md` says. Other parse-result errors have no `code`, no `chosen` and an empty `completion`. Ranked-choice load errors use the separate diagnostic schema of `docs/output.md`.
+  A terminator with a default from `≝` or an equality test also has its `value`, including an explicit empty string. The JSON writes them after the message, as `docs/output.md` says. Other parse-result errors have no `code`, no `chosen` and an empty `completion`. Ranked-choice load errors use the separate diagnostic schema of `docs/output.md`.
 
   A token has its `text`, `value`, `image`, tags, span, and source range. Its `value` controls string terminals and value tests. Its `image` controls renderings for people. Both are exact strings, including an explicit empty string. Constituent and item recipes assign these channels. A missing image recipe follows the selected value recipe.
 
@@ -60,7 +60,7 @@ A `FeatureConflict` result names a disabled feature whose conditional declaratio
 
   A failed message recipe gives `ParseErrorKind::Grammar` and retains the stage verdict. The result has a null tree and no output from the failing stage. Its envelope retains carried diagnostics and evaluated own messages outside erased subtrees. Earlier stages keep their outputs.
 
-  Verdicts count only derivations with the best three-part measure. The measure minimizes blamed source width, then errors without a source, then maximizes the diagnostic count. Carried errors retain their fixed charges. Erased completions with equal observable state collapse and keep one interior as their shown tree.
+  Verdicts count only derivations with the best three-part measure. The measure minimizes blamed source width, then errors without a source, then maximizes the error count. Carried errors retain their fixed charges. Erased completions with equal observable state collapse and keep one interior as their shown tree.
 
   The `Warning` type represents either diagnostic kind. `Warning::new` constructs a public diagnostic. The engine alone assigns its private identity and charge.
 
@@ -91,9 +91,9 @@ For tests and tools: `Pipeline::parse_tokens` feeds tokens straight to the first
 
 A DOM holds the document's constants, classifiers and implications as the document writes them, never their values. The loader gives each constant its value when it stitches a stage. A stage resolves its classifiers for the features of each parse, once for each set of features.
 
-The DOM format is 46. The result format is 17. Braces are a `repeat`, with a `separator` for `{x / s}`. A chain has `chain` set to `left` or `right` and forms its alternative's whole expression. An elidable optional, `[+T x]`, is an `optional` with `elidable`.
+The DOM format is 48. The result format is 17. Braces are a `repeat`, with a `separator` for `{x / s}`. A chain has `chain` set to `left` or `right` and forms its alternative's whole expression. An elidable optional, `[+T x]`, is an `optional` with `elidable`.
 
-`$x.parse(C)` supplies a forest of query witnesses for body `C`. One outer `…` selects a prefix or suffix. `.error-free` excludes carried errors outside erased parts. Ordinary witnesses allow carried errors. Both forms exclude unerased own error rules.
+`$x.parse(C)` supplies a forest of query witnesses for body `C`. One outer `…` selects a prefix or suffix. `…` at both outer edges selects a part. `.error-free` excludes carried errors outside erased parts. Ordinary witnesses allow carried errors. Both forms exclude unerased own error rules.
 
 `$x.without-elision` restores the terminators omitted inside `$x` for a query that preserves those closes. A close records an omitted terminal and its boundary. The method takes one bare capture. `$x.without-elision.onward` extends the query through the following input.
 

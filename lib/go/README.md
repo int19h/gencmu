@@ -30,7 +30,7 @@ A caller can enable or disable an unknown feature name. Unknown names do not cha
 
 - `LoadPipeline(name)` loads a bundled pipeline. `name` is the directory path `NAME` of `grammars/NAME/pipeline.md`.
 - `LoadPipelineFile(path)` loads a pipeline document from disk. The loader finds its grammar documents relative to it. A document that is not valid UTF-8 is a load error of kind `grammar`.
-- `LoadPipelineSources(sources, pipeline)` loads documents held in memory, a map from `/`-separated path to text. The map can hold its own `data/unicode/unicode.txt`, `data/preparsed/gencmu.json` and `data/preparsed/lojban.json`. The bundled ones fill in the rest. A `data/unicode/unicode.txt` in the map replaces the bundled table entirely, White_Space included (`docs/api.md`).
+- `LoadPipelineSources(sources, pipeline)` loads documents held in memory, a map from `/`-separated path to text. The map can hold its own `data/unicode/unicode.txt`, `data/preparsed/FAMILY.json`. The bundled ones fill in the rest. A `data/unicode/unicode.txt` in the map replaces the bundled table entirely, White_Space included (`docs/api.md`).
 
   For each of the three, a tie while the notation reads a grammar document is a load error of kind `grammar`. It names the document, and it has no line or column (engine §8).
 
@@ -42,7 +42,7 @@ A `feature-conflict` result names a disabled feature whose conditional declarati
 
 `(*Pipeline).Features()` lists the features of the pipeline, the gates of its classifiers' entries included. Each is a `Feature` with `Name`, `Kind` (`gate` or `warning`) and `Default`. `Default` says whether the pipeline turns the feature on. Warning features use their warning rule's code.
 
-`$x.parse(C)` reads a forest of query witnesses for body `C`. One outer `…` selects a prefix or suffix. `.error-free` excludes carried errors outside erased parts. Ordinary witnesses allow carried errors. Both forms exclude unerased own error rules.
+`$x.parse(C)` reads a forest of query witnesses for body `C`. One outer `…` selects a prefix or suffix. `…` at both outer edges selects a part. `.error-free` excludes carried errors outside erased parts. Ordinary witnesses allow carried errors. Both forms exclude unerased own error rules.
 
 `$x.without-elision` and `$x.without-elision-except(F)` restore captured omitted terminators for an aligned query.
 
@@ -79,7 +79,7 @@ Emitted tokens carry `Errors` and `Warnings` to later stages. An empty emission 
 
 Lowering can find grammar defects for a parse's features (engine §3). Examples include a chain `{... x / s}` beside another alternative, or a repeated item that can match no tokens. The pipeline loads. Parsing returns a result whose `Error` has kind `grammar`. The separate returned error is nil. The result error's `Message` starts with the faulty definition's document, line, and column, as `g.md:3:1:`.
 
-An error of kind `grammar` with the `Code` `elision-witness-lost` (`CodeElisionWitnessLost`) marks a defect of the library in the check of `elision-only`. It also has `Chosen`, the stage's chosen tree, and `Completion`, the terminators that the check wrote back (engine §7.9). The canonical JSON writes `Chosen` and `Completion` as `chosen` and `completion` (`docs/output.md`). Each of those is a `Restoration` with `Terminal`, `At`, `Source` and, for a terminator with an `=` test, `Value`. `Tested` says whether it has such a test, since `Value` is empty both without one and for `T=""`. An ambiguous error of `elision-only` also has `Witness`, the pair of actions where its readings first differ.
+An error of kind `grammar` with the `Code` `elision-witness-lost` (`CodeElisionWitnessLost`) marks a defect of the library in the check of `elision-only`. It also has `Chosen`, the stage's chosen tree, and `Completion`, the terminators that the check wrote back (engine §7.9). The canonical JSON writes `Chosen` and `Completion` as `chosen` and `completion` (`docs/output.md`). Each `Restoration` has `Terminal`, `At`, and `Source`. Its `Value` holds the default from `≝` or an equality test, including an explicit empty string. `Tested` records whether a default exists. Without a default, `Value` is also empty. An ambiguous error of `elision-only` also has `Witness`, the pair of actions where its readings first differ.
 
 Such an action can have `Elided`, a read of a terminator that the check wrote back (engine §7.10). Other parse-result errors have no `Code`. Ranked-choice load errors use the separate diagnostic schema of `docs/output.md`.
 
@@ -100,7 +100,7 @@ Each stage-zero token stores every available Unicode property membership from th
 
 Grammar documents use the same decomposition. Escaped scalars inside strings remain exact. Include paths decode escapes without decomposition. The `.decomposed-source-text` method decomposes the original source text of a span.
 
-The cache requires DOM format 46 and matching document, bootstrap, Unicode, properties, and required names fingerprints. Fingerprints use 64-bit FNV-1a over resource text.
+The cache requires DOM format 48 and matching document, bootstrap, Unicode, properties, and required names fingerprints. Fingerprints use 64-bit FNV-1a over resource text.
 
 A `Token` also has its attachments, `Before` and `After` (engine §11). These are tokens that belong to it and that no later stage reads, such as the indicators after a word. They are nil when there are none. An attached token has no span: its `Span` is zero, and the canonical JSON leaves it out.
 

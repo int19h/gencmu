@@ -1094,7 +1094,7 @@ Number ranked options in source order before later siblings. No ranked helper is
 
 ### 3.5 Captures
 
-A capture `$x:s` must wrap a single symbol `s`, which can be tested. It can stand anywhere in the expression of an alternative, at any depth. That includes a group, a choice, an item of `&` and a plain optional. It cannot stand inside a chain. Inside an elidable optional, only the capture of its sole terminator is legal (§3.8, §9).
+A capture `$x:s` must wrap a single symbol `s`, which can be tested. It can stand anywhere in the expression of an alternative, at any depth. That includes a group, a choice, an item of `&` and a plain optional. It cannot stand directly in a chain's item or separator. Flat braces inside a chain can hold item captures. Inside an elidable optional, only the capture of its sole terminator is legal (§3.8, §9).
 
 A capture inside flat braces is an item capture. It binds to each helper production that reads it. The enclosing alternative's production lacks that item capture. An item capture belongs to the innermost flat braces around it, and its name stands nowhere else in the alternative (§9).
 
@@ -1447,7 +1447,7 @@ These four probes distinguish aligned queries from literal replay:
 | `X [+T] [+U]` | `X [+T]` | Prefix | False, because the final group includes U |
 | `X [+T Y]` | `X [+T Y]` | Whole | True, because the omitted optional requires no Y |
 
-If `F` permits U, the first probe holds under `.without-elision-except(F)`. U then stands between the original X and the kept T, inside the shared stretch. Under a family that does not permit U, and under `.without-elision`, the first answer stays false. The other three answers hold for every family, because their rivals add no close.
+If `F` permits U, the first probe holds under `.without-elision-except(F)`. U then stands between the original X and the kept T, inside the shared stretch. Under a family that does not permit U, and under `.without-elision`, the first answer stays false. The other three answers stay as the table shows for every family, because their rivals add no close.
 
 All observations inside a witness use its own projected original spans and trees. `.source-text`, `.value`, `.image`, `.starts-input`, token tags, and patterns never observe inserted spelling as written input. Ordinary nested queries receive no inherited alignment constraint. An explicit nested `$y.without-elision` or `$y.without-elision-except(G)` uses the witness's captured observation of `$y`. The second form also permits the extra closes that `G` permits. It receives no family from the outer query, and an outer family never passes inward.
 
@@ -2053,7 +2053,7 @@ A rule with an inherited, forwarded or computed tag term can carry any set. A ta
 
 The same decision is made per terminal for reads and per elidable helper for omitted leaves. A stage without possible own or carried errors and without matching grammar key steps needs no stored profile components. A wrong "no" changes the chosen derivation, so the decision errs toward "yes".
 
-Structural state forms part of each summary's item identity. Ranked admission keeps query eligibility and same-span cycle contexts separate (§6.1). A summary cannot substitute an edge from another structural state.
+Structural state forms part of each summary's item identity. Ranked admission keeps same-span cycle contexts separate (§6.1). A summary cannot substitute an edge from another structural state.
 
 Within each full state and context, retain the best measure and its verdict total, capped at two. Compute that total before grammar key steps and the lean. Outside the erased collapse, equal observations do not merge distinct best-measure derivations. Profiles compose within each full state and context.
 
@@ -2063,24 +2063,23 @@ For k independent Boolean observations, a product can contain up to `2^k` states
 
 Ranked admission filters derivations at each ranked group before the stage ranks complete parses.
 
-Retain the raw chart and query eligibility information. Admission removes forest choices without removing chart items or changing input queries. A later completion can provide an earlier qualifying option. Nested availability requires admitted finite child proofs.
+Retain the raw chart. Admission removes forest choices without removing chart items or changing input queries. Query eligibility follows §4 before admission. A later completion can provide an earlier qualifying option. Nested availability requires admitted finite child proofs.
 
 A prefix context records state before a ranked group. An admission instance is one written ranked group in one prefix context. Each physical span in that instance has a separate admission group. Its key contains these components:
 
 | Component | Required equality |
 | --- | --- |
-| Recognition | Input recognition, selected features, and main, query, or reconstruction mode. |
+| Recognition | Input recognition, selected features, and main or reconstruction mode. |
 | Source | Final stitched rule, alternative, and expression path. |
 | Entry | Enclosing named invocation origin and control route to the helper entry. |
 | Prefix | Complete common prefix recognition state at entry. |
 | Span | Actual group start and end positions. |
-| Query eligibility | Written-terminator priority, in query mode only. |
 | Cycles | Enclosing named-rule context for relevant spans. |
 | Reconstruction | Strictness, restoration, and projection state where recognition depends on them. |
 
 The prefix includes bound common captures, their values, structural state, and its boundary record (§4.2). It also includes each common capture's close observations and the accumulated common prefix's close observations. It also includes each demanded tree identity of a common capture and the demanded partial sequence of the prefix (§4.1). A private identity inside an option stays out of the key. So two prefixes with different trees never share an admission group, and the continuation after the group can compare the identity with `≅`. Control positions refer to the common group entry. Generated helpers retain their written paths. Option indexes and generated option-production identities do not distinguish entry contexts.
 
-The key excludes private captures, returned option tags, private pattern states, proof identities, and the option's open boundary facts. It excludes grammar key profiles, diagnostic ordering, and caller demand contexts. Admission summaries carry measures for their proofs. Measures do not replace boundary or query eligibility facts. Equal-state prefix proofs remain distinct derivations for ordinary ranking.
+The key excludes private captures, returned option tags, private pattern states, proof identities, and the option's open boundary facts. It excludes grammar key profiles, diagnostic ordering, and caller demand contexts. Admission summaries carry measures for their proofs. Measures do not replace boundary facts. Equal-state prefix proofs remain distinct derivations for ordinary ranking.
 
 An invocation is a recognition state, rather than a call-stack identity. Different callers share admission when all key components agree. Different continuations remain separate. Equal spelling at another location does not establish equal spans. Empty spans participate.
 
@@ -2800,7 +2799,7 @@ A choice level cannot mix `|` and `≻`. Groups, plain optionals, and flat repea
 
 The uncaptured form's remainder is a sequence of primaries without captures. The captured form contains only the captured terminator, its tests, and its optional default.
 
-Flat repetition is `{body}` or `{body / body}`. A chain places one `...` immediately after `{` or after the whole item. A chain is the whole alternative expression. A capture cannot occur inside a chain. A capture inside flat braces is an item capture (§3.5), and no capture can wrap either repetition form. Tests cannot follow a group, capture, optional, repeat, or `ε`.
+Flat repetition is `{body}` or `{body / body}`. A chain places one `...` immediately after `{` or after the whole item. A chain is the whole alternative expression. A capture cannot occur directly in a chain's item or separator. Flat braces inside a chain can hold item captures. A capture inside flat braces is an item capture (§3.5), and no capture can wrap either repetition form. Tests cannot follow a group, capture, optional, repeat, or `ε`.
 
 The reader checks each recipe atom in its written form, before folding or removing operators. Any operator token except `++`, including a leading no-op `∪` or `∩`, is an error at the atom. Thus `%rule r A := ∪ "a"` fails at `∪`, column 14. Recipe atoms have no grouping or method-chain extension. The `++` operators join those atoms.
 
@@ -3049,7 +3048,7 @@ A document can hold several errors. The reader reports one, and every reader cho
 3. Syntax recognition runs next, over the complete token sequence. A syntax error stands at the furthest token reached and precedes every reader error. Unknown directives follow this same rule. The hand-written bootstrap reader follows the same lexical, escape, and syntax steps.
 4. Within a rule, the reader reads the definer, name, and header tag, value, and image clauses before the body. At each construct in an alternative's expression, the reader makes sure that its form meets the rules. It examines constructs in text order, each form before its contents. So it reports the first error of the first construct in the text that has one, with these steps for each construct:
    - A tested primary: first the target and test order, at the first test that is not allowed there. A repeated kind or a tag test after a value test is an error at that later test. These checks precede the primary's contents and all test operands. So `{$c:B}="b"` and `[+KU $x:A]="a"` are errors at the test.
-   - A capture: first a capture inside a chain, then a forbidden capture inside an elidable optional, then `$` that wraps something. Then come a name that is not all lower case and a capture that wraps anything but one symbol. Each stands at the capture, before what it wraps.
+   - A capture: first a capture directly in a chain's item or separator, then a forbidden capture inside an elidable optional, then `$` that wraps something. Then come a name that is not all lower case and a capture that wraps anything but one symbol. Each stands at the capture, before what it wraps.
    - An optional: first two markers, at the second. Then an elidable optional that is not of the form below, at its `[`. Last, what it holds through the ordinary symbol-test rules. So `[+KU | $x:A]` is an error at the `[`, and `[+KU≠"ku" $x:A]` at the `$x`.
    - An `&`: more than 16 items, at the `&` construct, that is, at its first item. This comes before any of its items, since the bound is its own form. So an `&` of 17 items is an error at its first item, whatever error a later item holds.
    - Braces: first two markers, at the second, or a marker after the separator, at that marker. Then a chain that is not the whole expression of its alternative, at its `{`. Last, the item and the separator. So `A {$c:B ... / S}` is an error at the `{`, although its marker follows the capture.
@@ -3147,7 +3146,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 
   A pattern atom accepts the tests of §4.1. A terminal atom accepts one tag test and then one value test. A rule, emoji, family or call atom accepts the same two tests. Its tag test reads the constituent's tags, and its value test reads the input value of its span. A test needs an atom, so a test alone, as `#<T>` or `#=""`, is an error at the test. Both checks stand at the first test that is not allowed there. Thus `%rule r $c:A %conditions $c ≅ #(sumti="x"<B>)` fails at `<`, column 42. In `#(sumti<B><C>)`, the order check fails at the second `<`.
 - A `repetition` with two or more markers is an error, reported at the second marker. A marker after its second `choice` is an error, reported at that marker, since the separator has no marker. The bundled syntax grammar never gives such a node, but a bootstrap of another notation can (`docs/api.md`). So every reader decides these cases the same way, and never by which marker it meets first.
-- A capture inside a chain is an error, reported at the capture. So is an item capture inside a ranked group, with the group anywhere between the braces and the capture. A capture that wraps braces is an error by the first item of this list. A capture inside flat braces is an item capture (§3.5). Its name stands nowhere else in the alternative's expression. A second capture of its name, inside the braces or outside them, is an error at the later one in the text. This check runs with the repeated-name check, after the whole expression. The check of a DOM refuses such a repeat as a duplicate capture.
+- A capture directly in a chain's item or separator is an error, reported at the capture. So is an item capture inside a ranked group, with the group anywhere between the braces and the capture. A capture that wraps braces is an error by the first item of this list. A capture inside flat braces is an item capture (§3.5). Its name stands nowhere else in the alternative's expression. A second capture of its name, inside the braces or outside them, is an error at the later one in the text. This check runs with the repeated-name check, after the whole expression. The check of a DOM refuses such a repeat as a duplicate capture.
 - A clause other than a condition that names an item capture is an error at the clause. So is a condition that reads an item capture together with `$`, with an item capture of other braces, or with a capture that a production of the alternative binds after those braces. The reader finds these when it validates the rule's clauses, after the alternatives.
 - A capture inside an elidable optional is an error unless it wraps that optional's sole terminator (§3.8). Report a forbidden capture at its binder. A capture deeper inside the optional remains invalid.
 - An `optional` with two or more markers is an error, reported at the second marker. The bundled syntax grammar never gives such a node, but a bootstrap of another notation can.
@@ -3377,7 +3376,7 @@ A DOM is malformed in each of these cases, whether it is read, cached or in the 
 - An expression combines `ranked` with another member, or contains a malformed option. Report an ordinary malformed-DOM error.
 - Its `chain` is neither `left` nor `right`, or its chain repeat does not occupy the complete alternative expression.
 - It has an `optional` with an `elidable` member whose value is not `true`. It has an elidable `optional` whose expression the reader refuses (above).
-- It has a capture that the reader refuses. That is one that wraps anything but a symbol, or one that wraps a `repeat`. A capture inside a chain is invalid. An elidable `optional` permits only its sole-terminator capture. A ranked group cannot separate an item capture from its braces.
+- It has a capture that the reader refuses. That is one that wraps anything but a symbol, or one that wraps a `repeat`. A capture directly in a chain's item or separator is invalid. Flat braces inside a chain can hold item captures. An elidable `optional` permits only its sole-terminator capture. A ranked group cannot separate an item capture from its braces.
 
   A capture inside flat braces is an item capture and is valid (§3.5). The reader also refuses a name that some expansion of an alternative holds twice. It also refuses a name that is not all lower case.
 - It has an emission with a member other than `items`, or an erased definition with a string recipe or emission. Diagnostic recipes remain legal on erased definitions.
