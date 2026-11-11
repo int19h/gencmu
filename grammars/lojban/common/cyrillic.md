@@ -4,7 +4,7 @@ This document adds gencmu's Cyrillic orthography to the phoneme stage, the first
 
 A pipeline that lists neither this document nor [../cll/cyrillic.md](../cll/cyrillic.md) reads a Cyrillic letter as foreign. [The notation document](../../../docs/notation.md) explains the notation.
 
-The rules map Cyrillic letters to their Lojban phonemes. The consonant mappings are `ш` for `c`, `ж` for `j`, `х` for `x`, and the others in the obvious ways. `ъ`, the Bulgarian hard sign, is `y`. The rules also accept letters from other Cyrillic alphabets with the same or nearly the same sounds:
+The rules map Cyrillic letters to their Lojban phonemes. The consonant mappings are `ш` for `c`, `ж` for `j`, `х` for `x`, and the others in the obvious ways. `ъ`, the Bulgarian hard sign, is `y`. Each letter below stands for its capital too. The rules also accept letters from other Cyrillic alphabets with the same or nearly the same sounds:
 
 - `э` and `є` for `e`
 - `і` for `i`
@@ -12,7 +12,7 @@ The rules map Cyrillic letters to their Lojban phonemes. The consonant mappings 
 - `щ` for `c`
 - `ґ` for `g`
 - `ј` for the glide `i`, as `й`
-- `ў` and `Ў` for the glide `u`
+- `ў` for the glide `u`
 - `һ` as an explicit apostrophe
 - The palochka `ӏ` as a period
 
