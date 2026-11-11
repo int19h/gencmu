@@ -104,7 +104,7 @@ func (g *lowered) prepareChartReadings() {
 					capture = true
 				}
 			}
-			safe = safe && p.elided == "" && !capture && len(p.conds) == 0 && len(p.predictConds) == 0 && len(p.rankedConditions) == 0 && len(p.itemConds) == 0 && p.parentTags == nil
+			safe = safe && p.helperExpression != nil && p.elided == "" && !capture && len(p.conds) == 0 && len(p.predictConds) == 0 && len(p.rankedConditions) == 0 && len(p.itemConds) == 0 && p.parentTags == nil
 		}
 		info := props[id]
 		g.chartRules[id] = chartReading{symbol: symbol{id: int32(id)}, qualified: safe && !info.outside, settlesEntry: info.entry && info.boundary}

@@ -589,30 +589,7 @@ A local reading must complete. The rest of the text need not fit it. A longer un
 
 An inner level of a left chain can have its outer level as a longer local reading. Tests, context and eligibility can prevent this. A check on every such level can report repeatedly. The check's author chooses its candidates.
 
-#### Answers from the stage chart
-
-A local-reading query has exactly the result and the runtime errors of the prefix query above. For most targets, the stage chart already holds that answer. For such a target, each library answers from the stage chart and runs no new recognition. The chart answer applies to a target with all of these properties:
-
-- The chosen derivation comes from the main recognition of the stage, not from reconstruction (engine §7).
-- The target is one symbol of the lowered stage grammar: a rule reference with or without its site test, a terminal, or a generated helper. Optionals, flat braces and ranked groups are helpers.
-- A helper binds no capture. Here a capture is a binder that the grammar writes, and internal slots of the lowering do not count. The helper's expression and clauses equal the binder-free target. No observation in its recognition depends on an enclosing frame. A ranked helper without conditions qualifies, despite the bookkeeping of ranked admission.
-- A plain optional with captures outside nested ranked groups expands in place, so it is not one symbol. A plain optional whose captures stand only inside ranked groups keeps route helpers, and those helpers must pass the helper test above. A captured elidable optional keeps its helper, but it binds a capture.
-- The target is not an elidable optional. In the query, the omission stands at the start of the query's production. In the stage, it follows the earlier symbols of the enclosing production, and written-terminator priority reads them (engine §4).
-- No condition and no tag term that the target reaches at recognition reads `.preceding-tokens` or `.starts-input`. The target reaches the rules that it calls at any depth, and the query targets in their conditions and tag terms. This covers resolved template instances with their actual arguments, guarded tag clauses and conditions that the lowering adds.
-- If `s` is the start of the stage input, the target does not reach both the entry rule and a boundary atom. Main recognition settles a completion of the entry rule over the whole input, and settlement can drop it (engine §4.2). Inside the query, the same completion is an inner one, its literals stay pending, and recognition advances over it.
-
-The test changes no result, so no DOM, output or diagnostic shows it. Lowering computes the static properties once for each element site and for each reading reference of a node, in each lowered grammar. These include whether the target reaches the entry rule and a boundary atom. Each request then tests its recognition mode and its start `s` before it takes the chart answer. A result that several feature sets share holds for each of them. The test keeps exact template arguments, site tests and splice calls.
-
-The answer is the same for these reasons:
-
-- The stage chart predicted the target at `s`, because the chosen derivation reads the element there. Demands of enclosing conditions can split its items without changing their proofs. The chart answer takes every completed item of the target at origin `s`, whatever its demands. For a tested reference, it keeps the items that pass the site test. For a helper target, the helper's completed items at `s` stand for the query's root.
-- Both contexts end at `N`, and the tokens are the same. So conditions and tag terms that read only inside `[s,N)` give the same values.
-- A completed item keeps its pending boundary literals in its boundary record (engine §4.2). A query settles the literals that remain on its witness root. The chart answer settles the record of the completed item in the same way. So `.preceded-by` before `s` and `.followed-by` after the witness give the query's values.
-- Ranked admission removes no item from the chart (engine §6.1). So the chart holds every ranked option, as the query does.
-- Main recognition applies no query filter. So the library computes query eligibility over the stage chart, as the least fixed point of engine §4. A proof can repeat a rule over one span, as any finite query proof can. A cycle without finite support gives no proof. The cycle exclusion of counted derivations (engine §6) does not apply. The flags E, P and F describe one proof together, also where `.error-free` follows `.local-readings`.
-- Every step of the query has an equal step in main recognition, with the same observations. The test above excludes the changes that settlement of the entry rule makes. The stage has a chosen derivation, so main recognition raised no grammar error. So the query raises none.
-
-The library computes this eligibility once in a parse, on demand, and every qualifying local reading of the parse shares it. Its work is the work of query eligibility in one recognition of the stage input (engine §4). Recognition items retain the growth bound of main. Eligibility steps have a separate budget, set from measurements of the four libraries. Issue #297 covers eligibility work proportional to the chart and will tighten that budget. So a parse no longer repeats a recognition for each omitted terminator. A target that does not qualify runs its query, and its cost counts apart. Memo reuse between such queries needs the same context, target, frames and eligibility. A completed item alone still proves neither that a local reading exists nor that it is eligible.
+A local-reading query has exactly the result and runtime errors of the prefix query above. A library answers from the stage chart when the target qualifies. [Engine §10](engine.md#answers-from-the-stage-chart) defines the qualification properties, reasons and cost.
 
 ### Forest end filter
 

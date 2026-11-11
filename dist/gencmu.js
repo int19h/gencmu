@@ -3686,9 +3686,12 @@
     for(const [name,productions]of lowered.byLhs) {
       const info=properties.get(name);
       const helper=productions[0].helper&&!productions[0].spliceOf;
-      const safe=!helper||productions.every((/** @type {any} */ p)=>p.elided===null&&!binds(p.writtenExpression??lowered.elementExpressions.get(name))
-        &&p.captures.every((/** @type {any} */ c)=>c.name.startsWith('\u0000'))&&!p.conditions.length
-        &&!p.rankedConditions?.length&&!p.rankedDeferred?.length&&!p.itemConditions?.length&&!p.parentTags);
+      const safe=!helper||productions.every((/** @type {any} */ p)=>{
+        const expression=p.writtenExpression??lowered.elementExpressions.get(name);
+        return expression!=null&&p.elided===null&&!binds(expression)
+          &&p.captures.every((/** @type {any} */ c)=>c.name.startsWith('\u0000'))&&!p.conditions.length
+          &&!p.rankedConditions?.length&&!p.rankedDeferred?.length&&!p.itemConditions?.length&&!p.parentTags;
+      });
       rules.set(name,{symbol:{name,terminal:false},qualified:safe&&!info.outside,settlesEntry:info.entry&&info.boundary});
     }
     const symbols=new WeakMap();

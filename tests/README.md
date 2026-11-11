@@ -477,7 +477,7 @@ Both texts must parse. The library counts recognizer items for each text in the 
 
 Each case supplies exactly one of `pipeline` and `grammar`. The latter loads an inline grammar through the existing source loader. Optional `walks:true` also bounds traversal through preceding elements. That count grows by at most the same `most` factor. Each library uses its existing work counter or monitored steps for this traversal.
 
-Optional `eligibilityMost` bounds eligibility steps by a separate factor. This count includes proof traversal, chart indexing and lookups for eligibility, in main and nested parses. It excludes recognition items and the preceding-element traversal. The large text costs at most `eligibilityMost` times the small text's eligibility steps. Without this field, the case sets no eligibility budget. Issue #297 will tighten the budget when eligibility work becomes proportional to the chart.
+Optional `eligibilityMost` bounds eligibility steps by a separate factor. This count includes proof traversal, chart indexing and lookups for eligibility, in main and nested parses. It excludes recognition items and the preceding-element traversal. The large text costs at most `eligibilityMost` times the small text's eligibility steps. Without this field, the case sets no eligibility budget.
 
 ## Notation growth cases: `notation-growth.json`
 

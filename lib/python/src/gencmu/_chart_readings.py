@@ -65,7 +65,8 @@ def prepare(lowered):
         for production in productions:
             if not production.helper or production.splice_of is not None:
                 continue
-            safe &= (production.elided is None and not binds(lowered.helper_expressions.get(rule))
+            expression = lowered.helper_expressions.get(rule)
+            safe &= (expression is not None and production.elided is None and not binds(expression)
                      and all(name.startswith("\0") for name in production.captures)
                      and not production.conds_predict and not production.conds_at
                      and not (production.slot and production.slot.ranked_conditions)

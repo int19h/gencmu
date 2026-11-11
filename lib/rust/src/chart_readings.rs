@@ -13,10 +13,11 @@ pub(crate) struct Site {
     pub settles_entry: bool,
 }
 
-pub(crate) fn captured_helpers(grammar: &StageGrammar, helpers: impl Iterator<Item = (u32, usize)>) -> FxSet<u32> {
+pub(crate) fn capture_free_helpers(grammar: &StageGrammar, helpers: impl Iterator<Item = (u32, usize)>) -> FxSet<u32> {
     if grammar.local_targets.is_empty() {
         return FxSet::default();
     }
+    let mut known = FxSet::default();
     let mut captured = FxSet::default();
     for rule in &grammar.rules {
         for alternative in &rule.alternatives {
@@ -24,6 +25,7 @@ pub(crate) fn captured_helpers(grammar: &StageGrammar, helpers: impl Iterator<It
             while let Some((expression, visited)) = pending.pop() {
                 let children = crate::query_forms::expression_children(expression);
                 if !visited {
+                    known.insert(expression as *const Expr as usize);
                     pending.push((expression, true));
                     pending.extend(children.into_iter().map(|child| (child, false)));
                 } else if matches!(expression, Expr::Capture(..))
@@ -34,7 +36,11 @@ pub(crate) fn captured_helpers(grammar: &StageGrammar, helpers: impl Iterator<It
             }
         }
     }
-    helpers.filter_map(|(rule, expression)| captured.contains(&expression).then_some(rule)).collect()
+    helpers
+        .filter_map(|(rule, expression)| {
+            (known.contains(&expression) && !captured.contains(&expression)).then_some(rule)
+        })
+        .collect()
 }
 
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
@@ -52,7 +58,7 @@ fn walk<'a>(roots: impl IntoIterator<Item = Node<'a>>, mut visit: impl FnMut(Nod
     }
 }
 
-pub(crate) fn prepare(g: &mut Lowered, captured: &FxSet<u32>) {
+pub(crate) fn prepare(g: &mut Lowered, capture_free: &FxSet<u32>) {
     let mut local = false;
     for check in &g.checks {
         walk(check.conditions.iter().map(Node::Condition), |node| {
@@ -70,7 +76,12 @@ pub(crate) fn prepare(g: &mut Lowered, captured: &FxSet<u32>) {
     let mut props = vec![Properties::default(); g.rules.len()];
     props[g.start as usize].entry = true;
     let mut parents = vec![FxSet::default(); g.rules.len()];
-    let mut helper_safe = vec![true; g.rules.len()];
+    let mut helper_safe: Vec<_> = g
+        .rules
+        .iter()
+        .enumerate()
+        .map(|(rule, info)| !info.helper || info.splice_target.is_some() || capture_free.contains(&(rule as u32)))
+        .collect();
     for (id, production) in g.prods.iter().enumerate() {
         let rule = production.rule as usize;
         let mut calls: FxSet<_> = production
@@ -100,7 +111,7 @@ pub(crate) fn prepare(g: &mut Lowered, captured: &FxSet<u32>) {
             parents[target as usize].insert(rule);
         }
         if g.rules[rule].helper && !production.splice {
-            helper_safe[rule] &= !captured.contains(&(rule as u32))
+            helper_safe[rule] &= capture_free.contains(&(rule as u32))
                 && g.rules[rule].elided.is_none()
                 && production.names.keys().all(|name| name.is_empty() || name.starts_with('\0'))
                 && production.conds.is_empty()

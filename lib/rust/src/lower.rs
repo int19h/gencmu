@@ -2121,7 +2121,7 @@ pub(crate) fn lower(
             Ok(Check { definition: definition.clone(), conditions })
         })
         .collect::<Result<Vec<_>, LowerError>>()?;
-    let captured_helpers = crate::chart_readings::captured_helpers(
+    let capture_free_helpers = crate::chart_readings::capture_free_helpers(
         grammar,
         lowerer.helpers.iter().enumerate().map(|(index, helper)| ((grammar.rules.len() + index) as u32, helper.expr)),
     );
@@ -2154,7 +2154,7 @@ pub(crate) fn lower(
     };
     lowered.ranked = ranked_runtime(grammar, &lowered, &query_rules, &item_alts);
     lowered.reads_errors = crate::query_dependencies::carried(&lowered);
-    crate::chart_readings::prepare(&mut lowered, &captured_helpers);
+    crate::chart_readings::prepare(&mut lowered, &capture_free_helpers);
     if grammar.tree_comparisons {
         let (demands, cases) = crate::tree_identity::demands(&lowered);
         lowered.tree_demands = demands.into();
