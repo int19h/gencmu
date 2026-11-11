@@ -32,8 +32,8 @@
 <g class="rule"><rect x="214" y="218" width="100" height="24" rx="0"/><text x="264" y="235" textLength="84" lengthAdjust="spacingAndGlyphs">eraser-run</text></g>
 <path d="M314 230H348a10 10 0 0 0 10 -10V206a10 10 0 0 1 10 -10"/>
 <path d="M194 196a10 10 0 0 1 10 10V254a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="214" y="252" width="126" height="24" rx="0"/><text x="277" y="269" textLength="109.2" lengthAdjust="spacingAndGlyphs">segmented-run</text></g>
-<path d="M340 264H348a10 10 0 0 0 10 -10V206a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="214" y="252" width="84" height="24" rx="0"/><text x="256" y="269" textLength="67.2" lengthAdjust="spacingAndGlyphs">word-run</text></g>
+<path d="M298 264H348a10 10 0 0 0 10 -10V206a10 10 0 0 1 10 -10"/>
 <path d="M194 196a10 10 0 0 1 10 10V288a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="214" y="286" width="117" height="24" rx="0"/><text x="272.5" y="303" textLength="100.8" lengthAdjust="spacingAndGlyphs">compound-run</text></g>
 <path d="M331 298H348a10 10 0 0 0 10 -10V206a10 10 0 0 1 10 -10"/>
