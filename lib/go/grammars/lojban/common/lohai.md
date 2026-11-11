@@ -62,9 +62,7 @@ In the experimental pipeline, an unfinished marker carries `Fault` unless a [`co
   $
 
 %rule lehai-marker
-  $q:read-word :: Word Cmavo ∪ $q.classes
-%conditions
-  LEhAI ⊆ $q.classes
+  $q:LEhAI :: Word Cmavo ∪ $q.classes
 %emits
   $
 ```
