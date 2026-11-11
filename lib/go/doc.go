@@ -1,5 +1,5 @@
-// Package gencmu is a Lojban parser whose grammars are data: literate
-// Markdown documents, loaded at runtime, whose fenced jbogenbau blocks are
+// Package gencmu is a parser for Lojban and other loglangs. Its grammars
+// are literate Markdown documents, loaded at runtime. Their jbogenbau blocks are
 // read by the notation's own grammar. A pipeline is a pipeline document
 // whose %stage and %include directives name the stages a text passes
 // through, from characters to phonemes, words and a parse tree, and the
@@ -60,7 +60,7 @@
 // decomposition. The .decomposed-source-text method decomposes the original
 // source text of a span with the same table.
 //
-// Result format 16 and grammar DOM format 45 follow docs/output.md.
+// The result and grammar DOM formats follow docs/output.md.
 // Source positions count Unicode code points, rather than UTF-8 bytes.
 // Spans and token indices count tokens of the relevant stage. Tags occur
 // once in code point order. User tags start with uppercase ASCII letters.
@@ -88,7 +88,7 @@
 //
 // A *Pipeline is safe for concurrent use by several goroutines. Each parse
 // keeps its own state. A pipeline caches the lowered grammars and resolved
-// classifiers for each set of the features that its guards use. It keeps a
+// classifiers for each set of the features that its gates use. It keeps a
 // bounded number of them, and builds each one once, outside its mutex.
 // These values never change once built.
 //

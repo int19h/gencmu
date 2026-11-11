@@ -56,7 +56,7 @@ func valueNotation(t *testing.T, aliases []notationAlias) string {
 	for i, alias := range aliases {
 		name := fmt.Sprintf("value-alias-%d", i)
 		piece["alternatives"] = append(piece["alternatives"].([]any), map[string]any{
-			"guards": []any{}, "expr": map[string]any{"ref": name},
+			"gates": []any{}, "expr": map[string]any{"ref": name},
 		})
 		var seq, tags []any
 		for _, c := range alias.Spelling {
@@ -72,7 +72,7 @@ func valueNotation(t *testing.T, aliases []notationAlias) string {
 		rules = append(rules, map[string]any{
 			"name": name, "op": "define",
 			"at": []int{100000 + i, 1}, "conditions": []any{},
-			"alternatives": []any{map[string]any{"guards": []any{}, "expr": map[string]any{"seq": seq}}},
+			"alternatives": []any{map[string]any{"gates": []any{}, "expr": map[string]any{"seq": seq}}},
 			"emit": map[string]any{"items": []any{map[string]any{
 				"capture": "", "tags": tagExpr,
 				"value": map[string]any{"concat": []any{map[string]any{"string": alias.Value}}},

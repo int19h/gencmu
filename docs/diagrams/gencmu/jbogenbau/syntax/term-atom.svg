@@ -7,7 +7,7 @@
 <g class="rule"><rect x="40" y="34" width="142" height="24" rx="0"/><text x="111" y="51" textLength="126" lengthAdjust="spacingAndGlyphs">plain-term-atom</text></g>
 <path d="M182 46H202"/>
 <path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="68" width="67" height="24" rx="0"/><text x="73.5" y="85" textLength="50.4" lengthAdjust="spacingAndGlyphs">method</text></g>
-<path d="M107 80H182a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="40" y="68" width="117" height="24" rx="0"/><text x="98.5" y="85" textLength="100.8" lengthAdjust="spacingAndGlyphs">method-chain</text></g>
+<path d="M157 80H182a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M202 46h6m0 -8v16m4 -16v16"/>
 </svg>

@@ -6,6 +6,6 @@
 <path d="M10 38v16m4 -16v16M14 46h6"/>
 <g class="terminal"><rect x="20" y="34" width="42" height="24" rx="12"/><text x="41" y="51" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;$&quot;</text></g>
 <path d="M62 46h10"/>
-<g class="rule"><rect x="72" y="34" width="100" height="24" rx="0"/><text x="122" y="51" textLength="84" lengthAdjust="spacingAndGlyphs">upper-name</text></g>
-<path d="M172 46h6m0 -8v16m4 -16v16"/>
+<g class="rule"><rect x="72" y="34" width="168" height="24" rx="0"/><text x="156" y="51" textLength="151.2" lengthAdjust="spacingAndGlyphs">upper-initial-name</text></g>
+<path d="M240 46h6m0 -8v16m4 -16v16"/>
 </svg>

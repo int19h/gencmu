@@ -29,7 +29,7 @@ class DomMalformed(unittest.TestCase):
             with self.subTest(fields=[name for name, _ in fields]):
                 dom = {"format": DOM_FORMAT, "directives": [{"name": "ambiguity-resolution", "steps": [{"step": "greedy"}], "at": [1, 1]}], "constants": [],
                        "classifiers": [], "implications": [], "rules": [{"op": "define", "name": "text", "at": [2, 1],
-                                  "alternatives": [{"guards": [], "expr": {"capture": "x", "expr": {"ref": "X"}}}],
+                                  "alternatives": [{"gates": [], "expr": {"capture": "x", "expr": {"ref": "X"}}}],
                                   "conditions": [dict(fields)]}],
                        "checks": []}
                 self.assertIsNone(dom_problem(dom, unicode))
@@ -46,7 +46,7 @@ class DomMalformed(unittest.TestCase):
             ({"extra": 1, "ranked": [{"ref": "A"}, {"ref": "B"}]}, False),
             ({"ranked": [None, {"ref": "B"}]}, False),
         ]:
-            dom = {"format": DOM_FORMAT, "rules": [{"name": "text", "op": "define", "alternatives": [{"guards": [], "expr": expr}], "conditions": [], "at": [1, 1]}], "directives": [], "constants": [], "classifiers": [], "implications": [], "checks": []}
+            dom = {"format": DOM_FORMAT, "rules": [{"name": "text", "op": "define", "alternatives": [{"gates": [], "expr": expr}], "conditions": [], "at": [1, 1]}], "directives": [], "constants": [], "classifiers": [], "implications": [], "checks": []}
             problem = dom_problem(dom, unicode)
             self.assertIsNotNone(problem)
             self.assertEqual(problem.startswith("ranked-choice-syntax:"), coded, str(expr))

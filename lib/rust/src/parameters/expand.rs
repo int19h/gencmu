@@ -870,7 +870,7 @@ impl Expander<'_> {
                         (
                             "alternatives",
                             Json::Arr(vec![obj([
-                                ("guards", Json::Arr(Vec::new())),
+                                ("gates", Json::Arr(Vec::new())),
                                 ("expr", self.rewrite(body, event, "expr")?),
                             ])]),
                         ),

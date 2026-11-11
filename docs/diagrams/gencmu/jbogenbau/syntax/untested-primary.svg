@@ -4,8 +4,8 @@
 <text class="title" x="10" y="24" textLength="134.4" lengthAdjust="spacingAndGlyphs">untested-primary</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
 <path d="M20 46h20"/>
-<g class="rule"><rect x="40" y="34" width="92" height="24" rx="0"/><text x="86" y="51" textLength="75.6" lengthAdjust="spacingAndGlyphs">reference</text></g>
-<path d="M132 46H202"/>
+<g class="rule"><rect x="40" y="34" width="134" height="24" rx="0"/><text x="107" y="51" textLength="117.6" lengthAdjust="spacingAndGlyphs">rule-reference</text></g>
+<path d="M174 46H202"/>
 <path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="40" y="68" width="50" height="24" rx="0"/><text x="65" y="85" textLength="33.6" lengthAdjust="spacingAndGlyphs">call</text></g>
 <path d="M90 80H182a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>

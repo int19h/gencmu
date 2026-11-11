@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex, OnceLock};
 
 use crate::diagnostic_flow::{self, DiagnosticFlow, Lists};
-use crate::dom::{FeatureKind, Guard};
+use crate::dom::{FeatureKind, Gate};
 use crate::earley::{matchers, EngineError, Matcher, Recognizer, Recon, Shared, Tok};
 use crate::error::Error;
 use crate::grammar::{Change, ClassifierTables, KeyStep, Lean, StageGrammar};
@@ -109,7 +109,7 @@ struct StageCache {
     /// The features that gate an alternative or an entry of a classifier,
     /// in code point order. Only these change a lowered grammar. A warning
     /// keeps its alternative (engine §3.1), and any other name matches no
-    /// guard (engine §13).
+    /// gate (engine §13).
     gates: Vec<String>,
     /// The features that gate an entry of a classifier, in code point
     /// order. Only these change the classifiers.
@@ -122,17 +122,17 @@ struct StageCache {
 
 impl StageCache {
     fn new(stage: &StageGrammar) -> StageCache {
-        let entries: Vec<&Guard> = stage
+        let entries: Vec<&Gate> = stage
             .classifiers
             .iter()
             .flat_map(|(_, classifier)| &classifier.entries)
-            .flat_map(|entry| &entry.guards)
+            .flat_map(|entry| &entry.gates)
             .collect();
         let alternatives = stage
             .rules
             .iter()
             .flat_map(|rule| &rule.alternatives)
-            .flat_map(|alternative| &alternative.alternative.guards);
+            .flat_map(|alternative| &alternative.alternative.gates);
         StageCache {
             gates: gate_names(alternatives.chain(entries.iter().copied())),
             classifier_gates: gate_names(entries.iter().copied()),
@@ -143,9 +143,9 @@ impl StageCache {
 }
 
 /// The names of the features that gate, in code point order, each once.
-fn gate_names<'a>(guards: impl Iterator<Item = &'a Guard>) -> Vec<String> {
+fn gate_names<'a>(gates: impl Iterator<Item = &'a Gate>) -> Vec<String> {
     let names: BTreeSet<&String> =
-        guards.filter(|guard| guard.kind == FeatureKind::Gate).map(|guard| &guard.feature).collect();
+        gates.filter(|gate| gate.kind == FeatureKind::Gate).map(|gate| &gate.feature).collect();
     names.into_iter().cloned().collect()
 }
 
@@ -230,7 +230,7 @@ impl Run {
     }
 }
 
-/// A pipeline's features (engine §13): names from guards and pipeline or
+/// A pipeline's features (engine §13): names from gates and pipeline or
 /// stage-local `%features` declarations, in code point order.
 /// Unconditional declarations also supply defaults. A name that
 /// only declarations use is a gate. A name used as both gate and warning is an error.
@@ -243,9 +243,9 @@ fn pipeline_features(stages: &[StageGrammar], declared: &[String]) -> Result<Vec
             for alt in &rule.alternatives {
                 uses.extend(
                     alt.alternative
-                        .guards
+                        .gates
                         .iter()
-                        .map(|guard| (guard.feature.as_str(), "gate", alt.document.as_ref(), alt.at)),
+                        .map(|gate| (gate.feature.as_str(), "gate", alt.document.as_ref(), alt.at)),
                 );
                 if alt.clauses.error.is_some() {
                     uses.push((&rule.name, "error", &alt.document, alt.at));
@@ -266,7 +266,7 @@ fn pipeline_features(stages: &[StageGrammar], declared: &[String]) -> Result<Vec
         for (document, classifier) in &stage.classifiers {
             for entry in &classifier.entries {
                 uses.extend(
-                    entry.guards.iter().map(|guard| (guard.feature.as_str(), "gate", document.as_ref(), entry.at)),
+                    entry.gates.iter().map(|gate| (gate.feature.as_str(), "gate", document.as_ref(), entry.at)),
                 );
             }
         }
@@ -321,13 +321,13 @@ fn pipeline_features(stages: &[StageGrammar], declared: &[String]) -> Result<Vec
                 tested.entry(check.name.clone()).or_insert_with(|| stage.name.clone());
             }
         }
-        for guard in stage.rules.iter().flat_map(|rule| &rule.alternatives).flat_map(|alt| &alt.alternative.guards) {
+        for guard in stage.rules.iter().flat_map(|rule| &rule.alternatives).flat_map(|alt| &alt.alternative.gates) {
             tested.entry(guard.feature.clone()).or_insert_with(|| stage.name.clone());
         }
-        for guard in
-            stage.classifiers.iter().flat_map(|(_, classifier)| &classifier.entries).flat_map(|entry| &entry.guards)
+        for gate in
+            stage.classifiers.iter().flat_map(|(_, classifier)| &classifier.entries).flat_map(|entry| &entry.gates)
         {
-            tested.entry(guard.feature.clone()).or_insert_with(|| stage.name.clone());
+            tested.entry(gate.feature.clone()).or_insert_with(|| stage.name.clone());
         }
     }
     Ok(kinds

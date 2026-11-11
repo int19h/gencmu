@@ -135,7 +135,7 @@ impl<'a> Reader<'a> {
             let target = match rule_name(node) {
                 "call" => return Ok(Step::Call(Frame::SourceCall(CallFrame::new(node)))),
                 "parameter" => SourceTarget::Symbol(self.source_parameter(node)?),
-                "reference" => SourceTarget::Rule(self.value(self.token(node)?).into()),
+                "rule-reference" => SourceTarget::Rule(self.value(self.token(node)?).into()),
                 "tag" => SourceTarget::Terminal(self.tag_of(self.token(node)?)?),
                 _ => return Err(self.error(node, "invalid target argument")),
             };

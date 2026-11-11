@@ -392,7 +392,7 @@ pub(crate) fn prepare(grammar: &mut crate::grammar::StageGrammar) -> Result<(), 
                                     document: document.clone(),
                                     alternatives: vec![StitchedAlternative {
                                         alternative: Alternative {
-                                            guards: Vec::new(),
+                                            gates: Vec::new(),
                                             expr: core,
                                             tags: None,
                                             strings: Channels::default(),

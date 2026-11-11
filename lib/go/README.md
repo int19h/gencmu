@@ -1,6 +1,8 @@
 # gencmu for Go
 
-The Go library of [gencmu](../../README.md) parses Lojban. A literate grammar document mixes prose with grammar rules. The library loads these Markdown documents at runtime. It implements [`docs/engine.md`](../../docs/engine.md) from the specification alone, with the standard library only. It embeds the bundled grammars. An API is the operations that a library exposes.
+[gencmu](../../README.md) is a parser for Lojban and other loglangs. This is its Go library. A literate grammar document mixes prose with grammar rules. The library loads these Markdown documents at runtime.
+
+It implements [`docs/engine.md`](../../docs/engine.md) from the specification alone, with the standard library only. It embeds the bundled grammars. An API is the operations that a library exposes.
 
 CI runs automated tests for every change. The module states Go 1.22, and CI tests it on 1.22 and the current stable release. The code needs generics and the `min` builtin (1.21). It is also written for the per-iteration loop variables of 1.22. Long-lived distributions such as Ubuntu 24.04 package 1.22 too. Users of these distributions can build the module with their packaged toolchain.
 
@@ -30,7 +32,7 @@ A caller can enable or disable an unknown feature name. Unknown names do not cha
 
 - `LoadPipeline(name)` loads a bundled pipeline. `name` is the directory path `NAME` of `grammars/NAME/pipeline.md`.
 - `LoadPipelineFile(path)` loads a pipeline document from disk. The loader finds its grammar documents relative to it. A document that is not valid UTF-8 is a load error of kind `grammar`.
-- `LoadPipelineSources(sources, pipeline)` loads documents held in memory, a map from `/`-separated path to text. The map can hold its own `data/unicode/unicode.txt`, `data/preparsed/gencmu.json` and `data/preparsed/lojban.json`. The bundled ones fill in the rest. A `data/unicode/unicode.txt` in the map replaces the bundled table entirely, White_Space included (`docs/api.md`).
+- `LoadPipelineSources(sources, pipeline)` loads documents held in memory, a map from `/`-separated path to text. The map can hold its own `data/unicode/unicode.txt` and `data/preparsed/FAMILY.json` files. The bundled ones fill in the rest. A `data/unicode/unicode.txt` in the map replaces the bundled table entirely, White_Space included (`docs/api.md`).
 
   For each of the three, a tie while the notation reads a grammar document is a load error of kind `grammar`. It names the document, and it has no line or column (engine §8).
 
@@ -42,7 +44,7 @@ A `feature-conflict` result names a disabled feature whose conditional declarati
 
 `(*Pipeline).Features()` lists the features of the pipeline, the gates of its classifiers' entries included. Each is a `Feature` with `Name`, `Kind` (`gate` or `warning`) and `Default`. `Default` says whether the pipeline turns the feature on. Warning features use their warning rule's code.
 
-`$x.parse(C)` reads a forest of query witnesses for body `C`. One outer `…` selects a prefix or suffix. `.error-free` excludes carried errors outside erased parts. Ordinary witnesses allow carried errors. Both forms exclude unerased own error rules.
+`$x.parse(C)` reads a forest of query witnesses for body `C`. One outer `…` selects a prefix or suffix. `…` at both outer edges selects a part. `.error-free` excludes carried errors outside erased parts. Ordinary witnesses allow carried errors. Both forms exclude unerased own error rules.
 
 `$x.without-elision` and `$x.without-elision-except(F)` restore captured omitted terminators for an aligned query.
 
@@ -61,7 +63,7 @@ The API copies the tokens and leaves the caller's records unchanged. Nonempty `B
 
 ## Results
 
-A text that a stage reads in two or more best ways is a tie. If its messages evaluate, the result reports `ambiguous` with `Reason` `tie` and two `Readings`. The stage has verdict `tie`, a `Witness`, and no output. A message failure reports `grammar` and retains that verdict. The `Reason` of an `ElisionOnly` error is `elision-only`.
+A text that a stage reads in two or more best ways is a tie. If its messages evaluate, the result reports `ambiguous` with `Reason` `tie` and two `Readings`. The stage has verdict `tie`, a `Witness`, and no output. The recipe language has no message that can fail. Engine §12.1 defines the guard for a failure. The `Reason` of an `ElisionOnly` error is `elision-only`.
 
 A text that does not parse gives a result whose `OK` is false. Its error kind is `rejected`, `ambiguous`, `feature-conflict`, `reported`, or `grammar` (`docs/api.md`).
 
@@ -79,7 +81,9 @@ Emitted tokens carry `Errors` and `Warnings` to later stages. An empty emission 
 
 Lowering can find grammar defects for a parse's features (engine §3). Examples include a chain `{... x / s}` beside another alternative, or a repeated item that can match no tokens. The pipeline loads. Parsing returns a result whose `Error` has kind `grammar`. The separate returned error is nil. The result error's `Message` starts with the faulty definition's document, line, and column, as `g.md:3:1:`.
 
-An error of kind `grammar` with the `Code` `elision-witness-lost` (`CodeElisionWitnessLost`) marks a defect of the library in the check of `elision-only`. It also has `Chosen`, the stage's chosen tree, and `Completion`, the terminators that the check wrote back (engine §7.9). The canonical JSON writes `Chosen` and `Completion` as `chosen` and `completion` (`docs/output.md`). Each of those is a `Restoration` with `Terminal`, `At`, `Source` and, for a terminator with an `=` test, `Value`. `Tested` says whether it has such a test, since `Value` is empty both without one and for `T=""`. An ambiguous error of `elision-only` also has `Witness`, the pair of actions where its readings first differ.
+An error of kind `grammar` with the `Code` `elision-witness-lost` (`CodeElisionWitnessLost`) marks a defect of the library in the check of `elision-only`. It also has `Chosen`, the stage's chosen tree, and `Completion`, the terminators that the check wrote back (engine §7.9). The canonical JSON writes `Chosen` and `Completion` as `chosen` and `completion` (`docs/output.md`).
+
+Each `Restoration` has `Terminal`, `At`, and `Source`. Its `Value` holds the default from `≝` or an equality test, including an explicit empty string. `Tested` records whether a default exists. Without a default, `Value` is also empty. An ambiguous error of `elision-only` also has `Witness`, the pair of actions where its readings first differ.
 
 Such an action can have `Elided`, a read of a terminator that the check wrote back (engine §7.10). Other parse-result errors have no `Code`. Ranked-choice load errors use the separate diagnostic schema of `docs/output.md`.
 
@@ -98,9 +102,9 @@ Stage zero applies Unicode Normalization Form D (NFD). NFD splits precomposed ch
 
 Each stage-zero token stores every available Unicode property membership from the configured character resources. Later stages read those stored tags without reclassifying changed values.
 
-Grammar documents use the same decomposition. Escaped scalars inside strings remain exact. Include paths decode escapes without decomposition. The `.decomposed-source-text` method decomposes the original source text of a span.
+Grammar documents use the same decomposition. Escaped scalars inside strings remain exact. Resource paths decode escapes without decomposition. The `.decomposed-source-text` method decomposes the original source text of a span.
 
-The cache requires DOM format 46 and matching document, bootstrap, Unicode, properties, and required names fingerprints. Fingerprints use 64-bit FNV-1a over resource text.
+The cache requires DOM format 52 and matching document, bootstrap, Unicode, properties, and required names fingerprints. Fingerprints use 64-bit FNV-1a over resource text.
 
 A `Token` also has its attachments, `Before` and `After` (engine §11). These are tokens that belong to it and that no later stage reads, such as the indicators after a word. They are nil when there are none. An attached token has no span: its `Span` is zero, and the canonical JSON leaves it out.
 
@@ -130,7 +134,9 @@ An engine case that takes longer than 30 seconds fails, so that a hang is a fail
 
 `TestCorpus` runs the core sample of the Lojban corpus (`../../tests/core.txt`) on as many goroutines as there are CPUs. The goroutines share one `*Pipeline` for each pipeline. `GENCMU_CORPUS=full` runs every case of `../../tests/corpus/`, and `GENCMU_CORPUS_WORKERS` sets the number of goroutines.
 
-The shared and corpus runners also fail a result with the error `elision-witness-lost`. They fail a case in which a check of `elision-only` does not keep the witness of its chosen derivation too (`tests/README.md`). They ask through a hook that a parse takes from an unexported field of `ParseOptions`, which no caller can set (`check.go`, `witness_test.go`). The library's own tests lose the witness on purpose through the same field, and make sure that the error has the required form. The same field turns on faults of the library's own paths in the check. `faults_test.go` shows that the shared cases catch each one, through the result or through the hook alone (`tests/README.md`).
+The shared and corpus runners also fail a result with the error `elision-witness-lost`. They fail a case in which a check of `elision-only` does not keep the witness of its chosen derivation too (`tests/README.md`). The runners ask a hook whether the check retains the chosen derivation's witness. A parse takes that hook from an unexported `ParseOptions` field, which no caller can set (`check.go`, `witness_test.go`).
+
+The library's own tests lose the witness on purpose through the same field, and make sure that the error has the required form. The same field turns on faults of the library's own paths in the check. `faults_test.go` shows that the shared cases catch each one, through the result or through the hook alone (`tests/README.md`).
 
 `TestRankingProperty` compares the ranking with a brute-force enumeration of every derivation of small random grammars. To run a larger sweep, run this command:
 

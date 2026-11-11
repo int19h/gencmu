@@ -480,7 +480,7 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 			if extraIndexes[event.index] {
 				name = "text"
 			}
-			rule := templateObject{"name": name, "op": "define", "conditions": []any{}, "alternatives": []any{templateObject{"guards": []any{}, "expr": x.rewrite(body, event, "expr")}}, "at": event.rule["at"]}
+			rule := templateObject{"name": name, "op": "define", "conditions": []any{}, "alternatives": []any{templateObject{"gates": []any{}, "expr": x.rewrite(body, event, "expr")}}, "at": event.rule["at"]}
 			if open {
 				rule["params"] = event.rule["params"]
 			}

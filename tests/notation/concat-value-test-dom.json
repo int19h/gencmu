@@ -3,14 +3,14 @@
   "document": "```jbogenbau\n%const $JOIN-1 \"a\" ++ $B\n%rule text A=$JOIN-1\n```\n",
   "expect": {
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "text",
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "test": "=",
                 "value": {

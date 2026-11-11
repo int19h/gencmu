@@ -57,7 +57,7 @@ fn ranked_syntax_codes_follow_the_complete_shape() {
         (r#"{"ranked":[null,{"ref":"B"}]}"#, false),
     ] {
         let dom = format!(
-            r#"{{"format":{DOM_FORMAT},"rules":[{{"name":"text","op":"define","alternatives":[{{"guards":[],"expr":{expr}}}],"conditions":[],"at":[1,1]}}],"directives":[],"constants":[],"classifiers":[],"implications":[],"checks":[]}}"#
+            r#"{{"format":{DOM_FORMAT},"rules":[{{"name":"text","op":"define","alternatives":[{{"gates":[],"expr":{expr}}}],"conditions":[],"at":[1,1]}}],"directives":[],"constants":[],"classifiers":[],"implications":[],"checks":[]}}"#
         );
         let problem = check_dom(&dom).expect("the Unicode context").expect("a malformed DOM");
         assert_eq!(problem.starts_with("ranked-choice-syntax:"), coded, "{expr}: {problem}");

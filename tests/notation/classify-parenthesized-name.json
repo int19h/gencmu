@@ -3,14 +3,14 @@
   "document": "```jbogenbau\n%classifier lex \n%rule text $w:W :: (\"mi\".classify(lex) ∪ $w.value.classify(lex) ∪ $w.parse(text).tags) %conditions $w.parse(text)\n\n```\n",
   "expect": {
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "text",
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "capture": "w",
                 "expr": {

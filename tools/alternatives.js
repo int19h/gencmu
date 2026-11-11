@@ -82,7 +82,7 @@ function sourceWithoutComments(text) {
  * @returns {boolean}
  */
 export function isPlainAlternative(alternative, text) {
-  if (!alternative || (alternative.guards && alternative.guards.length !== 0)) return false;
+  if (!alternative || (alternative.gates && alternative.gates.length !== 0)) return false;
   if (alternative.tags !== undefined || alternative.value !== undefined || alternative.image !== undefined) return false;
   if (/[\[\]{}()&≻]/.test(sourceWithoutStrings(sourceWithoutComments(text)))) return false;
   const expr = alternative.expr;

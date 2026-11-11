@@ -22,7 +22,7 @@ class Marks(Protocol):
     def changes_in_document(self, code: int) -> bool: ...
 
 
-FORMAT = 51
+FORMAT = 52
 MAX_DEPTH = 256
 TOO_DEEP = "nested too deeply"
 CONSTANT_NAME = USER_NAME
@@ -71,7 +71,7 @@ def _capture(value: Any, whole: bool = True) -> bool:
     return isinstance(value, str) and (whole and value == "" or CAPTURE_NAME.fullmatch(value) is not None)
 
 
-def _guard(value: Any, gate: bool = False) -> bool:
+def _gate(value: Any, gate: bool = False) -> bool:
     return (
         isinstance(value, dict)
         and set(value) == {"feature", "kind", "negated"}
@@ -286,10 +286,10 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
         for e in c["entries"]:
             if (
                 not isinstance(e, dict)
-                or set(e) != {"guards", "keys", "op", "class", "at"}
+                or set(e) != {"gates", "keys", "op", "class", "at"}
                 or not _is_position(e["at"])
-                or not isinstance(e["guards"], list)
-                or not all(_guard(g, True) for g in e["guards"])
+                or not isinstance(e["gates"], list)
+                or not all(_gate(g, True) for g in e["gates"])
                 or not _items(e["keys"])
                 or e["op"] not in ("∈", "∉")
                 or not isinstance(e["class"], str)
@@ -397,9 +397,9 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
         for a in r["alternatives"]:
             if (
                 not isinstance(a, dict)
-                or not set(a) <= {"guards", "expr", "tags", "value", "image"}
-                or not isinstance(a.get("guards"), list)
-                or not all(_guard(g) for g in a["guards"])
+                or not set(a) <= {"gates", "expr", "tags", "value", "image"}
+                or not isinstance(a.get("gates"), list)
+                or not all(_gate(g) for g in a["gates"])
             ):
                 return "a malformed alternative"
             pending.append(("expr", a.get("expr"), 0, True, 0))

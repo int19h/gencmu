@@ -181,7 +181,7 @@ export declare class Grammar {
     /**
      * The features that gate an alternative or an entry of a classifier.
      * Only these change a lowered grammar. A warning keeps its alternative
-     * (engine §3.1), and any other name matches no guard (engine §13).
+     * (engine §3.1), and any other name matches no gate (engine §13).
      * @type {string[]}
      */
     gates: string[];

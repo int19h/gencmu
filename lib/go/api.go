@@ -432,7 +432,7 @@ func newPipeline(stages []*stageGrammar, declared []string, uni *unicodeTable) (
 	return pipeline, nil
 }
 
-// pipelineFeatures lists names from guards and pipeline or stage-local
+// pipelineFeatures lists names from gates and pipeline or stage-local
 // %features declarations, in code point order (engine §13).
 // Unconditional declarations also supply defaults. A name that
 // only declarations use is a gate. A name used as both gate and warning is an error.
@@ -463,8 +463,8 @@ func pipelineFeatures(stages []*stageGrammar, declared []string) ([]Feature, *Er
 		}
 		for _, r := range g.rules {
 			for _, a := range r.alts {
-				for _, guard := range a.alt.Guards {
-					if err := add(guard.Feature, FeatureGate, a.doc, a.at, g.name); err != nil {
+				for _, gate := range a.alt.Gates {
+					if err := add(gate.Feature, FeatureGate, a.doc, a.at, g.name); err != nil {
 						return nil, err
 					}
 				}
@@ -482,8 +482,8 @@ func pipelineFeatures(stages []*stageGrammar, declared []string) ([]Feature, *Er
 		}
 		for _, item := range g.classifierSet.items {
 			for _, entry := range item.classifier.Entries {
-				for _, guard := range entry.Guards {
-					if err := add(guard.Feature, FeatureGate, item.doc, entry.At, g.name); err != nil {
+				for _, gate := range entry.Gates {
+					if err := add(gate.Feature, FeatureGate, item.doc, entry.At, g.name); err != nil {
 						return nil, err
 					}
 				}
@@ -530,18 +530,18 @@ func pipelineFeatures(stages []*stageGrammar, declared []string) ([]Feature, *Er
 				if alt.warning != nil && tested[rule.name] == "" {
 					tested[rule.name] = stage.name
 				}
-				for _, guard := range alt.alt.Guards {
-					if tested[guard.Feature] == "" {
-						tested[guard.Feature] = stage.name
+				for _, gate := range alt.alt.Gates {
+					if tested[gate.Feature] == "" {
+						tested[gate.Feature] = stage.name
 					}
 				}
 			}
 		}
 		for _, item := range stage.classifierSet.items {
 			for _, entry := range item.classifier.Entries {
-				for _, guard := range entry.Guards {
-					if tested[guard.Feature] == "" {
-						tested[guard.Feature] = stage.name
+				for _, gate := range entry.Gates {
+					if tested[gate.Feature] == "" {
+						tested[gate.Feature] = stage.name
 					}
 				}
 			}
@@ -779,7 +779,7 @@ type Pipeline struct {
 	features []Feature // every feature, with its kind and default (§13)
 	uni      *unicodeTable
 	mu       sync.Mutex
-	// lowered holds each stage's lowered grammars, keyed by the guarded
+	// lowered holds each stage's lowered grammars, keyed by the gated
 	// features that are on.
 	lowered []*recent[lowerKey, *lowerEntry]
 	// memoLimit is the bound of the shared memos that the library's own
@@ -789,7 +789,7 @@ type Pipeline struct {
 }
 
 type lowerKey struct {
-	guarded string
+	gated string
 }
 
 // lowerEntry is a stage's grammar lowered for one key, once.
@@ -827,13 +827,13 @@ func (d *Pipeline) Features() []Feature {
 	return append([]Feature{}, d.features...)
 }
 
-// lower is a stage's grammar lowered for a set of features. Only the guarded
+// lower is a stage's grammar lowered for a set of features. Only the gated
 // features that are on change the productions. So two sets of features with
-// the same guarded features on share one lowered grammar.
+// the same gated features on share one lowered grammar.
 func (d *Pipeline) lower(stage int, features map[string]bool) *lowered {
 	g := d.stages[stage]
-	on, guarded := namesOn(g.guarded, features)
-	key := lowerKey{guarded}
+	on, gated := namesOn(g.gates, features)
+	key := lowerKey{gated}
 	d.mu.Lock()
 	if d.lowered == nil {
 		d.lowered = make([]*recent[lowerKey, *lowerEntry], len(d.stages))

@@ -4,7 +4,7 @@
   "cacheMisses": true,
   "expect": {
     "dom": {
-      "format": 51,
+      "format": 52,
       "checks": [
         {
           "name": "one",

@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n%conditions $.parse(… A …)\n```\n",
   "expect": {
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "text",

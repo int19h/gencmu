@@ -80,7 +80,7 @@ func TestRankedSyntaxCodeShape(t *testing.T) {
 		{`{"extra":1,"ranked":[{"ref":"A"},{"ref":"B"}]}`, false},
 		{`{"ranked":[null,{"ref":"B"}]}`, false},
 	} {
-		raw := `{"format":51,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":` + c.expr + `}],"conditions":[],"at":[1,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[],"checks":[]}`
+		raw := `{"format":52,"rules":[{"name":"text","op":"define","alternatives":[{"gates":[],"expr":` + c.expr + `}],"conditions":[],"at":[1,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[],"checks":[]}`
 		_, err := decodeDOM(json.RawMessage(raw), bundled.uni)
 		if err == nil {
 			t.Fatal("malformed ranked DOM accepted")
@@ -96,7 +96,7 @@ func TestArgumentCaptureMessage(t *testing.T) {
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
-	raw := `{"format":51,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"call":"pair","args":[{"body":{"capture":"x","expr":{"ref":"A"}}}],"at":[2,12]}}],"conditions":[],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[],"checks":[]}`
+	raw := `{"format":52,"rules":[{"name":"text","op":"define","alternatives":[{"gates":[],"expr":{"call":"pair","args":[{"body":{"capture":"x","expr":{"ref":"A"}}}],"at":[2,12]}}],"conditions":[],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[],"checks":[]}`
 	_, err := decodeDOM(json.RawMessage(raw), bundled.uni)
 	if err == nil || !strings.Contains(err.Error(), "an argument cannot read or declare captures") {
 		t.Fatalf("capture in a call argument: %v", err)
@@ -109,7 +109,7 @@ func TestInputBoundaryMethodMessage(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, method := range []string{"starts-input", "ends-input"} {
-		raw := `{"format":51,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"ref":"A"}}],"conditions":[{"method":"` + method + `","receiver":{"string":"a"},"args":[]}],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[],"checks":[]}`
+		raw := `{"format":52,"rules":[{"name":"text","op":"define","alternatives":[{"gates":[],"expr":{"ref":"A"}}],"conditions":[{"method":"` + method + `","receiver":{"string":"a"},"args":[]}],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[],"checks":[]}`
 		_, err := decodeDOM(json.RawMessage(raw), bundled.uni)
 		if err == nil || !strings.Contains(err.Error(), "a malformed "+method+"()") {
 			t.Fatalf("%s receiver: %v", method, err)
@@ -122,7 +122,7 @@ func TestSpanTagHintUsesSourceSpelling(t *testing.T) {
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
-	raw := `{"format":51,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"capture":"x","expr":{"ref":"A"}}}],"tags":{"union":[{"capture":"x"},{"tag":"B"}]},"conditions":[],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[],"checks":[]}`
+	raw := `{"format":52,"rules":[{"name":"text","op":"define","alternatives":[{"gates":[],"expr":{"capture":"x","expr":{"ref":"A"}}}],"tags":{"union":[{"capture":"x"},{"tag":"B"}]},"conditions":[],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[],"checks":[]}`
 	_, err := decodeDOM(json.RawMessage(raw), bundled.uni)
 	if err == nil || !strings.Contains(err.Error(), "$x.tags") || strings.Contains(err.Error(), "tags($x)") {
 		t.Fatalf("tag-set hint: %v", err)

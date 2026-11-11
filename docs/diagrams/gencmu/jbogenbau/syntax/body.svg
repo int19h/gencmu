@@ -12,7 +12,7 @@
 <g class="rule"><rect x="132" y="44" width="126" height="24" rx="0"/><text x="195" y="61" textLength="109.2" lengthAdjust="spacingAndGlyphs">ordinary-body</text></g>
 <path d="M258 56H278"/>
 <path d="M20 56a10 10 0 0 1 10 10V80a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="78" width="168" height="24" rx="0"/><text x="124" y="95" textLength="151.2" lengthAdjust="spacingAndGlyphs">ranked-alternative</text></g>
-<path d="M208 90H258a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="40" y="78" width="109" height="24" rx="0"/><text x="94.5" y="95" textLength="92.4" lengthAdjust="spacingAndGlyphs">ranked-body</text></g>
+<path d="M149 90H258a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
 <path d="M278 56h6m0 -8v16m4 -16v16"/>
 </svg>

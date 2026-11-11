@@ -447,7 +447,7 @@ def emitting_rule(n: int) -> dict[str, Any]:
     return {
         "name": "text",
         "op": "define",
-                "alternatives": [{"guards": [], "expr": {"seq": [{"capture": f"c{index}", "expr": {"ref": "A"}} for index in range(n)]}}],
+                "alternatives": [{"gates": [], "expr": {"seq": [{"capture": f"c{index}", "expr": {"ref": "A"}} for index in range(n)]}}],
         "emit": {"items": items},
         "conditions": [],
         "at": [2, 1],
@@ -511,7 +511,7 @@ class SharedClauses(Linear):
                 "name": "text",
                 "op": "define",
                                 "tags": {"union": [*({"tag": f"Y{index}"} for index in range(n)), {"const": "K", "at": [2, 1]}]},
-                "alternatives": [{"guards": [], "expr": {"ref": "A"}} for _ in range(n)],
+                "alternatives": [{"gates": [], "expr": {"ref": "A"}} for _ in range(n)],
                 "conditions": [
                     {
                         "op": "=",
@@ -548,7 +548,7 @@ class SharedClauses(Linear):
             rule = {
                 "name": "text",
                 "op": "define",
-                                "alternatives": [{"guards": [], "expr": expr}],
+                                "alternatives": [{"gates": [], "expr": expr}],
                 "conditions": [],
                 "at": [2, 1],
             }
@@ -593,7 +593,7 @@ GUARDED: dict[str, Callable[[int], dict[str, Any]]] = {
     "an emission of an item for each production": lambda n: {
         "alternatives": [
             {
-                "guards": [],
+                "gates": [],
                 "expr": {"seq": [{"capture": f"c{index}", "expr": {"ref": "A"}}, {"capture": f"d{index}", "expr": {"ref": "A"}}]},
             }
             for index in range(n)
@@ -640,7 +640,7 @@ class GuardedClauses(Linear):
         rule = {
             "name": "text",
             "op": "define",
-                        "alternatives": [{"guards": [], "expr": {"capture": f"c{index}", "expr": {"ref": "A"}}} for index in range(n)],
+                        "alternatives": [{"gates": [], "expr": {"capture": f"c{index}", "expr": {"ref": "A"}}} for index in range(n)],
             "conditions": [],
             "at": [3, 1],
             **clause(n),
@@ -739,7 +739,7 @@ class Classifiers(Linear):
     @staticmethod
     def make(n: int) -> Callable[[], object]:
         # n entries, each giving the one key a class of its own.
-        entries = [{"guards": [], "op": "∈", "class": f"C{index}C", "keys": ["k"], "at": [1, 1]} for index in range(n)]
+        entries = [{"gates": [], "op": "∈", "class": f"C{index}C", "keys": ["k"], "at": [1, 1]} for index in range(n)]
         items = [("t.md", {"name": "c", "entries": entries})]
         pipeline, error = load_case_pipeline({"grammar": "%rule text A"})
         assert pipeline is not None, error

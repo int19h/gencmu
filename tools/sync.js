@@ -21,6 +21,7 @@
 // without `npm ci` in lib/js, it skips those checks, and --check fails. The
 // libraries' own reader of grammar blocks (lib/js/src/markdown.js), which
 // docs/engine.md specifies, reads the grammar, as every library does.
+import { syntaxEbnf } from "./notation-ebnf.js";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -229,6 +230,13 @@ if (sprawling.length) {
   console.error(sprawling.join("\n"));
   process.exit(1);
 }
+// Keep the descriptive recognition productions aligned with the bundled grammar.
+const enginePath = "docs/engine.md";
+const engineText = fs.readFileSync(path.join(root, enginePath), "utf8");
+const syntaxDom = JSON.parse(bootstrapText).documents["grammars/gencmu/jbogenbau/syntax.md"].dom;
+write(enginePath, engineText.replace(/(Recognition productions:\n\n```text\n)[\s\S]*?(\n```)/,
+  (_whole, before, after) => before + syntaxEbnf(syntaxDom) + after));
+
 // The checks of the documents' Markdown read it through the parser of
 // tools/markdown.js:
 //

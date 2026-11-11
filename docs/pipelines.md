@@ -92,11 +92,11 @@ Use example filenames that do not clash with your own files. The commands below 
    ````text
    phonemes: 5 tokens, unique
    #  text  value  image  span  source  tags
-   0  "k"   "k"    "k"    0-1   0-1
-   1  "i"   "i"    "i"    1-2   1-2
+   0  "k"   "k"    "k"    0-1   0-1     Consonant
+   1  "i"   "i"    "i"    1-2   1-2     Vowel
    2  "'"   "'"    "'"    2-3   2-3
-   3  "e"   "e"    "e"    3-4   3-4
-   4  "i"   "i"    "i"    4-5   4-5
+   3  "e"   "e"    "e"    3-4   3-4     Vowel
+   4  "i"   "i"    "i"    4-5   4-5     Vowel
 
    forms: 1 tokens, unique
    #  text     value    image    span  source  tags
@@ -181,7 +181,7 @@ Use example filenames that do not clash with your own files. The commands below 
    y-cmavo                 warning  off
    ````
 
-   The trial inherits these features from CLL. It adds no feature of its own.
+   The example pipeline inherits these features from CLL. It adds no feature of its own.
 
    A tie gives two best readings the same rank.
 
@@ -210,7 +210,7 @@ Use example filenames that do not clash with your own files. The commands below 
          ⟨VAU⟩
    ````
 
-   Parse that text with your local trial:
+   Parse that text with your local example pipeline:
 
    ````sh
    node lib/js/cli.js parse --pipeline-file grammars/lojban/examples/my-kihei/pipeline.md --format tree "broda .i brode"
@@ -229,11 +229,11 @@ Use example filenames that do not clash with your own files. The commands below 
          ⟨VAU⟩
    ````
 
-   The trial adds `utterance-sequence` below `paragraph`. Both pipelines still accept the text. Their default bracket output hides this structural difference.
+   The example pipeline adds `utterance-sequence` below `paragraph`. Both pipelines still accept the text. Their default bracket output hides this structural difference.
 
    `›` joins successive tree nodes on one line. An elided terminator is an omitted closing word. `⟨VAU⟩` marks one.
 
-   Parse a frame with your local trial:
+   Parse a frame with your local example pipeline:
 
    ````sh
    node lib/js/cli.js parse --pipeline-file grammars/lojban/examples/my-kihei/pipeline.md --format tree "ki'ei ko'a .i broda"
@@ -334,7 +334,7 @@ Use example filenames that do not clash with your own files. The commands below 
 
    Include an accepted case, a rejected case, and a base comparison. Inspect the output. Record the intended brackets.
 
-   The HOWTO also supplies five cases in `tests/corpus/pipelines-howto.jsonl`. They cover the tree examples and the missing `.i`.
+   The tutorial also supplies five cases in `tests/corpus/pipelines-howto.jsonl`. They cover the tree examples and the missing `.i`.
 
    Run those bundled cases:
 
@@ -352,13 +352,13 @@ Use example filenames that do not clash with your own files. The commands below 
 
    The prose coverage tool requires a coverage decision for each additional grammar document. It automatically examines documents of `lojban/cll` and `lojban/bpfk`.
 
-   For this trial, add this entry to `UNCHECKED` in `tools/quoted-texts.js`:
+   For this example pipeline, add this entry to `UNCHECKED` in `tools/quoted-texts.js`:
 
    ````js
-   "grammars/lojban/examples/my-kihei/pipeline.md": "the trial has local corpus cases in my-kihei.jsonl",
+   "grammars/lojban/examples/my-kihei/pipeline.md": "the example pipeline has local corpus cases in my-kihei.jsonl",
    ````
 
-   This entry records why the automatic CLL prose test excludes the trial. The tests must cover its claims.
+   This entry records why the automatic CLL prose test excludes the example pipeline. The tests must cover its claims.
 
    For your own pipeline, name its actual tests in that reason.
 
@@ -548,7 +548,7 @@ Set `%ambiguity-resolution` in the replacement stage. That directive specifies h
 
 ### Add a feature
 
-If your change needs a switch, guard its alternative with `name?`. Add `%features name` before the first `%stage` to enable it by default in every stage.
+If your change needs a switch, gate its alternative with `name?`. Add `%features name` before the first `%stage` to enable it by default in every stage.
 
 Use `--feature name` to enable a feature. Use `--no-feature name` to disable it.
 
@@ -562,7 +562,7 @@ Give `%warning` one message recipe after `%conditions`. Put `%suppress-warnings`
 
 A warning changes no accepted reading or chosen tree. An enabled check can raise a runtime grammar error and stop output. Callers enable or disable its code with the feature controls. `%suppress-warnings code` suppresses it within one subtree, and `_` suppresses all warning codes.
 
-For an invalid construct, use `%error` only where its message says more than the default rejection, or says the same more briefly. The engine prefers fewer errors before grammar ranking. A chosen reporting error keeps the chosen tree, verdict and emitted output, with `ok:false`. Earlier stages carry errors onward and continue.
+For invalid constructs, use `%error` only for messages that add information or state the default rejection more briefly. The engine prefers least source blame, then fewest sourceless errors, then most total errors, before grammar ranking. Earlier stages emit and continue despite chosen errors. A reported result keeps the chosen tree, verdict, and reporting-stage output.
 
 Use `--` for comments inside grammar blocks. A comment ends at LF, CRLF, CR, or the file end. A string retains literal `--`. The notation has no block comment form.
 
@@ -705,7 +705,7 @@ Read [Classifiers](notation.md#classifiers) for lexicons, exact keys, and class 
 
 Read [Names and terminals](notation.md#names-and-terminals) for classes, terminals, and tags.
 
-Read [Feature guards](notation.md#feature-guards) for gates and feature switches.
+Read [Feature gates](notation.md#feature-gates) for gates and feature switches.
 
 Read [Errors and warnings](notation.md#errors-and-warnings) for diagnostics and suppression.
 

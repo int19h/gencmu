@@ -35,7 +35,7 @@ The prose uses these Lojban terms, as [the CLL grammar](../cll/syntax.md) does:
 
 A stage is one step of a pipeline, with its own grammar. The pipeline is the sequence of stages that reads a text. The words stage emits each finished quote as one token of its opening class. The syntax reads one terminal for that token. Its internal structure remains in the tree of the words stage.
 
-The layer uses two feature guards, which make a part of a rule depend on a feature. `cbm` is the cmevla-brivla merger, which permits name words as predicates. `soi-clause` makes `soi` a term that takes a subsentence. The experimental pipeline turns both on. A caller, the program that requests parsing, can turn either off.
+The layer uses two feature gates, which make a part of a rule depend on a feature. `cbm` is the cmevla-brivla merger, which permits name words as predicates. `soi-clause` makes `soi` a term that takes a subsentence. The experimental pipeline turns both on. A caller, the program that requests parsing, can turn either off.
 
 A free modifier is a phrase that stands in many positions. An elidable terminator is a closing word that can be omitted. The free-modifier slot follows it outside its brackets: `[+X] 🆓`. So free modifiers can follow an elided terminator.
 

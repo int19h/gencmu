@@ -214,13 +214,13 @@ func checkDOMMode(d *domDoc, uni *unicodeTable, expanded bool) *domProblem {
 				c.condition(cond, 0)
 			}
 			for _, a := range r.Alternatives {
-				if a == nil || a.Guards == nil {
+				if a == nil || a.Gates == nil {
 					c.fail("a malformed alternative")
 					continue
 				}
 				// A guard is a gate or a warning, and a warning has no negated
 				// form. Its feature is a name (§9).
-				for _, g := range a.Guards {
+				for _, g := range a.Gates {
 					if g.Kind != FeatureGate {
 						c.fail("a malformed guard")
 					}
@@ -388,10 +388,10 @@ var (
 // entryProblem validates classifier gates, keys, operators, and classes.
 // Each key is a string term. Each class starts and ends uppercase.
 func entryProblem(e *domEntry, uni *unicodeTable) *domProblem {
-	if e == nil || e.Guards == nil || (e.Op != "∈" && e.Op != "∉") || (!className.MatchString(e.Class) || !isClass(e.Class)) || len(e.KeyTerms) == 0 {
+	if e == nil || e.Gates == nil || (e.Op != "∈" && e.Op != "∉") || (!className.MatchString(e.Class) || !isClass(e.Class)) || len(e.KeyTerms) == 0 {
 		return &domProblem{message: "a malformed entry of a classifier"}
 	}
-	for _, g := range e.Guards {
+	for _, g := range e.Gates {
 		if g.Kind != FeatureGate {
 			return &domProblem{message: "a malformed entry of a classifier: an entry takes gates only, not a warning"}
 		}

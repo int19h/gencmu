@@ -2569,7 +2569,7 @@ mod tests {
                 tags: Some(tags),
                 alternatives: vec![Alternative {
                     strings: Default::default(),
-                    guards: Vec::new(),
+                    gates: Vec::new(),
                     expr,
                     tags: None,
                     ranked_locations: Default::default(),

@@ -7,7 +7,7 @@
         {
           "alternatives": [
             {
-              "guards": [
+              "gates": [
                 {
                   "feature": "f",
                   "kind": "gate",
@@ -16,7 +16,7 @@
               ]
             },
             {
-              "guards": [
+              "gates": [
                 {
                   "feature": "f",
                   "kind": "gate",

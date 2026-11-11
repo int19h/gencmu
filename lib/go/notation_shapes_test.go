@@ -14,7 +14,7 @@ func TestSuppliedRankedChoiceErrorHasNoSyntaxCode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	changed := strings.ReplaceAll(string(bootstrap), `{"seq":[{"ref":"conjunction"},{"literal":{"string":"≻"}},{"repeat":{"ref":"conjunction"},"separator":{"literal":{"string":"≻"}}}]}`, `{"literal":{"string":"."}}`)
+	changed := strings.ReplaceAll(string(bootstrap), `{"seq":[{"ref":"some-of"},{"literal":{"string":"≻"}},{"repeat":{"ref":"some-of"},"separator":{"literal":{"string":"≻"}}}]}`, `{"literal":{"string":"."}}`)
 	_, err = LoadPipelineSources(map[string]string{
 		"p.md":                       "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n",
 		"g.md":                       "```jbogenbau\n%rule text .\n```\n",
@@ -144,7 +144,7 @@ func TestNotationShapes(t *testing.T) {
 			for _, field := range []string{"ref", "rule"} {
 				syntax = strings.ReplaceAll(syntax, `"`+field+`":"`+name+`"`, `"`+field+`":"`+name+`-wrapper"`)
 			}
-			fmt.Fprintf(&wrappers, `{"name":"%s-wrapper","op":"define","alternatives":[{"guards":[],"expr":{"ref":"%s"}}],"conditions":[],"at":[%d,1]},`, name, name, 100000+i)
+			fmt.Fprintf(&wrappers, `{"name":"%s-wrapper","op":"define","alternatives":[{"gates":[],"expr":{"ref":"%s"}}],"conditions":[],"at":[%d,1]},`, name, name, 100000+i)
 		}
 		return strings.Replace(syntax, `"rules":[`, `"rules":[`+wrappers.String(), 1)
 	})
@@ -233,8 +233,8 @@ func TestNotationStageRunsTheCheck(t *testing.T) {
 	lexicalDOM := parsed["documents"].(map[string]any)["grammars/gencmu/jbogenbau/lexical.md"].(map[string]any)["dom"].(map[string]any)
 	for _, rule := range lexicalDOM["rules"].([]any) {
 		r := rule.(map[string]any)
-		if r["name"] == "symbol" {
-			r["alternatives"] = append(r["alternatives"].([]any), map[string]any{"guards": []any{}, "expr": map[string]any{"literal": map[string]any{"string": "."}}})
+		if r["name"] == "punctuation" {
+			r["alternatives"] = append(r["alternatives"].([]any), map[string]any{"gates": []any{}, "expr": map[string]any{"literal": map[string]any{"string": "."}}})
 		}
 	}
 	encoded, err := json.Marshal(parsed)

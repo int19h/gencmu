@@ -47,7 +47,7 @@ func (b *domBuilder) check(node *Node) *domCheck {
 	}
 	check := &domCheck{Name: name, Pattern: b.term(bodies[0]), Conditions: []*domCond{}, At: b.at(node), PatternAt: b.at(bodies[0])}
 	if clause := b.one(node, "conditions-clause"); clause != nil {
-		for _, item := range b.some(clause, "implication", 1) {
+		for _, item := range b.some(clause, "condition", 1) {
 			check.Conditions = append(check.Conditions, b.implication(item))
 		}
 	}

@@ -119,8 +119,8 @@ func TestRangeEmissionTargetReportsContentError(t *testing.T) {
 
 func TestConstantNamePrecedesRequiredValue(t *testing.T) {
 	b := &domBuilder{doc: "g.md", gt: &grammarText{pos: [][2]int{{1, 1}}}, toks: []Token{{Value: "%const"}, {Value: "$bad"}}}
-	definer := &Node{Kind: KindRule, Rule: "constant-definer", Children: []*Node{{Kind: KindToken, Token: 0}}}
-	reference := &Node{Kind: KindRule, Rule: "constant-reference", Children: []*Node{{Kind: KindToken, Token: 1}}}
+	definer := &Node{Kind: KindRule, Rule: "constant-keyword", Children: []*Node{{Kind: KindToken, Token: 0}}}
+	reference := &Node{Kind: KindRule, Rule: "constant-name", Children: []*Node{{Kind: KindToken, Token: 1}}}
 	node := &Node{Kind: KindRule, Rule: "constant-definition", Children: []*Node{definer, reference}}
 	defer func() {
 		problem, ok := recover().(*Error)
@@ -165,8 +165,8 @@ func TestMalformedSuppliedConstructorsGiveDocumentErrors(t *testing.T) {
 	tag := func(index int) *Node {
 		return node("intersection", node("concatenation", node("term-atom", node("tag", token(index)))))
 	}
-	binding := node("rule", node("definer", token(0)), node("rule-name", token(1)), token(2))
-	atom := node("recipe-atom")
+	binding := node("rule", node("rule-keyword", token(0)), node("rule-name", token(1)), token(2))
+	atom := node("recipe-term")
 	atom.Span = [2]int{999, 1000}
 	for _, item := range []struct {
 		name string
@@ -529,9 +529,9 @@ func TestNotationLexicalTags(t *testing.T) {
 	}
 	want := [][2]string{
 		{"%rule", "KW-RULE"}, {"a", "Identifier Lowercase-Name"}, {"::", ""}, {"X", "Identifier Uppercase-Name"}, {"|", "_Age_V1_1 _Bidi_Class_Other_Neutral _Bidi_Paired_Bracket_Type_None _Block_Basic_Latin _Canonical_Combining_Class_Not_Reordered _Decomposition_Type_None _East_Asian_Width_Narrow _General_Category_Math_Symbol _General_Category_Symbol _Grapheme_Base _Grapheme_Cluster_Break_Other _Hangul_Syllable_Type_Not_Applicable _Indic_Conjunct_Break_None _Indic_Positional_Category_NA _Indic_Syllabic_Category_Other _Joining_Group_No_Joining_Group _Joining_Type_Non_Joining _Line_Break_Break_After _Math _NFC_Quick_Check_Yes _NFD_Quick_Check_Yes _NFKC_Quick_Check_Yes _NFKD_Quick_Check_Yes _Numeric_Type_None _Pattern_Syntax _Script_Common _Script_Extensions_Common _Sentence_Break_Other _Vertical_Orientation_Rotated _Word_Break_Other"},
-		{"¬f?", "Guard"}, {"B", "Identifier Uppercase-Name"}, {`"c"`, "String"}, {"/", "_Age_V1_1 _Bidi_Class_Common_Separator _Bidi_Paired_Bracket_Type_None _Block_Basic_Latin _Canonical_Combining_Class_Not_Reordered _Decomposition_Type_None _East_Asian_Width_Narrow _General_Category_Other_Punctuation _General_Category_Punctuation _Grapheme_Base _Grapheme_Cluster_Break_Other _Hangul_Syllable_Type_Not_Applicable _Indic_Conjunct_Break_None _Indic_Positional_Category_NA _Indic_Syllabic_Category_Other _Joining_Group_No_Joining_Group _Joining_Type_Non_Joining _Line_Break_Break_Symbols _NFC_Quick_Check_Yes _NFD_Quick_Check_Yes _NFKC_Quick_Check_Yes _NFKD_Quick_Check_Yes _Numeric_Type_None _Pattern_Syntax _Script_Common _Script_Extensions_Common _Sentence_Break_Other _Vertical_Orientation_Rotated _Word_Break_Other"}, {"{", "_Age_V1_1 _Bidi_Class_Other_Neutral _Bidi_Mirrored _Bidi_Paired_Bracket_Type_Open _Block_Basic_Latin _Canonical_Combining_Class_Not_Reordered _Decomposition_Type_None _East_Asian_Width_Narrow _General_Category_Open_Punctuation _General_Category_Punctuation _Grapheme_Base _Grapheme_Cluster_Break_Other _Hangul_Syllable_Type_Not_Applicable _Indic_Conjunct_Break_None _Indic_Positional_Category_NA _Indic_Syllabic_Category_Other _Joining_Group_No_Joining_Group _Joining_Type_Non_Joining _Line_Break_Open_Punctuation _NFC_Quick_Check_Yes _NFD_Quick_Check_Yes _NFKC_Quick_Check_Yes _NFKD_Quick_Check_Yes _Numeric_Type_None _Pattern_Syntax _Script_Common _Script_Extensions_Common _Sentence_Break_Close _Vertical_Orientation_Rotated _Word_Break_Other"}, {"E", "Identifier Uppercase-Name"}, {"...", ""}, {`"$(_005C)"`, "String"}, {"}", "_Age_V1_1 _Bidi_Class_Other_Neutral _Bidi_Mirrored _Bidi_Paired_Bracket_Type_Close _Block_Basic_Latin _Canonical_Combining_Class_Not_Reordered _Decomposition_Type_None _East_Asian_Width_Narrow _General_Category_Close_Punctuation _General_Category_Punctuation _Grapheme_Base _Grapheme_Cluster_Break_Other _Hangul_Syllable_Type_Not_Applicable _Indic_Conjunct_Break_None _Indic_Positional_Category_NA _Indic_Syllabic_Category_Other _Joining_Group_No_Joining_Group _Joining_Type_Non_Joining _Line_Break_Close_Punctuation _NFC_Quick_Check_Yes _NFD_Quick_Check_Yes _NFKC_Quick_Check_Yes _NFKD_Quick_Check_Yes _Numeric_Type_None _Pattern_Syntax _Script_Common _Script_Extensions_Common _Sentence_Break_Close _Vertical_Orientation_Rotated _Word_Break_Other"},
+		{"¬f?", "Gate"}, {"B", "Identifier Uppercase-Name"}, {`"c"`, "String"}, {"/", "_Age_V1_1 _Bidi_Class_Common_Separator _Bidi_Paired_Bracket_Type_None _Block_Basic_Latin _Canonical_Combining_Class_Not_Reordered _Decomposition_Type_None _East_Asian_Width_Narrow _General_Category_Other_Punctuation _General_Category_Punctuation _Grapheme_Base _Grapheme_Cluster_Break_Other _Hangul_Syllable_Type_Not_Applicable _Indic_Conjunct_Break_None _Indic_Positional_Category_NA _Indic_Syllabic_Category_Other _Joining_Group_No_Joining_Group _Joining_Type_Non_Joining _Line_Break_Break_Symbols _NFC_Quick_Check_Yes _NFD_Quick_Check_Yes _NFKC_Quick_Check_Yes _NFKD_Quick_Check_Yes _Numeric_Type_None _Pattern_Syntax _Script_Common _Script_Extensions_Common _Sentence_Break_Other _Vertical_Orientation_Rotated _Word_Break_Other"}, {"{", "_Age_V1_1 _Bidi_Class_Other_Neutral _Bidi_Mirrored _Bidi_Paired_Bracket_Type_Open _Block_Basic_Latin _Canonical_Combining_Class_Not_Reordered _Decomposition_Type_None _East_Asian_Width_Narrow _General_Category_Open_Punctuation _General_Category_Punctuation _Grapheme_Base _Grapheme_Cluster_Break_Other _Hangul_Syllable_Type_Not_Applicable _Indic_Conjunct_Break_None _Indic_Positional_Category_NA _Indic_Syllabic_Category_Other _Joining_Group_No_Joining_Group _Joining_Type_Non_Joining _Line_Break_Open_Punctuation _NFC_Quick_Check_Yes _NFD_Quick_Check_Yes _NFKC_Quick_Check_Yes _NFKD_Quick_Check_Yes _Numeric_Type_None _Pattern_Syntax _Script_Common _Script_Extensions_Common _Sentence_Break_Close _Vertical_Orientation_Rotated _Word_Break_Other"}, {"E", "Identifier Uppercase-Name"}, {"...", ""}, {`"$(_005C)"`, "String"}, {"}", "_Age_V1_1 _Bidi_Class_Other_Neutral _Bidi_Mirrored _Bidi_Paired_Bracket_Type_Close _Block_Basic_Latin _Canonical_Combining_Class_Not_Reordered _Decomposition_Type_None _East_Asian_Width_Narrow _General_Category_Close_Punctuation _General_Category_Punctuation _Grapheme_Base _Grapheme_Cluster_Break_Other _Hangul_Syllable_Type_Not_Applicable _Indic_Conjunct_Break_None _Indic_Positional_Category_NA _Indic_Syllabic_Category_Other _Joining_Group_No_Joining_Group _Joining_Type_Non_Joining _Line_Break_Close_Punctuation _NFC_Quick_Check_Yes _NFD_Quick_Check_Yes _NFKC_Quick_Check_Yes _NFKD_Quick_Check_Yes _Numeric_Type_None _Pattern_Syntax _Script_Common _Script_Extensions_Common _Sentence_Break_Close _Vertical_Orientation_Rotated _Word_Break_Other"},
 		{"[", "_Age_V1_1 _Bidi_Class_Other_Neutral _Bidi_Mirrored _Bidi_Paired_Bracket_Type_Open _Block_Basic_Latin _Canonical_Combining_Class_Not_Reordered _Decomposition_Type_None _East_Asian_Width_Narrow _General_Category_Open_Punctuation _General_Category_Punctuation _Grapheme_Base _Grapheme_Cluster_Break_Other _Hangul_Syllable_Type_Not_Applicable _Indic_Conjunct_Break_None _Indic_Positional_Category_NA _Indic_Syllabic_Category_Other _Joining_Group_No_Joining_Group _Joining_Type_Non_Joining _Line_Break_Open_Punctuation _NFC_Quick_Check_Yes _NFD_Quick_Check_Yes _NFKC_Quick_Check_Yes _NFKD_Quick_Check_Yes _Numeric_Type_None _Pattern_Syntax _Script_Common _Script_Extensions_Common _Sentence_Break_Close _Vertical_Orientation_Rotated _Word_Break_Other"}, {"+", "_Age_V1_1 _Bidi_Class_European_Separator _Bidi_Paired_Bracket_Type_None _Block_Basic_Latin _Canonical_Combining_Class_Not_Reordered _Decomposition_Type_None _East_Asian_Width_Narrow _General_Category_Math_Symbol _General_Category_Symbol _Grapheme_Base _Grapheme_Cluster_Break_Other _Hangul_Syllable_Type_Not_Applicable _Indic_Conjunct_Break_None _Indic_Positional_Category_NA _Indic_Syllabic_Category_Other _Joining_Group_No_Joining_Group _Joining_Type_Non_Joining _Line_Break_Prefix_Numeric _Math _NFC_Quick_Check_Yes _NFD_Quick_Check_Yes _NFKC_Quick_Check_Yes _NFKD_Quick_Check_Yes _Numeric_Type_None _Pattern_Syntax _Script_Common _Script_Extensions_Common _Sentence_Break_Other _Vertical_Orientation_Rotated _Word_Break_Other"}, {"KU", "Identifier Uppercase-Name"}, {"]", "_Age_V1_1 _Bidi_Class_Other_Neutral _Bidi_Mirrored _Bidi_Paired_Bracket_Type_Close _Block_Basic_Latin _Canonical_Combining_Class_Not_Reordered _Decomposition_Type_None _East_Asian_Width_Narrow _General_Category_Close_Punctuation _General_Category_Punctuation _Grapheme_Base _Grapheme_Cluster_Break_Other _Hangul_Syllable_Type_Not_Applicable _Indic_Conjunct_Break_None _Indic_Positional_Category_NA _Indic_Syllabic_Category_Other _Joining_Group_No_Joining_Group _Joining_Type_Non_Joining _Line_Break_Close_Parenthesis _NFC_Quick_Check_Yes _NFD_Quick_Check_Yes _NFKC_Quick_Check_Yes _NFKD_Quick_Check_Yes _Numeric_Type_None _Pattern_Syntax _Script_Common _Script_Extensions_Common _Sentence_Break_Close _Vertical_Orientation_Rotated _Word_Break_Other"}, {"[", "_Age_V1_1 _Bidi_Class_Other_Neutral _Bidi_Mirrored _Bidi_Paired_Bracket_Type_Open _Block_Basic_Latin _Canonical_Combining_Class_Not_Reordered _Decomposition_Type_None _East_Asian_Width_Narrow _General_Category_Open_Punctuation _General_Category_Punctuation _Grapheme_Base _Grapheme_Cluster_Break_Other _Hangul_Syllable_Type_Not_Applicable _Indic_Conjunct_Break_None _Indic_Positional_Category_NA _Indic_Syllabic_Category_Other _Joining_Group_No_Joining_Group _Joining_Type_Non_Joining _Line_Break_Open_Punctuation _NFC_Quick_Check_Yes _NFD_Quick_Check_Yes _NFKC_Quick_Check_Yes _NFKD_Quick_Check_Yes _Numeric_Type_None _Pattern_Syntax _Script_Common _Script_Extensions_Common _Sentence_Break_Close _Vertical_Orientation_Rotated _Word_Break_Other"}, {"+", "_Age_V1_1 _Bidi_Class_European_Separator _Bidi_Paired_Bracket_Type_None _Block_Basic_Latin _Canonical_Combining_Class_Not_Reordered _Decomposition_Type_None _East_Asian_Width_Narrow _General_Category_Math_Symbol _General_Category_Symbol _Grapheme_Base _Grapheme_Cluster_Break_Other _Hangul_Syllable_Type_Not_Applicable _Indic_Conjunct_Break_None _Indic_Positional_Category_NA _Indic_Syllabic_Category_Other _Joining_Group_No_Joining_Group _Joining_Type_Non_Joining _Line_Break_Prefix_Numeric _Math _NFC_Quick_Check_Yes _NFD_Quick_Check_Yes _NFKC_Quick_Check_Yes _NFKD_Quick_Check_Yes _Numeric_Type_None _Pattern_Syntax _Script_Common _Script_Extensions_Common _Sentence_Break_Other _Vertical_Orientation_Rotated _Word_Break_Other"}, {"TOI", "Identifier Uppercase-Name"}, {"]", "_Age_V1_1 _Bidi_Class_Other_Neutral _Bidi_Mirrored _Bidi_Paired_Bracket_Type_Close _Block_Basic_Latin _Canonical_Combining_Class_Not_Reordered _Decomposition_Type_None _East_Asian_Width_Narrow _General_Category_Close_Punctuation _General_Category_Punctuation _Grapheme_Base _Grapheme_Cluster_Break_Other _Hangul_Syllable_Type_Not_Applicable _Indic_Conjunct_Break_None _Indic_Positional_Category_NA _Indic_Syllabic_Category_Other _Joining_Group_No_Joining_Group _Joining_Type_Non_Joining _Line_Break_Close_Parenthesis _NFC_Quick_Check_Yes _NFD_Quick_Check_Yes _NFKC_Quick_Check_Yes _NFKD_Quick_Check_Yes _Numeric_Type_None _Pattern_Syntax _Script_Common _Script_Extensions_Common _Sentence_Break_Close _Vertical_Orientation_Rotated _Word_Break_Other"},
-		{"|", "_Age_V1_1 _Bidi_Class_Other_Neutral _Bidi_Paired_Bracket_Type_None _Block_Basic_Latin _Canonical_Combining_Class_Not_Reordered _Decomposition_Type_None _East_Asian_Width_Narrow _General_Category_Math_Symbol _General_Category_Symbol _Grapheme_Base _Grapheme_Cluster_Break_Other _Hangul_Syllable_Type_Not_Applicable _Indic_Conjunct_Break_None _Indic_Positional_Category_NA _Indic_Syllabic_Category_Other _Joining_Group_No_Joining_Group _Joining_Type_Non_Joining _Line_Break_Break_After _Math _NFC_Quick_Check_Yes _NFD_Quick_Check_Yes _NFKC_Quick_Check_Yes _NFKD_Quick_Check_Yes _Numeric_Type_None _Pattern_Syntax _Script_Common _Script_Extensions_Common _Sentence_Break_Other _Vertical_Orientation_Rotated _Word_Break_Other"}, {"g?", "Guard"}, {"%rulex", "Keyword"}, {"$e", "Capture"}, {"¬", "_Age_V1_1 _Bidi_Class_Other_Neutral _Bidi_Paired_Bracket_Type_None _Block_Latin_1_Supplement _Canonical_Combining_Class_Not_Reordered _Decomposition_Type_None _East_Asian_Width_Narrow _General_Category_Math_Symbol _General_Category_Symbol _Grapheme_Base _Grapheme_Cluster_Break_Other _Hangul_Syllable_Type_Not_Applicable _Indic_Conjunct_Break_None _Indic_Positional_Category_NA _Indic_Syllabic_Category_Other _Joining_Group_No_Joining_Group _Joining_Type_Non_Joining _Line_Break_Alphabetic _Math _NFC_Quick_Check_Yes _NFD_Quick_Check_Yes _NFKC_Quick_Check_Yes _NFKD_Quick_Check_Yes _Numeric_Type_None _Pattern_Syntax _Script_Common _Script_Extensions_Common _Sentence_Break_Other _Vertical_Orientation_Rotated _Word_Break_Other"}, {"h", "Identifier Lowercase-Name"},
+		{"|", "_Age_V1_1 _Bidi_Class_Other_Neutral _Bidi_Paired_Bracket_Type_None _Block_Basic_Latin _Canonical_Combining_Class_Not_Reordered _Decomposition_Type_None _East_Asian_Width_Narrow _General_Category_Math_Symbol _General_Category_Symbol _Grapheme_Base _Grapheme_Cluster_Break_Other _Hangul_Syllable_Type_Not_Applicable _Indic_Conjunct_Break_None _Indic_Positional_Category_NA _Indic_Syllabic_Category_Other _Joining_Group_No_Joining_Group _Joining_Type_Non_Joining _Line_Break_Break_After _Math _NFC_Quick_Check_Yes _NFD_Quick_Check_Yes _NFKC_Quick_Check_Yes _NFKD_Quick_Check_Yes _Numeric_Type_None _Pattern_Syntax _Script_Common _Script_Extensions_Common _Sentence_Break_Other _Vertical_Orientation_Rotated _Word_Break_Other"}, {"g?", "Gate"}, {"%rulex", "Keyword"}, {"$e", "Capture"}, {"¬", "_Age_V1_1 _Bidi_Class_Other_Neutral _Bidi_Paired_Bracket_Type_None _Block_Latin_1_Supplement _Canonical_Combining_Class_Not_Reordered _Decomposition_Type_None _East_Asian_Width_Narrow _General_Category_Math_Symbol _General_Category_Symbol _Grapheme_Base _Grapheme_Cluster_Break_Other _Hangul_Syllable_Type_Not_Applicable _Indic_Conjunct_Break_None _Indic_Positional_Category_NA _Indic_Syllabic_Category_Other _Joining_Group_No_Joining_Group _Joining_Type_Non_Joining _Line_Break_Alphabetic _Math _NFC_Quick_Check_Yes _NFD_Quick_Check_Yes _NFKC_Quick_Check_Yes _NFKD_Quick_Check_Yes _Numeric_Type_None _Pattern_Syntax _Script_Common _Script_Extensions_Common _Sentence_Break_Other _Vertical_Orientation_Rotated _Word_Break_Other"}, {"h", "Identifier Lowercase-Name"},
 		{`"x"`, "String"}, {"..", ""}, {`"y"`, "String"}, {"_General_Category_Letter", "Engine-Tag"}, {`"a"`, "String"}, {"...", ""},
 	}
 	if !reflect.DeepEqual(got, want) {
@@ -748,7 +748,7 @@ func TestFormat17Refused(t *testing.T) {
 		t.Fatal(err)
 	}
 	dom := func(format int, expr string) string {
-		return `{"format":` + strconv.Itoa(format) + `,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[],"checks":[]}`
+		return `{"format":` + strconv.Itoa(format) + `,"rules":[{"name":"text","op":"define","alternatives":[{"gates":[],"expr":` + expr + `}],"conditions":[],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[],"checks":[]}`
 	}
 	entry := func(format int, d string) string {
 		return `{"format":` + strconv.Itoa(format) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"0","dom":` + d + `}}}`
@@ -909,7 +909,7 @@ func TestAttachmentRejectsBareCaptureAfterStrayToken(t *testing.T) {
 	b.attachment(n, n)
 }
 
-func TestGuardValidationFromSuppliedBootstrap(t *testing.T) {
+func TestGateValidationFromSuppliedBootstrap(t *testing.T) {
 	t.Parallel()
 	bootstrap := bootstrapWithDOMChange(t, func(path string, dom map[string]any) {
 		if path != "grammars/gencmu/jbogenbau/lexical.md" {
@@ -921,7 +921,7 @@ func TestGuardValidationFromSuppliedBootstrap(t *testing.T) {
 			switch rule["name"] {
 			case "feature-character":
 				expr = map[string]any{"literal": map[string]any{"string": "_"}}
-			case "guard":
+			case "feature-gate":
 				expr = map[string]any{"seq": []any{
 					map[string]any{"literal": map[string]any{"string": "¬"}},
 					map[string]any{"ref": "feature-name"},
@@ -930,7 +930,7 @@ func TestGuardValidationFromSuppliedBootstrap(t *testing.T) {
 			default:
 				continue
 			}
-			rule["alternatives"] = append(rule["alternatives"].([]any), map[string]any{"guards": []any{}, "expr": expr})
+			rule["alternatives"] = append(rule["alternatives"].([]any), map[string]any{"gates": []any{}, "expr": expr})
 		}
 	})
 	for _, c := range []struct {
@@ -980,7 +980,7 @@ func TestPropertyWrapperFromSuppliedBootstrap(t *testing.T) {
 		}
 		dom["rules"] = append(dom["rules"].([]any), map[string]any{
 			"name": "property", "op": "define",
-			"alternatives": []any{map[string]any{"guards": []any{}, "expr": map[string]any{"ref": "string-terminal"}}},
+			"alternatives": []any{map[string]any{"gates": []any{}, "expr": map[string]any{"ref": "string-terminal"}}},
 			"conditions":   []any{}, "at": []any{1, 1},
 		})
 	})
@@ -994,20 +994,20 @@ func TestPropertyWrapperFromSuppliedBootstrap(t *testing.T) {
 	}
 }
 
-func TestEmptyGuardWrapperValidation(t *testing.T) {
+func TestEmptyGateWrapperValidation(t *testing.T) {
 	t.Parallel()
 	bootstrap := bootstrapWithDOMChange(t, func(path string, dom map[string]any) {
 		for _, value := range dom["rules"].([]any) {
 			rule := value.(map[string]any)
 			if path == "grammars/gencmu/jbogenbau/lexical.md" && rule["name"] == "feature-character" {
-				rule["alternatives"] = append(rule["alternatives"].([]any), map[string]any{"guards": []any{}, "expr": map[string]any{"literal": map[string]any{"string": "_"}}})
+				rule["alternatives"] = append(rule["alternatives"].([]any), map[string]any{"gates": []any{}, "expr": map[string]any{"literal": map[string]any{"string": "_"}}})
 			}
-			if path == "grammars/gencmu/jbogenbau/syntax.md" && rule["name"] == "guard" {
-				rule["alternatives"].([]any)[0].(map[string]any)["expr"] = map[string]any{"seq": []any{map[string]any{"ref": "padding"}, map[string]any{"ref": "Guard"}}}
+			if path == "grammars/gencmu/jbogenbau/syntax.md" && rule["name"] == "feature-gate" {
+				rule["alternatives"].([]any)[0].(map[string]any)["expr"] = map[string]any{"seq": []any{map[string]any{"ref": "padding"}, map[string]any{"ref": "Gate"}}}
 			}
 		}
 		if path == "grammars/gencmu/jbogenbau/syntax.md" {
-			dom["rules"] = append(dom["rules"].([]any), map[string]any{"name": "padding", "op": "define", "alternatives": []any{map[string]any{"guards": []any{}, "expr": map[string]any{"empty": true}}}, "conditions": []any{}, "at": []any{1, 1}})
+			dom["rules"] = append(dom["rules"].([]any), map[string]any{"name": "padding", "op": "define", "alternatives": []any{map[string]any{"gates": []any{}, "expr": map[string]any{"empty": true}}}, "conditions": []any{}, "at": []any{1, 1}})
 		}
 	})
 	for _, c := range []struct {

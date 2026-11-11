@@ -91,7 +91,7 @@ export function skip(width = 0) {
 }
 
 /**
- * A note over the track, such as the guards of an alternative.
+ * A note over the track, such as the gates of an alternative.
  * @param {string} text
  * @returns {Piece}
  */
@@ -484,7 +484,7 @@ function holdsConstant(term) {
  * pipelines that reads its document. The predicate tests the omitted
  * terminator with its default value and its own tag. The default is an
  * explicit operand, an equality operand, or the empty string. These
- * operands are closed terms with no classify, capture or guard
+ * operands are closed terms with no classify, capture or gate
  * (docs/notation.md, "Constants"). Only constants take values from a stage.
  * When an operand holds a constant, this loads the pipeline. A constant
  * can have another value in each stage that reads the document. Other
@@ -507,7 +507,7 @@ export function elisionOutcomes(loader, pipelines, documents) {
   // The grammar of no stage, for a value without constants: a stage needs
   // a rule text and its ambiguity resolution, and it holds nothing else.
   // Its Unicode table, for a range, is the one that every stage shares.
-  const stageless = new Grammar("diagrams", [{ path: "diagrams", dom: { format: DOM_FORMAT, checks:[], rules: [{ name: "text", op: "define", alternatives: [{ guards: [], expr: { empty: true } }], conditions: [], at: [1, 1] }], directives: [{ name: "ambiguity-resolution", steps: [{ step: "greedy" }], at: [1, 1] }], constants: [], classifiers: [], implications: [] } }], loader.unicode);
+  const stageless = new Grammar("diagrams", [{ path: "diagrams", dom: { format: DOM_FORMAT, checks:[], rules: [{ name: "text", op: "define", alternatives: [{ gates: [], expr: { empty: true } }], conditions: [], at: [1, 1] }], directives: [{ name: "ambiguity-resolution", steps: [{ step: "greedy" }], at: [1, 1] }], constants: [], classifiers: [], implications: [] } }], loader.unicode);
   for (const documentPath of pipelines) {
     const { stages } = loader.splice(documentPath);
     /** @type {{stages: {grammar: any}[]} | null} */
@@ -627,17 +627,17 @@ export function expressionPiece(expr, limit = MAX_WIDTH, omission = unknownOmiss
 }
 
 /**
- * The guards of an alternative as the notation writes them.
- * @param {any[]} guards
+ * The gates of an alternative as the notation writes them.
+ * @param {any[]} gates
  * @returns {string}
  */
-export function guardText(guards) {
-  return guards.map((guard) => `${guard.negated ? "¬" : ""}${guard.feature}?`).join(" ");
+export function gateText(gates) {
+  return gates.map((gate) => `${gate.negated ? "¬" : ""}${gate.feature}?`).join(" ");
 }
 
 /**
  * The diagram of a rule's alternatives: a choice of them, each led by its
- * guards.
+ * gates.
  * @param {any} rule
  * @param {Omission} [omission]
  * @returns {Piece}
@@ -647,9 +647,9 @@ export function rulePiece(rule, omission = unknownOmission) {
   if (rule.instance) return expressionPiece(rule.instance,MAX_WIDTH,omission);
   const limit = rule.alternatives.length > 1 ? MAX_WIDTH - 4 * RADIUS : MAX_WIDTH;
   return choice(rule.alternatives.map((/** @type {any} */ alternative) => {
-    if (!alternative.guards.length) return expressionPiece(alternative.expr, limit, omission);
-    const guards = label(guardText(alternative.guards));
-    return sequence([guards, expressionPiece(alternative.expr, limit - guards.width - GAP, omission)]);
+    if (!alternative.gates.length) return expressionPiece(alternative.expr, limit, omission);
+    const gates = label(gateText(alternative.gates));
+    return sequence([gates, expressionPiece(alternative.expr, limit - gates.width - GAP, omission)]);
   }));
 }
 

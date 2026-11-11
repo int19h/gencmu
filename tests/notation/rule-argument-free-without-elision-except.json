@@ -3,14 +3,14 @@
   "document": "```jbogenbau\n%rule text $x:A %conditions $x.without-elision-except(🆓).parse(rival)\n```\n",
   "expect": {
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "text",
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "capture": "x",
                 "expr": {

@@ -99,7 +99,7 @@ function main() {
       return fs.readFileSync(path.join(root, name), "utf8");
     });
     const dom = loader.readDocument(fs.readFileSync(documentPath, "utf8"), documentPath);
-    if (dom.classifiers.some((classifier) => classifier.entries.some((entry) => entry.guards.length))) {
+    if (dom.classifiers.some((classifier) => classifier.entries.some((entry) => entry.gates.length))) {
       fail("comparison requires a lexicon without feature gates");
     }
     const base = loader.readDocument("```jbogenbau\n%ambiguity-resolution greedy\n%rule text _\n```", "comparison");

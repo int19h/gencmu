@@ -3,14 +3,14 @@
   "document": "```jbogenbau\n%rule text $l:LE= \"la\"\n```\n",
   "expect": {
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "text",
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "capture": "l",
                 "expr": {

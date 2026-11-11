@@ -319,7 +319,7 @@ def dom_of(rules: list[list[list[Any]]], names: list[str], lean: str) -> dict[st
         "rules": [
             {
                 "name": names[number],
-                "op": "define",                 "alternatives": [{"guards": [], "expr": expression(alt)} for alt in alternatives],
+                "op": "define",                 "alternatives": [{"gates": [], "expr": expression(alt)} for alt in alternatives],
                 "conditions": [],
                 "at": [number + 1, 1],
             }
@@ -437,11 +437,11 @@ def random_sugared(rng: random.Random) -> dict[str, Any]:
             chain: dict[str, Any] = {"repeat": random_expression(rng, count, 2), "chain": rng.choice(["left", "right"])}
             if rng.random() < 0.7:
                 chain["separator"] = {"ref": rng.choice(TERMINALS)}
-            alternatives.append({"guards": [], "expr": chain})
+            alternatives.append({"gates": [], "expr": chain})
         else:
             for _ in range(rng.randint(1, 2)):
                 items = [random_expression(rng, count) for _ in range(rng.choice([1, 1, 2]))]
-                alternatives.append({"guards": [], "expr": items[0] if len(items) == 1 else {"seq": items}})
+                alternatives.append({"gates": [], "expr": items[0] if len(items) == 1 else {"seq": items}})
         if rng.random() < 0.35:
             counted.append(names[number])
         rules.append({"name": names[number], "op": "define", "alternatives": alternatives, "conditions": [], "at": [number + 1, 1]})
@@ -474,7 +474,7 @@ def random_eliding(rng: random.Random) -> dict[str, Any]:
         alternatives = []
         for _ in range(rng.randint(1, 3)):
             items = [item() for _ in range(rng.choice([1, 2, 2, 3]))]
-            alternatives.append({"guards": [], "expr": items[0] if len(items) == 1 else {"seq": items}})
+            alternatives.append({"gates": [], "expr": items[0] if len(items) == 1 else {"seq": items}})
         if rng.random() < 0.35:
             counted.append(names[number])
         rules.append({"name": names[number], "op": "define", "alternatives": alternatives, "conditions": [], "at": [number + 1, 1]})
@@ -613,8 +613,8 @@ def random_rules_grammar(rng: random.Random) -> tuple[dict[str, Any], str, bool,
         if count == 2:
             roll = rng.random()
             if roll < 0.1:
-                return [{"guards": [], "expr": {"repeat": item(), "separator": item(), "chain": "left" if roll < 0.05 else "right"}}]
-        return [{"guards": [], "expr": body()} for _ in range(count)]
+                return [{"gates": [], "expr": {"repeat": item(), "separator": item(), "chain": "left" if roll < 0.05 else "right"}}]
+        return [{"gates": [], "expr": body()} for _ in range(count)]
 
     definitions = [("text", 3)] + [(rule, 2) for rule in rules]
     counted = []
@@ -690,10 +690,10 @@ class RankingProperty(unittest.TestCase):
         dom = {
             "format": DOM_FORMAT,
             "rules": [
-                {"name": "text", "op": "define", "alternatives": [{"guards": [], "expr": {"ref": "w"}}], "conditions": [], "at": [2, 1]},
-                {"name": "w", "op": "define", "alternatives": [{"guards": [], "expr": {"ref": "x"}}, {"guards": [], "expr": {"ref": "y"}}], "conditions": [], "at": [3, 1]},
-                {"name": "x", "op": "define", "alternatives": [{"guards": [], "expr": {"ref": "A"}}], "conditions": [], "at": [4, 1]},
-                {"name": "y", "op": "define", "alternatives": [{"guards": [], "expr": {"ref": "A"}}], "conditions": [], "at": [5, 1]},
+                {"name": "text", "op": "define", "alternatives": [{"gates": [], "expr": {"ref": "w"}}], "conditions": [], "at": [2, 1]},
+                {"name": "w", "op": "define", "alternatives": [{"gates": [], "expr": {"ref": "x"}}, {"gates": [], "expr": {"ref": "y"}}], "conditions": [], "at": [3, 1]},
+                {"name": "x", "op": "define", "alternatives": [{"gates": [], "expr": {"ref": "A"}}], "conditions": [], "at": [4, 1]},
+                {"name": "y", "op": "define", "alternatives": [{"gates": [], "expr": {"ref": "A"}}], "conditions": [], "at": [5, 1]},
             ],
             "directives": [{"name": "ambiguity-resolution", "steps": [{"step":"late","pattern":{"name":"text","exact":True,"at":[1,1]}}], "at": [1, 1]}],
             "constants": [],
@@ -950,8 +950,8 @@ class LongInputs(unittest.TestCase):
         dom = {
             "format": DOM_FORMAT,
             "rules": [
-                {"name": "text", "op": "define", "alternatives": [{"guards": [], "expr": {"repeat": ref("unit")}}], "conditions": [], "at": [3, 1]},
-                {"name": "unit", "op": "define", "alternatives": [{"guards": [], "expr": unit} for unit in units], "conditions": [], "at": [4, 1]},
+                {"name": "text", "op": "define", "alternatives": [{"gates": [], "expr": {"repeat": ref("unit")}}], "conditions": [], "at": [3, 1]},
+                {"name": "unit", "op": "define", "alternatives": [{"gates": [], "expr": unit} for unit in units], "conditions": [], "at": [4, 1]},
             ],
             "directives": [{"name": "ambiguity-resolution", "steps": [{"step":"late","pattern":OMITTED}], "at": [1, 1]}],
             "constants": [],

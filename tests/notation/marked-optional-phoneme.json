@@ -3,14 +3,14 @@
   "document": "```jbogenbau\n%rule a [ + Sound-0061-s ]\n```\n",
   "expect": {
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "a",
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "optional": {
                   "ref": "Sound-0061-s"

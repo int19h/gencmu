@@ -46,7 +46,7 @@ func (b *domBuilder) patternAtom(n, first *Node) *domPattern {
 		return &domPattern{Kind: "never", At: b.at(first)}
 	}
 	name := b.tokenValue(first)
-	named := first.Rule == "name" || first.Rule == "reference" || first.Kind == KindToken && (first.Terminal == "Lowercase-Name" || first.Terminal == "Emoji-Name")
+	named := first.Rule == "rule-or-classifier-name" || first.Rule == "rule-reference" || first.Kind == KindToken && (first.Terminal == "Lowercase-Name" || first.Terminal == "Emoji-Name")
 	terminal := !named && (first.Rule == "parameter" || first.Rule == "tag" || first.Rule == "string-terminal" || first.Rule == "string" || first.Rule == "range" || first.Rule == "wildcard" || first.Rule == "constant-reference" || first.Kind == KindToken && (isCapital(name) || engineTag(name)))
 	tagSeen, valueSeen := false, false
 	for _, test := range tests {
@@ -117,7 +117,7 @@ func (b *domBuilder) patternAtom(n, first *Node) *domPattern {
 				}
 			}
 		} else {
-			next.Op = b.operator(b.token(b.only(test, "test")))
+			next.Op = b.operator(b.token(b.only(test, "value-comparator")))
 			operand := b.only(test, "test-operand")
 			part := b.knownOf(operand, atomRules)
 			if part.Rule != "string" && part.Rule != "constant-reference" && part.Rule != "parameter" {
@@ -239,7 +239,7 @@ func (b *domBuilder) findTestBase(n *Node) *Node {
 	}
 	for _, p := range b.ruleParts(n) {
 		for _, kind := range primaryRules {
-			if p.Rule == kind && kind != "tested" {
+			if p.Rule == kind && kind != "tested-primary" {
 				return p
 			}
 		}
@@ -266,7 +266,7 @@ func (b *domBuilder) tested(n *Node) *domExpr {
 		b.lacks(n, "test")
 	}
 	base := b.testBase(n)
-	valid := capturedRules[base.Rule] && base.Rule != "tested"
+	valid := capturedRules[base.Rule] && base.Rule != "tested-primary"
 	seenTags, seenValue := false, false
 	for _, test := range tests {
 		if test.Rule == "default-value" {
@@ -303,7 +303,7 @@ func (b *domBuilder) tested(n *Node) *domExpr {
 			e.Op = "tags"
 			e.Requirements = b.requirements(test)
 		} else {
-			e.Op = b.operator(b.token(b.only(test, "test")))
+			e.Op = b.operator(b.token(b.only(test, "value-comparator")))
 			operand := b.only(test, "test-operand")
 			part := b.knownOf(operand, atomRules)
 			if part.Rule != "string" && part.Rule != "constant-reference" && part.Rule != "parameter" {
@@ -321,10 +321,10 @@ func (b *domBuilder) requirements(n *Node) []tagRequirement {
 	for _, p := range b.ofRule(n, "tag-requirement") {
 		operand := b.only(p, "test-operand")
 		part := b.knownOf(operand, atomRules)
-		if part.Rule != "tag" && part.Rule != "constant-reference" && part.Rule != "name" && part.Rule != "parameter" {
+		if part.Rule != "tag" && part.Rule != "constant-reference" && part.Rule != "rule-or-classifier-name" && part.Rule != "parameter" {
 			b.fail(operand, "a tag requirement requires a tag or tag-set constant")
 		}
-		if part.Rule == "name" && !isCapital(b.tokenValue(b.token(part))) {
+		if part.Rule == "rule-or-classifier-name" && !isCapital(b.tokenValue(b.token(part))) {
 			b.fail(operand, "a tag requirement requires a tag")
 		}
 		r := tagRequirement{Value: b.term(part)}
@@ -350,7 +350,7 @@ func (b *domBuilder) recipes(n *Node) (value, image *domTerm) {
 
 func (b *domBuilder) recipe(n *Node) *domTerm {
 	r := &domTerm{Kind: tmConcat, At: b.at(n)}
-	for _, atom := range b.some(n, "recipe-atom", 1) {
+	for _, atom := range b.some(n, "recipe-term", 1) {
 		if atom.Span[0] < 0 || atom.Span[1] < atom.Span[0] || atom.Span[1] > len(b.toks) {
 			b.lacks(atom, "valid token span")
 		}
@@ -413,7 +413,7 @@ type methodFrame struct {
 func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 	if !f.started {
 		f.started = true
-		receiver := b.only(b.only(f.n, "method-receiver"), "term-atom")
+		receiver := b.only(b.only(f.n, "method-receiver"), "plain-term-atom")
 		f.dependent = b.sourceSyntaxUnresolved(receiver)
 		return ask(&termFrame{n: receiver, argument: true})
 	}
@@ -464,7 +464,7 @@ func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 		if parsed == nil {
 			name = b.tokenValue(b.token(b.only(selector, "method-name")))
 		}
-		arguments := b.one(selector, "arguments")
+		arguments := b.one(selector, "method-arguments")
 		if f.arguments == nil {
 			b.checkMethodClause(name, selector)
 			if !knownMethod(name) {
@@ -481,7 +481,7 @@ func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 				return ask(&exprFrame{n: b.only(f.parseArgument, "choice"), whole: true})
 			}
 			if arguments != nil {
-				f.arguments = b.some(arguments, "argument", 1)
+				f.arguments = b.some(arguments, "method-argument", 1)
 			}
 		}
 		if len(f.args) < len(f.arguments) {
@@ -718,7 +718,7 @@ func (b *domBuilder) patternRequirements(n *Node) []tagRequirement {
 	for _, p := range b.ofRule(n, "tag-requirement") {
 		operand := b.only(p, "test-operand")
 		part := b.knownOf(operand, atomRules)
-		if part.Rule != "tag" && part.Rule != "constant-reference" && part.Rule != "name" && part.Rule != "parameter" {
+		if part.Rule != "tag" && part.Rule != "constant-reference" && part.Rule != "rule-or-classifier-name" && part.Rule != "parameter" {
 			b.fail(operand, "a tag requirement requires a tag or tag-set constant")
 		}
 		var value *domTerm

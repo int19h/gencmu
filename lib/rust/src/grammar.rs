@@ -165,7 +165,7 @@ impl StageGrammar {
             let table = building.entry(classifier.name.clone()).or_default();
             for entry in &classifier.entries {
                 let on = entry
-                    .guards
+                    .gates
                     .iter()
                     .all(|guard| guard.kind == FeatureKind::Gate && features.contains(&guard.feature) != guard.negated);
                 if !on {
@@ -2770,7 +2770,7 @@ mod tests {
                 alternatives: (0..n)
                     .map(|_| Alternative {
                         strings: Default::default(),
-                        guards: Vec::new(),
+                        gates: Vec::new(),
                         expr: Expr::Terminal("A".into()),
                         tags: None,
                         ranked_locations: Default::default(),
@@ -2821,7 +2821,7 @@ mod tests {
     fn a_key_of_many_classes_resolves_in_linear_work() {
         let grammar = |n: usize| {
             let entry = |index: usize, adds: bool| Entry {
-                guards: Vec::new(),
+                gates: Vec::new(),
                 keys: vec![Term::Str("k".into())],
                 adds,
                 class: format!("C{index}"),

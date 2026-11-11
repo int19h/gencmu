@@ -2,14 +2,14 @@
   "document": "```jbogenbau\n%rule r $x:A %conditions $x.image = \"i\"\n```\n",
   "expect": {
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "r",
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "capture": "x",
                 "expr": {

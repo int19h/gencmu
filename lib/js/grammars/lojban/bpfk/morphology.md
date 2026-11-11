@@ -709,7 +709,7 @@ A `y` is not followed by a nucleus, unless that nucleus is another `y`. An apost
 
 ## Consonants
 
-An initial pair is two consonants that can begin a word. `initial` reads a cluster where each pair of neighbours stands in `$INITIAL`. An affricate can stand only as the whole cluster. That limit is a departure from CLL 4.7, and the closing section lists it.
+An initial pair is two consonants that can begin a word. `initial` reads a cluster where each pair of neighbors stands in `$INITIAL`. An affricate can stand only as the whole cluster. That limit is a departure from CLL 4.7, and the closing section lists it.
 
 A sibilant, another consonant and a liquid give the usual shape of a long cluster. No consonant or glide can follow the cluster. The initial can be empty only where no consonant or glide follows.
 
@@ -733,7 +733,7 @@ The pair law reads raw consonant tokens against `$PERMISSIBLE`. A law that reads
 %conditions
   ¬$.following-tokens.parse((consonant | glide) …)
 
--- Each pair of neighbours is in $INITIAL. An affricate stands only as the whole cluster.
+-- Each pair of neighbors is in $INITIAL. An affricate stands only as the whole cluster.
 %rule initial-cluster
   {consonant}
 %conditions

@@ -63,7 +63,7 @@
   {
     "name": "repeat discovery ignores member order true",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "a",
@@ -73,7 +73,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -97,7 +97,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -118,7 +118,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "separator": {
                   "call": "b",
@@ -169,7 +169,7 @@
   {
     "name": "repeat discovery ignores member order false",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "a",
@@ -179,7 +179,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -203,7 +203,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -224,7 +224,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "repeat": {
                   "call": "a",
@@ -275,7 +275,7 @@
   {
     "name": "nested any keeps a distinct key",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "use",
@@ -285,7 +285,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "ref": "A"
               },
@@ -309,7 +309,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "seq": [
                   {
@@ -428,7 +428,7 @@
   {
     "name": "nested all keeps a distinct key",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "use",
@@ -438,7 +438,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "ref": "A"
               },
@@ -462,7 +462,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "seq": [
                   {
@@ -581,7 +581,7 @@
   {
     "name": "maximum-depth call arguments expand safely",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "f",
@@ -591,7 +591,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "literal": {
                   "string": "a"
@@ -610,7 +610,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "f",
                 "args": [
@@ -2938,7 +2938,7 @@
   {
     "name": "maximum-depth body arguments expand safely",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "f",
@@ -2948,7 +2948,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "literal": {
                   "string": "a"
@@ -2967,7 +2967,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "f",
                 "args": [
@@ -5807,7 +5807,7 @@
   {
     "name": "maximum-depth targets arguments expand safely",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "f",
@@ -5817,7 +5817,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "literal": {
                   "string": "a"
@@ -5836,7 +5836,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "f",
                 "args": [
@@ -9956,7 +9956,7 @@
   {
     "name": "substitution and discovery at maximum target depth",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "f",
@@ -9966,7 +9966,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "literal": {
                   "string": "a"
@@ -9988,7 +9988,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "f",
                 "args": [
@@ -14105,7 +14105,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -14157,7 +14157,7 @@
   {
     "name": "supplied nested argument union shares its normalized key",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "use",
@@ -14167,7 +14167,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "ref": "A"
               },
@@ -14191,7 +14191,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "seq": [
                   {
@@ -14265,7 +14265,7 @@
     "name": "malformed unresolved cache falls back to valid source",
     "grammar": "%rule use(@X) @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "use",
@@ -14275,7 +14275,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "union": [
                   {
@@ -14303,7 +14303,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -14338,7 +14338,7 @@
     "name": "malformed cache: parameter cannot replace value recipe root",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -14348,7 +14348,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -14372,7 +14372,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -14411,7 +14411,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -14446,7 +14446,7 @@
     "name": "malformed cache: call cannot replace value recipe root",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -14456,7 +14456,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -14480,7 +14480,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -14524,7 +14524,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -14559,7 +14559,7 @@
     "name": "malformed cache: parameter cannot replace alternative value recipe root",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -14569,7 +14569,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -14593,7 +14593,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -14621,7 +14621,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -14656,7 +14656,7 @@
     "name": "malformed cache: call cannot replace alternative value recipe root",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -14666,7 +14666,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -14690,7 +14690,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -14723,7 +14723,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -14758,7 +14758,7 @@
     "name": "malformed cache: parameter cannot replace emission value recipe root",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -14768,7 +14768,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -14792,7 +14792,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -14838,7 +14838,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -14873,7 +14873,7 @@
     "name": "malformed cache: call cannot replace emission value recipe root",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -14883,7 +14883,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -14907,7 +14907,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -14958,7 +14958,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -14993,7 +14993,7 @@
     "name": "malformed cache: call cannot replace value recipe atom",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -15003,7 +15003,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -15027,7 +15027,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -15075,7 +15075,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -15110,7 +15110,7 @@
     "name": "malformed cache: call cannot replace alternative value recipe atom",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -15120,7 +15120,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -15144,7 +15144,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -15181,7 +15181,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -15216,7 +15216,7 @@
     "name": "malformed cache: call cannot replace emission value recipe atom",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -15226,7 +15226,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -15250,7 +15250,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -15305,7 +15305,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -15340,7 +15340,7 @@
     "name": "malformed cache: parameter cannot replace image recipe root",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -15350,7 +15350,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -15374,7 +15374,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -15413,7 +15413,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -15448,7 +15448,7 @@
     "name": "malformed cache: call cannot replace image recipe root",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -15458,7 +15458,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -15482,7 +15482,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -15526,7 +15526,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -15561,7 +15561,7 @@
     "name": "malformed cache: parameter cannot replace alternative image recipe root",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -15571,7 +15571,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -15595,7 +15595,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -15634,7 +15634,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -15669,7 +15669,7 @@
     "name": "malformed cache: call cannot replace alternative image recipe root",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -15679,7 +15679,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -15703,7 +15703,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -15747,7 +15747,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -15782,7 +15782,7 @@
     "name": "malformed cache: parameter cannot replace emission image recipe root",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -15792,7 +15792,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -15816,7 +15816,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -15862,7 +15862,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -15897,7 +15897,7 @@
     "name": "malformed cache: call cannot replace emission image recipe root",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -15907,7 +15907,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -15931,7 +15931,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -15982,7 +15982,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -16017,7 +16017,7 @@
     "name": "malformed cache: call cannot replace image recipe atom",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -16027,7 +16027,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -16051,7 +16051,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -16099,7 +16099,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -16134,7 +16134,7 @@
     "name": "malformed cache: call cannot replace alternative image recipe atom",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -16144,7 +16144,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -16168,7 +16168,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -16216,7 +16216,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -16251,7 +16251,7 @@
     "name": "malformed cache: call cannot replace emission image recipe atom",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -16261,7 +16261,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -16285,7 +16285,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -16340,7 +16340,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -16374,7 +16374,7 @@
   {
     "name": "parameter as a set term in a condition",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -16384,7 +16384,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -16408,7 +16408,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -16439,7 +16439,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -16472,7 +16472,7 @@
     "name": "malformed cache: call cannot replace condition",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -16482,7 +16482,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -16506,7 +16506,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -16551,7 +16551,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -16585,7 +16585,7 @@
   {
     "name": "parameter as a set term in a negated condition",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -16595,7 +16595,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -16619,7 +16619,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -16652,7 +16652,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -16685,7 +16685,7 @@
     "name": "malformed cache: call cannot replace negated condition",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -16695,7 +16695,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -16719,7 +16719,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -16766,7 +16766,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -16800,7 +16800,7 @@
   {
     "name": "parameter as a set term in a disjunct",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -16810,7 +16810,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -16834,7 +16834,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "seq": [
                   {
@@ -16884,7 +16884,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -16917,7 +16917,7 @@
     "name": "malformed cache: call cannot replace disjunct",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -16927,7 +16927,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -16951,7 +16951,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -17003,7 +17003,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -17037,7 +17037,7 @@
   {
     "name": "parameter as a set term in a conjunct",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -17047,7 +17047,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -17071,7 +17071,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -17109,7 +17109,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -17142,7 +17142,7 @@
     "name": "malformed cache: call cannot replace conjunct",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -17152,7 +17152,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -17176,7 +17176,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -17228,7 +17228,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -17262,7 +17262,7 @@
   {
     "name": "parameter as a set term in an implication antecedent",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -17272,7 +17272,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -17296,7 +17296,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "seq": [
                   {
@@ -17344,7 +17344,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -17377,7 +17377,7 @@
     "name": "malformed cache: call cannot replace implication antecedent",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -17387,7 +17387,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -17411,7 +17411,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -17461,7 +17461,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -17495,7 +17495,7 @@
   {
     "name": "parameter as a set term in an implication consequent",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -17505,7 +17505,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -17529,7 +17529,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -17565,7 +17565,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -17598,7 +17598,7 @@
     "name": "malformed cache: call cannot replace implication consequent",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -17608,7 +17608,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -17632,7 +17632,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -17682,7 +17682,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -17716,7 +17716,7 @@
   {
     "name": "parameter as a set term in a term guard",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -17726,7 +17726,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -17750,7 +17750,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -17785,7 +17785,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -17818,7 +17818,7 @@
     "name": "malformed cache: call cannot replace term guard",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -17828,7 +17828,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -17852,7 +17852,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -17901,7 +17901,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -17936,7 +17936,7 @@
     "name": "malformed cache: parameter cannot replace emission root",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -17946,7 +17946,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -17970,7 +17970,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -18009,7 +18009,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -18044,7 +18044,7 @@
     "name": "malformed cache: call cannot replace emission root",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -18054,7 +18054,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -18078,7 +18078,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -18122,7 +18122,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -18157,7 +18157,7 @@
     "name": "malformed cache: parameter cannot replace pattern children root",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -18167,7 +18167,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -18191,7 +18191,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -18244,7 +18244,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -18279,7 +18279,7 @@
     "name": "malformed cache: call cannot replace pattern children root",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -18289,7 +18289,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -18313,7 +18313,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -18371,7 +18371,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -18406,7 +18406,7 @@
     "name": "malformed cache: parameter cannot replace pattern sequence entry",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -18416,7 +18416,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -18440,7 +18440,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -18502,7 +18502,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -18537,7 +18537,7 @@
     "name": "malformed cache: call cannot replace pattern sequence entry",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -18547,7 +18547,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -18571,7 +18571,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -18638,7 +18638,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -18673,7 +18673,7 @@
     "name": "malformed cache: parameter cannot replace pattern optional item",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -18683,7 +18683,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -18707,7 +18707,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -18764,7 +18764,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -18799,7 +18799,7 @@
     "name": "malformed cache: call cannot replace pattern optional item",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -18809,7 +18809,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -18833,7 +18833,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -18895,7 +18895,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -18930,7 +18930,7 @@
     "name": "malformed cache: parameter cannot replace pattern repeat item",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -18940,7 +18940,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -18964,7 +18964,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -19021,7 +19021,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -19056,7 +19056,7 @@
     "name": "malformed cache: call cannot replace pattern repeat item",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -19066,7 +19066,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -19090,7 +19090,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -19152,7 +19152,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -19187,7 +19187,7 @@
     "name": "malformed cache: parameter cannot replace pattern repeat separator",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -19197,7 +19197,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -19221,7 +19221,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -19289,7 +19289,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -19324,7 +19324,7 @@
     "name": "malformed cache: call cannot replace pattern repeat separator",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -19334,7 +19334,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -19358,7 +19358,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -19431,7 +19431,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -19466,7 +19466,7 @@
     "name": "malformed cache: call cannot replace literal string",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -19476,7 +19476,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -19500,7 +19500,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "literal": {
                   "call": "atom",
@@ -19539,7 +19539,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -19574,7 +19574,7 @@
     "name": "malformed cache: call cannot replace range endpoint",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -19584,7 +19584,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -19608,7 +19608,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "range": [
                   {
@@ -19652,7 +19652,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -19687,7 +19687,7 @@
     "name": "malformed cache: call cannot replace value-test operand",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -19697,7 +19697,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -19721,7 +19721,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "test": "=",
                 "expr": {
@@ -19764,7 +19764,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -19799,7 +19799,7 @@
     "name": "malformed cache: call cannot replace pattern literal string",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -19809,7 +19809,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -19833,7 +19833,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -19892,7 +19892,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -19927,7 +19927,7 @@
     "name": "malformed cache: call cannot replace pattern range endpoint",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -19937,7 +19937,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -19961,7 +19961,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -20025,7 +20025,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -20060,7 +20060,7 @@
     "name": "malformed cache: call cannot replace pattern value-test operand",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -20070,7 +20070,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -20094,7 +20094,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -20157,7 +20157,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -20192,7 +20192,7 @@
     "name": "malformed cache: call cannot replace feature condition",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -20202,7 +20202,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -20226,7 +20226,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -20258,7 +20258,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -20318,7 +20318,7 @@
     "name": "malformed cache: pattern literal string requires a valid position (missing)",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -20328,7 +20328,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -20352,7 +20352,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -20402,7 +20402,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -20437,7 +20437,7 @@
     "name": "malformed cache: pattern literal string requires a valid position (zero)",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -20447,7 +20447,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -20471,7 +20471,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -20525,7 +20525,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -20560,7 +20560,7 @@
     "name": "malformed cache: pattern range endpoint requires a valid position (missing)",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -20570,7 +20570,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -20594,7 +20594,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -20649,7 +20649,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -20684,7 +20684,7 @@
     "name": "malformed cache: pattern range endpoint requires a valid position (zero)",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -20694,7 +20694,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -20718,7 +20718,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -20777,7 +20777,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -20811,7 +20811,7 @@
   {
     "name": "malformed cache: a pattern literal cannot contain a parameter",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -20821,7 +20821,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -20845,7 +20845,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -20899,7 +20899,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -20934,7 +20934,7 @@
   {
     "name": "supplied parameter in pattern range endpoint expands with its wrapper",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -20944,7 +20944,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -20968,7 +20968,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -21027,7 +21027,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -21060,7 +21060,7 @@
   {
     "name": "a pattern call accepts a value test",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -21070,7 +21070,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -21094,7 +21094,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -21153,7 +21153,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -21186,7 +21186,7 @@
   {
     "name": "a call can be the operand of a pattern equality test",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -21196,7 +21196,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -21220,7 +21220,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -21279,7 +21279,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -21312,7 +21312,7 @@
   {
     "name": "a call can be the operand of a pattern inequality test",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -21322,7 +21322,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -21346,7 +21346,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -21405,7 +21405,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -21439,7 +21439,7 @@
     "name": "malformed cache: pattern test order tags then tags on a parameter",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -21449,7 +21449,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -21473,7 +21473,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -21529,7 +21529,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -21564,7 +21564,7 @@
     "name": "malformed cache: pattern test order = then tags on a parameter",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -21574,7 +21574,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -21598,7 +21598,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -21656,7 +21656,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -21691,7 +21691,7 @@
     "name": "malformed cache: pattern test order ≠ then tags on a parameter",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -21701,7 +21701,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -21725,7 +21725,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -21783,7 +21783,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -21818,7 +21818,7 @@
     "name": "malformed cache: pattern test order = then = on a parameter",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -21828,7 +21828,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -21852,7 +21852,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -21912,7 +21912,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -21947,7 +21947,7 @@
     "name": "malformed cache: pattern test order ≠ then = on a parameter",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -21957,7 +21957,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -21981,7 +21981,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -22041,7 +22041,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -22076,7 +22076,7 @@
     "name": "malformed cache: pattern test order = then ≠ on a parameter",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -22086,7 +22086,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -22110,7 +22110,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -22170,7 +22170,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -22205,7 +22205,7 @@
     "name": "malformed cache: pattern test order ≠ then ≠ on a parameter",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -22215,7 +22215,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -22239,7 +22239,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -22299,7 +22299,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -22334,7 +22334,7 @@
     "name": "malformed cache: pattern = test rejects two nested tag tests",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -22344,7 +22344,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -22368,7 +22368,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -22430,7 +22430,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -22465,7 +22465,7 @@
     "name": "malformed cache: pattern ≠ test rejects two nested tag tests",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -22475,7 +22475,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -22499,7 +22499,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -22561,7 +22561,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -22596,7 +22596,7 @@
     "name": "malformed cache: pattern tags test rejects a union target containing a parameter",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -22606,7 +22606,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -22630,7 +22630,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -22693,7 +22693,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -22728,7 +22728,7 @@
     "name": "malformed cache: pattern tags test rejects a path target containing a parameter",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -22738,7 +22738,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -22762,7 +22762,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -22817,7 +22817,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -22852,7 +22852,7 @@
     "name": "malformed cache: pattern tags test rejects a children target containing a parameter",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -22862,7 +22862,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -22886,7 +22886,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -22945,7 +22945,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -22980,7 +22980,7 @@
     "name": "malformed cache: pattern = test rejects a union target containing a parameter",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -22990,7 +22990,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -23014,7 +23014,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -23079,7 +23079,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -23114,7 +23114,7 @@
     "name": "malformed cache: pattern = test rejects a path target containing a parameter",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -23124,7 +23124,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -23148,7 +23148,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -23205,7 +23205,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -23240,7 +23240,7 @@
     "name": "malformed cache: pattern = test rejects a children target containing a parameter",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -23250,7 +23250,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -23274,7 +23274,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -23335,7 +23335,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -23370,7 +23370,7 @@
     "name": "malformed cache: pattern ≠ test rejects a union target containing a parameter",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -23380,7 +23380,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -23404,7 +23404,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -23469,7 +23469,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -23504,7 +23504,7 @@
     "name": "malformed cache: pattern ≠ test rejects a path target containing a parameter",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -23514,7 +23514,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -23538,7 +23538,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -23595,7 +23595,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -23630,7 +23630,7 @@
     "name": "malformed cache: pattern ≠ test rejects a children target containing a parameter",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -23640,7 +23640,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -23664,7 +23664,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -23725,7 +23725,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -23759,7 +23759,7 @@
   {
     "name": "supplied param remains valid in pattern tags test operand expands",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -23769,7 +23769,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -23793,7 +23793,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -23845,7 +23845,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -23878,7 +23878,7 @@
   {
     "name": "supplied param remains valid in pattern = test operand expands",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -23888,7 +23888,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -23912,7 +23912,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -23966,7 +23966,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -23999,7 +23999,7 @@
   {
     "name": "supplied param remains valid in pattern ≠ test operand expands",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -24009,7 +24009,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -24033,7 +24033,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -24087,7 +24087,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -24120,7 +24120,7 @@
   {
     "name": "supplied pattern test order tags then = on a parameter expands",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -24130,7 +24130,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -24154,7 +24154,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -24212,7 +24212,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -24245,7 +24245,7 @@
   {
     "name": "supplied pattern test order tags then ≠ on a parameter expands",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -24255,7 +24255,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -24279,7 +24279,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -24337,7 +24337,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -24674,7 +24674,7 @@
     "name": "malformed layered cache: an optional cannot carry a separator",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -24684,7 +24684,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -24708,7 +24708,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -24778,7 +24778,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -24813,7 +24813,7 @@
     "name": "malformed layered cache: a repeat cannot hide a sibling gap in an optional",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -24823,7 +24823,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -24847,7 +24847,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -24913,7 +24913,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -24948,7 +24948,7 @@
     "name": "malformed layered cache: a repeat separator cannot contain a sibling gap",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -24958,7 +24958,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -24982,7 +24982,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -25046,7 +25046,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -25081,7 +25081,7 @@
     "name": "malformed layered cache: an item cannot be an array",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -25091,7 +25091,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -25115,7 +25115,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -25172,7 +25172,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -25207,7 +25207,7 @@
     "name": "malformed layered cache: an any node requires a child array",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -25217,7 +25217,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -25241,7 +25241,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -25285,7 +25285,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -25320,7 +25320,7 @@
     "name": "malformed layered cache: a choice requires two alternatives",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -25330,7 +25330,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -25354,7 +25354,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -25415,7 +25415,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -25450,7 +25450,7 @@
     "name": "malformed layered cache: a choice alternative cannot be empty",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -25460,7 +25460,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -25484,7 +25484,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -25546,7 +25546,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -25581,7 +25581,7 @@
     "name": "malformed layered cache: a sole nested choice must be flat",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -25591,7 +25591,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -25615,7 +25615,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -25704,7 +25704,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -25739,7 +25739,7 @@
     "name": "malformed layered cache: a supplied pattern intersection must be flat",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -25749,7 +25749,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -25773,7 +25773,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -25843,7 +25843,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -25878,7 +25878,7 @@
     "name": "malformed layered cache: an exact prefix must be true",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -25888,7 +25888,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -25912,7 +25912,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -25961,7 +25961,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -25996,7 +25996,7 @@
     "name": "malformed layered cache: a compound pattern cannot carry children",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -26006,7 +26006,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -26030,7 +26030,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -26090,7 +26090,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -26125,7 +26125,7 @@
     "name": "malformed layered cache: a literal cannot wrap a constant",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -26135,7 +26135,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -26159,7 +26159,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -26213,7 +26213,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -26248,7 +26248,7 @@
     "name": "malformed layered cache: a pattern name must read back as a rule",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -26258,7 +26258,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -26282,7 +26282,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -26330,7 +26330,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -26365,7 +26365,7 @@
     "name": "malformed layered cache: a rule argument in an ignored pattern call cannot read back as a tag",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -26375,7 +26375,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -26399,7 +26399,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -26452,7 +26452,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [
@@ -26487,7 +26487,7 @@
     "name": "malformed layered cache: a rule target nested in an ignored pattern call cannot read back as a tag",
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
-      "format": 51,
+      "format": 52,
       "rules": [
         {
           "name": "atom",
@@ -26497,7 +26497,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "Y",
                 "at": [
@@ -26521,7 +26521,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -26586,7 +26586,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "call": "use",
                 "args": [

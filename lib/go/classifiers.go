@@ -135,7 +135,7 @@ func resolveClassifiers(items []classifierItem, features map[string]bool, uni *u
 		}
 	entries:
 		for _, e := range c.Entries {
-			for _, gd := range e.Guards {
+			for _, gd := range e.Gates {
 				if features[gd.Feature] == gd.Negated {
 					continue entries
 				}

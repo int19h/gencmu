@@ -1391,7 +1391,7 @@ pub(crate) fn lower(
             .iter()
             .enumerate()
             .filter(|(_, alternative)| {
-                alternative.alternative.guards.iter().all(|guard| features.contains(&guard.feature) != guard.negated)
+                alternative.alternative.gates.iter().all(|gate| features.contains(&gate.feature) != gate.negated)
             })
             .collect();
         // A chain is the only alternative of its rule that the gates
@@ -2856,7 +2856,7 @@ mod tests {
                     .into_iter()
                     .map(|expr| Alternative {
                         strings: Default::default(),
-                        guards: Vec::new(),
+                        gates: Vec::new(),
                         expr,
                         tags: None,
                         ranked_locations: Default::default(),
@@ -2948,7 +2948,7 @@ mod tests {
             tags: Some(Term::Union(guards.collect())),
             alternatives: vec![Alternative {
                 strings: Default::default(),
-                guards: Vec::new(),
+                gates: Vec::new(),
                 expr: Expr::Choice(captures.collect()),
                 tags: None,
                 ranked_locations: Default::default(),
