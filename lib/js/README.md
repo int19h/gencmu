@@ -27,7 +27,7 @@ A `reported` error lists named diagnostics in `errors`. Each diagnostic carries 
 
 Every other error result has a null tree. A `grammar` error with code `elision-witness-lost` marks a library defect during `elision-only`. It also has `chosen`, the stage's chosen tree, and `completion`, the restored terminators (engine §7.9). Other parse-result errors have no top-level `code`. Ranked-choice loading errors use the separate diagnostic schema of `docs/output.md`.
 
-No message recipe can fail today. Engine §12.1 defines the guard for a failure.
+The recipe language has no message that can fail. Engine §12.1 defines the guard for a failure.
 
 ## The command line
 

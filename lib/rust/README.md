@@ -58,7 +58,7 @@ A `FeatureConflict` result names a disabled feature whose conditional declaratio
 
   Counted errors give `ParseErrorKind::Reported`, with named reports in `ParseError::errors`. The reporting stage keeps its tree, output, and verdict. Earlier stages continue despite chosen errors. Other error results have a null result tree. A direct ranked-option error can carry default rejection evidence in its `rejection` member.
 
-  No message recipe can fail today. Engine §12.1 defines the guard for a failure.
+  The recipe language has no message that can fail. Engine §12.1 defines the guard for a failure.
 
   Verdicts count only derivations with the best three-part measure. The measure minimizes blamed source width, then errors without a source, then maximizes the error count. Carried errors retain their fixed charges. Erased completions with equal observable state collapse and keep one interior as their shown tree.
 
@@ -72,7 +72,7 @@ A `FeatureConflict` result names a disabled feature whose conditional declaratio
 
 Stage zero applies Unicode Normalization Form D (NFD), the canonical decomposition of the input. It uses the bundled Unicode table or the caller's replacement table. Each decomposed scalar keeps its original source and text. Its value and image hold the decomposed scalar. Source ranges can overlap or appear out of order after decomposition. Caller tokens skip stage zero and keep their supplied strings.
 
-Grammar documents decompose too. Escaped scalars inside strings remain exact. Include paths decode escapes without decomposition. The cache requires matching document, bootstrap, Unicode, properties, and required names fingerprints.
+Grammar documents decompose too. Escaped scalars inside strings remain exact. Resource paths decode escapes without decomposition. The cache requires matching document, bootstrap, Unicode, properties, and required names fingerprints.
 
 The method `.decomposed-source-text` decomposes the original source text of a span with the configured table. It works in conditions and recipes. It also works on restored spans, where synthetic omissions add no source text. `.source-text` and `.verbatim-text` keep the original spelling.
 

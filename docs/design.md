@@ -29,7 +29,7 @@ grammars/                  source grammars grouped by family
     experimental/          pipeline.md and its layers
     zantufa/               pipeline.md and its layers
     common/                latin, cyrillic, consonant-tables, zbalermorna and its names file, forms, stream, lohai
-    examples/kihei/        pipeline.md for a discourse-frame example
+    examples/              example pipelines that demonstrate language features
   eberban/refgram/         pipeline.md, letters, morphology, stream and syntax
   gencmu/jbogenbau/        pipeline.md, lexical and syntax
 data/                      engine resources, independent of pipeline families
@@ -80,9 +80,6 @@ Declared extras use lazy paths under `grammars/`, including `grammars/lojban/com
 `dist/gencmu.js`, the library as one classic script, is generated too. The playground works without a build step from an HTTP server, including GitHub Pages. One Node script, `node tools/sync.js`, writes all these files. CI runs it and fails if anything changes. After a change to `grammars/` or `data/`, a contributor runs that command.
 
 ## Standard library only
-
-The Rust `GrammarValue::to_json` writer uses an explicit stack for nested arrays and objects. Object members keep their stored order.
-
 
 The rule against mandatory dependencies holds for every target. JavaScript needs nothing beyond the language and, for the CLI, Node's `fs`. Python's standard library has everything, `json` included. Go's has `embed` and `encoding/json`. Rust's has no JSON reader, so the Rust library carries a small one for the files it ships, and it writes JSON by hand. That is a few hundred lines, and the one real cost of the rule.
 
@@ -211,7 +208,7 @@ Patterns can name a whole template family, while queries must name an exact inst
 
 A stage can also name a value, such as a list of classes that several rules test. `%const $SU-STOPS NIhO ∪ LU ∪ TUhE ∪ TO` defines the constant, and `%redefine-const` redefines its value, which can use the preceding value. So a pipeline extends a list in one place, and does not restate every rule that tests it. The loader gives each constant its value when it stitches a stage. So a document that several pipelines include takes the values of each, and a cached DOM holds no value.
 
-A stage can also give exact values their classes with a classifier, such as a lexicon. `%classifier lexicon` lists entries such as `"mi" "do" ∈ KOhA`, and `∉` removes a class. A gate can guard an entry, so a feature can change the class of a word. `$c.value.classify(lexicon)` gives the classes of the word `$c`. A classifier's value depends on the features, so a stage resolves it for the features of each parse.
+A stage can also give exact values their classes with a classifier, such as a lexicon. `%classifier lexicon` lists entries such as `"mi" "do" ∈ KOhA`, and `∉` removes a class. A gate can control an entry, so a feature can change the class of a word. `$c.value.classify(lexicon)` gives the classes of the word `$c`. A classifier's value depends on the features, so a stage resolves it for the features of each parse.
 
 `%implies UI ∪ CAI ⟹ Indicator` says that each token that the stage emits with `UI` or `CAI` also carries `Indicator`. So a lexicon says once which classes are indicators, and not on every word.
 
@@ -505,6 +502,8 @@ A tree pattern tests a constructed constituent without recognizing its words aga
 
 Tags, images and recipes take no part, so the answer depends on the two derivations alone. The engine keeps a tree identity only for the occurrences that such a comparison demands (engine §4.1). A grammar without the comparison pays nothing for it.
 
+Demand follows an occurrence rather than every use of its rule. Demand by rule splits Eberban's `step-tail` by nested binds even outside comparison operands. That broader demand doubles the number of items with each bind.
+
 A child list requires a rule test, template family, or call. A compatible parameter can supply that test. Terminals and tested atoms cannot carry child lists. Separate items require whitespace or comments before `⁅` or `·` after a node test, `⁆`, `]`, `}`, or group `)`. A call's adjacent first list remains attached.
 
 Each node test searches through sole children by default. The prefix `·` makes only its own node exact. Child items retain their own searches unless they carry `·`. The name and attached child list must hold at the same visited node. Separate set operands can hold at different depths of the candidate's sole-child chain.
@@ -636,7 +635,7 @@ The trailing clause order is conditions, diagnostic, suppression, then emission 
 
 Reports follow the chosen derivation before spliced nodes disappear, parent before children and siblings in order. Spliced and empty warning occurrences retain their positions. The engine evaluates each selected message once after choice, before emission and carrier assignment. Disabled and suppressed warnings evaluate none.
 
-No message recipe can fail today. Engine §12.1 defines the guard for a failure.
+The recipe language has no message that can fail. Engine §12.1 defines the guard for a failure.
 
 Message recipes read captures and `$`, with string methods and `++`. They cannot query, read `.emitted`, or read absent, item, or private ranked captures. Recognition and ranking evaluate no messages.
 

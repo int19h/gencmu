@@ -125,7 +125,7 @@ A `reported` result keeps the chosen tree, its `unique` or `resolved` verdict, a
 
 `until` selects the reporting stage. For example, inspection through forms reports surviving forms errors while preserving the emitted forms tokens. A tie lists errors and warnings from its two shown readings. Rejection, feature-conflict, and grammar envelopes also retain diagnostics under engine §12.1.
 
-Every other error result has a null `tree`. No message recipe can fail today. Engine §12.1 defines the guard for a failure.
+Every other error result has a null `tree`. The recipe language has no message that can fail. Engine §12.1 defines the guard for a failure.
 
 The result also has `features`, the enabled feature names in code point order, without duplicates. This field stays outside canonical JSON. Go calls it `Features`.
 
@@ -219,14 +219,6 @@ The language examples below use the bundled `lojban/cll` pipeline and its featur
 
 ## JavaScript
 
-The JSON value returned by a formatter owns its arrays independently of the input result.
-
-Each JavaScript loader cache keeps at most 256 entries and 4,000,000 UTF-16 code units. Eviction removes the least recently used entries. The DOM cache counts source text. The preparsed cache counts DOM JSON. The preparsed-file cache counts paths.
-
-The portable JavaScript entry point has no bundled resources. Its map must supply `data/unicode/unicode.txt` and `data/preparsed/gencmu.json`. It needs `data/unicode/unicode-names.txt` for source names outside the core abbreviation map. Numeric escape parsing alone does not need names data. The map supplies `data/unicode/unicode-properties.txt` to support additional properties. Without it, a supplied core supports only its five core properties.
-
-Portable JavaScript accepts a source map or plain object as `bundledPipelines(sources)`. With no sources, it returns an empty list because that entry point has no bundle. The Node entry point supplies its package's resources by default. The CLI uses that function, and the playground supplies its bundled source map.
-
 `gencmu` works anywhere JavaScript runs. `gencmu/node` adds access to the disk.
 
 ```js
@@ -254,6 +246,14 @@ toJson(result); toBrackets(result, { showElided: true });
 - Errors are `GencmuError`, with `kind` and `where`.
 - The lower-level `Loader`, `loaderFromSources` and `loaderFromDirectory` are available for tools that load several pipelines over one set of documents. `Loader.splice(path)` expands includes into stage document runs. `Loader.pipeline(path)` returns a loaded `Pipeline`.
 
+The JSON value that `resultJson` or `displayValue` returns owns its arrays independently of the input result.
+
+Each JavaScript loader cache keeps at most 256 entries and 4,000,000 UTF-16 code units. Eviction removes the least recently used entries. The DOM cache counts source text. The preparsed cache counts DOM JSON. The preparsed-file cache counts paths.
+
+The portable JavaScript entry point has no bundled resources. Its map must supply `data/unicode/unicode.txt` and `data/preparsed/gencmu.json`. It needs `data/unicode/unicode-names.txt` for source names outside the core abbreviation map. Numeric escape parsing alone does not need names data. The map supplies `data/unicode/unicode-properties.txt` to support additional properties. Without it, a supplied core supports only its five core properties.
+
+Portable JavaScript accepts a source map or plain object as `bundledPipelines(sources)`. With no sources, it returns an empty list because that entry point has no bundle. The Node entry point supplies its package's resources by default. The CLI uses that function, and the playground supplies its bundled source map.
+
 The JavaScript entry points also export helpers for the CLI and playground:
 
 - `fnv1a64(text)` returns the FNV-1a hash of the UTF-8 bytes as 16 hexadecimal digits.
@@ -272,7 +272,7 @@ The types are in the package's declarations (`lib/js/types/`).
 
 ## Python
 
-The Python loaders also take `use_cache=False`. With it, the loader reads every document through the notation.
+`gencmu` loads pipelines and parses text in Python.
 
 ```python
 import gencmu
@@ -289,6 +289,8 @@ pipeline.features  # (Feature(name="cll-cyrillic", kind="gate", default=True),
 gencmu.to_json(result)
 gencmu.to_brackets(result, show_elided=True)
 ```
+
+The Python loaders also take `use_cache=False`. With it, the loader reads every document through the notation.
 
 - `bundled_pipelines() -> list[str]` lists the bundled full names.
 - `load_pipeline(name)`, `load_pipeline_file(path)` and `load_pipeline_sources(sources, path)` load a pipeline. `sources` is a mapping from path to text.
@@ -340,7 +342,7 @@ gencmu.Brackets(result, gencmu.BracketOptions{ShowElided: true})
 
 ## Rust
 
-Rust exposes these optional fields through `code()`, `group()`, `option()`, `expression()`, and `inheritance()` on `Error`. These accessors borrow stored data without creating a diagnostic.
+The Rust crate loads pipelines and parses text without dependencies.
 
 ```rust
 let pipeline = gencmu::load_pipeline("lojban/cll")?;
@@ -361,6 +363,8 @@ let features = pipeline.features(); // &[Feature { name, kind, default }]
 gencmu::to_json(&result);
 gencmu::to_brackets(&result, true);
 ```
+
+Rust exposes the optional fields of ranked-choice loading errors through `code()`, `group()`, `option()`, `expression()`, and `inheritance()` on `Error`. These accessors borrow stored data without creating a diagnostic.
 
 - `bundled_pipelines() -> Vec<String>` lists the bundled full names.
 - `load_pipeline(name)`, `load_pipeline_file(path)` and `load_pipeline_sources(sources, path)` each return `Result<Pipeline, gencmu::Error>`.

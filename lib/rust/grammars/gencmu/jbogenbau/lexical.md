@@ -15,6 +15,7 @@ The stage passes these token kinds to [syntax.md](syntax.md):
 - Strings
 - Integers
 - Engine tags
+- Wildcards
 - Captures
 - Constants
 - Gates
@@ -29,7 +30,7 @@ It discards whitespace and comments. Each emitted token covers the exact source 
 
 ## Choosing among readings
 
-The greedy reading favors the longest complete piece. It reads `...` as one symbol rather than three periods.
+The greedy reading favors the longest complete piece. It reads `...` as one punctuation token rather than three periods.
 
 If a line comment begins or no name character follows, the name ends. This prevents a token from ending inside a longer name.
 
@@ -71,7 +72,7 @@ An emoji name contains one scalar with `Emoji_Presentation` and without `Emoji_C
 
 An integer token is a run of decimal digits. The reader permits it only as a positive `.ngrams` argument without leading zeros.
 
-An engine tag starts with `_` and continues with letters, digits, or underscores. A dot is part of the tag when it sits between two digits. The short Age aliases need it, as in `_age_15.1`. The greedy reading keeps that alias as one tag, and does not split it at the dot. A bare `_` is the wildcard. Later recognition rules exclude it where they require a tag.
+An engine tag starts with `_` and continues with letters, digits, or underscores. A dot is part of the tag when it sits between two digits. The short Age aliases need it, as in `_age_15.1`. The greedy reading keeps that alias as one tag, and does not split it at the dot. A bare `_` is the wildcard. The `wildcard` rule reads it as its own token, without `Engine-Tag`.
 
 ```jbogenbau
 %rule emoji-name
@@ -207,7 +208,7 @@ A capture is `$` alone or `$` followed by a lowercase name. `$` alone names the 
 
 A user constant starts with `$` and an uppercase name.
 
-Thus `"$" upper-name` reads a constant.
+`"$" upper-initial-name` reads a constant.
 
 The boundary conditions prevent either token from ending inside its name. The syntax stage receives each prefixed name as one token.
 
@@ -273,6 +274,8 @@ Straight double quotes enclose a string. Ordinary string characters exclude only
 
 Dollar signs and backslashes are ordinary characters.
 
+`string` reads `quoted-string`, which `resource-path` also uses.
+
 The lexical stage keeps escapes as written. A separate inspection validates each escape and loads any needed names data after lexing and before syntax recognition (engine §9.1). DOM conversion then decodes the original spellings once, without a second scan. Lexical errors precede escape errors, which precede syntax errors, which precede reader validation errors.
 
 ```jbogenbau
@@ -281,13 +284,17 @@ The lexical stage keeps escapes as written. A separate inspection validates each
 %emits
   $ :: String
 
+%rule quoted-string
+  "‹U+0022›" [{string-character}] "‹U+0022›"
+
 %rule string-character
   "‹U+0000›".."‹U+0021›"
   | "‹U+0023›".."‹U+10FFFF›"
 ```
 
-<details><summary>Railroad diagrams of <code>string</code> and <code>string-character</code></summary>
+<details><summary>Railroad diagrams of <code>string</code>, <code>quoted-string</code> and <code>string-character</code></summary>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/lexical/string.svg" alt="Railroad diagram of the rule string"></p>
+<p><img src="../../../docs/diagrams/gencmu/jbogenbau/lexical/quoted-string.svg" alt="Railroad diagram of the rule quoted-string"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/lexical/string-character.svg" alt="Railroad diagram of the rule string-character"></p>
 </details>
 
@@ -297,7 +304,7 @@ The lexical stage keeps escapes as written. A separate inspection validates each
 
 `names-directive` reads `%names` and its quoted path in the same way. Its keyword carries `KW-NAMES`. The reader collects leading names declarations before it inspects other string escapes.
 
-An include path keeps dollar signs and backslashes literally. It excludes quotes.
+A resource path keeps dollar signs and backslashes literally. It excludes quotes.
 
 `resource-path-tail` identifies layout followed by a path. The ordinary keyword rule uses it to avoid a competing bare directive token when a path follows.
 
@@ -323,24 +330,20 @@ An include path keeps dollar signs and backslashes literally. It excludes quotes
 
 %rule resource-path
   quoted-string
-
-%rule quoted-string
-  "‹U+0022›" [{string-character}] "‹U+0022›"
 ```
 
-<details><summary>Railroad diagrams of the 7 rules from <code>include-directive</code> to <code>quoted-string</code></summary>
+<details><summary>Railroad diagrams of the 6 rules from <code>include-directive</code> to <code>resource-path</code></summary>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/lexical/include-directive.svg" alt="Railroad diagram of the rule include-directive"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/lexical/names-directive.svg" alt="Railroad diagram of the rule names-directive"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/lexical/resource-path-tail.svg" alt="Railroad diagram of the rule resource-path-tail"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/lexical/include-keyword.svg" alt="Railroad diagram of the rule include-keyword"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/lexical/names-keyword.svg" alt="Railroad diagram of the rule names-keyword"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/lexical/resource-path.svg" alt="Railroad diagram of the rule resource-path"></p>
-<p><img src="../../../docs/diagrams/gencmu/jbogenbau/lexical/quoted-string.svg" alt="Railroad diagram of the rule quoted-string"></p>
 </details>
 
 ## Layout
 
-Whitespace and comments separate tokens without contributing meaning. `layout-run` joins consecutive layout pieces for include recognition.
+Whitespace and comments separate tokens without contributing meaning. `layout-run` joins consecutive layout pieces for resource-path recognition.
 
 A comment starts with `--` and ends before LF, CR, or the end of the file. Strings retain their comment characters. The end condition keeps every character before the line boundary inside the comment.
 
@@ -377,7 +380,7 @@ A keyword is `%` followed by a whole name. Each known keyword receives its own t
 
 An unknown keyword receives `Keyword`, which the syntax grammar never reads. Recognition therefore reports it as a syntax error at that token.
 
-The `%include` and `%names` alternatives apply only when no quoted path follows. A complete directive instead uses its path rule above.
+The classified alternative reads `%include` or `%names` only when no quoted path follows. A complete directive instead uses its path rule above.
 
 The `keywords` classifier assigns each known keyword its tag. The fallback emits `Keyword` for a name with no assigned class.
 
@@ -421,11 +424,11 @@ The `keywords` classifier assigns each known keyword its tag. The fallback emits
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/lexical/keyword.svg" alt="Railroad diagram of the rule keyword"></p>
 </details>
 
-## Symbols
+## Punctuation
 
 `@` starts a parameter token. A bare `@` is invalid.
 
-A symbol is punctuation that no larger lexical form contains. Symbols preserve their input values and images. The operator `≇` has value and image `≅` followed by U+0338. Its `text` retains `≇`.
+A punctuation token is one that no larger lexical form contains. Punctuation tokens preserve their input values and images. The operator `≇` has value and image `≅` followed by U+0338. Its `text` retains `≇`.
 
 The greedy reading keeps `...`, `..`, `++`, `::`, `:=`, and `:-` together as compound tokens. `#` and `(` remain separate tokens.
 

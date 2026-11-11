@@ -345,7 +345,7 @@ The seal hides no error occurrence from ranking or reports. Diagnostics still be
 | --- | --- |
 | `a b ≻ c d` | Rank the sequence `a b` above `c d`. |
 | `(a ≻ b) c` | Rank the child before the common suffix `c`. |
-| `a & b ≻ c` | Rank the conjunction above `c`. |
+| `a & b ≻ c` | Rank `a & b` above `c`. |
 | `a ≻ (b \| c)` | Rank `a` above either lower branch. The lower branches share one rank. |
 | `(a \| b) ≻ c` | Either higher branch removes `c` over the same span. |
 | `(a ≻ b) \| c` | Keep `c` outside the ranked group. |
@@ -358,7 +358,7 @@ Thus `a | b ≻ c` and `a ≻ b | c` require parentheses. A whole rule body can 
 
 After header clauses, `|` introduces an ordinary body or one ranked alternative. A rule with header clauses can therefore write `| a ≻ b` without parentheses. Its document object model (DOM) contains the same ranked expression as `a ≻ b`.
 
-Every ranked expression needs at least two operands. `ε` supplies an explicit empty operand. Each operand is a complete conjunction expression. `≻` has no operator meaning inside strings, conditions, or tree patterns.
+Every ranked expression needs at least two operands. `ε` supplies an explicit empty operand. Each operand is a complete `&` expression. `≻` has no operator meaning inside strings, conditions, or tree patterns.
 
 Optionals and repetitions accept ranked content in their expression positions. A repetition separator can contain a ranked group too. Repetition items must still read at least one token. An elidable optional still requires its leading terminal.
 
@@ -416,9 +416,9 @@ One name has one role across the pipeline: a gate, a warning code, or an error c
 
 A pipeline that extends another pipeline can use gates and warnings for different kinds of change. An addition is a text that the base grammar rejects and the pipeline accepts. A warning can mark an addition, so that a reader can learn which additions a text relies on. Among the bundled pipelines, `lojban/experimental` enables `experimental-cgv` by default. When callers need other bundled warnings, they enable those codes.
 
-A change to how the pipeline reads a text of the base cannot be a warning. The change removes the base reading, and a warning changes nothing that the grammar accepts or chooses. So a gate can guard such a change, with the base form under `¬name?` beside it. The pipeline can declare the gate as an unconditional default. A caller who wants the base reading can disable that default.
+A change to how the pipeline reads a text of the base cannot be a warning. The change removes the base reading, and a warning changes nothing that the grammar accepts or chooses. So a gate can control such a change, with the base form under `¬name?` beside it. The pipeline can declare the gate as an unconditional default. A caller who wants the base reading can disable that default.
 
-The bundled pipelines do not guard every change. The bundled Lojban warnings are `y-cmavo` in `lojban/cll` and `experimental-cgv` in `lojban/experimental`. The experimental syntax additions carry no warning. A pipeline also makes a change without a gate where a feature needs a convoluted grammar to keep the change separate. The documents of the pipeline then say so.
+The bundled pipelines do not put every change behind a gate. The bundled Lojban warnings are `y-cmavo` in `lojban/cll` and `experimental-cgv` in `lojban/experimental`. The experimental syntax additions carry no warning. A pipeline also makes a change without a gate where a feature needs a convoluted grammar to keep the change separate. The documents of the pipeline then say so.
 
 ## Splices
 
@@ -462,7 +462,7 @@ In that convention, a moved guard uses `$.following-tokens` after the opener, ne
 
 A chosen occurrence raises its diagnostic in its own stage. Spliced calls retain their spans, and each chain level counts separately. Failing conditions create no occurrence. The stage evaluates messages once after choice, before emission.
 
-Disabled and suppressed warnings evaluate none. Queries, recognition, ranking, and reconstruction evaluate no messages. No message recipe can fail today. Engine §12.1 defines the guard for a failure.
+Disabled and suppressed warnings evaluate none. Queries, recognition, ranking, and reconstruction evaluate no messages. The recipe language has no message that can fail. Engine §12.1 defines the guard for a failure.
 
 A diagnostic travels on one emitted token to later stages. Its message and coordinates remain those of its raising stage. An erased carrier drops it. A stage that emits no tokens retains its diagnostics at stage level. The reporting stage is the caller's `until` stage, or the pipeline's last stage.
 
@@ -964,7 +964,7 @@ Implications apply only to the tokens that the stage emits. They do not change a
 
 Writing `$name:symbol` captures one symbol of a body. The symbol can carry a tag test followed by a value test. A capture gives the matched part a name for conditions, tags, and recipes. Its name starts lowercase and contains lowercase letters, digits, hyphens, or underscores.
 
-A capture wraps one symbol. A capture cannot stand directly in a chain's item or separator. An elidable optional accepts only its sole-terminator capture. A capture can stand in a group, choice, `&` item, plain optional, or flat braces, at any depth. Inside flat braces it is an item capture, which "Item captures" below explains.
+A capture wraps one symbol. A capture cannot stand directly in a chain's item or separator. An elidable optional accepts only the capture of its sole terminator, as `[$j:+JI]`. A capture can stand in a group, choice, `&` item, plain optional, or flat braces, at any depth. Inside flat braces it is an item capture, which "Item captures" below explains.
 
 A name can stand at most once in each production (below), so two branches of a choice can capture one name, as two alternatives can. `A ($x:B | $x:C)` is valid, but `[$x:A] $x:B` and `$x:A & $x:B` are errors, because one of their productions reads `$x` twice. Before gates apply, gencmu makes sure that each capture name occurs at most once per production. A gate does not excuse a repeated capture. An alternative can have any number of captures, but each one has a cost (below). `$` alone is the whole constituent, a capture that every alternative has without writing it.
 
@@ -1261,7 +1261,7 @@ Engine §4 gives the exact bounds, proof rules, and cache identity.
 
 A family is an ordinary rule or one exact instance. Its members are the rule itself and, transitively, every rule that a member reaches through a member edge. A member edge is one written way to read exactly one rule reference in an alternative. It can pass through captures, tests, parentheses and the branches of choices. It cannot pass through a sequence, an optional, braces, `&` or a ranked group. So `m`, `$z:m` and `(m | z)` make `m` a member, while `[m]`, `[$z:m]` and `m Z` do not.
 
-The members come from the rules as written. Guards do not matter, so every alternative counts.
+The members come from the rules as written. Gates do not matter, so every alternative counts.
 
 Name only the constructs whose closes the query permits. A family that names a broad rule permits the closes of every rule that its closure reaches. For example, in the syntax grammar of `lojban/zantufa`, a family `mex-2` takes in `operand`, so it permits BOI. The `audit` command lists each family's members and the optionals that it permits.
 

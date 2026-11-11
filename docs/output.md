@@ -28,7 +28,7 @@ General-category tags use long names in token tags, node tags, terminals, expect
 
 A `reported` result retains the chosen tree. With `ok:true`, `error` is `null`. With no parse warning, `warnings` is absent (engine §12, §13).
 
-No message recipe can fail today. Engine §12.1 defines the guard for a failure.
+The recipe language has no message that can fail. Engine §12.1 defines the guard for a failure.
 
 A stage has one of these forms:
 

@@ -547,7 +547,7 @@ Set `%ambiguity-resolution` in the replacement stage. That directive specifies h
 
 ### Add a feature
 
-If your change needs a switch, guard its alternative with `name?`. Add `%features name` before the first `%stage` to enable it by default in every stage.
+If your change needs a switch, gate its alternative with `name?`. Add `%features name` before the first `%stage` to enable it by default in every stage.
 
 Use `--feature name` to enable a feature. Use `--no-feature name` to disable it.
 
@@ -557,7 +557,7 @@ Give `%warning` one message recipe after `%conditions`. Put `%suppress-warnings`
 
 A warning changes no accepted reading or chosen tree. Callers enable or disable its code with the feature controls. `%suppress-warnings code` suppresses it within one subtree, and `_` suppresses all warning codes.
 
-For an invalid construct, use `%error` only where its message says more than the default rejection, or says the same more briefly. The engine prefers least source blame, then fewest sourceless errors, then most total errors, before grammar ranking. Earlier stages emit and continue despite chosen errors. A reported result keeps the chosen tree, verdict, and reporting-stage output.
+For invalid constructs, use `%error` only for messages that add information or state the default rejection more briefly. The engine prefers least source blame, then fewest sourceless errors, then most total errors, before grammar ranking. Earlier stages emit and continue despite chosen errors. A reported result keeps the chosen tree, verdict, and reporting-stage output.
 
 Use `--` for comments inside grammar blocks. A comment ends at LF, CRLF, CR, or the file end. A string retains literal `--`. The notation has no block comment form.
 

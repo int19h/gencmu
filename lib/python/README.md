@@ -24,7 +24,7 @@ A pipeline document lists the stages and the grammar documents that define a pip
 
 - `load_pipeline(name)` loads a pipeline of the bundled grammars. `name` is the directory path `NAME` of `grammars/NAME/pipeline.md`.
 - `load_pipeline_file(path)` loads a pipeline document from disk. The loader finds its grammar documents relative to it. The Unicode table and the bootstrap of the notation come from the bundled resources.
-- `load_pipeline_sources(sources, pipeline)` loads documents held in memory. `sources` is a mapping from `/`-separated path to text, and `pipeline` is the path of the pipeline document in it. The mapping can hold its own `data/unicode/unicode.txt`, `data/preparsed/FAMILY.json`. The bundled ones fill in what it lacks. A `data/unicode/unicode.txt` in the map replaces the bundled table entirely, White_Space included (`docs/api.md`).
+- `load_pipeline_sources(sources, pipeline)` loads documents held in memory. `sources` is a mapping from `/`-separated path to text, and `pipeline` is the path of the pipeline document in it. The mapping can hold its own `data/unicode/unicode.txt` and `data/preparsed/FAMILY.json` files. The bundled ones fill in what it lacks. A `data/unicode/unicode.txt` in the map replaces the bundled table entirely, White_Space included (`docs/api.md`).
 
 The loader reads a grammar document through the notation only when the family's `data/preparsed/FAMILY.json` has no matching entry. The notation is the grammar of grammar documents. The cache stores parsed DOMs. Each entry requires matching document, bootstrap, Unicode, properties, and required names fingerprints. Fingerprints use 64-bit FNV-1a over resource text. The bundled preparsed data includes cache entries.
 
@@ -101,7 +101,7 @@ The final stage, or the stage that `until` names, collects diagnostics in preord
 
 Collected errors give a `reported` result with named reports in `error.errors`. The reporting stage keeps its tree, output, and verdict. Other error results have a null result tree. An error that directly forms a ranked option can retain default rejection evidence in `rejection`.
 
-No message recipe can fail today. Engine §12.1 defines the guard for a failure.
+The recipe language has no message that can fail. Engine §12.1 defines the guard for a failure.
 
 Verdicts count only derivations with the best three-part measure. The measure minimizes blamed source width, then errors without a source, then maximizes the error count. An error retains its fixed charge across stages. `%erased` collapses equal completed observable states and keeps one interior for their shown tree.
 

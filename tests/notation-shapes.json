@@ -837,7 +837,7 @@
       }
     },
     {
-      "description": "A missing definer precedes an invalid category (engine §9).",
+      "description": "A missing rule keyword precedes an invalid category (engine §9).",
       "find": "{\"name\":\"rule\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"rule-keyword\"},{\"choice\":[{\"ref\":\"rule-name\"},{\"ref\":\"call\"}]},{\"choice\":[{\"seq\":[{\"literal\":{\"string\":\"=\"}},{\"ref\":\"call\"}]},{\"seq\":[{\"choice\":[{\"ref\":\"body\"},{\"seq\":[{\"ref\":\"header-clauses\"},{\"ref\":\"headed-body\"}]}]},{\"optional\":{\"ref\":\"conditions-clause\"}},{\"optional\":{\"ref\":\"diagnostic-clause\"}},{\"optional\":{\"ref\":\"suppress-warnings-clause\"}},{\"optional\":{\"ref\":\"output-clause\"}}]}]}]}}],\"conditions\":[],\"at\":[*]}",
       "replace": "{\"name\":\"rule\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"KW-RULE\"},{\"ref\":\"rule-name\"},{\"ref\":\"body\"}]}}],\"conditions\":[],\"at\":[*]}",
       "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A               \n```\n",
@@ -882,7 +882,7 @@
       }
     },
     {
-      "description": "A definer without its token precedes a missing rule-name (engine §9).",
+      "description": "A rule keyword without its token precedes a missing rule-name (engine §9).",
       "find": "{\"name\":\"rule\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"rule-keyword\"},{\"choice\":[{\"ref\":\"rule-name\"},{\"ref\":\"call\"}]},{\"choice\":[{\"seq\":[{\"literal\":{\"string\":\"=\"}},{\"ref\":\"call\"}]},{\"seq\":[{\"choice\":[{\"ref\":\"body\"},{\"seq\":[{\"ref\":\"header-clauses\"},{\"ref\":\"headed-body\"}]}]},{\"optional\":{\"ref\":\"conditions-clause\"}},{\"optional\":{\"ref\":\"diagnostic-clause\"}},{\"optional\":{\"ref\":\"suppress-warnings-clause\"}},{\"optional\":{\"ref\":\"output-clause\"}}]}]}]}}],\"conditions\":[],\"at\":[*]},{\"name\":\"rule-keyword\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"ref\":\"KW-RULE\"}},{\"gates\":[],\"expr\":{\"ref\":\"KW-REDEFINE-RULE\"}},{\"gates\":[],\"expr\":{\"ref\":\"KW-EXTEND-RULE\"}}],\"conditions\":[],\"at\":[*]}",
       "replace": "{\"name\":\"rule\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"KW-RULE\"},{\"ref\":\"rule-keyword\"},{\"ref\":\"Identifier\"},{\"ref\":\"body\"}]}}],\"conditions\":[],\"at\":[*]},{\"name\":\"rule-keyword\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"ref\":\"rule-name\"}}],\"conditions\":[],\"at\":[*]}",
       "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule wrong text A\n```\n",

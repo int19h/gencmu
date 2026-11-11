@@ -14,7 +14,9 @@ The rule names identify reader constructors. Engine §9.3 defines their conversi
 
 ## Choosing among readings
 
-The syntax stage receives complete tokens without layout. The reader folds each method chain from left to right.
+The syntax stage receives complete tokens without layout.
+
+Greedy ranking makes each `recipe-term` take the longest term, so `:= "a" "b"` holds one string run. The reader then rejects it and asks for `++`.
 
 A keyword begins every declaration. Inside each declaration, punctuation and lexical categories determine where its lists end.
 
@@ -159,7 +161,7 @@ A choice uses `|` or `≻` at one level, never both. `&` joins sequences, and ea
 
 A primary is a symbol, capture, tested primary, group, optional, repetition, or `ε`. Lowercase names and valid emoji names reference rules. Uppercase names and engine tags read tagged tokens.
 
-Strings and string constants read exact values. A range reads one scalar between its endpoints. The wildcard `_` reads any token, so `tag` excludes it.
+Strings and string constants read exact values. A range reads one scalar between its endpoints. The wildcard `_` reads any token. The lexical stage gives the bare `_` no `Engine-Tag`, so `tag` never reads it.
 
 Parentheses group a choice. Brackets make it optional, and `+` marks an elidable optional. Braces repeat a choice, with an optional separator after `/`.
 
@@ -252,7 +254,7 @@ Recognition also admits invalid capture targets. A captured terminator has its o
 
 ## Symbol tests
 
-A `tested-primary` primary holds its base and all following tests in written order. Tests after a capture binder belong to its target.
+A `tested-primary` holds its base and all following tests in written order. Tests after a capture binder belong to its target.
 
 Valid symbols accept a tag test followed by a value test. Recognition admits extra tests, reversed tests, and wider operands so that the reader can name their errors.
 
@@ -434,6 +436,8 @@ This wider recognition lets the reader reject a written operator or forbidden me
 ## Terms and methods
 
 A term can be a string, a set, a pattern, a capture, a span, or a method result. Its context determines the type of `∅`.
+
+The reader folds each `method-chain` from left to right.
 
 `++` binds tighter than `∩`, which binds tighter than `∪` and `∖`. These operators group from the left. Adjacent tags or strings form one union. In terms and constants, string runs bind tighter than concatenation.
 
@@ -780,7 +784,7 @@ Recognition accepts wider arguments than each directive permits. The reader reje
 
 `%features` alone accepts a following `%conditions` clause. The loader requires a selected stage for that clause.
 
-`%include` takes exactly one quoted path. Its first argument uses literal path decoding. An include path cannot serve as a method receiver.
+`%include` takes exactly one quoted path. Its first argument uses literal path decoding. A resource path cannot serve as a method receiver.
 
 `%names` takes one quoted path and stands before every other statement. Its names apply to the document and to the documents that it includes. A names file that an included document declares does not apply after that include ends.
 
