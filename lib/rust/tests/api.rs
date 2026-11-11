@@ -1614,7 +1614,7 @@ fn empty_key_step_is_impossible() {
     let p = gencmu::load_pipeline_sources(single(source), "p.md").unwrap();
     let reports = p.ranking_reports();
     assert_eq!(reports[0].key_steps[0].status, "impossible");
-    assert_eq!(reports[0].key_steps[0].pattern, "∅");
+    assert_eq!(reports[0].key_steps[0].pattern, "#∅");
     assert_eq!(reports[0].key_steps[1].status, "impossible");
     assert_eq!(reports[0].key_steps[1].pattern, "#(·text ∩ ∅)");
 }

@@ -24291,7 +24291,7 @@
     "malformed": false
   },
   {
-    "description": "The resolved empty pattern cannot carry an exact prefix.",
+    "description": "The empty pattern cannot carry an exact prefix.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -25137,5 +25137,1079 @@
       ]
     },
     "malformed": false
+  },
+  {
+    "description": "A left operand fault precedes a forbidden selector on the right.",
+    "dom": {
+      "format": 51,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "ref": "x"
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            3,
+            1
+          ]
+        },
+        {
+          "name": "x",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "literal": {
+                  "string": "a"
+                }
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            4,
+            1
+          ]
+        }
+      ],
+      "directives": [
+        {
+          "name": "ambiguity-resolution",
+          "steps": [
+            {
+              "step": "greedy"
+            }
+          ],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "constants": [],
+      "classifiers": [],
+      "implications": [],
+      "checks": [
+        {
+          "name": "c",
+          "pattern": {
+            "name": "x",
+            "exact": true,
+            "at": [
+              5,
+              12
+            ]
+          },
+          "conditions": [
+            {
+              "op": "≅",
+              "left": {
+                "method": "value",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": []
+              },
+              "right": {
+                "method": "terminal",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": []
+              }
+            }
+          ],
+          "warning": {
+            "concat": [
+              {
+                "string": "bad"
+              },
+              {
+                "method": "value",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": []
+              }
+            ]
+          },
+          "at": [
+            5,
+            1
+          ]
+        }
+      ]
+    },
+    "malformed": true,
+    "message": "a tree comparison requires a node on its left"
+  },
+  {
+    "description": "A left operand fault precedes restoration on the right.",
+    "dom": {
+      "format": 51,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "ref": "x"
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            3,
+            1
+          ]
+        },
+        {
+          "name": "x",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "literal": {
+                  "string": "a"
+                }
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            4,
+            1
+          ]
+        }
+      ],
+      "directives": [
+        {
+          "name": "ambiguity-resolution",
+          "steps": [
+            {
+              "step": "greedy"
+            }
+          ],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "constants": [],
+      "classifiers": [],
+      "implications": [],
+      "checks": [
+        {
+          "name": "c",
+          "pattern": {
+            "name": "x",
+            "exact": true,
+            "at": [
+              5,
+              12
+            ]
+          },
+          "conditions": [
+            {
+              "op": "≅",
+              "left": {
+                "method": "value",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": []
+              },
+              "right": {
+                "method": "without-elision",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": []
+              }
+            }
+          ],
+          "warning": {
+            "concat": [
+              {
+                "string": "bad"
+              },
+              {
+                "method": "value",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": []
+              }
+            ]
+          },
+          "at": [
+            5,
+            1
+          ]
+        }
+      ]
+    },
+    "malformed": true,
+    "message": "a tree comparison requires a node on its left"
+  },
+  {
+    "description": "A receiver capture fault precedes a forbidden selector.",
+    "dom": {
+      "format": 51,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "ref": "x"
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            3,
+            1
+          ]
+        },
+        {
+          "name": "x",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "literal": {
+                  "string": "a"
+                }
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            4,
+            1
+          ]
+        }
+      ],
+      "directives": [
+        {
+          "name": "ambiguity-resolution",
+          "steps": [
+            {
+              "step": "greedy"
+            }
+          ],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "constants": [],
+      "classifiers": [],
+      "implications": [],
+      "checks": [
+        {
+          "name": "c",
+          "pattern": {
+            "name": "x",
+            "exact": true,
+            "at": [
+              5,
+              12
+            ]
+          },
+          "conditions": [
+            {
+              "op": "≅",
+              "left": {
+                "method": "terminal",
+                "receiver": {
+                  "capture": "x"
+                },
+                "args": []
+              },
+              "right": {
+                "capture": ""
+              }
+            }
+          ],
+          "warning": {
+            "concat": [
+              {
+                "string": "bad"
+              },
+              {
+                "method": "value",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": []
+              }
+            ]
+          },
+          "at": [
+            5,
+            1
+          ]
+        }
+      ]
+    },
+    "malformed": true,
+    "message": "a check cannot name a capture"
+  },
+  {
+    "description": "A faulty receiver selector precedes its outer forbidden selector.",
+    "dom": {
+      "format": 51,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "ref": "x"
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            3,
+            1
+          ]
+        },
+        {
+          "name": "x",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "literal": {
+                  "string": "a"
+                }
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            4,
+            1
+          ]
+        }
+      ],
+      "directives": [
+        {
+          "name": "ambiguity-resolution",
+          "steps": [
+            {
+              "step": "greedy"
+            }
+          ],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "constants": [],
+      "classifiers": [],
+      "implications": [],
+      "checks": [
+        {
+          "name": "c",
+          "pattern": {
+            "name": "x",
+            "exact": true,
+            "at": [
+              5,
+              12
+            ]
+          },
+          "conditions": [
+            {
+              "op": "≅",
+              "left": {
+                "method": "terminal",
+                "receiver": {
+                  "method": "value",
+                  "receiver": {
+                    "capture": ""
+                  },
+                  "args": [
+                    {
+                      "string": "x"
+                    }
+                  ]
+                },
+                "args": []
+              },
+              "right": {
+                "capture": ""
+              }
+            }
+          ],
+          "warning": {
+            "concat": [
+              {
+                "string": "bad"
+              },
+              {
+                "method": "value",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": []
+              }
+            ]
+          },
+          "at": [
+            5,
+            1
+          ]
+        }
+      ]
+    },
+    "malformed": true,
+    "message": "a method has the wrong receiver or arguments"
+  },
+  {
+    "description": "A forbidden selector precedes a capture fault in its argument.",
+    "dom": {
+      "format": 51,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "ref": "x"
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            3,
+            1
+          ]
+        },
+        {
+          "name": "x",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "literal": {
+                  "string": "a"
+                }
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            4,
+            1
+          ]
+        }
+      ],
+      "directives": [
+        {
+          "name": "ambiguity-resolution",
+          "steps": [
+            {
+              "step": "greedy"
+            }
+          ],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "constants": [],
+      "classifiers": [],
+      "implications": [],
+      "checks": [
+        {
+          "name": "c",
+          "pattern": {
+            "name": "x",
+            "exact": true,
+            "at": [
+              5,
+              12
+            ]
+          },
+          "conditions": [
+            {
+              "op": "≅",
+              "left": {
+                "method": "terminal",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": [
+                  {
+                    "capture": "x"
+                  }
+                ]
+              },
+              "right": {
+                "capture": ""
+              }
+            }
+          ],
+          "warning": {
+            "concat": [
+              {
+                "string": "bad"
+              },
+              {
+                "method": "value",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": []
+              }
+            ]
+          },
+          "at": [
+            5,
+            1
+          ]
+        }
+      ]
+    },
+    "malformed": true,
+    "message": "a check method is outside its permitted clause"
+  },
+  {
+    "description": "A message receiver capture fault precedes its selector.",
+    "dom": {
+      "format": 51,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "ref": "x"
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            3,
+            1
+          ]
+        },
+        {
+          "name": "x",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "literal": {
+                  "string": "a"
+                }
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            4,
+            1
+          ]
+        }
+      ],
+      "directives": [
+        {
+          "name": "ambiguity-resolution",
+          "steps": [
+            {
+              "step": "greedy"
+            }
+          ],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "constants": [],
+      "classifiers": [],
+      "implications": [],
+      "checks": [
+        {
+          "name": "c",
+          "pattern": {
+            "name": "x",
+            "exact": true,
+            "at": [
+              5,
+              12
+            ]
+          },
+          "conditions": [],
+          "warning": {
+            "concat": [
+              {
+                "method": "terminal",
+                "receiver": {
+                  "capture": "x"
+                },
+                "args": []
+              }
+            ]
+          },
+          "at": [
+            5,
+            1
+          ]
+        }
+      ]
+    },
+    "malformed": true,
+    "message": "a check cannot name a capture"
+  },
+  {
+    "description": "An empty atom rejects a zero position.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "≅",
+          "left": {
+            "capture": ""
+          },
+          "right": {
+            "pattern": {
+              "never": true,
+              "at": [
+                0,
+                1
+              ]
+            }
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true,
+    "message": "a malformed empty pattern"
+  },
+  {
+    "description": "An empty atom requires never to be true.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "≅",
+          "left": {
+            "capture": ""
+          },
+          "right": {
+            "pattern": {
+              "never": false
+            }
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true,
+    "message": "a malformed empty pattern"
+  },
+  {
+    "description": "An empty atom rejects another node form.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "≅",
+          "left": {
+            "capture": ""
+          },
+          "right": {
+            "pattern": {
+              "never": true,
+              "wildcard": true
+            }
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true,
+    "message": "a malformed empty pattern"
+  },
+  {
+    "description": "A check DOM cannot use a private term constructor as a method.",
+    "dom": {
+      "format": 51,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "ref": "x"
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            3,
+            1
+          ]
+        },
+        {
+          "name": "x",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "literal": {
+                  "string": "a"
+                }
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            4,
+            1
+          ]
+        }
+      ],
+      "directives": [
+        {
+          "name": "ambiguity-resolution",
+          "steps": [
+            {
+              "step": "greedy"
+            }
+          ],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "constants": [],
+      "classifiers": [],
+      "implications": [],
+      "checks": [
+        {
+          "name": "c",
+          "pattern": {
+            "name": "x",
+            "exact": true,
+            "at": [
+              5,
+              12
+            ]
+          },
+          "conditions": [
+            {
+              "nonempty": {
+                "method": "requirements",
+                "receiver": {
+                  "tag": "X"
+                },
+                "args": []
+              }
+            }
+          ],
+          "warning": {
+            "concat": [
+              {
+                "string": "bad"
+              },
+              {
+                "method": "value",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": []
+              }
+            ]
+          },
+          "at": [
+            5,
+            1
+          ]
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A check recipe cannot use a nested concatenation as one atom.",
+    "dom": {
+      "format": 51,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "ref": "x"
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            3,
+            1
+          ]
+        },
+        {
+          "name": "x",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "literal": {
+                  "string": "a"
+                }
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            4,
+            1
+          ]
+        }
+      ],
+      "directives": [
+        {
+          "name": "ambiguity-resolution",
+          "steps": [
+            {
+              "step": "greedy"
+            }
+          ],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "constants": [],
+      "classifiers": [],
+      "implications": [],
+      "checks": [
+        {
+          "name": "c",
+          "pattern": {
+            "name": "x",
+            "exact": true,
+            "at": [
+              5,
+              12
+            ]
+          },
+          "conditions": [],
+          "warning": {
+            "concat": [
+              {
+                "concat": [
+                  {
+                    "string": "a"
+                  },
+                  {
+                    "string": "b"
+                  }
+                ]
+              }
+            ]
+          },
+          "at": [
+            5,
+            1
+          ]
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A receiver capture fault precedes a binder fault in a query argument.",
+    "dom": {
+      "format": 51,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "ref": "x"
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            3,
+            1
+          ]
+        },
+        {
+          "name": "x",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "literal": {
+                  "string": "a"
+                }
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            4,
+            1
+          ]
+        }
+      ],
+      "directives": [
+        {
+          "name": "ambiguity-resolution",
+          "steps": [
+            {
+              "step": "greedy"
+            }
+          ],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "constants": [],
+      "classifiers": [],
+      "implications": [],
+      "checks": [
+        {
+          "name": "c",
+          "pattern": {
+            "name": "x",
+            "exact": true,
+            "at": [
+              5,
+              12
+            ]
+          },
+          "conditions": [
+            {
+              "method": "parse",
+              "receiver": {
+                "capture": "x"
+              },
+              "args": [
+                {
+                  "body": {
+                    "capture": "y",
+                    "expr": {
+                      "ref": "text"
+                    }
+                  }
+                }
+              ]
+            }
+          ],
+          "warning": {
+            "concat": [
+              {
+                "string": "bad"
+              },
+              {
+                "method": "value",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": []
+              }
+            ]
+          },
+          "at": [
+            5,
+            1
+          ]
+        }
+      ]
+    },
+    "malformed": true,
+    "message": "a check cannot name a capture"
   }
 ]

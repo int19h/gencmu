@@ -293,7 +293,7 @@ class Options(unittest.TestCase):
         pipeline = gencmu.load_pipeline_sources({'p.md': source}, 'p.md')
         step = pipeline.ranking_reports()[0]['keySteps'][0]
         self.assertEqual(step['status'], 'impossible')
-        self.assertEqual(step['pattern'], '∅')
+        self.assertEqual(step['pattern'], '#∅')
         nested=pipeline.ranking_reports()[0]['keySteps'][1]
         self.assertEqual(nested['status'], 'impossible')
         self.assertEqual(nested['pattern'], '#(·text ∩ ∅)')

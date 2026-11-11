@@ -3243,6 +3243,10 @@ enum MethodKind {
 }
 
 /// The signature family of a supported method.
+pub(crate) fn is_known_method(name: &str) -> bool {
+    known_method(name).is_some()
+}
+
 fn known_method(name: &str) -> Option<MethodKind> {
     Some(match name {
         "parent" | "preceding-node" | "following-node" => MethodKind::CheckNode,

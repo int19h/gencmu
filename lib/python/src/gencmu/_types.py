@@ -289,20 +289,16 @@ def test_type_problem(op: str, kind: TermType) -> str | None:
     return f"{op} tests {'a string' if value else 'a tag set'}: {problem}"
 
 
-def check_constants(constants: ConstantTypes = _unknown_constants):
+def check_constants(constants: ConstantTypes = _unknown_constants, recipe=False):
     def types(name):
         return constants(name)
     types.check_nodes = True
+    types.check_recipe = recipe
     return types
 
 
 def check_type_fault(check, constants: ConstantTypes = _unknown_constants):
     from ._clauses import has_bare_empty_set
-    for node in nodes([check["conditions"], check.get("error", check.get("warning"))]):
-        if any(isinstance(node.get(key), str) and node[key] for key in ("capture", "captured")):
-            return "a check cannot name a capture", node
-        if node.get("method") in ("without-elision", "without-elision-except"):
-            return "a check cannot restore elision", node
     types, memo = check_constants(constants), {}
     for condition in check["conditions"]:
         if has_bare_empty_set(condition):
@@ -311,10 +307,9 @@ def check_type_fault(check, constants: ConstantTypes = _unknown_constants):
         if fault is not None:
             return fault
     recipe = check.get("error", check.get("warning"))
-    for atom in recipe["concat"]:
-        if "method" in atom and (atom["receiver"] != {"capture": ""} or atom["method"] == "emitted"):
-            return "a check message reads only $", atom
-    return term_type_fault(recipe, types, memo)[1]
+    message_types = check_constants(constants)
+    message_types.check_recipe = True
+    return term_type_fault(recipe, message_types, {})[1]
 
 
 def term_type_fault(term: Any, constants: ConstantTypes = _unknown_constants, memo: Optional[Memo] = None) -> FoundFault:
@@ -391,6 +386,8 @@ def _term_typing_once(term: Any, constants: ConstantTypes, memo: Memo) -> Walk:
     if term.get("emptySet") is True:
         return "set", None
     if isinstance(term.get("capture"), str):
+        if getattr(constants, "check_nodes", False) and term["capture"]:
+            return None, ("a check cannot name a capture", term)
         return ("node" if getattr(constants, "check_nodes", False) else "capture"), None
     if "concat" in term:
         for part in term["concat"]:
@@ -432,6 +429,20 @@ def _term_typing_once(term: Any, constants: ConstantTypes, memo: Memo) -> Walk:
         kind, fault = yield _term_typing(term["receiver"], constants, memo)
         if fault is not None:
             return None, fault
+        if getattr(constants, "check_nodes", False):
+            message = getattr(constants, "check_recipe", False)
+            if name in _NODE_METHODS | {"preceding-element", "local-readings", "terminal"} and (not message if name == "terminal" else message):
+                return None, ("a check method is outside its permitted clause", term)
+            if name in ("without-elision", "without-elision-except"):
+                return None, ("a check cannot restore elision", term)
+            if name == "emitted":
+                return None, ("a method has the wrong receiver or arguments", term)
+            if message and term["receiver"] != {"capture": ""}:
+                return None, ("a check message reads only $", term)
+            from ._query_forms import query_capture, query_body
+            for arg in term["args"]:
+                if "body" in arg and query_capture(query_body(arg["body"])[0]):
+                    return None, ("a check cannot declare a capture", arg)
         recipe = name in ("verbatim-text", "emitted", "terminal") or kind == "emitted"
         selection_kind = "capture" if kind == "any" and has_unresolved(term["receiver"]) else kind
         nominal = name in ("tags", "followed-by", "preceded-by", "without-elision-except")
@@ -481,6 +492,8 @@ def _condition_typing(condition: Any, constants: ConstantTypes, memo: Memo) -> W
 
 
 def _condition_typing_once(condition: Any, constants: ConstantTypes, memo: Memo) -> Walk:
+    if getattr(constants, "check_nodes", False) and isinstance(condition.get("captured"), str) and condition["captured"]:
+        return "a check cannot name a capture", condition
     if not isinstance(condition, dict):
         return "a malformed condition", condition
     items = condition.get("any", condition.get("all"))

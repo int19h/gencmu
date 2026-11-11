@@ -474,6 +474,7 @@ func directiveOperandsOK(dir *domDirective) bool {
 
 type domChecker struct {
 	check           bool
+	checkRecipe     bool
 	parseBody       bool
 	expanded        bool
 	parameters      map[string]bool
@@ -1404,7 +1405,11 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 			return
 		}
 		if queryCapture(core) != nil {
-			c.fail("a parse argument cannot declare captures")
+			if c.check {
+				c.fail("a check cannot declare a capture")
+			} else {
+				c.fail("a parse argument cannot declare captures")
+			}
 			return
 		}
 		nested := false
@@ -1535,6 +1540,12 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		// Span methods stand only where a span is allowed, and the query
 		// methods never as terms.
 		args := t.Items
+		if c.check && len(args) > 0 {
+			c.term(args[0], depth+1, true)
+			if c.problem != nil {
+				return
+			}
+		}
 		isRule := func(a *domTerm) bool { return a != nil && (unresolvedTerm(a) || a.Kind == tmRule && c.ruleName(a.Str)) }
 		isClassifier := func(a *domTerm) bool {
 			return a != nil && a.Kind == tmClassifier && classifierName.MatchString(a.Str)
@@ -1550,7 +1561,7 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 			c.fail("a check cannot restore elision")
 			return
 		}
-		if c.check && (t.Str == "emitted" || t.Str == "terminal") {
+		if c.check && ((t.Str == "terminal" && !c.checkRecipe) || c.checkRecipe && (sourceMethods[t.Str] == methodNode || sourceMethods[t.Str] == methodElement || sourceMethods[t.Str] == methodLocal)) {
 			c.fail("a check method is outside its permitted clause")
 			return
 		}
@@ -1558,8 +1569,15 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 			c.fail("an element has no tags, walk, or boundary method")
 			return
 		}
+		if c.checkRecipe && len(args) > 0 && (args[0].Kind != tmCapture || args[0].Str != "") {
+			c.fail("a check message reads only $")
+			return
+		}
 		var ok bool
 		switch t.Str {
+		case "terminal":
+			ok = c.checkRecipe && len(args) == 1 && args[0].Kind == tmCapture && args[0].Str == ""
+
 		case "parent", "preceding-node", "following-node", "preceding-element":
 			ok = c.check && len(args) == 1 && checkNodeTerm(args[0])
 		case "local-readings":
@@ -1606,14 +1624,21 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 			ok = len(args) == 2 && valueOperand(args[0]) && isClassifier(args[1])
 		}
 		if !ok {
-			c.fail("a malformed call of %q", t.Str)
+			if c.check {
+				c.fail("a method has the wrong receiver or arguments")
+			} else {
+				c.fail("a malformed call of %q", t.Str)
+			}
 			return
 		}
 		if msg := literalCallProblem(t.Str, args); msg != "" && !c.deferTypes {
 			c.fail("%s", msg)
 			return
 		}
-		for _, a := range args {
+		for index, a := range args {
+			if c.check && index == 0 {
+				continue
+			}
 			if a.Kind == tmBody && t.Str == "parse" {
 				previous := c.parseBody
 				c.parseBody = true

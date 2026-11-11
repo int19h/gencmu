@@ -105,6 +105,7 @@ class DomBuilder:
         self.recipe_context = False
         self.check_context = False
         self.check_types = check_constants()
+        self.check_message_types = check_constants(recipe=True)
         self.default_head = None
         self.head_default = None
         self.default_node = None
@@ -253,7 +254,7 @@ class DomBuilder:
 
     def term_type(self, term, *, memo=None):
         if self.check_context:
-            return term_type(term, self.check_types, memo)
+            return term_type(term, self.check_message_types if self.recipe_context else self.check_types, memo)
         return term_type(term, memo=memo)
 
     def check(self, node):

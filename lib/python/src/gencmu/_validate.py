@@ -691,7 +691,7 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: l
                         and isinstance(receiver["receiver"], dict)
                         and set(receiver["receiver"]) == {"capture"}
                     )
-                    if not valid:
+                    if not valid and id(atom) not in check_nodes:
                         return "a recipe requires one of its seven captured string methods"
                     pending.append(("recipe-method", atom, below, False, False))
                 else:
@@ -742,20 +742,18 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: l
             if keys != {"method", "receiver", "args"} or not isinstance(node["method"], str) or not isinstance(node["args"], list):
                 return "a malformed method"
             recipe = kind == "recipe-method"
-            if node["method"] in _CHECK_METHODS and (id(node) not in check_nodes or node["method"] == "terminal" and not recipe):
+            if node["method"] in _CHECK_METHODS and id(node) not in check_nodes:
                 return "a check method is outside its permitted clause"
-            if id(node) in check_nodes and node["method"] in ("without-elision", "without-elision-except"):
-                return "a check cannot restore elision"
             if node['method'] not in _METHODS:
                 return 'unknown method name'
             if node['method'] in ('classify', 'ngrams') and has_unresolved(node['args']):
                 return 'a parameter cannot replace a classifier name or integer argument'
-            problem = method_shape_problem(node["method"], node.get("receiver"), node["args"], recipe)
+            problem = None if id(node) in check_nodes else method_shape_problem(node["method"], node.get("receiver"), node["args"], recipe)
             if problem:
                 return problem
             if kind != "condition" and node["method"] in ("starts-input", "ends-input", "followed-by", "preceded-by"):
                 return "a predicate method cannot supply a value"
-            if not recipe and (
+            if id(node) not in check_nodes and not recipe and (
                 node["method"] in ("verbatim-text", "emitted")
             ):
                 return "a recipe-only method outside a recipe"
@@ -773,13 +771,13 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: l
                     body, mode, problem = query_body(arg["body"])
                     if problem:
                         return problem
-                    if query_capture(body):
+                    if id(node) not in check_nodes and query_capture(body):
                         return "a parse argument cannot declare captures"
                     # A stripped outer sequence charges one level, however
                     # many remainder leaves it held (engine §9).
                     stripped = isinstance(arg["body"], dict) and "seq" in arg["body"] and not (isinstance(body, dict) and "seq" in body)
                     depth = below + (1 if stripped else 0)
-                    pending.append(("expr", body, depth, False, True))
+                    pending.append(("expr", body, depth, False, id(node) not in check_nodes))
                 elif isinstance(arg, dict) and set(arg) in ({"rule"}, {"classifier"}, {"terminal"}, {"integer"}):
                     key = next(iter(arg))
                     if key == "integer":

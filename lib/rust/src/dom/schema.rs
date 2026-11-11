@@ -116,7 +116,7 @@ fn forest(value: &Json, check: bool) -> bool {
         || matches!(value.get("method").and_then(Json::as_str), Some("parse" | "error-free" | "ending-after"))
 }
 
-fn body_json_problem(body: &Json) -> Option<&'static str> {
+fn body_json_problem(body: &Json, check: bool) -> Option<&'static str> {
     let marker = "a remainder stands at one outer edge of a parse argument";
     let mut pending = vec![body];
     if let Some(items) = body.get("seq").and_then(Json::as_array) {
@@ -137,7 +137,7 @@ fn body_json_problem(body: &Json) -> Option<&'static str> {
     }
     while let Some(expression) = pending.pop() {
         crate::work::count(crate::work::Work::Walked, 1);
-        if expression.get("capture").is_some() {
+        if !check && expression.get("capture").is_some() {
             return Some("a parse argument cannot declare captures");
         }
         if expression.get("remainder").is_some() {
@@ -241,44 +241,8 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
         return Some("not a DOM of this format".into());
     }
     let mut check_nodes = FxSet::default();
-    let mut check_recipes = FxSet::default();
     for check in dom.get("checks").and_then(Json::as_array).into_iter().flatten() {
         check_nodes.extend(crate::parameters::nodes(check).map(|node| node as *const Json as usize));
-        if let Some(recipe) = check.get("error").or_else(|| check.get("warning")) {
-            check_recipes.extend(crate::parameters::nodes(recipe).map(|node| node as *const Json as usize));
-        }
-    }
-    if !check_nodes.is_empty() {
-        for value in crate::parameters::nodes(dom) {
-            let check = check_nodes.contains(&(value as *const Json as usize));
-            if check
-                && ["capture", "captured"]
-                    .into_iter()
-                    .any(|field| value.get(field).and_then(Json::as_str).is_some_and(|name| !name.is_empty()))
-            {
-                return Some("a check cannot name a capture".into());
-            }
-            if let Some(method) = value.get("method").and_then(Json::as_str) {
-                if matches!(
-                    method,
-                    "parent"
-                        | "preceding-node"
-                        | "following-node"
-                        | "preceding-element"
-                        | "local-readings"
-                        | "terminal"
-                ) && (!check || method == "terminal" && !check_recipes.contains(&(value as *const Json as usize)))
-                {
-                    return Some("a check method is outside its permitted clause".into());
-                }
-                if check && method == "emitted" {
-                    return Some("a check message cannot read an emitted string".into());
-                }
-                if check && matches!(method, "without-elision" | "without-elision-except") {
-                    return Some("a check cannot restore elision".into());
-                }
-            }
-        }
     }
     let rule = |name: &str| rule_name(name, unicode, expanded);
     let mut pending = Vec::new();
@@ -654,7 +618,7 @@ pub(crate) fn decoded_problem(raw: &Json, dom: &mut Dom) -> Option<String> {
                     }
                 }
                 for recipe in check.error.iter().chain(check.warning.iter()) {
-                    if let Err(fault) = super::term_type_context(recipe, &|_| Type::Any, true) {
+                    if let Err(fault) = super::check_recipe_type(recipe, &|_| Type::Any) {
                         return Some(fault.problem);
                     }
                 }
@@ -754,7 +718,7 @@ fn parts_problem(
                     return Some("a malformed parse body".into());
                 }
                 let body = value.get("body").unwrap();
-                if let Some(problem) = body_json_problem(body) {
+                if let Some(problem) = body_json_problem(body, check) {
                     return Some(problem.into());
                 }
                 pending.push((
@@ -936,7 +900,7 @@ fn parts_problem(
                     return Some("an empty recipe".into());
                 };
                 for atom in atoms {
-                    if !recipe_atom(atom, check) {
+                    if !recipe_atom(atom, check) && (!check || atom.get("method").is_none()) {
                         return Some("a recipe contains a non-string atom".into());
                     }
                     pending.push((Part::RecipeAtom, atom, next));
@@ -982,6 +946,16 @@ fn parts_problem(
                     };
                     let receiver = value.get("receiver").unwrap();
                     let name = value.get("method").and_then(Json::as_str).unwrap_or("");
+                    if check
+                        && (!crate::notation::is_known_method(name)
+                            || name == "classify"
+                                && args.iter().any(|arg| {
+                                    !exact(arg, &["classifier"], &[])
+                                        || !arg.get("classifier").and_then(Json::as_str).is_some_and(is_classifier_name)
+                                }))
+                    {
+                        return Some("a method has the wrong receiver or arguments".into());
+                    }
                     let capture = bare_capture(receiver) || source::leaf(receiver);
                     let rule_arg = |arg: &Json| {
                         source::leaf(arg)
@@ -1040,7 +1014,7 @@ fn parts_problem(
                         }
                         _ => false,
                     };
-                    if !valid {
+                    if !valid && !check {
                         return Some("a method has the wrong receiver or arguments".into());
                     }
                     pending.push((kind, receiver, next));

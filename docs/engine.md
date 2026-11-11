@@ -659,7 +659,7 @@ A ranked choice supplies a seal, an opaque leaf (§4.1). Private conditions keep
 
 For guarded tag terms, ranked tag safety examines every tag set that normalization in §3.7 can return. It shares that normalization without expanding body production combinations.
 
-The ranked helper uses the logical tag constructors of §3.7. An untagged unary production inherits its child's tags. Untagged zero-symbol and multi-symbol productions return empty tags. Explicit tag terms replace inheritance.
+For ranked-choice safety analysis only, the ranked helper uses the logical tag constructors of §3.7. An untagged unary production inherits its child's tags in this analysis. Untagged zero-symbol and multi-symbol productions have empty tags in this analysis. Explicit tag terms replace inheritance.
 
 Compute provable emptiness over all alternatives and helpers in element structure, including disabled features. If an explicit tag term differs from literal `∅` after constant expansion, mark the rule or helper unsafe. If it has no explicit term and its only element is a terminal, mark it unsafe.
 
@@ -871,13 +871,13 @@ A union containing only bare tags prints as a run with single spaces. A union co
 
 For other term operators, the printer follows §9.2 binding and associativity. It adds parentheses exactly where removing them changes the normalized DOM. It prints no leading no-op operator. Pattern operators follow the binding rules in `docs/notation.md`, with the same grouping rule.
 
-Pattern literals print `#` directly before a node test, constant, parameter, or bare child list. Other whole patterns print inside `#(…)`. A node's exact prefix prints `·` without a following space. Tests follow their terminal without spaces. A child list attaches without a space and always retains its brackets, including with one child.
+Pattern literals print `#` directly before a node test, empty atom, constant, parameter, or bare child list. Other whole patterns print inside `#(…)`. A node's exact prefix prints `·` without a following space. Tests follow their terminal without spaces. A child list attaches without a space and always retains its brackets, including with one child.
 
 A nonempty list prints `⁅ `, its items, and ` ⁆`. An empty list prints `⁅⁆`. Child items have one separating space. Optional brackets and braces have no internal padding. A separator prints as ` / `, and a sibling gap prints `⋯`.
 
 Pattern tag requirements use the ordinary term printer, including when their spelling supplies an instance name.
 
-Paths print as `⋮ P`, `⋱ P`, and `P ⋰`. If the operand is a compound pattern, the printer adds parentheses around it. A node test, constant, parameter, or bare child list takes no parentheses. Thus nested paths retain parentheses. A path over children prints `⁅ A B ⁆ ⋰`, with the list boundary intact.
+Paths print as `⋮ P`, `⋱ P`, and `P ⋰`. If the operand is a compound pattern, the printer adds parentheses around it. A node test, empty atom, constant, parameter, or bare child list takes no parentheses. Thus nested paths retain parentheses. A path over children prints `⁅ A B ⁆ ⋰`, with the list boundary intact.
 
 Pattern union, intersection, and difference use spaces around their operators. Intersection operands that are unions or differences take parentheses. Union and intersection flatten their own kind. A difference's left operand takes no parentheses. If its right operand is a union or difference, that operand takes parentheses. Other parentheses follow binding strength.
 
@@ -1177,9 +1177,11 @@ Capture lowering decides every presence test attached to a production. A test th
 
 Explicit alternative and definition tag terms union. If neither exists, inheritance uses element structure, not the physical expansion's symbol count.
 
-A production with one element inherits that symbol's tags. A production with zero or several elements has empty tags. Each optional remains one element helper. Its absent route has empty tags. Its present content applies this same rule recursively. A splice is one element call with the target constituent's tags.
+At run time, a ranked helper returns no tags.
 
-Flat-repeat helpers and named chain levels retain their own element structure. Ranked tag safety uses these same inheritance edges (§2.1). Explicit `:: ∅` stops inheritance.
+Other productions with one element inherit that symbol's tags. Those with zero or several elements have empty tags. Each optional remains one element helper. Its absent route has empty tags. Its present content applies this same rule recursively. A splice is one element call with the target constituent's tags.
+
+Flat-repeat helpers and named chain levels retain their own element structure. For ranked tag safety, §2.1 defines a separate inheritance analysis. Explicit `:: ∅` stops inheritance.
 
 A restoration has the empty helper production's empty tags. A terminal that reads a synthetic token contributes no inherited constituent tags (§7.5). Pattern leaf tags remain separate.
 
@@ -1251,7 +1253,9 @@ Query helpers follow every production from the written grammar, including its he
 
 `parse(C)` lowers its capture-free constituent to an anonymous query target. Its identity is structural, keyed by the lowered constituent after substitution and reference resolution. Grouping, source positions, and the remainder mark do not distinguish targets. The memo retains the query mode separately.
 
-An anonymous target takes tags like a rule without written tags (§3.7). A production of one symbol inherits that symbol's tags. A production of several symbols has none. A ranked group's helper has no tags, as the ranked-choice restriction requires. This rule applies to helpers of the stage chart too.
+An anonymous target takes tags like a rule without written tags (§3.7). A production of one symbol inherits that symbol's tags. A production of several symbols has none. A ranked group's helper returns no tags at run time (§3.7). This rule applies to helpers of the stage chart too.
+
+A group in an anonymous target has no named parent and receives no `ranked-choice-tags` report.
 
 An undecorated rule call reuses that rule's query target. An undecorated user-tag terminal reuses its helper, including a tag that only `parse` names. Every other constituent uses a structurally keyed anonymous target that retains its tests and decorations. This includes literals, ranges, wildcards, engine tags, and tested symbols.
 

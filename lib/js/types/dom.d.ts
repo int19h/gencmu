@@ -354,8 +354,8 @@ export type TypeFault = {
     problem: string;
     node: any;
 };
-/** @param {ConstantTypes} [constants] @returns {ConstantTypes} */
-export declare function checkConstantTypes(constants?: ConstantTypes): ConstantTypes;
+/** @param {ConstantTypes} [constants] @param {boolean} [recipe] @returns {ConstantTypes} */
+export declare function checkConstantTypes(constants?: ConstantTypes, recipe?: boolean): ConstantTypes;
 /**
  * The type of a term, or why its parts do not agree (engine §10), with the
  * smallest construct whose parts disagree. The term's shape must already

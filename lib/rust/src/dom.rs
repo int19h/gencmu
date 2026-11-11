@@ -2149,13 +2149,26 @@ pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type
 }
 
 pub(crate) fn term_type_context(term: &Term, constants: ConstantTypes, check: bool) -> Result<Type, Fault> {
+    term_type_scope(term, constants, check, false)
+}
+pub(crate) fn check_recipe_type(term: &Term, constants: ConstantTypes) -> Result<Type, Fault> {
+    term_type_scope(term, constants, true, true)
+}
+
+fn term_type_scope(term: &Term, constants: ConstantTypes, check: bool, recipe: bool) -> Result<Type, Fault> {
     let joined = |items: &mut dyn Iterator<Item = &Term>, operator: &str| {
-        let types = items.map(|item| term_type_context(item, constants, check)).collect::<Result<Vec<_>, _>>()?;
+        let types = items.map(|item| term_type_scope(item, constants, check, recipe)).collect::<Result<Vec<_>, _>>()?;
         joined_type(&types, operator).map_err(|problem| Fault::in_term(problem, term))
     };
     match term {
-        Term::Body(body) => crate::query_forms::body_problem(body)
-            .map_or(Ok(Type::Body), |problem| Err(Fault::in_term(problem.into(), term))),
+        Term::Body(body) => crate::query_forms::body_problem(body).map_or(Ok(Type::Body), |problem| {
+            let problem = if check && problem == "a parse argument cannot declare captures" {
+                "a check cannot declare a capture"
+            } else {
+                problem
+            };
+            Err(Fault::in_term(problem.into(), term))
+        }),
         Term::Pattern(p) => match p.type_fault(constants) {
             Some(f) => Err(f),
             None => Ok(Type::Pattern),
@@ -2163,7 +2176,13 @@ pub(crate) fn term_type_context(term: &Term, constants: ConstantTypes, check: bo
         Term::Str(_) => Ok(Type::String),
         Term::Tag(_) => Ok(Type::Tags),
         Term::EmptySet => Ok(Type::Set),
-        Term::Capture(_) => Ok(if check { Type::Node } else { Type::Span }),
+        Term::Capture(name) => {
+            if check && !name.is_empty() {
+                Err(Fault::in_term("a check cannot name a capture".into(), term))
+            } else {
+                Ok(if check { Type::Node } else { Type::Span })
+            }
+        }
         Term::Const(name, _) => Ok(constants(name)),
         Term::Source(_) => Ok(Type::Any),
         Term::Union(items) => joined(&mut items.iter(), "∪"),
@@ -2173,8 +2192,8 @@ pub(crate) fn term_type_context(term: &Term, constants: ConstantTypes, check: bo
             if let Some(fault) = cond_type_context(cond, constants, check) {
                 return Err(fault);
             }
-            let kind =
-                joined_type(&[term_type_context(then, constants, check)?], "⟹").map_err(|p| Fault::in_term(p, term))?;
+            let kind = joined_type(&[term_type_scope(then, constants, check, recipe)?], "⟹")
+                .map_err(|p| Fault::in_term(p, term))?;
             if kind == Type::Pattern {
                 Err(Fault::in_term("a guarded term requires a set".into(), term))
             } else {
@@ -2182,9 +2201,34 @@ pub(crate) fn term_type_context(term: &Term, constants: ConstantTypes, check: bo
             }
         }
         Term::Call(call, args) => {
+            let receiver = match args.first() {
+                Some(Arg::Term(root)) => Some(term_type_scope(root, constants, check, recipe)?),
+                _ => None,
+            };
+            if check && call != "concat" {
+                let check_method = matches!(
+                    call.as_str(),
+                    "parent"
+                        | "preceding-node"
+                        | "following-node"
+                        | "preceding-element"
+                        | "local-readings"
+                        | "terminal"
+                );
+                if check_method && if call == "terminal" { !recipe } else { recipe } {
+                    return Err(Fault::in_term("a check method is outside its permitted clause".into(), term));
+                }
+                if matches!(call.as_str(), "without-elision" | "without-elision-except") {
+                    return Err(Fault::in_term("a check cannot restore elision".into(), term));
+                }
+                if recipe && !matches!(args.first(),Some(Arg::Term(Term::Capture(name))) if name.is_empty()) {
+                    return Err(Fault::in_term("a check message reads only $".into(), term));
+                }
+            }
             for (index, arg) in args.iter().enumerate() {
                 if let Arg::Term(arg) = arg {
-                    let ty = term_type_context(arg, constants, check)?;
+                    let ty =
+                        if index == 0 { receiver.unwrap() } else { term_type_scope(arg, constants, check, recipe)? };
                     let expected = match call.as_str() {
                         "split" | "ngrams" | "classify" | "concat" => Type::String,
                         "requirements" | "forbid" => Type::Tags,
@@ -2226,12 +2270,58 @@ pub(crate) fn term_type_context(term: &Term, constants: ConstantTypes, check: bo
                     }
                 }
             }
+            if check {
+                if let Some(problem) = check_selector_problem(call, args, receiver, recipe) {
+                    return Err(Fault::in_term(problem.into(), term));
+                }
+            }
             if let Some(problem) = literal_call_problem(call, args) {
                 return Err(Fault::in_term(problem.into(), term));
             }
             Ok(call_type(call))
         }
     }
+}
+
+fn check_selector_problem(call: &str, args: &[Arg], receiver: Option<Type>, recipe: bool) -> Option<&'static str> {
+    let node = receiver == Some(Type::Node);
+    let span = matches!(receiver, Some(Type::Node | Type::Span | Type::Any));
+    let string = span || receiver == Some(Type::String);
+    let valid = match (call, args) {
+        ("concat" | "requirements" | "forbid", _) => true,
+        ("parent" | "preceding-node" | "following-node" | "preceding-element", [_]) => node,
+        ("local-readings", [_]) => matches!(receiver, Some(Type::Node | Type::Element)),
+        ("terminal", [Arg::Term(Term::Capture(name))]) => recipe && name.is_empty(),
+        ("parse", [Arg::Term(root), Arg::Term(Term::Body(body))]) => {
+            if restored_span(root) && crate::query_forms::suffix_body(body) {
+                return Some("suffix parse requires an ordinary span, not a restored span");
+            }
+            span
+        }
+        ("error-free", [_]) => receiver == Some(Type::Forest),
+        ("ending-after", [_, Arg::Term(_)]) => receiver == Some(Type::Forest),
+        ("tags", [_]) => span || receiver == Some(Type::Forest),
+        ("classes", [_]) => span,
+        (
+            "value"
+            | "image"
+            | "source-text"
+            | "decomposed-source-text"
+            | "first-token"
+            | "last-token"
+            | "tokens-after-first"
+            | "onward"
+            | "following-tokens"
+            | "preceding-tokens",
+            [_],
+        ) => span || receiver == Some(Type::Element),
+        ("verbatim-text", [Arg::Term(Term::Capture(_))]) => recipe,
+        ("split", [_, Arg::Term(_)]) => string,
+        ("ngrams", [_, Arg::Integer(n)]) => string && valid_integer(n),
+        ("classify", [_, Arg::Rule(name)]) => string && is_classifier_name(name),
+        _ => false,
+    };
+    (!valid).then_some("a method has the wrong receiver or arguments")
 }
 
 /// Why a condition's terms do not agree in type, at the smallest construct
@@ -2242,6 +2332,9 @@ pub(crate) fn cond_type_fault(cond: &Cond, constants: ConstantTypes) -> Option<F
 
 pub(crate) fn cond_type_context(cond: &Cond, constants: ConstantTypes, check: bool) -> Option<Fault> {
     match cond {
+        Cond::Captured(name) if check && !name.is_empty() => {
+            Some(Fault::in_cond("a check cannot name a capture".into(), cond))
+        }
         Cond::Present(term) => term_type_context(term, constants, check).err().or_else(|| {
             (!check || term_type_context(term, constants, check).ok() != Some(Type::Node))
                 .then(|| Fault::in_term("a presence test requires a check node".into(), term))

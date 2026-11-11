@@ -6684,7 +6684,7 @@
         continue;
       }
       if (kind === "method-shape") {
-        const problem = methodShapeProblem(value.method, value.receiver, value.args, task.recipe);
+        const problem = task.check ? null : methodShapeProblem(value.method, value.receiver, value.args, task.recipe);
         if (problem) return problem;
       } else if (kind === "expr") {
         if ("splice" in value) {
@@ -6752,7 +6752,8 @@
         if (fields.length !== 1 || !Array.isArray(value.concat) || !value.concat.length) return "a malformed recipe";
         for (const atom of value.concat) {
           if (!object(atom)) return "a malformed recipe atom";
-          if (!stringAtom(atom) && !atom.param) {
+          if(task.check && !stringAtom(atom) && !atom.param && !("method" in atom))return "a malformed recipe atom";
+          if (!task.check && !stringAtom(atom) && !atom.param) {
             if (!object(atom) || !["value", "image", "source-text", "decomposed-source-text", "verbatim-text", ...(task.check ? ["terminal"] : [])].includes(atom.method) || atom.args?.length !== 0) return "a malformed recipe atom";
             const receiver = atom.receiver;
             if (!(typeof receiver?.capture === "string" && Object.keys(receiver).length === 1) && !(["value", "image"].includes(atom.method) && receiver?.method === "emitted" && receiver.args?.length === 0 && typeof receiver.receiver?.capture === "string" && Object.keys(receiver.receiver).length === 1)) return "a malformed recipe receiver";
@@ -6784,10 +6785,9 @@
         else if ("emptySet" in value) { if (value.emptySet !== true) return "a malformed empty set"; }
         else if ("capture" in value) { if (typeof value.capture !== "string" || value.capture !== "" && !CAPTURE_NAME.test(value.capture)) return "a malformed capture reference"; }
         else if ("method" in value) {
-          if (CHECK_METHODS.has(value.method) && (!task.check || value.method === "terminal" && !task.recipe)) return "a check method is outside its permitted clause";
-          if (task.check && ["without-elision","without-elision-except"].includes(value.method)) return "a check cannot restore elision";
+          if (CHECK_METHODS.has(value.method) && !task.check) return "a check method is outside its permitted clause";
           if (["classify","ngrams"].includes(value.method) && Array.isArray(value.args) && value.args.some(hasUnresolved)) return "a parameter cannot replace a classifier name or integer argument";
-          if (!Array.isArray(value.args) || !object(value.receiver) || (!task.recipe && (value.method === "verbatim-text" || value.method === "emitted")) || (!task.query && QUERY_METHODS.has(value.method) && !FOREST_METHODS.has(value.method))) return "a malformed method";
+          if (typeof value.method !== "string" || !Array.isArray(value.args) || !object(value.receiver) || (!task.check && !task.recipe && (value.method === "verbatim-text" || value.method === "emitted")) || (!task.query && QUERY_METHODS.has(value.method) && !FOREST_METHODS.has(value.method))) return "a malformed method";
           push("method-shape", value, depth, { recipe: task.recipe,check:task.check });
           child("term", value.receiver, { recipe: task.recipe,check:task.check });
           for (const arg of value.args) {
@@ -6795,7 +6795,7 @@
               if (value.method !== "parse" || !exact(arg,["body"])) return "a malformed parse argument";
               const parsed = queryBody(arg.body);
               if (parsed.problem) return parsed.problem;
-              if (queryCapture(parsed.body)) return "a parse argument cannot declare captures";
+              if (!task.check && queryCapture(parsed.body)) return "a parse argument cannot declare captures";
               // A stripped outer sequence charges one level, however many
               // remainder leaves it held (engine §9).
               push("expr",parsed.body,depth + (Array.isArray(arg.body.seq) && !Array.isArray(parsed.body.seq) ? 2 : 1),{params:task.params,whole:true});
@@ -8610,10 +8610,12 @@
 
   /** @type {WeakSet<ConstantTypes>} */
   const checkTypeContexts=new WeakSet();
-  /** @param {ConstantTypes} [constants] @returns {ConstantTypes} */
-  function checkConstantTypes(constants=UNKNOWN_CONSTANTS) {
+  /** @type {WeakSet<ConstantTypes>} */
+  const checkRecipeContexts=new WeakSet();
+  /** @param {ConstantTypes} [constants] @param {boolean} [recipe] @returns {ConstantTypes} */
+  function checkConstantTypes(constants=UNKNOWN_CONSTANTS,recipe=false) {
     const context=(/** @type {string} */ name)=>constants(name);
-    checkTypeContexts.add(context);return context;
+    checkTypeContexts.add(context);if(recipe)checkRecipeContexts.add(context);return context;
   }
 
   /**
@@ -8630,24 +8632,14 @@
 
   /** @param {any} check @param {ConstantTypes} [constants] @returns {TypeFault|null} */
   function checkTypeFault(check,constants=UNKNOWN_CONSTANTS) {
-    const pending=[...check.conditions,check.error??check.warning];
-    while(pending.length) {
-      const node=pending.pop();
-      if(!node || typeof node!=='object' || node instanceof Set)continue;
-      if(typeof node.capture==='string' && node.capture!=='' || typeof node.captured==='string' && node.captured!=='') return {problem:"a check cannot name a capture",node};
-      if(['without-elision','without-elision-except'].includes(node.method))return {problem:"a check cannot restore elision",node};
-      for(const child of Object.values(node)) if(child && typeof child==='object')pending.push(child);
-    }
     const types=checkConstantTypes(constants);
     for(const condition of check.conditions) {
       if(hasBareEmptySet(condition))return {problem:`a condition of ${check.name} is the empty set`,node:condition};
       const fault=conditionTypeFault(condition,types);if(fault)return fault;
     }
     const recipe=check.error??check.warning;
-    for(const atom of recipe.concat) {
-      if(atom.method && (atom.receiver?.capture!=='' || atom.method==='emitted'))return {problem:"a check message reads only $",node:atom};
-    }
-    const found=termType(recipe,types);
+    const messageTypes=checkConstantTypes(constants);checkRecipeContexts.add(messageTypes);
+    const found=termType(recipe,messageTypes);
     return 'problem' in found ? found : null;
   }
 
@@ -8742,8 +8734,16 @@
     if (typeof term.method === "string") {
       const receiver = yield typing(term.receiver, constants);
       if ("problem" in receiver) return receiver;
+      if(checkTypeContexts.has(constants)) {
+        const recipe=checkRecipeContexts.has(constants);
+        if(CHECK_METHODS.has(term.method) && (term.method==='terminal' ? !recipe : recipe))return {problem:'a check method is outside its permitted clause',node:term};
+        if(['without-elision','without-elision-except'].includes(term.method))return {problem:'a check cannot restore elision',node:term};
+        if(term.method==='emitted')return {problem:'a method has the wrong receiver or arguments',node:term};
+        if(recipe && term.receiver.capture!=='')return {problem:'a check message reads only $',node:term};
+      }
       const types = [];
       for (const arg of term.args) {
+        if(checkTypeContexts.has(constants) && arg.body && queryCapture(queryBody(arg.body).body))return {problem:'a check cannot declare a capture',node:arg};
         if (arg.body || arg.rule || arg.classifier || arg.terminal || arg.integer) types.push("name");
         else {
           const found = yield typing(arg, constants);
@@ -8760,7 +8760,10 @@
     }
     if (typeof term.tag === "string") return { type: "tags" };
     if (term.emptySet === true) return { type: "set" };
-    if (typeof term.capture === "string") return { type: checkTypeContexts.has(constants) ? "node" : "span" };
+    if (typeof term.capture === "string") {
+      if(checkTypeContexts.has(constants) && term.capture!=='')return {problem:'a check cannot name a capture',node:term};
+      return {type:checkTypeContexts.has(constants)?'node':'span'};
+    }
     if (typeof term.const === "string") return { type: constants(term.const) };
     for (const [key, operator] of [["union", "∪"], ["intersection", "∩"], ["difference", "∖"]]) {
       if (!Array.isArray(term[key])) continue;
@@ -8819,6 +8822,7 @@
    * @returns {Generator<Step, TypeFault | null, any>}
    */
   function* conditionTypingOnce(condition, constants) {
+    if(checkTypeContexts.has(constants) && typeof condition.captured==='string' && condition.captured!=='')return {problem:'a check cannot name a capture',node:condition};
     if (condition.present) {
       const type=yield typing(condition.present,constants);
       return "problem" in type ? type : type.type === "node" ? null : {problem:"presence requires a node",node:condition};
@@ -22708,9 +22712,9 @@
     let headDefault;
     let featureContext = false;
     let checkContext = false;
-    const checkTypes=checkConstantTypes();
+    const checkTypes=checkConstantTypes(),checkMessageTypes=checkConstantTypes(undefined,true);
     /** @param {any} term */
-    const readType=term=>termType(term,checkContext?checkTypes:undefined);
+    const readType=term=>termType(term,checkContext?(recipeContext?checkMessageTypes:checkTypes):undefined);
     let readingHead=false;
     /** @type {Set<string>} */
     let parameterScope=new Set();
@@ -26338,6 +26342,7 @@
    * @typedef {((PatternRuleAtom & {exact?:true,children?:PatternChildren})
    *   | ((PatternAtom | {test:"="|"≠", value:Term, expr:PatternTestTarget} | PatternTagTest) & {exact?:true})
    *   | {any:true, exact?:true, children:PatternChildren}
+   *   | {never:true, at?:Position}
    *   | {union:Pattern[]} | {intersection:Pattern[]} | {difference:[Pattern,Pattern]}
    *   | {path:"descendant"|"first"|"last", pattern:Pattern})} Pattern
    */

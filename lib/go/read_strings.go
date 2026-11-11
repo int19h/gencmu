@@ -138,7 +138,21 @@ func (c *domChecker) recipe(t *domTerm) {
 		c.fail("a malformed recipe")
 		return
 	}
+	previous := c.checkRecipe
+	c.checkRecipe = c.check
+	defer func() { c.checkRecipe = previous }()
 	for _, atom := range t.Items {
+		if c.check {
+			if atom == nil || !stringTermShape(atom) && atom.Kind != tmCall {
+				c.fail("invalid recipe atom")
+				continue
+			}
+			c.term(atom, 1, false)
+			if atom != nil && atom.Kind == tmCall && atom.Str != "terminal" && atom.Str != "value" && atom.Str != "image" && atom.Str != "source-text" && atom.Str != "decomposed-source-text" && atom.Str != "verbatim-text" {
+				c.fail("invalid recipe method")
+			}
+			continue
+		}
 		if stringTermShape(atom) {
 			c.term(atom, 1, false)
 			continue

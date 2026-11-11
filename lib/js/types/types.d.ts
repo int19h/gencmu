@@ -446,6 +446,9 @@ export type Pattern = ((PatternRuleAtom & {
     exact?: true;
     children: PatternChildren;
 } | {
+    never: true;
+    at?: Position;
+} | {
     union: Pattern[];
 } | {
     intersection: Pattern[];
@@ -1355,6 +1358,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {((PatternRuleAtom & {exact?:true,children?:PatternChildren})
  *   | ((PatternAtom | {test:"="|"≠", value:Term, expr:PatternTestTarget} | PatternTagTest) & {exact?:true})
  *   | {any:true, exact?:true, children:PatternChildren}
+ *   | {never:true, at?:Position}
  *   | {union:Pattern[]} | {intersection:Pattern[]} | {difference:[Pattern,Pattern]}
  *   | {path:"descendant"|"first"|"last", pattern:Pattern})} Pattern
  */

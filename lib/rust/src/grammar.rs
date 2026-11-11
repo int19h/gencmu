@@ -1740,7 +1740,7 @@ impl Constants<'_> {
             self.check_value_uses(ValuePart::Cond(condition), document, check.at, false)?;
         }
         for recipe in check.error.iter().chain(check.warning.iter()) {
-            crate::dom::term_type_context(recipe, &|name| self.ty(name), true)
+            crate::dom::check_recipe_type(recipe, &|name| self.ty(name))
                 .map_err(|fault| fault_error(fault, document, check.at))?;
             self.check_value_uses(ValuePart::Term(recipe), document, check.at, false)?;
         }

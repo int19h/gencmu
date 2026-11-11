@@ -607,6 +607,8 @@ A library ignores unknown members of a directive. Its known members, `name`, `ar
 
 DOMs store unresolved references and source positions, never stage-resolved constant or classifier values. Source, cached, and supplied DOMs obey the same arity, type, capture, clause, and depth rules.
 
+Check validation inspects structural shape before selecting semantic faults. Fault selection follows the operand and receiver order of engine §9.3.
+
 ### Pattern values
 
 Pattern tag requirements must resolve to tag sets, as ordinary symbol requirements do.
@@ -614,6 +616,8 @@ Pattern tag requirements must resolve to tag sets, as ordinary symbol requiremen
 PATTERN tests one structural tree. An item consumes part of an ordered list of siblings. A pattern term has exactly one member, `pattern`, whose value is a PATTERN. Pattern terms also support `const`, `union`, `intersection`, `difference`, and contextual `emptySet`. Mixed pattern and tag-set operations are malformed.
 
 The empty pattern atom is `{"never":true,"at":[line,column]}`. Its optional `at` member records the written `∅` position. Constant resolution can give `{"never":true}` without a source position. Both forms match nothing, including inside other patterns. The atom accepts no node decorations. Its whole pattern spelling is `#∅`.
+
+An invalid `never` value, position, or extra member reports `a malformed empty pattern`.
 
 Node decorations are exact prefixes, tests, or child lists. Observable nodes are rule nodes and terminal leaves. Terminal leaves can be written or omitted. Seals are not observable nodes.
 
