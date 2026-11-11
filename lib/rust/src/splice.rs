@@ -482,7 +482,7 @@ mod tests {
                 tags: None,
                 alternatives: vec![Alternative {
                     strings: Default::default(),
-                    guards: Vec::new(),
+                    gates: Vec::new(),
                     expr: Expr::Empty,
                     tags: None,
                     ranked_locations: Default::default(),

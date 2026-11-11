@@ -847,7 +847,7 @@ class Prepared:
     them, since a production without it drops the condition. Parts of any
     other shape are simplified for each production, as before."""
 
-    __slots__ = ("join", "parts", "condition", "listed", "fixed", "values", "guards", "required", "absent", "inner")
+    __slots__ = ("join", "parts", "condition", "listed", "fixed", "values", "gates", "required", "absent", "inner")
 
     def __init__(self, parts: list[Any], join: str | None, condition: bool, listed: bool) -> None:
         self.join = join

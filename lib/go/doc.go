@@ -88,7 +88,7 @@
 //
 // A *Pipeline is safe for concurrent use by several goroutines. Each parse
 // keeps its own state. A pipeline caches the lowered grammars and resolved
-// classifiers for each set of the features that its guards use. It keeps a
+// classifiers for each set of the features that its gates use. It keeps a
 // bounded number of them, and builds each one once, outside its mutex.
 // These values never change once built.
 //

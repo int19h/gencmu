@@ -8,7 +8,7 @@ const read = (source) => readDocument(`\x60\x60\x60jbogenbau\n${source}\n\x60\x6
 
 test("a capture retains stacked tag and exact value tests", () => {
   assert.deepEqual(read('%rule r $x:A<B>="A,B"').rules[0].alternatives, [{
-    guards: [],
+    gates: [],
     expr: {
       capture: "x",
       expr: {
@@ -26,7 +26,7 @@ test("header recipes and an implicit whole emission have distinct channels", () 
   const rule = read('%rule r := "v" :- "i" | "a" %emits').rules[0];
   assert.deepEqual(rule.value, { concat: [{ string: "v" }] });
   assert.deepEqual(rule.image, { concat: [{ string: "i" }] });
-  assert.deepEqual(rule.alternatives, [{ guards: [], expr: { literal: { string: "a" } } }]);
+  assert.deepEqual(rule.alternatives, [{ gates: [], expr: { literal: { string: "a" } } }]);
   assert.deepEqual(rule.emit, { items: [{ capture: "" }] });
 });
 
@@ -47,7 +47,7 @@ test("numeric escapes decode exact scalars and dollars remain plain text", () =>
 
 test("feature names retain main's initial-case rule", () => {
   assert.deepEqual(read("%features Cbm Other").directives[0].args, ["Cbm", "Other"]);
-  assert.deepEqual(read("%rule r Cbm? _").rules[0].alternatives[0].guards, [
+  assert.deepEqual(read("%rule r Cbm? _").rules[0].alternatives[0].gates, [
     { feature: "Cbm", kind: "gate", negated: false },
   ]);
 });
@@ -99,6 +99,8 @@ test("the bootstrap and engine readers agree on the notation documents", () => {
 test("both readers admit written forms, including plain dollar text", () => {
   const loader = notationLoader();
   for (const source of [
+    '%rule r A %conditions $.parse(_General_Category_Letter …)', '%rule r A %conditions $.parse(_General_Category_Letter)',
+    '%rule r A %conditions $.parse((r | A) …)',
     "%rule r $x:A≠\"x\" %conditions $x.value ≠ \"x\", \"a\" ∉ \"a b\".split(\" \"), A ⊈ $x.tags, $x ≇ #A",
     '%rule r "é$(_0301)"', '%rule r "a$(_0301)̣"', '%rule r "$(_00E9)"', '%include "café.md"',
     "%features Cbm Other", '%include "a$b.md"',
@@ -151,9 +153,6 @@ test("both readers reject invalid forms at the same specified position", () => {
     '%const $S "ab".ngrams(0)', '%const $S "ab".ngrams(02)',
     '%const $S "ab".ngrams(-1)', '%const $S "ab".ngrams()',
     '%rule r A %conditions ()', '%rule r A %conditions ()',
-    '%rule r A %conditions $.parse((r | A) …)',
-    '%rule r A %conditions $.parse(r, A)',
-    '%rule r A %conditions $.parse(_General_Category_Letter …)', '%rule r A %conditions $.parse(_General_Category_Letter)',
     '%rule r A %conditions $.followed-by(_General_Category_Letter)', '%rule r A %conditions $.preceded-by(_General_Category_Letter)',
     '%rule r A=("a" "b")', "%rule r A %conditions $ ≅ #A=(\"a\" \"b\")",
   ]) {
@@ -200,6 +199,19 @@ test("a lexical failure after a ranked separator has no ranked syntax code", () 
     assert.throws(() => reader(document, "case.md"), error => {
       assert.deepEqual(error.where, { document: "case.md", line: 2, column: 13 });
       return error.kind === "grammar";
+    });
+  }
+});
+
+// The engine recognizes the complete document before constructor conversion.
+test("a malformed parse argument retains each reader's error position", () => {
+  const document = "```jbogenbau\n%rule r A %conditions $.parse(r, A)\n```";
+  const loader = notationLoader();
+  for (const [reader, column] of [[loader.readDocument.bind(loader), 36], [readDocument, 32]]) {
+    assert.throws(() => reader(document, "case.md"), error => {
+      assert.equal(error.kind, "grammar");
+      assert.deepEqual(error.where, {document:"case.md", line:2, column});
+      return true;
     });
   }
 });

@@ -21,7 +21,7 @@ func TestDeferredNullableErrorsIgnoreGatesTestsAndConditions(t *testing.T) {
 		{Kind: exCapture, Name: "x", Inner: empty}, {Kind: exTest, Op: "=", Value: &domTerm{Kind: tmString, Str: "never"}, Inner: empty},
 	} {
 		g := errorWidthGrammar(expr)
-		g.rules[0].alts[0].alt.Guards = []domGuard{{Feature: "disabled", Kind: FeatureGate}}
+		g.rules[0].alts[0].alt.Gates = []domGate{{Feature: "disabled", Kind: FeatureGate}}
 		g.rules[0].alts[0].conds = []*domCond{{Kind: cdAny}}
 		if err := g.nullableError(); err == nil || err.Stage != "main" || err.Document != "g.md" || err.Line != 2 || !strings.Contains(err.Message, "text can match no tokens") {
 			t.Fatalf("%s: wrong width error: %v", expr.Kind, err)

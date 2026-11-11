@@ -118,7 +118,7 @@ function lex(text, originalPositions, legacyComments = false) {
     return { end: j + 1, reach: j };
   };
   // The end of a guard at `j`, or null when no guard starts there.
-  const guardEnd = (j) => {
+  const gateEnd = (j) => {
     if (isLetter(chars[j])) {
       const end = featureEnds[j];
       return chars[end] === "?" ? end + 1 : null;
@@ -179,7 +179,7 @@ function lex(text, originalPositions, legacyComments = false) {
       // before the boundary condition fails, so that guard's end counts
       // toward the furthest live position.
       const end = isLetter(chars[i + 1]) ? featureEnds[i + 1] : i + 1;
-      const following = guardEnd(i + 1);
+      const following = gateEnd(i + 1);
       if (end > i + 1 && chars[end] === "?") found.push([end + 1, "feature-gate"]);
       if (following === null) found.push([i + 1, "¬"]);
       reach = Math.max(reach, end, i + 1, following ?? 0);

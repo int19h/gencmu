@@ -145,7 +145,7 @@ func TestEmissionLinear(t *testing.T) {
 		for i := range seq {
 			items = append(items, fmt.Sprintf(`{"capture":"c%d"}`, i))
 		}
-		return domStage(t, fmt.Sprintf(`{"format":%d,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"seq":[%s]}}],"emit":{"items":[%s]},"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`, domFormat, strings.Join(seq, ","), strings.Join(items, ",")))
+		return domStage(t, fmt.Sprintf(`{"format":%d,"rules":[{"name":"text","op":"define","alternatives":[{"gates":[],"expr":{"seq":[%s]}}],"emit":{"items":[%s]},"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`, domFormat, strings.Join(seq, ","), strings.Join(items, ",")))
 	}
 	for _, n := range []int{1000, 4000} {
 		d := pipeline(n)
@@ -174,7 +174,7 @@ func TestEmissionLinear(t *testing.T) {
 // seqDOM is the DOM of a grammar whose rule text is the sequence of items,
 // each given as the JSON of an expression, with more rules after it.
 func seqDOM(items []string, rules ...string) string {
-	all := append([]string{`{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"seq":[` + strings.Join(items, ",") + `]}}],"conditions":[],"at":[1,1]}`}, rules...)
+	all := append([]string{`{"name":"text","op":"define","alternatives":[{"gates":[],"expr":{"seq":[` + strings.Join(items, ",") + `]}}],"conditions":[],"at":[1,1]}`}, rules...)
 	return fmt.Sprintf(`{"format":%d,"rules":[%s],"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`, domFormat, strings.Join(all, ","))
 }
 
@@ -286,7 +286,7 @@ func TestSharedClausesOnce(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, n := range []int{100, 400} {
-		alts := strings.TrimSuffix(strings.Repeat(`{"guards":[],"expr":{"capture":"x","expr":{"ref":"A"}}},`, n), ",")
+		alts := strings.TrimSuffix(strings.Repeat(`{"gates":[],"expr":{"capture":"x","expr":{"ref":"A"}}},`, n), ",")
 		conds := strings.TrimSuffix(strings.Repeat(`{"op":"=","left":{"method":"source-text","receiver":{"capture":"x"},"args":[]},"right":{"const":"K","at":[3,1]}},`, n), ",")
 		dom := fmt.Sprintf(`{"format":%d,"rules":[{"name":"text","op":"define","tags":{"union":[{"tag":"T"},{"tag":"U"}]},"alternatives":[%s],"conditions":[%s],"at":[3,1]}],"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[1,1]}],"constants":[{"name":"K","op":"define","value":{"string":"a"},"at":[2,1]}],"classifiers":[],"implications":[]}`, domFormat, alts, conds)
 		w := &workCounts{}
@@ -305,7 +305,7 @@ func chainDOM(n int, last string) string {
 		if i == n-1 {
 			expr = last
 		}
-		rules[i] = fmt.Sprintf(`{"name":"r%d","op":"define","alternatives":[{"guards":[],"expr":%s}],"conditions":[],"at":[%d,1]}`, i, expr, i+3)
+		rules[i] = fmt.Sprintf(`{"name":"r%d","op":"define","alternatives":[{"gates":[],"expr":%s}],"conditions":[],"at":[%d,1]}`, i, expr, i+3)
 	}
 	return seqDOM([]string{`{"ref":"r0"}`, `{"ref":"A"}`}, rules...)
 }
@@ -338,7 +338,7 @@ func TestRuleSetsLinear(t *testing.T) {
 		t.Logf("a chain of %d rules: %d steps", n, w.ruleSetSteps.Load())
 		// The rules that text reaches over the same span, through a long
 		// production of nullable rules, cost the production's length.
-		e := `{"name":"e","op":"define","alternatives":[{"guards":[],"expr":{"empty":true}}],"conditions":[],"at":[3,1]}`
+		e := `{"name":"e","op":"define","alternatives":[{"gates":[],"expr":{"empty":true}}],"conditions":[],"at":[3,1]}`
 		d = domStage(t, seqDOM(strings.Split(strings.Repeat(`{"ref":"e"} `, n-1)+`{"ref":"e"}`, " "), e))
 		w = &workCounts{}
 		w.ruleSetSteps.most = 20 * int64(n)
@@ -355,7 +355,7 @@ func TestRuleSetsLinear(t *testing.T) {
 // With the budget the fixed lowering takes, the first check past it stops.
 func TestUnitEdgesMutation(t *testing.T) {
 	const n = 1000
-	e := `{"name":"e","op":"define","alternatives":[{"guards":[],"expr":{"empty":true}}],"conditions":[],"at":[3,1]}`
+	e := `{"name":"e","op":"define","alternatives":[{"gates":[],"expr":{"empty":true}}],"conditions":[],"at":[3,1]}`
 	d := domStage(t, seqDOM(strings.Split(strings.Repeat(`{"ref":"e"} `, n-1)+`{"ref":"e"}`, " "), e))
 	lowerIt := func() { lower(d.stages[0], map[string]bool{}) }
 	all := &workCounts{}

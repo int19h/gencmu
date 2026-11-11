@@ -4,14 +4,14 @@
   "cacheMisses": true,
   "expect": {
     "dom": {
-      "format": 48,
+      "format": 49,
       "rules": [
         {
           "name": "text",
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "capture": "x",
                 "expr": {
@@ -131,7 +131,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "ref": "A"
               }

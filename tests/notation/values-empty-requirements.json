@@ -2,14 +2,14 @@
   "document": "```jbogenbau\n%rule r A<>\n```\n",
   "expect": {
     "dom": {
-      "format": 48,
+      "format": 49,
       "rules": [
         {
           "name": "r",
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "test": "tags",
                 "requirements": [],

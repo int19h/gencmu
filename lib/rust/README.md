@@ -91,7 +91,7 @@ A DOM (document object model) is the parsed form of a grammar document. `gencmu:
 
 A DOM holds the document's constants, classifiers and implications as the document writes them, never their values. The loader gives each constant its value when it stitches a stage. A stage resolves its classifiers for the features of each parse, once for each set of features.
 
-The DOM format is 48. The result format is 17. Braces are a `repeat`, with a `separator` for `{x / s}`. A chain has `chain` set to `left` or `right` and forms its alternative's whole expression. An elidable optional, `[+T x]`, is an `optional` with `elidable`.
+The DOM format is 49. The result format is 17. Braces are a `repeat`, with a `separator` for `{x / s}`. A chain has `chain` set to `left` or `right` and forms its alternative's whole expression. An elidable optional, `[+T x]`, is an `optional` with `elidable`.
 
 `$x.parse(C)` supplies a forest of query witnesses for body `C`. One outer `…` selects a prefix or suffix. `…` at both outer edges selects a part. `.error-free` excludes carried errors outside erased parts. Ordinary witnesses allow carried errors. Both forms exclude unerased own error rules.
 

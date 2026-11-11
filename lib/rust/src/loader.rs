@@ -1443,7 +1443,7 @@ mod notation_cache_tests {
             )]);
             let piece = rules.iter_mut().find(|rule| rule.get("name").and_then(Json::as_str) == Some("piece")).unwrap();
             array(field(piece, "alternatives"))
-                .push(object([("guards", Json::Arr(vec![])), ("expr", object([("ref", Json::Str(name.clone()))]))]));
+                .push(object([("gates", Json::Arr(vec![])), ("expr", object([("ref", Json::Str(name.clone()))]))]));
             let emitted = object([
                 ("capture", Json::Str(String::new())),
                 ("tags", tag_term),
@@ -1457,7 +1457,7 @@ mod notation_cache_tests {
                 ("op", Json::Str("define".into())),
                 ("at", Json::Arr(vec![Json::Int(100000 + index as i64), Json::Int(1)])),
                 ("conditions", Json::Arr(vec![])),
-                ("alternatives", Json::Arr(vec![object([("guards", Json::Arr(vec![])), ("expr", expression)])])),
+                ("alternatives", Json::Arr(vec![object([("gates", Json::Arr(vec![])), ("expr", expression)])])),
                 ("emit", object([("items", Json::Arr(vec![emitted]))])),
             ]));
         }

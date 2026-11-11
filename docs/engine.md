@@ -2948,7 +2948,7 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `classifier-name`, `classifier-class` | One name token each | Name string |
 | `classifier-key` | One `string` or `constant-reference` | Unresolved STRINGTERM |
 | `classifier-operator` | One `∈` or `∉` token | Operator string |
-| `classifier-entry` | Gates, keys, operator, class. At least one key. | `guards`, `keys`, `op`, `class` |
+| `classifier-entry` | Gates, keys, operator, class. At least one key. | `gates`, `keys`, `op`, `class` |
 | `implication-declaration` | Two `union` parts | `if`, then `then` |
 | `constant-definition` | `constant-keyword`, `constant-name`, `term` | Operation, user name, unresolved value |
 | `constant-name` | One `Constant` token | User constant name without `$` |
@@ -2966,7 +2966,7 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `rule-name` | One rule-name token | Lowercase name or valid emoji scalar |
 | `body` | One or more `alternative`, or one `ranked-body` | Ordered alternative list |
 | `headed-body` | One or more `alternative`, or one `ranked-body` | Ordered alternative list, like `body` |
-| `alternative` | Gates, conjunction, then tag, value, image clauses | `guards`, `expr`, and optional channel or tag members |
+| `alternative` | Gates, conjunction, then tag, value, image clauses | `gates`, `expr`, and optional channel or tag members |
 | `ranked-body` | Guards, ranked choice, then tag, value, image clauses | One ALT. Guards and clauses apply to the entire ranked expression. |
 | `feature-gate` | One gate token from §9.1 | `feature`, `kind:"gate"`, `negated`. Reject every other kind or invalid feature name. |
 | `ranked-choice` | At least two `some-of` parts | Ordered `ranked` array |
@@ -3106,7 +3106,7 @@ The following compact examples show the additional conversions. Positions illust
 | `%emits ($b) $w ($a) :- "i"` | `{"items":[{"capture":"w","image":{"concat":[{"string":"i"}]},"before":["b"],"after":["a"]}]}` |
 | `%rule r f? A ≻ B :: ∅` | ALT has gate `f`, ranked refs `A`,`B`, and `tags:{"emptySet":true}`. |
 
-The full ranked alternative is `{"guards":[{"feature":"f","kind":"gate","negated":false}],"expr":{"ranked":[{"ref":"A"},{"ref":"B"}]},"tags":{"emptySet":true}}`. Its common clause belongs to the whole alternative and never to an individual option.
+The full ranked alternative is `{"gates":[{"feature":"f","kind":"gate","negated":false}],"expr":{"ranked":[{"ref":"A"},{"ref":"B"}]},"tags":{"emptySet":true}}`. Its common clause belongs to the whole alternative and never to an individual option.
 
 An Integer token contains one or more ASCII decimal digits. It is legal only as a method argument whose signature accepts an integer. The reader requires positive digits without leading zeros. It reports zero or leading zeros at the Integer token. A negative argument fails lexical recognition at its minus sign.
 
@@ -3356,7 +3356,7 @@ Parentheses after the definer fail the syntax stage at `(`, column 6 in `%rule(x
 
   Each expression, condition, tag term, recipe, constant value, classifier key, and implication side starts at depth zero. A diagnostic recipe also starts at zero.
 
-  Feature conditions also start at depth zero. An emission item's tag term and recipes also start at zero. Declarations, alternatives, emission lists, emission items, arrays, positions, guards, and signed requirement records add no depth. A recipe root always uses `concat`, including for one atom. Other `concat` nodes require at least two string operands.
+  Feature conditions also start at depth zero. An emission item's tag term and recipes also start at zero. Declarations, alternatives, emission lists, emission items, arrays, positions, gates, and signed requirement records add no depth. A recipe root always uses `concat`, including for one atom. Other `concat` nodes require at least two string operands.
 
   | Form | Depth of its children |
   | --- | --- |

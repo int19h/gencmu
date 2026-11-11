@@ -15,7 +15,7 @@ class Values(unittest.TestCase):
         n = 24
         names = [f"c{i}" for i in range(n)]
         base = {"name": "r", "op": "define", "at": [1, 1], "conditions": [],
-                "alternatives": [{"guards": [], "expr": {"seq": [{"optional": {"capture": c, "expr": {"ref": "A"}}} for c in names]}}]}
+                "alternatives": [{"gates": [], "expr": {"seq": [{"optional": {"capture": c, "expr": {"ref": "A"}}} for c in names]}}]}
         for clause in [
             {"conditions": [{"any": [{"captured": c} for c in names]}]},
             {"conditions": [{"all": [{"captured": c} for c in names]}]},

@@ -356,7 +356,7 @@ fn a_guard_after_an_empty_wrapper_reports_its_first_token() {
             match rule.get("name").and_then(Value::str) {
                 Some("feature-character") => {
                     let Value::Array(alternatives) = field(rule, "alternatives") else { panic!("alternatives") };
-                    alternatives.push(parse_json(r#"{"guards":[],"expr":{"literal":{"string":"_"}}}"#).unwrap());
+                    alternatives.push(parse_json(r#"{"gates":[],"expr":{"literal":{"string":"_"}}}"#).unwrap());
                 }
                 Some("feature-gate")
                     if rule.get("alternatives").unwrap().array()[0]
@@ -375,7 +375,7 @@ fn a_guard_after_an_empty_wrapper_reports_its_first_token() {
             }
         }
         if padding {
-            rules.push(parse_json(r#"{"name":"padding","op":"define","alternatives":[{"guards":[],"expr":{"empty":true}}],"conditions":[],"at":[1,1]}"#).unwrap());
+            rules.push(parse_json(r#"{"name":"padding","op":"define","alternatives":[{"gates":[],"expr":{"empty":true}}],"conditions":[],"at":[1,1]}"#).unwrap());
         }
     }
     let error = load_with_bootstrap(

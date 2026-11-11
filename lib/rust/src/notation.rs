@@ -3,7 +3,7 @@
 use crate::dom::{
     call_type, comparison_problem, constant_type_problem, expected_problem, is_capture_name, is_classifier_name,
     joined_type, literal_call_problem, Alternative, Arg, Attachments, Chain, Channels, ClassifierDef, Cond, ConstDef,
-    Directive, Dom, EmitItem, Entry, Expr, FeatureKind, Guard, ImplicationDef, Mark, Op, RuleDef, Term, Type,
+    Directive, Dom, EmitItem, Entry, Expr, FeatureKind, Gate, ImplicationDef, Mark, Op, RuleDef, Term, Type,
 };
 use crate::error::Error;
 use crate::fxhash::{FxMap, FxSet};
@@ -237,7 +237,7 @@ impl<'a> Reader<'a> {
     /// An entry of a classifier: gates, canonical keys, `∈` or `∉`, and a
     /// class (engine §2, §9).
     fn entry(&self, node: &'a Node) -> R<Entry> {
-        let guards = self.rules(node, "feature-gate").map(|guard| self.guard(guard, true)).collect::<R<_>>()?;
+        let gates = self.rules(node, "feature-gate").map(|gate| self.gate(gate, true)).collect::<R<_>>()?;
         let mut keys = Vec::new();
         for key_node in self.some(node, "classifier-key", 1)? {
             let key = self.string_operand(self.inner(key_node, &["string", "constant-reference"])?)?;
@@ -257,7 +257,7 @@ impl<'a> Reader<'a> {
                 self.error(class_node, format!("{written} is not a class: a class starts and ends with a capital"))
             );
         }
-        Ok(Entry { guards, keys, adds, class: class.to_string(), at: self.first(node) })
+        Ok(Entry { gates, keys, adds, class: class.to_string(), at: self.first(node) })
     }
 
     /// An implication, `%implies A ⟹ B`: two closed terms whose type is a
@@ -620,7 +620,7 @@ impl<'a> Reader<'a> {
         Ok(())
     }
 
-    fn guard(&self, node: &'a Node, _gates_only: bool) -> R<Guard> {
+    fn gate(&self, node: &'a Node, _gates_only: bool) -> R<Gate> {
         let text = self.value(self.token(node)?);
         let text = text.strip_suffix('?').ok_or_else(|| self.error(node, "a guard ends with ?"))?;
         let kind = FeatureKind::Gate;
@@ -634,12 +634,12 @@ impl<'a> Reader<'a> {
         {
             return Err(self.error(node, "invalid feature name"));
         }
-        Ok(Guard { feature: feature.into(), kind, negated })
+        Ok(Gate { feature: feature.into(), kind, negated })
     }
 
     fn alternative(&self, node: &'a Node) -> R<Alternative> {
         // A guard token is `f?` or `¬f?` (§9).
-        let guards = self.rules(node, "feature-gate").map(|guard| self.guard(guard, false)).collect::<R<_>>()?;
+        let gates = self.rules(node, "feature-gate").map(|gate| self.gate(gate, false)).collect::<R<_>>()?;
         self.captures.borrow_mut().clear();
         let expr = if rule_name(node) == "ranked-body" {
             match self.run(Frame::Choice(Choice::new(self.one(node, "ranked-choice")?)))? {
@@ -709,12 +709,12 @@ impl<'a> Reader<'a> {
             Some(tags) => Some(self.constituent_tags(tags)?),
             None => None,
         };
-        Ok(Alternative { guards, expr, tags, strings: self.channels(node)?, ranked_locations: Default::default() })
+        Ok(Alternative { gates, expr, tags, strings: self.channels(node)?, ranked_locations: Default::default() })
     }
 
     /// A rule's or an alternative's tags, which say what the constituent's
     /// tags are and so cannot read them: `$.tags` and `$.classes` are
-    /// errors anywhere in them, guards included (§9), reported at the
+    /// errors anywhere in them, gates included (§9), reported at the
     /// clause.
     fn constituent_tags(&self, node: &'a Node) -> R<Term> {
         let source = self.one(node, "term")?;

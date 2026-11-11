@@ -59,7 +59,7 @@ def is_terminal_name(name: str) -> bool:
 class Alternative:
     """An alternative as stitched, with the clauses of the rule that wrote it."""
 
-    guards: list[Dom]
+    gates: list[Dom]
     expr: Dom
     tags: Dom | None
     rule_tags: Dom | None
@@ -164,7 +164,7 @@ class Grammar:
     classifier_gates: frozenset[str] = field(init=False, repr=False, compare=False)
     # The features that gate an alternative or an entry of a classifier.
     # Only these change a lowered grammar. A warning keeps its alternative
-    # (engine §3.1), and any other name matches no guard (engine §13).
+    # (engine §3.1), and any other name matches no gate (engine §13).
     gates: frozenset[str] = field(init=False, repr=False, compare=False)
     # The classifiers resolved for each set of the classifier gates that is
     # on, or the error of their resolution (engine §2).
@@ -174,8 +174,8 @@ class Grammar:
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
 
     def __post_init__(self) -> None:
-        entries = [guard for _, classifier in self.classifier_items for entry in classifier["entries"] for guard in entry["guards"]]
-        alternatives = [guard for rule in self.rules.values() for alternative in rule.alternatives for guard in alternative.guards]
+        entries = [gate for _, classifier in self.classifier_items for entry in classifier["entries"] for gate in entry["gates"]]
+        alternatives = [gate for rule in self.rules.values() for alternative in rule.alternatives for gate in alternative.gates]
         self.classifier_gates = _gate_names(entries)
         self.gates = _gate_names(alternatives + entries)
 
@@ -206,8 +206,8 @@ keeps. Each set of the stage's gates that is on has its own, so a stage with
 k gates can have 2^k of them. The least recently used goes first."""
 
 
-def _gate_names(guards: list[Dom]) -> frozenset[str]:
-    return frozenset(guard["feature"] for guard in guards)
+def _gate_names(gates: list[Dom]) -> frozenset[str]:
+    return frozenset(gate["feature"] for gate in gates)
 
 
 Classifiers = dict[str, dict[str, frozenset[str]]]
@@ -222,7 +222,7 @@ def _resolve_classifiers(items: list[tuple[str, Dom]], features: frozenset[str],
     for path, classifier in items:
         table = building.setdefault(classifier["name"], {})
         for entry in classifier["entries"]:
-            if not all((guard["feature"] in features) != guard["negated"] for guard in entry["guards"]):
+            if not all((gate["feature"] in features) != gate["negated"] for gate in entry["gates"]):
                 continue
             adds = entry["op"] == "∈"
             name = entry["class"]
@@ -879,7 +879,7 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                 definition = object()
                 alternatives = [
                     Alternative(
-                        guards=list(alt.get("guards", [])),
+                        gates=list(alt.get("gates", [])),
                         expr=alt["expr"],
                         tags=alt.get("tags"),
                         rule_tags=rule.get("tags"),
@@ -1200,7 +1200,7 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                             target = "\0query:" + ref if is_terminal_name(ref) else ref
                         else:
                             target = "\0parse:" + str(len(grammar.query_rules))
-                            source = replace(alt, guards=[], expr=body, tags=None, rule_tags={"emptySet": True},
+                            source = replace(alt, gates=[], expr=body, tags=None, rule_tags={"emptySet": True},
                                              conditions=[], erased=False, emit=None, value=None, image=None,
                                              rule_value=None, rule_image=None, error=None, warning=None, suppress_warnings=())
                             grammar.query_rules[target] = Rule(target, [source], alt.document, alt.at)
@@ -2015,7 +2015,7 @@ class _Lowerer:
         for name, rule in itertools.chain(self.grammar.rules.items(), self.grammar.query_rules.items()):
             self.current = rule
             lhs = self.rule_ids[name]
-            alternatives = [alt for alt in rule.alternatives if self.holds(alt.guards)]
+            alternatives = [alt for alt in rule.alternatives if self.holds(alt.gates)]
             # A chain is the only alternative of its rule that the gates
             # leave (engine §3.3); a %extend-rule can add another.
             chain = next((alt for alt in alternatives if "repeat" in alt.expr and "chain" in alt.expr), None)
@@ -2122,11 +2122,11 @@ class _Lowerer:
             if any(all(sym[0] == "n" and sym[1] in nullable for sym, _ in item) for item in items):
                 raise self.fail(f"an item of braces in {rule.name if rule else '?'} can match no tokens", alt, rule)
 
-    def holds(self, guards: list[Dom]) -> bool:
-        # Feature guards select alternatives (engine §3.1).
+    def holds(self, gates: list[Dom]) -> bool:
+        # Feature gates select alternatives (engine §3.1).
         return all(
-            (guard["feature"] in self.features) != bool(guard.get("negated"))
-            for guard in guards
+            (gate["feature"] in self.features) != bool(gate.get("negated"))
+            for gate in gates
         )
 
 

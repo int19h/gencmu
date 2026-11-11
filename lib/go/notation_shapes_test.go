@@ -144,7 +144,7 @@ func TestNotationShapes(t *testing.T) {
 			for _, field := range []string{"ref", "rule"} {
 				syntax = strings.ReplaceAll(syntax, `"`+field+`":"`+name+`"`, `"`+field+`":"`+name+`-wrapper"`)
 			}
-			fmt.Fprintf(&wrappers, `{"name":"%s-wrapper","op":"define","alternatives":[{"guards":[],"expr":{"ref":"%s"}}],"conditions":[],"at":[%d,1]},`, name, name, 100000+i)
+			fmt.Fprintf(&wrappers, `{"name":"%s-wrapper","op":"define","alternatives":[{"gates":[],"expr":{"ref":"%s"}}],"conditions":[],"at":[%d,1]},`, name, name, 100000+i)
 		}
 		return strings.Replace(syntax, `"rules":[`, `"rules":[`+wrappers.String(), 1)
 	})
@@ -234,7 +234,7 @@ func TestNotationStageRunsTheCheck(t *testing.T) {
 	for _, rule := range lexicalDOM["rules"].([]any) {
 		r := rule.(map[string]any)
 		if r["name"] == "punctuation" {
-			r["alternatives"] = append(r["alternatives"].([]any), map[string]any{"guards": []any{}, "expr": map[string]any{"literal": map[string]any{"string": "."}}})
+			r["alternatives"] = append(r["alternatives"].([]any), map[string]any{"gates": []any{}, "expr": map[string]any{"literal": map[string]any{"string": "."}}})
 		}
 	}
 	encoded, err := json.Marshal(parsed)

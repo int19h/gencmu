@@ -748,7 +748,7 @@ func TestFormat17Refused(t *testing.T) {
 		t.Fatal(err)
 	}
 	dom := func(format int, expr string) string {
-		return `{"format":` + strconv.Itoa(format) + `,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}`
+		return `{"format":` + strconv.Itoa(format) + `,"rules":[{"name":"text","op":"define","alternatives":[{"gates":[],"expr":` + expr + `}],"conditions":[],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}`
 	}
 	entry := func(format int, d string) string {
 		return `{"format":` + strconv.Itoa(format) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"0","dom":` + d + `}}}`
@@ -909,7 +909,7 @@ func TestAttachmentRejectsBareCaptureAfterStrayToken(t *testing.T) {
 	b.attachment(n, n)
 }
 
-func TestGuardValidationFromSuppliedBootstrap(t *testing.T) {
+func TestGateValidationFromSuppliedBootstrap(t *testing.T) {
 	t.Parallel()
 	bootstrap := bootstrapWithDOMChange(t, func(path string, dom map[string]any) {
 		if path != "grammars/gencmu/jbogenbau/lexical.md" {
@@ -930,7 +930,7 @@ func TestGuardValidationFromSuppliedBootstrap(t *testing.T) {
 			default:
 				continue
 			}
-			rule["alternatives"] = append(rule["alternatives"].([]any), map[string]any{"guards": []any{}, "expr": expr})
+			rule["alternatives"] = append(rule["alternatives"].([]any), map[string]any{"gates": []any{}, "expr": expr})
 		}
 	})
 	for _, c := range []struct {
@@ -980,7 +980,7 @@ func TestPropertyWrapperFromSuppliedBootstrap(t *testing.T) {
 		}
 		dom["rules"] = append(dom["rules"].([]any), map[string]any{
 			"name": "property", "op": "define",
-			"alternatives": []any{map[string]any{"guards": []any{}, "expr": map[string]any{"ref": "string-terminal"}}},
+			"alternatives": []any{map[string]any{"gates": []any{}, "expr": map[string]any{"ref": "string-terminal"}}},
 			"conditions":   []any{}, "at": []any{1, 1},
 		})
 	})
@@ -994,20 +994,20 @@ func TestPropertyWrapperFromSuppliedBootstrap(t *testing.T) {
 	}
 }
 
-func TestEmptyGuardWrapperValidation(t *testing.T) {
+func TestEmptyGateWrapperValidation(t *testing.T) {
 	t.Parallel()
 	bootstrap := bootstrapWithDOMChange(t, func(path string, dom map[string]any) {
 		for _, value := range dom["rules"].([]any) {
 			rule := value.(map[string]any)
 			if path == "grammars/gencmu/jbogenbau/lexical.md" && rule["name"] == "feature-character" {
-				rule["alternatives"] = append(rule["alternatives"].([]any), map[string]any{"guards": []any{}, "expr": map[string]any{"literal": map[string]any{"string": "_"}}})
+				rule["alternatives"] = append(rule["alternatives"].([]any), map[string]any{"gates": []any{}, "expr": map[string]any{"literal": map[string]any{"string": "_"}}})
 			}
 			if path == "grammars/gencmu/jbogenbau/syntax.md" && rule["name"] == "feature-gate" {
 				rule["alternatives"].([]any)[0].(map[string]any)["expr"] = map[string]any{"seq": []any{map[string]any{"ref": "padding"}, map[string]any{"ref": "Gate"}}}
 			}
 		}
 		if path == "grammars/gencmu/jbogenbau/syntax.md" {
-			dom["rules"] = append(dom["rules"].([]any), map[string]any{"name": "padding", "op": "define", "alternatives": []any{map[string]any{"guards": []any{}, "expr": map[string]any{"empty": true}}}, "conditions": []any{}, "at": []any{1, 1}})
+			dom["rules"] = append(dom["rules"].([]any), map[string]any{"name": "padding", "op": "define", "alternatives": []any{map[string]any{"gates": []any{}, "expr": map[string]any{"empty": true}}}, "conditions": []any{}, "at": []any{1, 1}})
 		}
 	})
 	for _, c := range []struct {

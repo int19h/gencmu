@@ -2,14 +2,14 @@
   "document": "```jbogenbau\n%rule r $x:A<B>=\"a\"\n```\n",
   "expect": {
     "dom": {
-      "format": 48,
+      "format": 49,
       "rules": [
         {
           "name": "r",
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "capture": "x",
                 "expr": {

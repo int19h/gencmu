@@ -7,7 +7,7 @@
         {
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "capture": "x",
                 "expr": {

@@ -21,10 +21,10 @@ func TestDOMRules(t *testing.T) {
 		return `{` + format + `,"rules":[{"name":"text","op":"define",` + fields + `,"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`
 	}
 	guarded := func(guard string) string {
-		return rule(`"alternatives":[{"guards":[` + guard + `],"expr":` + good + `}],"conditions":[]`)
+		return rule(`"alternatives":[{"gates":[` + guard + `],"expr":` + good + `}],"conditions":[]`)
 	}
 	alt := func(expr string) string {
-		return rule(`"alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[]`)
+		return rule(`"alternatives":[{"gates":[],"expr":` + expr + `}],"conditions":[]`)
 	}
 	// A second directive after the first.
 	directive := func(dir string) string {
@@ -44,17 +44,17 @@ func TestDOMRules(t *testing.T) {
 	implies := func(m string) string { return classified("", m) }
 	runs := `{"method":"split","receiver":{"method":"value","receiver":{"capture":"x"},"args":[]},"args":[{"string":"."}]}`
 	tagged := func(tags string) string {
-		return rule(`"alternatives":[{"guards":[],"expr":{"seq":[{"capture":"x","expr":{"literal":{"string":"a"}}},{"literal":{"string":"b"}}]},"tags":` + tags + `}],"conditions":[]`)
+		return rule(`"alternatives":[{"gates":[],"expr":{"seq":[{"capture":"x","expr":{"literal":{"string":"a"}}},{"literal":{"string":"b"}}]},"tags":` + tags + `}],"conditions":[]`)
 	}
 	emit := func(emission string) string {
-		return rule(`"alternatives":[{"guards":[],"expr":{"seq":[{"capture":"x","expr":{"literal":{"string":"a"}}},{"capture":"y","expr":{"literal":{"string":"b"}}}]}}],"emit":` + emission + `,"conditions":[]`)
+		return rule(`"alternatives":[{"gates":[],"expr":{"seq":[{"capture":"x","expr":{"literal":{"string":"a"}}},{"capture":"y","expr":{"literal":{"string":"b"}}}]}}],"emit":` + emission + `,"conditions":[]`)
 	}
 	cond := func(condition string) string {
-		return rule(`"alternatives":[{"guards":[],"expr":{"seq":[{"capture":"x","expr":{"literal":{"string":"a"}}},{"literal":{"string":"b"}}]}}],"conditions":[` + condition + `]`)
+		return rule(`"alternatives":[{"gates":[],"expr":{"seq":[{"capture":"x","expr":{"literal":{"string":"a"}}},{"literal":{"string":"b"}}]}}],"conditions":[` + condition + `]`)
 	}
 	// Two alternatives, the first capturing x and z, the second neither.
 	two := func(clauses string) string {
-		return rule(`"alternatives":[{"guards":[],"expr":{"seq":[{"capture":"x","expr":{"literal":{"string":"a"}}},{"capture":"z","expr":{"literal":{"string":"b"}}}]}},{"guards":[],"expr":{"seq":[{"literal":{"string":"a"}},{"literal":{"string":"b"}}]}}],` + clauses)
+		return rule(`"alternatives":[{"gates":[],"expr":{"seq":[{"capture":"x","expr":{"literal":{"string":"a"}}},{"capture":"z","expr":{"literal":{"string":"b"}}}]}},{"gates":[],"expr":{"seq":[{"literal":{"string":"a"}},{"literal":{"string":"b"}}]}}],` + clauses)
 	}
 	// n unions, each of a tag and the next: the innermost tag is n
 	// deep.
@@ -93,9 +93,9 @@ func TestDOMRules(t *testing.T) {
 		{"an implication has a consequent", cond(`{"if":{"captured":"x"}}`)},
 		{"a presence test names a capture", cond(`{"captured":"9"}`)},
 		{"a rule has alternatives", rule(`"alternatives":[],"conditions":[]`)},
-		{"a rule has conditions", rule(`"alternatives":[{"guards":[],"expr":` + good + `}]`)},
+		{"a rule has conditions", rule(`"alternatives":[{"gates":[],"expr":` + good + `}]`)},
 		{"a rule has a position", strings.Replace(alt(good), `"at":[1,1]}],"directives"`, `"at":[1]}],"directives"`, 1)},
-		{"a guard has a feature and negated", rule(`"alternatives":[{"guards":[{"feature":"f"}],"expr":` + good + `}],"conditions":[]`)},
+		{"a guard has a feature and negated", rule(`"alternatives":[{"gates":[{"feature":"f"}],"expr":` + good + `}],"conditions":[]`)},
 		{"a guard has a kind", guarded(`{"feature":"f","negated":false}`)},
 		{"a guard is a gate or a warning", guarded(`{"feature":"f","kind":"hint","negated":false}`)},
 		{"a warning guard", guarded(`{"feature":"f","kind":"warning","negated":false}`)},
@@ -105,7 +105,7 @@ func TestDOMRules(t *testing.T) {
 		{"a guard has no other member", guarded(`{"feature":"f","kind":"gate","negated":false,"extra":true}`)},
 		{"a guard is not null", guarded(`null`)},
 		{"a guard's negated is a boolean", guarded(`{"feature":"f","kind":"gate","negated":null}`)},
-		{"an alternative has a list of guards", rule(`"alternatives":[{"guards":null,"expr":` + good + `}],"conditions":[]`)},
+		{"an alternative has a list of guards", rule(`"alternatives":[{"gates":null,"expr":` + good + `}],"conditions":[]`)},
 		{"an alternative has guards", rule(`"alternatives":[{"expr":` + good + `}],"conditions":[]`)},
 		{"a seq has two items or more", alt(`{"seq":[{"literal":{"string":"a"}}]}`)},
 		{"a seq is not empty", alt(`{"seq":[]}`)},
@@ -183,7 +183,7 @@ func TestDOMRules(t *testing.T) {
 		{"an attachment is listed once", emit(`{"items":[{"capture":"x","after":["y","y"]}]}`)},
 		{"attachments stand in the order of the captures", emit(`{"items":[{"capture":"x","before":["y"]}]}`)},
 		{"an attachment is a capture of the rule", emit(`{"items":[{"capture":"x","after":["z"]}]}`)},
-		{"an alternative without the carrier lacks its attachments", rule(`"alternatives":[{"guards":[],"expr":{"seq":[{"capture":"x","expr":{"literal":{"string":"a"}}},{"capture":"y","expr":{"literal":{"string":"b"}}}]}},{"guards":[],"expr":{"seq":[{"literal":{"string":"a"}},{"capture":"y","expr":{"literal":{"string":"b"}}}]}}],"emit":{"items":[{"capture":"x","after":["y"]}]},"conditions":[]`)},
+		{"an alternative without the carrier lacks its attachments", rule(`"alternatives":[{"gates":[],"expr":{"seq":[{"capture":"x","expr":{"literal":{"string":"a"}}},{"capture":"y","expr":{"literal":{"string":"b"}}}]}},{"gates":[],"expr":{"seq":[{"literal":{"string":"a"}},{"capture":"y","expr":{"literal":{"string":"b"}}}]}}],"emit":{"items":[{"capture":"x","after":["y"]}]},"conditions":[]`)},
 		// Tests in a body (engine §2, §9).
 		{"a test's comparator is known", alt(`{"seq":[{"literal":{"string":"a"}},{"test":"==","value":{"string":"b"},"expr":{"ref":"B"}}]}`)},
 		{"a test's comparator is a string", alt(`{"seq":[{"literal":{"string":"a"}},{"test":7,"value":{"string":"b"},"expr":{"ref":"B"}}]}`)},
@@ -274,11 +274,11 @@ func TestDOMRules(t *testing.T) {
 		{"an inserted tag is canonical", emit(`{"items":[{"insert":"'\\u{61}'"},{"capture":"x"}]}`)},
 		{"unknown directive name", directive(`{"name":"unknown","args":["KU"],"at":[3,1]}`)},
 		{"a call's arguments are a list", tagged(`{"call":"tags","args":null}`)},
-		{"a rule's tag term is well formed", rule(`"tags":{"call":"classes","args":null},"alternatives":[{"guards":[],"expr":` + good + `}],"conditions":[]`)},
+		{"a rule's tag term is well formed", rule(`"tags":{"call":"classes","args":null},"alternatives":[{"gates":[],"expr":` + good + `}],"conditions":[]`)},
 		{"an alternative's tags are not $", tagged(`{"union":[{"tag":"X"},{"capture":""}]}`)},
 		{"an alternative's tags are not $.tags", tagged(`{"method":"tags","receiver":{"capture":""},"args":[]}`)},
 		{"an alternative's tags are not $.classes", tagged(`{"method":"classes","receiver":{"capture":""},"args":[]}`)},
-		{"a rule's tags are not $.tags", rule(`"tags":{"method":"tags","receiver":{"capture":""},"args":[]},"alternatives":[{"guards":[],"expr":` + good + `}],"conditions":[]`)},
+		{"a rule's tags are not $.tags", rule(`"tags":{"method":"tags","receiver":{"capture":""},"args":[]},"alternatives":[{"gates":[],"expr":` + good + `}],"conditions":[]`)},
 		{"a comparison is known", cond(`{"op":"<","left":{"string":"a"},"right":{"string":"b"}}`)},
 		{"a comparison has two terms", cond(`{"op":"=","left":{"string":"a"}}`)},
 		{"an any has two conditions or more", cond(`{"any":[{"not":{"method":"parse","receiver":{"capture":"x"},"args":[{"body":{"ref":"text"}}]}}]}`)},
@@ -340,25 +340,25 @@ func TestDOMRules(t *testing.T) {
 		{"a classifier has a position", classified(`{"name":"lex","entries":[],"at":null}`, "")},
 		{"a classifier has no other member", classified(`{"name":"lex","entries":[],"at":[3,1],"x":true}`, "")},
 		{"a classifier's entries are a list", classified(`{"name":"lex","entries":null,"at":[3,1]}`, "")},
-		{"an entry takes no warning", entry(`{"guards":[{"feature":"f","kind":"warning","negated":false}],"keys":[{"string":"mi"}],"op":"∈","class":"KOhA","at":[3,3]}`)},
+		{"an entry takes no warning", entry(`{"gates":[{"feature":"f","kind":"warning","negated":false}],"keys":[{"string":"mi"}],"op":"∈","class":"KOhA","at":[3,3]}`)},
 		{"a rule's gate is not empty", guarded(`{"feature":"","kind":"gate","negated":false}`)},
 		{"a rule's gate is not a mark", guarded(`{"feature":"!","kind":"gate","negated":false}`)},
 		{"a rule's gate has no space", guarded(`{"feature":"bad name","kind":"gate","negated":true}`)},
 		{"a warning is not empty", guarded(`{"feature":"","kind":"warning","negated":false}`)},
 		{"a warning is not a mark", guarded(`{"feature":"!","kind":"warning","negated":false}`)},
 		{"a warning has no space", guarded(`{"feature":"bad name","kind":"warning","negated":false}`)},
-		{"a gate's feature is not empty", entry(`{"guards":[{"feature":"","kind":"gate","negated":false}],"keys":[{"string":"mi"}],"op":"∈","class":"KOhA","at":[3,3]}`)},
-		{"a gate's feature is not a mark", entry(`{"guards":[{"feature":"!","kind":"gate","negated":false}],"keys":[{"string":"mi"}],"op":"∈","class":"KOhA","at":[3,3]}`)},
-		{"a gate's feature has no space", entry(`{"guards":[{"feature":"bad name","kind":"gate","negated":false}],"keys":[{"string":"mi"}],"op":"∈","class":"KOhA","at":[3,3]}`)},
-		{"an entry's guard has no other member", entry(`{"guards":[{"feature":"f","kind":"gate","negated":false,"x":1}],"keys":[{"string":"mi"}],"op":"∈","class":"KOhA","at":[3,3]}`)},
-		{"an entry has a key", entry(`{"guards":[],"keys":[],"op":"∈","class":"KOhA","at":[3,3]}`)},
-		{"a key is in lower case", entry(`{"guards":[],"keys":[{"string":"\ud800"}],"op":"∈","class":"KOhA","at":[3,3]}`)},
-		{"a key has no comma", entry(`{"guards":[],"keys":[{"string":"m,i"}],"op":"∈","class":"KOhA","at":[3,3]}`)},
-		{"a key is a string", entry(`{"guards":[],"keys":[1],"op":"∈","class":"KOhA","at":[3,3]}`)},
-		{"an entry's operator is ∈ or ∉", entry(`{"guards":[],"keys":[{"string":"mi"}],"op":"=","class":"KOhA","at":[3,3]}`)},
-		{"a class starts and ends with an uppercase ASCII letter", entry(`{"guards":[],"keys":[{"string":"mi"}],"op":"∈","class":"koha","at":[3,3]}`)},
-		{"a class is a name", entry(`{"guards":[],"keys":[{"string":"mi"}],"op":"∈","class":"/a/","at":[3,3]}`)},
-		{"an entry has no other member", entry(`{"guards":[],"keys":[{"string":"mi"}],"op":"∈","class":"KOhA","at":[3,3],"x":true}`)},
+		{"a gate's feature is not empty", entry(`{"gates":[{"feature":"","kind":"gate","negated":false}],"keys":[{"string":"mi"}],"op":"∈","class":"KOhA","at":[3,3]}`)},
+		{"a gate's feature is not a mark", entry(`{"gates":[{"feature":"!","kind":"gate","negated":false}],"keys":[{"string":"mi"}],"op":"∈","class":"KOhA","at":[3,3]}`)},
+		{"a gate's feature has no space", entry(`{"gates":[{"feature":"bad name","kind":"gate","negated":false}],"keys":[{"string":"mi"}],"op":"∈","class":"KOhA","at":[3,3]}`)},
+		{"an entry's guard has no other member", entry(`{"gates":[{"feature":"f","kind":"gate","negated":false,"x":1}],"keys":[{"string":"mi"}],"op":"∈","class":"KOhA","at":[3,3]}`)},
+		{"an entry has a key", entry(`{"gates":[],"keys":[],"op":"∈","class":"KOhA","at":[3,3]}`)},
+		{"a key is in lower case", entry(`{"gates":[],"keys":[{"string":"\ud800"}],"op":"∈","class":"KOhA","at":[3,3]}`)},
+		{"a key has no comma", entry(`{"gates":[],"keys":[{"string":"m,i"}],"op":"∈","class":"KOhA","at":[3,3]}`)},
+		{"a key is a string", entry(`{"gates":[],"keys":[1],"op":"∈","class":"KOhA","at":[3,3]}`)},
+		{"an entry's operator is ∈ or ∉", entry(`{"gates":[],"keys":[{"string":"mi"}],"op":"=","class":"KOhA","at":[3,3]}`)},
+		{"a class starts and ends with an uppercase ASCII letter", entry(`{"gates":[],"keys":[{"string":"mi"}],"op":"∈","class":"koha","at":[3,3]}`)},
+		{"a class is a name", entry(`{"gates":[],"keys":[{"string":"mi"}],"op":"∈","class":"/a/","at":[3,3]}`)},
+		{"an entry has no other member", entry(`{"gates":[],"keys":[{"string":"mi"}],"op":"∈","class":"KOhA","at":[3,3],"x":true}`)},
 		{"an implication has a position", implies(`{"if":{"tag":"UI"},"then":{"tag":"m"},"at":null}`)},
 		{"an implication has no other member", implies(`{"if":{"tag":"UI"},"then":{"tag":"m"},"at":[3,1],"x":true}`)},
 		{"an implication has two sides", implies(`{"if":{"tag":"UI"},"at":[3,1]}`)},
@@ -386,7 +386,7 @@ func TestDOMRules(t *testing.T) {
 		alt(`{"seq":[{"capture":"c","expr":{"range":[{"string":"\u0300"},{"string":"\u036f"}]}},{"capture":"d","expr":{"ref":"_General_Category_Surrogate"}}]}`),
 		tagged(`{"union":[{"tag":"A"},{"tag":"X"}]}`),
 		// Classifiers, entries, implications and classify.
-		classified(`{"name":"lex","entries":[{"guards":[],"keys":[{"string":"mi"},{"string":"do"}],"op":"∈","class":"KOhA","at":[3,3]},{"guards":[{"feature":"f","kind":"gate","negated":true}],"keys":[{"string":"u'i"}],"op":"∉","class":"UI","at":[4,3]}],"at":[3,1]},{"name":"empty","entries":[],"at":[5,1]}`,
+		classified(`{"name":"lex","entries":[{"gates":[],"keys":[{"string":"mi"},{"string":"do"}],"op":"∈","class":"KOhA","at":[3,3]},{"gates":[{"feature":"f","kind":"gate","negated":true}],"keys":[{"string":"u'i"}],"op":"∉","class":"UI","at":[4,3]}],"at":[3,1]},{"name":"empty","entries":[],"at":[5,1]}`,
 			`{"if":{"union":[{"tag":"UI"},{"const":"K","at":[6,15]}]},"then":{"tag":"Indicator"},"at":[6,1]},{"if":{"union":[{"tag":"A"},{"tag":"C"}]},"then":{"union":[{"tag":"Early"},{"tag":"A"}]},"at":[7,1]}`),
 		tagged(`{"union":[{"tag":"T"},{"method":"classify","receiver":{"method":"value","receiver":{"capture":"x"},"args":[]},"args":[{"classifier":"lex"}]}]}`),
 		// A gate, negated or not, and a warning.
@@ -478,7 +478,7 @@ func TestDOMRules(t *testing.T) {
 		// Attachments before and after a carrier, and one that an
 		// alternative with the carrier lacks.
 		emit(`{"items":[{"capture":"y","before":["x"]}]}`), emit(`{"items":[{"capture":"x","after":["y"]}]}`),
-		rule(`"alternatives":[{"guards":[],"expr":{"seq":[{"capture":"x","expr":{"literal":{"string":"a"}}},{"capture":"y","expr":{"literal":{"string":"b"}}}]}},{"guards":[],"expr":{"seq":[{"capture":"x","expr":{"literal":{"string":"a"}}},{"literal":{"string":"b"}}]}}],"emit":{"items":[{"insert":true,"value":{"concat":[{"string":"T"}]}},{"capture":"x","after":["y"]}]},"conditions":[]`),
+		rule(`"alternatives":[{"gates":[],"expr":{"seq":[{"capture":"x","expr":{"literal":{"string":"a"}}},{"capture":"y","expr":{"literal":{"string":"b"}}}]}},{"gates":[],"expr":{"seq":[{"capture":"x","expr":{"literal":{"string":"a"}}},{"literal":{"string":"b"}}]}}],"emit":{"items":[{"insert":true,"value":{"concat":[{"string":"T"}]}},{"capture":"x","after":["y"]}]},"conditions":[]`),
 		two(`"emit":{"items":[{"capture":"x","tags":{"method":"tags","receiver":{"capture":"z"},"args":[]}},{"capture":"z"},{"insert":true,"value":{"concat":[{"string":"T"}]}}]},"conditions":[]`)} {
 		if _, err := decodeDOM(json.RawMessage(ok), bundled.uni); err != nil {
 			t.Fatalf("a well-formed DOM is refused: %v\n%s", err, ok)
@@ -606,7 +606,7 @@ func assertGrammarError(t *testing.T, err error, want string) {
 // (engine §9).
 func TestBootstrapMalformedClassifier(t *testing.T) {
 	t.Parallel()
-	bad := `{"name":"lex","entries":[{"guards":[],"keys":[{"string":"\ud800"}],"op":"∈","class":"KOhA","at":[9999,3]}],"at":[9999,1]}`
+	bad := `{"name":"lex","entries":[{"gates":[],"keys":[{"string":"\ud800"}],"op":"∈","class":"KOhA","at":[9999,3]}],"at":[9999,1]}`
 	assertGrammarError(t, bootstrapError(t, "classifiers", bad), "not valid UTF-8")
 }
 
@@ -615,7 +615,7 @@ func TestBootstrapMalformedClassifier(t *testing.T) {
 func TestBootstrapMisplacedClassifier(t *testing.T) {
 	t.Parallel()
 	rule := func(condition string) string {
-		return `{"name":"misplaced-classifier","op":"define","alternatives":[{"guards":[],"expr":{"capture":"x","expr":{"ref":"A"}}}],"conditions":[` + condition + `],"at":[9999,1]}`
+		return `{"name":"misplaced-classifier","op":"define","alternatives":[{"gates":[],"expr":{"capture":"x","expr":{"ref":"A"}}}],"conditions":[` + condition + `],"at":[9999,1]}`
 	}
 	if err := bootstrapError(t, "rules", rule(`{"op":"∈","left":{"string":"a"},"right":{"method":"split","receiver":{"string":"a.b"},"args":[{"string":"."}]}}`)); err != nil {
 		t.Fatalf("a well-formed rule: %v", err)
@@ -639,7 +639,7 @@ func TestDeepConstant(t *testing.T) {
 	k := `{"name":"K","op":"define","value":` + deep + `,"at":[9999,1]}`
 	src := oneStage("%ambiguity-resolution greedy\n%rule text \"a\" \"b\"")
 	src = map[string]string{"grammars/test/p.md": src["p.md"], "grammars/test/g.md": src["g.md"]}
-	dom := `{"format":` + strconv.Itoa(domFormat) + `,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"seq":[{"literal":{"string":"a"}},{"literal":{"string":"b"}}]}}],"conditions":[],"at":[4,1]}],"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[3,1]}],"constants":[` + k + `],"classifiers":[],"implications":[]}`
+	dom := `{"format":` + strconv.Itoa(domFormat) + `,"rules":[{"name":"text","op":"define","alternatives":[{"gates":[],"expr":{"seq":[{"literal":{"string":"a"}},{"literal":{"string":"b"}}]}}],"conditions":[],"at":[4,1]}],"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[3,1]}],"constants":[` + k + `],"classifiers":[],"implications":[]}`
 	if _, err := decodeDOM(json.RawMessage(dom), bundled.uni); err == nil || !strings.Contains(err.Error(), "nested more than 256 deep") {
 		t.Fatalf("a deep constant: expected the nesting error, got %v", err)
 	}
@@ -742,10 +742,10 @@ func TestGuardFeatureName(t *testing.T) {
 	format := `"format":` + strconv.Itoa(domFormat)
 	classifier := func(guard string, line int) string {
 		at := strconv.Itoa(line)
-		return `{"name":"lex","entries":[{"guards":[` + guard + `],"keys":[{"string":"mi"}],"op":"∈","class":"KOhA","at":[` + at + `,3]}],"at":[` + at + `,1]}`
+		return `{"name":"lex","entries":[{"gates":[` + guard + `],"keys":[{"string":"mi"}],"op":"∈","class":"KOhA","at":[` + at + `,3]}],"at":[` + at + `,1]}`
 	}
 	rule := func(guard, name string, line int) string {
-		return `{"name":"` + name + `","op":"define","alternatives":[{"guards":[` + guard + `],"expr":{"seq":[{"literal":{"string":"a"}},{"literal":{"string":"b"}}]}}],"conditions":[],"at":[` + strconv.Itoa(line) + `,1]}`
+		return `{"name":"` + name + `","op":"define","alternatives":[{"gates":[` + guard + `],"expr":{"seq":[{"literal":{"string":"a"}},{"literal":{"string":"b"}}]}}],"conditions":[],"at":[` + strconv.Itoa(line) + `,1]}`
 	}
 	// features is the pipeline's features, each as name:kind, when its
 	// data/preparsed/test.json holds a DOM of the document with rules and classifiers.
@@ -819,7 +819,7 @@ func TestMixedForms(t *testing.T) {
 		if emit != "" {
 			emit = `,"emit":` + emit
 		}
-		return `{"name":"` + name + `","op":"define","alternatives":[{"guards":[],"expr":` + expr + `}]` + emit + `,"conditions":[` + condition + `],"at":[` + strconv.Itoa(line) + `,1]}`
+		return `{"name":"` + name + `","op":"define","alternatives":[{"gates":[],"expr":` + expr + `}]` + emit + `,"conditions":[` + condition + `],"at":[` + strconv.Itoa(line) + `,1]}`
 	}
 	seq := func(first, second string) string { return `{"seq":[` + first + `,` + second + `]}` }
 	parse := func(dom string) bool {
@@ -902,7 +902,7 @@ func TestMixedForms(t *testing.T) {
 func TestBootstrapGuardMembers(t *testing.T) {
 	t.Parallel()
 	rule := func(guard string) string {
-		return `{"name":"guarded-rule","op":"define","alternatives":[{"guards":[` + guard + `],"expr":{"ref":"A"}}],"conditions":[],"at":[9999,1]}`
+		return `{"name":"guarded-rule","op":"define","alternatives":[{"gates":[` + guard + `],"expr":{"ref":"A"}}],"conditions":[],"at":[9999,1]}`
 	}
 	if err := bootstrapError(t, "rules", rule(`{"feature":"f","kind":"gate","negated":false}`)); err != nil {
 		t.Fatalf("a well-formed guard: %v", err)

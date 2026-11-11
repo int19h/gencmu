@@ -133,7 +133,7 @@ fn notation_shapes() {
                 syntax = syntax.replace(&format!(r#""{field}":"{name}""#), &format!(r#""{field}":"{name}-wrapper""#));
             }
             wrappers.push_str(&format!(
-                r#"{{"name":"{name}-wrapper","op":"define","alternatives":[{{"guards":[],"expr":{{"ref":"{name}"}}}}],"conditions":[],"at":[{},1]}},"#,
+                r#"{{"name":"{name}-wrapper","op":"define","alternatives":[{{"gates":[],"expr":{{"ref":"{name}"}}}}],"conditions":[],"at":[{},1]}},"#,
                 100_000 + index
             ));
         }
@@ -182,7 +182,7 @@ fn a_notation_stage_that_declares_elision_only_runs_the_check() {
     let bootstrap = read(&["data", "preparsed", "gencmu.json"]);
     let bootstrap = bootstrap.replacen(
         r#""name":"punctuation","op":"define","alternatives":["#,
-        r#""name":"punctuation","op":"define","alternatives":[{"guards":[],"expr":{"literal":{"string":"."}}},"#,
+        r#""name":"punctuation","op":"define","alternatives":[{"gates":[],"expr":{"literal":{"string":"."}}},"#,
         1,
     );
     let directive = r#""name":"ambiguity-resolution","steps":[{"step":"greedy"}]"#;

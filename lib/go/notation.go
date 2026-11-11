@@ -693,13 +693,13 @@ func (b *domBuilder) classifier(n *Node) *domClassifier {
 // entry reads an entry of a classifier: gates, canonical keys, ∈ or ∉, and
 // a class (engine §2, §9).
 func (b *domBuilder) entry(n *Node) *domEntry {
-	e := &domEntry{Guards: []domGuard{}, At: b.at(n)}
+	e := &domEntry{Gates: []domGate{}, At: b.at(n)}
 	for _, p := range b.ofRule(n, "feature-gate") {
-		g := b.guard(p)
+		g := b.gate(p)
 		if g.Kind != FeatureGate {
 			b.fail(p, "an entry of a classifier takes gates only, not a warning")
 		}
-		e.Guards = append(e.Guards, g)
+		e.Gates = append(e.Gates, g)
 	}
 	for _, p := range b.some(n, "classifier-key", 1) {
 		key := b.term(b.knownOf(p, []string{"string", "constant-reference"}))
@@ -889,9 +889,9 @@ func (b *domBuilder) checkRule(r *domRule) {
 }
 
 // guard validates the complete token before the constructor reads later parts (§9.3).
-func (b *domBuilder) guard(n *Node) domGuard {
+func (b *domBuilder) gate(n *Node) domGate {
 	spelling := b.tokenValue(b.token(n))
-	g := domGuard{Kind: FeatureGate, Negated: strings.HasPrefix(spelling, "¬")}
+	g := domGate{Kind: FeatureGate, Negated: strings.HasPrefix(spelling, "¬")}
 	name := strings.TrimPrefix(spelling, "¬")
 	switch {
 	case strings.HasSuffix(name, "?"):
@@ -906,10 +906,10 @@ func (b *domBuilder) guard(n *Node) domGuard {
 }
 
 func (b *domBuilder) alternative(n *Node) *domAlt {
-	a := &domAlt{Guards: []domGuard{}}
+	a := &domAlt{Gates: []domGate{}}
 	b.captureNodes = map[*domExpr]*Node{}
 	for _, p := range b.ofRule(n, "feature-gate") {
-		a.Guards = append(a.Guards, b.guard(p))
+		a.Gates = append(a.Gates, b.gate(p))
 	}
 	if n.Rule == "ranked-body" {
 		a.Expr = b.expr(b.only(n, "ranked-choice"))

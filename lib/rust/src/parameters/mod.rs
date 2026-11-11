@@ -277,8 +277,8 @@ pub(crate) fn canonical_source(root: &Json) -> Json {
             &["call", "args", "exact", "children"]
         } else if has(&n, "method") {
             &["method", "receiver", "args"]
-        } else if has(&n, "guards") {
-            &["guards", "expr", "tags", "value", "image"]
+        } else if has(&n, "gates") {
+            &["gates", "expr", "tags", "value", "image"]
         } else if has(&n, "test") {
             &["test", "requirements", "value", "expr"]
         } else if has(&n, "capture") && has(&n, "expr") {

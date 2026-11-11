@@ -3,14 +3,14 @@
   "document": "```jbogenbau\n%rule text $x:\"a\"\n%conditions $x.parse(rK), $x.parse((rK) …), K ⊆ $x.parse(((rK))).tags, $x.without-elision-except(rK).parse(rK)\n%rule rK \"a\"\n```",
   "expect": {
     "dom": {
-      "format": 48,
+      "format": 49,
       "rules": [
         {
           "name": "text",
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "capture": "x",
                 "expr": {
@@ -110,7 +110,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "literal": {
                   "string": "a"

@@ -249,7 +249,7 @@ The authoritative constructor contract is [engine §9.3](engine.md#93-conversion
 
 A grammar DOM (document object model) is the parsed form of a grammar document (engine §8, §9). A library makes it when it reads the document. The per-family preparsed files hold this data, including the entries that bootstrap the notation reader.
 
-Its envelope is `{"format":48,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. All five declaration arrays are present, including empty arrays. The envelope has no other members. Every declared item has `at:[line,column]`, counted from 1. Both coordinates must be integers from 1 to 9007199254740991 (2^53 − 1). This bound applies to every DOM source position.
+Its envelope is `{"format":49,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. All five declaration arrays are present, including empty arrays. The envelope has no other members. Every declared item has `at:[line,column]`, counted from 1. Both coordinates must be integers from 1 to 9007199254740991 (2^53 − 1). This bound applies to every DOM source position.
 
 `format` is the version of the DOM, 48. A library refuses a bootstrap of another version and treats an optional cached DOM of another version as a cache miss. A format match alone never excuses invalid schema data.
 
@@ -339,11 +339,11 @@ A requirement-list argument splices only into an unnegated requirement placehold
 
 These forms remain unresolved in document caches. Supplied, cached, and source DOMs undergo the same binder, argument, expansion, and ordinary validation. Calls add one depth level before their arguments. Category wrappers add no depth, and parameters are leaves. Expanded definitions also obey the depth limit.
 
-An alternative is `{"guards":[GUARD...],"expr":EXPR,"tags":TERM,"value":RECIPE,"image":RECIPE}`. Its three clause members are optional. `guards` is always present, including an empty array.
+An alternative is `{"gates":[GATE...],"expr":EXPR,"tags":TERM,"value":RECIPE,"image":RECIPE}`. Its three clause members are optional. `gates` is always present, including an empty array.
 
 A gate is `{"feature":"cbm","kind":"gate","negated":false}`. Its kind is always `gate`, and its feature follows engine §9.1. `negated:true` gives `¬cbm?`. No other members or gate kinds exist.
 
-Alternatives have no members beyond `guards`, `expr`, `tags`, `value`, and `image`.
+Alternatives have no members beyond `gates`, `expr`, `tags`, `value`, and `image`.
 
 An expression has exactly one of these forms:
 
@@ -556,7 +556,7 @@ A constant is `{"name":"SU-STOPS","op":"define","value":TERM,"at":[line,column]}
 
 A classifier is `{"name":"lexicon","entries":[ENTRY...],"at":[line,column]}`. Its name begins with `a` to `z`. `entries` can be empty, for a `%classifier` with no entry.
 
-An entry is `{"guards":[GUARD...],"keys":[STRINGTERM...],"op":"∈","class":"KOhA","at":[line,column]}`. Entries take gates only. Keys are nonempty in count, but an individual string can be empty. Source classifier keys are string literals or string constants. The operator is `∈` or `∉`. The class starts and ends with uppercase ASCII letters and never starts with `_`.
+An entry is `{"gates":[GATE...],"keys":[STRINGTERM...],"op":"∈","class":"KOhA","at":[line,column]}`. Entries take gates only. Keys are nonempty in count, but an individual string can be empty. Source classifier keys are string literals or string constants. The operator is `∈` or `∉`. The class starts and ends with uppercase ASCII letters and never starts with `_`.
 
 An entry's `at` is the line and column of its first token, where the loader reports an error of the entry (engine §2).
 
@@ -743,7 +743,7 @@ The DOM holds no lowered helper, admission key, [seal](notation.md#the-structura
 
 The names dependency of a cached document is a resource map. If source conversion loads no names data, the entry omits `names`.
 
-`data/preparsed/FAMILY.json` holds the DOMs of all grammar documents under `grammars/FAMILY/`. `tools/sync.js` generates each file and copies it into every package. Its shape is `{"format":48,"bootstrap":HASH,"unicode":HASH,"properties":HASH_OR_NULL,"bundledNames":{RESOURCE:HASH},"documents":{PATH:{"hash":HASH,"names":{RESOURCE:HASH},"dom":DOM}}}`. `PATH` is relative to the package root, including the `grammars/` prefix. Each `HASH` is the FNV-1a hash of engine §8. `unicode` hashes the text of `data/unicode/unicode.txt`.
+`data/preparsed/FAMILY.json` holds the DOMs of all grammar documents under `grammars/FAMILY/`. `tools/sync.js` generates each file and copies it into every package. Its shape is `{"format":49,"bootstrap":HASH,"unicode":HASH,"properties":HASH_OR_NULL,"bundledNames":{RESOURCE:HASH},"documents":{PATH:{"hash":HASH,"names":{RESOURCE:HASH},"dom":DOM}}}`. `PATH` is relative to the package root, including the `grammars/` prefix. Each `HASH` is the FNV-1a hash of engine §8. `unicode` hashes the text of `data/unicode/unicode.txt`.
 
 The required `gencmu.json` omits the `bootstrap` header member. The hash of its complete text supplies that fingerprint for every other family. The notation reader uses its required entries without checking their source text hashes. Ordinary cache lookups still compare all other applicable identity members. Each document key selects its own family's preparsed file (engine §8), besides the required `gencmu.json`. Missing or malformed optional files give cache misses.
 

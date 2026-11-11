@@ -687,7 +687,7 @@ def load_pipeline_sources(sources: Mapping[str, str], pipeline: str, *, use_cach
 
 
 def _pipeline_features(grammars: list[Grammar], declared: frozenset[str]) -> tuple[Feature, ...]:
-    """A pipeline's features (engine §13): names from guards and pipeline or
+    """A pipeline's features (engine §13): names from gates and pipeline or
     stage-local ``%features`` declarations, in code point order.
     Unconditional declarations also supply defaults. A name that
     only declarations use is a gate. A name used as both gate and warning is an error."""
@@ -697,13 +697,13 @@ def _pipeline_features(grammars: list[Grammar], declared: frozenset[str]) -> tup
         roles = []
         for rule in grammar.rules.values():
             for alternative in rule.alternatives:
-                roles.extend((guard["feature"], "gate", alternative.document, alternative.at) for guard in alternative.guards)
+                roles.extend((gate["feature"], "gate", alternative.document, alternative.at) for gate in alternative.gates)
                 for kind in ("error", "warning"):
                     if getattr(alternative, kind) is not None:
                         roles.append((rule.name, kind, alternative.document, alternative.at))
         for document, classifier in grammar.classifier_items:
             for entry in classifier["entries"]:
-                roles.extend((guard["feature"], "gate", document, entry["at"]) for guard in entry["guards"])
+                roles.extend((gate["feature"], "gate", document, entry["at"]) for gate in entry["gates"])
         for name, kind, document, at in roles:
             known = kinds.setdefault(name, kind)
             if known != kind:
@@ -728,8 +728,8 @@ def _pipeline_features(grammars: list[Grammar], declared: frozenset[str]) -> tup
                     defaults.add(name)
         for rule in grammar.rules.values():
             for alt in rule.alternatives:
-                for guard in alt.guards:
-                    tested.setdefault(guard["feature"], grammar.stage)
+                for gate in alt.gates:
+                    tested.setdefault(gate["feature"], grammar.stage)
                 if alt.warning is not None:
                     tested.setdefault(rule.name, grammar.stage)
         for name in grammar.classifier_gates:

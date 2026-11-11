@@ -30,7 +30,7 @@ class DomMalformed(unittest.TestCase):
                 dom = {"format": DOM_FORMAT, "directives": [{"name": "ambiguity-resolution", "steps": [{"step": "greedy"}], "at": [1, 1]}],
                        "constants": [], "classifiers": [], "implications": [],
                        "rules": [{"op": "define", "name": "text", "at": [2, 1],
-                                  "alternatives": [{"guards": [], "expr": {"capture": "x", "expr": {"ref": "X"}}}],
+                                  "alternatives": [{"gates": [], "expr": {"capture": "x", "expr": {"ref": "X"}}}],
                                   "conditions": [dict(fields)]}]}
                 self.assertIsNone(dom_problem(dom, unicode))
                 with self.assertRaises(GencmuError) as raised:
@@ -46,7 +46,7 @@ class DomMalformed(unittest.TestCase):
             ({"extra": 1, "ranked": [{"ref": "A"}, {"ref": "B"}]}, False),
             ({"ranked": [None, {"ref": "B"}]}, False),
         ]:
-            dom = {"format": DOM_FORMAT, "rules": [{"name": "text", "op": "define", "alternatives": [{"guards": [], "expr": expr}], "conditions": [], "at": [1, 1]}], "directives": [], "constants": [], "classifiers": [], "implications": []}
+            dom = {"format": DOM_FORMAT, "rules": [{"name": "text", "op": "define", "alternatives": [{"gates": [], "expr": expr}], "conditions": [], "at": [1, 1]}], "directives": [], "constants": [], "classifiers": [], "implications": []}
             problem = dom_problem(dom, unicode)
             self.assertIsNotNone(problem)
             self.assertEqual(problem.startswith("ranked-choice-syntax:"), coded, str(expr))

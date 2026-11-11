@@ -56,12 +56,12 @@ func (r *recent[K, V]) touch(key K) {
 
 func (r *recent[K, V]) len() int { return len(r.entries) }
 
-// guardNames are the names of the features that guards use, in code point
+// gateNames are the names of the features that gates use, in code point
 // order, each once.
-func guardNames(guards []domGuard) []string {
+func gateNames(gates []domGate) []string {
 	seen := map[string]bool{}
 	var names []string
-	for _, gd := range guards {
+	for _, gd := range gates {
 		if !seen[gd.Feature] {
 			seen[gd.Feature] = true
 			names = append(names, gd.Feature)

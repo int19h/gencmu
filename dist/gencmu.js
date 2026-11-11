@@ -6330,7 +6330,7 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 48;
+  const DOM_FORMAT = 49;
   // A constant's name, without its `$`, begins with a capital (engine §2).
   const CONSTANT_NAME = /^(?!.*--)[A-Z][A-Za-z0-9_-]*$/;
   // A classifier name starts with a lowercase letter. A class name starts
@@ -6457,7 +6457,7 @@
     /** @type {(value: any) => boolean} */
     const constant = value => typeof value === "string" && CONSTANT_NAME.test(value);
     /** @type {(values: any) => boolean} */
-    const guards = values => Array.isArray(values) && values.every((/** @type {any} */ guard) => exact(guard, ["feature", "kind", "negated"]) && Object.keys(guard).length === 3 && typeof guard.feature === "string" && FEATURE_NAME.test(guard.feature) && typeof guard.negated === "boolean" && guard.kind === "gate");
+    const gates = values => Array.isArray(values) && values.every((/** @type {any} */ gate) => exact(gate, ["feature", "kind", "negated"]) && Object.keys(gate).length === 3 && typeof gate.feature === "string" && FEATURE_NAME.test(gate.feature) && typeof gate.negated === "boolean" && gate.kind === "gate");
     /** @type {any[]} */
     const pending = [];
     const tagClauses = new Map();
@@ -6501,7 +6501,7 @@
     for (const classifier of dom.classifiers) {
       if (!exact(classifier, ["name", "entries", "at"]) || !(typeof classifier.name === "string" && CLASSIFIER_NAME.test(classifier.name)) || !Array.isArray(classifier.entries)) return "a malformed classifier";
       for (const entry of classifier.entries) {
-        if (!exact(entry, ["guards", "keys", "op", "class", "at"]) || !position(entry.at) || !guards(entry.guards) || entry.guards.some((/** @type {any} */ guard) => guard.kind !== "gate") || !CLASS_NAME.test(entry.class) || !["∈", "∉"].includes(entry.op) || !Array.isArray(entry.keys) || !entry.keys.length) return "a malformed classifier entry";
+        if (!exact(entry, ["gates", "keys", "op", "class", "at"]) || !position(entry.at) || !gates(entry.gates) || entry.gates.some((/** @type {any} */ gate) => gate.kind !== "gate") || !CLASS_NAME.test(entry.class) || !["∈", "∉"].includes(entry.op) || !Array.isArray(entry.keys) || !entry.keys.length) return "a malformed classifier entry";
         for (const key of entry.keys) { if (!stringTerm(key)) return "a malformed classifier key"; push("term", key); }
       }
     }
@@ -6537,7 +6537,7 @@
       if (rule.emit !== undefined) push("emission", rule.emit, 0, { owner: rule });
       for (const condition of rule.conditions) push("condition", condition, 0, {});
       for (const alternative of rule.alternatives) {
-        if (!exact(alternative, ["guards", "expr", "tags", "value", "image"]) || !guards(alternative.guards)) return "a malformed alternative";
+        if (!exact(alternative, ["gates", "expr", "tags", "value", "image"]) || !gates(alternative.gates)) return "a malformed alternative";
         push("expr", alternative.expr, 0, { whole: true });
         if (alternative.tags !== undefined) push("tags", alternative.tags, 0, { constituent: true, owner: rule });
         for (const channel of ["value", "image"]) if (alternative[channel] !== undefined) { if (rule.erased) return "a recipe beside erasure"; push("recipe", alternative[channel]); }
@@ -10170,7 +10170,7 @@
       const add=(/** @type {any} */ term,tags=false)=>argumentsToCheck.push({...owner,term:rewrite(term,event),tags});
       const arg=normalize(argument);
       if(arg.body || arg.splice || arg.test || arg.range || arg.wildcard) {
-        const rule={...(parts.some(n=>n.param)?{params:event.rule.params}:{}),name:extraIndexes.has(event.index)?'text':event.rule.name,op:'define',conditions:[],alternatives:[{guards:[],expr:rewrite(arg.body??arg,event,'expr')}],at:event.rule.at};
+        const rule={...(parts.some(n=>n.param)?{params:event.rule.params}:{}),name:extraIndexes.has(event.index)?'text':event.rule.name,op:'define',conditions:[],alternatives:[{gates:[],expr:rewrite(arg.body??arg,event,'expr')}],at:event.rule.at};
         argumentsToCheck.push({...owner,rule,fragment:true});
       } else if(arg.requirements) {
         for(const requirement of arg.requirements) add(requirement.value,true);
@@ -10625,7 +10625,7 @@
 
 
   /**
-   * @import { Condition, ConstantTerm, DomAlternative, DomClassifier, DomEntry, DomConstant, DomImplication, DomRule, Emission, ErrorLocation, Expr, GrammarDom, Guard, LoweredGrammar, Production, Resolution, SymbolTest, TagSet, Term, TermValue, TestOp } from "./types.js"
+   * @import { Condition, ConstantTerm, DomAlternative, DomClassifier, DomEntry, DomConstant, DomImplication, DomRule, Emission, ErrorLocation, Expr, GrammarDom, Gate, LoweredGrammar, Production, Resolution, SymbolTest, TagSet, Term, TermValue, TestOp } from "./types.js"
    * @import { TermType } from "./dom.js"
    */
 
@@ -10823,7 +10823,7 @@
          * the classifiers' values.
          * @type {string[]}
          */
-        this.classifierGates = gateNames(this.classifierItems.flatMap(({ classifier }) => classifier.entries.flatMap((entry) => entry.guards)));
+        this.classifierGates = gateNames(this.classifierItems.flatMap(({ classifier }) => classifier.entries.flatMap((entry) => entry.gates)));
         /**
          * The classifiers resolved for each set of the classifier gates that is
          * on (engine §2).
@@ -10910,12 +10910,12 @@
         /**
          * The features that gate an alternative or an entry of a classifier.
          * Only these change a lowered grammar. A warning keeps its alternative
-         * (engine §3.1), and any other name matches no guard (engine §13).
+         * (engine §3.1), and any other name matches no gate (engine §13).
          * @type {string[]}
          */
         this.gates = gateNames([
-          ...[...this.rules.values()].flatMap((rule) => rule.alternatives.flatMap((alternative) => alternative.guards)),
-          ...this.classifierItems.flatMap(({ classifier }) => classifier.entries.flatMap((entry) => entry.guards)),
+          ...[...this.rules.values()].flatMap((rule) => rule.alternatives.flatMap((alternative) => alternative.gates)),
+          ...this.classifierItems.flatMap(({ classifier }) => classifier.entries.flatMap((entry) => entry.gates)),
         ]);
         /**
          * The lowered grammars, keyed by the gates that are on.
@@ -11080,7 +11080,7 @@
         let table = tables.get(classifier.name);
         if (!table) tables.set(classifier.name, (table = new Map()));
         for (const entry of classifier.entries) {
-          if (!entry.guards.every((guard) => features.has(guard.feature) !== guard.negated)) continue;
+          if (!entry.gates.every((gate) => features.has(gate.feature) !== gate.negated)) continue;
           for (const word of /** @type {string[]} */ (this.classifierKeys.get(entry))) {
             let classes = table.get(word);
             if (!classes) table.set(word, (classes = tagSet()));
@@ -11577,7 +11577,7 @@
                 // restriction on an otherwise legal query constituent.
                 /** @type {RuleClauses} */
                 const clauses = {conditions:[],erased:false,tags:{emptySet:true},emit:undefined,value:undefined,image:undefined,error:undefined,warning:undefined,suppressWarnings:undefined};
-                const source = {...alternative,guards:[],expr:body,tags:undefined,value:undefined,image:undefined,clauses};
+                const source = {...alternative,gates:[],expr:body,tags:undefined,value:undefined,image:undefined,clauses};
                 this.queryRules.set(name,{name,document:alternative.document,at:alternative.at,alternatives:[source]});
                 this.queryNames.set(name,templateBodyText(body,this.unicode));
               }
@@ -11813,11 +11813,11 @@
 
   /**
    * The names of the features that gate, in code point order, each once.
-   * @param {Guard[]} guards
+   * @param {Gate[]} gates
    * @returns {string[]}
    */
-  function gateNames(guards) {
-    const names = new Set(guards.map((guard) => guard.feature));
+  function gateNames(gates) {
+    const names = new Set(gates.map((gate) => gate.feature));
     return [...names].sort(compareCodePoints);
   }
 
@@ -11973,8 +11973,8 @@
     run() {
       for (const rule of this.grammar.rules.values()) {
         // Only gates drop an alternative; a warning keeps it (engine §3.1).
-        const enabled = rule.alternatives.filter((alternative) => alternative.guards.every(
-          (guard) => this.features.has(guard.feature) !== guard.negated));
+        const enabled = rule.alternatives.filter((alternative) => alternative.gates.every(
+          (gate) => this.features.has(gate.feature) !== gate.negated));
         // A chain is the only alternative of its rule that the gates leave
         // (engine §3.3); a %extend-rule can add another.
         const chain = enabled.find((alternative) => isChain(alternative.expr));
@@ -18069,7 +18069,7 @@
       const memberships = new Map();
       for (const { path, classifier } of grammar.classifierItems) {
         for (const entry of classifier.entries) {
-          const gates = entry.guards.map((guard) => `${guard.negated ? "¬" : ""}${guard.feature}?`).join(" ");
+          const gates = entry.gates.map((guard) => `${guard.negated ? "¬" : ""}${guard.feature}?`).join(" ");
           for (const key of /** @type {string[]} */ (grammar.classifierKeys.get(entry))) {
             const id = JSON.stringify([classifier.name, key, entry.class]);
             let membership = memberships.get(id);
@@ -22171,8 +22171,8 @@
      * @returns {DomEntry}
      */
     function readEntry(node) {
-      const guards = ofRule(node, "feature-gate").map((guard) => {
-        const read = readGuard(guard);
+      const gates = ofRule(node, "feature-gate").map((gate) => {
+        const read = readGate(gate);
         return read;
       });
       const keys = some(node, "classifier-key").map((keyNode) => {
@@ -22184,7 +22184,7 @@
       const classNode = only(node, "classifier-class");
       const name = valueOf(token(classNode));
       if (!/^[A-Z](?:[A-Za-z0-9_-]*[A-Z])?$/.test(name)) fail(`${name} is not a class: a class starts and ends with a capital`, classNode);
-      return { guards, keys, op, class: name, at: at(node) };
+      return { gates, keys, op, class: name, at: at(node) };
     }
 
     /**
@@ -22345,8 +22345,8 @@
       return {call:name,args,at:at(node)};
     }
 
-    /** @param {ResultNode} node @returns {import("./types.js").Guard} */
-    function readGuard(node) {
+    /** @param {ResultNode} node @returns {import("./types.js").Gate} */
+    function readGate(node) {
       const spelled = valueOf(token(node));
       const found = /^(¬?)(?!.*--)([A-Za-z][A-Za-z0-9-]*)(\?)$/.exec(spelled);
       if (!found) fail("invalid feature guard", node);
@@ -22358,10 +22358,10 @@
      * @returns {Generator<Step, DomAlternative, any>}
      */
     function* readAlternative(node) {
-      const guards = ofRule(node, "feature-gate").map(readGuard);
+      const gates = ofRule(node, "feature-gate").map(readGate);
       captureNodes = new Map();
       /** @type {DomAlternative} */
-      const alternative = { guards, expr: /** @type {Expr} */ (yield readExpression(only(node, ruleOf(node) === "ranked-body" ? "ranked-choice" : "some-of"), true)) };
+      const alternative = { gates, expr: /** @type {Expr} */ (yield readExpression(only(node, ruleOf(node) === "ranked-body" ? "ranked-choice" : "some-of"), true)) };
       // A name stands at most once in each production, gates aside: the
       // error stands at the second capture that such a production reads,
       // the first in the text where there are several (engine §3.5, §9).
@@ -24706,7 +24706,7 @@
   }
 
   /**
-   * A pipeline's features (engine §13): names from guards and pipeline or
+   * A pipeline's features (engine §13): names from gates and pipeline or
    * stage-local `%features` declarations, in code point order.
    * Unconditional declarations also supply defaults. A name that
    * only declarations use is a gate. A name used as both gate and warning is an error.
@@ -24722,12 +24722,12 @@
       const roles=[];
       for (const rule of stage.grammar.rules.values()) for (const alternative of rule.alternatives) {
         const where={...alternative.at,stage:stage.name};
-        for (const guard of alternative.guards) roles.push({name:guard.feature,kind:guard.kind,where});
+        for (const gate of alternative.gates) roles.push({name:gate.feature,kind:gate.kind,where});
         if (alternative.clauses.error) roles.push({name:rule.name,kind:"error",where});
         if (alternative.clauses.warning) roles.push({name:rule.name,kind:"warning",where});
       }
-      for (const {path:document,classifier} of stage.grammar.classifierItems) for (const entry of classifier.entries) for (const guard of entry.guards) {
-        roles.push({name:guard.feature,kind:guard.kind,where:{document,line:entry.at[0],column:entry.at[1],stage:stage.name}});
+      for (const {path:document,classifier} of stage.grammar.classifierItems) for (const entry of classifier.entries) for (const gate of entry.gates) {
+        roles.push({name:gate.feature,kind:gate.kind,where:{document,line:entry.at[0],column:entry.at[1],stage:stage.name}});
       }
       for (const {name,kind,where} of roles) {
         const known=kinds.get(name);
@@ -24745,7 +24745,7 @@
         if (tested.has(name)) throw new GencmuError("grammar", `${document}:${directive.at[0]}: stage ${tested.get(name)} tests local feature ${name}`, {document,line:directive.at[0],column:directive.at[1],stage:stage.name});
       }
       for (const rule of stage.grammar.rules.values()) for (const alternative of rule.alternatives) {
-        for (const guard of alternative.guards) if (!tested.has(guard.feature)) tested.set(guard.feature,stage.name);
+        for (const gate of alternative.gates) if (!tested.has(gate.feature)) tested.set(gate.feature,stage.name);
         if (alternative.clauses.warning && !tested.has(rule.name)) tested.set(rule.name,stage.name);
       }
       for (const name of stage.grammar.classifierGates) { if (!tested.has(name)) tested.set(name,stage.name); }
@@ -25519,7 +25519,7 @@
    * An entry of a classifier: its gates, its keys, `∈` or `∉`, and its class
    * (engine §2).
    * @typedef {object} DomEntry
-   * @property {Guard[]} guards gates only
+   * @property {Gate[]} gates gates only
    * @property {Term[]} keys the unresolved string keys
    * @property {"∈" | "∉"} op
    * @property {string} class an identifier tag that starts and ends with an uppercase ASCII letter
@@ -25604,7 +25604,7 @@
 
   /**
    * @typedef {object} DomAlternative
-   * @property {Guard[]} guards
+   * @property {Gate[]} gates
    * @property {Expr} expr
    * @property {Term} [tags]
    * @property {Recipe} [value]
@@ -25612,7 +25612,7 @@
    */
 
   /**
-   * @typedef {object} Guard
+   * @typedef {object} Gate
    * @property {string} feature
    * @property {"gate"} kind
    * @property {boolean} negated

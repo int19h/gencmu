@@ -254,13 +254,13 @@ class DomBuilder:
     def entry(self, node: Node) -> Dom:
         """An entry of a classifier: gates, exact keys, ``∈`` or ``∉``,
         and a class (engine §2, §9)."""
-        guards: list[Dom] = []
+        gates: list[Dom] = []
         keys: list[Dom] = []
-        for guard in self.rules(node, "feature-gate"):
-            value = self.guard(guard)
+        for gate in self.rules(node, "feature-gate"):
+            value = self.gate(gate)
             if value["kind"] != "gate":
-                raise self.fail(guard, "an entry of a classifier takes gates only, not a warning")
-            guards.append(value)
+                raise self.fail(gate, "an entry of a classifier takes gates only, not a warning")
+            gates.append(value)
         for key_node in self.some(node, "classifier-key"):
             keys.append(self.value(self.known_of(key_node, frozenset(("string", "constant-reference")))))
         op = self.operator(self.token(self.only(node, "classifier-operator")))
@@ -268,7 +268,7 @@ class DomBuilder:
         name = self.token_value(self.token(class_node))
         if USER_NAME.fullmatch(name) is None or not "A" <= name[-1] <= "Z":
             raise self.fail(class_node, f"{name} is not a class: a class starts and ends with an uppercase ASCII letter")
-        return {"guards": guards, "keys": keys, "op": op, "class": name, "at": list(self.position(node))}
+        return {"gates": gates, "keys": keys, "op": op, "class": name, "at": list(self.position(node))}
 
     def implication(self, node: Node) -> Dom:
         """An implication, ``%implies A ⟹ B``: two closed terms whose type is
@@ -361,7 +361,7 @@ class DomBuilder:
             return "string"
         return "invalid"
 
-    def guard(self, node: Node) -> Dom:
+    def gate(self, node: Node) -> Dom:
         text = self.token_value(self.token(node))
         match = re.fullmatch(r"(?!.*--)(¬?)([A-Za-z][A-Za-z0-9-]*)(\?)", text)
         if match is None:
@@ -520,12 +520,12 @@ class DomBuilder:
     # -- expressions
 
     def alternative(self, node: Node) -> Dom:
-        guards: list[Dom] = []
+        gates: list[Dom] = []
         self.capture_nodes = {}
         self.braces = []
         self.marked = 0
         self.allowed_marked = set()
-        guards = [self.guard(guard) for guard in self.rules(node, "feature-gate")]
+        gates = [self.gate(gate) for gate in self.rules(node, "feature-gate")]
         expr = run(self._expr(self.only(node, "ranked-choice" if node.rule == "ranked-body" else "some-of"), True))
         # A name stands at most once in each production, gates aside: the
         # error stands at the second capture that such a production reads,
@@ -550,7 +550,7 @@ class DomBuilder:
                     raise self.fail(later, f"the item capture ${name} is read again: the name of an item capture stands once in its alternative")
                 if earlier is None:
                     seen[name] = at
-        return {"guards": guards, "expr": expr, **self.clauses(node, "alternative-tags", True)}
+        return {"gates": gates, "expr": expr, **self.clauses(node, "alternative-tags", True)}
 
     def own_tags(self, node: Node) -> Dom:
         """A rule's or an alternative's tag term, which may not read the tags

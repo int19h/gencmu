@@ -3,14 +3,14 @@
   "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule text (A B) | C\n```\n",
   "expect": {
     "dom": {
-      "format": 48,
+      "format": 49,
       "rules": [
         {
           "name": "text",
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "seq": [
                   {
@@ -23,7 +23,7 @@
               }
             },
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "ref": "C"
               }

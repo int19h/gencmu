@@ -71,7 +71,7 @@ use crate::tags::is_name;
 use crate::unicode::Unicode;
 
 /// The DOM format version (`docs/output.md`), part of every cache key.
-pub const DOM_FORMAT: i64 = 48;
+pub const DOM_FORMAT: i64 = 49;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct Dom {
@@ -98,7 +98,7 @@ pub(crate) struct ClassifierDef {
 /// It adds (`∈`) or removes (`∉`) that class (engine §2).
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Entry {
-    pub guards: Vec<Guard>,
+    pub gates: Vec<Gate>,
     pub keys: Vec<Term>,
     pub adds: bool,
     pub class: String,
@@ -176,7 +176,7 @@ pub(crate) struct RuleDef {
     pub at: (usize, usize),
 }
 
-/// What kind of feature a name is (engine §13), as each guard that uses it
+/// What kind of feature a name is (engine §13), as each gate that uses it
 /// says.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FeatureKind {
@@ -189,7 +189,7 @@ pub enum FeatureKind {
 
 /// A feature gate, optionally negated.
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct Guard {
+pub(crate) struct Gate {
     pub feature: String,
     pub kind: FeatureKind,
     pub negated: bool,
@@ -197,7 +197,7 @@ pub(crate) struct Guard {
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Alternative {
-    pub guards: Vec<Guard>,
+    pub gates: Vec<Gate>,
     pub expr: Expr,
     pub tags: Option<Term>,
     pub strings: Channels,
@@ -476,7 +476,7 @@ pub(crate) fn decode_nodes(value: &Json) -> R<Dom> {
                     .iter()
                     .map(|entry| {
                         Ok(Entry {
-                            guards: array(entry, "guards")?.iter().map(guard_from_json).collect::<R<Vec<_>>>()?,
+                            gates: array(entry, "gates")?.iter().map(gate_from_json).collect::<R<Vec<_>>>()?,
                             keys: array(entry, "keys")?.iter().map(term_from_json).collect::<R<Vec<_>>>()?,
                             adds: string(entry, "op")? == "∈",
                             class: string(entry, "class")?,
@@ -582,14 +582,14 @@ fn channels_from_json(value: &Json) -> R<Channels> {
     })
 }
 
-fn guard_from_json(guard: &Json) -> R<Guard> {
-    Ok(Guard {
-        feature: string(guard, "feature")?,
-        kind: match string(guard, "kind")?.as_str() {
+fn gate_from_json(gate: &Json) -> R<Gate> {
+    Ok(Gate {
+        feature: string(gate, "feature")?,
+        kind: match string(gate, "kind")?.as_str() {
             "gate" => FeatureKind::Gate,
             _ => return Err("a bad guard".to_string()),
         },
-        negated: field(guard, "negated")?.as_bool().ok_or("a bad guard")?,
+        negated: field(gate, "negated")?.as_bool().ok_or("a bad guard")?,
     })
 }
 
@@ -642,7 +642,7 @@ pub(crate) fn rule_from_json(value: &Json) -> R<RuleDef> {
             .iter()
             .map(|alternative| {
                 Ok(Alternative {
-                    guards: array(alternative, "guards")?.iter().map(guard_from_json).collect::<R<Vec<_>>>()?,
+                    gates: array(alternative, "gates")?.iter().map(gate_from_json).collect::<R<Vec<_>>>()?,
                     expr: expr_from_json(field(alternative, "expr")?)?,
                     tags: alternative.get("tags").map(term_from_json).transpose()?,
                     strings: channels_from_json(alternative)?,
@@ -1227,12 +1227,12 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
             if index > 0 {
                 out.push(',');
             }
-            out.push_str("{\"guards\":[");
-            for (index, guard) in entry.guards.iter().enumerate() {
+            out.push_str("{\"gates\":[");
+            for (index, gate) in entry.gates.iter().enumerate() {
                 if index > 0 {
                     out.push(',');
                 }
-                write_guard(&mut out, guard);
+                write_gate(&mut out, gate);
             }
             out.push_str("],\"keys\":[");
             for (index, key) in entry.keys.iter().enumerate() {
@@ -1323,12 +1323,12 @@ pub(crate) fn write_rule(out: &mut String, rule: &RuleDef) {
         if index > 0 {
             out.push(',');
         }
-        out.push_str("{\"guards\":[");
-        for (index, guard) in alternative.guards.iter().enumerate() {
+        out.push_str("{\"gates\":[");
+        for (index, gate) in alternative.gates.iter().enumerate() {
             if index > 0 {
                 out.push(',');
             }
-            write_guard(out, guard);
+            write_gate(out, gate);
         }
         out.push_str("],\"expr\":");
         write_expr(out, &alternative.expr);
@@ -1420,14 +1420,14 @@ fn write_channels(out: &mut String, channels: &Channels) {
     }
 }
 
-fn write_guard(out: &mut String, guard: &Guard) {
+fn write_gate(out: &mut String, gate: &Gate) {
     out.push_str("{\"feature\":");
-    write_str(out, &guard.feature);
-    out.push_str(match guard.kind {
+    write_str(out, &gate.feature);
+    out.push_str(match gate.kind {
         FeatureKind::Gate => ",\"kind\":\"gate\"",
         FeatureKind::Warning => ",\"kind\":\"warning\"",
     });
-    out.push_str(if guard.negated { ",\"negated\":true}" } else { ",\"negated\":false}" });
+    out.push_str(if gate.negated { ",\"negated\":true}" } else { ",\"negated\":false}" });
 }
 
 pub(crate) fn write_expr(out: &mut String, expr: &Expr) {

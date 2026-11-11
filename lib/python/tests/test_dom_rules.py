@@ -89,7 +89,7 @@ def with_bare_alternative(*changes: Callable[[Dom], None]) -> Callable[[Dom], No
     which serves it: then the changes."""
 
     def change(dom: Dom) -> None:
-        rule(dom)["alternatives"].append({"guards": [], "expr": {"literal": {"string": "b"}}})
+        rule(dom)["alternatives"].append({"gates": [], "expr": {"literal": {"string": "b"}}})
         rule(dom)["emit"] = {"items": [WHOLE]}
         for other in changes:
             other(dom)
@@ -165,12 +165,12 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("rule without alternatives", lambda dom: rule(dom).update(alternatives=[])),
     ("rule without a position", lambda dom: rule(dom).pop("at")),
     ("opaque other than true", lambda dom: rule(dom).update(opaque=False)),
-    ("guard without negated", lambda dom: alt(dom).update(guards=[{"feature": "f", "kind": "gate"}])),
-    ("guard without a kind", lambda dom: alt(dom).update(guards=[{"feature": "f", "negated": False}])),
-    ("guard of an unknown kind", lambda dom: alt(dom).update(guards=[{"feature": "f", "kind": "hint", "negated": False}])),
-    ("a warning guard", lambda dom: alt(dom).update(guards=[{"feature": "f", "kind": "warning", "negated": False}])),
-    ("a negated warning", lambda dom: alt(dom).update(guards=[{"feature": "f", "kind": "warning", "negated": True}])),
-    ("guard with another member", lambda dom: alt(dom).update(guards=[{"feature": "f", "kind": "gate", "negated": False, "extra": True}])),
+    ("guard without negated", lambda dom: alt(dom).update(gates=[{"feature": "f", "kind": "gate"}])),
+    ("guard without a kind", lambda dom: alt(dom).update(gates=[{"feature": "f", "negated": False}])),
+    ("guard of an unknown kind", lambda dom: alt(dom).update(gates=[{"feature": "f", "kind": "hint", "negated": False}])),
+    ("a warning guard", lambda dom: alt(dom).update(gates=[{"feature": "f", "kind": "warning", "negated": False}])),
+    ("a negated warning", lambda dom: alt(dom).update(gates=[{"feature": "f", "kind": "warning", "negated": True}])),
+    ("guard with another member", lambda dom: alt(dom).update(gates=[{"feature": "f", "kind": "gate", "negated": False, "extra": True}])),
     ("seq of one item", set_expr({"seq": [A]})),
     ("choice of one item", set_expr({"choice": [A]})),
     ("& of more than 16 items", set_expr({"and": [A] * 17})),
@@ -516,7 +516,7 @@ class PreparsedDomRules(unittest.TestCase):
         bootstrap = json.loads(bundled_text("data/preparsed/gencmu.json") or "{}")
         syntax = bootstrap["documents"]["grammars/gencmu/jbogenbau/syntax.md"]
         next(rule for rule in syntax["dom"]["rules"] if rule["name"] == "rule-name")["alternatives"].append(
-            {"guards": [], "expr": {"ref": "String"}}
+            {"gates": [], "expr": {"ref": "String"}}
         )
         sources = {
             "grammars/test/p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
@@ -669,7 +669,7 @@ class PreparsedDomRules(unittest.TestCase):
                 set_tags({"if": {"receiver": WHOLE, "args": [], "method": "starts-input"}, "then": TAG}),
             ),
             ("🆓 as a rule's name", lambda dom: rule(dom).update(name="🆓")),
-            ("a negated gate", lambda dom: alt(dom).update(guards=[{"feature": "f", "kind": "gate", "negated": True}])),
+            ("a negated gate", lambda dom: alt(dom).update(gates=[{"feature": "f", "kind": "gate", "negated": True}])),
             ("an implication", set_condition({"if": SAME, "then": {"op": "=", "left": TEXT, "right": STR}})),
             ("a presence test that removes an alternative", with_bare_alternative(set_condition({"captured": "x"}))),
             ("a guarded term", with_bare_alternative(set_rule_tags({"union": [TAG, {"if": {"captured": "x"}, "then": TAGS_X}]}))),
@@ -974,7 +974,7 @@ class PreparsedDomRules(unittest.TestCase):
                     {
                         "name": "text",
                         "op": "define",
-                                                "alternatives": [{"guards": [], "expr": body}],
+                                                "alternatives": [{"gates": [], "expr": body}],
                         "emit": {"items": items},
                         "conditions": [],
                         "at": [1, 1],
@@ -1120,7 +1120,7 @@ class CharacterClassLoading(unittest.TestCase):
             added = {
                 "name": "unused-rule",
                 "op": "define",
-                                "alternatives": [{"guards": [], "expr": expr}],
+                                "alternatives": [{"gates": [], "expr": expr}],
                 "conditions": [],
                 "at": [100000, 1],
             }
@@ -1284,7 +1284,7 @@ class MixedFormLoading(unittest.TestCase):
             added = {
                 "name": "unused-rule",
                 "op": "define",
-                                "alternatives": [{"guards": [], "expr": expr}],
+                                "alternatives": [{"gates": [], "expr": expr}],
                 "conditions": [condition],
                 "at": [100000, 1],
             }
@@ -1333,7 +1333,7 @@ class Constants(unittest.TestCase):
                 {
                     "name": "text",
                     "op": "define",
-                                        "alternatives": [{"guards": [], "expr": {"ref": "A"}}],
+                                        "alternatives": [{"gates": [], "expr": {"ref": "A"}}],
                     "conditions": conditions or [],
                     "at": [9, 1],
                 }
@@ -1534,7 +1534,7 @@ class Classifiers(unittest.TestCase):
 
     @staticmethod
     def entry(**extra: Any) -> Dom:
-        return {"guards": [], "keys": [{"string": "mi"}], "op": "∈", "class": "KOhA", "at": [3, 3], **extra}
+        return {"gates": [], "keys": [{"string": "mi"}], "op": "∈", "class": "KOhA", "at": [3, 3], **extra}
 
     @staticmethod
     def classifier(entries: list[Dom], **extra: Any) -> Dom:
@@ -1546,7 +1546,7 @@ class Classifiers(unittest.TestCase):
 
     def test_a_preparsed_classifier_is_checked(self) -> None:
         dom, entry, classifier = self.dom, self.entry, self.classifier
-        negated = entry(guards=[{"feature": "f", "kind": "gate", "negated": True}], op="∉", at=[4, 3])
+        negated = entry(gates=[{"feature": "f", "kind": "gate", "negated": True}], op="∉", at=[4, 3])
         self.assertIsNone(dom_problem(dom([classifier([entry(), negated])])))
         self.assertIsNone(dom_problem(dom([classifier([])])))
         self.assertEqual(
@@ -1556,7 +1556,7 @@ class Classifiers(unittest.TestCase):
             expected = "a malformed declaration position" if bad["at"] is None else "a malformed classifier"
             self.assertEqual(dom_problem(dom([bad])), expected, json.dumps(bad))
         for bad_entry in [
-            entry(guards=[{"feature": "f", "kind": "warning", "negated": False}]),
+            entry(gates=[{"feature": "f", "kind": "warning", "negated": False}]),
             entry(keys=[]),
             entry(keys=[{"string": "Mi"}]),
             entry(keys=[{"string": "m,i"}]),
@@ -1592,7 +1592,7 @@ class Classifiers(unittest.TestCase):
     def test_a_preparsed_classify_names_a_classifier(self) -> None:
         def call(args: list[Dom]) -> Dom:
             alternative = {
-                "guards": [],
+                "gates": [],
                 "expr": {"capture": "w", "expr": {"ref": "W"}},
                 "tags": {"method": "classify", "args": args[1:], "receiver": args[0]},
             }
@@ -1609,7 +1609,7 @@ class Classifiers(unittest.TestCase):
 
     def test_a_bootstrap_with_a_malformed_classifier_is_an_error(self) -> None:
         bootstrap = json.loads(bundled_text("data/preparsed/gencmu.json") or "{}")
-        bad = {"guards": [], "keys": [1], "op": "∈", "class": "KOhA", "at": [9999, 3]}
+        bad = {"gates": [], "keys": [1], "op": "∈", "class": "KOhA", "at": [9999, 3]}
         bootstrap["documents"]["grammars/gencmu/jbogenbau/lexical.md"]["dom"]["classifiers"].append({"name": "lex", "entries": [bad], "at": [9999, 1]})
         with self.assertRaises(gencmu.GencmuError) as caught:
             gencmu.load_pipeline_sources({**CONSTANT_SOURCES, "data/preparsed/gencmu.json": json.dumps(bootstrap)}, "grammars/test/p.md", use_cache=False)
@@ -1689,13 +1689,13 @@ class Classifiers(unittest.TestCase):
 
         def text_rule(part: Dom, name: str = "text", at: list[int] | None = None) -> Dom:
             guards = [part] if slot == "alternative" else []
-            alternative = {"guards": guards, "expr": {"capture": "x", "expr": {"ref": "A"}}}
+            alternative = {"gates": guards, "expr": {"capture": "x", "expr": {"ref": "A"}}}
             conditions = [part] if slot == "condition" else []
             return {"name": name, "op": "define", "alternatives": [alternative], "conditions": conditions, "at": at or [3, 1]}
 
         def classifier(part: Dom, at: list[int]) -> Dom:
             guards = [part] if slot == "entry" else []
-            entry = {"guards": guards, "keys": [{"string": "mi"}], "op": "∈", "class": "KOhA", "at": [at[0], 3]}
+            entry = {"gates": guards, "keys": [{"string": "mi"}], "op": "∈", "class": "KOhA", "at": [at[0], 3]}
             return {"name": "lex", "entries": [entry], "at": at}
 
         def dom(part: Dom) -> Dom:

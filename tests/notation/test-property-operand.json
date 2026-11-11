@@ -3,14 +3,14 @@
   "document": "```jbogenbau\n%rule a A <_L>\n```\n",
   "expect": {
     "dom": {
-      "format": 48,
+      "format": 49,
       "rules": [
         {
           "name": "a",
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "test": "tags",
                 "requirements": [

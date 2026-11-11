@@ -3,14 +3,14 @@
   "document": "```jbogenbau\n%rule a $x:B%conditions $x ∈ $x.value.split(\".\")\n```\n",
   "expect": {
     "dom": {
-      "format": 48,
+      "format": 49,
       "rules": [
         {
           "name": "a",
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "capture": "x",
                 "expr": {

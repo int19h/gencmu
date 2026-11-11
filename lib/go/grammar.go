@@ -63,11 +63,11 @@ type stageGrammar struct {
 	implications  []stageImplication
 	// impliedBy indexes the implications by each tag of their if side.
 	impliedBy map[string][]int
-	// guarded are the features that guard an alternative or an entry of a
+	// gates are the features that guard an alternative or an entry of a
 	// classifier, in code point order. Only gates change a lowered grammar.
 	// Productions retain all written warnings. Output selects enabled names
 	// for each parse. Any other name matches no guard (engine §13).
-	guarded []string
+	gates []string
 }
 
 // stitchChange records a rule a later item of the stage replaced or
@@ -416,20 +416,20 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 	if err := g.makeTests(); err != nil {
 		return nil, err
 	}
-	var guards, entries []domGuard
+	var gates, entries []domGate
 	for _, it := range g.classifierSet.items {
 		for _, e := range it.classifier.Entries {
-			entries = append(entries, e.Guards...)
+			entries = append(entries, e.Gates...)
 		}
 	}
 	for _, r := range g.rules {
 		for _, a := range r.alts {
-			guards = append(guards, a.alt.Guards...)
+			gates = append(gates, a.alt.Gates...)
 		}
 	}
-	// The guards of an entry are all gates (engine §2).
-	g.classifierSet.gates = guardNames(entries)
-	g.guarded = guardNames(append(guards, entries...))
+	// The gates of an entry are all gates (engine §2).
+	g.classifierSet.gates = gateNames(entries)
+	g.gates = gateNames(append(gates, entries...))
 	g.ranked = newRankedGroups(g)
 	if len(g.ranked.groups) > 0 {
 		if err := g.ranked.validateTags(g); err != nil {

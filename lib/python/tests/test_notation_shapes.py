@@ -92,7 +92,7 @@ class NotationShapes(unittest.TestCase):
         documents = {path:entry["dom"] for path,entry in parsed["documents"].items()}
         lexical = documents["grammars/gencmu/jbogenbau/lexical.md"]
         next(rule for rule in lexical["rules"] if rule["name"] == "feature-character")["alternatives"].append(
-            {"guards": [], "expr": {"literal": {"string": "_"}}}
+            {"gates": [], "expr": {"literal": {"string": "_"}}}
         )
         syntax = documents["grammars/gencmu/jbogenbau/syntax.md"]
         next(rule for rule in syntax["rules"] if rule["name"] == "feature-gate")["alternatives"][0]["expr"] = {
@@ -100,7 +100,7 @@ class NotationShapes(unittest.TestCase):
         }
         syntax["rules"].append({
             "name": "padding", "op": "define",
-            "alternatives": [{"guards": [], "expr": {"empty": True}}],
+            "alternatives": [{"gates": [], "expr": {"empty": True}}],
             "conditions": [], "at": [1, 1],
         })
         bootstrap = json.dumps(parsed, ensure_ascii=False)
@@ -129,7 +129,7 @@ class NotationShapes(unittest.TestCase):
         parsed = json.loads(BOOTSTRAP)
         lexical_dom = parsed["documents"]["grammars/gencmu/jbogenbau/lexical.md"]["dom"]
         next(r for r in lexical_dom["rules"] if r["name"] == "punctuation")["alternatives"].append(
-            {"guards": [], "expr": {"literal": {"string": "."}}}
+            {"gates": [], "expr": {"literal": {"string": "."}}}
         )
         bootstrap = json.dumps(parsed, separators=(",", ":"), ensure_ascii=False)
         directive = next(item for item in lexical_dom["directives"] if item["name"] == "ambiguity-resolution")
@@ -162,7 +162,7 @@ class NotationShapes(unittest.TestCase):
                 for field in ("ref", "rule"):
                     syntax = syntax.replace(f'"{field}":"{name}"', f'"{field}":"{name}-wrapper"')
             wrappers = "".join(
-                f'{{"name":"{name}-wrapper","op":"define","alternatives":[{{"guards":[],"expr":{{"ref":"{name}"}}}}],'
+                f'{{"name":"{name}-wrapper","op":"define","alternatives":[{{"gates":[],"expr":{{"ref":"{name}"}}}}],'
                 f'"conditions":[],"at":[{100000 + index},1]}},'
                 for index, name in enumerate(NAMES)
             )

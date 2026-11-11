@@ -7,7 +7,7 @@ import (
 )
 
 // domFormat is the version of the grammar DOM (docs/output.md).
-const domFormat = 48
+const domFormat = 49
 
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what data/preparsed/gencmu.json and data/preparsed/FAMILY.json hold.
@@ -34,7 +34,7 @@ type domClassifier struct {
 // operator, class, and source position.
 // The class starts and ends with an uppercase ASCII letter.
 type domEntry struct {
-	Guards   []domGuard
+	Gates    []domGate
 	Keys     []string
 	KeyTerms []*domTerm
 	Op       string
@@ -83,14 +83,14 @@ type domRule struct {
 
 type domAlt struct {
 	rankedLocations map[string][2]int
-	Guards          []domGuard
+	Gates           []domGate
 	Expr            *domExpr
 	Tags            *domTerm
 	Value, Image    *domTerm
 }
 
-// domGuard is a gate, f? or ¬f? (engine §9).
-type domGuard struct {
+// domGate is a gate, f? or ¬f? (engine §9).
+type domGate struct {
 	Feature string
 	Kind    string // FeatureGate
 	Negated bool
@@ -402,8 +402,8 @@ func (d *domDoc) writeJSON(w *jsonWriter) {
 			if j > 0 {
 				w.raw(",")
 			}
-			w.raw(`{"guards":`)
-			writeGuards(w, e.Guards)
+			w.raw(`{"gates":`)
+			writeGates(w, e.Gates)
 			w.raw(`,"keys":[`)
 			for k, key := range e.KeyTerms {
 				if k > 0 {
@@ -439,11 +439,11 @@ func (d *domDoc) writeJSON(w *jsonWriter) {
 	w.raw("]}")
 }
 
-// writeGuards writes a list of guards, as an alternative or an entry of a
+// writeGates writes a list of gates, as an alternative or an entry of a
 // classifier holds them.
-func writeGuards(w *jsonWriter, guards []domGuard) {
+func writeGates(w *jsonWriter, gates []domGate) {
 	w.raw("[")
-	for j, g := range guards {
+	for j, g := range gates {
 		if j > 0 {
 			w.raw(",")
 		}
@@ -495,8 +495,8 @@ func (r *domRule) writeJSON(w *jsonWriter) {
 		if i > 0 {
 			w.raw(",")
 		}
-		w.raw(`{"guards":`)
-		writeGuards(w, a.Guards)
+		w.raw(`{"gates":`)
+		writeGates(w, a.Gates)
 		w.raw(`,"expr":`)
 		a.Expr.writeJSON(w)
 		if a.Tags != nil {
@@ -1016,7 +1016,7 @@ func (dc *domDecoder) decodeConst(raw any) (*domConst, error) {
 }
 
 // decodeClassifier reads a classifier, which has exactly its name, its
-// entries and its position. Each entry has exactly its guards, its keys,
+// entries and its position. Each entry has exactly its gates, its keys,
 // its operator, its class and its position; the checker holds them to the
 // reader's rules.
 func (dc *domDecoder) decodeClassifier(raw any) (*domClassifier, error) {
@@ -1045,7 +1045,7 @@ func (dc *domDecoder) decodeEntry(raw any) (*domEntry, error) {
 		return nil, malformed
 	}
 	e := &domEntry{}
-	if e.Guards, err = dc.decodeGuards(o["guards"]); err != nil {
+	if e.Gates, err = dc.decodeGates(o["gates"]); err != nil {
 		return nil, malformed
 	}
 	if e.KeyTerms, err = domList(o["keys"], dc.decodeTerm); err != nil {
@@ -1084,26 +1084,26 @@ func (dc *domDecoder) decodeImplication(raw any) (*domImplication, error) {
 	return m, nil
 }
 
-// decodeGuards reads a list of guards, each with exactly its feature, its
+// decodeGates reads a list of gates, each with exactly its feature, its
 // kind and whether it is negated.
-func (dc *domDecoder) decodeGuards(raw any) ([]domGuard, error) {
+func (dc *domDecoder) decodeGates(raw any) ([]domGate, error) {
 	var items []any
 	if err := domScalar(raw, &items); err != nil {
 		return nil, fmt.Errorf("a malformed guard")
 	}
-	guards := []domGuard{}
+	gates := []domGate{}
 	for _, it := range items {
 		o, err := domObjectOf(it)
 		if err != nil || len(o) != 3 {
 			return nil, fmt.Errorf("a malformed guard")
 		}
-		var g domGuard
+		var g domGate
 		if domScalar(o["feature"], &g.Feature) != nil || domScalar(o["kind"], &g.Kind) != nil || domScalar(o["negated"], &g.Negated) != nil {
 			return nil, fmt.Errorf("a malformed guard")
 		}
-		guards = append(guards, g)
+		gates = append(gates, g)
 	}
-	return guards, nil
+	return gates, nil
 }
 
 func (dc *domDecoder) decodeRule(raw any) (*domRule, error) {
@@ -1205,13 +1205,13 @@ func (dc *domDecoder) decodeRule(raw any) (*domRule, error) {
 		if err != nil {
 			return nil, err
 		}
-		if !onlyMembers(ao, "guards", "expr", "tags", "value", "image") {
+		if !onlyMembers(ao, "gates", "expr", "tags", "value", "image") {
 			return nil, fmt.Errorf("a malformed alternative")
 		}
 		alt := &domAlt{}
-		// The guards of an alternative have the members of an entry's
-		// guards. The checker holds their kinds to the reader's rules.
-		if alt.Guards, err = dc.decodeGuards(ao["guards"]); err != nil {
+		// The gates of an alternative have the members of an entry's
+		// gates. The checker holds their kinds to the reader's rules.
+		if alt.Gates, err = dc.decodeGates(ao["gates"]); err != nil {
 			return nil, err
 		}
 		if alt.Expr, err = dc.decodeExpr(ao["expr"]); err != nil {
