@@ -500,7 +500,7 @@ async function main() {
     await page.locator("#token-stages button").filter({hasText: /^indicators \(/}).click();
     await idle("the indicators token table", "#output table.tokens");
     const miTags = ["Cmavo", "Continued", "Final-Stress", "Initial-Stress", "KOhA", "Onset", "Run-Final", "Run-Initial", "Word"];
-    const klamaTags = ["BRIVLA", "Continued", "Gismu", "Initial-Stress", "Onset", "Run-Final", "Run-Initial", "Stress-Gate", "Word"];
+    const klamaTags = ["BRIVLA", "Continued", "Gismu", "Initial-Stress", "Onset", "Run-Final", "Run-Initial", "Stress-Guard", "Word"];
     const beforeTokens = [{text: "ba'e", value: "ba'e", image: "ba'e",
       tags: ["BAhE", "Cmavo", "Continued", "Onset", "Run-Final", "Run-Initial", "Word"], source: [0, 4]}];
     const afterTokens = [{text: "ui", value: "ui", image: "ui",
