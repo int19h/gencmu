@@ -5619,7 +5619,7 @@
     } else if (name === "emitted") {
       if (!recipe || args.length || typeof receiver.capture !== "string" || Object.keys(receiver).length !== 1) return "emitted requires a bare capture in a recipe";
     } else if (name === "verbatim-text") {
-      if (!recipe || !span || args.length) return "verbatim-text requires a capture in a recipe";
+      if (!recipe || !span || args.length) return METHOD_SIGNATURE_PROBLEM;
     } else if (!span && !(type === "emitted" && (name === "value" || name === "image"))) {
       return METHOD_SIGNATURE_PROBLEM;
     } else if (args.length) return METHOD_SIGNATURE_PROBLEM;
@@ -8738,7 +8738,6 @@
         const recipe=checkRecipeContexts.has(constants);
         if(CHECK_METHODS.has(term.method) && (term.method==='terminal' ? !recipe : recipe))return {problem:'a check method is outside its permitted clause',node:term};
         if(['without-elision','without-elision-except'].includes(term.method))return {problem:'a check cannot restore elision',node:term};
-        if(term.method==='emitted')return {problem:'a method has the wrong receiver or arguments',node:term};
         if(recipe && term.receiver.capture!=='')return {problem:'a check message reads only $',node:term};
       }
       const types = [];
@@ -8755,7 +8754,7 @@
       const args = nominal ? term.args.map((/** @type {any} */ arg) => arg.param || arg.call ? {rule:"unresolved"} : arg) : term.args;
       const receiverType = receiver.type === "any" && hasUnresolved(term.receiver) ? "span" : receiver.type;
       const receiverNode = term.receiver.param || term.receiver.call ? {capture:""} : term.receiver;
-      const problem = methodProblem(term.method, receiverNode, args, receiverType, types, true);
+      const problem = methodProblem(term.method, receiverNode, args, receiverType, types, checkTypeContexts.has(constants)?checkRecipeContexts.has(constants):true);
       return problem ? { problem, node: term } : { type: /** @type {TermType} */ (methodType(term.method)) };
     }
     if (typeof term.tag === "string") return { type: "tags" };
@@ -23717,7 +23716,7 @@
           if (nodes.length > 1) {
             const found = readType(term);
             const problem = "problem" in found ? found.problem : !["string", "any"].includes(found.type) ? "++ requires string operands" : null;
-            if (problem && !featureContext) fail(problem, node);
+            if (problem && !featureContext) fail(problem, checkContext && "problem" in found ? boundaryLocations.get(found.node)?.tree ?? part : node);
           }
           items.push(term);
         }
@@ -23984,7 +23983,7 @@
           const argument = only(parsed,"parse-argument");
           let body = yield readExpression(only(argument,"choice"),true);
           const capture = queryCapture(body);
-          if (capture) fail(checkContext?"a check cannot declare a capture":"a parse argument cannot declare captures",descendant(argument,"capture") ?? argument);
+          if (capture) fail(checkContext?"a check cannot declare a capture":"a parse argument cannot declare captures",[descendant(argument,"capture"),descendant(argument,"captured-terminator")].filter(part=>part!==undefined).sort((a,b)=>a.span[0]-b.span[0])[0] ?? argument);
           const markers = parts(argument).filter(child => child.kind === "token" && valueOf(child) === "…");
           if (markers.length > 2) fail("a remainder stands at one outer edge of a parse argument",markers[2]);
           if (markers.length) {
@@ -24041,6 +24040,10 @@
         if (closedFor && found.type === "span") fail(`${closedFor} cannot read an input method`, node);
         receiver = { method: name, receiver, args };
         boundaryLocations.set(receiver, {tree:node,at:at(node)});
+        if(checkContext) {
+          const typed=readType(receiver);
+          if("problem" in typed)fail(typed.problem,boundaryLocations.get(typed.node)?.tree ?? node);
+        }
         if (argumentsNode) ofRule(argumentsNode,"method-argument").forEach((argument,index) => boundaryLocations.set(args[index],{tree:argument,at:at(argument)}));
       }
       return receiver;

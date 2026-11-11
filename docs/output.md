@@ -270,7 +270,7 @@ A check has this form, in canonical member order:
 
 `pattern` is a PATTERN literal or a constant reference `{"const":NAME,"at":[line,column]}` that resolves to a pattern. Exactly one of `error` and `warning` is present. `conditions` is always an array, including an empty array. No other members are legal. In particular, a check has no `op`, alternatives, parameters, arguments, tags, strings, emission, suppression or erasure.
 
-Check names use the rule-name repertoire, with warning names further restricted to valid feature names. The stage rejects duplicate checks and rule/check name collisions. Each check's `at` is its definer's position. Declaration ordering merges all six arrays by source position, with equal positions ordered as rules, directives, constants, classifiers, implications, then checks.
+Check names use the rule-name repertoire, with warning names further restricted to valid feature names. The stage rejects duplicate checks and rule/check name collisions. Each check's `at` is the position of its `%check` keyword. Declaration ordering merges all six arrays by source position, with equal positions ordered as rules, directives, constants, classifiers, implications, then checks.
 
 A check pattern's candidate predicate is exact and has no path operator, as engine §2.4 defines. Nested child lists retain ordinary pattern rules. A check's named references must resolve to rules or template families, never checks.
 

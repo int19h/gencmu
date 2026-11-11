@@ -1,0 +1,14 @@
+{
+  "description": "A terminator binder precedes a later ordinary binder in a check query.",
+  "grammar": "%rule text \"a\"\n%check c #·text\n%conditions $.parse(\"a\" [$x:+T] $y:T)\n%warning \"m\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "message": "a check cannot declare a capture",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 26
+    }
+  }
+}

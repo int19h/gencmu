@@ -474,7 +474,8 @@ func directiveOperandsOK(dir *domDirective) bool {
 
 type domChecker struct {
 	check           bool
-	checkRecipe     bool
+	types           *typeMemo
+	recipeContext   bool
 	parseBody       bool
 	expanded        bool
 	parameters      map[string]bool
@@ -1390,6 +1391,19 @@ func isRuleName(name string, uni *unicodeTable) bool {
 // term checks a term; argument says it is a function's argument, where a
 // span may stand. A nil term is an absent, optional one.
 func (c *domChecker) term(t *domTerm, depth int, argument bool) {
+	defer func() {
+		if c.problem != nil || t == nil || !c.check || t.Kind == tmRule || t.Kind == tmClassifier || t.Kind == tmInteger || t.Kind == tmTerminal {
+			return
+		}
+		if c.types == nil {
+			c.types = newTypeMemo()
+			c.types.check = c.check
+		}
+		if _, fault := termTypeMemo(t, nil, c.types); fault != nil {
+			c.fail("%s", fault.problem)
+		}
+	}()
+
 	if t == nil || c.deep(depth) {
 		return
 	}
@@ -1561,7 +1575,7 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 			c.fail("a check cannot restore elision")
 			return
 		}
-		if c.check && ((t.Str == "terminal" && !c.checkRecipe) || c.checkRecipe && (sourceMethods[t.Str] == methodNode || sourceMethods[t.Str] == methodElement || sourceMethods[t.Str] == methodLocal)) {
+		if c.check && ((t.Str == "terminal" && !c.recipeContext) || c.recipeContext && (sourceMethods[t.Str] == methodNode || sourceMethods[t.Str] == methodElement || sourceMethods[t.Str] == methodLocal)) {
 			c.fail("a check method is outside its permitted clause")
 			return
 		}
@@ -1569,14 +1583,14 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 			c.fail("an element has no tags, walk, or boundary method")
 			return
 		}
-		if c.checkRecipe && len(args) > 0 && (args[0].Kind != tmCapture || args[0].Str != "") {
+		if c.check && c.recipeContext && len(args) > 0 && (args[0].Kind != tmCapture || args[0].Str != "") {
 			c.fail("a check message reads only $")
 			return
 		}
 		var ok bool
 		switch t.Str {
 		case "terminal":
-			ok = c.checkRecipe && len(args) == 1 && args[0].Kind == tmCapture && args[0].Str == ""
+			ok = c.recipeContext && len(args) == 1 && args[0].Kind == tmCapture && args[0].Str == ""
 
 		case "parent", "preceding-node", "following-node", "preceding-element":
 			ok = c.check && len(args) == 1 && checkNodeTerm(args[0])
@@ -1601,7 +1615,7 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		case "error-free":
 			ok = len(args) == 1 && (forestTerm(args[0]) || unresolvedTerm(args[0]))
 		case "emitted", "verbatim-text":
-			ok = false
+			ok = c.recipeContext && len(args) == 1 && args[0].Kind == tmCapture
 		case "without-elision-except":
 			ok = len(args) == 2 && args[0] != nil && (args[0].Kind == tmCapture || unresolvedTerm(args[0])) && isRule(args[1])
 		case "without-elision":
@@ -1668,6 +1682,19 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 }
 
 func (c *domChecker) condition(d *domCond, depth int) {
+	defer func() {
+		if c.problem != nil || d == nil || !c.check {
+			return
+		}
+		if c.types == nil {
+			c.types = newTypeMemo()
+			c.types.check = c.check
+		}
+		if fault := condTypeMemo(d, nil, c.types); fault != nil {
+			c.fail("%s", fault.problem)
+		}
+	}()
+
 	if c.deep(depth) {
 		return
 	}

@@ -902,10 +902,15 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                     children.push((field(value, "right")?, false));
                 }
                 "method" => {
-                    children.push((field(value, "receiver")?, false));
-                    if matches!(value.get("method").and_then(Json::as_str), Some("parse" | "ending-after")) {
-                        children.extend(array(value, "args")?.iter().map(|argument| (argument, false)));
-                    } else if matches!(
+                    if matches!(
+                        value.get("method").and_then(Json::as_str),
+                        Some("parse" | "error-free" | "ending-after" | "local-readings")
+                    ) {
+                        children.push((value, false));
+                    } else {
+                        children.push((field(value, "receiver")?, false));
+                    }
+                    if matches!(
                         value.get("method").and_then(Json::as_str),
                         Some("tags" | "classes" | "split" | "ngrams" | "classify")
                     ) {
@@ -972,17 +977,14 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                     Default::default(),
                 ),
                 "method" => {
-                    let receiver = operands.next().unwrap().term();
                     let name = string(value, "method")?;
+                    if matches!(name.as_str(), "parse" | "error-free" | "ending-after" | "local-readings") {
+                        values.push(ReadValue::Cond(Cond::Forest(operands.next().unwrap().term())));
+                        continue;
+                    }
+                    let receiver = operands.next().unwrap().term();
                     if matches!(name.as_str(), "tags" | "classes" | "split" | "ngrams" | "classify") {
                         return Err("a malformed query predicate".into());
-                    }
-                    if matches!(name.as_str(), "parse" | "error-free" | "ending-after" | "local-readings") {
-                        let args = std::iter::once(Arg::Term(receiver))
-                            .chain(operands.map(|operand| Arg::Term(operand.term())))
-                            .collect();
-                        values.push(ReadValue::Cond(Cond::Forest(Term::Call(name, args))));
-                        continue;
                     }
                     if array(value, "args")?.iter().any(|arg| arg.get("param").is_some() || arg.get("call").is_some()) {
                         let mut args = vec![Arg::Term(receiver)];
@@ -1125,16 +1127,6 @@ pub(crate) fn is_capture_name(name: &str) -> bool {
     let mut chars = name.chars();
     chars.next().is_some_and(|c| c.is_ascii_lowercase())
         && chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == '_')
-}
-
-fn is_rule_arg(value: &Json) -> bool {
-    matches!(value.as_object(), Some([(key, Json::Str(_))]) if key == "rule")
-}
-
-/// The second argument of `classify`: a classifier's name, and no other
-/// member (engine §9).
-fn is_classifier_arg(value: &Json) -> bool {
-    matches!(value.as_object(), Some([(key, Json::Str(name))]) if key == "classifier" && is_classifier_name(name))
 }
 
 /// The comparators of a test in a body (engine §2): the two sound tests
@@ -2205,7 +2197,7 @@ fn term_type_scope(term: &Term, constants: ConstantTypes, check: bool, recipe: b
                 Some(Arg::Term(root)) => Some(term_type_scope(root, constants, check, recipe)?),
                 _ => None,
             };
-            if check && call != "concat" {
+            if check && !matches!(call.as_str(), "concat" | "requirements" | "forbid") {
                 let check_method = matches!(
                     call.as_str(),
                     "parent"
@@ -2221,7 +2213,10 @@ fn term_type_scope(term: &Term, constants: ConstantTypes, check: bool, recipe: b
                 if matches!(call.as_str(), "without-elision" | "without-elision-except") {
                     return Err(Fault::in_term("a check cannot restore elision".into(), term));
                 }
-                if recipe && !matches!(args.first(),Some(Arg::Term(Term::Capture(name))) if name.is_empty()) {
+                if recipe
+                    && call != "emitted"
+                    && !matches!(args.first(),Some(Arg::Term(Term::Capture(name))) if name.is_empty())
+                {
                     return Err(Fault::in_term("a check message reads only $".into(), term));
                 }
             }
@@ -2270,10 +2265,8 @@ fn term_type_scope(term: &Term, constants: ConstantTypes, check: bool, recipe: b
                     }
                 }
             }
-            if check {
-                if let Some(problem) = check_selector_problem(call, args, receiver, recipe) {
-                    return Err(Fault::in_term(problem.into(), term));
-                }
+            if let Some(problem) = method_signature_problem(call, args, receiver, recipe || !check) {
+                return Err(Fault::in_term(problem.into(), term));
             }
             if let Some(problem) = literal_call_problem(call, args) {
                 return Err(Fault::in_term(problem.into(), term));
@@ -2283,45 +2276,109 @@ fn term_type_scope(term: &Term, constants: ConstantTypes, check: bool, recipe: b
     }
 }
 
-fn check_selector_problem(call: &str, args: &[Arg], receiver: Option<Type>, recipe: bool) -> Option<&'static str> {
-    let node = receiver == Some(Type::Node);
-    let span = matches!(receiver, Some(Type::Node | Type::Span | Type::Any));
-    let string = span || receiver == Some(Type::String);
+#[derive(Default)]
+pub(crate) struct MethodReceiver {
+    pub span: bool,
+    pub node: bool,
+    pub element: bool,
+    pub forest: bool,
+    pub bare: bool,
+    pub restored: bool,
+    pub emitted: bool,
+    pub string: bool,
+}
+
+pub(crate) enum MethodArgument {
+    Body(bool),
+    Rule,
+    Classifier,
+    Integer(bool),
+    Term(bool),
+    Unresolved,
+}
+
+pub(crate) fn signature_problem(
+    call: &str,
+    receiver: &MethodReceiver,
+    args: &[MethodArgument],
+    recipe: bool,
+) -> Option<&'static str> {
+    use MethodArgument::*;
     let valid = match (call, args) {
-        ("concat" | "requirements" | "forbid", _) => true,
-        ("parent" | "preceding-node" | "following-node" | "preceding-element", [_]) => node,
-        ("local-readings", [_]) => matches!(receiver, Some(Type::Node | Type::Element)),
-        ("terminal", [Arg::Term(Term::Capture(name))]) => recipe && name.is_empty(),
-        ("parse", [Arg::Term(root), Arg::Term(Term::Body(body))]) => {
-            if restored_span(root) && crate::query_forms::suffix_body(body) {
+        ("parent" | "preceding-node" | "following-node" | "preceding-element", []) => receiver.node,
+        ("local-readings", []) => receiver.node || receiver.element,
+        ("terminal", []) => recipe && receiver.node && receiver.bare,
+        ("parse", [Body(suffix)]) => {
+            if receiver.restored && *suffix {
                 return Some("suffix parse requires an ordinary span, not a restored span");
             }
-            span
+            receiver.span && !receiver.element
         }
-        ("error-free", [_]) => receiver == Some(Type::Forest),
-        ("ending-after", [_, Arg::Term(_)]) => receiver == Some(Type::Forest),
-        ("tags", [_]) => span || receiver == Some(Type::Forest),
-        ("classes", [_]) => span,
+        ("error-free", []) => receiver.forest,
+        ("ending-after", [Term(span)]) => receiver.forest && *span,
+        ("without-elision", []) => receiver.bare,
+        ("without-elision-except", [Rule | Unresolved]) => receiver.bare,
+        ("verbatim-text" | "emitted", []) => recipe && receiver.bare,
+        ("value" | "image", []) => receiver.span || receiver.emitted,
         (
-            "value"
-            | "image"
-            | "source-text"
+            "source-text"
             | "decomposed-source-text"
             | "first-token"
             | "last-token"
             | "tokens-after-first"
             | "onward"
             | "following-tokens"
-            | "preceding-tokens",
-            [_],
-        ) => span || receiver == Some(Type::Element),
-        ("verbatim-text", [Arg::Term(Term::Capture(_))]) => recipe,
-        ("split", [_, Arg::Term(_)]) => string,
-        ("ngrams", [_, Arg::Integer(n)]) => string && valid_integer(n),
-        ("classify", [_, Arg::Rule(name)]) => string && is_classifier_name(name),
+            | "preceding-tokens"
+            | "starts-input"
+            | "ends-input",
+            [],
+        ) => receiver.span,
+        ("classes", []) => receiver.span && !receiver.element,
+        ("tags", []) => receiver.forest || receiver.span && !receiver.element,
+        ("followed-by" | "preceded-by", targets) => {
+            (receiver.bare || receiver.node)
+                && !targets.is_empty()
+                && targets.iter().all(|arg| matches!(arg, Rule | Unresolved))
+        }
+        ("split", [Term(_) | Unresolved]) => receiver.string,
+        ("classify", [Classifier]) => receiver.string,
+        ("ngrams", [Integer(valid)]) => receiver.string && *valid,
         _ => false,
     };
     (!valid).then_some("a method has the wrong receiver or arguments")
+}
+
+fn method_signature_problem(call: &str, args: &[Arg], receiver: Option<Type>, recipe: bool) -> Option<&'static str> {
+    if matches!(call, "concat" | "requirements" | "forbid") {
+        return None;
+    }
+    let root = match args.first() {
+        Some(Arg::Term(root)) => root,
+        _ => return Some("a method has the wrong receiver or arguments"),
+    };
+    let shape = MethodReceiver {
+        span: matches!(receiver, Some(Type::Span | Type::Node | Type::Element | Type::Any)),
+        node: matches!(receiver, Some(Type::Node | Type::Any)),
+        element: receiver == Some(Type::Element),
+        forest: matches!(receiver, Some(Type::Forest | Type::Any)),
+        bare: receiver == Some(Type::Any) || matches!(root, Term::Capture(_) | Term::Source(_)),
+        restored: restored_span(root),
+        emitted: matches!(root,Term::Call(name,_) if name=="emitted"),
+        string: matches!(receiver, Some(Type::String | Type::Span | Type::Node | Type::Any)),
+    };
+    let arguments: Vec<_> = args[1..]
+        .iter()
+        .map(|arg| match arg {
+            Arg::Term(Term::Body(body)) => MethodArgument::Body(crate::query_forms::suffix_body(body)),
+            Arg::Term(Term::Source(_)) => MethodArgument::Unresolved,
+            Arg::Term(Term::Tag(_)) if matches!(call, "followed-by" | "preceded-by") => MethodArgument::Rule,
+            Arg::Term(_) => MethodArgument::Term(true),
+            Arg::Rule(_) => MethodArgument::Rule,
+            Arg::Classifier(_) => MethodArgument::Classifier,
+            Arg::Integer(value) => MethodArgument::Integer(valid_integer(value)),
+        })
+        .collect();
+    signature_problem(call, &shape, &arguments, recipe)
 }
 
 /// Why a condition's terms do not agree in type, at the smallest construct

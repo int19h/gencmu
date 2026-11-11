@@ -9,7 +9,7 @@ from ._clauses import attachment_order, check_definition, duplicate_captures, it
 from ._errors import GencmuError
 from ._markdown import GrammarText
 from ._model import Node, Token
-from ._strings import USER_NAME, lit_occurrences, literal_string
+from ._strings import USER_NAME, lit_occurrences
 from ._trampoline import Walk, run
 from ._pattern_shapes import layered_pattern_problem
 from ._template_nodes import argument_of_expression
@@ -1206,7 +1206,7 @@ class DomBuilder:
                         child = pending.pop()
                         if child.kind != "rule":
                             continue
-                        if child.rule == "capture":
+                        if child.rule in ("capture", "captured-terminator"):
                             binder = child
                             break
                         pending.extend(reversed(child.children))
@@ -1275,15 +1275,13 @@ class DomBuilder:
                     else:
                         problem = 'a method has the wrong receiver or arguments'
                 raise self.fail(node, problem)
-            if not self.feature_context and name == "split" and literal_string(args[0]) == "":
-                raise self.fail(node, "split has an empty delimiter")
             from ._boundary import Located
             receiver = Located({"method": name, "receiver": receiver, "args": args}, self.position(node))
             self.boundary_nodes[id(receiver)] = node
             kind, problem = self.term_type(receiver, memo=self.types)
             if problem and not self.feature_context:
                 specific = problem.startswith(("without-elision", "ends requires", "suffix parse requires")) or problem == "split has an empty delimiter"
-                raise self.fail(node, problem if specific else "a method has the wrong receiver or arguments")
+                raise self.fail(node, problem if specific or self.check_context and problem == "a check message reads only $" else "a method has the wrong receiver or arguments")
         return receiver
 
     def _joined(self, node: Node, items: list[Dom], operator: str) -> None:

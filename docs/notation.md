@@ -1017,7 +1017,7 @@ The compared tree is the structural tree above, or the check tree inside a check
 - If one terminal read two written leaves and their tokens have equal values, the leaves are equal. A literal, an escaped literal and an equal string constant are one terminal. The tags, image and attachments of the token take no part.
 - If two omitted leaves have equal terminators, they are equal. An omitted leaf never equals a written leaf. The default value of the terminator takes no part (see "Elided terminators").
 - If the token values of the spans of two seals are equal sequences, the seals are equal. The sequence has one value for each original token of the span, in order, and an empty value is a member. The chosen interior, private captures, tags and omissions take no part. A seal of an empty span is still a seal.
-- In the `elision-only` check, a capture of a terminal that reads a written-back terminator has the empty projection (engine §7.5). Two empty projections are equal, and an empty projection equals nothing else. Such a capture is present.
+- In the `elision-only` check, a capture of a terminal that reads a restored terminator has the empty projection (engine §7.5). Two empty projections are equal, and an empty projection equals nothing else. Such a capture is present.
 
 An erased named constituent compares as its rule with one seal child over its span. When their ordered token-value sequences are equal, two erased occurrences of one rule compare equal. Their internal brackets do not distinguish them. An erased splice compares as an anonymous sequence containing that seal.
 
@@ -1464,7 +1464,7 @@ A terminal in a `parse` body makes its tag buildable, including inside another q
 
 Every name in a test must be one that a parse can build, either a parse of `text` or the parse inside a query. A name that nothing reaches is an error. A name that only queries reach is legal, but outside queries the test always gets its default answer. So the audit notes it.
 
-These tests can stand in check conditions, a rule’s `%conditions` list, a guarded header or alternative tag term, and an emission item's tag clause. In an emission item, they read the chosen tree. Its tag clause can hold several atoms and read several captures. The limits below bind rule conditions only. These neighbor tests cannot stand in a test, recipe, constant, implication, pattern, or query argument. Header and alternative tag terms follow the guarded-part rules below.
+These tests can stand in check conditions, a rule's `%conditions` list, a guarded header or alternative tag term, and an emission item's tag clause. In an emission item, they read the chosen tree. Its tag clause can hold several atoms and read several captures. The limits below bind rule conditions only. These neighbor tests cannot stand in a test, recipe, constant, implication, pattern, or query argument. Header and alternative tag terms follow the guarded-part rules below.
 
 One condition of the list holds at most one such test. It can combine that test with other conditions through `¬`, `∧`, `∨` and `⟹`. If the receiver is a capture `$x`, the condition reads no other capture and no `$`. These rules keep each test on one boundary of one step ([engine §4.2](engine.md#42-boundary-obligations)).
 

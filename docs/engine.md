@@ -504,7 +504,7 @@ The caller can supply engine tags to represent earlier stages. Each supplied pro
 
 ## 2. Grammars
 
-A grammar is the stitching of the items of one stage of a pipeline (§13) into a set of rules, directives, constants, classifiers and implications. An item is a rule, a directive, a constant definition, a classifier or an implication, read from a document (§8, §9). A rule has a name and alternatives, and optionally rule-level tags, recipes, conditions, a diagnostic message, suppression, and an output directive. An alternative has gates, an expression, and optionally tags and recipes. The grammar DOM (document object model), in `docs/output.md`, is the exact data.
+A grammar stitches one stage's items (§13) into rules, checks, directives, constants, classifiers, and implications. An item is a rule, check, directive, constant definition, classifier, or implication from a document (§8, §9). A rule has a name and alternatives, and optionally rule-level tags, recipes, conditions, a diagnostic message, suppression, and an output directive. An alternative has gates, an expression, and optionally tags and recipes. The grammar DOM (document object model), in `docs/output.md`, is the exact data.
 
 Corresponding stitching errors use common wording across libraries. A located message begins with `document:line:column: `. The formatter adds the stage from its structured field. The description has no additional enclosing-rule prefix.
 
@@ -2598,7 +2598,7 @@ A DOM holds the definitions of constants and the references to them as the docum
 
 ## 9. From notation tree to DOM
 
-The `check` constructor gives one check declaration in the document's `checks` array. Its definer, pattern, conditions and diagnostic retain source order.
+The `check` constructor gives one check declaration in the document's `checks` array. Its `%check` keyword, pattern, conditions and diagnostic retain source order.
 
 ### 9.1 Lexical forms
 
@@ -2974,6 +2974,10 @@ Readers use common diagnostic text for unclosed grammar fences, capture restrict
 
 Binding a constant does not change method-signature text. A fault inside a receiver or argument retains that operand's own diagnostic.
 
+Check terms obey every ordinary term rule. Check restrictions apply in addition, in the order below. The first faulty condition in written order wins. Conditions precede the message.
+
+A faulty atom of a check message reports at that atom's first token. A known non-string operand instead fails its concatenation at the concatenation's position. Clause and capture faults retain their own positions below.
+
 A malformed check name reports at the name. A check whose name is a rule reports `a rule and a check cannot share the name NAME` at the check declaration. A forbidden capture reference in a check reports `a check cannot name a capture` at that reference. This rule covers conditions and messages. For a caller-supplied DOM without that source position, use the declaration's `at`.
 
 Section 2.4 defines the clauses where check methods are legal. A forbidden check method reports `a check method is outside its permitted clause` at the selector's leading dot. This restriction precedes tree-comparison, concatenation, and recipe signature checks at that selector. A receiver's own fault precedes inspection of its selectors. A selector's clause or restoration fault precedes a fault inside its arguments.
@@ -3019,7 +3023,7 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `constant-keyword` | One `%const` or `%redefine-const` token | `define` or `redefine` |
 | `constant-reference` | One user constant reference token | `const`, name without `$`, and reference `at` |
 | `rule` | `rule-keyword`, then `rule-name` or head `call`. A binding supplies another `call`. Otherwise inspect `header-tags`, `value-clause`, `image-clause`, then `body` or `headed-body`, followed by trailing clause constructors. | Ordinary definition, template with `params`, instance edit with `args`, or named `instance` binding. Bindings return before header clauses and body lookup. |
-| `check` | Name, pattern literal or constant reference, optional conditions, then one diagnostic clause | `name`, `pattern`, `conditions`, `error` or `warning`, then `at`. Missing conditions give `[]`. Reject every other clause. |
+| `check` | `rule-name`, `pattern-literal` or `constant-reference`, optional `conditions-clause`, then `error-clause` or `warning-clause` | `name`, `pattern`, `conditions`, `error` or `warning`, then `at`. Missing conditions give `[]`. Reject every other clause. |
 | `call` | Call-name token, then ordered `call-argument` parts | `call`, ordered `args`, and call `at` |
 | `parameter` | One parameter token | `param` without `@`, and its `at` |
 | `call-argument` | One `requirement-argument`, `target-argument`, `body-argument`, `symbol-argument`, or `term` | ARG from `docs/output.md`, preserving its category |
@@ -3109,7 +3113,7 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `pattern-literal` | One `pattern-primary` | Pattern term containing that whole pattern |
 | `pattern-union` | One or more `pattern-intersection`, with operators | Fold union and difference left. Flatten every union operand that is itself a union. |
 | `pattern-intersection` | One or more `pattern-path` parts | Flatten intersection operands into one array, or retain the sole predicate |
-| `pattern-primary` | One node, empty atom, bare list, or grouped `pattern-union` | Delegate without a grouping wrapper |
+| `pattern-primary` | One `pattern-node`, `bare-child-list`, or grouped `pattern-union` | Delegate without a grouping wrapper |
 | `pattern-node` | One `pattern-atom`, optional adjacent prefix, and optional adjacent `child-list` | Reject decorations on `∅` at the atom. Other atoms retain optional `exact:true` and `children`. |
 | `bare-child-list` | One `child-list` and optional adjacent prefix | `any:true`, optional `exact:true`, and required `children` array |
 | `pattern-atom` | Name token, `rule-reference`, `rule-or-classifier-name`, `call`, `parameter`, `tag`, `string`, `string-terminal`, `range`, `wildcard`, `constant-reference`, or `empty-set`, with written tests | `∅` gives `never:true` with `at` and accepts no decorations. Other atoms accept tag and value tests. A tested constant must resolve to a string after binding. Preserve tag then value order. |
@@ -3120,7 +3124,7 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `child-intersection` | One or more `child-path` parts | Require whole-pattern operands, then flatten intersection operands or retain the sole pattern |
 | `child-sequence` | One or more `child-item` parts | Concatenate plain groups into one item array |
 | `child-item` | One `child-path`, `child-optional`, `child-repetition`, or gap token | Converted path items, corresponding wrapper, or `siblings:true` |
-| `child-primary` | One node, empty atom, bare list, or grouped `child-choice` | An atom or bare list becomes one `child`. A group contributes its item array. |
+| `child-primary` | One `pattern-node`, `bare-child-list`, or grouped `child-choice` | A node or bare list becomes one `child`. A group contributes its item array. |
 | `child-path` | One `child-primary` and optional path token | Without a path, retain its item array. With a path, require one whole pattern and wrap that path in `child`. |
 | `child-optional` | One nonempty `child-choice` | `optional` item with an item array |
 | `child-repetition` | One nonempty `child-choice` and optional nonempty separator `child-choice` | `repeat` item with arrays and optional `separator` |
@@ -4155,6 +4159,8 @@ After choice, one preorder walk evaluates rule messages and checks before emissi
 Each check tests its pattern, its conditions in written order, then its message. Stop at the first failed condition. A matching pattern and all true conditions give one occurrence. Disabled or suppressed warning checks evaluate nothing, including their patterns and conditions. Queries, recognition, ranking and reconstruction never run checks.
 
 A tie walks its first shown reading, then its second, with own identities scoped by reading. Rule recipes follow §11.3, without `.emitted`, queries or absent, item or private ranked captures. A check recipe reads only `$` through recipe string methods and `.terminal`. It accepts no node walk or element. `.terminal` gives the canonical leaf terminal, or the empty string for a rule. Omitted terminals give their tag, and string constants give their resolved literal identity. Symbol tests take no part.
+
+No message recipe can fail in the present recipe language, but a check condition can. The message failure rule is a guard.
 
 A runtime grammar error in a message or any check evaluation stops the walk. The result is `grammar`, keeps the verdict, and prevents emission and reconstruction. Earlier evaluated messages outside erasure remain available under the failure collection below. A check failure never makes another reading win. An enabled check can therefore stop output, although warning controls change no accepted reading or chosen tree.
 

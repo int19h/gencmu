@@ -760,8 +760,6 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: l
             keep_type(None if id(node) in deferred else term_type_fault(node, memo=types)[1], node)
             if kind == "string":
                 return "a string operand requires a literal or constant"
-            if id(node) not in deferred and node["method"] == "split" and literal_string(node["args"][0]) == "":
-                keep_type(("split has an empty delimiter", node), node)
             pending.append(("recipe-method" if recipe else "term", node["receiver"], below, False, False))
             for arg in node["args"]:
                 if isinstance(arg, dict) and "body" in arg:

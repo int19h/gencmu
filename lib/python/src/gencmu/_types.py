@@ -194,6 +194,8 @@ def method_type(name: str, receiver: TermType, args: list[Any], bare: bool = Fal
         return None, f"unknown method .{name}"
     if not valid or arity is not None and len(args) != arity:
         return None, "a method has the wrong receiver or arguments"
+    if name == "split" and args[0].get("string") == "":
+        return None, "split has an empty delimiter"
     return result, None
 
 
@@ -435,15 +437,13 @@ def _term_typing_once(term: Any, constants: ConstantTypes, memo: Memo) -> Walk:
                 return None, ("a check method is outside its permitted clause", term)
             if name in ("without-elision", "without-elision-except"):
                 return None, ("a check cannot restore elision", term)
-            if name == "emitted":
-                return None, ("a method has the wrong receiver or arguments", term)
             if message and term["receiver"] != {"capture": ""}:
                 return None, ("a check message reads only $", term)
             from ._query_forms import query_capture, query_body
             for arg in term["args"]:
                 if "body" in arg and query_capture(query_body(arg["body"])[0]):
                     return None, ("a check cannot declare a capture", arg)
-        recipe = name in ("verbatim-text", "emitted", "terminal") or kind == "emitted"
+        recipe = getattr(constants, "check_recipe", False) if getattr(constants, "check_nodes", False) else name in ("verbatim-text", "emitted", "terminal") or kind == "emitted"
         selection_kind = "capture" if kind == "any" and has_unresolved(term["receiver"]) else kind
         nominal = name in ("tags", "followed-by", "preceded-by", "without-elision-except")
         args = [{"rule": "unresolved"} if nominal and ("param" in arg or "call" in arg) else arg for arg in term["args"]]

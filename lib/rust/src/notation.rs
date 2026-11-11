@@ -2078,6 +2078,13 @@ impl<'a> Reader<'a> {
         {
             return Err(self.error(frame.node, "suffix parse requires an ordinary span, not a restored span"));
         }
+        if self.check_context.get()
+            && self.in_recipe.get()
+            && matches!(name, "value" | "image" | "source-text" | "decomposed-source-text" | "verbatim-text")
+            && !bare
+        {
+            return Err(self.error(frame.node, "a check message reads only $"));
+        }
         if !valid {
             let problem = match name {
                 _ if self.feature_context.get() || frame.dependent => "a method has the wrong receiver or arguments",
@@ -2256,7 +2263,7 @@ impl<'a> Reader<'a> {
     }
 
     fn tree_operand(&self, right: &'a Node) -> R<()> {
-        if let Some(name) = first_of_rule(right, "name").or_else(|| first_of_rule(right, "tag")) {
+        if let Some(name) = first_of_rule(right, "rule-or-classifier-name").or_else(|| first_of_rule(right, "tag")) {
             if right
                 .span
                 .end

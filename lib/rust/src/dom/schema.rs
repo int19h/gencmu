@@ -110,10 +110,18 @@ fn span(value: &Json, check: bool) -> bool {
         )
 }
 
-fn forest(value: &Json, check: bool) -> bool {
-    source::leaf(value)
-        || check && value.get("method").and_then(Json::as_str) == Some("local-readings")
-        || matches!(value.get("method").and_then(Json::as_str), Some("parse" | "error-free" | "ending-after"))
+fn restored_json_span(mut value: &Json) -> bool {
+    for _ in 0..=DOM_MAX_DEPTH {
+        match value.get("method").and_then(Json::as_str) {
+            Some("without-elision" | "without-elision-except") => return true,
+            Some("onward") => {
+                let Some(inner) = value.get("receiver") else { return false };
+                value = inner;
+            }
+            _ => return false,
+        }
+    }
+    false
 }
 
 fn body_json_problem(body: &Json, check: bool) -> Option<&'static str> {
@@ -155,20 +163,6 @@ fn body_json_problem(body: &Json, check: bool) -> Option<&'static str> {
         }
     }
     None
-}
-
-pub(crate) fn restored_span(mut value: &Json) -> bool {
-    for _ in 0..=256 {
-        match value.get("method").and_then(Json::as_str) {
-            Some("without-elision" | "without-elision-except") => return true,
-            Some("onward") => {
-                let Some(inner) = value.get("receiver") else { return false };
-                value = inner;
-            }
-            _ => return false,
-        }
-    }
-    false
 }
 
 fn string_atom(value: &Json) -> bool {
@@ -946,79 +940,78 @@ fn parts_problem(
                     };
                     let receiver = value.get("receiver").unwrap();
                     let name = value.get("method").and_then(Json::as_str).unwrap_or("");
-                    if check
-                        && (!crate::notation::is_known_method(name)
-                            || name == "classify"
-                                && args.iter().any(|arg| {
-                                    !exact(arg, &["classifier"], &[])
-                                        || !arg.get("classifier").and_then(Json::as_str).is_some_and(is_classifier_name)
-                                }))
+                    if !crate::notation::is_known_method(name)
+                        || name == "classify"
+                            && args.iter().any(|arg| {
+                                !exact(arg, &["classifier"], &[])
+                                    || !arg.get("classifier").and_then(Json::as_str).is_some_and(is_classifier_name)
+                            })
                     {
                         return Some("a method has the wrong receiver or arguments".into());
                     }
-                    let capture = bare_capture(receiver) || source::leaf(receiver);
-                    let rule_arg = |arg: &Json| {
-                        source::leaf(arg)
-                            || exact(arg, &["rule"], &[]) && arg.get("rule").and_then(Json::as_str).is_some_and(rule)
-                    };
-                    let valid = match (name, args) {
-                        ("parse", [arg]) => {
-                            span(receiver, check)
-                                && !element(receiver, check)
-                                && exact(arg, &["body"], &[])
-                                && !(restored_span(receiver)
-                                    && arg
-                                        .get("body")
-                                        .and_then(|body| body.get("seq"))
-                                        .and_then(Json::as_array)
-                                        .and_then(|items| items.first())
-                                        .is_some_and(|first| first.get("remainder").is_some()))
+                    if matches!(name, "starts-input" | "ends-input" | "followed-by" | "preceded-by") {
+                        return Some("a predicate method cannot supply a value".into());
+                    }
+                    if !check {
+                        let shape = MethodReceiver {
+                            span: span(receiver, check),
+                            node: check && node(receiver, check),
+                            element: element(receiver, check),
+                            forest: source::leaf(receiver)
+                                || matches!(
+                                    receiver.get("method").and_then(Json::as_str),
+                                    Some("parse" | "error-free" | "ending-after" | "local-readings")
+                                ),
+                            bare: bare_capture(receiver) || source::leaf(receiver),
+                            restored: restored_json_span(receiver),
+                            emitted: receiver.get("method").and_then(Json::as_str) == Some("emitted"),
+                            string: true,
+                        };
+                        let arguments: Vec<_> = args
+                            .iter()
+                            .map(|arg| {
+                                if source::leaf(arg) {
+                                    MethodArgument::Unresolved
+                                } else if arg.get("body").is_some() {
+                                    MethodArgument::Body(
+                                        arg.get("body")
+                                            .and_then(|body| body.get("seq"))
+                                            .and_then(Json::as_array)
+                                            .and_then(|items| items.first())
+                                            .is_some_and(|first| first.get("remainder").is_some()),
+                                    )
+                                } else if arg.get("rule").is_some() || arg.get("terminal").is_some() {
+                                    MethodArgument::Rule
+                                } else if arg.get("classifier").is_some() {
+                                    MethodArgument::Classifier
+                                } else if let Some(value) = arg.get("integer").and_then(Json::as_str) {
+                                    MethodArgument::Integer(valid_integer(value))
+                                } else {
+                                    MethodArgument::Term(span(arg, check))
+                                }
+                            })
+                            .collect();
+                        if let Some(problem) =
+                            signature_problem(name, &shape, &arguments, matches!(kind, Part::RecipeAtom))
+                        {
+                            return Some(problem.into());
                         }
-                        ("parent" | "preceding-node" | "following-node" | "preceding-element", []) => {
-                            check && node(receiver, check)
-                        }
-                        ("local-readings", []) => check && (node(receiver, check) || element(receiver, check)),
-                        ("terminal", []) => check && matches!(kind, Part::RecipeAtom) && bare_capture(receiver),
-                        ("error-free", []) => forest(receiver, check),
-                        ("ending-after", [arg]) => forest(receiver, check) && span(arg, check),
-                        ("without-elision", []) => capture,
-                        ("without-elision-except", [arg]) => capture && rule_arg(arg),
-                        ("verbatim-text", []) => matches!(kind, Part::RecipeAtom) && capture,
-                        ("emitted", []) => matches!(kind, Part::RecipeAtom) && capture,
-                        ("value" | "image", []) => {
-                            span(receiver, check) || receiver.get("method").and_then(Json::as_str) == Some("emitted")
-                        }
-                        (
-                            "source-text"
-                            | "decomposed-source-text"
-                            | "first-token"
-                            | "last-token"
-                            | "tokens-after-first"
-                            | "onward"
-                            | "following-tokens"
-                            | "preceding-tokens"
-                            | "classes",
-                            [],
-                        ) => span(receiver, check) && (name != "classes" || !element(receiver, check)),
-                        ("tags", []) => span(receiver, check) && !element(receiver, check) || forest(receiver, check),
-                        ("ngrams", [arg]) => {
-                            exact(arg, &["integer"], &[])
-                                && arg.get("integer").and_then(Json::as_str).is_some_and(crate::dom::valid_integer)
-                        }
-                        ("split", [arg]) => {
-                            !is_rule_arg(arg) && !is_classifier_arg(arg) && arg.get("integer").is_none()
-                        }
-                        ("classify", [arg]) => {
-                            exact(arg, &["classifier"], &[])
-                                && arg.get("classifier").and_then(Json::as_str).is_some_and(is_classifier_name)
-                        }
-                        _ => false,
-                    };
-                    if !valid && !check {
-                        return Some("a method has the wrong receiver or arguments".into());
                     }
                     pending.push((kind, receiver, next));
                     for arg in args {
+                        for key in ["rule", "classifier", "integer"] {
+                            if arg.get(key).is_some()
+                                && (!exact(arg, &[key], &[])
+                                    || !arg.get(key).is_some_and(|value| matches!(value, Json::Str(_))))
+                            {
+                                return Some("a malformed method argument".into());
+                            }
+                        }
+                        if let Some(target) = arg.get("rule").and_then(Json::as_str) {
+                            if !rule(target) {
+                                return Some("a malformed rule argument".into());
+                            }
+                        }
                         if name == "parse" {
                             pending.push((Part::Body, arg, next));
                             continue;

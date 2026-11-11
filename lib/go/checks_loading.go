@@ -99,7 +99,7 @@ func checkDOMCheck(check *domCheck, uni *unicodeTable, expanded bool, document *
 	if check.Pattern == nil || check.Pattern.Kind != tmPattern && check.Pattern.Kind != tmConst {
 		return fail("a check requires one pattern")
 	}
-	checker := &domChecker{check: true, uni: uni, expanded: expanded, label: "check " + check.Name, deferTypes: true}
+	checker := &domChecker{check: true, uni: uni, expanded: expanded, label: "check " + check.Name}
 	checker.term(check.Pattern, 0, false)
 	for _, condition := range check.Conditions {
 		checker.condition(condition, 0)
@@ -110,13 +110,6 @@ func checkDOMCheck(check *domCheck, uni *unicodeTable, expanded bool, document *
 	if checker.problem != nil {
 		checker.problem.at = check.At
 		return checker.problem
-	}
-	memo := newTypeMemo()
-	memo.check = true
-	for _, condition := range check.Conditions {
-		if fault := condTypeMemo(condition, nil, memo); fault != nil {
-			return fail(fault.problem)
-		}
 	}
 	return nil
 }

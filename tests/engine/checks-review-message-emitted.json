@@ -1,0 +1,14 @@
+{
+  "description": "A non-string message operand reports at its concatenation.",
+  "grammar": "%rule text \"a\"\n%check c #·text\n%warning \"x\" ++ $.emitted",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "message": "++ requires string operands",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 10
+    }
+  }
+}

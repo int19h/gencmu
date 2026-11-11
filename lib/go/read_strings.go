@@ -138,45 +138,40 @@ func (c *domChecker) recipe(t *domTerm) {
 		c.fail("a malformed recipe")
 		return
 	}
-	previous := c.checkRecipe
-	c.checkRecipe = c.check
-	defer func() { c.checkRecipe = previous }()
+	previous := c.recipeContext
+	c.recipeContext = true
+	defer func() { c.recipeContext = previous }()
 	for _, atom := range t.Items {
-		if c.check {
-			if atom == nil || !stringTermShape(atom) && atom.Kind != tmCall {
-				c.fail("invalid recipe atom")
-				continue
-			}
-			c.term(atom, 1, false)
-			if atom != nil && atom.Kind == tmCall && atom.Str != "terminal" && atom.Str != "value" && atom.Str != "image" && atom.Str != "source-text" && atom.Str != "decomposed-source-text" && atom.Str != "verbatim-text" {
-				c.fail("invalid recipe method")
-			}
-			continue
-		}
-		if stringTermShape(atom) {
-			c.term(atom, 1, false)
-			continue
-		}
-		if atom == nil || atom.Kind != tmCall || len(atom.Items) != 1 {
+		if atom == nil || !stringTermShape(atom) && atom.Kind != tmCall {
 			c.fail("invalid recipe atom")
 			continue
 		}
-		r := atom.Items[0]
-		if c.check && (r.Kind != tmCapture || r.Str != "" || atom.Str == "emitted") {
-			c.fail("a check message requires the current node")
-			continue
+		c.term(atom, 1, false)
+		if c.problem != nil {
+			return
 		}
-		if c.check && atom.Str == "terminal" && r.Kind == tmCapture && r.Str == "" {
-			continue
-		}
-		if r.Kind == tmCapture && (atom.Str == "value" || atom.Str == "image" || atom.Str == "source-text" || atom.Str == "decomposed-source-text" || atom.Str == "verbatim-text") {
-			continue
-		}
-		if r.Kind == tmCall && r.Str == "emitted" && len(r.Items) == 1 && r.Items[0].Kind == tmCapture && (atom.Str == "value" || atom.Str == "image") {
-			continue
-		}
-		c.fail("invalid recipe method")
 	}
+	if _, fault := termTypeMemo(t, nil, c.types); fault != nil {
+		c.fail("%s", fault.problem)
+		return
+	}
+	for _, atom := range t.Items {
+		if stringTermShape(atom) {
+			continue
+		}
+		if len(atom.Items) != 1 {
+			c.fail("invalid recipe method")
+			return
+		}
+		receiver := atom.Items[0]
+		valid := receiver.Kind == tmCapture && (atom.Str == "value" || atom.Str == "image" || atom.Str == "source-text" || atom.Str == "decomposed-source-text" || atom.Str == "verbatim-text" || c.check && atom.Str == "terminal")
+		valid = valid || !c.check && (atom.Str == "value" || atom.Str == "image") && receiver.Kind == tmCall && receiver.Str == "emitted"
+		if !valid {
+			c.fail("invalid recipe method")
+			return
+		}
+	}
+
 }
 
 func (b *domBuilder) constantRef(n *Node) *domTerm {
@@ -586,6 +581,10 @@ func (b *domBuilder) checkMethodClause(name string, selector *Node) {
 }
 
 func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args []*domTerm, dependent bool, selector *Node) *domTerm {
+	if b.checkContext && b.inRecipe && (name == "value" || name == "image" || name == "source-text" || name == "decomposed-source-text" || name == "verbatim-text") && receiver.Kind != tmCapture {
+		b.fail(n, "a check message reads only $")
+	}
+
 	kind := sourceMethods[name]
 	if b.checkContext && checkElementTerm(receiver) && !(kind == methodLocal || kind == methodSpan && name != "classes" || kind == methodEndingAfter) {
 		b.fail(n, "an element has no tags, walk, or boundary method")
