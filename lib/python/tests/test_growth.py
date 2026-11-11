@@ -74,14 +74,13 @@ class Growth(unittest.TestCase):
                     return work.count
 
                 small = items(case["small"])
-                # The longer text's parse stops at the first item past its
-                # budget, so that a regression fails by its count before it
-                # costs much.
+                # The longer parse stops at the first work step past its
+                # budget, so a regression fails before it costs much.
                 try:
                     items(case["large"], case["most"] * small)
                 except OverBudget:
                     self.fail(
-                        f"{case['link']}: {small} items for {case['small']} links, more than {case['most']} times as many for {case['large']}"
+                        f"{case['link']}: {small} work steps for {case['small']} links, more than {case['most']} times as many for {case['large']}"
                     )
 
 
