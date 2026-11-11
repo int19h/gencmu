@@ -253,14 +253,14 @@
     },
     {
       "description": "Bootstrap applies unconditional stage features before recognition",
-      "find": "\"directives\":[{\"name\":\"ambiguity-resolution\",\"steps\":[{\"step\":\"greedy\"}],\"at\":[20,1]}]",
-      "replace": "\"directives\":[{\"name\":\"ambiguity-resolution\",\"steps\":[{\"step\":\"greedy\"}],\"at\":[20,1]},{\"name\":\"features\",\"args\":[\"bootstrap-gate\"],\"at\":[99999,1]}]",
+      "find": "\"directives\":[{\"name\":\"ambiguity-resolution\",\"steps\":[{\"step\":\"greedy\"}],\"at\":[24,1]}]",
+      "replace": "\"directives\":[{\"name\":\"ambiguity-resolution\",\"steps\":[{\"step\":\"greedy\"}],\"at\":[24,1]},{\"name\":\"features\",\"args\":[\"bootstrap-gate\"],\"at\":[99999,1]}]",
       "loads": true
     },
     {
       "description": "Bootstrap applies conditional stage features before recognition",
-      "find": "\"directives\":[{\"name\":\"ambiguity-resolution\",\"steps\":[{\"step\":\"greedy\"}],\"at\":[20,1]}]",
-      "replace": "\"directives\":[{\"name\":\"ambiguity-resolution\",\"steps\":[{\"step\":\"greedy\"}],\"at\":[20,1]},{\"name\":\"features\",\"args\":[\"bootstrap-gate\"],\"conditions\":[{\"op\":\"=\",\"left\":{\"string\":\"a\"},\"right\":{\"string\":\"a\"}}],\"at\":[99999,1]}]",
+      "find": "\"directives\":[{\"name\":\"ambiguity-resolution\",\"steps\":[{\"step\":\"greedy\"}],\"at\":[24,1]}]",
+      "replace": "\"directives\":[{\"name\":\"ambiguity-resolution\",\"steps\":[{\"step\":\"greedy\"}],\"at\":[24,1]},{\"name\":\"features\",\"args\":[\"bootstrap-gate\"],\"conditions\":[{\"op\":\"=\",\"left\":{\"string\":\"a\"},\"right\":{\"string\":\"a\"}}],\"at\":[99999,1]}]",
       "loads": true
     },
     {
