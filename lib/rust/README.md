@@ -1,6 +1,6 @@
 # gencmu for Rust
 
-gencmu is a Lojban parser whose grammars are literate Markdown documents, loaded at runtime. A literate grammar document mixes prose with grammar rules. This crate is the Rust library of [gencmu](https://github.com/int19h/gencmu). A clean-room implementation uses the specification alone.
+gencmu is a parser for Lojban and other loglangs. Its grammars are literate Markdown documents, loaded at runtime. A literate grammar document mixes prose with grammar rules. This crate is the Rust library of [gencmu](https://github.com/int19h/gencmu). A clean-room implementation uses the specification alone.
 
 The crate is a clean-room implementation of the engine specification, `docs/engine.md`, with no dependencies at all. The crate embeds the grammars that it bundles. An API is the operations that a library exposes.
 
@@ -40,7 +40,7 @@ A `FeatureConflict` result names a disabled feature whose conditional declaratio
 
 - `to_json(&result)` writes the canonical JSON of `docs/output.md`.
 - `to_brackets(&result, show_elided)` renders the tree as brackets. It shows each token by its image. A token with attachments is a group of its before-attachments, its image and its after-attachments, so `mi ui klama` in the `lojban/cll` pipeline is `([mi ui] klama)`.
-- A `ParseResult` owns its stages, tree, error, and warnings. Each stage has its input and output tokens, verdict, and optional witness. A tied stage has no output. If its messages evaluate, its error reports `Ambiguous` with reason `Tie` and two readings. A message failure reports `Grammar` and retains the tie verdict.
+- A `ParseResult` owns its stages, tree, error, and warnings. Each stage has its input and output tokens, verdict, and optional witness. A tied stage has no output. If its messages evaluate, its error reports `Ambiguous` with reason `Tie` and two readings.
 
   `AmbiguityReason::ElisionOnly` identifies a failure of the check of `elision-only`. Its `witness` holds the pair of actions where the readings first differ (engine §7.10). `Action::Elided` records a terminator that the check wrote back.
 
@@ -58,7 +58,7 @@ A `FeatureConflict` result names a disabled feature whose conditional declaratio
 
   Counted errors give `ParseErrorKind::Reported`, with named reports in `ParseError::errors`. The reporting stage keeps its tree, output, and verdict. Earlier stages continue despite chosen errors. Other error results have a null result tree. A direct ranked-option error can carry default rejection evidence in its `rejection` member.
 
-  A failed message recipe gives `ParseErrorKind::Grammar` and retains the stage verdict. The result has a null tree and no output from the failing stage. Its envelope retains carried diagnostics and evaluated own messages outside erased subtrees. Earlier stages keep their outputs.
+  No message recipe can fail today. Engine §12.1 defines the guard for a failure.
 
   Verdicts count only derivations with the best three-part measure. The measure minimizes blamed source width, then errors without a source, then maximizes the error count. Carried errors retain their fixed charges. Erased completions with equal observable state collapse and keep one interior as their shown tree.
 
@@ -85,9 +85,9 @@ An error production that can match no tokens fails during loading. The structura
 
 ## Tools
 
-For tests and tools: `Pipeline::parse_tokens` feeds tokens straight to the first stage. An `InputToken` has optional `value` and `image` fields. Each absent field defaults independently to its `text`. An `InputToken` has no attachments because a caller cannot supply them. Empty `errors` and `warnings` lists are accepted. A nonempty diagnostic list causes a usage error. A DOM (document object model) is the parsed form of a grammar document.
+For tests and tools: `Pipeline::parse_tokens` feeds tokens straight to the first stage. An `InputToken` has optional `value` and `image` fields. Each absent field defaults independently to its `text`. An `InputToken` has no attachments because a caller cannot supply them. Empty `errors` and `warnings` lists are accepted. A nonempty diagnostic list causes a usage error.
 
-`gencmu::tools` reads a grammar document into a DOM. It tests that DOM as a preparsed DOM. It also splices bundled pipelines into stages and computes the hashes for the DOM cache. `gencmu::tools::DOM_FORMAT` is the version of the DOM's shape, which every cache key holds.
+A DOM (document object model) is the parsed form of a grammar document. `gencmu::tools` reads a grammar document into a DOM. It tests that DOM as a preparsed DOM. It also splices bundled pipelines into stages and computes the hashes for the DOM cache. `gencmu::tools::DOM_FORMAT` is the version of the DOM's shape, which every cache key holds.
 
 A DOM holds the document's constants, classifiers and implications as the document writes them, never their values. The loader gives each constant its value when it stitches a stage. A stage resolves its classifiers for the features of each parse, once for each set of features.
 

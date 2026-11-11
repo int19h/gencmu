@@ -643,7 +643,7 @@ A bare list or an exact prefix needs whitespace or a comment after a node test, 
 
 The syntax stage does not see layout, which consists of whitespace and comments. The helper rules test adjacency through source text. `pattern-adjacent-item` matches two tokens whose joined source text equals the source text of their span. That equality holds only when nothing lies between them.
 
-`pattern-exact-start` keeps `·` adjacent to its node test. `pattern-attached-start` detects a list directly after the complete atom. `pattern-node` tests this condition in both directions, so an adjacent list always attaches and a separated list never does.
+`pattern-exact-start` keeps `·` adjacent to its node test. `pattern-attached-start` detects a list directly after the complete atom. `pattern-node` tests this condition in both directions, so an adjacent list always attaches and a separated list never does. Its third condition rejects an unattached reading of `a⁅b⁆`, which keeps the attachment routes disjoint.
 
 `pattern-item-opening` reads `⁅` or `·`. `child-item` rejects such an adjacent opening after its last token, except after `⋯` or `⋰`.
 
@@ -775,7 +775,7 @@ Recognition admits repeated or reversed tests on node atoms. Each node atom acce
 
 ## Directives
 
-A directive starts a stage, includes a document, declares features, turns on the elision check, or lists the ranking steps. Each written name is a separate operand. The ranking directive has its own form: steps separated by commas, each a name alone or a name followed by one pattern literal or constant reference. The reader requires an exact local pattern there, as [engine §9.3](../../../docs/engine.md#93-conversion-and-validation) says.
+A directive starts a stage, includes a document, declares features, turns on the elision check, or lists the ranking steps. Each written name is a separate operand. The ranking directive lists steps separated by commas. Each step is a name alone or a name followed by one pattern literal or constant reference. The reader requires an exact local pattern there, as [engine §9.3](../../../docs/engine.md#93-conversion-and-validation) says.
 
 Recognition accepts wider operands than each directive permits. The reader rejects wrong counts and types at the directive before converting those operands.
 

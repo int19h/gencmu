@@ -28,7 +28,7 @@ General-category tags use long names in token tags, node tags, terminals, expect
 
 A `reported` result retains the chosen tree. With `ok:true`, `error` is `null`. With no parse warning, `warnings` is absent (engine §12, §13).
 
-If a message recipe fails, its error has kind `grammar`. The result has a null tree and no failed-stage output. The stage retains its verdict. Its failure collects pending stage-level diagnostics, evaluated own messages outside erased subtrees, and carried input diagnostics under engine §12.1. Earlier outputs remain available.
+No message recipe can fail today. Engine §12.1 defines the guard for a failure.
 
 A stage has one of these forms:
 
@@ -46,7 +46,7 @@ The readings themselves are in the result's error (below), and the stage holds n
 
 `output` is the emitted tokens of a stage whose verdict is `unique` or `resolved`, the last stage included. It is absent for a rejection or any failure before ranking completes, including recognition errors, feature conflicts, and feature-condition runtime errors. It is absent for a tie, since a tied stage emits nothing (engine §6, §11). A `reported` result keeps that output.
 
-A diagnostic message failure prevents output. Emission failure also prevents output (engine §11). It is also absent where the check of `elision-only` meets an error of the grammar or loses its witness (engine §7.7, §7.9).
+Emission failure also prevents output (engine §11). It is also absent where the check of `elision-only` meets an error of the grammar or loses its witness (engine §7.7, §7.9).
 
 Stage members stand in the order `name`, `verdict`, `witness`, `output`, `errors`, `warnings`. Empty stage-level diagnostic lists are absent. They retain diagnostics that have no carrier because a completed emission yields an empty output array. Lists on emitted tokens instead carry diagnostics forward. An earlier stage with errors and nonempty output does not stop the pipeline. Engine §12.1 defines the reporting stage and every ending's collection.
 
@@ -93,11 +93,9 @@ A node has one of these forms:
 
 A rule name is an output string, rather than an ASCII identifier. It can contain an emoji or a canonical call with punctuation, quotes, and spaces. Named instances use their public name without an extra node. Nodes, `insertedBy`, warnings, expected rules, and witness actions all use that same effective name. Engine §2.3 defines instance identity and canonical names.
 
-The [pipeline guide](pipelines.md#phoneme-values-and-stress) describes the bundled stage list and phoneme mappings.
-
 A list that flat braces read has no node of its own. Each level of a chain is a `rule` node of the chain's rule (engine §12). So braces add no kind of node. A spliced call also adds no node and keeps its children in order. A collapsed erased occurrence shows only its kept canonical derivation (engine §6).
 
-The JSON value returned by a formatter owns its arrays independently of the input result.
+The [JavaScript API](api.md#javascript) defines formatter ownership.
 
 A token node's `token` indexes the stage-input token it reads. `terminal` records canonical terminal identity, such as `KOhA`, `"a"`, `"a".."z"`, or `_`. Tests do not change that identity. Constants expand to their string identity. Read witnesses and expected lists use the same spelling.
 
@@ -171,7 +169,9 @@ A `feature-conflict` envelope orders `kind`, `stage`, `feature`, `errors`, `warn
 
 For these three envelopes, `warnings` equals the result's complete warning collection. A `reported` envelope has `kind`, `stage`, `errors`, `message`, with warnings only at result level. A tie envelope has `kind`, `stage`, `reason`, `readings`, optional `errors`, then `message`. An elision-only envelope has `kind`, `stage`, `reason`, `readings`, `witness`, `message`, with no `errors` member. Its warnings also remain at result level.
 
-`boundary` appears only when a failed boundary obligation dropped an item at the reported position or later (engine §4.2). `rule` is the rule of the condition. `condition` is the index of the condition item among the rule's condition items, from 0. The count runs through the rule's definitions in source order, so an extension's items follow those of the rule it extends. Guard atoms in header and alternative tag terms follow their definition's written conditions and count toward indexes in later definitions. Each written guard atom takes its own index, in written order, with the header term first and then the term of each alternative. The atoms of an alternative that a gate drops still count.
+`boundary` appears only when a failed boundary obligation dropped an item at the reported position or later (engine §4.2). `rule` is the rule of the condition. `condition` is the index of the condition item among the rule's condition items, from 0. The count runs through the rule's definitions in source order, so an extension's items follow those of the rule it extends.
+
+Guard atoms in header and alternative tag terms follow their definition's written conditions and count toward indexes in later definitions. Each written guard atom takes its own index, in written order, with the header term first and then the term of each alternative. The atoms of an alternative that a gate drops still count.
 
 `at` is the boundary where the obligation failed. Equal literals retain every source condition as an annotation, without changing record identity.
 
@@ -223,7 +223,7 @@ Every error raised while splicing a selected stage carries that stage, including
 
 An unreadable include with no source line reports the include directive's position. A positioned error keeps its location. Relocation preserves the other diagnostic fields.
 
-Engine §2 specifies common stitching and classifier messages. Existing unit tests pin those messages. Other wording stays library-specific unless this specification states otherwise.
+Engine §2 specifies common stitching and classifier messages.  Other wording stays library-specific unless this specification states otherwise.
 
 Ranked loading errors have these members, in this order:
 
@@ -374,7 +374,9 @@ SPLICETARGET is one rule `ref` or `call`, including an emoji rule. It cannot be 
 
 A `ref` stores a rule or tag name, including `🆓` or an engine tag. `literal` stores an unresolved string term. A range stores two string terms that resolve to single scalar endpoints. `wildcard` is exactly `true`.
 
-An `optional` with `"elidable":true` is an elidable optional (engine §3.8). `[+KU 🆓]` is `{"optional":{"seq":[{"ref":"KU"},{"ref":"🆓"}]},"elidable":true}`. A plain optional has no `elidable` member. An elidable optional whose head carries `≝` has a `default` member after `elidable`. Its value has the form of a value test's operand. So `[+JI ≝ "jie"]` is `{"optional":{"ref":"JI"},"elidable":true,"default":{"string":"jie"}}`. A plain optional has no `default` member.
+An `optional` with `"elidable":true` is an elidable optional (engine §3.8). `[+KU 🆓]` is `{"optional":{"seq":[{"ref":"KU"},{"ref":"🆓"}]},"elidable":true}`. A plain optional has no `elidable` member. An elidable optional whose head carries `≝` has a `default` member after `elidable`.
+
+Its value has the form of a value test's operand. So `[+JI ≝ "jie"]` is `{"optional":{"ref":"JI"},"elidable":true,"default":{"string":"jie"}}`. A plain optional has no `default` member.
 
 `BASETARGET` is a `ref`, `call`, `splice`, `literal`, `wildcard`, or `range`. Before expansion, it also accepts a declared `param` node. `TESTTARGET` is a BASETARGET, or its tag-tested form under a value test. `CAPTURETARGET` is a BASETARGET or its legal tested form.
 
@@ -392,7 +394,9 @@ A query parameter uses the same unresolved node in its body:
 
 After substitution, the body is a constituent like any other (engine §4).
 
-Capture names use lowercase letters, digits, `-`, and `_`. Captures cannot occur directly in a chain's item or separator. Flat braces inside a chain can hold item captures. Inside an elidable optional, only the capture of its sole terminator is legal (engine §3.8). A capture inside the braces of a flat list is an item capture, which binds in the productions of the list's helper (engine §3.5). No ranked group can separate it from its innermost flat braces. Its name occurs nowhere else in its alternative. Each expanded production binds a name at most once.
+Capture names use lowercase letters, digits, `-`, and `_`. Captures cannot occur directly in a chain's item or separator. Flat braces inside a chain can hold item captures. Inside an elidable optional, only the capture of its sole terminator is legal (engine §3.8).
+
+A capture inside the braces of a flat list is an item capture, which binds in the productions of the list's helper (engine §3.5). No ranked group can separate it from its innermost flat braces. Its name occurs nowhere else in its alternative. Each expanded production binds a name at most once.
 
 A value test uses `=` or `≠`. A tag test uses `test:"tags"` and an ordered array of requirements. A requirement is `{"negated":false,"value":TERM}`. Its value is a tag literal, tag-set constant, or declared parameter before expansion. A negative requirement has `negated:true`.
 
@@ -481,7 +485,9 @@ For example, `$i.onward.parse(@Open …).error-free` in a template uses this unr
 {"method":"error-free","receiver":{"method":"parse","receiver":{"method":"onward","receiver":{"capture":"i"},"args":[]},"args":[{"body":{"seq":[{"param":"Open","at":[2,20]},{"remainder":true}]}}]},"args":[]}
 ```
 
-A first remainder selects suffix mode, and a last remainder selects prefix mode. A remainder at both edges selects part mode. Each remainder is unread and excluded from the witness. `.error-free` takes no arguments, accepts a forest receiver, and returns a forest. A bare `parse` result or its filtered result can stand as a condition. A forest also has `.tags`, which unions the tag sets of its witnesses. A forest supports no other method, operator, or implicit string conversion. Body wrappers add no DOM depth, and the remainder is a leaf.
+A first remainder selects suffix mode, and a last remainder selects prefix mode. A remainder at both edges selects part mode. Each remainder is unread and excluded from the witness. `.error-free` takes no arguments, accepts a forest receiver, and returns a forest.
+
+A bare `parse` result or its filtered result can stand as a condition. A forest also has `.tags`, which unions the tag sets of its witnesses. A forest supports no other method, operator, or implicit string conversion. Body wrappers add no DOM depth, and the remainder is a leaf.
 
 `.ngrams` takes exactly one `{"integer":"2"}` argument. Its digits match `[1-9][0-9]*`, without a size limit. This argument is not a value term and occurs only in `.ngrams`.
 
@@ -528,13 +534,17 @@ Conditions have these forms:
 {"nonempty":TERM}
 ```
 
-Comparators are `=`, `≠`, `∈`, `∉`, `⊆`, `⊈`, `≅`, and `≇`. Operand types follow engine §10. Tree comparison requires a bare capture or `$` on the left. Its right member is any term, and the loader checks its type (engine §10). A presence predicate uses `captured`, with an empty name for `$`.
+Comparators are `=`, `≠`, `∈`, `∉`, `⊆`, `⊈`, `≅`, and `≇`. Operand types follow engine §10. Tree comparison requires a bare capture, including `$` on the left. Its right member is any term, and the loader checks its type (engine §10). A presence predicate uses `captured`, with an empty name for `$`.
 
 TARGET follows the definition after the ARG forms. A CAPTURE is `{"capture":"x"}`, with an empty name for `$`. A boundary atom is a condition, so `not`, `any`, `all` and `if` can hold it (engine §4.2).
 
 A `parse` method or an `error-free` method over it is also a condition, with the forest forms above. A condition has no member but those of its one form.
 
-A set term used as a condition stands as `{"nonempty":TERM}`. It tests that the set is not empty. TERM is a `union`, `intersection`, `difference`, `tag`, `emptySet`, `const`, or `param` term. TERM can also be a set-valued method: `tags`, `classes`, `split`, `ngrams`, or `classify`. A `.tags` method over a forest is such a term too. TERM can also be a guarded term, `{"if":COND,"then":TERM}`. A forest is no TERM of the wrapper. A bare `parse` or `error-free` method already writes that condition, so a forest under the wrapper is malformed. An `if` node in a condition position is always the condition form `{"if":COND,"then":COND}`.
+A set term used as a condition stands as `{"nonempty":TERM}`. It tests that the set is not empty. TERM is a `union`, `intersection`, `difference`, `tag`, `emptySet`, `const`, or `param` term. TERM can also be a set-valued method: `tags`, `classes`, `split`, `ngrams`, or `classify`.
+
+A `.tags` method over a forest is such a term too. TERM can also be a guarded term, `{"if":COND,"then":TERM}`. A forest is no TERM of the wrapper. A bare `parse` or `error-free` method already writes that condition, so a forest under the wrapper is malformed.
+
+An `if` node in a condition position is always the condition form `{"if":COND,"then":COND}`.
 
 An emission is `{"items":[ITEM...]}` with a nonempty array. An item is either `{"capture":"x"}` or `{"insert":true}`, followed by optional `tags`, `value`, `image`, `before`, and `after`. The empty capture name denotes `$`. Only named capture items accept nonempty attachment arrays. Each attachment array contains capture names without `$`, in written order. Empty attachment arrays are omitted.
 
@@ -705,7 +715,9 @@ A tree comparison uses the `op`, `left` and `right` members:
 {"op":"≅","left":{"capture":"v"},"right":{"capture":"e"}}
 ```
 
-These operators require a bare capture or `$` on the left. The right member is any term, and the loader checks its type after constants and template arguments resolve (engine §10). A right term of constituent type is a `capture` term, with an empty name for `$`. A right term of another type than pattern or constituent is a type error. Pattern equality and implicit string conversion are malformed. Text, cached DOMs and supplied DOMs use the same grouping, field, arity and type restrictions. Resolution covers patterns in replaced definitions too.
+These operators require a bare capture, including `$` on the left. The right member is any term, and the loader checks its type after constants and template arguments resolve (engine §10). A right term of constituent type is a `capture` term, with an empty name for `$`. A right term of another type than pattern or constituent is a type error.
+
+Pattern equality and implicit string conversion are malformed. Text, cached DOMs and supplied DOMs use the same grouping, field, arity and type restrictions. Resolution covers patterns in replaced definitions too.
 
 Structural states and omission predicates remain internal derived state. Omitted pattern tags are the terminator tag and the mark `_Elided`, which no output field shows. Internal omission records retain `value` only for a default value, from `≝` or from equality, including an explicit empty string.
 
@@ -721,7 +733,7 @@ For example, `mex MOI 🆓 ≻ SE 🆓 tanru-unit-1` produces this expression:
 {"ranked":[{"seq":[{"ref":"mex"},{"ref":"MOI"},{"ref":"🆓"}]},{"seq":[{"ref":"SE"},{"ref":"🆓"},{"ref":"tanru-unit-1"}]}]}
 ```
 
-Neighbour-guarded tag terms use the ordinary `if` term and boundary-method condition shapes. Their guard is one optionally negated atom on `$`, with a literal tag-set consequent. The DOM stores the written term, never the concrete variants of engine §3.7.
+Neighbor-guarded tag terms use the ordinary `if` term and boundary-method condition shapes. Their guard is one optionally negated atom on `$`, with a literal tag-set consequent. The DOM stores the written term, never the concrete variants of engine §3.7.
 
 The DOM holds no lowered helper, admission key, [seal](notation.md#the-structural-tree), or selected option. References retain their written form before terminal resolution. Expression traversal includes `ranked` alongside other expression forms.
 
@@ -763,9 +775,11 @@ A hollow rule node, such as an empty slot for a free modifier, has no token and 
 
 ### Brackets
 
-Tree patterns do not change bracket grouping. The renderer applies the rules below after it decides whether to show elided terminators. Brackets write the tree of the final stage as nested groups:
+Brackets write the final stage's tree as nested groups. Tree patterns do not change that grouping. The renderer first decides whether to show elided terminators, then applies these rules:
 
-1. The image of a token node is the image of its token (engine §5). Grammar image recipes supply pause spaces and verbatim quote spelling. An image can itself be empty, and the renderer keeps it. A token index outside the stage input renders an empty leaf. The image of an elided node is empty, unless elided terminators are shown. In that case, the image is the terminal in ASCII lower case between `⟨` and `⟩`.
+1. The image of a token node is the image of its token (engine §5). Grammar image recipes supply pause spaces and verbatim quote spelling. An image can itself be empty, and the renderer keeps it.
+
+   A token index outside the stage input renders an empty leaf. The image of an elided node is empty, unless elided terminators are shown. In that case, the image is the terminal in ASCII lower case between `⟨` and `⟩`.
 2. A token node whose token has attachments renders as a group. Its members are the token's before-attachments, the token's image, and its after-attachments, in that order. Each attachment renders in the same way: as its image, or as a group if it has attachments of its own.
 3. The renderer renders the children of a rule node and drops the empty ones. An empty child is an elided node that is not shown, or a rule node that renders nothing. A token node is never empty.
 

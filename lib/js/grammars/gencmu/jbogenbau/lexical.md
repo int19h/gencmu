@@ -180,7 +180,7 @@ A capture is `$` alone or `$` followed by a lowercase name. `$` alone names the 
 
 A user constant starts with `$` and an uppercase name.
 
-In these grammar strings, `"$"` denotes one dollar sign. Thus `"$" upper-name` reads a constant.
+Thus `"$" upper-name` reads a constant.
 
 The boundary conditions prevent either token from ending inside its name. The syntax stage receives each prefixed name as one token.
 
@@ -209,7 +209,7 @@ The boundary conditions prevent either token from ending inside its name. The sy
 
 A feature is a named switch that a grammar tests. Its name starts with a letter and continues with letters, digits, or hyphens.
 
-A gate ends with `?` and can start with `¬`. Warning rules use `%warning`.
+A gate ends with `?` and can start with `¬`. This token serves feature gates only.
 
 A `¬` immediately before a guard belongs to that guard. Elsewhere, `negation` emits it separately for a condition.
 

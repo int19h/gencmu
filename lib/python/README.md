@@ -1,6 +1,6 @@
 # gencmu for Python
 
-gencmu is a Lojban parser. A literate grammar document mixes prose with grammar rules. gencmu loads these Markdown documents at runtime. This is the Python library. An API is the operations that a library exposes.
+gencmu is a parser for Lojban and other loglangs. A literate grammar document mixes prose with grammar rules. gencmu loads these Markdown documents at runtime. This is the Python library. An API is the operations that a library exposes.
 
 The library is pure Python, uses the standard library only, and needs Python 3.14 or later. It implements the engine specification of the gencmu repository, `docs/engine.md`. A document object model (DOM) stores parsed grammar rules. The library reads DOM format 48 and writes result format 17. It writes the canonical JSON of `docs/output.md`.
 
@@ -101,7 +101,7 @@ The final stage, or the stage that `until` names, collects diagnostics in preord
 
 Collected errors give a `reported` result with named reports in `error.errors`. The reporting stage keeps its tree, output, and verdict. Other error results have a null result tree. An error that directly forms a ranked option can retain default rejection evidence in `rejection`.
 
-A failed message recipe gives a `grammar` result and retains the stage verdict. The result has a null tree and no output from the failing stage. It retains carried diagnostics and messages that already evaluated outside erased subtrees. Earlier stages keep their outputs and warnings.
+No message recipe can fail today. Engine §12.1 defines the guard for a failure.
 
 Verdicts count only derivations with the best three-part measure. The measure minimizes blamed source width, then errors without a source, then maximizes the error count. An error retains its fixed charge across stages. `%erased` collapses equal completed observable states and keeps one interior for their shown tree.
 
@@ -115,7 +115,7 @@ Verdicts count only derivations with the best three-part measure. The measure mi
 
 `node tools/sync.js` copies the repository's `grammars/` and `data/` trees into `src/gencmu/grammars/` and `src/gencmu/data/`. After you change either source tree, run `node tools/sync.js` at the repository root.
 
-The tests keep their `unittest` assertions. pytest with pytest-xdist runs them in separate processes. Each shared engine and notation fixture has a separate test method. The `test` dependency group pins the runner dependencies, which the wheel does not require.
+The tests use `unittest` assertions. pytest with pytest-xdist runs them in separate processes. Each shared engine and notation fixture has a separate test method. The `test` dependency group pins the runner dependencies, which the wheel does not require.
 
 From `lib/python`, create an environment and install the test runner:
 

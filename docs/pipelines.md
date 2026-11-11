@@ -180,7 +180,7 @@ Use example filenames that do not clash with your own files. The commands below 
    y-cmavo                 warning  off
    ````
 
-   The trial inherits these features from CLL. It adds no feature of its own.
+   The example pipeline inherits these features from CLL. It adds no feature of its own.
 
    A tie gives two best readings the same rank.
 
@@ -209,7 +209,7 @@ Use example filenames that do not clash with your own files. The commands below 
          ⟨VAU⟩
    ````
 
-   Parse that text with your local trial:
+   Parse that text with your local example pipeline:
 
    ````sh
    node lib/js/cli.js parse --pipeline-file grammars/lojban/examples/my-kihei/pipeline.md --format tree "broda .i brode"
@@ -228,11 +228,11 @@ Use example filenames that do not clash with your own files. The commands below 
          ⟨VAU⟩
    ````
 
-   The trial adds `utterance-sequence` below `paragraph`. Both pipelines still accept the text. Their default bracket output hides this structural difference.
+   The example pipeline adds `utterance-sequence` below `paragraph`. Both pipelines still accept the text. Their default bracket output hides this structural difference.
 
    `›` joins successive tree nodes on one line. An elided terminator is an omitted closing word. `⟨VAU⟩` marks one.
 
-   Parse a frame with your local trial:
+   Parse a frame with your local example pipeline:
 
    ````sh
    node lib/js/cli.js parse --pipeline-file grammars/lojban/examples/my-kihei/pipeline.md --format tree "ki'ei ko'a .i broda"
@@ -333,7 +333,7 @@ Use example filenames that do not clash with your own files. The commands below 
 
    Include an accepted case, a rejected case, and a base comparison. Inspect the output. Record the intended brackets.
 
-   The HOWTO also supplies five cases in `tests/corpus/pipelines-howto.jsonl`. They cover the tree examples and the missing `.i`.
+   The tutorial also supplies five cases in `tests/corpus/pipelines-howto.jsonl`. They cover the tree examples and the missing `.i`.
 
    Run those bundled cases:
 
@@ -351,13 +351,13 @@ Use example filenames that do not clash with your own files. The commands below 
 
    The prose coverage tool requires a coverage decision for each additional grammar document. It automatically examines documents of `lojban/cll` and `lojban/bpfk`.
 
-   For this trial, add this entry to `UNCHECKED` in `tools/quoted-texts.js`:
+   For this example pipeline, add this entry to `UNCHECKED` in `tools/quoted-texts.js`:
 
    ````js
-   "grammars/lojban/examples/my-kihei/pipeline.md": "the trial has local corpus cases in my-kihei.jsonl",
+   "grammars/lojban/examples/my-kihei/pipeline.md": "the example pipeline has local corpus cases in my-kihei.jsonl",
    ````
 
-   This entry records why the automatic CLL prose test excludes the trial. The tests must cover its claims.
+   This entry records why the automatic CLL prose test excludes the example pipeline. The tests must cover its claims.
 
    For your own pipeline, name its actual tests in that reason.
 

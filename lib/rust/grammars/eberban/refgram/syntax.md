@@ -1129,3 +1129,18 @@ The PEG can queue a message from a reading that later fails. This grammar report
 The warning counts only sentences that are not erased. The PEG's erased-sentence counting departure remains as described above.
 
 Warnings inside a syntax-erased stretch disappear, including warnings raised in forms. The PEG retains some of these warnings, as in `a co zao[x]zao-pt ra a mo`. This grammar follows the erasure rule. Warnings on an unerased gap survive, including a foreign letter after an unclassified run before a quote bracket.
+
+
+In Eberban, `$v ≅ $e` in `resumed-step` runs at the advance over `$e`, before `step-tail`. It demands nothing of `step-tail` or `resume-head`. Its two `annotated-verb` occurrences demand. The recognizer predicts `resumed-step` at every step start, before it sees any `pa`.
+
+So every verb at the start of a step carries identities. Inside that operand, demand reaches every observable descendant up to a seal. That includes the chains, steps, `step-tail` and bind groups inside an enumeration, a quote or a parenthetical in the verb. The `step-tail` of the enclosing step, its binds and the top-level `text` stand outside the operand and carry none.
+
+In Eberban, the cost is the tree of each verb at the start of a step. A quote, an enumeration or a parenthetical inside that verb splits its items by its inner tree, the binds inside it included. The binds of the enclosing step do not. The recognizer also reads the same verb in ordinary mode, from `plain-step` and `passed-step`.
+
+So it reads the verb subtrees of a step twice. The items of the ordinary mode are the items of a grammar without the comparison. The items of the observed mode are a second set, and no factor bounds it against the first. One ordinary item can stand for many trees, and the observed mode gives each distinct tree its own item.
+
+The total is the sum of the two modes. This is the reason for demand by occurrence. With demand by rule, the `step-tail` of every step splits by its nested binds, and the number of items doubles with each bind.
+
+The Eberban grammar passes the check. Every path from `verb` back to `verb` reads a token first, such as `CA`, `PE`, `DA`, `DE` or `BU`. So the inner span is smaller by construction. `annotated-verb` adds one marked edge to `verb`, because every postfix can be absent, and that edge stands in no cycle.
+
+In `resumed-step`, each distinct tree of the outer verb supplies one comparison frame. The `sentence-of` query reaches this comparison and builds identities too.

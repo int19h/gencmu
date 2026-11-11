@@ -1,6 +1,6 @@
 # gencmu for JavaScript
 
-The JavaScript library of gencmu parses Lojban. A literate grammar document mixes prose with grammar rules. The library loads these documents at runtime. An API is the operations that a library exposes. The library needs nothing beyond the language, and Node's `fs` for loading grammars from disk.
+gencmu is a parser for Lojban and other loglangs. This is its JavaScript library. A literate grammar document mixes prose with grammar rules. The library loads these documents at runtime. An API is the operations that a library exposes. The library needs nothing beyond the language, and Node's `fs` for loading grammars from disk.
 
 `gencmu` works anywhere JavaScript runs, and it loads grammars from memory through `loadPipelineSources`. `gencmu/node` adds `loadPipeline`, for the grammars shipped with the package, and `loadPipelineFile`, for a pipeline document on disk.
 
@@ -26,6 +26,8 @@ A failed parse has error kind `rejected`, `reported`, `ambiguous`, `feature-conf
 A `reported` error lists named diagnostics in `errors`. Each diagnostic carries its code, rule, stage, span, source, and message. The result retains the chosen tree, verdict, and reporting-stage output. Earlier stages emit and continue despite chosen errors. Warnings use the same diagnostic fields and have no `feature` member.
 
 Every other error result has a null tree. A `grammar` error with code `elision-witness-lost` marks a library defect during `elision-only`. It also has `chosen`, the stage's chosen tree, and `completion`, the restored terminators (engine §7.9). Other parse-result errors have no top-level `code`. Ranked-choice loading errors use the separate diagnostic schema of `docs/output.md`.
+
+No message recipe can fail today. Engine §12.1 defines the guard for a failure.
 
 ## The command line
 

@@ -1,5 +1,7 @@
 # The shared tests
 
+A shared case supplies input and an expected outcome. A runner loads that case and compares the library's result with its expectations.
+
 Every gencmu library runs every shared case that its API can express. A library skips a usage case when its token or string types cannot express the invalid field. If a case fails in one library and passes in another, there is a bug. The bug is in the library that disagrees with `docs/engine.md`, or in the specification itself.
 
 A runner refuses unknown case members and control members with the wrong type. This includes configuration (`options`), parse lists (`parses`), and expectations (`expect`).
@@ -133,7 +135,7 @@ A pattern describes required result fields. `expect.result` is a pattern matched
 
 The runner constructs that exact prefix from the originating error's document, line, and column. It preserves colons inside document names.
 
-A result pattern rejects engine-generated error `message` assertions. Existing unit tests pin the common stitching and classifier messages specified in engine §2. Other wording stays library-specific.
+A result pattern rejects engine-generated error `message` assertions. Unit tests pin the common stitching and classifier messages specified in engine §2. Other wording stays library-specific.
 
 A pattern matches a result that has members beyond its own. So the invariants, and not the patterns, say that a tied stage has no output.
 
@@ -179,7 +181,7 @@ A load that fails gives only its error. Its kind is `grammar` for a grammar that
 
 For a `grammar` error, it can also give `expect.where`. It gives no `result`, `brackets`, `warnings`, `features` or `enabledFeatures`, because only a loaded pipeline gives them. A runner fails a case when the load fails with another kind, or when the case expects one of these members. It also fails a case that gives `expect.where` with a kind other than `grammar`.
 
-The conservative nullable-error test is a document loading error at the definition (engine §3.6). It considers gated alternatives present and ignores conditions and tests. Empty warnings are exempt.
+The conservative nullable-error test is a document loading error at the definition (engine §3.6). It considers gated alternatives present and ignores conditions and tests. Warning productions that match the empty sequence are exempt.
 
 An error that lowering finds (engine §3), such as an item of braces that can match no tokens, is not a load error. The pipeline loads, and the parse gives a result whose error has the kind `grammar`, so a case expects it with `expect.error`. Its message names the definition at fault. Unit tests cover common messages, and shared cases compare the other result fields.
 
@@ -314,7 +316,7 @@ Canonical pattern cases in `parameter-structure.json` load complete pipelines. T
 
 Malformed pattern cases in `json-keys.json` exercise matching preparsed entries through the public loader. They require source fallback for invalid constructors, operands, and fixed range constraints. Valid controls require cache hits. Depth pairs cover child predicates, sibling items, and empty lists at the constructor limit.
 
-Small native tests retain state-reuse bounds, walk order, and codec preservation. They contain no shared conformance runners or prebound constant fixtures.
+Small tests in each library cover state-reuse bounds, walk order, and codec preservation. They contain no shared conformance runners or prebound constant fixtures.
 
 ## Supplied notation values: `notation-values.json`
 
@@ -348,7 +350,9 @@ A caller can supply its own `data/preparsed/gencmu.json` (`docs/api.md`). Its no
 
 Both transformations include `ref` references and `rule` query arguments. A query argument follows the same renamed rule or wrapper as a direct reference.
 
-Each item of `extraParts` changes a rule of either notation stage. Its `find` stands once in the bundled bootstrap. The item's bootstrap has `replace` in that place ("Places in fixtures"). `find` and `replace` can be arrays of the same length. The library then applies each pair in order. Each `find` stands once in the text that the earlier pairs produced. Each library loads the item's `document` with that bootstrap and parses its `inputs`, as above. The outcomes are those of `expect`.
+Each item of `extraParts` changes a rule of either notation stage. Its `find` stands once in the bundled bootstrap. The item's bootstrap has `replace` in that place ("Places in fixtures"). `find` and `replace` can be arrays of the same length.
+
+The library then applies each pair in order. Each `find` stands once in the text that the earlier pairs produced. Each library loads the item's `document` with that bootstrap and parses its `inputs`, as above. The outcomes are those of `expect`.
 
 An extra part holds text that the reader refuses if it reads it. An outcome other than `expect` then shows that the library read it. Other items change constructor shapes or supply tokens that the bundled lexical stage refuses. These tokens test reader validation, including guard errors and their priority (engine §9.3). An item whose `expect` is a load error can give `where`, `{"document": "g.md", "line": 3, "column": 21}`, the place of that error in its document. The load must then fail there, as `expect.where` says for an engine case.
 
@@ -424,7 +428,7 @@ The cases in `without-elision-growth.json` bound the measured close-summary fixt
 
 The [engine guarantee](../docs/engine.md#property-conformance-and-performance) requires complete profiles without a meaningful slowdown for pipelines naming no additional property. This section defines the measurement policy. It separates timed samples from full-corpus outcome comparisons.
 
-`python3 tools/bench-unicode-properties.py --baseline REF --output DIRECTORY` compares all four libraries with baseline revision REF. DIRECTORY holds the selection manifest, measurements, and worker builds. Property-profile changes use the implementation before those profiles as their baseline. Both revisions use the same machine, runtime versions, character data from `data/unicode/unicode.txt`, build mode, corpus inputs, and parsing configuration. New abbreviation records remain available for candidate printing without changing the baseline's character classifications.
+`python3 tools/bench-unicode-properties.py --baseline REF --output DIRECTORY` compares all four libraries with baseline revision REF. DIRECTORY holds the selection manifest, measurements, and worker builds. Both revisions use the same machine, runtime versions, character data from `data/unicode/unicode.txt`, build mode, corpus inputs, and parsing configuration. New abbreviation records remain available for candidate printing without changing the baseline's character classifications.
 
 A later change uses the revision before that change as its baseline. That revision must include the complete property profiles. Such a change measures only the workloads that it can affect.
 
@@ -452,9 +456,7 @@ Cold runs use new processes and include loading and one timed corpus-sample batc
 
 Each revision also runs the full lojban/cll corpus once for outcome comparison. These runs are outside the timing protocol and need no warm-ups or paired repetitions. The comparison includes every case's acceptance, failure stage, verdict, bracket tree, emitted words, warnings, and error or witness data. Every changed outcome appears in the report with its cause. Unexplained changes fail the gate.
 
-Before comparing results, the baseline normalizes general-category names to their current long spellings. This includes tag sets, terminal identities, diagnostics, and canonical call names.
-
-A tag projection keeps all user tags and the engine inventory before profiles. That inventory consists of the atomic and seven major category tags, `_White_Space`, `_Emoji_Presentation`, and `_Emoji_Component`. The projection excludes Canonical_Combining_Class tags and every other newly exposed property tag. It applies recursively to all token and node tag sets, including attachments, witnesses, warnings, and error readings. Every other result field remains intact.
+A tag projection compares the common classification inventory. It keeps all user tags, atomic and major general-category tags, `_White_Space`, `_Emoji_Presentation`, and `_Emoji_Component`. It excludes Canonical_Combining_Class and other property tags. It normalizes general-category aliases to their long spellings. The projection applies recursively to token and node tags, including attachments, witnesses, warnings, and error readings. Every other result field remains intact.
 
 The workload comparison uses this projection for equality against the baseline. It still compares parse outcomes, complete tree structure, values, images, sources, spans, and all retained user tags. A reviewed full-corpus change does not excuse different parse work in a timed workload. Separate conformance cases inspect complete unprojected profiles, generic set operations, and serialization.
 
@@ -490,7 +492,7 @@ Some items repeat no nesting but one long token, such as a name, a comment or a 
 
 The library builds the document `prefix`, `open` n times, `middle`, `close` n times and `suffix`, in a fence. It builds it for n = 250 and for n = 1000. It reads each once with its reader, after one read that loads the notation. The read can end in an error. The library counts the items that its recognizer makes and the steps of its reader and of the walks of what the reader reads. The count for 1000 must be at most five times the count for 250.
 
-The JavaScript library also reads each document with the hand-written bootstrap reader, whose lexer counts its steps too. The Rust library reads each on a thread with a stack of 2 MiB, which no depth changes. The Go library also reads each nested 20,000 deep, with the stack of a goroutine held to 1 MiB. A reader or a walk that recursed as deep as the document nests ends the process there.
+The JavaScript library also reads each document with the handwritten bootstrap reader, whose lexer counts its steps too. The Rust library reads each on a thread with a stack of 2 MiB, which no depth changes. The Go library also reads each nested 20,000 deep, with the stack of a goroutine held to 1 MiB. A reader or a walk that recursed as deep as the document nests ends the process there.
 
 A library compares only its own two counts. Each library makes its items in its own way.
 

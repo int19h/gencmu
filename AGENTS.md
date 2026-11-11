@@ -1,6 +1,6 @@
 # Guidance for agents working on gencmu
 
-gencmu is a Lojban parser. Its grammars are literate Markdown documents in the jbogenbau notation, and a generic engine reads them at run time. This file states the rules that every change must follow.
+gencmu is a parser for Lojban and other loglangs. Its grammars are literate Markdown documents in the jbogenbau notation, and a generic engine reads them at run time. This file states the rules that every change must follow.
 
 ## Layout
 
@@ -43,6 +43,8 @@ Grammar prose and documentation use simple English:
 - The Lojban corpus is the public repository [jbocirvei](https://github.com/int19h/jbocirvei). It holds CLL, the reference grammars, dictionary exports, wiki pages, mail and chat. Many of its sources are git submodules. It is one source, not the only one. If the corpus lacks something, use the original source.
 - The maintainers curate the experimental lexicon by hand from the dictionary. Its closing section states the policy and every exception.
 - Do not use Tatoeba sentences as test material. Their Lojban is generally poor.
+
+- The `eberban/refgram` pipeline follows the Eberban reference grammar (refgram), the other documents of the Eberban repository, and the Eberban PEG.
 
 ## Reviews
 

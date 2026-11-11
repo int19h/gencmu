@@ -1,6 +1,6 @@
 # gencmu for Go
 
-The Go library of [gencmu](../../README.md) parses Lojban. A literate grammar document mixes prose with grammar rules. The library loads these Markdown documents at runtime. It implements [`docs/engine.md`](../../docs/engine.md) from the specification alone, with the standard library only. It embeds the bundled grammars. An API is the operations that a library exposes.
+[gencmu](../../README.md) is a parser for Lojban and other loglangs. This is its Go library. A literate grammar document mixes prose with grammar rules. The library loads these Markdown documents at runtime. It implements [`docs/engine.md`](../../docs/engine.md) from the specification alone, with the standard library only. It embeds the bundled grammars. An API is the operations that a library exposes.
 
 CI runs automated tests for every change. The module states Go 1.22, and CI tests it on 1.22 and the current stable release. The code needs generics and the `min` builtin (1.21). It is also written for the per-iteration loop variables of 1.22. Long-lived distributions such as Ubuntu 24.04 package 1.22 too. Users of these distributions can build the module with their packaged toolchain.
 
@@ -61,7 +61,7 @@ The API copies the tokens and leaves the caller's records unchanged. Nonempty `B
 
 ## Results
 
-A text that a stage reads in two or more best ways is a tie. If its messages evaluate, the result reports `ambiguous` with `Reason` `tie` and two `Readings`. The stage has verdict `tie`, a `Witness`, and no output. A message failure reports `grammar` and retains that verdict. The `Reason` of an `ElisionOnly` error is `elision-only`.
+A text that a stage reads in two or more best ways is a tie. If its messages evaluate, the result reports `ambiguous` with `Reason` `tie` and two `Readings`. The stage has verdict `tie`, a `Witness`, and no output. No message recipe can fail today. Engine §12.1 defines the guard for a failure. The `Reason` of an `ElisionOnly` error is `elision-only`.
 
 A text that does not parse gives a result whose `OK` is false. Its error kind is `rejected`, `ambiguous`, `feature-conflict`, `reported`, or `grammar` (`docs/api.md`).
 
@@ -130,7 +130,7 @@ An engine case that takes longer than 30 seconds fails, so that a hang is a fail
 
 `TestCorpus` runs the core sample of the Lojban corpus (`../../tests/core.txt`) on as many goroutines as there are CPUs. The goroutines share one `*Pipeline` for each pipeline. `GENCMU_CORPUS=full` runs every case of `../../tests/corpus/`, and `GENCMU_CORPUS_WORKERS` sets the number of goroutines.
 
-The shared and corpus runners also fail a result with the error `elision-witness-lost`. They fail a case in which a check of `elision-only` does not keep the witness of its chosen derivation too (`tests/README.md`). They ask through a hook that a parse takes from an unexported field of `ParseOptions`, which no caller can set (`check.go`, `witness_test.go`). The library's own tests lose the witness on purpose through the same field, and make sure that the error has the required form. The same field turns on faults of the library's own paths in the check. `faults_test.go` shows that the shared cases catch each one, through the result or through the hook alone (`tests/README.md`).
+The shared and corpus runners also fail a result with the error `elision-witness-lost`. They fail a case in which a check of `elision-only` does not keep the witness of its chosen derivation too (`tests/README.md`). The runners ask a hook whether the check retains the chosen derivation's witness. A parse takes that hook from an unexported `ParseOptions` field, which no caller can set (`check.go`, `witness_test.go`). The library's own tests lose the witness on purpose through the same field, and make sure that the error has the required form. The same field turns on faults of the library's own paths in the check. `faults_test.go` shows that the shared cases catch each one, through the result or through the hook alone (`tests/README.md`).
 
 `TestRankingProperty` compares the ranking with a brute-force enumeration of every derivation of small random grammars. To run a larger sweep, run this command:
 
