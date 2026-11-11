@@ -2957,13 +2957,13 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | Constructor | Required parts and lookup order | DOM conversion |
 | --- | --- | --- |
 | The root | Declaration constructors in source order | Five ordered item arrays, including empty arrays. A known non-declaration part is an error. |
-| `directive` | `directive-keyword`, then `directive-argument` parts in order | Validate written operand count and types before converting terms. Report every wrong operand at the directive. Produce `name` and valid argument values as `args`. A following `conditions-clause` gives optional `conditions` only for `%features`. |
+| `directive` | Keyword token, then ordered `directive-identifier`, `directive-string`, `directive-terminal`, or `directive-term` parts | Validate written operand count and types before converting terms. Report every wrong operand at the directive. Produce `name` and valid argument values as `args`. A following `conditions-clause` gives optional `conditions` only for `%features`. |
 | `ranking-directive` | Keyword token, then `ranking-step` parts in order | Produce `name` and the steps as `steps`. Report every wrong step at the directive. |
 | `ranking-step` | One name token, alone or followed by one `pattern-literal` or `constant-reference` | A lean `{"step":NAME}`, or `{"step":NAME,"pattern":P}` where P is the PATTERN or the `const` term |
 | `directive-identifier` | One name token | Name string |
 | `directive-string` | One quoted operand | Only the first `%include` or `%names` operand uses literal path decoding. Other quoted operands follow ordinary lexical forms and fail operand validation at the directive. |
 | `directive-terminal` | One Engine-Tag token or `range` | Tag identifier or range operand for validation at the directive |
-| `directive-term` | One `directive-method-chain`, `capture-reference`, `constant-reference`, `empty-set`, `pattern-literal`, grouped `term`, Emoji-Name token, or `_` | Invalid operand for validation at the directive |
+| `directive-term` | `capture-reference`, `constant-reference`, `empty-set`, `pattern-literal`, `term`, or an Emoji-Name or `_` token. A method receiver permits `tag`, `rule-or-classifier-name`, `string`, `constant-reference`, `range`, `capture-reference`, `empty-set`, `pattern-literal`, or `term`, followed by `method-selector` parts. | Invalid operand for validation at the directive |
 | `classifier` | `classifier-name`, then `classifier-entry` parts | `name`, then ordered `entries` |
 | `classifier-name`, `classifier-class` | One name token each | Name string |
 | `classifier-key` | One `string` or `constant-reference` | Unresolved STRINGTERM |
@@ -2974,14 +2974,14 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `constant-name` | One `Constant` token | User constant name without `$` |
 | `constant-keyword` | One `%const` or `%redefine-const` token | `define` or `redefine` |
 | `constant-reference` | One user constant reference token | `const`, name without `$`, and reference `at` |
-| `rule` | `rule-keyword`, `rule-name` or `call` head, then binding `call` or header, body, and trailing clauses | Ordinary definition, template with `params`, instance edit with `args`, or named `instance` binding. Bindings return before header clauses and body lookup. |
+| `rule` | `rule-keyword`, then `rule-name` or head `call`. A binding supplies another `call`. Otherwise inspect `header-tags`, `value-clause`, `image-clause`, then `body` or `headed-body`, followed by trailing clause constructors. | Ordinary definition, template with `params`, instance edit with `args`, or named `instance` binding. Bindings return before header clauses and body lookup. |
 | `call` | Call-name token, then ordered `call-argument` parts | `call`, ordered `args`, and call `at` |
 | `parameter` | One parameter token | `param` without `@`, and its `at` |
 | `call-argument` | One `requirement-argument`, `target-argument`, `body-argument`, `symbol-argument`, or `term` | ARG from `docs/output.md`, preserving its category |
 | `requirement-argument` | Ordered `tag-requirement` parts | `requirements`, including an empty array |
-| `target-argument` | Two or more ordered `target-option` parts | `targets` array |
-| `body-argument` | One `choice`, `optional`, `repetition`, or `empty` | Convert to EXPR. Return a sole symbol as its common ARG atom. Otherwise retain `body:EXPR`. |
-| `symbol-argument` | One `tested-primary`, `range`, or `wildcard` | Convert the expression to its common ARG atom, preserving tests. |
+| `target-argument` | Two or more ordered `rule-reference`, `tag`, `call`, or `parameter` parts | `targets` array |
+| `body-argument` | One `group`, `optional`, `repetition`, or `empty` | Convert to EXPR. Return a sole symbol as its common ARG atom. Otherwise retain `body:EXPR`. |
+| `symbol-argument` | One `tested-primary`, `range`, `wildcard`, or `splice` | Convert the expression to its common ARG atom, preserving tests. |
 | `rule-keyword` | One definition keyword token | `define`, `redefine`, or `extend` |
 | `rule-name` | One rule-name token | Lowercase name or valid emoji scalar |
 | `body` | One or more `alternative`, or one `ranked-body` | Ordered alternative list |
@@ -3017,7 +3017,8 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `image-clause` | One `recipe` | Owner's `image` |
 | `conditions-clause` | One or more `condition` parts | Ordered conditions |
 | `error-clause`, `warning-clause` | One `recipe` | Owner's `error` or `warning` recipe |
-| `suppress-warnings-clause` | `_` alone or one or more code tokens | Owner's `suppressWarnings` array, using `["_"]` for all warnings |
+| `suppress-warnings-clause` | `_` alone or one or more `suppression-code` parts | Owner's `suppressWarnings` array, using `["_"]` for all warnings |
+| `suppression-code` | One Identifier token | Code string for the enclosing `suppress-warnings-clause` |
 | `emits-clause` | `emit-item` parts, or `emit-tags`, `value-clause`, and `image-clause` alone | Ordered `items`. No target means implicit `$`. No written item also means `$`. |
 | `erased-clause` | One `%erased` token | Owner's `erased:true` |
 | `emit-item` | `emit-target`, `attachment-before`, `attachment-after`, `emit-tags`, `value-clause`, `image-clause` | Capture or inserted item, with ordered attachments and clauses. Read tags before value and image, including an implicit item. |
@@ -3028,7 +3029,7 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `concatenation` | One or more `term-atom` parts separated by `++` | Sole child, or ordered `concat` of string operands. Require each known operand to be a string before reading the next. Defer unresolved constant types until binding. Flatten grouped concatenation operands into the outer array in written order. |
 | `method-chain` | `method-receiver`, then one or more `method-selector` parts | Fold selectors left into receiver-first method nodes |
 | `method-receiver` | One `plain-term-atom` | Initial receiver, retaining its actual type |
-| `method-selector` | `parse-selector` or `named-selector` and arguments | Convert the selected route, then inspect its signature. |
+| `method-selector` | `parse-selector`, or `method-name` followed by optional `method-arguments` | Convert the selected route, then inspect its signature. |
 | `parse-selector` | One `parse-argument` | The enclosing `method-chain` supplies the receiver and folds this selector into a method named `parse`, with one body argument. |
 | `parse-argument` | One `choice`, with an optional `…` token at each outer edge | Convert the expression and retain each remainder as an outer `remainder:true` leaf in its sequence. Reject captures at their binders. |
 | `method-name` | One method-name token | Exact method identifier |
@@ -3040,7 +3041,7 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `term` | One `union` or `guarded-term` | Child term |
 | `tag-run`, `string-run` | At least two `tag` or `string` parts respectively, in written order | One `union` of singleton operands. Flatten into an enclosing union, regardless of grouping. |
 | `term-atom` | One `plain-term-atom` or `method-chain` | Delegate to that constructor. Preserve its term and type. Parentheses make no DOM node. |
-| `plain-term-atom` | One `tag-run`, `string-run`, or `operand-atom` | Delegate to that constructor. Preserve its term and type. |
+| `plain-term-atom` | One `tag-run`, `string-run`, `call`, `parameter`, `string`, `constant-reference`, `rule-or-classifier-name`, `tag`, `range`, `capture-reference`, `empty-set`, `pattern-literal`, or `term` | Delegate to that constructor. Preserve its term and type. |
 | `guarded-term` | One or more `any-of`, then a `union` or `term` | Right-nested `if` terms around the final value |
 | `union` | One or more `intersection` parts and their operators | Fold union and difference left. Flatten every union operand that is itself a union. A sole part stays unchanged. |
 | `intersection` | One or more `concatenation` parts | `intersection`, or sole part |
@@ -3066,7 +3067,7 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `pattern-primary` | One `pattern-node`, `bare-child-list`, or grouped `pattern-union` | Delegate without a grouping wrapper |
 | `pattern-node` | One `pattern-atom`, optional adjacent prefix, and optional adjacent `child-list` | Atom with optional `exact:true` and `children` array |
 | `bare-child-list` | One `child-list` and optional adjacent prefix | `any:true`, optional `exact:true`, and required `children` array |
-| `pattern-atom` | One `pattern-rule`, `tag`, `string`, `range`, `wildcard`, or `constant-reference`, with written tests | A tag test and a value test take any atom. A tested constant must resolve to a string after binding. Preserve tag then value order. |
+| `pattern-atom` | Name token, `rule-reference`, `rule-or-classifier-name`, `call`, `parameter`, `tag`, `string`, `string-terminal`, `range`, `wildcard`, or `constant-reference`, with written tests | A tag test and a value test take any atom. A tested constant must resolve to a string after binding. Preserve tag then value order. |
 | `child-list` | Optional `child-choice` | Item array, including empty or singleton |
 | `child-choice` | One or more `child-alternative` parts | Sole array, or one choice item. Flatten singleton choice alternatives. |
 | `child-alternative` | First `child-sequence`, otherwise required `child-set-operation` | Item array, with a set wrapped as one `child` |
@@ -3515,9 +3516,9 @@ For example, a carrier referencing `e → ε | "a"="b"` remains consuming. The f
 
 For `r → $e:empty $a:word`, with `empty → ε`, `%emits $, $e ($a)` is a document error. The whole carrier conflicts with the consuming attachment `$a`, although `$e` itself is always empty. The error stands at the emitting definition.
 
-A document's items are its rules, its directives, its constant definitions, its classifiers and its implications. The DOM keeps them in five lists, each in the order written. All five lists are present, including when empty. Every item has the position of its first token, so the order of all of a document's items is the order of their positions.
-
 #### Malformed DOMs
+
+A document's items are its rules, its directives, its constant definitions, its classifiers and its implications. The DOM keeps them in five lists, each in the order written. All five lists are present, including when empty. Every item has the position of its first token, so the order of all of a document's items is the order of their positions.
 
 A DOM is malformed in each of these cases, whether it is read, cached or in the bootstrap. Template-dependent types defer until expansion (§2.3).
 
@@ -3568,6 +3569,8 @@ Reader errors retain their construct positions. After constant binding, a wide e
 
 Supplied-DOM inspection retains the same two range reasons, including when a malformed bootstrap reports them. The schema inspects literal endpoint values. Rule type inspection checks endpoint types, and binding inspects values that become known later.
 
+#### Patterns
+
 For an elidable head, take the first item of a sequence, otherwise the expression itself. Unwrap the sole permitted capture before examining its terminal. A capture in a sequence is not this exception. Unwrap only `=`, `≠`, and `tags` tests. Require a capitalized user-tag reference, or a declared parameter before expansion. The symbol-test walk then rejects repeated tests at the later test.
 
 A pattern term is closed for constant validation. Its pattern schema reports malformed value tests, including missing operands and captures.
@@ -3587,6 +3590,8 @@ Take an atom that names a rule whose every definition carries `%erased`. An atta
 For a template-family atom, this error requires at least one instance and fully erased definitions in every instance. A parameter as the atom postpones this check until substitution. A child-list parameter occupies one element, so a known erased atom takes this check on its written list.
 
 If X is declared, `#⁅ A @X ⁆` and `#⁅ ⋯ @X ⁆` remain valid. Their closed items remain child items beside the parameter. A parameter postpones only the type or binding that its value determines. It never postpones the surrounding field, arity, context, or forbidden-gap rules. Source, supplied, and cached patterns all obey the exact schema in `docs/output.md`.
+
+#### Comparison cycles
 
 A comparison of two constituents needs a finite domain of tree identities (§4.1). Lowering checks this on the lowered grammar of each feature set, as it checks braces and chains in §3.3. So the gates apply, and only conditions and tests are not trusted. The nodes of the check are rules and template instances.
 
