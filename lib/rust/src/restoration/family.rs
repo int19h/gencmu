@@ -15,14 +15,14 @@ thread_local! {
 /// Enable the independent family test on this thread, including nested parses.
 /// This hook belongs to conformance tests, outside the documented API.
 pub fn with_family_conformance<T>(run: impl FnOnce() -> T) -> (T, (u64, u64)) {
-    struct Gate(bool, (u64, u64));
-    impl Drop for Gate {
+    struct Guard(bool, (u64, u64));
+    impl Drop for Guard {
         fn drop(&mut self) {
             CONFORMANCE.with(|c| c.set(self.0));
             COMPARISONS.with(|c| c.set(self.1));
         }
     }
-    let guard = Gate(CONFORMANCE.with(|c| c.replace(true)), COMPARISONS.with(|c| c.replace((0, 0))));
+    let guard = Guard(CONFORMANCE.with(|c| c.replace(true)), COMPARISONS.with(|c| c.replace((0, 0))));
     let result = run();
     let counts = COMPARISONS.with(std::cell::Cell::get);
     drop(guard);

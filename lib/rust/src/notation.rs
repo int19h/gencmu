@@ -638,7 +638,7 @@ impl<'a> Reader<'a> {
     }
 
     fn alternative(&self, node: &'a Node) -> R<Alternative> {
-        // A guard token is `f?` or `¬f?` (§9).
+        // A gate token is `f?` or `¬f?` (§9).
         let gates = self.rules(node, "feature-gate").map(|gate| self.gate(gate, false)).collect::<R<_>>()?;
         self.captures.borrow_mut().clear();
         let expr = if rule_name(node) == "ranked-body" {

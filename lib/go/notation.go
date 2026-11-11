@@ -888,7 +888,7 @@ func (b *domBuilder) checkRule(r *domRule) {
 	r.deferredEmission = result.deferred
 }
 
-// guard validates the complete token before the constructor reads later parts (§9.3).
+// gate validates the complete token before the constructor reads later parts (§9.3).
 func (b *domBuilder) gate(n *Node) domGate {
 	spelling := b.tokenValue(b.token(n))
 	g := domGate{Kind: FeatureGate, Negated: strings.HasPrefix(spelling, "¬")}

@@ -18069,7 +18069,7 @@
       const memberships = new Map();
       for (const { path, classifier } of grammar.classifierItems) {
         for (const entry of classifier.entries) {
-          const gates = entry.gates.map((guard) => `${guard.negated ? "¬" : ""}${guard.feature}?`).join(" ");
+          const gates = entry.gates.map((gate) => `${gate.negated ? "¬" : ""}${gate.feature}?`).join(" ");
           for (const key of /** @type {string[]} */ (grammar.classifierKeys.get(entry))) {
             const id = JSON.stringify([classifier.name, key, entry.class]);
             let membership = memberships.get(id);
