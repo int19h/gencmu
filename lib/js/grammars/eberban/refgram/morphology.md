@@ -1276,8 +1276,7 @@ A digit is one `TI` particle, and a digit can be a delimiter. It needs no word b
 %rule word-boundary
   ε
 %conditions
-  $.ends-input ∨
-    $.following-tokens.parse((ns-consonant | Digit | Space | Open | Close) …)
+  $.ends-input ∨ $.following-tokens.parse((ns-consonant | Digit | Space | Open | Close) …)
 ```
 
 <details><summary>Railroad diagrams of the 9 rules from <code>delimiter-of</code> to <code>word-boundary</code></summary>

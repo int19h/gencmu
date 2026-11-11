@@ -250,8 +250,7 @@ The forms stage uses the stress on the first syllable of a name, for the pause r
          (Counted ⊆ $j.tags ∧ (N2 ∪ N3) ∩ $s.tags ≠ ∅ ⟹ N3) ∪
          Single-End ∩ $j.tags
 %conditions
-  Single-End ⊈ $s.tags ∨
-    ¬$s.last-token.onward.parse((brivla-diphthong | y-diphthong) …)
+  Single-End ⊈ $s.tags ∨ ¬$s.last-token.onward.parse((brivla-diphthong | y-diphthong) …)
 
 %rule name-item
   | consonant | "'" | Syllable-Break

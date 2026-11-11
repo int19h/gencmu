@@ -107,8 +107,7 @@ The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The sp
 %redefine-rule fuhivla
   $b:brivla-head stressed-syllable [{consonantal-syllable}] final-syllable
 %conditions
-  ¬$b.onward.parse(rafsi-string …) ∨
-    $.parse(cgv-form),
+  ¬$b.onward.parse(rafsi-string …) ∨ $.parse(cgv-form),
   ¬$.onward.parse(cgv-rafsi-continuation …),
 -- This boolean span test requires adjacent consonants. Different possible cluster positions give the same truth value.
   $.parse([{nonpause-phoneme}] consonant consonant [{nonpause-phoneme}])
