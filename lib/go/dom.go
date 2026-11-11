@@ -877,7 +877,7 @@ func decodeDOM(raw json.RawMessage, uni *unicodeTable) (*domDoc, error) {
 	return decodeDOMMode(raw, uni, false)
 }
 func decodeDOMMode(raw json.RawMessage, uni *unicodeTable, expanded bool) (*domDoc, error) {
-	dc := &domDecoder{}
+	dc := &domDecoder{expanded: expanded}
 	parser := jsonDecoder{data: raw, numbers: true}
 	node, err := parser.document(nil)
 	if err != nil {

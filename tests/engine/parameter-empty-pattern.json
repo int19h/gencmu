@@ -1,0 +1,11 @@
+{
+  "description": "A direct empty argument has pattern type at a pattern parameter.",
+  "grammar": "%rule w \"a\"\n%rule use(@P) $x:w\n%conditions $x ≇ #@P\n%rule text use(∅)",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": []
+  }
+}

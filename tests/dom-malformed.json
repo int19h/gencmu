@@ -24258,7 +24258,7 @@
     "malformed": true
   },
   {
-    "description": "The resolved empty pattern is a DOM leaf.",
+    "description": "The resolved empty pattern is not a DOM leaf.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -24288,7 +24288,7 @@
         1
       ]
     },
-    "malformed": false
+    "malformed": true
   },
   {
     "description": "The resolved empty pattern cannot carry an exact prefix.",

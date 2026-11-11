@@ -414,6 +414,8 @@ def expand_templates(documents, unicode):
             if any(k in arg for k in ('call', 'test', 'range', 'wildcard', 'splice')):
                 return arg
         elif position == 'pattern':
+            if arg.get('emptySet'):
+                return {'never': True}
             if 'rule' in arg:
                 return dict(name=arg['rule'], at=use['at'])
             if 'tag' in arg or 'terminal' in arg:

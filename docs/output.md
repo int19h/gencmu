@@ -728,13 +728,11 @@ The following examples omit source positions to show the boundaries:
 #⁅ A ⁅ B C ⁆ ⁆  {"pattern":{"any":true,"children":[{"child":{"terminal":"A"}},{"child":{"any":true,"children":[{"child":{"terminal":"B"}},{"child":{"terminal":"C"}}]}}]}}
 ```
 
-The resolved empty predicate is `{"never":true}`. It is always false and has no source position, exact flag or children. Contextual `∅` constructs it. No written pattern constructs it. The pattern printer spells this value `∅`.
-
 Union and intersection each require at least two operands. Neither permits a direct operand of its own kind. The reader flattens those operands in written order, including across parentheses. Supplied nested forms are malformed rather than additional pattern shapes. Difference retains exactly two operands. These rules preserve order and duplicates.
 
 After substitution, the loader flattens any pattern intersection that substitution nests inside another intersection. This step precedes expanded-pattern validation, including in conditions and call arguments. Initial inspection still rejects nested PATTERN intersections in supplied and cached DOMs.
 
-Except for the resolved `never` form, the DOM accepts exactly the reader's output, apart from source coordinates. Unknown members and overlapping constructors are malformed at every level. No `boundary`, `written`, or `omitted` pattern form exists. For written forms, ordinary reading of canonical pattern spelling follows engine §2.3 and preserves the key.
+The DOM accepts exactly the reader's output, apart from source coordinates. Unknown members and overlapping constructors are malformed at every level. No `boundary`, `written`, or `omitted` pattern form exists. Ordinary reading of canonical pattern spelling follows engine §2.3 and preserves the key.
 
 A tree comparison uses the `op`, `left` and `right` members:
 
@@ -787,6 +785,8 @@ On a hash-matched, valid entry, the loader trusts this member without scanning s
 If the member is absent, the loader skips names-path and names-hash comparisons and loads no names data for that entry. The otherwise valid entry remains a hit, even when declared or inherited extras change. Those declarations still apply to nested includes. Engine §8 defines loading errors and cache misses.
 
 A preparsed DOM holds the document's constants, classifiers and implications as the document writes them. The loader gives the constants their values when it stitches a stage, and a stage resolves a classifier for the features of a parse. A preparsed DOM serves every stage, pipeline, and feature set with matching resource dependencies (engine §2, §8).
+
+Contextual `∅` resolves to the internal `never` leaf, an always-false predicate. This value has no source position, exact flag or children. Cached and supplied DOMs reject the leaf, including inside other patterns. The audit writes `∅` for the leaf, and that text is not a written pattern.
 
 ## Renderings
 

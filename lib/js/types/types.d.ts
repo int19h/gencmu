@@ -442,8 +442,6 @@ export type Pattern = ((PatternRuleAtom & {
 } | PatternTagTest) & {
     exact?: true;
 }) | {
-    never: true;
-} | {
     any: true;
     exact?: true;
     children: PatternChildren;
@@ -1356,7 +1354,6 @@ export type ParseContext = import("./earley.js").ParseContext;
  * A structural node predicate in a grammar DOM (output §2).
  * @typedef {((PatternRuleAtom & {exact?:true,children?:PatternChildren})
  *   | ((PatternAtom | {test:"="|"≠", value:Term, expr:PatternTestTarget} | PatternTagTest) & {exact?:true})
- *   | {never:true}
  *   | {any:true, exact?:true, children:PatternChildren}
  *   | {union:Pattern[]} | {intersection:Pattern[]} | {difference:[Pattern,Pattern]}
  *   | {path:"descendant"|"first"|"last", pattern:Pattern})} Pattern

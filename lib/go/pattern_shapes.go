@@ -8,6 +8,7 @@ import (
 // Pattern constructors and child items occupy separate positions in layered DOMs.
 type layeredPatternInspection struct {
 	deferDepth     bool
+	resolved       bool
 	name, terminal func(string) bool
 	test           func(templateObject) string
 	depth          int
@@ -149,7 +150,7 @@ func layeredPatternProblem(root any, inspect layeredPatternInspection) string {
 			continue
 		}
 		if layeredHas(n, "never") {
-			if !layeredOnly(n, "never") || n["never"] != true || t.inner {
+			if !inspect.resolved || !layeredOnly(n, "never") || n["never"] != true || t.inner {
 				return "a malformed empty pattern"
 			}
 			continue
@@ -206,7 +207,7 @@ func layeredPatternProblem(root any, inspect layeredPatternInspection) string {
 				expr := templateObj(n["expr"])
 				ruleAtom := (expr["name"] != nil || expr["call"] != nil || expr["param"] != nil) && !layeredHas(expr, "exact") && !layeredHas(expr, "children")
 				if !(layeredTerminalAtom(expr) || ruleAtom) || !ok {
-					return "a pattern tag test requires an undecorated atom"
+					return "a pattern tag test requires a node atom"
 				}
 				for _, value := range a {
 					r := templateObj(value)

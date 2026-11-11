@@ -964,7 +964,7 @@ A parameter alone can substitute one whole pattern. In a child list, that patter
 
 Each decoration conflicts only with the same decoration on the argument. An exact prefix requires an argument without an exact prefix. An attached list requires a rule test or call without an attached list. Thus `·@X` accepts `#a⁅ b ⁆`, while `@X⁅ b ⁆` accepts `#·a`. Tests keep their ordinary target and order rules.
 
-A pattern without a resolved `never` form has exactly the reader's shape, apart from source coordinates. Reading its canonical spelling gives the same key under the same Unicode table and bindings. Contextual `∅` resolves to the separate, always-false `never` form. No written node pattern creates that form. A name that reads back as a terminal under that table is invalid as a rule test. The ordinary reader decodes the printer's escapes. [Engine §2.3](engine.md#23-templates-and-instances) defines canonical spelling. [Output](output.md#pattern-values) defines the shapes.
+The DOM accepts exactly the reader's shapes, apart from source coordinates. Reading any valid pattern's canonical spelling gives the same key under the same Unicode table and bindings. A name that reads back as a terminal under that table is invalid as a rule test. The ordinary reader decodes the printer's escapes. [Engine §2.3](engine.md#23-templates-and-instances) defines canonical spelling. [Output](output.md#pattern-values) defines the shapes.
 
 ### Comparing two constituents
 

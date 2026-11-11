@@ -242,7 +242,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
                 if "const" in operand:
                     pending.append(("term", operand, 0, False, False))
                 else:
-                    problem = layered_pattern_problem(operand, name=rule_name, terminal=lambda name: name == "_Elided" or _tag(name))
+                    problem = layered_pattern_problem(operand, resolved=expanded, name=rule_name, terminal=lambda name: name == "_Elided" or _tag(name))
                     if problem:
                         return problem
                     pending.append(("pattern-part", operand, 0, False, False))
@@ -314,7 +314,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
         if "const" in pattern:
             pending.append(("term", pattern, 0, False, False))
         else:
-            problem = layered_pattern_problem(pattern, name=rule_name, terminal=lambda name: name == "_Elided" or _tag(name))
+            problem = layered_pattern_problem(pattern, resolved=expanded, name=rule_name, terminal=lambda name: name == "_Elided" or _tag(name))
             if problem:
                 return problem
             pending.append(("pattern-part", pattern, 0, False, False))
@@ -424,7 +424,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
             feature_nodes.extend(node)
     # Shape inspection collects type faults for each declaration.
     type_faults = []
-    problem = _walk(pending, unicode, deferred | check_nodes, rule_name, type_roots, type_faults, check_nodes)
+    problem = _walk(pending, unicode, deferred | check_nodes, rule_name, type_roots, type_faults, check_nodes, expanded)
     if problem:
         return problem
     # Fault ownership keeps each declaration's semantic phases together.
@@ -484,7 +484,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
     return None
 
 
-def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: list, type_faults: list, check_nodes=frozenset()) -> str | None:
+def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: list, type_faults: list, check_nodes=frozenset(), expanded=False) -> str | None:
     types = {}
     root_order = {}
     root_nodes = {id(task[1]) for task in pending}
@@ -812,7 +812,7 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: l
         elif "pattern" in node:
             if keys != {"pattern"}:
                 return "a malformed pattern term"
-            problem = layered_pattern_problem(node['pattern'], depth=below,
+            problem = layered_pattern_problem(node['pattern'], depth=below, resolved=expanded,
                 name=lambda name: rule_name(name) and not _tag(name),
                 terminal=lambda name: name == "_Elided" or _tag(name))
             if problem:

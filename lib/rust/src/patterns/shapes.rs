@@ -14,6 +14,7 @@ pub(crate) struct Inspection<'a> {
     pub test: TestProblem<'a>,
     pub depth: usize,
     pub defer_depth: bool,
+    pub resolved: bool,
 }
 fn has(n: &Json, key: &str) -> bool {
     n.get(key).is_some()
@@ -141,7 +142,7 @@ fn inspect_shape(root: &Json, inspect: &Inspection<'_>) -> Result<(), String> {
             continue;
         }
         if has(n, "never") {
-            if !only(n, &["never"]) || get(n, "never").as_bool() != Some(true) || t.inner {
+            if !inspect.resolved || !only(n, &["never"]) || get(n, "never").as_bool() != Some(true) || t.inner {
                 return Err("a malformed empty pattern".into());
             }
             continue;
@@ -200,7 +201,7 @@ fn inspect_shape(root: &Json, inspect: &Inspection<'_>) -> Result<(), String> {
                             && !has(e, "exact")
                             && !has(e, "children")
                 }) else {
-                    return Err("a pattern tag test requires an undecorated atom".into());
+                    return Err("a pattern tag test requires a node atom".into());
                 };
                 for requirement in requirements {
                     if !only(requirement, &["value", "negated"])

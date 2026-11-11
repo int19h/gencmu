@@ -446,6 +446,7 @@ func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 		}
 		arguments := b.one(selector, "arguments")
 		if f.arguments == nil {
+			b.checkMethodClause(name, selector)
 			if !knownMethod(name) {
 				b.fail(f.n, "unknown method %s", name)
 			}
@@ -502,10 +503,10 @@ func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 				isPredicate = true
 			}
 			if isPredicate != f.inCondition {
-				if isPredicate && name != "parse" && name != "error-free" {
+				if isPredicate && name != "parse" && name != "error-free" && name != "ending-after" && name != "local-readings" {
 					b.fail(f.n, "a query method is a condition, not a term")
 				}
-				// parse and error-free are forests. They stand as terms,
+				// Forest methods stand as terms,
 				// and the type check faults them where a forest cannot
 				// stand (engine §9.3).
 				if !isPredicate {
@@ -554,17 +555,18 @@ var sourceMethods = map[string]sourceMethodKind{
 
 func knownMethod(name string) bool { return sourceMethods[name] != 0 }
 
-func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args []*domTerm, dependent bool, selector *Node) *domTerm {
+func (b *domBuilder) checkMethodClause(name string, selector *Node) {
 	kind := sourceMethods[name]
 	if (kind == methodNode || kind == methodElement || kind == methodLocal || kind == methodTerminal) && (!b.checkContext || kind == methodTerminal && !b.inRecipe || kind != methodTerminal && b.inRecipe) {
 		b.fail(selector, "a check method is outside its permitted clause")
 	}
-	if b.checkContext && name == "emitted" {
-		b.fail(n, "a check cannot restore elision or read emitted strings")
-	}
 	if b.checkContext && (name == "without-elision" || name == "without-elision-except") {
 		b.fail(selector, "a check cannot restore elision")
 	}
+}
+
+func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args []*domTerm, dependent bool, selector *Node) *domTerm {
+	kind := sourceMethods[name]
 	if b.checkContext && checkElementTerm(receiver) && !(kind == methodLocal || kind == methodSpan && name != "classes" || kind == methodEndingAfter) {
 		b.fail(n, "an element has no tags, walk, or boundary method")
 	}

@@ -69,19 +69,20 @@ type stageCheck struct {
 func checkStageNames(docs []docDOM) *Error {
 	checks, rules := map[string]bool{}, map[string]bool{}
 	for _, document := range docs {
-		for _, item := range itemsInOrder(document.dom) {
-			if item.check != nil {
-				name := item.check.Name
-				if checks[name] || rules[name] {
-					return grammarError(document.path, item.check.At, "check %s is already defined or names a rule", name)
-				}
-				checks[name] = true
-			} else if item.rule != nil {
-				if checks[item.rule.Name] {
-					return grammarError(document.path, item.rule.At, "rule %s names a check", item.rule.Name)
-				}
-				rules[item.rule.Name] = true
+		for _, rule := range document.dom.Rules {
+			rules[rule.Name] = true
+		}
+	}
+	for _, document := range docs {
+		for _, check := range document.dom.Checks {
+			name := check.Name
+			if checks[name] {
+				return grammarError(document.path, check.At, "%%check %s is already defined", name)
 			}
+			if rules[name] {
+				return grammarError(document.path, check.At, "a rule and a check cannot share the name %s", name)
+			}
+			checks[name] = true
 		}
 	}
 	return nil
@@ -133,7 +134,7 @@ func checkCandidateProblem(pattern *domPattern) string {
 			continue
 		}
 		if !node.Exact || node.Kind == "path" {
-			return "a check requires an exact candidate without a path"
+			return "a check requires exact candidate tests without paths"
 		}
 	}
 	return ""

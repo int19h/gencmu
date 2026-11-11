@@ -8,6 +8,7 @@
       "document": "main.md",
       "line": 4,
       "column": 10
-    }
+    },
+    "message": "a check requires exact candidate tests without paths"
   }
 }

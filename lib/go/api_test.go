@@ -1735,10 +1735,14 @@ func TestRankingReportsUseReachability(t *testing.T) {
 }
 
 func TestEmptyKeyStepIsImpossible(t *testing.T) {
-	p := mustLoad(t, oneStage("%const $P #·text\n%redefine-const $P ∅\n%ambiguity-resolution leftmost-longest $P, greedy\n%rule text \"a\""))
+	p := mustLoad(t, oneStage("%const $P #·text\n%redefine-const $P ∅\n%const $Q #·text ∩ $P\n%ambiguity-resolution leftmost-longest $P, fewest $Q, greedy\n%rule text \"a\""))
 	step := p.RankingReports()[0].KeySteps[0]
 	if step.Status != "impossible" || step.Pattern != "∅" {
 		t.Fatalf("unexpected step: %+v", step)
+	}
+	nested := p.RankingReports()[0].KeySteps[1]
+	if nested.Status != "impossible" || nested.Pattern != "#(·text ∩ ∅)" {
+		t.Fatalf("unexpected step: %+v", nested)
 	}
 }
 

@@ -3739,7 +3739,7 @@
 
   /**
    * @param {any} root
-   * @param {{name?:(name:string)=>boolean, terminal?:(name:string)=>boolean, test?:(test:any)=>string|null, depth?:number, deferDepth?:boolean}} [inspect]
+   * @param {{name?:(name:string)=>boolean, terminal?:(name:string)=>boolean, test?:(test:any)=>string|null, depth?:number, deferDepth?:boolean, resolved?:boolean}} [inspect]
    * @returns {string|null}
    */
   function layeredPatternProblem(root, inspect = {}) {
@@ -3805,7 +3805,7 @@
         continue;
       }
       if ('never' in n) {
-        if (!exact(['never']) || n.never !== true || inner) return 'a malformed empty pattern';
+        if (!inspect.resolved || !exact(['never']) || n.never !== true || inner) return 'a malformed empty pattern';
         continue;
       }
       const compound = ['union','intersection','difference'].find(k => k in n);
@@ -6611,7 +6611,7 @@
       const child = (kind, value, context = {}) => push(kind, value, depth + 1, {params:task.params,check:task.check,...context});
       const fields = Object.keys(value);
       if (kind === "pattern") {
-        const problem = layeredPatternProblem(value, {depth, name:name=>ruleName(name) && !tag(name), terminal:name=>name === "_Elided" || tag(name)});
+        const problem = layeredPatternProblem(value, {depth, resolved:expanded, name:name=>ruleName(name) && !tag(name), terminal:name=>name === "_Elided" || tag(name)});
         if (problem) return problem;
         push("pattern-part",value,depth,{params:task.params});
         continue;
@@ -8845,6 +8845,7 @@
     if (typeof condition.op === "string") {
       const left = /** @type {{type: TermType} | TypeFault} */ (yield typing(condition.left, constants));
       if ("problem" in left) return left;
+      if (['≅','≇'].includes(condition.op) && checkTypeContexts.has(constants) && !['node','any'].includes(left.type))return {problem:'a tree comparison requires a node on its left',node:condition.left};
       const right = /** @type {{type: TermType} | TypeFault} */ (yield typing(condition.right, constants));
       if ("problem" in right) return right;
       if (["≅","≇"].includes(condition.op) && left.type === "node" && JSON.stringify(condition.left)===JSON.stringify(condition.right)) return {problem:"a tree comparison cannot compare a node with itself",node:condition};
@@ -10068,6 +10069,7 @@
         if('string' in arg || arg.const) return {literal:arg};
         if(arg.call || arg.splice || arg.test || arg.range || arg.wildcard) return arg;
       } else if(position==='pattern') {
+        if(arg.emptySet)return {never:true};
         if(arg.rule) return {name:arg.rule,at:use.at};
         if(arg.tag || arg.terminal) return {terminal:arg.tag??arg.terminal,at:use.at};
         if(arg.pattern) return arg.pattern;
@@ -23521,6 +23523,8 @@
           const left=receiver ? yield readMethod(receiver) : {capture:valueOf(token(only(inner,"capture-reference"))).slice(1)};
           if(checkContext && left.capture)fail("a check cannot name a capture",only(inner,"capture-reference"));
           if(!checkContext && (receiver || tokens[inner.span[0]]?.value === "("))fail("a tree comparison requires a bare capture",receiver ?? inner);
+          const leftType=readType(left);
+          if(checkContext && !('problem' in leftType) && !['node','any'].includes(leftType.type))fail('a tree comparison requires a node on its left',receiver ?? inner);
           const op = /** @type {Comparator} */ (operator(token(only(inner,"tree-comparator"))));
           const rightNode = only(inner,"union");
           const leaf = firstOfRule(rightNode,"name") ?? firstOfRule(rightNode,"tag");
@@ -26324,7 +26328,6 @@
    * A structural node predicate in a grammar DOM (output §2).
    * @typedef {((PatternRuleAtom & {exact?:true,children?:PatternChildren})
    *   | ((PatternAtom | {test:"="|"≠", value:Term, expr:PatternTestTarget} | PatternTagTest) & {exact?:true})
-   *   | {never:true}
    *   | {any:true, exact?:true, children:PatternChildren}
    *   | {union:Pattern[]} | {intersection:Pattern[]} | {difference:[Pattern,Pattern]}
    *   | {path:"descendant"|"first"|"last", pattern:Pattern})} Pattern

@@ -1674,7 +1674,11 @@ func (c *domChecker) condition(d *domCond, depth int) {
 			return
 		}
 		if (d.Op == "≅" || d.Op == "≇") && !(d.Left.Kind == tmCapture || c.check && checkNodeTerm(d.Left)) {
-			c.fail("a tree comparison requires a bare capture")
+			if c.check {
+				c.fail("a tree comparison requires a node on its left")
+			} else {
+				c.fail("a tree comparison requires a bare capture")
+			}
 			return
 		}
 		c.term(d.Left, depth+1, d.Op == "≅" || d.Op == "≇")
@@ -1974,6 +1978,9 @@ func comparisonProblem(op string, left, right termType) string {
 			return "a tree comparison requires a bare capture on its left"
 		}
 		if right != tySpan && right != tyNode && right != tyPattern && right != tySet && right != tyAny {
+			if left == tyNode {
+				return "a tree comparison requires a node or pattern"
+			}
 			return "a tree comparison requires a pattern or a bare capture on its right"
 		}
 		return ""
@@ -2361,7 +2368,13 @@ func condTypeOnce(c *domCond, ct constTypes, memo *typeMemo) *typeFault {
 			return f
 		}
 		if c.Op == "≅" || c.Op == "≇" {
+			if memo != nil && memo.check && left != tyNode && left != tyAny {
+				return &typeFault{"a tree comparison requires a node on its left", c.Left}
+			}
 			if right == tySpan && c.Right.Kind != tmCapture {
+				if memo != nil && memo.check {
+					return &typeFault{"a tree comparison requires a node or pattern", c.Right}
+				}
 				return &typeFault{"a tree comparison requires a pattern or a bare capture on its right", c.Right}
 			}
 			if checkNodeTerm(c.Left) && checkNodeTerm(c.Right) && sameCheckNode(c.Left, c.Right) {
@@ -2373,7 +2386,7 @@ func condTypeOnce(c *domCond, ct constTypes, memo *typeMemo) *typeFault {
 		}
 		if problem := comparisonProblem(c.Op, left, right); problem != "" {
 			node := any(c)
-			if (c.Op == "≅" || c.Op == "≇") && left == tySpan {
+			if (c.Op == "≅" || c.Op == "≇") && (left == tySpan || left == tyNode) {
 				node = c.Right
 			}
 			return &typeFault{problem, node}

@@ -1046,7 +1046,7 @@ class DomBuilder:
                 if not self.check_context:
                     raise self.fail(node, "a tree comparison requires a bare capture")
                 if left.get("method") not in _NODE_METHODS:
-                    raise self.fail(node, "a tree comparison requires a constituent")
+                    raise self.fail(node, "a tree comparison requires a node on its left")
             elif capture is not None:
                 name = self.token_value(self.token(capture))[1:]
                 if self.check_context and name:
@@ -1057,7 +1057,7 @@ class DomBuilder:
                     raise self.fail(node, "a tree comparison requires a bare capture")
                 left = yield self._method(self.only(node, "method"))
                 if left.get("method") not in _NODE_METHODS:
-                    raise self.fail(node, "a tree comparison requires a constituent")
+                    raise self.fail(node, "a tree comparison requires a node on its left")
             op = self.operator(self.token(self.only(node, "tree-comparator")))
             operand = self.only(node, "union")
             name = self._first_of_rule(operand, "name") or self._first_of_rule(operand, "tag")

@@ -30,7 +30,7 @@ def _string_term(node):
     return False
 
 
-def layered_pattern_problem(root, *, name=None, terminal=None, test=None, depth=0, defer_depth=False, defer_groups=False):
+def layered_pattern_problem(root, *, name=None, terminal=None, test=None, depth=0, defer_depth=False, defer_groups=False, resolved=False):
     def rule_name(value):
         return isinstance(value, str) and (name(value) if name else bool(_RULE.fullmatch(value)) or len(value) == 1 and ord(value) > 127)
 
@@ -91,7 +91,7 @@ def layered_pattern_problem(root, *, name=None, terminal=None, test=None, depth=
                 return "a malformed pattern child item"
             continue
         if "never" in node:
-            if keys != {"never"} or node["never"] is not True or inner:
+            if not resolved or keys != {"never"} or node["never"] is not True or inner:
                 return "a malformed empty pattern"
             continue
         compound = next((key for key in _SETS if key in node), None)

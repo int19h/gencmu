@@ -830,6 +830,9 @@ func (x *templateExpander) convert(arg templateObject, position string, e *templ
 			}
 		}
 	case "pattern":
+		if arg["emptySet"] == true {
+			return templateObject{"never": true}
+		}
 		if arg["rule"] != nil {
 			return templateObject{"name": arg["rule"], "at": use["at"]}
 		}

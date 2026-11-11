@@ -844,19 +844,13 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 			if b.checkContext && f.compare.Left.Str != "" {
 				b.fail(b.only(n, "capture-reference"), "a check cannot name a capture")
 			}
-			for _, selector := range b.some(n, "method-selector", 0) {
-				name := b.tokenValue(b.token(b.only(selector, "method-name")))
-				kind := sourceMethods[name]
-				if !b.checkContext && (kind == methodNode || kind == methodElement || kind == methodLocal || kind == methodTerminal) {
-					b.fail(selector, "a check method is outside its permitted clause")
-				}
-				if !b.checkContext || sourceMethods[name] != methodNode || b.one(selector, "arguments") != nil {
-					b.fail(selector, "a tree comparison requires a node walk")
-				}
-				f.compare.Left = b.finishMethod(selector, name, f.compare.Left, nil, false, selector)
-			}
 			f.compare.Op = b.operator(b.token(b.only(n, "tree-comparator")))
 			right := b.only(n, "union")
+			if len(b.some(n, "method-selector", 0)) > 0 {
+				f.right = right
+				// A tree comparison stores its capture outside a method receiver.
+				return ask(&methodFrame{n: n, receiver: f.compare.Left, started: true})
+			}
 			b.patternOperand(right)
 			return ask(&termFrame{n: right})
 		case "comparison":
@@ -892,6 +886,19 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 	}
 	switch n.Rule {
 	case "tree-comparison":
+		if f.right != nil {
+			f.compare.Left = in.(*domTerm)
+			if !b.checkContext {
+				b.fail(n, "a tree comparison requires a bare capture")
+			}
+			if ty, fault := termTypeMemo(f.compare.Left, nil, b.types); fault == nil && ty != tyNode && ty != tyAny {
+				b.fail(n, "a tree comparison requires a node on its left")
+			}
+			right := f.right
+			f.right = nil
+			b.patternOperand(right)
+			return ask(&termFrame{n: right})
+		}
 		f.compare.Right = in.(*domTerm)
 		reflexive := b.checkContext && checkNodeTerm(f.compare.Left) && checkNodeTerm(f.compare.Right) && sameCheckNode(f.compare.Left, f.compare.Right)
 		if fault := condTypeMemo(f.compare, nil, b.types); fault != nil && !b.featureContext && !reflexive {

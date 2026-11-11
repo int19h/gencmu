@@ -12,7 +12,7 @@ impl Pattern {
         };
         // Public admission checks depth before decoding. Source projections
         // retain deeper patterns until the reader finishes every declaration.
-        let inspect = shapes::Inspection { name: Some(&name), defer_depth: true, ..Default::default() };
+        let inspect = shapes::Inspection { name: Some(&name), defer_depth: true, resolved: true, ..Default::default() };
         if let Some(problem) = shapes::problem(root, &inspect) {
             return Err(problem);
         }

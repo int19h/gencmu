@@ -1,0 +1,14 @@
+{
+  "description": "A check reports restoration tree left at its operand or selector.",
+  "grammar": "%rule text \"a\"\n%check c #·text\n%conditions $.without-elision ≅ $\n%warning \"m\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 14
+    },
+    "message": "a check cannot restore elision"
+  }
+}

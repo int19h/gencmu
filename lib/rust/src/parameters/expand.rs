@@ -929,6 +929,9 @@ impl Expander<'_> {
                 return Ok(arg);
             }
         } else if position == "pattern" {
+            if has(&arg, "emptySet") {
+                return Ok(obj([("never", Json::Bool(true))]));
+            }
             for (k, out) in [("rule", "name"), ("tag", "terminal"), ("terminal", "terminal")] {
                 if has(&arg, k) {
                     return Ok(obj([(out, get(&arg, k).clone()), ("at", get(use_, "at").clone())]));

@@ -1,0 +1,14 @@
+{
+  "description": "A check reports wrong tree right at its operand or selector.",
+  "grammar": "%rule text \"a\"\n%check c #·text\n%conditions $ ≅ $.value\n%warning \"m\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 17
+    },
+    "message": "a tree comparison requires a node or pattern"
+  }
+}

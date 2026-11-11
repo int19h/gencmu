@@ -2351,6 +2351,12 @@ impl<'a> Reader<'a> {
                     {
                         return Err(self.error(inner, "a tree comparison requires a bare capture"));
                     }
+                    if rule_name(inner) == "tree-comparison"
+                        && self.check_context.get()
+                        && !matches!(ty, Type::Node | Type::Any)
+                    {
+                        return Err(self.error(inner, "a tree comparison requires a node on its left"));
+                    }
                     frame.left = Some((term, ty));
                     return Ok(Step::Call(Frame::Union(Joined::new(right, false))));
                 }
@@ -2364,11 +2370,19 @@ impl<'a> Reader<'a> {
                     if tree && ty == Type::Span && !matches!(term, Term::Capture(_)) {
                         return Err(self.error(
                             self.one(inner, "union")?,
-                            "a tree comparison requires a pattern or a bare capture on its right",
+                            if self.check_context.get() {
+                                "a tree comparison requires a node or pattern"
+                            } else {
+                                "a tree comparison requires a pattern or a bare capture on its right"
+                            },
                         ));
                     }
                     if let Some(problem) = comparison_problem(&frame.op, left_type, ty) {
-                        let at = if tree && left_type == Type::Span { self.one(inner, "union")? } else { inner };
+                        let at = if tree && matches!(left_type, Type::Span | Type::Node) {
+                            self.one(inner, "union")?
+                        } else {
+                            inner
+                        };
                         return Err(self.error(at, problem));
                     }
                 }

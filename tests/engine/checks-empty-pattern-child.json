@@ -1,0 +1,16 @@
+{
+  "description": "A resolved empty predicate in a child item matches no child.",
+  "grammar": "%const $P #·w\n%redefine-const $P ∅\n%rule text w\n%rule w \"a\"\n%check c #·text⁅ $P ⁆\n%warning \"m\"",
+  "input": "a",
+  "options": {
+    "features": [
+      "c"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": []
+  }
+}

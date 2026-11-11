@@ -11,7 +11,7 @@ import (
 func (dc *domDecoder) decodeLayeredPattern(raw any, depth int) (*domPattern, error) {
 	var err error
 	root := templateObj(raw)
-	problem := layeredPatternProblem(root, layeredPatternInspection{depth: depth, deferDepth: true, name: func(name string) bool {
+	problem := layeredPatternProblem(root, layeredPatternInspection{depth: depth, deferDepth: true, resolved: dc.expanded, name: func(name string) bool {
 		r, size := utf8.DecodeRuneInString(name)
 		// The public schema checks eligibility against the configured core.
 		return layeredRuleName(name) || strings.Contains(name, "(") && strings.HasSuffix(name, ")") ||
