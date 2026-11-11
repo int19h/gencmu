@@ -651,7 +651,7 @@ A tree comparison requires a bare capture on the left, or a node walk in a check
 
 ## Tree patterns
 
-A pattern starts with `#` and one node test, bare child list, or grouped predicate. An exact prefix suppresses the node test's single-child search.
+A pattern starts with `#` and one node test, empty atom, bare child list, or grouped predicate. An exact prefix suppresses the node test's single-child search.
 
 A pattern atom names a rule, terminal, constant, wildcard, or `∅`. The empty atom matches nothing and accepts no decorations. A tag test follows the atom, as in `#_<Tense>`. The reader converts it as [engine §9.3](../../../docs/engine.md#93-conversion-and-validation) says.
 

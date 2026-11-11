@@ -2687,7 +2687,7 @@ pattern-primary = pattern-node | pattern-bare | "(" pattern-union ")"
 pattern-node = ["·" ADJACENT] pattern-atom
                (ADJACENT pattern-children | NO-ATTACHMENT)
 pattern-bare = ["·" ADJACENT] pattern-children
-pattern-atom = (pattern-name | terminal) {symbol-test}
+pattern-atom = (pattern-name | terminal | constant-reference | "∅") {symbol-test}
 pattern-name = reference | call | parameter
 terminal = tag | string-terminal | range | "_"
 pattern-children = "⁅" [child-choice] "⁆"
@@ -2747,7 +2747,7 @@ Recognition names describe productions. The following mapping specifies the name
 | `splice` | `splice` with one adjacent reference or call |
 | `capture-binder` | Direct prefixed-name token, checked as a capture name |
 | `tested` | `tested` with an unwrapped base constructor and the written tests |
-| `pattern-primary` | One node test, bare child list, or grouped whole pattern |
+| `pattern-primary` | One node test, empty atom, bare child list, or grouped whole pattern |
 | `ranked-body` | `ranked-alternative` with guards, `ranked-choice`, and clauses |
 | `conditions` | `conditions-clause` |
 | `%error` diagnostic | `error-clause` with one recipe |
@@ -2815,7 +2815,7 @@ capture-string-method = capture-reference "." string-method
 string-method = "value" | "image" | "source-text" | "decomposed-source-text" | "verbatim-text"
               | "emitted.value" | "emitted.image"
 pattern-atom = (rule-name | call | parameter) [tag-test] [value-test]
-             | terminal [tag-test] [value-test] | constant-reference [tag-test] [value-test]
+             | terminal [tag-test] [value-test] | constant-reference [tag-test] [value-test] | "∅"
 ```
 
 These valid forms restrict the recognition forms without replacing their grammar. Recognition enforces the leading bar after header clauses and the count and order of clauses. It also enforces two or more ranked options, unmixed choice operators, and the number and placement of markers. Failures of those rules are syntax errors at the furthest position reached.
@@ -2985,7 +2985,7 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `guarded-term` | One or more `any-of`, then a `union` or `term` | Right-nested `if` terms around the final value |
 | `union` | One or more `intersection` parts and their operators | Fold union and difference left. Flatten every union operand that is itself a union. A sole part stays unchanged. |
 | `intersection` | One or more `concatenation` parts | `intersection`, or sole part |
-| `empty-set` | One `∅` token | `emptySet:true` |
+| `empty-set` | One `∅` token | Pattern atom: `never:true` with `at`. Other terms: `emptySet:true`. |
 | `capture-reference` | One capture token | `capture`, name without `$`, with empty name for `$` |
 | `implication` | One or more `any-of`, then optional nested implication | Right-nested condition `if`, or sole condition |
 | `any-of` | One or more `all-of` | `any`, or sole condition. Flatten nested `any`. |
@@ -3004,10 +3004,10 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `pattern-literal` | One `pattern-primary` | Pattern term containing that whole pattern |
 | `pattern-union` | One or more `pattern-intersection`, with operators | Fold union and difference left. Flatten every union operand that is itself a union. |
 | `pattern-intersection` | One or more `pattern-path` parts | Flatten intersection operands into one array, or retain the sole predicate |
-| `pattern-primary` | Node, bare list, or grouped `pattern-union` | Delegate without a grouping wrapper |
-| `pattern-node` | One atom, optional adjacent prefix, optional adjacent list | Atom with optional `exact:true` and `children` array |
+| `pattern-primary` | Node, empty atom, bare list, or grouped `pattern-union` | Delegate without a grouping wrapper |
+| `pattern-node` | One atom, optional adjacent prefix, optional adjacent list | Reject decorations on `∅` at the atom. Other atoms retain optional `exact:true` and `children`. |
 | `pattern-bare` | One list and optional adjacent prefix | `any:true`, optional `exact:true`, and required `children` array |
-| `pattern-atom` | Name, call, parameter, terminal, or constant, with written tests | A tag test and a value test take any atom. A tested constant must resolve to a string after binding. Preserve tag then value order. |
+| `pattern-atom` | Name, call, parameter, terminal, constant, or `∅`, with written tests | `∅` gives `never:true` with `at` and accepts no decorations. Other atoms retain tag then value order. A tested constant must resolve to a string. |
 | `pattern-children` | Optional `child-choice` | Item array, including empty or singleton |
 | `child-choice` | One or more `child-alternative` parts | Sole array, or one choice item. Flatten singleton choice alternatives. |
 | `child-alternative` | First `child-sequence`, otherwise required `child-set` | Item array, with a set wrapped as one `child` |
@@ -3015,7 +3015,7 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `child-intersection` | One or more `child-path` parts | Require whole-pattern operands, then flatten intersection operands or retain the sole pattern |
 | `child-sequence` | One or more `child-item` parts | Concatenate plain groups into one item array |
 | `child-item` | Child path, optional, repeat, or gap | Converted path items, corresponding wrapper, or `siblings:true` |
-| `child-primary` | Node, bare list, or grouped child choice | Node or bare list becomes one `child`. A group contributes its item array. |
+| `child-primary` | Node, empty atom, bare list, or grouped child choice | An atom or bare list becomes one `child`. A group contributes its item array. |
 | `child-path` | One child primary and optional path token | Without a path, retain its item array. With a path, require one whole pattern and wrap that path in `child`. |
 | `pattern-brackets` | One nonempty `child-choice` | `optional` item with an item array |
 | `pattern-repeat` | One nonempty item choice and optional nonempty separator choice | `repeat` item with arrays and optional `separator` |
