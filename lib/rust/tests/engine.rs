@@ -1128,7 +1128,7 @@ fn runtime_message_expectations_use_structured_locations() {
 #[test]
 fn runner_keeps_grammar_failures_after_a_tied_choice() {
     // Engine §12.1: a failed message keeps its tie verdict without shown readings.
-    let result = parse_json(r#"{"format":17,"ok":false,"stages":[{"name":"main","verdict":"tie"}],"tree":null,"error":{"kind":"grammar","stage":"main","message":"feature-gate"},"features":[]}"#).unwrap();
+    let result = parse_json(r#"{"format":17,"ok":false,"stages":[{"name":"main","verdict":"tie"}],"tree":null,"error":{"kind":"grammar","stage":"main","message":"guard"},"features":[]}"#).unwrap();
     assert!(common::result_problems(&result).is_empty());
     let mut wrong = result.clone();
     if let common::Value::Object(fields) = &mut wrong {

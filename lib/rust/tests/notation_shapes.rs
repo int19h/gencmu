@@ -24,7 +24,7 @@ fn a_captured_tested_target_requires_its_primary_before_its_tests() {
         ("data/preparsed/gencmu.json", bootstrap),
     ];
     let error = gencmu::load_pipeline_sources(sources, "p.md").expect_err("the missing primary");
-    assert_eq!(error.message, "the notation's tested has no primary");
+    assert_eq!(error.message, "the notation's tested-primary has no primary");
 }
 
 #[test]
@@ -306,8 +306,8 @@ fn pattern_string_terminal_constructors_and_tests() {
 #[test]
 fn pattern_names_use_named_parts_or_tokens() {
     let bundled = parse_json(&read(&["data", "preparsed", "gencmu.json"])).unwrap();
-    for name in ["name", "reference"] {
-        let changed = pattern_bootstrap_expr(&bundled, "pattern-name", 0, "[]", &format!(r#"{{"ref":"{name}"}}"#));
+    for name in ["rule-or-classifier-name", "rule-reference"] {
+        let changed = pattern_bootstrap_expr(&bundled, "pattern-rule", 0, "[]", &format!(r#"{{"ref":"{name}"}}"#));
         let rules = "%const $P #child\n%rule text child\n%conditions $ ≅ $P\n%rule child A";
         assert_eq!(pattern_probe(rules, &changed, &["A"]), pattern_probe(rules, &bundled, &["A"]), "{name}");
         let rules = "%const $P #(child=\"‹U+D800›\")\n%rule text A";

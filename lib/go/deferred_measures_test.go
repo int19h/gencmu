@@ -85,7 +85,7 @@ func TestDeferredCanonicalDiagnosticFieldsAndMemberOrder(t *testing.T) {
 	token := Token{Text: "a", Value: "a", Image: "a", Tags: []string{"A"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}, Errors: []Warning{diagnostic}, Warnings: []Warning{diagnostic}}
 	token.Before = []Token{token}
 	result := &ParseResult{Stages: []Stage{{Name: "main", Verdict: VerdictUnique, Output: []Token{token}, Errors: []Warning{diagnostic}, Warnings: []Warning{diagnostic}}},
-		Error: &ParseError{Kind: ErrorGrammar, Stage: "main", Code: "feature-gate", Document: "g.md", Errors: []Warning{diagnostic}, Warnings: []Warning{diagnostic}, Message: "feature-gate"}, Warnings: []Warning{diagnostic}}
+		Error: &ParseError{Kind: ErrorGrammar, Stage: "main", Code: "guard", Document: "g.md", Errors: []Warning{diagnostic}, Warnings: []Warning{diagnostic}, Message: "guard"}, Warnings: []Warning{diagnostic}}
 	raw, err := MarshalResult(result)
 	if err != nil {
 		t.Fatal(err)
@@ -123,7 +123,7 @@ func TestDeferredCanonicalDiagnosticFieldsAndMemberOrder(t *testing.T) {
 	if _, present := envelope["document"]; present {
 		t.Fatal("grammar envelope has document")
 	}
-	if !strings.Contains(string(raw), `"kind":"grammar","stage":"main","code":"feature-gate","errors":[`) {
+	if !strings.Contains(string(raw), `"kind":"grammar","stage":"main","code":"guard","errors":[`) {
 		t.Fatal("wrong grammar member order", string(raw))
 	}
 	if !reflect.DeepEqual(envelope["warnings"], data["warnings"]) {

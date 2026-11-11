@@ -119,8 +119,8 @@ func TestRangeEmissionTargetReportsContentError(t *testing.T) {
 
 func TestConstantNamePrecedesRequiredValue(t *testing.T) {
 	b := &domBuilder{doc: "g.md", gt: &grammarText{pos: [][2]int{{1, 1}}}, toks: []Token{{Value: "%const"}, {Value: "$bad"}}}
-	definer := &Node{Kind: KindRule, Rule: "constant-definer", Children: []*Node{{Kind: KindToken, Token: 0}}}
-	reference := &Node{Kind: KindRule, Rule: "constant-reference", Children: []*Node{{Kind: KindToken, Token: 1}}}
+	definer := &Node{Kind: KindRule, Rule: "constant-keyword", Children: []*Node{{Kind: KindToken, Token: 0}}}
+	reference := &Node{Kind: KindRule, Rule: "constant-name", Children: []*Node{{Kind: KindToken, Token: 1}}}
 	node := &Node{Kind: KindRule, Rule: "constant-definition", Children: []*Node{definer, reference}}
 	defer func() {
 		problem, ok := recover().(*Error)
@@ -165,8 +165,8 @@ func TestMalformedSuppliedConstructorsGiveDocumentErrors(t *testing.T) {
 	tag := func(index int) *Node {
 		return node("intersection", node("concatenation", node("term-atom", node("tag", token(index)))))
 	}
-	binding := node("rule", node("definer", token(0)), node("rule-name", token(1)), token(2))
-	atom := node("recipe-atom")
+	binding := node("rule", node("rule-keyword", token(0)), node("rule-name", token(1)), token(2))
+	atom := node("recipe-term")
 	atom.Span = [2]int{999, 1000}
 	for _, item := range []struct {
 		name string

@@ -263,7 +263,7 @@ fn a_bootstrap_of_another_shape_is_an_error_and_never_a_panic() {
         .iter()
         .map(|rule| rule.get("name").and_then(Value::str).expect("a rule's name").to_string())
         .collect();
-    assert!(names.iter().any(|name| name == "definer"), "{names:?}");
+    assert!(names.iter().any(|name| name == "rule-keyword"), "{names:?}");
     let mut refused = Vec::new();
     for name in names.iter().filter(|name| *name != "text") {
         let (before, after) = bootstrap.split_at(start);
@@ -278,8 +278,8 @@ fn a_bootstrap_of_another_shape_is_an_error_and_never_a_panic() {
             }
         }
     }
-    // A rule without its definer, among others.
-    assert!(refused.contains(&"definer"), "{refused:?}");
+    // A rule without its keyword, among others.
+    assert!(refused.contains(&"rule-keyword"), "{refused:?}");
 }
 
 /// Every library requires the bootstrap path on the shared construction errors.

@@ -65,8 +65,8 @@
     {
       "description": "Duplicate bootstrap rule",
       "find": "\"name\":\"text\",\"op\":\"define\"",
-      "replace": "\"name\":\"word\",\"op\":\"define\"",
-      "at": "%rule word",
+      "replace": "\"name\":\"identifier\",\"op\":\"define\"",
+      "at": "%rule identifier",
       "context": "grammars/gencmu/jbogenbau/lexical.md",
       "stage": "lexical"
     },
@@ -486,16 +486,16 @@
     },
     {
       "description": "A position member refuses a fraction.",
-      "find": "\"at\":[30,1]",
-      "replace": "\"at\":[30.0,1]",
+      "find": "\"at\":[*]",
+      "replace": "\"at\":[1.0,1]",
       "line": null,
       "column": null,
       "stage": null
     },
     {
       "description": "A position member refuses an exponent.",
-      "find": "\"at\":[30,1]",
-      "replace": "\"at\":[30,1e0]",
+      "find": "\"at\":[*]",
+      "replace": "\"at\":[1,1e0]",
       "line": null,
       "column": null,
       "stage": null
@@ -542,8 +542,8 @@
     },
     {
       "description": "A bootstrap error appends its embedded document even when another reference names that document.",
-      "find": "{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"empty\":true}},{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"text\"},{\"ref\":\"piece\"}]}}],\"conditions\":[],\"at\":[30,1]}",
-      "replace": "{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"empty\":true}},{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"text\"},{\"ref\":\"piece\"}]}}],\"conditions\":[],\"at\":[30,1]},{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"empty\":true}},{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"text\"},{\"ref\":\"piece\"}]}}],\"conditions\":[],\"at\":[10000,1]}",
+      "find": "{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"empty\":true}},{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"text\"},{\"ref\":\"piece\"}]}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"empty\":true}},{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"text\"},{\"ref\":\"piece\"}]}}],\"conditions\":[],\"at\":[*]},{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"empty\":true}},{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"text\"},{\"ref\":\"piece\"}]}}],\"conditions\":[],\"at\":[10000,1]}",
       "stage": "lexical",
       "context": "grammars/gencmu/jbogenbau/lexical.md",
       "line": 10000,
