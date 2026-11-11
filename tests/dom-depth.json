@@ -12,7 +12,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": "$inner"
             }
           ],
@@ -45,7 +45,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": "$inner"
             }
           ],
@@ -78,7 +78,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": "$inner"
             }
           ],
@@ -111,7 +111,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": "$inner"
             }
           ],
@@ -146,7 +146,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": "$inner"
             }
           ],
@@ -181,7 +181,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": "$inner"
             }
           ],
@@ -216,7 +216,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": "$inner"
             }
           ],
@@ -256,7 +256,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": "$inner"
             }
           ],
@@ -296,7 +296,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": "$inner"
             }
           ],
@@ -334,7 +334,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": "$inner"
             }
           ],
@@ -372,7 +372,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": "$inner"
             }
           ],
@@ -410,7 +410,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": "$inner"
             }
           ],
@@ -448,7 +448,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": "$inner"
             }
           ],
@@ -481,7 +481,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": "$inner"
             }
           ],
@@ -514,7 +514,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": "$inner"
             }
           ],
@@ -550,7 +550,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": "$inner"
             }
           ],
@@ -586,7 +586,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": "$inner"
             }
           ],
@@ -625,7 +625,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": "$inner"
             }
           ],
@@ -669,7 +669,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": "$inner"
             }
           ],
@@ -719,7 +719,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": "$inner"
             }
           ],
@@ -758,7 +758,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "capture": "x",
                 "expr": {
@@ -802,7 +802,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "capture": "x",
                 "expr": {
@@ -846,7 +846,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "capture": "x",
                 "expr": {
@@ -890,7 +890,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "capture": "x",
                 "expr": {
@@ -932,7 +932,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "capture": "x",
                 "expr": {
@@ -981,7 +981,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "capture": "x",
                 "expr": {
@@ -1027,7 +1027,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "capture": "x",
                 "expr": {
@@ -1073,7 +1073,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "capture": "x",
                 "expr": {
@@ -1126,7 +1126,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "capture": "x",
                 "expr": {
@@ -1172,7 +1172,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "capture": "x",
                 "expr": {
@@ -1222,7 +1222,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "capture": "x",
                 "expr": {
@@ -1276,7 +1276,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "capture": "x",
                 "expr": {
@@ -1337,7 +1337,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "capture": "x",
                 "expr": {
@@ -1391,7 +1391,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "capture": "x",
                 "expr": {
@@ -1435,7 +1435,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "capture": "x",
                 "expr": {
@@ -1479,7 +1479,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "capture": "x",
                 "expr": {
@@ -1523,7 +1523,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "capture": "x",
                 "expr": {
@@ -1567,7 +1567,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "capture": "x",
                 "expr": {
@@ -1620,7 +1620,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "capture": "x",
                 "expr": {
@@ -1673,7 +1673,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "capture": "x",
                 "expr": {
@@ -1724,7 +1724,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "capture": "x",
                 "expr": {
@@ -1770,7 +1770,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "capture": "x",
                 "expr": {
@@ -1820,7 +1820,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "capture": "x",
                 "expr": {
@@ -1868,7 +1868,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "capture": "x",
                 "expr": {
@@ -3084,7 +3084,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "capture": "x",
                 "expr": {
@@ -3193,7 +3193,7 @@
           ],
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "capture": "x",
                 "expr": {
@@ -3288,7 +3288,7 @@
   {
     "description": "Template expression parameter",
     "dom": {
-      "format": 48,
+      "format": 49,
       "rules": [
         {
           "name": "use",
@@ -3298,7 +3298,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": "$inner"
             }
           ],
@@ -3313,7 +3313,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "ref": "A"
               }
@@ -3346,7 +3346,7 @@
   {
     "description": "Call with transparent body argument",
     "dom": {
-      "format": 48,
+      "format": 49,
       "rules": [
         {
           "name": "use",
@@ -3356,7 +3356,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -3377,7 +3377,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": "$inner"
             }
           ],
@@ -3413,7 +3413,7 @@
   {
     "description": "Call with transparent target choice",
     "dom": {
-      "format": 48,
+      "format": 49,
       "rules": [
         {
           "name": "use",
@@ -3423,7 +3423,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -3444,7 +3444,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": "$inner"
             }
           ],
@@ -3485,7 +3485,7 @@
   {
     "description": "Call with transparent requirements argument",
     "dom": {
-      "format": 48,
+      "format": 49,
       "rules": [
         {
           "name": "use",
@@ -3495,7 +3495,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -3516,7 +3516,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": "$inner"
             }
           ],
@@ -3559,7 +3559,7 @@
   {
     "description": "Call with tested symbol argument",
     "dom": {
-      "format": 48,
+      "format": 49,
       "rules": [
         {
           "name": "use",
@@ -3569,7 +3569,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "param": "X",
                 "at": [
@@ -3590,7 +3590,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": "$inner"
             }
           ],
@@ -3637,7 +3637,7 @@
   {
     "description": "Template literal keeps the string depth",
     "dom": {
-      "format": 48,
+      "format": 49,
       "rules": [
         {
           "name": "use",
@@ -3647,7 +3647,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": "$inner"
             }
           ],
@@ -3662,7 +3662,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "ref": "A"
               }
@@ -3697,7 +3697,7 @@
   {
     "description": "Template range keeps the string depth",
     "dom": {
-      "format": 48,
+      "format": 49,
       "rules": [
         {
           "name": "use",
@@ -3707,7 +3707,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": "$inner"
             }
           ],
@@ -3722,7 +3722,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "ref": "A"
               }
@@ -3768,7 +3768,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "ref": "A"
               }
@@ -3815,7 +3815,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "ref": "A"
               }
@@ -3869,7 +3869,7 @@
           "op": "define",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "ref": "A"
               }

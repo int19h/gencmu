@@ -199,8 +199,8 @@ func writeTemplateJSON(w *jsonWriter, v any) {
 			order = []string{"call", "args", "at"}
 		case n["param"] != nil:
 			order = []string{"param", "at"}
-		case n["guards"] != nil:
-			order = []string{"guards", "expr", "tags", "value", "image"}
+		case n["gates"] != nil:
+			order = []string{"gates", "expr", "tags", "value", "image"}
 		case n["method"] != nil:
 			order = []string{"method", "receiver", "args"}
 		case n["test"] != nil:

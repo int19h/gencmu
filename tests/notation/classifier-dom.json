@@ -3,13 +3,13 @@
   "document": "```jbogenbau\n%classifier lexicon  \"mi\" \"do\" ∈ KOhA f? ¬g? \"u'i\" ∉ UI\n\n\n\n%classifier empty \n%rule text $w:W :: $w.value.classify(lexicon)\n```\n",
   "expect": {
     "dom": {
-      "format": 48,
+      "format": 49,
       "rules": [
         {
           "name": "text",
           "alternatives": [
             {
-              "guards": [],
+              "gates": [],
               "expr": {
                 "capture": "w",
                 "expr": {
@@ -47,7 +47,7 @@
           "name": "lexicon",
           "entries": [
             {
-              "guards": [],
+              "gates": [],
               "keys": [
                 {
                   "string": "mi"
@@ -64,7 +64,7 @@
               ]
             },
             {
-              "guards": [
+              "gates": [
                 {
                   "feature": "f",
                   "kind": "gate",

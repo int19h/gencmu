@@ -24,13 +24,13 @@ fn a_captured_tested_target_requires_its_primary_before_its_tests() {
         ("data/preparsed/gencmu.json", bootstrap),
     ];
     let error = gencmu::load_pipeline_sources(sources, "p.md").expect_err("the missing primary");
-    assert_eq!(error.message, "the notation's tested has no primary");
+    assert_eq!(error.message, "the notation's tested-primary has no primary");
 }
 
 #[test]
 fn a_supplied_ranked_choice_error_has_no_syntax_code() {
     let bootstrap = read(&["data", "preparsed", "gencmu.json"]).replace(
-        r#"{"seq":[{"ref":"conjunction"},{"literal":{"string":"≻"}},{"repeat":{"ref":"conjunction"},"separator":{"literal":{"string":"≻"}}}]}"#,
+        r#"{"seq":[{"ref":"some-of"},{"literal":{"string":"≻"}},{"repeat":{"ref":"some-of"},"separator":{"literal":{"string":"≻"}}}]}"#,
         r#"{"literal":{"string":"."}}"#,
     );
     let sources = [
@@ -133,7 +133,7 @@ fn notation_shapes() {
                 syntax = syntax.replace(&format!(r#""{field}":"{name}""#), &format!(r#""{field}":"{name}-wrapper""#));
             }
             wrappers.push_str(&format!(
-                r#"{{"name":"{name}-wrapper","op":"define","alternatives":[{{"guards":[],"expr":{{"ref":"{name}"}}}}],"conditions":[],"at":[{},1]}},"#,
+                r#"{{"name":"{name}-wrapper","op":"define","alternatives":[{{"gates":[],"expr":{{"ref":"{name}"}}}}],"conditions":[],"at":[{},1]}},"#,
                 100_000 + index
             ));
         }
@@ -181,8 +181,8 @@ fn notation_shapes() {
 fn a_notation_stage_that_declares_elision_only_runs_the_check() {
     let bootstrap = read(&["data", "preparsed", "gencmu.json"]);
     let bootstrap = bootstrap.replacen(
-        r#""name":"symbol","op":"define","alternatives":["#,
-        r#""name":"symbol","op":"define","alternatives":[{"guards":[],"expr":{"literal":{"string":"."}}},"#,
+        r#""name":"punctuation","op":"define","alternatives":["#,
+        r#""name":"punctuation","op":"define","alternatives":[{"gates":[],"expr":{"literal":{"string":"."}}},"#,
         1,
     );
     let directive = r#""name":"ambiguity-resolution","steps":[{"step":"greedy"}]"#;
@@ -288,7 +288,7 @@ fn pattern_string_terminal_constructors_and_tests() {
         "pattern-atom",
         0,
         r#"["seq",0]"#,
-        r#"{"choice":[{"ref":"pattern-name"},{"ref":"tag"},{"ref":"string-terminal"},{"ref":"range"},{"ref":"wildcard"}]}"#,
+        r#"{"choice":[{"ref":"pattern-rule"},{"ref":"tag"},{"ref":"string-terminal"},{"ref":"range"},{"ref":"wildcard"}]}"#,
     );
     let rules = "%const $S \"a\"\n%const $P #($S=\"a\")\n%rule text \"a\"\n%conditions $ ≅ $P";
     assert_eq!(pattern_probe(rules, &constants, &["a"]), pattern_probe(rules, &bundled, &["a"]));
@@ -306,8 +306,8 @@ fn pattern_string_terminal_constructors_and_tests() {
 #[test]
 fn pattern_names_use_named_parts_or_tokens() {
     let bundled = parse_json(&read(&["data", "preparsed", "gencmu.json"])).unwrap();
-    for name in ["name", "reference"] {
-        let changed = pattern_bootstrap_expr(&bundled, "pattern-name", 0, "[]", &format!(r#"{{"ref":"{name}"}}"#));
+    for name in ["rule-or-classifier-name", "rule-reference"] {
+        let changed = pattern_bootstrap_expr(&bundled, "pattern-rule", 0, "[]", &format!(r#"{{"ref":"{name}"}}"#));
         let rules = "%const $P #child\n%rule text child\n%conditions $ ≅ $P\n%rule child A";
         assert_eq!(pattern_probe(rules, &changed, &["A"]), pattern_probe(rules, &bundled, &["A"]), "{name}");
         let rules = "%const $P #(child=\"‹U+D800›\")\n%rule text A";

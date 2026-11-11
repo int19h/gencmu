@@ -307,7 +307,7 @@ export type DomEntry = {
     /**
      * gates only
      */
-    guards: Guard[];
+    gates: Gate[];
     /**
      * the unresolved string keys
      */
@@ -385,13 +385,13 @@ export type InstanceBinding = {
     suppressWarnings?: never;
 };
 export type DomAlternative = {
-    guards: Guard[];
+    gates: Gate[];
     expr: Expr;
     tags?: Term;
     value?: Recipe;
     image?: Recipe;
 };
-export type Guard = {
+export type Gate = {
     feature: string;
     kind: "gate";
     negated: boolean;
@@ -1220,7 +1220,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * An entry of a classifier: its gates, its keys, `∈` or `∉`, and its class
  * (engine §2).
  * @typedef {object} DomEntry
- * @property {Guard[]} guards gates only
+ * @property {Gate[]} gates gates only
  * @property {Term[]} keys the unresolved string keys
  * @property {"∈" | "∉"} op
  * @property {string} class an identifier tag that starts and ends with an uppercase ASCII letter
@@ -1297,14 +1297,14 @@ export type ParseContext = import("./earley.js").ParseContext;
  */
 /**
  * @typedef {object} DomAlternative
- * @property {Guard[]} guards
+ * @property {Gate[]} gates
  * @property {Expr} expr
  * @property {Term} [tags]
  * @property {Recipe} [value]
  * @property {Recipe} [image]
  */
 /**
- * @typedef {object} Guard
+ * @typedef {object} Gate
  * @property {string} feature
  * @property {"gate"} kind
  * @property {boolean} negated

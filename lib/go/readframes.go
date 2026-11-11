@@ -190,7 +190,7 @@ func (f *exprFrame) start(b *domBuilder) readStep {
 	n := f.n
 	switch n.Rule {
 	case "splice":
-		target := b.knownOf(n, []string{"reference", "call"})
+		target := b.knownOf(n, []string{"rule-reference", "call"})
 		marker := b.token(n)
 		if b.toks[marker.Token].Source[1] != b.toks[target.Span[0]].Source[0] {
 			b.fail(n, "a splice marker stands directly before its target")
@@ -203,20 +203,20 @@ func (f *exprFrame) start(b *domBuilder) readStep {
 	case "call":
 		f.call = true
 		return ask(&sourceCallFrame{n: n})
-	case "choice", "ranked-choice", "conjunction", "sequence":
+	case "choice", "ranked-choice", "some-of", "sequence":
 		if n.Rule == "choice" {
 			if ranked := b.one(n, "ranked-choice"); ranked != nil {
 				f.pass = true
 				return ask(&exprFrame{n: ranked})
 			}
 		}
-		child := "conjunction"
+		child := "some-of"
 		switch n.Rule {
 		case "choice":
 			f.kind = exChoice
 		case "ranked-choice":
 			f.kind = exRanked
-		case "conjunction":
+		case "some-of":
 			f.kind, child = exAnd, "sequence"
 		case "sequence":
 			f.kind, child = exSeq, "primary"
@@ -241,7 +241,7 @@ func (f *exprFrame) start(b *domBuilder) readStep {
 		return f.next(b)
 	case "repetition":
 		return f.startRepetition(b)
-	case "reference":
+	case "rule-reference":
 		return give(&domExpr{Kind: exRef, Name: b.tokenValue(b.token(n))})
 	case "tag":
 		return give(&domExpr{Kind: exRef, Name: b.tagOf(b.token(n))})
@@ -253,9 +253,9 @@ func (f *exprFrame) start(b *domBuilder) readStep {
 		return give(&domExpr{Kind: exWildcard})
 	case "range":
 		return give(&domExpr{Kind: exRange, Ends: b.stringRange(n)})
-	case "tested":
+	case "tested-primary":
 		return give(b.tested(n))
-	case "capture":
+	case "capture", "captured-terminator":
 		// Its place, then $, its name and its symbol, each at the capture,
 		// before what it wraps (engine §9).
 		// Inside flat braces it is an item capture, and the innermost
@@ -284,10 +284,10 @@ func (f *exprFrame) start(b *domBuilder) readStep {
 		}
 		wrapped := b.knownOf(inner, primaryRules)
 		base := wrapped
-		if wrapped.Rule == "tested" {
+		if wrapped.Rule == "tested-primary" {
 			base = b.testBase(wrapped)
 		}
-		if !capturedRules[base.Rule] || base.Rule == "tested" {
+		if !capturedRules[base.Rule] || base.Rule == "tested-primary" {
 			b.fail(n, "a capture wraps one symbol")
 		}
 		f.capture = name
@@ -313,7 +313,7 @@ func (f *exprFrame) start(b *domBuilder) readStep {
 // parts are looked up in the order of §9: its choice, then its markers.
 func (f *exprFrame) startOptional(b *domBuilder) readStep {
 	n := f.n
-	if capture := b.one(n, "capture"); capture != nil {
+	if capture := b.one(n, "captured-terminator"); capture != nil {
 		return f.startCapturedOptional(b, capture)
 	}
 	choice := b.only(n, "choice")
@@ -339,7 +339,7 @@ func (f *exprFrame) startOptional(b *domBuilder) readStep {
 		}
 		return false
 	}
-	conjunctions := b.ofRule(choice, "conjunction")
+	conjunctions := b.ofRule(choice, "some-of")
 	leading := hasToken(choice, "|") || (len(conjunctions) == 1 && hasToken(conjunctions[0], "&"))
 	var head *Node
 	if len(conjunctions) == 1 && !leading {
@@ -350,12 +350,12 @@ func (f *exprFrame) startOptional(b *domBuilder) readStep {
 		}
 	}
 	isTerminal := func(symbol *Node) bool {
-		return symbol != nil && (symbol.Rule == "parameter" || (symbol.Rule == "tag" || symbol.Rule == "reference") && isCapital(b.tokenValue(b.token(symbol))))
+		return symbol != nil && (symbol.Rule == "parameter" || (symbol.Rule == "tag" || symbol.Rule == "rule-reference") && isCapital(b.tokenValue(b.token(symbol))))
 	}
 	switch {
 	case head == nil:
 		b.fail(n, form)
-	case head.Rule == "tested":
+	case head.Rule == "tested-primary":
 		if !isTerminal(b.findTestBase(head)) {
 			b.fail(n, form)
 		}
@@ -548,7 +548,7 @@ func (f *termFrame) start(b *domBuilder) readStep {
 	case "term":
 		f.pass = true
 		return ask(&termFrame{n: b.knownOf(n, termRules), argument: f.argument})
-	case "test-operand", "term-atom", "method-receiver":
+	case "test-operand", "term-atom", "plain-term-atom", "method-receiver":
 		// A test's operand is one term, as a term-atom reads it (§9).
 		f.pass = true
 		return ask(&termFrame{n: b.knownOf(n, atomRules), argument: f.argument})
@@ -608,7 +608,7 @@ func (f *termFrame) start(b *domBuilder) readStep {
 		return give(&domTerm{Kind: tmTag, Str: tag, At: b.at(n)})
 	case "range":
 		b.fail(n, "a range is a terminal, not a term")
-	case "name":
+	case "rule-or-classifier-name":
 		// A bare name is a tag literal if it begins with a capital, and
 		// otherwise a rule, which only a function's argument names.
 		name := b.tokenValue(b.token(n))
@@ -629,7 +629,7 @@ func (f *termFrame) start(b *domBuilder) readStep {
 			b.fail(n, "%s is a closed term, and holds no capture", b.closedFor)
 		}
 		return give(&domTerm{Kind: tmCapture, Str: name})
-	case "method":
+	case "method-chain":
 		f.pass = true
 		return ask(&methodFrame{n: n})
 	case "pattern-literal":
@@ -667,7 +667,7 @@ func (f *implicationFrame) resume(b *domBuilder, in any) readStep {
 		return ask(&anyOfFrame{n: f.anyOfs[len(f.items)]})
 	}
 	if len(f.items) == len(f.anyOfs) {
-		if consequent := b.one(f.n, "implication"); consequent != nil {
+		if consequent := b.one(f.n, "condition"); consequent != nil {
 			return ask(&implicationFrame{n: consequent})
 		}
 	}
@@ -697,7 +697,7 @@ func (f *anyOfFrame) resume(b *domBuilder, in any) readStep {
 	if !f.started {
 		f.started = true
 		f.allOfs = b.some(f.n, "all-of", 1)
-		f.conds = b.some(f.allOfs[0], "condition", 1)
+		f.conds = b.some(f.allOfs[0], "condition-primary", 1)
 		return ask(&conditionFrame{n: f.conds[0]})
 	}
 	f.read = append(f.read, in.(*domCond))
@@ -711,7 +711,7 @@ func (f *anyOfFrame) resume(b *domBuilder, in any) readStep {
 	}
 	f.read = nil
 	if len(f.items) < len(f.allOfs) {
-		f.conds = b.some(f.allOfs[len(f.items)], "condition", 1)
+		f.conds = b.some(f.allOfs[len(f.items)], "condition-primary", 1)
 		return ask(&conditionFrame{n: f.conds[0]})
 	}
 	if len(f.items) == 1 {
@@ -830,7 +830,7 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 	if !f.started {
 		f.started = true
 		switch n.Rule {
-		case "condition":
+		case "condition-primary":
 			f.pass = true
 			return ask(&conditionFrame{n: b.knownOf(n, conditionRules)})
 		case "tree-comparison":
@@ -845,8 +845,8 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 			f.compare = &domCond{Kind: cdCompare, Op: op}
 			f.right = ps[1]
 			return ask(&termFrame{n: ps[0]})
-		case "negation", "method", "implication":
-		case "term-condition":
+		case "negation", "method-chain", "condition":
+		case "set-condition":
 			return give(&domCond{Kind: cdTruthy, Left: b.truthyTerm(n)})
 		case "presence":
 			return give(&domCond{Kind: cdCaptured, Capture: strings.TrimPrefix(b.tokenValue(b.token(n)), "$")})
@@ -855,8 +855,8 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 		}
 		switch n.Rule {
 		case "negation":
-			return ask(&conditionFrame{n: b.only(n, "condition")})
-		case "method":
+			return ask(&conditionFrame{n: b.only(n, "condition-primary")})
+		case "method-chain":
 			return ask(&methodFrame{n: n, inCondition: true})
 		}
 		// Between parentheses, which make no node.
@@ -917,7 +917,7 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 }
 
 func (b *domBuilder) patternOperand(right *Node) {
-	name := b.firstOfRule(right, "name")
+	name := b.firstOfRule(right, "rule-or-classifier-name")
 	if name == nil {
 		name = b.firstOfRule(right, "tag")
 	}
@@ -944,7 +944,7 @@ func (f *exprFrame) startCapturedOptional(b *domBuilder, capture *Node) readStep
 	}
 	head := b.knownOf(b.only(capture, "primary"), primaryRules)
 	base := head
-	if head.Rule == "tested" {
+	if head.Rule == "tested-primary" {
 		base = b.testBase(head)
 	}
 	if base == nil || base.Rule != "parameter" && (base.Rule != "tag" || !isCapital(b.tokenValue(b.token(base)))) {

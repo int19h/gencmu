@@ -3,13 +3,15 @@
 
 # gencmu
 
-gencmu is a multistage Earley parser for Lojban and other loglangs. Its grammars are written in [jbogenbau](docs/notation.md), a grammar notation of its own, and a generic engine reads them at run time. An edited grammar takes effect at the next parse, with no build step.
+gencmu is a multistage Earley parser for Lojban and other loglangs. Its grammars are written in [jbogenbau](docs/notation.md), a grammar notation of its own, and a generic engine reads them at run time. An edited grammar takes effect at the next load. Disk loading reads the current text, as the CLI does on each run. Bundled copies require `node tools/sync.js`.
 
 Each grammar is a literate Markdown document. Fenced `jbogenbau` blocks hold the rules, and the prose between them explains what the rules do and why. On GitHub a grammar reads like any other document.
 
-The notation can express constructs that a context-free grammar cannot. A rule can put conditions on its parts, such as whether two parts have the same value or whether a part also parses as another rule. A `zoi` quote, for example, opens with a delimiter word that the speaker chooses and ends at the next copy of that word. The grammar states this directly: the closing word has the same value as the opening one, and no copy of it occurs in the body.
+The notation can express constructs that a context-free grammar cannot. A rule can put conditions on its parts. These can test equal values or whether a part also parses as another rule. A `zoi` quote, for example, opens with a delimiter word that the speaker chooses and ends at the next copy of that word. The grammar states this directly: the closing word has the same value as the opening one, and no copy of it occurs in the body.
 
-Parsing is split into stages. A stage is one step of a parse, with its own grammar. It reads the tokens that the stage before it emitted and emits tokens for the next stage. A pipeline runs its stages in order, and its pipeline document, also literate Markdown, lists the stages and their grammar documents. The Lojban pipelines go from characters to phonemes, then to words, and only then to the parse tree. Each stage's grammar deals with one level of the language, so it stays simpler than a single grammar, or a lexer and parser pair, that would do the same work.
+A parse runs in stages. A stage is one step of a parse, with its own grammar. It reads the tokens that the stage before it emitted and emits tokens for the next stage. A pipeline runs its stages in order, and its pipeline document, also literate Markdown, lists the stages and their grammar documents.
+
+The Lojban pipelines go from characters to phonemes, then to words, and only then to the parse tree. Each stage handles one language level. This keeps its grammar simpler than one grammar, or a lexer and parser pair, for the same work.
 
 ## Try it
 

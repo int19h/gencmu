@@ -6330,7 +6330,7 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 48;
+  const DOM_FORMAT = 49;
   // A constant's name, without its `$`, begins with a capital (engine §2).
   const CONSTANT_NAME = /^(?!.*--)[A-Z][A-Za-z0-9_-]*$/;
   // A classifier name starts with a lowercase letter. A class name starts
@@ -6457,7 +6457,7 @@
     /** @type {(value: any) => boolean} */
     const constant = value => typeof value === "string" && CONSTANT_NAME.test(value);
     /** @type {(values: any) => boolean} */
-    const guards = values => Array.isArray(values) && values.every((/** @type {any} */ guard) => exact(guard, ["feature", "kind", "negated"]) && Object.keys(guard).length === 3 && typeof guard.feature === "string" && FEATURE_NAME.test(guard.feature) && typeof guard.negated === "boolean" && guard.kind === "gate");
+    const gates = values => Array.isArray(values) && values.every((/** @type {any} */ gate) => exact(gate, ["feature", "kind", "negated"]) && Object.keys(gate).length === 3 && typeof gate.feature === "string" && FEATURE_NAME.test(gate.feature) && typeof gate.negated === "boolean" && gate.kind === "gate");
     /** @type {any[]} */
     const pending = [];
     const tagClauses = new Map();
@@ -6501,7 +6501,7 @@
     for (const classifier of dom.classifiers) {
       if (!exact(classifier, ["name", "entries", "at"]) || !(typeof classifier.name === "string" && CLASSIFIER_NAME.test(classifier.name)) || !Array.isArray(classifier.entries)) return "a malformed classifier";
       for (const entry of classifier.entries) {
-        if (!exact(entry, ["guards", "keys", "op", "class", "at"]) || !position(entry.at) || !guards(entry.guards) || entry.guards.some((/** @type {any} */ guard) => guard.kind !== "gate") || !CLASS_NAME.test(entry.class) || !["∈", "∉"].includes(entry.op) || !Array.isArray(entry.keys) || !entry.keys.length) return "a malformed classifier entry";
+        if (!exact(entry, ["gates", "keys", "op", "class", "at"]) || !position(entry.at) || !gates(entry.gates) || entry.gates.some((/** @type {any} */ gate) => gate.kind !== "gate") || !CLASS_NAME.test(entry.class) || !["∈", "∉"].includes(entry.op) || !Array.isArray(entry.keys) || !entry.keys.length) return "a malformed classifier entry";
         for (const key of entry.keys) { if (!stringTerm(key)) return "a malformed classifier key"; push("term", key); }
       }
     }
@@ -6537,7 +6537,7 @@
       if (rule.emit !== undefined) push("emission", rule.emit, 0, { owner: rule });
       for (const condition of rule.conditions) push("condition", condition, 0, {});
       for (const alternative of rule.alternatives) {
-        if (!exact(alternative, ["guards", "expr", "tags", "value", "image"]) || !guards(alternative.guards)) return "a malformed alternative";
+        if (!exact(alternative, ["gates", "expr", "tags", "value", "image"]) || !gates(alternative.gates)) return "a malformed alternative";
         push("expr", alternative.expr, 0, { whole: true });
         if (alternative.tags !== undefined) push("tags", alternative.tags, 0, { constituent: true, owner: rule });
         for (const channel of ["value", "image"]) if (alternative[channel] !== undefined) { if (rule.erased) return "a recipe beside erasure"; push("recipe", alternative[channel]); }
@@ -10170,7 +10170,7 @@
       const add=(/** @type {any} */ term,tags=false)=>argumentsToCheck.push({...owner,term:rewrite(term,event),tags});
       const arg=normalize(argument);
       if(arg.body || arg.splice || arg.test || arg.range || arg.wildcard) {
-        const rule={...(parts.some(n=>n.param)?{params:event.rule.params}:{}),name:extraIndexes.has(event.index)?'text':event.rule.name,op:'define',conditions:[],alternatives:[{guards:[],expr:rewrite(arg.body??arg,event,'expr')}],at:event.rule.at};
+        const rule={...(parts.some(n=>n.param)?{params:event.rule.params}:{}),name:extraIndexes.has(event.index)?'text':event.rule.name,op:'define',conditions:[],alternatives:[{gates:[],expr:rewrite(arg.body??arg,event,'expr')}],at:event.rule.at};
         argumentsToCheck.push({...owner,rule,fragment:true});
       } else if(arg.requirements) {
         for(const requirement of arg.requirements) add(requirement.value,true);
@@ -10625,7 +10625,7 @@
 
 
   /**
-   * @import { Condition, ConstantTerm, DomAlternative, DomClassifier, DomEntry, DomConstant, DomImplication, DomRule, Emission, ErrorLocation, Expr, GrammarDom, Guard, LoweredGrammar, Production, Resolution, SymbolTest, TagSet, Term, TermValue, TestOp } from "./types.js"
+   * @import { Condition, ConstantTerm, DomAlternative, DomClassifier, DomEntry, DomConstant, DomImplication, DomRule, Emission, ErrorLocation, Expr, GrammarDom, Gate, LoweredGrammar, Production, Resolution, SymbolTest, TagSet, Term, TermValue, TestOp } from "./types.js"
    * @import { TermType } from "./dom.js"
    */
 
@@ -10823,7 +10823,7 @@
          * the classifiers' values.
          * @type {string[]}
          */
-        this.classifierGates = gateNames(this.classifierItems.flatMap(({ classifier }) => classifier.entries.flatMap((entry) => entry.guards)));
+        this.classifierGates = gateNames(this.classifierItems.flatMap(({ classifier }) => classifier.entries.flatMap((entry) => entry.gates)));
         /**
          * The classifiers resolved for each set of the classifier gates that is
          * on (engine §2).
@@ -10910,12 +10910,12 @@
         /**
          * The features that gate an alternative or an entry of a classifier.
          * Only these change a lowered grammar. A warning keeps its alternative
-         * (engine §3.1), and any other name matches no guard (engine §13).
+         * (engine §3.1), and any other name matches no gate (engine §13).
          * @type {string[]}
          */
         this.gates = gateNames([
-          ...[...this.rules.values()].flatMap((rule) => rule.alternatives.flatMap((alternative) => alternative.guards)),
-          ...this.classifierItems.flatMap(({ classifier }) => classifier.entries.flatMap((entry) => entry.guards)),
+          ...[...this.rules.values()].flatMap((rule) => rule.alternatives.flatMap((alternative) => alternative.gates)),
+          ...this.classifierItems.flatMap(({ classifier }) => classifier.entries.flatMap((entry) => entry.gates)),
         ]);
         /**
          * The lowered grammars, keyed by the gates that are on.
@@ -11080,7 +11080,7 @@
         let table = tables.get(classifier.name);
         if (!table) tables.set(classifier.name, (table = new Map()));
         for (const entry of classifier.entries) {
-          if (!entry.guards.every((guard) => features.has(guard.feature) !== guard.negated)) continue;
+          if (!entry.gates.every((gate) => features.has(gate.feature) !== gate.negated)) continue;
           for (const word of /** @type {string[]} */ (this.classifierKeys.get(entry))) {
             let classes = table.get(word);
             if (!classes) table.set(word, (classes = tagSet()));
@@ -11577,7 +11577,7 @@
                 // restriction on an otherwise legal query constituent.
                 /** @type {RuleClauses} */
                 const clauses = {conditions:[],erased:false,tags:{emptySet:true},emit:undefined,value:undefined,image:undefined,error:undefined,warning:undefined,suppressWarnings:undefined};
-                const source = {...alternative,guards:[],expr:body,tags:undefined,value:undefined,image:undefined,clauses};
+                const source = {...alternative,gates:[],expr:body,tags:undefined,value:undefined,image:undefined,clauses};
                 this.queryRules.set(name,{name,document:alternative.document,at:alternative.at,alternatives:[source]});
                 this.queryNames.set(name,templateBodyText(body,this.unicode));
               }
@@ -11813,11 +11813,11 @@
 
   /**
    * The names of the features that gate, in code point order, each once.
-   * @param {Guard[]} guards
+   * @param {Gate[]} gates
    * @returns {string[]}
    */
-  function gateNames(guards) {
-    const names = new Set(guards.map((guard) => guard.feature));
+  function gateNames(gates) {
+    const names = new Set(gates.map((gate) => gate.feature));
     return [...names].sort(compareCodePoints);
   }
 
@@ -11973,8 +11973,8 @@
     run() {
       for (const rule of this.grammar.rules.values()) {
         // Only gates drop an alternative; a warning keeps it (engine §3.1).
-        const enabled = rule.alternatives.filter((alternative) => alternative.guards.every(
-          (guard) => this.features.has(guard.feature) !== guard.negated));
+        const enabled = rule.alternatives.filter((alternative) => alternative.gates.every(
+          (gate) => this.features.has(gate.feature) !== gate.negated));
         // A chain is the only alternative of its rule that the gates leave
         // (engine §3.3); a %extend-rule can add another.
         const chain = enabled.find((alternative) => isChain(alternative.expr));
@@ -18069,7 +18069,7 @@
       const memberships = new Map();
       for (const { path, classifier } of grammar.classifierItems) {
         for (const entry of classifier.entries) {
-          const gates = entry.guards.map((guard) => `${guard.negated ? "¬" : ""}${guard.feature}?`).join(" ");
+          const gates = entry.gates.map((gate) => `${gate.negated ? "¬" : ""}${gate.feature}?`).join(" ");
           for (const key of /** @type {string[]} */ (grammar.classifierKeys.get(entry))) {
             const id = JSON.stringify([classifier.name, key, entry.class]);
             let membership = memberships.get(id);
@@ -22027,7 +22027,7 @@
     const testBase = (node) => {
       const wrapper = one(node, "primary");
       if (wrapper) return knownOf(wrapper, PRIMARIES);
-      for (const child of parts(node)) if (child.kind === "rule" && child.rule !== "tested" && PRIMARIES.has(child.rule)) return child;
+      for (const child of parts(node)) if (child.kind === "rule" && child.rule !== "tested-primary" && PRIMARIES.has(child.rule)) return child;
       return undefined;
     };
     // The first node of a rule at or below a node, in the order written.
@@ -22102,11 +22102,11 @@
         directives.push(/** @type {import("./types.js").DomDirective} */ ({ name: "ambiguity-resolution", steps, at: at(item) }));
       } else if (ruleOf(item) === "directive") {
         const name = valueOf(token(item)).slice(1);
-        const operands = parts(item).filter((child) => ruleOf(child) === "argument-word" || ruleOf(child) === "argument-string" || ruleOf(child) === "argument-tag" || ruleOf(child) === "argument-term");
+        const operands = parts(item).filter((child) => ruleOf(child) === "directive-identifier" || ruleOf(child) === "directive-string" || ruleOf(child) === "directive-terminal" || ruleOf(child) === "directive-term");
         const problem = operandProblem(name, operands.map((child) => operandKind(child)));
         if (problem) fail(problem, item);
         const args = operands.map((child) => {
-            if (ruleOf(child) === "argument-word") return valueOf(token(child));
+            if (ruleOf(child) === "directive-identifier") return valueOf(token(child));
             const part = /** @type {import("./types.js").TokenNode} */ (token(child));
             return decodeString(tokens[part.token], true);
           });
@@ -22121,7 +22121,7 @@
         let conditions;
         featureContext = name === "features";
         try {
-          conditions = clause ? some(clause, "implication").map(condition => run(readImplication(condition))) : undefined;
+          conditions = clause ? some(clause, "condition").map(condition => run(readImplication(condition))) : undefined;
         } catch (error) {
           if (!featureContext || !(error instanceof GencmuError)) throw error;
           const [line,column] = at(item);
@@ -22171,8 +22171,8 @@
      * @returns {DomEntry}
      */
     function readEntry(node) {
-      const guards = ofRule(node, "guard").map((guard) => {
-        const read = readGuard(guard);
+      const gates = ofRule(node, "feature-gate").map((gate) => {
+        const read = readGate(gate);
         return read;
       });
       const keys = some(node, "classifier-key").map((keyNode) => {
@@ -22184,7 +22184,7 @@
       const classNode = only(node, "classifier-class");
       const name = valueOf(token(classNode));
       if (!/^[A-Z](?:[A-Za-z0-9_-]*[A-Z])?$/.test(name)) fail(`${name} is not a class: a class starts and ends with a capital`, classNode);
-      return { guards, keys, op, class: name, at: at(node) };
+      return { gates, keys, op, class: name, at: at(node) };
     }
 
     /**
@@ -22215,9 +22215,9 @@
      * @returns {Generator<Step, DomConstant, any>}
      */
     function* readConstant(node) {
-      const keyword = valueOf(token(only(node, "constant-definer")));
-      const name = valueOf(token(only(node, "constant-reference"))).slice(1);
-      if (!/^(?!.*--)[A-Z][A-Za-z0-9_-]*$/.test(name)) fail("a constant requires a user name", only(node, "constant-reference"));
+      const keyword = valueOf(token(only(node, "constant-keyword")));
+      const name = valueOf(token(only(node, "constant-name"))).slice(1);
+      if (!/^(?!.*--)[A-Z][A-Za-z0-9_-]*$/.test(name)) fail("a constant requires a user name", only(node, "constant-name"));
       const valueNode = only(node, "term");
       closedFor = "a constant's value";
       const value = /** @type {Term} */ (yield readTerm(valueNode));
@@ -22233,7 +22233,7 @@
      * @returns {Generator<Step, DomRule, any>}
      */
     function* readRule(node) {
-      const keyword = valueOf(token(only(node, "definer")));
+      const keyword = valueOf(token(only(node, "rule-keyword")));
       parameterScope=new Set();
       readingHead=true;
       const headCall = one(node,"rule-name") ? undefined : one(node, "call");
@@ -22266,13 +22266,13 @@
         const instance = yield readCall(only(node,"call"));
         return {...rule, instance, conditions:[], at:at(node)};
       }
-      const tagsClause = one(node, "tags-clause");
+      const tagsClause = one(node, "header-tags");
       const tags = tagsClause ? /** @type {Term} */ (yield readConstituentTags(tagsClause)) : undefined;
       const channels = yield readChannels(node);
       /** @type {DomAlternative[]} */
       const alternatives = [];
       const body = one(node, "body") || only(node, "headed-body");
-      const ranked = one(body, "ranked-alternative");
+      const ranked = one(body, "ranked-body");
       for (const alternative of ranked ? [ranked] : some(body, "alternative")) alternatives.push(yield readAlternative(alternative));
       // Each condition of the list is one condition, applying where its
       // captures are (engine §3.6).
@@ -22280,7 +22280,7 @@
       /** @type {Condition[]} */
       const conditions = [];
       if (conditionsClause) {
-        for (const condition of some(conditionsClause, "implication")) conditions.push(yield readImplication(condition));
+        for (const condition of some(conditionsClause, "condition")) conditions.push(yield readImplication(condition));
       }
       for (const kind of ["error", "warning"]) {
         const diagnostic = one(node, `${kind}-clause`);
@@ -22331,7 +22331,7 @@
         } else if (ruleOf(part) === "target-argument") {
           const targets = [];
           for (const target of parts(part).filter(child => child.kind === "rule")) {
-            if (ruleOf(target) === "reference") targets.push({rule:valueOf(token(target))});
+            if (ruleOf(target) === "rule-reference") targets.push({rule:valueOf(token(target))});
             else if (ruleOf(target) === "tag") targets.push({terminal:tagOf(token(target))});
             else targets.push(ruleOf(target) === "call" ? yield readCall(target) : readParameter(target));
           }
@@ -22345,8 +22345,8 @@
       return {call:name,args,at:at(node)};
     }
 
-    /** @param {ResultNode} node @returns {import("./types.js").Guard} */
-    function readGuard(node) {
+    /** @param {ResultNode} node @returns {import("./types.js").Gate} */
+    function readGate(node) {
       const spelled = valueOf(token(node));
       const found = /^(¬?)(?!.*--)([A-Za-z][A-Za-z0-9-]*)(\?)$/.exec(spelled);
       if (!found) fail("invalid feature guard", node);
@@ -22358,10 +22358,10 @@
      * @returns {Generator<Step, DomAlternative, any>}
      */
     function* readAlternative(node) {
-      const guards = ofRule(node, "guard").map(readGuard);
+      const gates = ofRule(node, "feature-gate").map(readGate);
       captureNodes = new Map();
       /** @type {DomAlternative} */
-      const alternative = { guards, expr: /** @type {Expr} */ (yield readExpression(only(node, ruleOf(node) === "ranked-alternative" ? "ranked-choice" : "conjunction"), true)) };
+      const alternative = { gates, expr: /** @type {Expr} */ (yield readExpression(only(node, ruleOf(node) === "ranked-body" ? "ranked-choice" : "some-of"), true)) };
       // A name stands at most once in each production, gates aside: the
       // error stands at the second capture that such a production reads,
       // the first in the text where there are several (engine §3.5, §9).
@@ -22401,14 +22401,14 @@
         case "choice": {
           const ranked = one(node, "ranked-choice");
           if (ranked) return yield readExpression(ranked);
-          const found = some(node, "conjunction");
+          const found = some(node, "some-of");
           /** @type {Expr[]} */
           const items = [];
           for (const item of found) items.push(yield readExpression(item));
           return items.length === 1 ? items[0] : { choice: items };
         }
         case "ranked-choice": {
-          const found = some(node, "conjunction", 2);
+          const found = some(node, "some-of", 2);
           /** @type {Expr[]} */
           const items = [];
           const enclosing = braces[braces.length - 1];
@@ -22420,7 +22420,7 @@
           if (separator) rankedLocations.set(expr,at(separator));
           return expr;
         }
-        case "conjunction": {
+        case "some-of": {
           const found = some(node, "sequence");
           // A & of n items expands to 2ⁿ−1 sequences (engine §3.2). The
           // bound is the &'s own form, so it comes before its items (§9).
@@ -22451,7 +22451,7 @@
      * @returns {Generator<Step, Expr, any>}
      */
     function* readOptional(node) {
-      const captured = one(node,"capture");
+      const captured = one(node,"captured-terminator");
       if (captured) return yield readCapturedOptional(node,captured);
       // Its required part first, then its markers (engine §9).
       const choice = only(node, "choice");
@@ -22462,17 +22462,17 @@
       const form = "an elidable optional begins with a user tag or parameter directly after +, without | or &";
       // One conjunction of one sequence, with no leading | or & either: the
       // terminator stands directly after the marker (engine §9).
-      const conjunctions = ofRule(choice, "conjunction");
+      const conjunctions = ofRule(choice, "some-of");
       const leading = parts(choice).some((child) => tokenValue(child) === "|") ||
         (conjunctions.length === 1 && parts(conjunctions[0]).some((child) => tokenValue(child) === "&"));
       const sequences = conjunctions.length === 1 && !leading ? ofRule(conjunctions[0], "sequence") : [];
       const primary = sequences.length === 1 ? ofRule(sequences[0], "primary")[0] : undefined;
       const head = primary ? knownOf(primary, PRIMARIES) : undefined;
       /** @type {(symbol: RuleNode) => boolean} */
-      const isTerminal = (symbol) => ruleOf(symbol) === "parameter" || ["tag", "reference"].includes(ruleOf(symbol)) && /^[A-Z]/.test(valueOf(token(symbol)));
+      const isTerminal = (symbol) => ruleOf(symbol) === "parameter" || ["tag", "rule-reference"].includes(ruleOf(symbol)) && /^[A-Z]/.test(valueOf(token(symbol)));
       if (!head) fail(form, node);
       const symbol = /** @type {RuleNode} */ (head);
-      if (ruleOf(symbol) === "tested") {
+      if (ruleOf(symbol) === "tested-primary") {
         const base = testBase(symbol);
         if (!base || !isTerminal(/** @type {RuleNode} */ (base))) fail(form, node);
 
@@ -22510,7 +22510,7 @@
       if (!markers.length || one(optional,"choice")) fail("a captured elidable optional holds only its terminator",optional);
       const primary = only(node,"primary");
       const head = knownOf(primary,PRIMARIES);
-      const base = ruleOf(head) === "tested" ? testBase(head) : head;
+      const base = ruleOf(head) === "tested-primary" ? testBase(head) : head;
       if (!base || !(ruleOf(base) === "parameter" || ruleOf(base) === "tag" && /^[A-Z]/.test(valueOf(token(base))))) {
         fail("a captured elidable optional holds only its terminator",optional);
       }
@@ -22577,22 +22577,22 @@
     function* readPrimary(node, whole = false) {
       switch (ruleOf(node)) {
         case "splice": {
-          const target=knownOf(node,new Set(["reference","call"]));
+          const target=knownOf(node,new Set(["rule-reference","call"]));
           return {splice:yield readPrimary(target)};
         }
         case "call": return yield readCall(node);
         case "parameter": return readParameter(node);
-        case "reference": return { ref: valueOf(token(node)) };
+        case "rule-reference": return { ref: valueOf(token(node)) };
         case "tag": return { ref: tagOf(token(node)) };
         case "string-terminal": return { literal: yield readTerm(knownOf(node, new Set(["string", "constant-reference"]))) };
         case "constant-reference": return { literal: yield readTerm(node) };
         case "wildcard": token(node); return { wildcard: true };
         case "range": return { range: yield readRange(node) };
-        case "tested": {
+        case "tested-primary": {
           const tests = parts(node).filter(child => ["tag-test", "value-test", "default-value"].includes(ruleOf(child)));
           if (!tests.length) lacks(node, "test");
           const symbol = testBase(node) || lacks(node, "primary");
-          checkTestOrder(tests.filter(test => ruleOf(test) !== "default-value"), ["constant-reference", "reference", "call", "splice", "parameter", "tag", "string-terminal", "range", "wildcard"].includes(ruleOf(symbol)));
+          checkTestOrder(tests.filter(test => ruleOf(test) !== "default-value"), ["constant-reference", "rule-reference", "call", "splice", "parameter", "tag", "string-terminal", "range", "wildcard"].includes(ruleOf(symbol)));
           // Convert the base before test operands (engine §9.3).
           let expr = yield readPrimary(symbol);
           for (const test of tests) {
@@ -22608,7 +22608,8 @@
           }
           return expr;
         }
-        case "capture": {
+        case "capture":
+        case "captured-terminator": {
           const innermost = braces[braces.length - 1];
           if (innermost?.chain) fail("a capture cannot stand inside a chain, whose levels are constituents of its rule: a condition on $ serves each level", node);
           if (innermost && innermost.ranked > 0) fail("an item capture cannot stand inside a ranked group: name the ranked choice as a rule and capture that rule", node);
@@ -22618,8 +22619,8 @@
           if (valueOf(captureToken) === "$") fail("$ is the whole constituent and wraps nothing", node);
           if (!CAPTURE_NAME.test(valueOf(captureToken).slice(1))) fail("a capture's name is all lower case", node);
           const wrapped = knownOf(inner, PRIMARIES);
-          const base = ruleOf(wrapped) === "tested" ? testBase(wrapped) || lacks(wrapped, "primary") : wrapped;
-          if (!["constant-reference", "reference", "call", "splice", "parameter", "tag", "string-terminal", "range", "wildcard"].includes(ruleOf(base))) fail("a capture wraps one symbol", node);
+          const base = ruleOf(wrapped) === "tested-primary" ? testBase(wrapped) || lacks(wrapped, "primary") : wrapped;
+          if (!["constant-reference", "rule-reference", "call", "splice", "parameter", "tag", "string-terminal", "range", "wildcard"].includes(ruleOf(base))) fail("a capture wraps one symbol", node);
           const name = valueOf(captureToken).slice(1);
           const expr = /** @type {Expr} */ (yield readPrimary(wrapped));
           const capture = { capture: name, expr };
@@ -22656,8 +22657,8 @@
         if (written !== "ε" && !written.startsWith("$")) fail("an emission target is a capture or ε", targetNode);
         /** @type {any} */
         const item = written === "ε" ? { insert: true } : { capture: written.slice(1) };
-        const before = ofRule(itemNode, "emit-before").flatMap(readAttachment);
-        const after = ofRule(itemNode, "emit-after").flatMap(readAttachment);
+        const before = ofRule(itemNode, "attachment-before").flatMap(readAttachment);
+        const after = ofRule(itemNode, "attachment-after").flatMap(readAttachment);
         if ((before.length || after.length) && !item.capture) fail("only a named capture carries attachments", itemNode);
         const tags = one(itemNode, "emit-tags");
         if (tags) item.tags = yield readTagTerm(only(tags, "term"));
@@ -22694,7 +22695,7 @@
     /** @param {ResultNode} node @returns {Generator<Step, any, any>} */
     function* readRecipe(node) {
       const concat = [];
-      for (const atom of some(node, "recipe-atom")) {
+      for (const atom of some(node, "recipe-term")) {
         if (!Number.isSafeInteger(atom.span[0]) || !Number.isSafeInteger(atom.span[1]) || atom.span[0] < 0 || atom.span[1] < atom.span[0] || atom.span[1] > tokens.length) lacks(atom, "valid token span");
         if (concat.length) fail("juxtaposed recipe strings require ++. Use ++ between string atoms", atom);
         if (tokens.slice(atom.span[0], atom.span[1]).some(token => ["(", ")"].includes(token.value))) fail("a recipe atom has no grouping or arguments", atom);
@@ -22746,7 +22747,7 @@
         }
         return { test: "tags", requirements };
       }
-      const comparator = operator(token(only(node, "test")));
+      const comparator = operator(token(only(node, "value-comparator")));
       const operand = only(node, "test-operand");
       const inner = knownOf(operand, ATOMS);
       if (!["string", "constant-reference", "parameter"].includes(ruleOf(inner))) fail("a value test requires a string literal or string constant", operand);
@@ -22809,7 +22810,7 @@
       /** @type {Condition[]} */
       const items = [];
       for (const anyOf of some(node, "any-of")) items.push(yield readAnyOf(anyOf));
-      const consequent = one(node, "implication");
+      const consequent = one(node, "condition");
       if (consequent) items.push(yield readImplication(consequent));
       let result = /** @type {Condition} */ (items.pop());
       while (items.length > 0) result = { if: /** @type {Condition} */ (items.pop()), then: result };
@@ -22832,7 +22833,7 @@
       for (const allNode of some(node, "all-of")) {
         /** @type {Condition[]} */
         const all = [];
-        for (const conditionNode of some(allNode, "condition")) all.push(yield readCondition(conditionNode));
+        for (const conditionNode of some(allNode, "condition-primary")) all.push(yield readCondition(conditionNode));
         items.push(all.length === 1 ? all[0] : { all });
       }
       return items.length === 1 ? items[0] : { any: items };
@@ -22845,7 +22846,7 @@
     function* readCondition(node) {
       const inner = knownOf(node, CONDITIONS);
       switch (ruleOf(inner)) {
-        case "implication":
+        case "condition":
           return yield readImplication(inner);
         case "presence":
           return { captured: valueOf(token(inner)).slice(1) };
@@ -22853,7 +22854,7 @@
           const left = {capture:valueOf(token(only(inner,"capture-reference"))).slice(1)};
           const op = /** @type {Comparator} */ (operator(token(only(inner,"tree-comparator"))));
           const rightNode = only(inner,"union");
-          const leaf = firstOfRule(rightNode,"name") ?? firstOfRule(rightNode,"tag");
+          const leaf = firstOfRule(rightNode,"rule-or-classifier-name") ?? firstOfRule(rightNode,"tag");
           // A bare name gets this error before capital-initial tag typing.
           if (leaf && tokens.slice(rightNode.span[0],rightNode.span[1]).length === 1) {
             const name = valueOf(token(leaf));
@@ -22880,8 +22881,8 @@
           return condition;
         }
         case "negation":
-          return { not: yield readCondition(only(inner, "condition")) };
-        case "term-condition": {
+          return { not: yield readCondition(only(inner, "condition-primary")) };
+        case "set-condition": {
           const operation = knownOf(inner, new Set(["union-operation", "intersection-operation", "set-atom"]));
           if (ruleOf(operation) === "set-atom") {
             const atom = parts(operation).find((child) => child.kind === "rule");
@@ -22944,7 +22945,7 @@
           });
           return /** @type {Condition} */ (/** @type {unknown} */ ({ nonempty: result }));
         }
-        case "method": {
+        case "method-chain": {
           const method = yield readMethod(inner);
           if (!QUERY_METHODS.has(method.method) && !["tags", "classes", "split", "ngrams", "classify"].includes(method.method)) fail("a condition requires a query method", inner);
           // A set-valued method in a Boolean position tests that its set is
@@ -23052,9 +23053,9 @@
         if ("problem" in joined && !featureContext) fail(joined.problem, node);
         return { intersection: items };
       }
-      if (ruleOf(node) === "term-atom" || ruleOf(node) === "test-operand") {
+      if (ruleOf(node) === "term-atom" || ruleOf(node) === "plain-term-atom" || ruleOf(node) === "test-operand") {
         const inner = knownOf(node, ATOMS);
-        if (ruleOf(inner) === "method") {
+        if (ruleOf(inner) === "method-chain") {
           const method = yield readMethod(inner);
           if (QUERY_METHODS.has(method.method) && !["parse","error-free"].includes(method.method)) fail("a query method is a condition, not a term", inner);
           return method;
@@ -23093,7 +23094,7 @@
           return { union };
         }
         case "range": return fail("a range is a terminal, not a term", node);
-        case "name": {
+        case "rule-or-classifier-name": {
           // A bare name is a tag literal if it begins with a capital, and
           // otherwise a rule, which only a function's argument names.
           const name = valueOf(token(node));
@@ -23102,7 +23103,7 @@
           return fail(`${name} names a rule, which is not a value`, node);
         }
         case "empty-set": return { emptySet: true };
-        case "method": return yield readMethod(node);
+        case "method-chain": return yield readMethod(node);
         case "constant-reference": {
           const name = valueOf(token(node)).slice(1);
           if (!/^(?!.*--)[A-Z][A-Za-z0-9_-]*$/.test(name)) fail("a user constant begins with a capital", node);
@@ -23129,17 +23130,17 @@
     function* readLayeredPattern(node) {
       const kind=ruleOf(node);
       if (kind === 'pattern-primary') {
-        return yield readLayeredPattern(knownOf(node,new Set(['pattern-node','pattern-bare','pattern-union'])));
+        return yield readLayeredPattern(knownOf(node,new Set(['pattern-node','bare-child-list','pattern-union'])));
       }
-      if (kind === 'pattern-node' || kind === 'pattern-bare') {
+      if (kind === 'pattern-node' || kind === 'bare-child-list') {
         const atom = kind === 'pattern-node' ? (yield readPattern(only(node,'pattern-atom'))).node : {any:true};
-        const list=one(node,'pattern-children');
+        const list=one(node,'child-list');
         if (list && !['name','call','param','any'].some(key => key in atom)) fail('a child list requires a rule test',list);
         const {at:position,...fields}=atom;
         const exact=parts(node).some(part => tokenValue(part) === '·');
         return {...fields,...(exact ? {exact:true} : {}),...(list ? {children:yield readLayeredPattern(list)} : {}),...(position ? {at:position} : {})};
       }
-      if (kind === 'pattern-union' || kind === 'pattern-intersection' || kind === 'child-set' || kind === 'child-intersection') {
+      if (kind === 'pattern-union' || kind === 'pattern-intersection' || kind === 'child-set-operation' || kind === 'child-intersection') {
         /** @type {ResultNode[]} */
         let operands;
         if (kind === 'pattern-union') operands=some(node,'pattern-intersection');
@@ -23153,8 +23154,8 @@
           values.push(ruleOf(operand) === 'child-path' ? childPredicate(value,operand) : value);
         }
         const operators=parts(node).filter(part => part.kind === 'token').map(valueOf).filter(op => op === '∪' || op === '∖' || kind !== 'pattern-union' && op === '∩');
-        if (['pattern-union','child-set'].includes(kind)) {
-          if (operators.length < Math.max(kind === 'child-set' ? 1 : 0, values.length-1)) return lacks(node,'operator');
+        if (['pattern-union','child-set-operation'].includes(kind)) {
+          if (operators.length < Math.max(kind === 'child-set-operation' ? 1 : 0, values.length-1)) return lacks(node,'operator');
         }
         let result=values[0];
         for (let index=1;index<values.length;index++) {
@@ -23174,7 +23175,7 @@
         const result={path:op === '⋮' ? 'descendant' : op === '⋱' ? 'last' : 'first',pattern};
         return kind === 'child-path' ? [{child:result}] : result;
       }
-      if (kind === 'pattern-children') {
+      if (kind === 'child-list') {
         const choice=one(node,'child-choice');
         return choice ? yield readLayeredPattern(choice) : [];
       }
@@ -23188,7 +23189,7 @@
       }
       if (kind === 'child-alternative') {
         const sequence=one(node,'child-sequence');
-        return sequence ? yield readLayeredPattern(sequence) : [{child:yield readLayeredPattern(only(node,'child-set'))}];
+        return sequence ? yield readLayeredPattern(sequence) : [{child:yield readLayeredPattern(only(node,'child-set-operation'))}];
       }
       if (kind === 'child-sequence') {
         const result=[];
@@ -23202,10 +23203,10 @@
       }
       if (kind === 'child-primary') {
         const choice=one(node,'child-choice');
-        return choice ? yield readLayeredPattern(choice) : [{child:yield readLayeredPattern(knownOf(node,new Set(['pattern-node','pattern-bare'])))}];
+        return choice ? yield readLayeredPattern(choice) : [{child:yield readLayeredPattern(knownOf(node,new Set(['pattern-node','bare-child-list'])))}];
       }
-      if (kind === 'pattern-brackets') return [{optional:yield readLayeredPattern(only(node,'child-choice'))}];
-      if (kind === 'pattern-repeat') {
+      if (kind === 'child-optional') return [{optional:yield readLayeredPattern(only(node,'child-choice'))}];
+      if (kind === 'child-repetition') {
         const choices=some(node,'child-choice');
         const repeat=yield readLayeredPattern(choices[0]);
         return [{repeat,...(choices.length >= 2 ? {separator:yield readLayeredPattern(choices[1])} : {})}];
@@ -23222,7 +23223,7 @@
         if (defaultNode) fail("a default stands only on an elidable optional head",defaultNode);
         const first = inner[0];
         if (!first) return lacks(node, "pattern atom");
-        const named = ["name", "reference"].includes(ruleOf(first)) ||
+        const named = ["rule-or-classifier-name", "rule-reference"].includes(ruleOf(first)) ||
           first.kind === "token" && ["Lowercase-Name", "Emoji-Name"].includes(first.terminal);
         const tests = inner.filter(child => ["tag-test", "value-test"].includes(ruleOf(child)));
         const testsOnly = ["tag-test", "value-test"].includes(ruleOf(first));
@@ -23276,7 +23277,7 @@
      * @returns {Generator<Step, {method: string, receiver:Term, args: Argument[]}, any>}
      */
     function* readMethod(node) {
-      let receiver = yield readTerm(only(only(node, "method-receiver"), "term-atom"), true);
+      let receiver = yield readTerm(only(only(node, "method-receiver"), "plain-term-atom"), true);
       for (const selector of some(node, "method-selector")) {
         const parsed = one(selector, "parse-selector");
         const name = parsed ? "parse" : valueOf(token(only(selector, "method-name")));
@@ -23284,7 +23285,7 @@
         if (closedFor && !["split", "ngrams"].includes(name)) fail(`${closedFor} cannot read an input method`, node);
         /** @type {any[]} */
         const args = [];
-        const argumentsNode = one(selector, "arguments");
+        const argumentsNode = one(selector, "method-arguments");
         if (parsed) {
           const argument = only(parsed,"parse-argument");
           let body = yield readExpression(only(argument,"choice"),true);
@@ -23305,7 +23306,7 @@
           if (bodyProblem) fail(bodyProblem,argument);
           args.push({body});
         }
-        if (argumentsNode) for (const argument of some(argumentsNode, "argument")) {
+        if (argumentsNode) for (const argument of some(argumentsNode, "method-argument")) {
           const integer = one(argument, "integer");
           if (integer) {
             const digits = valueOf(token(integer));
@@ -23346,7 +23347,7 @@
         if (closedFor && found.type === "span") fail(`${closedFor} cannot read an input method`, node);
         receiver = { method: name, receiver, args };
         boundaryLocations.set(receiver, {tree:node,at:at(node)});
-        if (argumentsNode) ofRule(argumentsNode,"argument").forEach((argument,index) => boundaryLocations.set(args[index],{tree:argument,at:at(argument)}));
+        if (argumentsNode) ofRule(argumentsNode,"method-argument").forEach((argument,index) => boundaryLocations.set(args[index],{tree:argument,at:at(argument)}));
       }
       return receiver;
     }
@@ -23387,8 +23388,8 @@
      * @returns {OperandKind}
      */
     function operandKind(node) {
-      if (ruleOf(node) === "argument-string") return "string";
-      if (ruleOf(node) === "argument-word") return isCapital(valueOf(token(node))) ? "class" : "name";
+      if (ruleOf(node) === "directive-string") return "string";
+      if (ruleOf(node) === "directive-identifier") return isCapital(valueOf(token(node))) ? "class" : "name";
       return "tag";
     }
   }
@@ -23516,20 +23517,20 @@
     return found;
   }
 
-  const PRIMARIES = new Set(["splice", "constant-reference", "call", "parameter", "reference", "tag", "string-terminal", "wildcard", "range", "tested", "capture", "group", "optional", "repetition", "empty"]);
-  const CONDITIONS = new Set(["tree-comparison", "comparison", "method", "negation", "presence", "implication", "term-condition"]);
+  const PRIMARIES = new Set(["captured-terminator","splice", "constant-reference", "call", "parameter", "rule-reference", "tag", "string-terminal", "wildcard", "range", "tested-primary", "capture", "group", "optional", "repetition", "empty"]);
+  const CONDITIONS = new Set(["tree-comparison", "comparison", "method-chain", "negation", "presence", "condition", "set-condition"]);
   const TERMS = new Set(["union", "guarded-term"]);
-  const ATOMS = new Set(["call", "parameter", "pattern-literal", "string", "tag", "tag-run", "string-run", "range", "name", "empty-set", "term", "guarded-term", "union", "term-atom", "method", "capture-reference", "constant-reference"]);
+  const ATOMS = new Set(["call", "parameter", "pattern-literal", "string", "tag", "tag-run", "string-run", "range", "rule-or-classifier-name", "empty-set", "term", "guarded-term", "union", "term-atom", "plain-term-atom", "method-chain", "capture-reference", "constant-reference"]);
   const ITEMS = new Set(["directive", "ranking-directive", "rule", "constant-definition", "classifier", "implication-declaration"]);
   const NAMED = new Set([
     "call-argument", "requirement-argument", "target-argument", "body-argument", "symbol-argument",
     ...ITEMS, ...PRIMARIES, ...CONDITIONS, ...TERMS, ...ATOMS,
-    "argument-word", "argument-string", "argument-tag", "argument-term", "classifier-name", "classifier-class", "classifier-key", "classifier-operator", "classifier-entry",
-    "constant-definer", "definer", "rule-name", "ranking-directive", "ranking-step", "body", "headed-body", "alternative", "ranked-alternative", "guard", "ranked-choice", "choice", "conjunction", "sequence", "primary",
-    "tag-test", "tag-requirement", "value-test", "default-value", "test", "test-operand", "tags-clause", "alternative-tags", "emit-tags", "value-clause", "image-clause", "conditions-clause", "error-clause", "warning-clause", "suppress-warnings-clause", "suppression-code", "emits-clause", "erased-clause",
-    "emit-item", "emit-target", "emit-before", "emit-after", "recipe", "recipe-atom", "method-receiver", "method-selector", "parse-selector", "parse-argument", "method-name", "arguments", "argument", "integer", "intersection", "concatenation", "any-of", "all-of", "condition", "comparator", "tree-comparator", "union-operation", "intersection-operation", "set-atom",
-    "pattern-primary", "pattern-node", "pattern-bare", "pattern-children", "child-choice", "child-alternative", "child-set", "child-intersection", "child-sequence", "child-item", "child-path", "child-primary",
-    "pattern-literal", "pattern-union", "pattern-intersection", "pattern-atom", "pattern-brackets", "pattern-repeat", "pattern-path",
+    "directive-identifier", "directive-string", "directive-terminal", "directive-term", "classifier-name", "classifier-class", "classifier-key", "classifier-operator", "classifier-entry",
+    "constant-keyword", "constant-name", "rule-keyword", "rule-name", "ranking-directive", "ranking-step", "body", "headed-body", "alternative", "ranked-body", "feature-gate", "ranked-choice", "choice", "some-of", "sequence", "primary",
+    "tag-test", "tag-requirement", "value-test", "default-value", "value-comparator", "test-operand", "header-tags", "alternative-tags", "emit-tags", "value-clause", "image-clause", "conditions-clause", "error-clause", "warning-clause", "suppress-warnings-clause", "suppression-code", "emits-clause", "erased-clause",
+    "emit-item", "emit-target", "attachment-before", "attachment-after", "recipe", "recipe-term", "method-receiver", "method-selector", "parse-selector", "parse-argument", "method-name", "method-arguments", "method-argument", "integer", "intersection", "concatenation", "any-of", "all-of", "condition-primary", "comparator", "tree-comparator", "union-operation", "intersection-operation", "set-atom",
+    "pattern-primary", "pattern-node", "bare-child-list", "child-list", "child-choice", "child-alternative", "child-set-operation", "child-intersection", "child-sequence", "child-item", "child-path", "child-primary",
+    "pattern-literal", "pattern-union", "pattern-intersection", "pattern-atom", "child-optional", "child-repetition", "pattern-path",
   ]);
 
   /**
@@ -23937,7 +23938,7 @@
 
     /** @param {Token[]} tokens */
     inspect(tokens) {
-      const quoted = (/** @type {Token | undefined} */ token) => token !== undefined && (token.tags.has("String") || token.tags.has("Include-Path"));
+      const quoted = (/** @type {Token | undefined} */ token) => token !== undefined && (token.tags.has("String") || token.tags.has("Resource-Path"));
       for (let index = 0; index < tokens.length; index++) {
         if (tokens[index].value === "%names" && quoted(tokens[index + 1])) this.namesPaths.add(tokens[index + 1].source[0]);
       }
@@ -23961,7 +23962,7 @@
       }
       this.names.extras = [...extras].sort(compareCodePoints);
       for (const token of tokens) {
-        if (token.tags.has("String") || token.tags.has("Include-Path")) this.decode(token, token.tags.has("Include-Path"));
+        if (token.tags.has("String") || token.tags.has("Resource-Path")) this.decode(token, token.tags.has("Resource-Path"));
       }
     }
 
@@ -24705,7 +24706,7 @@
   }
 
   /**
-   * A pipeline's features (engine §13): names from guards and pipeline or
+   * A pipeline's features (engine §13): names from gates and pipeline or
    * stage-local `%features` declarations, in code point order.
    * Unconditional declarations also supply defaults. A name that
    * only declarations use is a gate. A name used as both gate and warning is an error.
@@ -24721,12 +24722,12 @@
       const roles=[];
       for (const rule of stage.grammar.rules.values()) for (const alternative of rule.alternatives) {
         const where={...alternative.at,stage:stage.name};
-        for (const guard of alternative.guards) roles.push({name:guard.feature,kind:guard.kind,where});
+        for (const gate of alternative.gates) roles.push({name:gate.feature,kind:gate.kind,where});
         if (alternative.clauses.error) roles.push({name:rule.name,kind:"error",where});
         if (alternative.clauses.warning) roles.push({name:rule.name,kind:"warning",where});
       }
-      for (const {path:document,classifier} of stage.grammar.classifierItems) for (const entry of classifier.entries) for (const guard of entry.guards) {
-        roles.push({name:guard.feature,kind:guard.kind,where:{document,line:entry.at[0],column:entry.at[1],stage:stage.name}});
+      for (const {path:document,classifier} of stage.grammar.classifierItems) for (const entry of classifier.entries) for (const gate of entry.gates) {
+        roles.push({name:gate.feature,kind:gate.kind,where:{document,line:entry.at[0],column:entry.at[1],stage:stage.name}});
       }
       for (const {name,kind,where} of roles) {
         const known=kinds.get(name);
@@ -24744,7 +24745,7 @@
         if (tested.has(name)) throw new GencmuError("grammar", `${document}:${directive.at[0]}: stage ${tested.get(name)} tests local feature ${name}`, {document,line:directive.at[0],column:directive.at[1],stage:stage.name});
       }
       for (const rule of stage.grammar.rules.values()) for (const alternative of rule.alternatives) {
-        for (const guard of alternative.guards) if (!tested.has(guard.feature)) tested.set(guard.feature,stage.name);
+        for (const gate of alternative.gates) if (!tested.has(gate.feature)) tested.set(gate.feature,stage.name);
         if (alternative.clauses.warning && !tested.has(rule.name)) tested.set(rule.name,stage.name);
       }
       for (const name of stage.grammar.classifierGates) { if (!tested.has(name)) tested.set(name,stage.name); }
@@ -25518,7 +25519,7 @@
    * An entry of a classifier: its gates, its keys, `∈` or `∉`, and its class
    * (engine §2).
    * @typedef {object} DomEntry
-   * @property {Guard[]} guards gates only
+   * @property {Gate[]} gates gates only
    * @property {Term[]} keys the unresolved string keys
    * @property {"∈" | "∉"} op
    * @property {string} class an identifier tag that starts and ends with an uppercase ASCII letter
@@ -25603,7 +25604,7 @@
 
   /**
    * @typedef {object} DomAlternative
-   * @property {Guard[]} guards
+   * @property {Gate[]} gates
    * @property {Expr} expr
    * @property {Term} [tags]
    * @property {Recipe} [value]
@@ -25611,7 +25612,7 @@
    */
 
   /**
-   * @typedef {object} Guard
+   * @typedef {object} Gate
    * @property {string} feature
    * @property {"gate"} kind
    * @property {boolean} negated

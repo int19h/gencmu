@@ -283,42 +283,42 @@ type domBuilder struct {
 // §9). Every other rule is a wrapper, and the reader reads its parts in its
 // place.
 var domRules = map[string]bool{
-	"pattern-primary":    true,
-	"pattern-node":       true,
-	"pattern-bare":       true,
-	"pattern-children":   true,
-	"child-choice":       true,
-	"child-alternative":  true,
-	"child-set":          true,
-	"child-intersection": true,
-	"child-sequence":     true,
-	"child-item":         true,
-	"child-path":         true,
-	"child-primary":      true,
+	"pattern-primary":     true,
+	"pattern-node":        true,
+	"bare-child-list":     true,
+	"child-list":          true,
+	"child-choice":        true,
+	"child-alternative":   true,
+	"child-set-operation": true,
+	"child-intersection":  true,
+	"child-sequence":      true,
+	"child-item":          true,
+	"child-path":          true,
+	"child-primary":       true,
 
 	"splice": true, "error-clause": true, "warning-clause": true, "suppress-warnings-clause": true, "suppression-code": true, "call": true, "parameter": true, "call-argument": true, "requirement-argument": true, "target-argument": true, "body-argument": true, "symbol-argument": true, "parse-selector": true, "parse-argument": true,
 
-	"rule-name": true, "body": true, "primary": true, "emit-target": true, "condition": true, "argument": true, "term-atom": true,
-	"directive": true, "ranking-directive": true, "ranking-step": true, "rule": true, "definer": true, "alternative": true, "choice": true, "ranked-alternative": true, "ranked-choice": true,
-	"conjunction": true, "sequence": true, "repetition": true, "reference": true,
-	"string": true, "tag": true, "name": true,
-	"tested": true, "test": true, "test-operand": true, "capture": true, "group": true, "optional": true,
-	"empty": true, "tags-clause": true, "conditions-clause": true, "emits-clause": true,
-	"emit-item": true, "emit-tags": true, "emit-before": true, "emit-after": true, "implication": true,
+	"rule-name": true, "body": true, "primary": true, "emit-target": true, "condition-primary": true, "method-argument": true, "term-atom": true,
+	"directive": true, "ranking-directive": true, "ranking-step": true, "rule": true, "rule-keyword": true, "alternative": true, "choice": true, "ranked-body": true, "ranked-choice": true,
+	"some-of": true, "sequence": true, "repetition": true, "rule-reference": true,
+	"string": true, "tag": true, "rule-or-classifier-name": true,
+	"tested-primary": true, "value-comparator": true, "test-operand": true, "capture": true, "captured-terminator": true, "group": true, "optional": true,
+	"empty": true, "header-tags": true, "conditions-clause": true, "emits-clause": true,
+	"emit-item": true, "emit-tags": true, "attachment-before": true, "attachment-after": true, "condition": true,
 	"any-of": true, "all-of": true, "comparison": true, "negation": true,
-	"tree-comparison": true, "pattern-literal": true, "pattern-union": true, "pattern-intersection": true, "pattern-atom": true, "pattern-brackets": true, "pattern-repeat": true, "pattern-path": true,
+	"tree-comparison": true, "pattern-literal": true, "pattern-union": true, "pattern-intersection": true, "pattern-atom": true, "child-optional": true, "child-repetition": true, "pattern-path": true,
 	"presence": true, "term": true, "guarded-term": true, "union": true,
-	"term-condition": true, "union-operation": true, "intersection-operation": true, "set-atom": true,
+	"set-condition": true, "union-operation": true, "intersection-operation": true, "set-atom": true,
 	"intersection": true, "concatenation": true, "empty-set": true, "capture-reference": true,
-	"alternative-tags": true, "argument-word": true, "argument-string": true, "argument-tag": true, "guard": true,
+	"alternative-tags": true, "directive-identifier": true, "directive-string": true, "directive-terminal": true, "feature-gate": true,
 	"comparator": true, "range": true,
-	"constant-definition": true, "constant-definer": true, "constant-reference": true,
+	"constant-definition": true, "constant-keyword": true, "constant-name": true, "constant-reference": true,
 	"classifier": true, "classifier-name": true, "classifier-entry": true, "classifier-key": true,
 	"classifier-operator": true, "classifier-class": true, "implication-declaration": true,
 	"headed-body": true, "string-terminal": true, "wildcard": true, "tag-test": true, "tag-requirement": true, "value-test": true, "default-value": true,
-	"value-clause": true, "image-clause": true, "erased-clause": true, "recipe": true, "recipe-atom": true,
-	"method": true, "method-receiver": true, "method-selector": true, "method-name": true, "arguments": true,
-	"argument-term": true, "tag-run": true, "string-run": true, "integer": true, "tree-comparator": true,
+	"value-clause": true, "image-clause": true, "erased-clause": true, "recipe": true, "recipe-term": true,
+	"plain-term-atom": true, "method-chain": true, "method-receiver": true, "method-selector": true, "method-name": true, "method-arguments": true,
+	"directive-term": true, "tag-run": true, "string-run": true, "integer": true, "tree-comparator": true,
 }
 
 func (b *domBuilder) at(n *Node) [2]int {
@@ -477,10 +477,10 @@ func (b *domBuilder) knownOf(n *Node, kinds []string) *Node {
 // What a primary, a condition, a term and a term atom hold: the one rule
 // among their parts is one of these (engine §9).
 var (
-	primaryRules   = []string{"splice", "call", "parameter", "reference", "tag", "string-terminal", "wildcard", "range", "tested", "capture", "group", "optional", "repetition", "empty", "constant-reference"}
-	conditionRules = []string{"comparison", "tree-comparison", "method", "negation", "presence", "implication", "term-condition"}
+	primaryRules   = []string{"captured-terminator", "splice", "call", "parameter", "rule-reference", "tag", "string-terminal", "wildcard", "range", "tested-primary", "capture", "group", "optional", "repetition", "empty", "constant-reference"}
+	conditionRules = []string{"comparison", "tree-comparison", "method-chain", "negation", "presence", "condition", "set-condition"}
 	termRules      = []string{"union", "guarded-term"}
-	atomRules      = []string{"call", "parameter", "string", "tag", "term-atom", "range", "name", "empty-set", "term", "guarded-term", "union", "method", "tag-run", "string-run", "capture-reference", "constant-reference", "pattern-literal"}
+	atomRules      = []string{"call", "parameter", "string", "tag", "term-atom", "plain-term-atom", "range", "rule-or-classifier-name", "empty-set", "term", "guarded-term", "union", "method-chain", "tag-run", "string-run", "capture-reference", "constant-reference", "pattern-literal"}
 )
 
 func (b *domBuilder) tokenValue(n *Node) string {
@@ -553,21 +553,21 @@ func (b *domBuilder) document(root *Node) *domDoc {
 			for _, p := range ps {
 				// The operands are the argument parts alone. The reader
 				// ignores any other part (engine §9).
-				if p.Kind != KindRule || (p.Rule != "argument-word" && p.Rule != "argument-string" && p.Rule != "argument-tag" && p.Rule != "argument-term") {
+				if p.Kind != KindRule || (p.Rule != "directive-identifier" && p.Rule != "directive-string" && p.Rule != "directive-terminal" && p.Rule != "directive-term") {
 					continue
 				}
 				switch p.Rule {
-				case "argument-term":
+				case "directive-term":
 					dir.Args = append(dir.Args, "")
 					kinds = append(kinds, "term")
-				case "argument-word":
+				case "directive-identifier":
 					dir.Args = append(dir.Args, b.tokenValue(b.token(p)))
 					if isCapital(b.tokenValue(b.token(p))) {
 						kinds = append(kinds, operandClass)
 					} else {
 						kinds = append(kinds, operandName)
 					}
-				case "argument-string":
+				case "directive-string":
 					// Include paths name exact files. Other operands use values.
 					operand := b.tokenValue(b.token(p))
 					if (dir.Name == "include" || dir.Name == "names") && len(dir.Args) == 0 {
@@ -580,7 +580,7 @@ func (b *domBuilder) document(root *Node) *domDoc {
 						dir.Args = append(dir.Args, operand)
 					}
 					kinds = append(kinds, operandString)
-				case "argument-tag":
+				case "directive-terminal":
 					// Tags and ranges retain their operand kinds for directive refusal.
 					t := b.symbolPart(p)
 					if t.Kind == KindRule {
@@ -656,8 +656,8 @@ func (b *domBuilder) rankingDirective(n *Node) *domDirective {
 // value, a closed term of a type that a constant can have (engine §2, §9,
 // §10).
 func (b *domBuilder) constant(n *Node) *domConst {
-	definer := b.token(b.only(n, "constant-definer"))
-	reference := b.token(b.only(n, "constant-reference"))
+	definer := b.token(b.only(n, "constant-keyword"))
+	reference := b.token(b.only(n, "constant-name"))
 	k := &domConst{Name: strings.TrimPrefix(b.tokenValue(reference), "$"), Op: "define", At: b.at(n)}
 	if b.tokenValue(definer) == "%redefine-const" {
 		k.Op = "redefine"
@@ -693,13 +693,13 @@ func (b *domBuilder) classifier(n *Node) *domClassifier {
 // entry reads an entry of a classifier: gates, canonical keys, ∈ or ∉, and
 // a class (engine §2, §9).
 func (b *domBuilder) entry(n *Node) *domEntry {
-	e := &domEntry{Guards: []domGuard{}, At: b.at(n)}
-	for _, p := range b.ofRule(n, "guard") {
-		g := b.guard(p)
+	e := &domEntry{Gates: []domGate{}, At: b.at(n)}
+	for _, p := range b.ofRule(n, "feature-gate") {
+		g := b.gate(p)
 		if g.Kind != FeatureGate {
 			b.fail(p, "an entry of a classifier takes gates only, not a warning")
 		}
-		e.Guards = append(e.Guards, g)
+		e.Gates = append(e.Gates, g)
 	}
 	for _, p := range b.some(n, "classifier-key", 1) {
 		key := b.term(b.knownOf(p, []string{"string", "constant-reference"}))
@@ -740,7 +740,7 @@ func (b *domBuilder) rule(n *Node) *domRule {
 	defer func() { b.parameters = previous }()
 	// The definer, the name, the alternatives and the clauses; the syntax
 	// allows at most one of each clause, in order.
-	definer := b.token(b.only(n, "definer"))
+	definer := b.token(b.only(n, "rule-keyword"))
 	r := &domRule{At: b.at(definer), Conditions: []*domCond{}}
 	switch b.tokenValue(definer) {
 	case "%redefine-rule":
@@ -809,7 +809,7 @@ func (b *domBuilder) rule(n *Node) *domRule {
 	// The parts of a definition are read in the order written: the body,
 	// then its clauses in their fixed order, and the checks of the whole
 	// definition last (engine §9).
-	if p := b.one(n, "tags-clause"); p != nil {
+	if p := b.one(n, "header-tags"); p != nil {
 		r.Tags = b.constituentTags(p)
 	}
 	r.Value, r.Image = b.recipes(n)
@@ -818,7 +818,7 @@ func (b *domBuilder) rule(n *Node) *domRule {
 		body = b.only(n, "headed-body")
 	}
 	var alternatives []*Node
-	if ranked := b.one(body, "ranked-alternative"); ranked != nil {
+	if ranked := b.one(body, "ranked-body"); ranked != nil {
 		alternatives = []*Node{ranked}
 	} else {
 		alternatives = b.some(body, "alternative", 1)
@@ -828,7 +828,7 @@ func (b *domBuilder) rule(n *Node) *domRule {
 	}
 	if p := b.one(n, "conditions-clause"); p != nil {
 		// Each item of the list is one condition (§9).
-		for _, c := range b.some(p, "implication", 1) {
+		for _, c := range b.some(p, "condition", 1) {
 			r.Conditions = append(r.Conditions, b.implication(c))
 		}
 	}
@@ -888,10 +888,10 @@ func (b *domBuilder) checkRule(r *domRule) {
 	r.deferredEmission = result.deferred
 }
 
-// guard validates the complete token before the constructor reads later parts (§9.3).
-func (b *domBuilder) guard(n *Node) domGuard {
+// gate validates the complete token before the constructor reads later parts (§9.3).
+func (b *domBuilder) gate(n *Node) domGate {
 	spelling := b.tokenValue(b.token(n))
-	g := domGuard{Kind: FeatureGate, Negated: strings.HasPrefix(spelling, "¬")}
+	g := domGate{Kind: FeatureGate, Negated: strings.HasPrefix(spelling, "¬")}
 	name := strings.TrimPrefix(spelling, "¬")
 	switch {
 	case strings.HasSuffix(name, "?"):
@@ -906,15 +906,15 @@ func (b *domBuilder) guard(n *Node) domGuard {
 }
 
 func (b *domBuilder) alternative(n *Node) *domAlt {
-	a := &domAlt{Guards: []domGuard{}}
+	a := &domAlt{Gates: []domGate{}}
 	b.captureNodes = map[*domExpr]*Node{}
-	for _, p := range b.ofRule(n, "guard") {
-		a.Guards = append(a.Guards, b.guard(p))
+	for _, p := range b.ofRule(n, "feature-gate") {
+		a.Gates = append(a.Gates, b.gate(p))
 	}
-	if n.Rule == "ranked-alternative" {
+	if n.Rule == "ranked-body" {
 		a.Expr = b.expr(b.only(n, "ranked-choice"))
 	} else {
-		a.Expr = b.exprIn(b.only(n, "conjunction"), true)
+		a.Expr = b.exprIn(b.only(n, "some-of"), true)
 	}
 	// A name stands at most once in each production, gates aside: the
 	// error stands at the second capture that such a production reads, the
@@ -997,7 +997,7 @@ func before(a, c [2]int) bool {
 var capturedRules = map[string]bool{
 	"splice": true,
 	"call":   true, "parameter": true,
-	"reference": true, "tag": true, "string-terminal": true, "wildcard": true, "constant-reference": true, "range": true, "tested": true,
+	"rule-reference": true, "tag": true, "string-terminal": true, "wildcard": true, "constant-reference": true, "range": true, "tested-primary": true,
 }
 
 // firstOfRule is the first node of a rule at or below a node, in the order
@@ -1093,7 +1093,7 @@ func (b *domBuilder) emission(n *Node) *domEmit {
 		for _, side := range []struct {
 			name string
 			into *[]string
-		}{{"emit-before", &it.Before}, {"emit-after", &it.After}} {
+		}{{"attachment-before", &it.Before}, {"attachment-after", &it.After}} {
 			for _, attachment := range b.ofRule(item, side.name) {
 				for _, capture := range b.some(attachment, "capture-reference", 1) {
 					*side.into = append(*side.into, b.attachment(capture, attachment))
@@ -1198,7 +1198,7 @@ func (b *domBuilder) featureConditions(keyword, clause *Node) (conditions []*dom
 		}
 	}()
 	conditions = []*domCond{}
-	for _, condition := range b.some(clause, "implication", 1) {
+	for _, condition := range b.some(clause, "condition", 1) {
 		conditions = append(conditions, b.implication(condition))
 	}
 	return conditions

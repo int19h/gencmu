@@ -652,7 +652,7 @@ def expand_templates(documents, unicode):
         arg = normalize(argument)
         if any(k in arg for k in ('body', 'test', 'range', 'wildcard', 'splice')):
             rule = dict(name='text' if event['index'] in extra_indexes else event['rule']['name'], op='define', conditions=[],
-                        alternatives=[dict(guards=[], expr=rewrite(arg.get('body', arg), event, 'expr'))], at=event['rule']['at'])
+                        alternatives=[dict(gates=[], expr=rewrite(arg.get('body', arg), event, 'expr'))], at=event['rule']['at'])
             if any('param' in n for n in parts):
                 rule['params'] = event['rule']['params']
             arguments_to_check.append(dict(owner, rule=rule, fragment=True))

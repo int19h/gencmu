@@ -27,11 +27,11 @@ def value_notation(aliases: list[dict[str, Any]]) -> str:
     for index, alias in enumerate(aliases):
         name = f"value-alias-{index}"
         tags = [{"tag": tag} for tag in alias["tags"]]
-        piece["alternatives"].append({"guards": [], "expr": {"ref": name}})
+        piece["alternatives"].append({"gates": [], "expr": {"ref": name}})
         lexical["rules"].append({
             "name": name, "op": "define",
             "at": [100000 + index, 1], "conditions": [],
-            "alternatives": [{"guards": [], "expr": {"seq": [
+            "alternatives": [{"gates": [], "expr": {"seq": [
                 {"literal": {"string": character}} for character in alias["spelling"]
             ]}}],
             "emit": {"items": [{

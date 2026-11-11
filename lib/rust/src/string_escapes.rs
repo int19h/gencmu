@@ -32,7 +32,7 @@ const STATEMENTS: [&str; 15] = [
 
 impl DocumentStrings<'_> {
     pub fn inspect(&self, tokens: &[Token]) -> Result<(), Error> {
-        let quoted = |token: &Token| token.tags.contains("String") || token.tags.contains("Include-Path");
+        let quoted = |token: &Token| token.tags.contains("String") || token.tags.contains("Resource-Path");
         for pair in tokens.windows(2) {
             if pair[0].value == "%names" && quoted(&pair[1]) {
                 self.names_paths.borrow_mut().insert(pair[1].source.start);
@@ -52,7 +52,7 @@ impl DocumentStrings<'_> {
             index = end;
         }
         for token in tokens {
-            let path = token.tags.contains("Include-Path");
+            let path = token.tags.contains("Resource-Path");
             if path || token.tags.contains("String") {
                 self.decode(token, path)?;
             }

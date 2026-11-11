@@ -101,7 +101,6 @@ A further sentence cannot start with a paragraph mark or the end of a parenthesi
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/open-quote-sentence.svg" alt="Railroad diagram of the rule open-quote-sentence"></p>
 </details>
 
-
 ## Sentences and erasure
 
 A sentence starts with `A`, `O` or `NI`. An `A` sentence is an inner predicate, which is a chain with an optional arguments list. An `O` sentence names a definable word, then an inner predicate. An `NI` sentence names a definable word alone.
@@ -188,7 +187,6 @@ A paragraph mark at the start of a paragraph is always the paragraph's mark, so 
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/ni-sentence.svg" alt="Railroad diagram of the rule ni-sentence"></p>
 </details>
 
-
 Sentence erasure reads a sentence and then its `ra` run. Words erasure reads one or more words before that run. Either route can contain malformed words or syntax recovery. Its inner constituent is erased, so its errors, warnings, and measure disappear. The `ra` run stays outside and keeps its own diagnostics.
 
 `erased-sentence` holds the erased sentence. `erased-words` holds the arbitrary words, with their first word named by `invalid-head`. The outer rules retain the erasure's following-token guards. An empty erasure reads `ra` alone and erases nothing.
@@ -273,7 +271,6 @@ Erased text can follow an erasure too, because the later `ra` erases it. So `aft
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/after-erasure.svg" alt="Railroad diagram of the rule after-erasure"></p>
 </details>
 
-
 ## Definable words and inner predicates
 
 A definable word is a root, a compound, a freeform variable or a `GI` variable, each with optional annotations before it. The chapter on sentences lets a namespace precede it: a definable word or `MI` particle, then `pi`. A definable word for `O` and `NI` cannot start with an `MI` particle.
@@ -315,7 +312,6 @@ An inner predicate is a chain, with an optional arguments list before it. The ar
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/definition.svg" alt="Railroad diagram of the rule definition"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/arguments-list.svg" alt="Railroad diagram of the rule arguments-list"></p>
 </details>
-
 
 ## Chains
 
@@ -365,7 +361,6 @@ A step is a verb with its free suffixes and binds, then the rest of the chain. T
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/zi-free.svg" alt="Railroad diagram of the rule zi-free"></p>
 </details>
 
-
 ### Resuming a verb
 
 `PA` resumes the bindings of a verb earlier in the chain. The book does not describe `pa`, so the dictionary and the PEG are the sources. The dictionary says that `pa` "resumes bindings to a matching verb higher in the chain". The speaker repeats the verb after `pa`, then adds binds or continues the chain. The PEG resumes the latest matching verb, the deepest one in the right-grouped chain.
@@ -413,6 +408,19 @@ A written terminator never equals an elided one, so `to jie` and `to` are two ve
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/resume-head.svg" alt="Railroad diagram of the rule resume-head"></p>
 </details>
 
+The comparison uses identity demand, which selects occurrences that need tree identities. [Engine §4.1](../../../docs/engine.md#41-shared-candidate-observations) defines its scope and modes.
+
+`$v ≅ $e` in `resumed-step` runs at the advance over `$e`, before `step-tail`. It demands nothing of `step-tail` or `resume-head`. Its two `annotated-verb` occurrences demand tree identities. The recognizer predicts `resumed-step` at every step start, before it sees any `pa`.
+
+Every verb at the start of a step therefore carries identities. Inside that operand, demand reaches every observable descendant up to a seal, which hides a ranked or erased interior. This includes chains, steps, `step-tail` and bind groups inside an enumeration, quote or parenthetical in the verb. The enclosing step's `step-tail`, binds and top-level `text` stand outside the operand and carry none.
+
+The cost is the tree of each verb at the start of a step. A quote, enumeration or parenthetical inside that verb splits its items by its inner tree, including its inner binds. The binds of the enclosing step do not split its items. The recognizer also reads the same verb in ordinary mode, from `plain-step` and `passed-step`.
+
+The recognizer therefore reads the verb subtrees of a step twice. Ordinary mode keeps the items of a grammar without the comparison. Observed mode retains tree identities and keeps a second set of items. No factor bounds that set against the first. One ordinary item can stand for many trees, while observed mode gives each distinct tree its own item. The total is the sum of the two modes.
+
+The grammar passes the comparison-cycle check of [engine §9.3](../../../docs/engine.md#comparison-cycles). That check rejects cycles of marked edges, which connect observed constituents without reducing their span. Every path from `verb` back to `verb` reads a token first, such as `CA`, `PE`, `DA`, `DE` or `BU`. The inner span is therefore smaller. `annotated-verb` adds one marked edge to `verb`, because every postfix can be absent. That edge stands in no cycle.
+
+In `resumed-step`, each distinct tree of the outer verb supplies one comparison frame. The `sentence-of` query reaches this comparison and builds identities too.
 
 ## Binds
 
@@ -451,7 +459,6 @@ The empty-bind alternatives test the boundary after the postfixes that they read
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/fi-free.svg" alt="Railroad diagram of the rule fi-free"></p>
 </details>
 
-
 ## Verbs
 
 A verb is a definable word with its namespace, or an inline assignment with `bo`. It can also be a `KI`, `BA` or `MI` particle, a quote, an enumeration, a borrowing group or a number. A `KI`, a number and a borrowing group take no free prefix of their own, as in the PEG. So `a di 1` and `a di ualis` are rejected. The others can take free prefixes. Any verb of a chain can take free suffixes, as in `a ke de mi`, because `annotated-verb` reads them.
@@ -473,7 +480,6 @@ A verb is a definable word with its namespace, or an inline assignment with `bo`
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/inline-assignment.svg" alt="Railroad diagram of the rule inline-assignment"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/ba-free.svg" alt="Railroad diagram of the rule ba-free"></p>
 </details>
-
 
 ### Quotes
 
@@ -529,7 +535,6 @@ A quote holds several sentences in two cases: it has several paragraphs, or its 
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/foreign-quote.svg" alt="Railroad diagram of the rule foreign-quote"></p>
 </details>
 
-
 ### Enumerations
 
 The [enumeration chapter](https://eberban.github.io/eberban/books/refgram/book/grammar/enum.html) gives two forms. In the separator form, `PE` takes chains separated by `bu`. In the prefix form, `bu` follows `PE` directly, and each item is one verb with its binds. `pei` closes the enumeration, and the speaker can leave it out at the end of a sentence.
@@ -558,7 +563,6 @@ The [enumeration chapter](https://eberban.github.io/eberban/books/refgram/book/g
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/separator-form.svg" alt="Railroad diagram of the rule separator-form"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/bu-free.svg" alt="Railroad diagram of the rule bu-free"></p>
 </details>
-
 
 ### Borrowing groups and numbers
 
@@ -606,7 +610,6 @@ The chapter says that a `JI` other than `jie` "must follow positive integer (no 
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/digits.svg" alt="Railroad diagram of the rule digits"></p>
 </details>
 
-
 ## Annotations
 
 The [annotations chapter](https://eberban.github.io/eberban/books/refgram/book/grammar/annotations.html) gives free prefixes and suffixes. A prefix is a `DI` particle, with an optional `DU` scope before it. A suffix is `DE` with one verb, or a parenthetical text between `da` and `dai`. The chapter allows any valid text in a parenthetical, and an empty text is valid. So `da dai` is a parenthetical.
@@ -639,7 +642,6 @@ The [annotations chapter](https://eberban.github.io/eberban/books/refgram/book/g
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/interjection.svg" alt="Railroad diagram of the rule interjection"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/parenthetical.svg" alt="Railroad diagram of the rule parenthetical"></p>
 </details>
-
 
 ## Diagnostic recovery
 
@@ -854,7 +856,6 @@ The boundary query recognizes annotated `vi` and `fi`, with optional `bi`, witho
 An `o` or `ni` sentence needs a definable target before any definition. Its recovery reads the opening `o` or `ni` token alone. The `o` guard looks past any postfixes to its target.
 
 An unclosed parenthetical reports on its whole span, from `da` through the input end. A diagnostic on `da` alone permits a shorter recovery that loses the body. A written `dai` closes its parenthetical instead of becoming an unmatched closer there.
-
 
 ```jbogenbau
 %extend-rule o-sentence
@@ -1116,7 +1117,7 @@ A parenthetical needs a preceding head. So `a ca da mi cai` retains plain reject
 
 Missing-operand recovery stops at structural boundaries, including a bind opener. A dangling free prefix lies inside an unfinished operand and retains the default rejection. Examples are `a mi pa di` and `a mi dona va di`. The prefix supplies no complete operand for an independent resumption or binding diagnosis. A bare `be` also lies outside this boundary, so `a zi be` retains plain rejection. It supplies neither a modification operand nor a bind head.
 
-A missing parenthetical end reports only at input end. Recovery before `cai` needs the owning quote's own terminator status. Neighbour tests cannot qualify that node by its tags or a pattern. A named elided-quote constituent changes valid trees, and a splice cannot serve as a neighbour target. So a missing `dai` before `cai` retains ordinary rejection.
+A missing parenthetical end reports only at input end. Recovery before `cai` needs the owning quote's own terminator status. Neighbor tests cannot qualify that node by its tags or a pattern. A named elided-quote constituent changes valid trees, and a splice cannot serve as a neighbor target. So a missing `dai` before `cai` retains ordinary rejection.
 
 Enclosing bind and enumeration closers lie outside that boundary. Examples are `a mi va ke da mo fi ke vei` and `a pe ke da mo pei`. Their chosen readings report the unclosed parenthetical before its swallowed closer errors. Its diagnostic spans from `da` through input end.
 

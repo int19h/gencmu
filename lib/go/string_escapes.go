@@ -21,7 +21,7 @@ var namesStatementKeywords = []string{"%names", "%rule", "%redefine-rule", "%ext
 
 func (d *documentStrings) inspect(tokens []Token) *Error {
 	quoted := func(token Token) bool {
-		return slices.Contains(token.Tags, "String") || slices.Contains(token.Tags, "Include-Path")
+		return slices.Contains(token.Tags, "String") || slices.Contains(token.Tags, "Resource-Path")
 	}
 	d.namesPaths = map[int]bool{}
 	for i := 0; i+1 < len(tokens); i++ {
@@ -52,7 +52,7 @@ func (d *documentStrings) inspect(tokens []Token) *Error {
 	slices.Sort(extras)
 	d.names.extras = slices.Compact(extras)
 	for _, token := range tokens {
-		path := slices.Contains(token.Tags, "Include-Path")
+		path := slices.Contains(token.Tags, "Resource-Path")
 		if path || slices.Contains(token.Tags, "String") {
 			if _, err := d.decode(token, path); err != nil {
 				return err

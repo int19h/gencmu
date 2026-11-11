@@ -67,7 +67,7 @@ func (f *sourceArgumentFrame) resume(b *domBuilder, in any) readStep {
 	for len(f.value.Targets) < len(f.targets) {
 		target := f.targets[len(f.value.Targets)]
 		switch target.Rule {
-		case "reference":
+		case "rule-reference":
 			f.value.Targets = append(f.value.Targets, &domTerm{Kind: tmRule, Str: b.tokenValue(b.token(target)), At: b.at(target)})
 		case "tag":
 			f.value.Targets = append(f.value.Targets, &domTerm{Kind: tmTerminal, Str: b.tagOf(b.token(target)), At: b.at(target)})

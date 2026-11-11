@@ -24,10 +24,6 @@ A bundled name has two or more segments separated by `/`. Each segment matches `
 
 The [README table](../README.md#the-pipelines) describes the language pipelines and the notation pipeline.
 
-Portable JavaScript accepts a source map or plain object as `bundledPipelines(sources)`. With no sources, it returns an empty list because that entry point has no bundle. The Node entry point supplies its package's resources by default. The CLI uses that function, and the playground supplies its bundled source map.
-
-The portable JavaScript entry point has no bundled resources. Its map must supply `data/unicode/unicode.txt` and `data/preparsed/gencmu.json`. It needs `data/unicode/unicode-names.txt` for source names outside the core abbreviation map. Numeric escape parsing alone does not need names data. The map supplies `data/unicode/unicode-properties.txt` to support additional properties. Without it, a supplied core supports only its five core properties.
-
 A `data/unicode/unicode.txt` in the map replaces the bundled table entirely, with no fallback to the bundled data. This holds for `White_Space`, `Emoji_Presentation`, and `Emoji_Component` too, so the table must list the white space that the documents use. The table must give `Emoji_Presentation` to every emoji name that the documents use. Those names must also lack `Emoji_Component`. A code point that the core table omits has category `Cn` and lacks all three core binary properties. A companion's explicit assignments and declared defaults still apply to it (engine §1).
 
 A supplied `data/unicode/unicode-properties.txt` replaces bundled properties without fallback for omitted properties or values. Its Unicode version must match the core table. Even without an additional property reference, the loader reads every present properties file. An unavailable property reference is a grammar loading error at that reference. Missing bundled data, malformed files, and version mismatches are resource loading errors. Node bundle discovery, enumeration, and file reads report these failures as `grammar` errors.
@@ -76,21 +72,13 @@ A diagnostic copies its location fields, including independent copies of `group`
 
 Ranked-choice loading errors also carry `code`, `group`, `option`, `expression`, and `inheritance` where available. `docs/output.md` defines their schema and canonical member order. These members remain outside parse-result warnings and document caches.
 
-Rust exposes these optional fields through `code()`, `group()`, `option()`, `expression()`, and `inheritance()` on `Error`. These accessors borrow stored data without creating a diagnostic.
-
 [Output formats](output.md) defines the grammar DOM, cache, and parse-result schemas. The compatibility boundary is the schema version and the notation contract. Callers supply DOMs of that version or grammar text in the specified notation.
-
-Each JavaScript loader cache keeps at most 256 entries and 4,000,000 UTF-16 code units. Eviction removes the least recently used entries. The DOM cache counts source text. The preparsed cache counts DOM JSON. The preparsed-file cache counts paths.
-
-The Python loaders also take `use_cache=False`. With it, the loader reads every document through the notation.
 
 ### The pipeline's features
 
 A feature is a named switch for a gate or warning code (engine §13).
 
 A loaded pipeline lists its features (engine §13), in code point order of the names. The list includes classifier gates and every surviving warning rule, named by its code. Error codes are not selectable features. One name cannot serve different roles across stages. Each feature in the list has its name, its kind (`gate` or `warning`), and whether the pipeline turns it on by default. The CLI and the playground use the list to offer the features by name.
-
-The JavaScript audit gives the static ranking reports of `docs/design.md`. Python and Rust expose `ranking_reports()`. Go exposes `RankingReports()`. Python prints them through `format_ranking_reports()`. Go uses `FormatRankingReports`. Rust uses `format_ranking_reports`.
 
 Unconditional declarations, global or stage-local, set `default:true`. The inventory does not depend on the caller's last stage. Conditional declarations contribute feature names without defaults. Warning codes use the same enable and disable arguments as gates. Disabling a warning changes reports only, including message evaluation. Suppression follows the grammar and cannot enable a disabled code.
 
@@ -137,7 +125,7 @@ A `reported` result keeps the chosen tree, its `unique` or `resolved` verdict, a
 
 `until` selects the reporting stage. For example, inspection through forms reports surviving forms errors while preserving the emitted forms tokens. A tie lists errors and warnings from its two shown readings. Rejection, feature-conflict, and grammar envelopes also retain diagnostics under engine §12.1.
 
-Every other error result has a null `tree`. If a message recipe fails, the stage keeps its verdict and gives a `grammar` result. It has no output. Its envelope retains pending stage-level diagnostics, evaluated own messages outside erased subtrees, and carried input diagnostics under engine §12.1. Earlier stage outputs remain.
+Every other error result has a null `tree`. The recipe language has no message that can fail. Engine §12.1 defines the guard for a failure.
 
 The result also has `features`, the enabled feature names in code point order, without duplicates. This field stays outside canonical JSON. Go calls it `Features`.
 
@@ -170,13 +158,15 @@ The native fields use these spellings. Diagnostic collections contain the object
 
 A named instance uses its public name everywhere, including `insertedBy`, warnings, expected lists, and error witnesses. A binding adds no tree node.
 
-A node has its kind (`rule`, `token` or `elided`), its rule or terminal, its span and source range, its tags and its children. A token node also has the index of the token that it read. An equality-tested elided node also has `value`, its saved restoration operand, including an explicit empty string. Other nodes omit `value`.
+A node has its kind (`rule`, `token` or `elided`) and its rule or terminal. It also has a span, a source range, tags and children. A token node also has the index of the token that it read. An elided node with a default from `≝` or an equality test also has `value`. This saved restoration operand includes an explicit empty string. Other nodes omit `value`.
 
 Tags are a set of tags, each a string in its canonical spelling (engine §1). Source positions count Unicode code points, whatever the string indexing of the language is. Spans and token indices count tokens of the relevant stage.
 
 A result shares no value that can change with the pipeline, or with the tokens of the caller. This holds for every tag set of a token or a node, in the chosen tree and the readings of an error. So a change to a result changes no later parse. A later change to a token of the caller does not change the result.
 
 ### Output
+
+The JavaScript audit gives the static ranking reports of `docs/design.md`. Python and Rust expose `ranking_reports()`. Go exposes `RankingReports()`. Python prints them through `format_ranking_reports()`. Go uses `FormatRankingReports`. Rust uses `format_ranking_reports`.
 
 Every library writes the canonical JSON of a result as text, in the key order that `docs/output.md` gives. Every library also renders a result as brackets, with elided terminators hidden or shown. The JavaScript library also renders the tree listing and the display JSON, for the CLI and the playground.
 
@@ -256,6 +246,14 @@ toJson(result); toBrackets(result, { showElided: true });
 - Errors are `GencmuError`, with `kind` and `where`.
 - The lower-level `Loader`, `loaderFromSources` and `loaderFromDirectory` are available for tools that load several pipelines over one set of documents. `Loader.splice(path)` expands includes into stage document runs. `Loader.pipeline(path)` returns a loaded `Pipeline`.
 
+The JSON value that `resultJson` or `displayValue` returns owns its arrays independently of the input result.
+
+Each JavaScript loader cache keeps at most 256 entries and 4,000,000 UTF-16 code units. Eviction removes the least recently used entries. The DOM cache counts source text. The preparsed cache counts DOM JSON. The preparsed-file cache counts paths.
+
+The portable JavaScript entry point has no bundled resources. Its map must supply `data/unicode/unicode.txt` and `data/preparsed/gencmu.json`. It needs `data/unicode/unicode-names.txt` for source names outside the core abbreviation map. Numeric escape parsing alone does not need names data. The map supplies `data/unicode/unicode-properties.txt` to support additional properties. Without it, a supplied core supports only its five core properties.
+
+Portable JavaScript accepts a source map or plain object as `bundledPipelines(sources)`. With no sources, it returns an empty list because that entry point has no bundle. The Node entry point supplies its package's resources by default. The CLI uses that function, and the playground supplies its bundled source map.
+
 The JavaScript entry points also export helpers for the CLI and playground:
 
 - `fnv1a64(text)` returns the FNV-1a hash of the UTF-8 bytes as 16 hexadecimal digits.
@@ -268,11 +266,13 @@ The JavaScript entry points also export helpers for the CLI and playground:
 
 The portable `gencmu` entry point and `gencmu/node` both export the first six helpers.
 
-The `tokens` arguments come from the stage that produced `root`. The tree listing uses their originating Unicode table.
+Both helpers take `stage.input` as their `tokens` argument. Find that stage by name in `result.stages`, then pass its tree as `root`. The tree listing uses the input tokens' originating Unicode table.
 
 The types are in the package's declarations (`lib/js/types/`).
 
 ## Python
+
+`gencmu` loads pipelines and parses text in Python.
 
 ```python
 import gencmu
@@ -289,6 +289,8 @@ pipeline.features  # (Feature(name="cll-cyrillic", kind="gate", default=True),
 gencmu.to_json(result)
 gencmu.to_brackets(result, show_elided=True)
 ```
+
+The Python loaders also take `use_cache=False`. With it, the loader reads every document through the notation.
 
 - `bundled_pipelines() -> list[str]` lists the bundled full names.
 - `load_pipeline(name)`, `load_pipeline_file(path)` and `load_pipeline_sources(sources, path)` load a pipeline. `sources` is a mapping from path to text.
@@ -340,6 +342,8 @@ gencmu.Brackets(result, gencmu.BracketOptions{ShowElided: true})
 
 ## Rust
 
+The Rust crate loads pipelines and parses text without dependencies.
+
 ```rust
 let pipeline = gencmu::load_pipeline("lojban/cll")?;
 let result = pipeline.parse("mi klama", &gencmu::ParseOptions {
@@ -359,6 +363,8 @@ let features = pipeline.features(); // &[Feature { name, kind, default }]
 gencmu::to_json(&result);
 gencmu::to_brackets(&result, true);
 ```
+
+Rust exposes the optional fields of ranked-choice loading errors through `code()`, `group()`, `option()`, `expression()`, and `inheritance()` on `Error`. These accessors borrow stored data without creating a diagnostic.
 
 - `bundled_pipelines() -> Vec<String>` lists the bundled full names.
 - `load_pipeline(name)`, `load_pipeline_file(path)` and `load_pipeline_sources(sources, path)` each return `Result<Pipeline, gencmu::Error>`.

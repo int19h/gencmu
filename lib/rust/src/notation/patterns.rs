@@ -48,7 +48,7 @@ impl<'a> Reader<'a> {
             match rule_name(frame.node) {
                 "pattern-union" => frame.parts = self.some(frame.node, "pattern-intersection", 1)?,
                 "pattern-intersection" => frame.parts = self.some(frame.node, "pattern-path", 1)?,
-                "child-set" => {
+                "child-set-operation" => {
                     frame.parts.retain(|part| matches!(rule_name(part), "child-intersection" | "child-path"))
                 }
                 "child-intersection" => frame.parts = self.some(frame.node, "child-path", 1)?,
@@ -57,28 +57,28 @@ impl<'a> Reader<'a> {
                 "child-alternative" => {
                     frame.parts = vec![match self.rules(frame.node, "child-sequence").next() {
                         Some(sequence) => sequence,
-                        None => self.one(frame.node, "child-set")?,
+                        None => self.one(frame.node, "child-set-operation")?,
                     }]
                 }
                 "pattern-primary" => {
-                    frame.parts = vec![self.inner(frame.node, &["pattern-node", "pattern-bare", "pattern-union"])?]
+                    frame.parts = vec![self.inner(frame.node, &["pattern-node", "bare-child-list", "pattern-union"])?]
                 }
                 "child-primary" => {
-                    frame.parts = vec![self.inner(frame.node, &["pattern-node", "pattern-bare", "child-choice"])?]
+                    frame.parts = vec![self.inner(frame.node, &["pattern-node", "bare-child-list", "child-choice"])?]
                 }
-                "pattern-children" => frame.parts = self.rules(frame.node, "child-choice").take(1).collect(),
-                "pattern-brackets" => {
+                "child-list" => frame.parts = self.rules(frame.node, "child-choice").take(1).collect(),
+                "child-optional" => {
                     frame.parts = self.some(frame.node, "child-choice", 1)?.into_iter().take(1).collect()
                 }
-                "pattern-repeat" => {
+                "child-repetition" => {
                     frame.parts = self.some(frame.node, "child-choice", 1)?.into_iter().take(2).collect()
                 }
                 "pattern-path" => frame.parts = vec![self.one(frame.node, "pattern-primary")?],
                 "child-path" => frame.parts = vec![self.one(frame.node, "child-primary")?],
                 _ => {}
             }
-            if matches!(rule_name(frame.node), "pattern-node" | "pattern-bare") {
-                frame.parts = self.rules(frame.node, "pattern-children").take(1).collect();
+            if matches!(rule_name(frame.node), "pattern-node" | "bare-child-list") {
+                frame.parts = self.rules(frame.node, "child-list").take(1).collect();
                 if rule_name(frame.node) == "pattern-node" {
                     return Ok(Step::Call(Frame::PatternAtom(self.one(frame.node, "pattern-atom")?)));
                 }
@@ -150,7 +150,7 @@ impl<'a> Reader<'a> {
                 }
                 Ok(values.pop().unwrap())
             }
-            "pattern-node" | "pattern-bare" => {
+            "pattern-node" | "bare-child-list" => {
                 let atom = frame.atom.unwrap();
                 let exact = self.tokens_of(node).any(|token| self.value(token) == "·");
                 let children = values.pop().map(|value| value.items(self, node).map(Children::Sequence)).transpose()?;
@@ -160,7 +160,7 @@ impl<'a> Reader<'a> {
                     atom
                 }))
             }
-            "pattern-union" | "pattern-intersection" | "child-set" | "child-intersection" => {
+            "pattern-union" | "pattern-intersection" | "child-set-operation" | "child-intersection" => {
                 if values.is_empty() {
                     return Err(self.shape_error(node, "pattern operands"));
                 }
@@ -177,8 +177,8 @@ impl<'a> Reader<'a> {
                     .map(|token| self.value(token))
                     .filter(|op| matches!(*op, "∪" | "∖") || kind != "pattern-union" && *op == "∩")
                     .collect();
-                if matches!(kind, "pattern-union" | "child-set") {
-                    let required = operands.len().saturating_sub(1).max(usize::from(kind == "child-set"));
+                if matches!(kind, "pattern-union" | "child-set-operation") {
+                    let required = operands.len().saturating_sub(1).max(usize::from(kind == "child-set-operation"));
                     if ops.len() < required {
                         return Err(self.shape_error(node, "operator"));
                     }
@@ -220,7 +220,7 @@ impl<'a> Reader<'a> {
                     Value::Pattern(result)
                 })
             }
-            "pattern-children" => Ok(values.pop().unwrap_or_else(|| Value::Items(Vec::new()))),
+            "child-list" => Ok(values.pop().unwrap_or_else(|| Value::Items(Vec::new()))),
             "child-choice" => {
                 let mut arms: Vec<_> = values
                     .into_iter()
@@ -238,7 +238,7 @@ impl<'a> Reader<'a> {
                     return Err(self.shape_error(node, "one child operand"));
                 }
                 let value = values.pop().unwrap();
-                Ok(if matches!(rule_name(frame.parts[0]), "child-set" | "pattern-node" | "pattern-bare") {
+                Ok(if matches!(rule_name(frame.parts[0]), "child-set-operation" | "pattern-node" | "bare-child-list") {
                     Value::Items(vec![Children::Node(Box::new(value.pattern(self, node)?))])
                 } else {
                     value
@@ -247,15 +247,15 @@ impl<'a> Reader<'a> {
             "child-sequence" => Ok(Value::Items(vec![Children::Sequence(
                 values.into_iter().map(|value| value.items(self, node).map(Children::Sequence)).collect::<R<_>>()?,
             )])),
-            "pattern-brackets" | "pattern-repeat" => {
-                if values.is_empty() || kind == "pattern-brackets" && values.len() != 1 {
+            "child-optional" | "child-repetition" => {
+                if values.is_empty() || kind == "child-optional" && values.len() != 1 {
                     return Err(self.shape_error(node, "child choice"));
                 }
                 let mut parts = values
                     .into_iter()
                     .map(|value| value.items(self, node).map(|items| Box::new(Children::Sequence(items))));
                 let body = parts.next().unwrap()?;
-                Ok(Value::Items(vec![if kind == "pattern-brackets" {
+                Ok(Value::Items(vec![if kind == "child-optional" {
                     Children::Optional(body)
                 } else {
                     Children::Repeat(body, parts.next().transpose()?)

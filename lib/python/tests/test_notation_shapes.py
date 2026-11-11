@@ -76,7 +76,7 @@ class NotationShapes(unittest.TestCase):
 
     def test_a_supplied_ranked_choice_error_has_no_syntax_code(self) -> None:
         bootstrap = BOOTSTRAP.replace(
-            '{"seq":[{"ref":"conjunction"},{"literal":{"string":"≻"}},{"repeat":{"ref":"conjunction"},"separator":{"literal":{"string":"≻"}}}]}',
+            '{"seq":[{"ref":"some-of"},{"literal":{"string":"≻"}},{"repeat":{"ref":"some-of"},"separator":{"literal":{"string":"≻"}}}]}',
             '{"literal":{"string":"."}}',
         )
         with self.assertRaises(gencmu.GencmuError) as caught:
@@ -92,15 +92,15 @@ class NotationShapes(unittest.TestCase):
         documents = {path:entry["dom"] for path,entry in parsed["documents"].items()}
         lexical = documents["grammars/gencmu/jbogenbau/lexical.md"]
         next(rule for rule in lexical["rules"] if rule["name"] == "feature-character")["alternatives"].append(
-            {"guards": [], "expr": {"literal": {"string": "_"}}}
+            {"gates": [], "expr": {"literal": {"string": "_"}}}
         )
         syntax = documents["grammars/gencmu/jbogenbau/syntax.md"]
-        next(rule for rule in syntax["rules"] if rule["name"] == "guard")["alternatives"][0]["expr"] = {
-            "seq": [{"ref": "padding"}, {"ref": "Guard"}]
+        next(rule for rule in syntax["rules"] if rule["name"] == "feature-gate")["alternatives"][0]["expr"] = {
+            "seq": [{"ref": "padding"}, {"ref": "Gate"}]
         }
         syntax["rules"].append({
             "name": "padding", "op": "define",
-            "alternatives": [{"guards": [], "expr": {"empty": True}}],
+            "alternatives": [{"gates": [], "expr": {"empty": True}}],
             "conditions": [], "at": [1, 1],
         })
         bootstrap = json.dumps(parsed, ensure_ascii=False)
@@ -128,8 +128,8 @@ class NotationShapes(unittest.TestCase):
         in `...`, which is also three `.`, and the document does not load."""
         parsed = json.loads(BOOTSTRAP)
         lexical_dom = parsed["documents"]["grammars/gencmu/jbogenbau/lexical.md"]["dom"]
-        next(r for r in lexical_dom["rules"] if r["name"] == "symbol")["alternatives"].append(
-            {"guards": [], "expr": {"literal": {"string": "."}}}
+        next(r for r in lexical_dom["rules"] if r["name"] == "punctuation")["alternatives"].append(
+            {"gates": [], "expr": {"literal": {"string": "."}}}
         )
         bootstrap = json.dumps(parsed, separators=(",", ":"), ensure_ascii=False)
         directive = next(item for item in lexical_dom["directives"] if item["name"] == "ambiguity-resolution")
@@ -162,7 +162,7 @@ class NotationShapes(unittest.TestCase):
                 for field in ("ref", "rule"):
                     syntax = syntax.replace(f'"{field}":"{name}"', f'"{field}":"{name}-wrapper"')
             wrappers = "".join(
-                f'{{"name":"{name}-wrapper","op":"define","alternatives":[{{"guards":[],"expr":{{"ref":"{name}"}}}}],'
+                f'{{"name":"{name}-wrapper","op":"define","alternatives":[{{"gates":[],"expr":{{"ref":"{name}"}}}}],'
                 f'"conditions":[],"at":[{100000 + index},1]}},'
                 for index, name in enumerate(NAMES)
             )

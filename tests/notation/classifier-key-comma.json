@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%classifier lex\n\"ko,a\" ∈ KOhA\n```\n",
   "expect": {
     "dom": {
-      "format": 48,
+      "format": 49,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -12,7 +12,7 @@
           "name": "lex",
           "entries": [
             {
-              "guards": [],
+              "gates": [],
               "keys": [
                 {
                   "string": "ko,a"

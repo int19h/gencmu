@@ -61,7 +61,7 @@ fn feature(name: &str) -> bool {
         && name.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-')
 }
 
-fn guards(value: Option<&Json>, _gates: bool) -> bool {
+fn gates(value: Option<&Json>, _gates: bool) -> bool {
     value.and_then(Json::as_array).is_some_and(|items| {
         items.iter().all(|item| {
             exact(item, &["feature", "kind", "negated"], &[])
@@ -360,8 +360,8 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
                         return Some("an empty alternative list".into());
                     };
                     for alt in alts {
-                        if !exact(alt, &["guards", "expr"], &["tags", "value", "image"])
-                            || !guards(alt.get("guards"), false)
+                        if !exact(alt, &["gates", "expr"], &["tags", "value", "image"])
+                            || !gates(alt.get("gates"), false)
                         {
                             return Some("a malformed alternative".into());
                         }
@@ -451,8 +451,8 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
                     };
                     for entry in entries {
                         let class = entry.get("class").and_then(Json::as_str);
-                        if !exact(entry, &["guards", "keys", "op", "class", "at"], &[])
-                            || !guards(entry.get("guards"), true)
+                        if !exact(entry, &["gates", "keys", "op", "class", "at"], &[])
+                            || !gates(entry.get("gates"), true)
                             || !matches!(entry.get("op").and_then(Json::as_str), Some("∈" | "∉"))
                             || !is_position(entry.get("at"))
                             || !class.is_some_and(|name| {

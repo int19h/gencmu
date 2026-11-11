@@ -55,7 +55,7 @@
           "name": "rK",
           "alternatives": [
             {
-              "guards": [
+              "gates": [
                 {
                   "feature": "fK"
                 }

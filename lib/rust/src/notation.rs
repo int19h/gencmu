@@ -3,7 +3,7 @@
 use crate::dom::{
     call_type, comparison_problem, constant_type_problem, expected_problem, is_capture_name, is_classifier_name,
     joined_type, literal_call_problem, Alternative, Arg, Attachments, Chain, Channels, ClassifierDef, Cond, ConstDef,
-    Directive, Dom, EmitItem, Entry, Expr, FeatureKind, Guard, ImplicationDef, Mark, Op, RuleDef, Term, Type,
+    Directive, Dom, EmitItem, Entry, Expr, FeatureKind, Gate, ImplicationDef, Mark, Op, RuleDef, Term, Type,
 };
 use crate::error::Error;
 use crate::fxhash::{FxMap, FxSet};
@@ -237,7 +237,7 @@ impl<'a> Reader<'a> {
     /// An entry of a classifier: gates, canonical keys, `∈` or `∉`, and a
     /// class (engine §2, §9).
     fn entry(&self, node: &'a Node) -> R<Entry> {
-        let guards = self.rules(node, "guard").map(|guard| self.guard(guard, true)).collect::<R<_>>()?;
+        let gates = self.rules(node, "feature-gate").map(|gate| self.gate(gate, true)).collect::<R<_>>()?;
         let mut keys = Vec::new();
         for key_node in self.some(node, "classifier-key", 1)? {
             let key = self.string_operand(self.inner(key_node, &["string", "constant-reference"])?)?;
@@ -257,7 +257,7 @@ impl<'a> Reader<'a> {
                 self.error(class_node, format!("{written} is not a class: a class starts and ends with a capital"))
             );
         }
-        Ok(Entry { guards, keys, adds, class: class.to_string(), at: self.first(node) })
+        Ok(Entry { gates, keys, adds, class: class.to_string(), at: self.first(node) })
     }
 
     /// An implication, `%implies A ⟹ B`: two closed terms whose type is a
@@ -282,8 +282,8 @@ impl<'a> Reader<'a> {
     /// A constant's definition: its name without `$`, and its value, a
     /// closed term of a type that a constant can have (engine §2, §9, §10).
     fn constant(&self, node: &'a Node) -> R<ConstDef> {
-        let definer = self.token(self.one(node, "constant-definer")?)?;
-        let reference = self.token(self.one(node, "constant-reference")?)?;
+        let definer = self.token(self.one(node, "constant-keyword")?)?;
+        let reference = self.token(self.one(node, "constant-name")?)?;
         let name = self.value(reference).strip_prefix('$').unwrap_or("").to_string();
         if !crate::dom::is_constant_name(&name) {
             return Err(self.error(reference, "a constant requires a user name"));
@@ -311,12 +311,15 @@ impl<'a> Reader<'a> {
             .parts(node)
             .into_iter()
             .filter(|part| {
-                matches!(rule_name(part), "argument-word" | "argument-string" | "argument-tag" | "argument-term")
+                matches!(
+                    rule_name(part),
+                    "directive-identifier" | "directive-string" | "directive-terminal" | "directive-term"
+                )
             })
             .collect();
-        let names = parts.iter().all(|part| rule_name(part) == "argument-word");
+        let names = parts.iter().all(|part| rule_name(part) == "directive-identifier");
         let operand_problem = match name {
-            "include" | "names" if parts.len() != 1 || rule_name(parts[0]) != "argument-string" => {
+            "include" | "names" if parts.len() != 1 || rule_name(parts[0]) != "directive-string" => {
                 Some(format!("%{name} takes one string"))
             }
             "stage" | "extend-stage" | "redefine-stage" if parts.len() != 1 || !names => {
@@ -378,7 +381,7 @@ impl<'a> Reader<'a> {
                 }
                 self.feature_context.set(true);
                 let conditions = (|| {
-                    self.some(clause, "implication", 1)?
+                    self.some(clause, "condition", 1)?
                         .into_iter()
                         .map(|item| self.implication(item))
                         .collect::<R<Vec<_>>>()
@@ -438,7 +441,7 @@ impl<'a> Reader<'a> {
     }
 
     fn rule(&self, node: &'a Node) -> R<RuleDef> {
-        let definer = self.token(self.one(node, "definer")?)?;
+        let definer = self.token(self.one(node, "rule-keyword")?)?;
         let mut source = crate::dom::source::SourceHead::default();
         let (name, name_token) = if let Some(name) = self.rules(node, "rule-name").next() {
             let token = self.token(name)?;
@@ -520,7 +523,7 @@ impl<'a> Reader<'a> {
         // The parts of a definition are read in the order written: the
         // body, then its clauses in their fixed order, and the checks of the
         // whole definition last (§9).
-        let tags = match self.rules(node, "tags-clause").next() {
+        let tags = match self.rules(node, "header-tags").next() {
             Some(clause) => Some(self.constituent_tags(clause)?),
             None => None,
         };
@@ -531,7 +534,7 @@ impl<'a> Reader<'a> {
             .next()
             .or_else(|| self.rules(node, "headed-body").next())
             .ok_or_else(|| self.shape_error(node, "body"))?;
-        let alternatives_nodes = match self.rules(body, "ranked-alternative").next() {
+        let alternatives_nodes = match self.rules(body, "ranked-body").next() {
             Some(ranked) => vec![ranked],
             None => self.some(body, "alternative", 1)?,
         };
@@ -541,7 +544,7 @@ impl<'a> Reader<'a> {
         // Each condition of the list is one condition (§9).
         let mut conditions = Vec::new();
         if let Some(clause) = self.rules(node, "conditions-clause").next() {
-            for implication in self.some(clause, "implication", 1)? {
+            for implication in self.some(clause, "condition", 1)? {
                 conditions.push(self.implication(implication)?);
             }
         }
@@ -617,7 +620,7 @@ impl<'a> Reader<'a> {
         Ok(())
     }
 
-    fn guard(&self, node: &'a Node, _gates_only: bool) -> R<Guard> {
+    fn gate(&self, node: &'a Node, _gates_only: bool) -> R<Gate> {
         let text = self.value(self.token(node)?);
         let text = text.strip_suffix('?').ok_or_else(|| self.error(node, "a guard ends with ?"))?;
         let kind = FeatureKind::Gate;
@@ -631,20 +634,20 @@ impl<'a> Reader<'a> {
         {
             return Err(self.error(node, "invalid feature name"));
         }
-        Ok(Guard { feature: feature.into(), kind, negated })
+        Ok(Gate { feature: feature.into(), kind, negated })
     }
 
     fn alternative(&self, node: &'a Node) -> R<Alternative> {
-        // A guard token is `f?` or `¬f?` (§9).
-        let guards = self.rules(node, "guard").map(|guard| self.guard(guard, false)).collect::<R<_>>()?;
+        // A gate token is `f?` or `¬f?` (§9).
+        let gates = self.rules(node, "feature-gate").map(|gate| self.gate(gate, false)).collect::<R<_>>()?;
         self.captures.borrow_mut().clear();
-        let expr = if rule_name(node) == "ranked-alternative" {
+        let expr = if rule_name(node) == "ranked-body" {
             match self.run(Frame::Choice(Choice::new(self.one(node, "ranked-choice")?)))? {
                 Val::Expr(expr) => expr,
                 _ => unreachable!("an expression reads an expression"),
             }
         } else {
-            self.conjunction(self.one(node, "conjunction")?, true)?
+            self.conjunction(self.one(node, "some-of")?, true)?
         };
         // A name stands at most once in each production, gates aside: the
         // error stands at the second capture that such a production reads,
@@ -706,12 +709,12 @@ impl<'a> Reader<'a> {
             Some(tags) => Some(self.constituent_tags(tags)?),
             None => None,
         };
-        Ok(Alternative { guards, expr, tags, strings: self.channels(node)?, ranked_locations: Default::default() })
+        Ok(Alternative { gates, expr, tags, strings: self.channels(node)?, ranked_locations: Default::default() })
     }
 
     /// A rule's or an alternative's tags, which say what the constituent's
     /// tags are and so cannot read them: `$.tags` and `$.classes` are
-    /// errors anywhere in them, guards included (§9), reported at the
+    /// errors anywhere in them, gates included (§9), reported at the
     /// clause.
     fn constituent_tags(&self, node: &'a Node) -> R<Term> {
         let source = self.one(node, "term")?;
@@ -739,7 +742,7 @@ impl<'a> Reader<'a> {
         let mut literals = Vec::new();
         let mut pending = vec![node];
         while let Some(part) = pending.pop() {
-            if matches!(rule_name(part), "pattern-literal" | "any-of" | "method" | "call") {
+            if matches!(rule_name(part), "pattern-literal" | "any-of" | "method-chain" | "call") {
                 continue;
             }
             if rule_name(part) == "tag" {
@@ -836,7 +839,7 @@ impl<'a> Reader<'a> {
             Frame::Argument(argument) => self.resume_argument(argument, input),
             Frame::Implication(conditions) => self.resume_implication(conditions, input),
             Frame::AnyOf(conditions) => self.resume_connective(conditions, input, "all-of"),
-            Frame::AllOf(conditions) => self.resume_connective(conditions, input, "condition"),
+            Frame::AllOf(conditions) => self.resume_connective(conditions, input, "condition-primary"),
             Frame::Condition(condition) => self.resume_condition(condition, input),
         }
     }
@@ -882,7 +885,7 @@ impl<'a> Reader<'a> {
                 frame.node = ranked;
                 frame.ranked = true;
             }
-            frame.conjunctions = Some(self.some(frame.node, "conjunction", if frame.ranked { 2 } else { 1 })?);
+            frame.conjunctions = Some(self.some(frame.node, "some-of", if frame.ranked { 2 } else { 1 })?);
             if frame.ranked {
                 // No item capture stands inside a ranked group (§3.5, §9).
                 self.ranked.set(self.ranked.get() + 1);
@@ -939,11 +942,11 @@ impl<'a> Reader<'a> {
         let inner = if PRIMARIES.contains(&rule_name(node)) { node } else { self.inner(node, PRIMARIES)? };
         let token = || self.token(inner);
         Ok(match rule_name(inner) {
-            "reference" | "tag" | "string-terminal" | "constant-reference" | "wildcard" | "range" => {
+            "rule-reference" | "tag" | "string-terminal" | "constant-reference" | "wildcard" | "range" => {
                 Step::Done(Val::Expr(self.symbol(inner)?))
             }
             "splice" => {
-                let target = self.inner(inner, &["reference", "call"])?;
+                let target = self.inner(inner, &["rule-reference", "call"])?;
                 let marker = self.token(inner)?;
                 if self.tokens[marker.token.unwrap()].source.end != self.tokens[target.span.start].source.start {
                     return Err(self.error(inner, "a splice marker stands directly before its target"));
@@ -953,8 +956,8 @@ impl<'a> Reader<'a> {
             }
             "parameter" => Step::Done(Val::Expr(Expr::Source(self.source_parameter(inner)?))),
             "call" => Step::Call(Frame::SourceCall(CallFrame::new(inner))),
-            "tested" => Step::Call(Frame::Tested(Tested::new(inner))),
-            "capture" => {
+            "tested-primary" => Step::Call(Frame::Tested(Tested::new(inner))),
+            "capture" | "captured-terminator" => {
                 // A capture stands anywhere but in a chain or an elidable
                 // optional (§3.5, §9), and its own form is checked before
                 // what it wraps. Inside flat braces it is an item capture.
@@ -990,11 +993,11 @@ impl<'a> Reader<'a> {
                     return Err(self.error(capture, "a capture's name is all lower case"));
                 }
                 let wrapped = self.inner(primary, PRIMARIES)?;
-                if rule_name(wrapped) == "tested" {
+                if rule_name(wrapped) == "tested-primary" {
                     let base = self.test_base(wrapped)?.ok_or_else(|| self.shape_error(wrapped, "primary"))?;
                     if !matches!(
                         rule_name(base),
-                        "reference"
+                        "rule-reference"
                             | "tag"
                             | "string-terminal"
                             | "constant-reference"
@@ -1009,7 +1012,7 @@ impl<'a> Reader<'a> {
                 }
                 if !matches!(
                     rule_name(wrapped),
-                    "reference"
+                    "rule-reference"
                         | "tag"
                         | "string-terminal"
                         | "constant-reference"
@@ -1017,7 +1020,7 @@ impl<'a> Reader<'a> {
                         | "range"
                         | "call"
                         | "parameter"
-                        | "tested"
+                        | "tested-primary"
                         | "splice"
                 ) {
                     return Err(self.error(capture, "a capture wraps one symbol"));
@@ -1067,7 +1070,7 @@ impl<'a> Reader<'a> {
             return Ok(Step::Done(Val::Expr(Expr::Optional(Box::new(expr), frame.mark, default))));
         }
         let node = frame.node;
-        if let Some(capture) = self.rules(node, "capture").next() {
+        if let Some(capture) = self.rules(node, "captured-terminator").next() {
             let markers: Vec<_> =
                 self.tokens_of(node).chain(self.tokens_of(capture)).filter(|t| self.value(t) == "+").collect();
             if markers.len() > 1 {
@@ -1077,14 +1080,14 @@ impl<'a> Reader<'a> {
                 return Err(self.error(node, "a captured elidable optional holds only its terminator"));
             }
             let head = self.inner(self.one(capture, "primary")?, PRIMARIES)?;
-            let base = if rule_name(head) == "tested" {
+            let base = if rule_name(head) == "tested-primary" {
                 self.test_base(head)?
                     .ok_or_else(|| self.error(node, "a captured elidable optional holds only its terminator"))?
             } else {
                 head
             };
             if rule_name(base) != "parameter"
-                && !(matches!(rule_name(base), "tag" | "reference")
+                && !(matches!(rule_name(base), "tag" | "rule-reference")
                     && self.tokens_of(base).next().is_some_and(|t| is_capital(self.value(t))))
             {
                 return Err(self.error(node, "a captured elidable optional holds only its terminator"));
@@ -1115,7 +1118,7 @@ impl<'a> Reader<'a> {
         };
         // One conjunction of one sequence, with no leading | or & either:
         // the terminator stands directly after the marker (§9).
-        let conjunctions: Vec<&Node> = self.rules(choice, "conjunction").collect();
+        let conjunctions: Vec<&Node> = self.rules(choice, "some-of").collect();
         let leading = self.tokens_of(choice).any(|token| self.value(token) == "|")
             || (conjunctions.len() == 1 && self.tokens_of(conjunctions[0]).any(|token| self.value(token) == "&"));
         let sequences: Vec<&Node> = if conjunctions.len() == 1 && !leading {
@@ -1135,10 +1138,10 @@ impl<'a> Reader<'a> {
             rule_name(symbol) == "parameter"
                 || rule_name(symbol) == "tag"
                     && self.tokens_of(symbol).next().is_some_and(|token| is_capital(self.value(token)))
-                || (rule_name(symbol) == "reference"
+                || (rule_name(symbol) == "rule-reference"
                     && self.tokens_of(symbol).next().is_some_and(|token| is_capital(self.value(token))))
         };
-        if rule_name(head) == "tested" {
+        if rule_name(head) == "tested-primary" {
             let base = self.test_base(head)?;
             if !base.is_some_and(is_terminal) {
                 return Err(form());
@@ -1217,7 +1220,7 @@ impl<'a> Reader<'a> {
         Ok(self
             .parts(node)
             .into_iter()
-            .find(|part| rule_name(part) != "tested" && PRIMARIES.contains(&rule_name(part))))
+            .find(|part| rule_name(part) != "tested-primary" && PRIMARIES.contains(&rule_name(part))))
     }
 
     /// A reference, terminal, range or property, and one test on its own
@@ -1242,7 +1245,7 @@ impl<'a> Reader<'a> {
             let base = self.test_base(node)?.ok_or_else(|| self.shape_error(node, "primary"))?;
             let valid = matches!(
                 rule_name(base),
-                "reference"
+                "rule-reference"
                     | "tag"
                     | "string-terminal"
                     | "constant-reference"
@@ -1297,7 +1300,7 @@ impl<'a> Reader<'a> {
             let (op, operand) = if rule_name(test) == "tag-test" {
                 ("tags".into(), self.source_requirements(test, "a tag requirement requires a tag or tag-set constant")?)
             } else {
-                let comparator = self.operator(self.token(self.one(test, "test")?)?).to_string();
+                let comparator = self.operator(self.token(self.one(test, "value-comparator")?)?).to_string();
                 let operand = self.one(test, "test-operand")?;
                 (comparator, self.value_test_operand(operand)?)
             };
@@ -1375,7 +1378,7 @@ impl<'a> Reader<'a> {
     /// Whether a set-operation operand holds a Boolean method as its last
     /// step, which is a condition and not a term (engine §9.3).
     fn query_method_operand(&self, node: &'a Node) -> bool {
-        if rule_name(node) == "method" {
+        if rule_name(node) == "method-chain" {
             let selectors: Vec<&Node> = self.rules(node, "method-selector").collect();
             if let Some(last) = selectors.last() {
                 let name = if self.rules(last, "parse-selector").next().is_some() {
@@ -1398,9 +1401,7 @@ impl<'a> Reader<'a> {
             });
         }
         self.parts(node).into_iter().any(|child| {
-            child.kind == NodeKind::Rule
-                && !matches!(rule_name(child), "implication")
-                && self.query_method_operand(child)
+            child.kind == NodeKind::Rule && !matches!(rule_name(child), "condition") && self.query_method_operand(child)
         })
     }
 
@@ -1561,7 +1562,7 @@ impl<'a> Reader<'a> {
         }
         let node = frame.node;
         let inner = if ATOMS.contains(&rule_name(node))
-            && !matches!(rule_name(node), "term" | "guarded-term" | "union" | "term-atom")
+            && !matches!(rule_name(node), "term" | "guarded-term" | "union" | "term-atom" | "plain-term-atom")
         {
             node
         } else {
@@ -1573,7 +1574,7 @@ impl<'a> Reader<'a> {
             // A span may stand in parentheses where a span is due.
             "term" | "guarded-term" => Ok(Step::Call(Frame::Term(TermFrame::new(inner, frame.argument)))),
             "union" => Ok(Step::Call(Frame::Union(Joined::new(inner, frame.argument)))),
-            "term-atom" => Ok(Step::Call(Frame::Atom(Atom::new(inner, frame.argument)))),
+            "term-atom" | "plain-term-atom" => Ok(Step::Call(Frame::Atom(Atom::new(inner, frame.argument)))),
             "parameter" => typed(Term::Source(self.source_parameter(inner)?), Type::Any),
             "call" => Ok(Step::Call(Frame::SourceCall(CallFrame::new(inner)))),
             "string" => typed(self.string_term(token()?)?, Type::String),
@@ -1607,7 +1608,7 @@ impl<'a> Reader<'a> {
             "range" => Err(self.error(inner, "a range is a terminal, not a value term")),
             // A bare name is a tag literal if it begins with a capital, and
             // otherwise a rule, which only a function's argument names.
-            "name" => {
+            "rule-or-classifier-name" => {
                 let name = self.value(token()?);
                 if !is_capital(name) {
                     return Err(self.error(inner, format!("{name} names a rule, which is not a value")));
@@ -1628,7 +1629,7 @@ impl<'a> Reader<'a> {
                 }
                 typed(Term::Capture(name), Type::Span)
             }
-            "method" => Ok(Step::Call(Frame::Method(MethodFrame::new(inner, false)))),
+            "method-chain" => Ok(Step::Call(Frame::Method(MethodFrame::new(inner, false)))),
             "pattern-literal" => {
                 frame.pattern_closed = Some(self.closed_for.replace(None));
                 Ok(Step::Call(Frame::Pattern(self.pattern_frame(self.one(inner, "pattern-primary")?))))
@@ -1638,7 +1639,7 @@ impl<'a> Reader<'a> {
     }
 
     fn pattern_rule_name(node: &Node) -> bool {
-        matches!(rule_name(node), "name" | "reference")
+        matches!(rule_name(node), "rule-or-classifier-name" | "rule-reference")
             || node.kind == NodeKind::Token && matches!(node.terminal.as_deref(), Some("Emoji-Name" | "Lowercase-Name"))
     }
 
@@ -1649,8 +1650,8 @@ impl<'a> Reader<'a> {
             .find(|part| {
                 matches!(
                     rule_name(part),
-                    "name"
-                        | "reference"
+                    "rule-or-classifier-name"
+                        | "rule-reference"
                         | "tag"
                         | "string"
                         | "string-terminal"
@@ -1702,7 +1703,9 @@ impl<'a> Reader<'a> {
                 self.constant_reference(token)?;
                 (P::Constant(self.value(token)[1..].into(), self.at(token)), true)
             }
-            _ if first.kind == NodeKind::Token || matches!(rule_name(first), "name" | "reference") => {
+            _ if first.kind == NodeKind::Token
+                || matches!(rule_name(first), "rule-or-classifier-name" | "rule-reference") =>
+            {
                 let token = if first.kind == NodeKind::Token { first } else { self.token(first)? };
                 let name = self.value(token);
                 if !Self::pattern_rule_name(first) && (is_capital(name) || name.starts_with('_')) {
@@ -1770,7 +1773,7 @@ impl<'a> Reader<'a> {
             let (op, operand) = if rule_name(test) == "tag-test" {
                 ("tags".into(), self.pattern_requirements(test)?)
             } else {
-                let op = self.operator(self.token(self.one(test, "test")?)?).into();
+                let op = self.operator(self.token(self.one(test, "value-comparator")?)?).into();
                 let operand = self.one(test, "test-operand")?;
                 (op, self.value_test_operand(operand)?)
             };
@@ -1824,7 +1827,7 @@ impl<'a> Reader<'a> {
     fn resume_method(&self, frame: &mut MethodFrame<'a>, input: Option<Val>) -> R<Step<'a>> {
         if frame.receiver.is_none() && input.is_none() {
             let receiver = self.one(frame.node, "method-receiver")?;
-            let atom = self.one(receiver, "term-atom")?;
+            let atom = self.one(receiver, "plain-term-atom")?;
             frame.dependent = self.source_unresolved(atom);
             return Ok(Step::Call(Frame::Atom(Atom::new(atom, true))));
         }
@@ -1887,15 +1890,15 @@ impl<'a> Reader<'a> {
                 choice.whole = true;
                 return Ok(Step::Call(Frame::Choice(choice)));
             }
-            frame.arguments = Some(match self.rules(selector, "arguments").next() {
-                Some(arguments) => self.some(arguments, "argument", 1)?,
+            frame.arguments = Some(match self.rules(selector, "method-arguments").next() {
+                Some(arguments) => self.some(arguments, "method-argument", 1)?,
                 None => Vec::new(),
             });
         }
         if let Some(&argument) = frame.arguments.as_ref().unwrap().get(frame.args.len()) {
             return Ok(Step::Call(Frame::Argument(ArgumentFrame { node: argument })));
         }
-        if let Some(arguments) = self.rules(selector, "arguments").next() {
+        if let Some(arguments) = self.rules(selector, "method-arguments").next() {
             let expected = if matches!(name, "followed-by" | "preceded-by") { "|" } else { "," };
             if self.parts(arguments).iter().any(|part| part.kind == NodeKind::Token && self.value(part) != expected) {
                 return Err(self.error(arguments, "invalid method argument separator"));
@@ -2086,7 +2089,7 @@ impl<'a> Reader<'a> {
             return Ok(Step::Call(Frame::AnyOf(Conditions::new(any_of))));
         }
         if frame.items.len() == parts.len() {
-            if let Some(consequent) = self.rules(frame.node, "implication").next() {
+            if let Some(consequent) = self.rules(frame.node, "condition").next() {
                 return Ok(Step::Call(Frame::Implication(Conditions::new(consequent))));
             }
         }
@@ -2131,7 +2134,7 @@ impl<'a> Reader<'a> {
             frame.inner = Some(inner);
             return Ok(match rule_name(inner) {
                 // Parentheses make no node of their own (§9).
-                "implication" => Step::Call(Frame::Implication(Conditions::new(inner))),
+                "condition" => Step::Call(Frame::Implication(Conditions::new(inner))),
                 "tree-comparison" => {
                     let capture = self
                         .value(self.token(self.one(inner, "capture-reference")?)?)
@@ -2140,7 +2143,9 @@ impl<'a> Reader<'a> {
                         .to_owned();
                     frame.op = self.operator(self.token(self.one(inner, "tree-comparator")?)?).to_owned();
                     let right = self.one(inner, "union")?;
-                    if let Some(name) = first_of_rule(right, "name").or_else(|| first_of_rule(right, "tag")) {
+                    if let Some(name) =
+                        first_of_rule(right, "rule-or-classifier-name").or_else(|| first_of_rule(right, "tag"))
+                    {
                         if right
                             .span
                             .end
@@ -2164,13 +2169,13 @@ impl<'a> Reader<'a> {
                     frame.right = Some(operands[1]);
                     Step::Call(Frame::Union(Joined::new(operands[0], false)))
                 }
-                "negation" => Step::Call(Frame::Condition(ConditionFrame::new(self.one(inner, "condition")?))),
+                "negation" => Step::Call(Frame::Condition(ConditionFrame::new(self.one(inner, "condition-primary")?))),
                 "presence" => {
                     let token = self.token(inner)?;
                     Step::Done(Val::Cond(Cond::Captured(self.value(token).strip_prefix('$').unwrap_or("").to_string())))
                 }
-                "method" => Step::Call(Frame::Method(MethodFrame::new(inner, true))),
-                "term-condition" => {
+                "method-chain" => Step::Call(Frame::Method(MethodFrame::new(inner, true))),
+                "set-condition" => {
                     let operation = self.inner(inner, &["union-operation", "intersection-operation", "set-atom"])?;
                     match rule_name(operation) {
                         "union-operation" => {
@@ -2231,7 +2236,7 @@ impl<'a> Reader<'a> {
                 let Val::Cond(cond) = value else { unreachable!("a negation holds a condition") };
                 Ok(Step::Done(Val::Cond(Cond::Not(Box::new(cond)))))
             }
-            "term-condition" => {
+            "set-condition" => {
                 let Val::Term(term, ty) = value else { unreachable!("a set term is a term") };
                 if !self.feature_context.get()
                     && !matches!(ty, Type::Tags | Type::Strings | Type::Set | Type::Any | Type::Forest)
@@ -2258,7 +2263,7 @@ impl<'a> Reader<'a> {
     fn symbol(&self, node: &'a Node) -> R<Expr> {
         match rule_name(node) {
             "parameter" => Ok(Expr::Source(self.source_parameter(node)?)),
-            "reference" => {
+            "rule-reference" => {
                 let token = self.token(node)?;
                 let name = self.value(token);
                 Ok(Expr::Ref(name.into()))
@@ -2366,7 +2371,7 @@ impl<'a> Reader<'a> {
         let recipe = self.one(clause, "recipe")?;
         let mut atoms = Vec::new();
         self.in_recipe.set(true);
-        for atom in self.some(recipe, "recipe-atom", 1)? {
+        for atom in self.some(recipe, "recipe-term", 1)? {
             if !atoms.is_empty() {
                 return Err(self.error(atom, "juxtaposed recipe strings require ++, use ++ between string atoms"));
             }
@@ -2447,7 +2452,7 @@ impl<'a> Reader<'a> {
             let tags = self
                 .rules(node, "emit-tags")
                 .next()
-                .or_else(|| self.rules(node, "tags-clause").next())
+                .or_else(|| self.rules(node, "header-tags").next())
                 .map(|clause| self.tag_term(self.one(clause, "term")?))
                 .transpose()?;
             return Ok(vec![EmitItem::Capture(
@@ -2469,7 +2474,7 @@ impl<'a> Reader<'a> {
             }
             let mut before = Vec::new();
             let mut after = Vec::new();
-            for (name, list) in [("emit-before", &mut before), ("emit-after", &mut after)] {
+            for (name, list) in [("attachment-before", &mut before), ("attachment-after", &mut after)] {
                 for side in self.rules(item, name) {
                     for capture in self.some(side, "capture-reference", 1)? {
                         let token = self.token(capture)?;
@@ -2518,9 +2523,12 @@ impl<'a> Reader<'a> {
                 return None;
             };
             let [atom] = self.rules(concatenation, "term-atom").collect::<Vec<_>>()[..] else { return None };
-            let inner = self.inner(atom, ATOMS).ok()?;
+            let mut inner = self.inner(atom, ATOMS).ok()?;
+            while rule_name(inner) == "plain-term-atom" {
+                inner = self.inner(inner, ATOMS).ok()?;
+            }
             match rule_name(inner) {
-                "name" => {
+                "rule-or-classifier-name" => {
                     let name = self.value(self.tokens_of(inner).next()?);
                     return (!is_capital(name)).then(|| name.to_string());
                 }
@@ -2887,27 +2895,27 @@ const KNOWN: &[&str] = &[
     "image-clause",
     "erased-clause",
     "recipe",
-    "recipe-atom",
-    "method",
+    "recipe-term",
+    "method-chain",
     "method-receiver",
     "method-selector",
     "parse-selector",
     "parse-argument",
     "method-name",
-    "arguments",
+    "method-arguments",
     "tag-run",
     "string-run",
     "integer",
-    "argument-term",
+    "directive-term",
     "tree-comparison",
     "tree-comparator",
     "pattern-primary",
     "pattern-node",
-    "pattern-bare",
-    "pattern-children",
+    "bare-child-list",
+    "child-list",
     "child-choice",
     "child-alternative",
-    "child-set",
+    "child-set-operation",
     "child-intersection",
     "child-sequence",
     "child-item",
@@ -2917,15 +2925,15 @@ const KNOWN: &[&str] = &[
     "pattern-union",
     "pattern-intersection",
     "pattern-atom",
-    "pattern-brackets",
-    "pattern-repeat",
+    "child-optional",
+    "child-repetition",
     "pattern-path",
     "directive",
     "ranking-directive",
     "ranking-step",
-    "argument-word",
-    "argument-string",
-    "argument-tag",
+    "directive-identifier",
+    "directive-string",
+    "directive-terminal",
     "classifier",
     "classifier-name",
     "classifier-entry",
@@ -2934,61 +2942,64 @@ const KNOWN: &[&str] = &[
     "classifier-class",
     "implication-declaration",
     "constant-definition",
-    "constant-definer",
+    "constant-keyword",
+    "constant-name",
     "constant-reference",
     "rule",
-    "definer",
+    "rule-keyword",
     "rule-name",
     "body",
     "alternative",
-    "ranked-alternative",
+    "ranked-body",
     "ranked-choice",
-    "guard",
+    "feature-gate",
     "alternative-tags",
     "choice",
-    "conjunction",
+    "some-of",
     "sequence",
     "primary",
     "repetition",
-    "reference",
+    "rule-reference",
     "tag",
     "range",
-    "tested",
-    "test",
+    "tested-primary",
+    "value-comparator",
     "test-operand",
     "capture",
+    "captured-terminator",
     "group",
     "optional",
     "empty",
-    "tags-clause",
+    "header-tags",
     "conditions-clause",
     "emits-clause",
     "emit-item",
     "emit-target",
     "emit-tags",
-    "emit-before",
-    "emit-after",
-    "implication",
+    "attachment-before",
+    "attachment-after",
+    "condition",
     "any-of",
     "all-of",
-    "condition",
+    "condition-primary",
     "comparison",
     "comparator",
     "negation",
     "presence",
-    "term-condition",
+    "set-condition",
     "union-operation",
     "intersection-operation",
     "set-atom",
-    "argument",
+    "method-argument",
     "term",
     "guarded-term",
     "union",
     "intersection",
     "concatenation",
     "term-atom",
+    "plain-term-atom",
     "string",
-    "name",
+    "rule-or-classifier-name",
     "empty-set",
     "capture-reference",
 ];
@@ -3001,11 +3012,12 @@ const PRIMARIES: &[&str] = &[
     "parameter",
     "string-terminal",
     "wildcard",
-    "reference",
+    "rule-reference",
     "tag",
     "range",
-    "tested",
+    "tested-primary",
     "capture",
+    "captured-terminator",
     "group",
     "optional",
     "repetition",
@@ -3013,24 +3025,25 @@ const PRIMARIES: &[&str] = &[
     "constant-reference",
 ];
 const CONDITIONS: &[&str] =
-    &["tree-comparison", "comparison", "method", "negation", "presence", "implication", "term-condition"];
+    &["tree-comparison", "comparison", "method-chain", "negation", "presence", "condition", "set-condition"];
 const TERMS: [&str; 2] = ["union", "guarded-term"];
 const ATOMS: &[&str] = &[
     "call",
     "parameter",
-    "method",
+    "method-chain",
     "tag-run",
     "string-run",
     "pattern-literal",
     "string",
     "tag",
     "range",
-    "name",
+    "rule-or-classifier-name",
     "empty-set",
     "term",
     "guarded-term",
     "union",
     "term-atom",
+    "plain-term-atom",
     "capture-reference",
     "constant-reference",
 ];
@@ -3285,7 +3298,7 @@ fn call_name_lookup_precedes_argument_lookup() {
     wildcard.children.clear();
     let wildcard_error = reader.symbol(&wildcard).is_err();
     let mut atom = wildcard.clone();
-    atom.rule = Some("recipe-atom".into());
+    atom.rule = Some("recipe-term".into());
     atom.span = 999..1000;
     let mut recipe = wildcard.clone();
     recipe.rule = Some("recipe".into());
@@ -3323,7 +3336,7 @@ fn call_name_lookup_precedes_argument_lookup() {
     }
     comparison.children.push(right);
     let mut condition = wildcard.clone();
-    condition.rule = Some("condition".into());
+    condition.rule = Some("condition-primary".into());
     condition.children.push(comparison);
     let span_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         reader.run(Frame::Condition(ConditionFrame::new(&condition)))

@@ -305,8 +305,8 @@ async function main() {
       cache.bundledNames["grammars/test/smoke-extra-names.txt"] = g.fnv1a64("unicode-names 15.1.0\nname E000 SMOKE LETTER\n");
       const dependencies = { "data/unicode/unicode-names.txt":cache.bundledNames["data/unicode/unicode-names.txt"], "grammars/test/smoke-extra-names.txt":cache.bundledNames["grammars/test/smoke-extra-names.txt"] };
       cache.documents = {};
-      cache.documents["grammars/test/smoke-names.md"] = { hash:g.fnv1a64(source), names:dependencies, dom:{ format:48,
-        rules:[{name:"text",op:"define",alternatives:[{guards:[],expr:{literal:{string:"b"}}}],conditions:[],at:[4,1]}],
+      cache.documents["grammars/test/smoke-names.md"] = { hash:g.fnv1a64(source), names:dependencies, dom:{ format:49,
+        rules:[{name:"text",op:"define",alternatives:[{gates:[],expr:{literal:{string:"b"}}}],conditions:[],at:[4,1]}],
         directives:[{name:"names",args:["smoke-extra-names.txt"],at:[1,1]},{name:"stage",args:["main"],at:[2,1]},
           {name:"ambiguity-resolution",steps:[{step:"greedy"}],at:[3,1]}],constants:[],classifiers:[],implications:[] } };
       const proof = (documents,text) => new Promise((resolve,reject) => {

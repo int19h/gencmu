@@ -8,11 +8,11 @@
 <g class="rule"><rect x="40" y="34" width="100" height="24" rx="0"/><text x="90" y="51" textLength="84" lengthAdjust="spacingAndGlyphs">child-path</text></g>
 <path d="M140 46H211"/>
 <path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="68" width="151" height="24" rx="0"/><text x="115.5" y="85" textLength="134.4" lengthAdjust="spacingAndGlyphs">pattern-brackets</text></g>
-<path d="M191 80H191a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="40" y="68" width="134" height="24" rx="0"/><text x="107" y="85" textLength="117.6" lengthAdjust="spacingAndGlyphs">child-optional</text></g>
+<path d="M174 80H191a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="102" width="134" height="24" rx="0"/><text x="107" y="119" textLength="117.6" lengthAdjust="spacingAndGlyphs">pattern-repeat</text></g>
-<path d="M174 114H191a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="40" y="102" width="151" height="24" rx="0"/><text x="115.5" y="119" textLength="134.4" lengthAdjust="spacingAndGlyphs">child-repetition</text></g>
+<path d="M191 114H191a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V138a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="40" y="136" width="42" height="24" rx="12"/><text x="61" y="153" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;⋯&quot;</text></g>
 <path d="M82 148H191a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>

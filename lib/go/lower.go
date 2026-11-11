@@ -444,10 +444,10 @@ func (lw *lowerer) newHelper(owner *sAlt, ownerRule string) int32 {
 	return id
 }
 
-// guardsHold says whether an alternative's gates all hold; a warning is not
+// gatesHold says whether an alternative's gates all hold; a warning is not
 // a gate and never drops its alternative (§3.1).
-func (lw *lowerer) guardsHold(a *domAlt) bool {
-	for _, gd := range a.Guards {
+func (lw *lowerer) gatesHold(a *domAlt) bool {
+	for _, gd := range a.Gates {
 		if lw.features[gd.Feature] == gd.Negated {
 			return false
 		}
@@ -472,7 +472,7 @@ func (lw *lowerer) mentionsItem(c *domCond) bool {
 func (lw *lowerer) lowerRule(r *sRule) {
 	var alts []*sAlt
 	for _, a := range r.alts {
-		if lw.guardsHold(a.alt) {
+		if lw.gatesHold(a.alt) {
 			alts = append(alts, a)
 		}
 	}
