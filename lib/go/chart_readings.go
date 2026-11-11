@@ -162,7 +162,9 @@ func (r *recognizer) chartReading(local *checkValue, clean bool) *nestedResult {
 		if r.localEligibility == nil {
 			var all []*item
 			for _, set := range r.sets {
-				all = append(all, set.items...)
+				for _, completion := range set.syms {
+					all = append(all, completion.items...)
+				}
 			}
 			r.localEligibility = r.eligibilityStates(all, true)
 		}

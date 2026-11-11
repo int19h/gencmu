@@ -4193,12 +4193,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     index
                 });
                 let states = chart.local_eligibility.get_or_init(|| {
-                    let all: Vec<_> = chart
-                        .sets
-                        .iter()
-                        .enumerate()
-                        .flat_map(|(set, items)| (0..items.items.len()).map(move |item| (set as u32, item as u32)))
-                        .collect();
+                    let all: Vec<_> = index.values().flatten().copied().collect();
                     let flags = self.proofs(chart).flags(&all, tokens, self.shared.carried_errors(0, tokens.len()));
                     all.into_iter().zip(flags).collect()
                 });

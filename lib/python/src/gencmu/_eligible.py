@@ -49,7 +49,7 @@ def chart_eligible(forest, witnesses, error_free):
     if not witnesses:
         return witnesses
     if forest.query_eligibility is None:
-        forest.query_eligibility = eligibility(forest, list(range(len(forest.prod))), True)
+        forest.query_eligibility = eligibility(forest, list(forest.tag), True)
     return [item for item in witnesses if forest.query_eligibility[item] & (1 if error_free else 3)]
 
 

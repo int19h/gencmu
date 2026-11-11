@@ -3636,7 +3636,7 @@
     while(pending.length) {
       const node=pending.pop();if(!node)continue;
       if(typeof node.capture==='string')return true;
-      pending.push(...expressionChildren(node));
+      for(const child of expressionChildren(node))pending.push(child);
     }
     return false;
   }
@@ -3645,7 +3645,7 @@
    * @param {any} lowered */
   function prepareChartReadings(lowered) {
     const usesLocal=lowered.checks.some((/** @type {any} */ check)=>{
-      const pending=[check.conditions];while(pending.length){const node=pending.pop();if(node?.method==='local-readings')return true;pending.push(...clauseChildren(node));}return false;
+      const pending=[check.conditions];while(pending.length){const node=pending.pop();if(node?.method==='local-readings')return true;for(const child of clauseChildren(node))pending.push(child);}return false;
     });
     if(!usesLocal){sites.set(lowered,{symbols:new WeakMap(),rules:new Map()});return;}
     const properties=new Map();
@@ -3664,7 +3664,7 @@
             if(arg.rule)calls.add(arg.rule);
             else if(arg.body)calls.add(bodyTarget(lowered,arg.body));
           }
-          pending.push(...clauseChildren(node));
+          for(const child of clauseChildren(node))pending.push(child);
         }
       }
       for(const child of calls)properties.get(child)?.parents.add(name);
@@ -5959,12 +5959,13 @@
   const stageEligibility=new WeakMap();
 
   /** One least fixed point shared by all local readings of the stage.
+   * Every completed item roots its proof dependencies.
    * @param {Chart} chart @param {Item[]} witnesses @param {boolean} errorFree */
   function chartEligibleWitnesses(chart,witnesses,errorFree) {
     if(!witnesses.length)return witnesses;
     let states=stageEligibility.get(chart);
     if(!states) {
-      const all=chart.sets.flatMap(set=>set?.items??[]);
+      const all=chart.sets.flatMap(set=>set?.items.filter(item=>item.complete)??[]);
       states=eligibility(chart,all,true);stageEligibility.set(chart,states);
     }
     return witnesses.filter(item=>errorFree?!!((states.get(item)??0)&1):!!states.get(item));
@@ -6219,7 +6220,7 @@
         }
       }
     }
-    return new Map(order.map((item,index)=>[item,eligible[index]]));
+    return new Map(witnesses.map(item=>[item,eligible[/** @type {number} */(index.get(item))]]));
   }
 
   // ---- nullable-errors.js

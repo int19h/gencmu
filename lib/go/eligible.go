@@ -377,8 +377,8 @@ func (r *recognizer) eligibilityStates(items []*item, errorFree bool) map[*item]
 		}
 	}
 	states := map[*item]uint8{}
-	for x, item := range e.order {
-		states[item] = E[x]
+	for _, item := range items {
+		states[item] = E[e.index[item]]
 	}
 	return states
 }
