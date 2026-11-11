@@ -2722,7 +2722,7 @@ string-run = string string {string}
 term-atom = plain-term-atom | method-chain
 plain-term-atom = tag-run | string-run | operand-atom
 method-chain = method-receiver method-selector {method-selector}
-method-receiver = term-atom
+method-receiver = plain-term-atom
 method-selector = "." (parse-selector | named-selector)
 named-selector = (method-name - "parse") ["(" method-arguments ")"]
 parse-selector = "parse" "(" parse-argument ")"
@@ -2812,7 +2812,7 @@ Each production name identifies its syntax constructor. Section 9.3 defines wrap
 
 The ordinary selector excludes the method name `parse`. Its dedicated route reads a constituent argument rather than term arguments. The Unicode mark `…` occurs only at an outer edge of that argument. It is distinct from ASCII `...` in chains and `⋯` in patterns.
 
-A method receiver retains a `term-atom` constructor. Explicit grouping and selector folding keep the same DOM. The `headed-body` constructor supplies the header branch's ordinary alternatives or its single ranked alternative.
+A method receiver retains a `plain-term-atom` constructor. Its selectors form one chain. Explicit grouping and selector folding keep the same DOM. The `headed-body` constructor supplies the header branch's ordinary alternatives or its single ranked alternative.
 
 Tests can follow every primary, in any number and order. A capture target is any primary. Within a capture, following tests belong to its target. Thus `$x:A<B>="v"` captures the tested A, rather than testing the capture. One `tested-primary` constructor holds the unwrapped base constructor and every following test in written order.
 
@@ -3007,7 +3007,7 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `recipe-term` | One recognized term | Check its written form before conversion. Require string atoms joined by `++`, with methods restricted by §11. Reject juxtaposed strings with an instruction to use `++`. |
 | `concatenation` | One or more `term-atom` parts separated by `++` | Sole child, or ordered `concat` of string operands. Require each known operand to be a string before reading the next. Defer unresolved constant types until binding. Flatten grouped concatenation operands into the outer array in written order. |
 | `method-chain` | `method-receiver`, then one or more `method-selector` parts | Fold selectors left into receiver-first method nodes |
-| `method-receiver` | One `term-atom` | Initial receiver, retaining its actual type |
+| `method-receiver` | One `plain-term-atom` | Initial receiver, retaining its actual type |
 | `method-selector` | `parse-selector` or ordinary method name and arguments | Convert the selected route, then inspect its signature. |
 | `parse-selector` | One `parse-argument` | The enclosing `method-chain` supplies the receiver and folds this selector into a method named `parse`, with one body argument. |
 | `parse-argument` | One `choice`, with an optional `…` token at each outer edge | Convert the expression and retain each remainder as an outer `remainder:true` leaf in its sequence. Reject captures at their binders. |
@@ -3020,6 +3020,7 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `term` | One `union` or `guarded-term` | Child term |
 | `tag-run`, `string-run` | At least two `tag` or `string` parts respectively, in written order | One `union` of singleton operands. Flatten into an enclosing union, regardless of grouping. |
 | `term-atom` | One call, parameter, string, tag, tag run, string run, name, constant, capture, method, range, empty set, pattern literal, or grouped `term`, `guarded-term`, or `union` | Delegate to that constructor. Preserve its term and type. Parentheses make no DOM node. |
+| `plain-term-atom` | One tag run, string run, or operand atom | Delegate to that constructor. Preserve its term and type. |
 | `guarded-term` | One or more `any-of`, then a `union` or `term` | Right-nested `if` terms around the final value |
 | `union` | One or more `intersection` parts and their operators | Fold union and difference left. Flatten every union operand that is itself a union. A sole part stays unchanged. |
 | `intersection` | One or more `concatenation` parts | `intersection`, or sole part |

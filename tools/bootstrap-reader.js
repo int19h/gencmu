@@ -910,7 +910,7 @@ class Parser {
       default: return this.fail("expected a term");
     }
     if (!this.is(".")) return base;
-    const receiver = this.node("method-receiver", start, [this.node("term-atom", start, [base])]);
+    const receiver = this.node("method-receiver", start, [this.node("plain-term-atom", start, [base])]);
     const children = [receiver];
     while (this.is(".")) {
       const at = this.index;

@@ -383,7 +383,7 @@ type methodFrame struct {
 func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 	if !f.started {
 		f.started = true
-		receiver := b.only(b.only(f.n, "method-receiver"), "term-atom")
+		receiver := b.only(b.only(f.n, "method-receiver"), "plain-term-atom")
 		f.dependent = b.sourceSyntaxUnresolved(receiver)
 		return ask(&termFrame{n: receiver, argument: true})
 	}

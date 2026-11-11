@@ -227,13 +227,7 @@
       "(q s)",
       "rejected"
     ],
-    "plain-term-atom": [
-      "rejected",
-      "rejected",
-      "(q [t r])",
-      "(q s)",
-      "rejected"
-    ],
+    "plain-term-atom": "grammar",
     "pattern-rule": [
       "rejected",
       "rejected",

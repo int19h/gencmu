@@ -1562,7 +1562,7 @@ impl<'a> Reader<'a> {
         }
         let node = frame.node;
         let inner = if ATOMS.contains(&rule_name(node))
-            && !matches!(rule_name(node), "term" | "guarded-term" | "union" | "term-atom")
+            && !matches!(rule_name(node), "term" | "guarded-term" | "union" | "term-atom" | "plain-term-atom")
         {
             node
         } else {
@@ -1574,7 +1574,7 @@ impl<'a> Reader<'a> {
             // A span may stand in parentheses where a span is due.
             "term" | "guarded-term" => Ok(Step::Call(Frame::Term(TermFrame::new(inner, frame.argument)))),
             "union" => Ok(Step::Call(Frame::Union(Joined::new(inner, frame.argument)))),
-            "term-atom" => Ok(Step::Call(Frame::Atom(Atom::new(inner, frame.argument)))),
+            "term-atom" | "plain-term-atom" => Ok(Step::Call(Frame::Atom(Atom::new(inner, frame.argument)))),
             "parameter" => typed(Term::Source(self.source_parameter(inner)?), Type::Any),
             "call" => Ok(Step::Call(Frame::SourceCall(CallFrame::new(inner)))),
             "string" => typed(self.string_term(token()?)?, Type::String),
@@ -1827,7 +1827,7 @@ impl<'a> Reader<'a> {
     fn resume_method(&self, frame: &mut MethodFrame<'a>, input: Option<Val>) -> R<Step<'a>> {
         if frame.receiver.is_none() && input.is_none() {
             let receiver = self.one(frame.node, "method-receiver")?;
-            let atom = self.one(receiver, "term-atom")?;
+            let atom = self.one(receiver, "plain-term-atom")?;
             frame.dependent = self.source_unresolved(atom);
             return Ok(Step::Call(Frame::Atom(Atom::new(atom, true))));
         }
@@ -2523,7 +2523,10 @@ impl<'a> Reader<'a> {
                 return None;
             };
             let [atom] = self.rules(concatenation, "term-atom").collect::<Vec<_>>()[..] else { return None };
-            let inner = self.inner(atom, ATOMS).ok()?;
+            let mut inner = self.inner(atom, ATOMS).ok()?;
+            while rule_name(inner) == "plain-term-atom" {
+                inner = self.inner(inner, ATOMS).ok()?;
+            }
             match rule_name(inner) {
                 "rule-or-classifier-name" => {
                     let name = self.value(self.tokens_of(inner).next()?);
@@ -2994,6 +2997,7 @@ const KNOWN: &[&str] = &[
     "intersection",
     "concatenation",
     "term-atom",
+    "plain-term-atom",
     "string",
     "rule-or-classifier-name",
     "empty-set",
@@ -3039,6 +3043,7 @@ const ATOMS: &[&str] = &[
     "guarded-term",
     "union",
     "term-atom",
+    "plain-term-atom",
     "capture-reference",
     "constant-reference",
 ];

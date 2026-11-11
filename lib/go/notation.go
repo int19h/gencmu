@@ -317,7 +317,7 @@ var domRules = map[string]bool{
 	"classifier-operator": true, "classifier-class": true, "implication-declaration": true,
 	"headed-body": true, "string-terminal": true, "wildcard": true, "tag-test": true, "tag-requirement": true, "value-test": true, "default-value": true,
 	"value-clause": true, "image-clause": true, "erased-clause": true, "recipe": true, "recipe-term": true,
-	"method-chain": true, "method-receiver": true, "method-selector": true, "method-name": true, "method-arguments": true,
+	"plain-term-atom": true, "method-chain": true, "method-receiver": true, "method-selector": true, "method-name": true, "method-arguments": true,
 	"directive-term": true, "tag-run": true, "string-run": true, "integer": true, "tree-comparator": true,
 }
 
@@ -480,7 +480,7 @@ var (
 	primaryRules   = []string{"captured-terminator", "splice", "call", "parameter", "rule-reference", "tag", "string-terminal", "wildcard", "range", "tested-primary", "capture", "group", "optional", "repetition", "empty", "constant-reference"}
 	conditionRules = []string{"comparison", "tree-comparison", "method-chain", "negation", "presence", "condition", "set-condition"}
 	termRules      = []string{"union", "guarded-term"}
-	atomRules      = []string{"call", "parameter", "string", "tag", "term-atom", "range", "rule-or-classifier-name", "empty-set", "term", "guarded-term", "union", "method-chain", "tag-run", "string-run", "capture-reference", "constant-reference", "pattern-literal"}
+	atomRules      = []string{"call", "parameter", "string", "tag", "term-atom", "plain-term-atom", "range", "rule-or-classifier-name", "empty-set", "term", "guarded-term", "union", "method-chain", "tag-run", "string-run", "capture-reference", "constant-reference", "pattern-literal"}
 )
 
 func (b *domBuilder) tokenValue(n *Node) string {

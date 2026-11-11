@@ -14,7 +14,7 @@ The rule names identify reader constructors. Engine §9.3 defines their conversi
 
 ## Choosing among readings
 
-The syntax stage receives complete tokens without layout. Greedy ranking selects one method chain over nested receivers. The reader folds that chain from left to right.
+The syntax stage receives complete tokens without layout. The reader folds each method chain from left to right.
 
 A keyword begins every declaration. Inside each declaration, punctuation and lexical categories determine where its lists end.
 
@@ -483,7 +483,7 @@ An emoji rule name is also a method argument. A classifier name starts with a lo
   method-receiver {method-selector}
 
 %rule method-receiver
-  term-atom
+  plain-term-atom
 
 %rule method-selector
   "." (parse-selector | named-selector)

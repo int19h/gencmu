@@ -42,13 +42,13 @@ _MAPPED = frozenset("""captured-terminator directive directive-identifier direct
 choice some-of sequence primary repetition rule-reference string-terminal string tag wildcard rule-or-classifier-name tested-primary tag-test tag-requirement value-test default-value value-comparator test-operand capture
  group optional empty header-tags value-clause image-clause recipe recipe-term conditions-clause emits-clause erased-clause emit-item emit-target emit-tags attachment-before
 attachment-after condition any-of all-of condition-primary comparison comparator tree-comparator negation presence method-chain method-receiver method-selector parse-selector parse-argument method-name method-arguments method-argument term guarded-term set-condition union-operation intersection-operation set-atom
-union intersection concatenation term-atom tag-run string-run integer empty-set capture-reference range constant-definition constant-keyword
+union intersection concatenation term-atom plain-term-atom tag-run string-run integer empty-set capture-reference range constant-definition constant-keyword
 constant-reference classifier classifier-name classifier-entry classifier-key classifier-operator classifier-class
 implication-declaration tree-comparison pattern-literal pattern-union pattern-intersection pattern-atom child-optional child-repetition pattern-path pattern-primary pattern-node bare-child-list child-list child-choice child-alternative child-set-operation child-intersection child-sequence child-item child-path child-primary call parameter call-argument requirement-argument target-argument body-argument symbol-argument constant-name""".split())
 _PRIMARIES = frozenset(("captured-terminator", "rule-reference", "tag", "string-terminal", "wildcard", "range", "tested-primary", "capture", "group", "optional", "repetition", "empty", "constant-reference", "call", "parameter", "splice"))
 _CONDITIONS = frozenset(("tree-comparison", "comparison", "method-chain", "negation", "presence", "condition", "set-condition"))
 _TERMS = frozenset(("union", "guarded-term"))
-_ATOMS = frozenset(("term-atom", "string", "tag", "tag-run", "string-run", "range", "rule-or-classifier-name", "empty-set", "term", "union", "guarded-term", "method-chain", "capture-reference", "constant-reference", "pattern-literal", "call", "parameter", "splice"))
+_ATOMS = frozenset(("term-atom", "plain-term-atom", "string", "tag", "tag-run", "string-run", "range", "rule-or-classifier-name", "empty-set", "term", "union", "guarded-term", "method-chain", "capture-reference", "constant-reference", "pattern-literal", "call", "parameter", "splice"))
 _ITEMS = frozenset(("directive", "ranking-directive", "rule", "constant-definition", "classifier", "implication-declaration"))
 _SYMBOLS = frozenset(("rule-reference", "tag", "string-terminal", "wildcard", "range", "constant-reference", "call", "parameter", "splice"))
 _DEFINERS = {"%rule": "define", "%redefine-rule": "redefine", "%extend-rule": "extend"}
@@ -1099,7 +1099,7 @@ class DomBuilder:
         return self.unresolved_terms[id(root)][1]
 
     def _method(self, node: Node) -> Walk:
-        receiver = yield self._term(self.only(self.only(node, "method-receiver"), "term-atom"))
+        receiver = yield self._term(self.only(self.only(node, "method-receiver"), "plain-term-atom"))
         for selector in self.some(node, "method-selector"):
             parsed = self.one(selector, "parse-selector")
             name = "parse" if parsed is not None else self.token_value(self.token(self.only(selector, "method-name")))
@@ -1407,7 +1407,7 @@ class DomBuilder:
             finally:
                 self.closed_for = closed
             return {"pattern": pattern}
-        if rule in ("test-operand", "term-atom"):
+        if rule in ("test-operand", "term-atom", "plain-term-atom"):
             # A test's operand is one term, as a term-atom reads it.
             return (yield self._term(self.known_of(node, _ATOMS), argument))
         if rule == "term":

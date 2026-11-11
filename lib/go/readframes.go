@@ -548,7 +548,7 @@ func (f *termFrame) start(b *domBuilder) readStep {
 	case "term":
 		f.pass = true
 		return ask(&termFrame{n: b.knownOf(n, termRules), argument: f.argument})
-	case "test-operand", "term-atom", "method-receiver":
+	case "test-operand", "term-atom", "plain-term-atom", "method-receiver":
 		// A test's operand is one term, as a term-atom reads it (§9).
 		f.pass = true
 		return ask(&termFrame{n: b.knownOf(n, atomRules), argument: f.argument})
