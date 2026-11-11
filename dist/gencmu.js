@@ -5601,7 +5601,7 @@
     } else if (SPAN_METHODS.has(name)) {
       if (!span || args.length) return METHOD_SIGNATURE_PROBLEM;
     } else if (name === "followed-by" || name === "preceded-by") {
-      if (!node && (typeof receiver.capture !== "string" || Object.keys(receiver).length !== 1)) return `${name} requires a bare capture`;
+      if (!node && (typeof receiver.capture !== "string" || Object.keys(receiver).length !== 1)) return METHOD_SIGNATURE_PROBLEM;
       if (!args.length || args.some((arg, index) => !(rule(index) || typeof arg.terminal === "string" && /^[A-Z][A-Za-z0-9_-]*$/.test(arg.terminal)))) return METHOD_SIGNATURE_PROBLEM;
     } else if (name === "starts-input" || name === "ends-input") {
       if (!span || args.length) return METHOD_SIGNATURE_PROBLEM;
@@ -11904,22 +11904,23 @@
     checkCheckReferences() {
       const classifiers=new Set(this.classifierItems.map(entry=>entry.classifier.name));
       for(const {check,document,at} of this.checks) {
-        const named=(/** @type {string} */ name)=>{
-          if(!this.rules.has(name))throw new GencmuError('grammar',`${name} is not a rule of stage ${this.stageName}`,at);
+        const named=(/** @type {string} */ name, /** @type {any} */ node)=>{
+          const position = node.at ?? boundaryLocations.get(node)?.at ?? [at.line, at.column];
+          if(!this.rules.has(name))throw this.documentError(document,position,`${name} is not a rule of stage ${this.stageName}`);
         };
         const patterns=[check.pattern],pending=[...check.conditions];
         while(pending.length) {
           const node=/** @type {any} */(pending.pop());
           if(!node || typeof node!=='object' || node instanceof Set)continue;
           if(node.pattern)patterns.push(node.pattern);
-          if(node.ref && !isTerminalName(node.ref))named(node.ref);
-          if(node.rule)named(node.rule);
+          if(node.ref && !isTerminalName(node.ref))named(node.ref,node);
+          if(node.rule)named(node.rule,node);
           if(node.classifier && !classifiers.has(node.classifier))throw new GencmuError('grammar',`${node.classifier} is not a classifier of stage ${this.stageName}`,at);
           for(const child of clauseChildren(node))pending.push(/** @type {any} */(child));
         }
         while(patterns.length) {
           const pattern=patterns.pop();
-          if(pattern.name)named(pattern.name);
+          if(pattern.name)named(pattern.name,pattern);
           for(const child of patternParts(pattern))patterns.push(child);
         }
       }

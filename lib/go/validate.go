@@ -1835,7 +1835,7 @@ func (c *domChecker) condition(d *domCond, depth int) {
 			}
 		}
 		if !c.structural && (d.Span == nil || d.Span.Kind != tmCapture && !(c.check && checkNodeTerm(d.Span)) && !unresolvedTerm(d.Span) || !boundaryMethod(d.Op) || len(d.Targets) == 0) {
-			if c.check {
+			if c.check || d.Span != nil && d.Span.Kind != tmCapture && !unresolvedTerm(d.Span) {
 				c.fail("a method has the wrong receiver or arguments")
 			} else {
 				c.fail("a malformed boundary atom")

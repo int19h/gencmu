@@ -1157,6 +1157,12 @@ fn parts_problem(
                             _ => false,
                         }
                     {
+                        if matches!(value.get("method").and_then(Json::as_str), Some("followed-by" | "preceded-by"))
+                            && !node(receiver, check)
+                            && !source::leaf(receiver)
+                        {
+                            return Some("a method has the wrong receiver or arguments".into());
+                        }
                         return Some("a malformed query predicate".into());
                     }
                     pending.push((Part::Term, receiver, next));

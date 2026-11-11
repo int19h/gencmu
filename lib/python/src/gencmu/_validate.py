@@ -750,6 +750,8 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: l
                 return 'unknown method name'
             if node['method'] in ('classify', 'ngrams') and has_unresolved(node['args']):
                 return 'a parameter cannot replace a classifier name or integer argument'
+            if any(not isinstance(arg, dict) for arg in node["args"]):
+                return "a malformed term"
             problem = method_shape_problem(node["method"], node.get("receiver"), node["args"], recipe)
             if problem and id(node) not in check_nodes:
                 return problem

@@ -480,6 +480,9 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 			}
 		}
 	}
+	if err := g.checkConditionReferences(); err != nil {
+		return nil, err
+	}
 	g.prepareBoundarySites()
 	return g, nil
 }

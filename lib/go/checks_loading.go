@@ -241,7 +241,11 @@ func (g *stageGrammar) resolveCheck(index int) *Error {
 	var patternError *Error
 	walkPattern(value.pattern, func(pattern *domPattern) {
 		if patternError == nil && pattern.Kind == "name" && g.byName[pattern.Name] == nil {
-			patternError = g.constError(entry.doc, at, "%s is not a rule of stage %s", pattern.Name, g.name)
+			position := pattern.At
+			if position == [2]int{} {
+				position = check.At
+			}
+			patternError = g.constError(entry.doc, position, "%s is not a rule of stage %s", pattern.Name, g.name)
 		}
 	})
 	if patternError != nil {
@@ -275,6 +279,45 @@ func (g *stageGrammar) resolveCheck(index int) *Error {
 		return err
 	}
 	entry.definition = &check
+	return nil
+}
+
+// Missing names do not replace faults from the existing validation passes.
+func (g *stageGrammar) checkConditionReferences() *Error {
+	for _, entry := range g.checks {
+		check := entry.definition
+		for _, condition := range check.Conditions {
+			var referenceError *Error
+			walkClause(clausePart{c: condition}, func(part clausePart) bool {
+				missing := func(name string, position [2]int) {
+					if referenceError == nil && g.byName[name] == nil {
+						if position == [2]int{} {
+							position = check.At
+						}
+						referenceError = g.constError(entry.doc, position, "%s is not a rule of stage %s", name, g.name)
+					}
+				}
+				if part.c != nil && part.c.Kind == cdBoundary {
+					for _, target := range part.c.Targets {
+						if target.Kind == tmRule {
+							missing(target.Str, target.At)
+						}
+					}
+				}
+				if part.t != nil && part.t.Kind == tmPattern {
+					walkPattern(part.t.Pattern, func(pattern *domPattern) {
+						if pattern.Kind == "name" {
+							missing(pattern.Name, pattern.At)
+						}
+					})
+				}
+				return referenceError == nil
+			})
+			if referenceError != nil {
+				return referenceError
+			}
+		}
+	}
 	return nil
 }
 

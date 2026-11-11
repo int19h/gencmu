@@ -2490,6 +2490,9 @@ pub(crate) fn cond_type_context(cond: &Cond, constants: ConstantTypes, check: bo
         Cond::Initial(span) | Cond::Final(span) | Cond::Boundary(_, span, _, _) => {
             match term_type_context(span, constants, check) {
                 Err(fault) => Some(fault),
+                Ok(_) if check && matches!(cond, Cond::Boundary(..)) && !node_term(span) => {
+                    Some(Fault::in_cond("a method has the wrong receiver or arguments".into(), cond))
+                }
                 Ok(Type::Element) if check && matches!(cond, Cond::Initial(_) | Cond::Final(_)) => None,
                 Ok(ty) => expected_problem(ty, Type::Span).map(|problem| {
                     Fault::in_cond(

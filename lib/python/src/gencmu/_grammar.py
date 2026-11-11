@@ -714,7 +714,7 @@ class _Constants:
             return constant.value if constant.type == "pattern" else {"string": constant.value} if constant.type == "string" else {"const": node["const"], "at": node["at"], "value": constant.value}
         if node.get("op") in ("≅", "≇") and "capture" not in node["right"] and node["right"].get("method") not in _NODE_METHODS and not has_unresolved(node["right"]):
             return {**node, "right":(yield self._closed("", node["right"], None, "pattern"))}
-        copy: dict[str, Any] = {}
+        copy: dict[str, Any] = shallow_copy(node) if hasattr(node, "at") else {}
         for key, value in node.items():
             copy[key] = yield self.with_values(value)
         return copy
@@ -1170,7 +1170,7 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
         for node in nodes(check):
             name = node.get("ref", node.get("rule"))
             if isinstance(name, str) and not is_terminal_name(name) and name not in rules:
-                raise _error(f"{name} is not a rule of stage {stage}", path, check["at"], stage)
+                raise _error(f"{name} is not a rule of stage {stage}", path, getattr(node, "at", check["at"]), stage)
             if isinstance(node.get("classifier"), str) and node["classifier"] not in classifier_names:
                 raise _error(f"{node['classifier']} is not a classifier of stage {stage}", path, check["at"], stage)
         for pattern in [check["pattern"], *(node["pattern"] for node in nodes(check["conditions"]) if "pattern" in node)]:

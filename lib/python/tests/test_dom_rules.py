@@ -18,7 +18,7 @@ from gencmu._model import Token
 from gencmu._validate import Marks
 from gencmu._validate import dom_problem as _dom_problem
 
-from .shared import read_json, same_json
+from .shared import SHARED, read_json, same_json
 
 DOCUMENT = """```jbogenbau
 %ambiguity-resolution greedy
@@ -539,6 +539,22 @@ class PreparsedDomRules(unittest.TestCase):
         sources = {"grammars/test/p.md": PIPELINE, "grammars/test/g.md": DOCUMENT, "grammars/test/h.md": NEXT, "data/preparsed/gencmu.json": json.dumps(bootstrap)}
         with self.assertRaises(gencmu.GencmuError):
             gencmu.load_pipeline_sources(sources, "grammars/test/p.md", use_cache=False)
+
+    def test_bootstrap_check_argument_shapes_are_grammar_errors(self) -> None:
+        cases = read_json((SHARED / "dom-malformed.json").read_text())
+        for label in ("an array", "a scalar"):
+            case = next(case for case in cases if case["description"] == f"A check rejects {label} as a method argument.")
+            with self.subTest(argument=label):
+                bootstrap = json.loads(bundled_text("data/preparsed/gencmu.json") or "{}")
+                check = copy.deepcopy(case["dom"]["checks"][0])
+                check["at"] = [99999, 1]
+                bootstrap["documents"]["grammars/gencmu/jbogenbau/syntax.md"]["dom"]["checks"].append(check)
+                sources = {"grammars/test/p.md": PIPELINE, "grammars/test/g.md": DOCUMENT, "grammars/test/h.md": NEXT,
+                           "data/preparsed/gencmu.json": json.dumps(bootstrap)}
+                with self.assertRaises(gencmu.GencmuError) as caught:
+                    gencmu.load_pipeline_sources(sources, "grammars/test/p.md", use_cache=False)
+                self.assertEqual(caught.exception.kind, "grammar")
+                self.assertIn(case["message"], str(caught.exception))
 
     def test_a_bootstrap_term_of_two_forms_is_an_error(self) -> None:
         """A term in the bootstrap that joins the members of two forms, or
@@ -1607,7 +1623,7 @@ class Classifiers(unittest.TestCase):
         sound = {"method": "value", "args": [], "receiver": {"capture": "w"}}
         self.assertIsNone(dom_problem(call([sound, {"classifier": "lex"}])))
         self.assertEqual(dom_problem(call([sound, {"rule": "lex"}])), "a method has the wrong receiver or arguments")
-        self.assertEqual(dom_problem(call([sound, {"classifier": "Lex"}])), "a malformed method name argument")
+        self.assertEqual(dom_problem(call([sound, {"classifier": "Lex"}])), "a malformed classifier argument")
         self.assertIsNone(dom_problem(call([{"capture": "w"}, {"classifier": "lex"}])))
 
     def test_a_bootstrap_with_a_malformed_classifier_is_an_error(self) -> None:

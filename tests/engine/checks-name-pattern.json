@@ -1,0 +1,14 @@
+{
+  "description": "A check rejects an undefined pattern name at the name.",
+  "grammar": "%rule text \"a\"\n%check c #·text\n%conditions $ ≅ #·nosuch\n%warning \"m\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "message": "nosuch is not a rule of stage main",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 19
+    }
+  }
+}

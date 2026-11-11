@@ -2986,6 +2986,8 @@ Within an operand, a receiver's fault precedes its selectors' faults. At a selec
 
 A malformed check name reports at the name. A check whose name is a rule reports `a rule and a check cannot share the name NAME` at the check declaration. A forbidden capture reference reports `a check cannot name a capture` at that reference, in conditions and messages. For a caller-supplied DOM without that source position, use the declaration's `at`.
 
+Every rule name in a check condition resolves against its stage. An unresolved name reports `NAME is not a rule of stage STAGE` at the name. This position also applies to names in the candidate pattern. A supplied DOM without a name position uses the check declaration's `at`.
+
 Section 2.4 defines the clauses where check methods are legal. A forbidden check method reports `a check method is outside its permitted clause` at the selector's leading dot. A restoration selector reports `a check cannot restore elision` at its leading dot. These restrictions precede semantic faults inside arguments. Structural argument faults precede them, under the structural inspection rule.
 
 A method chain in a check message must read `$` through one permitted string method, including `.terminal`. Every other chain reports `a check message reads only $` at that atom's first token. This restriction precedes the ordinary signature rule, including for chains of `.terminal` methods. A single non-string method result follows the non-string operand rule.

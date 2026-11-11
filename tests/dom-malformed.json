@@ -38792,5 +38792,298 @@
     },
     "malformed": true,
     "message": "++ requires string operands"
+  },
+  {
+    "description": "A check rejects an array as a method argument.",
+    "dom": {
+      "format": 52,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "alternatives": [
+            {
+              "gates": [],
+              "expr": {
+                "empty": true
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "directives": [
+        {
+          "name": "ambiguity-resolution",
+          "steps": [
+            {
+              "step": "greedy"
+            }
+          ],
+          "at": [
+            3,
+            1
+          ]
+        }
+      ],
+      "constants": [],
+      "classifiers": [],
+      "implications": [],
+      "checks": [
+        {
+          "name": "c",
+          "pattern": {
+            "never": true
+          },
+          "conditions": [
+            {
+              "nonempty": {
+                "method": "split",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": [
+                  []
+                ]
+              }
+            }
+          ],
+          "warning": {
+            "concat": [
+              {
+                "string": "m"
+              }
+            ]
+          },
+          "at": [
+            2,
+            1
+          ]
+        }
+      ]
+    },
+    "malformed": true,
+    "message": "a malformed term"
+  },
+  {
+    "description": "A check rejects a scalar as a method argument.",
+    "dom": {
+      "format": 52,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "alternatives": [
+            {
+              "gates": [],
+              "expr": {
+                "empty": true
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "directives": [
+        {
+          "name": "ambiguity-resolution",
+          "steps": [
+            {
+              "step": "greedy"
+            }
+          ],
+          "at": [
+            3,
+            1
+          ]
+        }
+      ],
+      "constants": [],
+      "classifiers": [],
+      "implications": [],
+      "checks": [
+        {
+          "name": "c",
+          "pattern": {
+            "never": true
+          },
+          "conditions": [
+            {
+              "nonempty": {
+                "method": "split",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": [
+                  "x"
+                ]
+              }
+            }
+          ],
+          "warning": {
+            "concat": [
+              {
+                "string": "m"
+              }
+            ]
+          },
+          "at": [
+            2,
+            1
+          ]
+        }
+      ]
+    },
+    "malformed": true,
+    "message": "a malformed term"
+  },
+  {
+    "description": "A check boundary atom rejects a span receiver.",
+    "dom": {
+      "format": 52,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "alternatives": [
+            {
+              "gates": [],
+              "expr": {
+                "empty": true
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "directives": [
+        {
+          "name": "ambiguity-resolution",
+          "steps": [
+            {
+              "step": "greedy"
+            }
+          ],
+          "at": [
+            3,
+            1
+          ]
+        }
+      ],
+      "constants": [],
+      "classifiers": [],
+      "implications": [],
+      "checks": [
+        {
+          "name": "c",
+          "pattern": {
+            "never": true
+          },
+          "conditions": [
+            {
+              "method": "followed-by",
+              "receiver": {
+                "method": "onward",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": []
+              },
+              "args": [
+                {
+                  "rule": "text"
+                }
+              ]
+            }
+          ],
+          "warning": {
+            "concat": [
+              {
+                "string": "m"
+              }
+            ]
+          },
+          "at": [
+            2,
+            1
+          ]
+        }
+      ]
+    },
+    "malformed": true,
+    "message": "a method has the wrong receiver or arguments"
+  },
+  {
+    "description": "A rule boundary atom uses the common signature text for a span receiver.",
+    "dom": {
+      "format": 52,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "alternatives": [
+            {
+              "gates": [],
+              "expr": {
+                "empty": true
+              }
+            }
+          ],
+          "conditions": [
+            {
+              "method": "followed-by",
+              "receiver": {
+                "method": "onward",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": []
+              },
+              "args": [
+                {
+                  "rule": "text"
+                }
+              ]
+            }
+          ],
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "directives": [
+        {
+          "name": "ambiguity-resolution",
+          "steps": [
+            {
+              "step": "greedy"
+            }
+          ],
+          "at": [
+            3,
+            1
+          ]
+        }
+      ],
+      "constants": [],
+      "classifiers": [],
+      "implications": [],
+      "checks": []
+    },
+    "malformed": true,
+    "message": "a method has the wrong receiver or arguments"
   }
 ]

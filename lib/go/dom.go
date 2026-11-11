@@ -1779,7 +1779,7 @@ func (dc *domDecoder) decodeExprAt(raw any, depth int) (*domExpr, error) {
 
 func (dc *domDecoder) decodeTermAt(raw any, depth int) (*domTerm, error) {
 	if _, err := domObjectOf(raw); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("a malformed term")
 	}
 	out := &domTerm{}
 	dc.pending = append(dc.pending, func() error {

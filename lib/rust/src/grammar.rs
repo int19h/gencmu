@@ -609,6 +609,7 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
         &constants.patterns.borrow(),
         expansion.as_ref().map(|x| x.erasure_checks.as_slice()),
     )?;
+    let mut missing_check_target = None;
     for (document, check) in &grammar.checks {
         let mut compared = false;
         let mut pending = vec![crate::clauses::Part::Term(&check.pattern)];
@@ -616,7 +617,16 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
         for condition in &check.conditions {
             check_cond(&grammar, condition, &mut compared).map_err(|message| located(message, document, check.at))?;
         }
+        let mut targets = Vec::new();
         while let Some(part) = pending.pop() {
+            if let crate::clauses::Part::Cond(Cond::Boundary(_, _, names, location)) = part {
+                targets.extend(
+                    names
+                        .iter()
+                        .enumerate()
+                        .map(|(index, name)| (name, location.targets.get(index).copied().unwrap_or(check.at))),
+                );
+            }
             if let crate::clauses::Part::Term(Term::Pattern(pattern)) = part {
                 for part in pattern.walk() {
                     if let crate::patterns::Part::Pattern(Pattern::Name(name, at)) = part {
@@ -627,6 +637,12 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
                 }
             }
             pending.extend(part.children());
+        }
+        for (name, position) in targets {
+            if missing_check_target.is_none() && !is_terminal_name(name) && !grammar.index.contains_key(name) {
+                missing_check_target =
+                    Some(located(format!("{name} is not a rule of stage {stage}"), document, position));
+            }
         }
     }
     crate::boundary::reachable(&grammar)?;
@@ -664,6 +680,10 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
     crate::nullable_errors::check(&grammar)?;
     grammar.tree_comparisons = tree_comparisons;
     grammar.tree_expressions = tree_expressions;
+    // Existing validation faults retain precedence over newly checked names.
+    if let Some(error) = missing_check_target {
+        return Err(error);
+    }
     Ok(grammar)
 }
 
