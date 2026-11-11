@@ -163,54 +163,44 @@ Both split rules mark their final y with `Spacing` for the Zantufa word stream. 
 
 The words stage needs to know where a run begins and ends. A name that `bu` takes needs a pause before it (CLL[^cll-s17-4]). A `zoi` quote and a `zo'oi` quote end at the end of a run. So this stage tags the first word of each run `Run-Initial`, and the last word `Run-Final`.
 
+The templates `ordinary-word` and `split-y` take the tag for the first word of a run, or an empty set for later words. `ordinary-word` also takes the matching split rule, so the ordinary and split readings remain exclusive.
+
 ```jbogenbau
 %rule first-word
   ordinary-first-word | split-first-y
 
-%rule ordinary-first-word
-  $w:source-word
-%conditions
-  ¬$w.onward.parse(split-first-y …)
-%emits
-  $
-      :: Run-Initial ∪
-         $w.tags ∪
-         (¬$w.following-tokens.parse(nonpause-phoneme …) ⟹ Run-Final)
+%rule ordinary-first-word = ordinary-word(Run-Initial, split-first-y)
 
 %rule later-word
   ordinary-later-word | split-later-y
 
-%rule ordinary-later-word
+%rule ordinary-later-word = ordinary-word(∅, split-later-y)
+
+%rule ordinary-word(@Initial, @Split)
   $w:source-word
 %conditions
-  ¬$w.onward.parse(split-later-y …)
+  ¬$w.onward.parse(@Split …)
 %emits
   $
-      :: $w.tags ∪
+      :: @Initial ∪
+         $w.tags ∪
          (¬$w.following-tokens.parse(nonpause-phoneme …) ⟹ Run-Final)
 
-%rule split-first-y
-  $p:y-prefix $y:y-atom :: $.parse(source-word).tags
-%conditions
-  $.parse(hesitation-shape),
-  $.following-tokens.parse(bu-form-ahead …)
-%emits
-  $p :: Run-Initial ∪ $.parse(source-word).tags,
-  $y
-      :: Spacing ∪
-         $.parse(source-word).tags ∪
-         (¬$.following-tokens.parse(nonpause-phoneme …) ⟹ Run-Final)
+%rule split-first-y = split-y(Run-Initial)
+%rule split-later-y = split-y(∅)
 
-%rule split-later-y
+%rule split-y(@Initial)
   $p:y-prefix $y:y-atom :: $.parse(source-word).tags
 %conditions
   $.parse(hesitation-shape),
   $.following-tokens.parse(bu-form-ahead …)
 %emits
-  $p :: $.parse(source-word).tags,
+  $p
+      :: @Initial ∪
+         $.tags,
   $y
       :: Spacing ∪
-         $.parse(source-word).tags ∪
+         $.tags ∪
          (¬$.following-tokens.parse(nonpause-phoneme …) ⟹ Run-Final)
 
 %rule y-prefix
@@ -231,13 +221,15 @@ The words stage needs to know where a run begins and ends. A name that `bu` take
 
 ```
 
-<details><summary>Railroad diagrams of the 11 rules from <code>first-word</code> to <code>bu-form</code></summary>
+<details><summary>Railroad diagrams of the 13 rules from <code>first-word</code> to <code>bu-form</code></summary>
 <p><img src="../../../docs/diagrams/lojban/common/forms/first-word.svg" alt="Railroad diagram of the rule first-word"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/ordinary-first-word.svg" alt="Railroad diagram of the rule ordinary-first-word"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/later-word.svg" alt="Railroad diagram of the rule later-word"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/ordinary-later-word.svg" alt="Railroad diagram of the rule ordinary-later-word"></p>
+<p><img src="../../../docs/diagrams/lojban/common/forms/ordinary-word.svg" alt="Railroad diagram of the rule ordinary-word"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/split-first-y.svg" alt="Railroad diagram of the rule split-first-y"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/split-later-y.svg" alt="Railroad diagram of the rule split-later-y"></p>
+<p><img src="../../../docs/diagrams/lojban/common/forms/split-y.svg" alt="Railroad diagram of the rule split-y"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/y-prefix.svg" alt="Railroad diagram of the rule y-prefix"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/y-atom.svg" alt="Railroad diagram of the rule y-atom"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/bu-form-ahead.svg" alt="Railroad diagram of the rule bu-form-ahead"></p>

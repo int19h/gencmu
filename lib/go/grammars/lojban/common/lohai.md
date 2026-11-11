@@ -14,20 +14,15 @@ A free modifier adds information outside predicate arguments. The syntax reads t
 
 A tag marks a token by an identifier. The quote token carries its opening class and the tag `Quote`. So in the experimental pipeline, `sa` finds it by its class, and `mi lo'ai do le'ai sa lo'ai ti le'ai klama` keeps `mi`. A bare `le'ai` carries LEhAI. Syntax requires `Quote` on LOhAI, so an incomplete replacement quote cannot act as a finished quote. The words inside carry no class, so none of them is a boundary for `su`.
 
-In the experimental pipeline, an unfinished marker carries `Fault` unless a [`constructor-word`](stream.md#compounds) takes it as a base. That rule names `bu` and `zei`, with `ze'ei` added in `lojban/experimental`. The named rule keeps the fallback test consistent with the pipeline's constructors.
+In the experimental pipeline, an unfinished marker carries `Fault` unless a [`constructor-word`](stream.md#compounds) takes it as a base. That rule names `bu` and `zei`, with `ze'ei` added in `lojban/experimental`. The named rule keeps the fallback test consistent with the pipeline's constructors. The `word-base` hook adds the fault tag without changing the shared word exclusions.
 
 [The word stream](stream.md) reads no ordinary word where a quote begins. So `mi lo'ai si klama` is `mi klama`, and `mi lo'ai bu klama` has a letteral. An eraser can remove the fault. A surviving fault rejects the words stage at the missing LEhAI. The Zantufa word stream has its own rules for such a marker.
 
 ```jbogenbau
-%redefine-rule word
+%redefine-rule word-base
   $c:read-word
       :: $c.tags ∪
          (LOhAI ⊆ $c.classes ∧ ¬$c.following-tokens.parse(lohai-constructor-tail …) ⟹ Fault)
-%conditions
-  $c.classes ∩ $MAGIC-WORDS = ∅,
-  ¬$c.onward.parse(quote …)
-%emits
-  $
 
 %rule lohai-constructor-tail
   skipped constructor-word
@@ -67,13 +62,15 @@ In the experimental pipeline, an unfinished marker carries `Fault` unless a [`co
   $
 
 %rule lehai-marker
-  $q:LEhAI :: Word Cmavo ∪ $q.classes
+  $q:read-word :: Word Cmavo ∪ $q.classes
+%conditions
+  LEhAI ⊆ $q.classes
 %emits
   $
 ```
 
-<details><summary>Railroad diagrams of the 9 rules from <code>word</code> to <code>lehai-marker</code></summary>
-<p><img src="../../../docs/diagrams/lojban/common/lohai/word.svg" alt="Railroad diagram of the rule word"></p>
+<details><summary>Railroad diagrams of the 9 rules from <code>word-base</code> to <code>lehai-marker</code></summary>
+<p><img src="../../../docs/diagrams/lojban/common/lohai/word-base.svg" alt="Railroad diagram of the rule word-base"></p>
 <p><img src="../../../docs/diagrams/lojban/common/lohai/lohai-constructor-tail.svg" alt="Railroad diagram of the rule lohai-constructor-tail"></p>
 <p><img src="../../../docs/diagrams/lojban/common/lohai/quote.svg" alt="Railroad diagram of the rule quote"></p>
 <p><img src="../../../docs/diagrams/lojban/common/lohai/lohai-quote.svg" alt="Railroad diagram of the rule lohai-quote"></p>

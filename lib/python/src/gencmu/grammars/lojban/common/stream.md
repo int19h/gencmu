@@ -234,8 +234,12 @@ Without SA or SU input, both feature states admit the same plain words. The rule
 %emits
   $
 
+-- Layers can add tags to the ordinary word through this hook.
+%rule word-base
+  read-word
+
 %rule word
-  $c:read-word :: $c.tags
+  $c:*word-base :: $c.tags
 %conditions
   $c.classes ∩ $MAGIC-WORDS = ∅,
   ¬$c.onward.parse(quote …)
@@ -246,11 +250,12 @@ Without SA or SU input, both feature states admit the same plain words. The rule
   $c:Cmavo :: $c.tags
 ```
 
-<details><summary>Railroad diagrams of the 6 rules from <code>read-word</code> to <code>cmavo-token</code></summary>
+<details><summary>Railroad diagrams of the 7 rules from <code>read-word</code> to <code>cmavo-token</code></summary>
 <p><img src="../../../docs/diagrams/lojban/common/stream/read-word.svg" alt="Railroad diagram of the rule read-word"></p>
 <p><img src="../../../docs/diagrams/lojban/common/stream/brivla-token.svg" alt="Railroad diagram of the rule brivla-token"></p>
 <p><img src="../../../docs/diagrams/lojban/common/stream/cmevla-token.svg" alt="Railroad diagram of the rule cmevla-token"></p>
 <p><img src="../../../docs/diagrams/lojban/common/stream/y-bu-word.svg" alt="Railroad diagram of the rule y-bu-word"></p>
+<p><img src="../../../docs/diagrams/lojban/common/stream/word-base.svg" alt="Railroad diagram of the rule word-base"></p>
 <p><img src="../../../docs/diagrams/lojban/common/stream/word.svg" alt="Railroad diagram of the rule word"></p>
 <p><img src="../../../docs/diagrams/lojban/common/stream/cmavo-token.svg" alt="Railroad diagram of the rule cmavo-token"></p>
 </details>
@@ -746,8 +751,6 @@ Erased regions and ordinary hesitation can separate an operand from its operator
 
 `Trailing-Pause` marks a surviving SU boundary whose strings already end with a space. BU and ZEI then use `suppressed-gap` to avoid a second contribution. [Erasure by `sa` and `su`](#erasure-by-sa-and-su) explains that boundary and its recipes.
 
-lojban/cll requires pauses around a direct name base of BU. It tests the source run boundary. A name inside a compound does not make that compound a direct name.
-
 ```jbogenbau
 %rule compound-gap
   | skipped<¬Gap-Pause>
@@ -756,9 +759,13 @@ lojban/cll requires pauses around a direct name base of BU. It tests the source 
 %rule suppressed-gap
   skipped := ""
 
+-- Layers can restrict the direct BU base through this hook.
+%rule lerfu-base
+  unit
+
 %rule lerfu-word :: Word BY ∪ Fault ∩ $u.tags
-  | $u:unit<¬Trailing-Pause> compound-gap cmavo-token<BU>
-  | su-boundary? $u:unit<Trailing-Pause> suppressed-gap cmavo-token<BU>
+  | $u:*lerfu-base<¬Trailing-Pause> compound-gap cmavo-token<BU>
+  | su-boundary? $u:*lerfu-base<Trailing-Pause> suppressed-gap cmavo-token<BU>
 %emits
   $
 
@@ -775,9 +782,10 @@ lojban/cll requires pauses around a direct name base of BU. It tests the source 
 
 ```
 
-<details><summary>Railroad diagrams of the 5 rules from <code>compound-gap</code> to <code>zei-right-gap</code></summary>
+<details><summary>Railroad diagrams of the 6 rules from <code>compound-gap</code> to <code>zei-right-gap</code></summary>
 <p><img src="../../../docs/diagrams/lojban/common/stream/compound-gap.svg" alt="Railroad diagram of the rule compound-gap"></p>
 <p><img src="../../../docs/diagrams/lojban/common/stream/suppressed-gap.svg" alt="Railroad diagram of the rule suppressed-gap"></p>
+<p><img src="../../../docs/diagrams/lojban/common/stream/lerfu-base.svg" alt="Railroad diagram of the rule lerfu-base"></p>
 <p><img src="../../../docs/diagrams/lojban/common/stream/lerfu-word.svg" alt="Railroad diagram of the rule lerfu-word"></p>
 <p><img src="../../../docs/diagrams/lojban/common/stream/zei-compound.svg" alt="Railroad diagram of the rule zei-compound"></p>
 <p><img src="../../../docs/diagrams/lojban/common/stream/zei-right-gap.svg" alt="Railroad diagram of the rule zei-right-gap"></p>

@@ -41,28 +41,25 @@ CLL[^cll-s3-7] forbids the triples `ndj ndz ntc nts`, except in a name. The shar
   initial-pair | long-initial-run
 
 %rule n-affricate
-  "n" "t" "c" | "n" "t" "s" | "n" "d" "j" | "n" "d" "z"
+  "n" affricate
 
 %rule consonants
   consonant | consonants consonant
 
-%rule has-n-affricate
-  [consonants] n-affricate [consonants]
 ```
 
-<details><summary>Railroad diagrams of the 7 rules from <code>consonant</code> to <code>has-n-affricate</code></summary>
+<details><summary>Railroad diagrams of the 6 rules from <code>consonant</code> to <code>consonants</code></summary>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/consonant.svg" alt="Railroad diagram of the rule consonant"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/initial-pair.svg" alt="Railroad diagram of the rule initial-pair"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/consonant-pair.svg" alt="Railroad diagram of the rule consonant-pair"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/initial-cluster.svg" alt="Railroad diagram of the rule initial-cluster"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/n-affricate.svg" alt="Railroad diagram of the rule n-affricate"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/consonants.svg" alt="Railroad diagram of the rule consonants"></p>
-<p><img src="../../../docs/diagrams/lojban/cll/shapes/has-n-affricate.svg" alt="Railroad diagram of the rule has-n-affricate"></p>
 </details>
 
 
 
-A permissible run is a run of consonants whose adjacent pairs are all permissible. A name can have such a run anywhere (CLL[^cll-s3-7]). A borrowing can have one in its middle, with no `n` triple in it (CLL[^cll-s4-7]). The borrowing rules in [morphology.md](morphology.md#borrowings) use `has-n-affricate` to exclude those triples.
+A permissible run is a run of consonants whose adjacent pairs are all permissible. A name can have such a run anywhere (CLL[^cll-s3-7]). A borrowing can have one in its middle, with no `n` triple in it (CLL[^cll-s4-7]). The borrowing rules in [morphology.md](morphology.md#borrowings) use a part query for `n-affricate` to exclude those triples.
 
 `permissible-run` reads a nonempty consonant run. Every two adjacent values must form a pair in `$PERMISSIBLE`. A single consonant has no pair and satisfies the condition. So `.tlaiv.` and `.ekstcat.` are names, but `.djeimz.` and `.bobb.` are not.
 
@@ -102,7 +99,7 @@ The diphthongs of CLL[^cll-s3-4] are the falling `ai ei oi au` and the rising `i
 
 Cmavo stress is free.[^cll-s3-9] `capital-vowel` reads a stressed vowel, and `capital-letter` also reads stressed `y`.
 
-The rule `any-letter` reads `Syllable-Break` to include commas in stress lookahead.
+The rule `any-letter` reads `Syllable-Break` to include commas in stretches of letters. Part queries test for `capital-letter` in those stretches.
 
 ```jbogenbau
 %rule vowel
@@ -126,20 +123,15 @@ The rule `any-letter` reads `Syllable-Break` to include commas in stress lookahe
 %rule y-diphthong
   i-or-u "y"
 
-%rule r-letter
-  "r"
-
 %rule any-letters
   any-letter | any-letters any-letter
 
 %rule any-letter
   consonant | vowel | "y" | "'" | Syllable-Break
 
-%rule stress-mark
-  [any-letters] capital-letter [any-letters]
 ```
 
-<details><summary>Railroad diagrams of the 11 rules from <code>vowel</code> to <code>stress-mark</code></summary>
+<details><summary>Railroad diagrams of the 9 rules from <code>vowel</code> to <code>any-letter</code></summary>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/vowel.svg" alt="Railroad diagram of the rule vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/capital-vowel.svg" alt="Railroad diagram of the rule capital-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/capital-letter.svg" alt="Railroad diagram of the rule capital-letter"></p>
@@ -147,10 +139,8 @@ The rule `any-letter` reads `Syllable-Break` to include commas in stress lookahe
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/falling-diphthong.svg" alt="Railroad diagram of the rule falling-diphthong"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/rising-diphthong.svg" alt="Railroad diagram of the rule rising-diphthong"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/y-diphthong.svg" alt="Railroad diagram of the rule y-diphthong"></p>
-<p><img src="../../../docs/diagrams/lojban/cll/shapes/r-letter.svg" alt="Railroad diagram of the rule r-letter"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/any-letters.svg" alt="Railroad diagram of the rule any-letters"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/any-letter.svg" alt="Railroad diagram of the rule any-letter"></p>
-<p><img src="../../../docs/diagrams/lojban/cll/shapes/stress-mark.svg" alt="Railroad diagram of the rule stress-mark"></p>
 </details>
 
 
@@ -172,7 +162,7 @@ A brivla is a predicate word. It is stressed on its penultimate counted syllable
 - `First-Marked`, when the first counted nucleus is the marked one
 - `Single-End`, when the last letter read is a vowel that is a nucleus by itself
 
-So a brivla with marked stress has `S2`, and one without any capital vowel has `S0` and at least `N2`. [morphology.md](morphology.md) applies these tests.
+A brivla with marked stress must have `S2`, and one without any capital vowel must have `S0`. [morphology.md](morphology.md) applies these stress tests. The word forms already require at least two counted nuclei.
 
 ```jbogenbau
 %rule brivla-scan
@@ -203,7 +193,7 @@ So a brivla with marked stress has `S2`, and one without any capital vowel has `
   | "y"<¬Stressed>
   | "'" | Syllable-Break
   | $v:vowel :: Counted Single-End ∪ ($v.parse(capital-vowel) ⟹ Marked)
-  | $d:brivla-diphthong :: Counted ∪ ($d.parse(stress-mark) ⟹ Marked)
+  | $d:brivla-diphthong :: Counted ∪ ($d.parse(… capital-letter …) ⟹ Marked)
 
 %rule brivla-diphthong
   falling-diphthong | rising-diphthong
@@ -257,9 +247,9 @@ The forms stage uses the stress on the first syllable of a name, for the pause r
 %rule name-item
   | consonant | "'" | Syllable-Break
   | $v:vowel :: Nucleus Counted Single-End ∪ ($v.parse(capital-vowel) ⟹ Marked)
-  | $y:"y" :: Nucleus ∪ ($y.parse(stress-mark) ⟹ Marked)
-  | $d:brivla-diphthong :: Nucleus Counted ∪ ($d.parse(stress-mark) ⟹ Marked)
-  | $e:y-diphthong :: Nucleus ∪ ($e.parse(stress-mark) ⟹ Marked)
+  | $y:"y" :: Nucleus ∪ ($y.parse(… capital-letter …) ⟹ Marked)
+  | $d:brivla-diphthong :: Nucleus Counted ∪ ($d.parse(… capital-letter …) ⟹ Marked)
+  | $e:y-diphthong :: Nucleus ∪ ($e.parse(… capital-letter …) ⟹ Marked)
 
 %rule name-vowel
   vowel | "y"
