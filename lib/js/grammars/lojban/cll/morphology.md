@@ -105,7 +105,7 @@ A cmavo's stress is free (CLL[^cll-s3-9]), so any of its vowels can be a capital
 %rule any-unit
   cmavo-unit | "y"
 
--- A y letter has an optional consonant before its y units.
+-- An all-y cmavo has an optional consonant before its y units.
 %rule all-y-cmavo
   [consonant] y-units
 

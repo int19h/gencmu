@@ -2,7 +2,7 @@
 
 This document defines the indicator processing rules before syntax. A stage is one step of a pipeline, with its own grammar. A pipeline document defines an ordered sequence of stages.
 
-A token is one host-word that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
+A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
 The [CLL](pipeline.md), [BPFK](../bpfk/pipeline.md), [experimental](../experimental/pipeline.md) and [Zantufa](../zantufa/pipeline.md) pipelines include these rules as their fourth stage. BPFK is the Lojban language planning committee.
 
@@ -14,7 +14,7 @@ The indicators are the attitudinals and discursives of UI and CAI with an option
 
 A run of indicators attaches to the word before it, and a `ba'e` attaches to the word after it. The stage hands on the word as one token, which carries them as its attachments ([the engine](../../../docs/engine.md), §11). The syntax does not read an attachment, but the renderings show it with its word. So `mi ui klama` is `([mi ui] klama)` in brackets, and the syntax reads `mi klama`.
 
-The forms lexicon supplies word classes and the `Indicator` tag for indicators and `fu'e`. The words stage emits each complete quote, compound, and letteral as one token. Its contents supply no indicator class. Indicators after that token and BAhE before it mark the whole host-word.
+The forms lexicon supplies word classes and the `Indicator` tag for indicators and `fu'e`. The words stage emits each complete quote, compound, and letteral as one token. Its contents supply no indicator class. Indicators after that token and BAhE before it mark the whole unit.
 
 A run of indicators at the start of the text, before any word, stays in the stream. This is because the `text` rule of the syntax grammar reads it there. A `ba'e` with no word after it stays in the stream too. In a run that stays in the stream, the stage attaches only `ba'e`, as the section "Leading runs" says. [The notation document](../../../docs/notation.md) explains the notation.
 
@@ -168,7 +168,7 @@ The stage also rejects `mi fu'e y klama`. The words stage drops hesitation, so n
 
 ## Leading runs
 
-After a leading run, a `nai` belongs to the last indicator of the run when that is an attitudinal. The stage is greedy, so it reads the `nai` into the run before it starts the next word-with-attachments. So `iu nai` is one run, not `iu` followed by a text that begins with `nai`. The same holds when a `ba'e` stands before the `nai`, as in `iu ba'e nai`.
+After a leading run, a `nai` belongs to the last indicator of the run when that is an attitudinal. The stage is greedy, so it reads the `nai` into the run before it starts the next word. So `iu nai` is one run, not `iu` followed by a text that begins with `nai`. The same holds when a `ba'e` stands before the `nai`, as in `iu ba'e nai`.
 
 A leading run is a run of indicators that the syntax reads itself: at the start of the text, or directly after a quotation opener. Its indicators stay in the stream, each as a token of its own. A `ba'e` before one of them attaches to it, because the syntax does not read `ba'e`. But a `nai` after an attitudinal stays a token of its own, and the syntax reads `UI NAI`. So `ba'e ui nai mi klama` hands on `ui`, with `ba'e` attached before it, and then `nai`, `mi` and `klama`.
 
