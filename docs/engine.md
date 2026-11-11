@@ -422,7 +422,7 @@ A grammar or pipeline document declares an extra names resource with `%names "PA
 
 The path follows the relative-path rule of §13. A target that starts with `/` is a grammar error at `%names`.
 
-After successful lexing, a preamble pass collects the longest leading run of `%names` directives before ordinary escape inspection. Each directive's operands extend to the next directive or statement start, or to the token sequence's end. Statement-start tokens are the `definer`, `directive-name`, `%const`, `%redefine-const`, `%classifier`, and `%implies` keywords of §9.2. Comments and grammar-block boundaries do not end the run.
+After successful lexing, a preamble pass collects the longest leading run of `%names` directives before ordinary escape inspection. Each directive's operands extend to the next directive or statement start, or to the token sequence's end. Statement-start tokens are the `rule-keyword`, `directive-keyword`, `%const`, `%redefine-const`, `%classifier`, and `%implies` keywords of §9.2. Comments and grammar-block boundaries do not end the run.
 
 The pass inspects leading directives in source order. For each directive, a wrong operand count or kind fails first at `%names`. It then inspects that path's escapes from left to right. A malformed or nonscalar escape fails at its opening `‹`. A name outside the core abbreviation map also fails at `‹`. Preamble errors precede every other escape-inspection error.
 
@@ -1039,7 +1039,7 @@ Clause validation can take exponential time in the presence tests that remain re
 
 Loading an ordinary pipeline does not expand production combinations. Bootstrap validation still lowers the notation stages (§8).
 
-The error has the kind `grammar` and the stage's name, and no position member, because its position is not one of the stage's input (`docs/output.md`). Its message begins with the document, the line and the column of the definition that wrote the alternative at fault, as `case/a.md:3:1:`. That definition is the `%rule`, `%redefine-rule` or `%extend-rule` that holds the alternative. It is not the place of the braces in it, and not another definition that makes an item of the braces empty. The stage reports classifier errors in the same way, at their entries (§2).
+The error has the kind `grammar` and the stage's name. It has no position member, because its position is not one of the stage's input (`docs/output.md`). Its message begins with the document, the line and the column of the definition that wrote the alternative at fault, as `case/a.md:3:1:`. That definition is the `%rule`, `%redefine-rule` or `%extend-rule` that holds the alternative. It is not the place of the braces in it, and not another definition that makes an item of the braces empty. The stage reports classifier errors in the same way, at their entries (§2).
 
 Where a grammar has several errors of lowering, the parse reports one, in this order. Errors of classifiers come first. Then lowering takes the rules in order (§3.9). For each rule, it reports a chain beside another alternative (§3.3) before it lowers that rule's alternatives.
 
@@ -2810,7 +2810,7 @@ An unresolved parameter never relaxes a node's category, field shape, method ari
 
 Each production name identifies its syntax constructor. Section 9.3 defines wrapper handling and the required constructor parts. Lexical forms contribute tokens where a constructor requires them. Starred references place their children directly in the calling constructor.
 
-The ordinary selector excludes the method name `parse`. Its dedicated route reads a constituent argument rather than term arguments. The Unicode mark `…` occurs only at an outer edge of that argument. It is distinct from ASCII `...` in chains and `⋯` in patterns.
+The named selector excludes the method name `parse`. Its dedicated route reads a constituent argument rather than term arguments. The Unicode mark `…` occurs only at an outer edge of that argument. It is distinct from ASCII `...` in chains and `⋯` in patterns.
 
 A method receiver retains a `plain-term-atom` constructor. Its selectors form one chain. Explicit grouping and selector folding keep the same DOM. The `headed-body` constructor supplies the header branch's ordinary alternatives or its single ranked alternative.
 
@@ -2954,7 +2954,7 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `constant-name` | One `Constant` token | User constant name without `$` |
 | `constant-keyword` | One `%const` or `%redefine-const` token | `define` or `redefine` |
 | `constant-reference` | One user constant reference token | `const`, name without `$`, and reference `at` |
-| `rule` | Definer, plain or call-shaped head, then binding call or header clauses, body and clauses | Ordinary definition, template with `params`, instance edit with `args`, or named `instance` binding. Bindings return before header clauses and body lookup. |
+| `rule` | Rule keyword, plain or call-shaped head, then binding call or header clauses, body and clauses | Ordinary definition, template with `params`, instance edit with `args`, or named `instance` binding. Bindings return before header clauses and body lookup. |
 | `call` | Call-name token, then ordered `call-argument` parts | `call`, ordered `args`, and call `at` |
 | `parameter` | One parameter token | `param` without `@`, and its `at` |
 | `call-argument` | Requirement argument, target argument, body argument, symbol argument, or term | ARG from `docs/output.md`, preserving its category |
@@ -2966,16 +2966,16 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `rule-name` | One rule-name token | Lowercase name or valid emoji scalar |
 | `body` | One or more `alternative`, or one `ranked-body` | Ordered alternative list |
 | `headed-body` | One or more `alternative`, or one `ranked-body` | Ordered alternative list, like `body` |
-| `alternative` | Gates, conjunction, then tag, value, image clauses | `gates`, `expr`, and optional channel or tag members |
-| `ranked-body` | Guards, ranked choice, then tag, value, image clauses | One ALT. Guards and clauses apply to the entire ranked expression. |
+| `alternative` | Gates, some-of, then tag, value, image clauses | `gates`, `expr`, and optional channel or tag members |
+| `ranked-body` | Gates, ranked choice, then tag, value, image clauses | One ALT. Gates and clauses apply to the entire ranked expression. |
 | `feature-gate` | One gate token from §9.1 | `feature`, `kind:"gate"`, `negated`. Reject every other kind or invalid feature name. |
 | `ranked-choice` | At least two `some-of` parts | Ordered `ranked` array |
 | `choice` | One `ranked-choice`, or one or more `some-of` parts | Ranked expression, ordinary `choice`, or sole child |
 | `some-of` | One or more `sequence` parts | `and`, or sole sequence |
 | `sequence` | One or more `primary` parts | `seq`, or sole primary |
-| `primary` | One symbol, call, splice, parameter, capture, tested, group, optional, repetition, or empty constructor | That expression. A constant symbol becomes `literal` of its unresolved term. |
+| `primary` | One symbol, call, splice, parameter, capture, tested primary, group, optional, repetition, or empty constructor | That expression. A constant symbol becomes `literal` of its unresolved term. |
 | `rule-reference` | One rule or tag name token | `ref`, including `🆓` |
-| `splice` | One reference or call, adjacent to `*` | `splice` of that rule reference or call |
+| `splice` | One rule reference or call, adjacent to `*` | `splice` of that rule reference or call |
 | `tag` | One user or engine tag token | Body: `ref`. Term: singleton `tag`. Pattern: `terminal` with source position. |
 | `string-terminal` | One `string` or `constant-reference` | Body: `literal` of the unresolved string term. |
 | `wildcard` | One `_` token | `wildcard:true` |
@@ -3008,7 +3008,7 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `concatenation` | One or more `term-atom` parts separated by `++` | Sole child, or ordered `concat` of string operands. Require each known operand to be a string before reading the next. Defer unresolved constant types until binding. Flatten grouped concatenation operands into the outer array in written order. |
 | `method-chain` | `method-receiver`, then one or more `method-selector` parts | Fold selectors left into receiver-first method nodes |
 | `method-receiver` | One `plain-term-atom` | Initial receiver, retaining its actual type |
-| `method-selector` | `parse-selector` or ordinary method name and arguments | Convert the selected route, then inspect its signature. |
+| `method-selector` | `parse-selector` or `named-selector` and arguments | Convert the selected route, then inspect its signature. |
 | `parse-selector` | One `parse-argument` | The enclosing `method-chain` supplies the receiver and folds this selector into a method named `parse`, with one body argument. |
 | `parse-argument` | One `choice`, with an optional `…` token at each outer edge | Convert the expression and retain each remainder as an outer `remainder:true` leaf in its sequence. Reject captures at their binders. |
 | `method-name` | One method-name token | Exact method identifier |

@@ -158,7 +158,7 @@ The native fields use these spellings. Diagnostic collections contain the object
 
 A named instance uses its public name everywhere, including `insertedBy`, warnings, expected lists, and error witnesses. A binding adds no tree node.
 
-A node has its kind (`rule`, `token` or `elided`), its rule or terminal, its span and source range, its tags and its children. A token node also has the index of the token that it read. An elided node with a default from `≝` or an equality test also has `value`. This saved restoration operand includes an explicit empty string. Other nodes omit `value`.
+A node has its kind (`rule`, `token` or `elided`) and its rule or terminal. It also has a span, a source range, tags and children. A token node also has the index of the token that it read. An elided node with a default from `≝` or an equality test also has `value`. This saved restoration operand includes an explicit empty string. Other nodes omit `value`.
 
 Tags are a set of tags, each a string in its canonical spelling (engine §1). Source positions count Unicode code points, whatever the string indexing of the language is. Spans and token indices count tokens of the relevant stage.
 

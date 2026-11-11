@@ -223,7 +223,7 @@ Every error raised while splicing a selected stage carries that stage, including
 
 An unreadable include with no source line reports the include directive's position. A positioned error keeps its location. Relocation preserves the other diagnostic fields.
 
-Engine §2 specifies common stitching and classifier messages.  Other wording stays library-specific unless this specification states otherwise.
+Engine §2 specifies common stitching and classifier messages. Other wording stays library-specific unless this specification states otherwise.
 
 Ranked loading errors have these members, in this order:
 
@@ -251,7 +251,7 @@ A grammar DOM (document object model) is the parsed form of a grammar document (
 
 Its envelope is `{"format":49,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. All five declaration arrays are present, including empty arrays. The envelope has no other members. Every declared item has `at:[line,column]`, counted from 1. Both coordinates must be integers from 1 to 9007199254740991 (2^53 − 1). This bound applies to every DOM source position.
 
-`format` is the version of the DOM, 48. A library refuses a bootstrap of another version and treats an optional cached DOM of another version as a cache miss. A format match alone never excuses invalid schema data.
+`format` is the version of the DOM, 49. A library refuses a bootstrap of another version and treats an optional cached DOM of another version as a cache miss. A format match alone never excuses invalid schema data.
 
 An optional member is absent only when its key is absent. A present `null` does not replace an omitted member. Every present member must satisfy its stated form, including exclusive targets and optional clauses.
 
