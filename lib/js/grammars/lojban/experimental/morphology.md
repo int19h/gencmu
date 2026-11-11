@@ -73,13 +73,13 @@ The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The sp
 %redefine-rule cmevla-shape
   $n:word-shape(cmevla)
       :: $n.tags ∪
-         ($n.parse(*cgv-form) ⟹ Cgv-Warning)
+         ($n.parse(cgv-form) ⟹ Cgv-Warning)
 
 -- A predicate word ends in a vowel, unlike a name. It carries the template marks and its warning. The warning test inspects only this complete word.
 %redefine-rule brivla-shape
   $b:word-shape(brivla-word)
       :: $b.tags ∪
-         ($b.parse(*cgv-form) ⟹ Cgv-Warning)
+         ($b.parse(cgv-form) ⟹ Cgv-Warning)
 
 -- This boolean span test requires a consonant, glide and nucleus. Several possible positions give the same truth value.
 %rule cgv-form
@@ -108,7 +108,7 @@ The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The sp
   $b:brivla-head stressed-syllable [{consonantal-syllable}] final-syllable
 %conditions
   ¬$b.onward.parse(rafsi-string …) ∨
-    $.parse(*cgv-form),
+    $.parse(cgv-form),
   ¬$.onward.parse(cgv-rafsi-continuation …),
 -- This boolean span test requires adjacent consonants. Different possible cluster positions give the same truth value.
   $.parse([{nonpause-phoneme}] consonant consonant [{nonpause-phoneme}])

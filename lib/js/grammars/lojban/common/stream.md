@@ -390,7 +390,7 @@ The hesitation rule refuses a raw y letteral. In `zo'oi .y. bu`, the quote there
   ¬$r.following-tokens.parse(quote-run-token …),
   ¬$s.following-tokens.parse(quote-run-token …),
   Hesitation ⊈ $s.first-token.tags ∨
-    $s.first-token.onward.parse(*raw-y-letter …)
+    $s.first-token.onward.parse(raw-y-letter …)
 %emits
   $
 
@@ -410,7 +410,7 @@ The hesitation rule refuses a raw y letteral. In `zo'oi .y. bu`, the quote there
 %rule zohoi-hesitation
   $h:y-run
 %conditions
-  ¬$h.onward.parse(*raw-y-letter …)
+  ¬$h.onward.parse(raw-y-letter …)
 %erased
 
 %rule zohoi-hesitations

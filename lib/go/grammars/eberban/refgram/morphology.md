@@ -1000,14 +1000,14 @@ An empty `er e` retains its closing `e` as `Stray-Prefix`, without a second erro
 %conditions
   ¬$p.following-tokens.parse(spaced-i-tail …),
   ER-PREFIX ⊆ $p.tags,
-  $p.following-tokens.parse(*empty-compound-tail …)
+  $p.following-tokens.parse(empty-compound-tail …)
 %error "the er compound needs at least one component"
 
 %rule incomplete-compound
   $p:prefix :: $p.tags
 %conditions
   ¬$p.following-tokens.parse(spaced-i-tail …),
-  ER-PREFIX ⊈ $p.tags ∨ ¬$p.following-tokens.parse(*empty-compound-tail …)
+  ER-PREFIX ⊈ $p.tags ∨ ¬$p.following-tokens.parse(empty-compound-tail …)
 %error "the compound is unfinished, or its prefix does not fit its components"
 
 %extend-rule open-compound
@@ -1516,12 +1516,12 @@ A bare quadruplet similarly retains one root token. A framed cluster retains con
 %rule malformed-ending :: ∅
   | malformed-pair ≻ freeform-multi-consonents-ending
 %conditions
-  $.following-tokens.parse(*freeform-ending-boundary …)
+  $.following-tokens.parse(freeform-ending-boundary …)
 
 %rule freeform-multi-consonents-ending
   consonant [Hyphen] consonant [{[Hyphen] consonant}] :: ∅
 %conditions
-  $.following-tokens.parse(*freeform-ending-boundary …)
+  $.following-tokens.parse(freeform-ending-boundary …)
 %error "the ending " ++ $.source-text ++ " has more than one consonant"
 ```
 

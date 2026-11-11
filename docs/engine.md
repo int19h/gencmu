@@ -3307,7 +3307,7 @@ Each of the following is an error of the document too, and the reader reports it
 
 A condition item holds at most one boundary atom. If the receiver of its atom is a capture, the item reads no other capture and no `$`. A boundary atom can stand in conditions, a guarded header or alternative tag term (§3.7), or an emission item's tag clause.
 
-Its target is one ordinary rule, exact instance, user tag, or a choice of these. `🆓` counts as a rule name. Each target must be one that some recognition can build. It is a rule reachable through body references from `text` or from the rule argument of a nested query. Or it is a tag that such a rule reads as a terminal.
+Its target is one ordinary rule, exact instance, user tag, or a choice of these. `🆓` counts as a rule name. Each target must be one that some recognition can build. It is a rule reachable through body references from `text` or from the body of a `parse`. Or it is a tag that such a rule reads as a terminal.
 
 Boundary-target inspection follows expanded rule order, then alternative order. Within one alternative, it follows the targets' written order.
 

@@ -563,7 +563,7 @@ A boundary-target choice splices into one complete target entry, in written orde
 %rule a = filtered("a", <¬Ogonek ¬Caron>)
 ```
 
-Here the letter query tests `h | b | unvoiced`. The filter on `a` requires `<¬Accent ¬Ogonek ¬Caron>`. A list under `¬@Excluded` is an error. A requirement list is distinct from a tag set, and `<>` is an empty list. A boundary-target choice must remain nonempty.
+Here the letter's boundary test names `h | b | unvoiced`. The filter on `a` requires `<¬Accent ¬Ogonek ¬Caron>`. A list under `¬@Excluded` is an error. A requirement list is distinct from a tag set, and `<>` is an empty list. A boundary-target choice must remain nonempty.
 
 These are the only list substitutions. A parenthesized body choice does not splice into boundary targets. Other terms retain their usual grouping and type rules. Recipe substitution flattens concatenations in operand order before validation, with empty operands and source attribution preserved. [Engine §2.3](engine.md#23-templates-and-instances) defines argument reading and conversion.
 

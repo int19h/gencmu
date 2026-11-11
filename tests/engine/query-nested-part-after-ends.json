@@ -1,5 +1,5 @@
 {
-  "description": "Engine §4: a part query inside the conditions of an ends target holds.",
+  "description": "Engine §4: a part query inside the conditions of a suffix query target holds.",
   "grammar": "%rule text {_} {_}\n%conditions $.parse(… tail)\n%rule tail {_} {_}\n%conditions $.parse(… B …)",
   "tokens": [
     {
