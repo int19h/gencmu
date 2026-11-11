@@ -105,7 +105,7 @@ A `bahe-run` is one or more `ba'e`, so `mi ba'e ba'e klama` is a text. A `ba'e` 
 
 An indicator run after a word attaches each of its indicators, `fu'e` included, to the word, each as a token of its own. Each of them carries the `ba'e` run before it as its attachment. A `nai` after an attitudinal attaches to the attitudinal. So `mi ui nai ia klama` hands on `mi` with `ui` and `ia` after it, and `ui` carries `nai` after it. The pipeline prints `([mi {ui nai} ia] klama)` in brackets.
 
-The spliced `indicator-step` shares the optional `fuhe` prefix and adds no named tree node. The conditions of `indicator` and `fuhe` keep the general `Word` expectation when an indicator run fails.
+The spliced `indicator-step` shares the optional `fuhe` prefix and adds no named tree node.
 
 The rule `attitudinal-nai` reads the pair with three captures: the `ba'e` run before the attitudinal, the attitudinal word, and the `nai`. The `nai` carries its own `ba'e` run before it. So `mi ba'e ui nai klama` gives `ui` with `ba'e` before it and `nai` after it, and `mi ui ba'e nai klama` gives `nai` with `ba'e` before it. The image of `ui` is `ui` in both.
 
@@ -158,6 +158,8 @@ The rule `attitudinal-nai` reads the pair with three captures: the `ba'e` run be
 <p><img src="../../../docs/diagrams/lojban/cll/indicators/nai.svg" alt="Railroad diagram of the rule nai"></p>
 </details>
 
+`indicator` and `fuhe` test their classes in conditions, not in a tag test on `Word`. So a failed indicator run expects one plain `Word`.
+
 A `ba'e` before an indicator marks the indicator and goes with it. So does a `ba'e` before the `nai` of an attitudinal. Emphasis leaves the word's meaning intact. Each UI or CAI permits one NAI. So `mi .e .ui ba'e nai do` negates the `.ui` and leaves the `.e` as it is.
 
 The CLL lexicon marks `fu'e` `Indicator`, so `host-word` never reads it as a word. Under these rules, `mi fu'e ui klama`, `mi fu'e ui nai klama` and `mi ui fu'e ia klama` are texts. The text `mi viska le fu'e .ia blanu zdani fu'o ponse` is one too. The stage rejects `mi fu'e klama`, `mi ui fu'e klama` and `mi fu'e fu'e ui klama`. In each of them, a `fu'e` has no indicator directly after it.
@@ -168,11 +170,11 @@ The stage also rejects `mi fu'e y klama`. The words stage drops hesitation, so n
 
 ## Leading runs
 
-After a leading run, a `nai` belongs to the last indicator of the run when that is an attitudinal. The stage is greedy, so it reads the `nai` into the run before it starts the next word. So `iu nai` is one run, not `iu` followed by a text that begins with `nai`. The same holds when a `ba'e` stands before the `nai`, as in `iu ba'e nai`.
-
 A leading run is a run of indicators that the syntax reads itself: at the start of the text, or directly after a quotation opener. Its indicators stay in the stream, each as a token of its own. A `ba'e` before one of them attaches to it, because the syntax does not read `ba'e`. But a `nai` after an attitudinal stays a token of its own, and the syntax reads `UI NAI`. So `ba'e ui nai mi klama` hands on `ui`, with `ba'e` attached before it, and then `nai`, `mi` and `klama`.
 
-The leading pair reads `nai` directly so that the emitted token keeps the spacing of its preceding `ba'e` attachment.
+The run reads a `nai` after its last attitudinal before it starts the next word. So `iu nai` is one run. The same holds when a `ba'e` stands before the `nai`, as in `iu ba'e nai`.
+
+The leading pair reads `Word<NAI>` itself. A capture of the rule `nai` hands on its `ba'e` prefix and `nai` as one token. Then `ba'e` is no longer an attachment of `nai`.
 
 The syntax reads the attitudinal run. Suppose that the stage nested a `nai` under its attitudinal. Then the syntax does not see that `nai`. It reads a second `nai` as that attitudinal's own, and `pau nai nai mi klama` is a text. So the stage keeps the `nai` in the stream, and the syntax rejects that text.
 

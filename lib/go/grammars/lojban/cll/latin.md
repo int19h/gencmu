@@ -23,7 +23,7 @@ The phoneme values are the letters of CLL[^cll-c3]:
 - The apostrophe `"'"`
 - The syllable comma, with empty value, image `,`, and tag `Syllable-Break`
 
-In `lojban/cll`, a comma run emits one token only between vowel groups. Elsewhere, commas emit nothing on their own. Forms tests syllable boundaries through that tag. The other Lojban pipelines discard commas through [../common/latin.md](../common/latin.md#the-comma). Every Lojban pipeline retains stress tags for forms.
+In `lojban/cll`, a comma run emits one token only between vowel groups. Elsewhere, commas emit nothing on their own. Forms tests syllable boundaries through `Syllable-Break`. The other Lojban pipelines discard commas through [../common/latin.md](../common/latin.md#the-comma). Every Lojban pipeline retains stress tags for forms.
 
 In this strict reading, `PAUSE` marks a pause of any length, with value and image `" "`. The [Latin conventions](../common/latin.md) replace this pause representation. `FOREIGN` marks a run that the pipeline cannot read as words. Here, that run contains a character outside the orthography. The forms stage passes it on, and the words stage admits it only inside a foreign quote or after `fa'o`.
 

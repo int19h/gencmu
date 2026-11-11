@@ -266,14 +266,9 @@ A y-hyphen must be unstressed. `hyphen-y` tests its lowercase value and rejects 
 %conditions
   $l.value ++ $r.value ∉ $PERMISSIBLE
 
-%rule affricate
-  consonant consonant
-%conditions
-  $.value ∈ $AFFRICATES
-
 ```
 
-<details><summary>Railroad diagrams of the 10 rules from <code>hyphen-y</code> to <code>affricate</code></summary>
+<details><summary>Railroad diagrams of the 9 rules from <code>hyphen-y</code> to <code>mandatory-y</code></summary>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/hyphen-y.svg" alt="Railroad diagram of the rule hyphen-y"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/lujvo-form.svg" alt="Railroad diagram of the rule lujvo-form"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/cvv-first-rest.svg" alt="Railroad diagram of the rule cvv-first-rest"></p>
@@ -283,7 +278,6 @@ A y-hyphen must be unstressed. `hyphen-y` tests its lowercase value and rejects 
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/ccv-rafsi.svg" alt="Railroad diagram of the rule ccv-rafsi"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/cvv-rafsi.svg" alt="Railroad diagram of the rule cvv-rafsi"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/mandatory-y.svg" alt="Railroad diagram of the rule mandatory-y"></p>
-<p><img src="../../../docs/diagrams/lojban/cll/morphology/affricate.svg" alt="Railroad diagram of the rule affricate"></p>
 </details>
 
 
@@ -355,7 +349,7 @@ The slinku'i test of CLL[^cll-s4-7] says that a CV cmavo joined to the front of 
 
 ```jbogenbau
 %rule lujvo-after-cvv
-  [Syllable-Break] i-or-u cvv-first-rest
+  i-or-u cvv-first-rest
 
 %rule fuhivla-word
   $f:fuhivla-form
@@ -465,9 +459,9 @@ Only a borrowing, a name or hesitation can hold a comma between two vowels. A cm
 
 A run with such a word divides into no words, and the forms stage hands it on as one foreign token ([../common/forms.md](../common/forms.md)). The words stage rejects that run unless it is inside a foreign quote or after `fa'o`.
 
-The comma rules read `Syllable-Break`, because the comma value is empty. `vowel-group`, `window-letter` and `name-vowels` retain the written boundary. `la-or-doi`, `falling-vowels`, `rising-vowels` and `lujvo-after-cvv` read optional syllable boundaries. `has-comma` finds a comma through its tag.
+The comma rules read `Syllable-Break`, because the comma value is empty. `vowel-group`, `window-letter` and `name-vowels` retain the written boundary. `la-or-doi`, `falling-vowels` and `rising-vowels` read optional syllable boundaries. `has-comma` finds a comma through its tag.
 
-The rules that test whether letters form a cmavo or a lujvo read a comma inside a diphthong as if it were absent. `cmavo-unit` and `cvv-rafsi` read `falling-vowels`. `vowel-cmavo` reads `rising-vowels`, and it reads `falling-vowels` through `cmavo-units`. `lujvo-form` reads the first CVV rafsi through `cvv-rafsi`. The slinku'i test uses `lujvo-after-cvv` for the tail after its first vowel. `cmavo-shape` and `brivla-word` then refuse a cmavo or a lujvo that has a comma.
+The rules that test whether letters form a cmavo or a lujvo read a comma inside a diphthong as if it were absent. `cmavo-unit` and `cvv-rafsi` read `falling-vowels`. `vowel-cmavo` reads `rising-vowels`, and it reads `falling-vowels` through `cmavo-units`. `lujvo-form` reads the first CVV rafsi through `cvv-rafsi`. The slinku'i test uses `lujvo-after-cvv` for a borrowing that begins with `i` or `u`. `cmavo-shape` and `brivla-word` then refuse a cmavo or a lujvo that has a comma.
 
 The tests of "Borrowings" for a lujvo or a `combination` use these rules and treat such a comma as absent too. So `ba,iklama` is no borrowing, because `bai klama` is two words. `akru,a` is one borrowing, as `akrua` is, and not `a kru,a`. A borrowing needs two syllables without its commas, which `one-syllable` tests.
 

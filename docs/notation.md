@@ -1977,7 +1977,7 @@ A tag term that runs over several lines ends each line with its `∪`. Its next 
 
 ```jbogenbau
 %rule runs
-  | $r:run :: $r.tags
+  | run
   | $p:runs pause-run $r:run
       :: $r.tags ∪
          (RAhOI ⊆ $p.tags ∧ $r.parse(only-hesitation) ⟹ RAhOI)

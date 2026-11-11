@@ -8,7 +8,9 @@ A magic word acts on other words. The words inside are plain words, whatever the
 
 So `mi lo'ai su le'ai klama` keeps `mi`, and `mi lo'ai zo le'ai klama` is a text. A magic word after the quote acts on all of it. Thus `lo'ai mi le'ai si` is nothing, and `lo'ai mi le'ai bu` is a letteral, a letter word of class BY, as [stream.md](stream.md) defines it.
 
-The quote uses `quiet-gap`, `pause-gap` and `word-gap` from the shared word stream. A gap with a surviving pause contributes one space, and hesitation without a pause contributes no string. These rules execute no erasure inside the quote. `lohai-stream` uses `word-gap` between words, including its empty route. Its first alternative reads `lohai-word`, so the stream always holds at least one word.
+The quote reads each gap through `word-gap` of the shared word stream. That gap is empty, a `quiet-gap` or a `pause-gap`. A gap with a surviving pause contributes one space, and hesitation without a pause contributes no string. These rules execute no erasure inside the quote.
+
+`lohai-stream` uses `word-gap` between words, including its empty route. Its first alternative reads `lohai-word`, so the stream always holds at least one word.
 
 The first alternative of `lohai-run` reads a bare marker with no body.
 
@@ -18,11 +20,9 @@ A tag marks a token by an identifier. The quote token carries its opening class 
 
 A bare `le'ai` carries LEhAI. Its marker reads `LEhAI` directly so that an unclosed quote names the missing marker. Syntax requires `Quote` on LOhAI, so an incomplete replacement quote cannot act as a finished quote. The words inside carry no class, so none of them is a boundary for `su`.
 
-In the experimental pipeline, an unfinished marker carries `Fault` unless a `constructor-word` takes it as a base. That rule names `bu` and `zei`, with `ze'ei` added in `lojban/experimental`. The named rule keeps the fallback test consistent with the pipeline's constructors. The `word-base` hook adds the fault tag without changing the shared word exclusions.
+In the experimental pipeline, an unfinished marker carries `Fault` unless a `constructor-word` takes it as a base. That rule names `bu` and `zei`, with `ze'ei` added in `lojban/experimental`. A pipeline that adds a constructor must also extend `constructor-word`. The `word-base` hook adds the fault tag without changing the shared word exclusions.
 
 [The word stream](stream.md) reads no ordinary word where a quote begins. So `mi lo'ai si klama` is `mi klama`, and `mi lo'ai bu klama` has a letteral. An eraser can remove the fault. A surviving fault rejects the words stage at the missing LEhAI. The Zantufa word stream has its own rules for such a marker.
-
-The `constructor-word` rule lists BU and ZEI for the replacement-quote fallback. That fallback uses the rule after an unfinished marker. A pipeline that adds a constructor must also extend `constructor-word`.
 
 ```jbogenbau
 %rule constructor-word
@@ -41,7 +41,7 @@ The `constructor-word` rule lists BU and ZEI for the replacement-quote fallback.
   lohai-quote
 
 %rule lohai-quote :- $.source-text
-  | $e:lehai-marker :: $e.tags
+  | lehai-marker
   | $r:lohai-run word-gap [lohai-run word-gap] lehai-marker :: $r.tags
 %emits
   $ :: Quote ∪ $.tags

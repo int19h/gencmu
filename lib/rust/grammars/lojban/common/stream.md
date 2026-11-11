@@ -110,9 +110,9 @@ The rule `empty` reads a prefix that leaves no units. Its alternatives use `text
 
 Hesitation emits nothing unless the word reader joins it with `bu`. The reader treats `yybu` as hesitation followed by the y letteral. The reader also forms the y letteral from `.yy. bu` and `.yyy. bu`.
 
-The pause, gap, raw-run and payload lists stay recursive because the lazy stage compares their step ends before closing a gap or quote.
+`pause-run`, `quiet-gap` and `delimiter-quiet-gap` stay recursive because the lazy stage compares their step ends before closing a gap. The same applies to `raw-run-parts`, `raw-tokens` and `single-run-payload` when it closes a quote.
 
-`pause-run` groups consecutive pause tokens. The quiet quote gap keeps its per-token test, so material pauses cannot enter that gap. Its gap recipe contributes one space. The rule emits no token of its own. A raw quote body keeps punctuation and ignored characters.
+`pause-run` groups consecutive pause tokens. `quote-gap-pauses` keeps its per-token test, so material pauses cannot enter that gap. Its end is fixed by the next token that is not a quiet pause, so no ranking step needs its steps. Its gap recipe contributes one space. The rule emits no token of its own. A raw quote body keeps punctuation and ignored characters.
 
 `spacing` reads pauses and ordinary hesitation. `skipped` also reads erased regions. These rules retain surviving pauses without emitting a token of their own.
 
@@ -213,10 +213,10 @@ Without SA or SU input, both feature states admit the same plain words. The rule
   SI ∪ SA ∪ SU
 
 %rule read-word
-  | $c:cmavo-token
-  | $b:brivla-token :: $b.tags
-  | $n:cmevla-token :: $n.tags
-  | $y:y-bu-word :: $y.tags
+  | cmavo-token
+  | brivla-token
+  | cmevla-token
+  | y-bu-word
 
 %rule brivla-token
   BRIVLA

@@ -212,10 +212,10 @@ The `Vowel` tag marks the five full vowels and not `y`. So `zbalermorna-plain-fu
   ("‹ZBALERMORNA HUMBERT VOWEL SIGN AUBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN AUBU›"),
   "a", "A", "u")
 
-%rule zbalermorna-shorthand :: $v.tags
-  | zbalermorna-shorthand-mark $v:zbalermorna-shorthand-vowel
+%rule zbalermorna-shorthand
+  zbalermorna-shorthand-mark $v:zbalermorna-shorthand-vowel :: $v.tags
 %emits
-  $ :: $v.tags := $v.emitted.value :- $v.emitted.image,
+  $ := $v.emitted.value :- $v.emitted.image,
   ε :: ∅ := "'"
 
 %rule zbalermorna-shorthand-vowel

@@ -31,8 +31,6 @@ In CLL, a name that is not the first word of its run follows `la`, `lai`, `la'i`
 
 A replacement name keeps its source boundary. Thus `ladjan. sa .djim. bu` leaves `la` and the letteral of `djim`. The `lerfu-base` hook adds the CLL name condition to the shared compound-gap recipes and trailing-pause tests. A name inside a compound is not the operand: `ladjan. zei mi bu` makes a letteral of the compound. Inside `lo'u ... le'u`, where `bu` does nothing, `lo'u ladjan.bu le'u` is valid.
 
-The `lojban/cll` pipeline requires pauses around a direct name base of BU. It tests the source run boundary through `lerfu-base`. A name inside a compound does not make that compound a direct name.
-
 ```jbogenbau
 %redefine-rule lerfu-base
   $u:unit

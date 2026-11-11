@@ -71,7 +71,7 @@ The redefined `run-words` keeps the join conditions of [../common/forms.md](../c
 ```jbogenbau
 -- Preserve quote state across pauses and hesitation. A quoted form belongs to rahoi-rest, not an ordinary run.
 %redefine-rule runs
-  | $r:run :: $r.tags
+  | run
   | $p:runs pause-run $r:run
       :: $r.tags ∪
          (RAhOI ⊆ $p.tags ∧ $r.parse(only-hesitation) ⟹ RAhOI)

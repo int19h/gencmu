@@ -40,6 +40,11 @@ CLL[^cll-s3-7] forbids the triples `ndj ndz ntc nts`, except in a name. The shar
 %rule initial-cluster
   initial-pair | long-initial-run
 
+%rule affricate
+  consonant consonant
+%conditions
+  $.value ∈ $AFFRICATES
+
 %rule n-affricate
   "n" affricate
 
@@ -50,11 +55,12 @@ CLL[^cll-s3-7] forbids the triples `ndj ndz ntc nts`, except in a name. The shar
   [consonants] n-affricate [consonants]
 ```
 
-<details><summary>Railroad diagrams of the 7 rules from <code>consonant</code> to <code>has-n-affricate</code></summary>
+<details><summary>Railroad diagrams of the 8 rules from <code>consonant</code> to <code>has-n-affricate</code></summary>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/consonant.svg" alt="Railroad diagram of the rule consonant"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/initial-pair.svg" alt="Railroad diagram of the rule initial-pair"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/consonant-pair.svg" alt="Railroad diagram of the rule consonant-pair"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/initial-cluster.svg" alt="Railroad diagram of the rule initial-cluster"></p>
+<p><img src="../../../docs/diagrams/lojban/cll/shapes/affricate.svg" alt="Railroad diagram of the rule affricate"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/n-affricate.svg" alt="Railroad diagram of the rule n-affricate"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/consonants.svg" alt="Railroad diagram of the rule consonants"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/has-n-affricate.svg" alt="Railroad diagram of the rule has-n-affricate"></p>

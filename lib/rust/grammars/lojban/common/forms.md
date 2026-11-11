@@ -129,7 +129,7 @@ The BPFK word forms set only `Onset` and `Continued`, with the meaning that the 
 
 ```jbogenbau
 %rule run-words
-  | $f:first-word :: $f.tags
+  | first-word
   | $r:run-words $v:later-word
       :: $v.tags ∪
          (Uncounted ⊆ $v.tags ⟹ Open-Stress ∩ $r.tags)
