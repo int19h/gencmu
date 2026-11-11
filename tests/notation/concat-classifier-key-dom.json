@@ -5,7 +5,6 @@
     "dom": {
       "format": 49,
       "rules": [],
-      "checks": [],
       "directives": [],
       "constants": [
         {
@@ -92,7 +91,8 @@
           ]
         }
       ],
-      "implications": []
+      "implications": [],
+      "checks": []
     }
   }
 }

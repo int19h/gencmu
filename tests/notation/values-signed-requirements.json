@@ -39,11 +39,11 @@
           ]
         }
       ],
-      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     }
   },
   "description": "The DOM preserves positive and negative requirements in written order (engine §4, docs/output.md)."

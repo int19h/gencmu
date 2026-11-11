@@ -39,11 +39,11 @@
           ]
         }
       ],
-      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     }
   },
   "description": "A tag test can precede one exact value test (engine §9.2)."

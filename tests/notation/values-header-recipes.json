@@ -36,11 +36,11 @@
           ]
         }
       ],
-      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     }
   },
   "description": "A rule header can define independent value and image recipes (engine §11)."

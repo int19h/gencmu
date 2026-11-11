@@ -751,7 +751,7 @@ class Robustness(unittest.TestCase):
             "documents": {
                 "grammars/test/g.md": {
                     "hash": fnv1a64(sources["grammars/test/g.md"]),
-                    "dom": {"format": DOM_FORMAT, "rules": [{}], "checks": [], "directives": [], "constants": [], "classifiers": [], "implications": []},
+                    "dom": {"format": DOM_FORMAT, "rules": [{}], "directives": [], "constants": [], "classifiers": [], "implications": [], "checks": []},
                 }
             },
         }
@@ -845,7 +845,7 @@ class Robustness(unittest.TestCase):
         depth = 20_000
         unicode_hash = fnv1a64(bundled_text("data/unicode/unicode.txt") or "")
         last = f"grammars/test/d{depth}.md"
-        include = {"format": DOM_FORMAT, "rules": [], "checks": [], "directives": [], "constants": [], "classifiers": [], "implications": []}
+        include = {"format": DOM_FORMAT, "rules": [], "directives": [], "constants": [], "classifiers": [], "implications": [], "checks": []}
 
         def sources(end: str | None) -> dict[str, str]:
             texts = {f"grammars/test/d{index}.md": f'```jbogenbau\n%include "d{index + 1}.md"\n```\n' for index in range(depth)}

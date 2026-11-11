@@ -525,11 +525,11 @@ class SharedClauses(Linear):
             dom = {
                 "format": DOM_FORMAT,
                 "rules": [rule],
-                "checks": [],
                 "directives": [{"name": "ambiguity-resolution", "steps": [{"step": "greedy"}], "at": [1, 1]}],
                 "constants": [{"name": "K", "op": "define", "value": {"tag": "K"}, "at": [2, 1]}],
                 "classifiers": [],
                 "implications": [],
+                "checks": [],
             }
             return lambda: stitch("s", [("t.md", dom)], pipeline._unicode)
 
@@ -555,11 +555,11 @@ class SharedClauses(Linear):
             dom = {
                 "format": DOM_FORMAT,
                 "rules": [rule],
-                "checks": [],
                 "directives": [{"name": "ambiguity-resolution", "steps": [{"step": "greedy"}], "at": [1, 1]}],
                 "constants": [],
                 "classifiers": [],
                 "implications": [],
+                "checks": [],
             }
             return lambda: stitch("s", [("t.md", dom)], pipeline._unicode)
 
@@ -648,11 +648,11 @@ class GuardedClauses(Linear):
         dom = {
             "format": DOM_FORMAT,
             "rules": [rule],
-            "checks": [],
             "directives": [{"name": "ambiguity-resolution", "steps": [{"step": "greedy"}], "at": [1, 1]}],
             "constants": [{"name": "K", "op": "define", "value": {"tag": "K"}, "at": [2, 1]}],
             "classifiers": [],
             "implications": [],
+            "checks": [],
         }
         return rule, dom
 
@@ -767,11 +767,11 @@ def pipeline_dom(directives: list[dict[str, Any]], rules: int = 0) -> dict[str, 
             {"name": "text", "op": "define", "alternatives": [], "conditions": [], "at": [line + 1, 9]}
             for line in range(len(directives), len(directives) + rules)
         ],
-        "checks": [],
         "directives": [{**directive, "at": [line + 1, 1]} for line, directive in enumerate(directives)],
         "constants": [],
         "classifiers": [],
         "implications": [],
+        "checks": [],
     }
 
 

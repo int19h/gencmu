@@ -24,11 +24,11 @@
           ]
         }
       ],
-      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     }
   },
   "description": "A value terminal preserves capitals, commas, and multiple scalars (engine §§1, 4)."

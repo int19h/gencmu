@@ -120,7 +120,7 @@ class Preparsed(unittest.TestCase):
         assert lexical is not None
         path = "grammars/test/lexical.md"
         stale = {**self.preparsed, "documents": {path: {
-            "hash":fnv1a64(lexical), "dom": {"format":DOM_FORMAT,"rules":[],"checks": [], "directives":[],"constants":[],"classifiers":[],"implications":[]}
+            "hash":fnv1a64(lexical), "dom": {"format":DOM_FORMAT,"rules":[],"directives":[], "constants":[],"classifiers":[],"implications":[],"checks": []}
         }}}
         edited = lexical + "\nA note added after the grammar.\n"
         sources = {
@@ -148,7 +148,7 @@ class Preparsed(unittest.TestCase):
         bootstrap_hash = fnv1a64(bundled_text("data/preparsed/gencmu.json") or "")
         # A DOM with no rules: were it used, the stage would have no rule
         # text and fail to load.
-        empty: Dom = {"rules": [], "checks": [], "directives": [], "constants": [], "classifiers": [], "implications": []}
+        empty: Dom = {"rules": [], "directives": [], "constants": [], "classifiers": [], "implications": [], "checks": []}
 
         def load(file_format: int, dom: Dom) -> gencmu.Pipeline:
             preparsed = {"format": file_format, "bootstrap": bootstrap_hash, "unicode": fnv1a64(bundled_text("data/unicode/unicode.txt") or ""), "properties": fnv1a64(bundled_text("data/unicode/unicode-properties.txt") or ""), "documents": {"grammars/test/g.md": {"hash": fnv1a64(document), "dom": dom}}}

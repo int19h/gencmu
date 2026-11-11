@@ -24,11 +24,11 @@
           ]
         }
       ],
-      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     }
   },
   "description": "A dollar sign is an ordinary string character (engine §9.1)."

@@ -23,11 +23,11 @@
           ]
         }
       ],
-      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     }
   },
   "description": "Erasure has its own rule member (docs/output.md) (engine §9.3)."

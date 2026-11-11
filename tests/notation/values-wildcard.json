@@ -22,11 +22,11 @@
           ]
         }
       ],
-      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     }
   },
   "description": "The wildcard has its own DOM form (docs/output.md) (engine §9.3)."

@@ -64,7 +64,6 @@
     "name": "repeat discovery ignores member order true",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "a",
@@ -158,7 +157,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "order": [
       "text",
@@ -170,7 +170,6 @@
     "name": "repeat discovery ignores member order false",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "a",
@@ -264,7 +263,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "order": [
       "text",
@@ -276,7 +276,6 @@
     "name": "nested any keeps a distinct key",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "use",
@@ -421,7 +420,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "instances": 2
   },
@@ -429,7 +429,6 @@
     "name": "nested all keeps a distinct key",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "use",
@@ -574,7 +573,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "instances": 2
   },
@@ -582,7 +582,6 @@
     "name": "maximum-depth call arguments expand safely",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "f",
@@ -2931,7 +2930,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "instances": 256
   },
@@ -2939,7 +2939,6 @@
     "name": "maximum-depth body arguments expand safely",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "f",
@@ -5800,7 +5799,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "instances": 256
   },
@@ -5808,7 +5808,6 @@
     "name": "maximum-depth targets arguments expand safely",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "f",
@@ -9949,7 +9948,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "instances": 256
   },
@@ -9957,7 +9957,6 @@
     "name": "substitution and discovery at maximum target depth",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "f",
@@ -14131,7 +14130,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "instances": 257
   },
@@ -14158,7 +14158,6 @@
     "name": "supplied nested argument union shares its normalized key",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "use",
@@ -14257,7 +14256,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "instances": 1
   },
@@ -14266,7 +14266,6 @@
     "grammar": "%rule use(@X) @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "use",
@@ -14329,7 +14328,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -14339,7 +14339,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -14437,7 +14436,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -14447,7 +14447,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -14550,7 +14549,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -14560,7 +14560,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -14647,7 +14646,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -14657,7 +14657,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -14749,7 +14748,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -14759,7 +14759,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -14864,7 +14863,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -14874,7 +14874,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -14984,7 +14983,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -14994,7 +14994,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -15101,7 +15100,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -15111,7 +15111,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -15207,7 +15206,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -15217,7 +15217,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -15331,7 +15330,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -15341,7 +15341,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -15439,7 +15438,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -15449,7 +15449,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -15552,7 +15551,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -15562,7 +15562,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -15660,7 +15659,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -15670,7 +15670,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -15773,7 +15772,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -15783,7 +15783,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -15888,7 +15887,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -15898,7 +15898,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -16008,7 +16007,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -16018,7 +16018,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -16125,7 +16124,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -16135,7 +16135,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -16242,7 +16241,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -16252,7 +16252,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -16366,7 +16365,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -16375,7 +16375,6 @@
     "name": "parameter as a set term in a condition",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -16465,7 +16464,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     }
   },
   {
@@ -16473,7 +16473,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -16577,7 +16576,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -16586,7 +16586,6 @@
     "name": "parameter as a set term in a negated condition",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -16678,7 +16677,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     }
   },
   {
@@ -16686,7 +16686,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -16792,7 +16791,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -16801,7 +16801,6 @@
     "name": "parameter as a set term in a disjunct",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -16910,7 +16909,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     }
   },
   {
@@ -16918,7 +16918,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -17029,7 +17028,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -17038,7 +17038,6 @@
     "name": "parameter as a set term in a conjunct",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -17135,7 +17134,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     }
   },
   {
@@ -17143,7 +17143,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -17254,7 +17253,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -17263,7 +17263,6 @@
     "name": "parameter as a set term in an implication antecedent",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -17370,7 +17369,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     }
   },
   {
@@ -17378,7 +17378,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -17487,7 +17486,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -17496,7 +17496,6 @@
     "name": "parameter as a set term in an implication consequent",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -17591,7 +17590,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     }
   },
   {
@@ -17599,7 +17599,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -17708,7 +17707,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -17717,7 +17717,6 @@
     "name": "parameter as a set term in a term guard",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -17811,7 +17810,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     }
   },
   {
@@ -17819,7 +17819,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -17927,7 +17926,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -17937,7 +17937,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -18035,7 +18034,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -18045,7 +18045,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -18148,7 +18147,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -18158,7 +18158,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -18270,7 +18269,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -18280,7 +18280,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -18397,7 +18396,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -18407,7 +18407,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -18528,7 +18527,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -18538,7 +18538,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -18664,7 +18663,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -18674,7 +18674,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -18790,7 +18789,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -18800,7 +18800,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -18921,7 +18920,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -18931,7 +18931,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -19047,7 +19046,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -19057,7 +19057,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -19178,7 +19177,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -19188,7 +19188,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -19315,7 +19314,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -19325,7 +19325,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -19457,7 +19456,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -19467,7 +19467,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -19565,7 +19564,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -19575,7 +19575,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -19678,7 +19677,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -19688,7 +19688,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -19790,7 +19789,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -19800,7 +19800,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -19918,7 +19917,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -19928,7 +19928,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -20051,7 +20050,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -20061,7 +20061,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -20183,7 +20182,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -20193,7 +20193,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -20309,7 +20308,8 @@
       ],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -20319,7 +20319,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -20428,7 +20427,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -20438,7 +20438,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -20551,7 +20550,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -20561,7 +20561,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -20675,7 +20674,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -20685,7 +20685,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -20803,7 +20802,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -20812,7 +20812,6 @@
     "name": "malformed cache: a pattern literal cannot contain a parameter",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -20925,7 +20924,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "grammar": "%rule use(@X) @X\n%rule text use(\"a\")",
@@ -20935,7 +20935,6 @@
     "name": "supplied parameter in pattern range endpoint expands with its wrapper",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -21053,7 +21052,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "instances": 1
   },
@@ -21061,7 +21061,6 @@
     "name": "a pattern call accepts a value test",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -21179,7 +21178,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "instances": 2
   },
@@ -21187,7 +21187,6 @@
     "name": "a call can be the operand of a pattern equality test",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -21305,7 +21304,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "instances": 2
   },
@@ -21313,7 +21313,6 @@
     "name": "a call can be the operand of a pattern inequality test",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -21431,7 +21430,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "instances": 2
   },
@@ -21440,7 +21440,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -21555,7 +21554,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -21565,7 +21565,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -21682,7 +21681,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -21692,7 +21692,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -21809,7 +21808,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -21819,7 +21819,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -21938,7 +21937,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -21948,7 +21948,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -22067,7 +22066,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -22077,7 +22077,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -22196,7 +22195,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -22206,7 +22206,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -22325,7 +22324,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -22335,7 +22335,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -22456,7 +22455,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -22466,7 +22466,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -22587,7 +22586,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -22597,7 +22597,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -22719,7 +22718,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -22729,7 +22729,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -22843,7 +22842,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -22853,7 +22853,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -22971,7 +22970,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -22981,7 +22981,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -23105,7 +23104,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -23115,7 +23115,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -23231,7 +23230,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -23241,7 +23241,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -23361,7 +23360,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -23371,7 +23371,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -23495,7 +23494,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -23505,7 +23505,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -23621,7 +23620,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -23631,7 +23631,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -23751,7 +23750,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -23760,7 +23760,6 @@
     "name": "supplied param remains valid in pattern tags test operand expands",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -23871,7 +23870,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "instances": 1
   },
@@ -23879,7 +23879,6 @@
     "name": "supplied param remains valid in pattern = test operand expands",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -23992,7 +23991,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "instances": 1
   },
@@ -24000,7 +24000,6 @@
     "name": "supplied param remains valid in pattern ≠ test operand expands",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -24113,7 +24112,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "instances": 1
   },
@@ -24121,7 +24121,6 @@
     "name": "supplied pattern test order tags then = on a parameter expands",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -24238,7 +24237,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "instances": 1
   },
@@ -24246,7 +24246,6 @@
     "name": "supplied pattern test order tags then ≠ on a parameter expands",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -24363,7 +24362,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "instances": 1
   },
@@ -24675,7 +24675,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -24804,7 +24803,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -24814,7 +24814,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -24939,7 +24938,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -24949,7 +24949,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -25072,7 +25071,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -25082,7 +25082,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -25198,7 +25197,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -25208,7 +25208,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -25311,7 +25310,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -25321,7 +25321,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -25441,7 +25440,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -25451,7 +25451,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -25572,7 +25571,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -25582,7 +25582,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -25730,7 +25729,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -25740,7 +25740,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -25869,7 +25868,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -25879,7 +25879,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -25987,7 +25986,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -25997,7 +25997,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -26116,7 +26115,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -26126,7 +26126,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -26239,7 +26238,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -26249,7 +26249,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -26356,7 +26355,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -26366,7 +26366,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -26478,7 +26477,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"
@@ -26488,7 +26488,6 @@
     "grammar": "%rule atom(@Y) @Y\n%rule use(@X) @X := @X\n%rule text use(\"a\")",
     "dom": {
       "format": 49,
-      "checks": [],
       "rules": [
         {
           "name": "atom",
@@ -26612,7 +26611,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "cacheFallback": true,
     "input": "a"

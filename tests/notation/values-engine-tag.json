@@ -22,11 +22,11 @@
           ]
         }
       ],
-      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     }
   },
   "description": "A stored engine tag is a terminal even when stage zero never assigns it (engine §1)."

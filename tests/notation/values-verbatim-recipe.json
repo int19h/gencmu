@@ -40,11 +40,11 @@
           ]
         }
       ],
-      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     }
   },
   "description": "A verbatim recipe retains its capture receiver and extends only the image's uncovered source gaps (engine §9.3, §11.1)."

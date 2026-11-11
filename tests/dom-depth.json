@@ -2,7 +2,6 @@
   {
     "description": "Expression reference",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -23,7 +22,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "ref": "A"
@@ -36,7 +36,6 @@
   {
     "description": "Expression wildcard",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -57,7 +56,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "wildcard": true
@@ -70,7 +70,6 @@
   {
     "description": "Expression empty",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -91,7 +90,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "empty": true
@@ -104,7 +104,6 @@
   {
     "description": "Expression literal",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -125,7 +124,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "literal": {
@@ -140,7 +140,6 @@
   {
     "description": "Expression constant literal",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -161,7 +160,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "literal": {
@@ -176,7 +176,6 @@
   {
     "description": "Expression scalar constant literal",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -197,7 +196,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "literal": {
@@ -212,7 +212,6 @@
   {
     "description": "Expression range",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -233,7 +232,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "range": [
@@ -253,7 +253,6 @@
   {
     "description": "Expression scalar constant range endpoint",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -274,7 +273,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "range": [
@@ -294,7 +294,6 @@
   {
     "description": "Expression seq",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -315,7 +314,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "ref": "A"
@@ -333,7 +333,6 @@
   {
     "description": "Expression choice",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -354,7 +353,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "ref": "A"
@@ -372,7 +372,6 @@
   {
     "description": "Expression ranked",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -393,7 +392,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "ref": "A"
@@ -411,7 +411,6 @@
   {
     "description": "Expression and",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -432,7 +431,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "ref": "A"
@@ -450,7 +450,6 @@
   {
     "description": "Expression optional",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -471,7 +470,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "ref": "A"
@@ -484,7 +484,6 @@
   {
     "description": "Expression repeat item",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -505,7 +504,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "ref": "A"
@@ -518,7 +518,6 @@
   {
     "description": "Expression repeat separator",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -539,7 +538,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "ref": "A"
@@ -555,7 +555,6 @@
   {
     "description": "Expression capture",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -576,7 +575,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "capture": "x",
@@ -592,7 +592,6 @@
   {
     "description": "Expression value test",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -613,7 +612,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "test": "=",
@@ -632,7 +632,6 @@
   {
     "description": "Expression tag test",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -653,7 +652,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "test": "tags",
@@ -677,7 +677,6 @@
   {
     "description": "Expression value and tag tests",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -698,7 +697,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "test": "=",
@@ -728,7 +728,6 @@
   {
     "description": "Expression scalar constant test value",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -749,7 +748,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "test": "=",
@@ -768,7 +768,6 @@
   {
     "description": "Term union",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -795,7 +794,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "tag": "Tag"
@@ -813,7 +813,6 @@
   {
     "description": "Term intersection",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -840,7 +839,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "tag": "Tag"
@@ -858,7 +858,6 @@
   {
     "description": "Term difference",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -885,7 +884,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "tag": "Tag"
@@ -903,7 +903,6 @@
   {
     "description": "Term guarded result",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -930,7 +929,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "tag": "Tag"
@@ -946,7 +946,6 @@
   {
     "description": "Term guarded condition",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -973,7 +972,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "if": {
@@ -996,7 +996,6 @@
   {
     "description": "Term string",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -1024,7 +1023,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "op": "=",
@@ -1043,7 +1043,6 @@
   {
     "description": "Term constant",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -1071,7 +1070,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "op": "=",
@@ -1090,7 +1090,6 @@
   {
     "description": "Term concat",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -1118,7 +1117,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "op": "=",
@@ -1144,7 +1144,6 @@
   {
     "description": "Term capture",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -1172,7 +1171,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "op": "=",
@@ -1191,7 +1191,6 @@
   {
     "description": "Term value method",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -1219,7 +1218,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "op": "=",
@@ -1242,7 +1242,6 @@
   {
     "description": "Term split argument",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -1270,7 +1269,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "op": "=",
@@ -1297,7 +1297,6 @@
   {
     "description": "Term split concatenation argument",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -1325,7 +1324,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "op": "=",
@@ -1359,7 +1359,6 @@
   {
     "description": "Term classify method",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -1387,7 +1386,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "op": "=",
@@ -1414,7 +1414,6 @@
   {
     "description": "Term empty set",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -1441,7 +1440,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "emptySet": true
@@ -1459,7 +1459,6 @@
   {
     "description": "Term tag",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -1486,7 +1485,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "tag": "Tag"
@@ -1504,7 +1504,6 @@
   {
     "description": "Method receiver chain",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -1532,7 +1531,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "method": "starts-input",
@@ -1549,7 +1549,6 @@
   {
     "description": "Condition not",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -1577,7 +1576,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "method": "starts-input",
@@ -1594,7 +1594,6 @@
   {
     "description": "Condition any",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -1622,7 +1621,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "method": "starts-input",
@@ -1648,7 +1648,6 @@
   {
     "description": "Condition all",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -1676,7 +1675,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "method": "starts-input",
@@ -1702,7 +1702,6 @@
   {
     "description": "Condition if",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -1730,7 +1729,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "method": "starts-input",
@@ -1754,7 +1754,6 @@
   {
     "description": "Condition comparison",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -1782,7 +1781,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "op": "=",
@@ -1801,7 +1801,6 @@
   {
     "description": "Condition query receiver",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -1829,7 +1828,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "method": "parse",
@@ -1852,7 +1852,6 @@
   {
     "description": "Condition boundary terminal argument",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -1880,7 +1879,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "method": "followed-by",
@@ -1901,7 +1901,6 @@
   {
     "description": "Condition guarded comparison operand",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -1929,7 +1928,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "op": "=",
@@ -1953,7 +1953,6 @@
   {
     "description": "Pattern name",
     "dom": {
-      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -1970,7 +1969,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "name": "text",
@@ -1996,7 +1996,6 @@
   {
     "description": "Pattern terminal",
     "dom": {
-      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2013,7 +2012,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "terminal": "A",
@@ -2039,7 +2039,6 @@
   {
     "description": "Pattern constant",
     "dom": {
-      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2056,7 +2055,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "constant": "C",
@@ -2082,7 +2082,6 @@
   {
     "description": "Pattern wildcard",
     "dom": {
-      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2099,7 +2098,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "wildcard": true,
@@ -2125,7 +2125,6 @@
   {
     "description": "Pattern literal",
     "dom": {
-      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2142,7 +2141,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "literal": {
@@ -2170,7 +2170,6 @@
   {
     "description": "Pattern decoded scalar literal",
     "dom": {
-      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2187,7 +2186,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "literal": {
@@ -2215,7 +2215,6 @@
   {
     "description": "Pattern range",
     "dom": {
-      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2232,7 +2231,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "range": [
@@ -2265,7 +2265,6 @@
   {
     "description": "Pattern decoded scalar range endpoint",
     "dom": {
-      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2282,7 +2281,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "range": [
@@ -2315,7 +2315,6 @@
   {
     "description": "Pattern value test",
     "dom": {
-      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2332,7 +2331,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "test": "=",
@@ -2364,7 +2364,6 @@
   {
     "description": "Pattern tag test",
     "dom": {
-      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2381,7 +2380,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "test": "tags",
@@ -2418,7 +2418,6 @@
   {
     "description": "Pattern value after tag test",
     "dom": {
-      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2435,7 +2434,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "test": "=",
@@ -2478,7 +2478,6 @@
   {
     "description": "Pattern decoded scalar test value",
     "dom": {
-      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2495,7 +2494,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "test": "=",
@@ -2527,7 +2527,6 @@
   {
     "description": "Pattern descendant path",
     "dom": {
-      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2544,7 +2543,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "path": "descendant",
@@ -2573,7 +2573,6 @@
   {
     "description": "Pattern first path",
     "dom": {
-      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2590,7 +2589,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "path": "first",
@@ -2619,7 +2619,6 @@
   {
     "description": "Pattern last path",
     "dom": {
-      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2636,7 +2635,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "path": "last",
@@ -2665,7 +2665,6 @@
   {
     "description": "Pattern children node",
     "dom": {
-      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2682,7 +2681,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "any": true,
@@ -2715,7 +2715,6 @@
   {
     "description": "Pattern children siblings",
     "dom": {
-      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2732,7 +2731,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "any": true,
@@ -2759,7 +2759,6 @@
   {
     "description": "Pattern children optional",
     "dom": {
-      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2776,7 +2775,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "any": true,
@@ -2813,7 +2813,6 @@
   {
     "description": "Pattern children sequence",
     "dom": {
-      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2830,7 +2829,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "any": true,
@@ -2872,7 +2872,6 @@
   {
     "description": "Pattern children repeat item",
     "dom": {
-      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2889,7 +2888,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "any": true,
@@ -2926,7 +2926,6 @@
   {
     "description": "Pattern children repeat separator",
     "dom": {
-      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -2943,7 +2942,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "any": true,
@@ -2991,7 +2991,6 @@
   {
     "description": "Pattern union",
     "dom": {
-      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -3008,7 +3007,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "union": [
@@ -3045,7 +3045,6 @@
   {
     "description": "Pattern intersection",
     "dom": {
-      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -3062,7 +3061,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "intersection": [
@@ -3099,7 +3099,6 @@
   {
     "description": "Pattern difference",
     "dom": {
-      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -3116,7 +3115,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "terminal": "A",
@@ -3142,7 +3142,6 @@
   {
     "description": "header tag root",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -3169,7 +3168,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "tag": "Tag"
@@ -3187,7 +3187,6 @@
   {
     "description": "constant root",
     "dom": {
-      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [
@@ -3202,7 +3201,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "tag": "Tag"
@@ -3220,7 +3220,6 @@
   {
     "description": "implication root",
     "dom": {
-      "checks": [],
       "rules": [],
       "directives": [],
       "constants": [],
@@ -3236,7 +3235,8 @@
             1
           ]
         }
-      ]
+      ],
+      "checks": []
     },
     "leaf": {
       "tag": "Tag"
@@ -3254,7 +3254,6 @@
   {
     "description": "emission tag root beside a recipe",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "op": "define",
@@ -3299,7 +3298,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "tag": "Tag"
@@ -3317,7 +3317,6 @@
   {
     "description": "Feature condition token methods",
     "dom": {
-      "checks": [],
       "rules": [],
       "directives": [
         {
@@ -3346,7 +3345,8 @@
       ],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "capture": ""
@@ -3399,11 +3399,11 @@
           ]
         }
       ],
-      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "param": "X",
@@ -3462,11 +3462,11 @@
           ]
         }
       ],
-      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "ref": "A"
@@ -3530,11 +3530,11 @@
           ]
         }
       ],
-      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "rule": "a"
@@ -3603,11 +3603,11 @@
           ]
         }
       ],
-      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "call": "use",
@@ -3678,11 +3678,11 @@
           ]
         }
       ],
-      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "call": "use",
@@ -3753,11 +3753,11 @@
           ]
         }
       ],
-      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "literal": {
@@ -3814,11 +3814,11 @@
           ]
         }
       ],
-      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "range": [
@@ -3842,7 +3842,6 @@
   {
     "description": "Engine §9: parse body depth without a wrapper charge",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "name": "text",
@@ -3877,7 +3876,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "wrapper": {
       "optional": "$inner"
@@ -3890,7 +3890,6 @@
   {
     "description": "Engine §9: parse body depth with an outer remainder",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "name": "text",
@@ -3932,7 +3931,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "wrapper": {
       "optional": "$inner"
@@ -3945,7 +3945,6 @@
   {
     "description": "Engine §9: parse body depth with remainders at both edges",
     "dom": {
-      "checks": [],
       "rules": [
         {
           "name": "text",
@@ -3990,7 +3989,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "wrapper": {
       "optional": "$inner"

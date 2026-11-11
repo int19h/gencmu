@@ -90,7 +90,6 @@
           ]
         }
       ],
-      "checks": [],
       "directives": [
         {
           "name": "features",
@@ -223,7 +222,8 @@
             1
           ]
         }
-      ]
+      ],
+      "checks": []
     }
   },
   "cacheMisses": true

@@ -16653,12 +16653,12 @@
     "dom": {
       "format": 49,
       "rules": [],
-      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
       "implications": [],
-      "extra": 1
+      "extra": 1,
+      "checks": []
     },
     "malformed": true
   },
@@ -16667,11 +16667,11 @@
     "dom": {
       "format": 49,
       "rules": [],
-      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "malformed": false
   },
@@ -16820,11 +16820,11 @@
           ]
         }
       ],
-      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "malformed": true,
     "message": "a malformed"
@@ -17482,7 +17482,6 @@
           ]
         }
       ],
-      "checks": [],
       "directives": [
         {
           "name": "stage",
@@ -17497,7 +17496,8 @@
       ],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "malformed": true,
     "message": "a malformed directive"
@@ -17856,7 +17856,6 @@
     "dom": {
       "format": 49,
       "rules": [],
-      "checks": [],
       "directives": [],
       "constants": [
         {
@@ -17894,7 +17893,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "malformed": true,
     "code": "ranked-choice-syntax"
@@ -17904,7 +17904,6 @@
     "dom": {
       "format": 49,
       "rules": [],
-      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
@@ -17943,7 +17942,8 @@
             1
           ]
         }
-      ]
+      ],
+      "checks": []
     },
     "malformed": true,
     "code": "ranked-choice-syntax"
@@ -18083,7 +18083,6 @@
     "dom": {
       "format": 49,
       "rules": [],
-      "checks": [],
       "directives": [],
       "constants": [
         {
@@ -18099,7 +18098,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "malformed": true
   },
@@ -18108,7 +18108,6 @@
     "dom": {
       "format": 49,
       "rules": [],
-      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
@@ -18125,7 +18124,8 @@
             1
           ]
         }
-      ]
+      ],
+      "checks": []
     },
     "malformed": true
   },
@@ -19056,7 +19056,6 @@
     "dom": {
       "format": 49,
       "rules": [],
-      "checks": [],
       "directives": [],
       "constants": [
         {
@@ -19092,7 +19091,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "malformed": true,
     "code": "ranked-choice-syntax"
@@ -19102,7 +19102,6 @@
     "dom": {
       "format": 49,
       "rules": [],
-      "checks": [],
       "directives": [],
       "constants": [
         {
@@ -19134,7 +19133,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "malformed": true
   },
@@ -19143,7 +19143,6 @@
     "dom": {
       "format": 49,
       "rules": [],
-      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
@@ -19180,7 +19179,8 @@
             1
           ]
         }
-      ]
+      ],
+      "checks": []
     },
     "malformed": true,
     "code": "ranked-choice-syntax"
@@ -19190,7 +19190,6 @@
     "dom": {
       "format": 49,
       "rules": [],
-      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
@@ -19223,7 +19222,8 @@
             1
           ]
         }
-      ]
+      ],
+      "checks": []
     },
     "malformed": true
   },
@@ -19662,7 +19662,6 @@
     "dom": {
       "format": 49,
       "rules": [],
-      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
@@ -19679,7 +19678,8 @@
             1
           ]
         }
-      ]
+      ],
+      "checks": []
     },
     "malformed": true,
     "message": "implication"
@@ -19689,7 +19689,6 @@
     "dom": {
       "format": 49,
       "rules": [],
-      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
@@ -19706,7 +19705,8 @@
             1
           ]
         }
-      ]
+      ],
+      "checks": []
     },
     "malformed": true,
     "message": "implication"
@@ -19737,7 +19737,6 @@
           ]
         }
       ],
-      "checks": [],
       "directives": [],
       "constants": [
         {
@@ -19753,7 +19752,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "malformed": true,
     "message": "a tag set is needed here, not a string"
@@ -19784,7 +19784,6 @@
           ]
         }
       ],
-      "checks": [],
       "directives": [],
       "constants": [
         {
@@ -19800,7 +19799,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "malformed": true,
     "message": "constant"
@@ -19831,7 +19831,6 @@
           ]
         }
       ],
-      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
@@ -19848,7 +19847,8 @@
             1
           ]
         }
-      ]
+      ],
+      "checks": []
     },
     "malformed": true,
     "message": "a tag set is needed here, not a string"
@@ -19879,7 +19879,6 @@
           ]
         }
       ],
-      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
@@ -19896,7 +19895,8 @@
             1
           ]
         }
-      ]
+      ],
+      "checks": []
     },
     "malformed": true,
     "message": "implication"
@@ -22668,7 +22668,6 @@
           ]
         }
       ],
-      "checks": [],
       "directives": [
         {
           "name": "ambiguity-resolution",
@@ -22768,7 +22767,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "malformed": true,
     "message": "a tag set is needed here, not a string"
@@ -22799,7 +22799,6 @@
           ]
         }
       ],
-      "checks": [],
       "directives": [],
       "constants": [
         {
@@ -22823,7 +22822,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "malformed": true,
     "message": "split has an empty delimiter"
@@ -22889,11 +22889,11 @@
           ]
         }
       ],
-      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "malformed": true,
     "message": "a tag set is needed here, not a string"
@@ -22924,7 +22924,6 @@
           ]
         }
       ],
-      "checks": [],
       "directives": [],
       "constants": [],
       "classifiers": [],
@@ -22949,7 +22948,8 @@
             1
           ]
         }
-      ]
+      ],
+      "checks": []
     },
     "malformed": true,
     "message": "a tag set is needed here, not a string"
@@ -22981,7 +22981,6 @@
           ]
         }
       ],
-      "checks": [],
       "directives": [],
       "constants": [
         {
@@ -23005,7 +23004,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "malformed": true,
     "code": "ranked-choice-syntax"
