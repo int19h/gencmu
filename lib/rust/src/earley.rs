@@ -1395,28 +1395,19 @@ fn took(last: &mut Option<Out>) -> Out {
 #[derive(Debug, Clone, Copy)]
 enum Query {
     Forest(crate::query_forms::Mode, bool, bool),
-    Matches,
-    Begins,
-    Ends,
-    TagsRule,
 }
 
 impl Query {
     fn mode(self) -> crate::query_forms::Mode {
-        use crate::query_forms::Mode;
-        match self {
-            Self::Forest(mode, ..) => mode,
-            Self::Begins => Mode::Prefix,
-            Self::Ends => Mode::Suffix,
-            _ => Mode::Whole,
-        }
+        let Self::Forest(mode, ..) = self;
+        mode
     }
     fn filtered(self) -> bool {
         matches!(self, Self::Forest(_, true, _))
     }
     fn out(self, (holds, set, clean): Answer, tags: &Tags) -> Out {
         match self {
-            Self::Forest(_, _, true) | Self::TagsRule => Out::Value(Value::Set(tags.shared(set))),
+            Self::Forest(_, _, true) => Out::Value(Value::Set(tags.shared(set))),
             Self::Forest(_, true, false) => Out::Bool(clean),
             _ => Out::Bool(holds),
         }
@@ -4456,15 +4447,6 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                             base,
                             &forest.after,
                         )?,
-                        LCond::Matches(span, rule) => {
-                            self.query(eval, span, QueryTarget::Rule(*rule), Query::Matches, frame, tokens, base, &[])?
-                        }
-                        LCond::Begins(span, rule) => {
-                            self.query(eval, span, QueryTarget::Rule(*rule), Query::Begins, frame, tokens, base, &[])?
-                        }
-                        LCond::Ends(span, rule) => {
-                            self.query(eval, span, QueryTarget::Rule(*rule), Query::Ends, frame, tokens, base, &[])?
-                        }
                         // Where the input of the parse that reads the
                         // condition begins (§10). Positions count from the
                         // start of the tokens that parse reads, a nested
@@ -4555,21 +4537,6 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                             },
                             (start, end, Whose::Tokens) => Value::Set(self.token_tags(tokens, start, end)),
                         },
-                        LTerm::TagsRule(span, rule) => {
-                            match self.query(
-                                eval,
-                                span,
-                                QueryTarget::Rule(*rule),
-                                Query::TagsRule,
-                                frame,
-                                tokens,
-                                base,
-                                &[],
-                            )? {
-                                Out::Value(value) => value,
-                                _ => unreachable!("a set of tags"),
-                            }
-                        }
                         LTerm::ForestTags(forest) => {
                             match self.query(
                                 eval,

@@ -713,12 +713,7 @@ fn close_families(grammar: &StageGrammar) -> Vec<FxSet<u32>> {
                 Cond::Truthy(term) => pending.push(Part::Term(term)),
                 Cond::Present(term) | Cond::Forest(term) => pending.push(Part::Term(term)),
                 Cond::Compare(_, a, b, _) => pending.extend([Part::Term(a), Part::Term(b)]),
-                Cond::Matches(t, _)
-                | Cond::Begins(t, _)
-                | Cond::Ends(t, _)
-                | Cond::Initial(t)
-                | Cond::Final(t)
-                | Cond::Boundary(_, t, _, _) => pending.push(Part::Term(t)),
+                Cond::Initial(t) | Cond::Final(t) | Cond::Boundary(_, t, _, _) => pending.push(Part::Term(t)),
                 Cond::Not(c) => pending.push(Part::Cond(c)),
                 Cond::Any(items) | Cond::All(items) => pending.extend(items.iter().map(Part::Cond)),
                 Cond::If(a, b) => pending.extend([Part::Cond(a), Part::Cond(b)]),
@@ -2309,13 +2304,7 @@ impl Constants<'_> {
                 self.substitute_cond(antecedent);
                 self.substitute_cond(consequent);
             }
-            Cond::Matches(..)
-            | Cond::Begins(..)
-            | Cond::Ends(..)
-            | Cond::Initial(_)
-            | Cond::Final(_)
-            | Cond::Boundary(_, _, _, _)
-            | Cond::Captured(_) => {}
+            Cond::Initial(_) | Cond::Final(_) | Cond::Boundary(_, _, _, _) | Cond::Captured(_) => {}
         }
     }
 }
@@ -2500,12 +2489,7 @@ impl<'a> Iterator for ValueParts<'a> {
                 Cond::All(xs) | Cond::Any(xs) => children.extend(xs.iter().map(ValuePart::Cond)),
                 Cond::If(a, b) => children.extend([ValuePart::Cond(a), ValuePart::Cond(b)]),
                 Cond::Not(c) => children.push(ValuePart::Cond(c)),
-                Cond::Initial(t)
-                | Cond::Final(t)
-                | Cond::Matches(t, _)
-                | Cond::Begins(t, _)
-                | Cond::Ends(t, _)
-                | Cond::Boundary(_, t, _, _) => children.push(ValuePart::Term(t)),
+                Cond::Initial(t) | Cond::Final(t) | Cond::Boundary(_, t, _, _) => children.push(ValuePart::Term(t)),
                 _ => (),
             },
             ValuePart::Pattern(_) => (),
@@ -2596,7 +2580,14 @@ fn check_span_references(grammar: &StageGrammar, term: &Term) -> Result<(), Stri
         Term::Call(_, args) => {
             for arg in args {
                 match arg {
-                    Arg::Term(Term::Body(_)) => {}
+                    // A parse body in a span method is checked as a term
+                    // of its own, so its references name rules (§2).
+                    Arg::Term(Term::Body(body)) => {
+                        if let Some(problem) = crate::query_forms::body_problem(body) {
+                            return Err(problem.into());
+                        }
+                        check_expr(grammar, body)?;
+                    }
                     Arg::Term(inner) => check_span_references(grammar, inner)?,
                     Arg::Rule(rule) => check_rule(grammar, rule)?,
                     _ => unreachable!("span method arguments were checked before stitching"),
@@ -2661,10 +2652,6 @@ fn check_term(grammar: &StageGrammar, term: &Term, compared: &mut bool) -> Resul
             ("value" | "image" | "source-text" | "decomposed-source-text" | "classes" | "tags", [Arg::Term(span)]) => {
                 check_span_references(grammar, span)
             }
-            ("tags", [Arg::Term(span), Arg::Rule(rule)]) => {
-                check_span_references(grammar, span)?;
-                check_rule(grammar, rule)
-            }
             ("ngrams", [Arg::Term(string), Arg::Integer(n)]) if crate::dom::valid_integer(n) => {
                 check_term(grammar, string, compared)
             }
@@ -2710,9 +2697,6 @@ fn check_term(grammar: &StageGrammar, term: &Term, compared: &mut bool) -> Resul
                 | "split"
                 | "ngrams"
                 | "classify"
-                | "matches"
-                | "begins"
-                | "ends"
                 | "starts-input",
                 _,
             ) => Err(format!("{name}() is called with the wrong arguments")),
@@ -2734,18 +2718,6 @@ fn check_cond(grammar: &StageGrammar, cond: &Cond, compared: &mut bool) -> Resul
             }
             check_term(grammar, left, compared)?;
             check_term(grammar, right, compared)
-        }
-        Cond::Matches(span, rule) | Cond::Begins(span, rule) | Cond::Ends(span, rule) => {
-            if matches!(cond, Cond::Ends(..)) && crate::dom::restored_span(span) {
-                return Err(".ends cannot read a restored span".into());
-            }
-            check_span_references(grammar, span)?;
-            for target in rule {
-                if !is_terminal_name(target) {
-                    check_rule(grammar, target)?
-                }
-            }
-            Ok(())
         }
         Cond::Initial(span) | Cond::Final(span) | Cond::Boundary(_, span, _, _) => check_span_references(grammar, span),
         Cond::Not(inner) => check_cond(grammar, inner, compared),

@@ -1,6 +1,6 @@
 {
   "description": "An item condition can look past its item with a query: the first A is followed by B, so the reading fails (engine §3.6, §4).",
-  "grammar": "%rule text {$c:A} [B]\n%conditions ¬$c.following-tokens.begins(B)",
+  "grammar": "%rule text {$c:A} [B]\n%conditions ¬$c.following-tokens.parse(B …)",
   "tokens": [
     {
       "text": "a",

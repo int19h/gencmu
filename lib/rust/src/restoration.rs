@@ -413,7 +413,6 @@ pub(crate) fn demanded(g: &crate::lower::Lowered) -> crate::fxhash::FxSet<u32> {
     }
     fn term(t: &LTerm, p: &Prod, w: &mut FxSet<u32>, todo: &mut Vec<u32>) {
         match t {
-            LTerm::TagsRule(s, r) => query(s, *r, p, w, todo),
             LTerm::ForestTags(forest) => {
                 if let crate::lower::QueryTarget::Rule(rule) = forest.target {
                     query(&forest.span, rule, p, w, todo);
@@ -450,7 +449,6 @@ pub(crate) fn demanded(g: &crate::lower::Lowered) -> crate::fxhash::FxSet<u32> {
     fn cond(c: &LCond, p: &Prod, w: &mut FxSet<u32>, todo: &mut Vec<u32>) {
         match c {
             LCond::SameTree(..) => (),
-            LCond::Matches(s, r) | LCond::Begins(s, r) | LCond::Ends(s, r) => query(s, *r, p, w, todo),
             LCond::Forest(forest) => {
                 if let crate::lower::QueryTarget::Rule(rule) = forest.target {
                     query(&forest.span, rule, p, w, todo);
@@ -628,10 +626,8 @@ mod tests {
                     rules += &format!("\n%rule r{i} r{} r{}", i - 1, i - 1);
                 }
                 if witness {
-                    rules = rules.replace(
-                        "$x.without-elision.matches(empty)",
-                        &format!("¬$x.without-elision.matches(r{depth})"),
-                    );
+                    rules = rules
+                        .replace("$x.without-elision.parse(empty)", &format!("¬$x.without-elision.parse(r{depth})"));
                 }
                 let source = format!("```jbogenbau\n%stage main\n{rules}\n```\n");
                 let pipeline = crate::load_pipeline_sources([("p.md", source.as_str())], "p.md").unwrap();
@@ -647,7 +643,7 @@ mod tests {
             let fixture =
                 crate::json::parse(&std::fs::read_to_string(root.join("engine").join(file.as_str().unwrap())).unwrap())
                     .unwrap();
-            let source=format!("```jbogenbau\n%stage main\n{}\n%rule unused $x:empty\n%conditions $x.without-elision.matches(empty)\n%rule empty ε\n```\n",fixture.get("grammar").unwrap().as_str().unwrap());
+            let source=format!("```jbogenbau\n%stage main\n{}\n%rule unused $x:empty\n%conditions $x.without-elision.parse(empty)\n%rule empty ε\n```\n",fixture.get("grammar").unwrap().as_str().unwrap());
             let pipeline = crate::load_pipeline_sources([("p.md", source.as_str())], "p.md").unwrap();
             let tokens = fixture
                 .get("tokens")
@@ -803,8 +799,7 @@ pub(crate) fn local_demands(g: &crate::lower::Lowered) -> Vec<LocalDemand> {
                     span(&forest.span, out);
                 }
             }
-            LTerm::TagsRule(s, _)
-            | LTerm::Text(s)
+            LTerm::Text(s)
             | LTerm::DecomposedText(s)
             | LTerm::Value(s)
             | LTerm::Image(s)
@@ -830,7 +825,6 @@ pub(crate) fn local_demands(g: &crate::lower::Lowered) -> Vec<LocalDemand> {
     fn cond(c: &LCond, out: &mut LocalDemand) {
         match c {
             LCond::SameTree(..) => (),
-            LCond::Matches(s, rule) | LCond::Begins(s, rule) | LCond::Ends(s, rule) => query(s, *rule, out),
             LCond::Forest(forest) => {
                 for end in &forest.after {
                     span(end, out);

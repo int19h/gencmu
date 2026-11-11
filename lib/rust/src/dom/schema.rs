@@ -1027,7 +1027,6 @@ fn parts_problem(
                             [],
                         ) => span(receiver, check) && (name != "classes" || !element(receiver, check)),
                         ("tags", []) => span(receiver, check) && !element(receiver, check) || forest(receiver, check),
-                        ("tags", [arg]) => span(receiver, check) && !element(receiver, check) && rule_arg(arg),
                         ("ngrams", [arg]) => {
                             exact(arg, &["integer"], &[])
                                 && arg.get("integer").and_then(Json::as_str).is_some_and(crate::dom::valid_integer)
@@ -1122,28 +1121,11 @@ fn parts_problem(
                     }
                     let receiver = value.get("receiver").unwrap();
                     let args = value.get("args").and_then(Json::as_array);
-                    if value.get("method").and_then(Json::as_str) == Some("ends") && restored_span(receiver) {
-                        return Some("ends requires an ordinary span, not a restored span".into());
-                    }
                     if !span(receiver, check)
                         || !match (value.get("method").and_then(Json::as_str), args) {
                             (Some("starts-input" | "ends-input"), Some([])) => true,
                             (Some("followed-by" | "preceded-by"), Some(args)) => {
                                 (node(receiver, check) || source::leaf(receiver))
-                                    && !args.is_empty()
-                                    && args.iter().all(|arg| {
-                                        source::leaf(arg)
-                                            || exact(arg, &["rule"], &[])
-                                                && arg.get("rule").and_then(Json::as_str).is_some_and(rule)
-                                            || exact(arg, &["terminal"], &[])
-                                                && arg.get("terminal").and_then(Json::as_str).is_some_and(|s| {
-                                                    s.starts_with(|c: char| c.is_ascii_uppercase()) && tag(s)
-                                                })
-                                    })
-                            }
-                            (Some(name @ ("matches" | "begins" | "ends")), Some(args)) => {
-                                !element(receiver, check)
-                                    && (name != "ends" || !restored_span(receiver))
                                     && !args.is_empty()
                                     && args.iter().all(|arg| {
                                         source::leaf(arg)

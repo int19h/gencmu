@@ -80,7 +80,7 @@ class QueryKeyWork(unittest.TestCase):
 
     def test_nested_filtered_dependencies_have_linear_key_work(self):
         # Engine §4.3: transitive error sensitivity does not require long error vectors.
-        self.assert_linear_keys("¬$.onward.matches(probe)", "\n%rule probe B\n%conditions ¬$.parse(C).error-free")
+        self.assert_linear_keys("¬$.onward.parse(probe)", "\n%rule probe B\n%conditions ¬$.parse(C).error-free")
 
     def test_repeated_long_memo_hits_do_not_read_tokens(self):
         # Engine §4.3: a cached answer needs only its positional key and filter flag.
@@ -89,7 +89,7 @@ class QueryKeyWork(unittest.TestCase):
         for size in (2 * CONTENT_KEY_LIMIT, 8 * CONTENT_KEY_LIMIT):
             state = StageContext(lowered, tokens(size), "a" * size, loaded._unicode)
             self.assertFalse(run(state.nested("target", 0, size, True)).accepted)
-            self.assertFalse(run(state.begins("target", 0, size, True)))
+            self.assertFalse(run(state.prefix("target", 0, size, True)))
             counts = {"calls": 0, "reads": 0, "long_reads": 0}
             work = {}
             with tracked_keys(counts, 0), patch.object(_testing, "work", work), patch.object(
@@ -97,11 +97,11 @@ class QueryKeyWork(unittest.TestCase):
             ):
                 for _ in range(size):
                     self.assertFalse(run(state.nested("target", 0, size, True)).accepted)
-                    self.assertFalse(run(state.begins("target", 0, size, True)))
+                    self.assertFalse(run(state.prefix("target", 0, size, True)))
             self.assertEqual(counts, {"calls": 2 * size, "reads": 0, "long_reads": 0})
             self.assertEqual(work.get("keySteps", 0), 0)
             self.assertEqual(len(state.memo), 1)
-            self.assertEqual(len(state.begins_memo), 1)
+            self.assertEqual(len(state.prefix_memo), 1)
 
     def test_long_keys_keep_filtered_answers_separate(self):
         # Engine §4.3: one position can have different ordinary and filtered answers.
@@ -112,8 +112,8 @@ class QueryKeyWork(unittest.TestCase):
         state = StageContext(lower(loaded._grammars[0], frozenset()), items, "a" * size, loaded._unicode)
         self.assertTrue(run(state.nested("target", 0, size)).accepted)
         self.assertFalse(run(state.nested("target", 0, size, True)).accepted)
-        self.assertTrue(run(state.begins("target", 0, size)))
-        self.assertFalse(run(state.begins("target", 0, size, True)))
+        self.assertTrue(run(state.prefix("target", 0, size)))
+        self.assertFalse(run(state.prefix("target", 0, size, True)))
 
     def test_local_and_shared_content_keys_count_error_bits(self):
         # Engine §4.3: both bounded key builders charge every constructed error bit.

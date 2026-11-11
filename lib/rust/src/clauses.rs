@@ -94,12 +94,7 @@ pub(crate) fn simplify_cond(cond: &Cond, has: &dyn Fn(&str) -> bool) -> Simple {
         }
         Cond::Present(term) => Simple::Cond(Cond::Present(term.clone())),
         Cond::Forest(term) => Simple::Cond(Cond::Forest(simplify_value(term, has))),
-        Cond::Matches(..)
-        | Cond::Begins(..)
-        | Cond::Ends(..)
-        | Cond::Initial(_)
-        | Cond::Final(_)
-        | Cond::Boundary(_, _, _, _) => Simple::Cond(cond.clone()),
+        Cond::Initial(_) | Cond::Final(_) | Cond::Boundary(_, _, _, _) => Simple::Cond(cond.clone()),
     }
 }
 
@@ -266,14 +261,9 @@ impl<'a> Part<'a> {
                     _ => None,
                 })
                 .collect(),
-            Part::Cond(
-                Cond::Matches(term, _)
-                | Cond::Begins(term, _)
-                | Cond::Ends(term, _)
-                | Cond::Initial(term)
-                | Cond::Final(term)
-                | Cond::Boundary(_, term, _, _),
-            ) => vec![Part::Term(term)],
+            Part::Cond(Cond::Initial(term) | Cond::Final(term) | Cond::Boundary(_, term, _, _)) => {
+                vec![Part::Term(term)]
+            }
             _ => self.reducing_children(),
         }
     }
@@ -340,12 +330,7 @@ fn walk_captures<'a>(start: Part<'a>, values: bool, presences: bool, out: &mut V
                     }
                 }
                 Cond::Compare(_, left, right, _) => stack.extend([Part::Term(right), Part::Term(left)]),
-                Cond::Matches(span, _)
-                | Cond::Begins(span, _)
-                | Cond::Ends(span, _)
-                | Cond::Initial(span)
-                | Cond::Final(span)
-                | Cond::Boundary(_, span, _, _) => {
+                Cond::Initial(span) | Cond::Final(span) | Cond::Boundary(_, span, _, _) => {
                     if values {
                         stack.push(Part::Term(span));
                     }
@@ -534,12 +519,7 @@ impl<'a> Shaped<'a> {
                         done.truncate(done.len() - 2);
                         used
                     }
-                    Cond::Matches(..)
-                    | Cond::Begins(..)
-                    | Cond::Ends(..)
-                    | Cond::Initial(_)
-                    | Cond::Final(_)
-                    | Cond::Boundary(_, _, _, _) => {
+                    Cond::Initial(_) | Cond::Final(_) | Cond::Boundary(_, _, _, _) => {
                         walk_captures(part, true, false, &mut uses);
                         used
                     }

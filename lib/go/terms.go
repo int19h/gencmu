@@ -508,15 +508,6 @@ func (w *walk) termStep(f *frame) *nestedQuery {
 					return nil
 				}
 			}
-			if len(t.Items) == 2 {
-				// The same parse, and the same answer, as .matches.
-				_, tags, q := ev.run.nested(ev.g, cdMatches, t.Items[1].Str, f.s, false)
-				if q != nil {
-					return q
-				}
-				w.endSet(tags)
-				return nil
-			}
 			w.endSet(ev.spanTags(f.s))
 			return nil
 		case "classify":
@@ -653,7 +644,7 @@ func (w *walk) condStep(f *frame) *nestedQuery {
 			w.endCond(subset(setValue(l, ev.in()), setValue(r, ev.in())) == (c.Op == "⊆"))
 			return nil
 		}
-	case cdMatches, cdBegins, cdEnds:
+	case cdWhole, cdPrefix, cdSuffix:
 		// The span is read once. A halt keeps it for the answer.
 		if f.at == 0 {
 			f.s, f.at = w.span(ev, c.Span), 1
@@ -826,7 +817,7 @@ func (w *walk) forestRequest(ev *evaluator, term *domTerm) *forestRequest {
 	}
 	if query.Str == "local-readings" {
 		local := ev.check.local(ev.checkNode, query.Items[0])
-		request.mode, request.rule, request.span = cdBegins, local.target, local.span
+		request.mode, request.rule, request.span = cdPrefix, local.target, local.span
 		request.span.tags, request.span.whole, request.span.lazy = nil, false, nil
 		request.span.b = ev.run.inputEnd
 		request.answer = ev.check.flow.rec.chartReading(local, request.clean)
@@ -866,9 +857,9 @@ func (request *forestRequest) finish(w *walk, ev *evaluator) (bool, *tagset) {
 const contentKeyLimit = 16
 
 // nested is the answer of a nested parse of tokens [s.a, s.b) alone as
-// rule (engine §4, nested parses), for a query of one kind: cdMatches,
-// which also gives the tags of span.tags(rule), or cdBegins, whether a
-// prefix of the span, the empty one included, parses as rule. The answer
+// rule (engine §4, nested parses), for a query of one mode: cdWhole,
+// whether the whole span parses as rule, or cdPrefix, whether a prefix
+// of the span, the empty one included, parses as rule. The answer
 // is remembered for the whole parse. Where it is not yet known, nested
 // gives the query instead, which halts the walk that asked it. The
 // recognition that walks, or emission, answers it on a stack of its own.
@@ -901,7 +892,7 @@ func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal, errorFree 
 		k.aligned, k.observation, k.fixedEnd = true, s.aligned.observation, s.aligned.end
 		k.family = s.aligned.family
 		contextEnd, k.contextEnd = s.aligned.contextEnd, s.aligned.contextEnd
-	} else if kind != cdEnds && s.b-s.a <= contentKeyLimit {
+	} else if kind != cdSuffix && s.b-s.a <= contentKeyLimit {
 		k.content, k.a, k.b = run.spanContent(s), -1, -1
 		if errorFree || g.readsCarriedErrors(start) {
 			k.errors = run.spanErrors(s)
@@ -928,12 +919,12 @@ func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal, errorFree 
 		return finish(answer)
 	}
 	var suffix *suffixState
-	if kind == cdEnds || kind == cdContains {
+	if kind == cdSuffix || kind == cdContains {
 		if ps.suffixActive > 0 {
 			suffix = &suffixState{answers: map[int]bool{}, tags: map[int]*tagset{}, errorFree: errorFree}
 		} else {
 			suffix = run.suffixState(g, start, s.a, s.b, errorFree)
-			if kind == cdEnds {
+			if kind == cdSuffix {
 				if answer, known := suffix.answers[s.b]; known {
 					if suffix.dependent {
 						ps.alignedAsked++
@@ -957,7 +948,7 @@ func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal, errorFree 
 	}
 	// Shared answers cannot hide recursive aligned or suffix requests (§4.3).
 	if !k.witnessEnds && k.content != 0 && kind != cdContains && ps.memoLimit > 0 && ps.alignedActive == 0 && ps.suffixActive == 0 {
-		if a, ok := g.memo.get(sharedKey{begins: k.kind == cdBegins, rule: start, content: ps.contentStrings[k.content-1], errorFree: errorFree, errors: k.errors}, ps.memoLimit); ok {
+		if a, ok := g.memo.get(sharedKey{begins: k.kind == cdPrefix, rule: start, content: ps.contentStrings[k.content-1], errorFree: errorFree, errors: k.errors}, ps.memoLimit); ok {
 			if memoHitHook != nil {
 				memoHitHook(start, ps.alignedActive)
 			}
@@ -1049,7 +1040,7 @@ func (run *stageRun) alignedAnswer(q *nestedQuery, proofs []qualifiedProof) *nes
 	answer := &nestedResult{}
 	var sets []*tagset
 	for _, p := range proofs {
-		if p.end > q.matchEnd || q.key.kind != cdBegins && p.end != q.matchEnd {
+		if p.end > q.matchEnd || q.key.kind != cdPrefix && p.end != q.matchEnd {
 			continue
 		}
 		matches := q.aligned.arena.aligned(q.aligned.observation, p.observation, min(q.aligned.end, p.end))
@@ -1207,7 +1198,7 @@ func (run *stageRun) settle(rec *recognizer) {
 			run.qualifiedQueries[q.qualifiedKey()] = proofs
 		}
 		res = run.alignedAnswer(q, proofs)
-	} else if q.key.kind == cdEnds {
+	} else if q.key.kind == cdSuffix {
 		res.holds, res.tags = q.suffix.answers[q.at.b], q.suffix.tags[q.at.b]
 	} else if q.key.kind == cdContains {
 		var sets []*tagset
@@ -1221,7 +1212,7 @@ func (run *stageRun) settle(rec *recognizer) {
 			}
 		}
 		res.tags = ps.in.unionAll(sets)
-	} else if q.key.kind == cdBegins {
+	} else if q.key.kind == cdPrefix {
 		res.holds, res.tags = rec.begunTags(start, q.key.errorFree, q)
 		res.ends = q.ends
 	} else {
@@ -1247,7 +1238,7 @@ func (run *stageRun) settle(rec *recognizer) {
 		}
 		res.holds, res.tags = len(sets) > 0, ps.in.unionAll(sets)
 	}
-	if q.key.witnessEnds && res.holds && q.aligned == nil && (q.key.kind == cdMatches || q.key.kind == cdEnds) {
+	if q.key.witnessEnds && res.holds && q.aligned == nil && (q.key.kind == cdWhole || q.key.kind == cdSuffix) {
 		res.ends = []witnessEnd{{q.at.b - q.at.a, res.tags}}
 	}
 
@@ -1279,7 +1270,7 @@ func (run *stageRun) remember(q *nestedQuery, res *nestedResult) {
 	if res.tags != nil {
 		a.tags = res.tags.names
 	}
-	q.g.memo.insert(sharedKey{begins: q.key.kind == cdBegins, rule: q.start, content: ps.contentStrings[q.key.content-1], errorFree: q.key.errorFree, errors: q.key.errors}, a, ps.memoLimit)
+	q.g.memo.insert(sharedKey{begins: q.key.kind == cdPrefix, rule: q.start, content: ps.contentStrings[q.key.content-1], errorFree: q.key.errorFree, errors: q.key.errors}, a, ps.memoLimit)
 }
 
 // spanContent is the number of everything a nested parse of a span can

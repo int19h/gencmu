@@ -1,6 +1,6 @@
 {
-  "description": "The plain optional contains a nested plain optional. The optional contains no capture. The present route reads the D tokens and then the written T, so .matches(r) is false (engine §4).",
-  "grammar": "%rule text $r:input\n%conditions $r.matches(r)\n%rule input B {D} T\n%rule r :: Queried | B [[c]] [+T] D T\n%rule c D",
+  "description": "The plain optional contains a nested plain optional. The optional contains no capture. The present route reads the D tokens and then the written T, so .parse(r) is false (engine §4).",
+  "grammar": "%rule text $r:input\n%conditions $r.parse(r)\n%rule input B {D} T\n%rule r :: Queried | B [[c]] [+T] D T\n%rule c D",
   "tokens": [
     {
       "text": "b",

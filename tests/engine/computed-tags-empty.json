@@ -1,6 +1,6 @@
 {
   "description": "Ready conditions, boundary processing, and completion share the computed tag set (engine §4).",
-  "grammar": "%rule text body tail\n%rule body ε :: $.tags(probe) %conditions X ⊆ $.tags, $.followed-by(tail)\n%rule probe ε :: X\n%rule tail \"b\"",
+  "grammar": "%rule text body tail\n%rule body ε :: $.parse(probe).tags %conditions X ⊆ $.tags, $.followed-by(tail)\n%rule probe ε :: X\n%rule tail \"b\"",
   "input": "b",
   "expect": {
     "result": {

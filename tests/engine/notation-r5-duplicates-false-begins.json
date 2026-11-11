@@ -1,6 +1,6 @@
 {
   "description": "Engine §4 gives repeated failing targets the same false query result.",
-  "grammar": "%rule text $x:A %conditions ¬$x.begins(r | r | B | B)\n%rule r B",
+  "grammar": "%rule text $x:A %conditions ¬($x.parse(r …) ∨ $x.parse(r …) ∨ $x.parse(B …) ∨ $x.parse(B …))\n%rule r B",
   "tokens": [
     {
       "text": "a",

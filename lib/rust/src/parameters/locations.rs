@@ -92,9 +92,7 @@ fn cond(c: &mut dom::Cond, n: &Json) {
             term(a, get(n, "left"));
             term(b, get(n, "right"))
         }
-        Cond::Matches(r, _) | Cond::Begins(r, _) | Cond::Ends(r, _) | Cond::Initial(r) | Cond::Final(r) => {
-            term(r, get(n, "receiver"))
-        }
+        Cond::Initial(r) | Cond::Final(r) => term(r, get(n, "receiver")),
         Cond::If(a, b) => {
             cond(a, get(n, "if"));
             cond(b, get(n, "then"))
@@ -463,7 +461,7 @@ pub(crate) fn annotate_condition(c: &dom::Cond, n: &mut Json) {
                 annotate_term(b, n)
             }
         }
-        Cond::Matches(r, _) | Cond::Begins(r, _) | Cond::Ends(r, _) | Cond::Initial(r) | Cond::Final(r) => {
+        Cond::Initial(r) | Cond::Final(r) => {
             if let Some(n) = slot(n, "receiver") {
                 annotate_term(r, n)
             }

@@ -1,6 +1,6 @@
 {
   "description": "A method that depends on a parameter uses the common signature diagnostic.",
-  "document": "```jbogenbau\n%rule f(@X) A %conditions @X.without-elision-except(A).matches(a)\n```\n",
+  "document": "```jbogenbau\n%rule f(@X) A %conditions @X.without-elision-except(A).parse(a)\n```\n",
   "expect": {
     "error": {
       "line": 2,

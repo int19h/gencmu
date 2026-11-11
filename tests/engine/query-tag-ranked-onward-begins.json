@@ -1,6 +1,6 @@
 {
   "description": "An onward query from a private capture resolves its terminal target.",
-  "grammar": "%rule text ($x:part ≻ fallback) ::∅ %conditions $x.onward.begins(T)\n%rule part A\n%rule fallback A",
+  "grammar": "%rule text ($x:part ≻ fallback) ::∅ %conditions $x.onward.parse(T …)\n%rule part A\n%rule fallback A",
   "tokens": [
     {
       "text": "a",

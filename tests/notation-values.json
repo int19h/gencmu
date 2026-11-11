@@ -95,7 +95,7 @@
       "aliases": [
         {
           "spelling": "methodK",
-          "value": "matches",
+          "value": "followed-by",
           "tags": [
             "Identifier",
             "Lowercase-Name"
@@ -109,7 +109,7 @@
             {
               "conditions": [
                 {
-                  "method": "matches",
+                  "method": "followed-by",
                   "args": [
                     {
                       "rule": "rK"
@@ -374,7 +374,7 @@
       "aliases": [
         {
           "spelling": "methodK",
-          "value": "matches",
+          "value": "followed-by",
           "tags": [
             "Identifier",
             "Lowercase-Name"
@@ -388,7 +388,7 @@
             {
               "conditions": [
                 {
-                  "method": "matches",
+                  "method": "followed-by",
                   "args": [
                     {
                       "rule": "rK"

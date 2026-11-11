@@ -1463,10 +1463,7 @@ impl<'a> Reader<'a> {
                 } else {
                     ""
                 };
-                if matches!(
-                    name,
-                    "starts-input" | "ends-input" | "followed-by" | "preceded-by" | "matches" | "begins" | "ends"
-                ) {
+                if matches!(name, "starts-input" | "ends-input" | "followed-by" | "preceded-by") {
                     return true;
                 }
             }
@@ -1993,8 +1990,7 @@ impl<'a> Reader<'a> {
             return Ok(Step::Call(Frame::Argument(ArgumentFrame { node: argument })));
         }
         if let Some(arguments) = self.rules(selector, "arguments").next() {
-            let expected =
-                if matches!(name, "matches" | "begins" | "ends" | "followed-by" | "preceded-by") { "|" } else { "," };
+            let expected = if matches!(name, "followed-by" | "preceded-by") { "|" } else { "," };
             if self.parts(arguments).iter().any(|part| part.kind == NodeKind::Token && self.value(part) != expected) {
                 return Err(self.error(arguments, "invalid method argument separator"));
             }
@@ -2033,15 +2029,6 @@ impl<'a> Reader<'a> {
                 (MethodKind::Tags, []) => span || matches!(ty, Type::Forest | Type::Any),
                 (MethodKind::Restored, []) if name == "without-elision" => bare,
                 (MethodKind::Recipe, []) => bare,
-                (MethodKind::Tags, [Arg::Rule(_) | Arg::Term(Term::Source(_))]) => span,
-                (MethodKind::Query, args) => {
-                    span && (name != "ends" || !crate::dom::restored_span(&receiver))
-                        && !args.is_empty()
-                        && args.iter().all(|a| {
-                            matches!(a, Arg::Rule(_) | Arg::Term(Term::Source(_)))
-                                || matches!(a,Arg::Term(Term::Tag(n)) if is_capital(n))
-                        })
-                }
                 (MethodKind::Ngrams, [Arg::Integer(n)]) => string && crate::dom::valid_integer(n),
                 (MethodKind::Restored, [Arg::Rule(_) | Arg::Term(Term::Source(_))])
                     if name == "without-elision-except" =>
@@ -2068,9 +2055,6 @@ impl<'a> Reader<'a> {
                 _ => false,
             }
         };
-        if name == "ends" && crate::dom::restored_span(&receiver) {
-            return Err(self.error(frame.node, "ends requires an ordinary span, not a restored span"));
-        }
         if name == "parse"
             && matches!(arguments,[Arg::Term(Term::Body(body))] if crate::query_forms::suffix_body(body))
             && crate::dom::restored_span(&receiver)
@@ -2152,21 +2136,7 @@ impl<'a> Reader<'a> {
                     }
                     .into(),
                 ),
-                _ => {
-                    let targets = args
-                        .map(|a| match &a {
-                            Arg::Rule(n) | Arg::Term(Term::Tag(n)) => n.clone(),
-                            _ => unreachable!(),
-                        })
-                        .collect();
-                    if name == "matches" {
-                        Cond::Matches(receiver, targets)
-                    } else if name == "ends" {
-                        Cond::Ends(receiver, targets)
-                    } else {
-                        Cond::Begins(receiver, targets)
-                    }
-                }
+                _ => unreachable!(),
             })
         } else {
             if last && frame.condition {
@@ -3221,7 +3191,6 @@ enum MethodKind {
     Recipe,
     Tags,
     Boundary,
-    Query,
     Ngrams,
     Split,
     Classify,
@@ -3254,7 +3223,6 @@ fn known_method(name: &str) -> Option<MethodKind> {
         "verbatim-text" | "emitted" => MethodKind::Recipe,
         "tags" => MethodKind::Tags,
         "followed-by" | "preceded-by" => MethodKind::Boundary,
-        "matches" | "begins" | "ends" => MethodKind::Query,
         "ngrams" => MethodKind::Ngrams,
         "split" => MethodKind::Split,
         "classify" => MethodKind::Classify,
@@ -3269,8 +3237,8 @@ fn is_capital(name: &str) -> bool {
 }
 
 /// Whether a tag term, or a condition inside one, reads `$.tags` or
-/// `$.classes` (§9). Bare `$` reads the input value, and `$.tags(R)`
-/// parses the input again.
+/// `$.classes` (§9). Bare `$` reads the input value, and a parse over
+/// `$` parses the input again.
 pub(crate) fn reads_own_tags(term: &Term) -> bool {
     // The parts to look at, with an explicit stack: a term is as deep as
     // its document nests until the check of its depth (§9).
@@ -3326,13 +3294,7 @@ pub(crate) fn reads_own_tags(term: &Term) -> bool {
                 Cond::Not(inner) => stack.push(Part::Cond(inner)),
                 Cond::Any(items) | Cond::All(items) => stack.extend(items.iter().map(Part::Cond)),
                 Cond::If(antecedent, consequent) => stack.extend([Part::Cond(antecedent), Part::Cond(consequent)]),
-                Cond::Matches(..)
-                | Cond::Begins(..)
-                | Cond::Ends(..)
-                | Cond::Initial(_)
-                | Cond::Final(_)
-                | Cond::Boundary(_, _, _, _)
-                | Cond::Captured(_) => {}
+                Cond::Initial(_) | Cond::Final(_) | Cond::Boundary(_, _, _, _) | Cond::Captured(_) => {}
             },
             Part::Symbol(symbol) => {
                 if let SourceSymbol::Call(call) = symbol {

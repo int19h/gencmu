@@ -242,8 +242,8 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("an emission with items that are no list", set_emit({"items": None})),
     ("an unknown emission item", set_emit({"items": [{"that": True}]})),
     ("an unknown function", set_tags({"method": "upper", "args": [], "receiver": X})),
-    ("matches as a term", set_tags({"method": "matches", "args": [{"rule": "text"}], "receiver": X})),
-    ("begins as a term", set_tags({"method": "begins", "args": [{"rule": "text"}], "receiver": X})),
+    ("a whole parse as a term", set_tags({"method": "parse", "args": [{"body": {"ref": "text"}}], "receiver": X})),
+    ("a prefix parse as a term", set_tags({"method": "parse", "args": [{"body": {"seq": [{"ref": "text"}, {"remainder": True}]}}], "receiver": X})),
     ("initial as a term", set_tags({"method": "starts-input", "args": [], "receiver": X})),
     ("head where a value is needed", set_tags({"method": "first-token", "args": [], "receiver": X})),
     ("after where a value is needed", set_tags({"method": "following-tokens", "args": [], "receiver": X})),
@@ -325,17 +325,16 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("an unknown term", set_tags({"number": 1})),
     ("any of one condition", set_condition({"any": [SAME]})),
     ("all of one condition", set_condition({"all": [SAME]})),
-    ("matches of a tag", set_condition({"receiver": TAG, "args": [{"rule": "text"}], "method": "matches"})),
-    ("matches without a rule", set_condition({"receiver": X, "args": [], "method": "matches"})),
+    ("whole parse of a tag", set_condition({"receiver": TAG, "args": [{"body": {"ref": "text"}}], "method": "parse"})),
     ("an unknown comparator", set_condition({"op": "<", "left": STR, "right": STR})),
     ("a comparator that is a list", set_condition({"op": ["="], "left": STR, "right": STR})),
     (
-        "matches of a call that is a list",
-        set_condition({"receiver": {"method": [], "receiver": {"emptySet": True}}, "args": [{"rule": "text"}], "method": "matches"}),
+        "parse of a call that is a list",
+        set_condition({"receiver": {"method": [], "receiver": {"emptySet": True}}, "args": [{"rule": "text"}], "method": "parse"}),
     ),
-    ("begins of a tag", set_condition({"receiver": TAG, "args": [{"rule": "text"}], "method": "begins"})),
-    ("begins without a rule", set_condition({"receiver": X, "args": [], "method": "begins"})),
-    ("matches and begins in one condition", set_condition({"receiver": X, "begins": X, "args": [{"rule": "text"}], "method": "matches"})),
+    ("prefix parse of a tag", set_condition({"receiver": TAG, "args": [{"body": {"seq": [{"ref": "text"}, {"remainder": True}]}}], "method": "parse"})),
+    ("parse without a body", set_condition({"receiver": X, "args": [], "method": "parse"})),
+    ("a parse with another member", set_condition({"receiver": X, "extra": X, "args": [{"body": {"ref": "text"}}], "method": "parse"})),
     ("initial of a tag", set_condition({"receiver": TAG, "args": [], "method": "starts-input"})),
     ("initial with a rule", set_condition({"receiver": X, "args": [{"rule": "text"}], "method": "starts-input"})),
     ("a function that is a list", set_tags({"method": ["phonemes"], "args": [], "receiver": X})),
@@ -452,7 +451,7 @@ def scramble(value: Any, rng: random.Random) -> Any:
             "x",
             "=",
             "head",
-            "matches",
+            "query",
             [],
             [{}],
             {},
@@ -535,7 +534,7 @@ class PreparsedDomRules(unittest.TestCase):
         broken DOM is a GencmuError."""
         bootstrap = json.loads(bundled_text("data/preparsed/gencmu.json") or "{}")
         bootstrap["documents"]["grammars/gencmu/jbogenbau/syntax.md"]["dom"]["rules"][0]["conditions"] = [
-            {"receiver": {"method": [], "receiver": {"emptySet": True}}, "args": [{"rule": "text"}], "method": "matches"}
+            {"receiver": {"method": [], "receiver": {"emptySet": True}}, "args": [{"body": {"ref": "text"}}], "method": "parse"}
         ]
         sources = {"grammars/test/p.md": PIPELINE, "grammars/test/g.md": DOCUMENT, "grammars/test/h.md": NEXT, "data/preparsed/gencmu.json": json.dumps(bootstrap)}
         with self.assertRaises(gencmu.GencmuError):
@@ -629,7 +628,7 @@ class PreparsedDomRules(unittest.TestCase):
                     self.assertEqual(dom_problem(dom) is None, allowed, dom_problem(dom))
 
     def test_what_the_reader_allows_is_allowed(self) -> None:
-        """$ in conditions, in emission and as a span of $.tags(rule), emission lists,
+        """$ in conditions, in emission and as a span of $.parse(rule).tags, emission lists,
         ∧, ⟹, presence tests, guarded terms, # as a rule's name, a negated
         gate and a warning (engine §9)."""
         for name, change in (
@@ -640,7 +639,7 @@ class PreparsedDomRules(unittest.TestCase):
                 "$.tags in an emitted term",
                 set_emit({"items": [{"capture": "x", "tags": {"method": "tags", "args": [], "receiver": WHOLE}}]}),
             ),
-            ("$.tags(rule) in an alternative's tags", set_tags({"method": "tags", "args": [{"rule": "text"}], "receiver": WHOLE})),
+            ("$.parse(rule).tags in an alternative's tags", set_tags({"method": "tags", "args": [], "receiver": {"method": "parse", "args": [{"body": {"ref": "text"}}], "receiver": WHOLE}})),
             (
                 "$.source-text in a guard of an alternative's tags",
                 set_tags({"if": {"op": "=", "left": {"method": "source-text", "args": [], "receiver": WHOLE}, "right": STR}, "then": TAG}),
@@ -650,14 +649,14 @@ class PreparsedDomRules(unittest.TestCase):
                 set_tags({"method": "tags", "args": [], "receiver": {"method": "first-token", "args": [], "receiver": WHOLE}}),
             ),
             ("a condition on $", set_condition({"op": "⊆", "left": TAG, "right": {"method": "tags", "args": [], "receiver": WHOLE}})),
-            ("all", set_condition({"all": [SAME, {"not": {"receiver": WHOLE, "args": [{"rule": "text"}], "method": "matches"}}]})),
+            ("all", set_condition({"all": [SAME, {"not": {"receiver": WHOLE, "args": [{"body": {"ref": "text"}}], "method": "parse"}}]})),
             (
-                "begins of $.following-tokens",
+                "prefix parse of $.following-tokens",
                 set_condition(
                     {
                         "receiver": {"method": "following-tokens", "args": [], "receiver": WHOLE},
-                        "args": [{"rule": "text"}],
-                        "method": "begins",
+                        "args": [{"body": {"seq": [{"ref": "text"}, {"remainder": True}]}}],
+                        "method": "parse",
                     }
                 ),
             ),
@@ -1229,10 +1228,10 @@ def _mixed_changes() -> list[tuple[str, Callable[[Dom], None]]]:
         ("a comparison with a negation", condition_after("not", {"captured": "x"})),
         ("a negation with a comparison", condition_before("not", {"captured": "x"})),
         ("a presence test with a comparison", condition_before("captured", "x")),
-        ("a comparison with a match", condition_after("matches", {"capture": "x"})),
+        ("a comparison with a query", condition_after("parse", {"capture": "x"})),
         (
-            "a match with a rule and another member",
-            replace_condition({"receiver": {"capture": "x"}, "args": [{"rule": "text"}], "initial": {"capture": "x"}, "method": "matches"}),
+            "a query with a body and another member",
+            replace_condition({"receiver": {"capture": "x"}, "args": [{"body": {"ref": "text"}}], "initial": {"capture": "x"}, "method": "parse"}),
         ),
         ("an emission with another member", emission({"items": [{"capture": "x"}], "extra": True})),
         ("another member with an emission", emission({"extra": True, "items": [{"capture": "x"}]})),

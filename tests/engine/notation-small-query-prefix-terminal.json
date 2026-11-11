@@ -1,6 +1,6 @@
 {
   "description": "Engine §4 distinguishes a terminal prefix match from a whole-span terminal match.",
-  "grammar": "%rule text $x:pair %conditions $x.begins(C | A), ¬$x.matches(C | A)\n%rule pair A B",
+  "grammar": "%rule text $x:pair %conditions ($x.parse(C …) ∨ $x.parse(A …)), ¬($x.parse(C) ∨ $x.parse(A))\n%rule pair A B",
   "tokens": [
     {
       "text": "a",

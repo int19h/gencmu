@@ -487,9 +487,9 @@ The notation sets no fixed limit on captures. A captured span before the dot for
 
 `.preceding-tokens` returns original tokens from the current context start to the receiver's start. `$x.preceding-tokens.last-token` names the token immediately before `$x` within that context. `.last-token` alone names the last token of its receiver. Nested queries cannot see before their own context start.
 
-`.ends(R)` recognizes suffixes over one fixed window. Every suffix candidate retains that window as its context. The method preserves ordinary query eligibility and errors. A restored `.ends` receiver causes a load error. Restored suffix queries can be added when a grammar needs them.
+`parse(… R)` recognizes suffixes over one fixed window. Every suffix candidate retains that window as its context. The query preserves ordinary query eligibility and errors. A restored suffix receiver causes a load error. Restored suffix queries can be added when a grammar needs them.
 
-Shareable suffix queries cost one recognition starting the target at every position, plus constant work per request. Sharing uses the target and window start. Complex targets can cost more than linear time. Targets that read a window end require separate recognition for each distinct end. Use `.ends` sparingly. Engine §4.4 defines sharing and window-end dependencies.
+Shareable suffix queries cost one recognition starting the target at every position, plus constant work per request. Sharing uses the target and window start. Complex targets can cost more than linear time. Targets that read a window end require separate recognition for each distinct end. Use a suffix query sparingly. Engine §4.4 defines sharing and window-end dependencies.
 
 ## Structural pattern implementation
 
@@ -800,17 +800,17 @@ For example, take `text → A [+T] | A T`. On `A`, its only derivation elides `T
 
 ### Nested queries and elided terminators
 
-A condition can query a whole span, prefix, suffix, or tag union with `matches`, `begins`, `ends`, or `tags` (engine §4). That nested parse sees every way to read the span, and an elidable optional can be left out anywhere in it. So a nested reading can rely on leaving out a terminator that the same construct reads in the actual text. A nested reading must not do that.
+A condition can query a whole span, prefix or suffix with `parse`, or a tag union with a forest `.tags` (engine §4). That nested parse sees every way to read the span, and an elidable optional can be left out anywhere in it. So a nested reading can rely on leaving out a terminator that the same construct reads in the actual text. A nested reading must not do that.
 
 So every nested query follows written-terminator priority (engine §4). A nested reading cannot leave out an elidable optional where the same construct can read that whole optional as written. The query answers only from remaining proof trees with no unerased error occurrence of their own. A carried error does not bar that witness.
 
-This includes aligned queries and all four query methods. No query evaluates a diagnostic message. Several such trees are an ordinary success, never a tie. No option turns this priority off.
+This includes aligned queries and every query mode. No query evaluates a diagnostic message. Several such trees are an ordinary success, never a tie. No option turns this priority off.
 
 In the `lojban/experimental` pipeline, `mi klama na to broda toi` illustrates this boundary problem. The nested parse of a condition reads `na to broda` as a negated selbri, with `broda` taken from inside the parenthesis. With priority, the brackets output is `(mi [klama {na (to broda toi)}])`. camxes-exp also puts `broda` inside the parenthesis after `na`, and it closes `na` with an elided `ku`.
 
 The priority is a local commitment, not a proof that the shorter reading is impossible. Take `r → A c [+T] T` and `c → B`, on `A B T`. Without priority, `r` leaves out `[+T]` and reads the token as its last `T`. With priority, the token belongs to `[+T]`, so the query fails.
 
-The window of an ordinary query is its span. A `matches` over a captured span does not look at a terminator written after the span. A `begins` with `.onward` or `.following-tokens` already sees the rest of the input.
+The window of an ordinary query is its span. A whole query over a captured span does not look at a terminator written after the span. A prefix query with `.onward` or `.following-tokens` already sees the rest of the input.
 
 A boundary atom reads the parse itself, so it has no window and no written-terminator priority. It cannot replace a lookahead whose rival starts at the same token, or whose target is no node of the real tree. It replaces a lookahead that only asks what the actual reading puts next.
 
@@ -820,7 +820,7 @@ A boundary atom reads the parse itself, so it has no window and no written-termi
 
 An elision is an omitted terminator. An aligned witness is a reading with the same closes. An ordinary query parses captured words afresh and can choose another omission boundary. A condition about one grammatical category sometimes needs the captured candidate's actual boundaries while it asks about another grammatical category.
 
-The span method keeps `.matches`, `.begins`, and `.tags(rule)` queries. `$x.without-elision.matches(R)` compares the whole capture. `$x.without-elision.onward.begins(R)` permits a rival category that continues beyond it. The query can still inspect following original words. This context retains following-operator conditions and written-terminator priority.
+The span method keeps the `parse` queries. `$x.without-elision.parse(R)` compares the whole capture. `$x.without-elision.onward.parse(R …)` permits a rival category that continues beyond it. The query can still inspect following original words. This context retains following-operator conditions and written-terminator priority.
 
 Restored tokens record the constraint without creating additional mandatory words. A rival cannot read an omitted BOI as a bare required BOI. An omitted optional requires none of its remaining content. A prefix compares every close at its endpoint. These rules express a relation between original readings, rather than ordinary replay of completed spelling.
 

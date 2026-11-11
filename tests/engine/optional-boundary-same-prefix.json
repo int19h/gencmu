@@ -1,6 +1,6 @@
 {
   "description": "Optional priority retains the fixed prefix boundary record (engine §4).",
-  "grammar": "%rule text B D T\n%conditions $.matches(r)\n%rule r B [$c:c] [+T] D T\n%rule c D\n%rule unused B\n%conditions $.preceded-by(B)",
+  "grammar": "%rule text B D T\n%conditions $.parse(r)\n%rule r B [$c:c] [+T] D T\n%rule c D\n%rule unused B\n%conditions $.preceded-by(B)",
   "tokens": [
     {
       "text": "b",

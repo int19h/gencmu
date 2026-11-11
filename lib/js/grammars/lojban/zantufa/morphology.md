@@ -74,10 +74,10 @@ The redefined `run-words` keeps the join conditions of [../common/forms.md](../c
   | $r:run :: $r.tags
   | $p:runs pause-token $r:run
       :: $r.tags ∪
-         (RAhOI ⊆ $p.tags ∧ $r.matches(only-hesitation) ⟹ RAhOI)
+         (RAhOI ⊆ $p.tags ∧ $r.parse(only-hesitation) ⟹ RAhOI)
   | $q:runs pause-token $s:rahoi-rest :: $s.tags
 %conditions
-  RAhOI ⊈ $p.tags ∨ ¬$r.matches(rahoi-rest),
+  RAhOI ⊈ $p.tags ∨ ¬$r.parse(rahoi-rest),
   RAhOI ⊆ $q.tags
 
 %extend-rule word-run
@@ -105,7 +105,7 @@ The redefined `run-words` keeps the join conditions of [../common/forms.md](../c
   Y-Letters ⊈ $t.tags ∨ Y-Letters ⊈ $u.tags,
   Y-Letters ⊈ $r.tags ∨ Y-Letters ⊈ $v.tags,
   Hesitation ⊈ $v.tags ∨ (Spacing ∪ Opener-Space) ∩ $r.tags = ∅ ∧ $r.classes ∩ $TEXT-OPENERS = ∅,
-  RAhOI ⊈ $r.tags ∨ ¬$v.onward.begins(rahoi-form),
+  RAhOI ⊈ $r.tags ∨ ¬$v.onward.parse(rahoi-form …),
   (Continued ∪ Cy ∪ Name-Intro ∪ Open-Stress) ∩ $r.tags ≠ ∅,
   Cy ⊆ $r.tags ∧ Cy ⊆ $v.tags ∨
     Continued ⊆ $r.tags ∧ Open-Stress ⊈ $r.tags ∧ Onset ⊆ $v.tags ∨
@@ -122,7 +122,7 @@ The redefined `run-words` keeps the join conditions of [../common/forms.md](../c
   | $h:run-words $t:rahoi-rest :: $t.tags
 %conditions
   RAhOI ⊆ $v.tags,
-  $h.matches(only-hesitation)
+  $h.parse(only-hesitation)
 
 -- The first word after a quoted form is not run-initial. Keep quote state, opener spacing, and the existing word joins.
 %rule rahoi-tail
@@ -130,7 +130,7 @@ The redefined `run-words` keeps the join conditions of [../common/forms.md](../c
   | $s:rahoi-tail $y:joined-hesitation :: $y.tags
   | $o:rahoi-tail $n:opener-space :: Opener-Space ∪ $n.tags
 %conditions
-  RAhOI ⊈ $r.tags ∨ ¬$v.onward.begins(rahoi-form),
+  RAhOI ⊈ $r.tags ∨ ¬$v.onward.parse(rahoi-form …),
   Y-Letters ⊈ $r.tags ∨ Y-Letters ⊈ $v.tags,
   Hesitation ⊈ $v.tags ∨ Opener-Space ⊈ $r.tags ∧ $r.classes ∩ $TEXT-OPENERS = ∅,
   Y-Letters ⊆ $s.tags,
@@ -144,7 +144,7 @@ The redefined `run-words` keeps the join conditions of [../common/forms.md](../c
   $
       :: Spacing ∪
          $w.tags ∪
-         (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
+         (¬$w.following-tokens.parse(nonpause-phoneme …) ⟹ Run-Final)
 
 -- A hesitation after a text opener counts as space where that opener opens a text. The tag carries through following hesitation.
 %rule opener-space
@@ -153,7 +153,7 @@ The redefined `run-words` keeps the join conditions of [../common/forms.md](../c
   $
       :: Opener-Space ∪
          $w.tags ∪
-         (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
+         (¬$w.following-tokens.parse(nonpause-phoneme …) ⟹ Run-Final)
 
 %rule space-piece
   ordinary-space-piece | split-later-y
@@ -162,12 +162,12 @@ The redefined `run-words` keeps the join conditions of [../common/forms.md](../c
 %rule ordinary-space-piece
   $w:source-word<Y-Letters>
 %conditions
-  ¬$w.onward.begins(split-later-y)
+  ¬$w.onward.parse(split-later-y …)
 %emits
   $
       :: Spacing ∪
          $w.tags ∪
-         (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
+         (¬$w.following-tokens.parse(nonpause-phoneme …) ⟹ Run-Final)
 
 -- A run of hesitation preserves a pending quote opener for the next run.
 %rule only-hesitation
@@ -179,7 +179,7 @@ The redefined `run-words` keeps the join conditions of [../common/forms.md](../c
 %rule rahoi-form
   y-rafsi | long-rafsi | y-less-rafsi | gismu
 %emits
-  $ :: Rafsi-Form ∪ (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
+  $ :: Rafsi-Form ∪ (¬$.following-tokens.parse(nonpause-phoneme …) ⟹ Run-Final)
 ```
 
 <details><summary>Railroad diagrams of the 11 rules from <code>runs</code> to <code>rahoi-form</code></summary>
@@ -216,11 +216,11 @@ The stage gives `Opener-Space` to a hesitation directly after a text opener, and
 %rule ordinary-joined-hesitation
   $w:source-word<Y-Letters>
 %conditions
-  ¬$w.onward.begins(split-later-y)
+  ¬$w.onward.parse(split-later-y …)
 %emits
   $
       :: $w.tags ∪
-         (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
+         (¬$w.following-tokens.parse(nonpause-phoneme …) ⟹ Run-Final)
 ```
 
 <details><summary>Railroad diagrams of <code>joined-hesitation</code> and <code>ordinary-joined-hesitation</code></summary>

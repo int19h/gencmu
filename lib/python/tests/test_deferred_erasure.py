@@ -48,7 +48,7 @@ class ErasedInteriors(unittest.TestCase):
         # Engine §6: project the key but preserve raw cycle observations.
         from gencmu._erased_classes import ErasedClasses
         from gencmu._restoration_forest import restoration_forest
-        grammar = "%rule text a\n%rule a e | A\n%conditions $.without-elision.matches(w)\n%rule e a | b\n%erased\n%rule b A\n%rule w A"
+        grammar = "%rule text a\n%rule a e | A\n%conditions $.without-elision.parse(w)\n%rule e a | b\n%erased\n%rule b A\n%rule w A"
         ranking, root = prepare(grammar)
         self.assertEqual(ranking.verdict, "tie")
         loaded = gencmu.load_pipeline_sources({"p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n" + grammar + "\n```\n"}, "p.md")
@@ -75,7 +75,7 @@ class ErasedInteriors(unittest.TestCase):
     def test_named_closes_do_not_split_ranked_entry_frames(self):
         # Engine §6: only projected erased prefixes distinguish ranked entries.
         for body, size in (("e (e ≻ e) :: ∅", 2), ("e (e ≻ e) e :: ∅", 3)):
-            grammar = "%rule text $p:p\n%conditions $p.without-elision.matches(w)\n%rule p " + body + "\n%rule w p\n%rule e a | b\n%erased\n%rule a A\n%rule b A"
+            grammar = "%rule text $p:p\n%conditions $p.without-elision.parse(w)\n%rule p " + body + "\n%rule w p\n%rule e a | b\n%erased\n%rule a A\n%rule b A"
             ranking, root = prepare(grammar, ("A",) * size)
             self.assertEqual(ranking.verdict, "unique")
 

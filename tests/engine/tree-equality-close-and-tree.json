@@ -1,6 +1,6 @@
 {
   "description": "Structural comparison: close-and-tree.",
-  "grammar": "%elision-only\n%rule text $x:w {$y:w}\n%conditions $x ≅ $y ∧ $x.without-elision.matches(w)\n%rule w \"a\" [+T]",
+  "grammar": "%elision-only\n%rule text $x:w {$y:w}\n%conditions $x ≅ $y ∧ $x.without-elision.parse(w)\n%rule w \"a\" [+T]",
   "input": "aa",
   "expect": {
     "result": {

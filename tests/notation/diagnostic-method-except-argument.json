@@ -1,6 +1,6 @@
 {
   "description": "Method diagnostics use common text and retain their positions.",
-  "document": "```jbogenbau\n%rule text A %conditions $.without-elision-except(A).matches(a)\n```\n",
+  "document": "```jbogenbau\n%rule text A %conditions $.without-elision-except(A).parse(a)\n```\n",
   "expect": {
     "error": {
       "line": 2,

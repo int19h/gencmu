@@ -37,12 +37,6 @@ def prepare(lowered):
                     info[2] = True
                 if method == "parse":
                     calls.add(lowered.rule_ids[body_target(lowered, node["args"][0]["body"])])
-                elif method in ("matches", "begins", "ends", "tags"):
-                    for arg in node["args"]:
-                        if "rule" in arg:
-                            calls.add(lowered.rule_ids[arg["rule"]])
-                        elif "body" in arg:
-                            calls.add(lowered.rule_ids[body_target(lowered, arg["body"])])
             pending.extend(clause_children(node))
         for child in calls:
             parents[child].add(production.lhs)

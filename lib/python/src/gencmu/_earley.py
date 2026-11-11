@@ -398,7 +398,7 @@ class StageContext:
     # matches and tags, which read one recognition, and those of begins,
     # which can hold where matches does not.
     memo: dict[tuple[Any, ...], NestedAnswer] = field(default_factory=dict)
-    begins_memo: dict[tuple[Any, ...], Any] = field(default_factory=dict)
+    prefix_memo: dict[tuple[Any, ...], Any] = field(default_factory=dict)
     suffixes: dict[tuple, SuffixState] = field(default_factory=dict)
     # The nested parses running, by rule and span, whatever was asked of them.
     running: set[tuple[str, int, int]] = field(default_factory=set)
@@ -554,7 +554,7 @@ class StageContext:
             self.aligned_asked += 1
         return found
 
-    def begins(self, rule: str, start: int, end: int, error_free: bool = False, witness_ends: bool = False) -> Walk:
+    def prefix(self, rule: str, start: int, end: int, error_free: bool = False, witness_ends: bool = False) -> Walk:
         """Whether a prefix of tokens start..end, the empty one included,
         parses as rule: whether a completed item of the rule with an
         eligible proof tree begins at the span's start, in any set (engine
@@ -562,7 +562,7 @@ class StageContext:
         self.require_inactive(rule, start, end)
         # Suffix activity can expose recursion that a cached whole query hides.
         key = self.query_key(rule, start, end, error_free, witness_ends)
-        found = self.begins_memo.get(key) if not self.suffix_active else None
+        found = self.prefix_memo.get(key) if not self.suffix_active else None
         if found is None:
             return (yield self.answer(rule, start, end, key, True, error_free, witness_ends)).accepted
         elif self.tainted and (True, key) in self.tainted:
@@ -571,24 +571,24 @@ class StageContext:
 
     def forest_answer(self, rule: str, start: int, end: int, mode: str, error_free: bool = False, witness_ends: bool = False):
         """The NestedAnswer of a parse forest in any mode (§4)."""
-        if mode == "begins":
+        if mode == "prefix":
             self.require_inactive(rule, start, end)
             key = self.query_key(rule, start, end, error_free, witness_ends)
-            found = self.begins_memo.get(key) if not self.suffix_active else None
+            found = self.prefix_memo.get(key) if not self.suffix_active else None
             if found is not None:
                 if self.tainted and (True, key) in self.tainted:
                     self.aligned_asked += 1
                 return found
             return (yield self.answer(rule, start, end, key, True, error_free, witness_ends))
-        if mode == "ends":
-            return (yield self.ends_answer(rule, start, end, error_free, witness_ends))
-        if mode == "contains":
+        if mode == "suffix":
+            return (yield self.suffix_answer(rule, start, end, error_free, witness_ends))
+        if mode == "part":
             return (yield self.contains_answer(rule, start, end, error_free, witness_ends))
         return (yield self.nested(rule, start, end, error_free, witness_ends))
 
-    def ends_answer(self, rule: str, start: int, end: int, error_free: bool = False, witness_ends: bool = False):
+    def suffix_answer(self, rule: str, start: int, end: int, error_free: bool = False, witness_ends: bool = False):
         """The NestedAnswer of a suffix query (§4)."""
-        state = yield self.ends(rule, start, end, error_free, witness_ends)
+        state = yield self.suffix(rule, start, end, error_free, witness_ends)
         if end not in state.answers:
             return NestedAnswer(False, EMPTY)
         tags = state.tags.get(end, EMPTY)
@@ -597,7 +597,7 @@ class StageContext:
 
     def contains_answer(self, rule: str, start: int, end: int, error_free: bool = False, witness_ends: bool = False):
         """The NestedAnswer of a part query (§4)."""
-        state = yield self.ends(rule, start, end, error_free, witness_ends)
+        state = yield self.suffix(rule, start, end, error_free, witness_ends)
         gathered = Gathered()
         accepted = False
         rows = []
@@ -626,7 +626,7 @@ class StageContext:
         _testing.count("keySteps")
         return bool(self.tokens[index].errors)
 
-    def ends(self, rule: str, start: int, end: int, error_free: bool = False, witness_ends: bool = False) -> Walk:
+    def suffix(self, rule: str, start: int, end: int, error_free: bool = False, witness_ends: bool = False) -> Walk:
         """Read suffixes in one fixed window, with retained answers for shareable targets."""
         self.require_inactive(rule, start, end)
         number = self.lowered.rule_ids[rule]
@@ -758,7 +758,7 @@ class StageContext:
             # objects never reach a caller.
             if isinstance(found, NestedAnswer):
                 found = NestedAnswer(found.accepted, frozenset(list(found.tags)))
-            (self.begins_memo if begins else self.memo)[key] = found
+            (self.prefix_memo if begins else self.memo)[key] = found
             return found
         asked = self.aligned_asked
         self.running.add(running)
@@ -777,7 +777,7 @@ class StageContext:
         §4.3)."""
         answer = self.settle(number, begins, forest, error_free, witness_ends)
         if not self.suffix_active:
-            (self.begins_memo if begins else self.memo)[key] = answer
+            (self.prefix_memo if begins else self.memo)[key] = answer
             if self.aligned_asked != asked:
                 self.tainted.add((begins, key))
             elif shared is not None:
@@ -969,14 +969,14 @@ class Evaluator:
         if dom["method"] == "local-readings":
             start, rule, site = bound.local_reading(dom["receiver"])
             answer = self.context.chart_reading(start, site, clean)
-            span, mode = (start, len(self.context.tokens), None), "begins"
+            span, mode = (start, len(self.context.tokens), None), "prefix"
         else:
             span = yield self._span(dom["receiver"], bound)
             body = dom["args"][0]["body"]
             rule, mode = body_target(self.context.lowered, body), query_body(body)[1]
         if answer is None:
             if isinstance(span, RestoredSpan):
-                answer = yield self.context.aligned(rule, span, mode == "begins", clean, ends)
+                answer = yield self.context.aligned(rule, span, mode == "prefix", clean, ends)
             else:
                 start, end, _ = span
                 answer = yield self.context.forest_answer(rule, start, end, mode, clean, ends)
@@ -1080,11 +1080,6 @@ class Evaluator:
             if name == "tags" and isinstance(receiver, dict) and receiver.get("method") in ("parse", "error-free", "ending-after", "local-readings"):
                 return (yield self.forest_value(receiver, bound)).tags
             span = yield self._span(receiver, bound)
-            if name == "tags" and args:
-                if isinstance(span, RestoredSpan):
-                    return (yield self.context.aligned(args[0]["rule"], span, False)).tags
-                start, end, _ = span
-                return (yield self.context.nested(args[0]["rule"], start, end)).tags
             if name == "value":
                 return self.input_value(span[0], span[1])
             if name == "image":
@@ -1170,20 +1165,7 @@ class Evaluator:
                 return span[1] == self.end
             if name == "starts-input":
                 return span[0] == self.base
-            if len(dom["args"]) > 1:
-                for arg in dom["args"]:
-                    if (yield self.walk_condition({**dom, "args": [arg]}, bound)):
-                        return True
-                return False
-            arg = dom["args"][0]
-            rule = arg.get("rule", "\0query:" + arg.get("terminal", ""))
-            if isinstance(span, RestoredSpan):
-                return (yield self.context.aligned(rule, span, name == "begins")).accepted
-            start, end, _ = span
-            if name == "ends":
-                state = yield self.context.ends(rule, start, end)
-                return state.answers.get(end, False)
-            return (yield self.context.begins(rule, start, end)) if name == "begins" else (yield self.context.nested(rule, start, end)).accepted
+            raise _GrammarFault("a method outlived lowering as a condition")
         if "not" in dom:
             return not (yield self.walk_condition(dom["not"], bound))
         if "if" in dom:

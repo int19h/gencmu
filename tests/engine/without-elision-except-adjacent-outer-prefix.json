@@ -1,6 +1,6 @@
 {
   "description": "Adjacent extra closes after the last kept record fail in a prefix witness (engine §2.2, §4, and §10).",
-  "grammar": "%rule text $c:c\n%conditions $c.without-elision-except(fam).begins(w)\n%rule c X [+T] B\n%rule w X [+T] [+U] [+V]\n%rule fam w\n",
+  "grammar": "%rule text $c:c\n%conditions $c.without-elision-except(fam).parse(w …)\n%rule c X [+T] B\n%rule w X [+T] [+U] [+V]\n%rule fam w\n",
   "tokens": [
     {
       "text": "x",

@@ -1,6 +1,6 @@
 {
   "description": "An extra close after the initial kept close qualifies under strict alignment (engine §2.2, §4, and §10).",
-  "grammar": "%rule text $c:c\n%conditions $c.without-elision.matches(w)\n%rule c [+T] X B\n%rule w [+T] [+U] X B\n%rule fam w\n",
+  "grammar": "%rule text $c:c\n%conditions $c.without-elision.parse(w)\n%rule c [+T] X B\n%rule w [+T] [+U] X B\n%rule fam w\n",
   "tokens": [
     {
       "text": "x",

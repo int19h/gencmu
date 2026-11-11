@@ -1,13 +1,27 @@
 {
-  "description": "The .begins method takes a span receiver and a rule argument. .following-tokens and .onward construct the receivers of the two query conditions (engine §9.3, §10).",
-  "document": "# A document\n\n```jbogenbau\n%rule g $a:A %conditions $a.following-tokens.begins(g), ¬($a.tokens-after-first.onward.begins(g))\n```\n",
+  "description": "A prefix parse takes a span receiver and a body argument. .following-tokens and .onward construct the receivers of the two query conditions (engine §9.3, §10).",
+  "document": "# A document\n\n```jbogenbau\n%rule g $a:A %conditions $a.following-tokens.parse(g …), ¬$a.tokens-after-first.onward.parse(g …)\n```\n",
   "expect": {
     "dom": {
+      "format": 49,
       "rules": [
         {
+          "name": "g",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "a",
+                "expr": {
+                  "ref": "A"
+                }
+              }
+            }
+          ],
           "conditions": [
             {
-              "method": "begins",
+              "method": "parse",
               "receiver": {
                 "method": "following-tokens",
                 "receiver": {
@@ -17,13 +31,22 @@
               },
               "args": [
                 {
-                  "rule": "g"
+                  "body": {
+                    "seq": [
+                      {
+                        "ref": "g"
+                      },
+                      {
+                        "remainder": true
+                      }
+                    ]
+                  }
                 }
               ]
             },
             {
               "not": {
-                "method": "begins",
+                "method": "parse",
                 "receiver": {
                   "method": "onward",
                   "receiver": {
@@ -37,14 +60,32 @@
                 },
                 "args": [
                   {
-                    "rule": "g"
+                    "body": {
+                      "seq": [
+                        {
+                          "ref": "g"
+                        },
+                        {
+                          "remainder": true
+                        }
+                      ]
+                    }
                   }
                 ]
               }
             }
+          ],
+          "at": [
+            4,
+            1
           ]
         }
-      ]
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": [],
+      "checks": []
     }
   }
 }

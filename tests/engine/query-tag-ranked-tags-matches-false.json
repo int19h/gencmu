@@ -1,6 +1,6 @@
 {
   "description": "A false matches query contributes no tags in a ranked tag term.",
-  "grammar": "%rule text $p:A (($x:part ≻ fallback) B) :: ($p.matches(P) ⟹ MARK) %conditions $x.begins(T)\n%rule part A\n%rule fallback A",
+  "grammar": "%rule text $p:A (($x:part ≻ fallback) B) :: ($p.parse(P) ⟹ MARK) %conditions $x.parse(T …)\n%rule part A\n%rule fallback A",
   "tokens": [
     {
       "text": "p",

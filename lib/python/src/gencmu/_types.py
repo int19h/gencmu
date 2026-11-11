@@ -73,7 +73,7 @@ _FOREST_METHODS = {"parse", "error-free", "ending-after", "local-readings"}
 
 _SPAN_METHODS = {"first-token", "tokens-after-first", "last-token", "onward", "following-tokens", "preceding-tokens"}
 _STRING_METHODS = {"value", "image", "source-text", "decomposed-source-text", "verbatim-text"}
-_PREDICATES = {"matches", "begins", "ends", "starts-input", "ends-input", "parse", "error-free", "ending-after", "local-readings", "followed-by", "preceded-by"}
+_PREDICATES = {"starts-input", "ends-input", "parse", "error-free", "ending-after", "local-readings", "followed-by", "preceded-by"}
 _SPAN_SHAPES = _SPAN_METHODS | {"without-elision", "without-elision-except"}
 _METHODS = _CHECK_METHODS | _SPAN_SHAPES | _STRING_METHODS | _PREDICATES | {"tags", "classes", "split", "ngrams", "classify", "emitted"}
 
@@ -84,8 +84,6 @@ def method_shape_problem(name: Any, receiver: Any, args: Any, recipe: bool = Fal
         return "unknown method name"
     if not isinstance(receiver, dict) or not isinstance(args, list):
         return "a malformed method"
-    if name == "ends" and _restored_shape(receiver):
-        return "ends requires an ordinary span, not a restored span"
     from ._template_nodes import has_unresolved
     bare = set(receiver) == {"capture"} and isinstance(receiver["capture"], str) or bool({"param", "call"} & receiver.keys())
     receiver_method = receiver.get("method")
@@ -110,7 +108,7 @@ def method_shape_problem(name: Any, receiver: Any, args: Any, recipe: bool = Fal
         if len(args) != 1 or not isinstance(args[0], dict) or set(args[0]) != {"body"} or not isinstance(args[0]["body"], dict):
             return "a method has the wrong receiver or arguments"
         from ._query_forms import query_body
-        if _restored_shape(receiver) and query_body(args[0]["body"])[1] in ("ends", "contains"):
+        if _restored_shape(receiver) and query_body(args[0]["body"])[1] in ("suffix", "part"):
             return "suffix parse requires an ordinary span, not a restored span"
         valid = span
     elif name == "error-free":
@@ -124,9 +122,7 @@ def method_shape_problem(name: Any, receiver: Any, args: Any, recipe: bool = Fal
     elif name == "classify":
         valid = len(args) == 1 and named(args[0], "classifier")
     elif name == "tags":
-        valid = (span and (not args or len(args) == 1 and rule(args[0]))) or receiver_method in _FOREST_METHODS and not args
-    elif name in ("matches", "begins", "ends"):
-        valid = span and bool(args) and all(rule(arg) or named(arg, "terminal") for arg in args)
+        valid = (span or receiver_method in _FOREST_METHODS) and not args
     elif name in ("followed-by", "preceded-by"):
         valid = node and bool(args) and all(rule(arg) or named(arg, "terminal") for arg in args)
     elif name == "without-elision-except":
@@ -144,8 +140,6 @@ def method_shape_problem(name: Any, receiver: Any, args: Any, recipe: bool = Fal
 
 def method_type(name: str, receiver: TermType, args: list[Any], bare: bool = False, recipe: bool = False) -> Found:
     """Select a method on its actual receiver before string conversion."""
-    if name == "ends" and receiver == "restored":
-        return None, "ends requires an ordinary span, not a restored span"
     spans = {"capture", "span", "restored"}
     if name in _NODE_METHODS:
         valid, result, arity = receiver == "node", "node", 0
@@ -158,7 +152,7 @@ def method_type(name: str, receiver: TermType, args: list[Any], bare: bool = Fal
     elif name == "parse":
         valid = receiver in spans | {"node"} and len(args) == 1 and isinstance(args[0], dict) and "body" in args[0]
         from ._query_forms import query_body
-        if valid and receiver == "restored" and query_body(args[0]["body"])[1] in ("ends", "contains"):
+        if valid and receiver == "restored" and query_body(args[0]["body"])[1] in ("suffix", "part"):
             return None, "suffix parse requires an ordinary span, not a restored span"
         result, arity = "forest", 1
     elif name == "error-free":
@@ -182,13 +176,10 @@ def method_type(name: str, receiver: TermType, args: list[Any], bare: bool = Fal
         arity = 0
     elif name in ("tags", "classes"):
         valid, result, arity = receiver in spans | {"node"} or name == "tags" and receiver == "forest", "tags", None if name == "tags" else 0
-        if name == "tags" and (len(args) > 1 or args and set(args[0]) != {"rule"}):
+        if name == "tags" and args:
             valid = False
     elif name in ("followed-by", "preceded-by"):
         valid = (bare or receiver == "node") and bool(args) and all(set(arg) == {"rule"} or set(arg) == {"terminal"} and isinstance(arg["terminal"], str) and arg["terminal"][:1].isupper() and not arg["terminal"].startswith("_") for arg in args)
-        result, arity = "predicate", None
-    elif name in ("matches", "begins", "ends"):
-        valid = receiver in spans | {"node"} and bool(args) and all(set(arg) == {"rule"} or set(arg) == {"terminal"} and isinstance(arg["terminal"], str) and arg["terminal"][:1].isupper() and not arg["terminal"].startswith("_") for arg in args)
         result, arity = "predicate", None
     elif name in ("starts-input", "ends-input"):
         valid, result, arity = receiver in spans | {"node", "element"}, "predicate", 0
@@ -443,7 +434,7 @@ def _term_typing_once(term: Any, constants: ConstantTypes, memo: Memo) -> Walk:
             return None, fault
         recipe = name in ("verbatim-text", "emitted", "terminal") or kind == "emitted"
         selection_kind = "capture" if kind == "any" and has_unresolved(term["receiver"]) else kind
-        nominal = name in ("tags", "matches", "begins", "ends", "followed-by", "preceded-by", "without-elision-except")
+        nominal = name in ("tags", "followed-by", "preceded-by", "without-elision-except")
         args = [{"rule": "unresolved"} if nominal and ("param" in arg or "call" in arg) else arg for arg in term["args"]]
         bare = set(term["receiver"]) == {"capture"} or bool({"param", "call"} & term["receiver"].keys())
         result, problem = method_type(name, selection_kind, args, bare, recipe)

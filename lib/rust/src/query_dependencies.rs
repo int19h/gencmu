@@ -30,9 +30,6 @@ impl Node<'_> {
     pub(crate) fn children(self) -> Vec<Self> {
         match self {
             Self::Condition(condition) => match condition {
-                LCond::Matches(span, rule) | LCond::Begins(span, rule) | LCond::Ends(span, rule) => {
-                    vec![Self::Query(span, *rule, false)]
-                }
                 LCond::Forest(forest) => Self::forest(forest),
                 LCond::Present(span)
                 | LCond::Tree(span, ..)
@@ -48,7 +45,6 @@ impl Node<'_> {
                 LCond::If(left, right) => vec![Self::Condition(left), Self::Condition(right)],
             },
             Self::Term(term) => match term {
-                LTerm::TagsRule(span, rule) => vec![Self::Query(span, *rule, false)],
                 LTerm::ForestTags(forest) => Self::forest(forest),
                 LTerm::Value(span)
                 | LTerm::Image(span)

@@ -1,6 +1,6 @@
 {
   "description": "Engine §6 and §7.10: equivalent projected roots count once and keep the canonical a interior during elision-only reconstruction.",
-  "grammar": "%ambiguity-resolution greedy\n%elision-only\n%rule text e [+T]\n%conditions $.without-elision.matches(w)\n%rule e a | b\n%erased\n%rule a A\n%rule b A\n%rule w A [+T]\n",
+  "grammar": "%ambiguity-resolution greedy\n%elision-only\n%rule text e [+T]\n%conditions $.without-elision.parse(w)\n%rule e a | b\n%erased\n%rule a A\n%rule b A\n%rule w A [+T]\n",
   "tokens": [
     {
       "text": "a",

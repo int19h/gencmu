@@ -1,6 +1,6 @@
 {
   "description": "Engine §6: erased collapse keeps both valid readings and excludes the cyclic interior with ba alternative order.",
-  "grammar": "%ambiguity-resolution greedy\n%rule text a\n%rule a e | A\n%conditions $.without-elision.matches(w)\n%rule e b | a\n%erased\n%rule b A\n%rule w A",
+  "grammar": "%ambiguity-resolution greedy\n%rule text a\n%rule a e | A\n%conditions $.without-elision.parse(w)\n%rule e b | a\n%erased\n%rule b A\n%rule w A",
   "tokens": [
     {
       "text": "a",

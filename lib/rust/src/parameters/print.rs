@@ -139,8 +139,7 @@ pub(crate) fn canonical(n: &Json, u: &Unicode) -> String {
     }
     if has(n, "method") {
         let name = text(get(n, "method"));
-        let sep =
-            if ["matches", "begins", "ends", "followed-by", "preceded-by"].contains(&name) { " | " } else { ", " };
+        let sep = if ["followed-by", "preceded-by"].contains(&name) { " | " } else { ", " };
         let xs = list(get(n, "args"));
         let args = if xs.is_empty() {
             String::new()

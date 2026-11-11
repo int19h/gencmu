@@ -336,7 +336,7 @@ export declare class ChartSet {
  */
 declare class Pending {
     context: ParseContext;
-    kind: "begins" | "ends" | "matches" | "tags";
+    kind: "prefix" | "suffix" | "tags" | "whole";
     rule: string;
     start: number;
     end: number;
@@ -360,7 +360,7 @@ declare class Pending {
     frames: ((value: any) => any)[];
     /**
      * @param {ParseContext} context
-     * @param {"matches" | "begins" | "ends" | "tags"} kind
+     * @param {"whole" | "prefix" | "suffix" | "tags"} kind
      * @param {string} rule
      * @param {number} start
      * @param {number} end
@@ -370,7 +370,7 @@ declare class Pending {
      * @param {boolean} unseen whether fault F25 hides the parse from the
      *   check for parses already running
      */
-    constructor(context: ParseContext, kind: "matches" | "begins" | "ends" | "tags", rule: string, start: number, end: number, at: [number, number] | null, key: string, unseen: boolean);
+    constructor(context: ParseContext, kind: "whole" | "prefix" | "suffix" | "tags", rule: string, start: number, end: number, at: [number, number] | null, key: string, unseen: boolean);
 }
 /**
  * What an evaluation returns where it halts for a nested parse. It is a

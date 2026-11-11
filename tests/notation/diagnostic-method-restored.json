@@ -1,11 +1,11 @@
 {
   "description": "Reader diagnostics use common text and retain their positions.",
-  "document": "```jbogenbau\n%rule text A %conditions $.without-elision.ends(a)\n```\n",
+  "document": "```jbogenbau\n%rule text A %conditions $.without-elision.parse(… a)\n```\n",
   "expect": {
     "error": {
       "line": 2,
       "column": 26,
-      "message": "ends requires an ordinary span, not a restored span"
+      "message": "suffix parse requires an ordinary span, not a restored span"
     }
   }
 }

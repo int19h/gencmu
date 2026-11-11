@@ -11,7 +11,7 @@ fn parameter_source_round_trips() {
         "%rule pair(@L,@R) @L @R\n%rule text = pair(\"a\",\"b\")",
         "%rule use(@X) @X\n%rule text use((\"a\" \"b\")) use(ε) use([\"a\"]) use({\"a\"})",
         "%rule tag(@R) A<@R>\n%rule text tag(<B ¬C>)",
-        "%rule query(@R) A %conditions $.matches(@R)\n%rule text query(a | b)",
+        "%rule query(@R) A %conditions $.parse(@R)\n%rule text query(a | b)",
         "%rule tag(@T) [+@T]\n%rule text tag(KU)",
         "%ambiguity-resolution fewest #·atom\n%rule atom(@X) @X\n%extend-rule atom(@Y) @Y\n%rule text atom(\"a\")",
     ] {

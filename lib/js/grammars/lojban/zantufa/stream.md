@@ -46,13 +46,13 @@ For quote markers, this layer only adds classes to the shared class sets. The sh
 %rule rafsi-quote-target
   $f:Rafsi-Form [quote-end-mark] :: $f.tags :- $.verbatim-text
 %conditions
-  ¬$.following-tokens.begins(quote-end-mark)
+  ¬$.following-tokens.parse(quote-end-mark …)
 
 %rule rahoi-marker
   $q:read-word [quote-marker-end] :: Word Cmavo ∪ $q.classes
 %conditions
   RAhOI ⊆ $q.classes,
-  ¬$.following-tokens.begins(quote-marker-end)
+  ¬$.following-tokens.parse(quote-marker-end …)
 ```
 
 <details><summary>Railroad diagrams of the 4 rules from <code>quote</code> to <code>rahoi-marker</code></summary>
@@ -80,9 +80,9 @@ In a `lo'u` or `lo'ai` quote, the stage tags such a word `Word` only, like every
 %redefine-rule hesitation
   $h:y-run :: ∅
 %conditions
-  ¬$h.onward.begins(y-bu-word),
+  ¬$h.onward.parse(y-bu-word …),
   (Run-Initial ∪ Spacing) ∩ $h.tags ≠ ∅ ∨
-    Y-Letters ⊆ $h.tags ∧ $h.following-tokens.begins(y-letter-ahead)
+    Y-Letters ⊆ $h.tags ∧ $h.following-tokens.parse(y-letter-ahead …)
 %erased
 
 %rule y-letter-ahead
@@ -92,8 +92,8 @@ In a `lo'u` or `lo'ai` quote, the stage tags such a word `Word` only, like every
   $h:Hesitation :: Word Cmavo Y
 %conditions
   (Run-Initial ∪ Spacing) ∩ $h.tags = ∅,
-  Y-Letters ⊈ $h.tags ∨ ¬$h.following-tokens.begins(y-letter-ahead),
-  ¬$h.onward.begins(y-bu-word)
+  Y-Letters ⊈ $h.tags ∨ ¬$h.following-tokens.parse(y-letter-ahead …),
+  ¬$h.onward.parse(y-bu-word …)
 %emits
   $
 
@@ -124,10 +124,10 @@ A word of LU, TO or LUhEI, the classes of `$TEXT-OPENERS`, that this stage reads
   | $c:read-word :: $c.tags
   | $o:text-opener $p:opener-spaces :: $o.tags
 %conditions
-  ¬$p.following-tokens.begins(opener-space-token),
-  $c.classes ∩ $TEXT-OPENERS = ∅ ∨ ¬$c.following-tokens.begins(opener-space-token),
+  ¬$p.following-tokens.parse(opener-space-token …),
+  $c.classes ∩ $TEXT-OPENERS = ∅ ∨ ¬$c.following-tokens.parse(opener-space-token …),
   $c.classes ∩ $MAGIC-WORDS = ∅,
-  ¬$c.onward.begins(quote)
+  ¬$c.onward.parse(quote …)
 %emits
   $
 
@@ -147,7 +147,7 @@ A word of LU, TO or LUhEI, the classes of `$TEXT-OPENERS`, that this stage reads
   $h:Hesitation
 %conditions
   Opener-Space ⊆ $h.tags,
-  ¬$h.onward.begins(y-bu-word)
+  ¬$h.onward.parse(y-bu-word …)
 ```
 
 <details><summary>Railroad diagrams of the 4 rules from <code>word</code> to <code>opener-space-token</code></summary>
@@ -182,12 +182,8 @@ A quote word that opens no quote is an ordinary word in Zantufa, which `si` eras
 %extend-rule unit
   $b:bare-marker :: $b.tags
 %conditions
-  ¬$b.onward.begins(quote),
-  $b.following-tokens.begins(bare-marker-tail)
-
-%rule bare-marker-tail
-  skipped si-word
-  | skipped cmavo-token<BU>
+  ¬$b.onward.parse(quote …),
+  $b.following-tokens.parse((skipped si-word | skipped cmavo-token<BU>) …)
 
 %rule bare-marker
   $q:read-word
@@ -195,9 +191,8 @@ A quote word that opens no quote is an ordinary word in Zantufa, which `si` eras
   $q.classes ∩ (ZOI ∪ MUhOI ∪ LOhU ∪ LOhAI ∪ RAhOI) ≠ ∅
 ```
 
-<details><summary>Railroad diagrams of <code>unit</code>, <code>bare-marker-tail</code> and <code>bare-marker</code></summary>
+<details><summary>Railroad diagrams of <code>unit</code> and <code>bare-marker</code></summary>
 <p><img src="../../../docs/diagrams/lojban/zantufa/stream/unit.svg" alt="Railroad diagram of the rule unit"></p>
-<p><img src="../../../docs/diagrams/lojban/zantufa/stream/bare-marker-tail.svg" alt="Railroad diagram of the rule bare-marker-tail"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/stream/bare-marker.svg" alt="Railroad diagram of the rule bare-marker"></p>
 </details>
 
@@ -220,20 +215,16 @@ The lookahead skips erased regions before BU. Thus `su mi si bu` forms the lette
 %conditions
   SU ⊆ $q.classes
 
-%rule su-letter-tail
-  skipped cmavo-token<BU>
-
 %redefine-rule su-word
   $q:read-word
 %conditions
   SU ⊆ $q.classes,
-  ¬$q.following-tokens.begins(su-letter-tail)
+  ¬$q.following-tokens.parse(skipped cmavo-token<BU> …)
 ```
 
-<details><summary>Railroad diagrams of <code>unit</code>, <code>su-letter-base</code>, <code>su-letter-tail</code> and <code>su-word</code></summary>
+<details><summary>Railroad diagrams of <code>unit</code>, <code>su-letter-base</code> and <code>su-word</code></summary>
 <p><img src="../../../docs/diagrams/lojban/zantufa/stream/unit.2.svg" alt="Railroad diagram of the rule unit"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/stream/su-letter-base.svg" alt="Railroad diagram of the rule su-letter-base"></p>
-<p><img src="../../../docs/diagrams/lojban/zantufa/stream/su-letter-tail.svg" alt="Railroad diagram of the rule su-letter-tail"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/stream/su-word.svg" alt="Railroad diagram of the rule su-word"></p>
 </details>
 

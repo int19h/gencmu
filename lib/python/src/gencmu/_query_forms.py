@@ -20,10 +20,10 @@ def query_body(body):
         if (len(body) != 1 or len(markers) > 2 or not parts
                 or any(index not in (0, len(sequence) - 1) for index in markers)
                 or any(sequence[index] != {"remainder": True} for index in markers)):
-            return body, "matches", "a remainder stands at one outer edge of a parse argument"
-        mode = "contains" if len(markers) == 2 else "ends" if markers[0] == 0 else "begins"
+            return body, "whole", "a remainder stands at one outer edge of a parse argument"
+        mode = "part" if len(markers) == 2 else "suffix" if markers[0] == 0 else "prefix"
         return (parts[0] if len(parts) == 1 else {"seq": parts}), mode, None
-    return body, "matches", None
+    return body, "whole", None
 
 
 def query_capture(body):

@@ -1020,7 +1020,7 @@ impl Expander<'_> {
             }
             if k == "args" && has(root, "method") {
                 let method = text(get(root, "method"));
-                let query = ["matches", "begins", "ends", "followed-by", "preceded-by"].contains(&method);
+                let query = ["followed-by", "preceded-by"].contains(&method);
                 let target = query || ["tags", "without-elision-except"].contains(&method);
                 let mut args = Vec::new();
                 for arg in list(v) {

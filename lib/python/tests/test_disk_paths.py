@@ -17,7 +17,7 @@ from .shared import same_json
 
 class DiskPaths(unittest.TestCase):
     def test_include_relocation_keeps_structured_error_fields(self):
-        top = {"format": 48, "rules": [], "constants": [], "classifiers": [], "implications": [], "checks": [], "directives": [
+        top = {"format": 49, "rules": [], "constants": [], "classifiers": [], "implications": [], "checks": [], "directives": [
             {"name": "stage", "args": ["main"], "at": [1, 1]},
             {"name": "include", "args": ["g.md"], "at": [2, 1]},
         ]}

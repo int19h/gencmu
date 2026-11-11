@@ -1111,7 +1111,9 @@ mod tests {
     fn a_call_of_many_arguments_reads_in_linear_work() {
         let text = |n: usize| {
             let arguments = vec!["$"; n].join(", ");
-            format!("```jbogenbau\n%ambiguity-resolution greedy\n%rule text :: $.tags({arguments}) | \"a\"\n```\n")
+            format!(
+                "```jbogenbau\n%ambiguity-resolution greedy\n%rule text :: $.parse({arguments}).tags | \"a\"\n```\n"
+            )
         };
         assert!(read_grammar_document(&text(500), "").is_err(), "tags() of 500 arguments");
         let small = reading(&text(500), None);

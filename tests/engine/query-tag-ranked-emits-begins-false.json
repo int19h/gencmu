@@ -1,6 +1,6 @@
 {
   "description": "A false begins query contributes no tags in a ranked emission term.",
-  "grammar": "%rule text $p:A (B ≻ C) ::∅ %emits $p :: ($p.begins(P) ⟹ MARK)",
+  "grammar": "%rule text $p:A (B ≻ C) ::∅ %emits $p :: ($p.parse(P …) ⟹ MARK)",
   "tokens": [
     {
       "text": "p",

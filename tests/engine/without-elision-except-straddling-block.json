@@ -1,6 +1,6 @@
 {
   "description": "A witness block cannot straddle the captured endpoint (engine §2.2, §4, and §10).",
-  "grammar": "%rule text $c:c C\n%conditions $c.without-elision-except(fam).onward.begins(w)\n%rule c X B\n%rule w (X B C ≻ X B C D) :: ∅\n%rule fam w\n",
+  "grammar": "%rule text $c:c C\n%conditions $c.without-elision-except(fam).onward.parse(w …)\n%rule c X B\n%rule w (X B C ≻ X B C D) :: ∅\n%rule fam w\n",
   "tokens": [
     {
       "text": "x",

@@ -381,33 +381,6 @@ fn emit_cond<'a>(out: &mut Pieces<'a>, cond: &'a Cond) {
             write_term(out, right);
             out.push('}');
         }
-        Cond::Matches(span, rule) | Cond::Begins(span, rule) | Cond::Ends(span, rule) => {
-            let name = if matches!(cond, Cond::Matches(..)) {
-                "matches"
-            } else if matches!(cond, Cond::Ends(..)) {
-                "ends"
-            } else {
-                "begins"
-            };
-            out.push_str("{\"method\":");
-            write_str(out, name);
-            out.push_str(",\"receiver\":");
-            write_term(out, span);
-            out.push_str(",\"args\":[");
-            for (i, target) in rule.iter().enumerate() {
-                if i > 0 {
-                    out.push(',')
-                };
-                out.push_str(if target.starts_with(|c: char| c.is_ascii_uppercase()) {
-                    "{\"terminal\":"
-                } else {
-                    "{\"rule\":"
-                });
-                write_str(out, target);
-                out.push('}')
-            }
-            out.push_str("]}");
-        }
         Cond::Initial(span) => emit_span_query(out, "starts-input", span),
         Cond::Final(span) => emit_span_query(out, "ends-input", span),
         Cond::Boundary(forward, receiver, targets, _) => {

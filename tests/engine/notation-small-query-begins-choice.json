@@ -1,6 +1,6 @@
 {
-  "description": "Engine §4 tests alternatives in written order for `.begins`.",
-  "grammar": "%rule text $x:A B %conditions $x.begins(no | yes | C)\n%rule no B\n%rule yes A",
+  "description": "Engine §4 tests alternatives in written order for a prefix parse.",
+  "grammar": "%rule text $x:A B %conditions ($x.parse(no …) ∨ $x.parse(yes …) ∨ $x.parse(C …))\n%rule no B\n%rule yes A",
   "tokens": [
     {
       "text": "a",

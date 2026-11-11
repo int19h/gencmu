@@ -58,7 +58,7 @@ An engine tag starts with `_` and continues with letters, digits, or underscores
 %rule emoji-name
   _Emoji_Presentation<¬_Emoji_Component>
 %conditions
-  ¬$.following-tokens.begins(call-open)
+  ¬$.following-tokens.parse(call-open …)
 %emits
   $ :: Emoji-Name
 
@@ -66,15 +66,15 @@ An engine tag starts with `_` and continues with letters, digits, or underscores
   | $lower:lower-name :: Lowercase-Name
   | upper-name :: Uppercase-Name
 %conditions
-  ¬$.following-tokens.begins(name-character),
-  $lower ⟹ ¬$.following-tokens.begins(call-open)
+  ¬$.following-tokens.parse(name-character …),
+  $lower ⟹ ¬$.following-tokens.parse(call-open …)
 %emits
   $
 
 %rule whole-name
   name
 %conditions
-  ¬$.following-tokens.begins(name-character)
+  ¬$.following-tokens.parse(name-character …)
 
 %rule name
   letter | name name-character
@@ -110,7 +110,7 @@ An engine tag starts with `_` and continues with letters, digits, or underscores
 %rule engine-tag
   "_" [engine-name]
 %conditions
-  ¬$.following-tokens.begins(engine-name-part)
+  ¬$.following-tokens.parse(engine-name-part …)
 %emits
   $ :: Engine-Tag
 
@@ -123,7 +123,7 @@ An engine tag starts with `_` and continues with letters, digits, or underscores
 %rule engine-digit-dot
   digit "."
 %conditions
-  $.following-tokens.begins(digit)
+  $.following-tokens.parse(digit …)
 ```
 
 <details><summary>Railroad diagrams of the 15 rules from <code>emoji-name</code> to <code>engine-digit-dot</code></summary>
@@ -155,7 +155,7 @@ A parameter starts with `@` and an ASCII letter. Its remaining characters follow
   lower-name
   | _Emoji_Presentation<¬_Emoji_Component>
 %conditions
-  $.following-tokens.begins(call-open)
+  $.following-tokens.parse(call-open …)
 %emits
   $ :: Call-Name
 
@@ -189,14 +189,14 @@ The boundary conditions prevent either token from ending inside its name. The sy
   "$"
   | "$" $n:lower-name
 %conditions
-  ¬$n.following-tokens.begins(name-character)
+  ¬$n.following-tokens.parse(name-character …)
 %emits
   $ :: Capture
 
 %rule constant-token
   "$" upper-name
 %conditions
-  ¬$.following-tokens.begins(name-character)
+  ¬$.following-tokens.parse(name-character …)
 %emits
   $ :: Constant
 ```
@@ -385,8 +385,8 @@ Value tests select known keywords. `$KEYWORDS` holds their exact names. The fall
   | "%" $other:whole-name :: Keyword
 %conditions
   $other.value ∉ $KEYWORDS,
-  $include ⟹ ¬$.following-tokens.begins(include-tail),
-  $names ⟹ ¬$.following-tokens.begins(include-tail)
+  $include ⟹ ¬$.following-tokens.parse(include-tail …),
+  $names ⟹ ¬$.following-tokens.parse(include-tail …)
 %emits
   $
 ```

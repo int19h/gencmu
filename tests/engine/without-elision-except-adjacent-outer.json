@@ -1,6 +1,6 @@
 {
   "description": "Adjacent extra closes after the last kept record fail (engine §2.2, §4, and §10).",
-  "grammar": "%rule text $c:c\n%conditions $c.without-elision-except(fam).matches(w)\n%rule c X [+T]\n%rule w X [+T] [+U] [+V]\n%rule fam w\n",
+  "grammar": "%rule text $c:c\n%conditions $c.without-elision-except(fam).parse(w)\n%rule c X [+T]\n%rule w X [+T] [+U] [+V]\n%rule fam w\n",
   "tokens": [
     {
       "text": "x",

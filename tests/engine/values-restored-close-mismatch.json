@@ -1,6 +1,6 @@
 {
   "description": "An extra restored close prevents an aligned query from matching the selected occurrence (engine §7).",
-  "grammar": "%rule text $c:c %conditions $c.without-elision.matches(r)\n%rule c X [+T=\"v\"] :: ∅\n%rule r X [+U] [+T] :: ∅",
+  "grammar": "%rule text $c:c %conditions $c.without-elision.parse(r)\n%rule c X [+T=\"v\"] :: ∅\n%rule r X [+U] [+T] :: ∅",
   "tokens": [
     {
       "text": "x",

@@ -51,7 +51,7 @@ The book says that any character other than its 25 symbols and the digits is a s
 %rule letter-of(@Chars, @Value, @Tags)
   {plain(@Chars)} :: Letter ∪ @Tags := @Value
 %conditions
-  ¬$.following-tokens.begins(plain(@Chars))
+  ¬$.following-tokens.parse(plain(@Chars) …)
 %emits
   $
 
@@ -258,18 +258,14 @@ The numbers chapter says that `+`, `*` and `/` are spaces, and that verbs expres
 %rule space
   {space-char}
 %conditions
-  ¬$.following-tokens.begins(space-char)
+  ¬$.following-tokens.parse(space-char …)
 %emits
-  $ :: Space ∪ ($.matches(math-run) ⟹ Math-Symbol) := " "
+  $ :: Space ∪ ($.parse([{" "}] ("+" | "*" | "/") [{space-char}]) ⟹ Math-Symbol) := " "
 
 %rule space-char
   $c:_
 %conditions
-  ¬$c.matches(word-char | foreign-letter)
-
-%rule word-char
-  plain(letter-char)
-  | digit-char | hyphen-char | "[" | "]"
+  ¬$c.parse(plain(letter-char) | digit-char | hyphen-char | "[" | "]" | foreign-letter)
 
 %rule letter-char
   "a".."p"
@@ -282,17 +278,13 @@ The numbers chapter says that `+`, `*` and `/` are spaces, and that verbs expres
 %rule digit-char
   "0".."9"
 
-%rule math-run
-  [{" "}] ("+" | "*" | "/") [{space-char}]
 ```
 
-<details><summary>Railroad diagrams of the 6 rules from <code>space</code> to <code>math-run</code></summary>
+<details><summary>Railroad diagrams of <code>space</code>, <code>space-char</code>, <code>letter-char</code> and <code>digit-char</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/letters/space.svg" alt="Railroad diagram of the rule space"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/letters/space-char.svg" alt="Railroad diagram of the rule space-char"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/letters/word-char.svg" alt="Railroad diagram of the rule word-char"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/letters/letter-char.svg" alt="Railroad diagram of the rule letter-char"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/letters/digit-char.svg" alt="Railroad diagram of the rule digit-char"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/letters/math-run.svg" alt="Railroad diagram of the rule math-run"></p>
 </details>
 
 A hyphen can stand at a syllable boundary to make the syllable stand out, and it lets a word continue on the next line. The book names the hyphen-minus `-`. The PEG also reads U+2010, the hyphen of Unicode, and this stage does the same. An em dash is a space. A hyphen token has an empty value, so it never changes the value of a word. Its image is `-`.
@@ -308,7 +300,7 @@ The line breaks after a hyphen belong to its token. The [new course](https://ebe
 %rule indent
   {indent-char}
 %conditions
-  ¬$.following-tokens.begins(indent-char)
+  ¬$.following-tokens.parse(indent-char …)
 
 %rule hyphen-char
   "-" | "‹U+2010›"

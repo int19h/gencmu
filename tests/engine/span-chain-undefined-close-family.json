@@ -1,6 +1,6 @@
 {
   "description": "A span chain retains the rule lookup of its restoration method.",
-  "grammar": "%rule text $x:A %conditions $x.without-elision-except(missing).onward.first-token.matches(r)\n%rule r A",
+  "grammar": "%rule text $x:A %conditions $x.without-elision-except(missing).onward.first-token.parse(r)\n%rule r A",
   "input": "",
   "expect": {
     "error": "grammar",

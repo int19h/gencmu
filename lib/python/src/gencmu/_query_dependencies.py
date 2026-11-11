@@ -37,7 +37,7 @@ def suffix_reads_end(lowered, number):
                 if not nested and method in ("onward", "following-tokens", "ends-input", "followed-by"):
                     memo[number] = True
                     return True
-                if method in ("matches", "begins", "ends", "tags", "parse") and node.get("args"):
+                if method in ("parse",) and node.get("args"):
                     receiver = node["receiver"]
                     while receiver.get("method") == "onward":
                         receiver = receiver["receiver"]
@@ -71,7 +71,7 @@ def reads_carried_errors(lowered, number):
                     method = node.get("method")
                     if method == "error-free":
                         sensitive.add(rule)
-                    if method in ("matches", "begins", "ends", "tags", "parse"):
+                    if method in ("parse",):
                         for arg in node["args"]:
                             if "rule" in arg or "body" in arg:
                                 target = arg["rule"] if "rule" in arg else body_target(lowered, arg["body"])

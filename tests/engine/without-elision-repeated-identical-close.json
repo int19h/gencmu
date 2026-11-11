@@ -1,5 +1,5 @@
 {
-  "grammar": "%rule text $x:candidate %conditions ¬($x.without-elision.matches(rival))\n\n%rule candidate (X [+T] [+T])\n%rule rival (X [+T])",
+  "grammar": "%rule text $x:candidate %conditions ¬$x.without-elision.parse(rival)\n\n%rule candidate (X [+T] [+T])\n%rule rival (X [+T])",
   "tokens": [
     {
       "text": "x",

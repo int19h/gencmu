@@ -1196,7 +1196,7 @@ mod tests {
     /// entries that they look at grows linearly with the text.
     #[test]
     fn the_searches_for_blocking_paths_look_at_each_set_once() {
-        let grammar = "%ambiguity-resolution greedy\n%rule text body B\n%conditions $.matches(r)\n\n                       %rule body {A}\n%rule r parts B\n%rule parts {part}\n%rule part A [+T]\n";
+        let grammar = "%ambiguity-resolution greedy\n%rule text body B\n%conditions $.parse(r)\n\n                       %rule body {A}\n%rule r parts B\n%rule parts {part}\n%rule part A [+T]\n";
         let operations = |n: usize, most: &dyn Fn(u64) -> u64| {
             let (eligible, operations, items) = query_work(grammar, n, 0, false, most);
             assert!(eligible.iter().all(|&eligible| eligible));
@@ -1222,7 +1222,7 @@ mod tests {
         let tagged: Vec<String> = (0..n).map(|index| format!("A{index} :: Tag-z")).collect();
         let bs = vec!["b"; n].join(" ");
         let grammar = format!(
-            "%ambiguity-resolution greedy\n%rule text $q:body C\n%conditions $.source-text ≠ \"\" ∧ $q.matches(r)\n\n             %rule body a KU tail\n%rule a {}\n%rule tail {{... B}}\n%rule r $prev:r [+KU tail] | {}\n\n             %conditions $prev ⟹ $.source-text = \"a ku {bs}\"\n",
+            "%ambiguity-resolution greedy\n%rule text $q:body C\n%conditions $.source-text ≠ \"\" ∧ $q.parse(r)\n\n             %rule body a KU tail\n%rule a {}\n%rule tail {{... B}}\n%rule r $prev:r [+KU tail] | {}\n\n             %conditions $prev ⟹ $.source-text = \"a ku {bs}\"\n",
             starts.join(" | "),
             tagged.join(" | ")
         );

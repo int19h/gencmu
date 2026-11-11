@@ -1,6 +1,6 @@
 {
-  "description": "Engine §9.3 rejects an undefined target even after an earlier successful alternative for `.matches`.",
-  "grammar": "%rule text $x:A %conditions $x.matches(A | missing)",
+  "description": "Engine §9.3 rejects an undefined target even after an earlier successful alternative for a whole parse.",
+  "grammar": "%rule text $x:A %conditions ($x.parse(A) ∨ $x.parse(missing))",
   "tokens": [
     {
       "text": "a",

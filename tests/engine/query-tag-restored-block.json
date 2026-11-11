@@ -1,6 +1,6 @@
 {
   "description": "A ranked block in the captured span prevents a restored terminal witness.",
-  "grammar": "%rule text $x:inner B ::∅ %conditions $x.without-elision.matches(T)\n%rule inner (A ≻ C) ::∅",
+  "grammar": "%rule text $x:inner B ::∅ %conditions $x.without-elision.parse(T)\n%rule inner (A ≻ C) ::∅",
   "tokens": [
     {
       "text": "a",

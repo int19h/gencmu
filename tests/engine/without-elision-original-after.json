@@ -1,6 +1,6 @@
 {
   "description": "Witness lookahead sees original Y after X despite the restored T (engine §4 and §10).",
-  "grammar": "%rule text ($x:candidate Y) %conditions $x.without-elision.matches(rival)\n\n%rule candidate (X [+T])\n%rule rival ($y:X [+T]) %conditions $y.following-tokens.begins(following)\n\n%rule following Y",
+  "grammar": "%rule text ($x:candidate Y) %conditions $x.without-elision.parse(rival)\n\n%rule candidate (X [+T])\n%rule rival ($y:X [+T]) %conditions $y.following-tokens.parse(following …)\n\n%rule following Y",
   "tokens": [
     {
       "text": "x",

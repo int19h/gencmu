@@ -83,7 +83,7 @@ func (walk *productionClauseWalk) production(p *production) {
 }
 
 func queryParts(part clausePart, g *lowered) (*domTerm, []string) {
-	if condition := part.c; condition != nil && (condition.Kind == cdMatches || condition.Kind == cdBegins || condition.Kind == cdEnds) {
+	if condition := part.c; condition != nil && (condition.Kind == cdWhole || condition.Kind == cdPrefix || condition.Kind == cdSuffix) {
 		var names []string
 		for _, target := range condition.queryTargets() {
 			names = append(names, queryName(target))
@@ -91,9 +91,6 @@ func queryParts(part clausePart, g *lowered) (*domTerm, []string) {
 		return condition.Span, names
 	}
 	if term := part.t; term != nil && term.Kind == tmCall {
-		if term.Str == "tags" && len(term.Items) == 2 {
-			return term.Items[0], []string{term.Items[1].Str}
-		}
 		if term.Str == "parse" {
 			return term.Items[0], []string{g.stage.queryTargets[term.Items[1].Body]}
 		}

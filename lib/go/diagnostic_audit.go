@@ -116,7 +116,7 @@ func diagnosticNotes(g *stageGrammar) []DiagnosticNote {
 			seen[at] = true
 			var targets []string
 			method := ""
-			if condition := at.part.c; condition != nil && (condition.Kind == cdMatches || condition.Kind == cdBegins || condition.Kind == cdEnds) {
+			if condition := at.part.c; condition != nil && (condition.Kind == cdWhole || condition.Kind == cdPrefix || condition.Kind == cdSuffix) {
 				for _, target := range condition.queryTargets() {
 					if target.Kind == tmRule {
 						targets = append(targets, target.Str)

@@ -132,8 +132,8 @@ class CaptureGrowth(unittest.TestCase):
 
 class QueryHelpers(unittest.TestCase):
     def test_query_helpers_are_shared_ordered_and_inherit_token_tags(self) -> None:
-        text = "%rule text $x:A %conditions $x.matches(Z | T | Z)"
-        aux = "%rule aux ($q:A ≻ B) ::∅ %conditions $q.without-elision.matches(Q)"
+        text = "%rule text $x:A %conditions ($x.parse(Z) ∨ $x.parse(T) ∨ $x.parse(Z))"
+        aux = "%rule aux ($q:A ≻ B) ::∅ %conditions $q.without-elision.parse(Q)"
         for grammar in (text + "\n" + aux, aux + "\n" + text):
             pipeline, error = load_case_pipeline({"grammar": grammar})
             assert pipeline is not None, error

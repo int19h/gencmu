@@ -1,6 +1,6 @@
 {
   "description": "Nested suffix queries compute direct answers without reusing active suffix states (engine §4.3).",
-  "grammar": "%rule text \"a\" %conditions $.ends(outer), $.ends(outer)\n%rule outer $x:\"a\" %conditions $x.ends(inner)\n%rule inner \"a\"",
+  "grammar": "%rule text \"a\" %conditions $.parse(… outer), $.parse(… outer)\n%rule outer $x:\"a\" %conditions $x.parse(… inner)\n%rule inner \"a\"",
   "input": "a",
   "expect": {
     "result": {

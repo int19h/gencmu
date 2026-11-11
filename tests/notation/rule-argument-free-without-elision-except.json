@@ -1,14 +1,27 @@
 {
   "description": "The source name 🆓 becomes a without-elision-except rule argument (engine §9.3 and §10).",
-  "document": "```jbogenbau\n%rule text $x:A %conditions $x.without-elision-except(🆓).matches(rival)\n```\n",
+  "document": "```jbogenbau\n%rule text $x:A %conditions $x.without-elision-except(🆓).parse(rival)\n```\n",
   "expect": {
     "dom": {
-      "format": 48,
+      "format": 49,
       "rules": [
         {
+          "name": "text",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "ref": "A"
+                }
+              }
+            }
+          ],
           "conditions": [
             {
-              "method": "matches",
+              "method": "parse",
               "receiver": {
                 "method": "without-elision-except",
                 "receiver": {
@@ -22,14 +35,24 @@
               },
               "args": [
                 {
-                  "rule": "rival"
+                  "body": {
+                    "ref": "rival"
+                  }
                 }
               ]
             }
+          ],
+          "at": [
+            2,
+            1
           ]
         }
       ],
-      "checks": []
+      "checks": [],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
     }
   }
 }

@@ -1,6 +1,6 @@
 {
   "description": "Ranked blocks retain cycle ancestry when an outside captured query restores omitted terminators (engine §4 and §10).",
-  "grammar": "%rule text $x:X %conditions Recursive ⊆ $x.tags(r), $x.tags(q) = ∅\n\n%rule q $y:r %conditions ¬($y.without-elision.matches(rival))\n\n%rule r sealed :: Recursive | X :: ∅\n%rule sealed :: ∅ | ((r [+U]) ≻ Y)\n\n%rule rival X",
+  "grammar": "%rule text $x:X %conditions Recursive ⊆ $x.parse(r).tags, $x.parse(q).tags = ∅\n\n%rule q $y:r %conditions ¬$y.without-elision.parse(rival)\n\n%rule r sealed :: Recursive | X :: ∅\n%rule sealed :: ∅ | ((r [+U]) ≻ Y)\n\n%rule rival X",
   "tokens": [
     {
       "text": "x",

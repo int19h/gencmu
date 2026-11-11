@@ -1,0 +1,10 @@
+{
+  "description": "Engine §10: each side of an implication is a Boolean position, so a bare parse as its consequent is a condition, and the implication is true where its antecedent capture is absent.",
+  "grammar": "%rule text $x:word | other\n%conditions $x ⟹ $x.parse(word)\n%rule word \"a\"\n%rule other \"b\"",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

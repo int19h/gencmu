@@ -1,6 +1,6 @@
 {
-  "description": "The matches method rejects a longer span even when its first token carries the target tag.",
-  "grammar": "%rule text ($x:part ≻ fallback) ::∅ %conditions $x.matches(T)\n%rule part A [A]\n%rule fallback A [A]\n%rule never Z Z Z",
+  "description": "A whole parse rejects a longer span even when its first token carries the target tag.",
+  "grammar": "%rule text ($x:part ≻ fallback) ::∅ %conditions $x.parse(T)\n%rule part A [A]\n%rule fallback A [A]\n%rule never Z Z Z",
   "tokens": [
     {
       "text": "a",

@@ -1,6 +1,6 @@
 {
   "description": "Equal words and closes retain their different following original context (engine §4 and §10).",
-  "grammar": "%rule text ($a:candidate Y $b:candidate Z) %conditions $a.without-elision.matches(rival), ¬($b.without-elision.matches(rival))\n\n%rule candidate (X [+T])\n%rule rival ($v:X [+T]) %conditions $v.following-tokens.begins(next)\n\n%rule next Y",
+  "grammar": "%rule text ($a:candidate Y $b:candidate Z) %conditions $a.without-elision.parse(rival), ¬$b.without-elision.parse(rival)\n\n%rule candidate (X [+T])\n%rule rival ($v:X [+T]) %conditions $v.following-tokens.parse(next …)\n\n%rule next Y",
   "tokens": [
     {
       "text": "x",

@@ -1,6 +1,6 @@
 {
   "description": "Engine §6 and §7.10: different erased root tags retain two classes rather than merging the projected roots.",
-  "grammar": "%ambiguity-resolution greedy\n%elision-only\n%rule text e [+T]\n%conditions $.without-elision.matches(w)\n%rule e a :: X | b :: Y\n%erased\n%rule a A\n%rule b A\n%rule w A [+T]\n",
+  "grammar": "%ambiguity-resolution greedy\n%elision-only\n%rule text e [+T]\n%conditions $.without-elision.parse(w)\n%rule e a :: X | b :: Y\n%erased\n%rule a A\n%rule b A\n%rule w A [+T]\n",
   "tokens": [
     {
       "text": "a",

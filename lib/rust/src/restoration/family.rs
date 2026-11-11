@@ -541,7 +541,7 @@ mod tests {
             rules += if ranked { "\n%rule fam a | b | r0" } else { "\n%rule fam r0" };
             if !ranked {
                 // Observe the doubled rule as an aligned witness, as the shared contract requires.
-                rules = rules.replace(".matches(empty)", &format!(".matches(r{size})"));
+                rules = rules.replace(".parse(empty)", &format!(".parse(r{size})"));
             }
         }
         let source = format!("```jbogenbau\n%stage main\n{rules}\n```\n");

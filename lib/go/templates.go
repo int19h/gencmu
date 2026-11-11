@@ -931,8 +931,8 @@ func (x *templateExpander) substitute(root any, env map[string]templateObject, e
 			if k == "args" && n["method"] != nil {
 				items := []any{}
 				name := templateText(n["method"])
-				query := strings.Contains("|matches|begins|ends|followed-by|preceded-by|", "|"+name+"|")
-				target := query || name == "tags" || name == "without-elision-except"
+				query := strings.Contains("|followed-by|preceded-by|", "|"+name+"|")
+				target := query || name == "without-elision-except"
 				for _, a := range templateList(v) {
 					arg := templateObj(a)
 					replacement := env[templateText(arg["param"])]

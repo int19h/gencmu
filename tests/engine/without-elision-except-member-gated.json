@@ -1,6 +1,6 @@
 {
   "description": "Feature guards do not change static family membership (engine §2.2, §4, and §10).",
-  "grammar": "%rule text $c:c\n%conditions $c.without-elision-except(fam).matches(w)\n%rule c X B\n%rule w m B\n%rule fam f? m\n%rule m X [+U]",
+  "grammar": "%rule text $c:c\n%conditions $c.without-elision-except(fam).parse(w)\n%rule c X B\n%rule w m B\n%rule fam f? m\n%rule m X [+U]",
   "tokens": [
     {
       "text": "x",

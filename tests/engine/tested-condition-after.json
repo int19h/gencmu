@@ -1,6 +1,6 @@
 {
-  "description": "Where the test holds, the condition the advance makes ready is evaluated, here one that ends the parse with an error of the grammar: $x.matches(text) parses the span as text, and the same condition, inside that parse, asks about the same span and rule again (engine §4, §10).",
-  "grammar": "%rule text $x:A=\"a\" %conditions $x.matches(text)",
+  "description": "Where the test holds, the condition the advance makes ready is evaluated, here one that ends the parse with an error of the grammar: $x.parse(text) parses the span as text, and the same condition, inside that parse, asks about the same span and rule again (engine §4, §10).",
+  "grammar": "%rule text $x:A=\"a\" %conditions $x.parse(text)",
   "tokens": [
     {
       "text": "a",

@@ -20,7 +20,7 @@ class DomMalformed(unittest.TestCase):
         unicode = _unicode_table(_resources().unicode)
         family = {"method": "without-elision-except", "receiver": {"capture": "x"}, "args": [{"rule": "missing_family"}]}
         other = {**family, "args": [{"rule": "other_family"}]}
-        query = {"method": "matches", "receiver": family, "args": [{"rule": "missing_rival"}]}
+        query = {"method": "parse", "receiver": family, "args": [{"body": {"ref": "missing_rival"}}]}
         implication = {"if": query, "then": {**query, "receiver": other}}
         comparison = {"op": "=", "left": {"method": "value", "receiver": family, "args": []},
                       "right": {"method": "value", "receiver": other, "args": []}}

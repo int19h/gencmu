@@ -322,7 +322,7 @@ func TestSharedMemoServesNothingWhileAligned(t *testing.T) {
 }
 
 // memoOne is a grammar of one query about one token.
-const memoOne = "%ambiguity-resolution greedy\n%rule text $x:_ %conditions $x.matches(probe)\n%rule probe W\n"
+const memoOne = "%ambiguity-resolution greedy\n%rule text $x:_ %conditions $x.parse(probe)\n%rule probe W\n"
 
 func memoOneParse(t *testing.T, d *Pipeline, text string, tags ...string) string {
 	t.Helper()
@@ -398,7 +398,7 @@ func TestSharedMemoCeiling(t *testing.T) {
 func TestSharedMemoMatchesAndTagsShareOneEntry(t *testing.T) {
 	t.Parallel()
 	for _, run := range memoRuns(t) {
-		if !strings.Contains(run.Grammar, "$x.tags(probe) = ∅") {
+		if !strings.Contains(run.Grammar, "$x.parse(probe).tags = ∅") {
 			continue
 		}
 		d := memoPipeline(t, run, defaultMemoLimit)

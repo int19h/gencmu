@@ -86,7 +86,7 @@ class SharedMemo(unittest.TestCase):
             for boundary in (False, True):
                 for query in (False, True):
                     body = "ε" if empty else '\"a\"'
-                    term = "$.tags(probe)" if query else "X ∪ Y"
+                    term = "$.parse(probe).tags" if query else "X ∪ Y"
                     condition = "X ⊆ $.tags"
                     if boundary:
                         condition += ", $.followed-by(tail)"
@@ -97,7 +97,7 @@ class SharedMemo(unittest.TestCase):
                     evaluations = []
 
                     def counted(evaluator, dom, bound):
-                        is_term = dom.get("method") == "tags" and dom.get("args") if query else "union" in dom
+                        is_term = dom.get("method") == "tags" and (dom.get("receiver") or {}).get("method") == "parse" if query else "union" in dom
                         if is_term:
                             evaluations.append(dom)
                         return (yield from walk_value(evaluator, dom, bound))
@@ -194,7 +194,7 @@ class SharedMemo(unittest.TestCase):
         # A token's text of a str subclass, whose hash parses through the
         # same pipeline. The shared memo holds plain strings only, so the
         # hash never runs under its lock, and the parse ends.
-        pipeline, error = load_case_pipeline({"grammar": "%rule text $x:W %conditions $x.matches(probe)\n%rule probe W\n"})
+        pipeline, error = load_case_pipeline({"grammar": "%rule text $x:W %conditions $x.parse(probe)\n%rule probe W\n"})
         assert pipeline is not None, error
         plain = gencmu.Token("x", frozenset({"W"}), (0, 1), (0, 1))
 
@@ -222,7 +222,7 @@ class SharedMemo(unittest.TestCase):
         # A caller's finalizer on the tags of a served answer parses through
         # the same pipeline. A hit gives a copy, and eviction releases the
         # dropped entries after the lock, so the parses end.
-        pipeline, error = load_case_pipeline({"grammar": "%rule text $x:W :: $x.tags(probe)\n%rule probe W :: T\n"})
+        pipeline, error = load_case_pipeline({"grammar": "%rule text $x:W :: $x.parse(probe).tags\n%rule probe W :: T\n"})
         assert pipeline is not None, error
 
         def one(text: str) -> gencmu.ParseResult:
@@ -311,7 +311,7 @@ class SharedMemo(unittest.TestCase):
             self.assertEqual(hits[0], 0)
 
     def test_matches_and_tags_share_one_entry(self) -> None:
-        run = next(run for run in RUNS if "$x.tags(probe) = ∅" in run.get("grammar", ""))
+        run = next(run for run in RUNS if "$x.parse(probe).tags = ∅" in run.get("grammar", ""))
         pipeline = pipeline_of(run)
         for item in parses_of(run):
             parse(pipeline, *item)
@@ -330,7 +330,7 @@ class SharedMemo(unittest.TestCase):
                     self.assertEqual(gencmu.to_json(one_token(pipeline, "x", tag)), reference[g][i], f"grammar {g}, input {i}")
 
 
-ONE = "%rule text $x:_ %conditions $x.matches(probe)\n%rule probe W\n"
+ONE = "%rule text $x:_ %conditions $x.parse(probe)\n%rule probe W\n"
 """A grammar of one query about one token."""
 
 

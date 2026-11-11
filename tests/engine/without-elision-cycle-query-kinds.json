@@ -1,6 +1,6 @@
 {
   "description": "Changing from a whole query to a prefix query cannot conceal active recursion (engine §4 and §10).",
-  "grammar": "%rule text $x:candidate %conditions $x.without-elision.matches(rival)\n\n%rule candidate (X [+T])\n%rule rival $y:body %conditions $y.without-elision.onward.begins(rival)\n\n%rule body (X [+T])",
+  "grammar": "%rule text $x:candidate %conditions $x.without-elision.parse(rival)\n\n%rule candidate (X [+T])\n%rule rival $y:body %conditions $y.without-elision.onward.parse(rival …)\n\n%rule body (X [+T])",
   "tokens": [
     {
       "text": "x",

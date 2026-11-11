@@ -515,7 +515,7 @@ The library loads `grammar` as the one stage of a pipeline, which reads the text
 
 ```
 [{"name": "queries-in-one-step", "description": "...", "head": "%rule text \"a\"\n%conditions ",
-  "item": "$.following-tokens.matches(r{i})", "joiner": ", ", "tail": "", "rule": "\n%rule r{i} ε",
+  "item": "$.following-tokens.parse(r{i} …)", "joiner": ", ", "tail": "", "rule": "\n%rule r{i} ε",
   "count": 400, "text": "a", "most": 8}]
 ```
 
@@ -544,7 +544,7 @@ Where pipelines can serve several threads, a library also makes the parses from 
 
 Some runs pin one field of the shared key each: a token's value, image, tags or source offsets, or the source text. The runs for the value, tags, offsets and source text ask one query in each parse. So the memo of one parse cannot hide a missing field there. The run for the image asks two queries in each parse, over spans that differ only in an image. No run pins a token's text, since no condition reads it.
 
-Other runs keep `begins` apart from `matches`, and serve `tags` and `matches` from one entry. Others turn on a gate of a classifier entry, or a conditional feature, over the same span content. One run asks a query that is an error of the grammar. One asks about a span longer than 64 tokens, and one puts separator characters in token values.
+Other runs keep prefix queries apart from whole queries, and serve forest tags and whole-query answers from one entry. Others turn on a gate of a classifier entry, or a conditional feature, over the same span content. One run asks a query that is an error of the grammar. One asks about a span longer than 64 tokens, and one puts separator characters in token values.
 
 The runs with `without-elision` hold answers that read an aligned query, directly or through the memo of the parse. A library with a shared memo checks that the rules `driver` and `wrap` never enter it. Its test hooks see each served answer, and the start and end of each aligned nested parse. The shared memo must serve no answer while an aligned query is active, and the test must see some ordinary shared hits. The test also checks that aligned queries start, and that its own count agrees with the library's at each served answer.
 

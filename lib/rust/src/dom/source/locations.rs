@@ -64,9 +64,6 @@ fn predicate(cond: &Cond) -> Option<(&str, &Term)> {
             let Arg::Term(receiver) = args.first()? else { return None };
             (name.as_str(), receiver)
         }
-        Cond::Matches(receiver, _) => ("matches", receiver),
-        Cond::Begins(receiver, _) => ("begins", receiver),
-        Cond::Ends(receiver, _) => ("ends", receiver),
         Cond::Initial(receiver) => ("starts-input", receiver),
         Cond::Final(receiver) => ("ends-input", receiver),
         Cond::Boundary(after, receiver, _, _) => (if *after { "followed-by" } else { "preceded-by" }, receiver),
@@ -80,9 +77,6 @@ fn predicate_mut(cond: &mut Cond) -> Option<(&str, &mut Term)> {
             let Arg::Term(receiver) = args.first_mut()? else { return None };
             (name.as_str(), receiver)
         }
-        Cond::Matches(receiver, _) => ("matches", receiver),
-        Cond::Begins(receiver, _) => ("begins", receiver),
-        Cond::Ends(receiver, _) => ("ends", receiver),
         Cond::Initial(receiver) => ("starts-input", receiver),
         Cond::Final(receiver) => ("ends-input", receiver),
         Cond::Boundary(after, receiver, _, _) => (if *after { "followed-by" } else { "preceded-by" }, receiver),

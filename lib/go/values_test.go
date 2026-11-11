@@ -11,7 +11,7 @@ func TestCapturedOptionalQueryPriority(t *testing.T) {
 	t.Parallel()
 	for _, optional := range []string{"[b]", "[$b:b]"} {
 		grammar := `%rule text $all:run
-%conditions ¬$all.begins(r)
+%conditions ¬$all.parse(r …)
 %rule run { _ }
 %rule r "a" ` + optional + ` [+T] "u"
 %rule b "u" "b"`

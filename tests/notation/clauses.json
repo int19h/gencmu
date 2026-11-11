@@ -1,10 +1,60 @@
 {
   "description": "Conditions with ∨ and ¬, and an emission list with an inserted phoneme (engine §9).",
-  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule g ($a:A $b:B) %conditions ($a.value = \"x\" ∨ $a.value ∈ $b.value.split(\".\")), ¬($b.matches(r)) %emits $a, ε :: Sound-0027-s := \"'\", $b :: W\n```\n",
+  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule g ($a:A $b:B) %conditions ($a.value = \"x\" ∨ $a.value ∈ $b.value.split(\".\")), ¬$b.parse(r) %emits $a, ε :: Sound-0027-s := \"'\", $b :: W\n```\n",
   "expect": {
     "dom": {
+      "format": 49,
       "rules": [
         {
+          "name": "g",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "seq": [
+                  {
+                    "capture": "a",
+                    "expr": {
+                      "ref": "A"
+                    }
+                  },
+                  {
+                    "capture": "b",
+                    "expr": {
+                      "ref": "B"
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "emit": {
+            "items": [
+              {
+                "capture": "a"
+              },
+              {
+                "insert": true,
+                "tags": {
+                  "tag": "Sound-0027-s"
+                },
+                "value": {
+                  "concat": [
+                    {
+                      "string": "'"
+                    }
+                  ]
+                }
+              },
+              {
+                "capture": "b",
+                "tags": {
+                  "tag": "W"
+                }
+              }
+            ]
+          },
           "conditions": [
             {
               "any": [
@@ -50,46 +100,31 @@
             },
             {
               "not": {
-                "method": "matches",
+                "method": "parse",
                 "receiver": {
                   "capture": "b"
                 },
                 "args": [
                   {
-                    "rule": "r"
+                    "body": {
+                      "ref": "r"
+                    }
                   }
                 ]
               }
             }
           ],
-          "emit": {
-            "items": [
-              {
-                "capture": "a"
-              },
-              {
-                "insert": true,
-                "tags": {
-                  "tag": "Sound-0027-s"
-                },
-                "value": {
-                  "concat": [
-                    {
-                      "string": "'"
-                    }
-                  ]
-                }
-              },
-              {
-                "capture": "b",
-                "tags": {
-                  "tag": "W"
-                }
-              }
-            ]
-          }
+          "at": [
+            6,
+            1
+          ]
         }
-      ]
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": [],
+      "checks": []
     }
   }
 }
