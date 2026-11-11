@@ -76,7 +76,7 @@ class NotationShapes(unittest.TestCase):
 
     def test_a_supplied_ranked_choice_error_has_no_syntax_code(self) -> None:
         bootstrap = BOOTSTRAP.replace(
-            '{"seq":[{"ref":"conjunction"},{"literal":{"string":"≻"}},{"repeat":{"ref":"conjunction"},"separator":{"literal":{"string":"≻"}}}]}',
+            '{"seq":[{"ref":"some-of"},{"literal":{"string":"≻"}},{"repeat":{"ref":"some-of"},"separator":{"literal":{"string":"≻"}}}]}',
             '{"literal":{"string":"."}}',
         )
         with self.assertRaises(gencmu.GencmuError) as caught:
@@ -95,8 +95,8 @@ class NotationShapes(unittest.TestCase):
             {"guards": [], "expr": {"literal": {"string": "_"}}}
         )
         syntax = documents["grammars/gencmu/jbogenbau/syntax.md"]
-        next(rule for rule in syntax["rules"] if rule["name"] == "guard")["alternatives"][0]["expr"] = {
-            "seq": [{"ref": "padding"}, {"ref": "Guard"}]
+        next(rule for rule in syntax["rules"] if rule["name"] == "feature-gate")["alternatives"][0]["expr"] = {
+            "seq": [{"ref": "padding"}, {"ref": "Gate"}]
         }
         syntax["rules"].append({
             "name": "padding", "op": "define",
@@ -128,7 +128,7 @@ class NotationShapes(unittest.TestCase):
         in `...`, which is also three `.`, and the document does not load."""
         parsed = json.loads(BOOTSTRAP)
         lexical_dom = parsed["documents"]["grammars/gencmu/jbogenbau/lexical.md"]["dom"]
-        next(r for r in lexical_dom["rules"] if r["name"] == "symbol")["alternatives"].append(
+        next(r for r in lexical_dom["rules"] if r["name"] == "punctuation")["alternatives"].append(
             {"guards": [], "expr": {"literal": {"string": "."}}}
         )
         bootstrap = json.dumps(parsed, separators=(",", ":"), ensure_ascii=False)

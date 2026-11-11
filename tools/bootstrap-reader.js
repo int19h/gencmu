@@ -168,7 +168,7 @@ function lex(text, originalPositions, legacyComments = false) {
       // A whole name, or the whole run and `?` or `!`, a guard.
       const end = runEnds[i];
       const featureEnd = featureEnds[i];
-      if (chars[featureEnd] === "?") found.push([featureEnd + 1, "guard"]);
+      if (chars[featureEnd] === "?") found.push([featureEnd + 1, "feature-gate"]);
       if (!( /^[a-z]/.test(c) && chars[end] === "(" && !(legacyComments && chars[end+1] === "*" && closes[end+2]<n))) found.push([end, "identifier"]);
       if (/^[a-z]/.test(c) && chars[end] === "(" && !(legacyComments && chars[end+1] === "*" && closes[end+2]<n)) found.push([end, "call-name"]);
       reach = Math.max(reach, end);
@@ -180,7 +180,7 @@ function lex(text, originalPositions, legacyComments = false) {
       // toward the furthest live position.
       const end = isLetter(chars[i + 1]) ? featureEnds[i + 1] : i + 1;
       const following = guardEnd(i + 1);
-      if (end > i + 1 && chars[end] === "?") found.push([end + 1, "guard"]);
+      if (end > i + 1 && chars[end] === "?") found.push([end + 1, "feature-gate"]);
       if (following === null) found.push([i + 1, "¬"]);
       reach = Math.max(reach, end, i + 1, following ?? 0);
     }
@@ -255,7 +255,7 @@ function lex(text, originalPositions, legacyComments = false) {
       const from = Number(kind.slice(8));
       const endKeyword = runEnds[i + 1], keyword = chars.slice(i, endKeyword).join("");
       tokens.push({ kind: keyword, text: keyword, value: keyword, at: at(i), end: at(endKeyword), source:sourceBounds(i,endKeyword) });
-      tokens.push({ kind: "include-path", text: source(from, end), value: chars.slice(from, end).join(""), at: at(from), end: at(end), source:sourceBounds(from,end) });
+      tokens.push({ kind: "resource-path", text: source(from, end), value: chars.slice(from, end).join(""), at: at(from), end: at(end), source:sourceBounds(from,end) });
     } else if (kind !== null) tokens.push({ kind, text: source(i, end), value: chars.slice(i, end).join(""), at: at(i), end: at(end), source:sourceBounds(i,end) });
     i = end;
   }
@@ -391,10 +391,10 @@ class Parser {
     const children = [this.tok()];
     while (this.peek() && !this.kindAt().startsWith("%") && this.kindAt() !== "keyword") {
       const at = this.index;
-      if (this.is("identifier") && !this.is(".", 1)) children.push(this.leaf("argument-word"));
-      else if (this.is("include-path") || this.is("string") && !this.is(".", 1) && !this.is("..", 1)) children.push(this.leaf("argument-string"));
-      else if (this.is("emoji") && !this.is(".", 1) || this.is("_")) children.push(this.node("argument-term", at, [this.tok()]));
-      else children.push(this.node("argument-term", at, [this.node("term-atom", at, [(yield this.atom(false))])]));
+      if (this.is("identifier") && !this.is(".", 1)) children.push(this.leaf("directive-identifier"));
+      else if (this.is("resource-path") || this.is("string") && !this.is(".", 1) && !this.is("..", 1)) children.push(this.leaf("directive-string"));
+      else if (this.is("emoji") && !this.is(".", 1) || this.is("_")) children.push(this.node("directive-term", at, [this.tok()]));
+      else children.push(this.node("directive-term", at, [this.node("term-atom", at, [(yield this.atom(false))])]));
     }
     if (this.is("%conditions")) {
       const at = this.index;
@@ -423,8 +423,8 @@ class Parser {
 
   *constantDefinition() {
     const start = this.index;
-    const definer = this.leaf("constant-definer");
-    const name = this.is("constant") ? this.leaf("constant-reference") : this.fail("expected a constant");
+    const definer = this.leaf("constant-keyword");
+    const name = this.is("constant") ? this.leaf("constant-name") : this.fail("expected a constant");
     return this.node("constant-definition", start, [definer, name, (yield this.term())]);
   }
 
@@ -432,10 +432,10 @@ class Parser {
     const start = this.index;
     const children = [this.tok()];
     children.push(this.is("identifier") ? this.leaf("classifier-name") : this.fail("expected a classifier's name"));
-    while (this.is("guard") || this.is("string") || this.is("constant")) {
+    while (this.is("feature-gate") || this.is("string") || this.is("constant")) {
       const at = this.index;
       const entry = [];
-      while (this.is("guard")) entry.push(this.leaf("guard"));
+      while (this.is("feature-gate")) entry.push(this.leaf("feature-gate"));
       do {
         const keyAt = this.index;
         entry.push(this.is("string") || this.is("constant") ? this.node("classifier-key", keyAt, [this.leaf(this.is("string") ? "string" : "constant-reference")]) : this.fail("expected a key"));
@@ -455,17 +455,17 @@ class Parser {
 
   *rule() {
     const start = this.index;
-    const children = [this.leaf("definer")];
+    const children = [this.leaf("rule-keyword")];
     children.push(this.is("call-name") ? (yield this.call()) : this.is("identifier") || this.is("emoji") ? this.leaf("rule-name") : this.fail("expected a rule's name"));
     if (this.is("=")) {
       children.push(this.tok(), (yield this.call()));
       return this.node("rule", start, children);
     }
     if (["::", ":=", ":-"].includes(this.kindAt())) {
-      for (const clause of yield this.clauses("tags-clause")) children.push(clause);
+      for (const clause of yield this.clauses("header-tags")) children.push(clause);
       const at = this.index;
       const body = [this.expect("|"), (yield this.alternative())];
-      if (body[1].rule !== "ranked-alternative") {
+      if (body[1].rule !== "ranked-body") {
         while (this.is("|")) body.push(this.tok(), (yield this.alternative(false)));
       }
       children.push(this.node("headed-body", at, body));
@@ -515,7 +515,7 @@ class Parser {
     const children = [];
     do {
       const at = this.index;
-      children.push(this.node("recipe-atom", at, [(yield this.term())]));
+      children.push(this.node("recipe-term", at, [(yield this.term())]));
     } while (TERM_STARTS.has(this.kindAt()));
     return this.node("recipe", start, children);
   }
@@ -526,7 +526,7 @@ class Parser {
     const leading = this.is("|");
     if (this.is("|")) children.push(this.tok());
     children.push((yield this.alternative(!leading)));
-    if (children[0]?.rule === "ranked-alternative") return this.node("body", start, children);
+    if (children[0]?.rule === "ranked-body") return this.node("body", start, children);
     while (this.is("|")) children.push(this.tok(), (yield this.alternative(false)));
     return this.node("body", start, children);
   }
@@ -534,7 +534,7 @@ class Parser {
   *alternative(allowRanked = true) {
     const start = this.index;
     const children = [];
-    while (this.is("guard")) children.push(this.leaf("guard"));
+    while (this.is("feature-gate")) children.push(this.leaf("feature-gate"));
     const expressionStart = this.index;
     let expression = yield this.conjunction();
     let ranked = false;
@@ -546,7 +546,7 @@ class Parser {
     }
     children.push(expression);
     for (const clause of yield this.clauses("alternative-tags")) children.push(clause);
-    return this.node(ranked ? "ranked-alternative" : "alternative", start, children);
+    return this.node(ranked ? "ranked-body" : "alternative", start, children);
   }
 
   // `|` and `&` join, each with a leading one allowed.
@@ -570,7 +570,7 @@ class Parser {
     if (this.is("&")) children.push(this.tok());
     children.push((yield this.sequence()));
     while (this.is("&")) children.push(this.tok(), (yield this.sequence()));
-    return this.node("conjunction", start, children);
+    return this.node("some-of", start, children);
   }
 
   *sequence() {
@@ -593,7 +593,7 @@ class Parser {
         tests.push(this.node("default-value", at, [this.tok(), (yield this.testOperand())]));
       } else tests.push((yield this.test()));
     }
-    return tests.length ? this.node("primary", start, [this.node("tested", start, [base.children[0], ...tests])]) : base;
+    return tests.length ? this.node("primary", start, [this.node("tested-primary", start, [base.children[0], ...tests])]) : base;
   }
 
   *call() {
@@ -613,7 +613,7 @@ class Parser {
     const target = function*(parser) {
       if (parser.is("call-name")) return yield parser.call();
       if (parser.is("parameter")) return parser.leaf("parameter");
-      if (parser.is("identifier") || parser.is("emoji") || parser.is("tag")) return parser.leaf(isCapital(parser.peek().value) || parser.is("tag") ? "tag" : "reference");
+      if (parser.is("identifier") || parser.is("emoji") || parser.is("tag")) return parser.leaf(isCapital(parser.peek().value) || parser.is("tag") ? "tag" : "rule-reference");
       return parser.fail("expected a target");
     };
     try {
@@ -630,7 +630,7 @@ class Parser {
           value=this.node(category,start,[yield this.symbol()]);
         } else if (category === "symbol-argument") {
           const valueNode=yield this.primary();
-          if (!["tested","range","wildcard","splice"].includes(valueNode.children[0].rule)) this.fail("expected a symbol argument");
+          if (!["tested-primary","range","wildcard","splice"].includes(valueNode.children[0].rule)) this.fail("expected a symbol argument");
           value=this.node(category,start,valueNode.children);
         } else value=yield this.term();
         if (!this.is(",") && !this.is(")")) this.fail("expected argument boundary");
@@ -647,14 +647,14 @@ class Parser {
       case "*": {
         const star = this.tok();
         const adjacent = this.tokens[start].source[1] === this.peek()?.source[0];
-        const target = this.is("call-name") ? yield this.call() : this.is("emoji") || this.is("identifier") && !isCapital(this.peek().value) ? this.leaf("reference") : this.fail("expected a splice target");
+        const target = this.is("call-name") ? yield this.call() : this.is("emoji") || this.is("identifier") && !isCapital(this.peek().value) ? this.leaf("rule-reference") : this.fail("expected a splice target");
         if (!adjacent) this.fail("a splice name is adjacent to *");
         return this.node("splice",start,[star,target]);
       }
       case "call-name": return yield this.call();
       case "parameter": return this.leaf("parameter");
-      case "identifier": return this.leaf(isCapital(this.peek().value) ? "tag" : "reference");
-      case "emoji": return this.leaf("reference");
+      case "identifier": return this.leaf(isCapital(this.peek().value) ? "tag" : "rule-reference");
+      case "emoji": return this.leaf("rule-reference");
       case "tag": return this.leaf("tag");
       case "string": case "constant": return this.node("string-terminal", start, [this.stringOperand()]);
       case "_": return this.leaf("wildcard");
@@ -663,7 +663,7 @@ class Parser {
         const children = [this.tok()];
         if ((this.is("capture") || this.is("constant")) && this.is(":",1) && this.is("+",2)) {
           const at = this.index;
-          children.push(this.node("capture",at,[this.tok(),this.tok(),this.tok(),yield this.primary()]));
+          children.push(this.node("captured-terminator",at,[this.tok(),this.tok(),this.tok(),yield this.primary()]));
         } else {
           if (this.is("+")) children.push(this.tok());
           children.push(yield this.choice());
@@ -700,7 +700,7 @@ class Parser {
       children.push(this.expect(">"));
       return this.node("tag-test", start, children);
     }
-    return this.node("value-test", start, [this.leaf("test"), (yield this.testOperand())]);
+    return this.node("value-test", start, [this.leaf("value-comparator"), (yield this.testOperand())]);
   }
 
   *testOperand() {
@@ -724,12 +724,12 @@ class Parser {
   *emitItem() {
     const start = this.index;
     const children = [];
-    while (this.is("(")) children.push(this.attachment("emit-before"));
+    while (this.is("(")) children.push(this.attachment("attachment-before"));
     const at = this.index;
     if (this.is("string") || this.is("constant")) children.push(this.node("emit-target", at, [(yield this.range())]));
     else if (["capture", "identifier", "tag", "ε"].includes(this.kindAt())) children.push(this.node("emit-target", at, [this.tok()]));
     else this.fail("expected an emission target");
-    while (this.is("(")) children.push(this.attachment("emit-after"));
+    while (this.is("(")) children.push(this.attachment("attachment-after"));
     for (const clause of yield this.clauses("emit-tags")) children.push(clause);
     return this.node("emit-item", start, children);
   }
@@ -746,7 +746,7 @@ class Parser {
     // `{any-of \ '⟹'}`: the reader groups the list to the right.
     const children = [(yield this.anyOf())];
     while (this.is("⟹")) children.push(this.tok(), (yield this.anyOf()));
-    return this.node("implication", start, children);
+    return this.node("condition", start, children);
   }
 
   *anyOf() {
@@ -775,30 +775,30 @@ class Parser {
   // begins one: each that a comparator or more of a term follows is the
   // comparison.
   *condition() {
-    return (yield this.memo("condition", function* () {
+    return (yield this.memo("condition-primary", function* () {
       const start = this.index;
       const kind = this.kindAt();
-      if (kind === "¬") return this.node("condition", start, [this.node("negation", start, [this.tok(), (yield this.condition())])]);
+      if (kind === "¬") return this.node("condition-primary", start, [this.node("negation", start, [this.tok(), (yield this.condition())])]);
       if (kind === "(") {
         const grouped = (yield this.attempt(function* () {
           const children = [this.tok(), (yield this.implication()), this.expect(")")];
           if (AFTER_TERM.has(this.kindAt())) throw new SyntaxFailure("a term, not conditions", null);
-          return this.node("condition", start, children);
+          return this.node("condition-primary", start, children);
         }));
         if (grouped) return grouped;
       }
       if (kind === "capture" && (this.is("≅", 1) || this.is("≇", 1))) {
         const left = this.leaf("capture-reference");
         const op = this.leaf("tree-comparator");
-        return this.node("condition", start, [this.node("tree-comparison", start, [left, op, (yield this.union())])]);
+        return this.node("condition-primary", start, [this.node("tree-comparison", start, [left, op, (yield this.union())])]);
       }
-      if (kind === "capture" && this.kindAt(1) !== "." && !AFTER_TERM.has(this.kindAt(1))) return this.node("condition", start, [this.leaf("presence")]);
+      if (kind === "capture" && this.kindAt(1) !== "." && !AFTER_TERM.has(this.kindAt(1))) return this.node("condition-primary", start, [this.leaf("presence")]);
       const method = (yield this.attempt(function* () {
         const node = (yield this.termAtom());
-        if (!node.children.some(child => child.rule === "method") || AFTER_TERM.has(this.kindAt())) throw new SyntaxFailure("a term, not a condition", null);
+        if (!node.children.some(child => child.rule === "method-chain") || AFTER_TERM.has(this.kindAt())) throw new SyntaxFailure("a term, not a condition", null);
         return node.children[0];
       }));
-      if (method) return this.node("condition", start, [method]);
+      if (method) return this.node("condition-primary", start, [method]);
       const left = (yield this.union());
       if (!COMPARATORS.has(this.kindAt())) {
         const intersections = left.children.filter(child => child.rule === "intersection");
@@ -814,10 +814,10 @@ class Parser {
             operation = this.node("set-atom", start, inner ? [inner] : []);
           }
         }
-        return this.node("condition", start, [this.node("term-condition", start, [operation])]);
+        return this.node("condition-primary", start, [this.node("set-condition", start, [operation])]);
       }
       const comparator = this.leaf("comparator");
-      return this.node("condition", start, [this.node("comparison", start, [left, comparator, (yield this.union())])]);
+      return this.node("condition-primary", start, [this.node("comparison", start, [left, comparator, (yield this.union())])]);
     }));
   }
 
@@ -887,11 +887,11 @@ class Parser {
         base = strings.length === 1 ? strings[0] : this.node("string-run", start, strings);
         break;
       }
-      case "emoji": base = this.leaf("name"); break;
+      case "emoji": base = this.leaf("rule-or-classifier-name"); break;
       case "identifier": case "tag": {
         const tags = [];
         const isTag = () => this.is("tag") || (this.is("identifier") && isCapital(this.peek().value));
-        if (!isTag()) base = this.leaf("name");
+        if (!isTag()) base = this.leaf("rule-or-classifier-name");
         else {
           tags.push(this.leaf("tag"));
           if (runs) while (isTag()) tags.push(this.leaf("tag"));
@@ -933,11 +933,11 @@ class Parser {
         const argsAt = this.index;
         const args = [(yield this.argument())];
         while (this.is(",") || this.is("|")) args.push(this.tok(), (yield this.argument()));
-        selector.push(this.node("arguments", argsAt, args), this.expect(")"));
+        selector.push(this.node("method-arguments", argsAt, args), this.expect(")"));
       }
       children.push(this.node("method-selector", at, selector));
     }
-    return this.node("method", start, children);
+    return this.node("method-chain", start, children);
   }
 
   *patternLiteral() { return yield this.layeredLiteral(); }
@@ -987,7 +987,7 @@ class Parser {
     }
     if (this.is('⁅')) {
       children.push(yield this.layeredChildren());
-      part=this.node('pattern-bare',start,children);
+      part=this.node('bare-child-list',start,children);
     } else {
       children.push(yield this.layeredAtom());
       if (this.is('⁅') && this.adjacent()) children.push(yield this.layeredChildren());
@@ -1002,7 +1002,7 @@ class Parser {
     if ((this.is('string') || this.is('constant') || this.is('parameter')) && this.is('..',1)) children.push(yield this.range());
     else if (this.is('call-name')) children.push(yield this.call());
     else if (this.is('parameter')) children.push(this.leaf('parameter'));
-    else if (this.is('identifier') || this.is('emoji')) children.push(this.node(isCapital(this.peek().value)?'tag':'name',this.index,[this.tok()]));
+    else if (this.is('identifier') || this.is('emoji')) children.push(this.node(isCapital(this.peek().value)?'tag':'rule-or-classifier-name',this.index,[this.tok()]));
     else if (this.is('tag')) children.push(this.leaf('tag'));
     else if (this.is('string')) children.push(this.leaf('string'));
     else if (this.is('_')) children.push(this.leaf('wildcard'));
@@ -1017,7 +1017,7 @@ class Parser {
     const start=this.index, children=[this.expect('⁅')];
     if (!this.is('⁆')) children.push(yield this.layeredChoice());
     children.push(this.expect('⁆'));
-    return this.node('pattern-children',start,children);
+    return this.node('child-list',start,children);
   }
 
   *layeredChoice() { return yield this.layeredMemo('layeredChoice',this.layeredChoiceBody); }
@@ -1046,11 +1046,11 @@ class Parser {
     const start=this.index;
     const children=[yield this.layeredChildIntersection()];
     while (this.is('∪') || this.is('∖')) children.push(this.tok(),yield this.layeredChildIntersection());
-    if (children.length>1) return this.node('child-set',start,children);
+    if (children.length>1) return this.node('child-set-operation',start,children);
     // The all-intersection route has direct child-path parts.
     const intersection=children[0];
     if (intersection.children.length<3) return this.fail('a child set requires an operator');
-    return this.node('child-set',start,intersection.children);
+    return this.node('child-set-operation',start,intersection.children);
   }
 
   *layeredChildIntersection() { return yield this.layeredMemo('layeredChildIntersection',this.layeredChildIntersectionBody); }
@@ -1076,19 +1076,19 @@ class Parser {
     const start=this.index;
     let part;
     if (this.is('⋯')) part=this.tok();
-    else if (this.is('[')) part=this.node('pattern-brackets',start,[this.tok(),yield this.layeredChoice(),this.expect(']')]);
+    else if (this.is('[')) part=this.node('child-optional',start,[this.tok(),yield this.layeredChoice(),this.expect(']')]);
     else if (this.is('{')) {
       const children=[this.tok(),yield this.layeredChoice()];
       if (this.is('/')) children.push(this.tok(),yield this.layeredChoice());
       children.push(this.expect('}'));
-      part=this.node('pattern-repeat',start,children);
+      part=this.node('child-repetition',start,children);
     } else part=yield this.layeredPath(true);
     return this.node('child-item',start,[part]);
   }
 
   *argument() {
     const start = this.index;
-    return this.node("argument", start, [this.is("integer") ? this.leaf("integer") : (yield this.term())]);
+    return this.node("method-argument", start, [this.is("integer") ? this.leaf("integer") : (yield this.term())]);
   }
 }
 
@@ -1107,7 +1107,7 @@ export function readSyntaxTree(markdown, path, inherited = []) {
     let tree;
     try {
       tokens = lex(text, positions, legacyComments);
-      strings.inspect(tokens.map(token => ({...token, tags:new Set(token.kind === "string" ? ["String"] : token.kind === "include-path" ? ["Include-Path"] : [])})));
+      strings.inspect(tokens.map(token => ({...token, tags:new Set(token.kind === "string" ? ["String"] : token.kind === "resource-path" ? ["Resource-Path"] : [])})));
       // An error at the end of the text stands where the last token ends, as
       // the syntax stage reports it.
       const endAt = tokens.length ? tokens[tokens.length - 1].end : positions[positions.length - 1] || [1, 1];

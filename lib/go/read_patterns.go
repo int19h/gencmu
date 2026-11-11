@@ -33,7 +33,7 @@ func (f *patternFrame) resume(b *domBuilder, in any) readStep {
 			f.parts = b.some(n, "pattern-path", 1)
 		case "child-intersection":
 			f.parts = b.some(n, "child-path", 1)
-		case "child-set":
+		case "child-set-operation":
 			f.parts = nil
 			for _, p := range b.ruleParts(n) {
 				if p.Rule == "child-intersection" || p.Rule == "child-path" {
@@ -47,26 +47,26 @@ func (f *patternFrame) resume(b *domBuilder, in any) readStep {
 		case "child-alternative":
 			part := b.one(n, "child-sequence")
 			if part == nil {
-				part = b.only(n, "child-set")
+				part = b.only(n, "child-set-operation")
 			}
 			f.parts = []*Node{part}
 		case "child-primary":
-			f.parts = []*Node{b.knownOf(n, []string{"pattern-node", "pattern-bare", "child-choice"})}
+			f.parts = []*Node{b.knownOf(n, []string{"pattern-node", "bare-child-list", "child-choice"})}
 		case "pattern-path":
 			f.parts = []*Node{b.only(n, "pattern-primary")}
 		case "child-path":
 			f.parts = []*Node{b.only(n, "child-primary")}
 		}
-		if n.Rule == "pattern-children" {
+		if n.Rule == "child-list" {
 			f.parts = nil
 			if child := b.one(n, "child-choice"); child != nil {
 				f.parts = []*Node{child}
 			}
 		}
-		if n.Rule == "pattern-brackets" || n.Rule == "pattern-repeat" {
+		if n.Rule == "child-optional" || n.Rule == "child-repetition" {
 			f.parts = b.some(n, "child-choice", 1)
 			limit := 1
-			if n.Rule == "pattern-repeat" {
+			if n.Rule == "child-repetition" {
 				limit = 2
 			}
 			if len(f.parts) > limit {
@@ -74,9 +74,9 @@ func (f *patternFrame) resume(b *domBuilder, in any) readStep {
 			}
 		}
 		if n.Rule == "pattern-primary" {
-			f.parts = []*Node{b.knownOf(n, []string{"pattern-node", "pattern-bare", "pattern-union"})}
+			f.parts = []*Node{b.knownOf(n, []string{"pattern-node", "bare-child-list", "pattern-union"})}
 		}
-		if n.Rule == "pattern-node" || n.Rule == "pattern-bare" {
+		if n.Rule == "pattern-node" || n.Rule == "bare-child-list" {
 			f.atom = &domPattern{Kind: "any"}
 			if n.Rule == "pattern-node" {
 				atom := b.only(n, "pattern-atom")
@@ -87,7 +87,7 @@ func (f *patternFrame) resume(b *domBuilder, in any) readStep {
 				f.atom = b.patternAtom(atom, atomParts[0])
 			}
 			f.parts = nil
-			if children := b.one(n, "pattern-children"); children != nil {
+			if children := b.one(n, "child-list"); children != nil {
 				if f.atom.Kind != "name" && f.atom.Kind != "any" && f.atom.Kind != "param" && f.atom.Kind != "call" {
 					b.fail(children, "a child list requires a rule test")
 				}
@@ -116,7 +116,7 @@ func (f *patternFrame) resume(b *domBuilder, in any) readStep {
 			b.lacks(n, "one pattern operand")
 		}
 		return give(values[0])
-	case "pattern-node", "pattern-bare":
+	case "pattern-node", "bare-child-list":
 		for _, p := range b.parts(n) {
 			if p.Kind == KindToken && b.tokenValue(p) == "·" {
 				f.atom.Exact = true
@@ -126,7 +126,7 @@ func (f *patternFrame) resume(b *domBuilder, in any) readStep {
 			f.atom.Attached = values[0].Items
 		}
 		return give(f.atom)
-	case "pattern-union", "pattern-intersection", "child-set", "child-intersection":
+	case "pattern-union", "pattern-intersection", "child-set-operation", "child-intersection":
 		if len(values) == 0 {
 			b.lacks(n, "pattern operands")
 		}
@@ -144,9 +144,9 @@ func (f *patternFrame) resume(b *domBuilder, in any) readStep {
 				}
 			}
 		}
-		if n.Rule == "pattern-union" || n.Rule == "child-set" {
+		if n.Rule == "pattern-union" || n.Rule == "child-set-operation" {
 			required := len(values) - 1
-			if n.Rule == "child-set" && required < 1 {
+			if n.Rule == "child-set-operation" && required < 1 {
 				required = 1
 			}
 			if len(ops) < required {
@@ -198,7 +198,7 @@ func (f *patternFrame) resume(b *domBuilder, in any) readStep {
 			return give(&domPattern{Kind: "sequence", Items: []*domPattern{{Kind: "node", Items: []*domPattern{result}}}})
 		}
 		return give(result)
-	case "pattern-children":
+	case "child-list":
 		if len(values) == 0 {
 			return give(&domPattern{Kind: "sequence", Items: []*domPattern{}})
 		}
@@ -212,18 +212,18 @@ func (f *patternFrame) resume(b *domBuilder, in any) readStep {
 		if len(values) != 1 {
 			b.lacks(n, "one child operand")
 		}
-		if f.parts[0].Rule == "child-set" || f.parts[0].Rule == "pattern-node" || f.parts[0].Rule == "pattern-bare" {
+		if f.parts[0].Rule == "child-set-operation" || f.parts[0].Rule == "pattern-node" || f.parts[0].Rule == "bare-child-list" {
 			return give(&domPattern{Kind: "sequence", Items: []*domPattern{{Kind: "node", Items: values}}})
 		}
 		return give(values[0])
 	case "child-sequence":
 		return give(&domPattern{Kind: "sequence", Items: values})
-	case "pattern-brackets", "pattern-repeat":
-		if len(values) == 0 || n.Rule == "pattern-brackets" && len(values) != 1 {
+	case "child-optional", "child-repetition":
+		if len(values) == 0 || n.Rule == "child-optional" && len(values) != 1 {
 			b.lacks(n, "child choice")
 		}
 		kind := "optional"
-		if n.Rule == "pattern-repeat" {
+		if n.Rule == "child-repetition" {
 			kind = "repeat"
 		}
 		return give(&domPattern{Kind: "sequence", Items: []*domPattern{{Kind: kind, Items: values}}})

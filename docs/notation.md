@@ -879,7 +879,7 @@ The right operand of `≅` is a term, and its type decides what the comparison d
 
 The right operand takes its type by these rules:
 
-- A bare capture, including `$` have constituent type.
+- A bare capture, including `$`, has constituent type.
 - A pattern literal has pattern type. `∅` has pattern type here, as in every pattern position, and nothing matches it. So `$x ≅ ∅` is false for a present capture, and `$x ≇ ∅` is true.
 - If every operand of a union, an intersection or a difference has pattern type, the operation has pattern type. Any other operand is a type error at the operation. Parentheses keep the type of their contents.
 - A constant and a parameter take the type of their value after they resolve. No template argument reads a capture, so no parameter has constituent type.

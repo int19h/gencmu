@@ -358,17 +358,17 @@ fn a_guard_after_an_empty_wrapper_reports_its_first_token() {
                     let Value::Array(alternatives) = field(rule, "alternatives") else { panic!("alternatives") };
                     alternatives.push(parse_json(r#"{"guards":[],"expr":{"literal":{"string":"_"}}}"#).unwrap());
                 }
-                Some("guard")
+                Some("feature-gate")
                     if rule.get("alternatives").unwrap().array()[0]
                         .get("expr")
                         .unwrap()
                         .get("ref")
                         .and_then(Value::str)
-                        == Some("Guard") =>
+                        == Some("Gate") =>
                 {
                     let Value::Array(alternatives) = field(rule, "alternatives") else { panic!("alternatives") };
                     *field(&mut alternatives[0], "expr") =
-                        parse_json(r#"{"seq":[{"ref":"padding"},{"ref":"Guard"}]}"#).unwrap();
+                        parse_json(r#"{"seq":[{"ref":"padding"},{"ref":"Gate"}]}"#).unwrap();
                     padding = true;
                 }
                 _ => {}

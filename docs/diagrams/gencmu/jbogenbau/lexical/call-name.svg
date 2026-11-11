@@ -5,8 +5,8 @@
 <text class="label" x="105.6" y="24" textLength="115.2" lengthAdjust="spacingAndGlyphs">conditions apply</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
 <path d="M20 46h20"/>
-<g class="rule"><rect x="40" y="34" width="100" height="24" rx="0"/><text x="90" y="51" textLength="84" lengthAdjust="spacingAndGlyphs">lower-name</text></g>
-<path d="M140 46H396"/>
+<g class="rule"><rect x="40" y="34" width="168" height="24" rx="0"/><text x="124" y="51" textLength="151.2" lengthAdjust="spacingAndGlyphs">lower-initial-name</text></g>
+<path d="M208 46H396"/>
 <path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="40" y="68" width="336" height="24" rx="12"/><text x="208" y="85" textLength="319.2" lengthAdjust="spacingAndGlyphs">_Emoji_Presentation&lt;¬_Emoji_Component&gt;</text></g>
 <path d="M376 80H376a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>

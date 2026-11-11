@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="321" height="146" viewBox="0 0 321 146" role="img" aria-label="Railroad diagram of the rule choice">
+<svg xmlns="http://www.w3.org/2000/svg" width="287" height="146" viewBox="0 0 287 146" role="img" aria-label="Railroad diagram of the rule choice">
 <style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="50.4" lengthAdjust="spacingAndGlyphs">choice</text>
@@ -10,14 +10,14 @@
 <path d="M40 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H102a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
 <path d="M122 56h10"/>
 <path d="M132 56h20"/>
-<g class="rule"><rect x="152" y="44" width="109" height="24" rx="0"/><text x="206.5" y="61" textLength="92.4" lengthAdjust="spacingAndGlyphs">conjunction</text></g>
-<path d="M261 56H281"/>
-<path d="M261 56a10 10 0 0 1 10 10V80a10 10 0 0 1 -10 10H227.5"/>
-<g class="terminal"><rect x="185.5" y="78" width="42" height="24" rx="12"/><text x="206.5" y="95" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;|&quot;</text></g>
-<path d="M185.5 90H152a10 10 0 0 1 -10 -10V66a10 10 0 0 1 10 -10"/>
-<path d="M281 56H301"/>
+<g class="rule"><rect x="152" y="44" width="75" height="24" rx="0"/><text x="189.5" y="61" textLength="58.8" lengthAdjust="spacingAndGlyphs">some-of</text></g>
+<path d="M227 56H247"/>
+<path d="M227 56a10 10 0 0 1 10 10V80a10 10 0 0 1 -10 10H210.5"/>
+<g class="terminal"><rect x="168.5" y="78" width="42" height="24" rx="12"/><text x="189.5" y="95" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;|&quot;</text></g>
+<path d="M168.5 90H152a10 10 0 0 1 -10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M247 56H267"/>
 <path d="M20 56a10 10 0 0 1 10 10V114a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="40" y="112" width="126" height="24" rx="0"/><text x="103" y="129" textLength="109.2" lengthAdjust="spacingAndGlyphs">ranked-choice</text></g>
-<path d="M166 124H281a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
-<path d="M301 56h6m0 -8v16m4 -16v16"/>
+<path d="M166 124H247a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M267 56h6m0 -8v16m4 -16v16"/>
 </svg>

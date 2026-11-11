@@ -30,7 +30,7 @@ fn a_captured_tested_target_requires_its_primary_before_its_tests() {
 #[test]
 fn a_supplied_ranked_choice_error_has_no_syntax_code() {
     let bootstrap = read(&["data", "preparsed", "gencmu.json"]).replace(
-        r#"{"seq":[{"ref":"conjunction"},{"literal":{"string":"≻"}},{"repeat":{"ref":"conjunction"},"separator":{"literal":{"string":"≻"}}}]}"#,
+        r#"{"seq":[{"ref":"some-of"},{"literal":{"string":"≻"}},{"repeat":{"ref":"some-of"},"separator":{"literal":{"string":"≻"}}}]}"#,
         r#"{"literal":{"string":"."}}"#,
     );
     let sources = [
@@ -181,8 +181,8 @@ fn notation_shapes() {
 fn a_notation_stage_that_declares_elision_only_runs_the_check() {
     let bootstrap = read(&["data", "preparsed", "gencmu.json"]);
     let bootstrap = bootstrap.replacen(
-        r#""name":"symbol","op":"define","alternatives":["#,
-        r#""name":"symbol","op":"define","alternatives":[{"guards":[],"expr":{"literal":{"string":"."}}},"#,
+        r#""name":"punctuation","op":"define","alternatives":["#,
+        r#""name":"punctuation","op":"define","alternatives":[{"guards":[],"expr":{"literal":{"string":"."}}},"#,
         1,
     );
     let directive = r#""name":"ambiguity-resolution","steps":[{"step":"greedy"}]"#;
@@ -288,7 +288,7 @@ fn pattern_string_terminal_constructors_and_tests() {
         "pattern-atom",
         0,
         r#"["seq",0]"#,
-        r#"{"choice":[{"ref":"pattern-name"},{"ref":"tag"},{"ref":"string-terminal"},{"ref":"range"},{"ref":"wildcard"}]}"#,
+        r#"{"choice":[{"ref":"pattern-rule"},{"ref":"tag"},{"ref":"string-terminal"},{"ref":"range"},{"ref":"wildcard"}]}"#,
     );
     let rules = "%const $S \"a\"\n%const $P #($S=\"a\")\n%rule text \"a\"\n%conditions $ ≅ $P";
     assert_eq!(pattern_probe(rules, &constants, &["a"]), pattern_probe(rules, &bundled, &["a"]));

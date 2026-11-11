@@ -1,21 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="641" height="88" viewBox="0 0 641 88" role="img" aria-label="Railroad diagram of the rule directive">
+<svg xmlns="http://www.w3.org/2000/svg" width="666" height="88" viewBox="0 0 666 88" role="img" aria-label="Railroad diagram of the rule directive">
 <style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="75.6" lengthAdjust="spacingAndGlyphs">directive</text>
 <path d="M10 48v16m4 -16v16M14 56h6"/>
-<g class="rule"><rect x="20" y="44" width="134" height="24" rx="0"/><text x="87" y="61" textLength="117.6" lengthAdjust="spacingAndGlyphs">directive-name</text></g>
-<path d="M154 56h10"/>
-<path d="M164 56h20"/>
-<path d="M184 56h20"/>
-<g class="rule"><rect x="204" y="44" width="168" height="24" rx="0"/><text x="288" y="61" textLength="151.2" lengthAdjust="spacingAndGlyphs">directive-argument</text></g>
-<path d="M372 56H392"/>
-<path d="M372 56a10 10 0 0 1 10 10V68a10 10 0 0 1 -10 10H204a10 10 0 0 1 -10 -10V66a10 10 0 0 1 10 -10"/>
-<path d="M392 56H412"/>
-<path d="M164 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H392a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
-<path d="M412 56h10"/>
-<path d="M422 56h20"/>
-<g class="rule"><rect x="442" y="44" width="159" height="24" rx="0"/><text x="521.5" y="61" textLength="142.8" lengthAdjust="spacingAndGlyphs">conditions-clause</text></g>
-<path d="M601 56H621"/>
-<path d="M422 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H601a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
-<path d="M621 56h6m0 -8v16m4 -16v16"/>
+<g class="rule"><rect x="20" y="44" width="159" height="24" rx="0"/><text x="99.5" y="61" textLength="142.8" lengthAdjust="spacingAndGlyphs">directive-keyword</text></g>
+<path d="M179 56h10"/>
+<path d="M189 56h20"/>
+<path d="M209 56h20"/>
+<g class="rule"><rect x="229" y="44" width="168" height="24" rx="0"/><text x="313" y="61" textLength="151.2" lengthAdjust="spacingAndGlyphs">directive-argument</text></g>
+<path d="M397 56H417"/>
+<path d="M397 56a10 10 0 0 1 10 10V68a10 10 0 0 1 -10 10H229a10 10 0 0 1 -10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M417 56H437"/>
+<path d="M189 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H417a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M437 56h10"/>
+<path d="M447 56h20"/>
+<g class="rule"><rect x="467" y="44" width="159" height="24" rx="0"/><text x="546.5" y="61" textLength="142.8" lengthAdjust="spacingAndGlyphs">conditions-clause</text></g>
+<path d="M626 56H646"/>
+<path d="M447 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H626a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M646 56h6m0 -8v16m4 -16v16"/>
 </svg>

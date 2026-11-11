@@ -1,5 +1,5 @@
-// Package gencmu is a Lojban parser whose grammars are data: literate
-// Markdown documents, loaded at runtime, whose fenced jbogenbau blocks are
+// Package gencmu is a parser for Lojban and other loglangs. Its grammars
+// are literate Markdown documents, loaded at runtime. Their jbogenbau blocks are
 // read by the notation's own grammar. A pipeline is a pipeline document
 // whose %stage and %include directives name the stages a text passes
 // through, from characters to phonemes, words and a parse tree, and the

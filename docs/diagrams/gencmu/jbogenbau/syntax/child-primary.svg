@@ -7,8 +7,8 @@
 <g class="rule"><rect x="40" y="34" width="117" height="24" rx="0"/><text x="98.5" y="51" textLength="100.8" lengthAdjust="spacingAndGlyphs">pattern-node</text></g>
 <path d="M157 46H281"/>
 <path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="68" width="117" height="24" rx="0"/><text x="98.5" y="85" textLength="100.8" lengthAdjust="spacingAndGlyphs">pattern-bare</text></g>
-<path d="M157 80H261a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="40" y="68" width="142" height="24" rx="0"/><text x="111" y="85" textLength="126" lengthAdjust="spacingAndGlyphs">bare-child-list</text></g>
+<path d="M182 80H261a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="40" y="102" width="42" height="24" rx="12"/><text x="61" y="119" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;(&quot;</text></g>
 <path d="M82 114h10"/>

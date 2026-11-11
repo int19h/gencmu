@@ -525,6 +525,8 @@ Conditions have these forms:
 
 ```text
 {"op":"=","left":TERM,"right":TERM}
+{"method":"parse","receiver":SPAN,"args":[{"body":EXPR}]}
+{"method":"error-free","receiver":FOREST,"args":[]}
 {"method":"starts-input","receiver":SPAN,"args":[]}
 {"method":"ends-input","receiver":SPAN,"args":[]}
 {"method":"followed-by","receiver":CAPTURE,"args":[TARGET,TARGET...]}
@@ -534,7 +536,7 @@ Conditions have these forms:
 {"nonempty":TERM}
 ```
 
-Comparators are `=`, `≠`, `∈`, `∉`, `⊆`, `⊈`, `≅`, and `≇`. Operand types follow engine §10. Tree comparison requires a bare capture, including `$` on the left. Its right member is any term, and the loader checks its type (engine §10). A presence predicate uses `captured`, with an empty name for `$`.
+Comparators are `=`, `≠`, `∈`, `∉`, `⊆`, `⊈`, `≅`, and `≇`. Operand types follow engine §10. Tree comparison requires a bare capture, including `$`, on the left. Its right member is any term, and the loader checks its type (engine §10). A presence predicate uses `captured`, with an empty name for `$`.
 
 TARGET follows the definition after the ARG forms. A CAPTURE is `{"capture":"x"}`, with an empty name for `$`. A boundary atom is a condition, so `not`, `any`, `all` and `if` can hold it (engine §4.2).
 
@@ -715,7 +717,7 @@ A tree comparison uses the `op`, `left` and `right` members:
 {"op":"≅","left":{"capture":"v"},"right":{"capture":"e"}}
 ```
 
-These operators require a bare capture, including `$` on the left. The right member is any term, and the loader checks its type after constants and template arguments resolve (engine §10). A right term of constituent type is a `capture` term, with an empty name for `$`. A right term of another type than pattern or constituent is a type error.
+These operators require a bare capture, including `$`, on the left. The right member is any term, and the loader checks its type after constants and template arguments resolve (engine §10). A right term of constituent type is a `capture` term, with an empty name for `$`. A right term of another type than pattern or constituent is a type error.
 
 Pattern equality and implicit string conversion are malformed. Text, cached DOMs and supplied DOMs use the same grouping, field, arity and type restrictions. Resolution covers patterns in replaced definitions too.
 

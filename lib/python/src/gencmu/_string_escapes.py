@@ -15,7 +15,7 @@ class DocumentStrings:
 
     def inspect(self, tokens):
         def quoted(token):
-            return "String" in token.tags or "Include-Path" in token.tags
+            return "String" in token.tags or "Resource-Path" in token.tags
         for index, token in enumerate(tokens[:-1]):
             if token.value == "%names" and quoted(tokens[index + 1]):
                 self.names_paths.add(tokens[index + 1].source[0])
@@ -32,8 +32,8 @@ class DocumentStrings:
             index = end
         self.names.extras = sorted(extras)
         for token in tokens:
-            if "String" in token.tags or "Include-Path" in token.tags:
-                self.decode(token, "Include-Path" in token.tags)
+            if "String" in token.tags or "Resource-Path" in token.tags:
+                self.decode(token, "Resource-Path" in token.tags)
 
     def decode(self, token, path=False):
         source = token.text

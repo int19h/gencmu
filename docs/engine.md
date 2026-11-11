@@ -418,7 +418,7 @@ An extra names file adds names to the base file.
 
 A preamble is the initial run of resource declarations.
 
-A grammar or pipeline document declares an extra names resource with `%names "PATH"`. These directives form a preamble before every other statement in that document. They can span several grammar blocks. Each directive takes exactly one quoted path. The path uses literal include-path decoding and resolves against the declaring document's directory. Its escapes can use numeric values or active core abbreviations, but cannot require a names file.
+A grammar or pipeline document declares an extra names resource with `%names "PATH"`. These directives form a preamble before every other statement in that document. They can span several grammar blocks. Each directive takes exactly one quoted path. The path uses literal resource-path decoding and resolves against the declaring document's directory. Its escapes can use numeric values or active core abbreviations, but cannot require a names file.
 
 The path follows the relative-path rule of §13. A target that starts with `/` is a grammar error at `%names`.
 
@@ -685,7 +685,7 @@ Record each group's start in every virtual expansion. Its prefix can read tokens
 
 Private captures cannot feed tag terms, emission items, or recipes. Inspect carriers, attachments, guards, and every nested receiver before absent-carrier pruning. A forbidden export reports `ranked-choice-export`. Common prefix and suffix captures, and whole-parent `$` emission, remain legal.
 
-A ranked choice supplies a seal, an opaque leaf (§4.1). Private conditions keep their evaluation order and real captured states. A condition on `$` observes the composed parent with its seal. Feature guards and symbol tests remain ordinary gates. A failed gate provides no qualifying reading.
+A ranked choice supplies a seal, an opaque leaf (§4.1). Private conditions keep their evaluation order and real captured states. A condition on `$` observes the composed parent with its seal. Feature gates and symbol tests remain ordinary gates. A failed gate provides no qualifying reading.
 
 For guarded tag terms, ranked tag safety examines every tag set that normalization in §3.7 can return. It shares that normalization without expanding body production combinations.
 
@@ -2326,7 +2326,7 @@ So a terminal and a rule with one symbol differ under a test in the check. `T="t
 
 The difference is deliberate. A test of a reference must read the original input. Otherwise the chosen derivation loses its witness where its span holds a written-back terminator (§7.8).
 
-Presence tests `$x`, feature guards, closed terms and constants mean what they mean in the main parse. `.classify` and `.split` take arguments computed as above, and fail as §10 says.
+Presence tests `$x`, feature gates, closed terms and constants mean what they mean in the main parse. `.classify` and `.split` take arguments computed as above, and fail as §10 says.
 
 `$x.without-elision` and `$x.without-elision-except(F)` observe the reconstruction candidate's own projected omission events and opaque ranked blocks. Each synthetic terminal read contributes one close event at its original boundary, including synthetic written routes and bare reads (§7.10). A restoration contributes exactly one event, without another event for its transparent helper. The captured derivation determines event order and ownership. Ranked blocks hide private events.
 
@@ -2576,7 +2576,7 @@ The lexer reads maximal names before the reader inspects them. A name stops befo
 
 Strings take priority, so quoted `--` stays literal. No block comment form exists. A lowercase name matches `[a-z][A-Za-z0-9_-]*`. An uppercase name matches `[A-Z][A-Za-z0-9_-]*`.
 
-An underscore token starts with `_` and consumes the maximal run of ASCII letters, digits, and underscores. It also consumes a dot directly between two ASCII digits. Thus `_age_15.1` is one token, while `_Alpha.first-token` ends the tag before the method selector. `_` alone is the wildcard, and a name in §1 is an engine tag. Any other underscore token is a document error at that token.
+An underscore token starts with `_` and consumes the maximal run of ASCII letters, digits, and underscores. It also consumes a dot directly between two ASCII digits. Thus `_age_15.1` is one token, while `_Alpha.first-token` ends the tag before the method selector. `_` alone is the wildcard and carries no `Engine-Tag` tag. An engine-tag token requires a nonempty name after `_`. A name in §1 is an engine tag. Any other underscore token is a document error at that token.
 
 Thus `_lu`, `_Letter`, and `_Lux` are each one invalid token. None splits into a wildcard or engine tag followed by a name. An emoji rule name contains exactly one scalar with `Emoji_Presentation=Yes` and `Emoji_Component=No` in the configured Unicode table.
 
@@ -2608,7 +2608,7 @@ A literal `‹` requires an escape. Without an open escape, `›` is literal. An
 
 An include or names-resource path is the first and only operand of `%include` or `%names`, in straight double quotes. Its literal runs preserve the original text without decomposition. Its escapes use the ordinary string decoder. Path resolution uses the decoded result. Paths use separate tokens because loading selects resources before constant binding.
 
-A feature name matches `[A-Za-z][A-Za-z0-9-]*` without `--`. All identifier tokens stop before `--`, including capture, constant, parameter, and keyword names. Supplied DOM names must meet that same exclusion. A guard token is a feature name followed by `?`, or `¬` immediately followed by a feature name and `?`. No whitespace or comment stands inside a guard token. A capital-initial feature such as `Cbm` is legal.
+A feature name matches `[A-Za-z][A-Za-z0-9-]*` without `--`. All identifier tokens stop before `--`, including capture, constant, parameter, and keyword names. Supplied DOM names must meet that same exclusion. A gate token is a feature name followed by `?`, or `¬` immediately followed by a feature name and `?`. No whitespace or comment stands inside a gate token. A capital-initial feature such as `Cbm` is legal.
 
 If no gate starts immediately after `¬`, the lexer reads `¬` separately. `!` has no token form. `%rule r ¬ cbm? A` fails syntax recognition at `¬`, column 9. A supplied guard must have kind `gate` and a valid feature name.
 
@@ -2632,153 +2632,168 @@ A range's identity is its resolved pair of scalar endpoints. Its diagnostic spel
 
 ### 9.2 Syntax forms
 
-The syntax stage recognizes forms that the reader rejects under §9.3. Recognition builds a notation tree for the whole document before reader validation starts. After lexical and escape inspection succeeds, a syntax error anywhere precedes every reader error. The productions below define recognition, not validity. They specify the syntax stage of `grammars/gencmu/jbogenbau/syntax.md`.
+The syntax stage recognizes forms that the reader rejects under §9.3. Recognition builds a notation tree for the whole document before reader validation starts. After lexical and escape inspection succeeds, a syntax error anywhere precedes every reader error. The productions below define recognition, not validity. The grammar documents in `grammars/gencmu/jbogenbau/` decide if this descriptive account differs. The productions use the bundled syntax rule names.
 
-This metalanguage is descriptive EBNF, not an executable jbogenbau document. Quoted operators denote punctuation. Brackets denote optional syntax and braces denote zero or more syntax items. Lexical tokens follow §9.1. Constructor names and wrapper conversion follow §9.3.
+This metalanguage is descriptive EBNF, not an executable jbogenbau document. Quoted operators denote punctuation. Brackets denote optional syntax and braces denote zero or more syntax items. Lexical tokens follow §9.1. `ANY-TOKEN` denotes any input token, and unquoted `ε` denotes the empty sequence. Constructor names and wrapper conversion follow §9.3.
 
 Body and pattern parentheses group expressions. Value tests accept no grouped operand.
 
 Recognition productions:
 
 ```text
-document = {statement}
+text = [statement {statement}]
 statement = rule | ranking-directive | directive | constant-definition | classifier | implication-declaration
-rule = definer rule-head ("=" call
-       | (body | clauses headed-body) [conditions] [diagnostic] [suppression] [output])
-definer = "%rule" | "%redefine-rule" | "%extend-rule"
-rule-head = rule-name | call
-rule-name = name | emoji-name
-call = call-name "(" call-argument {"," call-argument} ")"
-call-argument = requirement-argument ≻ target-argument ≻ body-argument ≻ symbol-argument ≻ term
-requirement-argument = "<" {requirement} ">"
-target-argument = call-target "|" call-target {"|" call-target}
-call-target = reference | tag | call | parameter
-body-argument = "(" choice ")" | optional | repetition | "ε"
-symbol-argument = tested | range | "_" | splice
-parameter = parameter-token
-clauses = tags-clause [value-clause] [image-clause]
-        | value-clause [image-clause] | image-clause
-tags-clause = "::" term
-value-clause = ":=" recipe
-image-clause = ":-" recipe
+rule = rule-keyword (rule-name | call) ("=" call | (body | header-clauses headed-body) [conditions-clause] [diagnostic-clause] [suppress-warnings-clause] [output-clause])
+rule-keyword = KW-RULE | KW-REDEFINE-RULE | KW-EXTEND-RULE
+rule-name = Identifier | Emoji-Name
+header-clauses = header-tags [value-clause] [image-clause] | value-clause [image-clause] | image-clause
 headed-body = "|" (ordinary-body | ranked-body)
 body = ["|"] ordinary-body | ranked-body
 ordinary-body = alternative {"|" alternative}
-ranked-body = {guard} ranked-choice [clauses]
-ranked-choice = conjunction "≻" conjunction {"≻" conjunction}
-alternative = {guard} conjunction [clauses]
-choice = ["|"] conjunction {"|" conjunction} | ranked-choice
-conjunction = ["&"] sequence {"&" sequence}
+ranked-body = [feature-gate {feature-gate}] ranked-choice [alternative-clauses]
+ranked-choice = some-of "≻" some-of {"≻" some-of}
+alternative = [feature-gate {feature-gate}] some-of [alternative-clauses]
+alternative-clauses = alternative-tags [value-clause] [image-clause] | value-clause [image-clause] | image-clause
+alternative-tags = "::" term
+call = Call-Name "(" call-argument {"," call-argument} ")"
+parameter = Parameter
+call-argument = requirement-argument ≻ target-argument ≻ body-argument ≻ symbol-argument ≻ term
+requirement-argument = "<" [tag-requirement {tag-requirement}] ">"
+target-argument = target-option "|" target-option {"|" target-option}
+target-option = rule-reference | tag | call | parameter
+body-argument = group | optional | repetition | empty
+symbol-argument = tested-primary | range | wildcard | splice
+choice = ["|"] some-of {"|" some-of} | ranked-choice
+some-of = ["&"] sequence {"&" sequence}
 sequence = primary {primary}
-primary = captured | tested | untested-primary
-captured = capture-binder ":" primary
-capture-binder = capture-reference | constant-reference
-tested = untested-primary symbol-test {symbol-test}
-untested-primary = reference | tag | string-terminal | range | "_"
-                 | call | splice | parameter | group | optional | repetition | "ε"
-splice = "*" ADJACENT (reference | call)
-reference = lowercase-name | emoji-name
-tag = uppercase-name | engine-tag-token
-string-terminal = string-literal | constant-reference
+primary = capture | tested-primary | untested-primary
+capture = (Capture | Constant) ":" primary
+untested-primary = rule-reference | call | splice | parameter | tag | string-terminal | range | wildcard | group | optional | repetition | empty
+splice = "*" (rule-reference | call)
+rule-reference = Lowercase-Name | Emoji-Name
+tag = Uppercase-Name | Engine-Tag
+string-terminal = string | constant-reference
+wildcard = "_"
 group = "(" choice ")"
 optional = "[" ["+"] choice "]" | "[" captured-terminator "]"
-captured-terminator = capture-binder ":" "+" primary
-repetition = "{" ["..."] choice ["/" choice] "}"
-           | "{" choice "..." ["/" choice] "}"
+captured-terminator = (Capture | Constant) ":" "+" primary
+repetition = "{" ["..."] choice ["/" choice] "}" | "{" choice "..." ["/" choice] "}"
+empty = "ε"
+feature-gate = Gate
+tested-primary = untested-primary symbol-test {symbol-test}
 symbol-test = tag-test | value-test | default-value
-tag-test = "<" {requirement} ">"
-requirement = ["¬"] test-operand
-value-test = test test-operand
+tag-test = "<" [tag-requirement {tag-requirement}] ">"
+tag-requirement = ["¬"] test-operand
+value-test = value-comparator test-operand
+value-comparator = "=" | "≠"
 default-value = "≝" test-operand
-test = "=" | "≠"
-test-operand = parameter | call | string-literal | constant-reference | reference | tag | range
-             | capture-reference | method-chain | "∅" | pattern-literal | "(" term ")"
+operand-atom = call | parameter | string | constant-reference | rule-or-classifier-name | tag | range | capture-reference | empty-set | pattern-literal | "(" term ")"
+test-operand = operand-atom | method-chain
 range = string-operand ".." string-operand
-string-operand = string-literal | constant-reference | parameter
-conditions = "%conditions" [","] implication {"," implication}
-diagnostic = ("%error" | "%warning") recipe
-suppression = "%suppress-warnings" ("_" | name {"," name})
-output = "%erased" | "%emits" [emission]
-emission = [","] item {"," item} | clauses
-item = {attachment} emit-target {attachment} [clauses]
-emit-target = capture-reference | "ε" | lowercase-name | tag | range
-attachment = "(" capture-reference ")"
-recipe = recipe-atom {recipe-atom}
-recipe-atom = term
+string-operand = string | constant-reference | parameter
+conditions-clause = KW-CONDITIONS [","] condition {"," condition}
+diagnostic-clause = error-clause | warning-clause
+error-clause = KW-ERROR recipe
+warning-clause = KW-WARNING recipe
+suppress-warnings-clause = KW-SUPPRESS-WARNINGS ("_" | suppression-code {"," suppression-code})
+suppression-code = Identifier
+output-clause = erased-clause | emits-clause
+erased-clause = KW-ERASED
+emits-clause = KW-EMITS [emission]
+emission = [","] emit-item {"," emit-item} | emit-clauses
+emit-item = [attachment-before {attachment-before}] emit-target [attachment-after {attachment-after}] [emit-clauses]
+emit-target = Capture | "ε" | Identifier | Engine-Tag | range
+attachment-before = "(" capture-reference ")"
+attachment-after = "(" capture-reference ")"
+emit-clauses = emit-tags [value-clause] [image-clause] | value-clause [image-clause] | image-clause
+emit-tags = "::" term
+recipe = recipe-term {recipe-term}
+recipe-term = term
+value-clause = ":=" recipe
+image-clause = ":-" recipe
+header-tags = "::" term
 term = union | guarded-term
 guarded-term = any-of "⟹" {any-of "⟹"} union
 union = ["∪"] intersection {("∪" | "∖") intersection}
 intersection = ["∩"] concatenation {"∩" concatenation}
 concatenation = term-atom {"++" term-atom}
 tag-run = tag tag {tag}
-string-run = string-literal string-literal {string-literal}
+string-run = string string {string}
 term-atom = plain-term-atom | method-chain
-plain-term-atom = tag-run | string-run | tag | reference | call | parameter | string-literal | constant-reference | range
-                | capture-reference | "∅" | pattern-literal | "(" term ")"
+plain-term-atom = tag-run | string-run | operand-atom
 method-chain = method-receiver method-selector {method-selector}
 method-receiver = term-atom
-method-selector = parse-selector | ordinary-selector
-parse-selector = "." "parse" "(" parse-argument ")"
+method-selector = "." (parse-selector | named-selector)
+named-selector = (method-name - "parse") ["(" method-arguments ")"]
+parse-selector = "parse" "(" parse-argument ")"
 parse-argument = "…" choice "…" | "…" choice | choice "…" | choice
-ordinary-selector = "." method-name ["(" arguments ")"]
-arguments = argument {("," | "|") argument}
-argument = term | integer
+method-name = Identifier | Call-Name
+method-arguments = method-argument {("," | "|") method-argument}
+method-argument = term | integer
 integer = Integer
-implication = any-of {"⟹" any-of}
+rule-or-classifier-name = Lowercase-Name | Emoji-Name
+empty-set = "∅"
+capture-reference = Capture
+constant-reference = Constant
+string = String
+condition = any-of {"⟹" any-of}
 any-of = ["∨"] all-of {"∨" all-of}
-all-of = ["∧"] condition {"∧" condition}
-condition = comparison | tree-comparison | method-chain | capture-reference
-          | "¬" condition | "(" implication ")" | term-condition
-term-condition = union-operation | intersection-operation | set-atom
+all-of = ["∧"] condition-primary {"∧" condition-primary}
+condition-primary = comparison | tree-comparison | method-chain | presence | negation | set-condition | "(" condition ")"
+set-condition = union-operation | intersection-operation | set-atom
 union-operation = ["∪"] intersection ("∪" | "∖") intersection {("∪" | "∖") intersection} | "∪" intersection
 intersection-operation = ["∩"] concatenation "∩" concatenation {"∩" concatenation} | "∩" concatenation
-set-atom = tag | tag-run | string-run | "∅" | constant-reference | parameter
+set-atom = tag | tag-run | string-run | empty-set | constant-reference | parameter
+presence = Capture
+negation = "¬" condition-primary
 comparison = union comparator union
-comparator = "=" | "≠" | "∈" | "∉" | "⊆" | "⊈"
-tree-comparison = capture-reference ("≅" | "≇") union
+comparator = "=" | "≠" | "∈" | "∉" | "⊆" | "⊈"
+tree-comparison = capture-reference tree-comparator union
+tree-comparator = "≅" | "≇"
 pattern-literal = "#" pattern-primary
 pattern-union = pattern-intersection {("∪" | "∖") pattern-intersection}
 pattern-intersection = pattern-path {"∩" pattern-path}
 pattern-path = ("⋮" | "⋱") pattern-primary | pattern-primary ["⋰"]
-pattern-primary = pattern-node | pattern-bare | "(" pattern-union ")"
-pattern-node = ["·" ADJACENT] pattern-atom
-               (ADJACENT pattern-children | NO-ATTACHMENT)
-pattern-bare = ["·" ADJACENT] pattern-children
-pattern-atom = (pattern-name | terminal) {symbol-test}
-pattern-name = reference | call | parameter
-terminal = tag | string-terminal | range | "_"
-pattern-children = "⁅" [child-choice] "⁆"
+pattern-primary = pattern-node | bare-child-list | "(" pattern-union ")"
+pattern-node = ["·"] pattern-atom [child-list]
+bare-child-list = ["·"] child-list
+pattern-atom = (pattern-rule | tag | string | range | wildcard | constant-reference) [symbol-test {symbol-test}]
+pattern-rule = Lowercase-Name | Emoji-Name | call | parameter
+child-list = "⁅" [child-choice] "⁆"
 child-choice = child-alternative {"|" child-alternative}
-child-alternative = child-sequence | child-set
-child-sequence = child-item {ITEM-BOUNDARY child-item}
-child-set = child-intersection ("∪" | "∖") child-intersection
-            {("∪" | "∖") child-intersection}
-          | child-path "∩" child-path {"∩" child-path}
+child-alternative = child-sequence | child-set-operation
+child-sequence = child-item {child-item}
+child-set-operation = child-intersection ("∪" | "∖") child-intersection {("∪" | "∖") child-intersection} | child-path "∩" child-path {"∩" child-path}
 child-intersection = child-path {"∩" child-path}
-child-item = child-path | pattern-brackets | pattern-repeat | "⋯"
+child-item = child-path | child-optional | child-repetition | "⋯"
 child-path = ("⋮" | "⋱") child-primary | child-primary ["⋰"]
-child-primary = pattern-node | pattern-bare | "(" child-choice ")"
-pattern-brackets = "[" child-choice "]"
-pattern-repeat = "{" child-choice ["/" child-choice] "}"
-directive = directive-name {directive-argument} [conditions]
-ranking-directive = "%ambiguity-resolution" ranking-step {"," ranking-step}
-ranking-step = name [pattern-literal | constant-reference]
-directive-name = "%stage" | "%extend-stage" | "%redefine-stage"
-               | "%include" | "%names" | "%features" | "%elision-only"
-directive-argument = argument-word | argument-string | argument-tag | argument-term
-argument-word = name
-argument-string = string-literal | include-path
-argument-tag = engine-tag-token | range
-argument-term = directive-method | capture-reference | constant-reference | "∅"
-              | pattern-literal | "(" term ")" | emoji-name | "_"
-directive-method = directive-receiver method-selector {method-selector}
-directive-receiver = tag | reference | string-literal | constant-reference | range
-                   | capture-reference | "∅" | pattern-literal | "(" term ")"
-constant-definition = ("%const" | "%redefine-const") constant-reference term
-classifier = "%classifier" name {classifier-entry}
-classifier-entry = {guard} classifier-key {classifier-key} ("∈" | "∉") (name | engine-tag-token)
-classifier-key = string-literal | constant-reference
-implication-declaration = "%implies" union "⟹" union
+child-primary = pattern-node | bare-child-list | "(" child-choice ")"
+child-optional = "[" child-choice "]"
+child-repetition = "{" child-choice ["/" child-choice] "}"
+pattern-exact-start = "·" ANY-TOKEN
+pattern-attached-start = pattern-atom "⁅"
+pattern-item-opening = "⁅" | "·"
+adjacent-item-opening = ANY-TOKEN pattern-item-opening
+directive = directive-keyword [directive-argument {directive-argument}] [conditions-clause]
+ranking-directive = KW-AMBIGUITY-RESOLUTION ranking-step {"," ranking-step}
+ranking-step = Identifier [pattern-literal | constant-reference]
+directive-keyword = KW-STAGE | KW-EXTEND-STAGE | KW-REDEFINE-STAGE | KW-INCLUDE | KW-NAMES | KW-FEATURES | KW-ELISION-ONLY
+directive-argument = directive-identifier | directive-string | directive-terminal | directive-term
+directive-identifier = Identifier
+directive-string = String | Resource-Path
+directive-terminal = Engine-Tag | range
+directive-term = directive-method-chain | capture-reference | constant-reference | empty-set | pattern-literal | "(" term ")" | Emoji-Name | "_"
+directive-method-chain = (tag | rule-or-classifier-name | string | constant-reference | range | capture-reference | empty-set | pattern-literal | "(" term ")") method-selector {method-selector}
+constant-definition = constant-keyword constant-name term
+constant-name = Constant
+constant-keyword = KW-CONST | KW-REDEFINE-CONST
+classifier = KW-CLASSIFIER classifier-name [classifier-entry {classifier-entry}]
+classifier-name = Identifier
+classifier-entry = [feature-gate {feature-gate}] classifier-key {classifier-key} classifier-operator classifier-class
+classifier-key = string | constant-reference
+classifier-operator = "∈" | "∉"
+classifier-class = Identifier | Engine-Tag
+implication-declaration = KW-IMPLIES union "⟹" union
 ```
 
 A call-shaped rule head with only distinct parameter arguments declares or edits a template. Mixed parameter and concrete heads are errors. A closed call head addresses one instance and requires `%redefine-rule` or `%extend-rule`. A binding requires a plain rule name on its left and exactly one call on its right.
@@ -2793,47 +2808,19 @@ An unresolved parameter never relaxes a node's category, field shape, method ari
 
 `followed-by` and `preceded-by` separate targets with `|`. Other methods separate arguments with commas. Recognition accepts either separator, and the reader rejects a separator that does not match the method.
 
-Recognition names describe productions. The following mapping specifies the named constructors that the syntax stage builds. Other production names remain wrappers under §9.3. Lexical forms contribute tokens where a constructor requires tokens.
-
-| Recognition part | Constructor parts |
-| --- | --- |
-| `document` | Root `text` |
-| `ranking-directive` and its steps | `ranking-directive` with `ranking-step` parts |
-| `captured` | `capture` with a binder token and `primary` |
-| `captured-terminator` | `capture` with a binder, `+`, and its terminal primary |
-| `splice` | `splice` with one adjacent reference or call |
-| `capture-binder` | Direct prefixed-name token, checked as a capture name |
-| `tested` | `tested` with an unwrapped base constructor and the written tests |
-| `pattern-primary` | One node test, bare child list, or grouped whole pattern |
-| `ranked-body` | `ranked-alternative` with guards, `ranked-choice`, and clauses |
-| `conditions` | `conditions-clause` |
-| `%error` diagnostic | `error-clause` with one recipe |
-| `%warning` diagnostic | `warning-clause` with one recipe |
-| `suppression` | `suppress-warnings-clause` with codes or `_` |
-| `%emits` output | `emits-clause` with emission parts |
-| `%erased` output | `erased-clause` |
-| `item` | `emit-item` |
-| Before and after `attachment` | `emit-before` and `emit-after`, each with `capture-reference` parts |
-| `requirement` | `tag-requirement`, whose operand has a `test-operand` wrapper |
-| `method-chain` | `method` with `method-receiver` and selector parts |
-| `parse-selector` | `parse-selector` with one `parse-argument` |
-| `parse-argument` | One `choice`, with an optional remainder token at each outer edge |
-| `tags-clause` by owner | Header `tags-clause`, `alternative-tags`, or `emit-tags` |
-| `directive-argument` | `argument-word`, `argument-string`, `argument-tag`, or `argument-term` by written form |
-| Bare names in value positions | `name` or `tag` by initial case |
-| Names or capture references in token positions | Direct lexical tokens |
+Each production name identifies its syntax constructor. Section 9.3 defines wrapper handling and the required constructor parts. Lexical forms contribute tokens where a constructor requires them. Starred references place their children directly in the calling constructor.
 
 The ordinary selector excludes the method name `parse`. Its dedicated route reads a constituent argument rather than term arguments. The Unicode mark `…` occurs only at an outer edge of that argument. It is distinct from ASCII `...` in chains and `⋯` in patterns.
 
 A method receiver retains a `term-atom` constructor. Explicit grouping and selector folding keep the same DOM. The `headed-body` constructor supplies the header branch's ordinary alternatives or its single ranked alternative.
 
-Tests can follow every primary, in any number and order. A capture target is any primary. Within a capture, following tests belong to its target. Thus `$x:A<B>="v"` captures the tested A, rather than testing the capture. One `tested` constructor holds the unwrapped base constructor and every following test in written order.
+Tests can follow every primary, in any number and order. A capture target is any primary. Within a capture, following tests belong to its target. Thus `$x:A<B>="v"` captures the tested A, rather than testing the capture. One `tested-primary` constructor holds the unwrapped base constructor and every following test in written order.
 
 A supplied tree can retain a `primary` wrapper around that base. A source test never wraps another tested constructor or the capture binder. Tests after a binder belong to its target, including nested invalid captures. Supplied notation trees can still contain a test on a capture itself.
 
 Names, capture references, method names, engine-tag tokens, strings, include paths, and guards are lexical forms. A capture reference includes `$`. Names include both initial cases. These recognition categories do not impose the reader's naming, type, or signature restrictions.
 
-`%include` and `%names` each take exactly one quoted path. Only their first operand receives literal include-path decoding. Any later quoted operand follows ordinary string lexical forms. Other directive strings follow those forms too. The reader rejects wrong operand types at the directive before term conversion.
+`%include` and `%names` each take exactly one quoted path. Only their first operand receives literal resource-path decoding. Any later quoted operand follows ordinary string lexical forms. Other directive strings follow those forms too. The reader rejects wrong operand types at the directive before term conversion.
 
 Thus `%include "a.md" "b$c.md"` reports the wrong count at `%include`. With no operand or a wrong operand type, it also reports at `%include`.
 
@@ -2858,15 +2845,15 @@ Valid-form productions:
 ```text
 captured = named-capture ":" tested-symbol
 tested-symbol = symbol [tag-test] [value-test]
-symbol = reference | call | splice | parameter | tag | string-terminal | range | "_"
+symbol = rule-reference | call | splice | parameter | tag | string-terminal | range | "_"
 tag-test = "<" {requirement} ">"
 requirement = ["¬"] (tag | tag-set-constant | parameter)
 value-test = ("=" | "≠") (string-literal | string-constant | parameter)
-item = ("$" | named-capture | "ε") [clauses] | attached-item
-attached-item = {attachment} named-capture {attachment} [clauses]
+item = ("$" | named-capture | "ε") [header-clauses] | attached-item
+attached-item = {attachment} named-capture {attachment} [header-clauses]
 attachment = "(" named-capture ")"
-recipe = recipe-atom
-recipe-atom = recipe-string {"++" recipe-string}
+recipe = recipe-term
+recipe-term = recipe-string {"++" recipe-string}
 recipe-string = string-literal | string-constant | parameter | capture-string-method
 capture-string-method = capture-reference "." string-method
 string-method = "value" | "image" | "source-text" | "decomposed-source-text" | "verbatim-text"
@@ -2953,18 +2940,19 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `directive` | Keyword token, then argument parts in order | Validate written operand count and types before converting terms. Report every wrong operand at the directive. Produce `name` and valid argument values as `args`. A following `conditions-clause` gives optional `conditions` only for `%features`. |
 | `ranking-directive` | Keyword token, then `ranking-step` parts in order | Produce `name` and the steps as `steps`. Report every wrong step at the directive. |
 | `ranking-step` | One name token, alone or followed by one `pattern-literal` or constant reference | A lean `{"step":NAME}`, or `{"step":NAME,"pattern":P}` where P is the PATTERN or the `const` term |
-| `argument-word` | One name token | Name string |
-| `argument-string` | One quoted operand | Only the first `%include` or `%names` operand uses literal path decoding. Other quoted operands follow ordinary lexical forms and fail operand validation at the directive. |
-| `argument-tag` | One tag token or range | Tag identifier or range operand for validation at the directive |
-| `argument-term` | One directive method, reference, empty set, pattern, grouped term, emoji name, or `_` | Invalid operand for validation at the directive |
+| `directive-identifier` | One name token | Name string |
+| `directive-string` | One quoted operand | Only the first `%include` or `%names` operand uses literal path decoding. Other quoted operands follow ordinary lexical forms and fail operand validation at the directive. |
+| `directive-terminal` | One tag token or range | Tag identifier or range operand for validation at the directive |
+| `directive-term` | One directive method, reference, empty set, pattern, grouped term, emoji name, or `_` | Invalid operand for validation at the directive |
 | `classifier` | `classifier-name`, then `classifier-entry` parts | `name`, then ordered `entries` |
 | `classifier-name`, `classifier-class` | One name token each | Name string |
 | `classifier-key` | One `string` or `constant-reference` | Unresolved STRINGTERM |
 | `classifier-operator` | One `∈` or `∉` token | Operator string |
 | `classifier-entry` | Guards, keys, operator, class. At least one key. | `guards`, `keys`, `op`, `class` |
 | `implication-declaration` | Two `union` parts | `if`, then `then` |
-| `constant-definition` | `constant-definer`, `constant-reference`, `term` | Operation, user name, unresolved value |
-| `constant-definer` | One `%const` or `%redefine-const` token | `define` or `redefine` |
+| `constant-definition` | `constant-keyword`, `constant-name`, `term` | Operation, user name, unresolved value |
+| `constant-name` | One `Constant` token | User constant name without `$` |
+| `constant-keyword` | One `%const` or `%redefine-const` token | `define` or `redefine` |
 | `constant-reference` | One user constant reference token | `const`, name without `$`, and reference `at` |
 | `rule` | Definer, plain or call-shaped head, then binding call or header clauses, body and clauses | Ordinary definition, template with `params`, instance edit with `args`, or named `instance` binding. Bindings return before header clauses and body lookup. |
 | `call` | Call-name token, then ordered `call-argument` parts | `call`, ordered `args`, and call `at` |
@@ -2974,61 +2962,61 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `target-argument` | Two or more ordered call targets | `targets` array |
 | `body-argument` | One choice, optional, repetition, or `ε` | Convert to EXPR. Return a sole symbol as its common ARG atom. Otherwise retain `body:EXPR`. |
 | `symbol-argument` | One tested symbol, range, or wildcard | Convert the expression to its common ARG atom, preserving tests. |
-| `definer` | One definition keyword token | `define`, `redefine`, or `extend` |
+| `rule-keyword` | One definition keyword token | `define`, `redefine`, or `extend` |
 | `rule-name` | One rule-name token | Lowercase name or valid emoji scalar |
-| `body` | One or more `alternative`, or one `ranked-alternative` | Ordered alternative list |
-| `headed-body` | One or more `alternative`, or one `ranked-alternative` | Ordered alternative list, like `body` |
+| `body` | One or more `alternative`, or one `ranked-body` | Ordered alternative list |
+| `headed-body` | One or more `alternative`, or one `ranked-body` | Ordered alternative list, like `body` |
 | `alternative` | Guards, conjunction, then tag, value, image clauses | `guards`, `expr`, and optional channel or tag members |
-| `ranked-alternative` | Guards, ranked choice, then tag, value, image clauses | One ALT. Guards and clauses apply to the entire ranked expression. |
-| `guard` | One gate token from §9.1 | `feature`, `kind:"gate"`, `negated`. Reject every other kind or invalid feature name. |
-| `ranked-choice` | At least two `conjunction` parts | Ordered `ranked` array |
-| `choice` | One `ranked-choice`, or one or more `conjunction` parts | Ranked expression, ordinary `choice`, or sole child |
-| `conjunction` | One or more `sequence` parts | `and`, or sole sequence |
+| `ranked-body` | Guards, ranked choice, then tag, value, image clauses | One ALT. Guards and clauses apply to the entire ranked expression. |
+| `feature-gate` | One gate token from §9.1 | `feature`, `kind:"gate"`, `negated`. Reject every other kind or invalid feature name. |
+| `ranked-choice` | At least two `some-of` parts | Ordered `ranked` array |
+| `choice` | One `ranked-choice`, or one or more `some-of` parts | Ranked expression, ordinary `choice`, or sole child |
+| `some-of` | One or more `sequence` parts | `and`, or sole sequence |
 | `sequence` | One or more `primary` parts | `seq`, or sole primary |
 | `primary` | One symbol, call, splice, parameter, capture, tested, group, optional, repetition, or empty constructor | That expression. A constant symbol becomes `literal` of its unresolved term. |
-| `reference` | One rule or tag name token | `ref`, including `🆓` |
+| `rule-reference` | One rule or tag name token | `ref`, including `🆓` |
 | `splice` | One reference or call, adjacent to `*` | `splice` of that rule reference or call |
 | `tag` | One user or engine tag token | Body: `ref`. Term: singleton `tag`. Pattern: `terminal` with source position. |
 | `string-terminal` | One `string` or `constant-reference` | Body: `literal` of the unresolved string term. |
 | `wildcard` | One `_` token | `wildcard:true` |
 | `range` | Two string operands in order | `range` of unresolved STRINGTERMs |
-| `tested` | Tag tests if present, value tests if present, then `primary` or the first base constructor other than `tested` | Require at least one test. Check the target and written test order. Wrap the base with tags first, then value. |
+| `tested-primary` | Tag tests if present, value tests if present, then `primary` or the first base constructor other than `tested-primary` | Require at least one test. Check the target and written test order. Wrap the base with tags first, then value. |
 | `tag-test` | Zero or more `tag-requirement` parts | Ordered requirements, including an empty array |
 | `tag-requirement` | Optional `¬` token, then one operand | Require a tag, tag-set constant, or parameter. Produce `negated` and unresolved `value`. |
-| `value-test` | `test`, then `test-operand` | Comparator and string operand |
+| `value-test` | `value-comparator`, then `test-operand` | Comparator and string operand |
 | `default-value` | `≝` token, then `test-operand` | The default value of the elidable optional whose head carries it |
-| `test` | One `=` or `≠` token | Precomposed value comparator from the token value |
+| `value-comparator` | One `=` or `≠` token | Precomposed value comparator from the token value |
 | `test-operand` | One recognized operand | Require a string literal, string constant, or declared parameter for a value test. Produce unresolved STRINGTERM. |
-| `capture` | Capture token, then `primary` | `capture` name without `$`, then `expr`. The base accepts every rule reference or call, including emoji rules. |
+| `capture` or `captured-terminator` | Binder token, `+` on the captured route, then `primary` | `capture` name without `$`, then `expr`. The base accepts every rule reference or call, including emoji rules. |
 | `group` | One `choice` | Child expression |
-| `optional` | Select the route first. Require `capture` for the captured route, or `choice` for the ordinary route, then inspect markers and form. | `optional`, with `elidable:true` for a valid marker. The captured route reads the marker inside its sole capture. |
+| `optional` | Select the route first. Require `captured-terminator` for the captured route, or `choice` for the ordinary route, then inspect markers and form. | `optional`, with `elidable:true` for a valid marker. The captured route reads the marker inside its sole capture. |
 | `repetition` | Choices, then markers. Read the first two choices. | First is `repeat`, second is `separator`. Marker before the item means left chain, after it means right chain. |
 | `empty` | One `ε` token | `empty:true` |
-| `tags-clause`, `alternative-tags`, `emit-tags` | One `term` | Owner's `tags` |
+| `header-tags`, `alternative-tags`, `emit-tags` | One `term` | Owner's `tags` |
 | `value-clause` | One `recipe` | Owner's `value` |
 | `image-clause` | One `recipe` | Owner's `image` |
-| `conditions-clause` | One or more `implication` parts | Ordered conditions |
+| `conditions-clause` | One or more `condition` parts | Ordered conditions |
 | `error-clause`, `warning-clause` | One `recipe` | Owner's `error` or `warning` recipe |
 | `suppress-warnings-clause` | `_` alone or one or more code tokens | Owner's `suppressWarnings` array, using `["_"]` for all warnings |
 | `emits-clause` | Item parts, or tag, value, image clauses alone | Ordered `items`. No target means implicit `$`. No written item also means `$`. |
 | `erased-clause` | One `%erased` token | Owner's `erased:true` |
 | `emit-item` | Target, before attachments, after attachments, tags, value, image | Capture or inserted item, with ordered attachments and clauses. Read tags before value and image, including an implicit item. |
 | `emit-target` | One capture, `ε`, name, tag, or range | Require a capture or `ε`. Produce capture name, empty name, or `insert:true`. |
-| `emit-before`, `emit-after` | One or more named `capture-reference` parts | Attachment names without `$`, in written order. These names are references, so binder-case rules do not apply. |
-| `recipe` | Exactly one valid `recipe-atom` | Ordered `concat`. Reject a second term at its first token with an instruction to use `++`. |
-| `recipe-atom` | One recognized term | Check its written form before conversion. Require string atoms joined by `++`, with methods restricted by §11. Reject juxtaposed strings with an instruction to use `++`. |
+| `attachment-before`, `attachment-after` | One or more named `capture-reference` parts | Attachment names without `$`, in written order. These names are references, so binder-case rules do not apply. |
+| `recipe` | Exactly one valid `recipe-term` | Ordered `concat`. Reject a second term at its first token with an instruction to use `++`. |
+| `recipe-term` | One recognized term | Check its written form before conversion. Require string atoms joined by `++`, with methods restricted by §11. Reject juxtaposed strings with an instruction to use `++`. |
 | `concatenation` | One or more `term-atom` parts separated by `++` | Sole child, or ordered `concat` of string operands. Require each known operand to be a string before reading the next. Defer unresolved constant types until binding. Flatten grouped concatenation operands into the outer array in written order. |
-| `method` | `method-receiver`, then one or more `method-selector` parts | Fold selectors left into receiver-first method nodes |
+| `method-chain` | `method-receiver`, then one or more `method-selector` parts | Fold selectors left into receiver-first method nodes |
 | `method-receiver` | One `term-atom` | Initial receiver, retaining its actual type |
 | `method-selector` | `parse-selector` or ordinary method name and arguments | Convert the selected route, then inspect its signature. |
-| `parse-selector` | One `parse-argument` | The enclosing `method` supplies the receiver and folds this selector into a method named `parse`, with one body argument. |
+| `parse-selector` | One `parse-argument` | The enclosing `method-chain` supplies the receiver and folds this selector into a method named `parse`, with one body argument. |
 | `parse-argument` | One `choice`, with an optional `…` token at each outer edge | Convert the expression and retain each remainder as an outer `remainder:true` leaf in its sequence. Reject captures at their binders. |
 | `method-name` | One method-name token | Exact method identifier |
-| `arguments` | One or more `argument` parts | Ordered argument array. Absent arguments gives `args:[]`. |
-| `argument` | One `term` or `integer` | Convert the complete immediate term, including its guard. Only a complete bare name can become a rule or classifier argument. |
+| `method-arguments` | One or more `method-argument` parts | Ordered argument array. Absent arguments gives `args:[]`. |
+| `method-argument` | One `term` or `integer` | Convert the complete immediate term, including its guard. Only a complete bare name can become a rule or classifier argument. |
 | `integer` | One Integer token | `integer`, retaining its positive decimal digits without leading zeros |
 | `string` | String token | Decode through the document's configured string decoder |
-| `name` | One name token | Capitalized tag, or rule/classifier name in its method argument position |
+| `rule-or-classifier-name` | One lowercase-initial or emoji name token | Rule or classifier name in its method argument position |
 | `term` | One `union` or `guarded-term` | Child term |
 | `tag-run`, `string-run` | At least two `tag` or `string` parts respectively, in written order | One `union` of singleton operands. Flatten into an enclosing union, regardless of grouping. |
 | `term-atom` | One call, parameter, string, tag, tag run, string run, name, constant, capture, method, range, empty set, pattern literal, or grouped `term`, `guarded-term`, or `union` | Delegate to that constructor. Preserve its term and type. Parentheses make no DOM node. |
@@ -3037,17 +3025,17 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `intersection` | One or more `concatenation` parts | `intersection`, or sole part |
 | `empty-set` | One `∅` token | `emptySet:true` |
 | `capture-reference` | One capture token | `capture`, name without `$`, with empty name for `$` |
-| `implication` | One or more `any-of`, then optional nested implication | Right-nested condition `if`, or sole condition |
+| `condition` | One or more `any-of`, then optional nested implication | Right-nested condition `if`, or sole condition |
 | `any-of` | One or more `all-of` | `any`, or sole condition. Flatten nested `any`. |
-| `all-of` | One or more `condition` | `all`, or sole condition. Flatten nested `all`. |
-| `condition` | One comparison, tree comparison, method, negation, presence, grouped implication, or set term | Child condition. A set term becomes `{"nonempty": TERM}`, a test that the set is not empty |
-| `term-condition` | One `union-operation`, `intersection-operation`, or `set-atom` | The term it holds. The enclosing `condition` wraps it as `{"nonempty": TERM}`. A type fault of the term stands at the operation, or at the earliest constant that it names. |
+| `all-of` | One or more `condition-primary` | `all`, or sole condition. Flatten nested `all`. |
+| `condition-primary` | One comparison, tree comparison, method, negation, presence, grouped implication, or set term | Child condition. A set term becomes `{"nonempty": TERM}`, a test that the set is not empty |
+| `set-condition` | One `union-operation`, `intersection-operation`, or `set-atom` | The term it holds. The enclosing `condition-primary` wraps it as `{"nonempty": TERM}`. A type fault of the term stands at the operation, or at the earliest constant that it names. |
 | `union-operation` | One or more `intersection` parts and their operators | Fold union and difference left, as `union` does. A leading `∪` is a separator and drops out. |
 | `intersection-operation` | One or more `concatenation` parts and their `∩` operators | `intersection`, or the sole part. A leading `∩` is a separator and drops out. |
 | `set-atom` | One tag, tag run, string run, `∅`, constant, or parameter | The term it names. A lone string is a scalar, so it is no set atom. |
 | `comparison` | Comparator, then two `union` parts | `op`, `left`, `right` |
 | `comparator` | One ordinary comparison token | Precomposed comparator from the token value |
-| `negation` | One `condition` | `not` |
+| `negation` | One `condition-primary` | `not` |
 | `presence` | One capture token | `captured`, with empty name for `$` |
 | `tree-comparison` | Capture reference, tree comparator, union | `op`, capture `left`, and a `right` term whose type the loader checks after resolution |
 | `tree-comparator` | One `≅` or `≇` token | Precomposed comparator from the token value |
@@ -3056,32 +3044,32 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `pattern-intersection` | One or more `pattern-path` parts | Flatten intersection operands into one array, or retain the sole predicate |
 | `pattern-primary` | Node, bare list, or grouped `pattern-union` | Delegate without a grouping wrapper |
 | `pattern-node` | One atom, optional adjacent prefix, optional adjacent list | Atom with optional `exact:true` and `children` array |
-| `pattern-bare` | One list and optional adjacent prefix | `any:true`, optional `exact:true`, and required `children` array |
+| `bare-child-list` | One list and optional adjacent prefix | `any:true`, optional `exact:true`, and required `children` array |
 | `pattern-atom` | Name, call, parameter, terminal, or constant, with written tests | A tag test and a value test take any atom. A tested constant must resolve to a string after binding. Preserve tag then value order. |
-| `pattern-children` | Optional `child-choice` | Item array, including empty or singleton |
+| `child-list` | Optional `child-choice` | Item array, including empty or singleton |
 | `child-choice` | One or more `child-alternative` parts | Sole array, or one choice item. Flatten singleton choice alternatives. |
-| `child-alternative` | First `child-sequence`, otherwise required `child-set` | Item array, with a set wrapped as one `child` |
-| `child-set` | `child-intersection` or `child-path` parts, with at least one set operator | Ordinary pattern set inside one child item |
+| `child-alternative` | First `child-sequence`, otherwise required `child-set-operation` | Item array, with a set wrapped as one `child` |
+| `child-set-operation` | `child-intersection` or `child-path` parts, with at least one set operator | Ordinary pattern set inside one child item |
 | `child-intersection` | One or more `child-path` parts | Require whole-pattern operands, then flatten intersection operands or retain the sole pattern |
 | `child-sequence` | One or more `child-item` parts | Concatenate plain groups into one item array |
 | `child-item` | Child path, optional, repeat, or gap | Converted path items, corresponding wrapper, or `siblings:true` |
 | `child-primary` | Node, bare list, or grouped child choice | Node or bare list becomes one `child`. A group contributes its item array. |
 | `child-path` | One child primary and optional path token | Without a path, retain its item array. With a path, require one whole pattern and wrap that path in `child`. |
-| `pattern-brackets` | One nonempty `child-choice` | `optional` item with an item array |
-| `pattern-repeat` | One nonempty item choice and optional nonempty separator choice | `repeat` item with arrays and optional `separator` |
+| `child-optional` | One nonempty `child-choice` | `optional` item with an item array |
+| `child-repetition` | One nonempty item choice and optional nonempty separator choice | `repeat` item with arrays and optional `separator` |
 | `pattern-path` | One primary, optionally with one path token | Primary alone, or descendant, first, or last path |
 
 The reader maps `=` U+0338 to `≠`, `∈` U+0338 to `∉`, `⊆` U+0338 to `⊈`, and `≅` U+0338 to `≇`. It does not normalize decoded strings. An include or names-resource path decodes escapes within the token's original literal runs.
 
 After converting a union's operands, the reader requires enough operators to join them. A missing operator is a document error at the union.
 
-This requirement also applies to `pattern-union` and `child-set`. Only their set operators count. A `child-set` requires at least one operator, including when it has one operand. Operand conversion errors precede missing-operator errors.
+This requirement also applies to `pattern-union` and `child-set-operation`. Only their set operators count. A `child-set-operation` requires at least one operator, including when it has one operand. Operand conversion errors precede missing-operator errors.
 
 A pattern constructor converts only the operand kinds listed in its row. A pattern where child items are required, or the reverse, causes a document error at that constructor.
 
-A named constructor from another pattern layer cannot supply a required operand. The reader ignores it and requires the operand kinds listed for the current constructor. A `child-set` accepts both `child-intersection` and `child-path` parts.
+A named constructor from another pattern layer cannot supply a required operand. The reader ignores it and requires the operand kinds listed for the current constructor. A `child-set-operation` accepts both `child-intersection` and `child-path` parts.
 
-An explicit `primary` wrapper supplies a tested node's base. Without that wrapper, the base is the first primary constructor other than `tested`. The reader ignores nested tested parts during that fallback search.
+An explicit `primary` wrapper supplies a tested node's base. Without that wrapper, the base is the first primary constructor other than `tested-primary`. The reader ignores nested tested parts during that fallback search.
 
 A supplied ranked choice without a `≻` token retains its ranked operands without a separator position. Each wildcard pattern requires its token. An attachment requires a named capture, even after stray tokens.
 
@@ -3191,7 +3179,7 @@ For `%rule r A="x"<B>`, the reversed order is an error at `<`, column 14. For `%
 
 A tree from a bootstrap of another notation can also lack a part that a construct requires (the table of parts above). The reader then reports the missing part at the construct, as soon as it looks the part up. So the order of the lookups decides between a missing part and another error of the same construct. Each construct looks up its parts, and makes its checks, in this order:
 
-- A `rule`: look up its `definer` and token first. If `rule-name` exists, read its token. Otherwise, look for a head `call` and read its name token and arguments in order. If neither head exists, report the missing `rule-name` at the rule.
+- A `rule`: look up its `rule-keyword` and token first. If `rule-name` exists, read its token. Otherwise, look for a head `call` and read its name token and arguments in order. If neither head exists, report the missing `rule-name` at the rule.
 
   A head whose arguments are all parameters declares a template. A head whose arguments are all concrete selects one instance for editing. A head that mixes parameters and concrete arguments is an error at the head call (§9.2).
 
@@ -3200,15 +3188,15 @@ A tree from a bootstrap of another notation can also lack a part that a construc
   If the rule has an `=` token, require a plain head and then read the right-hand `call`. Return that named instance binding without reading header clauses or looking up a body.
 
   Otherwise, read header tags, value, and image clauses, in that order. Next, look up `body`. If `body` is absent, require `headed-body`. Read its alternatives. Trailing conditions, diagnostic, suppression, and emission or erasure come last, in that order.
-- A `tested`: require at least one test, then look up tag and value tests in that order. Retain all tests in written order, including repeated kinds. Next look up its `primary`. Check the target and test order before reading the symbol, then read requirements and operands. A missing required part is reported when its lookup occurs.
-- A `capture`: the restrictions on its place, including the sole-terminator exception of §3.8, then its token and its `primary`. Then come the checks of `$` and of the name. Last come the one known part of the primary, the base-symbol check, and that symbol. For a tested target, inspect only its base primary. The `tested` constructor checks its tests.
+- A `tested-primary`: require at least one test, then look up tag and value tests in that order. Retain all tests in written order, including repeated kinds. Next look up its `primary`. Check the target and test order before reading the symbol, then read requirements and operands. A missing required part is reported when its lookup occurs.
+- A `capture`: the restrictions on its place, including the sole-terminator exception of §3.8, then its token and its `primary`. Then come the checks of `$` and of the name. Last come the one known part of the primary, the base-symbol check, and that symbol. For a tested target, inspect only its base primary. The `tested-primary` constructor checks its tests.
 
   If a tested target lacks its primary, report `the notation's tested has no primary` before inspecting its tests.
-- An `optional`: first select its route without requiring a child. A direct `capture` part selects the captured route. Otherwise, select the ordinary route.
+- An `optional`: first select its route without requiring a child. A direct `captured-terminator` part selects the captured route. Otherwise, select the ordinary route.
 
   On the ordinary route, require `choice` before inspecting markers. A missing `choice` takes priority over marker errors. Next inspect markers, then the elidable form, then the content through ordinary symbol-test rules.
 
-  On the captured route, require `capture` before inspecting markers. Its `+` belongs to that capture. A second marker fails at that marker. A missing marker fails the captured form at the optional. Next inspect the sole-terminator form, then read the capture and its terminal through their ordinary constructor rules. This route requires no `choice`.
+  On the captured route, require `captured-terminator` before inspecting markers. Its `+` belongs to that capture. A second marker fails at that marker. A missing marker fails the captured form at the optional. Next inspect the sole-terminator form, then read the capture and its terminal through their ordinary constructor rules. This route requires no `choice`.
 - A `repetition`: its `choice`s, then its markers, then the placement of a chain, and then the item and the separator. So a `repetition` with two markers and no `choice` is an error at the `repetition`.
 - A `group`: its `choice`, and then its content.
 
@@ -3247,12 +3235,12 @@ Parentheses after the definer fail the syntax stage at `(`, column 6 in `%rule(x
 
 #### Captures
 
-- A capture that wraps anything but one symbol is an error, `$x:(B)`, `$x:(A | B)` and `$x:[B]` included. A symbol is a reference, call, splice, parameter, terminal, or a legal tested form of one. The capture check ignores the target's test count and order. The `tested` constructor reports any test-order error.
+- A capture that wraps anything but one symbol is an error, `$x:(B)`, `$x:(A | B)` and `$x:[B]` included. A symbol is a reference, call, splice, parameter, terminal, or a legal tested form of one. The capture check ignores the target's test count and order. The `tested-primary` constructor reports any test-order error.
 
   Thus `%rule r $x:A<B><C>` fails at the second `<`, column 16. `%rule r $x:A="a"<B>` fails at `<`, column 17, because a tag test cannot follow a value test.
 - A capture binder whose name has a capital is an error. Capture binders are all lower case. Emission targets and attachments refer to captures. They do not bind names.
 - `$` cannot bind a symbol. A named lowercase capture uses `:` to bind one symbol, optionally tested.
-- A capture directly in a chain's item or separator is an error, reported at the capture. So is an item capture inside a ranked group, with the group anywhere between the braces and the capture. A capture that wraps braces is an error by the first item of this list. A capture inside flat braces is an item capture (§3.5).
+- A capture directly in a chain's item or separator is an error, reported at the capture. So is an item capture inside a ranked group, with the group anywhere between the braces and the capture. A capture that wraps braces violates the capture-target rule above. A capture inside flat braces is an item capture (§3.5).
 
   Its name stands nowhere else in the alternative's expression. A second capture of its name, inside the braces or outside them, is an error at the later one in the text. This check runs with the repeated-name check, after the whole expression. The check of a DOM refuses such a repeat as a duplicate capture.
 - A capture inside an elidable optional is an error unless it wraps that optional's sole terminator (§3.8). Report a forbidden capture at its binder. A capture deeper inside the optional remains invalid.
@@ -3266,11 +3254,11 @@ Parentheses after the definer fail the syntax stage at `(`, column 6 in `%rule(x
 - An `optional` with two or more markers is an error, reported at the second marker. The bundled syntax grammar never gives such a node, but a bootstrap of another notation can.
 - An elidable optional that is not of the form of §3.8 is an error, reported at its `[`. Before the reader drops groups, it makes sure that the notation tree meets this rule. The handwritten bootstrap reader builds the same tree, so it makes the same check. Select the captured or ordinary route before requiring a child, as the constructor steps above state.
 
-  On the ordinary route, require `choice` as one `conjunction` of one `sequence`, without a leading `|` or `&`. So `[+| KU]` and `[+& KU]` are errors. A choice in parentheses later in the optional can still begin with `|`, as in `[+KU (| A | B)]`.
+  On the ordinary route, require `choice` as one `some-of` of one `sequence`, without a leading `|` or `&`. So `[+| KU]` and `[+& KU]` are errors. A choice in parentheses later in the optional can still begin with `|`, as in `[+KU (| A | B)]`.
 
   The first `primary` of that sequence must be the terminal itself or a declared parameter.
 
-  On the captured route, require the sole `capture`, with `+` between its binder and its terminal or parameter. Do not require `choice`. Tests and a default follow the captured terminal in their usual order. A written terminal is a `reference` whose name begins with `A` to `Z`, or a `tag`. It can also be a `tested` whose primary is that tag or parameter with an existing symbol-test comparator. So a `group` there is an error, even of one terminal or around the whole content.
+  On the captured route, require the sole `captured-terminator`, with `+` between its binder and its terminal or parameter. Do not require `choice`. Tests and a default follow the captured terminal in their usual order. A written terminal is a `rule-reference` whose name begins with `A` to `Z`, or a `tag`. It can also be a `tested-primary` whose primary is that tag or parameter with an existing symbol-test comparator. So a `group` there is an error, even of one terminal or around the whole content.
 
   A tested head without a primary fails this form before the reader inspects its contents.
 
@@ -3289,7 +3277,7 @@ Parentheses after the definer fail the syntax stage at `(`, column 6 in `%rule(x
 #### Braces
 
 - A `repetition` with two or more markers is an error, reported at the second marker. A marker after its second `choice` is an error, reported at that marker, since the separator has no marker. The bundled syntax grammar never gives such a node, but a bootstrap of another notation can (`docs/api.md`). So every reader decides these cases the same way, and never by which marker it meets first.
-- A chain, a `repetition` with a marker, that is not the whole expression of its alternative is an error, reported at its `{`. The whole expression is the alternative's `conjunction` when that is one `sequence` of one `primary`, the `repetition` itself. So a chain inside a group, an optional, other braces, a capture or a test is an error. So is a chain in a sequence, a choice or `&`, although a group makes no node of the DOM. The lowering of §3.3 makes sure that the chain's alternative is the only one of its rule.
+- A chain, a `repetition` with a marker, that is not the whole expression of its alternative is an error, reported at its `{`. The whole expression is the alternative's `some-of` when that is one `sequence` of one `primary`, the `repetition` itself. So a chain inside a group, an optional, other braces, a capture or a test is an error. So is a chain in a sequence, a choice or `&`, although a group makes no node of the DOM. The lowering of §3.3 makes sure that the chain's alternative is the only one of its rule.
 
 #### Terms, methods, and comparisons
 
@@ -3712,9 +3700,9 @@ Within a term, the engine evaluates operands, method receivers, and arguments fr
 
 `A ⟹ t`, where `A` is a condition and `t` a tag set or string set, is `t` where `A` holds. Where `A` does not hold, it is the empty set of the same kind. A guarded term binds looser than `∪`, `∩` and `∖`, so it stands in parentheses inside any of them. Its condition must be well typed even when presence simplification removes it. A scalar string consequent converts to a singleton. An untyped `∅` consequent retains its context's set kind.
 
-A tree comparison has operator `≅` or `≇`, a bare capture, including `$` on the left and a term on the right. The type of the right term decides the comparison, after constants and template arguments resolve:
+A tree comparison has operator `≅` or `≇`, a bare capture, including `$`, on the left and a term on the right. The type of the right term decides the comparison, after constants and template arguments resolve:
 
-- A bare capture, including `$` have constituent type. In this position they denote the constituent itself, not its span. Then the comparison tests the two structural trees for equality (`docs/notation.md`).
+- A bare capture, including `$`, has constituent type. In this position they denote the constituent itself, not its span. Then the comparison tests the two structural trees for equality (`docs/notation.md`).
 - A pattern literal and contextual `∅` have pattern type. If all operands of a union, an intersection or a difference have pattern type, the operation has pattern type. Parentheses keep the type. Then the comparison tests the left constituent against the pattern.
 - A constant or a parameter has the type of its value. No template argument reads a capture, so no parameter has constituent type.
 - Every other term is a type error at the term. A guarded term gives a set, so it is such an error. No method gives constituent type, so a span, a restored span, a string, a string set and a tag set are such errors. The implicit string conversion of `=` does not apply before the type is chosen. So `$x ≅ $y.value` is a type error. A set operation with an operand of another type is a type error at the operation.
