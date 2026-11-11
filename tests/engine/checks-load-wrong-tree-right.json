@@ -1,5 +1,5 @@
 {
-  "description": "A check reports wrong tree right at its operand or selector.",
+  "description": "A string cannot stand on the right of a tree comparison.",
   "grammar": "%rule text \"a\"\n%check c #·text\n%conditions $ ≅ $.value\n%warning \"m\"",
   "input": "a",
   "expect": {

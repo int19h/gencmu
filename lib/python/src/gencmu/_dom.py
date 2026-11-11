@@ -1066,6 +1066,11 @@ class DomBuilder:
                 raise self.fail(name, f"tree comparison requires a pattern; write #{text}, not {text}")
             right = yield self._term(operand)
             kind, problem = self.term_type(right, memo=self.types)
+            same_left, same_right = left, right
+            while self.check_context and same_left.get("method") in _NODE_METHODS and same_left.get("method") == same_right.get("method"):
+                same_left, same_right = same_left["receiver"], same_right["receiver"]
+            if self.check_context and same_left.get("capture") == "" and same_right.get("capture") == "" and not self.feature_context:
+                raise self.fail(node, "a tree comparison cannot compare a node with itself")
             if "capture" in right and not self.check_context:
                 problem = "a tree comparison cannot compare a capture with itself" if left == right else None
             elif problem is None:

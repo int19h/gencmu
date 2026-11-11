@@ -769,9 +769,11 @@ The use determines the conversion, before ordinary validation:
 | Signed requirement | Tag, tag-set constant, or unnegated spliced requirement list |
 | Value test or range endpoint | String literal or string constant |
 | Value or image recipe | String literal, string constant, or closed concatenation |
-| Pattern operand | Name, call, tag, string, constant, terminal atom, or whole pattern predicate |
-| Pattern node with `·`, tests, or children | One node test that accepts those decorations |
+| Pattern operand | Name, call, tag, string, constant, terminal atom, whole pattern predicate, or contextual `∅` |
+| Pattern node with `·`, tests, or children | One node test that accepts those decorations. `∅` is not a node test |
 | General term | Term whose type after constant binding is the required string, string-set, tag-set, or pattern type |
+
+A decorated use of `∅` reports `an empty pattern cannot carry node decorations` at that use.
 
 A name becomes `ref` in a body, `name` in a pattern, or `rule` in a rule argument. A tag becomes a body `ref`, pattern `terminal`, or singleton tag term. A string becomes a body or pattern `literal`, or retains its term form. A user constant becomes a pattern `constant` or the ordinary constructor for its other use. Other conversions keep their ordinary tests and type restrictions. No conversion changes runtime scope.
 
@@ -2866,13 +2868,13 @@ Readers use common diagnostic text for unclosed grammar fences, capture restrict
 
 Binding a constant does not change method-signature text. A fault inside a receiver or argument retains that operand's own diagnostic.
 
-A malformed check name reports at the name. A check whose name is a rule reports the collision at the check declaration. A forbidden capture reference in a check reports `a check cannot name a capture` at that reference. This rule covers conditions and messages. For a caller-supplied DOM without that source position, use the declaration's `at`.
+A malformed check name reports at the name. A check whose name is a rule reports `a rule and a check cannot share the name NAME` at the check declaration. A forbidden capture reference in a check reports `a check cannot name a capture` at that reference. This rule covers conditions and messages. For a caller-supplied DOM without that source position, use the declaration's `at`.
 
 Section 2.4 defines the clauses where check methods are legal. A forbidden check method reports `a check method is outside its permitted clause` at the selector's leading dot. This restriction precedes tree-comparison, concatenation, and recipe signature checks at that selector. A receiver's own fault precedes inspection of its selectors. A selector's clause or restoration fault precedes a fault inside its arguments.
 
 A restoration selector in a check reports `a check cannot restore elision` at its leading dot. A capture binder in a check query argument reports `a check cannot declare a capture` at the binder.
 
-A check tree comparison requires a node on its left. A wrong left operand reports `a tree comparison requires a node on its left` at that operand. A wrong right operand reports `a tree comparison requires a node or pattern` at that operand.
+A check tree comparison requires a node on its left. A left operand that is not a node reports `a tree comparison requires a node on its left` at that operand. A wrong right operand reports `a tree comparison requires a node or pattern` at that operand. A fault of the left operand precedes a fault of the right operand. A self comparison in a check reports `a tree comparison cannot compare a node with itself` at the comparison.
 
 The following table is the complete constructor contract, including the template forms of §2.3. A constructor is a recognized syntax-tree part. Its row specifies required parts, lookup order, and DOM conversion. Names outside this table are wrappers, never constructors. Each wrapper contributes its children recursively in written order.
 

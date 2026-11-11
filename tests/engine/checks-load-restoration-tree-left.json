@@ -1,5 +1,5 @@
 {
-  "description": "A check reports restoration tree left at its operand or selector.",
+  "description": "A restoration selector is forbidden in a check condition.",
   "grammar": "%rule text \"a\"\n%check c #·text\n%conditions $.without-elision ≅ $\n%warning \"m\"",
   "input": "a",
   "expect": {

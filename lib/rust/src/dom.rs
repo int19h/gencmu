@@ -2274,7 +2274,7 @@ pub(crate) fn cond_type_context(cond: &Cond, constants: ConstantTypes, check: bo
                 Ok(ty) => ty,
                 Err(fault) => return Some(fault),
             };
-            if matches!(op.as_str(), "≅" | "≇") && check && !matches!(left_type, Type::Node | Type::Any) {
+            if matches!(op.as_str(), "≅" | "≇") && check && left_type != Type::Node {
                 return Some(Fault::in_term("a tree comparison requires a node on its left".into(), left));
             }
             let right_type = match term_type_context(right, constants, check) {

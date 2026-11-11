@@ -24323,5 +24323,820 @@
       ]
     },
     "malformed": true
+  },
+  {
+    "description": "A check comparison requires a node on the left in a supplied DOM.",
+    "dom": {
+      "format": 50,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "ref": "x"
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            3,
+            1
+          ]
+        },
+        {
+          "name": "x",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "literal": {
+                  "string": "a"
+                }
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            4,
+            1
+          ]
+        }
+      ],
+      "directives": [
+        {
+          "name": "ambiguity-resolution",
+          "steps": [
+            {
+              "step": "greedy"
+            }
+          ],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "constants": [],
+      "classifiers": [],
+      "implications": [],
+      "checks": [
+        {
+          "name": "c",
+          "pattern": {
+            "name": "x",
+            "exact": true,
+            "at": [
+              5,
+              12
+            ]
+          },
+          "conditions": [
+            {
+              "op": "≅",
+              "left": {
+                "method": "value",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": []
+              },
+              "right": {
+                "method": "following-node",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": []
+              }
+            }
+          ],
+          "warning": {
+            "concat": [
+              {
+                "string": "bad"
+              },
+              {
+                "method": "value",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": []
+              }
+            ]
+          },
+          "at": [
+            5,
+            1
+          ]
+        }
+      ]
+    },
+    "malformed": true,
+    "message": "a tree comparison requires a node on its left"
+  },
+  {
+    "description": "A check comparison requires a node or pattern on the right in a supplied DOM.",
+    "dom": {
+      "format": 50,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "ref": "x"
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            3,
+            1
+          ]
+        },
+        {
+          "name": "x",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "literal": {
+                  "string": "a"
+                }
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            4,
+            1
+          ]
+        }
+      ],
+      "directives": [
+        {
+          "name": "ambiguity-resolution",
+          "steps": [
+            {
+              "step": "greedy"
+            }
+          ],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "constants": [],
+      "classifiers": [],
+      "implications": [],
+      "checks": [
+        {
+          "name": "c",
+          "pattern": {
+            "name": "x",
+            "exact": true,
+            "at": [
+              5,
+              12
+            ]
+          },
+          "conditions": [
+            {
+              "op": "≅",
+              "left": {
+                "method": "parent",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": []
+              },
+              "right": {
+                "method": "value",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": []
+              }
+            }
+          ],
+          "warning": {
+            "concat": [
+              {
+                "string": "bad"
+              },
+              {
+                "method": "value",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": []
+              }
+            ]
+          },
+          "at": [
+            5,
+            1
+          ]
+        }
+      ]
+    },
+    "malformed": true,
+    "message": "a tree comparison requires a node or pattern"
+  },
+  {
+    "description": "A supplied check comparison cannot use a terminal selector on its left.",
+    "dom": {
+      "format": 50,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "ref": "x"
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            3,
+            1
+          ]
+        },
+        {
+          "name": "x",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "literal": {
+                  "string": "a"
+                }
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            4,
+            1
+          ]
+        }
+      ],
+      "directives": [
+        {
+          "name": "ambiguity-resolution",
+          "steps": [
+            {
+              "step": "greedy"
+            }
+          ],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "constants": [],
+      "classifiers": [],
+      "implications": [],
+      "checks": [
+        {
+          "name": "c",
+          "pattern": {
+            "name": "x",
+            "exact": true,
+            "at": [
+              5,
+              12
+            ]
+          },
+          "conditions": [
+            {
+              "op": "≅",
+              "left": {
+                "method": "terminal",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": []
+              },
+              "right": {
+                "method": "following-node",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": []
+              }
+            }
+          ],
+          "warning": {
+            "concat": [
+              {
+                "string": "bad"
+              },
+              {
+                "method": "value",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": []
+              }
+            ]
+          },
+          "at": [
+            5,
+            1
+          ]
+        }
+      ]
+    },
+    "malformed": true,
+    "message": "a check method is outside its permitted clause"
+  },
+  {
+    "description": "A supplied check comparison cannot use a terminal selector on its right.",
+    "dom": {
+      "format": 50,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "ref": "x"
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            3,
+            1
+          ]
+        },
+        {
+          "name": "x",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "literal": {
+                  "string": "a"
+                }
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            4,
+            1
+          ]
+        }
+      ],
+      "directives": [
+        {
+          "name": "ambiguity-resolution",
+          "steps": [
+            {
+              "step": "greedy"
+            }
+          ],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "constants": [],
+      "classifiers": [],
+      "implications": [],
+      "checks": [
+        {
+          "name": "c",
+          "pattern": {
+            "name": "x",
+            "exact": true,
+            "at": [
+              5,
+              12
+            ]
+          },
+          "conditions": [
+            {
+              "op": "≅",
+              "left": {
+                "method": "parent",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": []
+              },
+              "right": {
+                "method": "terminal",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": []
+              }
+            }
+          ],
+          "warning": {
+            "concat": [
+              {
+                "string": "bad"
+              },
+              {
+                "method": "value",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": []
+              }
+            ]
+          },
+          "at": [
+            5,
+            1
+          ]
+        }
+      ]
+    },
+    "malformed": true,
+    "message": "a check method is outside its permitted clause"
+  },
+  {
+    "description": "A supplied check comparison cannot restore elision on its left.",
+    "dom": {
+      "format": 50,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "ref": "x"
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            3,
+            1
+          ]
+        },
+        {
+          "name": "x",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "literal": {
+                  "string": "a"
+                }
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            4,
+            1
+          ]
+        }
+      ],
+      "directives": [
+        {
+          "name": "ambiguity-resolution",
+          "steps": [
+            {
+              "step": "greedy"
+            }
+          ],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "constants": [],
+      "classifiers": [],
+      "implications": [],
+      "checks": [
+        {
+          "name": "c",
+          "pattern": {
+            "name": "x",
+            "exact": true,
+            "at": [
+              5,
+              12
+            ]
+          },
+          "conditions": [
+            {
+              "op": "≅",
+              "left": {
+                "method": "without-elision",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": []
+              },
+              "right": {
+                "method": "following-node",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": []
+              }
+            }
+          ],
+          "warning": {
+            "concat": [
+              {
+                "string": "bad"
+              },
+              {
+                "method": "value",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": []
+              }
+            ]
+          },
+          "at": [
+            5,
+            1
+          ]
+        }
+      ]
+    },
+    "malformed": true,
+    "message": "a check cannot restore elision"
+  },
+  {
+    "description": "A supplied check comparison cannot restore elision on its right.",
+    "dom": {
+      "format": 50,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "ref": "x"
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            3,
+            1
+          ]
+        },
+        {
+          "name": "x",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "literal": {
+                  "string": "a"
+                }
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            4,
+            1
+          ]
+        }
+      ],
+      "directives": [
+        {
+          "name": "ambiguity-resolution",
+          "steps": [
+            {
+              "step": "greedy"
+            }
+          ],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "constants": [],
+      "classifiers": [],
+      "implications": [],
+      "checks": [
+        {
+          "name": "c",
+          "pattern": {
+            "name": "x",
+            "exact": true,
+            "at": [
+              5,
+              12
+            ]
+          },
+          "conditions": [
+            {
+              "op": "≅",
+              "left": {
+                "method": "parent",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": []
+              },
+              "right": {
+                "method": "without-elision",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": []
+              }
+            }
+          ],
+          "warning": {
+            "concat": [
+              {
+                "string": "bad"
+              },
+              {
+                "method": "value",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": []
+              }
+            ]
+          },
+          "at": [
+            5,
+            1
+          ]
+        }
+      ]
+    },
+    "malformed": true,
+    "message": "a check cannot restore elision"
+  },
+  {
+    "description": "A child pattern in a supplied DOM cannot contain a resolved empty leaf.",
+    "dom": {
+      "format": 50,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "ref": "x"
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            3,
+            1
+          ]
+        },
+        {
+          "name": "x",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "literal": {
+                  "string": "a"
+                }
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            4,
+            1
+          ]
+        }
+      ],
+      "directives": [
+        {
+          "name": "ambiguity-resolution",
+          "steps": [
+            {
+              "step": "greedy"
+            }
+          ],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "constants": [],
+      "classifiers": [],
+      "implications": [],
+      "checks": [
+        {
+          "name": "c",
+          "pattern": {
+            "name": "x",
+            "exact": true,
+            "at": [
+              5,
+              10
+            ],
+            "children": [
+              {
+                "child": {
+                  "never": true
+                }
+              }
+            ]
+          },
+          "conditions": [
+            {
+              "all": [
+                {
+                  "op": "≅",
+                  "left": {
+                    "method": "parent",
+                    "receiver": {
+                      "capture": ""
+                    },
+                    "args": []
+                  },
+                  "right": {
+                    "method": "following-node",
+                    "receiver": {
+                      "capture": ""
+                    },
+                    "args": []
+                  }
+                },
+                {
+                  "op": "=",
+                  "left": {
+                    "method": "value",
+                    "receiver": {
+                      "capture": ""
+                    },
+                    "args": []
+                  },
+                  "right": {
+                    "string": "a"
+                  }
+                }
+              ]
+            }
+          ],
+          "warning": {
+            "concat": [
+              {
+                "string": "bad"
+              },
+              {
+                "method": "value",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": []
+              }
+            ]
+          },
+          "at": [
+            5,
+            1
+          ]
+        }
+      ]
+    },
+    "malformed": true,
+    "message": "a malformed empty pattern"
   }
 ]

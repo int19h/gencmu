@@ -701,9 +701,10 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: l
             if "op" in node:
                 if keys != {"op", "left", "right"} or node["op"] not in ("=", "≠", "∈", "∉", "⊆", "⊈", "≅", "≇"):
                     return "a malformed comparison"
-                if node["op"] in ("≅", "≇") and not (isinstance(node["left"], dict) and (set(node["left"]) == {"capture"} or id(node) in check_nodes and node["left"].get("method") in _NODE_METHODS)):
+                if node["op"] in ("≅", "≇") and id(node) not in check_nodes and not (isinstance(node["left"], dict) and set(node["left"]) == {"capture"}):
                     return "a tree comparison requires a bare capture"
-                pending.extend(("term", node[k], below, False, False) for k in ("left", "right"))
+                sides = ("right", "left") if id(node) in check_nodes and node["op"] in ("≅", "≇") else ("left", "right")
+                pending.extend(("term", node[k], below, False, False) for k in sides)
             elif "any" in node or "all" in node:
                 key = "any" if "any" in node else "all"
                 if keys != {key} or not _items(node[key], 2):

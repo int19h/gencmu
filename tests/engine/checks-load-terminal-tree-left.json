@@ -1,5 +1,5 @@
 {
-  "description": "A check reports terminal tree left at its operand or selector.",
+  "description": "A terminal selector is forbidden in a check condition.",
   "grammar": "%rule text \"a\"\n%check c #·text\n%conditions $.terminal ≅ $\n%warning \"m\"",
   "input": "a",
   "expect": {

@@ -891,7 +891,7 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 			if !b.checkContext {
 				b.fail(n, "a tree comparison requires a bare capture")
 			}
-			if ty, fault := termTypeMemo(f.compare.Left, nil, b.types); fault == nil && ty != tyNode && ty != tyAny {
+			if ty, fault := termTypeMemo(f.compare.Left, nil, b.types); fault == nil && ty != tyNode {
 				b.fail(n, "a tree comparison requires a node on its left")
 			}
 			right := f.right
@@ -900,8 +900,7 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 			return ask(&termFrame{n: right})
 		}
 		f.compare.Right = in.(*domTerm)
-		reflexive := b.checkContext && checkNodeTerm(f.compare.Left) && checkNodeTerm(f.compare.Right) && sameCheckNode(f.compare.Left, f.compare.Right)
-		if fault := condTypeMemo(f.compare, nil, b.types); fault != nil && !b.featureContext && !reflexive {
+		if fault := condTypeMemo(f.compare, nil, b.types); fault != nil && !b.featureContext {
 			where := n
 			if fault.node == f.compare.Right {
 				where = b.only(n, "union")

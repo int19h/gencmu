@@ -454,6 +454,8 @@ def expand_templates(documents, unicode):
             converted = convert(env[root['param']], position, event, root)
             if position != 'pattern' or not (root.get('exact') or 'children' in root):
                 return converted
+            if converted.get('never'):
+                fail(event, root, 'an empty pattern cannot carry node decorations')
             if any(key in converted for key in ('union', 'intersection', 'difference', 'path')):
                 fail(event, root, 'a compound pattern cannot carry node decorations')
             result = dict(converted)
@@ -510,6 +512,8 @@ def expand_templates(documents, unicode):
                         fail(event, head, 'an elidable parameter head requires one bare user tag')
             next_position = child_position(key, position)
             result[key] = yield substitute_walk(value, env, event, next_position)
+        if position == 'pattern' and 'test' in result and result['expr'].get('never'):
+            fail(event, root['expr'], 'an empty pattern cannot carry node decorations')
         if position == 'pattern' and 'test' in result and result['expr'].get('exact'):
             if result.get('exact'):
                 use = root['expr']

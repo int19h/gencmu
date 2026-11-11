@@ -6766,8 +6766,9 @@
         else if ("method" in value) { if (!QUERY_METHODS.has(value.method)) return "a malformed query"; push("term", value, depth, { query: true,check:task.check }); }
         else if ("nonempty" in value) push("term", value.nonempty, depth + 1, {check:task.check});
         else if (value.op) {
-          if (!DOM_COMPARATORS.has(value.op) || ["≅", "≇"].includes(value.op) && !(typeof value.left?.capture === "string" && Object.keys(value.left).length === 1 || task.check && NODE_METHODS.has(value.left?.method))) return "a malformed comparison";
-          child("term", value.left); child("term", value.right);
+          if (!DOM_COMPARATORS.has(value.op) || ["≅", "≇"].includes(value.op) && !task.check && !(typeof value.left?.capture === "string" && Object.keys(value.left).length === 1)) return "a malformed comparison";
+          if(task.check && ["≅","≇"].includes(value.op)) { child("term", value.right); child("term", value.left); }
+          else { child("term", value.left); child("term", value.right); }
         } else if ("captured" in value) { if (typeof value.captured !== "string" || value.captured !== "" && !CAPTURE_NAME.test(value.captured)) return "a malformed presence"; }
         else if (value.not) child("condition", value.not);
         else if (value.if) { child("condition", value.if); child("condition", value.then); }
@@ -8845,7 +8846,7 @@
     if (typeof condition.op === "string") {
       const left = /** @type {{type: TermType} | TypeFault} */ (yield typing(condition.left, constants));
       if ("problem" in left) return left;
-      if (['≅','≇'].includes(condition.op) && checkTypeContexts.has(constants) && !['node','any'].includes(left.type))return {problem:'a tree comparison requires a node on its left',node:condition.left};
+      if (['≅','≇'].includes(condition.op) && checkTypeContexts.has(constants) && left.type!=='node')return {problem:'a tree comparison requires a node on its left',node:condition.left};
       const right = /** @type {{type: TermType} | TypeFault} */ (yield typing(condition.right, constants));
       if ("problem" in right) return right;
       if (["≅","≇"].includes(condition.op) && left.type === "node" && JSON.stringify(condition.left)===JSON.stringify(condition.right)) return {problem:"a tree comparison cannot compare a node with itself",node:condition};
@@ -10090,6 +10091,7 @@
       if(root.param) {
         const converted=convert(env.get(root.param),position,event,root);
         if(position!=='pattern' || !root.exact && !('children' in root)) return converted;
+        if(converted.never)fail(event,root,'an empty pattern cannot carry node decorations');
         if(['union','intersection','difference','path'].some(key=>key in converted)) fail(event,root,'a compound pattern cannot carry node decorations');
         const result={...converted};
         if(root.exact) {
@@ -10153,6 +10155,7 @@
           copyRecipeLocation(value,result[key]);
         }
       }
+      if(position==='pattern' && result.test && result.expr?.never)fail(event,root.expr,'an empty pattern cannot carry node decorations');
       if(position==='pattern' && result.test && result.expr?.exact) {
         if(result.exact) {let use=root.expr;while(use.expr) use=use.expr;fail(event,use,'an exact prefix conflicts with an argument prefix');}
         result.exact=true;
@@ -23524,7 +23527,7 @@
           if(checkContext && left.capture)fail("a check cannot name a capture",only(inner,"capture-reference"));
           if(!checkContext && (receiver || tokens[inner.span[0]]?.value === "("))fail("a tree comparison requires a bare capture",receiver ?? inner);
           const leftType=readType(left);
-          if(checkContext && !('problem' in leftType) && !['node','any'].includes(leftType.type))fail('a tree comparison requires a node on its left',receiver ?? inner);
+          if(checkContext && !('problem' in leftType) && leftType.type!=='node')fail('a tree comparison requires a node on its left',receiver ?? inner);
           const op = /** @type {Comparator} */ (operator(token(only(inner,"tree-comparator"))));
           const rightNode = only(inner,"union");
           const leaf = firstOfRule(rightNode,"name") ?? firstOfRule(rightNode,"tag");
@@ -23535,6 +23538,9 @@
           }
           const right = /** @type {Term} */ (yield readTerm(rightNode));
           const found = readType(right);
+          let sameLeft=/** @type {any} */ (left),sameRight=/** @type {any} */ (right);
+          while(checkContext && NODE_METHODS.has(sameLeft.method) && sameLeft.method===sameRight.method) { sameLeft=sameLeft.receiver; sameRight=sameRight.receiver; }
+          if(checkContext && sameLeft.capture==='' && sameRight.capture==='' && !featureContext)fail('a tree comparison cannot compare a node with itself',inner);
           const problem=checkContext ? comparisonProblem(op,/** @type {any} */(readType(left)).type,/** @type {any} */(found).type)
             : typeof /** @type {any} */ (right).capture === "string" ? left.capture === /** @type {any} */ (right).capture ? "a tree comparison cannot compare a capture with itself" : null : "problem" in found ? found.problem : expectedProblem(found.type,"pattern");
           if(problem && !featureContext)fail(problem,!checkContext && typeof /** @type {any} */(right).capture === "string" ? inner : rightNode);

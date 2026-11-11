@@ -2240,6 +2240,23 @@ impl<'a> Reader<'a> {
         })))
     }
 
+    fn tree_operand(&self, right: &'a Node) -> R<()> {
+        if let Some(name) = first_of_rule(right, "name").or_else(|| first_of_rule(right, "tag")) {
+            if right
+                .span
+                .end
+                .checked_sub(right.span.start)
+                .ok_or_else(|| self.shape_error(right, "valid token span"))?
+                == 1
+            {
+                let at = name;
+                let name = self.value(self.token(name)?);
+                return Err(self.error(at, format!("tree comparison requires a pattern; write #{name}, not {name}")));
+            }
+        }
+        Ok(())
+    }
+
     fn resume_condition(&self, frame: &mut ConditionFrame<'a>, input: Option<Val>) -> R<Step<'a>> {
         let Some(inner) = frame.inner else {
             let inner = self.inner(frame.node, CONDITIONS)?;
@@ -2266,20 +2283,6 @@ impl<'a> Reader<'a> {
                     };
                     frame.op = self.operator(self.token(self.one(inner, "tree-comparator")?)?).to_owned();
                     let right = self.one(inner, "union")?;
-                    if let Some(name) = first_of_rule(right, "name").or_else(|| first_of_rule(right, "tag")) {
-                        if right
-                            .span
-                            .end
-                            .checked_sub(right.span.start)
-                            .ok_or_else(|| self.shape_error(right, "valid token span"))?
-                            == 1
-                        {
-                            let at = name;
-                            let name = self.value(self.token(name)?);
-                            return Err(self
-                                .error(at, format!("tree comparison requires a pattern; write #{name}, not {name}")));
-                        }
-                    }
                     if self.check_context.get() && !capture.is_empty() {
                         return Err(self.error(self.one(inner, "capture-reference")?, "a check cannot name a capture"));
                     }
@@ -2290,6 +2293,7 @@ impl<'a> Reader<'a> {
                             false,
                         )))
                     } else {
+                        self.tree_operand(right)?;
                         frame.left = Some((
                             Term::Capture(capture),
                             if self.check_context.get() { Type::Node } else { Type::Span },
@@ -2351,11 +2355,11 @@ impl<'a> Reader<'a> {
                     {
                         return Err(self.error(inner, "a tree comparison requires a bare capture"));
                     }
-                    if rule_name(inner) == "tree-comparison"
-                        && self.check_context.get()
-                        && !matches!(ty, Type::Node | Type::Any)
-                    {
+                    if rule_name(inner) == "tree-comparison" && self.check_context.get() && ty != Type::Node {
                         return Err(self.error(inner, "a tree comparison requires a node on its left"));
+                    }
+                    if rule_name(inner) == "tree-comparison" {
+                        self.tree_operand(right)?;
                     }
                     frame.left = Some((term, ty));
                     return Ok(Step::Call(Frame::Union(Joined::new(right, false))));
@@ -2364,8 +2368,15 @@ impl<'a> Reader<'a> {
                 // The two sides fit the comparator (engine §10).
                 if !self.feature_context.get() {
                     let tree = matches!(frame.op.as_str(), "≅" | "≇");
-                    if tree && left == term && !self.check_context.get() {
-                        return Err(self.error(inner, "a constituent comparison requires two different captures"));
+                    if tree && left == term {
+                        return Err(self.error(
+                            inner,
+                            if self.check_context.get() {
+                                "a tree comparison cannot compare a node with itself"
+                            } else {
+                                "a constituent comparison requires two different captures"
+                            },
+                        ));
                     }
                     if tree && ty == Type::Span && !matches!(term, Term::Capture(_)) {
                         return Err(self.error(

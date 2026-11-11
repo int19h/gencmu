@@ -897,6 +897,9 @@ func (x *templateExpander) substitute(root any, env map[string]templateObject, e
 			if position != "pattern" || n["exact"] == nil && n["children"] == nil {
 				return converted
 			}
+			if converted["never"] == true {
+				x.fail(e, n, "an empty pattern cannot carry node decorations")
+			}
 			for _, key := range []string{"union", "intersection", "difference", "path"} {
 				if converted[key] != nil {
 					x.fail(e, n, "a compound pattern cannot carry node decorations")
@@ -990,6 +993,9 @@ func (x *templateExpander) substitute(root any, env map[string]templateObject, e
 				}
 			}
 			r[k] = x.substitute(v, env, e, templateChildPosition(k, position))
+		}
+		if position == "pattern" && r["test"] != nil && templateObj(r["expr"])["never"] == true {
+			x.fail(e, templateObj(n["expr"]), "an empty pattern cannot carry node decorations")
 		}
 		if position == "pattern" && r["test"] != nil && templateObj(r["expr"])["exact"] != nil {
 			if r["exact"] != nil {

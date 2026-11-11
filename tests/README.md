@@ -129,7 +129,9 @@ A pattern describes required result fields. `expect.result` is a pattern matched
 - An array matches when it has the same length and each element matches.
 - Anything else matches when it is equal.
 
-`expect.error` accepts `grammar`, `usage`, `rejected`, `reported`, `ambiguous`, or `feature-conflict`. `expect.message` requires `expect.error: "grammar"`. It pins an agreed error reason, without a resource path, location prefix, or stage suffix. It applies to loading and runtime grammar errors. The runtime comparison removes exactly the prefix built from the error's structured document, line, and column. It preserves the public result.
+`expect.error` accepts `grammar`, `usage`, `rejected`, `reported`, `ambiguous`, or `feature-conflict`. `expect.message` requires `expect.error: "grammar"`. It pins an agreed error reason, without the leading resource path, location prefix, or stage suffix. It applies to loading and runtime grammar errors. The runtime comparison removes exactly the prefix built from the error's structured document, line, and column. It preserves the public result.
+
+Paths in instance call-site context are relative to the case's document root.
 
 The runner constructs that exact prefix from the originating error's document, line, and column. It preserves colons inside document names.
 

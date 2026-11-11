@@ -501,7 +501,7 @@ def _condition_typing_once(condition: Any, constants: ConstantTypes, memo: Memo)
         left, fault = yield _term_typing(condition["left"], constants, memo)
         if fault is not None:
             return fault
-        if condition["op"] in ("≅", "≇") and getattr(constants, "check_nodes", False) and left not in ("node", "any"):
+        if condition["op"] in ("≅", "≇") and getattr(constants, "check_nodes", False) and left != "node":
             return "a tree comparison requires a node on its left", condition["left"]
         right, fault = yield _term_typing(condition["right"], constants, memo)
         if fault is not None:

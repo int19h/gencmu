@@ -991,6 +991,9 @@ impl Expander<'_> {
             if position != "pattern" || !has(root, "exact") && !has(root, "children") {
                 return Ok(converted);
             }
+            if has(&converted, "never") {
+                return Err(event.fail(root, "an empty pattern cannot carry node decorations".into()));
+            }
             if ["union", "intersection", "difference", "path"].iter().any(|k| has(&converted, k)) {
                 return Err(event.fail(root, "a compound pattern cannot carry node decorations".into()));
             }
@@ -1087,6 +1090,9 @@ impl Expander<'_> {
                 }
             }
             set(&mut result, k, substituted);
+        }
+        if position == "pattern" && has(&result, "test") && has(get(&result, "expr"), "never") {
+            return Err(event.fail(get(root, "expr"), "an empty pattern cannot carry node decorations".into()));
         }
         if position == "pattern" && has(&result, "test") && has(get(&result, "expr"), "exact") {
             if has(&result, "exact") {

@@ -1101,16 +1101,18 @@ fn parts_problem(
                         return Some("a malformed comparator".into());
                     }
                     if matches!(value.get("op").and_then(Json::as_str), Some("≅" | "≇"))
-                        && !(if check {
-                            node(value.get("left").unwrap(), check)
-                        } else {
-                            bare_capture(value.get("left").unwrap())
-                        })
+                        && !check
+                        && !bare_capture(value.get("left").unwrap())
                     {
                         return Some("a tree comparison requires a bare capture".into());
                     }
-                    pending.push((Part::Term, value.get("left").unwrap(), next));
-                    pending.push((Part::Term, value.get("right").unwrap(), next));
+                    if check && matches!(value.get("op").and_then(Json::as_str), Some("≅" | "≇")) {
+                        pending.push((Part::Term, value.get("right").unwrap(), next));
+                        pending.push((Part::Term, value.get("left").unwrap(), next));
+                    } else {
+                        pending.push((Part::Term, value.get("left").unwrap(), next));
+                        pending.push((Part::Term, value.get("right").unwrap(), next));
+                    }
                 } else if exact(value, &["method", "receiver", "args"], &[]) {
                     if matches!(
                         value.get("method").and_then(Json::as_str),

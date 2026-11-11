@@ -742,7 +742,9 @@ A tree comparison uses the `op`, `left` and `right` members:
 {"op":"≅","left":{"capture":"v"},"right":{"capture":"e"}}
 ```
 
-These operators require a bare capture or `$` on the left. The right member is any term, and the loader checks its type after constants and template arguments resolve (engine §10). A right term of constituent type is a `capture` term, with an empty name for `$`. A right term of another type than pattern or constituent is a type error. Pattern equality and implicit string conversion are malformed. Text, cached DOMs and supplied DOMs use the same grouping, field, arity and type restrictions. Resolution covers patterns in replaced definitions too.
+The left member is a bare capture or `$`, or a node walk in a check condition. The right member is any term, and the loader checks its type after constants and template arguments resolve (engine §10). A right term of constituent type is a `capture` term, or a node walk in a check condition. An empty capture name denotes `$`.
+
+A right term of another type than pattern or constituent is a type error. Pattern equality and implicit string conversion are malformed. Text, cached DOMs and supplied DOMs use the same grouping, field, arity and type restrictions. Resolution covers patterns in replaced definitions too.
 
 Structural states and omission predicates remain internal derived state. Omitted pattern tags are the terminator tag and the mark `_Elided`, which no output field shows. Internal omission records retain `value` only for a default value, from `≝` or from equality, including an explicit empty string.
 

@@ -508,7 +508,7 @@ func literalRangeProblem(ends [2]*domTerm) string {
 func (c *domChecker) fail(format string, args ...any) {
 	if c.problem == nil {
 		message := fmt.Sprintf(format, args...)
-		if !c.check || message != "a check cannot name a capture" {
+		if !c.check {
 			message = c.label + ": " + message
 		}
 		c.problem = &domProblem{message: message, rule: c.rule, constant: c.constant, implication: c.implication}
@@ -1546,7 +1546,11 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 			c.fail("a check method is outside a check")
 			return
 		}
-		if c.check && (t.Str == "without-elision" || t.Str == "without-elision-except" || t.Str == "emitted" || t.Str == "terminal") {
+		if c.check && (t.Str == "without-elision" || t.Str == "without-elision-except") {
+			c.fail("a check cannot restore elision")
+			return
+		}
+		if c.check && (t.Str == "emitted" || t.Str == "terminal") {
 			c.fail("a check method is outside its permitted clause")
 			return
 		}
@@ -1673,6 +1677,13 @@ func (c *domChecker) condition(d *domCond, depth int) {
 			c.fail("a comparison without two terms")
 			return
 		}
+		tree := d.Op == "≅" || d.Op == "≇"
+		if c.check && tree {
+			c.term(d.Left, depth+1, true)
+			if c.problem != nil {
+				return
+			}
+		}
 		if (d.Op == "≅" || d.Op == "≇") && !(d.Left.Kind == tmCapture || c.check && checkNodeTerm(d.Left)) {
 			if c.check {
 				c.fail("a tree comparison requires a node on its left")
@@ -1681,7 +1692,9 @@ func (c *domChecker) condition(d *domCond, depth int) {
 			}
 			return
 		}
-		c.term(d.Left, depth+1, d.Op == "≅" || d.Op == "≇")
+		if !c.check || !tree {
+			c.term(d.Left, depth+1, tree)
+		}
 		c.term(d.Right, depth+1, false)
 	case cdWhole, cdPrefix, cdSuffix:
 		if d.Kind == cdSuffix && restoredTerm(d.Span) {
@@ -2368,7 +2381,7 @@ func condTypeOnce(c *domCond, ct constTypes, memo *typeMemo) *typeFault {
 			return f
 		}
 		if c.Op == "≅" || c.Op == "≇" {
-			if memo != nil && memo.check && left != tyNode && left != tyAny {
+			if memo != nil && memo.check && left != tyNode {
 				return &typeFault{"a tree comparison requires a node on its left", c.Left}
 			}
 			if right == tySpan && c.Right.Kind != tmCapture {

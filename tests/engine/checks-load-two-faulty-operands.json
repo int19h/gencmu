@@ -1,0 +1,14 @@
+{
+  "description": "A string on the left fails before a forbidden selector on the right.",
+  "grammar": "%rule text \"a\"\n%check c #·text\n%conditions $.value ≅ $.terminal\n%warning \"m\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 13
+    },
+    "message": "a tree comparison requires a node on its left"
+  }
+}
