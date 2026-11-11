@@ -437,7 +437,7 @@ A term can be a string, a set, a pattern, a capture, a span, or a method result.
 
 `++` binds tighter than `∩`, which binds tighter than `∪` and `∖`. These operators group from the left. Adjacent tags or strings form one union. In terms and constants, string runs bind tighter than concatenation.
 
-A guarded term writes a condition before `⟹`. It supplies its value only where that condition holds. A feature-gate binds less tightly than set operators.
+A guarded term writes a condition before `⟹`. It supplies its value only where that condition holds. A guarded term binds less tightly than set operators.
 
 The reader groups repeated guards to the right. Flat lists retain their written order without completing a separate recursive level for each guard.
 
