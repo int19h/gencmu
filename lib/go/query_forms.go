@@ -147,7 +147,7 @@ func (g *stageGrammar) prepareBodyQueries() *Error {
 					}
 				} else {
 					target = fmt.Sprintf("\x00parse:%d", len(g.queryRules))
-					source := &sAlt{alt: &domAlt{Expr: core}, ruleTags: &domTerm{Kind: tmEmptySet}, doc: alternative.doc, at: alternative.at, written: alternative.written, textOrder: alternative.textOrder}
+					source := &sAlt{alt: &domAlt{Expr: core}, doc: alternative.doc, at: alternative.at, written: alternative.written, textOrder: alternative.textOrder}
 					query := &sRule{name: target, alts: []*sAlt{source}, doc: alternative.doc, at: alternative.at, query: true}
 					checked := &checkedClauses{terms: map[*domTerm]bool{}, conds: map[condListKey]bool{}, emits: map[*domEmit]bool{}}
 					if fault = g.checkAlt(source, checked); fault != nil {

@@ -1,0 +1,44 @@
+{
+  "description": "Local readings and the explicit query keep tested terminal tags through recognition.",
+  "grammar": "%rule text [$x:A=\"a\"] m :: ∅\n%rule r A :: T\n%rule m M\n%check same #·m\n%conditions $.preceding-element.local-readings, $.preceding-element.onward.parse([A=\"a\"] …),\n  $.preceding-element.local-readings.tags = $.preceding-element.onward.parse([A=\"a\"] …).tags,\n  $.preceding-element.local-readings.tags = A\n%warning \"same\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "m",
+      "tags": [
+        "M"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "same"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "same",
+        "rule": "same",
+        "span": [
+          1,
+          2
+        ],
+        "source": [
+          2,
+          3
+        ],
+        "message": "same"
+      }
+    ]
+  }
+}

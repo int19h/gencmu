@@ -1288,7 +1288,7 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                         target = "\0query:" + ref if is_terminal_name(ref) else ref
                     else:
                         target = "\0parse:" + str(len(grammar.query_rules))
-                        source = replace(alt, guards=[], expr=body, tags=None, rule_tags={"emptySet": True},
+                        source = replace(alt, guards=[], expr=body, tags=None, rule_tags=None,
                                          conditions=[], erased=False, emit=None, value=None, image=None,
                                          rule_value=None, rule_image=None, error=None, warning=None, suppress_warnings=())
                         grammar.query_rules[target] = Rule(target, [source], alt.document, alt.at)
@@ -2021,6 +2021,8 @@ class _Lowerer:
         production.optional_routes = {index: sym[3] for index, (sym, _) in enumerate(expansion) if len(sym) > 3}
         production.terminal_captures = {name for sym, name in expansion if name and len(sym) > 3 and sym[3] == "written"}
         production.forward_captures = {position: name for name, position in production.captures.items() if name in production.terminal_captures}
+        if option >= 0:
+            production.tags_term = {"emptySet": True}
         production.inherited = inherited(production.elements)
         if production.tags_term is None and production.inherited is not None and production.inherited not in captures.values():
             captures[IMPLICIT] = production.inherited

@@ -1251,6 +1251,8 @@ Query helpers follow every production from the written grammar, including its he
 
 `parse(C)` lowers its capture-free constituent to an anonymous query target. Its identity is structural, keyed by the lowered constituent after substitution and reference resolution. Grouping, source positions, and the remainder mark do not distinguish targets. The memo retains the query mode separately.
 
+An anonymous target takes tags like a rule without written tags (§3.7). A production of one symbol inherits that symbol's tags. A production of several symbols has none. A ranked group's helper has no tags, as the ranked-choice restriction requires. This rule applies to helpers of the stage chart too.
+
 An undecorated rule call reuses that rule's query target. An undecorated user-tag terminal reuses its helper, including a tag that only `parse` names. Every other constituent uses a structurally keyed anonymous target that retains its tests and decorations. This includes literals, ranges, wildcards, engine tags, and tested symbols.
 
 Thus `parse(x)` and `parse(x …)` share their target and their recursive-query test. Lowering fixes only identity and target. Recognition uses the same whole, prefix, suffix, or part machinery as the query of that mode. An anonymous target's diagnostic name is its canonical constituent spelling, without remainder. A single nominal target keeps its public name.
@@ -3692,7 +3694,7 @@ Witnesses must complete, but the following text need not fit them. Ordinary quer
 
 #### Answers from the stage chart
 
-A local-reading query has exactly the result and the runtime errors of the prefix query above. For most targets, the stage chart already holds that answer. For such a target, each library answers from the stage chart and runs no new recognition. The chart answer applies to a target with all of these properties:
+A local-reading query has exactly the result and the runtime errors of the prefix query above. A chart answer has the same witness tags as that query. For most targets, the stage chart already holds that answer. For such a target, each library answers from the stage chart and runs no new recognition. The chart answer applies to a target with all of these properties:
 
 - The chosen derivation comes from the main recognition of the stage, not from reconstruction (engine §7).
 - The target is one symbol of the lowered stage grammar: a rule reference with or without its site test, a terminal, or a generated helper. Optionals, flat braces and ranked groups are helpers.

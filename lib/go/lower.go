@@ -628,6 +628,7 @@ func (lw *lowerer) lowerRule(r *sRule) {
 						if group := lw.g.ranked.expressions[h.path]; group != nil {
 							p.ranked = group
 							p.option = lw.rankOptions[h.rule][optionIndex]
+							p.tags = &domTerm{Kind: tmEmptySet}
 						}
 					}
 					// Every helper of an alternative with item captures is

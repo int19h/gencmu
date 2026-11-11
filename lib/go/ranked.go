@@ -581,6 +581,10 @@ func (r *rankedGroups) validateTags(g *stageGrammar) *Error {
 		if err := r.validateClauses(g, group); err != nil {
 			return err
 		}
+		// Anonymous targets inherit their ranked helper's empty tags (§3.10).
+		if strings.HasPrefix(group.parent, "\x00parse:") {
+			continue
+		}
 		helper := graph.groups[group]
 		if !unsafe[helper] {
 			continue

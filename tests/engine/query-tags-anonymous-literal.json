@@ -1,0 +1,22 @@
+{
+  "description": "An explicit query keeps literal tags outside checks.",
+  "grammar": "%rule text $x:A\n%conditions $x.parse(\"a\"), $x.parse(\"a\").tags = A\n%rule r A :: T",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "same"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

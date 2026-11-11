@@ -9340,6 +9340,8 @@
       }
       for (const group of this.groups) {
         this.validateClauses(group);
+        // Anonymous targets inherit their ranked helper's empty tags (§3.10).
+        if(group.parent.startsWith('\u0000parse:'))continue;
         const helper = graph.groups.get(group);
         if (!unsafe.has(helper)) continue;
         const outward = [helper], seen = new Set(outward);
@@ -11825,11 +11827,8 @@
               if (body.ref && !body.ref.startsWith("_")) name = isTerminalName(body.ref) ? "\u0000query:"+body.ref : body.ref;
               else {
                 name = "\u0000parse:"+this.queryRules.size;
-                // A forest exposes no returned tags. Discarding the anonymous
-                // root's tags also seals ranked bodies without inventing a
-                // restriction on an otherwise legal query constituent.
                 /** @type {RuleClauses} */
-                const clauses = {conditions:[],erased:false,tags:{emptySet:true},emit:undefined,value:undefined,image:undefined,error:undefined,warning:undefined,suppressWarnings:undefined};
+                const clauses = {conditions:[],erased:false,tags:undefined,emit:undefined,value:undefined,image:undefined,error:undefined,warning:undefined,suppressWarnings:undefined};
                 const source = {...alternative,guards:[],expr:body,tags:undefined,value:undefined,image:undefined,clauses};
                 this.queryRules.set(name,{name,document:alternative.document,at:alternative.at,alternatives:[source]});
                 this.queryNames.set(name,templateBodyText(body,this.unicode));
@@ -12554,7 +12553,7 @@
             elidedValue: helper.elidedValue,
             captures,
             conditions: [],
-            tags: single ? { method: "tags", receiver: { capture: captures[0].name }, args: [] } : null,
+            tags: ranked ? {emptySet:true} : single ? { method: "tags", receiver: { capture: captures[0].name }, args: [] } : null,
             emit: null,
             erased: false,
             ...(ranked ? {rankedGroup:ranked.group,rankedOption:ranked.option} : {}),

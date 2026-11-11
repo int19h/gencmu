@@ -1,0 +1,22 @@
+{
+  "description": "An explicit query keeps ranked tags outside checks.",
+  "grammar": "%rule text $x:A\n%conditions $x.parse((r ≻ A)), $x.parse((r ≻ A)).tags = ∅\n%rule r A :: T",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "same"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

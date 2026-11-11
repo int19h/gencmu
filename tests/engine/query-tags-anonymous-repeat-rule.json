@@ -1,0 +1,22 @@
+{
+  "description": "An explicit query keeps repeat rule tags outside checks.",
+  "grammar": "%rule text $x:A\n%conditions $x.parse({r}), $x.parse({r}).tags = T\n%rule r A :: T",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "same"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -576,6 +576,10 @@ impl RankedGroups {
         let mut analyses = FxMap::default();
         for group in &self.groups {
             self.validate_clauses(grammar, group, &mut spans, &mut analyses)?;
+            // Anonymous targets inherit their ranked helper's empty tags (§3.10).
+            if grammar.rules[group.source.0].query {
+                continue;
+            }
             let helper = graph.groups[&group.id];
             if !unsafe_tags[helper] {
                 continue;

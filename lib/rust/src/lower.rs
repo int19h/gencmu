@@ -1971,6 +1971,9 @@ pub(crate) fn lower(
                 production.emit = LEmit::Nothing;
             }
         }
+        if pending.option.is_some() {
+            production.tags = Some(LTerm::Empty);
+        }
         if production.tags.is_none() {
             match pending.sequence.inherited {
                 Some(position) => {

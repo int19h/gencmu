@@ -402,7 +402,7 @@ pub(crate) fn prepare(grammar: &mut crate::grammar::StageGrammar) -> Result<(), 
                                         written_alternative: 0,
                                         text_order,
                                         clauses: Arc::new(RuleClauses {
-                                            tags: Some(Term::EmptySet),
+                                            tags: None,
                                             strings: Channels::default(),
                                             emit: None,
                                             conditions: Vec::new(),

@@ -1,0 +1,31 @@
+{
+  "description": "A node local reading and a tested query keep the rule tags.",
+  "grammar": "%rule text r=\"a\"\n%rule r \"a\" :: R\n%check same #·r\n%conditions $.local-readings, $.onward.parse(r=\"a\" …), $.local-readings.tags = $.onward.parse(r=\"a\" …).tags, $.local-readings.tags = R\n%warning \"same\"",
+  "input": "a",
+  "options": {
+    "features": [
+      "same"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "same",
+        "rule": "same",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "message": "same"
+      }
+    ]
+  }
+}
