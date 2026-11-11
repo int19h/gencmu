@@ -368,7 +368,7 @@
     {
       "description": "Previous bootstrap format (engine §8 and §9.3)",
       "find": "\"format\":52",
-      "replace": "\"format\":52",
+      "replace": "\"format\":51",
       "line": null,
       "column": null,
       "stage": null
