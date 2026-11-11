@@ -81,6 +81,9 @@ func patternHasValue(p *domPattern) bool {
 }
 
 func rankingPatternProblem(p *domPattern) string {
+	if p.Kind == "never" {
+		return ""
+	}
 	if p.Kind == tmUnion || p.Kind == tmIntersection || p.Kind == tmDifference {
 		for _, part := range p.Items {
 			if problem := rankingPatternProblem(part); problem != "" {

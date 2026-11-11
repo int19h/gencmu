@@ -178,7 +178,7 @@ fn warning_checks_use_the_suppressed_alternative_reach_set() {
 fn splice_dom_requires_a_nominal_target() {
     for target in [r#"{"param":"X","at":[1,1]}"#, r#"{"test":"=","value":{"string":"a"},"expr":{"ref":"piece"}}"#] {
         let dom = format!(
-            r#"{{"format":49,"rules":[{{"name":"text","params":["X"],"op":"define","alternatives":[{{"guards":[],"expr":{{"splice":{target}}}}}],"conditions":[],"at":[1,1]}}],"directives":[],"constants":[],"classifiers":[],"implications":[],"checks":[]}}"#
+            r#"{{"format":50,"rules":[{{"name":"text","params":["X"],"op":"define","alternatives":[{{"guards":[],"expr":{{"splice":{target}}}}}],"conditions":[],"at":[1,1]}}],"directives":[],"constants":[],"classifiers":[],"implications":[],"checks":[]}}"#
         );
         assert!(gencmu::tools::check_dom(&dom).unwrap().is_some(), "{target}");
     }

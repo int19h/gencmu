@@ -507,7 +507,11 @@ func literalRangeProblem(ends [2]*domTerm) string {
 
 func (c *domChecker) fail(format string, args ...any) {
 	if c.problem == nil {
-		c.problem = &domProblem{message: c.label + ": " + fmt.Sprintf(format, args...), rule: c.rule, constant: c.constant, implication: c.implication}
+		message := fmt.Sprintf(format, args...)
+		if !c.check || message != "a check cannot name a capture" {
+			message = c.label + ": " + message
+		}
+		c.problem = &domProblem{message: message, rule: c.rule, constant: c.constant, implication: c.implication}
 	}
 }
 

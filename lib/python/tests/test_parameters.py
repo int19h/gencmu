@@ -205,7 +205,7 @@ class NestedArgumentAliases(unittest.TestCase):
             test = {'test': '=', 'expr': {'terminal': 'A'}}
             if operand is not None:
                 test['value'] = operand
-            dom = {'format': 49, 'rules': [], 'directives': [], 'classifiers': [], 'implications': [], 'constants': [{'name': 'P', 'op': 'define', 'value': {'pattern': test}, 'at': [1, 1]}],
+            dom = {'format': 50, 'rules': [], 'directives': [], 'classifiers': [], 'implications': [], 'constants': [{'name': 'P', 'op': 'define', 'value': {'pattern': test}, 'at': [1, 1]}],
                    "checks": []}
             self.assertEqual(dom_problem(dom, unicode), 'a malformed pattern value test')
 

@@ -1,10 +1,10 @@
 {
-  "description": "Engine §4 and §9: parse retains its body and outer remainder in DOM format 49.",
+  "description": "Engine §4 and §9: parse retains its body and outer remainder in DOM format 50.",
   "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n%conditions $.parse(A | B).error-free\n```\n",
   "cacheMisses": true,
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 50,
       "rules": [
         {
           "name": "text",

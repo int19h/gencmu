@@ -71,7 +71,7 @@ use crate::tags::is_name;
 use crate::unicode::Unicode;
 
 /// The DOM format version (`docs/output.md`), part of every cache key.
-pub const DOM_FORMAT: i64 = 49;
+pub const DOM_FORMAT: i64 = 50;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct Dom {
@@ -1782,7 +1782,7 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
                         stack.push((Nested::Pattern(node), depth));
                         stack.extend(children.as_ref().map(|c| (Nested::PatternItems(c), below)));
                     }
-                    Pattern::Any => {}
+                    Pattern::Never | Pattern::Any => {}
                     Pattern::Path(_, inner) => stack.push((Nested::Pattern(inner), below)),
                     Pattern::Union(items) | Pattern::Intersection(items) => {
                         stack.extend(items.iter().map(|item| (Nested::Pattern(item), below)));

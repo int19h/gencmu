@@ -1039,10 +1039,12 @@ class DomBuilder:
         if node.rule == "tree-comparison":
             capture = self.one(node, "capture-reference")
             selectors = self.some(node, "method-selector", 0)
-            if not self.check_context and (selectors or self.tokens[node.span[0]].value == "("):
+            if not self.check_context and not selectors and self.tokens[node.span[0]].value == "(":
                 raise self.fail(node, "a tree comparison requires a bare capture")
             if selectors:
                 left = yield self._method(node)
+                if not self.check_context:
+                    raise self.fail(node, "a tree comparison requires a bare capture")
                 if left.get("method") not in _NODE_METHODS:
                     raise self.fail(node, "a tree comparison requires a constituent")
             elif capture is not None:
@@ -1175,10 +1177,10 @@ class DomBuilder:
         for selector in self.some(node, "method-selector"):
             parsed = self.one(selector, "parse-selector")
             name = "parse" if parsed is not None else self.token_value(self.token(self.only(selector, "method-name")))
-            if name in _CHECK_METHODS and (not self.check_context or name == "terminal" and not self.recipe_context):
+            if name in _CHECK_METHODS and (not self.check_context or name == "terminal" and not self.recipe_context or name != "terminal" and self.recipe_context):
                 raise self.fail(selector, "a check method is outside its permitted clause")
             if self.check_context and name in ("without-elision", "without-elision-except"):
-                raise self.fail(node, "a check cannot restore elision")
+                raise self.fail(selector, "a check cannot restore elision")
             if name not in _METHODS:
                 raise self.fail(node, 'unknown method ' + name)
             if self.closed_for and name not in ("split", "ngrams"):
@@ -1202,7 +1204,7 @@ class DomBuilder:
                             binder = child
                             break
                         pending.extend(reversed(child.children))
-                    raise self.fail(binder, "a parse argument cannot declare captures")
+                    raise self.fail(binder, "a check cannot declare a capture" if self.check_context else "a parse argument cannot declare captures")
                 markers = [child for child in self.kids(argument) if child.kind == "token" and self.token_value(child) == "…"]
                 if len(markers) > 2:
                     raise self.fail(markers[2], "a remainder stands at one outer edge of a parse argument")

@@ -3,7 +3,7 @@
   "document": "# A document\n\n```jbogenbau\n%rule g $a:A %conditions $a.following-tokens.parse(g …), ¬$a.tokens-after-first.onward.parse(g …)\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 50,
       "rules": [
         {
           "name": "g",

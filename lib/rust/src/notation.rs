@@ -1960,7 +1960,9 @@ impl<'a> Reader<'a> {
         if matches!(
             name,
             "parent" | "preceding-node" | "following-node" | "preceding-element" | "local-readings" | "terminal"
-        ) && (!self.check_context.get() || name == "terminal" && !self.in_recipe.get())
+        ) && (!self.check_context.get()
+            || name == "terminal" && !self.in_recipe.get()
+            || name != "terminal" && self.in_recipe.get())
         {
             return Err(self.error(selector, "a check method is outside its permitted clause"));
         }
@@ -2249,7 +2251,8 @@ impl<'a> Reader<'a> {
                     let walk = !self.some(inner, "method-selector", 0)?.is_empty()
                         || self.rules(inner, "method").next().is_some();
                     if !self.check_context.get()
-                        && (walk || self.tokens.get(inner.span.start).is_some_and(|token| token.value == "("))
+                        && !walk
+                        && self.tokens.get(inner.span.start).is_some_and(|token| token.value == "(")
                     {
                         return Err(self.error(inner, "a tree comparison requires a bare capture"));
                     }
@@ -2278,7 +2281,7 @@ impl<'a> Reader<'a> {
                         }
                     }
                     if self.check_context.get() && !capture.is_empty() {
-                        return Err(self.error(inner, "a check cannot name a capture"));
+                        return Err(self.error(self.one(inner, "capture-reference")?, "a check cannot name a capture"));
                     }
                     if walk {
                         frame.right = Some(right);
@@ -2342,6 +2345,12 @@ impl<'a> Reader<'a> {
             "tree-comparison" | "comparison" => {
                 let Val::Term(term, ty) = value else { unreachable!("a side of a comparison is a term") };
                 if let Some(right) = frame.right.take() {
+                    if rule_name(inner) == "tree-comparison"
+                        && !self.check_context.get()
+                        && !matches!(term, Term::Capture(_))
+                    {
+                        return Err(self.error(inner, "a tree comparison requires a bare capture"));
+                    }
                     frame.left = Some((term, ty));
                     return Ok(Step::Call(Frame::Union(Joined::new(right, false))));
                 }

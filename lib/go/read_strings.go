@@ -556,11 +556,14 @@ func knownMethod(name string) bool { return sourceMethods[name] != 0 }
 
 func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args []*domTerm, dependent bool, selector *Node) *domTerm {
 	kind := sourceMethods[name]
-	if (kind == methodNode || kind == methodElement || kind == methodLocal || kind == methodTerminal) && (!b.checkContext || kind == methodTerminal && !b.inRecipe) {
+	if (kind == methodNode || kind == methodElement || kind == methodLocal || kind == methodTerminal) && (!b.checkContext || kind == methodTerminal && !b.inRecipe || kind != methodTerminal && b.inRecipe) {
 		b.fail(selector, "a check method is outside its permitted clause")
 	}
-	if b.checkContext && (name == "without-elision" || name == "without-elision-except" || name == "emitted") {
+	if b.checkContext && name == "emitted" {
 		b.fail(n, "a check cannot restore elision or read emitted strings")
+	}
+	if b.checkContext && (name == "without-elision" || name == "without-elision-except") {
+		b.fail(selector, "a check cannot restore elision")
 	}
 	if b.checkContext && checkElementTerm(receiver) && !(kind == methodLocal || kind == methodSpan && name != "classes" || kind == methodEndingAfter) {
 		b.fail(n, "an element has no tags, walk, or boundary method")

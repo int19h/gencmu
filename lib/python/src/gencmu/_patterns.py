@@ -78,8 +78,7 @@ def walk_pattern(root: Dom):
 
 
 def empty_pattern() -> Dom:
-    all_nodes = {"any": True, "children": [{"siblings": True}]}
-    return {"difference": [all_nodes, all_nodes]}
+    return {"never": True}
 
 
 def pattern_key(root: Any) -> tuple[Any, ...]:

@@ -1,0 +1,13 @@
+{
+  "description": "A written difference of unrestricted child lists is not an empty candidate form.",
+  "grammar": "%rule text \"a\"\n%check c #(⁅⋯⁆ ∖ ⁅⋯⁆)\n%warning \"bad\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 10
+    }
+  }
+}

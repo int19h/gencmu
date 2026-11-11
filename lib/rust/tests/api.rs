@@ -1608,6 +1608,16 @@ fn ranking_reports_use_reachability() {
 }
 
 #[test]
+fn empty_key_step_is_impossible() {
+    let source =
+        "%const $P #·text\n%redefine-const $P ∅\n%ambiguity-resolution leftmost-longest $P, greedy\n%rule text \"a\"";
+    let p = gencmu::load_pipeline_sources(single(source), "p.md").unwrap();
+    let reports = p.ranking_reports();
+    assert_eq!(reports[0].key_steps[0].status, "impossible");
+    assert_eq!(reports[0].key_steps[0].pattern, "∅");
+}
+
+#[test]
 fn cached_tree_comparisons_keep_cycle_positions() {
     let rules = "%ambiguity-resolution greedy\n%rule text $x:w $y:w\n%conditions $x ≅ $y\n%rule w \"a\" | w";
     let mut sources = single(rules)

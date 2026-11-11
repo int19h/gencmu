@@ -89,6 +89,8 @@ func rankingBody(root *domExpr, g *stageGrammar, refs, terms, omitted map[string
 }
 func rankingDead(p *domPattern, reachable, terminals map[string]bool) bool {
 	switch p.Kind {
+	case "never":
+		return true
 	case "name":
 		return !reachable[p.Name]
 	case "terminal":

@@ -3804,6 +3804,10 @@
         } else return 'a malformed pattern child item';
         continue;
       }
+      if ('never' in n) {
+        if (!exact(['never']) || n.never !== true || inner) return 'a malformed empty pattern';
+        continue;
+      }
       const compound = ['union','intersection','difference'].find(k => k in n);
       if (compound) {
         const operands = n[compound];
@@ -3890,6 +3894,7 @@
     const children = (/** @type {any[]} */ array) => array.length ? '⁅ '+items(array)+' ⁆' : '⁅⁆';
     /** @type {(n:any)=>string} */
     const pattern = n => {
+      if(n.never)return '∅';
       if (n.path) {
         const operand = atom(n.pattern) ? pattern(n.pattern) : '('+pattern(n.pattern)+')';
         return n.path === 'first' ? operand+' ⋰' : (n.path === 'last' ? '⋱ ' : '⋮ ')+operand;
@@ -3915,6 +3920,7 @@
       return (n.exact ? '·' : '')+text+('children' in n ? children(n.children) : '');
     };
     const text = pattern(root);
+    if(root.never)return text;
     return literal ? '#'+(atom(root) ? text : '('+text+')') : text;
   }
 
@@ -4001,6 +4007,7 @@
 
   /** @param {any} pattern @param {string|null} name @param {Set<string>} tags @param {any} leaf @param {string|undefined} [value] @returns {boolean} */
   function localNodeMatches(pattern,name,tags,leaf,value=leaf?.value) {
+    if (pattern.never) return false;
     if (pattern.union) return pattern.union.some((/** @type {any} */ p)=>localNodeMatches(p,name,tags,leaf,value));
     if (pattern.intersection) return pattern.intersection.every((/** @type {any} */ p)=>localNodeMatches(p,name,tags,leaf,value));
     if (pattern.difference) return localNodeMatches(pattern.difference[0],name,tags,leaf,value) && !localNodeMatches(pattern.difference[1],name,tags,leaf,value);
@@ -4030,8 +4037,7 @@
    * @returns {{at?:[number,number]}|null}
    */
   function patternDepthProblem(term, constant) {
-    const all = {any:true,children:[{siblings:true}]};
-    const empty = {difference:[all,all]};
+    const empty = {never:true};
     /** @type {{node:any,depth:number,parent:string,term:boolean,at?:[number,number]}[]} */
     const pending = [{node:term, depth:1, parent:"", term:true, at:undefined}];
     /** @type {WeakMap<object,Map<string,number>>} */
@@ -4616,6 +4622,7 @@
 
   /** @param {any} pattern @returns {string|null} */
   function rankingPatternProblem(pattern) {
+    if(pattern.never)return null;
     if (pattern.union || pattern.intersection || pattern.difference) {
       for (const operand of pattern.union ?? pattern.intersection ?? pattern.difference) {
         const problem=rankingPatternProblem(operand);
@@ -4635,6 +4642,7 @@
 
   /** @param {any} pattern @param {any} node @returns {boolean|null} */
   function possibleNodeMatch(pattern,node) {
+    if(pattern.never)return false;
     const and=(/** @type {(boolean|null)[]} */ values)=>values.includes(false)?false:values.includes(null)?null:true;
     const or=(/** @type {(boolean|null)[]} */ values)=>values.includes(true)?true:values.includes(null)?null:false;
     if (pattern.union) return or(pattern.union.map((/** @type {any} */ p)=>possibleNodeMatch(p,node)));
@@ -6368,7 +6376,7 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 49;
+  const DOM_FORMAT = 50;
   // A constant's name, without its `$`, begins with a capital (engine §2).
   const CONSTANT_NAME = /^(?!.*--)[A-Z][A-Za-z0-9_-]*$/;
   // A classifier name starts with a lowercase letter. A class name starts
@@ -11185,8 +11193,7 @@
             const pending=[body.pattern];
             while(pending.length) {
               const pattern=pending.pop();
-              // Contextual ∅ uses this internal universal-minus-universal form.
-              if(pattern.difference?.length===2 && pattern.difference.every((/** @type {any} */ part)=>part.any && !part.exact && part.children?.length===1 && part.children[0].siblings))continue;
+              if(pattern.never)continue;
               if(pattern.union || pattern.intersection || pattern.difference)for(const child of pattern.union??pattern.intersection??pattern.difference)pending.push(child);
               else if(pattern.path || !pattern.exact)throw this.documentError(path,location,'a check requires exact candidate tests without paths');
             }
@@ -11482,7 +11489,7 @@
       if ("string" in term) return { string: term.string };
       if ("concat" in term) return { string: term.concat.map(string).join("") };
       if ("tag" in term) return { set: tagSet([term.tag]) };
-      if ("emptySet" in term) return expected === "pattern" ? { pattern: { difference: [{ any:true, children:[{siblings:true}] }, { any:true, children:[{siblings:true}] }] } } : { set: tagSet() };
+      if ("emptySet" in term) return expected === "pattern" ? {pattern:{never:true}} : { set: tagSet() };
       if ("const" in term) return lookup(term.const);
       if ("pattern" in term) {
         checkDepth();
@@ -17498,6 +17505,7 @@
 
   /** @param {any} pattern @param {any} data @returns {boolean} */
   function dead(pattern,data) {
+    if(pattern.never)return true;
     if(pattern.union) return pattern.union.every((/** @type {any} */ p)=>dead(p,data));
     if(pattern.intersection) return pattern.intersection.some((/** @type {any} */ p)=>dead(p,data));
     if(pattern.difference) return dead(pattern.difference[0],data);
@@ -23947,7 +23955,7 @@
       for (const selector of some(node, "method-selector")) {
         const parsed = one(selector, "parse-selector");
         const name = parsed ? "parse" : valueOf(token(only(selector, "method-name")));
-        if(CHECK_METHODS.has(name) && (!checkContext || name==="terminal" && !recipeContext))fail("a check method is outside its permitted clause",selector);
+        if(CHECK_METHODS.has(name) && (!checkContext || name==="terminal" && !recipeContext || name!=="terminal" && recipeContext))fail("a check method is outside its permitted clause",selector);
         if(checkContext && ["without-elision","without-elision-except"].includes(name))fail("a check cannot restore elision",selector);
         if(!METHODS.has(name)) fail(`unknown method ${name}`,node);
         if (closedFor && !["split", "ngrams"].includes(name)) fail(`${closedFor} cannot read an input method`, node);
@@ -23958,7 +23966,7 @@
           const argument = only(parsed,"parse-argument");
           let body = yield readExpression(only(argument,"choice"),true);
           const capture = queryCapture(body);
-          if (capture) fail("a parse argument cannot declare captures",descendant(argument,"capture") ?? argument);
+          if (capture) fail(checkContext?"a check cannot declare a capture":"a parse argument cannot declare captures",descendant(argument,"capture") ?? argument);
           const markers = parts(argument).filter(child => child.kind === "token" && valueOf(child) === "…");
           if (markers.length > 2) fail("a remainder stands at one outer edge of a parse argument",markers[2]);
           if (markers.length) {
@@ -26316,6 +26324,7 @@
    * A structural node predicate in a grammar DOM (output §2).
    * @typedef {((PatternRuleAtom & {exact?:true,children?:PatternChildren})
    *   | ((PatternAtom | {test:"="|"≠", value:Term, expr:PatternTestTarget} | PatternTagTest) & {exact?:true})
+   *   | {never:true}
    *   | {any:true, exact?:true, children:PatternChildren}
    *   | {union:Pattern[]} | {intersection:Pattern[]} | {difference:[Pattern,Pattern]}
    *   | {path:"descendant"|"first"|"last", pattern:Pattern})} Pattern

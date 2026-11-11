@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%rule probe A\n%conditions $ ≅ #⁅ [(a | b)] ⁆\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 50,
       "rules": [
         {
           "conditions": [

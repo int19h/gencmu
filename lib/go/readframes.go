@@ -257,7 +257,7 @@ func (f *exprFrame) start(b *domBuilder) readStep {
 		return give(b.tested(n))
 	case "capture":
 		if b.checkContext {
-			b.fail(n, "a check cannot name a capture")
+			b.fail(n, "a check cannot declare a capture")
 		}
 		// Its place, then $, its name and its symbol, each at the capture,
 		// before what it wraps (engine §9).
@@ -842,10 +842,14 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 		case "tree-comparison":
 			f.compare = &domCond{Kind: cdCompare, At: b.at(n), Left: &domTerm{Kind: tmCapture, Str: strings.TrimPrefix(b.tokenValue(b.token(b.only(n, "capture-reference"))), "$")}}
 			if b.checkContext && f.compare.Left.Str != "" {
-				b.fail(n, "a check cannot name a capture")
+				b.fail(b.only(n, "capture-reference"), "a check cannot name a capture")
 			}
 			for _, selector := range b.some(n, "method-selector", 0) {
 				name := b.tokenValue(b.token(b.only(selector, "method-name")))
+				kind := sourceMethods[name]
+				if !b.checkContext && (kind == methodNode || kind == methodElement || kind == methodLocal || kind == methodTerminal) {
+					b.fail(selector, "a check method is outside its permitted clause")
+				}
 				if !b.checkContext || sourceMethods[name] != methodNode || b.one(selector, "arguments") != nil {
 					b.fail(selector, "a tree comparison requires a node walk")
 				}
@@ -865,7 +869,11 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 		case "term-condition":
 			return give(&domCond{Kind: cdTruthy, Left: b.truthyTerm(n)})
 		case "presence":
-			return give(&domCond{Kind: cdCaptured, Capture: strings.TrimPrefix(b.tokenValue(b.token(n)), "$")})
+			name := strings.TrimPrefix(b.tokenValue(b.token(n)), "$")
+			if b.checkContext && name != "" {
+				b.fail(n, "a check cannot name a capture")
+			}
+			return give(&domCond{Kind: cdCaptured, Capture: name})
 		default:
 			b.fail(n, "unexpected %s in a condition", n.Rule)
 		}

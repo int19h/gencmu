@@ -148,6 +148,13 @@ func layeredPatternProblem(root any, inspect layeredPatternInspection) string {
 			}
 			continue
 		}
+		if layeredHas(n, "never") {
+			if !layeredOnly(n, "never") || n["never"] != true || t.inner {
+				return "a malformed empty pattern"
+			}
+			continue
+		}
+
 		if key := layeredPatternSet(n); key != "" {
 			a, ok := n[key].([]any)
 			if !layeredOnly(n, key) || !ok || len(a) < 2 || key == "difference" && len(a) != 2 {
@@ -299,7 +306,7 @@ func layeredPatternText(root templateObject, term func(templateObject) string, l
 	atom := func(n templateObject) bool { return layeredPatternSet(n) == "" && !layeredHas(n, "path") }
 	var out strings.Builder
 	pending := []task{{"pattern", root}}
-	if literal {
+	if literal && root["never"] != true {
 		out.WriteString("#")
 		if !atom(root) {
 			out.WriteString("(")
@@ -356,6 +363,8 @@ func layeredPatternText(root templateObject, term func(templateObject) string, l
 			}
 		default:
 			switch {
+			case n["never"] == true:
+				out.WriteString("∅")
 			case layeredHas(n, "path"):
 				if n["path"] != "first" {
 					prefix := "⋮ "

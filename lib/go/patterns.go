@@ -200,7 +200,7 @@ func patternProblem(root *domPattern, depth int, check func(*domPattern, int) st
 			for _, v := range p.Items {
 				push(v, false)
 			}
-		case "param", "call", "name", "terminal", "constant", "literal", "range", "wildcard", "any":
+		case "never", "param", "call", "name", "terminal", "constant", "literal", "range", "wildcard", "any":
 		default:
 			return "a malformed pattern"
 		}
@@ -542,8 +542,7 @@ func ruleHasPattern(r *domRule) bool {
 }
 
 func emptyPattern() *domPattern {
-	p := &domPattern{Kind: "any", Attached: []*domPattern{{Kind: "siblings"}}}
-	return &domPattern{Kind: tmDifference, Items: []*domPattern{p, p}}
+	return &domPattern{Kind: "never"}
 }
 func patternLiteral(v *constValue) *domTerm {
 	if v.ty == tyString {

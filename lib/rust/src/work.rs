@@ -342,12 +342,12 @@ mod tests {
 
     #[test]
     fn optional_predecessors_reuse_the_stage_recognition() {
-        for (body, recognitions) in [("[r]", 1), ("[$x:r]", 2)] {
+        for (body, input, recognitions) in [("[r]", "a", 1), ("[$x:r]", "a", 2), ("r [r]", "aa", 1)] {
             let grammar = format!("%ambiguity-resolution greedy\n%rule text {body} [+T]\n%rule r \"a\"\n%check c #·_<_Elided>\n%conditions $.preceding-element.local-readings\n%warning \"local\"");
             let pipeline = crate::load_pipeline_sources(single(&grammar), "p.md").unwrap();
             reset();
             let result =
-                pipeline.parse("a", &ParseOptions { features: vec!["c".into()], ..Default::default() }).unwrap();
+                pipeline.parse(input, &ParseOptions { features: vec!["c".into()], ..Default::default() }).unwrap();
             assert!(result.ok, "{body}: {:?}", result.error);
             assert_eq!(result.warnings.iter().map(|warning| warning.code.as_str()).collect::<Vec<_>>(), ["c"]);
             assert_eq!(counted(Work::Recognitions), recognitions, "{body}");

@@ -1,0 +1,14 @@
+{
+  "description": "A presence capture in a check reports at the reference.",
+  "grammar": "%rule text \"a\"\n%check c #·text\n%conditions $x\n%warning \"m\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 13
+    },
+    "message": "a check cannot name a capture"
+  }
+}

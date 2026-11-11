@@ -53,6 +53,8 @@ def pattern_reach(grammar, roots=(), expr=None):
 
 
 def pattern_dead(pattern, reachable, terminals, omitted):
+    if pattern.get("never"):
+        return True
     for key, combine in (('union', all), ('intersection', any)):
         if key in pattern:
             return combine(pattern_dead(p, reachable, terminals, omitted) for p in pattern[key])

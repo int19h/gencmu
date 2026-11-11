@@ -1,0 +1,14 @@
+{
+  "description": "A forbidden check selector precedes the tree comparison's receiver fault.",
+  "grammar": "%rule text $x:\"a\"\n%conditions $x.preceding-node ≅ $x",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 15
+    },
+    "message": "a check method is outside its permitted clause"
+  }
+}

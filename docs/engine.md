@@ -1001,7 +1001,7 @@ The name has one diagnostic role throughout the pipeline. Warning names obey the
 
 The loader binds a check's constants before inspecting its types and values, in declaration order as for a rule. It inspects the candidate pattern, conditions, then message. It resolves pattern names and template families against the stage. Splicing a named pattern target is illegal, as for other patterns.
 
-After constant resolution, inspect the candidate predicate through parentheses, unions, intersections and differences. Every node test in this predicate must be exact. Reject path operators in that predicate. Stop this inspection at child lists, whose ordinary pattern rules still apply. Tag tests, value tests and child lists are legal on candidate tests.
+After constant resolution, inspect the candidate predicate through parentheses, unions, intersections and differences. The empty pattern passes this inspection and key-step inspection (§9.3). Every written node test in this predicate must be exact. Reject path operators in that predicate. Stop this inspection at child lists, whose ordinary pattern rules still apply. Tag tests, value tests and child lists are legal on candidate tests.
 
 Reject named captures anywhere in a check, including query arguments. Reject restoration methods in checks. Node walks, `.preceding-element` and `.local-readings` are legal only in check conditions. `.terminal` is legal only on `$` in a check message. Element receivers and absent values follow §10.
 
@@ -2866,7 +2866,11 @@ Readers use common diagnostic text for unclosed grammar fences, capture restrict
 
 Binding a constant does not change method-signature text. A fault inside a receiver or argument retains that operand's own diagnostic.
 
-A malformed check name reports at the name. A check method outside its permitted clause reports at the selector's leading dot. A forbidden capture reference in a check condition reports at that reference. If that source position is absent, use the declaration's `at`.
+A malformed check name reports at the name. A forbidden capture reference in a check reports at that reference, in a condition or message. For a caller-supplied DOM without that source position, use the declaration's `at`.
+
+A forbidden check method reports `a check method is outside its permitted clause` at the selector's leading dot. This restriction precedes tree-comparison, concatenation, and recipe signature checks at that selector. In a check message, only `.terminal` among check methods is permitted. It still requires bare `$`. A receiver's own fault precedes inspection of its selectors.
+
+A restoration selector in a check reports `a check cannot restore elision` at its leading dot. A capture binder in a check query argument reports `a check cannot declare a capture` at the binder.
 
 The following table is the complete constructor contract, including the template forms of §2.3. A constructor is a recognized syntax-tree part. Its row specifies required parts, lookup order, and DOM conversion. Names outside this table are wrappers, never constructors. Each wrapper contributes its children recursively in written order.
 
@@ -3272,7 +3276,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 
   Parentheses make no DOM node and add no depth. Thus 256 optional wrappers around a reference or a plain string literal are allowed, and 257 are not. The reader reports the first offending declaration in document order. That declaration is a rule, constant, classifier, implication, or `%features` directive.
 
-  Resolved pattern values also meet the bound of 256. For this bound, each pattern-valued term has one term wrapper around its normalized pattern. Constant references add no level and contribute their bound patterns. Aliases retain the same depth. Adjacent unions flatten, as do adjacent intersections, before this count. When `∅` supplies a pattern, its normalized form is the difference of two unrestricted child lists.
+  Resolved pattern values also meet the bound of 256. For this bound, each pattern-valued term has one term wrapper around its normalized pattern. Constant references add no level and contribute their bound patterns. Aliases retain the same depth. Adjacent unions flatten, as do adjacent intersections, before this count. When `∅` supplies a pattern, its normalized `never` form is a leaf. It is always false and has no written pattern form.
 
   The loader examines references in written order and reports the first reference whose substituted pattern exceeds the bound. This error uses the reference's document, position, and stage. The loader detects it before it copies or compiles the substituted pattern. Pattern type errors precede this depth error. Range endpoint values follow it. A resolved pattern without an offending reference uses its declaration's position.
 
@@ -3295,7 +3299,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - An unknown directive or keyword is an error. The syntax grammar already refuses it.
 - A directive with the wrong operands is an error, reported at the directive. `%stage`, `%extend-stage`, and `%redefine-stage` take one name. `%include` and `%names` take one path each, and `%features` takes one or more feature names as §9.1 defines them. `%elision-only` takes no operand. `%ambiguity-resolution` takes one or more steps, separated by commas: `leftmost-longest`, `fewest`, `most`, `late` or `early`, each followed by one operand, or `greedy` or `lazy` without one. The operand is a pattern literal or a constant reference, and a constant there must resolve to a pattern. A key step without an operand, or a lean with one, is an error at the directive. A lean, `greedy` or `lazy`, can stand only as the last step. A step with the wrong form, a lean elsewhere than last, or two leans is an error at the directive. A directive with no step fails the syntax stage at the token after it, as in `%ambiguity-resolution` alone.
 
-  The pattern of a key step is exact and local, after constants and template arguments resolve. It is made of node tests that each carry `exact`, with their tests, joined by union, intersection and difference. A child list, a path, a bare list or a node test without `exact` in it is an error at the pattern. A rule name in it must be defined in the stage, as in a body. An atom requires `_Elided` when its tag test holds the mark without negation. A union requires it when every operand does, an intersection when any operand does, and a difference when its left operand does. A `leftmost-longest` pattern that requires the mark is an error at the pattern, because the step never counts an omitted terminator (§6). The loader does not ask which derivations exist for any of these checks.
+  The empty pattern passes key-step inspection and counts nothing. The audit labels its step impossible. Every written node test of a key step is exact and local, after constants and template arguments resolve. It is made of node tests that each carry `exact`, with their tests, joined by union, intersection and difference. A child list, a path, a bare list or a node test without `exact` in it is an error at the pattern. A rule name in it must be defined in the stage, as in a body. An atom requires `_Elided` when its tag test holds the mark without negation. A union requires it when every operand does, an intersection when any operand does, and a difference when its left operand does. A `leftmost-longest` pattern that requires the mark is an error at the pattern, because the step never counts an omitted terminator (§6). The loader does not ask which derivations exist for any of these checks.
 
 Feature conditions receive syntax and DOM-shape analysis before stitching. Their semantic analysis applies only to surviving stage declarations (§13).
 
