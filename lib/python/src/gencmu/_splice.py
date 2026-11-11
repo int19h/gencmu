@@ -50,7 +50,7 @@ _LISTS = {
 
 
 def _empty_dom(format_: Any) -> Dom:
-    return {"format": format_, "rules": [], "checks": [], "directives": [], "constants": [], "classifiers": [], "implications": []}
+    return {"format": format_, "rules": [], "directives": [], "constants": [], "classifiers": [], "implications": [], "checks": []}
 
 
 def items_in_order(dom: Dom) -> list[tuple[str, Dom]]:

@@ -5,11 +5,7 @@ from ._patterns import pattern_parts
 from ._templates import canonical_argument
 
 
-def ranking_audit(grammar):
-    if not grammar.steps:
-        return dict(keySteps=[], countedChanges=[])
-    rules = {}
-
+def pattern_reach(grammar, roots=(), expr=None):
     def body(root):
         refs, terminals, omitted = set(), set(), set()
         pending = [root]
@@ -36,37 +32,45 @@ def ranking_audit(grammar):
                     pending.append(node[key])
         return refs, terminals, omitted
 
-    for name, rule in grammar.rules.items():
-        refs, terminals, omitted = set(), set(), set()
-        for alternative in rule.alternatives:
-            r, t, o = body(alternative.expr)
-            refs.update(r)
-            terminals.update(t)
-            omitted.update(o)
-        rules[name] = dict(refs=refs, terminals=terminals, omitted=omitted)
-    reachable, pending = set(), ['text']
+    reachable, terminals, omitted, pending = set(), set(), set(), list(roots)
+
+    def add(root):
+        refs, terms, omissions = body(root)
+        pending.extend(refs)
+        terminals.update(terms)
+        omitted.update(omissions)
+
+    if expr is not None:
+        add(expr)
     while pending:
         name = pending.pop()
-        if name in reachable or name not in rules:
+        if name in reachable or name not in grammar.rules:
             continue
         reachable.add(name)
-        pending.extend(rules[name]['refs'])
-    terminals = set().union(*(rules[n]['terminals'] for n in reachable))
-    omitted = set().union(*(rules[n]['omitted'] for n in reachable))
+        for alternative in grammar.rules[name].alternatives:
+            add(alternative.expr)
+    return reachable, terminals, omitted
 
-    def dead(pattern):
-        for key, combine in (('union', all), ('intersection', any)):
-            if key in pattern:
-                return combine(dead(p) for p in pattern[key])
-        if 'difference' in pattern:
-            return dead(pattern['difference'][0])
-        if 'test' in pattern:
-            return dead(pattern['expr'])
-        if 'name' in pattern:
-            return pattern['name'] not in reachable
-        if 'terminal' in pattern:
-            return not (terminals or omitted) if pattern['terminal'] == '_' else pattern['terminal'] not in terminals | omitted
-        return False
+
+def pattern_dead(pattern, reachable, terminals, omitted):
+    for key, combine in (('union', all), ('intersection', any)):
+        if key in pattern:
+            return combine(pattern_dead(p, reachable, terminals, omitted) for p in pattern[key])
+    if 'difference' in pattern:
+        return pattern_dead(pattern['difference'][0], reachable, terminals, omitted)
+    if 'test' in pattern:
+        return pattern_dead(pattern['expr'], reachable, terminals, omitted)
+    if 'name' in pattern:
+        return pattern['name'] not in reachable
+    if 'terminal' in pattern:
+        return not (terminals or omitted) if pattern['terminal'] == '_' else pattern['terminal'] not in terminals | omitted
+    return False
+
+
+def ranking_audit(grammar):
+    if not grammar.steps:
+        return dict(keySteps=[], countedChanges=[])
+    reach = pattern_reach(grammar, ['text'])
 
     reports, changes = [], []
     for index, (_, pattern) in enumerate(grammar.steps):
@@ -76,7 +80,7 @@ def ranking_audit(grammar):
             if 'name' in node: named.add(node['name'])
             pending.extend(pattern_parts(node))
         report = dict(step=index, pattern=canonical_argument({'pattern': pattern}, grammar.unicode))
-        if dead(pattern): report['status'] = 'impossible'
+        if pattern_dead(pattern, *reach): report['status'] = 'impossible'
         reports.append(report)
         changes.extend(dict(asdict(change), kind={'extend': 'extended', 'replace': 'replaced'}[change.kind], step=index)
                        for change in grammar.changes if change.rule in named)

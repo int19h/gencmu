@@ -17451,7 +17451,87 @@
     return {token:position,source:[source[0],source[1]],line,column,expected:expectedAt(slice,position,/** @type {Production[]} */(setAt(position).skipped))};
   }
 
+  // ---- ranking-audit.js
+  // Static reports for node-pattern steps (docs/design.md).
+
+
+
+
+
+  /** @param {any} grammar @param {Iterable<string>} roots @param {any} [expr] @returns {any} */
+  function patternReach(grammar,roots,expr) {
+    const reachable=new Set(),terminals=new Set(),omitted=new Set(),pending=[...roots];
+    const body=(/** @type {any} */ root)=>{
+      const nodes=[root];
+      while(nodes.length) {
+        const expr=nodes.pop();
+        if(hooks.work) countWork(hooks.work,"clauses");
+        if(expr.ref) {
+          if(grammar.rules.has(expr.ref)) pending.push(expr.ref);
+          else terminals.add(expr.ref);
+        } else if(expr.literal) {
+          const value=grammar.evaluateClosed('',expr.literal,[1,1]);
+          if('string' in value) terminals.add(stringName(value.string,grammar.unicode));
+        } else if(expr.range) terminals.add(expr.range.map((/** @type {any} */ end)=>stringName(grammar.evaluateClosed('',end,[1,1]).string,grammar.unicode)).join('..'));
+        else if(expr.wildcard) terminals.add('_');
+        if(expr.optional && expr.elidable) {
+          let head=expr.optional;
+          while(head.seq || head.capture || head.test) head=head.seq?.[0] ?? head.expr;
+          if(head.ref) omitted.add(head.ref);
+        }
+        for(const key of ['seq','choice','ranked','and']) if(expr[key]) for(const child of expr[key])nodes.push(child);
+        for(const key of ['expr','splice','optional','repeat','separator']) if(expr[key]) nodes.push(expr[key]);
+      }
+    };
+    if(expr)body(expr);
+    while(pending.length) {
+      const name=pending.pop(),rule=grammar.rules.get(name);
+      if(reachable.has(name) || !rule)continue;
+      reachable.add(name);
+      for(const alternative of rule.alternatives)body(alternative.expr);
+    }
+    return {reachable,terminals,omitted};
+  }
+
+  /** @param {any} pattern @param {any} data @returns {boolean} */
+  function dead(pattern,data) {
+    if(pattern.union) return pattern.union.every((/** @type {any} */ p)=>dead(p,data));
+    if(pattern.intersection) return pattern.intersection.some((/** @type {any} */ p)=>dead(p,data));
+    if(pattern.difference) return dead(pattern.difference[0],data);
+    if(pattern.test) return pattern.any?false:dead(pattern.expr,data);
+    if(pattern.name) return !data.reachable.has(pattern.name);
+    if(pattern.terminal) return pattern.terminal === '_' ? !data.terminals.size && !data.omitted.size : !data.terminals.has(pattern.terminal) && !data.omitted.has(pattern.terminal);
+    return false;
+  }
+
+  /** @param {any} grammar @returns {string[]} */
+  function unreachableChecks(grammar) {
+    if (!grammar.checks.length) return [];
+    const data=patternReach(grammar,['text']);
+    return grammar.checks.filter((/** @type {any} */ entry)=>dead(entry.check.pattern,data)).map((/** @type {any} */ entry)=>entry.check.name);
+  }
+
+  /** @param {any} grammar @returns {any} */
+  function rankingAudit(grammar) {
+    const steps=grammar.resolution?.steps??[];
+    if (!steps.length) return {keySteps:[],countedChanges:[]};
+    const data=patternReach(grammar,['text']);
+    const reports=[],changes=[];
+    for(let index=0;index<steps.length;index++) {
+      const step=steps[index],named=new Set(),pending=[step.pattern];
+      while(pending.length) {
+        const pattern=pending.pop();
+        if(pattern.name)named.add(pattern.name);
+        for (const child of patternParts(pattern)) pending.push(child);
+      }
+      reports.push({step:index,pattern:canonicalArgument({pattern:step.pattern},grammar.unicode),...(dead(step.pattern,data)?{status:'impossible'}:{})});
+      for(const change of grammar.changes)if(named.has(change.rule))changes.push({...change,step:index});
+    }
+    return {keySteps:reports,countedChanges:changes};
+  }
+
   // ---- diagnostic-audit.js
+
 
 
   // Notes for diagnostic rules, suppression, and concrete tag variants.
@@ -17547,7 +17627,12 @@
           if ('ref' in node && grammar.rules.has(node.ref)) roots.add(node.ref);
           for (const child of expressionChildren(node)) body.push(child);
         }
-        const possible=new Set([...(clauses.warning?[rule.name]:[]),...grammar.checks.filter(entry=>entry.check.warning).map(entry=>entry.check.name)]);
+        const possible=new Set(clauses.warning?[rule.name]:[]);
+        if(grammar.checks.some(entry=>entry.check.warning)) {
+          const reach=patternReach(grammar,[],alternative.expr);
+          reach.reachable.add(rule.name);
+          for(const entry of grammar.checks)if(entry.check.warning && !dead(entry.check.pattern,reach))possible.add(entry.check.name);
+        }
         for (const name of closure([...roots].map(name=>[name,1])).keys()) for (const code of warnings.get(name) ?? []) possible.add(code);
         for (const code of new Set(clauses.suppressWarnings)) if (code==='_' ? !possible.size : !possible.has(code)) notes.push({kind:'unused-suppression',...where,code});
       }
@@ -17907,107 +17992,6 @@
       result.push({rule:rule.name,document:alternative.document,line:alternative.at.line??1,column:alternative.at.column??1,alternative:index,kind:/** @type {'semantic'|'inert'} */(bits?'semantic':'inert'),effects:names});
     });
     return result;
-  }
-
-  // ---- ranking-audit.js
-  // Static reports for node-pattern steps (docs/design.md).
-
-
-
-
-
-  /** @param {any} grammar @returns {any} */
-  function observations(grammar) {
-    const rules=new Map(),terminals=new Set(),omitted=new Set();
-    const body=(/** @type {any} */ root,/** @type {Set<string>} */ refs)=>{
-      const pending=[root];
-      while(pending.length) {
-        const expr=pending.pop();
-        if(hooks.work) countWork(hooks.work,"clauses");
-        if(expr.ref) {
-          if(grammar.rules.has(expr.ref)) refs.add(expr.ref);
-          else terminals.add(expr.ref);
-        } else if(expr.literal) {
-          const value=grammar.evaluateClosed('',expr.literal,[1,1]);
-          if('string' in value) terminals.add(stringName(value.string,grammar.unicode));
-        } else if(expr.range) terminals.add(expr.range.map((/** @type {any} */ end)=>stringName(grammar.evaluateClosed('',end,[1,1]).string,grammar.unicode)).join('..'));
-        else if(expr.wildcard) terminals.add('_');
-        if(expr.optional && expr.elidable) {
-          let head=expr.optional;
-          while(head.seq || head.capture || head.test) head=head.seq?.[0] ?? head.expr;
-          if(head.ref) {omitted.add(head.ref);}
-        }
-        for(const key of ['seq','choice','ranked','and']) if(expr[key]) for (const child of expr[key]) pending.push(child);
-        for(const key of ['expr','splice','optional','repeat','separator']) if(expr[key]) pending.push(expr[key]);
-      }
-    };
-    for(const rule of grammar.rules.values()) {
-      const refs=new Set();
-      for(const alternative of rule.alternatives) body(alternative.expr,refs);
-      rules.set(rule.name,{refs});
-    }
-    const reachable=new Set(),pending=['text'];
-    while(pending.length) {
-      const name=pending.pop();
-      if(reachable.has(name) || !rules.has(name)) continue;
-      reachable.add(name);
-      for (const child of rules.get(name).refs) pending.push(child);
-    }
-    // Keep terminal reachability separate from query-only references.
-    const reachedTerminals=new Set(),reachedOmitted=new Set();
-    const allTerminals=new Set(terminals),allOmitted=new Set(omitted);
-    terminals.clear();omitted.clear();
-    for(const name of reachable) for(const alternative of grammar.rules.get(name).alternatives) body(alternative.expr,new Set());
-    for(const terminal of terminals) reachedTerminals.add(terminal);
-    for(const terminal of omitted) reachedOmitted.add(terminal);
-    return {rules,reachable,terminals:reachedTerminals,omitted:reachedOmitted,allTerminals,allOmitted};
-  }
-
-  /** @param {any} pattern @param {any} data @returns {boolean} */
-  function dead(pattern,data) {
-    if(pattern.union) return pattern.union.every((/** @type {any} */ p)=>dead(p,data));
-    if(pattern.intersection) return pattern.intersection.some((/** @type {any} */ p)=>dead(p,data));
-    if(pattern.difference) return dead(pattern.difference[0],data);
-    if(pattern.test) return pattern.any?false:dead(pattern.expr,data);
-    if(pattern.name) return !data.reachable.has(pattern.name);
-    if(pattern.terminal) return pattern.terminal === '_' ? !data.terminals.size && !data.omitted.size : !data.terminals.has(pattern.terminal) && !data.omitted.has(pattern.terminal);
-    return false;
-  }
-
-  /** @param {any} grammar @returns {string[]} */
-  function unreachableChecks(grammar) {
-    if (!grammar.checks.length) return [];
-    const {reachable}=observations(grammar);
-    return grammar.checks.filter((/** @type {any} */ entry)=>{
-      const pending=[entry.check.pattern];
-      while(pending.length) {
-        const pattern=pending.pop();
-        const parts=pattern.union ?? pattern.intersection ?? pattern.difference;
-        if(parts) for(const part of parts) pending.push(part);
-        else if(pattern.test) pending.push(pattern.expr);
-        else if(!pattern.name || reachable.has(pattern.name)) return false;
-      }
-      return true;
-    }).map((/** @type {any} */ entry)=>entry.check.name);
-  }
-
-  /** @param {any} grammar @returns {any} */
-  function rankingAudit(grammar) {
-    const steps=grammar.resolution?.steps??[];
-    if (!steps.length) return {keySteps:[],countedChanges:[]};
-    const data=observations(grammar);
-    const reports=[],changes=[];
-    for(let index=0;index<steps.length;index++) {
-      const step=steps[index],named=new Set(),pending=[step.pattern];
-      while(pending.length) {
-        const pattern=pending.pop();
-        if(pattern.name)named.add(pattern.name);
-        for (const child of patternParts(pattern)) pending.push(child);
-      }
-      reports.push({step:index,pattern:canonicalArgument({pattern:step.pattern},grammar.unicode),...(dead(step.pattern,data)?{status:'impossible'}:{})});
-      for(const change of grammar.changes)if(named.has(change.rule))changes.push({...change,step:index});
-    }
-    return {keySteps:reports,countedChanges:changes};
   }
 
   // ---- diagnostics.js
@@ -24789,7 +24773,7 @@
             throw new GencmuError("grammar", `${what} stands before the first %stage`, at);
           }
           if (run === null || run.path !== documentPath) {
-            run = { path: documentPath, dom: { format: dom.format, rules: [], checks:[], directives: [], constants: [], classifiers: [], implications: [] } };
+            run = { path: documentPath, dom: { format: dom.format, rules: [], directives: [], constants: [], classifiers: [], implications: [], checks:[] } };
             stage.documents.push(run);
           }
           if ("rule" in item) run.dom.rules.push(item.rule);

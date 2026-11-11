@@ -106,7 +106,7 @@ fn walk_body(
         }
     }
 }
-fn dead(p: &Pattern, reachable: &BTreeSet<String>, terms: &BTreeSet<String>) -> bool {
+pub(crate) fn dead(p: &Pattern, reachable: &BTreeSet<String>, terms: &BTreeSet<String>) -> bool {
     match p {
         Pattern::Name(n, _) => !reachable.contains(n),
         Pattern::Terminal(t, _) => {
@@ -126,6 +126,25 @@ fn dead(p: &Pattern, reachable: &BTreeSet<String>, terms: &BTreeSet<String>) -> 
     }
 }
 
+pub(crate) fn reach(g: &StageGrammar, roots: &[&str], body: Option<&Expr>) -> (BTreeSet<String>, BTreeSet<String>) {
+    let (mut reachable, mut terms, mut omitted) = (BTreeSet::new(), BTreeSet::new(), BTreeSet::new());
+    let mut pending: BTreeSet<String> = roots.iter().map(|name| (*name).to_owned()).collect();
+    if let Some(body) = body {
+        walk_body(body, &mut pending, &mut terms, &mut omitted, g);
+    }
+    while let Some(name) = pending.pop_first() {
+        if let Some(&i) = g.index.get(&name) {
+            if reachable.insert(name) {
+                for alt in &g.rules[i].alternatives {
+                    walk_body(&alt.alternative.expr, &mut pending, &mut terms, &mut omitted, g);
+                }
+            }
+        }
+    }
+    terms.extend(omitted);
+    (reachable, terms)
+}
+
 pub(crate) fn report(g: &StageGrammar) -> RankingReport {
     let (erasures, idle_erasures) = crate::erasure_audit::notes(g);
     if g.steps.is_empty() {
@@ -138,33 +157,7 @@ pub(crate) fn report(g: &StageGrammar) -> RankingReport {
             diagnostic_notes: crate::diagnostic_audit::notes(g),
         };
     }
-    let bodies: Vec<_> = g
-        .rules
-        .iter()
-        .map(|rule| {
-            let (mut refs, mut terms, mut omitted) = (BTreeSet::new(), BTreeSet::new(), BTreeSet::new());
-            for alternative in &rule.alternatives {
-                walk_body(&alternative.alternative.expr, &mut refs, &mut terms, &mut omitted, g);
-            }
-            (refs, terms, omitted)
-        })
-        .collect();
-    let mut reachable = BTreeSet::new();
-    let mut pending = vec!["text".to_owned()];
-    while let Some(name) = pending.pop() {
-        if reachable.insert(name.clone()) {
-            if let Some(&i) = g.index.get(&name) {
-                pending.extend(bodies[i].0.iter().cloned());
-            }
-        }
-    }
-    let mut terminals = BTreeSet::new();
-    for name in &reachable {
-        if let Some(&i) = g.index.get(name) {
-            terminals.extend(bodies[i].1.iter().cloned());
-            terminals.extend(bodies[i].2.iter().cloned());
-        }
-    }
+    let (reachable, terminals) = reach(g, &["text"], None);
     let mut out = RankingReport {
         name: g.name.clone(),
         erasures,

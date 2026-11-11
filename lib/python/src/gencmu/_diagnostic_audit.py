@@ -1,5 +1,6 @@
 """Static notes for diagnostic rules and guarded tag variants."""
 from . import _testing
+from ._ranking_audit import pattern_reach, pattern_dead
 from ._clause_walk import clause_children, expression_children
 from ._query_forms import query_references
 from ._clauses import validation_captures, simplify_term
@@ -103,7 +104,11 @@ def diagnostic_notes(grammar):
                         roots[node["ref"]] = 1
                     pending.extend(expression_children(node))
                 possible = {name} if alt.warning is not None else set()
-                possible.update(check["name"] for _, check in grammar.checks if "warning" in check)
+                if any("warning" in check for _, check in grammar.checks):
+                    reach = pattern_reach(grammar, expr=alt.expr)
+                    reach[0].add(name)
+                    possible.update(check["name"] for _, check in grammar.checks
+                                    if "warning" in check and not pattern_dead(check["pattern"], *reach))
                 for target in closure(roots.items()):
                     possible.update(warnings.get(target, ()))
                 for code in dict.fromkeys(alt.suppress_warnings):

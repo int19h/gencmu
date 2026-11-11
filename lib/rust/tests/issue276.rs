@@ -139,6 +139,42 @@ fn diagnostic_audit_notes_name_rules_and_variants() {
 }
 
 #[test]
+fn warning_checks_use_the_suppressed_alternative_reach_set() {
+    let cases = [
+        ("\"a\"", "#·outside", true, ""),
+        ("\"a\"", "#(·outside ∩ ·_)", true, ""),
+        ("\"a\"", "#(·outside ∖ ·_)", true, ""),
+        ("\"a\"", "#(·outside ∪ ·_)", false, ""),
+        ("\"a\"", "#·r", false, ""),
+        ("child", "#·child", false, ""),
+        ("\"a\"", "#·r⁅·outside⁆", false, ""),
+        ("\"a\"", "#·outside", true, "%extend-rule r outside\n"),
+        ("\"a\"", "#·_<_Elided>", false, ""),
+    ];
+    for (body, pattern, unused, extra) in cases {
+        for code in ["never", "_"] {
+            let source = format!("```jbogenbau\n%ambiguity-resolution greedy\n%rule text r | outside\n%rule r {body}\n%suppress-warnings {code}\n{extra}%rule outside \"b\"\n%rule child \"a\"\n%check never {pattern}\n%warning \"never\"\n```\n");
+            let p = gencmu::load_pipeline_sources(
+                std::collections::BTreeMap::from([
+                    ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_owned()),
+                    ("g.md", source),
+                ]),
+                "p.md",
+            )
+            .unwrap();
+            let notes = &p.ranking_reports()[0].diagnostic_notes;
+            let notes: Vec<_> = notes
+                .iter()
+                .filter(|n| n.kind == "unused-suppression")
+                .map(|n| (n.rule.as_str(), n.code.as_deref()))
+                .collect();
+            let expected = if unused { vec![("r", Some(code))] } else { vec![] };
+            assert_eq!(notes, expected, "{body} {pattern} {code} {extra}");
+        }
+    }
+}
+
+#[test]
 fn splice_dom_requires_a_nominal_target() {
     for target in [r#"{"param":"X","at":[1,1]}"#, r#"{"test":"=","value":{"string":"a"},"expr":{"ref":"piece"}}"#] {
         let dom = format!(

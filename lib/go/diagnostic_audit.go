@@ -253,9 +253,13 @@ func diagnosticNotes(g *stageGrammar) []DiagnosticNote {
 					roots.add(name, 1)
 				}
 				possible := map[string]bool{}
-				for _, entry := range g.checks {
-					if entry.definition.Warning != nil {
-						possible[entry.definition.Name] = true
+				if len(g.checks) > 0 {
+					reachable, terminals := rankingReach(g, nil, alt.alt.Expr)
+					reachable[rule.name] = true
+					for _, entry := range g.checks {
+						if entry.definition.Warning != nil && !rankingDead(entry.definition.Pattern.Pattern, reachable, terminals) {
+							possible[entry.definition.Name] = true
+						}
 					}
 				}
 

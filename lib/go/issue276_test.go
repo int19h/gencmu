@@ -283,6 +283,50 @@ func TestIssue276AuditNotes(t *testing.T) {
 		t.Fatalf("missing suppression note: %+v", notes)
 	}
 }
+func TestIssue276WarningCheckSuppressionReach(t *testing.T) {
+	cases := []struct {
+		body, pattern string
+		unused        bool
+		extra         string
+	}{
+		{"\"a\"", "#·outside", true, ""},
+		{"\"a\"", "#(·outside ∩ ·_)", true, ""},
+		{"\"a\"", "#(·outside ∖ ·_)", true, ""},
+		{"\"a\"", "#(·outside ∪ ·_)", false, ""},
+		{"\"a\"", "#·r", false, ""},
+		{"child", "#·child", false, ""},
+		{"\"a\"", "#·r⁅·outside⁆", false, ""},
+		{"\"a\"", "#·outside", true, "%extend-rule r outside\n"},
+		{"\"a\"", "#·_<_Elided>", false, ""},
+	}
+	for _, entry := range cases {
+		for _, code := range []string{"never", "_"} {
+			t.Run(entry.body+entry.pattern+code+entry.extra, func(t *testing.T) {
+				grammar := "%rule text r | outside\n%rule r " + entry.body + "\n%suppress-warnings " + code + "\n" + entry.extra + "%rule outside \"b\"\n%rule child \"a\"\n%check never " + entry.pattern + "\n%warning \"never\""
+				c := issue276Case(t, "warning-suppression-descendant")
+				c.Grammar = &grammar
+				notes := issue276Pipeline(t, c).RankingReports()[0].DiagnosticNotes
+				count := 0
+				for _, note := range notes {
+					if note.Kind == "unused-suppression" {
+						count++
+						if note.Rule != "r" || note.Code != code {
+							t.Fatalf("unexpected note: %+v", note)
+						}
+					}
+				}
+				want := 0
+				if entry.unused {
+					want = 1
+				}
+				if count != want {
+					t.Fatalf("notes=%+v want %d unused suppressions", notes, want)
+				}
+			})
+		}
+	}
+}
+
 func TestIssue276CorpusProjection(t *testing.T) {
 	c := issue276Case(t, "error-shape")
 	result := issue276Parse(t, issue276Pipeline(t, c), c)

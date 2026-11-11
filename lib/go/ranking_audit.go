@@ -113,38 +113,41 @@ func rankingDead(p *domPattern, reachable, terminals map[string]bool) bool {
 	}
 	return false
 }
+func rankingReach(g *stageGrammar, roots []string, body *domExpr) (map[string]bool, map[string]bool) {
+	reachable, terminals := map[string]bool{}, map[string]bool{}
+	pending := append([]string{}, roots...)
+	add := func(expr *domExpr) {
+		refs, omitted := map[string]bool{}, map[string]bool{}
+		rankingBody(expr, g, refs, terminals, omitted)
+		addRankingTags(terminals, omitted)
+		for name := range refs {
+			pending = append(pending, name)
+		}
+	}
+	if body != nil {
+		add(body)
+	}
+	for len(pending) > 0 {
+		name := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		rule := g.byName[name]
+		if reachable[name] || rule == nil {
+			continue
+		}
+		reachable[name] = true
+		for _, alt := range rule.alts {
+			add(alt.alt.Expr)
+		}
+	}
+	return reachable, terminals
+}
+
 func rankingStageReport(g *stageGrammar) RankingReport {
 	if len(g.steps) == 0 {
 		return RankingReport{Name: g.name, KeySteps: []RankingStepReport{}, CountedChanges: []CountedRuleChange{}}
 	}
-	type ruleData struct{ refs, terminals, omitted map[string]bool }
-	data := map[string]ruleData{}
-	for _, rule := range g.rules {
-		d := ruleData{map[string]bool{}, map[string]bool{}, map[string]bool{}}
-		for _, alternative := range rule.alts {
-			rankingBody(alternative.alt.Expr, g, d.refs, d.terminals, d.omitted)
-		}
-		data[rule.name] = d
-	}
-	reachable := map[string]bool{}
-	pending := []string{"text"}
-	for len(pending) > 0 {
-		name := pending[len(pending)-1]
-		pending = pending[:len(pending)-1]
-		d, found := data[name]
-		if reachable[name] || !found {
-			continue
-		}
-		reachable[name] = true
-		for ref := range d.refs {
-			pending = append(pending, ref)
-		}
-	}
-	terminals := map[string]bool{}
-	for name := range reachable {
-		addRankingTags(terminals, data[name].terminals)
-		addRankingTags(terminals, data[name].omitted)
-	}
+	reachable, terminals := rankingReach(g, []string{"text"}, nil)
+
 	report := RankingReport{Name: g.name, KeySteps: []RankingStepReport{}, CountedChanges: []CountedRuleChange{}}
 	for step, key := range g.steps {
 		names := map[string]bool{}

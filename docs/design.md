@@ -1037,7 +1037,7 @@ The product provides these diagnostics and debugging tools:
   The trace position must be a finite integer. The trace clamps it to the stage's token boundaries. Printed conditions preserve method receivers with parentheses around compound terms.
 - The audit reports unreachable rules, every rule that a later document replaced or extended, and the kind of every `%erased` production. Speaker erasure drops diagnostics and collapses interiors, so it cannot serve merely to omit stream plumbing. An unlisted part already emits nothing. Only erasure that changes no emission, counted parts, diagnostics, or observable derivation choice is inert.
 
-  The audit also lists a check whose candidate predicate names only unreachable rules. Child lists do not take part in that test.
+  The audit also lists a check whose candidate predicate is dead by the key-step recursion below. The recursion uses the stage's reach set. Child lists do not take part in that test.
 
   The audit names each redefinition or extension of a counted rule, with the step that it affects. A counted rule is one that a key step names. The audit also labels a key step impossible where its stage cannot match it. That is the one label of a step.
 
@@ -1082,7 +1082,7 @@ The audit also reports these notes:
 - Each rule with a boundary atom that a nested query can reach (engine §4.2). At the edges of a query's witness, such an atom gets its default answer, which an author can easily miss. The entry is a note, not an error.
 - Each boundary-atom target that only a nested query can build. Outside queries, the atom always gets its default answer there.
 - Every `%error` rule that a query target reaches. Such an occurrence cannot supply a query witness outside an erased witness subtree.
-- Each suppression code that its subtree can never raise, after stitching each stage.
+- Each suppression code that its subtree can never raise, after stitching each stage. A warning check is possible only where its candidate predicate is live by the key-step recursion. The subtree's reach set includes the owning rule and the rules that the alternative's body reaches. It also includes the written and omitted leaves under those bodies. Child lists do not take part. A `_` suppression counts warning checks by the same test.
 - Each effective production with more than 8 guarded tag variants. More than 16 is a document error.
 
 ## CLI and playground

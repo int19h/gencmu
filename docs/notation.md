@@ -476,7 +476,7 @@ Suppression covers the whole derivation subtree, including the rule's own warnin
 
 Suppression changes reports and skips warning evaluation. It never changes recognition or ranking. A suppressed warning check cannot raise a runtime grammar error. It affects only warnings raised in that stage, rather than carried warnings. It suppresses no error. A template can carry suppression, and each instance inherits it.
 
-After stitching each stage, every listed code must name a warning in that stage. The audit notes each listed code that its subtree can never raise.
+After stitching each stage, every listed code must name a warning in that stage. The audit notes each listed code that its subtree can never raise. A warning check is possible only where its candidate predicate is live by the key-step recursion in [Diagnostics and debugging](design.md#diagnostics-and-debugging). The subtree's reach set includes the owning rule and the rules that the alternative's body reaches. It also includes the written and omitted leaves under those bodies. Child lists do not take part. A `_` suppression counts warning checks by the same test.
 
 ### Choosing specific errors
 
