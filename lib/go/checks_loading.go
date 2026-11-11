@@ -1,5 +1,7 @@
 package gencmu
 
+import "strings"
+
 func checkNodeTerm(term *domTerm) bool {
 	for term != nil && term.Kind == tmCall && len(term.Items) == 1 {
 		if term.Str != "parent" && term.Str != "preceding-node" && term.Str != "following-node" {
@@ -13,7 +15,57 @@ func checkElementTerm(term *domTerm) bool {
 	return term != nil && term.Kind == tmCall && term.Str == "preceding-element" && len(term.Items) == 1 && checkNodeTerm(term.Items[0])
 }
 
+func (b *domBuilder) checkWrittenShape(root *Node) {
+	pending := []*Node{root}
+	for len(pending) > 0 {
+		if w := work.Load(); w != nil {
+			w.readerSteps.add("reader steps")
+		}
+		current := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		if current.Kind != KindRule {
+			continue
+		}
+		switch current.Rule {
+		case "parameter":
+			b.fail(current, "an undeclared or malformed parameter")
+		case "integer":
+			if !validInteger(b.tokenValue(current)) {
+				b.fail(current, "a malformed integer argument")
+			}
+		case "capture", "captured-terminator":
+			if !captureName.MatchString(strings.TrimPrefix(b.tokenValue(current), "$")) {
+				b.fail(current, "a malformed capture name")
+			}
+		case "method-selector":
+			name := "parse"
+			if head := b.one(current, "method-name"); head != nil {
+				name = b.tokenValue(head)
+			}
+			if arguments := b.one(current, "method-arguments"); arguments != nil {
+				for _, arg := range b.some(arguments, "method-argument", 0) {
+					text := ""
+					if arg.Span[0] >= 0 && arg.Span[0] < len(b.toks) {
+						text = b.toks[arg.Span[0]].Value
+					}
+					if arg.Span[1]-arg.Span[0] == 1 && isRuleName(text, b.uni) && name != "classify" && name != "without-elision-except" && name != "followed-by" && name != "preceded-by" {
+						b.fail(arg, "a malformed rule argument")
+					}
+					if b.one(arg, "integer") != nil && name != "ngrams" {
+						b.fail(arg, "a malformed integer argument")
+					}
+				}
+			}
+		}
+		parts := b.parts(current)
+		for i := len(parts) - 1; i >= 0; i-- {
+			pending = append(pending, parts[i])
+		}
+	}
+}
+
 func (b *domBuilder) check(node *Node) *domCheck {
+	b.checkWrittenShape(node)
 	previous := b.types
 	b.checkContext, b.types = true, newTypeMemo()
 	b.types.check = true
@@ -99,18 +151,22 @@ func checkDOMCheck(check *domCheck, uni *unicodeTable, expanded bool, document *
 	if check.Pattern == nil || check.Pattern.Kind != tmPattern && check.Pattern.Kind != tmConst {
 		return fail("a check requires one pattern")
 	}
-	checker := &domChecker{check: true, uni: uni, expanded: expanded, label: "check " + check.Name}
-	checker.term(check.Pattern, 0, false)
-	for _, condition := range check.Conditions {
-		checker.condition(condition, 0)
+	checker := &domChecker{check: true, structural: true, uni: uni, expanded: expanded, label: "check " + check.Name}
+	for _, structural := range []bool{true, false} {
+		checker.structural = structural
+		checker.term(check.Pattern, 0, false)
+		for _, condition := range check.Conditions {
+			checker.condition(condition, 0)
+		}
+		checker.recipe(check.Warning)
+		checker.recipe(check.Error)
+		document.unresolved = document.unresolved || checker.unresolved
+		if checker.problem != nil {
+			checker.problem.at = check.At
+			return checker.problem
+		}
 	}
-	checker.recipe(check.Warning)
-	checker.recipe(check.Error)
-	document.unresolved = document.unresolved || checker.unresolved
-	if checker.problem != nil {
-		checker.problem.at = check.At
-		return checker.problem
-	}
+
 	return nil
 }
 

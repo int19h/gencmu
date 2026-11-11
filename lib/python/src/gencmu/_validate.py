@@ -662,6 +662,8 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: l
                 if keys != {"literal"}:
                     return "a malformed literal"
                 pending.append(("string", node["literal"], depth, False, False))
+            elif keys == {"ref"} and (not isinstance(node["ref"],str) or not (_NAME.fullmatch(node["ref"]) or node["ref"] in ENGINE_TAGS or rule_name(node["ref"]))):
+                return "a malformed reference"
             elif not (
                 keys == {"ref"}
                 and isinstance(node["ref"], str)
@@ -748,8 +750,8 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: l
                 return 'unknown method name'
             if node['method'] in ('classify', 'ngrams') and has_unresolved(node['args']):
                 return 'a parameter cannot replace a classifier name or integer argument'
-            problem = None if id(node) in check_nodes else method_shape_problem(node["method"], node.get("receiver"), node["args"], recipe)
-            if problem:
+            problem = method_shape_problem(node["method"], node.get("receiver"), node["args"], recipe)
+            if problem and id(node) not in check_nodes:
                 return problem
             if kind != "condition" and node["method"] in ("starts-input", "ends-input", "followed-by", "preceded-by"):
                 return "a predicate method cannot supply a value"
@@ -778,6 +780,10 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: l
                     pending.append(("expr", body, depth, False, id(node) not in check_nodes))
                 elif isinstance(arg, dict) and set(arg) in ({"rule"}, {"classifier"}, {"terminal"}, {"integer"}):
                     key = next(iter(arg))
+                    if key == "rule" and (node["method"] not in ("without-elision-except","followed-by","preceded-by") or not rule_name(arg[key])):
+                        return "a malformed rule argument"
+                    if key == "classifier" and (node["method"] != "classify" or not isinstance(arg[key],str) or CLASSIFIER_NAME.fullmatch(arg[key]) is None):
+                        return "a malformed classifier argument"
                     if key == "integer":
                         if node["method"] != "ngrams" or not isinstance(arg[key], str) or re.fullmatch(r"[1-9][0-9]*", arg[key]) is None:
                             return "a malformed integer argument"

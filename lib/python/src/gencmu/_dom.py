@@ -257,6 +257,33 @@ class DomBuilder:
             return term_type(term, self.check_message_types if self.recipe_context else self.check_types, memo)
         return term_type(term, memo=memo)
 
+    def check_written_shape(self, root):
+        from . import _testing
+        pending = [root]
+        while pending:
+            _testing.count("walkSteps")
+            current = pending.pop()
+            if current.kind != "rule":
+                continue
+            if current.rule == "parameter":
+                raise self.fail(current, "an undeclared or malformed parameter")
+            if current.rule == "integer" and re.fullmatch(r"[1-9][0-9]*", self.token_value(self.token(current))) is None:
+                raise self.fail(current, "a malformed integer argument")
+            if current.rule in ("capture", "captured-terminator") and CAPTURE_NAME.fullmatch(self.token_value(self.token(current))[1:]) is None:
+                raise self.fail(current, "a malformed capture name")
+            if current.rule == "method-selector":
+                head = self.one(current, "method-name")
+                name = self.token_value(self.token(head)) if head is not None else "parse"
+                arguments = self.one(current, "method-arguments")
+                if arguments is not None:
+                    for arg in self.some(arguments, "method-argument"):
+                        text = self.tokens[arg.span[0]].value if 0 <= arg.span[0] < len(self.tokens) else ""
+                        if arg.span[1]-arg.span[0] == 1 and (re.match(r"[a-z]",text) or self.unicode.is_emoji_name(text)) and name not in ("classify", "without-elision-except", "followed-by", "preceded-by"):
+                            raise self.fail(arg,"a malformed rule argument")
+                        if self.one(arg,"integer") is not None and name != "ngrams":
+                            raise self.fail(arg,"a malformed integer argument")
+            pending.extend(reversed(self.kids(current)))
+
     def check(self, node):
         from ._boundary import Located
         allowed = {"rule-name", "pattern-literal", "constant-reference", "conditions-clause", "error-clause", "warning-clause"}
@@ -271,6 +298,7 @@ class DomBuilder:
         name = self.token_value(self.token(names[0]))
         if not self.unicode.is_emoji_name(name) and CLASSIFIER_NAME.fullmatch(name) is None:
             raise self.fail(names[0], "a check name starts with a lowercase letter or uses one eligible emoji")
+        self.check_written_shape(node)
         previous, self.types = self.types, {}
         self.check_context = True
         try:
@@ -1262,6 +1290,8 @@ class DomBuilder:
                 if problem:
                     raise self.fail(node, problem)
             kind, problem = self.term_type(receiver, memo=self.types)
+            if self.check_context and self.recipe_context and receiver != {"capture":""}:
+                raise self.fail(node,"a check message reads only $")
             if problem is None:
                 _, problem = method_type(name, kind, args, set(receiver) == {"capture"}, self.recipe_context)
             if name in ("without-elision", "without-elision-except") and set(receiver) != {"capture"}:
@@ -1560,7 +1590,7 @@ class DomBuilder:
             items = []
             for part in nodes:
                 value = yield self._term(part, argument and len(nodes) == 1)
-                if len(nodes) > 1:
+                if len(nodes) > 1 or self.check_context and self.recipe_context:
                     kind, problem = self.term_type(value, memo=self.types)
                     if not self.feature_context and (problem or kind not in ("string", "any")):
                         raise self.fail(node, problem or "++ requires string operands")

@@ -150,6 +150,23 @@ func (c *domChecker) recipe(t *domTerm) {
 		if c.problem != nil {
 			return
 		}
+		if c.structural {
+			continue
+		}
+		if c.check {
+			ty, fault := termTypeMemo(atom, nil, c.types)
+			if fault != nil {
+				c.fail("%s", fault.problem)
+				return
+			}
+			if ty != tyString && ty != tyAny {
+				c.fail("++ requires string operands")
+				return
+			}
+		}
+	}
+	if c.structural {
+		return
 	}
 	if _, fault := termTypeMemo(t, nil, c.types); fault != nil {
 		c.fail("%s", fault.problem)
@@ -371,6 +388,15 @@ func (b *domBuilder) recipe(n *Node) *domTerm {
 			if t.Kind == tmUnion {
 				b.fail(atom, "juxtaposed recipe strings require ++, use ++ between string atoms")
 			}
+			if b.checkContext {
+				ty, problem := b.typeOf(t)
+				if problem != "" {
+					b.fail(atom, "%s", problem)
+				}
+				if ty != tyString && ty != tyAny {
+					b.fail(atom, "++ requires string operands")
+				}
+			}
 			valid := stringTermShape(t) || t.Kind == tmParam || t.Kind == tmSourceCall
 			if t.Kind == tmCall && len(t.Items) == 1 {
 				receiver := t.Items[0]
@@ -581,13 +607,13 @@ func (b *domBuilder) checkMethodClause(name string, selector *Node) {
 }
 
 func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args []*domTerm, dependent bool, selector *Node) *domTerm {
-	if b.checkContext && b.inRecipe && (name == "value" || name == "image" || name == "source-text" || name == "decomposed-source-text" || name == "verbatim-text") && receiver.Kind != tmCapture {
+	if b.checkContext && b.inRecipe && receiver.Kind != tmCapture {
 		b.fail(n, "a check message reads only $")
 	}
 
 	kind := sourceMethods[name]
 	if b.checkContext && checkElementTerm(receiver) && !(kind == methodLocal || kind == methodSpan && name != "classes" || kind == methodEndingAfter) {
-		b.fail(n, "an element has no tags, walk, or boundary method")
+		b.fail(n, "a method has the wrong receiver or arguments")
 	}
 
 	fail := func() {

@@ -1760,7 +1760,7 @@ A rule node's name is its rule. A token node's name is the terminal that read it
 
 Let the receiver span `[a,b)` in derivation D. `$x.followed-by(S)` is true when `b < N` and D has a counting node of a name in `S` whose first token is `b`. `$x.preceded-by(S)` is true when `a > 0` and D has a counting node of a name in `S` whose last token is `a−1`. Otherwise each is false.
 
-A condition item holds at most one atom (§9.3). The same rule applies to each condition appended by tag-guard lowering. An `%error` rule can carry a boundary atom in its conditions.
+A rule condition item holds at most one atom (§9.3). The same rule applies to each condition appended by tag-guard lowering. An `%error` rule can carry a boundary atom in its conditions.
 
 A choice of names is one atom. Its value in D is its value under §10, with the atom's value in D. If any condition item fails, that derivation does not count. This filter applies before ranked admission and ranking (§6). It applies to the counted derivations of a stage, to query witnesses, and to the derivations of §7.
 
@@ -2974,15 +2974,23 @@ Readers use common diagnostic text for unclosed grammar fences, capture restrict
 
 Binding a constant does not change method-signature text. A fault inside a receiver or argument retains that operand's own diagnostic.
 
-Check terms obey every ordinary term rule. Check restrictions apply in addition, in the order below. The first faulty condition in written order wins. Conditions precede the message.
+Check terms obey ordinary term rules, except for the boundary-atom limits of rule conditions. A check condition can contain several boundary atoms and read several nodes.
 
-A faulty atom of a check message reports at that atom's first token. A known non-string operand instead fails its concatenation at the concatenation's position. Clause and capture faults retain their own positions below.
+Structural inspection covers the whole check declaration before semantic inspection starts. Structural faults include malformed DOM members, names, references, parameters, integers, strings, argument kinds, and concatenations with too few operands. A structural fault anywhere precedes every semantic fault.
 
-A malformed check name reports at the name. A check whose name is a rule reports `a rule and a check cannot share the name NAME` at the check declaration. A forbidden capture reference in a check reports `a check cannot name a capture` at that reference. This rule covers conditions and messages. For a caller-supplied DOM without that source position, use the declaration's `at`.
+In a check, a malformed reference reports `a malformed reference`. An undeclared or malformed parameter reports `an undeclared or malformed parameter`. An invalid rule argument reports `a malformed rule argument`. A concatenation with too few operands reports `a malformed concatenation`. Each uses the faulty constructor's position.
 
-Section 2.4 defines the clauses where check methods are legal. A forbidden check method reports `a check method is outside its permitted clause` at the selector's leading dot. This restriction precedes tree-comparison, concatenation, and recipe signature checks at that selector. A receiver's own fault precedes inspection of its selectors. A selector's clause or restoration fault precedes a fault inside its arguments.
+Semantic inspection follows written order. Conditions come in written order, then the message. Message operands come in written order. A non-string operand is a fault at its place in that order. It fails the concatenation at the concatenation's position.
 
-A restoration selector in a check reports `a check cannot restore elision` at its leading dot. A capture binder in a check query argument reports `a check cannot declare a capture` at the binder.
+Within an operand, a receiver's fault precedes its selectors' faults. At a selector, check restrictions precede the ordinary signature rule. Check restrictions concern capture references, methods outside their permitted clause, restoration selectors, and message receivers.
+
+A malformed check name reports at the name. A check whose name is a rule reports `a rule and a check cannot share the name NAME` at the check declaration. A forbidden capture reference reports `a check cannot name a capture` at that reference, in conditions and messages. For a caller-supplied DOM without that source position, use the declaration's `at`.
+
+Section 2.4 defines the clauses where check methods are legal. A forbidden check method reports `a check method is outside its permitted clause` at the selector's leading dot. A restoration selector reports `a check cannot restore elision` at its leading dot. These restrictions precede semantic faults inside arguments. Structural argument faults precede them, under the structural inspection rule.
+
+A method chain in a check message must read `$` through one permitted string method, including `.terminal`. Every other chain reports `a check message reads only $` at that atom's first token. This restriction precedes the ordinary signature rule, including for chains of `.terminal` methods. A single non-string method result follows the non-string operand rule.
+
+Other faulty message atoms report at their first token. Clause and capture faults retain their positions above. A capture binder in a check query argument reports `a check cannot declare a capture` at the binder.
 
 A check tree comparison requires a node on its left. A left operand that is not a node reports `a tree comparison requires a node on its left` at that operand. A wrong right operand reports `a tree comparison requires a node or pattern` at that operand. A fault of the left operand precedes a fault of the right operand. A self comparison in a check reports `a tree comparison cannot compare a node with itself` at the comparison.
 
@@ -3513,7 +3521,7 @@ Each of the following is an error of the document too, and the reader reports it
 - A capture that no alternative of the definition captures is an error, in any clause, `$x` presence tests included.
 - A condition that applies (§3.6) to no production of the definition, whatever features are enabled, is an error.
 
-A condition item holds at most one boundary atom. If the receiver of its atom is a capture, the item reads no other capture and no `$`. A boundary atom can stand in conditions, a guarded header or alternative tag term (§3.7), or an emission item's tag clause.
+A rule condition item holds at most one boundary atom. If the receiver of its atom is a capture, the item reads no other capture and no `$`. A boundary atom can stand in conditions, a guarded header or alternative tag term (§3.7), or an emission item's tag clause.
 
 Its target is one ordinary rule, exact instance, user tag, or a choice of these. `🆓` counts as a rule name. Each target must be one that some recognition can build. It is a rule reachable through body references from `text` or from the body of a `parse`. Or it is a tag that such a rule reads as a terminal.
 
@@ -4160,7 +4168,7 @@ Each check tests its pattern, its conditions in written order, then its message.
 
 A tie walks its first shown reading, then its second, with own identities scoped by reading. Rule recipes follow §11.3, without `.emitted`, queries or absent, item or private ranked captures. A check recipe reads only `$` through recipe string methods and `.terminal`. It accepts no node walk or element. `.terminal` gives the canonical leaf terminal, or the empty string for a rule. Omitted terminals give their tag, and string constants give their resolved literal identity. Symbol tests take no part.
 
-No message recipe can fail in the present recipe language, but a check condition can. The message failure rule is a guard.
+The recipe language has no message that can fail, but a check condition can. The message failure rule is a guard.
 
 A runtime grammar error in a message or any check evaluation stops the walk. The result is `grammar`, keeps the verdict, and prevents emission and reconstruction. Earlier evaluated messages outside erasure remain available under the failure collection below. A check failure never makes another reading win. An enabled check can therefore stop output, although warning controls change no accepted reading or chosen tree.
 

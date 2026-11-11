@@ -1,0 +1,14 @@
+{
+  "description": "A non-string message operand precedes a later walk fault.",
+  "grammar": "%rule text \"a\"\n%check c #·text\n%warning $.tags ++ $.parent.value",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "message": "++ requires string operands",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 10
+    }
+  }
+}

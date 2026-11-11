@@ -91,54 +91,14 @@ def method_shape_problem(name: Any, receiver: Any, args: Any, recipe: bool = Fal
     element = receiver_method == "preceding-element"
     span = node or element or isinstance(receiver_method, str) and receiver_method in _SPAN_SHAPES
 
-    def named(arg, key):
-        return isinstance(arg, dict) and set(arg) == {key} and isinstance(arg[key], str)
-
-    def rule(arg):
-        return named(arg, "rule") or isinstance(arg, dict) and bool({"param", "call"} & arg.keys())
-
-    def term(arg):
-        return isinstance(arg, dict) and not ({"rule", "classifier", "terminal", "integer"} & arg.keys())
-
-    if name in _NODE_METHODS or name in ("preceding-element", "terminal"):
-        valid = node and not args
-    elif name == "local-readings":
-        valid = (node or element) and not args
-    elif name == "parse":
-        if len(args) != 1 or not isinstance(args[0], dict) or set(args[0]) != {"body"} or not isinstance(args[0]["body"], dict):
-            return "a method has the wrong receiver or arguments"
-        from ._query_forms import query_body
-        if _restored_shape(receiver) and query_body(args[0]["body"])[1] in ("suffix", "part"):
-            return "suffix parse requires an ordinary span, not a restored span"
-        valid = span
-    elif name == "error-free":
-        valid = receiver_method in _FOREST_METHODS and not args
-    elif name == "ending-after":
-        valid = receiver_method in _FOREST_METHODS and len(args) == 1 and isinstance(args[0], dict) and ("capture" in args[0] or args[0].get("method") in _SPAN_SHAPES | _NODE_METHODS | {"preceding-element"})
-    elif name == "ngrams":
-        valid = len(args) == 1 and named(args[0], "integer") and re.fullmatch(r"[1-9][0-9]*", args[0]["integer"]) is not None
-    elif name == "split":
-        valid = len(args) == 1 and term(args[0]) and not (has_unresolved([receiver, args]) and args[0].get("string") == "")
-    elif name == "classify":
-        valid = len(args) == 1 and named(args[0], "classifier")
-    elif name == "tags":
-        valid = (span or receiver_method in _FOREST_METHODS) and not args
-    elif name in ("followed-by", "preceded-by"):
-        valid = node and bool(args) and all(rule(arg) or named(arg, "terminal") for arg in args)
-    elif name == "without-elision-except":
-        valid = bare and len(args) == 1 and rule(args[0])
-    elif name == "without-elision":
-        valid = bare and not args
-    elif name == "emitted":
-        valid = bare and not args
-    elif name == "verbatim-text":
-        valid = recipe and bare and not args
-    else:
-        valid = not args and (span or receiver_method == "emitted" and name in ("value", "image"))
-    return None if valid else "a method has the wrong receiver or arguments"
+    kind = "restored" if _restored_shape(receiver) else "forest" if receiver_method in _FOREST_METHODS else "element" if element else "node" if node else "span" if span else "emitted" if receiver_method == "emitted" else "any"
+    _, problem = method_type(name, kind, args, bare, recipe, _shape=True)
+    if problem is None and name == "split" and args[0].get("string") == "" and has_unresolved([receiver,args]):
+        return "a method has the wrong receiver or arguments"
+    return problem
 
 
-def method_type(name: str, receiver: TermType, args: list[Any], bare: bool = False, recipe: bool = False) -> Found:
+def method_type(name: str, receiver: TermType, args: list[Any], bare: bool = False, recipe: bool = False, *, _shape: bool = False) -> Found:
     """Select a method on its actual receiver before string conversion."""
     spans = {"capture", "span", "restored"}
     if name in _NODE_METHODS:
@@ -165,10 +125,10 @@ def method_type(name: str, receiver: TermType, args: list[Any], bare: bool = Fal
             valid = recipe and bare
         result, arity = "string", 0
     elif name == "emitted":
-        valid, result, arity = recipe and bare, "emitted", 0
+        valid, result, arity = (_shape or recipe) and bare, "emitted", 0
     elif name in ("without-elision", "without-elision-except"):
         valid, result, arity = bare, "restored", 0 if name == "without-elision" else 1
-        if arity and (len(args) != 1 or set(args[0]) != {"rule"}):
+        if arity and (len(args) != 1 or not (set(args[0]) == {"rule"} or _shape and has_unresolved(args[0]))):
             valid = False
     elif name in _SPAN_METHODS:
         valid = receiver in spans | {"node", "element"}
@@ -179,22 +139,24 @@ def method_type(name: str, receiver: TermType, args: list[Any], bare: bool = Fal
         if name == "tags" and args:
             valid = False
     elif name in ("followed-by", "preceded-by"):
-        valid = (bare or receiver == "node") and bool(args) and all(set(arg) == {"rule"} or set(arg) == {"terminal"} and isinstance(arg["terminal"], str) and arg["terminal"][:1].isupper() and not arg["terminal"].startswith("_") for arg in args)
+        valid = (bare or receiver == "node") and bool(args) and all(_shape and has_unresolved(arg) or set(arg) == {"rule"} or set(arg) == {"terminal"} and isinstance(arg["terminal"], str) and arg["terminal"][:1].isupper() and not arg["terminal"].startswith("_") for arg in args)
         result, arity = "predicate", None
     elif name in ("starts-input", "ends-input"):
         valid, result, arity = receiver in spans | {"node", "element"}, "predicate", 0
     elif name == "ngrams":
-        valid = receiver in spans | {"node", "string", "any"} and len(args) == 1 and set(args[0]) == {"integer"} and isinstance(args[0]["integer"], str) and re.fullmatch(r"[1-9][0-9]*", args[0]["integer"]) is not None
+        valid = (_shape or receiver in spans | {"node", "string", "any"}) and len(args) == 1 and set(args[0]) == {"integer"} and isinstance(args[0]["integer"], str) and re.fullmatch(r"[1-9][0-9]*", args[0]["integer"]) is not None
         result, arity = "strings", 1
     elif name in ("split", "classify"):
-        valid, result, arity = receiver in spans | {"node", "string", "any"}, "strings" if name == "split" else "tags", 1
+        valid, result, arity = (_shape or receiver in spans | {"node", "string", "any"}), "strings" if name == "split" else "tags", 1
         if name == "classify" and (len(args) != 1 or set(args[0]) != {"classifier"}):
+            valid = False
+        if name == "split" and (len(args) != 1 or any(key in args[0] for key in ("rule","classifier","terminal","integer"))):
             valid = False
     else:
         return None, f"unknown method .{name}"
     if not valid or arity is not None and len(args) != arity:
         return None, "a method has the wrong receiver or arguments"
-    if name == "split" and args[0].get("string") == "":
+    if not _shape and name == "split" and args[0].get("string") == "":
         return None, "split has an empty delimiter"
     return result, None
 

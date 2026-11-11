@@ -218,7 +218,57 @@ impl<'a> Reader<'a> {
         Ok(dom)
     }
 
+    fn check_written_shape(&self, root: &'a Node) -> R<()> {
+        let mut pending = vec![root];
+        while let Some(current) = pending.pop() {
+            work::count(Work::Walked, 1);
+            if current.kind != NodeKind::Rule {
+                continue;
+            }
+            match rule_name(current) {
+                "parameter" => return Err(self.error(current, "an undeclared or malformed parameter")),
+                "integer" if !crate::dom::valid_integer(self.value(self.token(current)?)) => {
+                    return Err(self.error(current, "a malformed integer argument"))
+                }
+                "capture" | "captured-terminator"
+                    if !is_capture_name(self.value(self.token(current)?).strip_prefix('$').unwrap_or("")) =>
+                {
+                    return Err(self.error(current, "a malformed capture name"))
+                }
+                "method-selector" => {
+                    let name = self
+                        .rules(current, "method-name")
+                        .next()
+                        .map(|head| self.token(head).map(|t| self.value(t)))
+                        .transpose()?
+                        .unwrap_or("parse");
+                    if let Some(arguments) = self.rules(current, "method-arguments").next() {
+                        for arg in self.rules(arguments, "method-argument") {
+                            let text = self.tokens.get(arg.span.start).map_or("", |token| token.value.as_str());
+                            if arg.span.end - arg.span.start == 1
+                                && (is_classifier_name(text) || self.unicode.is_emoji_name(text))
+                                && !matches!(
+                                    name,
+                                    "classify" | "without-elision-except" | "followed-by" | "preceded-by"
+                                )
+                            {
+                                return Err(self.error(arg, "a malformed rule argument"));
+                            }
+                            if self.rules(arg, "integer").next().is_some() && name != "ngrams" {
+                                return Err(self.error(arg, "a malformed integer argument"));
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+            pending.extend(self.parts(current).into_iter().rev());
+        }
+        Ok(())
+    }
+
     fn check(&self, node: &'a Node) -> R<CheckDef> {
+        self.check_written_shape(node)?;
         self.check_context.set(true);
         let result = (|| {
             for part in self.parts(node) {
@@ -1604,6 +1654,13 @@ impl<'a> Reader<'a> {
             frame.parts = Some(atoms);
         }
         if frame.pass {
+            if self.check_context.get() && self.in_recipe.get() {
+                if let Some(Val::Term(_, ty)) = &input {
+                    if !matches!(ty, Type::String | Type::Any) {
+                        return Err(self.error(frame.node, "++ requires string operands"));
+                    }
+                }
+            }
             return Ok(Step::Done(input.expect("the atom")));
         }
         if let Some(Val::Term(term, ty)) = input {
@@ -2078,11 +2135,7 @@ impl<'a> Reader<'a> {
         {
             return Err(self.error(frame.node, "suffix parse requires an ordinary span, not a restored span"));
         }
-        if self.check_context.get()
-            && self.in_recipe.get()
-            && matches!(name, "value" | "image" | "source-text" | "decomposed-source-text" | "verbatim-text")
-            && !bare
-        {
+        if self.check_context.get() && self.in_recipe.get() && !bare {
             return Err(self.error(frame.node, "a check message reads only $"));
         }
         if !valid {

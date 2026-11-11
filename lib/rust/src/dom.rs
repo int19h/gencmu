@@ -986,7 +986,18 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                     if matches!(name.as_str(), "tags" | "classes" | "split" | "ngrams" | "classify") {
                         return Err("a malformed query predicate".into());
                     }
-                    if array(value, "args")?.iter().any(|arg| arg.get("param").is_some() || arg.get("call").is_some()) {
+                    let arguments = array(value, "args")?;
+                    let nominal = match name.as_str() {
+                        "starts-input" | "ends-input" => arguments.is_empty(),
+                        "followed-by" | "preceded-by" => {
+                            !arguments.is_empty()
+                                && arguments
+                                    .iter()
+                                    .all(|arg| arg.get("rule").is_some() || arg.get("terminal").is_some())
+                        }
+                        _ => false,
+                    };
+                    if !nominal {
                         let mut args = vec![Arg::Term(receiver)];
                         for arg in array(value, "args")? {
                             args.push(if arg.get("rule").is_some() {
@@ -2407,10 +2418,24 @@ pub(crate) fn cond_type_context(cond: &Cond, constants: ConstantTypes, check: bo
             (term_type_context(term, constants, check).ok() != Some(Type::Forest))
                 .then(|| Fault::in_term("a condition requires a forest".into(), term))
         }),
-        Cond::SourceQuery(_, args, _) => args.iter().find_map(|arg| match arg {
-            Arg::Term(term) => term_type_context(term, constants, check).err(),
-            _ => None,
-        }),
+        Cond::SourceQuery(name, args, _) => {
+            let mut receiver = None;
+            for (index, arg) in args.iter().enumerate() {
+                if let Arg::Term(term) = arg {
+                    match term_type_context(term, constants, check) {
+                        Err(fault) => return Some(fault),
+                        Ok(ty) if index == 0 => receiver = Some(ty),
+                        _ => {}
+                    }
+                }
+            }
+            if check {
+                method_signature_problem(name, args, receiver, false)
+                    .map(|problem| Fault::in_cond(problem.into(), cond))
+            } else {
+                None
+            }
+        }
         Cond::Any(items) | Cond::All(items) => items.iter().find_map(|item| cond_type_context(item, constants, check)),
         Cond::Not(inner) => cond_type_context(inner, constants, check),
         Cond::If(antecedent, consequent) => {
@@ -2466,7 +2491,12 @@ pub(crate) fn cond_type_context(cond: &Cond, constants: ConstantTypes, check: bo
             match term_type_context(span, constants, check) {
                 Err(fault) => Some(fault),
                 Ok(Type::Element) if check && matches!(cond, Cond::Initial(_) | Cond::Final(_)) => None,
-                Ok(ty) => expected_problem(ty, Type::Span).map(|problem| Fault::in_cond(problem, cond)),
+                Ok(ty) => expected_problem(ty, Type::Span).map(|problem| {
+                    Fault::in_cond(
+                        if check { "a method has the wrong receiver or arguments".into() } else { problem },
+                        cond,
+                    )
+                }),
             }
         }
         Cond::Captured(_) => None,

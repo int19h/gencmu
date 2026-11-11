@@ -1,0 +1,14 @@
+{
+  "description": "A check message rejects value followed by terminal.",
+  "grammar": "%rule text \"a\"\n%check c #·text\n%warning \"x\" ++ $.value.terminal",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "message": "a check message reads only $",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 17
+    }
+  }
+}

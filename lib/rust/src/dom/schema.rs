@@ -20,6 +20,7 @@ pub(crate) struct ExprFlags {
 pub(crate) enum Part {
     Expr { whole: bool, flags: ExprFlags },
     Term,
+    Query,
     Body,
     RecipeAtom,
     Condition,
@@ -752,6 +753,9 @@ fn parts_problem(
             }
             Part::Expr { whole, flags } => {
                 let expression = |value, flags| (Part::Expr { whole: false, flags }, value, next);
+                if value.get("ref").is_some_and(|name| !name.as_str().is_some_and(|name| rule(name) || tag(name))) {
+                    return Some("a malformed reference".into());
+                }
                 if base(value, unicode, expanded) {
                     if value.get("ref").and_then(Json::as_str).is_some_and(|name| !rule(name) && !tag(name)) {
                         return Some("a malformed reference".into());
@@ -906,7 +910,7 @@ fn parts_problem(
                 }
                 pending.push((Part::Term, value, depth));
             }
-            Part::Term | Part::RecipeAtom => {
+            Part::Term | Part::RecipeAtom | Part::Query => {
                 if exact(value, &["string"], &[]) && is_str(value.get("string"))
                     || exact(value, &["tag"], &[]) && value.get("tag").and_then(Json::as_str).is_some_and(tag)
                     || bare_capture(value)
@@ -949,8 +953,23 @@ fn parts_problem(
                     {
                         return Some("a method has the wrong receiver or arguments".into());
                     }
-                    if matches!(name, "starts-input" | "ends-input" | "followed-by" | "preceded-by") {
+                    if !matches!(kind, Part::Query)
+                        && matches!(name, "starts-input" | "ends-input" | "followed-by" | "preceded-by")
+                    {
                         return Some("a predicate method cannot supply a value".into());
+                    }
+                    if !check
+                        && matches!(
+                            name,
+                            "parent"
+                                | "preceding-node"
+                                | "following-node"
+                                | "preceding-element"
+                                | "local-readings"
+                                | "terminal"
+                        )
+                    {
+                        return Some("a check method is outside its permitted clause".into());
                     }
                     if !check {
                         let shape = MethodReceiver {
@@ -997,9 +1016,9 @@ fn parts_problem(
                             return Some(problem.into());
                         }
                     }
-                    pending.push((kind, receiver, next));
+                    pending.push((if matches!(kind, Part::Query) { Part::Term } else { kind }, receiver, next));
                     for arg in args {
-                        for key in ["rule", "classifier", "integer"] {
+                        for key in ["rule", "classifier", "integer", "terminal"] {
                             if arg.get(key).is_some()
                                 && (!exact(arg, &[key], &[])
                                     || !arg.get(key).is_some_and(|value| matches!(value, Json::Str(_))))
@@ -1008,15 +1027,35 @@ fn parts_problem(
                             }
                         }
                         if let Some(target) = arg.get("rule").and_then(Json::as_str) {
-                            if !rule(target) {
+                            if !matches!(name, "without-elision-except" | "followed-by" | "preceded-by")
+                                || !rule(target)
+                            {
                                 return Some("a malformed rule argument".into());
+                            }
+                        }
+                        if let Some(target) = arg.get("classifier").and_then(Json::as_str) {
+                            if name != "classify" || !is_classifier_name(target) {
+                                return Some("a malformed classifier argument".into());
+                            }
+                        }
+                        if let Some(digits) = arg.get("integer").and_then(Json::as_str) {
+                            if name != "ngrams" || !valid_integer(digits) {
+                                return Some("a malformed integer argument".into());
+                            }
+                        }
+                        if let Some(target) = arg.get("terminal").and_then(Json::as_str) {
+                            if !matches!(name, "followed-by" | "preceded-by") || !tag(target) || engine_tag(target) {
+                                return Some("a malformed boundary target".into());
                             }
                         }
                         if name == "parse" {
                             pending.push((Part::Body, arg, next));
                             continue;
                         }
-                        if arg.get("rule").is_none() && arg.get("classifier").is_none() && arg.get("integer").is_none()
+                        if arg.get("rule").is_none()
+                            && arg.get("classifier").is_none()
+                            && arg.get("integer").is_none()
+                            && arg.get("terminal").is_none()
                         {
                             pending.push((Part::Term, arg, next));
                         }
@@ -1086,6 +1125,15 @@ fn parts_problem(
                         Some("parse" | "error-free" | "ending-after" | "local-readings")
                     ) {
                         pending.push((Part::Term, value, depth));
+                        continue;
+                    }
+                    if check
+                        && matches!(
+                            value.get("method").and_then(Json::as_str),
+                            Some("starts-input" | "ends-input" | "followed-by" | "preceded-by")
+                        )
+                    {
+                        pending.push((Part::Query, value, depth));
                         continue;
                     }
                     let receiver = value.get("receiver").unwrap();

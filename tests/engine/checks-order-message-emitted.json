@@ -1,0 +1,14 @@
+{
+  "description": "A check rejects emitted items as its whole message.",
+  "grammar": "%rule text \"a\"\n%check c #·text\n%warning $.emitted",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "message": "++ requires string operands",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 10
+    }
+  }
+}

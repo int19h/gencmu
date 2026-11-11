@@ -5532,33 +5532,19 @@
     if (!METHODS.has(name)) return `unknown method ${name}`;
     const object = (/** @type {any} */ value) => value !== null && typeof value === "object" && !Array.isArray(value);
     if (!object(receiver) || !Array.isArray(args)) return "a malformed method";
-    const bare = typeof receiver.capture === "string" && Object.keys(receiver).length === 1 || "param" in receiver || "call" in receiver;
-    const node = bare || NODE_METHODS.has(receiver.method);
-    const element = receiver.method === "preceding-element";
-    const span = node || element || SPAN_METHODS.has(receiver.method);
-    const named = (/** @type {any} */ arg, /** @type {string} */ key) => object(arg) && Object.keys(arg).length === 1 && typeof arg[key] === "string";
-    const rule = (/** @type {any} */ arg) => named(arg,"rule") || object(arg) && ("param" in arg || "call" in arg);
-    const term = (/** @type {any} */ arg) => object(arg) && !["rule", "classifier", "terminal", "integer"].some(key => key in arg);
-    let valid;
-    if (NODE_METHODS.has(name) || name === "preceding-element" || name === "terminal") valid = node && args.length === 0;
-    else if (name === "local-readings") valid = (node || element) && args.length === 0;
-    else if (name === "parse") {
-      if (args.length !== 1 || !object(args[0]) || Object.keys(args[0]).length !== 1 || !object(args[0].body)) return METHOD_SIGNATURE_PROBLEM;
-      if (restored(receiver) && ["suffix","part"].includes(queryBody(args[0].body).mode)) return "suffix parse requires an ordinary span, not a restored span";
-      valid = span;
-    } else if (name === "error-free") valid = FOREST_METHODS.has(receiver.method) && args.length === 0;
-    else if (name === "ending-after") valid = FOREST_METHODS.has(receiver.method) && args.length === 1 && (typeof args[0]?.capture === "string" || SPAN_METHODS.has(args[0]?.method) || NODE_METHODS.has(args[0]?.method) || args[0]?.method === "preceding-element");
-    else if (name === "ngrams") valid = args.length === 1 && named(args[0], "integer") && /^[1-9][0-9]*$/.test(args[0].integer);
-    else if (name === "split") valid = args.length === 1 && term(args[0]) && !(hasUnresolved([receiver,args]) && args[0].string === "");
-    else if (name === "classify") valid = args.length === 1 && named(args[0], "classifier");
-    else if (name === "tags") valid = (span || FOREST_METHODS.has(receiver.method)) && args.length === 0;
-    else if (name === "followed-by" || name === "preceded-by") valid = node && args.length > 0 && args.every(arg => rule(arg) || named(arg, "terminal"));
-    else if (name === "without-elision-except") valid = bare && args.length === 1 && rule(args[0]);
-    else if (name === "without-elision") valid = bare && args.length === 0;
-    else if (name === "verbatim-text") valid = recipe && bare && args.length === 0;
-    else if (name === "emitted") valid = bare && args.length === 0;
-    else valid = args.length === 0 && (span || receiver.method === "emitted" && (name === "value" || name === "image"));
-    return valid ? null : METHOD_SIGNATURE_PROBLEM;
+    const types = args.map((/** @type {any} */ arg) =>
+      object(arg) && ["rule", "classifier", "terminal", "integer", "body"].some(key => key in arg) ? "name" : shapeType(arg));
+    return signatureProblem(name, receiver, args, shapeType(receiver), types, recipe, true);
+  }
+
+  /** @param {any} value @returns {string} */
+  function shapeType(value) {
+    if (!value || typeof value !== "object") return "any";
+    if (FOREST_METHODS.has(value.method)) return "forest";
+    if (value.method === "preceding-element") return "element";
+    if (typeof value.capture === "string" || value.param || value.call || NODE_METHODS.has(value.method)) return "node";
+    if (SPAN_METHODS.has(value.method)) return "span";
+    return value.method === "emitted" ? "emitted" : "any";
   }
 
   /**
@@ -5571,12 +5557,27 @@
    * @returns {string | null}
    */
   function methodProblem(name, receiver, args, type, argumentTypes, recipe = false) {
+    return signatureProblem(name,receiver,args,type,argumentTypes,recipe,false);
+  }
+
+  /**
+   * @param {string} name
+   * @param {any} receiver
+   * @param {any[]} args
+   * @param {string} type
+   * @param {string[]} argumentTypes
+   * @param {boolean} recipe
+   * @param {boolean} shape
+   * @returns {string|null}
+   */
+  function signatureProblem(name,receiver,args,type,argumentTypes,recipe,shape) {
     if (!METHODS.has(name)) return `unknown method ${name}`;
+    const bare = typeof receiver.capture === "string" && Object.keys(receiver).length === 1 || shape && (receiver.param || receiver.call);
     const node = type === "node";
     const element = type === "element";
     const span = type === "span" || node || element;
-    const string = type === "string" || type === "any" || type === "span" || node;
-    const rule = (/** @type {number} */ index) => args[index] && typeof args[index].rule === "string";
+    const string = shape || type === "string" || type === "any" || type === "span" || node;
+    const rule = (/** @type {number} */ index) => args[index] && (typeof args[index].rule === "string" || shape && (args[index].param || args[index].call));
     if (NODE_METHODS.has(name) || name === "preceding-element" || name === "terminal") {
       if (!node || args.length) return METHOD_SIGNATURE_PROBLEM;
     } else if (name === "local-readings") {
@@ -5589,19 +5590,19 @@
     } else if (name === "ending-after") {
       if (type !== "forest" || args.length !== 1 || !["span","node","element"].includes(argumentTypes[0])) return METHOD_SIGNATURE_PROBLEM;
     } else if (name === "without-elision") {
-      if (args.length || typeof receiver.capture !== "string" || Object.keys(receiver).length !== 1) {
-        return "without-elision requires a bare capture: write $x.without-elision.onward";
+      if (args.length || !bare) {
+        return shape ? METHOD_SIGNATURE_PROBLEM : "without-elision requires a bare capture: write $x.without-elision.onward";
       }
     } else if (name === "without-elision-except") {
-      if (typeof receiver.capture !== "string" || Object.keys(receiver).length !== 1) {
-        return "without-elision-except requires a bare capture: write $x.without-elision-except(family).onward";
+      if (!bare) {
+        return shape ? METHOD_SIGNATURE_PROBLEM : "without-elision-except requires a bare capture: write $x.without-elision-except(family).onward";
       }
-      if (args.length !== 1 || !rule(0)) return "without-elision-except requires one rule name";
+      if (args.length !== 1 || !rule(0)) return shape ? METHOD_SIGNATURE_PROBLEM : "without-elision-except requires one rule name";
     } else if (SPAN_METHODS.has(name)) {
       if (!span || args.length) return METHOD_SIGNATURE_PROBLEM;
     } else if (name === "followed-by" || name === "preceded-by") {
       if (!node && (typeof receiver.capture !== "string" || Object.keys(receiver).length !== 1)) return `${name} requires a bare capture`;
-      if (!args.length || args.some(arg => !(typeof arg.rule === "string" || typeof arg.terminal === "string" && /^[A-Z][A-Za-z0-9_-]*$/.test(arg.terminal)))) return METHOD_SIGNATURE_PROBLEM;
+      if (!args.length || args.some((arg, index) => !(rule(index) || typeof arg.terminal === "string" && /^[A-Z][A-Za-z0-9_-]*$/.test(arg.terminal)))) return METHOD_SIGNATURE_PROBLEM;
     } else if (name === "starts-input" || name === "ends-input") {
       if (!span || args.length) return METHOD_SIGNATURE_PROBLEM;
     } else if (name === "tags") {
@@ -5613,13 +5614,16 @@
       if (!string || args.length !== 1 || typeof args[0].integer !== "string" || !/^[1-9][0-9]*$/.test(args[0].integer)) return METHOD_SIGNATURE_PROBLEM;
     } else if (name === "split") {
       if (!string || args.length !== 1 || !["string", "span", "node", "any"].includes(argumentTypes[0])) return METHOD_SIGNATURE_PROBLEM;
-      if (args[0].string === "") return "split has an empty delimiter";
+      if (args[0].string === "") {
+        if (!shape) return "split has an empty delimiter";
+        if (hasUnresolved([receiver, args])) return METHOD_SIGNATURE_PROBLEM;
+      }
     } else if (name === "classify") {
       if (!string || args.length !== 1 || typeof args[0].classifier !== "string") return METHOD_SIGNATURE_PROBLEM;
     } else if (name === "emitted") {
-      if (!recipe || args.length || typeof receiver.capture !== "string" || Object.keys(receiver).length !== 1) return "emitted requires a bare capture in a recipe";
+      if ((!shape && !recipe) || args.length || !bare) return METHOD_SIGNATURE_PROBLEM;
     } else if (name === "verbatim-text") {
-      if (!recipe || !span || args.length) return METHOD_SIGNATURE_PROBLEM;
+      if (!recipe || (shape ? !bare : !span) || args.length) return METHOD_SIGNATURE_PROBLEM;
     } else if (!span && !(type === "emitted" && (name === "value" || name === "image"))) {
       return METHOD_SIGNATURE_PROBLEM;
     } else if (args.length) return METHOD_SIGNATURE_PROBLEM;
@@ -6684,8 +6688,8 @@
         continue;
       }
       if (kind === "method-shape") {
-        const problem = task.check ? null : methodShapeProblem(value.method, value.receiver, value.args, task.recipe);
-        if (problem) return problem;
+        const problem = methodShapeProblem(value.method, value.receiver, value.args, task.recipe);
+        if (problem && !task.check) return problem;
       } else if (kind === "expr") {
         if ("splice" in value) {
           if (!exact(value,["splice"]) || !object(value.splice) || !(typeof value.splice.ref === "string" && ruleName(value.splice.ref) || value.splice.call)) return "a malformed splice";
@@ -6785,6 +6789,7 @@
         else if ("emptySet" in value) { if (value.emptySet !== true) return "a malformed empty set"; }
         else if ("capture" in value) { if (typeof value.capture !== "string" || value.capture !== "" && !CAPTURE_NAME.test(value.capture)) return "a malformed capture reference"; }
         else if ("method" in value) {
+          if (task.check && typeof value.method === "string" && !METHODS.has(value.method)) return `unknown method ${value.method}`;
           if (CHECK_METHODS.has(value.method) && !task.check) return "a check method is outside its permitted clause";
           if (["classify","ngrams"].includes(value.method) && Array.isArray(value.args) && value.args.some(hasUnresolved)) return "a parameter cannot replace a classifier name or integer argument";
           if (typeof value.method !== "string" || !Array.isArray(value.args) || !object(value.receiver) || (!task.check && !task.recipe && (value.method === "verbatim-text" || value.method === "emitted")) || (!task.query && QUERY_METHODS.has(value.method) && !FOREST_METHODS.has(value.method))) return "a malformed method";
@@ -22805,6 +22810,7 @@
       if(!unicode.isEmojiName?.(name) && !/^(?!.*--)[a-z][A-Za-z0-9_-]*$/.test(name))fail('a check name starts with a lowercase letter or uses one eligible emoji',nameNode);
       const body=parts(node).find(part=>['pattern-literal','constant-reference'].includes(ruleOf(part)));
       if(!body)return lacks(node,'check pattern');
+      checkWrittenShape(node);
       const term=yield readTerm(body);
       const clause=one(node,'conditions-clause'),conditions=[];
       if(clause)for(const item of some(clause,'condition'))conditions.push(yield readImplication(item));
@@ -22819,6 +22825,30 @@
       if((check.error!==undefined)===(check.warning!==undefined))fail('a check requires exactly one diagnostic',node);
       const fault=checkTypeFault(check);if(fault)fail(fault.problem,node);
       return check;
+    }
+
+    /** Check source constructors whose structural faults precede semantics.
+     * @param {ResultNode} root */
+    function checkWrittenShape(root) {
+      const pending=[root];
+      while(pending.length) {
+        if(hooks.work)countWork(hooks.work,"walkSteps");
+        const current=/** @type {ResultNode} */(pending.pop());
+        if(current.kind!=="rule")continue;
+        if(current.rule==="parameter")fail("an undeclared or malformed parameter",current);
+        if(current.rule==="integer" && !/^[1-9][0-9]*$/.test(valueOf(token(current))))fail("a malformed integer argument",current);
+        if(["capture","captured-terminator"].includes(current.rule) && !CAPTURE_NAME.test(valueOf(token(current)).slice(1)))fail("a malformed capture name",current);
+        if(current.rule==="method-selector") {
+          const head=one(current,"method-name"),argumentsNode=one(current,"method-arguments");
+          const name=head?valueOf(token(head)):"parse";
+          if(argumentsNode)for(const arg of some(argumentsNode,"method-argument")) {
+            const text=tokens[arg.span[0]]?.value ?? "";
+            if(arg.span[1]-arg.span[0]===1 && (/^[a-z]/.test(text) || unicode.isEmojiName?.(text)) && !["classify","without-elision-except","followed-by","preceded-by"].includes(name))fail("a malformed rule argument",arg);
+            if(one(arg,"integer") && name!=="ngrams")fail("a malformed integer argument",arg);
+          }
+        }
+        for(const child of parts(current).slice().reverse())pending.push(child);
+      }
     }
 
     /**
@@ -23713,7 +23743,7 @@
         const items = [];
         for (const part of nodes) {
           const term = yield readTerm(part, argument && nodes.length === 1);
-          if (nodes.length > 1) {
+          if (nodes.length > 1 || checkContext && recipeContext) {
             const found = readType(term);
             const problem = "problem" in found ? found.problem : !["string", "any"].includes(found.type) ? "++ requires string operands" : null;
             if (problem && !featureContext) fail(problem, checkContext && "problem" in found ? boundaryLocations.get(found.node)?.tree ?? part : node);
@@ -24032,6 +24062,7 @@
             types.push(type.type);
           }
         }
+        if(checkContext && recipeContext && receiver.capture!=="")fail("a check message reads only $",node);
         const problem = methodProblem(name, receiver, args, found.type, types, recipeContext);
         if (problem && !featureContext && !args.some(hasUnresolved) && !hasUnresolved(receiver)) {
           const specific = problem === "split has an empty delimiter" || problem.startsWith("suffix parse requires") || problem.startsWith("without-elision");
