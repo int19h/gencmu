@@ -1520,7 +1520,7 @@ A part that an emission list does not name remains a counted part, although it e
 %emits
   $
 
-%rule quoted-word
+%rule word-quote
   $m:word-quote-marker $g:word-gap $w:read-word
     :: $m.tags :- $m.source-text ++ $g.source-text ++ $w.verbatim-text
 %emits
@@ -1977,8 +1977,8 @@ A tag term that runs over several lines ends each line with its `∪`. Its next 
 
 ```jbogenbau
 %rule runs
-  | $r:run :: $r.tags
-  | $p:runs pause-token $r:run
+  | run
+  | $p:runs pause-run $r:run
       :: $r.tags ∪
          (RAhOI ⊆ $p.tags ∧ $r.parse(only-hesitation) ⟹ RAhOI)
       := $r.value
@@ -2029,7 +2029,7 @@ If adjacent alternatives share a clause and have the same other clauses, a group
 A repeated tag can show that a rule mixes two kinds of constituent, and that the tag marks one of the kinds. A tag of this kind says what a constituent is. For example, `Vowel` marks `a`, `e`, `i`, `o` and `u` as against `y`. Then a rule of its own holds the kind that carries the tag, and that rule's header carries it. In the Latin letters, each stressed vowel has its own value and image, so a group cannot hold the tag. So the five tagged vowels form a rule of their own:
 
 ```jbogenbau
-%rule stressed-full-vowel :: Vowel
+%rule accented-full-vowel :: Vowel
   | ("a" | "A") stress-mark := "a" :- "A"
   | ("e" | "E") stress-mark := "e" :- "E"
   | ("i" | "I") stress-mark := "i" :- "I"
@@ -2037,7 +2037,7 @@ A repeated tag can show that a rule mixes two kinds of constituent, and that the
   | ("u" | "U") stress-mark := "u" :- "U"
 
 %rule stressed-vowel :: Stressed
-  | stressed-full-vowel :: Vowel
+  | accented-full-vowel :: Vowel
   | ("y" | "Y") stress-mark := "y" :- "Y"
 ```
 

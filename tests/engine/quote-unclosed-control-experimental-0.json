@@ -1,5 +1,5 @@
 {
-  "description": "Bare replacement markers keep their erasure, compound, and quoted-word behavior. The word stream gives one unique words-stage reading (grammars/lojban/common/stream.md).",
+  "description": "Bare replacement markers keep their erasure, compound, and word-quote behavior. The word stream gives one unique words-stage reading (grammars/lojban/common/stream.md).",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```"
   },

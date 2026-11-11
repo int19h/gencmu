@@ -55,8 +55,8 @@ Each completed quotation is one opaque unit. Later erasers and joiners act on th
 %redefine-const $ZOI-MARKERS
   $ZOI-MARKERS ∪ MUhOI
 
-%redefine-const $SINGLE-QUOTE-MARKERS
-  $SINGLE-QUOTE-MARKERS ∪ DOhOI
+%redefine-const $SINGLE-RUN-QUOTE-MARKERS
+  $SINGLE-RUN-QUOTE-MARKERS ∪ DOhOI
 
 ```
 

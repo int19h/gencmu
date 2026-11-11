@@ -102,13 +102,13 @@ The word forms divide each run in one way only, so the stage's `lazy` step decid
   ```jbogenbau
   %include "../common/stream.md"
   ```
-- [Experimental word operations and warnings](stream.md)
-  ```jbogenbau
-  %include "stream.md"
-  ```
 - [Replacement quotes](../common/lohai.md): `lo'ai ... le'ai` as one unit of raw words
   ```jbogenbau
   %include "../common/lohai.md"
+  ```
+- [Experimental word operations and warnings](stream.md)
+  ```jbogenbau
+  %include "stream.md"
   ```
 
 ## Stage 4: indicators

@@ -18,7 +18,7 @@ The phoneme explanations use Humbert code points. The mapping in [Two encodings]
 
 The first rules below read the consonant radicals. DENPA BU (U+ED89) is the radical for the period, and YHY (U+ED8A) is the apostrophe. SLAKA BU (U+ED9A) is the comma. PA TONGA (U+ED8C), SMAJI BU (U+ED99), and TCENA BU (U+ED9B) also map to a comma.
 
-The diphthong instances use `diphthong-phonemes` for their two output strings. The `stressed-two-phonemes` template also reads the stress mark. Its second and third arguments are the value and the image of the first output, and that output carries `Stressed`. The fourth argument is the second output.
+The diphthong instances use `diphthong-phonemes` for their two output strings. The `stressed-diphthong-phonemes` template also reads the stress mark. Its second and third arguments are the value and the image of the first output, and that output carries `Stressed`. The fourth argument is the second output.
 
 ```jbogenbau
 %names "zbalermorna-names.txt"
@@ -72,7 +72,7 @@ A diphthong diacritic is two phonemes and stands where a vowel stands. The first
 
 CNIMAHO BU (U+ED8B) followed by a plain or stressed vowel is that vowel and an apostrophe. The vowel's token covers the shorthand too, as a stressed vowel's token covers its stress mark. The rule emits the apostrophe as a token with an empty span.
 
-The shorthand stands where a non-vowel stands, because the apostrophe closes the vowel group. The shorthand's vowel is always a single vowel. `zbalermorna-marked-vowel` takes its strings from the reconstructed vowel through `.emitted`. This excludes the written shorthand mark from both strings without erasing its source ownership. A diphthong diacritic cannot directly follow the mark.
+The shorthand stands where a non-vowel stands, because the apostrophe closes the vowel group. The shorthand's vowel is always a single vowel. `zbalermorna-shorthand` takes its strings from the reconstructed vowel through `.emitted`. This excludes the written shorthand mark from both strings without erasing its source ownership. A diphthong diacritic cannot directly follow the mark.
 
 A stress mark or a shorthand is a mark of the script, like an accent. So this document adds both to `mark-char` of [latin.md](latin.md), and no punctuation rule reads them as a pause. Neither is a Lojban character by itself. So `non-lojban-char` takes a stray mark, one that no letter takes, and the mark makes its run foreign.
 
@@ -191,37 +191,32 @@ The `Vowel` tag marks the five full vowels and not `y`. So `zbalermorna-plain-fu
   | zbalermorna-stressed-ai | zbalermorna-stressed-ei
   | zbalermorna-stressed-oi | zbalermorna-stressed-au
 
-%rule stressed-two-phonemes(@C, @A, @Image, @B)
+%rule stressed-diphthong-phonemes(@C, @A, @Image, @B)
   @C zbalermorna-stress
 %emits
   $ :: Stressed Vowel := @A :- @Image, ε :: Vowel := @B
 
-%rule zbalermorna-stressed-ai = stressed-two-phonemes(
+%rule zbalermorna-stressed-ai = stressed-diphthong-phonemes(
   ("‹ZBALERMORNA HUMBERT VOWEL SIGN AIBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN AIBU›"),
   "a", "A", "i")
 
-%rule zbalermorna-stressed-ei = stressed-two-phonemes(
+%rule zbalermorna-stressed-ei = stressed-diphthong-phonemes(
   ("‹ZBALERMORNA HUMBERT VOWEL SIGN EIBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN EIBU›"),
   "e", "E", "i")
 
-%rule zbalermorna-stressed-oi = stressed-two-phonemes(
+%rule zbalermorna-stressed-oi = stressed-diphthong-phonemes(
   ("‹ZBALERMORNA HUMBERT VOWEL SIGN OIBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN OIBU›"),
   "o", "O", "i")
 
-%rule zbalermorna-stressed-au = stressed-two-phonemes(
+%rule zbalermorna-stressed-au = stressed-diphthong-phonemes(
   ("‹ZBALERMORNA HUMBERT VOWEL SIGN AUBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN AUBU›"),
   "a", "A", "u")
 
 %rule zbalermorna-shorthand
-  $v:zbalermorna-marked-vowel
+  zbalermorna-shorthand-mark $v:zbalermorna-shorthand-vowel :: $v.tags
 %emits
-  $v, ε :: ∅ := "'"
-
-%rule zbalermorna-marked-vowel
-  zbalermorna-shorthand-mark $v:zbalermorna-shorthand-vowel
-      :: $v.tags
-      := $v.emitted.value
-      :- $v.emitted.image
+  $ := $v.emitted.value :- $v.emitted.image,
+  ε :: ∅ := "'"
 
 %rule zbalermorna-shorthand-vowel
   plain-vowel | stressed-vowel
@@ -230,7 +225,7 @@ The `Vowel` tag marks the five full vowels and not `y`. So `zbalermorna-plain-fu
   ("‹ZBALERMORNA HUMBERT SYMBOL FOR CNIMAHO BU›" | "‹ZBALERMORNA UCSUR SYMBOL FOR CNIMAHO BU›")
 ```
 
-<details><summary>Railroad diagrams of the 26 rules from <code>zbalermorna-plain-full-vowel</code> to <code>zbalermorna-shorthand-mark</code></summary>
+<details><summary>Railroad diagrams of the 25 rules from <code>zbalermorna-plain-full-vowel</code> to <code>zbalermorna-shorthand-mark</code></summary>
 <p><img src="../../../docs/diagrams/lojban/common/zbalermorna/zbalermorna-plain-full-vowel.svg" alt="Railroad diagram of the rule zbalermorna-plain-full-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/common/zbalermorna/plain-vowel.svg" alt="Railroad diagram of the rule plain-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/common/zbalermorna/zbalermorna-stressed-full-vowel.svg" alt="Railroad diagram of the rule zbalermorna-stressed-full-vowel"></p>
@@ -248,20 +243,19 @@ The `Vowel` tag marks the five full vowels and not `y`. So `zbalermorna-plain-fu
 <p><img src="../../../docs/diagrams/lojban/common/zbalermorna/zbalermorna-oi.svg" alt="Railroad diagram of the rule zbalermorna-oi"></p>
 <p><img src="../../../docs/diagrams/lojban/common/zbalermorna/zbalermorna-au.svg" alt="Railroad diagram of the rule zbalermorna-au"></p>
 <p><img src="../../../docs/diagrams/lojban/common/zbalermorna/zbalermorna-stressed-diphthong.svg" alt="Railroad diagram of the rule zbalermorna-stressed-diphthong"></p>
-<p><img src="../../../docs/diagrams/lojban/common/zbalermorna/stressed-two-phonemes.svg" alt="Railroad diagram of the rule stressed-two-phonemes"></p>
+<p><img src="../../../docs/diagrams/lojban/common/zbalermorna/stressed-diphthong-phonemes.svg" alt="Railroad diagram of the rule stressed-diphthong-phonemes"></p>
 <p><img src="../../../docs/diagrams/lojban/common/zbalermorna/zbalermorna-stressed-ai.svg" alt="Railroad diagram of the rule zbalermorna-stressed-ai"></p>
 <p><img src="../../../docs/diagrams/lojban/common/zbalermorna/zbalermorna-stressed-ei.svg" alt="Railroad diagram of the rule zbalermorna-stressed-ei"></p>
 <p><img src="../../../docs/diagrams/lojban/common/zbalermorna/zbalermorna-stressed-oi.svg" alt="Railroad diagram of the rule zbalermorna-stressed-oi"></p>
 <p><img src="../../../docs/diagrams/lojban/common/zbalermorna/zbalermorna-stressed-au.svg" alt="Railroad diagram of the rule zbalermorna-stressed-au"></p>
 <p><img src="../../../docs/diagrams/lojban/common/zbalermorna/zbalermorna-shorthand.svg" alt="Railroad diagram of the rule zbalermorna-shorthand"></p>
-<p><img src="../../../docs/diagrams/lojban/common/zbalermorna/zbalermorna-marked-vowel.svg" alt="Railroad diagram of the rule zbalermorna-marked-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/common/zbalermorna/zbalermorna-shorthand-vowel.svg" alt="Railroad diagram of the rule zbalermorna-shorthand-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/common/zbalermorna/zbalermorna-shorthand-mark.svg" alt="Railroad diagram of the rule zbalermorna-shorthand-mark"></p>
 </details>
 
 ## Two encodings
 
-`tools/unicode-table.py` supplies `grammars/lojban/common/zbalermorna-names.txt` from the mapping below. The file uses `unicode-names 15.1.0` and contains 100 added names. It names 50 characters in each encoding. A name supplies an exact scalar, rather than declaring a grammar terminal.
+`tools/unicode-table.py` supplies `grammars/lojban/common/zbalermorna-names.txt` from the mapping below. The file uses `unicode-names 15.1.0` and contains 100 added names. A name supplies an exact scalar, rather than declaring a grammar terminal.
 
 The zbalermorna phoneme grammar reads both encodings. The older interval is U+ED80–U+EDB9, and the UCSUR allocation is U+F28A0–U+F28DF. Each row marked Explicit rule contributes both scalars to exactly the same grammar alternatives. Neither loading nor parsing warns merely because text uses the older encoding. `grammars/lojban/common/zbalermorna.md` declares `%names "zbalermorna-names.txt"` before its rules. Bundled pipelines select this resource through that declaration.
 
@@ -332,9 +326,9 @@ Shared rules that copy source text keep the written scalar in values and images,
 | LETTER FULL OIBU | U+EDB8 | U+F28D8 | No explicit rule |
 | LETTER FULL AUBU | U+EDB9 | U+F28D9 | No explicit rule |
 
-For every paired scalar, the UCSUR code point equals the older code point plus hexadecimal E3B20. The individual rows define the mapping. No older character inside U+ED80–U+EDB9 lacks a UCSUR counterpart. Unlisted slots in either interval are gaps, without character names or implied mappings.
+For every paired scalar, the UCSUR code point equals the older code point plus hexadecimal E3B20. The individual rows define the mapping. Unlisted slots in either interval are gaps, without character names or implied mappings.
 
-The full diphthong letters have code points U+EDB6–U+EDB9 and U+F28D6–U+F28D9 in the two encodings. Both sets receive encoding-qualified names in this resource. Every character occurs in both encodings.
+The full diphthong letters have code points U+EDB6–U+EDB9 and U+F28D6–U+F28D9. Their qualified names follow the same mapping.
 
 These alternatives cover 43 character pairs. The seven No explicit rule pairs have no zbalermorna alternative. They are three tone marks and four full diphthong letters. The pipeline's shared rules still read these characters in both encodings. A names declaration alone adds no phoneme rule. Escape decoding never converts between the encodings.
 

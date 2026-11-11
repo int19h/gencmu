@@ -10,9 +10,9 @@ An attitudinal expresses an attitude. A `nai` directly after an attitudinal atta
 
 Without the condition below, the grammar admits both attachments of `nai`. The condition removes the reading where `nai` attaches separately to the word. This document restates `indicator-run` with that condition. If a run ends in an attitudinal, its next indicator of its own is not a `nai`. A `fu'e` before that `nai` lifts this. A `ba'e` between an attitudinal and its `nai` goes with the `nai`, as in the CLL document.
 
-A `nai` is an indicator here, so an `item-run` never begins with one.
+A `nai` is an indicator here, so a `words-with-attachments` run never begins with one.
 
-A leading run needs no pair form. The syntax reads `ui` and `nai` as separate indicators there. So this document restates `leading` without the pair form of the CLL document. After this, nothing reads the rule `leading-attitudinal-nai` of the CLL document.
+A leading run needs no pair form. The syntax reads `ui` and `nai` as separate indicators there. So this document restates `leading-step` without the pair form of the CLL document. After this, nothing reads the rule `leading-attitudinal-nai` of the CLL document.
 
 A FUhE needs an indicator after it. So `mi fu'e ui klama` is a text, and `mi fu'e klama` is not. The restated `indicator-run` lets each indicator take its own `fu'e`.
 
@@ -28,9 +28,8 @@ The name `$INDICATOR-BOUNDARIES` also covers CIhAU, which opens no quotation. Cl
 %redefine-const $INDICATOR-BOUNDARIES
   $INDICATOR-BOUNDARIES ∪ LUhEI ∪ CIhAU
 
-%redefine-rule leading
-  | [fuhe] indicator
-  | leading [fuhe] indicator
+%redefine-rule leading-step
+  [fuhe] indicator
 
 %redefine-rule indicator-run
   | [fuhe] indicator
@@ -42,8 +41,8 @@ The name `$INDICATOR-BOUNDARIES` also covers CIhAU, which opens no quotation. Cl
   NAI ⊈ $i.tags ∨ $r.last-token.classes ∩ (UI ∪ CAI) = ∅
 ```
 
-<details><summary>Railroad diagrams of <code>leading</code> and <code>indicator-run</code></summary>
-<p><img src="../../../docs/diagrams/lojban/experimental/indicators/leading.svg" alt="Railroad diagram of the rule leading"></p>
+<details><summary>Railroad diagrams of <code>leading-step</code> and <code>indicator-run</code></summary>
+<p><img src="../../../docs/diagrams/lojban/experimental/indicators/leading-step.svg" alt="Railroad diagram of the rule leading-step"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/indicators/indicator-run.svg" alt="Railroad diagram of the rule indicator-run"></p>
 </details>
 

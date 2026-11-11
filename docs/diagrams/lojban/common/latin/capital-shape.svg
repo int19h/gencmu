@@ -5,7 +5,7 @@
 <path d="M10 58v16m4 -16v16M14 66h6"/>
 <path d="M20 66h20"/>
 <path d="M40 66h20"/>
-<g class="rule"><rect x="60" y="54" width="168" height="24" rx="0"/><text x="144" y="71" textLength="151.2" lengthAdjust="spacingAndGlyphs">capital-consonants</text></g>
+<g class="rule"><rect x="60" y="54" width="168" height="24" rx="0"/><text x="144" y="71" textLength="151.2" lengthAdjust="spacingAndGlyphs">capital-non-vowels</text></g>
 <path d="M228 66h10"/>
 <path d="M238 66h20"/>
 <g class="rule"><rect x="258" y="54" width="67" height="24" rx="0"/><text x="291.5" y="71" textLength="50.4" lengthAdjust="spacingAndGlyphs">commas</text></g>
@@ -22,7 +22,7 @@
 <path d="M147 130H167"/>
 <path d="M60 130a10 10 0 0 0 10 -10V118a10 10 0 0 1 10 -10H147a10 10 0 0 1 10 10V120a10 10 0 0 0 10 10"/>
 <path d="M167 130h10"/>
-<g class="rule"><rect x="177" y="118" width="168" height="24" rx="0"/><text x="261" y="135" textLength="151.2" lengthAdjust="spacingAndGlyphs">capital-consonants</text></g>
+<g class="rule"><rect x="177" y="118" width="168" height="24" rx="0"/><text x="261" y="135" textLength="151.2" lengthAdjust="spacingAndGlyphs">capital-non-vowels</text></g>
 <path d="M345 130H365"/>
 <path d="M40 130a10 10 0 0 0 10 -10V108a10 10 0 0 1 10 -10H345a10 10 0 0 1 10 10V120a10 10 0 0 0 10 10"/>
 <path d="M365 130H529"/>

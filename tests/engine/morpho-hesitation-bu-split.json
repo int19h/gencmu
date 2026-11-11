@@ -200,7 +200,7 @@
                 "children": [
                   {
                     "kind": "rule",
-                    "rule": "word-run",
+                    "rule": "segmented-run",
                     "span": [
                       0,
                       4
