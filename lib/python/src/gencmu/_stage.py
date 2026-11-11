@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from weakref import ref
+
 from copy import copy
 
 from bisect import bisect_left, bisect_right
@@ -673,7 +675,7 @@ class StageRunner:
         context.lines = self.lines
         start = lowered.rule_ids["text"]
         forest = Parser(context).parse(start)
-        context.stage_chart = forest
+        context.stage_chart = ref(forest)
         ranking = rank(forest, lowered.steps, lowered.lean)
         if ranking is None:
             if forest.roots:

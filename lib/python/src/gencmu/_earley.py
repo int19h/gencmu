@@ -816,7 +816,7 @@ class StageContext:
         )
 
     def chart_reading(self, start, site, error_free):
-        forest = self.stage_chart
+        forest = self.stage_chart() if self.stage_chart is not None else None
         if forest is None or self.observed is not None or site is None:
             return None
         symbol, terminal, test, qualified, settles_entry = site
