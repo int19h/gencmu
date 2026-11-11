@@ -16,7 +16,7 @@ A tag marks a token by an identifier. The quote token carries its opening class 
 
 In the experimental pipeline, an unfinished marker carries `Fault` unless a [`constructor-word`](stream.md#compounds) takes it as a base. That rule names `bu` and `zei`, with `ze'ei` added in `lojban/experimental`. The named rule keeps the fallback test consistent with the pipeline's constructors.
 
-[The word stream](stream.md) reads no word where a quote begins, and only there. So `mi lo'ai si klama` is `mi klama`, and `mi lo'ai bu klama` has a letteral. An eraser can remove the fault. A surviving fault rejects the words stage at the missing LEhAI. The Zantufa word stream has its own rules for such a marker.
+[The word stream](stream.md) reads no ordinary word where a quote begins. So `mi lo'ai si klama` is `mi klama`, and `mi lo'ai bu klama` has a letteral. An eraser can remove the fault. A surviving fault rejects the words stage at the missing LEhAI. The Zantufa word stream has its own rules for such a marker.
 
 ```jbogenbau
 %redefine-rule word

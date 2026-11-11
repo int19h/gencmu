@@ -224,7 +224,7 @@ An accent on a capital still marks stress there, and the other capitals fold. So
 
 `capital-shape` is that shape: its consonants and digits and its capital vowels, written out so that two groups are required. Consonants stand between every two groups, so the rules never split adjacent vowels into separate groups. `capital-consonants` reads a decimal point between two digits, as `non-vowels` does in an ordinary run (see "Digits"). So `MI2.3KLAMA` is a capital run. `capital-consonants` does not reuse `non-vowels`, because other scripts extend `non-vowel` with forms that hold a vowel. Forms such as the zbalermorna shorthand keep a run from folding.
 
-`capital-run` reads that shape with every vowel folded. An ordinary run is any other run of letters, which the condition states by exclusion. In an ordinary run, a capital vowel marks stress. No capital run matches `chars-with-non-lojban-char` in the bundled grammars, so `non-lojban-char-run` needs no separate test for it.
+`capital-run` reads that shape with every vowel folded. An ordinary run is any other run of letters, which the condition states by exclusion. In an ordinary run, a capital vowel marks stress. Every capital run matches `letters`, so the `letters` exclusion in `non-lojban-char-run` also excludes capital runs.
 
 The `Vowel` tag marks the five full vowels `a`, `e`, `i`, `o` and `u`, and it does not mark `y`. So `folded-full-vowel` holds the full vowels and carries `Vowel` on its header, and `folded-vowel` adds the two `y` forms. `folded-vowel` writes `$v:folded-full-vowel :: $v.tags`, because its `:: ∅` header stops the inner rule from passing its tags on.
 

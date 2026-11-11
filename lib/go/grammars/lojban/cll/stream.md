@@ -17,7 +17,7 @@ The stage gives the warning where it reads the word as a Lojban word. That is, t
 
 %rule y-cmavo
   Cmavo<Cmavo-Warning>
-%warning "this word uses a y-final cmavo"
+%warning "this cmavo uses y as a vowel"
 ```
 
 <details><summary>Railroad diagrams of <code>cmavo-token</code> and <code>y-cmavo</code></summary>

@@ -57,9 +57,13 @@ Two adjacent full Cyrillic vowel letters form two syllables, so `аи` is `a'i`.
 
 So a full vowel letter carries the tag `Syllabic`, which the vowel-group rules of [../cll/latin.md](../cll/latin.md) read. The stage inserts an apostrophe between adjacent syllabic vowels. `й`, `ј` and `ў`, the glides, carry no such tag, and they join the vowel beside them into a diphthong.
 
-A capital full vowel letter, or a combining accent after one, marks stress, as in Latin. A glide never marks stress, as the Latin `ĭ` of [latin.md](latin.md) does not. The full vowel carries the syllable's stress. So a capital glide is plain, and an accent after a glide makes its run foreign. Inside an all-capital run, the stage folds a capital vowel or glide, that is, it reads the letter as plain. An accented capital keeps its stress there.
+A capital full vowel letter, or a combining accent after one, marks stress, as in Latin. A glide never marks stress, as the Latin `ĭ` of [latin.md](latin.md) does not. The full vowel carries the syllable's stress. So a capital glide is plain. In `lojban/bpfk` and `lojban/zantufa`, an accent after a glide makes its run foreign.
 
-The `Vowel` tag marks the letters of `a`, `e`, `i`, `o` and `u`, full vowels and glides, and not `y`. Only the full vowels carry `Syllabic`. So each vowel rule below holds its full vowels in a rule of its own, such as `cyrillic-plain-full-vowel`. The glides form rules of their own too. `cyrillic-plain-glide` holds the plain glides and carries `Vowel` on its header. `cyrillic-folded-glide` holds the folded glides in the same way. The `y` forms stay in the outer rule.
+The [experimental override](../experimental/cyrillic.md) ignores an accent on a glide. Inside an all-capital run, the stage folds a capital vowel or glide, that is, it reads the letter as plain. An accented capital keeps its stress there.
+
+The `Vowel` tag marks the letters of `a`, `e`, `i`, `o` and `u`, full vowels and glides, and not `y`. Only the full vowels carry `Syllabic`. So each vowel rule below holds its full vowels in a rule of its own, such as `cyrillic-plain-full-vowel`.
+
+The glides form rules of their own too. `cyrillic-plain-glide` holds the plain glides and carries `Vowel` on its header. `cyrillic-folded-glide` holds the folded glides in the same way. The `y` forms stay in the outer rule.
 
 ```jbogenbau
 %rule cyrillic-plain-full-vowel :: Syllabic Vowel
@@ -166,7 +170,7 @@ The feature `cll-cyrillic` selects which Cyrillic rules apply. A feature is a na
 
 CLL writes diphthongs as vowel pairs, like Latin.[^cll-s3-12] This document instead gives full vowels separate syllables and uses short letters for glides. The same letters therefore need distinct readings in [../cll/cyrillic.md](../cll/cyrillic.md). The feature `cll-cyrillic` selects between them.
 
-CLL requires only the vowel letter of a stressed syllable to be marked.[^cll-s3-1] This document assigns stress to the full vowel. It accepts capital full vowels and combining accents, but folds capitals inside an all-capital run. Capital glides remain plain, and accented glides make the run foreign.
+CLL requires only the vowel letter of a stressed syllable to be marked.[^cll-s3-1] This document assigns stress to the full vowel. It accepts capital full vowels and combining accents, but folds capitals inside an all-capital run. Capital glides remain plain. In `lojban/bpfk` and `lojban/zantufa`, accented glides make the run foreign. The [experimental override](../experimental/cyrillic.md) ignores their accents.
 
 [^cll-s3-12]: [CLL 1.1, section 3.12](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-oddball-orthographies.html).
 
