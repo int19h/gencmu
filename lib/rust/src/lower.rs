@@ -255,6 +255,7 @@ impl SymbolTest {
 
 #[derive(Debug, Clone)]
 pub(crate) struct Prod {
+    pub chart_sites: Vec<crate::chart_readings::Site>,
     /// The nonterminal this production defines.
     pub rule: u32,
     /// The user rule it belongs to: its own rule, or for a helper the rule
@@ -367,6 +368,7 @@ impl Prod {
 
 #[derive(Debug, Clone)]
 pub(crate) struct Lowered {
+    pub chart_rules: Vec<crate::chart_readings::Site>,
     pub checks: Vec<Check>,
     pub helper_targets: FxMap<u32, u32>,
     pub optional_targets: Vec<Option<u32>>,
@@ -1706,6 +1708,7 @@ pub(crate) fn lower(
         let owner = if helper { lowerer.helpers[pending.rule as usize - user_count].owner } else { pending.rule };
         let mut tag_variants = Vec::new();
         let mut production = Prod {
+            chart_sites: Vec::new(),
             rule: pending.rule,
             owner,
             routes: pending.sequence.routes.clone(),
@@ -2038,6 +2041,7 @@ pub(crate) fn lower(
     for (rule, symbol) in query_symbols {
         rules[rule as usize].prods.push(prods.len() as u32);
         prods.push(Prod {
+            chart_sites: Vec::new(),
             site_targets: Vec::new(),
             elements: None,
             rule,
@@ -2117,7 +2121,12 @@ pub(crate) fn lower(
             Ok(Check { definition: definition.clone(), conditions })
         })
         .collect::<Result<Vec<_>, LowerError>>()?;
+    let captured_helpers = crate::chart_readings::captured_helpers(
+        grammar,
+        lowerer.helpers.iter().enumerate().map(|(index, helper)| ((grammar.rules.len() + index) as u32, helper.expr)),
+    );
     let mut lowered = Lowered {
+        chart_rules: Vec::new(),
         checks,
         helper_targets,
         optional_targets,
@@ -2145,6 +2154,7 @@ pub(crate) fn lower(
     };
     lowered.ranked = ranked_runtime(grammar, &lowered, &query_rules, &item_alts);
     lowered.reads_errors = crate::query_dependencies::carried(&lowered);
+    crate::chart_readings::prepare(&mut lowered, &captured_helpers);
     if grammar.tree_comparisons {
         let (demands, cases) = crate::tree_identity::demands(&lowered);
         lowered.tree_demands = demands.into();

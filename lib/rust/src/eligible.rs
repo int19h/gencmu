@@ -76,6 +76,7 @@ impl<'a> Proofs<'a> {
     /// before it is read.
     fn count(&self) {
         work::count(Work::Searched, 1);
+        work::count(Work::Walked, 1);
     }
 
     fn item(&self, (set, index): Place) -> Item {
@@ -103,7 +104,7 @@ impl<'a> Proofs<'a> {
         };
         let found = index.get(&(rule, origin)).map_or(&[][..], Vec::as_slice);
         // Each completed item counts as the search reads it.
-        found.iter().copied().inspect(|_| work::count(Work::Searched, 1))
+        found.iter().copied().inspect(|_| self.count())
     }
 
     /// The index of the completed items of the whole chart, in one pass
@@ -282,6 +283,7 @@ impl<'a> Proofs<'a> {
                 continue;
             }
             for edge in &edges[at] {
+                work::count(Work::Walked, 1);
                 let (before, available, child) = match *edge {
                     Edge::Seed => continue,
                     Edge::Scan { before } => (before, e[before], None),
@@ -346,6 +348,7 @@ impl<'a> Proofs<'a> {
         let mut edges = Vec::new();
         let production = &self.g.prods[item.prod as usize];
         for &(pred, cap) in self.chart.links.get(&(set, item)).into_iter().flatten() {
+            work::count(Work::Walked, 1);
             let Some(index) = self.chart.sets[cap.start as usize].find(&pred) else {
                 continue;
             };
@@ -355,6 +358,7 @@ impl<'a> Proofs<'a> {
                 Sym::N(rule) => {
                     for &index in self.chart.sets[set as usize].completed.get(&(rule, cap.start)).into_iter().flatten()
                     {
+                        work::count(Work::Walked, 1);
                         let child = (set, index);
                         if self.cap(child) == cap
                             && self.item(child).lexical == self.chart.expected_lexical(pred, cap.start)
@@ -390,6 +394,7 @@ impl<'a> Proofs<'a> {
         let mut raw: FxMap<Place, Vec<RawEdge>> = FxMap::default();
         let mut omits = false;
         for &witness in witnesses {
+            work::count(Work::Walked, 1);
             if raw.contains_key(&witness) {
                 continue;
             }
@@ -398,6 +403,7 @@ impl<'a> Proofs<'a> {
             raw.insert(witness, found);
             let mut stack: Vec<(Place, Vec<Place>, usize)> = vec![(witness, below, 0)];
             while let Some((place, below, next)) = stack.last_mut() {
+                work::count(Work::Walked, 1);
                 if let Some(&target) = below.get(*next) {
                     *next += 1;
                     if let std::collections::hash_map::Entry::Vacant(entry) = raw.entry(target) {
@@ -415,15 +421,19 @@ impl<'a> Proofs<'a> {
             }
         }
         for &place in &order {
+            work::count(Work::Walked, 1);
             let list = raw[&place]
                 .iter()
-                .map(|&(before, child)| match (before, child) {
-                    (None, _) => Edge::Seed,
-                    (Some(before), None) => Edge::Scan { before: number[&before] },
-                    (Some(before), Some(child)) => {
-                        let omission = self.is_omission(child);
-                        omits |= omission;
-                        Edge::Complete { before: number[&before], child: number[&child], omission }
+                .map(|&(before, child)| {
+                    work::count(Work::Walked, 1);
+                    match (before, child) {
+                        (None, _) => Edge::Seed,
+                        (Some(before), None) => Edge::Scan { before: number[&before] },
+                        (Some(before), Some(child)) => {
+                            let omission = self.is_omission(child);
+                            omits |= omission;
+                            Edge::Complete { before: number[&before], child: number[&child], omission }
+                        }
                     }
                 })
                 .collect();
@@ -447,6 +457,7 @@ impl<'a> Proofs<'a> {
         while changed {
             changed = false;
             for x in 0..order.len() {
+                work::count(Work::Walked, 1);
                 for (channel, &ceiling) in ceilings.iter().enumerate() {
                     self.count();
                     let raw_support = raw[x];
@@ -459,6 +470,7 @@ impl<'a> Proofs<'a> {
                     let prod = &self.g.prods[item.prod as usize];
                     let (mut a, mut permits) = (0u8, 0u8);
                     for edge in &edges[x] {
+                        work::count(Work::Walked, 1);
                         let through = match *edge {
                             Edge::Seed => 1,
                             Edge::Scan { before } => {

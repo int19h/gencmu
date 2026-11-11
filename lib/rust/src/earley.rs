@@ -331,8 +331,13 @@ impl ESet {
     }
 }
 
+type ChartPlace = (u32, u32);
+type LocalCompletions = FxMap<(u32, u32), Vec<ChartPlace>>;
+
 #[derive(Debug, Default)]
 pub(crate) struct Chart {
+    local_completions: OnceCell<LocalCompletions>,
+    local_eligibility: OnceCell<FxMap<(u32, u32), u8>>,
     pub annotations: FxMap<(u32, Item), crate::boundary::Annotations>,
     pub completed_annotations: FxMap<(u32, Cap, u32), crate::boundary::Annotations>,
     pub sources: crate::boundary::Sources,
@@ -967,6 +972,7 @@ enum NestedKey {
 /// text, and the memo of nested parses, which `next_stage` clears before a
 /// parse over other tokens or with other rules.
 pub(crate) struct Shared<'a> {
+    pub stage_chart: Option<Rc<Chart>>,
     error_prefix: Vec<usize>,
     error_base: usize,
     pattern_values: RefCell<FxMap<(usize, usize, usize), Rc<str>>>,
@@ -1009,6 +1015,7 @@ pub(crate) struct Shared<'a> {
 impl<'a> Shared<'a> {
     pub(crate) fn new(unicode: &'a Unicode, text: &'a [char]) -> Shared<'a> {
         Shared {
+            stage_chart: None,
             error_prefix: Vec::new(),
             error_base: 0,
             pattern_values: RefCell::new(FxMap::default()),
@@ -1095,6 +1102,7 @@ impl<'a> Shared<'a> {
     /// Forgets the nested parses of the previous parse, whose rules and
     /// tokens may differ.
     pub(crate) fn next_stage(&mut self) {
+        self.stage_chart = None;
         self.error_prefix.clear();
         self.machine = None;
         self.boundaries = None;
@@ -2162,7 +2170,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let first = self.shared.fresh_set();
         let mut run = Run::new(tokens, base, start, self.recon, first);
         // A non-stage root is a query whose completed items need eligibility.
-        run.chart.record_links |= start != self.g.start || self.g.has_errors;
+        run.chart.record_links |= start != self.g.start || self.g.has_errors || !self.g.chart_rules.is_empty();
         run.chart.machine = self.shared.machine.clone();
         run.chart.boundaries = self.shared.boundaries.clone();
         Ok(self.drive(run)?.0)
@@ -3926,6 +3934,31 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 tree.target(root, span).expect("a prepared local reading target")
             }
         };
+        if matches!(target, QueryTarget::Local) {
+            let (tree, root) = frame.check.expect("a local reading frame");
+            if let Some(site) = tree.chart_site(root, span) {
+                if let Some(rows) = self.chart_reading(site, start, tokens, query.filtered()) {
+                    let holds = !rows.is_empty();
+                    let tags = self.shared.tags.set(union_all(rows.iter().map(|(_, set)| self.shared.tags.list(*set))));
+                    let key = NestedKey::WitnessEnds {
+                        key: Box::new(NestedKey::Place((rule, base + start, base + tokens.len()))),
+                        mode: query.mode(),
+                        filtered: query.filtered(),
+                    };
+                    self.shared.witness_ends.insert(key.clone(), rows);
+                    return self.filtered_query(
+                        query,
+                        (holds, tags, holds),
+                        &key,
+                        after,
+                        frame,
+                        tokens.len(),
+                        base,
+                        base + start,
+                    );
+                }
+            }
+        }
         let witness_ends = !after.is_empty();
         let mut anchor = span;
         while let Span::From(inner) = anchor {
@@ -4116,6 +4149,76 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 Err(Halt::Pending(Box::new(request)))
             }
         }
+    }
+
+    fn chart_reading(
+        &self,
+        site: crate::chart_readings::Site,
+        start: usize,
+        tokens: &[Tok],
+        clean: bool,
+    ) -> Option<Vec<(usize, SetId)>> {
+        let chart = self.shared.stage_chart.as_ref()?;
+        if self.recon.is_some() || !site.qualified || start == 0 && site.settles_entry {
+            return None;
+        }
+        let test = |end, set| {
+            site.test.map_or(true, |test| {
+                test_holds(&self.g.tests[test as usize], &tokens[start..end], &self.shared.tags, set)
+            })
+        };
+        let mut rows = Vec::new();
+        match site.symbol {
+            Sym::T(terminal) => {
+                if let Some(token) = tokens.get(start) {
+                    if self.shared.reads(self.matchers[terminal as usize], token, false)
+                        && (!clean || token.errors.is_empty())
+                        && test(start + 1, token.tags)
+                    {
+                        rows.push((1, token.tags));
+                    }
+                }
+            }
+            Sym::N(rule) => {
+                let index = chart.local_completions.get_or_init(|| {
+                    let mut index: FxMap<(u32, u32), Vec<(u32, u32)>> = FxMap::default();
+                    for (set, items) in chart.sets.iter().enumerate() {
+                        for (&key, completed) in &items.completed {
+                            for &item in completed {
+                                work::count(Work::Walked, 1);
+                                index.entry(key).or_default().push((set as u32, item));
+                            }
+                        }
+                    }
+                    index
+                });
+                let states = chart.local_eligibility.get_or_init(|| {
+                    let all: Vec<_> = chart
+                        .sets
+                        .iter()
+                        .enumerate()
+                        .flat_map(|(set, items)| (0..items.items.len()).map(move |item| (set as u32, item as u32)))
+                        .collect();
+                    let flags = self.proofs(chart).flags(&all, tokens, self.shared.carried_errors(0, tokens.len()));
+                    all.into_iter().zip(flags).collect()
+                });
+                for &(set, item) in index.get(&(rule, start as u32)).into_iter().flatten() {
+                    let flags = states[&(set, item)];
+                    if flags == 0 || clean && flags & 1 == 0 {
+                        continue;
+                    }
+                    let raw = &chart.sets[set as usize].items[item as usize];
+                    if chart.boundaries.as_ref().is_some_and(|machine| !machine.borrow().accepts(raw.boundary)) {
+                        continue;
+                    }
+                    let tags = chart.sets[set as usize].tagset[item as usize];
+                    if test(set as usize, tags) {
+                        rows.push((set as usize - start, tags));
+                    }
+                }
+            }
+        }
+        Some(rows)
     }
 
     #[allow(clippy::too_many_arguments)]

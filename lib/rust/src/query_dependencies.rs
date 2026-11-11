@@ -27,7 +27,7 @@ impl Node<'_> {
         children.extend(forest.after.iter().map(Node::Span));
         children
     }
-    fn children(self) -> Vec<Self> {
+    pub(crate) fn children(self) -> Vec<Self> {
         match self {
             Self::Condition(condition) => match condition {
                 LCond::Matches(span, rule) | LCond::Begins(span, rule) | LCond::Ends(span, rule) => {

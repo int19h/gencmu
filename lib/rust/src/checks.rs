@@ -40,6 +40,7 @@ pub(crate) struct Value {
     pub start: usize,
     pub end: usize,
     pub target: Option<u32>,
+    pub site: Option<crate::chart_readings::Site>,
 }
 pub(crate) struct Tree<'a> {
     grammar: &'a Lowered,
@@ -326,7 +327,11 @@ impl<'a> Tree<'a> {
                     Element::Symbol(position) => Self::site(g, tree, parent, *position),
                     Element::Optional { expression, .. } => g.optional_targets[*expression],
                 };
-                return Some(Value { start: low, end: high, target });
+                let site = match element {
+                    Element::Symbol(position) => p.chart_sites.get(*position).copied(),
+                    Element::Optional { .. } => None,
+                };
+                return Some(Value { start: low, end: high, target, site });
             }
             let rule = &g.rules[p.rule as usize];
             if !rule.helper || rule.splice_target.is_some() {
@@ -386,6 +391,23 @@ impl<'a> Tree<'a> {
             Span::Element(path) => self.preceding_value(self.nodes[self.walk(root, path)? as usize].derivation)?.target,
             Span::From(inner) => self.target(root, inner),
             _ => unreachable!("a local reading receiver"),
+        }
+    }
+    pub(crate) fn chart_site(&self, root: u32, span: &Span) -> Option<crate::chart_readings::Site> {
+        match span {
+            Span::Node(path) => {
+                let node = self.nodes[self.walk(root, path)? as usize].derivation;
+                if let Some((parent, position)) = self.parents[node as usize] {
+                    let IKind::Close { prod, .. } = self.derivation.nodes[parent as usize].kind else { unreachable!() };
+                    self.grammar.prods[prod as usize].chart_sites.get(position).copied()
+                } else {
+                    let IKind::Close { prod, .. } = self.derivation.nodes[node as usize].kind else { return None };
+                    self.grammar.chart_rules.get(self.grammar.prods[prod as usize].rule as usize).copied()
+                }
+            }
+            Span::Element(path) => self.preceding_value(self.nodes[self.walk(root, path)? as usize].derivation)?.site,
+            Span::From(inner) => self.chart_site(root, inner),
+            _ => None,
         }
     }
     pub(crate) fn boundary(&self, forward: bool, at: usize, names: &[String]) -> bool {

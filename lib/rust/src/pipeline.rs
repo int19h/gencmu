@@ -762,6 +762,8 @@ impl Pipeline {
                 return Err(Box::new(error));
             }
         };
+        let chart = std::rc::Rc::new(chart);
+        shared.stage_chart = Some(chart.clone());
         let n = input.len();
         let accepted = chart.accepts(lowered.start, n);
         let ranked = if accepted {
