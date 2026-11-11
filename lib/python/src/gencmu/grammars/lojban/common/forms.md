@@ -193,7 +193,7 @@ The words stage needs to know where a run begins and ends. A name that `bu` take
   $p:y-prefix $y:y-atom :: $.parse(source-word).tags
 %conditions
   $.parse(hesitation-shape),
-  $.following-tokens.parse([pause-run] bu-form …)
+  $.following-tokens.parse(*bu-form-ahead …)
 %emits
   $p :: Run-Initial ∪ $.parse(source-word).tags,
   $y
@@ -205,7 +205,7 @@ The words stage needs to know where a run begins and ends. A name that `bu` take
   $p:y-prefix $y:y-atom :: $.parse(source-word).tags
 %conditions
   $.parse(hesitation-shape),
-  $.following-tokens.parse([pause-run] bu-form …)
+  $.following-tokens.parse(*bu-form-ahead …)
 %emits
   $p :: $.parse(source-word).tags,
   $y
@@ -219,6 +219,10 @@ The words stage needs to know where a run begins and ends. A name that `bu` take
 %rule y-atom
   [Syllable-Break] "y"
 
+-- The lookahead finds a bu form after optional pauses.
+%rule bu-form-ahead
+  [pause-run] bu-form
+
 %rule pause-run
   PAUSE | pause-run PAUSE
 
@@ -227,7 +231,7 @@ The words stage needs to know where a run begins and ends. A name that `bu` take
 
 ```
 
-<details><summary>Railroad diagrams of the 10 rules from <code>first-word</code> to <code>bu-form</code></summary>
+<details><summary>Railroad diagrams of the 11 rules from <code>first-word</code> to <code>bu-form</code></summary>
 <p><img src="../../../docs/diagrams/lojban/common/forms/first-word.svg" alt="Railroad diagram of the rule first-word"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/ordinary-first-word.svg" alt="Railroad diagram of the rule ordinary-first-word"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/later-word.svg" alt="Railroad diagram of the rule later-word"></p>
@@ -236,6 +240,7 @@ The words stage needs to know where a run begins and ends. A name that `bu` take
 <p><img src="../../../docs/diagrams/lojban/common/forms/split-later-y.svg" alt="Railroad diagram of the rule split-later-y"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/y-prefix.svg" alt="Railroad diagram of the rule y-prefix"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/y-atom.svg" alt="Railroad diagram of the rule y-atom"></p>
+<p><img src="../../../docs/diagrams/lojban/common/forms/bu-form-ahead.svg" alt="Railroad diagram of the rule bu-form-ahead"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/pause-run.svg" alt="Railroad diagram of the rule pause-run"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/bu-form.svg" alt="Railroad diagram of the rule bu-form"></p>
 </details>

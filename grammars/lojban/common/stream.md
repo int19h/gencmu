@@ -390,7 +390,7 @@ The hesitation rule refuses a raw y letteral. In `zo'oi .y. bu`, the quote there
   ¬$r.following-tokens.parse(quote-run-token …),
   ¬$s.following-tokens.parse(quote-run-token …),
   Hesitation ⊈ $s.first-token.tags ∨
-    $s.first-token.onward.parse(raw-y-base [pause-run] cmavo-token<BU> …)
+    $s.first-token.onward.parse(*raw-y-letter …)
 %emits
   $
 
@@ -403,10 +403,14 @@ The hesitation rule refuses a raw y letteral. In `zo'oi .y. bu`, the quote there
   $q.classes ∩ $SINGLE-QUOTE-MARKERS ≠ ∅,
   ¬$.following-tokens.parse(quote-marker-end …)
 
+-- A raw y letter joins its y base to bu across optional pauses.
+%rule raw-y-letter
+  raw-y-base [pause-run] cmavo-token<BU>
+
 %rule zohoi-hesitation
   $h:y-run
 %conditions
-  ¬$h.onward.parse(raw-y-base [pause-run] cmavo-token<BU> …)
+  ¬$h.onward.parse(*raw-y-letter …)
 %erased
 
 %rule zohoi-hesitations
@@ -420,9 +424,10 @@ The hesitation rule refuses a raw y letteral. In `zo'oi .y. bu`, the quote there
   {PAUSE<¬Quote-Material>} := $PAUSE
 ```
 
-<details><summary>Railroad diagrams of the 6 rules from <code>single-word-quote</code> to <code>quote-gap-pauses</code></summary>
+<details><summary>Railroad diagrams of the 7 rules from <code>single-word-quote</code> to <code>quote-gap-pauses</code></summary>
 <p><img src="../../../docs/diagrams/lojban/common/stream/single-word-quote.svg" alt="Railroad diagram of the rule single-word-quote"></p>
 <p><img src="../../../docs/diagrams/lojban/common/stream/single-marker.svg" alt="Railroad diagram of the rule single-marker"></p>
+<p><img src="../../../docs/diagrams/lojban/common/stream/raw-y-letter.svg" alt="Railroad diagram of the rule raw-y-letter"></p>
 <p><img src="../../../docs/diagrams/lojban/common/stream/zohoi-hesitation.svg" alt="Railroad diagram of the rule zohoi-hesitation"></p>
 <p><img src="../../../docs/diagrams/lojban/common/stream/zohoi-hesitations.svg" alt="Railroad diagram of the rule zohoi-hesitations"></p>
 <p><img src="../../../docs/diagrams/lojban/common/stream/zohoi-gap.svg" alt="Railroad diagram of the rule zohoi-gap"></p>

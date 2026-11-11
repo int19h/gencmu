@@ -794,7 +794,7 @@ Only two positions splice an argument's children into the surrounding list:
 %rule letter(@Char, @Forbidden)
   $c:@Char
 %conditions
-  ¬($c.following-tokens.parse(h …) ∨ $c.following-tokens.parse(@Forbidden …))
+  ¬$c.followed-by(h | @Forbidden)
 
 %rule filtered(@Char, @Excluded)
   @Char<¬Accent @Excluded>
@@ -1825,7 +1825,7 @@ Written-terminator priority uses only blockers that complete within the requeste
 
 A retained suffix computation records whether its reached work depends on an aligned query. Each retained-answer hit propagates that dependency to its caller.
 
-A target that reads the window end requires separate recognition for each distinct end. Its errors retain the complete window identity and never propagate to a different window. Repeated requests for the same window can reuse its answer. Use `.ends` sparingly because complex targets can require more than linear work.
+A target that reads the window end requires separate recognition for each distinct end. Its errors retain the complete window identity and never propagate to a different window. Repeated requests for the same window can reuse its answer. Use suffix queries sparingly because complex targets can require more than linear work.
 
 ## 5. Values, images and text
 

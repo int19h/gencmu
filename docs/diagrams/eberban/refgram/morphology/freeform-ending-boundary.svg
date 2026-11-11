@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="531" height="98" viewBox="0 0 531 98" role="img" aria-label="Railroad diagram of the rule freeform-ending-boundary">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="201.6" lengthAdjust="spacingAndGlyphs">freeform-ending-boundary</text>
+<path d="M10 58v16m4 -16v16M14 66h6"/>
+<path d="M20 66h20"/>
+<path d="M40 66h20"/>
+<path d="M60 66h20"/>
+<g class="terminal"><rect x="80" y="54" width="67" height="24" rx="12"/><text x="113.5" y="71" textLength="50.4" lengthAdjust="spacingAndGlyphs">Hyphen</text></g>
+<path d="M147 66H167"/>
+<path d="M60 66a10 10 0 0 0 10 -10V54a10 10 0 0 1 10 -10H147a10 10 0 0 1 10 10V56a10 10 0 0 0 10 10"/>
+<path d="M167 66h10"/>
+<g class="terminal"><rect x="177" y="54" width="92" height="24" rx="12"/><text x="223" y="71" textLength="75.6" lengthAdjust="spacingAndGlyphs">Letter&lt;H&gt;</text></g>
+<path d="M269 66H289"/>
+<path d="M269 66a10 10 0 0 1 10 10V78a10 10 0 0 1 -10 10H60a10 10 0 0 1 -10 -10V76a10 10 0 0 1 10 -10"/>
+<path d="M289 66H309"/>
+<path d="M20 66a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H289a10 10 0 0 1 10 10V56a10 10 0 0 0 10 10"/>
+<path d="M309 66h10"/>
+<path d="M319 66h20"/>
+<g class="terminal"><rect x="339" y="54" width="67" height="24" rx="12"/><text x="372.5" y="71" textLength="50.4" lengthAdjust="spacingAndGlyphs">Hyphen</text></g>
+<path d="M406 66H426"/>
+<path d="M319 66a10 10 0 0 0 10 -10V54a10 10 0 0 1 10 -10H406a10 10 0 0 1 10 10V56a10 10 0 0 0 10 10"/>
+<path d="M426 66h10"/>
+<g class="rule"><rect x="436" y="54" width="75" height="24" rx="0"/><text x="473.5" y="71" textLength="58.8" lengthAdjust="spacingAndGlyphs">run-end</text></g>
+<path d="M511 66h6m0 -8v16m4 -16v16"/>
+</svg>

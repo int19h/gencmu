@@ -1,0 +1,29 @@
+{
+  "description": "Eberban number recovery: loose-digits stops before a base introduced by TI JU.",
+  "grammar": "%rule text loose-digits loose-base\n%rule loose-base\n  TI JU\n\n%rule loose-digits\n  {TI}\n%conditions\n  ¬$.following-tokens.parse(TI …) ∨ $.following-tokens.parse(loose-base …)\n\n%rule loose-fraction\n  JO [$d:loose-digits]\n%conditions\n  $d ∨ ¬$.following-tokens.parse(TI …) ∨ $.following-tokens.parse(loose-base …)\n",
+  "tokens": [
+    {
+      "text": "TI",
+      "tags": [
+        "TI"
+      ]
+    },
+    {
+      "text": "TI",
+      "tags": [
+        "TI"
+      ]
+    },
+    {
+      "text": "JU",
+      "tags": [
+        "JU"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

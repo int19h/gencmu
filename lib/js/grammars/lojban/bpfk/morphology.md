@@ -190,8 +190,7 @@ A cmavo is not the start of a name, and not the start of a lujvo that begins wit
   $o:onset [{nucleus h}] cmavo-last-nucleus
 %conditions
 -- Detect a CVC rafsi with a y-hyphen before the compound core. Stress separates the two forms. Unhyphenated initial rafsi cannot start where the core starts, because of stress and their own exclusions. Only a lookahead.
-  ¬$o.onward.parse((h | cluster | cmevla
-                    | cvcy-lujvo) …),
+  ¬$o.onward.parse((h | cluster | cmevla | cvcy-lujvo) …),
   $.value.ngrams(1) ≠ "y",
   $.following-tokens.parse(post-word …)
 

@@ -73,15 +73,17 @@ The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The sp
 %redefine-rule cmevla-shape
   $n:word-shape(cmevla)
       :: $n.tags ∪
-         ($n.parse([{nonpause-phoneme}] consonant glide [{nonpause-phoneme}]) ⟹ Cgv-Warning)
-
--- This boolean span test requires a consonant, glide and nucleus. Several possible positions give the same truth value.
+         ($n.parse(*cgv-form) ⟹ Cgv-Warning)
 
 -- A predicate word ends in a vowel, unlike a name. It carries the template marks and its warning. The warning test inspects only this complete word.
 %redefine-rule brivla-shape
   $b:word-shape(brivla-word)
       :: $b.tags ∪
-         ($b.parse([{nonpause-phoneme}] consonant glide [{nonpause-phoneme}]) ⟹ Cgv-Warning)
+         ($b.parse(*cgv-form) ⟹ Cgv-Warning)
+
+-- This boolean span test requires a consonant, glide and nucleus. Several possible positions give the same truth value.
+%rule cgv-form
+  [{nonpause-phoneme}] consonant glide [{nonpause-phoneme}]
 
 -- An ordinary initial forbids a following glide. A CgV onset requires a consonant before its glide, unlike an ordinary glide onset.
 %rule brivla-onset
@@ -106,7 +108,7 @@ The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The sp
   $b:brivla-head stressed-syllable [{consonantal-syllable}] final-syllable
 %conditions
   ¬$b.onward.parse(rafsi-string …) ∨
-    $.parse([{nonpause-phoneme}] consonant glide [{nonpause-phoneme}]),
+    $.parse(*cgv-form),
   ¬$.onward.parse(cgv-rafsi-continuation …),
 -- This boolean span test requires adjacent consonants. Different possible cluster positions give the same truth value.
   $.parse([{nonpause-phoneme}] consonant consonant [{nonpause-phoneme}])
@@ -123,9 +125,10 @@ The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The sp
 
 ```
 
-<details><summary>Railroad diagrams of the 9 rules from <code>cmevla-shape</code> to <code>letter-ban</code></summary>
+<details><summary>Railroad diagrams of the 10 rules from <code>cmevla-shape</code> to <code>letter-ban</code></summary>
 <p><img src="../../../docs/diagrams/lojban/experimental/morphology/cmevla-shape.svg" alt="Railroad diagram of the rule cmevla-shape"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/morphology/brivla-shape.svg" alt="Railroad diagram of the rule brivla-shape"></p>
+<p><img src="../../../docs/diagrams/lojban/experimental/morphology/cgv-form.svg" alt="Railroad diagram of the rule cgv-form"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/morphology/brivla-onset.svg" alt="Railroad diagram of the rule brivla-onset"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/morphology/syllable-onset.svg" alt="Railroad diagram of the rule syllable-onset"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/morphology/cgv-onset.svg" alt="Railroad diagram of the rule cgv-onset"></p>

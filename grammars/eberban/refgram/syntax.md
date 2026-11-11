@@ -949,12 +949,12 @@ Number recovery normally ends at written `JI`, before a token outside `number-st
 %rule loose-digits
   {TI}
 %conditions
-  ¬$.following-tokens.parse((TI | loose-base) …)
+  ¬$.following-tokens.parse(TI …) ∨ $.following-tokens.parse(loose-base …)
 
 %rule loose-fraction
   JO [$d:loose-digits]
 %conditions
-  $d ∨ ¬$.following-tokens.parse((TI | loose-base) …)
+  $d ∨ ¬$.following-tokens.parse(TI …) ∨ $.following-tokens.parse(loose-base …)
 
 %rule number-end-alone
   JI

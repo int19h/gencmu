@@ -991,19 +991,23 @@ An empty `er e` retains its closing `e` as `Stray-Prefix`, without a second erro
   $p.following-tokens.parse(spaced-i-tail …)
 %error "attach the nested prefix as ei, or write e e instead of e i"
 
+-- An empty compound tail closes a spaced er compound before the run ends.
+%rule empty-compound-tail
+  gap [Hyphen] Letter="e" [Hyphen] run-end
+
 %rule compound-empty
   $p:prefix :: $p.tags
 %conditions
   ¬$p.following-tokens.parse(spaced-i-tail …),
   ER-PREFIX ⊆ $p.tags,
-  $p.following-tokens.parse(gap [Hyphen] Letter="e" [Hyphen] run-end …)
+  $p.following-tokens.parse(*empty-compound-tail …)
 %error "the er compound needs at least one component"
 
 %rule incomplete-compound
   $p:prefix :: $p.tags
 %conditions
   ¬$p.following-tokens.parse(spaced-i-tail …),
-  ER-PREFIX ⊈ $p.tags ∨ ¬$p.following-tokens.parse(gap [Hyphen] Letter="e" [Hyphen] run-end …)
+  ER-PREFIX ⊈ $p.tags ∨ ¬$p.following-tokens.parse(*empty-compound-tail …)
 %error "the compound is unfinished, or its prefix does not fit its components"
 
 %extend-rule open-compound
@@ -1023,12 +1027,13 @@ An empty `er e` retains its closing `e` as `Stray-Prefix`, without a second erro
   gap [hyphen-misplaced] $o:open-compound :: $o.tags ∩ Spaced-E
 ```
 
-<details><summary>Railroad diagrams of the 11 rules from <code>stray-compound</code> to <code>open-later</code></summary>
+<details><summary>Railroad diagrams of the 12 rules from <code>stray-compound</code> to <code>open-later</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/stray-compound.svg" alt="Railroad diagram of the rule stray-compound"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/open-compound.svg" alt="Railroad diagram of the rule open-compound"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/stray-prefix.svg" alt="Railroad diagram of the rule stray-prefix"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/spaced-i-tail.svg" alt="Railroad diagram of the rule spaced-i-tail"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/spaced-i-prefix.svg" alt="Railroad diagram of the rule spaced-i-prefix"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/empty-compound-tail.svg" alt="Railroad diagram of the rule empty-compound-tail"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/compound-empty.svg" alt="Railroad diagram of the rule compound-empty"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/incomplete-compound.svg" alt="Railroad diagram of the rule incomplete-compound"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/open-compound.2.svg" alt="Railroad diagram of the rule open-compound"></p>
@@ -1504,23 +1509,28 @@ A bare quadruplet similarly retains one root token. A framed cluster retains con
       ≻ triplet-freeform-shape)
       :: ∅
 
+-- The ending boundary skips faulty h letters and the last hyphen before the run ends.
+%rule freeform-ending-boundary
+  [{[Hyphen] Letter<H>}] [Hyphen] run-end
+
 %rule malformed-ending :: ∅
   | malformed-pair ≻ freeform-multi-consonents-ending
 %conditions
-  $.following-tokens.parse([{[Hyphen] Letter<H>}] [Hyphen] run-end …)
+  $.following-tokens.parse(*freeform-ending-boundary …)
 
 %rule freeform-multi-consonents-ending
   consonant [Hyphen] consonant [{[Hyphen] consonant}] :: ∅
 %conditions
-  $.following-tokens.parse([{[Hyphen] Letter<H>}] [Hyphen] run-end …)
+  $.following-tokens.parse(*freeform-ending-boundary …)
 %error "the ending " ++ $.source-text ++ " has more than one consonant"
 ```
 
-<details><summary>Railroad diagrams of the 6 rules from <code>malformed-content</code> to <code>freeform-multi-consonents-ending</code></summary>
+<details><summary>Railroad diagrams of the 7 rules from <code>malformed-content</code> to <code>freeform-multi-consonents-ending</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/malformed-content.svg" alt="Railroad diagram of the rule malformed-content"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/malformed-content-onset.svg" alt="Railroad diagram of the rule malformed-content-onset"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/malformed-content-middle.svg" alt="Railroad diagram of the rule malformed-content-middle"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/malformed-split-cluster.svg" alt="Railroad diagram of the rule malformed-split-cluster"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/freeform-ending-boundary.svg" alt="Railroad diagram of the rule freeform-ending-boundary"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/malformed-ending.svg" alt="Railroad diagram of the rule malformed-ending"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/freeform-multi-consonents-ending.svg" alt="Railroad diagram of the rule freeform-multi-consonents-ending"></p>
 </details>

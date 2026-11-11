@@ -57,13 +57,13 @@ A cmavo's stress is free (CLL[^cll-s3-9]), so any of its vowels can be a capital
       :: Onset Cy Uncounted ∪ ($l.parse(stress-mark) ⟹ Initial-Stress ∪ Final-Stress)
   | $p:y-pair-cmavo
       :: Continued ∪
-         ($p.parse([consonant] y-units) ⟹ Uncounted) ∪
+         ($p.parse(*y-letters) ⟹ Uncounted) ∪
          ($p.parse(first-marked-cmavo) ⟹ Initial-Stress) ∪
          ($p.parse(last-marked-cmavo) ⟹ Final-Stress)
   | $w:warned-cmavo
       :: Continued Cmavo-Warning ∪
          ($w.first-token.parse(consonant) ⟹ Onset) ∪
-         ($w.parse([consonant] y-units) ⟹ Uncounted) ∪
+         ($w.parse(*y-letters) ⟹ Uncounted) ∪
          ($w.parse(first-marked-cmavo) ⟹ Initial-Stress) ∪
          ($w.parse(last-marked-cmavo) ⟹ Final-Stress)
 %conditions
@@ -109,6 +109,10 @@ A cmavo's stress is free (CLL[^cll-s3-9]), so any of its vowels can be a capital
 %rule any-unit
   cmavo-unit | "y"
 
+-- A y letter has an optional consonant before its y units.
+%rule y-letters
+  [consonant] y-units
+
 %rule y-units
   "y" | y-units "'" "y"
 
@@ -127,7 +131,7 @@ A cmavo's stress is free (CLL[^cll-s3-9]), so any of its vowels can be a capital
 
 ```
 
-<details><summary>Railroad diagrams of the 16 rules from <code>cmavo-shape</code> to <code>last-marked-cmavo</code></summary>
+<details><summary>Railroad diagrams of the 17 rules from <code>cmavo-shape</code> to <code>last-marked-cmavo</code></summary>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/cmavo-shape.svg" alt="Railroad diagram of the rule cmavo-shape"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/plain-cmavo-body.svg" alt="Railroad diagram of the rule plain-cmavo-body"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/vowel-cmavo.svg" alt="Railroad diagram of the rule vowel-cmavo"></p>
@@ -140,6 +144,7 @@ A cmavo's stress is free (CLL[^cll-s3-9]), so any of its vowels can be a capital
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/warned-tail.svg" alt="Railroad diagram of the rule warned-tail"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/any-units.svg" alt="Railroad diagram of the rule any-units"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/any-unit.svg" alt="Railroad diagram of the rule any-unit"></p>
+<p><img src="../../../docs/diagrams/lojban/cll/morphology/y-letters.svg" alt="Railroad diagram of the rule y-letters"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/y-units.svg" alt="Railroad diagram of the rule y-units"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/cmavo-nucleus.svg" alt="Railroad diagram of the rule cmavo-nucleus"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/first-marked-cmavo.svg" alt="Railroad diagram of the rule first-marked-cmavo"></p>
