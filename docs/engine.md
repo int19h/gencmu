@@ -867,7 +867,7 @@ A union containing only bare tags prints as a run with single spaces. A union co
 
 For other term operators, the printer follows §9.2 binding and associativity. It adds parentheses exactly where removing them changes the normalized DOM. It prints no leading no-op operator. Pattern operators follow the binding rules in `docs/notation.md`, with the same grouping rule.
 
-Pattern literals print `#` directly before a node test, constant, parameter, or bare child list. Other whole patterns print inside `#(…)`. A node's exact prefix prints `·` without a following space. Tests follow their terminal without spaces. A child list attaches without a space and always retains its brackets, including with one child.
+Pattern literals print `#` directly before a node test, constant, parameter, or bare child list. Other written whole patterns print inside `#(…)`. The resolved `never` leaf prints `∅`. A node's exact prefix prints `·` without a following space. Tests follow their terminal without spaces. A child list attaches without a space and always retains its brackets, including with one child.
 
 A nonempty list prints `⁅ `, its items, and ` ⁆`. An empty list prints `⁅⁆`. Child items have one separating space. Optional brackets and braces have no internal padding. A separator prints as ` / `, and a sibling gap prints `⋯`.
 
@@ -883,9 +883,11 @@ A choice uses ` | ` between alternative arrays. If a choice or set item shares i
 
 Tests follow their symbol without spaces. Method selectors follow their receiver without spaces. Methods use ` | ` for target choices and `, ` for other argument lists. A zero-argument selector has no parentheses. Call parentheses follow the same no-space adjacency rule.
 
+The following spelling requirements exclude resolved patterns with `never`, including patterns inside arguments.
+
 Every accepted argument has a canonical spelling. Complex arguments never require a public name merely to obtain a spelling. Canonical names identify argument trees injectively. The ordinary reader accepts those spellings under the same Unicode tables and bindings. Canonical spellings require no names resource.
 
-For every valid pattern P, `key(read(print(P))) = key(P)`. The key removes source positions and retains constants by name, decorations, boundaries, operator order, and duplicates. It does not identify patterns merely because they match the same trees. The requirement also applies to a pattern inside another argument or call.
+For every valid pattern P without a resolved `never` form, `key(read(print(P))) = key(P)`. The key removes source positions and retains constants by name, decorations, boundaries, operator order, and duplicates. It does not identify patterns merely because they match the same trees. The requirement also applies to a pattern inside another argument or call.
 
 A pattern name that reads back as a terminal under the loaded Unicode table is invalid. This restriction covers ordinary rule names, template-family names, and call names. It also applies to supplied and cached DOMs. A pattern `literal` contains a decoded string. User constants use `constant`.
 
