@@ -179,7 +179,7 @@ fn parsing_with_and_without_the_cache() {
         .expect("a cached load");
     for (text, accepted) in [
         ("%rule text [{piece}] {... A / B} [+KU 🆓] %rule piece word | \"x\" :: Sound-x %emits $", true),
-        ("%ambiguity-resolution greedy\n%elision-only\n%rule a $x:b :: \"T\" ∪ ($x ⟹ $x.tags(c)) %conditions ¬$x.tokens-after-first.matches(d), $x", true),
+        ("%ambiguity-resolution greedy\n%elision-only\n%rule a $x:b :: \"T\" ∪ ($x ⟹ $x.parse(c).tags) %conditions ¬$x.tokens-after-first.parse(d), $x", true),
         ("%rule broken", false),
     ] {
         let options = gencmu::ParseOptions::default();
@@ -207,7 +207,7 @@ const EVERY_CONSTRUCT: &str = r#"```jbogenbau
 %rule text :: U ∪ ($x ∧ $x.source-text.classify(lex) ⊆ V ⟹ W)
   | f? $x:A $y:LE="la" [C | $z:D] {E} {E / [C]} [+KU 🆓] [+KEI (A | B)] (F & G) "a".."z" _General_Category_Letter Sound-a H UI<¬B> :: T ∪ $K
   | g? text-tail
-  %conditions , ($x.source-text = "ok" ∨ $y.starts-input) ⟹ ¬$x.first-token.matches(text) ∧ $y, $x.tokens-after-first.begins(text), $y.source-text ∈ "a.b".split(".")
+  %conditions , ($x.source-text = "ok" ∨ $y.starts-input) ⟹ ¬$x.first-token.parse(text) ∧ $y, $x.tokens-after-first.parse(text …), $y.source-text ∈ "a.b".split(".")
   %emits $x ($y) :: $x.tags, ε :: Y
 %rule text-tail
   ε

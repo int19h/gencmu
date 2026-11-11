@@ -47,20 +47,17 @@ A further sentence cannot start with a paragraph mark or the end of a parenthesi
 %rule starter-sentence-of(@Open)
   $s:sentence-of(@Open)
 %conditions
-  $s.onward.begins(starter-head)
+  $s.onward.parse(starter-head …)
 
 %rule invalid-tail
   $s:words-erasure
 %conditions
-  ¬$s.onward.begins(starter-head),
-  ¬$s.onward.begins(po-or-dai),
-  ¬$s.onward.begins(closer) ∨ $s.preceding-tokens.ends(RA)
+  ¬$s.onward.parse(starter-head …),
+  ¬$s.onward.parse((PO | DAI) …),
+  ¬$s.onward.parse(closer …) ∨ $s.preceding-tokens.parse(… RA)
 
 %rule starter-head
   [{prefix}] (A | O | NI)
-
-%rule po-or-dai
-  PO | DAI
 
 %rule closer
   FI | VEI | PEI | BU | PA | CAI
@@ -80,7 +77,7 @@ A further sentence cannot start with a paragraph mark or the end of a parenthesi
 %rule open-quote-sentence = sentence-of(sentence-choice)
 ```
 
-<details><summary>Railroad diagrams of the 22 rules from <code>text-of</code> to <code>open-quote-sentence</code></summary>
+<details><summary>Railroad diagrams of the 21 rules from <code>text-of</code> to <code>open-quote-sentence</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/text-of.svg" alt="Railroad diagram of the rule text-of"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/paragraphs-of.svg" alt="Railroad diagram of the rule paragraphs-of"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/po-head.svg" alt="Railroad diagram of the rule po-head"></p>
@@ -89,7 +86,6 @@ A further sentence cannot start with a paragraph mark or the end of a parenthesi
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/starter-sentence-of.svg" alt="Railroad diagram of the rule starter-sentence-of"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/invalid-tail.svg" alt="Railroad diagram of the rule invalid-tail"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/starter-head.svg" alt="Railroad diagram of the rule starter-head"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/po-or-dai.svg" alt="Railroad diagram of the rule po-or-dai"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/closer.svg" alt="Railroad diagram of the rule closer"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/text.svg" alt="Railroad diagram of the rule text"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/paragraphs.svg" alt="Railroad diagram of the rule paragraphs"></p>
@@ -131,12 +127,12 @@ A paragraph mark at the start of a paragraph is always the paragraph's mark, so 
   | empty-erasure
 %conditions
   ¬$i.onward.parse(@Open …).error-free,
-  ¬$i.onward.begins(po-head)
+  ¬$i.onward.parse(po-head …)
 
 %rule sentence-choice
   $s:sentence-body
 %conditions
-  $s.following-tokens.begins(sentence-end)
+  $s.following-tokens.parse(sentence-end …)
 
 %rule sentence-body
   o-sentence | ni-sentence | a-sentence
@@ -151,7 +147,7 @@ A paragraph mark at the start of a paragraph is always the paragraph's mark, so 
 %rule open-sentence
   $s:sentence-body
 %conditions
-  $s.following-tokens.begins(open-end)
+  $s.following-tokens.parse(open-end …)
 
 %rule open-end
   starter-head | PO | RA | end-of-text
@@ -159,7 +155,7 @@ A paragraph mark at the start of a paragraph is always the paragraph's mark, so 
 %rule elider-word
   FI | VEI | PEI | BU | PA
 %conditions
-  $.onward.begins(erasure-reach)
+  $.onward.parse(erasure-reach …)
 
 %rule end-of-text
   ε
@@ -217,12 +213,12 @@ Erased text can follow an erasure too, because the later `ra` erases it. So `aft
 %rule sentence-erasure
   $s:erased-sentence ra-run
 %conditions
-  $.following-tokens.begins(after-erasure)
+  $.following-tokens.parse(after-erasure …)
 
 %rule words-erasure
   $i:erased-words ra-run
 %conditions
-  $.following-tokens.begins(after-erasure)
+  $.following-tokens.parse(after-erasure …)
 
 %const $CLOSER-HEAD-ERASURE
   #open-quote-text⁅ ⋯ open-quote-paragraphs⁅ ⋯ open-quote-sentences⁅ ⋯
@@ -239,13 +235,13 @@ Erased text can follow an erasure too, because the later `ra` erases it. So `aft
 %rule empty-erasure
   ra-run
 %conditions
-  $.following-tokens.begins(after-erasure)
+  $.following-tokens.parse(after-erasure …)
 
 %rule invalid-head
   elider-word
   | _<¬RA ¬FI ¬VEI ¬PEI ¬BU ¬PA>
 %conditions
-  $.onward.begins(erasure-reach)
+  $.onward.parse(erasure-reach …)
 
 %rule erasure-reach
   {_<¬RA>} RA
@@ -288,7 +284,7 @@ An inner predicate is a chain, with an optional arguments list before it. The ar
 %rule definable
   $d:definable-usage
 %conditions
-  ¬$d.onward.begins(mi-free)
+  ¬$d.onward.parse(mi-free …)
 
 %rule definable-usage
   [{namespace-step}] definable-part
@@ -432,13 +428,13 @@ The empty-bind alternatives test the boundary after the postfixes that they read
   | [bi-free] vi-free definition
   | [bi-free] [{prefix}] *bind-empty-vi $p:*recovery-postfixes
 %conditions
-  $p.following-tokens.begins(missing-operand-boundary)
+  $p.following-tokens.parse(missing-operand-boundary …)
 
 %rule bind-next
   | [bi-free] fi-free definition
   | [bi-free] [{prefix}] *bind-empty-fi $p:*recovery-postfixes
 %conditions
-  $p.following-tokens.begins(missing-operand-boundary)
+  $p.following-tokens.parse(missing-operand-boundary …)
 
 %rule vi-free
   [{prefix}] VI [{postfix}]
@@ -505,14 +501,14 @@ A quote holds several sentences in two cases: it has several paragraphs, or its 
   | *multi-sentence-cai-elided
 %conditions
   $q ≇ $CLOSER-HEAD-ERASURE,
-  $q ≅ $SEVERAL-SENTENCES ⟹ $.following-tokens.begins(end-of-text)
+  $q ≅ $SEVERAL-SENTENCES ⟹ $.following-tokens.parse(end-of-text …)
 
 %rule multi-sentence-cai-elided
   [{prefix}] CA $l:open-quote-text [+CAI=""]
 %conditions
   $l ≇ $CLOSER-HEAD-ERASURE,
   $l ≅ $SEVERAL-SENTENCES,
-  ¬$.following-tokens.begins(end-of-text)
+  ¬$.following-tokens.parse(end-of-text …)
 %warning "a quote of several sentences omits cai before more text"
 
 %rule word-quote
@@ -580,12 +576,12 @@ The chapter says that a `JI` other than `jie` "must follow positive integer (no 
 %rule borrowing-group
   {Borrowing} [+BE]
 %conditions
-  $ ≅ #⁅ ⋯ BE<¬_Elided> ⁆ ∨ ¬$.following-tokens.begins(Borrowing)
+  $ ≅ #⁅ ⋯ BE<¬_Elided> ⁆ ∨ ¬$.following-tokens.parse(Borrowing …)
 
 %rule number
   [TI JU] number-body [+JI]
 %conditions
-  $ ≅ #⁅ ⋯ JI<¬_Elided> ⁆ ∨ ¬$.following-tokens.begins(number-start)
+  $ ≅ #⁅ ⋯ JI<¬_Elided> ⁆ ∨ ¬$.following-tokens.parse(number-start …)
 
 %rule number-start
   TI | JU | JO | JA | JE
@@ -678,7 +674,7 @@ A quote with written `cai` retains its own recovery scope. Without `cai`, a quot
   | unmatched-tail
 %conditions
   ¬$i.onward.parse(@Open …).error-free,
-  ¬$i.onward.begins(po-head)
+  ¬$i.onward.parse(po-head …)
 
 %extend-rule base-verb
   *select-empty | *modified-empty
@@ -726,19 +722,19 @@ A quote with written `cai` retains its own recovery scope. Without `cai`, a quot
 %rule resume-chain-empty
   resume-head
 %conditions
-  $.following-tokens.begins(missing-operand-boundary)
+  $.following-tokens.parse(missing-operand-boundary …)
 %error "pa needs the verb whose bindings it resumes"
 
 %rule select-empty
   si-free
 %conditions
-  $.following-tokens.begins(missing-operand-boundary)
+  $.following-tokens.parse(missing-operand-boundary …)
 %error "si needs a following verb"
 
 %rule modified-empty
   zi-free
 %conditions
-  $.following-tokens.begins(missing-operand-boundary)
+  $.following-tokens.parse(missing-operand-boundary …)
 %error "zi needs a verb to modify"
 
 ```
@@ -773,7 +769,7 @@ The boundary query recognizes annotated `vi` and `fi`, with optional `bi`, witho
 %extend-rule a-sentence
   [{prefix}] *chain-empty<A> $p:*recovery-postfixes
 %conditions
-  $p.following-tokens.begins(missing-operand-boundary)
+  $p.following-tokens.parse(missing-operand-boundary …)
 
 %extend-rule chain
   [{restart-chain RI}] restart-chain *chain-empty<RI>
@@ -781,13 +777,13 @@ The boundary query recognizes annotated `vi` and `fi`, with optional `bi`, witho
 %extend-rule o-sentence
   [{prefix}] *chain-empty<O> [{postfix}] definable
 %conditions
-  $.following-tokens.begins(missing-operand-boundary)
+  $.following-tokens.parse(missing-operand-boundary …)
 
 %extend-rule enumeration
   [{prefix}] *chain-empty<PE> $p:*recovery-postfixes
     [{bu-free chain | *empty-enumeration-item}] [+PEI]
 %conditions
-  $p.following-tokens.begins(missing-operand-boundary)
+  $p.following-tokens.parse(missing-operand-boundary …)
 
 %extend-rule separator-form
   | *empty-arguments-list [{bu-free chain | *empty-enumeration-item}]
@@ -797,7 +793,7 @@ The boundary query recognizes annotated `vi` and `fi`, with optional `bi`, witho
 %extend-rule chain-inner
   [{prefix}] *chain-empty<BI> $p:*recovery-postfixes
 %conditions
-  $p.following-tokens.begins(missing-operand-boundary)
+  $p.following-tokens.parse(missing-operand-boundary …)
 
 %rule empty-arguments-list
   [{KI | GI | ba-free}] *chain-empty<BE>
@@ -807,6 +803,8 @@ The boundary query recognizes annotated `vi` and `fi`, with optional `bi`, witho
 
 %rule recovery-postfixes
   [{postfix}]
+
+-- What can stand where an operand is missing after a binder.
 
 %rule missing-operand-boundary
   starter-head | PO | RA | RI | bind-start | sentence-closer | end-of-text
@@ -823,7 +821,7 @@ The boundary query recognizes annotated `vi` and `fi`, with optional `bi`, witho
 %extend-rule chain-empty
   BE | RI | BU
 %conditions
-  $.following-tokens.begins(missing-operand-boundary)
+  $.following-tokens.parse(missing-operand-boundary …)
 %error $CHAIN-EMPTY-MESSAGE
 
 %rule bind-empty-vi
@@ -862,7 +860,7 @@ An unclosed parenthetical reports on its whole span, from `da` through the input
 %extend-rule o-sentence
   [{prefix}] *not-definable-o $p:*recovery-postfixes [definition]
 %conditions
-  ¬$p.following-tokens.begins(definable)
+  ¬$p.following-tokens.parse(definable …)
 
 %extend-rule ni-sentence
   [{prefix}] *not-definable-ni [definition]
@@ -874,7 +872,7 @@ An unclosed parenthetical reports on its whole span, from `da` through the input
 %rule not-definable-ni
   NI
 %conditions
-  ¬$.following-tokens.begins(definable)
+  ¬$.following-tokens.parse(definable …)
 %error "ni needs a root, compound, freeform, or gi variable as its target"
 
 %extend-rule parenthetical
@@ -918,7 +916,7 @@ A sentence after `ra` needs a written starter. A sentence without that starter i
 %rule erasure-needs-starter
   $s:a-sentence
 %conditions
-  ¬$s.onward.begins(starter-head | PO | sentence-closer)
+  ¬$s.onward.parse((starter-head | PO | sentence-closer) …)
 %error "after ra, write a sentence starter: a, o, or ni"
 ```
 
@@ -951,20 +949,17 @@ Number recovery normally ends at written `JI`, before a token outside `number-st
 %rule loose-digits
   {TI}
 %conditions
-  ¬$.following-tokens.begins(TI) ∨ $.following-tokens.begins(loose-base)
+  ¬$.following-tokens.parse(TI …) ∨ $.following-tokens.parse(loose-base …)
 
 %rule loose-fraction
   JO [$d:loose-digits]
 %conditions
-  $d ∨ ¬$.following-tokens.begins(TI) ∨ $.following-tokens.begins(loose-base)
-
-%rule ordered-number-parts
-  [TI JU] [digits] [JO [digits]] [JA digits] [JE digits] [JI]
+  $d ∨ ¬$.following-tokens.parse(TI …) ∨ $.following-tokens.parse(loose-base …)
 
 %rule number-end-alone
   JI
 %conditions
-  $.preceding-tokens.ends(JI) ∨ ¬$.preceded-by(number)
+  $.preceding-tokens.parse(… JI) ∨ ¬$.preceded-by(number)
 %error "ji needs a preceding number part"
 
 %rule empty-base-number
@@ -986,13 +981,13 @@ Number recovery normally ends at written `JI`, before a token outside `number-st
 %rule number-empty-repeat
   JA
 %conditions
-  ¬$.following-tokens.begins(TI)
+  ¬$.following-tokens.parse(TI …)
 %error "ja starts a repeated part and needs at least one ti digit"
 
 %rule number-empty-magnitude
   JE
 %conditions
-  ¬$.following-tokens.begins(TI)
+  ¬$.following-tokens.parse(TI …)
 %error "je starts a magnitude and needs at least one ti digit"
 
 %rule number-repeat-without-fraction
@@ -1003,24 +998,23 @@ Number recovery normally ends at written `JI`, before a token outside `number-st
   | JO [JI]
   | TI JU [JO] [JI]
 %conditions
-  JI ⊆ $.last-token.tags ∨ ¬$.following-tokens.begins(TI | JI | JO | JA | JE)
+  JI ⊆ $.last-token.tags ∨ ¬$.following-tokens.parse((TI | JI | JO | JA | JE) …)
 %error "a number needs integer digits, fractional digits, or a magnitude"
 
 %rule number-part-order
   {number-part} [JI]
 %conditions
-  ¬$.matches(ordered-number-parts)
+  ¬$.parse([TI JU] [digits] [JO [digits]] [JA digits] [JE digits] [JI])
 %error "number parts need base, integer, fraction, repeat, then magnitude, without duplicates"
 
 ```
 
-<details><summary>Railroad diagrams of the 17 rules from <code>base-verb</code> to <code>number-part-order</code></summary>
+<details><summary>Railroad diagrams of the 16 rules from <code>base-verb</code> to <code>number-part-order</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/base-verb.4.svg" alt="Railroad diagram of the rule base-verb"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/number-part.svg" alt="Railroad diagram of the rule number-part"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/loose-base.svg" alt="Railroad diagram of the rule loose-base"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/loose-digits.svg" alt="Railroad diagram of the rule loose-digits"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/loose-fraction.svg" alt="Railroad diagram of the rule loose-fraction"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/syntax/ordered-number-parts.svg" alt="Railroad diagram of the rule ordered-number-parts"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/number-end-alone.svg" alt="Railroad diagram of the rule number-end-alone"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/empty-base-number.svg" alt="Railroad diagram of the rule empty-base-number"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/syntax/number-empty-base.svg" alt="Railroad diagram of the rule number-empty-base"></p>

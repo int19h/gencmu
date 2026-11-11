@@ -1,6 +1,6 @@
 {
   "description": "Engine §10 runs an aligned prefix query on a range terminal under strict restoration.",
-  "grammar": "%rule text $x:\"a\"..\"z\" B %conditions $x.without-elision.begins(probe)\n%rule family A\n%rule probe A ::Probe",
+  "grammar": "%rule text $x:\"a\"..\"z\" B %conditions $x.without-elision.parse(probe …)\n%rule family A\n%rule probe A ::Probe",
   "tokens": [
     {
       "text": "a",

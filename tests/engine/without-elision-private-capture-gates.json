@@ -1,6 +1,6 @@
 {
   "description": "A private capture can distinguish closes before ranked admission (engine §4 and §10).",
-  "grammar": "%rule text ($x:a ≻ $x:b) %conditions ¬($x.without-elision.matches(rival))\n\n%rule a (X [+T])\n%rule b (X [+U])\n%rule rival (X [+T])",
+  "grammar": "%rule text ($x:a ≻ $x:b) %conditions ¬$x.without-elision.parse(rival)\n\n%rule a (X [+T])\n%rule b (X [+U])\n%rule rival (X [+T])",
   "tokens": [
     {
       "text": "x",

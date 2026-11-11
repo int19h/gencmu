@@ -120,7 +120,6 @@ fn a_well_formed_dom_is_used() {
     let both = format!(r#"{{"all":[{whole},{{"not":{whole}}}]}}"#);
     assert!(!document_was_read(&with_condition(whole)));
     assert!(!document_was_read(&with_condition(&both)));
-    assert!(!document_was_read(&with_tags(r#"{"method":"tags","receiver":{"capture":""},"args":[{"rule":"text"}]}"#)));
     let text =
         r#"{"op":"≠","left":{"method":"source-text","receiver":{"capture":""},"args":[]},"right":{"string":"b"}}"#;
     assert!(!document_was_read(&with_tags(&format!(r#"{{"if":{text},"then":{{"tag":"T"}}}}"#))));
@@ -140,9 +139,9 @@ fn a_well_formed_dom_is_used() {
     )));
     // `begins` of `from` and `after` of a span, and those spans as a
     // term's argument (§9).
-    let begins = r#"{"method":"begins","receiver":{"method":"following-tokens","receiver":{"capture":"w"},"args":[]},"args":[{"rule":"text"}]}"#;
+    let begins = r#"{"method":"parse","receiver":{"method":"following-tokens","receiver":{"capture":"w"},"args":[]},"args":[{"body":{"seq":[{"ref":"text"},{"remainder":true}]}}]}"#;
     assert!(!document_was_read(&with_condition(begins)));
-    let not_begins = r#"{"not":{"method":"begins","receiver":{"method":"onward","receiver":{"method":"tokens-after-first","receiver":{"capture":"w"},"args":[]},"args":[]},"args":[{"rule":"x"}]}}"#;
+    let not_begins = r#"{"not":{"method":"parse","receiver":{"method":"onward","receiver":{"method":"tokens-after-first","receiver":{"capture":"w"},"args":[]},"args":[]},"args":[{"body":{"seq":[{"ref":"x"},{"remainder":true}]}}]}}"#;
     assert!(!document_was_read(&with_condition(not_begins)));
     assert!(!document_was_read(&with_tags(
         r#"{"method":"tags","receiver":{"method":"onward","receiver":{"capture":"x"},"args":[]},"args":[]}"#
@@ -541,8 +540,8 @@ fn every_malformed_dom_is_a_cache_miss() {
             with_condition(r#"{"all":[{"op":"=","left":{"string":"a"},"right":{"string":"b"}}]}"#),
         ),
         (
-            "matches of a value",
-            with_condition(r#"{"method":"matches","receiver":{"string":"b"},"args":[{"rule":"text"}]}"#),
+            "a whole parse of a value",
+            with_condition(r#"{"method":"parse","receiver":{"string":"b"},"args":[{"body":{"ref":"text"}}]}"#),
         ),
         ("initial of a value", with_condition(r#"{"method":"starts-input","receiver":{"string":"b"},"args":[]}"#)),
         (
@@ -550,19 +549,26 @@ fn every_malformed_dom_is_a_cache_miss() {
             with_condition(r#"{"method":"starts-input","receiver":{"capture":"w"},"args":[{"rule":"text"}]}"#),
         ),
         (
-            "begins of a value",
-            with_condition(r#"{"method":"begins","receiver":{"string":"b"},"args":[{"rule":"text"}]}"#),
+            "a prefix parse of a value",
+            with_condition(
+                r#"{"method":"parse","receiver":{"string":"b"},"args":[{"body":{"seq":[{"ref":"text"},{"remainder":true}]}}]}"#,
+            ),
         ),
-        ("begins without a rule", with_condition(r#"{"method":"begins","receiver":{"capture":"w"},"args":[]}"#)),
-        (
-            "matches and begins in one condition",
-            with_condition(r#"{"method":"matches","receiver":{"capture":"w"},"args":[]}"#),
-        ),
+        ("a parse without a body", with_condition(r#"{"method":"parse","receiver":{"capture":"w"},"args":[]}"#)),
+        ("two queries in one condition", with_condition(r#"{"method":"parse","receiver":{"capture":"w"},"args":[]}"#)),
         ("an unknown comparison", with_condition(r#"{"op":"<","left":{"string":"a"},"right":{"string":"b"}}"#)),
         ("an unknown function", with_tags(r#"{"method":"uppercase","receiver":{"capture":"x"},"args":[]}"#)),
-        ("matches as a term", with_tags(r#"{"method":"matches","receiver":{"capture":"x"},"args":[{"rule":"text"}]}"#)),
+        (
+            "a whole parse as a term",
+            with_tags(r#"{"method":"parse","receiver":{"capture":"x"},"args":[{"body":{"ref":"text"}}]}"#),
+        ),
         ("initial as a term", with_tags(r#"{"method":"starts-input","receiver":{"capture":"x"},"args":[]}"#)),
-        ("begins as a term", with_tags(r#"{"method":"begins","receiver":{"capture":"x"},"args":[{"rule":"text"}]}"#)),
+        (
+            "a prefix parse as a term",
+            with_tags(
+                r#"{"method":"parse","receiver":{"capture":"x"},"args":[{"body":{"seq":[{"ref":"text"},{"remainder":true}]}}]}"#,
+            ),
+        ),
         ("head as a value", with_tags(r#"{"method":"first-token","receiver":{"capture":"x"},"args":[]}"#)),
         ("after as a value", with_tags(r#"{"method":"following-tokens","receiver":{"capture":"x"},"args":[]}"#)),
         (
@@ -1483,8 +1489,11 @@ fn a_node_of_two_forms_is_refused() {
         with_mixed(&seq(captured, c), &format!(r#"{{{compared},"not":{{"captured":"w"}}}}"#)),
         with_mixed(&seq(captured, c), &format!(r#"{{"not":{{"captured":"w"}},{compared}}}"#)),
         with_mixed(&seq(captured, c), &format!(r#"{{"captured":"w",{compared}}}"#)),
-        with_mixed(&seq(captured, c), &format!(r#"{{{compared},"matches":{{"capture":"w"}}}}"#)),
-        with_mixed(&seq(captured, c), r#"{"method":"matches","receiver":{"capture":"w"},"args":[]}"#),
+        with_mixed(&seq(captured, c), &format!(r#"{{{compared},"parse":{{"capture":"w"}}}}"#)),
+        with_mixed(
+            &seq(captured, c),
+            r#"{"method":"starts-input","receiver":{"capture":"w"},"args":[{"rule":"text"}]}"#,
+        ),
         with_mixed_emission(&seq(captured, c), &condition, r#","emit":{"items":[{"capture":"w"}],"extra":true}"#),
         with_mixed_emission(&seq(captured, c), &condition, r#","emit":{"extra":true,"items":[{"capture":"w"}]}"#),
     ];
@@ -1687,7 +1696,7 @@ fn deferred_recipe_precedes_empty_emission() {
 fn template_definition_keeps_its_specific_problem() {
     for params in ["", r#","params":["X"]"#] {
         let raw = format!(
-            r#"{{"format":47,"rules":[{{"name":"pair"{params},"op":"define","alternatives":[{{"guards":[],"expr":{{"ref":"A"}}}}],"tags":{{"method":"tags","receiver":{{"capture":"y"}},"args":[]}},"conditions":[],"at":[2,1]}}],"directives":[],"constants":[],"classifiers":[],"implications":[]}}"#
+            r#"{{"format":48,"rules":[{{"name":"pair"{params},"op":"define","alternatives":[{{"guards":[],"expr":{{"ref":"A"}}}}],"tags":{{"method":"tags","receiver":{{"capture":"y"}},"args":[]}},"conditions":[],"at":[2,1]}}],"directives":[],"constants":[],"classifiers":[],"implications":[]}}"#
         );
         let problem = gencmu::tools::check_dom(&raw).unwrap().unwrap();
         assert!(problem.contains("$y") && problem.contains("pair"), "{problem}");
@@ -1724,7 +1733,7 @@ fn substituted_condition_keeps_its_type_reason() {
 
 #[test]
 fn span_tag_hint_uses_source_spelling() {
-    let raw = r#"{"format":47,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"capture":"x","expr":{"ref":"A"}}}],"tags":{"union":[{"capture":"x"},{"tag":"B"}]},"conditions":[],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}"#;
+    let raw = r#"{"format":48,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"capture":"x","expr":{"ref":"A"}}}],"tags":{"union":[{"capture":"x"},{"tag":"B"}]},"conditions":[],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}"#;
     let problem = gencmu::tools::check_dom(raw).unwrap().unwrap();
     assert!(problem.contains("$x.tags") && !problem.contains("tags($x)"), "{problem}");
 }

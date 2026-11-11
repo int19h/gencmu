@@ -910,13 +910,10 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 	if t.Str == "starts-input" {
 		return give(&domCond{Kind: cdInitial, Span: t.Items[0]})
 	}
-	kind := cdMatches
-	if t.Str == "begins" {
-		kind = cdBegins
-	} else if t.Str == "ends" {
-		kind = cdEnds
-	}
-	return give(&domCond{Kind: kind, Span: t.Items[0], Targets: t.Items[1:]})
+	// Every other method term in a condition position was refused
+	// as it was read.
+	b.fail(n, "a %s term is no condition", t.Str)
+	return give(&domCond{Kind: cdForest, Left: t})
 }
 
 func (b *domBuilder) patternOperand(right *Node) {

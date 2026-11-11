@@ -1,6 +1,6 @@
 {
   "description": "The loader refuses an invalid argument to without-elision (engine §4 and §10).",
-  "grammar": "%rule text $x:X\n%conditions $unknown.without-elision.matches(rival)\n%rule rival X",
+  "grammar": "%rule text $x:X\n%conditions $unknown.without-elision.parse(rival)\n%rule rival X",
   "tokens": [
     {
       "text": "x",

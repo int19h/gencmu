@@ -1,6 +1,6 @@
 {
   "description": "A plain [+T] keeps the default omission policy in a query. The query retains its written-terminator priority (engine §4).",
-  "grammar": "%ambiguity-resolution late #·_<_Elided>\n%elision-only\n%rule text a | b | c\n%rule a ($x:pair [+U]) %conditions $x.begins(probe)\n\n%rule b (pair [+U] [+U])\n%rule c (pair U)\n%rule pair (A B)\n%rule probe (chunk [+T] B)\n%rule chunk A | (A B)",
+  "grammar": "%ambiguity-resolution late #·_<_Elided>\n%elision-only\n%rule text a | b | c\n%rule a ($x:pair [+U]) %conditions $x.parse(probe …)\n\n%rule b (pair [+U] [+U])\n%rule c (pair U)\n%rule pair (A B)\n%rule probe (chunk [+T] B)\n%rule chunk A | (A B)",
   "tokens": [
     {
       "text": "a",

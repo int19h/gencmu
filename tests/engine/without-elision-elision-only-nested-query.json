@@ -1,6 +1,6 @@
 {
   "description": "Nested aligned queries preserve synthetic reads without duplicating restoration records (engine §4 and §7).",
-  "grammar": "%ambiguity-resolution late #·_<_Elided>\n%elision-only\n%rule text a | b | c\n%rule a (X [+T])\n%rule b (X [+T] [+U])\n%rule c $x:body %conditions $x.without-elision.matches(rival)\n\n%rule body (X T)\n%rule rival $y:original %conditions $y.without-elision.matches(inner)\n\n%rule original (X [+T])\n%rule inner (X [+T])",
+  "grammar": "%ambiguity-resolution late #·_<_Elided>\n%elision-only\n%rule text a | b | c\n%rule a (X [+T])\n%rule b (X [+T] [+U])\n%rule c $x:body %conditions $x.without-elision.parse(rival)\n\n%rule body (X T)\n%rule rival $y:original %conditions $y.without-elision.parse(inner)\n\n%rule original (X [+T])\n%rule inner (X [+T])",
   "tokens": [
     {
       "text": "x",

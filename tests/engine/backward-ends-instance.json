@@ -1,6 +1,6 @@
 {
   "description": "A suffix target can name one exact template instance. (Engine §4.4.)",
-  "grammar": "%rule text A B\n%conditions $.ends(tail(B))\n%rule tail(@X) @X",
+  "grammar": "%rule text A B\n%conditions $.parse(… tail(B))\n%rule tail(@X) @X",
   "tokens": [
     {
       "text": "a",

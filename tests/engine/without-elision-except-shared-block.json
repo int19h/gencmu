@@ -1,6 +1,6 @@
 {
   "description": "A shared ranked block can stand beside a permitted extra close (engine §2.2, §4, and §10).",
-  "grammar": "%rule text $c:c\n%conditions $c.without-elision-except(fam).matches(w)\n%rule c X n B\n%rule w X n [+U] B\n%rule fam w\n%rule n (E ≻ Z) :: ∅",
+  "grammar": "%rule text $c:c\n%conditions $c.without-elision-except(fam).parse(w)\n%rule c X n B\n%rule w X n [+U] B\n%rule fam w\n%rule n (E ≻ Z) :: ∅",
   "tokens": [
     {
       "text": "x",

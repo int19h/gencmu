@@ -115,9 +115,6 @@ The rule `any-letter` reads `Syllable-Break` to include commas in stress lookahe
 %rule i-or-u
   "i" | "u"
 
-%rule e-or-o
-  "e" | "o"
-
 %rule falling-diphthong
   "a" "i" | "e" "i" | "o" "i" | "a" "u"
 
@@ -140,12 +137,11 @@ The rule `any-letter` reads `Syllable-Break` to include commas in stress lookahe
   [any-letters] capital-letter [any-letters]
 ```
 
-<details><summary>Railroad diagrams of the 12 rules from <code>vowel</code> to <code>stress-mark</code></summary>
+<details><summary>Railroad diagrams of the 11 rules from <code>vowel</code> to <code>stress-mark</code></summary>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/vowel.svg" alt="Railroad diagram of the rule vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/capital-vowel.svg" alt="Railroad diagram of the rule capital-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/capital-letter.svg" alt="Railroad diagram of the rule capital-letter"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/i-or-u.svg" alt="Railroad diagram of the rule i-or-u"></p>
-<p><img src="../../../docs/diagrams/lojban/cll/shapes/e-or-o.svg" alt="Railroad diagram of the rule e-or-o"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/falling-diphthong.svg" alt="Railroad diagram of the rule falling-diphthong"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/rising-diphthong.svg" alt="Railroad diagram of the rule rising-diphthong"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/y-diphthong.svg" alt="Railroad diagram of the rule y-diphthong"></p>
@@ -198,14 +194,14 @@ So a brivla with marked stress has `S2`, and one without any capital vowel has `
          (N0 ⊆ $s.tags ∧ Marked ⊆ $j.tags ⟹ First-Marked) ∪
          Single-End ∩ $j.tags
 %conditions
-  Single-End ⊈ $s.tags ∨ ¬$s.last-token.onward.begins(brivla-diphthong)
+  Single-End ⊈ $s.tags ∨ ¬$s.last-token.onward.parse(brivla-diphthong …)
 
 %rule brivla-item
   | consonant
   | "y"<¬Stressed>
   | "'" | Syllable-Break
-  | $v:vowel :: Counted Single-End ∪ ($v.matches(capital-vowel) ⟹ Marked)
-  | $d:brivla-diphthong :: Counted ∪ ($d.matches(stress-mark) ⟹ Marked)
+  | $v:vowel :: Counted Single-End ∪ ($v.parse(capital-vowel) ⟹ Marked)
+  | $d:brivla-diphthong :: Counted ∪ ($d.parse(stress-mark) ⟹ Marked)
 
 %rule brivla-diphthong
   falling-diphthong | rising-diphthong
@@ -254,14 +250,14 @@ The forms stage uses the stress on the first syllable of a name, for the pause r
          (Counted ⊆ $j.tags ∧ (N2 ∪ N3) ∩ $s.tags ≠ ∅ ⟹ N3) ∪
          Single-End ∩ $j.tags
 %conditions
-  Single-End ⊈ $s.tags ∨ ¬$s.last-token.onward.begins(brivla-diphthong | y-diphthong)
+  Single-End ⊈ $s.tags ∨ ¬$s.last-token.onward.parse((brivla-diphthong | y-diphthong) …)
 
 %rule name-item
   | consonant | "'" | Syllable-Break
-  | $v:vowel :: Nucleus Counted Single-End ∪ ($v.matches(capital-vowel) ⟹ Marked)
-  | $y:"y" :: Nucleus ∪ ($y.matches(stress-mark) ⟹ Marked)
-  | $d:brivla-diphthong :: Nucleus Counted ∪ ($d.matches(stress-mark) ⟹ Marked)
-  | $e:y-diphthong :: Nucleus ∪ ($e.matches(stress-mark) ⟹ Marked)
+  | $v:vowel :: Nucleus Counted Single-End ∪ ($v.parse(capital-vowel) ⟹ Marked)
+  | $y:"y" :: Nucleus ∪ ($y.parse(stress-mark) ⟹ Marked)
+  | $d:brivla-diphthong :: Nucleus Counted ∪ ($d.parse(stress-mark) ⟹ Marked)
+  | $e:y-diphthong :: Nucleus ∪ ($e.parse(stress-mark) ⟹ Marked)
 
 %rule name-vowel
   vowel | "y"

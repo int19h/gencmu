@@ -1,6 +1,6 @@
 {
   "description": "Parentheses around one target preserve that target. (Engine §4.4.)",
-  "grammar": "%rule text A\n%conditions $.ends((A))",
+  "grammar": "%rule text A\n%conditions $.parse(… (A))",
   "tokens": [
     {
       "text": "a",

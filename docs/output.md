@@ -249,9 +249,9 @@ The authoritative constructor contract is [engine §9.3](engine.md#93-conversion
 
 A grammar DOM (document object model) is the parsed form of a grammar document (engine §8, §9). A library makes it when it reads the document. The per-family preparsed files hold this data, including the entries that bootstrap the notation reader.
 
-Its envelope is `{"format":47,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. All five declaration arrays are present, including empty arrays. The envelope has no other members. Every declared item has `at:[line,column]`, counted from 1. Both coordinates must be integers from 1 to 9007199254740991 (2^53 − 1). This bound applies to every DOM source position.
+Its envelope is `{"format":48,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. All five declaration arrays are present, including empty arrays. The envelope has no other members. Every declared item has `at:[line,column]`, counted from 1. Both coordinates must be integers from 1 to 9007199254740991 (2^53 − 1). This bound applies to every DOM source position.
 
-`format` is the version of the DOM, 47. A library refuses a bootstrap of another version and treats an optional cached DOM of another version as a cache miss. A format match alone never excuses invalid schema data.
+`format` is the version of the DOM, 48. A library refuses a bootstrap of another version and treats an optional cached DOM of another version as a cache miss. A format match alone never excuses invalid schema data.
 
 An optional member is absent only when its key is absent. A present `null` does not replace an omitted member. Every present member must satisfy its stated form, including exclusive targets and optional clauses.
 
@@ -384,13 +384,13 @@ Before expansion, `$x:@X` can have this capture expression:
 {"capture":"x","expr":{"param":"X","at":[1,16]}}
 ```
 
-A query parameter uses the same unresolved node in its target list:
+A query parameter uses the same unresolved node in its body:
 
 ```json
-{"method":"matches","receiver":{"capture":"x"},"args":[{"param":"X","at":[2,23]}]}
+{"method":"parse","receiver":{"capture":"x"},"args":[{"body":{"param":"X","at":[2,23]}}]}
 ```
 
-After substitution, the capture target must be one symbol. The query target must meet its method's target rules.
+After substitution, the body is a constituent like any other (engine §4).
 
 Capture names use lowercase letters, digits, `-`, and `_`. Captures cannot occur inside chains. Inside an elidable optional, only the capture of its sole terminator is legal (engine §3.8). A capture inside the braces of a flat list is an item capture, which binds in the productions of the list's helper (engine §3.5). It cannot occur inside a ranked group, and its name occurs nowhere else in its alternative. Each expanded production binds a name at most once.
 
@@ -465,17 +465,11 @@ For example, `A ∪ (B ∪ C)` gives this term:
 
 A method node always has `method`, `receiver`, and `args`, in that order. Its method name, receiver type, arity, and result type follow engine §10. A receiver can be a capture, span method, string term, query forest, or the recipe-only emitted pair. Before expansion, a permitted term receiver can also be a declared `param` node. Zero-argument methods have an empty argument array.
 
-Rule arguments use `{"rule":"r"}`, including `{"rule":"🆓"}`, or an unresolved call. `.tags` and `.without-elision-except` take one. Before expansion, either method can take a declared `param` node in that rule position.
+Rule arguments use `{"rule":"r"}`, including `{"rule":"🆓"}`, or an unresolved call. `.without-elision-except` takes one. Before expansion, it can take a declared `param` node in that rule position.
 
 Classifier arguments use `{"classifier":"lexicon"}`. Rule arguments are also legal compile-time ARG values. Classifier arguments occur only in `.classify` and cannot be ARG values or parameter uses.
 
 String arguments are terms. A classifier name starts with a lowercase letter, so `🆓` cannot name a classifier.
-
-`.matches`, `.begins`, `.ends`, `.followed-by`, and `.preceded-by` take one or more TARGET arguments, as defined after the ARG forms. They retain written order. Two or more arguments form a choice.
-
-Source and supplied DOM accept repeated targets, which change nothing. All five methods share TARGET's user-terminal and parameter-scope restrictions. Boundary targets identify grammar-built token classes, while engine tags describe stored character properties.
-
-Boundary receivers are `{"capture":"x"}`, or `{"capture":""}` for `$`. `matches` and `begins` accept captures or spans, including restored spans. `ends` accepts only captures or ordinary spans. A restored receiver causes a load error. `.preceding-tokens` uses the ordinary zero-argument method shape and returns an ordinary projected span.
 
 `.parse` takes exactly one `{"body":EXPR}` argument. Its receiver is a capture or span, including a restored span except in suffix or part mode. The body contains no capture at any depth, but referenced rules retain their own captures. It can add the leaf `{"remainder":true}` at the first edge, at the last edge, or at both edges of its outer `seq`.
 
@@ -495,19 +489,19 @@ A first remainder selects suffix mode, and a last remainder selects prefix mode.
 
 `.without-elision-except` takes the same receiver and exactly one rule argument. `.onward` can wrap its result too. Readers reject `$x.onward.without-elision-except(f)` in the same way.
 
-For example, `$m.without-elision.matches(sumti)` uses this condition DOM:
+For example, `$m.without-elision.parse(sumti)` uses this condition DOM:
 
 ```json
-{"method":"matches","receiver":{"method":"without-elision","receiver":{"capture":"m"},"args":[]},"args":[{"rule":"sumti"}]}
+{"method":"parse","receiver":{"method":"without-elision","receiver":{"capture":"m"},"args":[]},"args":[{"body":{"ref":"sumti"}}]}
 ```
 
-`$s.without-elision-except(math).onward.begins(quantifier)` uses this condition DOM:
+`$s.without-elision-except(math).onward.parse(quantifier …)` uses this condition DOM:
 
 ```json
-{"method":"begins","receiver":{"method":"onward","receiver":{"method":"without-elision-except","receiver":{"capture":"s"},"args":[{"rule":"math"}]},"args":[]},"args":[{"rule":"quantifier"}]}
+{"method":"parse","receiver":{"method":"onward","receiver":{"method":"without-elision-except","receiver":{"capture":"s"},"args":[{"rule":"math"}]},"args":[]},"args":[{"body":{"seq":[{"ref":"quantifier"},{"remainder":true}]}}]}
 ```
 
-The extended prefix uses `$m.without-elision.onward.begins(sumti)`. Its receiver nests an `onward` method around the restored span. Query conditions use the same method schema as terms.
+The extended prefix uses `$m.without-elision.onward.parse(sumti …)`. Its receiver nests an `onward` method around the restored span. Query conditions use the same method schema as terms.
 
 A recipe is `{"concat":[ATOM...]}` with a nonempty array. Atoms are `string`, string-valued `const`, declared `param` before expansion, or one of the seven recipe string methods on a bare capture. The methods `.emitted.value` and `.emitted.image` are the two channel forms of `emitted`. An emitted-channel atom nests the channel selector around `{"method":"emitted","receiver":CAPTURE,"args":[]}`. `emitted` alone cannot be a recipe atom.
 
@@ -525,9 +519,6 @@ Conditions have these forms:
 
 ```text
 {"op":"=","left":TERM,"right":TERM}
-{"method":"matches","receiver":SPAN,"args":[TARGET,TARGET...]}
-{"method":"begins","receiver":SPAN,"args":[TARGET,TARGET...]}
-{"method":"ends","receiver":SPAN,"args":[TARGET,TARGET...]}
 {"method":"starts-input","receiver":SPAN,"args":[]}
 {"method":"ends-input","receiver":SPAN,"args":[]}
 {"method":"followed-by","receiver":CAPTURE,"args":[TARGET,TARGET...]}
@@ -738,7 +729,7 @@ The DOM holds no lowered helper, admission key, [seal](notation.md#the-structura
 
 The names dependency of a cached document is a resource map. If source conversion loads no names data, the entry omits `names`.
 
-`data/preparsed/FAMILY.json` holds the DOMs of all grammar documents under `grammars/FAMILY/`. `tools/sync.js` generates each file and copies it into every package. Its shape is `{"format":47,"bootstrap":HASH,"unicode":HASH,"properties":HASH_OR_NULL,"bundledNames":{RESOURCE:HASH},"documents":{PATH:{"hash":HASH,"names":{RESOURCE:HASH},"dom":DOM}}}`. `PATH` is relative to the package root, including the `grammars/` prefix. Each `HASH` is the FNV-1a hash of engine §8. `unicode` hashes the text of `data/unicode/unicode.txt`.
+`data/preparsed/FAMILY.json` holds the DOMs of all grammar documents under `grammars/FAMILY/`. `tools/sync.js` generates each file and copies it into every package. Its shape is `{"format":48,"bootstrap":HASH,"unicode":HASH,"properties":HASH_OR_NULL,"bundledNames":{RESOURCE:HASH},"documents":{PATH:{"hash":HASH,"names":{RESOURCE:HASH},"dom":DOM}}}`. `PATH` is relative to the package root, including the `grammars/` prefix. Each `HASH` is the FNV-1a hash of engine §8. `unicode` hashes the text of `data/unicode/unicode.txt`.
 
 The required `gencmu.json` omits the `bootstrap` header member. The hash of its complete text supplies that fingerprint for every other family. The notation reader uses its required entries without checking their source text hashes. Ordinary cache lookups still compare all other applicable identity members. Each document key selects its own family's preparsed file (engine §8), besides the required `gencmu.json`. Missing or malformed optional files give cache misses.
 

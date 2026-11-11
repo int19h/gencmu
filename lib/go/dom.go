@@ -7,7 +7,7 @@ import (
 )
 
 // domFormat is the version of the grammar DOM (docs/output.md).
-const domFormat = 47
+const domFormat = 48
 
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what data/preparsed/gencmu.json and data/preparsed/FAMILY.json hold.
@@ -208,9 +208,9 @@ func isSpanFunction(name string) bool {
 // for $; A ⟹ B is cdIf, its Items A and B.
 const (
 	cdCompare  = "compare"
-	cdMatches  = "matches"
-	cdBegins   = "begins"
-	cdEnds     = "ends"
+	cdWhole    = "whole"
+	cdPrefix   = "prefix"
+	cdSuffix   = "suffix"
 	cdContains = "contains"
 	cdInitial  = "initial"
 	cdEnd      = "ends-input"
@@ -707,7 +707,7 @@ func (c *domCond) writeJSON(w *jsonWriter) {
 		w.raw(`,"right":`)
 		c.Right.writeJSON(w)
 		w.raw("}")
-	case cdMatches, cdBegins, cdEnds, cdInitial, cdEnd, cdBoundary:
+	case cdInitial, cdEnd, cdBoundary:
 		name := c.Kind
 		if name == cdInitial {
 			name = "starts-input"
@@ -1550,8 +1550,6 @@ func (dc *domDecoder) decodeCondNode(raw any, depth int) (*domCond, error) {
 			return &domCond{Kind: cdInitial, Span: receiver}, nil
 		case boundaryMethod(name) && len(args) >= 1:
 			return &domCond{Kind: cdBoundary, Op: name, Span: receiver, Targets: args}, nil
-		case (name == "matches" || name == "begins" || name == "ends") && len(args) >= 1:
-			return &domCond{Kind: name, Span: receiver, Targets: args}, nil
 		}
 		return nil, fmt.Errorf("a malformed predicate method")
 	}

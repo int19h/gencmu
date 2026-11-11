@@ -1,6 +1,6 @@
 {
   "description": "The pattern sigil reads an emoji rule atom after a captured emoji reference.",
-  "grammar": "%rule text $x:🆓<A>=\"a\"\n%conditions $x.matches(🆓), $x ≅ #🆓\n%rule 🆓 \"a\" :: A",
+  "grammar": "%rule text $x:🆓<A>=\"a\"\n%conditions $x.parse(🆓), $x ≅ #🆓\n%rule 🆓 \"a\" :: A",
   "input": "a",
   "expect": {
     "result": {

@@ -1,6 +1,6 @@
 {
   "description": "The prefix also preserves omitted closes at the start boundary (engine §4 and §10).",
-  "grammar": "%rule text $x:candidate %conditions ¬($x.without-elision.begins(rival))\n\n%rule candidate ([+T] X)\n%rule rival X",
+  "grammar": "%rule text $x:candidate %conditions ¬$x.without-elision.parse(rival …)\n\n%rule candidate ([+T] X)\n%rule rival X",
   "tokens": [
     {
       "text": "x",

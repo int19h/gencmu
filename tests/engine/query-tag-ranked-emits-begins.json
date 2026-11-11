@@ -1,6 +1,6 @@
 {
   "description": "An emission tag term can query a tag when the grammar also contains a ranked choice.",
-  "grammar": "%rule text $p:A (B ≻ C) ::∅ %emits $p :: ($p.begins(P) ⟹ MARK)",
+  "grammar": "%rule text $p:A (B ≻ C) ::∅ %emits $p :: ($p.parse(P …) ⟹ MARK)",
   "tokens": [
     {
       "text": "p",

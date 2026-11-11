@@ -1,6 +1,6 @@
 {
   "description": "An omitted optional restores T without requiring its following Y (engine §4 and §10).",
-  "grammar": "%rule text $x:candidate %conditions $x.without-elision.matches(rival)\n\n%rule candidate (X [+T Y])\n%rule rival (X [+T Y])",
+  "grammar": "%rule text $x:candidate %conditions $x.without-elision.parse(rival)\n\n%rule candidate (X [+T Y])\n%rule rival (X [+T Y])",
   "tokens": [
     {
       "text": "x",

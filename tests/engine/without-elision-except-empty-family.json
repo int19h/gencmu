@@ -1,6 +1,6 @@
 {
   "description": "An empty permission gives the strict answer (engine §2.2, §4, and §10).",
-  "grammar": "%rule text $c:c\n%conditions $c.without-elision-except(fam).matches(w)\n%rule c X [+T] B\n%rule w X [+T] B\n%rule fam Z\n",
+  "grammar": "%rule text $c:c\n%conditions $c.without-elision-except(fam).parse(w)\n%rule c X [+T] B\n%rule w X [+T] B\n%rule fam Z\n",
   "tokens": [
     {
       "text": "x",

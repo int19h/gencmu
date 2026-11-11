@@ -1,6 +1,6 @@
 {
   "description": "The enclosing capture restores its own omitted T (engine §4 and §10).",
-  "grammar": "%rule text (X [+T]) %conditions $.without-elision.matches(rival)\n\n%rule rival (X [+T])",
+  "grammar": "%rule text (X [+T]) %conditions $.without-elision.parse(rival)\n\n%rule rival (X [+T])",
   "tokens": [
     {
       "text": "x",

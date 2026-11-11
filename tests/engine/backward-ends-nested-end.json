@@ -1,6 +1,6 @@
 {
   "description": "An ordinary nested target reads its own end boundary. (Engine §4.4.)",
-  "grammar": "%rule text A B\n%conditions $.ends(tail)\n%rule tail B\n%conditions $.matches(inner)\n%rule inner B\n%conditions $.ends-input",
+  "grammar": "%rule text A B\n%conditions $.parse(… tail)\n%rule tail B\n%conditions $.parse(inner)\n%rule inner B\n%conditions $.ends-input",
   "tokens": [
     {
       "text": "a",

@@ -64,7 +64,6 @@ pub(crate) enum LTerm {
     Split(Box<LTerm>, Box<LTerm>),
     Ngrams(Box<LTerm>, String),
     Tags(Span),
-    TagsRule(Span, u32),
     ForestTags(Span, u32, crate::query_forms::Mode, bool),
     Classes(Span),
     /// `classify(a, C)`: the classes that the classifier named `C` gives
@@ -1064,7 +1063,6 @@ impl<'a> Scope<'a> {
                     Some(term) => term,
                     None => LTerm::Tags(self.span(span)?),
                 },
-                ("tags", [Arg::Term(span), Arg::Rule(rule)]) => LTerm::TagsRule(self.span(span)?, self.rule(rule)?),
                 ("ngrams", [Arg::Term(string), Arg::Integer(n)]) => {
                     LTerm::Ngrams(Box::new(self.term(string)?), n.clone())
                 }
@@ -1160,23 +1158,6 @@ impl<'a> Scope<'a> {
                     _ => return Err(Missing),
                 };
                 LCond::Cmp(op, self.term(left)?, self.term(right)?)
-            }
-            Cond::Matches(span, targets) | Cond::Begins(span, targets) | Cond::Ends(span, targets) => {
-                let mut choices = Vec::new();
-                for rule in targets {
-                    choices.push(if matches!(cond, Cond::Matches(..)) {
-                        LCond::Matches(self.span(span)?, self.query_target(rule)?)
-                    } else if matches!(cond, Cond::Ends(..)) {
-                        LCond::Ends(self.span(span)?, self.query_target(rule)?)
-                    } else {
-                        LCond::Begins(self.span(span)?, self.query_target(rule)?)
-                    })
-                }
-                if choices.len() == 1 {
-                    choices.pop().unwrap()
-                } else {
-                    LCond::Any(choices)
-                }
             }
             Cond::Initial(span) => LCond::Initial(self.span(span)?),
             Cond::Final(span) => LCond::Final(self.span(span)?),
@@ -2567,7 +2548,7 @@ fn query_terminals(grammar: &StageGrammar) -> BTreeSet<String> {
         C(&'a Cond),
     }
     let mut stack = Vec::new();
-    let mut result: BTreeSet<String> =
+    let result: BTreeSet<String> =
         grammar.query_targets.values().filter(|name| is_terminal_name(name)).cloned().collect();
     let mut seen = FxSet::default();
     for rule in &grammar.rules {
@@ -2589,9 +2570,6 @@ fn query_terminals(grammar: &StageGrammar) -> BTreeSet<String> {
         match p {
             Part::C(c) => match c {
                 Cond::Forest(term) => stack.push(Part::T(term)),
-                Cond::Matches(_, targets) | Cond::Begins(_, targets) | Cond::Ends(_, targets) => {
-                    result.extend(targets.iter().filter(|s| is_terminal_name(s)).cloned())
-                }
                 Cond::Compare(_, a, b, _) => stack.extend([Part::T(a), Part::T(b)]),
                 Cond::Not(c) => stack.push(Part::C(c)),
                 Cond::Any(cs) | Cond::All(cs) => stack.extend(cs.iter().map(Part::C)),
@@ -2630,7 +2608,7 @@ mod tests {
 
     #[test]
     fn close_families_compute_only_demanded_roots_and_share_memberships() {
-        let source = "%ambiguity-resolution greedy\n%rule text $x:r\n%conditions $x.without-elision-except(fam).matches(r)\n%rule fam f? r | other\n%rule r A [+T]\n%rule other B\n%rule unused U";
+        let source = "%ambiguity-resolution greedy\n%rule text $x:r\n%conditions $x.without-elision-except(fam).parse(r)\n%rule fam f? r | other\n%rule r A [+T]\n%rule other B\n%rule unused U";
         let unicode = Unicode::parse(crate::loader::bundled("data/unicode/unicode.txt").unwrap()).unwrap();
         let json = crate::tools::read_grammar_document(&format!("```jbogenbau\n{source}\n```\n"), "g.md").unwrap();
         let dom = crate::dom::dom_from_json(&crate::json::parse(&json).unwrap(), &unicode).unwrap();

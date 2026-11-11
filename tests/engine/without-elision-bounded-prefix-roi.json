@@ -1,6 +1,6 @@
 {
   "description": "A bounded prefix cannot read the following ROI (engine §4 and §10).",
-  "grammar": "%rule text ($x:candidate ROI) %conditions ¬($x.without-elision.begins(rival))\n\n%rule candidate (X [+T])\n%rule rival (X [+T] ROI)",
+  "grammar": "%rule text ($x:candidate ROI) %conditions ¬$x.without-elision.parse(rival …)\n\n%rule candidate (X [+T])\n%rule rival (X [+T] ROI)",
   "tokens": [
     {
       "text": "x",

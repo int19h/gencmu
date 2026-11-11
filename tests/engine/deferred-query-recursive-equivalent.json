@@ -1,6 +1,6 @@
 {
   "description": "Engine §4: query eligibility retains finite proofs and the specified error behavior.",
-  "grammar": "%rule text A\n%conditions $.matches(a)\n%rule a A\n%conditions $.parse(a …)",
+  "grammar": "%rule text A\n%conditions $.parse(a)\n%rule a A\n%conditions $.parse(a …)",
   "tokens": [
     {
       "text": "a",

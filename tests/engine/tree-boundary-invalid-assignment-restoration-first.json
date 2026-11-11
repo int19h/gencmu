@@ -1,6 +1,6 @@
 {
   "description": "An invalid restored observation discards only its boundary assignment. A short circuit can preserve the other assignment (engine §4.2).",
-  "grammar": "%ambiguity-resolution greedy\n%rule text $x:X B\n%conditions $x.tags(q) = ∅\n%rule q $y:r\n%conditions ¬($y.without-elision.matches(rival)) ∨ $.followed-by(B)\n%rule r (r [+U]) :: Recursive | X :: ∅\n%rule rival X",
+  "grammar": "%ambiguity-resolution greedy\n%rule text $x:X B\n%conditions $x.parse(q).tags = ∅\n%rule q $y:r\n%conditions ¬$y.without-elision.parse(rival) ∨ $.followed-by(B)\n%rule r (r [+U]) :: Recursive | X :: ∅\n%rule rival X",
   "tokens": [
     {
       "text": "x",

@@ -645,8 +645,8 @@ class GrammarFaults(unittest.TestCase):
                 [("x", "x", {"W"}), ("e", "e", {"E", "O"})],
             ),
             ("%rule text $a:W %emits $a :: $a.tags ∩ Z", None, [("x", "x", set())]),
-            ("%rule text $a:x %conditions ¬$a.matches(text)\n%rule x W", own_span, None),
-            ("%rule text $a:x %conditions ¬$a.onward.begins(text)\n%rule x W", own_span, None),
+            ("%rule text $a:x %conditions ¬$a.parse(text)\n%rule x W", own_span, None),
+            ("%rule text $a:x %conditions ¬$a.onward.parse(text …)\n%rule x W", own_span, None),
         ]:
             with self.subTest(grammar=grammar):
                 sources = {
@@ -813,10 +813,10 @@ class Robustness(unittest.TestCase):
         another over a span one token shorter, makes a chain of nested
         parses as long as the text. The recognizer keeps the chain on a
         stack of its own, in recognition and in emission alike."""
-        chain = '%rule c "a" %conditions ¬$.following-tokens.matches(c)'
+        chain = '%rule c "a" %conditions ¬$.following-tokens.parse(c)'
         for rules in (
             f'%rule text c {{"a"}}\n{chain}',
-            f'%rule text $x:s %emits $ :: T ∪ $x.tags(c)\n%rule s {{"a"}}\n{chain}',
+            f'%rule text $x:s %emits $ :: T ∪ $x.parse(c).tags\n%rule s {{"a"}}\n{chain}',
         ):
             with self.subTest(rules=rules[:30]):
                 pipeline = gencmu.load_pipeline_sources(self.grammar(rules), "p.md", use_cache=False)

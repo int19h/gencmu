@@ -38,7 +38,7 @@ func TestDeferredQueriesKeepOrdinaryAndFilteredMemosSeparate(t *testing.T) {
 	lowered := pipeline.lower(0, map[string]bool{})
 	for _, dirty := range []bool{false, true, false} {
 		run := queryRun(t, pipeline, dirty)
-		for _, kind := range []string{cdMatches, cdBegins, cdEnds} {
+		for _, kind := range []string{cdWhole, cdPrefix, cdSuffix} {
 			if !queryAnswer(t, run, lowered, kind, "target", false) {
 				t.Fatal("ordinary witness lost", dirty, kind)
 			}
@@ -72,7 +72,7 @@ func TestDeferredNestedFilteredAnswersMakeTheOuterMemoErrorDependent(t *testing.
 		t.Fatal("repeated the closed rule graph")
 	}
 	for _, dirty := range []bool{false, true, false} {
-		if answer := queryAnswer(t, queryRun(t, pipeline, dirty), lowered, cdMatches, "target", false); answer == dirty {
+		if answer := queryAnswer(t, queryRun(t, pipeline, dirty), lowered, cdWhole, "target", false); answer == dirty {
 			t.Fatal("outer memo lost error dependence", dirty, answer)
 		}
 	}

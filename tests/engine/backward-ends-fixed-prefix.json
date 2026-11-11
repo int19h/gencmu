@@ -1,6 +1,6 @@
 {
   "description": "A suffix target sees the preceding tokens of the whole window. (Engine §4.4.)",
-  "grammar": "%rule text A B\n%conditions $.ends(tail)\n%rule tail B\n%conditions $.preceding-tokens.value = \"a\"",
+  "grammar": "%rule text A B\n%conditions $.parse(… tail)\n%rule tail B\n%conditions $.preceding-tokens.value = \"a\"",
   "tokens": [
     {
       "text": "a",

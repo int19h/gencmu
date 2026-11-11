@@ -58,7 +58,7 @@ class WithoutElision(unittest.TestCase):
     def test_saved_sound_does_not_change_a_common_block_entry(self):
         self.assert_outcome(
             """%rule text Q $x:choice
-%conditions $x.without-elision.matches(choice)
+%conditions $x.without-elision.parse(choice)
 %rule choice $p:prefix (a ≻ b)
 %rule prefix t | u
 %rule t X [+T="a"]
@@ -74,7 +74,7 @@ class WithoutElision(unittest.TestCase):
     def test_prior_control_routes_distinguish_a_common_block_entry(self):
         self.assert_outcome(
             """%rule text Q $x:choice
-%conditions $x.without-elision.matches(choice)
+%conditions $x.without-elision.parse(choice)
 %rule choice (a & b) (c ≻ d)
 %rule a X
 %conditions ¬$.starts-input
@@ -93,7 +93,7 @@ class WithoutElision(unittest.TestCase):
                     {
                         "documents": {
                             "p.md": '```jbogenbau\n%stage first\n%include "first.md"\n%stage second\n%include "second.md"\n```',
-                            "first.md": f"```jbogenbau\n%ambiguity-resolution greedy\n%rule text {body}\n%emits {captured} :: {captured}.without-elision.tags(rival)\n%rule candidate X [+T]\n%rule rival X [+T] :: KEPT\n```",
+                            "first.md": f"```jbogenbau\n%ambiguity-resolution greedy\n%rule text {body}\n%emits {captured} :: {captured}.without-elision.parse(rival).tags\n%rule candidate X [+T]\n%rule rival X [+T] :: KEPT\n```",
                             "second.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text KEPT\n```",
                         },
                         "pipelineDocument": "p.md",
@@ -108,9 +108,9 @@ class WithoutElision(unittest.TestCase):
     def test_whole_capture_keeps_the_enclosing_named_cycle(self):
         self.assert_outcome(
             """%rule text $x:X
-%conditions $x.tags(r) = ∅
+%conditions $x.parse(r).tags = ∅
 %rule r (($rec:r [+T]) ≻ Y) :: Recursive | X :: ∅
-%conditions $rec ⟹ ¬$.without-elision.matches(rival)
+%conditions $rec ⟹ ¬$.without-elision.parse(rival)
 %rule rival X""",
             ("X",),
             True,
@@ -175,7 +175,7 @@ class WithoutElision(unittest.TestCase):
 
     def test_ambiguous_children_share_close_observations(self):
         grammar = """%rule text $x:list
-%conditions $x.without-elision.matches(list)
+%conditions $x.without-elision.parse(list)
 %rule list {unit}
 %rule unit a | b
 %rule a X [+T]
@@ -235,7 +235,7 @@ class WithoutElision(unittest.TestCase):
                 grammar = "\n".join(fixture["grammar"].splitlines()[:5]).replace("r16", f"r{depth}")
                 grammar += "".join(f"\n%rule r{i} r{i - 1} r{i - 1}" for i in range(1, depth + 1))
                 if witness:
-                    grammar = grammar.replace("$x.without-elision.matches(empty)", f"¬$x.without-elision.matches(r{depth})")
+                    grammar = grammar.replace("$x.without-elision.parse(empty)", f"¬$x.without-elision.parse(r{depth})")
 
                 def bounded_count(name, amount=1):
                     original_count(name, amount)
@@ -253,7 +253,7 @@ class WithoutElision(unittest.TestCase):
                     _testing.work = None
         for file in growth["unusedCases"]:
             fixture = json.loads((shared_root / "engine" / file).read_text())
-            fixture["grammar"] += "\n%rule unused $x:empty\n%conditions $x.without-elision.matches(empty)\n%rule empty ε"
+            fixture["grammar"] += "\n%rule unused $x:empty\n%conditions $x.without-elision.parse(empty)\n%rule empty ε"
             pipeline, error = load_case_pipeline(fixture)
             self.assertIsNone(error)
             input_tokens, text = case_tokens(fixture)

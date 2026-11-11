@@ -456,7 +456,7 @@
       ],
       "conditions": [
         {
-          "method": "matches",
+          "method": "parse",
           "receiver": {
             "method": "without-elision",
             "receiver": {
@@ -466,7 +466,9 @@
           },
           "args": [
             {
-              "rule": "text"
+              "body": {
+                "ref": "text"
+              }
             }
           ]
         }
@@ -493,7 +495,7 @@
       ],
       "conditions": [
         {
-          "method": "matches",
+          "method": "parse",
           "receiver": {
             "method": "onward",
             "receiver": {
@@ -507,7 +509,9 @@
           },
           "args": [
             {
-              "rule": "text"
+              "body": {
+                "ref": "text"
+              }
             }
           ]
         }
@@ -534,14 +538,16 @@
       ],
       "conditions": [
         {
-          "method": "matches",
+          "method": "parse",
           "receiver": {
             "method": "without-elision",
             "args": []
           },
           "args": [
             {
-              "rule": "text"
+              "body": {
+                "ref": "text"
+              }
             }
           ]
         }
@@ -568,7 +574,7 @@
       ],
       "conditions": [
         {
-          "method": "matches",
+          "method": "parse",
           "receiver": {
             "method": "without-elision",
             "receiver": {
@@ -582,7 +588,9 @@
           },
           "args": [
             {
-              "rule": "text"
+              "body": {
+                "ref": "text"
+              }
             }
           ]
         }
@@ -609,7 +617,7 @@
       ],
       "conditions": [
         {
-          "method": "matches",
+          "method": "parse",
           "receiver": {
             "method": "without-elision",
             "receiver": {
@@ -619,7 +627,9 @@
           },
           "args": [
             {
-              "rule": "text"
+              "body": {
+                "ref": "text"
+              }
             }
           ]
         }
@@ -646,7 +656,7 @@
       ],
       "conditions": [
         {
-          "method": "matches",
+          "method": "parse",
           "receiver": {
             "method": "without-elision",
             "receiver": {
@@ -660,7 +670,9 @@
           },
           "args": [
             {
-              "rule": "text"
+              "body": {
+                "ref": "text"
+              }
             }
           ]
         }
@@ -687,7 +699,7 @@
       ],
       "conditions": [
         {
-          "method": "matches",
+          "method": "parse",
           "receiver": {
             "method": "without-elision",
             "receiver": {
@@ -701,7 +713,9 @@
           },
           "args": [
             {
-              "rule": "text"
+              "body": {
+                "ref": "text"
+              }
             }
           ]
         }
@@ -728,7 +742,7 @@
       ],
       "conditions": [
         {
-          "method": "matches",
+          "method": "parse",
           "receiver": {
             "method": "without-elision",
             "receiver": {
@@ -739,7 +753,9 @@
           },
           "args": [
             {
-              "rule": "text"
+              "body": {
+                "ref": "text"
+              }
             }
           ]
         }
@@ -956,7 +972,7 @@
       ],
       "conditions": [
         {
-          "method": "matches",
+          "method": "parse",
           "receiver": {
             "method": "without-elision-except",
             "receiver": {
@@ -970,7 +986,9 @@
           },
           "args": [
             {
-              "rule": "rival"
+              "body": {
+                "ref": "rival"
+              }
             }
           ]
         }
@@ -983,7 +1001,7 @@
     "malformed": false
   },
   {
-    "description": "The rule name 🆓 is a supplied matches argument (engine §9.3 and §10).",
+    "description": "The rule name 🆓 is a supplied parse body in whole mode (engine §9.3 and §10).",
     "rule": {
       "name": "text",
       "op": "define",
@@ -997,13 +1015,15 @@
       ],
       "conditions": [
         {
-          "method": "matches",
+          "method": "parse",
           "receiver": {
             "capture": ""
           },
           "args": [
             {
-              "rule": "🆓"
+              "body": {
+                "ref": "🆓"
+              }
             }
           ]
         }
@@ -1016,7 +1036,7 @@
     "malformed": false
   },
   {
-    "description": "The rule name 🆓 is a supplied begins argument (engine §9.3 and §10).",
+    "description": "The rule name 🆓 is a supplied parse body in prefix mode (engine §9.3 and §10).",
     "rule": {
       "name": "text",
       "op": "define",
@@ -1030,13 +1050,22 @@
       ],
       "conditions": [
         {
-          "method": "begins",
+          "method": "parse",
           "receiver": {
             "capture": ""
           },
           "args": [
             {
-              "rule": "🆓"
+              "body": {
+                "seq": [
+                  {
+                    "ref": "🆓"
+                  },
+                  {
+                    "remainder": true
+                  }
+                ]
+              }
             }
           ]
         }
@@ -1049,7 +1078,7 @@
     "malformed": false
   },
   {
-    "description": "The rule name 🆓 is a supplied tags argument (engine §9.3 and §10).",
+    "description": "The rule name 🆓 is a supplied parse body in a tags term (engine §9.3 and §10).",
     "rule": {
       "name": "text",
       "op": "define",
@@ -1070,13 +1099,19 @@
           "right": {
             "method": "tags",
             "receiver": {
-              "capture": ""
+              "method": "parse",
+              "receiver": {
+                "capture": ""
+              },
+              "args": [
+                {
+                  "body": {
+                    "ref": "🆓"
+                  }
+                }
+              ]
             },
-            "args": [
-              {
-                "rule": "🆓"
-              }
-            ]
+            "args": []
           }
         }
       ],
@@ -1172,13 +1207,19 @@
       "tags": {
         "method": "tags",
         "receiver": {
-          "capture": ""
+          "method": "parse",
+          "receiver": {
+            "capture": ""
+          },
+          "args": [
+            {
+              "body": {
+                "ref": "🆓"
+              }
+            }
+          ]
         },
-        "args": [
-          {
-            "rule": "🆓"
-          }
-        ]
+        "args": []
       }
     },
     "malformed": false
@@ -1197,13 +1238,19 @@
           "tags": {
             "method": "tags",
             "receiver": {
-              "capture": ""
+              "method": "parse",
+              "receiver": {
+                "capture": ""
+              },
+              "args": [
+                {
+                  "body": {
+                    "ref": "🆓"
+                  }
+                }
+              ]
             },
-            "args": [
-              {
-                "rule": "🆓"
-              }
-            ]
+            "args": []
           }
         }
       ],
@@ -1243,13 +1290,19 @@
             "tags": {
               "method": "tags",
               "receiver": {
-                "capture": ""
+                "method": "parse",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": [
+                  {
+                    "body": {
+                      "ref": "🆓"
+                    }
+                  }
+                ]
               },
-              "args": [
-                {
-                  "rule": "🆓"
-                }
-              ]
+              "args": []
             }
           }
         ]
@@ -2632,16 +2685,24 @@
           "left": {
             "method": "tags",
             "receiver": {
-              "capture": ""
-            },
-            "args": [
-              {
-                "rule": "r"
+              "method": "parse",
+              "receiver": {
+                "capture": ""
               },
-              {
-                "rule": "r"
-              }
-            ]
+              "args": [
+                {
+                  "body": {
+                    "ref": "r"
+                  }
+                },
+                {
+                  "body": {
+                    "ref": "r"
+                  }
+                }
+              ]
+            },
+            "args": []
           },
           "right": {
             "emptySet": true
@@ -2946,7 +3007,7 @@
     "malformed": true
   },
   {
-    "description": "A feature condition retains the structural signature of matches (engine §§9, 13).",
+    "description": "A feature condition retains the structural signature of a whole parse (engine §§9, 13).",
     "directive": {
       "name": "features",
       "args": [
@@ -2958,13 +3019,15 @@
       ],
       "conditions": [
         {
-          "method": "matches",
+          "method": "parse",
           "receiver": {
             "capture": ""
           },
           "args": [
             {
-              "rule": "r"
+              "body": {
+                "ref": "r"
+              }
             }
           ]
         }
@@ -2973,7 +3036,7 @@
     "malformed": false
   },
   {
-    "description": "A feature condition rejects the wrong argument count for matches (engine §§9, 13).",
+    "description": "A feature condition rejects the wrong argument count for a whole parse (engine §§9, 13).",
     "directive": {
       "name": "features",
       "args": [
@@ -2985,7 +3048,7 @@
       ],
       "conditions": [
         {
-          "method": "matches",
+          "method": "parse",
           "receiver": {
             "capture": ""
           },
@@ -2996,7 +3059,7 @@
     "malformed": true
   },
   {
-    "description": "A feature condition admits a target choice structurally for matches (engine §§9, 13).",
+    "description": "A feature condition admits a body choice structurally for a whole parse (engine §§9, 13).",
     "directive": {
       "name": "features",
       "args": [
@@ -3008,16 +3071,22 @@
       ],
       "conditions": [
         {
-          "method": "matches",
+          "method": "parse",
           "receiver": {
             "capture": ""
           },
           "args": [
             {
-              "rule": "r"
-            },
-            {
-              "rule": "r"
+              "body": {
+                "choice": [
+                  {
+                    "ref": "r"
+                  },
+                  {
+                    "ref": "r"
+                  }
+                ]
+              }
             }
           ]
         }
@@ -3026,7 +3095,7 @@
     "malformed": false
   },
   {
-    "description": "A feature condition retains the structural signature of begins (engine §§9, 13).",
+    "description": "A feature condition retains the structural signature of a prefix parse (engine §§9, 13).",
     "directive": {
       "name": "features",
       "args": [
@@ -3038,13 +3107,22 @@
       ],
       "conditions": [
         {
-          "method": "begins",
+          "method": "parse",
           "receiver": {
             "capture": ""
           },
           "args": [
             {
-              "rule": "r"
+              "body": {
+                "seq": [
+                  {
+                    "ref": "r"
+                  },
+                  {
+                    "remainder": true
+                  }
+                ]
+              }
             }
           ]
         }
@@ -3053,7 +3131,7 @@
     "malformed": false
   },
   {
-    "description": "A feature condition rejects the wrong argument count for begins (engine §§9, 13).",
+    "description": "A feature condition rejects the wrong argument count for a prefix parse (engine §§9, 13).",
     "directive": {
       "name": "features",
       "args": [
@@ -3065,7 +3143,7 @@
       ],
       "conditions": [
         {
-          "method": "begins",
+          "method": "parse",
           "receiver": {
             "capture": ""
           },
@@ -3076,7 +3154,7 @@
     "malformed": true
   },
   {
-    "description": "A feature condition admits a target choice structurally for begins (engine §§9, 13).",
+    "description": "A feature condition admits a body choice structurally for a prefix parse (engine §§9, 13).",
     "directive": {
       "name": "features",
       "args": [
@@ -3088,16 +3166,29 @@
       ],
       "conditions": [
         {
-          "method": "begins",
+          "method": "parse",
           "receiver": {
             "capture": ""
           },
           "args": [
             {
-              "rule": "r"
-            },
-            {
-              "rule": "r"
+              "body": {
+                "seq": [
+                  {
+                    "choice": [
+                      {
+                        "ref": "r"
+                      },
+                      {
+                        "ref": "r"
+                      }
+                    ]
+                  },
+                  {
+                    "remainder": true
+                  }
+                ]
+              }
             }
           ]
         }
@@ -3454,13 +3545,19 @@
           "left": {
             "method": "tags",
             "receiver": {
-              "capture": ""
+              "method": "parse",
+              "receiver": {
+                "capture": ""
+              },
+              "args": [
+                {
+                  "body": {
+                    "classifier": "c"
+                  }
+                }
+              ]
             },
-            "args": [
-              {
-                "classifier": "c"
-              }
-            ]
+            "args": []
           },
           "right": {
             "emptySet": true
@@ -3537,7 +3634,7 @@
     "malformed": true
   },
   {
-    "description": "A feature condition rejects the wrong named argument form for matches (engine §§9, 13).",
+    "description": "A feature condition rejects the wrong named argument form for a whole parse (engine §§9, 13).",
     "directive": {
       "name": "features",
       "args": [
@@ -3549,13 +3646,15 @@
       ],
       "conditions": [
         {
-          "method": "matches",
+          "method": "parse",
           "receiver": {
             "capture": ""
           },
           "args": [
             {
-              "string": "x"
+              "body": {
+                "string": "x"
+              }
             }
           ]
         }
@@ -3564,7 +3663,7 @@
     "malformed": true
   },
   {
-    "description": "A feature condition rejects the wrong named argument form for begins (engine §§9, 13).",
+    "description": "A feature condition rejects the wrong named argument form for a prefix parse (engine §§9, 13).",
     "directive": {
       "name": "features",
       "args": [
@@ -3576,13 +3675,22 @@
       ],
       "conditions": [
         {
-          "method": "begins",
+          "method": "parse",
           "receiver": {
             "capture": ""
           },
           "args": [
             {
-              "classifier": "c"
+              "body": {
+                "seq": [
+                  {
+                    "classifier": "c"
+                  },
+                  {
+                    "remainder": true
+                  }
+                ]
+              }
             }
           ]
         }
@@ -4003,7 +4111,7 @@
     "malformed": true
   },
   {
-    "description": "A feature condition retains the receiver shape for matches (engine §§9, 13).",
+    "description": "A feature condition retains the receiver shape for a whole parse (engine §§9, 13).",
     "directive": {
       "name": "features",
       "args": [
@@ -4015,13 +4123,15 @@
       ],
       "conditions": [
         {
-          "method": "matches",
+          "method": "parse",
           "receiver": {
             "string": "x"
           },
           "args": [
             {
-              "rule": "r"
+              "body": {
+                "ref": "r"
+              }
             }
           ]
         }
@@ -4176,13 +4286,19 @@
           "left": {
             "method": "tags",
             "receiver": {
-              "capture": ""
+              "method": "parse",
+              "receiver": {
+                "capture": ""
+              },
+              "args": [
+                {
+                  "body": {
+                    "ref": "r"
+                  }
+                }
+              ]
             },
-            "args": [
-              {
-                "rule": "r"
-              }
-            ]
+            "args": []
           },
           "right": {
             "emptySet": true
@@ -4277,39 +4393,6 @@
     "malformed": true
   },
   {
-    "description": "A feature tags method retains its named argument schema (engine §§9, 13).",
-    "directive": {
-      "name": "features",
-      "args": [
-        "f"
-      ],
-      "at": [
-        1,
-        1
-      ],
-      "conditions": [
-        {
-          "op": "=",
-          "left": {
-            "method": "tags",
-            "receiver": {
-              "capture": ""
-            },
-            "args": [
-              {
-                "rule": "Upper"
-              }
-            ]
-          },
-          "right": {
-            "emptySet": true
-          }
-        }
-      ]
-    },
-    "malformed": true
-  },
-  {
     "description": "A feature classify method retains its named argument schema (engine §§9, 13).",
     "directive": {
       "name": "features",
@@ -4337,88 +4420,6 @@
           "right": {
             "emptySet": true
           }
-        }
-      ]
-    },
-    "malformed": true
-  },
-  {
-    "description": "A feature matches method retains its named argument schema (engine §§9, 13).",
-    "directive": {
-      "name": "features",
-      "args": [
-        "f"
-      ],
-      "at": [
-        1,
-        1
-      ],
-      "conditions": [
-        {
-          "method": "matches",
-          "receiver": {
-            "capture": ""
-          },
-          "args": [
-            {
-              "rule": "r",
-              "extra": true
-            }
-          ]
-        }
-      ]
-    },
-    "malformed": true
-  },
-  {
-    "description": "A feature matches method requires a valid rule argument name (engine §§9, 13).",
-    "directive": {
-      "name": "features",
-      "args": [
-        "f"
-      ],
-      "at": [
-        1,
-        1
-      ],
-      "conditions": [
-        {
-          "method": "matches",
-          "receiver": {
-            "capture": ""
-          },
-          "args": [
-            {
-              "rule": "Upper"
-            }
-          ]
-        }
-      ]
-    },
-    "malformed": true
-  },
-  {
-    "description": "A feature begins method requires a valid rule argument name (engine §§9, 13).",
-    "directive": {
-      "name": "features",
-      "args": [
-        "f"
-      ],
-      "at": [
-        1,
-        1
-      ],
-      "conditions": [
-        {
-          "method": "begins",
-          "receiver": {
-            "capture": ""
-          },
-          "args": [
-            {
-              "rule": "Upper"
-            }
-          ]
         }
       ]
     },
@@ -4474,13 +4475,19 @@
           "left": {
             "method": "tags",
             "receiver": {
-              "capture": ""
+              "method": "parse",
+              "receiver": {
+                "capture": ""
+              },
+              "args": [
+                {
+                  "body": {
+                    "ref": "🆓"
+                  }
+                }
+              ]
             },
-            "args": [
-              {
-                "rule": "🆓"
-              }
-            ]
+            "args": []
           },
           "right": {
             "emptySet": true
@@ -4725,7 +4732,7 @@
     "malformed": true
   },
   {
-    "description": "matches accepts a target choice.",
+    "description": "a whole parse accepts a body choice.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -4739,16 +4746,22 @@
       ],
       "conditions": [
         {
-          "method": "matches",
+          "method": "parse",
           "receiver": {
             "capture": ""
           },
           "args": [
             {
-              "rule": "r"
-            },
-            {
-              "terminal": "A"
+              "body": {
+                "choice": [
+                  {
+                    "ref": "r"
+                  },
+                  {
+                    "ref": "A"
+                  }
+                ]
+              }
             }
           ]
         }
@@ -4761,7 +4774,7 @@
     "malformed": false
   },
   {
-    "description": "begins accepts a target choice.",
+    "description": "a prefix parse accepts a body choice.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -4775,16 +4788,29 @@
       ],
       "conditions": [
         {
-          "method": "begins",
+          "method": "parse",
           "receiver": {
             "capture": ""
           },
           "args": [
             {
-              "rule": "r"
-            },
-            {
-              "terminal": "A"
+              "body": {
+                "seq": [
+                  {
+                    "choice": [
+                      {
+                        "ref": "r"
+                      },
+                      {
+                        "ref": "A"
+                      }
+                    ]
+                  },
+                  {
+                    "remainder": true
+                  }
+                ]
+              }
             }
           ]
         }
@@ -4854,13 +4880,19 @@
           "left": {
             "method": "tags",
             "receiver": {
-              "string": "ab"
+              "method": "parse",
+              "receiver": {
+                "string": "ab"
+              },
+              "args": [
+                {
+                  "body": {
+                    "integer": "2"
+                  }
+                }
+              ]
             },
-            "args": [
-              {
-                "integer": "2"
-              }
-            ]
+            "args": []
           },
           "right": {
             "emptySet": true
@@ -5109,7 +5141,7 @@
     "malformed": true
   },
   {
-    "description": "Engine §10 rejects an empty begins target choice.",
+    "description": "Engine §10 rejects a parse with no body.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -5123,106 +5155,11 @@
       ],
       "conditions": [
         {
-          "method": "begins",
+          "method": "parse",
           "receiver": {
             "capture": ""
           },
           "args": []
-        }
-      ],
-      "at": [
-        1,
-        1
-      ]
-    },
-    "malformed": true
-  },
-  {
-    "description": "Engine §10 rejects an engine tag as a begins target.",
-    "rule": {
-      "name": "text",
-      "op": "define",
-      "alternatives": [
-        {
-          "guards": [],
-          "expr": {
-            "empty": true
-          }
-        }
-      ],
-      "conditions": [
-        {
-          "method": "begins",
-          "receiver": {
-            "capture": ""
-          },
-          "args": [
-            {
-              "terminal": "_General_Category_Letter"
-            }
-          ]
-        }
-      ],
-      "at": [
-        1,
-        1
-      ]
-    },
-    "malformed": true
-  },
-  {
-    "description": "Engine §10 rejects an empty matches target choice.",
-    "rule": {
-      "name": "text",
-      "op": "define",
-      "alternatives": [
-        {
-          "guards": [],
-          "expr": {
-            "empty": true
-          }
-        }
-      ],
-      "conditions": [
-        {
-          "method": "matches",
-          "receiver": {
-            "capture": ""
-          },
-          "args": []
-        }
-      ],
-      "at": [
-        1,
-        1
-      ]
-    },
-    "malformed": true
-  },
-  {
-    "description": "Engine §10 rejects an engine tag as a matches target.",
-    "rule": {
-      "name": "text",
-      "op": "define",
-      "alternatives": [
-        {
-          "guards": [],
-          "expr": {
-            "empty": true
-          }
-        }
-      ],
-      "conditions": [
-        {
-          "method": "matches",
-          "receiver": {
-            "capture": ""
-          },
-          "args": [
-            {
-              "terminal": "_General_Category_Letter"
-            }
-          ]
         }
       ],
       "at": [
@@ -5282,22 +5219,35 @@
       ],
       "conditions": [
         {
-          "method": "begins",
+          "method": "parse",
           "receiver": {
             "capture": ""
           },
           "args": [
             {
-              "rule": "r"
-            },
-            {
-              "rule": "r"
-            },
-            {
-              "terminal": "A"
-            },
-            {
-              "terminal": "A"
+              "body": {
+                "seq": [
+                  {
+                    "choice": [
+                      {
+                        "ref": "r"
+                      },
+                      {
+                        "ref": "r"
+                      },
+                      {
+                        "ref": "A"
+                      },
+                      {
+                        "ref": "A"
+                      }
+                    ]
+                  },
+                  {
+                    "remainder": true
+                  }
+                ]
+              }
             }
           ]
         }
@@ -5324,22 +5274,28 @@
       ],
       "conditions": [
         {
-          "method": "matches",
+          "method": "parse",
           "receiver": {
             "capture": ""
           },
           "args": [
             {
-              "rule": "r"
-            },
-            {
-              "rule": "r"
-            },
-            {
-              "terminal": "A"
-            },
-            {
-              "terminal": "A"
+              "body": {
+                "choice": [
+                  {
+                    "ref": "r"
+                  },
+                  {
+                    "ref": "r"
+                  },
+                  {
+                    "ref": "A"
+                  },
+                  {
+                    "ref": "A"
+                  }
+                ]
+              }
             }
           ]
         }
@@ -6429,13 +6385,15 @@
       "conditions": [
         {
           "not": {
-            "method": "matches",
+            "method": "parse",
             "receiver": {
               "capture": "x"
             },
             "args": [
               {
-                "rule": "©"
+                "body": {
+                  "ref": "©"
+                }
               }
             ]
           }
@@ -6469,13 +6427,15 @@
       "conditions": [
         {
           "not": {
-            "method": "matches",
+            "method": "parse",
             "receiver": {
               "capture": "x"
             },
             "args": [
               {
-                "rule": "🏽"
+                "body": {
+                  "ref": "🏽"
+                }
               }
             ]
           }
@@ -6509,13 +6469,15 @@
       "conditions": [
         {
           "not": {
-            "method": "matches",
+            "method": "parse",
             "receiver": {
               "capture": "x"
             },
             "args": [
               {
-                "rule": "😀"
+                "body": {
+                  "ref": "😀"
+                }
               }
             ]
           }
@@ -6778,59 +6740,6 @@
           }
         ]
       }
-    },
-    "malformed": true
-  },
-  {
-    "description": "Unresolved template: malformed-nominal-argument",
-    "rule": {
-      "name": "unused",
-      "params": [
-        "X"
-      ],
-      "op": "define",
-      "alternatives": [
-        {
-          "guards": [],
-          "expr": {
-            "param": "X",
-            "at": [
-              2,
-              18
-            ]
-          }
-        }
-      ],
-      "conditions": [
-        {
-          "op": "=",
-          "left": {
-            "method": "tags",
-            "receiver": {
-              "capture": ""
-            },
-            "args": [
-              {
-                "rule": "text",
-                "extra": {
-                  "param": "X",
-                  "at": [
-                    2,
-                    20
-                  ]
-                }
-              }
-            ]
-          },
-          "right": {
-            "tag": "A"
-          }
-        }
-      ],
-      "at": [
-        2,
-        1
-      ]
     },
     "malformed": true
   },
@@ -7639,7 +7548,7 @@
         1
       ],
       "tags": {
-        "method": "matches",
+        "method": "parse",
         "receiver": {
           "param": "X",
           "at": [
@@ -7649,7 +7558,9 @@
         },
         "args": [
           {
-            "rule": "text"
+            "body": {
+              "ref": "text"
+            }
           }
         ]
       }
@@ -12425,17 +12336,19 @@
       ],
       "conditions": [
         {
-          "method": "matches",
+          "method": "parse",
           "receiver": {
             "capture": ""
           },
           "args": [
             {
-              "param": "X",
-              "at": [
-                3,
-                22
-              ]
+              "body": {
+                "param": "X",
+                "at": [
+                  3,
+                  22
+                ]
+              }
             }
           ]
         }
@@ -12480,22 +12393,24 @@
       ],
       "conditions": [
         {
-          "method": "matches",
+          "method": "parse",
           "receiver": {
             "capture": ""
           },
           "args": [
             {
-              "call": "atom",
-              "args": [
-                {
-                  "string": "b"
-                }
-              ],
-              "at": [
-                3,
-                22
-              ]
+              "body": {
+                "call": "atom",
+                "args": [
+                  {
+                    "string": "b"
+                  }
+                ],
+                "at": [
+                  3,
+                  22
+                ]
+              }
             }
           ]
         }
@@ -12544,17 +12459,23 @@
           "left": {
             "method": "tags",
             "receiver": {
-              "capture": ""
+              "method": "parse",
+              "receiver": {
+                "capture": ""
+              },
+              "args": [
+                {
+                  "body": {
+                    "param": "X",
+                    "at": [
+                      3,
+                      22
+                    ]
+                  }
+                }
+              ]
             },
-            "args": [
-              {
-                "param": "X",
-                "at": [
-                  3,
-                  22
-                ]
-              }
-            ]
+            "args": []
           },
           "right": {
             "tag": "A"
@@ -12605,22 +12526,28 @@
           "left": {
             "method": "tags",
             "receiver": {
-              "capture": ""
-            },
-            "args": [
-              {
-                "call": "atom",
-                "args": [
-                  {
-                    "string": "b"
+              "method": "parse",
+              "receiver": {
+                "capture": ""
+              },
+              "args": [
+                {
+                  "body": {
+                    "call": "atom",
+                    "args": [
+                      {
+                        "string": "b"
+                      }
+                    ],
+                    "at": [
+                      3,
+                      22
+                    ]
                   }
-                ],
-                "at": [
-                  3,
-                  22
-                ]
-              }
-            ]
+                }
+              ]
+            },
+            "args": []
           },
           "right": {
             "tag": "A"
@@ -15996,17 +15923,23 @@
       "tags": {
         "method": "tags",
         "receiver": {
-          "capture": "x"
+          "method": "parse",
+          "receiver": {
+            "capture": "x"
+          },
+          "args": [
+            {
+              "body": {
+                "param": "X",
+                "at": [
+                  1,
+                  15
+                ]
+              }
+            }
+          ]
         },
-        "args": [
-          {
-            "param": "X",
-            "at": [
-              1,
-              15
-            ]
-          }
-        ]
+        "args": []
       }
     },
     "malformed": false
@@ -16718,7 +16651,7 @@
   {
     "description": "A DOM envelope refuses unknown members.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -16731,7 +16664,7 @@
   {
     "description": "An empty complete DOM envelope is valid.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -16848,7 +16781,7 @@
   {
     "description": "Unsafe coordinates do not produce a duplicate-position problem.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [
         {
           "name": "text",
@@ -17012,7 +16945,7 @@
   {
     "description": "An earlier malformed directive precedes excessive rule depth.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [
         {
           "name": "text",
@@ -17917,7 +17850,7 @@
   {
     "description": "Ranked argument shape errors precede engine tags in constants.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [],
       "directives": [],
       "constants": [
@@ -17964,7 +17897,7 @@
   {
     "description": "Ranked argument shape errors precede engine tags in implications.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -18142,7 +18075,7 @@
   {
     "description": "Well-shaped constants still refuse engine-tag literals.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [],
       "directives": [],
       "constants": [
@@ -18166,7 +18099,7 @@
   {
     "description": "Well-shaped implications still refuse engine-tag literals.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -19113,7 +19046,7 @@
   {
     "description": "Ranked argument shape errors precede a non-closed constant term.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [],
       "directives": [],
       "constants": [
@@ -19158,7 +19091,7 @@
   {
     "description": "A well-shaped constant still refuses a non-closed term.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [],
       "directives": [],
       "constants": [
@@ -19198,7 +19131,7 @@
   {
     "description": "Ranked argument shape errors precede a non-closed implication term.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -19244,7 +19177,7 @@
   {
     "description": "A well-shaped implication still refuses a non-closed term.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -19715,7 +19648,7 @@
   {
     "description": "An implication checks then-side closedness before its capture type.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -19741,7 +19674,7 @@
   {
     "description": "An implication checks if-side closedness before its capture type.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -19767,7 +19700,7 @@
   {
     "description": "An earlier rule type fault precedes a later constant closedness fault.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [
         {
           "name": "extra",
@@ -19813,7 +19746,7 @@
   {
     "description": "An earlier constant closedness fault precedes a later rule type fault.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [
         {
           "name": "extra",
@@ -19859,7 +19792,7 @@
   {
     "description": "An earlier rule type fault precedes a later implication closedness fault.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [
         {
           "name": "extra",
@@ -19906,7 +19839,7 @@
   {
     "description": "An earlier implication closedness fault precedes a later rule type fault.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [
         {
           "name": "extra",
@@ -19953,7 +19886,7 @@
   {
     "description": "An earlier rule type fault precedes a later split delimiter fault in a supplied lexical DOM.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [
         {
           "name": "text",
@@ -20127,7 +20060,7 @@
           "conditions": [
             {
               "not": {
-                "method": "begins",
+                "method": "parse",
                 "receiver": {
                   "method": "following-tokens",
                   "receiver": {
@@ -20137,7 +20070,16 @@
                 },
                 "args": [
                   {
-                    "rule": "call-open"
+                    "body": {
+                      "seq": [
+                        {
+                          "ref": "call-open"
+                        },
+                        {
+                          "remainder": true
+                        }
+                      ]
+                    }
                   }
                 ]
               }
@@ -20198,7 +20140,7 @@
           "conditions": [
             {
               "not": {
-                "method": "begins",
+                "method": "parse",
                 "receiver": {
                   "method": "following-tokens",
                   "receiver": {
@@ -20208,7 +20150,16 @@
                 },
                 "args": [
                   {
-                    "rule": "name-character"
+                    "body": {
+                      "seq": [
+                        {
+                          "ref": "name-character"
+                        },
+                        {
+                          "remainder": true
+                        }
+                      ]
+                    }
                   }
                 ]
               }
@@ -20219,7 +20170,7 @@
               },
               "then": {
                 "not": {
-                  "method": "begins",
+                  "method": "parse",
                   "receiver": {
                     "method": "following-tokens",
                     "receiver": {
@@ -20229,7 +20180,16 @@
                   },
                   "args": [
                     {
-                      "rule": "call-open"
+                      "body": {
+                        "seq": [
+                          {
+                            "ref": "call-open"
+                          },
+                          {
+                            "remainder": true
+                          }
+                        ]
+                      }
                     }
                   ]
                 }
@@ -20255,7 +20215,7 @@
           "conditions": [
             {
               "not": {
-                "method": "begins",
+                "method": "parse",
                 "receiver": {
                   "method": "following-tokens",
                   "receiver": {
@@ -20265,7 +20225,16 @@
                 },
                 "args": [
                   {
-                    "rule": "name-character"
+                    "body": {
+                      "seq": [
+                        {
+                          "ref": "name-character"
+                        },
+                        {
+                          "remainder": true
+                        }
+                      ]
+                    }
                   }
                 ]
               }
@@ -20555,7 +20524,7 @@
           "conditions": [
             {
               "not": {
-                "method": "begins",
+                "method": "parse",
                 "receiver": {
                   "method": "following-tokens",
                   "receiver": {
@@ -20565,7 +20534,16 @@
                 },
                 "args": [
                   {
-                    "rule": "engine-name-part"
+                    "body": {
+                      "seq": [
+                        {
+                          "ref": "engine-name-part"
+                        },
+                        {
+                          "remainder": true
+                        }
+                      ]
+                    }
                   }
                 ]
               }
@@ -20665,7 +20643,7 @@
           ],
           "conditions": [
             {
-              "method": "begins",
+              "method": "parse",
               "receiver": {
                 "method": "following-tokens",
                 "receiver": {
@@ -20675,7 +20653,16 @@
               },
               "args": [
                 {
-                  "rule": "digit"
+                  "body": {
+                    "seq": [
+                      {
+                        "ref": "digit"
+                      },
+                      {
+                        "remainder": true
+                      }
+                    ]
+                  }
                 }
               ]
             }
@@ -20725,7 +20712,7 @@
           },
           "conditions": [
             {
-              "method": "begins",
+              "method": "parse",
               "receiver": {
                 "method": "following-tokens",
                 "receiver": {
@@ -20735,7 +20722,16 @@
               },
               "args": [
                 {
-                  "rule": "call-open"
+                  "body": {
+                    "seq": [
+                      {
+                        "ref": "call-open"
+                      },
+                      {
+                        "remainder": true
+                      }
+                    ]
+                  }
                 }
               ]
             }
@@ -20761,7 +20757,7 @@
           "conditions": [
             {
               "not": {
-                "method": "begins",
+                "method": "parse",
                 "receiver": {
                   "method": "following-tokens",
                   "receiver": {
@@ -20771,7 +20767,16 @@
                 },
                 "args": [
                   {
-                    "rule": "star-character"
+                    "body": {
+                      "seq": [
+                        {
+                          "ref": "star-character"
+                        },
+                        {
+                          "remainder": true
+                        }
+                      ]
+                    }
                   }
                 ]
               }
@@ -20881,7 +20886,7 @@
           "conditions": [
             {
               "not": {
-                "method": "begins",
+                "method": "parse",
                 "receiver": {
                   "method": "following-tokens",
                   "receiver": {
@@ -20891,7 +20896,16 @@
                 },
                 "args": [
                   {
-                    "rule": "name-character"
+                    "body": {
+                      "seq": [
+                        {
+                          "ref": "name-character"
+                        },
+                        {
+                          "remainder": true
+                        }
+                      ]
+                    }
                   }
                 ]
               }
@@ -20935,7 +20949,7 @@
           "conditions": [
             {
               "not": {
-                "method": "begins",
+                "method": "parse",
                 "receiver": {
                   "method": "following-tokens",
                   "receiver": {
@@ -20945,7 +20959,16 @@
                 },
                 "args": [
                   {
-                    "rule": "name-character"
+                    "body": {
+                      "seq": [
+                        {
+                          "ref": "name-character"
+                        },
+                        {
+                          "remainder": true
+                        }
+                      ]
+                    }
                   }
                 ]
               }
@@ -22095,7 +22118,7 @@
               },
               "then": {
                 "not": {
-                  "method": "begins",
+                  "method": "parse",
                   "receiver": {
                     "method": "following-tokens",
                     "receiver": {
@@ -22105,7 +22128,16 @@
                   },
                   "args": [
                     {
-                      "rule": "include-tail"
+                      "body": {
+                        "seq": [
+                          {
+                            "ref": "include-tail"
+                          },
+                          {
+                            "remainder": true
+                          }
+                        ]
+                      }
                     }
                   ]
                 }
@@ -22117,7 +22149,7 @@
               },
               "then": {
                 "not": {
-                  "method": "begins",
+                  "method": "parse",
                   "receiver": {
                     "method": "following-tokens",
                     "receiver": {
@@ -22127,7 +22159,16 @@
                   },
                   "args": [
                     {
-                      "rule": "include-tail"
+                      "body": {
+                        "seq": [
+                          {
+                            "ref": "include-tail"
+                          },
+                          {
+                            "remainder": true
+                          }
+                        ]
+                      }
                     }
                   ]
                 }
@@ -22716,7 +22757,7 @@
   {
     "description": "An earlier split delimiter fault precedes a later rule type fault.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [
         {
           "name": "extra",
@@ -22770,7 +22811,7 @@
   {
     "description": "An earlier rule type fault precedes a split delimiter fault in a later rule.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [
         {
           "name": "extra",
@@ -22839,7 +22880,7 @@
   {
     "description": "An earlier rule type fault precedes a split delimiter fault in a later implication.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [
         {
           "name": "extra",
@@ -22894,7 +22935,7 @@
   {
     "description": "A later ranked shape error precedes an earlier split delimiter fault.",
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [
         {
           "name": "later",

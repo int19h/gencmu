@@ -120,7 +120,7 @@ func (g *stageGrammar) validateBoundaryTargets() *Error {
 							return true
 						}, nil)
 					}
-					if q.c != nil && (q.c.Kind == cdMatches || q.c.Kind == cdBegins || q.c.Kind == cdEnds) {
+					if q.c != nil && (q.c.Kind == cdWhole || q.c.Kind == cdPrefix || q.c.Kind == cdSuffix) {
 						for _, t := range q.c.queryTargets() {
 							if t.Kind == tmTerminal || t.Kind == tmRule {
 								roots = append(roots, t.Str)

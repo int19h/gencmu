@@ -54,8 +54,8 @@ class Values(unittest.TestCase):
         cases = [
             ('%rule other missing', 'has no rule text', True, True),
             ('%rule text A', 'has no %ambiguity-resolution', False, True),
-            ('%rule text A :: $.value.classify(nolex) ∪ $.tags(norule)', 'nolex is not a classifier of stage main', True, False),
-            ('%rule text A :: $.tags(norule) ∪ $.value.classify(nolex)', 'norule is not a rule of stage main', True, False),
+            ('%rule text A :: $.value.classify(nolex) ∪ $.parse(norule).tags', 'nolex is not a classifier of stage main', True, False),
+            ('%rule text A :: $.parse(norule).tags ∪ $.value.classify(nolex)', 'norule is not a rule of stage main', True, False),
             ('%const $A $MISSING\n%rule text A', '$MISSING is not defined in stage main; dependency $A → $MISSING', True, False),
             ('%ambiguity-resolution greedy\n%rule text A', 'has a second %ambiguity-resolution', True, False),
         ]
@@ -105,10 +105,11 @@ class Values(unittest.TestCase):
         # routes introduced by a private capture.
         for capture in ("c", "$c:c"):
             for suffix, allowed in (("T", False), ("T U", True)):
-                for method in ("matches", "begins", "tags"):
+                for method in ("whole", "prefix", "tags"):
                     with self.subTest(capture=capture, suffix=suffix, method=method):
                         head = "%rule text $r:input"
-                        head += f" :: $r.tags(r)" if method == "tags" else f"\n%conditions $r.{method}(r)"
+                        query = "$r.parse(r).tags" if method == "tags" else "$r.parse(r …)" if method == "prefix" else "$r.parse(r)"
+                        head += f" :: {query}" if method == "tags" else f"\n%conditions {query}"
                         grammar = f"{head}\n%rule input B D T Z\n%rule r :: Queried | B [[({capture} ≻ c)] [+{suffix}] D T] Z\n%rule c D"
                         value, _, error, _ = run_case({"grammar": grammar, "tokens": [{"text": tag, "tags": [tag]} for tag in "BDTZ"]})
                         self.assertIsNone(error)
@@ -148,7 +149,7 @@ class Values(unittest.TestCase):
         # present D route reads the written T, even on an absent route.
         for optional in ("[c]", "[$c:c]", "[[$c:c]]", "[($c:c ≻ c)]"):
             with self.subTest(optional=optional):
-                grammar = f"%rule text $r:r\n%conditions $r.matches(r)\n%rule r B {optional} [+T] D T\n%rule c D"
+                grammar = f"%rule text $r:r\n%conditions $r.parse(r)\n%rule r B {optional} [+T] D T\n%rule c D"
                 value, _, error, _ = run_case(
                     {
                         "grammar": grammar,

@@ -6,8 +6,8 @@ import (
 )
 
 func TestQueryHelperClassification(t *testing.T) {
-	text := "%rule text $x:A %conditions $x.matches(Z | T | Z)"
-	aux := "%rule aux ($q:A ≻ B) ::∅ %conditions $q.without-elision.matches(Q)"
+	text := "%rule text $x:A %conditions ($x.parse(Z) ∨ $x.parse(T) ∨ $x.parse(Z))"
+	aux := "%rule aux ($q:A ≻ B) ::∅ %conditions $q.without-elision.parse(Q)"
 	for name, grammar := range map[string]string{
 		"text first": text + "\n" + aux,
 		"aux first":  aux + "\n" + text,

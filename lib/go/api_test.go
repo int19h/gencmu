@@ -1036,18 +1036,18 @@ func TestEmptyCharacterTag(t *testing.T) {
 func TestGrammarFaultHasNoPosition(t *testing.T) {
 	t.Parallel()
 	for _, c := range []struct{ grammar, message string }{
-		{`%rule text $w:W %emits $w :: $.tags(bad)
+		{`%rule text $w:W %emits $w :: $.parse(bad).tags
 %rule bad ε %conditions "x" ∈ $.value.split($.value)`, "split has an empty delimiter"},
-		{`%rule text $w:W %emits $, ε :: $.tags(bad) := "a"
+		{`%rule text $w:W %emits $, ε :: $.parse(bad).tags := "a"
 %rule bad ε %conditions "x" ∈ $.value.split($.value)`, "split has an empty delimiter"},
-		{`%rule text $w:W %emits ε :: $.tags(bad) := "a", $w
+		{`%rule text $w:W %emits ε :: $.parse(bad).tags := "a", $w
 %rule bad ε %conditions "x" ∈ $.value.split($.value)`, "split has an empty delimiter"},
 		// Empty user tag sets are valid in the redesign. The failed query still tests error positions.
-		{`%rule text $a:W %emits $a :: $.tags(bad)
+		{`%rule text $a:W %emits $a :: $.parse(bad).tags
 %rule bad ε %conditions "x" ∈ $.value.split($.value)`, "split has an empty delimiter"},
-		{"%rule text $a:x %conditions ¬$a.matches(text)\n%rule x W",
+		{"%rule text $a:x %conditions ¬$a.parse(text)\n%rule x W",
 			"a condition asks whether its own span parses as text from inside the parse of that span as text: the grammar defines text in terms of itself over the same text"},
-		{"%rule text $a:x %conditions ¬$a.onward.begins(text)\n%rule x W",
+		{"%rule text $a:x %conditions ¬$a.onward.parse(text …)\n%rule x W",
 			"a condition asks whether its own span parses as text from inside the parse of that span as text: the grammar defines text in terms of itself over the same text"},
 	} {
 		d, err := LoadPipelineSources(oneStage("%ambiguity-resolution greedy\n"+c.grammar), "p.md")
@@ -1601,8 +1601,8 @@ func TestStitchingStagesAndReferenceOrder(t *testing.T) {
 	}{
 		{"%rule other missing", "has no rule text", true, true},
 		{"%rule text A", "has no %ambiguity-resolution", false, true},
-		{"%rule text A :: $.value.classify(nolex) ∪ $.tags(norule)", "nolex is not a classifier of stage main", true, false},
-		{"%rule text A :: $.tags(norule) ∪ $.value.classify(nolex)", "norule is not a rule of stage main", true, false},
+		{"%rule text A :: $.value.classify(nolex) ∪ $.parse(norule).tags", "nolex is not a classifier of stage main", true, false},
+		{"%rule text A :: $.parse(norule).tags ∪ $.value.classify(nolex)", "norule is not a rule of stage main", true, false},
 		{"%const $A $MISSING\n%rule text A", "$MISSING is not defined in stage main; dependency $A → $MISSING", true, false},
 		{"%ambiguity-resolution greedy\n%rule text A", "has a second %ambiguity-resolution", true, false},
 	}

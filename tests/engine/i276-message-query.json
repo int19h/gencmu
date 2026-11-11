@@ -1,6 +1,6 @@
 {
   "description": "A message cannot start a recognition query.",
-  "grammar": "%rule text A %error $.matches(probe)\n%rule probe A",
+  "grammar": "%rule text A %error $.parse(probe)\n%rule probe A",
   "tokens": [
     {
       "text": "a",

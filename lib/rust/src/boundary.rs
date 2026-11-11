@@ -627,8 +627,8 @@ pub(crate) fn reachable(g: &crate::grammar::StageGrammar) -> Result<(), crate::e
             while let Some(part) = stack.pop() {
                 match part {
                     Part::C(c) => match c {
+                        Cond::Forest(t) => stack.push(Part::T(t)),
                         Cond::Boundary(_, _, targets, location) => atoms.push((alt, targets, location)),
-                        Cond::Matches(_, r) | Cond::Begins(_, r) | Cond::Ends(_, r) => roots.extend(r.iter().cloned()),
                         Cond::Not(c) => stack.push(Part::C(c)),
                         Cond::All(cs) | Cond::Any(cs) => stack.extend(cs.iter().map(Part::C)),
                         Cond::If(a, b) => stack.extend([Part::C(a), Part::C(b)]),
@@ -636,19 +636,33 @@ pub(crate) fn reachable(g: &crate::grammar::StageGrammar) -> Result<(), crate::e
                         _ => {}
                     },
                     Part::T(t) => match t {
+                        // The references and terminals of a parse body
+                        // are query roots (engine §9.3).
+                        Term::Body(expr) => {
+                            let mut pending = vec![expr.as_ref()];
+                            while let Some(e) = pending.pop() {
+                                match e {
+                                    crate::dom::Expr::Ref(n) | crate::dom::Expr::Terminal(n) => roots.push(n.clone()),
+                                    crate::dom::Expr::Seq(es)
+                                    | crate::dom::Expr::Choice(es)
+                                    | crate::dom::Expr::Ranked(es, _)
+                                    | crate::dom::Expr::And(es) => pending.extend(es.iter()),
+                                    crate::dom::Expr::Splice(e)
+                                    | crate::dom::Expr::Capture(_, e)
+                                    | crate::dom::Expr::Optional(e, _, _)
+                                    | crate::dom::Expr::Tested(_, _, e) => pending.push(e),
+                                    crate::dom::Expr::Repeat(e, s, _) => {
+                                        pending.push(e);
+                                        pending.extend(s.as_deref());
+                                    }
+                                    _ => {}
+                                }
+                            }
+                        }
                         Term::If(c, t) => stack.extend([Part::C(c), Part::T(t)]),
                         Term::Union(ts) | Term::Intersection(ts) => stack.extend(ts.iter().map(Part::T)),
                         Term::Difference(a, b) => stack.extend([Part::T(a), Part::T(b)]),
-                        Term::Call(name, args) => {
-                            if name == "tags" {
-                                roots.extend(args.iter().filter_map(|arg| {
-                                    if let Arg::Rule(n) = arg {
-                                        Some(n.clone())
-                                    } else {
-                                        None
-                                    }
-                                }));
-                            }
+                        Term::Call(_, args) => {
                             stack.extend(args.iter().filter_map(|arg| {
                                 if let Arg::Term(t) = arg {
                                     Some(Part::T(t))

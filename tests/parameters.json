@@ -217,7 +217,7 @@
   },
   {
     "name": "query target choice",
-    "grammar": "%rule use(@X) $x:_ %conditions $x.matches(@X)\n%rule text = use(a | b)\n%rule a \"a\"\n%rule b \"b\"",
+    "grammar": "%rule use(@X) $x:_ %conditions $x.parse(@X)\n%rule text = use(a | b)\n%rule a \"a\"\n%rule b \"b\"",
     "input": "a",
     "expect": {
       "result": {
@@ -237,7 +237,7 @@
   },
   {
     "name": "query instance",
-    "grammar": "%rule use(@X) @X\n%rule text $x:\"a\" %conditions $x.matches(use(\"a\"))",
+    "grammar": "%rule use(@X) @X\n%rule text $x:\"a\" %conditions $x.parse(use(\"a\"))",
     "input": "a",
     "expect": {
       "result": {
@@ -491,7 +491,7 @@
   },
   {
     "name": "template name as query",
-    "grammar": "%rule use(@X) @X\n%rule text $x:\"a\" %conditions $x.matches(use)",
+    "grammar": "%rule use(@X) @X\n%rule text $x:\"a\" %conditions $x.parse(use)",
     "input": "",
     "expect": {
       "error": "grammar"
@@ -499,7 +499,7 @@
   },
   {
     "name": "template name in tags query",
-    "grammar": "%rule use(@X) @X\n%rule text $x:\"a\" :: $x.tags(use)",
+    "grammar": "%rule use(@X) @X\n%rule text $x:\"a\" :: $x.parse(use).tags",
     "input": "",
     "expect": {
       "error": "grammar"
@@ -507,7 +507,7 @@
   },
   {
     "name": "template name as close family",
-    "grammar": "%rule use(@X) @X\n%rule text \"a\" %conditions $.without-elision-except(use).matches(text)",
+    "grammar": "%rule use(@X) @X\n%rule text \"a\" %conditions $.without-elision-except(use).parse(text)",
     "input": "",
     "expect": {
       "error": "grammar"
@@ -564,14 +564,6 @@
   {
     "name": "list outside requirement",
     "grammar": "%rule use(@X) @X\n%rule text use(<¬B>)",
-    "input": "",
-    "expect": {
-      "error": "grammar"
-    }
-  },
-  {
-    "name": "body choice as query target",
-    "grammar": "%rule use(@X) $x:_ %conditions $x.matches(@X)\n%rule text use((a | b))\n%rule a \"a\"\n%rule b \"b\"",
     "input": "",
     "expect": {
       "error": "grammar"
@@ -781,7 +773,7 @@
   },
   {
     "name": "a target list splices between surrounding entries",
-    "grammar": "%rule use(@X) $x:_ %conditions $x.matches(a | @X | d)\n%rule text = use(b | c)\n%rule a \"a\"\n%rule b \"b\"\n%rule c \"c\"\n%rule d \"d\"",
+    "grammar": "%rule use(@X) $x:_ %conditions ($x.parse(a) ∨ $x.parse(@X) ∨ $x.parse(d))\n%rule text = use(b | c)\n%rule a \"a\"\n%rule b \"b\"\n%rule c \"c\"\n%rule d \"d\"",
     "input": "c",
     "expect": {
       "result": {
@@ -1038,21 +1030,8 @@
     ]
   },
   {
-    "name": "tags rejects a target choice argument",
-    "grammar": "%rule atom(@X) @X\n%rule use(@X) $a:A :: $a.tags(@X)\n%rule text use(a | b)\n%rule a A\n%rule b B",
-    "input": "",
-    "expect": {
-      "error": "grammar",
-      "where": {
-        "document": "main.md",
-        "line": 4,
-        "column": 31
-      }
-    }
-  },
-  {
     "name": "without-elision-except rejects a target choice argument",
-    "grammar": "%rule atom(@X) @X\n%rule use(@X) $a:A %conditions $a.without-elision-except(@X).matches(A)\n%rule text use(a | b)\n%rule a A\n%rule b B",
+    "grammar": "%rule atom(@X) @X\n%rule use(@X) $a:A %conditions $a.without-elision-except(@X).parse(A)\n%rule text use(a | b)\n%rule a A\n%rule b B",
     "input": "",
     "expect": {
       "error": "grammar",
@@ -1065,7 +1044,7 @@
   },
   {
     "name": "tags accepts one nominal rule argument",
-    "grammar": "%rule atom(@X) @X\n%rule use(@X) $a:A :: $a.tags(@X)\n%rule text use(a)\n%rule a A\n%rule b B",
+    "grammar": "%rule atom(@X) @X\n%rule use(@X) $a:A :: $a.parse(@X).tags\n%rule text use(a)\n%rule a A\n%rule b B",
     "tokens": [
       {
         "text": "a",
@@ -1082,7 +1061,7 @@
   },
   {
     "name": "tags accepts one exact instance argument",
-    "grammar": "%rule atom(@X) @X\n%rule use(@X) $a:A :: $a.tags(@X)\n%rule text use(atom(\"a\"))\n%rule a A\n%rule b B",
+    "grammar": "%rule atom(@X) @X\n%rule use(@X) $a:A :: $a.parse(@X).tags\n%rule text use(atom(\"a\"))\n%rule a A\n%rule b B",
     "tokens": [
       {
         "text": "a",
@@ -1099,7 +1078,7 @@
   },
   {
     "name": "without-elision-except accepts one nominal rule argument",
-    "grammar": "%rule atom(@X) @X\n%rule use(@X) $a:A %conditions $a.without-elision-except(@X).matches(A)\n%rule text use(a)\n%rule a A\n%rule b B",
+    "grammar": "%rule atom(@X) @X\n%rule use(@X) $a:A %conditions $a.without-elision-except(@X).parse(A)\n%rule text use(a)\n%rule a A\n%rule b B",
     "tokens": [
       {
         "text": "a",
@@ -1116,7 +1095,7 @@
   },
   {
     "name": "without-elision-except accepts one exact instance argument",
-    "grammar": "%rule atom(@X) @X\n%rule use(@X) $a:A %conditions $a.without-elision-except(@X).matches(A)\n%rule text use(atom(\"a\"))\n%rule a A\n%rule b B",
+    "grammar": "%rule atom(@X) @X\n%rule use(@X) $a:A %conditions $a.without-elision-except(@X).parse(A)\n%rule text use(atom(\"a\"))\n%rule a A\n%rule b B",
     "tokens": [
       {
         "text": "a",
@@ -1281,48 +1260,6 @@
   {
     "name": "replaced template: without-elision-except fixed arity",
     "grammar": "%rule unused(@X) @X %conditions @X.without-elision-except(1, 2) = \"a\"\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
-    "expect": {
-      "error": "grammar"
-    }
-  },
-  {
-    "name": "uncalled template: matches fixed arity",
-    "grammar": "%rule unused(@X) @X %conditions @X.matches\n%rule text \"a\"",
-    "expect": {
-      "error": "grammar"
-    }
-  },
-  {
-    "name": "called template: matches fixed arity",
-    "grammar": "%rule unused(@X) @X %conditions @X.matches\n%rule text unused(\"a\")",
-    "expect": {
-      "error": "grammar"
-    }
-  },
-  {
-    "name": "replaced template: matches fixed arity",
-    "grammar": "%rule unused(@X) @X %conditions @X.matches\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
-    "expect": {
-      "error": "grammar"
-    }
-  },
-  {
-    "name": "uncalled template: begins fixed arity",
-    "grammar": "%rule unused(@X) @X %conditions @X.begins\n%rule text \"a\"",
-    "expect": {
-      "error": "grammar"
-    }
-  },
-  {
-    "name": "called template: begins fixed arity",
-    "grammar": "%rule unused(@X) @X %conditions @X.begins\n%rule text unused(\"a\")",
-    "expect": {
-      "error": "grammar"
-    }
-  },
-  {
-    "name": "replaced template: begins fixed arity",
-    "grammar": "%rule unused(@X) @X %conditions @X.begins\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
     "expect": {
       "error": "grammar"
     }
@@ -1497,21 +1434,21 @@
   },
   {
     "name": "uncalled template: tags fixed arity",
-    "grammar": "%rule unused(@X) @X %conditions @X.tags(a, b) = \"a\"\n%rule text \"a\"",
+    "grammar": "%rule unused(@X) @X %conditions @X.parse(a, b).tags = \"a\"\n%rule text \"a\"",
     "expect": {
       "error": "grammar"
     }
   },
   {
     "name": "called template: tags fixed arity",
-    "grammar": "%rule unused(@X) @X %conditions @X.tags(a, b) = \"a\"\n%rule text unused(\"a\")",
+    "grammar": "%rule unused(@X) @X %conditions @X.parse(a, b).tags = \"a\"\n%rule text unused(\"a\")",
     "expect": {
       "error": "grammar"
     }
   },
   {
     "name": "replaced template: tags fixed arity",
-    "grammar": "%rule unused(@X) @X %conditions @X.tags(a, b) = \"a\"\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "grammar": "%rule unused(@X) @X %conditions @X.parse(a, b).tags = \"a\"\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
     "expect": {
       "error": "grammar"
     }
@@ -1833,21 +1770,21 @@
   },
   {
     "name": "uncalled template: tags requires a rule",
-    "grammar": "%rule unused(@X) @X %conditions @X.tags(\"a\") = \"a\"\n%rule text \"a\"",
+    "grammar": "%rule unused(@X) @X %conditions @X.parse(\"a\").tags = \"a\"\n%rule text \"a\"",
     "expect": {
       "error": "grammar"
     }
   },
   {
     "name": "called template: tags requires a rule",
-    "grammar": "%rule unused(@X) @X %conditions @X.tags(\"a\") = \"a\"\n%rule text unused(\"a\")",
+    "grammar": "%rule unused(@X) @X %conditions @X.parse(\"a\").tags = \"a\"\n%rule text unused(\"a\")",
     "expect": {
       "error": "grammar"
     }
   },
   {
     "name": "replaced template: tags requires a rule",
-    "grammar": "%rule unused(@X) @X %conditions @X.tags(\"a\") = \"a\"\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "grammar": "%rule unused(@X) @X %conditions @X.parse(\"a\").tags = \"a\"\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
     "expect": {
       "error": "grammar"
     }
@@ -1874,43 +1811,29 @@
     }
   },
   {
-    "name": "uncalled template: matches requires targets",
-    "grammar": "%rule unused(@X) @X %conditions @X.matches(\"a\")\n%rule text \"a\"",
-    "expect": {
-      "error": "grammar"
-    }
-  },
-  {
     "name": "called template: matches requires targets",
-    "grammar": "%rule unused(@X) @X %conditions @X.matches(\"a\")\n%rule text unused(\"a\")",
-    "expect": {
-      "error": "grammar"
-    }
-  },
-  {
-    "name": "replaced template: matches requires targets",
-    "grammar": "%rule unused(@X) @X %conditions @X.matches(\"a\")\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "grammar": "%rule unused(@X) @X %conditions @X.parse(\"a\")\n%rule text unused(\"a\")",
     "expect": {
       "error": "grammar"
     }
   },
   {
     "name": "uncalled template: begins requires targets",
-    "grammar": "%rule unused(@X) @X %conditions @X.begins(1)\n%rule text \"a\"",
+    "grammar": "%rule unused(@X) @X %conditions @X.parse(1 …)\n%rule text \"a\"",
     "expect": {
       "error": "grammar"
     }
   },
   {
     "name": "called template: begins requires targets",
-    "grammar": "%rule unused(@X) @X %conditions @X.begins(1)\n%rule text unused(\"a\")",
+    "grammar": "%rule unused(@X) @X %conditions @X.parse(1 …)\n%rule text unused(\"a\")",
     "expect": {
       "error": "grammar"
     }
   },
   {
     "name": "replaced template: begins requires targets",
-    "grammar": "%rule unused(@X) @X %conditions @X.begins(1)\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "grammar": "%rule unused(@X) @X %conditions @X.parse(1 …)\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
     "expect": {
       "error": "grammar"
     }
@@ -2008,7 +1931,7 @@
   },
   {
     "name": "uncalled template defers matches operand types",
-    "grammar": "%rule unused(@X) @X %conditions @X.matches(A | @X)\n%rule text \"a\"",
+    "grammar": "%rule unused(@X) @X %conditions (@X.parse(A) ∨ @X.parse(@X))\n%rule text \"a\"",
     "input": "a",
     "expect": {
       "result": {
@@ -2018,7 +1941,7 @@
   },
   {
     "name": "uncalled template defers begins operand types",
-    "grammar": "%rule unused(@X) @X %conditions @X.begins(A | @X)\n%rule text \"a\"",
+    "grammar": "%rule unused(@X) @X %conditions (@X.parse(A …) ∨ @X.parse(@X …))\n%rule text \"a\"",
     "input": "a",
     "expect": {
       "result": {
@@ -2108,7 +2031,7 @@
   },
   {
     "name": "uncalled template defers tags operand types",
-    "grammar": "%rule unused(@X) @X %conditions @X.tags(@X) = A\n%rule text \"a\"",
+    "grammar": "%rule unused(@X) @X %conditions @X.parse(@X).tags = A\n%rule text \"a\"",
     "input": "a",
     "expect": {
       "result": {
@@ -2179,21 +2102,21 @@
   },
   {
     "name": "uncalled template: restoration forbids a parameter argument",
-    "grammar": "%rule unused(@X) $a:@X %conditions $a.without-elision(@X).matches(A)\n%rule text \"a\"",
+    "grammar": "%rule unused(@X) $a:@X %conditions $a.without-elision(@X).parse(A)\n%rule text \"a\"",
     "expect": {
       "error": "grammar"
     }
   },
   {
     "name": "called template: restoration forbids a parameter argument",
-    "grammar": "%rule unused(@X) $a:@X %conditions $a.without-elision(@X).matches(A)\n%rule text unused(\"a\")",
+    "grammar": "%rule unused(@X) $a:@X %conditions $a.without-elision(@X).parse(A)\n%rule text unused(\"a\")",
     "expect": {
       "error": "grammar"
     }
   },
   {
     "name": "replaced template: restoration forbids a parameter argument",
-    "grammar": "%rule unused(@X) $a:@X %conditions $a.without-elision(@X).matches(A)\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "grammar": "%rule unused(@X) $a:@X %conditions $a.without-elision(@X).parse(A)\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
     "expect": {
       "error": "grammar"
     }
@@ -2221,42 +2144,42 @@
   },
   {
     "name": "uncalled template: restoration receiver stays a bare capture",
-    "grammar": "%rule unused(@X) $a:@X %conditions @X.onward.without-elision.matches(A)\n%rule text \"a\"",
+    "grammar": "%rule unused(@X) $a:@X %conditions @X.onward.without-elision.parse(A)\n%rule text \"a\"",
     "expect": {
       "error": "grammar"
     }
   },
   {
     "name": "called template: restoration receiver stays a bare capture",
-    "grammar": "%rule unused(@X) $a:@X %conditions @X.onward.without-elision.matches(A)\n%rule text unused(\"a\")",
+    "grammar": "%rule unused(@X) $a:@X %conditions @X.onward.without-elision.parse(A)\n%rule text unused(\"a\")",
     "expect": {
       "error": "grammar"
     }
   },
   {
     "name": "replaced template: restoration receiver stays a bare capture",
-    "grammar": "%rule unused(@X) $a:@X %conditions @X.onward.without-elision.matches(A)\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "grammar": "%rule unused(@X) $a:@X %conditions @X.onward.without-elision.parse(A)\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
     "expect": {
       "error": "grammar"
     }
   },
   {
     "name": "uncalled template: family restoration receiver stays a bare capture",
-    "grammar": "%rule unused(@X) $a:@X %conditions @X.onward.without-elision-except(@X).matches(A)\n%rule text \"a\"",
+    "grammar": "%rule unused(@X) $a:@X %conditions @X.onward.without-elision-except(@X).parse(A)\n%rule text \"a\"",
     "expect": {
       "error": "grammar"
     }
   },
   {
     "name": "called template: family restoration receiver stays a bare capture",
-    "grammar": "%rule unused(@X) $a:@X %conditions @X.onward.without-elision-except(@X).matches(A)\n%rule text unused(\"a\")",
+    "grammar": "%rule unused(@X) $a:@X %conditions @X.onward.without-elision-except(@X).parse(A)\n%rule text unused(\"a\")",
     "expect": {
       "error": "grammar"
     }
   },
   {
     "name": "replaced template: family restoration receiver stays a bare capture",
-    "grammar": "%rule unused(@X) $a:@X %conditions @X.onward.without-elision-except(@X).matches(A)\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "grammar": "%rule unused(@X) $a:@X %conditions @X.onward.without-elision-except(@X).parse(A)\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
     "expect": {
       "error": "grammar"
     }

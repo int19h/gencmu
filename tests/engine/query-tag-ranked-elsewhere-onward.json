@@ -1,5 +1,5 @@
 {
-  "grammar": "%rule text $s:part other ::∅ %conditions ¬$s.onward.begins(KE)\n%rule part A\n%rule other (B ≻ C) ::∅",
+  "grammar": "%rule text $s:part other ::∅ %conditions ¬$s.onward.parse(KE …)\n%rule part A\n%rule other (B ≻ C) ::∅",
   "tokens": [
     {
       "text": "a",

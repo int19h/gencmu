@@ -57,7 +57,7 @@ The stage does not declare `%elision-only`. A PEG repetition reads as far as it 
 
 `$x.without-elision` restores the terminators omitted inside `$x` for a query that preserves those closes. A close records an omitted terminal and its boundary. Strict aligned readings have the same ordered closes at shared boundaries.
 
-A witness is a reading that satisfies a query. A whole query uses `$x.without-elision.matches(r)`. An extended prefix uses `$x.without-elision.onward.begins(r)` and can read beyond the capture. Here `r` names a rule, while a capitalized identifier names a tag. Both forms keep following original words available to the witness's conditions.
+A witness is a reading that satisfies a query. A whole query uses `$x.without-elision.parse(r)`. An extended prefix uses `$x.without-elision.onward.parse(r …)` and can read beyond the capture. Here `r` names a rule, while a capitalized identifier names a tag. Both forms keep following original words available to the witness's conditions.
 
 A query can elide terminators under written-terminator priority ([engine §4](../../../docs/engine.md#4-recognition)). It cannot omit a terminator where the same construction can read that terminator as written. The query does not select the final `late #·_<_Elided>` winner. Category conditions preserve the actual candidate's closes. Structural conditions inspect its actual children.
 
@@ -209,17 +209,17 @@ A structural pattern describes constructed nodes. Suppose every earlier branch i
   | $m:mex
   | relative-clauses | links | linkargs
 %conditions
-  ¬$n.following-tokens.begins(terms),
+  ¬$n.following-tokens.parse(terms …),
   KU ⊈ $n.following-tokens.first-token.tags,
-  ¬$t.following-tokens.begins(mex),
+  ¬$t.following-tokens.parse(mex …),
   $t ≇ $BARE-NA-FRAGMENT,
-  ¬$m.following-tokens.begins(sumti-5 | selbri),
-  ¬$m.without-elision.matches(fragment-terms)
+  ¬$m.following-tokens.parse((sumti-5 | selbri) …),
+  ¬$m.without-elision.parse(fragment-terms)
 
 %rule fragment-terms
   $t:terms
 %conditions
-  ¬$t.following-tokens.begins(mex),
+  ¬$t.following-tokens.parse(mex …),
   $t ≇ #⁅ na-clause KU="" ⁆
 
 -- prenex <- terms ZOhU_clause
@@ -331,27 +331,23 @@ The middle `$INITIAL-KE` arm matches a tag followed by a selbri whose first-chil
   | [tag] KE 🆓 gek-bridi-tail [+KEhE 🆓]
   | NA 🆓 gek-bridi-tail
 %conditions
-  ¬$g.following-tokens.begins(gik-term)
+  ¬$g.following-tokens.parse(gik (term | CU) …)
 
 %rule gik-bridi-tails
   {gik bridi-tail}
-
-%rule gik-term
-  gik (term | CU)
 
 -- tail_terms <- term* VAU_elidible
 %rule tail-terms
   [{term}] [+VAU 🆓]
 ```
 
-<details><summary>Railroad diagrams of the 8 rules from <code>bridi-tail-1-link</code> to <code>tail-terms</code></summary>
+<details><summary>Railroad diagrams of the 7 rules from <code>bridi-tail-1-link</code> to <code>tail-terms</code></summary>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/bridi-tail-1-link.svg" alt="Railroad diagram of the rule bridi-tail-1-link"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/bridi-tail-2.svg" alt="Railroad diagram of the rule bridi-tail-2"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/bridi-tail-3.svg" alt="Railroad diagram of the rule bridi-tail-3"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/ke-clause.svg" alt="Railroad diagram of the rule ke-clause"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/gek-bridi-tail.svg" alt="Railroad diagram of the rule gek-bridi-tail"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/gik-bridi-tails.svg" alt="Railroad diagram of the rule gik-bridi-tails"></p>
-<p><img src="../../../docs/diagrams/lojban/zantufa/syntax/gik-term.svg" alt="Railroad diagram of the rule gik-term"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/tail-terms.svg" alt="Railroad diagram of the rule tail-terms"></p>
 </details>
 
@@ -365,7 +361,7 @@ A tag unit that omits KUhE also counts. So `mi klama pu ke my .e gy ke'e roi` an
 
 The following-input queries reserve possible tag units and predicates, including readings outside the chosen tree. GI and BO tests inspect the next token's selma'o. Free-modifier and connective tests use queries.
 
-The condition `¬$t.following-tokens.begins(free)` excludes a tag term that leaves a following free modifier unread. So in `sei abu pensi ba ju'o rinka`, the tag is `ba ju'o`, and the selbri `rinka` follows it. The condition on a selbri then removes the term, and the statement of the `sei` ends after `pensi`, as in Zantufa.
+The condition `¬$t.following-tokens.parse(free …)` excludes a tag term that leaves a following free modifier unread. So in `sei abu pensi ba ju'o rinka`, the tag is `ba ju'o`, and the selbri `rinka` follows it. The condition on a selbri then removes the term, and the statement of the `sei` ends after `pensi`, as in Zantufa.
 
 A term-initial sumti cannot start an aligned tag. The extended prefix can read a following ROI, so `cy roi` remains a tag. This restriction applies at the term's start, rather than to every letter inside a sumti. Thus `ro my roi klama` retains the quantified sumti `ro my`. The tag can also omit KUhE inside the shared stretch. So in `ke my .e gy ke'e roi klama`, the KE group and ROI form one tag, as in Zantufa.
 
@@ -386,10 +382,7 @@ The KE patterns inspect the actual body and closer. A written `ke'e` around one 
 %rule term-link
   $j:joik-ek term-1
 %conditions
-  $j ≇ #joik ∨ ¬$j.following-tokens.begins(tag-bo-cu)
-
-%rule tag-bo-cu
-  tag [BO 🆓] CU
+  $j ≇ #joik ∨ ¬$j.following-tokens.parse(tag [BO 🆓] CU …)
 
 -- term_1 <- term_2 (joik_ek? BO_clause term_2)*
 %rule term-1
@@ -408,14 +401,14 @@ The KE patterns inspect the actual body and closer. A written `ke'e` around one 
   $g ≇ #⁅ gek sumti {gik sumti} GIhI [🆓] ⁆,
   $k ⟹ $ ≇ #⁅ ke-clause sumti KEhE≠"" [🆓] ⁆,
   $s ≇ #⁅ KE [🆓] sumti KEhE="" [🆓] ⁆,
-  ¬$s.without-elision-except(math).onward.begins(tag)
+  ¬$s.without-elision-except(math).onward.parse(tag …)
 
 -- brigahi <- (POIhA_clause free* selbri / NA_clause !bridi_tail !joik_gihek) KU_elidible
 %rule brigahi
   | POIhA 🆓 selbri [+KU 🆓]
   | $n:na-clause [+KU 🆓]
 %conditions
-  ¬$n.following-tokens.begins(bridi-tail | joik-gihek)
+  ¬$n.following-tokens.parse((bridi-tail | joik-gihek) …)
 
 -- tag_term <- !gek (tag !(!tag selbri) !gek_bridi_tail !BO
 -- / (FA_clause (joik FA_clause)* / JAI_clause tag?) !tanru_unit_1) (sumti / KU_elidible)
@@ -426,11 +419,11 @@ The KE patterns inspect the actual body and closer. A written `ke'e` around one 
   | $f:fa-jai [+KU 🆓]
 %conditions
   GI ⊈ $a.following-tokens.first-token.tags,
-  ¬$s.without-elision-except(math).onward.begins(tcita-selci),
+  ¬$s.without-elision-except(math).onward.parse(tcita-selci …),
   GI ⊈ $t.following-tokens.first-token.tags,
-  ¬$t.following-tokens.begins(free | tcita-selci | selbri | gek-bridi-tail),
+  ¬$t.following-tokens.parse((free | tcita-selci | selbri | gek-bridi-tail) …),
   BO ⊈ $t.following-tokens.first-token.tags,
-  ¬$f.following-tokens.begins(tanru-unit-1)
+  ¬$f.following-tokens.parse(tanru-unit-1 …)
 
 %rule fa-jai
   {FA 🆓 / joik}
@@ -441,11 +434,10 @@ The KE patterns inspect the actual body and closer. A written `ke'e` around one 
   gek {term} {gik {term}} [+GIhI 🆓]
 ```
 
-<details><summary>Railroad diagrams of the 10 rules from <code>terms</code> to <code>gek-term</code></summary>
+<details><summary>Railroad diagrams of the 9 rules from <code>terms</code> to <code>gek-term</code></summary>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/terms.svg" alt="Railroad diagram of the rule terms"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/term.svg" alt="Railroad diagram of the rule term"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/term-link.svg" alt="Railroad diagram of the rule term-link"></p>
-<p><img src="../../../docs/diagrams/lojban/zantufa/syntax/tag-bo-cu.svg" alt="Railroad diagram of the rule tag-bo-cu"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/term-1.svg" alt="Railroad diagram of the rule term-1"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/term-2.svg" alt="Railroad diagram of the rule term-2"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/brigahi.svg" alt="Railroad diagram of the rule brigahi"></p>
@@ -485,7 +477,7 @@ The step `fewest #·term-link` counts the plain `term-link` rule, so a sumti con
 %rule sumti-2
   $r:sumti-2-run
 %conditions
-  ¬$r.following-tokens.begins(sumti-2-link)
+  ¬$r.following-tokens.parse(sumti-2-link …)
 
 %rule sumti-2-run
   {sumti-3 / [joik-ek] [tag] BO 🆓}
@@ -521,7 +513,7 @@ The step `fewest #·term-link` counts the plain `term-link` rule, so a sumti con
   | LI 🆓 mex [+LOhO 🆓]
   | NAhE 🆓 sumti-3
 %conditions
-  ¬$l.following-tokens.begins(lerfu-operator | operand-kehe)
+  ¬$l.following-tokens.parse((lerfu-operator | operand KEhE) …)
 
 %rule lerfu-boi
   lerfu-string [+BOI 🆓]
@@ -531,20 +523,17 @@ The step `fewest #·term-link` counts the plain `term-link` rule, so a sumti con
 %rule lerfu-operator
   [{BO 🆓}] [{operand}] $o:operator
 %conditions
-  $o ≇ $JOIK-EK-OP ∨ ¬$o.following-tokens.begins(sumti-or-relative)
+  $o ≇ $JOIK-EK-OP ∨ ¬$o.following-tokens.parse(sumti-or-relative …)
 
 %rule sumti-or-relative
   sumti | relative-clause
-
-%rule operand-kehe
-  operand KEhE
 
 -- sumti_tail <- relative_clauses? (!quantifier sumti)? sumti_tail_1
 %rule sumti-tail
   | [relative-clauses] sumti-tail-1
   | [relative-clauses] $s:sumti sumti-tail-1
 %conditions
-  ¬$s.without-elision-except(math).onward.begins(quantifier)
+  ¬$s.without-elision-except(math).onward.parse(quantifier …)
 
 -- sumti_tail_1 <- tag? quantifier? selbri / quantifier sumti
 %rule sumti-tail-1
@@ -558,7 +547,7 @@ The step `fewest #·term-link` counts the plain `term-link` rule, so a sumti con
   $s ≇ #(tag ⋰)
 ```
 
-<details><summary>Railroad diagrams of the 15 rules from <code>sumti</code> to <code>sumti-tail-1</code></summary>
+<details><summary>Railroad diagrams of the 14 rules from <code>sumti</code> to <code>sumti-tail-1</code></summary>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/sumti.svg" alt="Railroad diagram of the rule sumti"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/sumti-1.svg" alt="Railroad diagram of the rule sumti-1"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/sumti-1-run.svg" alt="Railroad diagram of the rule sumti-1-run"></p>
@@ -571,7 +560,6 @@ The step `fewest #·term-link` counts the plain `term-link` rule, so a sumti con
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/lerfu-boi.svg" alt="Railroad diagram of the rule lerfu-boi"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/lerfu-operator.svg" alt="Railroad diagram of the rule lerfu-operator"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/sumti-or-relative.svg" alt="Railroad diagram of the rule sumti-or-relative"></p>
-<p><img src="../../../docs/diagrams/lojban/zantufa/syntax/operand-kehe.svg" alt="Railroad diagram of the rule operand-kehe"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/sumti-tail.svg" alt="Railroad diagram of the rule sumti-tail"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/sumti-tail-1.svg" alt="Railroad diagram of the rule sumti-tail-1"></p>
 </details>
@@ -634,7 +622,7 @@ A run of `cei` nests to the right. The selbri after the first `cei` already read
   | $s:selbri-2 KEhE 🆓 linkargs [relative-clauses] [CEI 🆓 selbri]
   | selbri-2 [relative-clauses] [CEI 🆓 selbri]
 %conditions
-  ¬$s.onward.begins(KE)
+  ¬$s.onward.parse(KE …)
 
 -- selbri_2 <- selbri_3 (CO_clause selbri_3)*
 %rule selbri-2
@@ -698,20 +686,17 @@ A run of `cei` nests to the right. The selbri after the first `cei` already read
   | JAI 🆓 [tag] tanru-unit-1
   | {NU 🆓 / joik} statement [+KEI 🆓]
 %conditions
-  ¬$g.following-tokens.begins(gik-term-or-cu),
-  ¬$m.following-tokens.begins(sumti-5 | selbri),
+  ¬$g.following-tokens.parse([gik] (term | CU) …),
+  ¬$m.following-tokens.parse((sumti-5 | selbri) …),
   $m ≇ #(operator ⋰),
   $t ≇ #(operator ⋰),
   $k ≇ #(NAhE ⋰),
-  ¬$m.without-elision.matches(sumti),
+  ¬$m.without-elision.parse(sumti),
   $v ≇ $GEK-UNIT,
   $w ≇ $SE-GEK-UNIT
 
 %rule gik-selbris
   {gik selbri-2}
-
-%rule gik-term-or-cu
-  [gik] (term | CU)
 
 -- linkargs <- BE_clause term links? BEhO_elidible
 %rule linkargs
@@ -722,7 +707,7 @@ A run of `cei` nests to the right. The selbri after the first `cei` already read
   BEI 🆓 term [links]
 ```
 
-<details><summary>Railroad diagrams of the 14 rules from <code>selbri</code> to <code>links</code></summary>
+<details><summary>Railroad diagrams of the 13 rules from <code>selbri</code> to <code>links</code></summary>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/selbri.svg" alt="Railroad diagram of the rule selbri"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/selbri-1.svg" alt="Railroad diagram of the rule selbri-1"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/selbri-2.svg" alt="Railroad diagram of the rule selbri-2"></p>
@@ -734,7 +719,6 @@ A run of `cei` nests to the right. The selbri after the first `cei` already read
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/tanru-unit.svg" alt="Railroad diagram of the rule tanru-unit"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/tanru-unit-1.svg" alt="Railroad diagram of the rule tanru-unit-1"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/gik-selbris.svg" alt="Railroad diagram of the rule gik-selbris"></p>
-<p><img src="../../../docs/diagrams/lojban/zantufa/syntax/gik-term-or-cu.svg" alt="Railroad diagram of the rule gik-term-or-cu"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/linkargs.svg" alt="Railroad diagram of the rule linkargs"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/syntax/links.svg" alt="Railroad diagram of the rule links"></p>
 </details>
@@ -765,8 +749,8 @@ The condition removes a connective operator whose first word is SE. The alternat
 %rule quantifier
   $m:mex [relative-clauses]
 %conditions
-  ¬$m.without-elision.onward.begins(sumti-5 | selbri),
-  ¬$m.following-tokens.begins(ROI)
+  ¬$m.without-elision.onward.parse((sumti-5 | selbri) …),
+  ¬$m.following-tokens.parse(ROI …)
 
 -- mex <- mex_1 (operator+ mex_1?)*
 %rule mex
@@ -777,7 +761,7 @@ The condition removes a connective operator whose first word is SE. The alternat
   | operators $x:mex-1
 %conditions
   $x ≇ #(operator ⋰),
-  ¬$o.following-tokens.begins(mex-1)
+  ¬$o.following-tokens.parse(mex-1 …)
 
 -- mex_1 <- (KE_clause mex_2+ KEhE_elidible / mex_2 (BO_clause mex_2)* )
 -- (BIhE_clause operator+ (KE_clause mex_2+ KEhE_elidible / mex_2 (BO_clause mex_2)* )?)*
@@ -789,7 +773,7 @@ The condition removes a connective operator whose first word is SE. The alternat
   | BIhE 🆓 operators $x:mex-group
 %conditions
   $x ≇ #(operator ⋰),
-  ¬$o.following-tokens.begins(mex-group)
+  ¬$o.following-tokens.parse(mex-group …)
 
 %rule mex-group
   KE 🆓 {mex-2} [+KEhE 🆓]
@@ -822,14 +806,14 @@ The condition removes a connective operator whose first word is SE. The alternat
   | VUhU 🆓
   | $j:joik-ek
 %conditions
-  ¬$j.following-tokens.begins(CU),
+  ¬$j.following-tokens.parse(CU …),
   $j ≇ #⁅ SE ⋯ ⁆
 
 -- operator+, which reads every operator that follows
 %rule operators
   $r:operator-run
 %conditions
-  ¬$r.following-tokens.begins(operator)
+  ¬$r.following-tokens.parse(operator …)
 
 %rule operator-run
   {operator}
@@ -983,7 +967,7 @@ Nested vocatives can take separate addresses. In `pe'usai doi xod ko jmina`, the
   | (LOhAI<Quote> | LEhAI) 🆓
   | UI 🆓
 %conditions
-  ¬$.following-tokens.begins(free),
+  ¬$.following-tokens.parse(free …),
   $ ≇ #(PA ⋰) ∨ ¬$.preceded-by(PA),
   $ ≇ #(lerfu-string ⋰) ∨ ¬$.preceded-by(BY),
   $ ≇ #(vocative ⋰) ∨ ¬$.preceded-by(COI)

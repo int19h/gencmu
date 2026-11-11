@@ -125,12 +125,7 @@ pub(super) fn document(dom: &mut Dom) {
                         None
                     }
                 })),
-                Cond::Matches(t, _)
-                | Cond::Begins(t, _)
-                | Cond::Ends(t, _)
-                | Cond::Initial(t)
-                | Cond::Final(t)
-                | Cond::Boundary(_, t, _, _) => stack.push(Part::Term(t)),
+                Cond::Initial(t) | Cond::Final(t) | Cond::Boundary(_, t, _, _) => stack.push(Part::Term(t)),
                 Cond::Captured(_) => (),
             },
             Part::Symbol(symbol) => {

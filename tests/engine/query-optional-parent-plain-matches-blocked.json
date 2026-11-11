@@ -1,6 +1,6 @@
 {
-  "description": "The preceding optional and its terminator lie inside another plain optional with a ranked group. The group contains no capture. The present route reads D and then the written T, so .matches(r) is false (engine §4).",
-  "grammar": "%rule text $r:input\n%conditions $r.matches(r)\n%rule input B D T Z\n%rule r :: Queried | B [[(c ≻ c)] [+T] D T] Z\n%rule c D",
+  "description": "The preceding optional and its terminator lie inside another plain optional with a ranked group. The group contains no capture. The present route reads D and then the written T, so .parse(r) is false (engine §4).",
+  "grammar": "%rule text $r:input\n%conditions $r.parse(r)\n%rule input B D T Z\n%rule r :: Queried | B [[(c ≻ c)] [+T] D T] Z\n%rule c D",
   "tokens": [
     {
       "text": "b",

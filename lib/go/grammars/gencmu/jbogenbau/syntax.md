@@ -444,7 +444,7 @@ The reader groups repeated guards to the right. Flat lists retain their written 
 
 A method chain starts with a receiver and follows it with selectors. Each selector names a method and can supply nonempty parenthesized arguments. The `parse` selector takes a capture-free body constituent instead of a list of terms. A remainder mark at one outer edge selects a prefix or suffix query. Remainder marks at both edges select a query over some part of the view.
 
-The methods `.begins`, `.matches`, `.ends`, `.followed-by`, and `.preceded-by` separate target names with `|`. Other methods separate arguments with `,`. The reader enforces this distinction.
+The methods `.followed-by` and `.preceded-by` separate target names with `|`. Other methods separate arguments with `,`. The reader enforces this distinction.
 
 The reader folds selectors from left to right. It retains the receiver's actual type and applies the signature rules in engine §10.
 
@@ -673,14 +673,14 @@ Recognition admits repeated or reversed tests on node atoms. The reader restrict
 %rule pattern-node
   [$exact:"·"] $atom:pattern-atom [$list:pattern-children]
 %conditions
-  $exact ⟹ $exact.onward.begins(pattern-exact-start),
-  $list ⟹ $atom.onward.begins(pattern-attached-start),
-  ¬$list ⟹ ¬$atom.onward.begins(pattern-attached-start)
+  $exact ⟹ $exact.onward.parse(pattern-exact-start …),
+  $list ⟹ $atom.onward.parse(pattern-attached-start …),
+  ¬$list ⟹ ¬$atom.onward.parse(pattern-attached-start …)
 
 %rule pattern-bare
   [$exact:"·"] pattern-children
 %conditions
-  $exact ⟹ $exact.onward.begins(pattern-exact-start)
+  $exact ⟹ $exact.onward.parse(pattern-exact-start …)
 
 %rule pattern-atom
   (pattern-name | tag | string | range | wildcard | constant-reference) [{symbol-test}]
@@ -710,7 +710,7 @@ Recognition admits repeated or reversed tests on node atoms. The reader restrict
 %rule child-item
   child-path | pattern-brackets | pattern-repeat | "⋯"
 %conditions
-  ¬$.last-token.onward.begins(pattern-adjacent-item)
+  ¬$.last-token.onward.parse(pattern-adjacent-item …)
 
 %rule child-path
   ("⋮" | "⋱") child-primary

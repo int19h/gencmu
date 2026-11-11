@@ -1,6 +1,6 @@
 {
   "description": "A suffix query requires a zero-error witness.",
-  "grammar": "%rule text A B %conditions ¬$.ends(bad)\n%rule bad B %error \"bad\"",
+  "grammar": "%rule text A B %conditions ¬$.parse(… bad)\n%rule bad B %error \"bad\"",
   "tokens": [
     {
       "text": "a",

@@ -1,6 +1,6 @@
 {
   "description": "A failed restored terminal query in a ranked choice selects the fallback.",
-  "grammar": "%rule text ($x:part ≻ fallback) B ::∅ %conditions $x.without-elision.matches(T)\n%rule part A\n%rule fallback A",
+  "grammar": "%rule text ($x:part ≻ fallback) B ::∅ %conditions $x.without-elision.parse(T)\n%rule part A\n%rule fallback A",
   "tokens": [
     {
       "text": "a",

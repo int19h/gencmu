@@ -458,7 +458,7 @@ mod tests {
     /// an index rebuilt for every search.
     #[test]
     fn nested_queries_with_many_omissions_take_linear_work() {
-        let grammar = "%ambiguity-resolution greedy\n%rule text body B\n%conditions $.matches(r)\n\n                       %rule body {A}\n%rule r parts B\n%rule parts {part}\n%rule part A [+T]";
+        let grammar = "%ambiguity-resolution greedy\n%rule text body B\n%conditions $.parse(r)\n\n                       %rule body {A}\n%rule r parts B\n%rule parts {part}\n%rule part A [+T]";
         let pipeline = crate::load_pipeline_sources(single(grammar), "p.md").unwrap();
         let mut parse = |n: usize| {
             let token = |tag: &str| InputToken {

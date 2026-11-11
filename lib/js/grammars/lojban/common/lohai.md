@@ -22,10 +22,10 @@ In the experimental pipeline, an unfinished marker carries `Fault` unless a [`co
 %redefine-rule word
   $c:read-word
       :: $c.tags ∪
-         (LOhAI ⊆ $c.classes ∧ ¬$c.following-tokens.begins(lohai-constructor-tail) ⟹ Fault)
+         (LOhAI ⊆ $c.classes ∧ ¬$c.following-tokens.parse(lohai-constructor-tail …) ⟹ Fault)
 %conditions
   $c.classes ∩ $MAGIC-WORDS = ∅,
-  ¬$c.onward.begins(quote)
+  ¬$c.onward.parse(quote …)
 %emits
   $
 

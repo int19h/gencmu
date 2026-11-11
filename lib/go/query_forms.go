@@ -161,7 +161,7 @@ func (g *stageGrammar) prepareBodyQueries() *Error {
 // The returned mode agrees with the old whole, prefix, and suffix forms.
 func queryBody(body *domExpr) (*domExpr, string, string) {
 	if body == nil || body.Kind != exSeq {
-		return body, cdMatches, ""
+		return body, cdWhole, ""
 	}
 	var markers []int
 	var parts []*domExpr
@@ -176,22 +176,22 @@ func queryBody(body *domExpr) (*domExpr, string, string) {
 		}
 	}
 	if len(markers) == 0 {
-		return body, cdMatches, ""
+		return body, cdWhole, ""
 	}
 	for _, marker := range markers {
 		if len(markers) > 2 || len(parts) == 0 || marker != 0 && marker != len(body.Items)-1 {
-			return body, cdMatches, "a remainder stands at one outer edge of a parse argument"
+			return body, cdWhole, "a remainder stands at one outer edge of a parse argument"
 		}
 	}
 	core := &domExpr{Kind: exSeq, Items: parts}
 	if len(parts) == 1 {
 		core = parts[0]
 	}
-	mode := cdBegins
+	mode := cdPrefix
 	if len(markers) == 2 {
 		mode = cdContains
 	} else if markers[0] == 0 {
-		mode = cdEnds
+		mode = cdSuffix
 	}
 	return core, mode, ""
 }

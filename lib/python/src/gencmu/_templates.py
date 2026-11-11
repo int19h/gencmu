@@ -131,7 +131,7 @@ def _print_argument(n, unicode):
     if 'remainder' in n:
         return '…'
     if 'method' in n:
-        separator = ' | ' if n['method'] in ('matches', 'begins', 'ends', 'followed-by', 'preceded-by') else ', '
+        separator = ' | ' if n['method'] in ('followed-by', 'preceded-by') else ', '
         args = yield _print_join(n['args'], unicode, _print_argument, separator)
         receiver = yield _print_argument(n['receiver'], unicode)
         if term_group(n['receiver'], 'method', 0):
@@ -476,8 +476,8 @@ def expand_templates(documents, unicode):
                 continue
             if key == 'args' and 'method' in root:
                 result[key] = []
-                query = root['method'] in ('matches', 'begins', 'ends', 'followed-by', 'preceded-by')
-                target = query or root['method'] in ('tags', 'without-elision-except')
+                query = root['method'] in ('followed-by', 'preceded-by')
+                target = query or root['method'] == 'without-elision-except'
                 for arg in value:
                     replacement = env.get(arg.get('param'), {})
                     if query and 'targets' in replacement:
@@ -727,7 +727,7 @@ def child_position(key, position):
         return 'pattern'
     if key in ('alternatives', 'conditions', 'error', 'warning', 'emit', 'tags', 'value', 'image', 'default', 'requirements', 'range', 'literal', 'concat', 'union', 'intersection', 'difference', 'left', 'right', 'receiver', 'if', 'then', 'not', 'all', 'any', 'args'):
         return 'term'
-    if key in ('seq', 'choice', 'ranked', 'and', 'optional', 'repeat', 'separator', 'expr', 'splice') and position != 'pattern':
+    if key in ('seq', 'choice', 'ranked', 'and', 'optional', 'repeat', 'separator', 'expr', 'splice', 'body') and position != 'pattern':
         return 'expr'
     if key in ('pattern', 'child'):
         return 'pattern'

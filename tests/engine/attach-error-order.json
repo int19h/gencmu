@@ -2,7 +2,7 @@
   "description": "The before-attachment fails on a shared verbatim gap before the carrier evaluates its failing tag query (engine §11).",
   "documents": {
     "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n```\n",
-    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $b:bad $w:word %emits ($b) $w :: $w.tags(migration-fault)\n%rule word \"1\"\n%rule bad $l:left $r:right %emits $l, $r\n%rule left \"b\" :- $.verbatim-text\n%rule right \"b\" :- $.verbatim-text\n%rule migration-fault ε | {_} %conditions \"x\" ∈ $.value.split($.value)\n```\n"
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $b:bad $w:word %emits ($b) $w :: $w.parse(migration-fault).tags\n%rule word \"1\"\n%rule bad $l:left $r:right %emits $l, $r\n%rule left \"b\" :- $.verbatim-text\n%rule right \"b\" :- $.verbatim-text\n%rule migration-fault ε | {_} %conditions \"x\" ∈ $.value.split($.value)\n```\n"
   },
   "pipelineDocument": "p.md",
   "input": "b,b1",

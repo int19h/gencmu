@@ -1,6 +1,6 @@
 {
   "description": "A nested capture includes its own later suffix omission (engine §4 and §10).",
-  "grammar": "%rule text ($x:candidate Y) %conditions $x.without-elision.onward.begins(rival)\n\n%rule candidate (X [+T])\n%rule rival $y:body %conditions $y.without-elision.matches(inner), ¬($y.without-elision.matches(wrong))\n\n%rule body (X [+T] Y [+U])\n%rule inner (X [+T] Y [+U])\n%rule wrong (X [+T] Y)",
+  "grammar": "%rule text ($x:candidate Y) %conditions $x.without-elision.onward.parse(rival …)\n\n%rule candidate (X [+T])\n%rule rival $y:body %conditions $y.without-elision.parse(inner), ¬$y.without-elision.parse(wrong)\n\n%rule body (X [+T] Y [+U])\n%rule inner (X [+T] Y [+U])\n%rule wrong (X [+T] Y)",
   "tokens": [
     {
       "text": "x",

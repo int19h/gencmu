@@ -22,7 +22,7 @@ export declare function boundaryReachability(grammar: any): {
     queries: {
         rule: any;
         alternative: any;
-        target: any;
+        target: string;
         reached: {
             rules: Set<any>;
             terminals: Set<any>;

@@ -52,9 +52,7 @@ def diagnostic_notes(grammar):
             _testing.count("walkSteps")
             node, filtered = pending.pop()
             method = node.get("method") if isinstance(node, dict) else None
-            if method in ("matches", "begins", "ends", "tags"):
-                names = [arg["rule"] for arg in node["args"] if "rule" in arg]
-            elif method == "parse":
+            if method == "parse":
                 names = query_references(node["args"][0]["body"])
             else:
                 names = ()

@@ -72,18 +72,7 @@ fn partial(value: &Json, kind: &str) -> Json {
                         ) {
                             next = "term";
                         }
-                        if key == "args"
-                            && matches!(
-                                method,
-                                "tags"
-                                    | "matches"
-                                    | "begins"
-                                    | "ends"
-                                    | "followed-by"
-                                    | "preceded-by"
-                                    | "without-elision-except"
-                            )
-                        {
+                        if key == "args" && matches!(method, "followed-by" | "preceded-by" | "without-elision-except") {
                             next = "targets";
                         } else if key == "receiver"
                             && matches!(method, "followed-by" | "preceded-by")

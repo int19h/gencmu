@@ -617,12 +617,12 @@ Operands connect in the same way. `operand` takes a `ke` group, `operand-1` the 
 %rule number
   PA [{PA | lerfu-word}]
 %conditions
-  ¬$.following-tokens.begins(number-continuation)
+  ¬$.following-tokens.parse(number-continuation …)
 
 %rule lerfu-string
   lerfu-word [{PA | lerfu-word}]
 %conditions
-  ¬$.following-tokens.begins(number-continuation)
+  ¬$.following-tokens.parse(number-continuation …)
 
 %rule number-continuation
   PA | lerfu-word

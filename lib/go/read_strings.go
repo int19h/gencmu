@@ -467,7 +467,7 @@ func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 		}
 		if arguments != nil {
 			expected := ","
-			if boundaryMethod(name) || name == "matches" || name == "begins" || name == "ends" {
+			if boundaryMethod(name) {
 				expected = "|"
 			}
 			for _, p := range b.parts(arguments) {
@@ -487,15 +487,20 @@ func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 		f.receiver = b.finishMethod(f.n, name, f.receiver, f.args, f.dependent)
 		f.index++
 		if f.index == len(f.selectors) {
-			isPredicate := name == "starts-input" || name == "ends-input" || boundaryMethod(name) || name == "matches" || name == "begins" || name == "ends" || name == "parse" || name == "error-free"
+			isPredicate := name == "starts-input" || name == "ends-input" || boundaryMethod(name) || name == "parse" || name == "error-free"
 			if f.inCondition && (name == "tags" || name == "classes" || name == "split" || name == "ngrams" || name == "classify") {
 				isPredicate = true
 			}
 			if isPredicate != f.inCondition {
-				if isPredicate {
+				if isPredicate && name != "parse" && name != "error-free" {
 					b.fail(f.n, "a query method is a condition, not a term")
 				}
-				b.fail(f.n, "a condition requires a query method")
+				// parse and error-free are forests. They stand as terms,
+				// and the type check faults them where a forest cannot
+				// stand (engine §9.3).
+				if !isPredicate {
+					b.fail(f.n, "a condition requires a query method")
+				}
 			}
 			return give(f.receiver)
 		}
@@ -511,7 +516,6 @@ const (
 	methodRecipe
 	methodTags
 	methodBoundary
-	methodQuery
 	methodNgrams
 	methodSplit
 	methodClassify
@@ -527,7 +531,6 @@ var sourceMethods = map[string]sourceMethodKind{
 	"without-elision": methodRestored, "without-elision-except": methodRestored,
 	"verbatim-text": methodRecipe, "emitted": methodRecipe,
 	"tags": methodTags, "followed-by": methodBoundary, "preceded-by": methodBoundary,
-	"matches": methodQuery, "begins": methodQuery, "ends": methodQuery,
 	"ngrams": methodNgrams, "split": methodSplit, "classify": methodClassify,
 	"parse": methodParse, "error-free": methodErrorFree,
 }
@@ -550,9 +553,6 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 		}
 		b.fail(n, "a method has the wrong receiver or arguments")
 	}
-	if name == "ends" && restoredTerm(receiver) {
-		b.fail(n, "ends requires an ordinary span, not a restored span")
-	}
 	unknown := func(t *domTerm) bool { return t.Kind == tmParam || t.Kind == tmSourceCall }
 	span := b.featureContext || isSpanTerm(receiver)
 	valid := false
@@ -564,7 +564,7 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 			if problem != "" {
 				b.fail(n, "%s", problem)
 			}
-			if (mode == cdEnds || mode == cdContains) && restoredTerm(receiver) {
+			if (mode == cdSuffix || mode == cdContains) && restoredTerm(receiver) {
 				b.fail(n, "suffix parse requires an ordinary span, not a restored span")
 			}
 		}
@@ -583,17 +583,9 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 	case methodRecipe:
 		valid = b.inRecipe && len(args) == 0 && receiver.Kind == tmCapture
 	case methodTags:
-		valid = span && (len(args) == 0 || len(args) == 1 && (args[0].Kind == tmRule || unknown(args[0]))) || forestTerm(receiver) && len(args) == 0
+		valid = (span || forestTerm(receiver)) && len(args) == 0
 	case methodBoundary:
 		valid = (b.featureContext || receiver.Kind == tmCapture || unknown(receiver)) && len(args) > 0
-		for _, a := range args {
-			if a.Kind == tmTag && isCapital(a.Str) {
-				a.Kind = tmTerminal
-			}
-			valid = valid && (a.Kind == tmRule || a.Kind == tmTerminal || unknown(a)) && !engineTag(a.Str)
-		}
-	case methodQuery:
-		valid = span && len(args) > 0
 		for _, a := range args {
 			if a.Kind == tmTag && isCapital(a.Str) {
 				a.Kind = tmTerminal

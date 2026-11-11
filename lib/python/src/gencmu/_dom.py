@@ -1154,14 +1154,14 @@ class DomBuilder:
                     arg = {"integer": digits}
                 else:
                     arg = yield self._term(self.only(part, "term"), True)
-                if name in ("matches", "begins", "ends", "followed-by", "preceded-by") and "tag" in arg and not arg["tag"].startswith("_"):
+                if name in ("followed-by", "preceded-by") and "tag" in arg and not arg["tag"].startswith("_"):
                     arg = {"terminal": arg["tag"]}
                 from ._boundary import Located
                 arg = Located(arg, self.position(part))
                 args.append(arg)
             if arguments is not None:
                 separators = [self.token_value(child) for child in self.kids(arguments) if child.kind == "token"]
-                if any(separator != ("|" if name in ("matches", "begins", "ends", "followed-by", "preceded-by") else ",") for separator in separators):
+                if any(separator != ("|" if name in ("followed-by", "preceded-by") else ",") for separator in separators):
                     raise self.fail(arguments, "invalid method argument separator")
             if name in ('classify', 'ngrams') and self.has_unresolved(args):
                 raise self.fail(node, 'a parameter cannot replace a classifier name or integer argument')

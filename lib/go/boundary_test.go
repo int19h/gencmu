@@ -47,7 +47,7 @@ func TestBoundaryAnnotationLateJoin(t *testing.T) {
 }
 
 func TestBoundaryMeetFollowsTagErrors(t *testing.T) {
-	grammar := "%rule text A :: ($.matches(text) ⟹ X) | B\n%conditions $.followed-by(B)"
+	grammar := "%rule text A :: ($.parse(text) ⟹ X) | B\n%conditions $.followed-by(B)"
 	c := &engineCase{Grammar: &grammar, Tokens: []caseToken{{Text: "a", Tags: []string{"A"}}}}
 	d, err := casePipeline(c, false)
 	if err != nil {

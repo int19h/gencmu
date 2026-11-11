@@ -43,13 +43,13 @@ The backtick is U+0060 GRAVE ACCENT. The spacing acute accent is U+00B4 ACUTE AC
 
 [../cll/latin.md](../cll/latin.md) reads straight and curly quotation marks as apostrophes. This document removes them from `apostrophe`, so they are punctuation by default. The backtick and spacing acute accent also default to punctuation. `inner-quote-mark` reads one where a letter follows it, after any ignored characters. `inner-apostrophe` emits such a mark as the apostrophe of an ordinary or capital run. A foreign run holds it through the extensions of `lojban-chars` and `chars-with-non-lojban-char`, as [../common/latin.md](../common/latin.md) lets a foreign run hold a decimal point.
 
-A letter is a character of category L that is neither ignored nor a script period. `quote-letter` reads one letter. `misplaced-quote` tests the tokens of the run before each quotation mark with `.ends(letter-final)`. The suffix must be a letter, its combining marks, and any ignored characters. A mark at the start of a run has no such suffix. A combining mark after an ignored character belongs to no letter and fails this test.
+A letter is a character of category L that is neither ignored nor a script period. `quote-letter` reads one letter. `misplaced-quote` tests the tokens of the run before each quotation mark with `parse(… letter-final)`. The suffix must be a letter, its combining marks, and any ignored characters. A mark at the start of a run has no such suffix. A combining mark after an ignored character belongs to no letter and fails this test.
 
 `letters`, `capital-run` and `non-lojban-char-run` reject runs that match `misplaced-quote`. On the left, `letter-final` skips the combining marks of a letter, so a marked letter counts: `lé'i` keeps its apostrophe. `letter-final` on the left and `letter-after-ignored` on the right both skip ignored characters. These are commas, format characters and silent marks.
 
 The silent-mark rules ignore `ー`, although its Lm category is a letter category. A zbalermorna letter has private use and fails the category test. zbalermorna writes its own apostrophe.
 
-Between two letters, a mark has two readings: in one run, or as a pause between two runs. The redefined `run` refuses the second. A run that ends in a letter, with its marks and any ignored characters, cannot stop before an inner quotation mark. `letter-final` tests the run's own end with `ends`, and `quote-after-ignored` looks ahead with `following-tokens`. So the reading with the mark inside the run is the only one, and the phoneme stage stays `unique`.
+Between two letters, a mark has two readings: in one run, or as a pause between two runs. The redefined `run` refuses the second. A run that ends in a letter, with its marks and any ignored characters, cannot stop before an inner quotation mark. `letter-final` tests the run's own end with a suffix parse, and `quote-after-ignored` looks ahead with `following-tokens`. So the reading with the mark inside the run is the only one, and the phoneme stage stays `unique`.
 
 ```jbogenbau
 %redefine-rule apostrophe
@@ -64,7 +64,7 @@ Between two letters, a mark has two readings: in one run, or as a pause between 
 %rule inner-quote-mark
   $q:quote-mark
 %conditions
-  $q.following-tokens.begins(letter-after-ignored)
+  $q.following-tokens.parse(letter-after-ignored …)
 
 %rule inner-apostrophe
   inner-quote-mark
@@ -80,12 +80,12 @@ Between two letters, a mark has two readings: in one run, or as a pause between 
 %redefine-rule letters
   letters-after-consonant | letters-after-vowel
 %conditions
-  ¬$.matches(misplaced-quote)
+  ¬$.parse(misplaced-quote)
 
 %redefine-rule capital-run
   capital-shape
 %conditions
-  ¬$.matches(misplaced-quote)
+  ¬$.parse(misplaced-quote)
 
 %extend-rule lojban-chars
   lojban-chars inner-quote-mark lojban-char
@@ -97,12 +97,12 @@ Between two letters, a mark has two readings: in one run, or as a pause between 
 %rule misplaced-quote
   [{_}] $q:quote-mark [{_}]
 %conditions
-  ¬$q.preceding-tokens.ends(letter-final)
+  ¬$q.preceding-tokens.parse(… letter-final)
 
 %rule quote-letter
   $a:alpha-char
 %conditions
-  ¬$a.matches(ignored | period-char)
+  ¬$a.parse(ignored | period-char)
 
 %rule letter-after-ignored
   [{ignored}] quote-letter
@@ -110,12 +110,12 @@ Between two letters, a mark has two readings: in one run, or as a pause between 
 %rule ignored
   $c:_
 %conditions
-  $c.matches(comma)
+  $c.parse(comma)
 
 %redefine-rule run
   $r:any-run
 %conditions
-  ¬$r.ends(letter-final) ∨ ¬$r.following-tokens.begins(quote-after-ignored)
+  ¬$r.parse(… letter-final) ∨ ¬$r.following-tokens.parse(quote-after-ignored …)
 
 %rule quote-after-ignored
   [{ignored}] inner-quote-mark
@@ -190,9 +190,9 @@ The run's image is its source text. A quote body keeps its verbatim text, so `zo
 %redefine-rule non-lojban-char-run
   $r:chars-with-non-lojban-char
 %conditions
-  ¬$r.matches(letters | misplaced-quote),
-  ¬$r.first-token.matches(comma),
-  ¬$r.last-token.matches(comma)
+  ¬$r.parse(letters | misplaced-quote),
+  ¬$r.first-token.parse(comma),
+  ¬$r.last-token.parse(comma)
 %emits
   $ :: FOREIGN :- $.source-text
 ```
@@ -224,7 +224,7 @@ A letter rule tests only the marks that mean something on its letter. Any other 
   | named-mark
   | $m:combining-mark :: ∅
 %conditions
-  ¬$m.matches(named-mark)
+  ¬$m.parse(named-mark)
 
 %rule named-mark
   | stress-mark :: Accent
@@ -476,7 +476,7 @@ A dieresis on a vowel letter means an apostrophe before it, as in an orthography
 %extend-rule letters-after-vowel
   letters-after-vowel [commas] $g:vowel-group
 %conditions
-  $g.begins(dieresis-start)
+  $g.parse(dieresis-start …)
 ```
 
 <details><summary>Railroad diagrams of the 5 rules from <code>dieresis-apostrophe</code> to <code>letters-after-vowel</code></summary>
@@ -514,8 +514,8 @@ An accented capital keeps its stress in an all-capital run, as [../common/latin.
   | folded-vowel-group [commas] $g:folded-vowel-group
   | capital-groups [commas] $h:folded-vowel-group
 %conditions
-  $g.begins(folded-dieresis-start),
-  $h.begins(folded-dieresis-start)
+  $g.parse(folded-dieresis-start …),
+  $h.parse(folded-dieresis-start …)
 ```
 
 <details><summary>Railroad diagrams of the 4 rules from <code>folded-dieresis-start</code> to <code>capital-groups</code></summary>

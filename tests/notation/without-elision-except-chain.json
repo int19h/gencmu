@@ -1,14 +1,27 @@
 {
   "description": "A close family composes with onward and a prefix query (engine §9.3 and §10).",
-  "document": "```jbogenbau\n%rule a $s:B %conditions $s.without-elision-except(math).onward.begins(quantifier)\n```\n",
+  "document": "```jbogenbau\n%rule a $s:B %conditions $s.without-elision-except(math).onward.parse(quantifier …)\n```\n",
   "expect": {
     "dom": {
-      "format": 47,
+      "format": 48,
       "rules": [
         {
+          "name": "a",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "s",
+                "expr": {
+                  "ref": "B"
+                }
+              }
+            }
+          ],
           "conditions": [
             {
-              "method": "begins",
+              "method": "parse",
               "receiver": {
                 "method": "onward",
                 "receiver": {
@@ -26,13 +39,30 @@
               },
               "args": [
                 {
-                  "rule": "quantifier"
+                  "body": {
+                    "seq": [
+                      {
+                        "ref": "quantifier"
+                      },
+                      {
+                        "remainder": true
+                      }
+                    ]
+                  }
                 }
               ]
             }
+          ],
+          "at": [
+            2,
+            1
           ]
         }
-      ]
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
     }
   }
 }

@@ -1,5 +1,5 @@
 {
-  "grammar": "%rule text ($x:candidate [Y]) %conditions $x.without-elision.tags(rival) = Long\n\n%rule candidate X :: Short | (X Y) :: Long\n%rule rival X :: Short | (X Y) :: Long",
+  "grammar": "%rule text ($x:candidate [Y]) %conditions $x.without-elision.parse(rival).tags = Long\n\n%rule candidate X :: Short | (X Y) :: Long\n%rule rival X :: Short | (X Y) :: Long",
   "tokens": [
     {
       "text": "x",

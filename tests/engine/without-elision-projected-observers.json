@@ -1,6 +1,6 @@
 {
   "description": "The restored view exposes original text, values, tags, and token endpoints (engine §4 and §10).",
-  "grammar": "%rule text (Q $x:candidate Y) %conditions $x.without-elision.source-text = \"x\", $x.without-elision.value = \"x\", $x.without-elision.tags = X, ¬($x.without-elision.starts-input), $x.without-elision.first-token.source-text = \"x\", $x.without-elision.last-token.source-text = \"x\", $x.without-elision.tokens-after-first.source-text = \"\", $x.without-elision.following-tokens.matches(following)\n\n%rule candidate (X [+T]) :: Private\n%rule following Y",
+  "grammar": "%rule text (Q $x:candidate Y) %conditions $x.without-elision.source-text = \"x\", $x.without-elision.value = \"x\", $x.without-elision.tags = X, ¬($x.without-elision.starts-input), $x.without-elision.first-token.source-text = \"x\", $x.without-elision.last-token.source-text = \"x\", $x.without-elision.tokens-after-first.source-text = \"\", $x.without-elision.following-tokens.parse(following)\n\n%rule candidate (X [+T]) :: Private\n%rule following Y",
   "tokens": [
     {
       "text": "q",

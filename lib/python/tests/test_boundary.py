@@ -9,7 +9,7 @@ class BoundaryTests(unittest.TestCase):
         from .shared import calls, count_work, load_case_pipeline, parse_case
         for boundary in ('', '\n%conditions ¬$.followed-by(A)'):
             grammar = ('%rule text {piece}\n%rule piece A\n'
-                       '%conditions $.matches(one), $.begins(two), Seen ⊆ $.tags(three)\n'
+                       '%conditions $.parse(one), $.parse(two …), Seen ⊆ $.parse(three).tags\n'
                        '%rule one A' + boundary + '\n%rule two A\n%rule three A :: Seen')
             pipeline, error = load_case_pipeline({'grammar': grammar})
             self.assertIsNone(error)
@@ -111,7 +111,7 @@ class BoundaryTests(unittest.TestCase):
 
     def test_query_settles_a_witness_after_its_ancestors_complete(self):
         from .shared import load_case_pipeline, parse_case
-        for query in ('$.matches(r)', '$.begins(r)', 'Seen ⊆ $.tags(r)'):
+        for query in ('$.parse(r)', '$.parse(r …)', 'Seen ⊆ $.parse(r).tags'):
             grammar = ('%rule text A\n%conditions ' + query +
                        '\n%rule r :: Seen\n | a\n | q\n%rule q r\n%rule a $e:empty A'
                        '\n%conditions $e.followed-by(q)\n%rule empty ε')

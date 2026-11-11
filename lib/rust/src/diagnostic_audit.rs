@@ -143,27 +143,13 @@ fn targets(root: Part<'_>, cache: &mut FxMap<(u8, usize), Arc<Targets>>) -> Arc<
         }
         let mut found = Vec::new();
         let mut filter = false;
-        match part {
-            Part::Cond(Cond::Matches(_, targets) | Cond::Begins(_, targets) | Cond::Ends(_, targets)) => {
-                found.extend(targets.iter().cloned())
-            }
-            Part::Term(Term::Call(method, args)) => {
-                filter = method == "error-free";
-                if method == "tags" {
-                    found.extend(args.iter().filter_map(|arg| {
-                        if let Arg::Rule(name) = arg {
-                            Some(name.clone())
-                        } else {
-                            None
-                        }
-                    }));
-                } else if method == "parse" {
-                    if let Some(Arg::Term(Term::Body(body))) = args.get(1) {
-                        found.extend(references(body, true));
-                    }
+        if let Part::Term(Term::Call(method, args)) = part {
+            filter = method == "error-free";
+            if method == "parse" {
+                if let Some(Arg::Term(Term::Body(body))) = args.get(1) {
+                    found.extend(references(body, true));
                 }
             }
-            _ => {}
         }
         for name in found {
             names.add(name, if filtered { 2 } else { 1 });
@@ -360,7 +346,8 @@ mod tests {
                 let grammar = if family == "query annotations" {
                     let alternatives = (0..n).map(|i| format!("$c{i}:A :: T{i}")).collect::<Vec<_>>().join(" | ");
                     let conditions = (0..n).map(|i| format!("$c{i}.parse(r0)")).collect::<Vec<_>>().join(", ");
-                    let mut grammar = format!("%rule text :: $.tags(r0) | {alternatives}\n%conditions {conditions}");
+                    let mut grammar =
+                        format!("%rule text :: $.parse(r0).tags | {alternatives}\n%conditions {conditions}");
                     for i in 0..n {
                         grammar.push_str(&format!(
                             "\n%rule r{i} {}",

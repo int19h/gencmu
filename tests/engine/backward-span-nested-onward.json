@@ -1,6 +1,6 @@
 {
   "description": "An onward query keeps its own start as the backward boundary. (Engine §4.4.)",
-  "grammar": "%rule text A $x:B C\n%conditions $x.onward.begins(check)\n%rule check $b:B C\n%conditions $b.preceding-tokens.value = \"\"",
+  "grammar": "%rule text A $x:B C\n%conditions $x.onward.parse(check …)\n%rule check $b:B C\n%conditions $b.preceding-tokens.value = \"\"",
   "tokens": [
     {
       "text": "a",

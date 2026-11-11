@@ -1,41 +1,90 @@
 {
   "description": "Query methods and restored queries use decomposed rule arguments.",
-  "document": "```jbogenbau\n%rule text $x:\"a\"\n%conditions $x.matches(rK), $x.begins((rK)), K ⊆ $x.tags(((rK))), $x.without-elision-except(rK).matches(rK)\n%rule rK \"a\"\n```",
+  "document": "```jbogenbau\n%rule text $x:\"a\"\n%conditions $x.parse(rK), $x.parse((rK) …), K ⊆ $x.parse(((rK))).tags, $x.without-elision-except(rK).parse(rK)\n%rule rK \"a\"\n```",
   "expect": {
     "dom": {
+      "format": 48,
       "rules": [
         {
+          "name": "text",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "literal": {
+                    "string": "a"
+                  }
+                }
+              }
+            }
+          ],
           "conditions": [
             {
-              "method": "matches",
+              "method": "parse",
+              "receiver": {
+                "capture": "x"
+              },
               "args": [
                 {
-                  "rule": "rK"
+                  "body": {
+                    "ref": "rK"
+                  }
                 }
               ]
             },
             {
-              "method": "begins",
+              "method": "parse",
+              "receiver": {
+                "capture": "x"
+              },
               "args": [
                 {
-                  "rule": "rK"
+                  "body": {
+                    "seq": [
+                      {
+                        "ref": "rK"
+                      },
+                      {
+                        "remainder": true
+                      }
+                    ]
+                  }
                 }
               ]
             },
             {
+              "op": "⊆",
+              "left": {
+                "tag": "K"
+              },
               "right": {
                 "method": "tags",
-                "args": [
-                  {
-                    "rule": "rK"
-                  }
-                ]
+                "receiver": {
+                  "method": "parse",
+                  "receiver": {
+                    "capture": "x"
+                  },
+                  "args": [
+                    {
+                      "body": {
+                        "ref": "rK"
+                      }
+                    }
+                  ]
+                },
+                "args": []
               }
             },
             {
-              "method": "matches",
+              "method": "parse",
               "receiver": {
                 "method": "without-elision-except",
+                "receiver": {
+                  "capture": "x"
+                },
                 "args": [
                   {
                     "rule": "rK"
@@ -44,16 +93,42 @@
               },
               "args": [
                 {
-                  "rule": "rK"
+                  "body": {
+                    "ref": "rK"
+                  }
                 }
               ]
             }
+          ],
+          "at": [
+            2,
+            1
           ]
         },
         {
-          "name": "rK"
+          "name": "rK",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "literal": {
+                  "string": "a"
+                }
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            4,
+            1
+          ]
         }
-      ]
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
     }
   },
   "cacheMisses": true

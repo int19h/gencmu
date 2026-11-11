@@ -200,7 +200,7 @@ func runFamilyGrowth(t *testing.T, bound familyGrowthBounds, n int, depth, witne
 	for _, file := range []string{bound.StrictCase, bound.Case} {
 		c := growFamilyCase(t, file, n, depth)
 		if witness {
-			grammar := strings.ReplaceAll(*c.Grammar, ".matches(empty)", fmt.Sprintf(".matches(r%d)", n))
+			grammar := strings.ReplaceAll(*c.Grammar, ".parse(empty)", fmt.Sprintf(".parse(r%d)", n))
 			grammar = strings.ReplaceAll(grammar, "$x.without-elision", "¬$x.without-elision")
 			c.Grammar = &grammar
 		}

@@ -1,6 +1,6 @@
 {
   "description": "A declaration resolves all references before retained-argument type inspection.",
-  "grammar": "%ambiguity-resolution greedy\n%const $T K\n%rule t(@X) \"a\"\n%rule early \"b\" %conditions $.matches(t(\"a\".split($T)))\n%emits $ :: $MISSING\n%rule text \"a\"",
+  "grammar": "%ambiguity-resolution greedy\n%const $T K\n%rule t(@X) \"a\"\n%rule early \"b\" %conditions $.parse(t(\"a\".split($T)))\n%emits $ :: $MISSING\n%rule text \"a\"",
   "input": "",
   "expect": {
     "error": "grammar",

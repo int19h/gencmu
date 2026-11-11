@@ -1106,8 +1106,6 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                             stage,
                         )
                     if "method" in value:
-                        if value["method"] in ("matches", "begins", "ends"):
-                            query_terminals.update(arg["terminal"] for arg in value["args"] if "terminal" in arg)
                         # DOM object order does not change the written
                         # order: the receiver precedes every argument.
                         stack.extend(reversed([value["receiver"], *value["args"]]))

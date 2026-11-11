@@ -74,8 +74,8 @@ CLL[^cll-s3-3] says that a comma "cannot be pronounced as a pause", so a comma a
 %emits
   $c
       :: PAUSE ∪
-         ($c.first-token.matches(period-char) ⟹ Period-Initial) ∪
-         ($c.matches(period-core) ⟹ Period-Only)
+         ($c.first-token.parse(period-char) ⟹ Period-Initial) ∪
+         ($c.parse(period-core) ⟹ Period-Only)
       := " "
 
 %rule pause-core
@@ -90,7 +90,7 @@ CLL[^cll-s3-3] says that a comma "cannot be pronounced as a pause", so a comma a
 %rule period-char
   $c:core-char
 %conditions
-  ¬$c.matches(space-char)
+  ¬$c.parse(space-char)
 
 %rule period-core
   {period-char}
@@ -204,9 +204,9 @@ A foreign run has at least one character that no rule of `any-lojban-char` reads
 %rule non-lojban-char-run
   $r:chars-with-non-lojban-char
 %conditions
-  ¬$r.matches(letters),
-  ¬$r.first-token.matches(comma),
-  ¬$r.last-token.matches(comma)
+  ¬$r.parse(letters),
+  ¬$r.first-token.parse(comma),
+  ¬$r.last-token.parse(comma)
 %emits
   $ :: FOREIGN :- $.source-text
 
@@ -221,17 +221,17 @@ A foreign run has at least one character that no rule of `any-lojban-char` reads
 %rule lojban-char
   $c:run-char
 %conditions
-  $c.matches(any-lojban-char)
+  $c.parse(any-lojban-char)
 
 %rule non-lojban-char
   $c:run-char
 %conditions
-  ¬$c.matches(any-lojban-char)
+  ¬$c.parse(any-lojban-char)
 
 %rule run-char
   $c:_
 %conditions
-  ¬$c.matches(core-char)
+  ¬$c.parse(core-char)
 ```
 
 <details><summary>Railroad diagrams of the 6 rules from <code>non-lojban-char-run</code> to <code>run-char</code></summary>

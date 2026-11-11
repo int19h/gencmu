@@ -1,6 +1,6 @@
 {
   "description": "A query on the whole alternative can use a terminal target beside a ranked choice.",
-  "grammar": "%rule text (part ≻ fallback) ::∅ %conditions $.begins(T)\n%rule part A\n%rule fallback A",
+  "grammar": "%rule text (part ≻ fallback) ::∅ %conditions $.parse(T …)\n%rule part A\n%rule fallback A",
   "tokens": [
     {
       "text": "a",

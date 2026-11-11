@@ -488,12 +488,12 @@
       const edges = markers.every(index => index === 0 || index === sequence.length - 1);
       if (Object.keys(body).length !== 1 || markers.length > 2 || !edges || parts.length < 1 ||
           markers.some(index => Object.keys(sequence[index]).length !== 1 || sequence[index].remainder !== true)) {
-        return {body,mode:"matches",problem:"a remainder stands at one outer edge of a parse argument"};
+        return {body,mode:"whole",problem:"a remainder stands at one outer edge of a parse argument"};
       }
-      const mode = markers.length === 2 ? "contains" : markers[0] === 0 ? "ends" : "begins";
+      const mode = markers.length === 2 ? "part" : markers[0] === 0 ? "suffix" : "prefix";
       return {body:parts.length === 1 ? parts[0] : {seq:parts},mode};
     }
-    return {body,mode:"matches"};
+    return {body,mode:"whole"};
   }
 
   /** @param {any} body @returns {any | null} */
@@ -755,11 +755,7 @@
         const pending = [alternative.tags];
         while (pending.length) {
           const part = pending.pop();
-          const query = ["matches","begins","ends","tags"].includes(part?.method);
           if (part?.method === "parse") for (const target of queryReferences(part.args[0].body)) queries.push({rule:rule.name,alternative,target});
-          if (query) for (const arg of part.args) {
-            if (arg.terminal || arg.rule) queries.push({rule:rule.name,alternative,target:arg.rule ?? arg.terminal});
-          }
           for (const child of clauseChildren(part)) pending.push(child);
         }
         continue;
@@ -769,11 +765,7 @@
       const pending = [clauses,alternative.tags];
       while (pending.length) {
         const part = pending.pop();
-        const query = ["matches","begins","ends","tags"].includes(part?.method);
         if (part?.method === "parse") for (const target of queryReferences(part.args[0].body)) queries.push({rule:rule.name,alternative,target});
-        if (query) for (const arg of part.args) {
-          if (arg.terminal || arg.rule) queries.push({rule:rule.name,alternative,target:arg.rule ?? arg.terminal});
-        }
         for (const child of clauseChildren(part)) pending.push(child);
       }
     }
@@ -4019,7 +4011,7 @@
           const node = /** @type {any} */ (stack.pop());
           if (!node || typeof node !== "object" || seen.has(node)) continue;
           seen.add(node);
-          if (["matches","begins","ends","tags","parse"].includes(node.method) ) for (const arg of node.args ?? []) {
+          if (node.method === "parse") for (const arg of node.args ?? []) {
             const name = arg.rule ?? (arg.terminal ? "\u0000query:" + arg.terminal : arg.body ? bodyTarget(lowered,arg.body) : null);
             if (!name) continue;
             pending.push(name);
@@ -4079,7 +4071,7 @@
       const node = /** @type {any} */ (stack.pop());
       if (!node || typeof node !== "object" || seen.has(node)) continue;
       seen.add(node);
-      const value = ["matches","begins","ends","tags","parse"].includes(node.method) ? node.receiver : undefined;
+      const value = node.method === "parse" ? node.receiver : undefined;
       const aligned = value?.method === "onward" ? value.receiver : value;
       const queryRules = (node.args ?? []).map((/** @type {any} */ arg) => arg.rule ?? (arg.terminal ? "\u0000query:" + arg.terminal : arg.body ? bodyTarget(lowered,arg.body) : null)).filter((/** @type {any} */ name) => typeof name === "string");
       if (["without-elision", "without-elision-except"].includes(aligned?.method) && queryRules.length) {
@@ -5531,9 +5523,9 @@
   const METHOD_SIGNATURE_PROBLEM = "a method has the wrong receiver or arguments";
 
   const SPAN_METHODS = new Set(["first-token", "tokens-after-first", "last-token", "onward", "following-tokens", "preceding-tokens", "without-elision", "without-elision-except"]);
-  const QUERY_METHODS = new Set(["matches", "begins", "ends", "starts-input", "ends-input", "parse", "error-free", "followed-by", "preceded-by"]);
+  const QUERY_METHODS = new Set(["starts-input", "ends-input", "parse", "error-free", "followed-by", "preceded-by"]);
   const INPUT_STRINGS = new Set(["value", "image", "source-text", "decomposed-source-text"]);
-  const TARGET_METHODS = new Set(["matches", "begins", "ends", "followed-by", "preceded-by"]);
+  const TARGET_METHODS = new Set(["followed-by", "preceded-by"]);
   const METHODS = new Set([...SPAN_METHODS, ...QUERY_METHODS, ...INPUT_STRINGS, "tags", "classes", "split", "ngrams", "classify", "verbatim-text", "emitted"]);
 
   /**
@@ -5554,18 +5546,16 @@
     const named = (/** @type {any} */ arg, /** @type {string} */ key) => object(arg) && Object.keys(arg).length === 1 && typeof arg[key] === "string";
     const rule = (/** @type {any} */ arg) => named(arg,"rule") || object(arg) && ("param" in arg || "call" in arg);
     const term = (/** @type {any} */ arg) => object(arg) && !["rule", "classifier", "terminal", "integer"].some(key => key in arg);
-    if (name === "ends" && restored(receiver)) return "ends requires an ordinary span, not a restored span";
     let valid;
     if (name === "parse") {
       if (args.length !== 1 || !object(args[0]) || Object.keys(args[0]).length !== 1 || !object(args[0].body)) return METHOD_SIGNATURE_PROBLEM;
-      if (restored(receiver) && ["ends","contains"].includes(queryBody(args[0].body).mode)) return "suffix parse requires an ordinary span, not a restored span";
+      if (restored(receiver) && ["suffix","part"].includes(queryBody(args[0].body).mode)) return "suffix parse requires an ordinary span, not a restored span";
       valid = span;
     } else if (name === "error-free") valid = ["parse","error-free"].includes(receiver.method) && args.length === 0;
     else if (name === "ngrams") valid = args.length === 1 && named(args[0], "integer") && /^[1-9][0-9]*$/.test(args[0].integer);
     else if (name === "split") valid = args.length === 1 && term(args[0]) && !(hasUnresolved([receiver,args]) && args[0].string === "");
     else if (name === "classify") valid = args.length === 1 && named(args[0], "classifier");
-    else if (name === "tags") valid = (span && (args.length === 0 || args.length === 1 && rule(args[0]))) || ["parse","error-free"].includes(receiver.method) && args.length === 0;
-    else if (name === "matches" || name === "begins" || name === "ends") valid = span && args.length > 0 && args.every(arg => rule(arg) || named(arg, "terminal"));
+    else if (name === "tags") valid = (span || ["parse","error-free"].includes(receiver.method)) && args.length === 0;
     else if (name === "followed-by" || name === "preceded-by") valid = bare && args.length > 0 && args.every(arg => rule(arg) || named(arg, "terminal"));
     else if (name === "without-elision-except") valid = bare && args.length === 1 && rule(args[0]);
     else if (name === "without-elision") valid = bare && args.length === 0;
@@ -5586,13 +5576,12 @@
    */
   function methodProblem(name, receiver, args, type, argumentTypes, recipe = false) {
     if (!METHODS.has(name)) return `unknown method ${name}`;
-    if (name === "ends" && restored(receiver)) return "ends requires an ordinary span, not a restored span";
     const span = type === "span";
     const string = type === "string" || type === "any" || span;
     const rule = (/** @type {number} */ index) => args[index] && typeof args[index].rule === "string";
     if (name === "parse") {
       if (!span || args.length !== 1 || !args[0]?.body) return METHOD_SIGNATURE_PROBLEM;
-      if (restored(receiver) && ["ends","contains"].includes(queryBody(args[0].body).mode)) return "suffix parse requires an ordinary span, not a restored span";
+      if (restored(receiver) && ["suffix","part"].includes(queryBody(args[0].body).mode)) return "suffix parse requires an ordinary span, not a restored span";
     } else if (name === "error-free") {
       if (type !== "forest" || args.length) return METHOD_SIGNATURE_PROBLEM;
     } else if (name === "without-elision") {
@@ -5606,8 +5595,6 @@
       if (args.length !== 1 || !rule(0)) return "without-elision-except requires one rule name";
     } else if (SPAN_METHODS.has(name)) {
       if (!span || args.length) return METHOD_SIGNATURE_PROBLEM;
-    } else if (name === "matches" || name === "begins" || name === "ends") {
-      if (!span || !args.length || args.some(arg => !(typeof arg.rule === "string" || typeof arg.terminal === "string" && /^[A-Z][A-Za-z0-9_-]*$/.test(arg.terminal)))) return METHOD_SIGNATURE_PROBLEM;
     } else if (name === "followed-by" || name === "preceded-by") {
       if (typeof receiver.capture !== "string" || Object.keys(receiver).length !== 1) return `${name} requires a bare capture`;
       if (!args.length || args.some(arg => !(typeof arg.rule === "string" || typeof arg.terminal === "string" && /^[A-Z][A-Za-z0-9_-]*$/.test(arg.terminal)))) return METHOD_SIGNATURE_PROBLEM;
@@ -5615,7 +5602,7 @@
       if (!span || args.length) return METHOD_SIGNATURE_PROBLEM;
     } else if (name === "tags") {
       if (type === "forest") { if (args.length) return METHOD_SIGNATURE_PROBLEM; }
-      else if (!span || args.length > 1 || (args.length === 1 && !rule(0))) return METHOD_SIGNATURE_PROBLEM;
+      else if (!span || args.length) return METHOD_SIGNATURE_PROBLEM;
     } else if (name === "classes") {
       if (!span || args.length) return METHOD_SIGNATURE_PROBLEM;
     } else if (name === "ngrams") {
@@ -6343,7 +6330,7 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 47;
+  const DOM_FORMAT = 48;
   // A constant's name, without its `$`, begins with a capital (engine §2).
   const CONSTANT_NAME = /^(?!.*--)[A-Z][A-Za-z0-9_-]*$/;
   // A classifier name starts with a lowercase letter. A class name starts
@@ -6755,7 +6742,7 @@
               // A stripped outer sequence charges one level, however many
               // remainder leaves it held (engine §9).
               push("expr",parsed.body,depth + (Array.isArray(arg.body.seq) && !Array.isArray(parsed.body.seq) ? 2 : 1),{params:task.params,whole:true});
-            } else if (object(arg) && typeof arg.rule === "string") { if (Object.keys(arg).length !== 1 || !["tags", "matches", "begins", "ends", "without-elision-except", "followed-by", "preceded-by"].includes(value.method) || !ruleName(arg.rule)) return "a malformed rule argument"; }
+            } else if (object(arg) && typeof arg.rule === "string") { if (Object.keys(arg).length !== 1 || !["without-elision-except", "followed-by", "preceded-by"].includes(value.method) || !ruleName(arg.rule)) return "a malformed rule argument"; }
             else if (object(arg) && typeof arg.terminal === "string") { if (Object.keys(arg).length !== 1 || !TARGET_METHODS.has(value.method) || !/^(?!.*--)[A-Z][A-Za-z0-9_-]*$/.test(arg.terminal)) return "a malformed boundary target"; }
             else if (object(arg) && "integer" in arg) { if (Object.keys(arg).length !== 1 || value.method !== "ngrams" || typeof arg.integer !== "string" || !/^[1-9][0-9]*$/.test(arg.integer)) return "a malformed integer argument"; }
             else if (object(arg) && typeof arg.classifier === "string") { if (Object.keys(arg).length !== 1 || value.method !== "classify" || !CLASSIFIER_NAME.test(arg.classifier)) return "a malformed classifier argument"; }
@@ -7107,7 +7094,7 @@
     // Down the chain of guards, in a loop.
     let current = node;
     while (isDomObject(current) && !(typeof current.op === "string" || "not" in current || "all" in current || "any" in current || "nonempty" in current ||
-      (typeof current.method === "string" && ["matches", "begins", "ends", "starts-input", "ends-input", "followed-by", "preceded-by"].includes(current.method)) || "captured" in current || "constant" in current)) {
+      (typeof current.method === "string" && ["parse", "error-free", "starts-input", "ends-input", "followed-by", "preceded-by"].includes(current.method)) || "captured" in current || "constant" in current)) {
       if (!("if" in current)) return false;
       current = current.then;
     }
@@ -9720,7 +9707,7 @@
     if(n.method) {
       const receiver=print(n.receiver);
       const grouped=templateTermGroup(n.receiver,'method',0);
-      return (grouped?'('+receiver+')':receiver)+'.'+n.method+(n.args.length?'('+n.args.map(print).join(['matches','begins','ends','followed-by','preceded-by'].includes(n.method)?' | ':', ')+')':'');
+      return (grouped?'('+receiver+')':receiver)+'.'+n.method+(n.args.length?'('+n.args.map(print).join(['followed-by','preceded-by'].includes(n.method)?' | ':', ')+')':'');
     }
     if(n.capture!==undefined) return '$'+n.capture;
     if(n.if) return (templateBooleanGroup(n.if,'if')?'('+print(n.if)+')':print(n.if))+' ⟹ '+print(n.then);
@@ -10023,7 +10010,7 @@
           result.args=[];
           for(const arg of value) {
             const replacement=arg.param?env.get(arg.param):null;
-            const query=['matches','begins','ends','followed-by','preceded-by'].includes(root.method);
+            const query=['followed-by','preceded-by'].includes(root.method);
             const target=query || ['tags','without-elision-except'].includes(root.method);
             if(query && replacement?.targets) {
               for(const target of replacement.targets) result.args.push(convert(target,'target',event,arg));
@@ -10160,7 +10147,7 @@
       for(const [key,value] of Object.entries(root)) {
         let next=position;
         if(['alternatives','conditions','error','warning','emit','tags','value','image','default','left','right','receiver','range','literal','args'].includes(key)) next='term';
-        if(['seq','choice','ranked','and','optional','repeat','separator','expr','splice'].includes(key) && position!=='pattern') next='expr';
+        if(['seq','choice','ranked','and','optional','repeat','separator','expr','splice','body'].includes(key) && position!=='pattern') next='expr';
         if(key==='pattern' || key==='child') next='pattern';
         if(key==='children' || position==='pattern-item' && ['choice','optional','repeat','separator','splice'].includes(key)) next='pattern-item';
         result[key]=key==='at'?value:rewrite(value,event,next);
@@ -10614,20 +10601,6 @@
 
 
 
-  /** @param {any} arg @returns {any} */
-  function targetBody(arg) {
-    if (arg && typeof arg.rule === "string") return {ref:arg.rule};
-    if (arg && typeof arg.terminal === "string") return {ref:arg.terminal};
-    return arg;
-  }
-
-  /** @param {any} arg @param {string} method @returns {any} */
-  function parseBodyFor(arg, method) {
-    const body = targetBody(arg);
-    if (method === "begins") return {seq:[body,{remainder:true}]};
-    if (method === "ends") return {seq:[{remainder:true},body]};
-    return body;
-  }
 
 
 
@@ -11590,9 +11563,7 @@
           const part = /** @type {any} */ (pending.pop());
           if (!part || typeof part !== "object" || seen.has(part)) continue;
           seen.add(part);
-          const queryBodies = part.method === "parse" ? [part.args[0].body]
-            : ["matches","begins","ends"].includes(part.method) ? part.args.map((/** @type {any} */ arg) => parseBodyFor(arg, part.method))
-            : part.method === "tags" && part.args.length ? [targetBody(part.args[0])] : [];
+          const queryBodies = part.method === "parse" ? [part.args[0].body] : [];
           for (const queryArg of queryBodies) {
             const body = queryBody(queryArg).body;
             const key = queryIdentity(queryArg);
@@ -12020,7 +11991,6 @@
         const part = pending.pop();
         if (!part || typeof part !== "object" || seen.has(part)) continue;
         seen.add(part);
-        if (["matches", "begins", "ends"].includes(part.method)) for (const arg of part.args) if (arg.terminal) terminals.add(arg.terminal);
         for (const child of clauseChildren(part)) pending.push(child);
       }
       for (const name of this.grammar.queryTargets.values()) if (name.startsWith("\u0000query:")) terminals.add(name.slice(7));
@@ -13434,7 +13404,7 @@
   class Pending {
     /**
      * @param {ParseContext} context
-     * @param {"matches" | "begins" | "ends" | "tags"} kind
+     * @param {"whole" | "prefix" | "suffix" | "tags"} kind
      * @param {string} rule
      * @param {number} start
      * @param {number} end
@@ -13752,7 +13722,7 @@
       state.dependent ||= sharingOf(context).asked !== query.asked;
       entry = {accepted:state.answers.get(query.end) ?? false,tags:suffixTags(state).get(query.end) ?? tagSet()};
       answer = queryAnswer(kind, entry);
-    } else if (kind === "contains" || kind === "contains-tags") {
+    } else if (kind === "part" || kind === "part-tags") {
       /** @type {Item[]} */
       const witnesses = [];
       for (const set of chart.sets) {
@@ -13765,7 +13735,7 @@
       entry = {accepted:eligible.length > 0,tags:result.result()};
       answer = queryAnswer(kind, entry);
       shared = { accepted: entry.accepted, tags: [...entry.tags] };
-    } else if (kind === "begins" || kind === "begins-tags") {
+    } else if (kind === "prefix" || kind === "prefix-tags") {
       // A completed item from the span's start, in any set (engine §4).
       /** @type {Item[]} */
       const witnesses = [];
@@ -13801,7 +13771,7 @@
     return typeof entry === "boolean" ? entry : kind === "tags" || kind.endsWith("-tags") ? entry.tags : entry.accepted;
   }
   /** @param {string} kind @returns {boolean} */
-  function isEnds(kind) { return kind === "ends" || kind === "ends-tags"; }
+  function isEnds(kind) { return kind === "suffix" || kind === "suffix-tags"; }
 
   /**
    * Filter one qualification for this request's endpoint and close constraints.
@@ -13813,7 +13783,7 @@
    */
   function alignedAnswer(context, kind, constraint, qualified) {
     const aligned = qualified.filter(item => {
-      if (item.end > constraint.matchEnd || kind.replace(/-tags$/, "") !== "begins" && item.end !== constraint.matchEnd) return false;
+      if (item.end > constraint.matchEnd || kind.replace(/-tags$/, "") !== "prefix" && item.end !== constraint.matchEnd) return false;
       const answer = !!item.observation && (item.familyAligned
         ?? !!context.closes?.aligned(constraint.observation,item.observation,Math.min(constraint.candidateEnd,item.end)));
       if (item.direct !== null && hooks.familyAlignment) hooks.familyAlignment(answer, !!item.observation?.valid && item.direct);
@@ -13858,7 +13828,7 @@
    */
   function startRun(context, rule, start, end, query) {
     const suffix = query && isEnds(query.kind) ? suffixRequests.get(query) : undefined;
-    const contains = /** @type {string | undefined} */ (query?.kind) === "contains" || /** @type {string | undefined} */ (query?.kind) === "contains-tags";
+    const contains = /** @type {string | undefined} */ (query?.kind) === "part" || /** @type {string | undefined} */ (query?.kind) === "part-tags";
     const scanning = suffix || contains;
     const outerStart = context.inputStart;
     const outerEnd = context.inputEnd;
@@ -15612,16 +15582,7 @@
         }
         case "tags": {
           if (receiver && (/** @type {any} */ (receiver).method === "parse" || /** @type {any} */ (receiver).method === "error-free")) return forestTags(context, receiver, scope);
-          if (args.length) {
-            // The tags shorthand reads the tags of the whole-mode query of
-            // its one rule target (engine §4).
-            const span = spanOf(context, receiver, scope);
-            const target = queryTarget(context, span, scope);
-            const argument = args[0];
-            const rule = "terminal" in argument ? "\u0000query:" + argument.terminal : ruleName(argument);
-            const tags = nested(target.context, "tags", rule, target.start, target.end, target);
-            return tags === HALT ? pause(asSetValue) : { set: /** @type {TagSet} */ (tags) };
-          }
+          if (args.length) throw new GencmuError("grammar", "a method outlived lowering as a term");
           const span = spanOf(context, receiver, scope);
           if ("capture" in receiver) {
             const tags = /** @type {TagSet | Halt} */ (span.tags);
@@ -15837,19 +15798,9 @@
         let query = /** @type {any} */ (condition), errorFree = false;
         while (query.method === "error-free") { errorFree = true; query = query.receiver; }
         const span = spanOf(context,query.receiver,scope), target = queryTarget(context,span,scope);
-        const kind = /** @type {"matches"|"begins"|"ends"} */ (queryBody(query.args[0].body).mode);
+        const kind = /** @type {"whole"|"prefix"|"suffix"} */ (queryBody(query.args[0].body).mode);
         return /** @type {boolean|Halt} */ (nested(target.context,kind,bodyTarget(target.context.lowered,query.args[0].body),
           target.start,target.end,{...target,errorFree}));
-      }
-      if (["matches","begins","ends"].includes(condition.method)) {
-        // The shorthands dispatch by mode, as the one query entry does
-        // (engine §4): no synthetic parse condition is built.
-        if (condition.args.length > 1) return anyFrom(context, condition.args.map(arg => ({...condition,args:[arg]})), 0, scope);
-        const span = spanOf(context, condition.receiver, scope);
-        const target = queryTarget(context, span, scope);
-        const argument = condition.args[0];
-        const rule = "terminal" in argument ? "\u0000query:" + argument.terminal : ruleName(argument);
-        return /** @type {boolean | Halt} */ (nested(target.context, /** @type {"matches"|"begins"|"ends"} */ (condition.method), rule, target.start, target.end, /** @type {any} */ (target)));
       }
       if (["tags","classes","split","ngrams","classify"].includes(condition.method)) {
         const value = evaluate(context, /** @type {any} */ (condition), scope);
@@ -16048,7 +15999,7 @@
     if (aligned) sharing.asked++;
     // One recognition answers matches and tags, so both memos share a kind (§4.3).
     const errorFree = !!target?.errorFree;
-    const memoKind = (kind === "tags" ? "matches" : kind.endsWith("-tags") ? kind.slice(0, -5) : kind) + (errorFree ? ":error-free" : "");
+    const memoKind = (kind === "tags" ? "whole" : kind.endsWith("-tags") ? kind.slice(0, -5) : kind) + (errorFree ? ":error-free" : "");
     const ancestry = aligned ? [...context.inProgress].sort(compareCodePoints) : null;
     let key = isEnds(kind) ? JSON.stringify(["suffix",rule,start,end,errorFree]) : aligned ? JSON.stringify(["aligned",memoKind,rule,start,end,aligned.candidateEnd,aligned.matchEnd,aligned.family,context.closes?.identity(aligned.observation),ancestry])
       : at !== null && end - start > CONTENT_KEY_LIMIT
@@ -16098,7 +16049,7 @@
       return queryAnswer(kind, entry);
     }
     // A fault finds no query cycle while the check runs (F25).
-    halting = new Pending(context, /** @type {"matches" | "begins" | "ends" | "tags"} */ (/** @type {unknown} */ (kind)), rule, start, end, at, key, context.checking && fault("F25"));
+    halting = new Pending(context, /** @type {"whole" | "prefix" | "suffix" | "tags"} */ (/** @type {unknown} */ (kind)), rule, start, end, at, key, context.checking && fault("F25"));
     halting.errorFree = errorFree;
     halting.aligned = aligned ?? null;
     halting.qualificationKey = qualificationKey;
@@ -16167,7 +16118,7 @@
           if (!here.nested && ["onward","following-tokens","ends-input","followed-by"].includes(node.method)) {
             memo.set(rule,true); return true;
           }
-          if (["matches","begins","ends","tags","parse"].includes(node.method) && node.args.length) {
+          if (node.method === "parse" && node.args.length) {
             let receiver = node.receiver;
             while (receiver.method === "onward") receiver = receiver.receiver;
             if (["without-elision","without-elision-except"].includes(receiver.method)) {
@@ -16220,7 +16171,7 @@
           if (!part || typeof part !== "object" || visited.has(part)) continue;
           visited.add(part);
           if (part.method === "error-free") sensitive.add(name);
-          if (["parse","matches","begins","ends","tags"].includes(part.method)) {
+          if (part.method === "parse") {
             for (const arg of part.args) if (arg.rule || arg.body) edge(arg.rule ?? bodyTarget(lowered,arg.body),name);
           }
           for (const child of clauseChildren(part)) clauses.push(child);
@@ -16367,7 +16318,7 @@
     const span = spanOf(context, query.receiver, scope);
     const target = queryTarget(context, span, scope);
     const mode = queryBody(query.args[0].body).mode;
-    const kind = mode === "matches" ? "tags" : mode + "-tags";
+    const kind = mode === "whole" ? "tags" : mode + "-tags";
     const tags = nested(target.context, /** @type {any} */ (kind), bodyTarget(target.context.lowered, query.args[0].body), target.start, target.end, {...target, errorFree});
     return tags === HALT ? pause(asSetValue) : { set: /** @type {TagSet} */ (tags) };
   }
@@ -16748,7 +16699,7 @@
       while(pending.length) {
         if(hooks.work)countWork(hooks.work,"walkSteps");
         const {node,filtered}=/** @type {NonNullable<ReturnType<typeof pending.pop>>} */(pending.pop());
-        const names=['matches','begins','ends','tags'].includes(node?.method)?node.args.flatMap((/** @type {any} */ arg)=>arg.rule?[arg.rule]:[]):node?.method==='parse'?queryReferences(node.args[0].body):[];
+        const names=node?.method==='parse'?queryReferences(node.args[0].body):[];
         for(const name of names)found.set(name,(found.get(name)??0)|(filtered?2:1));
         for(const child of clauseChildren(node))pending.push({node:child,filtered:filtered||node?.method==='error-free'});
       }
@@ -17678,7 +17629,7 @@
       const items = term.intersection;
       return { parts: items.map(asTerm), combine: (texts) => texts.map((text, index) => grouped(items[index], text)).join(" ∩ ") };
     }
-    if ("method" in term) return { parts: [asTerm(term.receiver), ...term.args.map(asTerm)], combine: ([receiver, ...args]) => `${["union", "difference", "intersection", "concat"].some(key => key in term.receiver) ? `(${receiver})` : receiver}.${term.method}${args.length ? `(${args.join(["matches","begins","ends","followed-by","preceded-by"].includes(term.method) ? " | " : ", ")})` : ""}` };
+    if ("method" in term) return { parts: [asTerm(term.receiver), ...term.args.map(asTerm)], combine: ([receiver, ...args]) => `${["union", "difference", "intersection", "concat"].some(key => key in term.receiver) ? `(${receiver})` : receiver}.${term.method}${args.length ? `(${args.join(["followed-by","preceded-by"].includes(term.method) ? " | " : ", ")})` : ""}` };
     if ("concat" in term) return {parts: term.concat.map(asTerm), combine: texts => texts.join(" ++ ")};
     if ("if" in term) return { parts: [asCondition(term.if), asTerm(term.then)], combine: ([guard, value]) => `(${guard} ⟹ ${value})` };
     if ("terminal" in term) return leaf(term.terminal);
@@ -23389,7 +23340,7 @@
         }
         const problem = methodProblem(name, receiver, args, found.type, types, recipeContext);
         if (problem && !featureContext && !args.some(hasUnresolved) && !hasUnresolved(receiver)) {
-          const specific = problem === "split has an empty delimiter" || (problem.startsWith("ends requires") || problem.startsWith("suffix parse requires")) || problem.startsWith("without-elision");
+          const specific = problem === "split has an empty delimiter" || problem.startsWith("suffix parse requires") || problem.startsWith("without-elision");
           fail(specific ? problem : "a method has the wrong receiver or arguments", node);
         }
         if (closedFor && found.type === "span") fail(`${closedFor} cannot read an input method`, node);

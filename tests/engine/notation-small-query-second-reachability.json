@@ -1,6 +1,6 @@
 {
   "description": "Engine §9.3 includes later query alternatives when it finds buildable boundary targets.",
-  "grammar": "%rule text $x:A %conditions $x.begins(no | yes)\n%rule no B\n%rule yes A %conditions $.starts-input ∨ $.followed-by(A)",
+  "grammar": "%rule text $x:A %conditions ($x.parse(no …) ∨ $x.parse(yes …))\n%rule no B\n%rule yes A %conditions $.starts-input ∨ $.followed-by(A)",
   "tokens": [
     {
       "text": "a",

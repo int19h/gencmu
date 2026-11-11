@@ -413,7 +413,6 @@ pub(crate) fn demanded(g: &crate::lower::Lowered) -> crate::fxhash::FxSet<u32> {
     }
     fn term(t: &LTerm, p: &Prod, w: &mut FxSet<u32>, todo: &mut Vec<u32>) {
         match t {
-            LTerm::TagsRule(s, r) => query(s, *r, p, w, todo),
             LTerm::ForestTags(s, r, ..) => query(s, *r, p, w, todo),
             LTerm::Text(s)
             | LTerm::DecomposedText(s)
@@ -611,10 +610,8 @@ mod tests {
                     rules += &format!("\n%rule r{i} r{} r{}", i - 1, i - 1);
                 }
                 if witness {
-                    rules = rules.replace(
-                        "$x.without-elision.matches(empty)",
-                        &format!("¬$x.without-elision.matches(r{depth})"),
-                    );
+                    rules = rules
+                        .replace("$x.without-elision.parse(empty)", &format!("¬$x.without-elision.parse(r{depth})"));
                 }
                 let source = format!("```jbogenbau\n%stage main\n{rules}\n```\n");
                 let pipeline = crate::load_pipeline_sources([("p.md", source.as_str())], "p.md").unwrap();
@@ -630,7 +627,7 @@ mod tests {
             let fixture =
                 crate::json::parse(&std::fs::read_to_string(root.join("engine").join(file.as_str().unwrap())).unwrap())
                     .unwrap();
-            let source=format!("```jbogenbau\n%stage main\n{}\n%rule unused $x:empty\n%conditions $x.without-elision.matches(empty)\n%rule empty ε\n```\n",fixture.get("grammar").unwrap().as_str().unwrap());
+            let source=format!("```jbogenbau\n%stage main\n{}\n%rule unused $x:empty\n%conditions $x.without-elision.parse(empty)\n%rule empty ε\n```\n",fixture.get("grammar").unwrap().as_str().unwrap());
             let pipeline = crate::load_pipeline_sources([("p.md", source.as_str())], "p.md").unwrap();
             let tokens = fixture
                 .get("tokens")
@@ -776,8 +773,7 @@ pub(crate) fn local_demands(g: &crate::lower::Lowered) -> Vec<LocalDemand> {
                 }
                 span(s, out);
             }
-            LTerm::TagsRule(s, _)
-            | LTerm::Text(s)
+            LTerm::Text(s)
             | LTerm::DecomposedText(s)
             | LTerm::Value(s)
             | LTerm::Image(s)
