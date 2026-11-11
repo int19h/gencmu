@@ -525,7 +525,7 @@ It loads the grammar as the one stage of a pipeline and parses `text`, and the p
 
 ## Shared memo runs: `shared-memo.json`
 
-The Go, JavaScript and Python libraries bound each generation at 8,192 entries. The bound-comparison workloads parse single words to the forms stage of the `lojban/bpfk` pipeline, once for each bound. In JavaScript, a bound of 8,192 entries saves about 90% of the time that 32,768 entries save. In Python, 8,192 entries save no more time than 4,096, and add about a third of the memory that 32,768 entries add. Go has no measurement of bounds. The Rust library keeps no shared memo.
+A shared memo caches query answers between parses on one pipeline (engine §4.3). Each run supplies inputs and options to test that reuse.
 
 ```
 {"description": "...", "runs": [{"pipeline": "lojban/bpfk", "texts": ["klama"], "options": [{}, {"until": "forms"}]},
@@ -533,6 +533,8 @@ The Go, JavaScript and Python libraries bound each generation at 8,192 entries. 
 ```
 
 Each run tests that parses on one pipeline do not depend on each other, which the shared memo of engine §4.3 must not change. A run names a bundled pipeline, or gives `grammar` as an engine case does. Its inputs are `texts`, or `inputs`, which are token lists in the form of engine cases. Its options are option sets in the form of engine cases.
+
+The Go, JavaScript and Python libraries bound each generation at 8,192 entries. The bound-comparison workloads parse single words to the forms stage of the `lojban/bpfk` pipeline, once for each bound. In JavaScript, a bound of 8,192 entries saves about 90% of the time that 32,768 entries save. In Python, 8,192 entries save no more time than 4,096, and add about a third of the memory that 32,768 entries add. Go has no measurement of bounds. The Rust library keeps no shared memo.
 
 The parses of a run are each input under each option set, input by input. A library first makes each parse on a pipeline whose shared memo holds nothing. These results are the reference. A library without a shared memo makes each reference parse on a fresh pipeline.
 
@@ -616,6 +618,13 @@ So the four runners hold the same invariants, and no library keeps a list of its
 
 ## Corpus cases: `corpus/*.jsonl` and `core.txt`
 
+Each line is one language text and its required result:
+
+```
+{"id": "cll.5.1.c5e1d1", "text": "do mamta mi", "pipeline": "lojban/cll", "expect": "accept",
+ "verdict": "unique", "words": ["do", "mamta", "mi"], "brackets": "(do [mamta mi])"}
+```
+
 The corpus format cannot express `feature-conflict`, which has no input position. Shared engine cases pin this error for bundled pipelines.
 
 Corpus identifiers stay stable when grammar rules change.
@@ -623,13 +632,6 @@ Corpus identifiers stay stable when grammar rules change.
 Pipeline and grammar documents define pipeline behavior. Corpus cases pin their texts, verdicts, and images. Shared engine cases also test stage values, recipes, attachment ownership, and source gaps. Image equality alone does not establish equal structure or ownership. Structural comparisons use each stage's input coordinates and map positions when token counts differ between stages.
 
 `corpus/literary.jsonl` contains longer story bodies, songs, and paired repair cases for `lojban/cll` and `lojban/bpfk`. [Literary text sources](text-sources/README.md) records their source snapshots, extraction boundaries, and transformations.
-
-Each line is one language text and its required result:
-
-```
-{"id": "cll.5.1.c5e1d1", "text": "do mamta mi", "pipeline": "lojban/cll", "expect": "accept",
- "verdict": "unique", "words": ["do", "mamta", "mi"], "brackets": "(do [mamta mi])"}
-```
 
 - `pipeline` is the full name of a bundled pipeline. `features`, when present, lists the features that the case turns on. `withoutFeatures` lists those that it turns off.
 - `expect` is `accept` or `reject`. For an accepted text, `verdict` is the verdict of the last stage, and `brackets` is its tree, with elided terminators hidden. For a rejected one, `stage` names the failed stage. A `reported` case requires `verdict`, the failed stage's retained `unique` or `resolved` verdict.

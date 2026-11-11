@@ -72,7 +72,7 @@ A caller cannot supply attachments or diagnostics. Nonempty `before`, `after`, `
 `pipeline.features` lists the features of the pipeline in code point order of their names, as a tuple of `Feature`. The list includes the gates of the entries of its classifiers. Each `Feature` has these fields:
 
 - `name`
-- `kind`: `"gate"` for a guard `f?` or `¬f?`, or `"warning"` for a warning rule
+- `kind`: `"gate"` for a gate `f?` or `¬f?`, or `"warning"` for a warning rule
 - `default`: Whether the pipeline turns the feature on
 
 A pipeline cannot use one name for several feature kinds. A gate of a classifier's entry counts here too. Error codes cannot appear in feature declarations. Caller feature lists do not affect error codes.

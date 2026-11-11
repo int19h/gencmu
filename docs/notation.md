@@ -243,9 +243,9 @@ A pair of braces has at most one marker, and the separator has none. So `{... x 
 
 A chain is the whole of its rule. That means two things. First, the chain is the whole expression of its alternative. A chain inside parentheses, brackets, other braces, a capture, a sequence, a choice or `&` is an error of the document.
 
-Second, that alternative is the only alternative of its rule that the gates leave (see "Feature guards"). A warning does not remove an alternative. So a rule with another alternative beside its chain is an error of the grammar for the features that leave both. For those features, gencmu finds the error when it prepares the grammar, as it finds an error of a classifier. A `%extend-rule` of a chain's rule can cause this error.
+Second, that alternative is the only alternative of its rule that the gates leave (see "Feature gates"). A warning does not remove an alternative. So a rule with another alternative beside its chain is an error of the grammar for the features that leave both. For those features, gencmu finds the error when it prepares the grammar, as it finds an error of a classifier. A `%extend-rule` of a chain's rule can cause this error.
 
-The chain's alternative can still have guards and tags of its own, and its rule can have clauses. A chain can be optional, or part of a sequence, through a rule. Name the chain as a rule. Then write the rule's name there, as in `[tag]`.
+The chain's alternative can still have gates and tags of its own, and its rule can have clauses. A chain can be optional, or part of a sequence, through a rule. Name the chain as a rule. Then write the rule's name there, as in `[tag]`.
 
 An item of braces must read at least one token. An item that can match no tokens is an error of the grammar, found as the error above. So `{[x]}` and `{ε}` are errors, and so is `{r}` where `r` can match no tokens for the features of the parse. The Lojban syntax grammars, for example, define `🆓` as `[{free}]`, so `{🆓}` is an error there.
 
@@ -362,7 +362,7 @@ Every ranked expression needs at least two operands. `ε` supplies an explicit e
 
 Optionals and repetitions accept ranked content in their expression positions. A repetition separator can contain a ranked group too. Repetition items must still read at least one token. An elidable optional still requires its leading terminal.
 
-Ranked options have no local guard, tag clause, or emission clause. Ordinary alternative guards and trailing tags apply to the whole expression. Where a ranking step must count a group only under a feature, name a rule for the group.
+Ranked options have no local gate, tag clause, or emission clause. Ordinary alternative gates and trailing tags apply to the whole expression. Where a ranking step must count a group only under a feature, name a rule for the group.
 
 Captures inside a ranked choice belong to that choice. They can serve only conditions ready before that choice closes. They cannot feed later conditions, tag terms, emission items, or parent recipes. No capture can wrap a sequence or ranked choice. Losing options run no recipes, and a winning recipe error never triggers fallback.
 
@@ -386,7 +386,7 @@ The choice must discard its returned tags locally or return a provably empty set
 
 After admission, the steps of the stage directive rank the admitted parses in order (see "Ambiguity").
 
-## Feature guards
+## Feature gates
 
 A feature is a name that is on or off at each stage of a parse. The pipeline can enable a feature from a selected stage onward (see "Pipelines"). The caller, the program or person that asks for the parse, can turn features on for every stage. The caller can also disable features. If a conditional declaration holds for a disabled feature, the parse gives a `feature-conflict` result (see "Pipelines").
 
@@ -418,7 +418,7 @@ A pipeline that extends another pipeline can use gates and warnings for differen
 
 A change to how the pipeline reads a text of the base cannot be a warning. The change removes the base reading, and a warning changes nothing that the grammar accepts or chooses. So a gate can guard such a change, with the base form under `¬name?` beside it. The pipeline can declare the gate as an unconditional default. A caller who wants the base reading can disable that default.
 
-The bundled pipelines do not guard every change. The bundled Lojban warnings are `y-cmavo` in `lojban/cll` and `experimental-cgv` in `lojban/experimental`. The experimental syntax additions carry no warning. A pipeline also makes a change without a guard where a feature needs a convoluted grammar to keep the change separate. The documents of the pipeline then say so.
+The bundled pipelines do not guard every change. The bundled Lojban warnings are `y-cmavo` in `lojban/cll` and `experimental-cgv` in `lojban/experimental`. The experimental syntax additions carry no warning. A pipeline also makes a change without a gate where a feature needs a convoluted grammar to keep the change separate. The documents of the pipeline then say so.
 
 ## Splices
 
@@ -558,7 +558,7 @@ Each argument is one term. A parenthesized body expression or `ε` passes a sequ
 
 Substitution replaces parsed nodes, without reparsing or regrouping nearby syntax. A choice passed to a body position remains one grouped choice. A ranked choice retains its own priority and seal. Ordinary position restrictions still apply after expansion. For example, a choice cannot replace the symbol in `$x:@X`.
 
-Parameters can occupy body operands, pattern operands, query bodies, filter requirements, and terms in conditions, tags, values, and images. A parameter cannot construct a name or occupy a declaration name, guard, method name, capture binder, carrier, or attachment. It cannot replace a directive operand, classifier name, or integer argument. The head after `[+` can be a user tag or a parameter whose argument becomes exactly one bare user-tag atom. A rule, sequence, tested argument, constant, or tag-set expression is invalid there.
+Parameters can occupy body operands, pattern operands, query bodies, filter requirements, and terms in conditions, tags, values, and images. A parameter cannot construct a name or occupy a declaration name, gate, method name, capture binder, carrier, or attachment. It cannot replace a directive operand, classifier name, or integer argument. The head after `[+` can be a user tag or a parameter whose argument becomes exactly one bare user-tag atom. A rule, sequence, tested argument, constant, or tag-set expression is invalid there.
 
 ### The two list substitutions
 
@@ -863,7 +863,7 @@ A terminal atom accepts one signed tag test and one exact value test, in that or
 
 Pattern set operators combine complete predicates and cannot mix them with tag sets. `∅` obtains pattern type from context. An untyped `%const $EMPTY ∅` remains an error. `#A<B>` means `#(A<B>)`, and `#A<B>=""` means `#(A<B>="")`.
 
-Patterns reject splices, captures, emissions, alternative tags, feature guards, elision markers, chain repetitions, and direct chained path prefixes. `&` has no pattern or child operator role. Patterns cannot contain recursive constants.
+Patterns reject splices, captures, emissions, alternative tags, feature gates, elision markers, chain repetitions, and direct chained path prefixes. `&` has no pattern or child operator role. Patterns cannot contain recursive constants.
 
 Optional and repeat bodies and choice arms must contain written items. A repeat body must have a way to consume at least one child. A sibling gap cannot occur within a repeat's item or separator at that sibling level. Gaps inside an attached child list remain valid because they consume another node's children.
 
@@ -934,7 +934,7 @@ Line breaks mean nothing here, as everywhere in the notation. An entry ends afte
 
 A key is an exact string, with no engine normalization. So a lexicon writes its keys in the values that its stage receives. The Lojban lexicons of the forms stage, for example, write normalized values. `"Mi"` and `"ko,a"` are legal distinct keys. A class starts and ends with a capital and never starts with `_`. `KOhA` is a class, while `Indicator` is not.
 
-An entry can begin with gates, as an alternative can (see "Feature guards"). An entry whose gates do not all hold does nothing. Diagnostic clauses belong to rules, never classifier entries.
+An entry can begin with gates, as an alternative can (see "Feature gates"). An entry whose gates do not all hold does nothing. Diagnostic clauses belong to rules, never classifier entries.
 
 The name of a classifier begins with a lower-case letter. A classifier belongs to its stage, as a rule does. Every `%classifier` of one name in a stage adds entries to one classifier. gencmu applies the entries in the order of the stage, whatever documents they come from. A key has the classes that hold after the last entry.
 
@@ -966,7 +966,7 @@ Writing `$name:symbol` captures one symbol of a body. The symbol can carry a tag
 
 A capture wraps one symbol. A capture cannot stand directly in a chain's item or separator. An elidable optional accepts only its sole-terminator capture. A capture can stand in a group, choice, `&` item, plain optional, or flat braces, at any depth. Inside flat braces it is an item capture, which "Item captures" below explains.
 
-A name can stand at most once in each production (below), so two branches of a choice can capture one name, as two alternatives can. `A ($x:B | $x:C)` is valid, but `[$x:A] $x:B` and `$x:A & $x:B` are errors, because one of their productions reads `$x` twice. Before gates apply, gencmu makes sure that each capture name occurs at most once per production. A guard does not excuse a repeated capture. An alternative can have any number of captures, but each one has a cost (below). `$` alone is the whole constituent, a capture that every alternative has without writing it.
+A name can stand at most once in each production (below), so two branches of a choice can capture one name, as two alternatives can. `A ($x:B | $x:C)` is valid, but `[$x:A] $x:B` and `$x:A & $x:B` are errors, because one of their productions reads `$x` twice. Before gates apply, gencmu makes sure that each capture name occurs at most once per production. A gate does not excuse a repeated capture. An alternative can have any number of captures, but each one has a cost (below). `$` alone is the whole constituent, a capture that every alternative has without writing it.
 
 A capture cannot wrap anything but one symbol. So `$x:(a | b)`, `$x:(a b)` and `$x:[a]` are errors. A capture names one constituent, with one span and one set of tags, and a group or an optional is no constituent. To capture a choice or sequence, define a rule for it. Then capture the reference.
 
@@ -1700,7 +1700,7 @@ Constants use the selected stage's binding rules. Each condition must have Boole
 
 A global declaration cannot have conditions. A directive other than `%features` cannot have conditions.
 
-A stage-local feature is a loading error if any surviving earlier stage tests it, including through a classifier guard. The loader reports it at the local `%features` declaration, and its message names the earlier stage.
+A stage-local feature is a loading error if any surviving earlier stage tests it, including through a classifier gate. The loader reports it at the local `%features` declaration, and its message names the earlier stage.
 
 Two different stages cannot declare the same feature locally. The loader reports the second surviving declaration in document order, after include expansion. Repeated declarations in one stage are legal, and each evaluates in order.
 
@@ -1932,9 +1932,9 @@ The `lojban/experimental` and `lojban/zantufa` pipelines do not declare `%elisio
 
 The bundled grammars keep a layout convention. Its purpose is that a reader sees at once where each top-level alternative of a rule ends. The notation does not require it. `tools/sync.js --check` makes sure that the bundled grammars keep the rules for alternatives and comments. The rule for tags needs judgment, so reviews check it.
 
-A plain alternative is one or more plain items in a row, with no guard and no clause. A plain item is a rule reference without arguments, a splice, a string, a tag terminal, an engine tag, `ε` or a parameter. `_<T>` with one tag `T` is also a plain item. Any other alternative is a marked alternative.
+A plain alternative is one or more plain items in a row, with no gate and no clause. A plain item is a rule reference without arguments, a splice, a string, a tag terminal, an engine tag, `ε` or a parameter. `_<T>` with one tag `T` is also a plain item. Any other alternative is a marked alternative.
 
-So brackets, a call, another test, a range, a capture, a constant, `&`, `≻`, a guard or a clause makes an alternative marked. Brackets are parentheses, square brackets and braces. A bare `_` and a `_` with a test of several tags are not plain items.
+So brackets, a call, another test, a range, a capture, a constant, `&`, `≻`, a gate or a clause makes an alternative marked. Brackets are parentheses, square brackets and braces. A bare `_` and a `_` with a test of several tags are not plain items.
 
 A range or a test is marked even when it is short, as in `"a".."p"` or `Letter="n"`. Each one adds visual weight, so a line of several of them reads as one dense run. `_<T>` reads as one word, so it is plain.
 
@@ -2024,7 +2024,7 @@ Alternatives do not repeat a clause that they share. This covers tag, value and 
 
 A value or an image that most alternatives share can stand on the header as the default. An alternative with its own recipe overrides it. A sole alternative keeps its clauses after its body, except where its body is a ranked choice. Under a bare header, a sole alternative stands without a leading `|`.
 
-If adjacent alternatives share a clause and have the same other clauses, a group holds their bodies, and the clauses follow the group. Bodies that share a first or last part keep that part outside the group. A guard that the alternatives share stands before the group, as in `f? ("a" | "b") :: T`. Alternatives with different guards stay apart.
+If adjacent alternatives share a clause and have the same other clauses, a group holds their bodies, and the clauses follow the group. Bodies that share a first or last part keep that part outside the group. A gate that the alternatives share stands before the group, as in `f? ("a" | "b") :: T`. Alternatives with different gates stay apart.
 
 A repeated tag can show that a rule mixes two kinds of constituent, and that the tag marks one of the kinds. A tag of this kind says what a constituent is. For example, `Vowel` marks `a`, `e`, `i`, `o` and `u` as against `y`. Then a rule of its own holds the kind that carries the tag, and that rule's header carries it. In the Latin letters, each stressed vowel has its own value and image, so a group cannot hold the tag. So the five tagged vowels form a rule of their own:
 
@@ -2062,7 +2062,7 @@ The diagrams draw the notation in this way:
 - The loop runs from right to left, so the separator is drawn from right to left too, with its text upright. In `{A / B C}`, the loop meets `B` first, at its right, and then `C`.
 - A chain reads the same words as a list, so it has the same drawing. A label under the loop says "left chain" or "right chain".
 - `A & B & C` is the choice of the item where the subsequence begins, with every later item optional. So `A & B` is `A [B]` or `B`.
-- The guards of an alternative stand over the start of its track, such as `¬cbm?` or `cbm?`. `ε` is a bare track.
+- The gates of an alternative stand over the start of its track, such as `¬cbm?` or `cbm?`. `ε` is a bare track.
 
 A diagram shows only what a rule reads. It leaves out the captures, the tag terms and the clauses. A capture only names a part and changes no rule interpretation. Tags, recipes, emission, and erasure describe the parts' contributions, not which tokens the rule reads.
 

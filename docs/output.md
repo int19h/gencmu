@@ -46,7 +46,7 @@ The readings themselves are in the result's error (below), and the stage holds n
 
 `output` is the emitted tokens of a stage whose verdict is `unique` or `resolved`, the last stage included. It is absent for a rejection or any failure before ranking completes, including recognition errors, feature conflicts, and feature-condition runtime errors. It is absent for a tie, since a tied stage emits nothing (engine §6, §11). A `reported` result keeps that output.
 
-Emission failure also prevents output (engine §11). It is also absent where the check of `elision-only` meets an error of the grammar or loses its witness (engine §7.7, §7.9).
+Emission failure prevents output (engine §11). It is also absent where the check of `elision-only` meets an error of the grammar or loses its witness (engine §7.7, §7.9).
 
 Stage members stand in the order `name`, `verdict`, `witness`, `output`, `errors`, `warnings`. Empty stage-level diagnostic lists are absent. They retain diagnostics that have no carrier because a completed emission yields an empty output array. Lists on emitted tokens instead carry diagnostics forward. An earlier stage with errors and nonempty output does not stop the pipeline. Engine §12.1 defines the reporting stage and every ending's collection.
 
@@ -341,7 +341,7 @@ These forms remain unresolved in document caches. Supplied, cached, and source D
 
 An alternative is `{"guards":[GUARD...],"expr":EXPR,"tags":TERM,"value":RECIPE,"image":RECIPE}`. Its three clause members are optional. `guards` is always present, including an empty array.
 
-A guard is `{"feature":"cbm","kind":"gate","negated":false}`. Its kind is always `gate`, and its feature follows engine §9.1. `negated:true` gives `¬cbm?`. No other members or guard kinds exist.
+A gate is `{"feature":"cbm","kind":"gate","negated":false}`. Its kind is always `gate`, and its feature follows engine §9.1. `negated:true` gives `¬cbm?`. No other members or gate kinds exist.
 
 Alternatives have no members beyond `guards`, `expr`, `tags`, `value`, and `image`.
 
@@ -556,7 +556,7 @@ A constant is `{"name":"SU-STOPS","op":"define","value":TERM,"at":[line,column]}
 
 A classifier is `{"name":"lexicon","entries":[ENTRY...],"at":[line,column]}`. Its name begins with `a` to `z`. `entries` can be empty, for a `%classifier` with no entry.
 
-An entry is `{"guards":[GUARD...],"keys":[STRINGTERM...],"op":"∈","class":"KOhA","at":[line,column]}`. Guards are gates only. Keys are nonempty in count, but an individual string can be empty. Source classifier keys are string literals or string constants. The operator is `∈` or `∉`. The class starts and ends with uppercase ASCII letters and never starts with `_`.
+An entry is `{"guards":[GUARD...],"keys":[STRINGTERM...],"op":"∈","class":"KOhA","at":[line,column]}`. Entries take gates only. Keys are nonempty in count, but an individual string can be empty. Source classifier keys are string literals or string constants. The operator is `∈` or `∉`. The class starts and ends with uppercase ASCII letters and never starts with `_`.
 
 An entry's `at` is the line and column of its first token, where the loader reports an error of the entry (engine §2).
 
@@ -792,7 +792,7 @@ In the `lojban/cll` pipeline, `lo mlatu cu citka le finpe` is `([lo mlatu] cu [c
 
 ### Tree
 
-The renderer uses the result's originating core table for quoted images and abbreviations. The result retains that immutable context privately, beyond the pipeline's lifetime. Canonical JSON omits this context. Without an originating context, tree rendering reports a usage error instead of selecting bundled or ambient data. Printing never needs the lazy names file.
+The originating core table is the Unicode table used for that parse (engine §1). The renderer uses it for quoted images and abbreviations. The result retains that immutable context privately, beyond the pipeline's lifetime. Canonical JSON omits this context. Without an originating context, tree rendering reports a usage error instead of selecting bundled or ambient data. Printing never needs the lazy names file.
 
 The tree has one node per line, and children are indented two spaces under their parent. Each kind of node is written as follows:
 

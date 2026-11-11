@@ -504,7 +504,7 @@ The caller can supply engine tags to represent earlier stages. Each supplied pro
 
 ## 2. Grammars
 
-A grammar is the stitching of the items of one stage of a pipeline (§13) into a set of rules, directives, constants, classifiers and implications. An item is a rule, a directive, a constant definition, a classifier or an implication, read from a document (§8, §9). A rule has a name and alternatives, and optionally rule-level tags, recipes, conditions, a diagnostic message, suppression, and an output directive. An alternative has guards, an expression, and optionally tags and recipes. The grammar DOM (document object model), in `docs/output.md`, is the exact data.
+A grammar is the stitching of the items of one stage of a pipeline (§13) into a set of rules, directives, constants, classifiers and implications. An item is a rule, a directive, a constant definition, a classifier or an implication, read from a document (§8, §9). A rule has a name and alternatives, and optionally rule-level tags, recipes, conditions, a diagnostic message, suppression, and an output directive. An alternative has gates, an expression, and optionally tags and recipes. The grammar DOM (document object model), in `docs/output.md`, is the exact data.
 
 Corresponding stitching errors use common wording across libraries. A located message begins with `document:line:column: `. The formatter adds the stage from its structured field. The description has no additional enclosing-rule prefix.
 
@@ -605,7 +605,7 @@ The loader reports an empty joined split delimiter in a constant value at the `%
 
 A stage also has classifiers. A classifier maps a string to a tag set, the string's classes (§10). An item `%classifier NAME` (`classifier`) names a classifier of the stage and lists entries for it. `NAME` is a name (§9) that begins with `a` to `z`. Several items can name one classifier, and together they make it. So a second item of one name is no error, unlike a second `%rule`.
 
-An entry has gates, one or more keys, an operator and one class. A gate is a guard `f?` or `¬f?`, as in an alternative (§3.1). A key is a string literal or string constant, with its exact value (§5, §9). The operator is `∈` or `∉`. The class begins and ends with an uppercase ASCII letter and never starts with `_`.
+An entry has gates, one or more keys, an operator and one class. A gate is `f?` or `¬f?`, as in an alternative (§3.1). A key is a string literal or string constant, with its exact value (§5, §9). The operator is `∈` or `∉`. The class begins and ends with an uppercase ASCII letter and never starts with `_`.
 
 A constant key can contain a quotation mark or backslash. For example, `%const $QUOTE "‹U+0022›"` supplies the key in `$QUOTE ∈ K`. `%const $BACKSLASH "‹U+005C›"` likewise supplies a backslash key.
 
@@ -717,7 +717,7 @@ The members are the least set that holds the family rule and is closed under one
 
 So `{"choice":[{"ref":"a"},{"ref":"b"}]}` gives two edges, and `{"optional":{"ref":"m"}}` gives none.
 
-The loader reads members from final expanded rules, never from lowered productions. Instance calls become ordinary rule edges after expansion. Every alternative counts, whatever its guards. Tests, tag clauses and conditions do not gate membership either. So an `%extend-rule` can add a member, and a `%redefine-rule` can remove one. Members never depend on the enabled features.
+The loader reads members from final expanded rules, never from lowered productions. Instance calls become ordinary rule edges after expansion. Every alternative counts, whatever its gates. Tests, tag clauses and conditions do not gate membership either. So an `%extend-rule` can add a member, and a `%redefine-rule` can remove one. Members never depend on the enabled features.
 
 The loader computes memberships only for family roots that written calls name. Lowered grammars share these immutable memberships across feature selections.
 
@@ -811,7 +811,7 @@ An exact prefix requires an argument without an exact prefix. An attached list r
 
 An expanded use must satisfy the original position's syntax and type rules. For example, `$x:@P` requires one capturable symbol. A sequence or choice cannot acquire a hidden wrapper rule. A value-test operand still requires a string literal or string constant.
 
-A parameter cannot construct a name or occupy a declaration name, guard, method name, capture binder, carrier, or attachment. It cannot replace a directive operand, classifier name, or integer argument. The head directly after `[+` can be a user tag or parameter. That parameter's argument must become exactly one bare user-tag atom after argument conversion. Rules, sequences, tested arguments, constants, and tag-set expressions are invalid there. A parenthesized single tag, such as `(KU)`, reads as that tag.
+A parameter cannot construct a name or occupy a declaration name, gate, method name, capture binder, carrier, or attachment. It cannot replace a directive operand, classifier name, or integer argument. The head directly after `[+` can be a user tag or parameter. That parameter's argument must become exactly one bare user-tag atom after argument conversion. Rules, sequences, tested arguments, constants, and tag-set expressions are invalid there. A parenthesized single tag, such as `(KU)`, reads as that tag.
 
 Only two positions splice an argument's children into the surrounding list:
 
@@ -2610,7 +2610,7 @@ An include or names-resource path is the first and only operand of `%include` or
 
 A feature name matches `[A-Za-z][A-Za-z0-9-]*` without `--`. All identifier tokens stop before `--`, including capture, constant, parameter, and keyword names. Supplied DOM names must meet that same exclusion. A gate token is a feature name followed by `?`, or `¬` immediately followed by a feature name and `?`. No whitespace or comment stands inside a gate token. A capital-initial feature such as `Cbm` is legal.
 
-If no gate starts immediately after `¬`, the lexer reads `¬` separately. `!` has no token form. `%rule r ¬ cbm? A` fails syntax recognition at `¬`, column 9. A supplied guard must have kind `gate` and a valid feature name.
+If no gate starts immediately after `¬`, the lexer reads `¬` separately. `!` has no token form. `%rule r ¬ cbm? A` fails syntax recognition at `¬`, column 9. A supplied gate must have kind `gate` and a valid feature name.
 
 Whitespace and line comments separate tokens but add no grammar node. A comment and its newline supply whitespace for symbol tests and pattern attachment. Around a run of bare tag names, they do not change operator adjacency. Comments discard their contents, including backslashes, without escape processing.
 
@@ -2818,7 +2818,7 @@ Tests can follow every primary, in any number and order. A capture target is any
 
 A supplied tree can retain a `primary` wrapper around that base. A source test never wraps another tested constructor or the capture binder. Tests after a binder belong to its target, including nested invalid captures. Supplied notation trees can still contain a test on a capture itself.
 
-Names, capture references, method names, engine-tag tokens, strings, include paths, and guards are lexical forms. A capture reference includes `$`. Names include both initial cases. These recognition categories do not impose the reader's naming, type, or signature restrictions.
+Names, capture references, method names, engine-tag tokens, strings, resource paths, and gates are lexical forms. A capture reference includes `$`. Names include both initial cases. These recognition categories do not impose the reader's naming, type, or signature restrictions.
 
 `%include` and `%names` each take exactly one quoted path. Only their first operand receives literal resource-path decoding. Any later quoted operand follows ordinary string lexical forms. Other directive strings follow those forms too. The reader rejects wrong operand types at the directive before term conversion.
 
@@ -2870,7 +2870,7 @@ Every rule reference, including an emoji reference, accepts tests and captures. 
 
 `item` also accepts `attached-item`. Attachments require a named carrier and precede its clauses. An empty tag test is legal and holds vacuously. An empty tag constant also supplies no requirements. A body with header clauses must use the leading `|` form. Each clause occurs at most once and follows the specified order.
 
-A ranked body has at least two conjunction options joined by `≻`. Its guards and clauses apply to the complete ranked expression. After header clauses, `|` can introduce that ranked body without parentheses.
+A ranked body has at least two conjunction options joined by `≻`. Its gates and clauses apply to the complete ranked expression. After header clauses, `|` can introduce that ranked body without parentheses.
 
 A choice level cannot mix `|` and `≻`. Groups, plain optionals, and flat repeats accept a choice body. A marked optional requires a user tag or parameter directly after `+`, optionally carrying both tests. The sole captured form places its binder before that marker, as `[$j:+JI="jie"]`. A parameter head must become exactly one bare user tag after argument conversion.
 
@@ -2948,7 +2948,7 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `classifier-name`, `classifier-class` | One name token each | Name string |
 | `classifier-key` | One `string` or `constant-reference` | Unresolved STRINGTERM |
 | `classifier-operator` | One `∈` or `∉` token | Operator string |
-| `classifier-entry` | Guards, keys, operator, class. At least one key. | `guards`, `keys`, `op`, `class` |
+| `classifier-entry` | Gates, keys, operator, class. At least one key. | `guards`, `keys`, `op`, `class` |
 | `implication-declaration` | Two `union` parts | `if`, then `then` |
 | `constant-definition` | `constant-keyword`, `constant-name`, `term` | Operation, user name, unresolved value |
 | `constant-name` | One `Constant` token | User constant name without `$` |
@@ -2966,7 +2966,7 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `rule-name` | One rule-name token | Lowercase name or valid emoji scalar |
 | `body` | One or more `alternative`, or one `ranked-body` | Ordered alternative list |
 | `headed-body` | One or more `alternative`, or one `ranked-body` | Ordered alternative list, like `body` |
-| `alternative` | Guards, conjunction, then tag, value, image clauses | `guards`, `expr`, and optional channel or tag members |
+| `alternative` | Gates, conjunction, then tag, value, image clauses | `guards`, `expr`, and optional channel or tag members |
 | `ranked-body` | Guards, ranked choice, then tag, value, image clauses | One ALT. Guards and clauses apply to the entire ranked expression. |
 | `feature-gate` | One gate token from §9.1 | `feature`, `kind:"gate"`, `negated`. Reject every other kind or invalid feature name. |
 | `ranked-choice` | At least two `some-of` parts | Ordered `ranked` array |
@@ -3133,7 +3133,7 @@ A document can hold several errors. The reader reports one, and every reader cho
    - An `&`: more than 16 items, at the `&` construct, that is, at its first item. This comes before any of its items, because the bound belongs to the `&` itself. So an `&` of 17 items is an error at its first item, whatever error a later item holds.
    - Braces: first two markers, at the second, or a marker after the separator, at that marker. Then a chain that is not the whole expression of its alternative, at its `{`. Last, the item and the separator. So `A {$c:B ... / S}` is an error at the `{`, although its marker follows the capture.
 5. After the whole alternative expression, the reader detects repeated capture names before that alternative's clauses. The rule below defines this test.
-6. Each alternative supplies guards, an expression, then tag, value, and image clauses. Header clauses already precede these under step 4. Conditions follow the complete body, then the diagnostic message, suppression, and emission or erasure. Whole-definition errors follow all local construct errors.
+6. Each alternative supplies gates, an expression, then tag, value, and image clauses. Header clauses already precede these under step 4. Conditions follow the complete body, then the diagnostic message, suppression, and emission or erasure. Whole-definition errors follow all local construct errors.
 
    Convert a clause's local parts before checking its completed form. Convert all emission items before checking repeated capture references.
 
@@ -3318,7 +3318,7 @@ Parentheses after the definer fail the syntax stage at `(`, column 6 in `%rule(x
 - An engine tag on either side of `%implies` is an error at that tag. Reject it during conversion, before reading the next part.
 - A side of an implication that is not a closed term is an error, reported in the same way. A side whose type is not a tag set is an error too, reported at the side.
 - A classifier's name that does not begin with `a` to `z` is an error, reported at the name. `.classify` cannot name it, since a bare name with a capital is a tag.
-- A classifier entry takes gates only. A supplied warning-kind guard is malformed at that guard.
+- A classifier entry takes gates only. A supplied warning-kind gate is malformed at that gate.
 - A classifier key must resolve to a scalar string. Capitals and commas remain exact characters, with no canonical comparison requirement.
 - A classifier class must start and end with uppercase ASCII letters and never start with `_`. A mark such as `Indicator` is invalid there.
 
@@ -3510,7 +3510,7 @@ A DOM is malformed in each of these cases, whether it is read, cached or in the 
 
   A capture inside flat braces is an item capture and is valid (§3.5). The reader also refuses a name that some expansion of an alternative holds twice. It also refuses a name that is not all lower case.
 - It has an emission with a member other than `items`, or an erased definition with a string recipe or emission. Diagnostic recipes remain legal on erased definitions.
-- It has an alternative guard whose feature is not a feature name as §9.1 defines it. Or the guard has members beyond its feature, kind, and negation state.
+- It has an alternative gate whose feature is not a feature name as §9.1 defines it. Or the gate has members beyond its feature, kind, and negation state.
 - It has a directive whose name is not `ambiguity-resolution`, `elision-only`, `stage`, `extend-stage`, `redefine-stage`, `include`, `names` or `features`.
 - It has a `stage`, `extend-stage`, `redefine-stage`, `include`, `names`, `features` or `elision-only` directive whose operands the reader refuses. Or it has an `ambiguity-resolution` directive whose `steps` the reader refuses, or that has `args`.
 - It has an unsupported test position or comparator, an ill-typed string operand, or an invalid signed requirement. A value test can wrap a tag test. Repeated test kinds and reversed nesting are malformed. All scalar string values remain legal.
@@ -3545,9 +3545,9 @@ Pattern constructors use the authoritative table above. Readers retain every chi
 
 For `$x ≅ NAME`, report at NAME: `tree comparison requires a pattern; write #NAME, not NAME`. Substitute the actual name, including capital-initial terminals. The same diagnostic applies to `≇`, before a generic parse or type error.
 
-Source captures, guards, elision markers, and chain repetitions inside patterns fail syntax recognition. A tree comparison with a non-capture left operand also fails syntax recognition. Supplied trees and DOMs still undergo the stated reader restrictions.
+Source captures, gates, elision markers, and chain repetitions inside patterns fail syntax recognition. A tree comparison with a non-capture left operand also fails syntax recognition. Supplied trees and DOMs still undergo the stated reader restrictions.
 
-Readers reject missing parts, unknown members and invalid arities. A tag test and a value test take a terminal, rule, emoji, family or call atom (§4.1, `docs/output.md`). Both take ordinary closed operands. Captures, guards, emissions, alternative tags, elision markers and chain repetitions cannot occur in patterns. Every repeat body contains a child pattern under these restrictions.
+Readers reject missing parts, unknown members and invalid arities. A tag test and a value test take a terminal, rule, emoji, family or call atom (§4.1, `docs/output.md`). Both take ordinary closed operands. Captures, gates, emissions, alternative tags, elision markers and chain repetitions cannot occur in patterns. Every repeat body contains a child pattern under these restrictions.
 
 Child arrays retain their context throughout unresolved inspection. An optional accepts no `separator`, and only a repeat accepts that member. A sibling ellipsis cannot occur at a repeat's sibling level, including through optional, choice, or repeat wrappers. A `child` pattern starts another node and therefore another sibling level for its own child list. Supplied DOMs obey the same restrictions. Stage resolution includes every pattern in replaced definitions and uncalled templates.
 
@@ -4109,7 +4109,7 @@ A stage-local feature is a loading error if a surviving earlier stage tests it, 
 
 The loader rejects a pipeline without stages or a stage without rules before it examines local feature ownership. Two different stages cannot declare the same feature locally. The loader reports the second surviving declaration in document order, after include expansion. Several declarations of one feature in the same stage are legal. The engine evaluates each declaration in order.
 
-The loader examines gates, warning-code uses, and classifier guards before feature filtering. This includes classifiers that conditions use.
+The loader examines gates, warning-code uses, and classifier gates before feature filtering. This includes classifiers that conditions use.
 
 A rejection, ambiguity, feature conflict, or grammar failure ends the run with the collection of §12.1. Chosen errors before the reporting stage do not stop it. At that stage, counted errors give `reported` after successful emission, with the chosen tree, verdict, and output retained.
 

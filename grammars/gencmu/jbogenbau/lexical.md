@@ -238,7 +238,7 @@ A feature is a named switch that a grammar tests. Its name starts with a letter 
 
 A gate ends with `?` and can start with `¬`. This token serves feature gates only.
 
-A `¬` immediately before a guard belongs to that guard. Elsewhere, `negation-sign` emits it separately for a condition.
+A `¬` immediately before a gate belongs to that gate. Elsewhere, `negation-sign` emits it separately for a condition.
 
 ```jbogenbau
 %rule feature-gate

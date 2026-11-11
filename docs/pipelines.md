@@ -700,7 +700,7 @@ Read [Classifiers](notation.md#classifiers) for lexicons, exact keys, and class 
 
 Read [Names and terminals](notation.md#names-and-terminals) for classes, terminals, and tags.
 
-Read [Feature guards](notation.md#feature-guards) for gates and feature switches.
+Read [Feature gates](notation.md#feature-gates) for gates and feature switches.
 
 Read [Errors and warnings](notation.md#errors-and-warnings) for diagnostics and suppression.
 
