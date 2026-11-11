@@ -396,9 +396,9 @@ This classification preserves recognition alternatives instead of replacing them
 Verbatim text is original spelling with adjacent uncovered punctuation. `.verbatim-text` supplies it only in recipes. `.source-text` reads the covered source interval without that extension.
 
 ```jbogenbau
-%rule zohoi-payload :- $.verbatim-text
+%rule single-run-payload :- $.verbatim-text
   | payload-token
-  | zohoi-payload payload-token
+  | single-run-payload payload-token
 ```
 
 The payload's outer image recipe replaces recursive descendant image contributions. Value concatenation still reads input token values, including FOREIGN values from decomposed source text. A quote composes its image from the opener, original gap, and payload's `.emitted.image`. A covering compound receives that quote image. Forwarding stores the result and never reconstructs it from later neighbors.

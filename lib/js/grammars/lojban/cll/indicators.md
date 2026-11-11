@@ -2,7 +2,7 @@
 
 This document defines the indicator processing rules before syntax. A stage is one step of a pipeline, with its own grammar. A pipeline document defines an ordered sequence of stages.
 
-A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
+A token is one host-word that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
 The [CLL](pipeline.md), [BPFK](../bpfk/pipeline.md), [experimental](../experimental/pipeline.md) and [Zantufa](../zantufa/pipeline.md) pipelines include these rules as their fourth stage. BPFK is the Lojban language planning committee.
 
@@ -14,7 +14,7 @@ The indicators are the attitudinals and discursives of UI and CAI with an option
 
 A run of indicators attaches to the word before it, and a `ba'e` attaches to the word after it. The stage hands on the word as one token, which carries them as its attachments ([the engine](../../../docs/engine.md), §11). The syntax does not read an attachment, but the renderings show it with its word. So `mi ui klama` is `([mi ui] klama)` in brackets, and the syntax reads `mi klama`.
 
-The forms lexicon supplies word classes and the `Indicator` tag for indicators and `fu'e`. The words stage emits each complete quote, compound, and letteral as one token. Its contents supply no indicator class. Indicators after that token and BAhE before it mark the whole unit.
+The forms lexicon supplies word classes and the `Indicator` tag for indicators and `fu'e`. The words stage emits each complete quote, compound, and letteral as one token. Its contents supply no indicator class. Indicators after that token and BAhE before it mark the whole host-word.
 
 A run of indicators at the start of the text, before any word, stays in the stream. This is because the `text` rule of the syntax grammar reads it there. A `ba'e` with no word after it stays in the stream too. In a run that stays in the stream, the stage attaches only `ba'e`, as the section "Leading runs" says. [The notation document](../../../docs/notation.md) explains the notation.
 
@@ -51,40 +51,40 @@ The name `$INDICATOR-BOUNDARIES` lets a pipeline layer add boundaries that open 
 
 ## The stream
 
-`text` reads an optional leading indicator run, then ordinary items, then any unattached final `ba'e` run. `item-run` permits a new leading run only after an indicator boundary.
+`text` reads an optional leading indicator run, then ordinary items, then any unattached final `ba'e` run. `words-with-attachments` permits a new leading run only after an indicator boundary.
 
 ```jbogenbau
 %rule text
-  [leading] [item-run] [bahe-run]
+  [leading] [words-with-attachments] [bahe-run]
 
-%rule item-run
-  | item
-  | item-run item
-  | $p:item-run leading
+%rule words-with-attachments
+  | word-with-attachments
+  | words-with-attachments word-with-attachments
+  | $p:words-with-attachments leading
 %conditions
   $p.last-token.classes ∩ $INDICATOR-BOUNDARIES ≠ ∅
 ```
 
-<details><summary>Railroad diagrams of <code>text</code> and <code>item-run</code></summary>
+<details><summary>Railroad diagrams of <code>text</code> and <code>words-with-attachments</code></summary>
 <p><img src="../../../docs/diagrams/lojban/cll/indicators/text.svg" alt="Railroad diagram of the rule text"></p>
-<p><img src="../../../docs/diagrams/lojban/cll/indicators/item-run.svg" alt="Railroad diagram of the rule item-run"></p>
+<p><img src="../../../docs/diagrams/lojban/cll/indicators/words-with-attachments.svg" alt="Railroad diagram of the rule words-with-attachments"></p>
 </details>
 
-An item hands on a word with its preceding `ba'e` run and following indicator run attached. A boundary token takes no following indicators, as above.
+`word-with-attachments` hands on a word with its preceding `ba'e` run and following indicator run attached. A boundary token takes no following indicators, as above.
 
 ```jbogenbau
-%rule item
-  [$b:bahe-run] $w:unit [$a:indicator-run] :: $w.tags
+%rule word-with-attachments
+  [$b:bahe-run] $w:host-word [$a:indicator-run] :: $w.tags
 %conditions
   $a ⟹ $w.classes ∩ $INDICATOR-BOUNDARIES = ∅
 %emits
   ($b) $w ($a)
 
-%rule unit
+%rule host-word
   Word<¬Indicator ¬BAhE>
 
 %rule bahe-run
-  bahe | bahe-run bahe
+  {bahe}
 
 %rule bahe
   Word<BAhE>
@@ -92,27 +92,30 @@ An item hands on a word with its preceding `ba'e` run and following indicator ru
   $
 ```
 
-<details><summary>Railroad diagrams of <code>item</code>, <code>unit</code>, <code>bahe-run</code> and <code>bahe</code></summary>
-<p><img src="../../../docs/diagrams/lojban/cll/indicators/item.svg" alt="Railroad diagram of the rule item"></p>
-<p><img src="../../../docs/diagrams/lojban/cll/indicators/unit.svg" alt="Railroad diagram of the rule unit"></p>
+<details><summary>Railroad diagrams of <code>word-with-attachments</code>, <code>host-word</code>, <code>bahe-run</code> and <code>bahe</code></summary>
+<p><img src="../../../docs/diagrams/lojban/cll/indicators/word-with-attachments.svg" alt="Railroad diagram of the rule word-with-attachments"></p>
+<p><img src="../../../docs/diagrams/lojban/cll/indicators/host-word.svg" alt="Railroad diagram of the rule host-word"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/indicators/bahe-run.svg" alt="Railroad diagram of the rule bahe-run"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/indicators/bahe.svg" alt="Railroad diagram of the rule bahe"></p>
 </details>
 
-A `bahe-run` is one or more `ba'e`, so `mi ba'e ba'e klama` is a text.
+A `bahe-run` is one or more `ba'e`, so `mi ba'e ba'e klama` is a text. A `ba'e` is a word of BAhE, which the CLL lexicon gives only to `ba'e` and `za'e`.
 
 ## Indicator runs
 
-An indicator run after a word attaches each of its indicators, `fu'e` included, to the word, each as a token of its own. Each of them carries the `ba'e` run before it as its attachment. A `nai` after an attitudinal attaches to the attitudinal. So `mi ui nai ia klama` hands on `mi` with `ui` and `ia` after it, and `ui` carries `nai` after it. In brackets, that is `([mi {ui nai} ia] klama)`.
+An indicator run after a word attaches each of its indicators, `fu'e` included, to the word, each as a token of its own. Each of them carries the `ba'e` run before it as its attachment. A `nai` after an attitudinal attaches to the attitudinal. So `mi ui nai ia klama` hands on `mi` with `ui` and `ia` after it, and `ui` carries `nai` after it. The pipeline prints `([mi {ui nai} ia] klama)` in brackets.
+
+The spliced `indicator-step` shares the optional `fuhe` prefix and adds no named tree node. The conditions of `indicator` and `fuhe` keep the general `Word` expectation when an indicator run fails.
 
 The rule `attitudinal-nai` reads the pair with three captures: the `ba'e` run before the attitudinal, the attitudinal word, and the `nai`. The `nai` carries its own `ba'e` run before it. So `mi ba'e ui nai klama` gives `ui` with `ba'e` before it and `nai` after it, and `mi ui ba'e nai klama` gives `nai` with `ba'e` before it. The image of `ui` is `ui` in both.
 
 ```jbogenbau
 %rule indicator-run
-  | [fuhe] indicator
-  | [fuhe] attitudinal-nai
-  | indicator-run [fuhe] indicator
-  | indicator-run [fuhe] attitudinal-nai
+  | *indicator-step
+  | indicator-run *indicator-step
+
+%rule indicator-step
+  [fuhe] (indicator | attitudinal-nai)
 
 %rule indicator
   [$b:bahe-run] $i:Word :: $i.tags
@@ -135,7 +138,7 @@ The rule `attitudinal-nai` reads the pair with three captures: the `ba'e` run be
   ($b) $u ($n)
 
 %rule attitudinal
-  $i:Word :: $i.tags
+  $i:Word
 %conditions
   $i.classes ∩ (UI ∪ CAI) ≠ ∅
 
@@ -145,8 +148,9 @@ The rule `attitudinal-nai` reads the pair with three captures: the `ba'e` run be
   ($b) $m
 ```
 
-<details><summary>Railroad diagrams of the 6 rules from <code>indicator-run</code> to <code>nai</code></summary>
+<details><summary>Railroad diagrams of the 7 rules from <code>indicator-run</code> to <code>nai</code></summary>
 <p><img src="../../../docs/diagrams/lojban/cll/indicators/indicator-run.svg" alt="Railroad diagram of the rule indicator-run"></p>
+<p><img src="../../../docs/diagrams/lojban/cll/indicators/indicator-step.svg" alt="Railroad diagram of the rule indicator-step"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/indicators/indicator.svg" alt="Railroad diagram of the rule indicator"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/indicators/fuhe.svg" alt="Railroad diagram of the rule fuhe"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/indicators/attitudinal-nai.svg" alt="Railroad diagram of the rule attitudinal-nai"></p>
@@ -154,13 +158,9 @@ The rule `attitudinal-nai` reads the pair with three captures: the `ba'e` run be
 <p><img src="../../../docs/diagrams/lojban/cll/indicators/nai.svg" alt="Railroad diagram of the rule nai"></p>
 </details>
 
-After a leading run (see "Leading runs"), a `nai` belongs to the last indicator of the run when that is an attitudinal. The stage is greedy, so it reads the `nai` into the run before it starts the next item. So `iu nai` is one run, not `iu` followed by a text that begins with `nai`. The same holds when a `ba'e` stands before the `nai`, as in `iu ba'e nai`.
-
 A `ba'e` before an indicator marks the indicator and goes with it. So does a `ba'e` before the `nai` of an attitudinal. Emphasis leaves the word's meaning intact. Each UI or CAI permits one NAI. So `mi .e .ui ba'e nai do` negates the `.ui` and leaves the `.e` as it is.
 
-The stage reads an indicator run as far as it goes: `broda ui nai` attaches both words to `broda`. Because the stage is greedy, `nai` is part of the run and not the next word of the syntax. A `ba'e` is a word of BAhE, which the CLL lexicon gives only to `ba'e` and `za'e`.
-
-The CLL lexicon marks `fu'e` `Indicator`, so `unit` never reads it as a word. Under these rules, `mi fu'e ui klama`, `mi fu'e ui nai klama` and `mi ui fu'e ia klama` are texts. The text `mi viska le fu'e .ia blanu zdani fu'o ponse` is one too. The stage rejects `mi fu'e klama`, `mi ui fu'e klama` and `mi fu'e fu'e ui klama`. In each of them, a `fu'e` has no indicator directly after it.
+The CLL lexicon marks `fu'e` `Indicator`, so `host-word` never reads it as a word. Under these rules, `mi fu'e ui klama`, `mi fu'e ui nai klama` and `mi ui fu'e ia klama` are texts. The text `mi viska le fu'e .ia blanu zdani fu'o ponse` is one too. The stage rejects `mi fu'e klama`, `mi ui fu'e klama` and `mi fu'e fu'e ui klama`. In each of them, a `fu'e` has no indicator directly after it.
 
 A `ba'e` can stand before the word or before the `fu'e`, as in `ba'e mi fu'e ui klama` and `mi ba'e fu'e ui klama`. In the second, the `ba'e` goes with the `fu'e`.
 
@@ -168,16 +168,21 @@ The stage also rejects `mi fu'e y klama`. The words stage drops hesitation, so n
 
 ## Leading runs
 
-A leading run is a run of indicators that the syntax reads itself: at the start of the text, or directly after a quotation opener. Its indicators stay in the stream, each as a token of its own. A `ba'e` before one of them attaches to it, since the syntax does not read `ba'e`. But a `nai` after an attitudinal stays a token of its own, and the syntax reads `UI NAI`. So `ba'e ui nai mi klama` hands on `ui`, with `ba'e` attached before it, and then `nai`, `mi` and `klama`.
+After a leading run, a `nai` belongs to the last indicator of the run when that is an attitudinal. The stage is greedy, so it reads the `nai` into the run before it starts the next word-with-attachments. So `iu nai` is one run, not `iu` followed by a text that begins with `nai`. The same holds when a `ba'e` stands before the `nai`, as in `iu ba'e nai`.
+
+A leading run is a run of indicators that the syntax reads itself: at the start of the text, or directly after a quotation opener. Its indicators stay in the stream, each as a token of its own. A `ba'e` before one of them attaches to it, because the syntax does not read `ba'e`. But a `nai` after an attitudinal stays a token of its own, and the syntax reads `UI NAI`. So `ba'e ui nai mi klama` hands on `ui`, with `ba'e` attached before it, and then `nai`, `mi` and `klama`.
+
+The leading pair reads `nai` directly so that the emitted token keeps the spacing of its preceding `ba'e` attachment.
 
 The syntax reads the attitudinal run. Suppose that the stage nested a `nai` under its attitudinal. Then the syntax does not see that `nai`. It reads a second `nai` as that attitudinal's own, and `pau nai nai mi klama` is a text. So the stage keeps the `nai` in the stream, and the syntax rejects that text.
 
 ```jbogenbau
 %rule leading
-  | [fuhe] indicator
-  | [fuhe] leading-attitudinal-nai
-  | leading [fuhe] indicator
-  | leading [fuhe] leading-attitudinal-nai
+  | *leading-step
+  | leading *leading-step
+
+%rule leading-step
+  [fuhe] (indicator | leading-attitudinal-nai)
 
 %rule leading-attitudinal-nai
   [$b:bahe-run] $u:attitudinal [$c:bahe-run] $m:Word<NAI>
@@ -185,8 +190,9 @@ The syntax reads the attitudinal run. Suppose that the stage nested a `nai` unde
   ($b) $u, ($c) $m
 ```
 
-<details><summary>Railroad diagrams of <code>leading</code> and <code>leading-attitudinal-nai</code></summary>
+<details><summary>Railroad diagrams of <code>leading</code>, <code>leading-step</code> and <code>leading-attitudinal-nai</code></summary>
 <p><img src="../../../docs/diagrams/lojban/cll/indicators/leading.svg" alt="Railroad diagram of the rule leading"></p>
+<p><img src="../../../docs/diagrams/lojban/cll/indicators/leading-step.svg" alt="Railroad diagram of the rule leading-step"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/indicators/leading-attitudinal-nai.svg" alt="Railroad diagram of the rule leading-attitudinal-nai"></p>
 </details>
 
@@ -204,7 +210,7 @@ CLL[^cll-s13-9] states: "If the word that an indicator (or group) attaches to is
 
 A quoted text starts as a whole text does. CLL[^cll-s21-1] lets `text` start with names or indicators, but not both. The `lojban/cll` and `lojban/bpfk` pipelines reject `ui .djan. mi klama` and `lu ui .djan. mi klama li'u` for that reason.
 
-The `lojban/experimental` pipeline with `cbm` and the `lojban/zantufa` pipeline reject those texts under their own name-as-predicate rules. The [corpus cases](../../../tests/corpus/adhoc.jsonl) pin both texts under `adhoc.indicators.initial-name-and-indicator.{text,quote}.{experimental,zantufa}`.
+The `lojban/experimental` pipeline with `cbm` and the `lojban/zantufa` pipeline reject those texts under their own name-as-predicate rules.
 
 CLL[^cll-s21-1] also writes `TO text`, so that rule alone does not separate TO from LU. The example[^cll-e19-67] in CLL[^cll-s19-12] uses `to'isa'a` and says that `sa'a` marks the whole bracketed remark. The ["Digressives" section, revision 111784](https://mw.lojban.org/index.php?title=BPFK_Section:_Digressives&oldid=111784) of the BPFK defines `to'i` as "Equivalent to {to sa'a}". These sources support the choice that indicators after `to` and `to'i` attach to the opener. Indicators after `tu'e` also attach to that opener under CLL[^cll-s19-8][^cll-s13-9].
 

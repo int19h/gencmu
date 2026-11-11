@@ -101,7 +101,7 @@
                 "children": [
                   {
                     "kind": "rule",
-                    "rule": "word-run",
+                    "rule": "segmented-run",
                     "span": [
                       0,
                       9
@@ -248,23 +248,20 @@
                                                 "children": [
                                                   {
                                                     "kind": "rule",
-                                                    "rule": "consonant",
+                                                    "rule": "cvv-rafsi",
                                                     "span": [
                                                       0,
-                                                      1
+                                                      4
                                                     ],
                                                     "source": [
                                                       0,
-                                                      1
+                                                      4
                                                     ],
-                                                    "tags": [
-                                                      "Consonant"
-                                                    ],
+                                                    "tags": [],
                                                     "children": [
                                                       {
-                                                        "kind": "token",
-                                                        "terminal": "\"r\"",
-                                                        "token": 0,
+                                                        "kind": "rule",
+                                                        "rule": "consonant",
                                                         "span": [
                                                           0,
                                                           1
@@ -272,29 +269,29 @@
                                                         "source": [
                                                           0,
                                                           1
+                                                        ],
+                                                        "tags": [
+                                                          "Consonant"
+                                                        ],
+                                                        "children": [
+                                                          {
+                                                            "kind": "token",
+                                                            "terminal": "\"r\"",
+                                                            "token": 0,
+                                                            "span": [
+                                                              0,
+                                                              1
+                                                            ],
+                                                            "source": [
+                                                              0,
+                                                              1
+                                                            ]
+                                                          }
                                                         ]
-                                                      }
-                                                    ]
-                                                  },
-                                                  {
-                                                    "kind": "rule",
-                                                    "rule": "vowel",
-                                                    "span": [
-                                                      1,
-                                                      2
-                                                    ],
-                                                    "source": [
-                                                      1,
-                                                      2
-                                                    ],
-                                                    "tags": [
-                                                      "Vowel"
-                                                    ],
-                                                    "children": [
+                                                      },
                                                       {
-                                                        "kind": "token",
-                                                        "terminal": "\"o\"",
-                                                        "token": 1,
+                                                        "kind": "rule",
+                                                        "rule": "vowel",
                                                         "span": [
                                                           1,
                                                           2
@@ -302,42 +299,42 @@
                                                         "source": [
                                                           1,
                                                           2
+                                                        ],
+                                                        "tags": [
+                                                          "Vowel"
+                                                        ],
+                                                        "children": [
+                                                          {
+                                                            "kind": "token",
+                                                            "terminal": "\"o\"",
+                                                            "token": 1,
+                                                            "span": [
+                                                              1,
+                                                              2
+                                                            ],
+                                                            "source": [
+                                                              1,
+                                                              2
+                                                            ]
+                                                          }
                                                         ]
-                                                      }
-                                                    ]
-                                                  },
-                                                  {
-                                                    "kind": "token",
-                                                    "terminal": "\"'\"",
-                                                    "token": 2,
-                                                    "span": [
-                                                      2,
-                                                      3
-                                                    ],
-                                                    "source": [
-                                                      2,
-                                                      3
-                                                    ]
-                                                  },
-                                                  {
-                                                    "kind": "rule",
-                                                    "rule": "vowel",
-                                                    "span": [
-                                                      3,
-                                                      4
-                                                    ],
-                                                    "source": [
-                                                      3,
-                                                      4
-                                                    ],
-                                                    "tags": [
-                                                      "Vowel"
-                                                    ],
-                                                    "children": [
+                                                      },
                                                       {
                                                         "kind": "token",
-                                                        "terminal": "\"i\"",
-                                                        "token": 3,
+                                                        "terminal": "\"'\"",
+                                                        "token": 2,
+                                                        "span": [
+                                                          2,
+                                                          3
+                                                        ],
+                                                        "source": [
+                                                          2,
+                                                          3
+                                                        ]
+                                                      },
+                                                      {
+                                                        "kind": "rule",
+                                                        "rule": "vowel",
                                                         "span": [
                                                           3,
                                                           4
@@ -345,6 +342,24 @@
                                                         "source": [
                                                           3,
                                                           4
+                                                        ],
+                                                        "tags": [
+                                                          "Vowel"
+                                                        ],
+                                                        "children": [
+                                                          {
+                                                            "kind": "token",
+                                                            "terminal": "\"i\"",
+                                                            "token": 3,
+                                                            "span": [
+                                                              3,
+                                                              4
+                                                            ],
+                                                            "source": [
+                                                              3,
+                                                              4
+                                                            ]
+                                                          }
                                                         ]
                                                       }
                                                     ]

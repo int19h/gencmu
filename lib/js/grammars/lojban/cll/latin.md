@@ -23,7 +23,7 @@ The phoneme values are the letters of CLL[^cll-c3]:
 - The apostrophe `"'"`
 - The syllable comma, with empty value, image `,`, and tag `Syllable-Break`
 
-In `lojban/cll`, a comma run emits one token only between vowel groups. The token has an empty value, the image `,`, and the tag `Syllable-Break`. Elsewhere, commas emit nothing on their own. Forms tests syllable boundaries through that tag. The other Lojban pipelines discard commas through [../common/latin.md](../common/latin.md#the-comma). Every Lojban pipeline retains stress tags for forms.
+In `lojban/cll`, a comma run emits one token only between vowel groups. Elsewhere, commas emit nothing on their own. Forms tests syllable boundaries through that tag. The other Lojban pipelines discard commas through [../common/latin.md](../common/latin.md#the-comma). Every Lojban pipeline retains stress tags for forms.
 
 In this strict reading, `PAUSE` marks a pause of any length, with value and image `" "`. The [Latin conventions](../common/latin.md) replace this pause representation. `FOREIGN` marks a run that the pipeline cannot read as words. Here, that run contains a character outside the orthography. The forms stage passes it on, and the words stage admits it only inside a foreign quote or after `fa'o`.
 
@@ -40,10 +40,10 @@ A run is what stands between two pauses. It is an ordinary run of letters, or a 
 ```jbogenbau
 %rule text
   | ε | pause | commas
-  | [edge-pause] items [edge-pause]
+  | [text-edge] items [text-edge]
 
-%rule edge-pause
-  spaced-pause | pause-edge
+%rule text-edge
+  quiet-pause | pause-edge
 
 %rule items
   run | items pause run
@@ -52,9 +52,9 @@ A run is what stands between two pauses. It is an ordinary run of letters, or a 
   ordinary-run | non-lojban-char-run
 ```
 
-<details><summary>Railroad diagrams of <code>text</code>, <code>edge-pause</code>, <code>items</code> and <code>run</code></summary>
+<details><summary>Railroad diagrams of <code>text</code>, <code>text-edge</code>, <code>items</code> and <code>run</code></summary>
 <p><img src="../../../docs/diagrams/lojban/cll/latin/text.svg" alt="Railroad diagram of the rule text"></p>
-<p><img src="../../../docs/diagrams/lojban/cll/latin/edge-pause.svg" alt="Railroad diagram of the rule edge-pause"></p>
+<p><img src="../../../docs/diagrams/lojban/cll/latin/text-edge.svg" alt="Railroad diagram of the rule text-edge"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/latin/items.svg" alt="Railroad diagram of the rule items"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/latin/run.svg" alt="Railroad diagram of the rule run"></p>
 </details>
@@ -67,9 +67,9 @@ CLL[^cll-s3-3] says that a comma "cannot be pronounced as a pause", so a comma a
 
 ```jbogenbau
 %rule pause
-  spaced-pause
+  quiet-pause
 
-%rule spaced-pause
+%rule quiet-pause
   [pause-edge] $c:pause-core [pause-edge]
 %emits
   $c
@@ -104,7 +104,7 @@ CLL[^cll-s3-3] says that a comma "cannot be pronounced as a pause", so a comma a
 
 <details><summary>Railroad diagrams of the 9 rules from <code>pause</code> to <code>commas</code></summary>
 <p><img src="../../../docs/diagrams/lojban/cll/latin/pause.svg" alt="Railroad diagram of the rule pause"></p>
-<p><img src="../../../docs/diagrams/lojban/cll/latin/spaced-pause.svg" alt="Railroad diagram of the rule spaced-pause"></p>
+<p><img src="../../../docs/diagrams/lojban/cll/latin/quiet-pause.svg" alt="Railroad diagram of the rule quiet-pause"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/latin/pause-core.svg" alt="Railroad diagram of the rule pause-core"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/latin/pause-edge.svg" alt="Railroad diagram of the rule pause-edge"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/latin/core-char.svg" alt="Railroad diagram of the rule core-char"></p>
@@ -118,7 +118,7 @@ An ordinary run is letters. A run of adjacent vowel letters is one vowel group, 
 
 A script can tag its full vowel letters `Syllabic` to separate adjacent vowels without a written apostrophe. Two adjacent syllabic vowels form two syllables. `joined-vowel` inserts an apostrophe between them, with value `'` and no text of its own. [../common/cyrillic.md](../common/cyrillic.md) uses this rule. Each vowel of a group is its own token, so a group of three vowels keeps all three. Each vowel pair matches exactly one of the three cases, so a run has one parse.
 
-In `lojban/cll`, a comma between two vowels marks the syllable break of CLL[^cll-s3-3]. Its token has an empty value, image `,` and tag `Syllable-Break`. So `kore,a` is `e` and `a` in two syllables. CLL[^cll-s4-7] writes it so "because ea is not a valid diphthong". Anywhere else it is nothing, so `ban,gu` is `bangu`.
+In `lojban/cll`, a comma between two vowels marks the syllable break of CLL[^cll-s3-3]. So `kore,a` is `e` and `a` in two syllables. CLL[^cll-s4-7] writes it so "because ea is not a valid diphthong". Anywhere else it is nothing, so `ban,gu` is `bangu`.
 
 ```jbogenbau
 %rule ordinary-run
@@ -205,8 +205,8 @@ A foreign run has at least one character that no rule of `any-lojban-char` reads
   $r:chars-with-non-lojban-char
 %conditions
   ¬$r.parse(letters),
-  ¬$r.first-token.parse(comma),
-  ¬$r.last-token.parse(comma)
+  ¬$r.first-token.parse(commas),
+  ¬$r.last-token.parse(commas)
 %emits
   $ :: FOREIGN :- $.source-text
 
@@ -325,7 +325,7 @@ CLL writes a pause as a period.[^cll-s3-3] It does not define spaces. This gramm
 
 This grammar also accepts U+2019 (`’`), U+2018 (`‘`), and U+02BC (`ʼ`) as apostrophes. They are typographic forms of the same character. They change the reading of no CLL text.
 
-CLL[^cll-s3-1] uses capitals only for nonstandard stress in names. This grammar also folds capital consonants without a capital vowel. This choice lets a writer capitalize a name or a sentence start.
+CLL[^cll-s3-1] uses capitals only for nonstandard stress in names. Capital consonants fold even when the word has no capital vowel. Thus `Klama` reads as `klama`. This choice lets a writer capitalize a name or a sentence start.
 
 CLL[^cll-s3-12] describes Loglan-compatible and Tengwar orthographies. This grammar reads neither. CLL calls the Loglan-compatible orthography nonstandard and unused.
 

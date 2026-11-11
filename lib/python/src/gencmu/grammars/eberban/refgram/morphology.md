@@ -45,7 +45,7 @@ The book allows a hyphen only at a syllable boundary inside a word. Each digit i
 
 %rule item
   | space | digit-word | borrowing | freeform-variable
-  | ((hesitation | eraser-run | word-run | compound-run | stray-compound) ≻ junk-run) :: ∅
+  | ((hesitation | eraser-run | segmented-run | compound-run | stray-compound) ≻ junk-run) :: ∅
 
 %rule run-char
   Letter | Hyphen
@@ -482,7 +482,7 @@ The word wrappers retain an erroneous edge `h`, as in `hmi` or `mih`. Roots use 
 The quote reads its own `co` through the particle rule, so the bar never meets the quote. A compound reads its components without the bar ("Compounds" below). The test reads the opener alone, not the whole quote. So an unclosed quote is rejected, as in `a mico [x`.
 
 ```jbogenbau
-%rule word-run
+%rule segmented-run
   | [hyphen-misplaced] first-word [{consonant-word}] run-close
   | [hyphen-misplaced] foreign-quote
 
@@ -531,8 +531,8 @@ The quote reads its own `co` through the particle rule, so the bar never meets t
   Digit [Hyphen]
 ```
 
-<details><summary>Railroad diagrams of the 10 rules from <code>word-run</code> to <code>after-digit</code></summary>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/word-run.svg" alt="Railroad diagram of the rule word-run"></p>
+<details><summary>Railroad diagrams of the 10 rules from <code>segmented-run</code> to <code>after-digit</code></summary>
+<p><img src="../../../docs/diagrams/eberban/refgram/morphology/segmented-run.svg" alt="Railroad diagram of the rule segmented-run"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/run-close.svg" alt="Railroad diagram of the rule run-close"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/first-word.svg" alt="Railroad diagram of the rule first-word"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/consonant-word.svg" alt="Railroad diagram of the rule consonant-word"></p>

@@ -21,7 +21,7 @@
                 "rule": "run",
                 "children": [
                   {
-                    "rule": "word-run",
+                    "rule": "segmented-run",
                     "children": [
                       {
                         "rule": "run-words",

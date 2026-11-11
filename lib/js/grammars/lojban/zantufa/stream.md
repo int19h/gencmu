@@ -44,15 +44,15 @@ For quote markers, this layer only adds classes to the shared class sets. The sh
   $
 
 %rule rafsi-quote-target
-  $f:Rafsi-Form [quote-end-mark] :: $f.tags :- $.verbatim-text
+  $f:Rafsi-Form [word-end-attachment] :: $f.tags :- $.verbatim-text
 %conditions
-  ¬$.following-tokens.parse(quote-end-mark …)
+  ¬$.following-tokens.parse(word-end-attachment …)
 
 %rule rahoi-marker
-  $q:read-word [quote-marker-end] :: Word Cmavo ∪ $q.classes
+  $q:read-word [marker-attachment] :: Word Cmavo ∪ $q.classes
 %conditions
   RAhOI ⊆ $q.classes,
-  ¬$.following-tokens.parse(quote-marker-end …)
+  ¬$.following-tokens.parse(marker-attachment …)
 ```
 
 <details><summary>Railroad diagrams of the 4 rules from <code>quote</code> to <code>rahoi-marker</code></summary>

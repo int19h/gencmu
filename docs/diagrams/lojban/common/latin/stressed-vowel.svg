@@ -4,7 +4,7 @@
 <text class="title" x="10" y="24" textLength="117.6" lengthAdjust="spacingAndGlyphs">stressed-vowel</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
 <path d="M20 46h20"/>
-<g class="rule"><rect x="40" y="34" width="176" height="24" rx="0"/><text x="128" y="51" textLength="159.6" lengthAdjust="spacingAndGlyphs">stressed-full-vowel</text></g>
+<g class="rule"><rect x="40" y="34" width="176" height="24" rx="0"/><text x="128" y="51" textLength="159.6" lengthAdjust="spacingAndGlyphs">accented-full-vowel</text></g>
 <path d="M216 46H261"/>
 <path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
 <path d="M40 80h20"/>

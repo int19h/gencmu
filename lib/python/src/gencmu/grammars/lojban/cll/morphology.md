@@ -38,13 +38,13 @@ The ten rising diphthongs, such as `ia` and `ui`, are cmavo as whole words. A co
 
 A consonant followed by `y` is a letter cmavo.[^cll-s4-2] So is `y'y`, the letter for the apostrophe.[^cll-s17-2] The ten pairs `a'y e'y i'y o'y u'y y'a y'e y'i y'o y'u` are cmavo too.
 
-A cmavo can also use `y` as one more unit, as `ka'y`, `ky'a`, `cy'y` and `y'y'y` do. They are always words. The grammar tags each one `Cmavo-Warning`, and the words stage reads it under the warning `y-cmavo` ([stream.md](stream.md)). A caller who enables that warning code gets a warning for each one that the words stage reads as a Lojban word. Such a word has at least two units. A `y` alone, or a run of `y`, is hesitation, which [../common/forms.md](../common/forms.md) reads.
+A cmavo can also use `y` as one more unit, as `ka'y`, `ky'a`, `cy'y` and `y'y'y` do. These forms are words, never hesitation or foreign runs. The grammar tags each one `Cmavo-Warning`, and the words stage reads it under the warning `y-cmavo` ([stream.md](stream.md)). A caller who enables that warning code gets a warning for each one that the words stage reads as a Lojban word. Such a word has at least two units. A `y` alone, or a run of `y`, is hesitation, which [../common/forms.md](../common/forms.md) reads.
 
 A cmavo's stress is free (CLL[^cll-s3-9]), so any of its vowels can be a capital. Its first or last syllable is stressed if its first or last unit has a capital vowel.
 
 ```jbogenbau
 %rule cmavo-shape
-  | $c:plain-cmavo-body
+  | $c:consonant-cmavo
       :: Onset Continued ∪
          ($c.parse(first-marked-cmavo) ⟹ Initial-Stress) ∪
          ($c.parse(last-marked-cmavo) ⟹ Final-Stress) ∪
@@ -54,16 +54,16 @@ A cmavo's stress is free (CLL[^cll-s3-9]), so any of its vowels can be a capital
          ($v.parse(first-marked-cmavo) ⟹ Initial-Stress) ∪
          ($v.parse(last-marked-cmavo) ⟹ Final-Stress)
   | $l:letter-cmavo
-      :: Onset Cy Uncounted ∪ ($l.parse(stress-mark) ⟹ Initial-Stress ∪ Final-Stress)
+      :: Onset Cy Uncounted ∪ ($l.parse(has-stressed-vowel) ⟹ Initial-Stress ∪ Final-Stress)
   | $p:y-pair-cmavo
       :: Continued ∪
-         ($p.parse(y-letters) ⟹ Uncounted) ∪
+         ($p.parse(all-y-cmavo) ⟹ Uncounted) ∪
          ($p.parse(first-marked-cmavo) ⟹ Initial-Stress) ∪
          ($p.parse(last-marked-cmavo) ⟹ Final-Stress)
-  | $w:warned-cmavo
+  | $w:y-unit-cmavo
       :: Continued Cmavo-Warning ∪
          ($w.first-token.parse(consonant) ⟹ Onset) ∪
-         ($w.parse(y-letters) ⟹ Uncounted) ∪
+         ($w.parse(all-y-cmavo) ⟹ Uncounted) ∪
          ($w.parse(first-marked-cmavo) ⟹ Initial-Stress) ∪
          ($w.parse(last-marked-cmavo) ⟹ Final-Stress)
 %conditions
@@ -71,7 +71,7 @@ A cmavo's stress is free (CLL[^cll-s3-9]), so any of its vowels can be a capital
   ¬$v.parse(has-comma),
   ¬$w.parse(has-comma)
 
-%rule plain-cmavo-body
+%rule consonant-cmavo
   consonant cmavo-units
 
 %rule vowel-cmavo
@@ -89,19 +89,15 @@ A cmavo's stress is free (CLL[^cll-s3-9]), so any of its vowels can be a capital
 %rule y-pair-cmavo
   "y" "'" "y" | vowel "'" "y" | "y" "'" vowel
 
-%rule warned-cmavo
-  | $w:warned-units
-  | consonant warned-units
+%rule y-unit-cmavo
+  | $w:units-with-y
+  | consonant units-with-y
 %conditions
   ¬$w.parse(y-pair-cmavo)
 
-%rule warned-units
+%rule units-with-y
   | "y" "'" any-units
-  | cmavo-unit "'" warned-tail
-
-%rule warned-tail
-  | "y" | "y" "'" any-units
-  | cmavo-unit "'" warned-tail
+  | cmavo-unit "'" ("y" | units-with-y)
 
 %rule any-units
   any-unit | any-units "'" any-unit
@@ -110,7 +106,7 @@ A cmavo's stress is free (CLL[^cll-s3-9]), so any of its vowels can be a capital
   cmavo-unit | "y"
 
 -- A y letter has an optional consonant before its y units.
-%rule y-letters
+%rule all-y-cmavo
   [consonant] y-units
 
 %rule y-units
@@ -122,29 +118,28 @@ A cmavo's stress is free (CLL[^cll-s3-9]), so any of its vowels can be a capital
 %rule first-marked-cmavo
   [consonant] $u:cmavo-nucleus ["'" any-letters]
 %conditions
-  $u.parse(stress-mark)
+  $u.parse(has-stressed-vowel)
 
 %rule last-marked-cmavo
   [consonant] [any-letters "'"] $u:cmavo-nucleus
 %conditions
-  $u.parse(stress-mark)
+  $u.parse(has-stressed-vowel)
 
 ```
 
-<details><summary>Railroad diagrams of the 17 rules from <code>cmavo-shape</code> to <code>last-marked-cmavo</code></summary>
+<details><summary>Railroad diagrams of the 16 rules from <code>cmavo-shape</code> to <code>last-marked-cmavo</code></summary>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/cmavo-shape.svg" alt="Railroad diagram of the rule cmavo-shape"></p>
-<p><img src="../../../docs/diagrams/lojban/cll/morphology/plain-cmavo-body.svg" alt="Railroad diagram of the rule plain-cmavo-body"></p>
+<p><img src="../../../docs/diagrams/lojban/cll/morphology/consonant-cmavo.svg" alt="Railroad diagram of the rule consonant-cmavo"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/vowel-cmavo.svg" alt="Railroad diagram of the rule vowel-cmavo"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/cmavo-units.svg" alt="Railroad diagram of the rule cmavo-units"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/cmavo-unit.svg" alt="Railroad diagram of the rule cmavo-unit"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/letter-cmavo.svg" alt="Railroad diagram of the rule letter-cmavo"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/y-pair-cmavo.svg" alt="Railroad diagram of the rule y-pair-cmavo"></p>
-<p><img src="../../../docs/diagrams/lojban/cll/morphology/warned-cmavo.svg" alt="Railroad diagram of the rule warned-cmavo"></p>
-<p><img src="../../../docs/diagrams/lojban/cll/morphology/warned-units.svg" alt="Railroad diagram of the rule warned-units"></p>
-<p><img src="../../../docs/diagrams/lojban/cll/morphology/warned-tail.svg" alt="Railroad diagram of the rule warned-tail"></p>
+<p><img src="../../../docs/diagrams/lojban/cll/morphology/y-unit-cmavo.svg" alt="Railroad diagram of the rule y-unit-cmavo"></p>
+<p><img src="../../../docs/diagrams/lojban/cll/morphology/units-with-y.svg" alt="Railroad diagram of the rule units-with-y"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/any-units.svg" alt="Railroad diagram of the rule any-units"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/any-unit.svg" alt="Railroad diagram of the rule any-unit"></p>
-<p><img src="../../../docs/diagrams/lojban/cll/morphology/y-letters.svg" alt="Railroad diagram of the rule y-letters"></p>
+<p><img src="../../../docs/diagrams/lojban/cll/morphology/all-y-cmavo.svg" alt="Railroad diagram of the rule all-y-cmavo"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/y-units.svg" alt="Railroad diagram of the rule y-units"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/cmavo-nucleus.svg" alt="Railroad diagram of the rule cmavo-nucleus"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/first-marked-cmavo.svg" alt="Railroad diagram of the rule first-marked-cmavo"></p>
@@ -215,11 +210,11 @@ A lujvo is exactly what the algorithm of CLL[^cll-s4-11] makes from two rafsi or
 
 "It is illegal to add a hyphen at a place that is not required by this algorithm", so `rokyre'o` and `basykla` are not lujvo. With its needless `r` hyphen, `saircli` is no lujvo either, and it reads as a borrowing. Without the hyphen, `saicli` is a lujvo.
 
-The rules below build the letters of a lujvo from the left, and they place each hyphen by its cause. `lujvo-rest` is the rafsi after a vowel or after an `r` or `n` hyphen, to the end of the word. `cvc-rest` is the part of a CVC or CVCC rafsi from its third letter, with the joint after it. A joint without a hyphen must be a permissible pair and must not make one of the four triples. A `y` at a joint must be required.
+The rules below build the letters of a lujvo from the left, and they place each hyphen by its cause. `lujvo-rest` reads the remaining rafsi after a vowel or a `y`, `r` or `n` hyphen. `cvc-rest` is the part of a CVC or CVCC rafsi from its third letter, with the joint after it. A joint without a hyphen must be a permissible pair and must not make one of the four triples. A `y` at a joint must be required.
 
 A y-hyphen must be unstressed. `hyphen-y` tests its lowercase value and rejects the tag `Stressed`. Every y-hyphen read uses this rule, so a written capital `Y` cannot become a lujvo hyphen.
 
-`pair-across-y` joins the consonant values on each side of a hyphen and tests `$PERMISSIBLE` from [shapes.md](shapes.md#consonants).
+`mandatory-y` requires a hyphen when its consonants form no pair in `$PERMISSIBLE`, or when the joint makes an `n` affricate triple without it. The shared [consonant tables](../common/consonant-tables.md) define `$PERMISSIBLE`.
 
 ```jbogenbau
 %rule hyphen-y
@@ -229,14 +224,7 @@ A y-hyphen must be unstressed. `hyphen-y` tests its lowercase value and rejects 
   | ccv-rafsi lujvo-rest
   | initial-pair vowel consonant hyphen-y lujvo-rest
   | consonant vowel lujvo-after-cv
-  | consonant $a:vowel $t:lujvo-after-cvv
-  | consonant vowel "'" vowel cvv-first-rest
-%conditions
-  ¬$a.parse(i-or-u),
-  ¬$a.parse("e" | "o") ∨ $t.parse(falling-i …)
-
-%rule lujvo-after-cvv
-  [Syllable-Break] i-or-u cvv-first-rest
+  | cvv-rafsi cvv-first-rest
 
 %rule cvv-first-rest
   | ccv-rafsi
@@ -244,8 +232,8 @@ A y-hyphen must be unstressed. `hyphen-y` tests its lowercase value and rejects 
   | "n" $n:lujvo-rest
 %conditions
   $r ≇ #ccv-rafsi,
-  ¬$r.parse(r-letter …),
-  $n.parse(r-letter …)
+  ¬$r.parse("r" …),
+  $n.parse("r" …)
 
 %rule lujvo-rest
   | final-rafsi
@@ -273,29 +261,21 @@ A y-hyphen must be unstressed. `hyphen-y` tests its lowercase value and rejects 
   consonant falling-vowels | consonant vowel "'" vowel
 
 %rule mandatory-y
-  | $j:y-joint
+  | $l:consonant hyphen-y $r:consonant
   | "n" hyphen-y affricate
 %conditions
-  ¬$j.parse(pair-across-y)
-
-%rule y-joint
-  consonant hyphen-y consonant
+  $l.value ++ $r.value ∉ $PERMISSIBLE
 
 %rule affricate
   consonant consonant
 %conditions
   $.value ∈ $AFFRICATES
 
-%rule pair-across-y
-  $l:consonant hyphen-y $r:consonant
-%conditions
-  $l.value ++ $r.value ∈ $PERMISSIBLE
 ```
 
-<details><summary>Railroad diagrams of the 13 rules from <code>hyphen-y</code> to <code>pair-across-y</code></summary>
+<details><summary>Railroad diagrams of the 10 rules from <code>hyphen-y</code> to <code>affricate</code></summary>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/hyphen-y.svg" alt="Railroad diagram of the rule hyphen-y"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/lujvo-form.svg" alt="Railroad diagram of the rule lujvo-form"></p>
-<p><img src="../../../docs/diagrams/lojban/cll/morphology/lujvo-after-cvv.svg" alt="Railroad diagram of the rule lujvo-after-cvv"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/cvv-first-rest.svg" alt="Railroad diagram of the rule cvv-first-rest"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/lujvo-rest.svg" alt="Railroad diagram of the rule lujvo-rest"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/cvc-rest.svg" alt="Railroad diagram of the rule cvc-rest"></p>
@@ -303,9 +283,7 @@ A y-hyphen must be unstressed. `hyphen-y` tests its lowercase value and rejects 
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/ccv-rafsi.svg" alt="Railroad diagram of the rule ccv-rafsi"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/cvv-rafsi.svg" alt="Railroad diagram of the rule cvv-rafsi"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/mandatory-y.svg" alt="Railroad diagram of the rule mandatory-y"></p>
-<p><img src="../../../docs/diagrams/lojban/cll/morphology/y-joint.svg" alt="Railroad diagram of the rule y-joint"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/affricate.svg" alt="Railroad diagram of the rule affricate"></p>
-<p><img src="../../../docs/diagrams/lojban/cll/morphology/pair-across-y.svg" alt="Railroad diagram of the rule pair-across-y"></p>
 </details>
 
 
@@ -322,14 +300,12 @@ If the test examines at least one pair and every examined pair is an initial pai
 
 ```jbogenbau
 %rule lujvo-after-cv
-  | $k:consonant lujvo-rest
+  | $c:cvc-rest
   | $l:consonant hyphen-y lujvo-rest
-  | consonant-pair hyphen-y lujvo-rest
 %conditions
-  $k.onward.parse(consonant-pair …),
-  ¬$k.onward.parse(n-affricate …),
-  $k ⟹ ¬$.parse(tosmabru-positive),
-  $l.onward.parse(mandatory-y …) ∨ $.parse(tosmabru-y)
+  ¬$c.parse(tosmabru-positive),
+  ¬$l.onward.parse(mandatory-y …),
+  $l ⟹ $.parse(tosmabru-y)
 
 %rule tosmabru-positive
   | initial-pair vowel tosmabru-chain
@@ -378,10 +354,13 @@ The stress of the candidate then falls on the penultimate syllable of that brivl
 The slinku'i test of CLL[^cll-s4-7] says that a CV cmavo joined to the front of a borrowing must not make a lujvo. Otherwise, `pa slinku'i`, written together, reads as the lujvo `pas-lin-ku'i`. The test holds for every borrowing. A CV cmavo before a borrowing that begins with a consonant makes a first CVC rafsi, so the test asks whether the borrowing is `lujvo-after-cv`. Before a borrowing that begins with `i` or `u`, the CV makes a CVV rafsi, and the test asks whether it is `lujvo-after-cvv`. So `ikla` and `irklama` are no borrowings, because `paikla` and `pairklama` are lujvo.
 
 ```jbogenbau
+%rule lujvo-after-cvv
+  [Syllable-Break] i-or-u cvv-first-rest
+
 %rule fuhivla-word
   $f:fuhivla-form
 %conditions
-  $f.parse([counted-lead] consonant consonant [any-letters]),
+  $f.parse([window-lead] consonant consonant [any-letters]),
   ¬$f.parse(gismu-form | lujvo-form | lujvo-after-cv | lujvo-after-cvv),
   ¬$f.parse(one-syllable | combination)
 
@@ -399,30 +378,31 @@ The slinku'i test of CLL[^cll-s4-7] says that a CV cmavo joined to the front of 
 %rule vowel-group
   vowel | vowel-group vowel | vowel-group "'" vowel | vowel-group Syllable-Break vowel
 
-%rule counted-lead
-  counted-letter | counted-letter counted-letter | counted-letter counted-letter counted-letter
+%rule window-lead
+  window-letter | window-letter window-letter | window-letter window-letter window-letter
 
-%rule counted-letter
+%rule window-letter
   consonant | vowel | vowel "'" | vowel Syllable-Break
 
 %rule combination
-  (plain-cmavo-body | vowel-cmavo) combination-rest
+  (consonant-cmavo | vowel-cmavo) combination-rest
 
 %rule combination-rest
   | gismu-form | lujvo-form
   | $f:fuhivla-word
-  | plain-cmavo-body combination-rest
+  | consonant-cmavo combination-rest
 %conditions
   $f.first-token.parse(consonant)
 ```
 
-<details><summary>Railroad diagrams of the 8 rules from <code>fuhivla-word</code> to <code>combination-rest</code></summary>
+<details><summary>Railroad diagrams of the 9 rules from <code>lujvo-after-cvv</code> to <code>combination-rest</code></summary>
+<p><img src="../../../docs/diagrams/lojban/cll/morphology/lujvo-after-cvv.svg" alt="Railroad diagram of the rule lujvo-after-cvv"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/fuhivla-word.svg" alt="Railroad diagram of the rule fuhivla-word"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/fuhivla-form.svg" alt="Railroad diagram of the rule fuhivla-form"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/fuhivla-body.svg" alt="Railroad diagram of the rule fuhivla-body"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/vowel-group.svg" alt="Railroad diagram of the rule vowel-group"></p>
-<p><img src="../../../docs/diagrams/lojban/cll/morphology/counted-lead.svg" alt="Railroad diagram of the rule counted-lead"></p>
-<p><img src="../../../docs/diagrams/lojban/cll/morphology/counted-letter.svg" alt="Railroad diagram of the rule counted-letter"></p>
+<p><img src="../../../docs/diagrams/lojban/cll/morphology/window-lead.svg" alt="Railroad diagram of the rule window-lead"></p>
+<p><img src="../../../docs/diagrams/lojban/cll/morphology/window-letter.svg" alt="Railroad diagram of the rule window-letter"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/combination.svg" alt="Railroad diagram of the rule combination"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/combination-rest.svg" alt="Railroad diagram of the rule combination-rest"></p>
 </details>
@@ -457,8 +437,10 @@ Pauses surround a name (rules 2 and 4), so its shape carries neither `Onset` nor
   | name-vowels permissible-run name-body
 
 %rule name-vowels
-  name-vowel | name-vowels name-vowel | name-vowels "'" name-vowel | name-vowels Syllable-Break
-    name-vowel
+  | name-vowel
+  | name-vowels name-vowel
+  | name-vowels "'" name-vowel
+  | name-vowels Syllable-Break name-vowel
 
 %rule la-or-doi
   "l" "a"
@@ -483,9 +465,9 @@ Only a borrowing, a name or hesitation can hold a comma between two vowels. A cm
 
 A run with such a word divides into no words, and the forms stage hands it on as one foreign token ([../common/forms.md](../common/forms.md)). The words stage rejects that run unless it is inside a foreign quote or after `fa'o`.
 
-The comma rules read `Syllable-Break`, because the comma value is empty. `vowel-group`, `counted-letter` and `name-vowels` retain the written boundary. `la-or-doi`, `falling-vowels`, `rising-vowels` and `falling-i` read optional syllable boundaries. `has-comma` finds a comma through its tag.
+The comma rules read `Syllable-Break`, because the comma value is empty. `vowel-group`, `window-letter` and `name-vowels` retain the written boundary. `la-or-doi`, `falling-vowels`, `rising-vowels` and `lujvo-after-cvv` read optional syllable boundaries. `has-comma` finds a comma through its tag.
 
-The rules that test whether letters form a cmavo or a lujvo read a comma inside a diphthong as if it were absent. `cmavo-unit` and `cvv-rafsi` read `falling-vowels`. `vowel-cmavo` reads `rising-vowels`, and it reads `falling-vowels` through `cmavo-units`. `lujvo-form` and `lujvo-after-cvv` read a comma before the `i` or `u` that ends a first CVV rafsi. `cmavo-shape` and `brivla-word` then refuse a cmavo or a lujvo that has a comma.
+The rules that test whether letters form a cmavo or a lujvo read a comma inside a diphthong as if it were absent. `cmavo-unit` and `cvv-rafsi` read `falling-vowels`. `vowel-cmavo` reads `rising-vowels`, and it reads `falling-vowels` through `cmavo-units`. `lujvo-form` reads the first CVV rafsi through `cvv-rafsi`. The slinku'i test uses `lujvo-after-cvv` for the tail after its first vowel. `cmavo-shape` and `brivla-word` then refuse a cmavo or a lujvo that has a comma.
 
 The tests of "Borrowings" for a lujvo or a `combination` use these rules and treat such a comma as absent too. So `ba,iklama` is no borrowing, because `bai klama` is two words. `akru,a` is one borrowing, as `akrua` is, and not `a kru,a`. A borrowing needs two syllables without its commas, which `one-syllable` tests.
 
@@ -495,14 +477,14 @@ A name needs one more test. Its `doi` test applies at its start or after a vowel
 
 ```jbogenbau
 %rule falling-vowels
-  falling-diphthong | "a" Syllable-Break "i" | "e" Syllable-Break "i" | "o" Syllable-Break "i" | "a"
-    Syllable-Break "u"
+  | falling-diphthong
+  | "a" Syllable-Break "i"
+  | "e" Syllable-Break "i"
+  | "o" Syllable-Break "i"
+  | "a" Syllable-Break "u"
 
 %rule rising-vowels
   rising-diphthong | i-or-u Syllable-Break vowel
-
-%rule falling-i
-  [Syllable-Break] "i"
 
 %rule one-syllable
   [consonants] syllable-vowels
@@ -514,10 +496,9 @@ A name needs one more test. Its `doi` test applies at its start or after a vowel
   [any-letters] Syllable-Break [any-letters]
 ```
 
-<details><summary>Railroad diagrams of the 6 rules from <code>falling-vowels</code> to <code>has-comma</code></summary>
+<details><summary>Railroad diagrams of the 5 rules from <code>falling-vowels</code> to <code>has-comma</code></summary>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/falling-vowels.svg" alt="Railroad diagram of the rule falling-vowels"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/rising-vowels.svg" alt="Railroad diagram of the rule rising-vowels"></p>
-<p><img src="../../../docs/diagrams/lojban/cll/morphology/falling-i.svg" alt="Railroad diagram of the rule falling-i"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/one-syllable.svg" alt="Railroad diagram of the rule one-syllable"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/syllable-vowels.svg" alt="Railroad diagram of the rule syllable-vowels"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/has-comma.svg" alt="Railroad diagram of the rule has-comma"></p>

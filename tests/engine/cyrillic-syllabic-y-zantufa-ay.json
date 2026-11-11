@@ -1,0 +1,29 @@
+{
+  "description": "Full Cyrillic vowels and y letters are syllabic. Glide letters can form a diphthong with y.",
+  "pipeline": "lojban/zantufa",
+  "input": "аъ",
+  "options": {
+    "until": "phonemes"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes",
+          "output": [
+            {
+              "value": "a"
+            },
+            {
+              "value": "'"
+            },
+            {
+              "value": "y"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

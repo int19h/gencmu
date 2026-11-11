@@ -44,7 +44,7 @@ CLL[^cll-s3-7] forbids the triples `ndj ndz ntc nts`, except in a name. The shar
   "n" affricate
 
 %rule consonants
-  consonant | consonants consonant
+  {consonant}
 
 %rule has-n-affricate
   [consonants] n-affricate [consonants]
@@ -100,18 +100,18 @@ A vowel of a word form has one of the lowercase values `a e i o u`, with or with
 
 The diphthongs of CLL[^cll-s3-4] are the falling `ai ei oi au` and the rising `ia ie ii io iu ua ue ui uo uu`. The rising ones can stand only in names and borrowings, and in a cmavo only as the whole word. A name can also have `iy` and `uy`. A diphthong can have a capital on either letter or on both, and it then marks one stressed syllable.
 
-Cmavo stress is free.[^cll-s3-9] `capital-vowel` reads a stressed vowel, and `capital-letter` also reads stressed `y`.
+Cmavo stress is free.[^cll-s3-9] `stressed-vowel` reads a stressed vowel, and `stressed-name-vowel` also reads stressed `y`.
 
-The rule `any-letter` reads `Syllable-Break` to include commas in stress lookahead.
+The rule `any-letter` includes commas through `Syllable-Break`. The `has-stressed-vowel` query tests the whole stretch for a stressed vowel.
 
 ```jbogenbau
 %rule vowel
   "a" | "e" | "i" | "o" | "u"
 
-%rule capital-vowel
+%rule stressed-vowel
   vowel<Stressed>
 
-%rule capital-letter
+%rule stressed-name-vowel
   name-vowel<Stressed>
 
 %rule i-or-u
@@ -126,31 +126,27 @@ The rule `any-letter` reads `Syllable-Break` to include commas in stress lookahe
 %rule y-diphthong
   i-or-u "y"
 
-%rule r-letter
-  "r"
-
 %rule any-letters
-  any-letter | any-letters any-letter
+  {any-letter}
 
 %rule any-letter
   consonant | vowel | "y" | "'" | Syllable-Break
 
-%rule stress-mark
-  [any-letters] capital-letter [any-letters]
+%rule has-stressed-vowel
+  [any-letters] stressed-name-vowel [any-letters]
 ```
 
-<details><summary>Railroad diagrams of the 11 rules from <code>vowel</code> to <code>stress-mark</code></summary>
+<details><summary>Railroad diagrams of the 10 rules from <code>vowel</code> to <code>has-stressed-vowel</code></summary>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/vowel.svg" alt="Railroad diagram of the rule vowel"></p>
-<p><img src="../../../docs/diagrams/lojban/cll/shapes/capital-vowel.svg" alt="Railroad diagram of the rule capital-vowel"></p>
-<p><img src="../../../docs/diagrams/lojban/cll/shapes/capital-letter.svg" alt="Railroad diagram of the rule capital-letter"></p>
+<p><img src="../../../docs/diagrams/lojban/cll/shapes/stressed-vowel.svg" alt="Railroad diagram of the rule stressed-vowel"></p>
+<p><img src="../../../docs/diagrams/lojban/cll/shapes/stressed-name-vowel.svg" alt="Railroad diagram of the rule stressed-name-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/i-or-u.svg" alt="Railroad diagram of the rule i-or-u"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/falling-diphthong.svg" alt="Railroad diagram of the rule falling-diphthong"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/rising-diphthong.svg" alt="Railroad diagram of the rule rising-diphthong"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/y-diphthong.svg" alt="Railroad diagram of the rule y-diphthong"></p>
-<p><img src="../../../docs/diagrams/lojban/cll/shapes/r-letter.svg" alt="Railroad diagram of the rule r-letter"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/any-letters.svg" alt="Railroad diagram of the rule any-letters"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/any-letter.svg" alt="Railroad diagram of the rule any-letter"></p>
-<p><img src="../../../docs/diagrams/lojban/cll/shapes/stress-mark.svg" alt="Railroad diagram of the rule stress-mark"></p>
+<p><img src="../../../docs/diagrams/lojban/cll/shapes/has-stressed-vowel.svg" alt="Railroad diagram of the rule has-stressed-vowel"></p>
 </details>
 
 
@@ -202,8 +198,8 @@ A brivla with marked stress must have `S2`, and one without any capital vowel mu
   | consonant
   | "y"<¬Stressed>
   | "'" | Syllable-Break
-  | $v:vowel :: Counted Single-End ∪ ($v.parse(capital-vowel) ⟹ Marked)
-  | $d:brivla-diphthong :: Counted ∪ ($d.parse(stress-mark) ⟹ Marked)
+  | $v:vowel :: Counted Single-End ∪ ($v.parse(stressed-vowel) ⟹ Marked)
+  | $d:brivla-diphthong :: Counted ∪ ($d.parse(has-stressed-vowel) ⟹ Marked)
 
 %rule brivla-diphthong
   falling-diphthong | rising-diphthong
@@ -226,7 +222,7 @@ A cmavo or a name can have capital vowels on any of its syllables, `Y` included 
 - `First-Counted`, when the first nucleus is counted, and `First-Marked`, when it has a capital vowel
 - `Any-Marked`, when some nucleus has a capital vowel
 
-The forms stage uses the stress on the first syllable of a name, for the pause rule of CLL[^cll-s4-2] between two stressed syllables. That is where `la` or `doi` comes before a name with no pause.
+The forms stage uses the stress on the first syllable of a name, for the pause rule of CLL[^cll-s4-2] between two stressed syllables. This stress test applies when `la` or `doi` comes before a name with no pause.
 
 ```jbogenbau
 %rule name-scan
@@ -256,10 +252,10 @@ The forms stage uses the stress on the first syllable of a name, for the pause r
 
 %rule name-item
   | consonant | "'" | Syllable-Break
-  | $v:vowel :: Nucleus Counted Single-End ∪ ($v.parse(capital-vowel) ⟹ Marked)
-  | $y:"y" :: Nucleus ∪ ($y.parse(stress-mark) ⟹ Marked)
-  | $d:brivla-diphthong :: Nucleus Counted ∪ ($d.parse(stress-mark) ⟹ Marked)
-  | $e:y-diphthong :: Nucleus ∪ ($e.parse(stress-mark) ⟹ Marked)
+  | $v:vowel :: Nucleus Counted Single-End ∪ ($v.parse(stressed-vowel) ⟹ Marked)
+  | $y:"y" :: Nucleus ∪ ($y.parse(has-stressed-vowel) ⟹ Marked)
+  | $d:brivla-diphthong :: Nucleus Counted ∪ ($d.parse(has-stressed-vowel) ⟹ Marked)
+  | $e:y-diphthong :: Nucleus ∪ ($e.parse(has-stressed-vowel) ⟹ Marked)
 
 %rule name-vowel
   vowel | "y"

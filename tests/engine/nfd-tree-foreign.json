@@ -379,7 +379,7 @@
                         "children": [
                           {
                             "kind": "rule",
-                            "rule": "spaced-pause",
+                            "rule": "quiet-pause",
                             "span": [
                               3,
                               4
@@ -761,7 +761,7 @@
                     "children": [
                       {
                         "kind": "rule",
-                        "rule": "spaced-pause",
+                        "rule": "quiet-pause",
                         "span": [
                           6,
                           8
@@ -1490,7 +1490,7 @@
                 "children": [
                   {
                     "kind": "rule",
-                    "rule": "spaced-pause",
+                    "rule": "quiet-pause",
                     "span": [
                       11,
                       13
@@ -1935,7 +1935,7 @@
           },
           {
             "kind": "rule",
-            "rule": "edge-pause",
+            "rule": "text-edge",
             "span": [
               15,
               16
@@ -1948,7 +1948,7 @@
             "children": [
               {
                 "kind": "rule",
-                "rule": "spaced-pause",
+                "rule": "quiet-pause",
                 "span": [
                   15,
                   16

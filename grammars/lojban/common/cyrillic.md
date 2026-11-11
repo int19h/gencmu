@@ -53,7 +53,9 @@ The rules map Cyrillic letters to their Lojban phonemes. The consonant mappings 
 <p><img src="../../../docs/diagrams/lojban/common/cyrillic/cyrillic-period.svg" alt="Railroad diagram of the rule cyrillic-period"></p>
 </details>
 
-Two adjacent full Cyrillic vowel letters form two syllables, so `аи` is `a'i`. The orthography writes a diphthong with the short forms `й` and `ў`, so `ай` is `ai`.
+Two adjacent full Cyrillic vowel letters form two syllables, so `аи` is `a'i` and `аъ` is `a'y`. The orthography writes a diphthong with the short forms `й` and `ў`, so `ай` is `ai` and `йъ` is `iy`.
+
+Two `ъ` letters give `y'y`, so prolonged hesitation `yy` has no Cyrillic spelling.
 
 So a full vowel letter carries the tag `Syllabic`, which the vowel-group rules of [../cll/latin.md](../cll/latin.md) read. The stage inserts an apostrophe between adjacent syllabic vowels. `й`, `ј` and `ў`, the glides, carry no such tag, and they join the vowel beside them into a diphthong.
 
@@ -61,7 +63,7 @@ A capital full vowel letter, or a combining accent after one, marks stress, as i
 
 The [experimental override](../experimental/cyrillic.md) ignores an accent on a glide. Inside an all-capital run, the stage folds a capital vowel or glide, that is, it reads the letter as plain. An accented capital keeps its stress there.
 
-The `Vowel` tag marks the letters of `a`, `e`, `i`, `o` and `u`, full vowels and glides, and not `y`. Only the full vowels carry `Syllabic`. So each vowel rule below holds its full vowels in a rule of its own, such as `cyrillic-plain-full-vowel`.
+The `Vowel` tag marks the letters of `a`, `e`, `i`, `o` and `u`, full vowels and glides, and not `y`. The full vowels and the `y` letters carry `Syllabic`, and the glides do not. So each vowel rule below holds its full vowels in a rule of its own, such as `cyrillic-plain-full-vowel`.
 
 The glides form rules of their own too. `cyrillic-plain-glide` holds the plain glides and carries `Vowel` on its header. `cyrillic-folded-glide` holds the folded glides in the same way. The `y` forms stay in the outer rule.
 
