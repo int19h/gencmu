@@ -882,6 +882,8 @@ pub(crate) struct Dag<'c> {
     flen: Vec<Nat>,
 }
 
+type ItemLinks = Rc<Vec<(Node, Node)>>;
+
 pub(crate) struct Ranker<'c> {
     shared: &'c Shared<'c>,
     restoration: Option<Rc<RestorationView>>,
@@ -894,6 +896,8 @@ pub(crate) struct Ranker<'c> {
     canonical_imports: FxMap<u32, u32>,
     pub dag: Dag<'c>,
     memo: FxMap<Key, u32>,
+    /// Recorded item links do not depend on the cycle context or ranking pass.
+    item_links: FxMap<(u32, u32), ItemLinks>,
     results: Vec<NodeResult>,
     fsets: Vec<Vec<u32>>,
     fset_index: FxMap<Vec<u32>, u32>,
@@ -1330,6 +1334,7 @@ impl<'c> Ranker<'c> {
             canonical_imports: FxMap::default(),
             dag,
             memo: FxMap::default(),
+            item_links: FxMap::default(),
             results: Vec::new(),
             fsets: vec![Vec::new()],
             fset_index: FxMap::default(),
@@ -1716,17 +1721,19 @@ impl<'c> Ranker<'c> {
                     let g = self.dag.g;
                     let p = &g.prods[item.prod as usize];
                     let position = item.dot as usize - 1;
-                    let mut links = Vec::new();
-                    for (before, cap, option) in slot_links(g, self.dag.chart, set, item, self.restoration.as_deref()) {
-                        let m = cap.start;
-                        let Some(index) = self.dag.chart.sets[m as usize].find(&before) else {
-                            continue;
-                        };
-                        let pred = (Node::Item { set: m, index }, if m == set { fset } else { 0 });
-                        let child = match p.syms[position] {
-                            Sym::T(terminal) => (Node::Read { tok: m, terminal }, 0),
-                            Sym::N(rule) => (
-                                Node::Group {
+                    let chart = self.dag.chart;
+                    let restoration = self.restoration.as_deref();
+                    let raw = self.item_links.entry((set, index)).or_insert_with(|| {
+                        let mut links = Vec::new();
+                        for (before, cap, option) in slot_links(g, chart, set, item, restoration) {
+                            let m = cap.start;
+                            let Some(index) = chart.sets[m as usize].find(&before) else {
+                                continue;
+                            };
+                            let pred = Node::Item { set: m, index };
+                            let child = match p.syms[position] {
+                                Sym::T(terminal) => Node::Read { tok: m, terminal },
+                                Sym::N(rule) => Node::Group {
                                     route: p.routes.get(&position).copied().unwrap_or(0),
                                     requested: cap.close_requested,
                                     rule,
@@ -1736,14 +1743,28 @@ impl<'c> Ranker<'c> {
                                     test: p.test(position).unwrap_or(NO_TEST),
                                     structure: cap.proof_structure.unwrap_or(cap.structure),
                                     boundary: cap.boundary,
-                                    lexical: self.dag.chart.expected_lexical(before, m),
+                                    lexical: chart.expected_lexical(before, m),
                                     option,
                                 },
-                                if m == item.origin { fset } else { 0 },
-                            ),
-                        };
-                        links.push((pred, child));
-                    }
+                            };
+                            links.push((pred, child));
+                        }
+                        Rc::new(links)
+                    });
+                    let links = raw
+                        .iter()
+                        .map(|&(pred, child)| {
+                            work::count(Work::Walked, 1);
+                            let prefix_context =
+                                if matches!(pred, Node::Item {set: m, ..} if m == set) { fset } else { 0 };
+                            let child_context = if matches!(child, Node::Group {origin, ..} if origin == item.origin) {
+                                fset
+                            } else {
+                                0
+                            };
+                            ((pred, prefix_context), (child, child_context))
+                        })
+                        .collect();
                     return Deps::Links(links);
                 }
                 let production = &self.dag.g.prods[item.prod as usize];

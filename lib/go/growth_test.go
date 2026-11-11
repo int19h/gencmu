@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 	"unicode/utf8"
 )
 
@@ -21,15 +22,16 @@ func TestGrowth(t *testing.T) {
 		t.Fatal(err)
 	}
 	var cases []struct {
-		Description string `json:"description"`
-		Pipeline    string `json:"pipeline"`
-		Grammar     string `json:"grammar"`
-		Walks       bool   `json:"walks"`
-		Text        string `json:"text"`
-		Link        string `json:"link"`
-		Small       int    `json:"small"`
-		Large       int    `json:"large"`
-		Most        int64  `json:"most"`
+		Description     string `json:"description"`
+		Pipeline        string `json:"pipeline"`
+		Grammar         string `json:"grammar"`
+		Walks           bool   `json:"walks"`
+		Text            string `json:"text"`
+		Link            string `json:"link"`
+		Small           int    `json:"small"`
+		Large           int    `json:"large"`
+		Most            int64  `json:"most"`
+		EligibilityMost int64  `json:"eligibilityMost"`
 	}
 	if err := unmarshalJSON(data, &cases); err != nil {
 		t.Fatal(err)
@@ -56,14 +58,16 @@ func TestGrowth(t *testing.T) {
 			// A budget of 0 is none; the count past a budget stops the
 			// parse. The keys of nested parses by content are counted too,
 			// since a key costs as much as its span is long.
-			work := func(n int, items, keys, visits int64) (int64, int64, int64) {
+			work := func(n int, items, keys, visits, eligibility int64) (int64, int64, int64, int64) {
 				links := strings.TrimSuffix(strings.Repeat(c.Link+" ", n), " ")
 				text := strings.Replace(c.Text, "{links}", links, 1)
 				w := countWork(t)
 				w.items.most, w.keySteps.most = items, keys
+				w.eligibilitySteps.most = eligibility
 				if c.Walks {
 					w.visits.most = visits
 				}
+				start := time.Now()
 				res, err := d.Parse(text, ParseOptions{})
 				if err != nil {
 					t.Fatal(err)
@@ -71,10 +75,11 @@ func TestGrowth(t *testing.T) {
 				if !res.OK {
 					t.Fatalf("%s: does not parse", text)
 				}
-				return w.items.Load(), w.keySteps.Load(), w.visits.Load()
+				t.Logf("%d links: items=%d keys=%d visits=%d eligibility=%d milliseconds=%.3f", n, w.items.Load(), w.keySteps.Load(), w.visits.Load(), w.eligibilitySteps.Load(), float64(time.Since(start).Microseconds())/1000)
+				return w.items.Load(), w.keySteps.Load(), w.visits.Load(), w.eligibilitySteps.Load()
 			}
-			small, smallKeys, smallVisits := work(c.Small, 0, 0, 0)
-			large, largeKeys, _ := work(c.Large, c.Most*small, c.Most*smallKeys+1, c.Most*smallVisits)
+			small, smallKeys, smallVisits, smallEligibility := work(c.Small, 0, 0, 0, 0)
+			large, largeKeys, _, _ := work(c.Large, c.Most*small, c.Most*smallKeys+1, c.Most*smallVisits, c.EligibilityMost*smallEligibility)
 			t.Logf("%d items and %d key steps for %d links, %d and %d for %d", small, smallKeys, c.Small, large, largeKeys, c.Large)
 		})
 	}

@@ -118,7 +118,7 @@ func (r *recognizer) eligibleItems(items []*item, errorFree bool) []*item {
 
 func eligibilityStep() {
 	if w := work.Load(); w != nil {
-		w.visits.add("eligibility steps")
+		w.eligibilitySteps.add("eligibility steps")
 	}
 }
 
@@ -244,13 +244,42 @@ func (r *recognizer) eligibilityStates(items []*item, errorFree bool) map[*item]
 		}
 		return len(r.run.toks[index].Errors) > 0
 	}
-	children := func(sym *symNode, states []uint8) uint8 {
-		var result uint8
-		for _, child := range sym.items {
+	// Many links share one completed symbol. Update its two masks only
+	// when a child's state grows, rather than aggregating all children at
+	// every incoming link in every fixed-point sweep.
+	childMasks := map[*symNode][2]uint8{}
+	childUses := map[*item][]*symNode{}
+	for _, it := range e.order {
+		for _, edge := range it.links {
 			eligibilityStep()
-			result |= states[e.index[child]]
+			if edge.sym == nil {
+				continue
+			}
+			if _, seen := childMasks[edge.sym]; seen {
+				continue
+			}
+			childMasks[edge.sym] = [2]uint8{}
+			for _, child := range edge.sym.items {
+				eligibilityStep()
+				childUses[child] = append(childUses[child], edge.sym)
+			}
 		}
-		return result
+	}
+	children := func(sym *symNode, channel int) uint8 {
+		eligibilityStep()
+		return childMasks[sym][channel]
+	}
+	// A saturated mask cannot gain a new proof state in later sweeps.
+	ceilings := [2]uint8{1, 1}
+	if r.g.hasErrors {
+		ceilings[0] = 3
+	}
+	for _, token := range r.run.toks {
+		eligibilityStep()
+		if len(token.Errors) != 0 {
+			ceilings = [2]uint8{3, 3}
+			break
+		}
 	}
 	for changed := true; changed; {
 		changed = false
@@ -260,6 +289,9 @@ func (r *recognizer) eligibilityStates(items []*item, errorFree bool) map[*item]
 				states, permissions := R, RP
 				if channel == 1 {
 					states, permissions = E, P
+				}
+				if states[x] == ceilings[channel] && (permissions[x] == ceilings[channel] || next[x] == nextNone) {
+					continue
 				}
 				stateOf := func(item *item) uint8 { return states[e.index[item]] }
 				beforeStates := func(item *item, edge link) uint8 {
@@ -277,7 +309,7 @@ func (r *recognizer) eligibilityStates(items []*item, errorFree bool) map[*item]
 						}
 						return before
 					}
-					return combineProofStates(before, children(edge.sym, states))
+					return combineProofStates(before, children(edge.sym, channel))
 				}
 				a, p := uint8(0), uint8(0)
 				if it.dot == 0 {
@@ -328,7 +360,7 @@ func (r *recognizer) eligibilityStates(items []*item, errorFree bool) map[*item]
 									allowed |= b
 								}
 							} else {
-								child := children(edge.sym, states)
+								child := children(edge.sym, channel)
 								for _, c := range []uint8{1, 2} {
 									if child&c != 0 && combineProofStates(b, c) == bit {
 										allowed |= b
@@ -367,6 +399,12 @@ func (r *recognizer) eligibilityStates(items []*item, errorFree bool) map[*item]
 				}
 				if states[x]|a != states[x] {
 					states[x] |= a
+					for _, symbol := range childUses[it] {
+						eligibilityStep()
+						mask := childMasks[symbol]
+						mask[channel] |= a
+						childMasks[symbol] = mask
+					}
 					changed = true
 				}
 				if permissions[x]|p != permissions[x] {

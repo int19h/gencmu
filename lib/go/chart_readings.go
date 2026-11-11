@@ -161,9 +161,14 @@ func (r *recognizer) chartReading(local *checkValue, clean bool) *nestedResult {
 		items := r.localCompletions[[2]int32{site.symbol.id, int32(start)}]
 		if r.localEligibility == nil {
 			var all []*item
+			// Keep chart order. Map order can turn supported cycles into
+			// many extra sweeps of the same fixed point.
 			for _, set := range r.sets {
-				for _, completion := range set.syms {
-					all = append(all, completion.items...)
+				for _, item := range set.items {
+					eligibilityStep()
+					if int(item.dot) == len(item.prod.rhs) {
+						all = append(all, item)
+					}
 				}
 			}
 			r.localEligibility = r.eligibilityStates(all, true)

@@ -311,6 +311,8 @@
    * @property {number} walkSteps the steps of the readers and walks of a
    *   document, of its notation's tree and of its DOM, in the library and in
    *   the tools, plus candidate lookups and enumeration in competitor evidence
+   * @property {number} eligibilitySteps the proof traversal, indexing and
+   *   chart lookups of query eligibility
    * @property {number} lowering the symbols and captures that lowering and
    *   the checks of a definition add to a sequence or copy, the helpers
    *   that lowering moves on its list of those waiting, and the positions,
@@ -333,10 +335,10 @@
    *   count that the work may reach
    */
 
-  /** @typedef {"boundaryRecords" | "familySummaries" | "familySteps" | "closeStates" | "closeSequences" | "structuralStates" | "structuralTransitions" | "packedEdges" | "summaryContexts" | "items" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "valueSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text"} WorkKind */
+  /** @typedef {"boundaryRecords" | "familySummaries" | "familySteps" | "closeStates" | "closeSequences" | "structuralStates" | "structuralTransitions" | "packedEdges" | "summaryContexts" | "items" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "valueSteps" | "tags" | "implications" | "walkSteps" | "eligibilitySteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text"} WorkKind */
 
   /** @type {readonly WorkKind[]} */
-  const WORK_KINDS = ["boundaryRecords","familySummaries", "familySteps", "closeStates", "closeSequences", "structuralStates", "structuralTransitions", "packedEdges", "summaryContexts", "items", "captures", "captureSteps", "captureLookups", "edgeChecks", "conditions", "visits", "valueSteps", "tags", "implications", "walkSteps", "lowering", "closures", "clauses", "groups", "traversal", "splice", "text"];
+  const WORK_KINDS = ["boundaryRecords","familySummaries", "familySteps", "closeStates", "closeSequences", "structuralStates", "structuralTransitions", "packedEdges", "summaryContexts", "items", "captures", "captureSteps", "captureLookups", "edgeChecks", "conditions", "visits", "valueSteps", "tags", "implications", "walkSteps", "eligibilitySteps", "lowering", "closures", "clauses", "groups", "traversal", "splice", "text"];
 
   /**
    * Counts of every kind at zero, for a test to set as `hooks.work`.
@@ -5910,7 +5912,7 @@
     /** @param {import("./elements.js").Element[]} nodes @param {boolean} root @returns {{node:import("./elements.js").Element|undefined,initial:boolean}|null} */
     const find = (nodes,root) => {
       for (let index=0;index<nodes.length;index++) {
-        if(hooks.work)countWork(hooks.work,"walkSteps");
+        if(hooks.work)countWork(hooks.work,"eligibilitySteps");
         const node = nodes[index];
         if (node.symbol && node.from === item.dot) return {node:nodes[index-1],initial:root && index === 1};
         if (node.children && node.from <= item.dot && item.dot < node.to) {
@@ -5987,17 +5989,17 @@
     const order = [];
     let omits = false;
     for (const witness of witnesses) {
-      if(hooks.work)countWork(hooks.work,'walkSteps');
+      if(hooks.work)countWork(hooks.work,'eligibilitySteps');
       if (index.has(witness)) continue;
       index.set(witness, -1);
       /** @type {{item: Item, edges: Edge[], next: number}[]} */
       const stack = [{ item: witness, edges: witness.edges, next: 0 }];
       while (stack.length > 0) {
-        if(hooks.work)countWork(hooks.work,'walkSteps');
+        if(hooks.work)countWork(hooks.work,'eligibilitySteps');
         const frame = stack[stack.length - 1];
         let pushed = false;
         while (frame.next < frame.edges.length * 2) {
-          if(hooks.work)countWork(hooks.work,'walkSteps');
+          if(hooks.work)countWork(hooks.work,'eligibilitySteps');
           const step = frame.next++;
           const edge = frame.edges[step >> 1];
           /** @type {Item | null} */
@@ -6032,9 +6034,9 @@
     for (const set of chart.sets) {
       if (!set) continue;
       for (const item of set.items) {
-        if(hooks.work)countWork(hooks.work,'walkSteps');
+        if(hooks.work)countWork(hooks.work,'eligibilitySteps');
         for (const edge of item.edges) {
-          if(hooks.work)countWork(hooks.work,"walkSteps");
+          if(hooks.work)countWork(hooks.work,"eligibilitySteps");
           if (edge.kind === "complete" && written(edge.child)) reads.add(edge.previous);
         }
       }
@@ -6043,7 +6045,7 @@
     const further = new Map();
     for (const item of reads) {
       for (const edge of item.edges) {
-        if(hooks.work)countWork(hooks.work,'walkSteps');
+        if(hooks.work)countWork(hooks.work,'eligibilitySteps');
         if (edge.kind !== "complete") continue;
         const known = further.get(edge.previous);
         if (known === undefined || known < item.end) further.set(edge.previous, item.end);
@@ -6093,7 +6095,7 @@
     const fixedKey = (item,group) => {
       const captures = [];
       for (let slot=item.slots;slot;slot=slot.parent) {
-        if(hooks.work)countWork(hooks.work,"walkSteps");
+        if(hooks.work)countWork(hooks.work,"eligibilitySteps");
         const name = item.production.captures[slot.index].name;
         captures.push([name,slot.start,slot.end,slot.tags,slot.structure,slot.observation?.sequence]);
       }
@@ -6112,7 +6114,7 @@
     const boundaries = (item,dot) => {
       const result = [], pending = [item], seen = new Set();
       while (pending.length) {
-        if(hooks.work)countWork(hooks.work,'walkSteps');
+        if(hooks.work)countWork(hooks.work,'eligibilitySteps');
         const current = /** @type {Item} */ (pending.pop());
         if (seen.has(current)) continue;
         seen.add(current);
@@ -6154,7 +6156,7 @@
     const groupPermits = (item,group,end,states,permissions,bit) => {
       const pending = [{item,bit}], seen = new Set();
       while (pending.length) {
-        if(hooks.work)countWork(hooks.work,'walkSteps');
+        if(hooks.work)countWork(hooks.work,'eligibilitySteps');
         const current = /** @type {{item:Item,bit:number}} */ (pending.pop());
         const key = at(current.item)*2 + (current.bit === 2 ? 1 : 0);
         if (seen.has(key) || !(states[at(current.item)] & current.bit)) continue;
@@ -6164,7 +6166,7 @@
           continue;
         }
         for (const edge of current.item.edges) {
-          if(hooks.work)countWork(hooks.work,"walkSteps");
+          if(hooks.work)countWork(hooks.work,"eligibilitySteps");
           if (edge.kind === "scan") {
             for (const before of [1,2]) if (states[at(edge.previous)] & before &&
                 (dirtyRead(edge) ? 2 : before) === current.bit) pending.push({item:edge.previous,bit:before});
@@ -6183,14 +6185,14 @@
     while (changed) {
       changed = false;
       for (let x = 0; x < order.length; x++) {
-        if(hooks.work)countWork(hooks.work,'walkSteps');
+        if(hooks.work)countWork(hooks.work,'eligibilitySteps');
         const item = order[x];
         // These are semantic support channels, not separate legacy paths.
         for (const raw of [true,false]) {
           const states = raw ? support : eligible, permissions = raw ? supportPermits : permits;
           let e = 0, p = 0;
           for (const edge of item.edges) {
-            if(hooks.work)countWork(hooks.work,'walkSteps');
+            if(hooks.work)countWork(hooks.work,'eligibilitySteps');
             let through = 0;
             if (edge.kind === "seed" || edge.kind === "restore") through = dirtyRead(edge) ? 2 : 1;
             else if (edge.kind === "scan") through = dirtyRead(edge) ? states[at(edge.previous)] ? 2 : 0 : states[at(edge.previous)];
@@ -16688,7 +16690,7 @@
       if(!saved.index) {
         saved.index=new Map();
         for(const set of saved.chart.sets)if(set)for(const item of set.items) {
-          if(hooks.work)countWork(hooks.work,'walkSteps');
+          if(hooks.work)countWork(hooks.work,'eligibilitySteps');
           if(!item.complete)continue;
           let origins=saved.index.get(item.production.lhs);
           if(!origins)saved.index.set(item.production.lhs,origins=new Map());

@@ -75,18 +75,18 @@ def eligibility(forest: Forest, witnesses: list[int], error_free: bool = False) 
     seen: set[int] = set()
     omits = False
     for witness in witnesses:
-        _testing.count("walkSteps")
+        _testing.count("eligibilitySteps")
         if witness in seen:
             continue
         seen.add(witness)
         stack = [(witness, 0)]
         while stack:
-            _testing.count("walkSteps")
+            _testing.count("eligibilitySteps")
             item, step = stack[-1]
             item_edges = edges[item]
             pushed = False
             while step < 2 * len(item_edges):
-                _testing.count("walkSteps")
+                _testing.count("eligibilitySteps")
                 pred, kind, child, _ = item_edges[step >> 1]
                 below = -1
                 if step & 1 == 0:
@@ -117,9 +117,9 @@ def eligibility(forest: Forest, witnesses: list[int], error_free: bool = False) 
     # written.
     reads: set[int] = set()
     for item_edges in edges:
-        _testing.count("walkSteps")
+        _testing.count("eligibilitySteps")
         for pred, kind, child, _ in item_edges:
-            _testing.count("walkSteps")
+            _testing.count("eligibilitySteps")
             if kind == 2:
                 # A completed nonempty alternative of an elidable optional.
                 production = productions[prod[child]]
@@ -127,9 +127,9 @@ def eligibility(forest: Forest, witnesses: list[int], error_free: bool = False) 
                     reads.add(pred)
     further: dict[int, int] = {}
     for item in reads:
-        _testing.count("walkSteps")
+        _testing.count("eligibilitySteps")
         for pred, kind, _, _ in edges[item]:
-            _testing.count("walkSteps")
+            _testing.count("eligibilitySteps")
             if kind == 2 and further.get(pred, -1) < forest.end[item]:
                 further[pred] = forest.end[item]
 
@@ -168,7 +168,7 @@ def eligibility(forest: Forest, witnesses: list[int], error_free: bool = False) 
             earlier = set()
             for current in found:
                 for pred, kind, child, _ in edges[current]:
-                    _testing.count("walkSteps")
+                    _testing.count("eligibilitySteps")
                     if kind not in (1, 2):
                         continue
                     earlier.add(pred)
@@ -201,7 +201,7 @@ def eligibility(forest: Forest, witnesses: list[int], error_free: bool = False) 
 
     group_further: dict[tuple, int] = {}
     for item in reads:
-        _testing.count("walkSteps")
+        _testing.count("eligibilitySteps")
         what, group = boundary(item)
         if what == OPTIONAL:
             for prefix in prefixes(item, group[2]):
@@ -225,7 +225,7 @@ def eligibility(forest: Forest, witnesses: list[int], error_free: bool = False) 
     def group_permits(item, group, end, states, permissions, bit):
         pending, seen = [(item, bit)], set()
         while pending:
-            _testing.count("walkSteps")
+            _testing.count("eligibilitySteps")
             current, bit = pending.pop()
             key = current, bit
             if key in seen or not states[current] & bit:
@@ -236,7 +236,7 @@ def eligibility(forest: Forest, witnesses: list[int], error_free: bool = False) 
                     return True
                 continue
             for pred, kind, child, _ in edges[current]:
-                _testing.count("walkSteps")
+                _testing.count("eligibilitySteps")
                 if kind == 1:
                     for before in (1, 2):
                         if states[pred] & before and (2 if dirty_read(kind, child) else before) == bit:
@@ -253,13 +253,13 @@ def eligibility(forest: Forest, witnesses: list[int], error_free: bool = False) 
     while changed:
         changed = False
         for item in order:
-            _testing.count("walkSteps")
+            _testing.count("eligibilitySteps")
             what, group = after[item]
             for raw in (True, False):
                 states, permissions = (support, support_permits) if raw else (eligible_states, permits)
                 e = p = 0
                 for pred, kind, child, _ in edges[item]:
-                    _testing.count("walkSteps")
+                    _testing.count("eligibilitySteps")
                     if kind in (0, 3):
                         through = 2 if dirty_read(kind, child) else 1
                     elif kind == 1:

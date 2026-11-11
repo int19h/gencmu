@@ -52,7 +52,7 @@
     "small": 4,
     "large": 16,
     "most": 5,
-    "walks": true
+    "eligibilityMost": 15
   },
   {
     "description": "A long run of vocatives keeps the Zantufa free-modifier restriction. Backward boundary records replace the special post-clause wrappers.",

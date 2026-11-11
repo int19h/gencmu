@@ -72,6 +72,7 @@ type elementPriority struct {
 func newElementPriority(r *recognizer, reads map[*item]bool) *elementPriority {
 	l := &elementPriority{r: r, further: map[elementPrefixKey]int32{}, memo: map[elementPrefixSearch][]*item{}}
 	for it := range reads {
+		eligibilityStep()
 		if it.prod.precedingElementOptional(int(it.dot)) == nil {
 			continue
 		}
@@ -98,6 +99,7 @@ func (l *elementPriority) prefixes(it *item) []*item {
 	seen := map[*item]bool{}
 	stack := []*item{it}
 	for len(stack) > 0 {
+		eligibilityStep()
 		p := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
 		if seen[p] {
@@ -109,6 +111,7 @@ func (l *elementPriority) prefixes(it *item) []*item {
 			continue
 		}
 		for _, link := range p.links {
+			eligibilityStep()
 			stack = append(stack, l.r.before(p, link))
 		}
 	}
@@ -120,6 +123,7 @@ func (l *elementPriority) key(it, prefix *item) elementPrefixKey {
 	g := it.prod.precedingElementOptional(int(it.dot))
 	var names []string
 	for name, position := range prefix.prod.posOf {
+		eligibilityStep()
 		if position < int(prefix.dot) {
 			names = append(names, name)
 		}
@@ -127,6 +131,7 @@ func (l *elementPriority) key(it, prefix *item) elementPrefixKey {
 	sort.Strings(names)
 	var captures strings.Builder
 	for _, name := range names {
+		eligibilityStep()
 		c := l.r.caps(&prefix.itemKey).at(prefix.prod.slotOf[name])
 		fmt.Fprintf(&captures, "%d:%s/%d/%d/%d/%d/%d;", len(name), name, c.start, c.end, c.tags, c.structure, c.closes)
 		if l.r.trees != nil {
@@ -164,6 +169,7 @@ func (l *elementPriority) permitsEligible(it *item, bit uint8, state func(*item)
 	seen := map[proof]bool{}
 	stack := []proof{{it, bit}}
 	for len(stack) > 0 {
+		eligibilityStep()
 		current := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
 		if seen[current] || state(current.item)&current.bit == 0 {
@@ -178,6 +184,7 @@ func (l *elementPriority) permitsEligible(it *item, bit uint8, state func(*item)
 			continue
 		}
 		for _, edge := range p.links {
+			eligibilityStep()
 			allowed := predecessors(p, edge, current.bit)
 			for _, before := range []uint8{1, 2} {
 				if allowed&before != 0 {

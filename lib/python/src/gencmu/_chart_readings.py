@@ -17,15 +17,6 @@ def binds(expression):
 
 
 def prepare(lowered):
-    pending = [check["conditions"] for _, check in lowered.grammar.checks]
-    while pending:
-        node = pending.pop()
-        if isinstance(node, dict) and node.get("method") == "local-readings":
-            break
-        pending.extend(clause_children(node))
-    else:
-        return
-
     # Propagate input-context and root-settlement properties through calls,
     # including query targets in recognition conditions and tag terms.
     properties = [[False, name == "text", False] for name in lowered.rule_names]

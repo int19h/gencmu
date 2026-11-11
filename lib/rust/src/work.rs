@@ -26,6 +26,8 @@ pub(crate) enum Work {
     /// at: each completed item that their index is built from, and then
     /// each that they read from it.
     Searched,
+    /// Proof traversal, chart indexing and lookups of query eligibility.
+    Eligibility,
     /// The cycle contexts that the rankings make.
     Contexts,
     /// The sequences of captured parts that the recognizer makes, each one
@@ -398,6 +400,7 @@ mod tests {
             let name = case.get("pipeline").and_then(Json::as_str).unwrap_or("check elements").to_string();
             let (template, link) = (string(case, "text"), string(case, "link"));
             let walks = case.get("walks").and_then(Json::as_bool).unwrap_or(false);
+            let eligibility_most = case.get("eligibilityMost").and_then(Json::as_int).map(|n| n as u64);
             let (small, large, most) = (number(case, "small"), number(case, "large"), number(case, "most"));
             // Loading is outside the preceding parse budget.
             reset();
@@ -407,24 +410,30 @@ mod tests {
                 crate::load_pipeline(&name)
             }
             .expect("the growth pipeline");
-            let work = |n: u64, most: Option<(u64, u64, u64)>| {
+            let work = |n: u64, most: Option<(u64, u64, u64, u64)>| {
                 let text = template.replace("{links}", &vec![link.as_str(); n as usize].join(" "));
                 reset();
-                if let Some((items, found, walked)) = most {
+                if let Some((items, found, walked, eligibility)) = most {
                     budget(Work::Items, items);
                     budget(Work::Found, found);
+                    if eligibility_most.is_some() {
+                        budget(Work::Eligibility, eligibility);
+                    }
                     if walks {
                         budget(Work::Walked, walked);
                     }
                 }
+                let start = std::time::Instant::now();
                 let result = pipeline.parse(&text, &ParseOptions::default()).expect("a result");
+                eprintln!("{name} with {link:?}, {n} links: {:.3} ms", start.elapsed().as_secs_f64() * 1000.0);
                 assert!(result.ok, "{text}");
-                (counted(Work::Items), counted(Work::Found), counted(Work::Walked))
+                (counted(Work::Items), counted(Work::Found), counted(Work::Walked), counted(Work::Eligibility))
             };
             // The longer text's parse panics at the first item or lookup
             // past its budget.
             let few = work(small, None);
-            let many = work(large, Some((most * few.0, most * few.1, most * few.2)));
+            let many =
+                work(large, Some((most * few.0, most * few.1, most * few.2, eligibility_most.unwrap_or(0) * few.3)));
             eprintln!("{name} with {link:?}: {few:?} for {small}, {many:?} for {large}");
             if many.0 > most * few.0 || many.1 > most * few.1 {
                 failures.push(format!(

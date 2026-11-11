@@ -834,7 +834,7 @@ class StageContext:
             if self.stage_completions is None:
                 self.stage_completions = {}
                 for item, prod in enumerate(forest.prod):
-                    _testing.count("walkSteps")
+                    _testing.count("eligibilitySteps")
                     production = forest.lowered.productions[prod]
                     if forest.dot[item] == len(production.rhs) and item in forest.tag:
                         self.stage_completions.setdefault((production.lhs, forest.origin[item]), []).append(item)

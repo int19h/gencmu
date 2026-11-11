@@ -144,6 +144,11 @@ export type WorkCounts = {
      */
     walkSteps: number;
     /**
+     * the proof traversal, indexing and
+     * chart lookups of query eligibility
+     */
+    eligibilitySteps: number;
+    /**
      * the symbols and captures that lowering and
      * the checks of a definition add to a sequence or copy, the helpers
      * that lowering moves on its list of those waiting, and the positions,
@@ -188,7 +193,7 @@ export type WorkCounts = {
      */
     budget?: Partial<Record<WorkKind, number>>;
 };
-export type WorkKind = "boundaryRecords" | "familySummaries" | "familySteps" | "closeStates" | "closeSequences" | "structuralStates" | "structuralTransitions" | "packedEdges" | "summaryContexts" | "items" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "valueSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text";
+export type WorkKind = "boundaryRecords" | "familySummaries" | "familySteps" | "closeStates" | "closeSequences" | "structuralStates" | "structuralTransitions" | "packedEdges" | "summaryContexts" | "items" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "valueSteps" | "tags" | "implications" | "walkSteps" | "eligibilitySteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text";
 /**
  * What the check of engine §7 hands its test hook.
  * @typedef {object} ElisionCheckRun
@@ -245,6 +250,8 @@ export type WorkKind = "boundaryRecords" | "familySummaries" | "familySteps" | "
  * @property {number} walkSteps the steps of the readers and walks of a
  *   document, of its notation's tree and of its DOM, in the library and in
  *   the tools, plus candidate lookups and enumeration in competitor evidence
+ * @property {number} eligibilitySteps the proof traversal, indexing and
+ *   chart lookups of query eligibility
  * @property {number} lowering the symbols and captures that lowering and
  *   the checks of a definition add to a sequence or copy, the helpers
  *   that lowering moves on its list of those waiting, and the positions,
@@ -266,7 +273,7 @@ export type WorkKind = "boundaryRecords" | "familySummaries" | "familySteps" | "
  * @property {Partial<Record<WorkKind, number>>} [budget] the most of each
  *   count that the work may reach
  */
-/** @typedef {"boundaryRecords" | "familySummaries" | "familySteps" | "closeStates" | "closeSequences" | "structuralStates" | "structuralTransitions" | "packedEdges" | "summaryContexts" | "items" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "valueSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text"} WorkKind */
+/** @typedef {"boundaryRecords" | "familySummaries" | "familySteps" | "closeStates" | "closeSequences" | "structuralStates" | "structuralTransitions" | "packedEdges" | "summaryContexts" | "items" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "valueSteps" | "tags" | "implications" | "walkSteps" | "eligibilitySteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text"} WorkKind */
 /** @type {readonly WorkKind[]} */
 export declare const WORK_KINDS: readonly WorkKind[];
 /**

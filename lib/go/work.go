@@ -22,6 +22,7 @@ import (
 //   - conditions: the conditions that advances examine, each before it is
 //     looked at, also one whose dot is not the advance's, and those that
 //     predictions evaluate, each before it is evaluated.
+//   - eligibilitySteps: proof traversal, chart indexing and lookups of eligibility.
 //   - visits: the nodes of conditions and terms that an evaluation enters,
 //     each before it is evaluated, in an evaluation that halts as well.
 //   - soundSteps: the tokens that value tests and span.value visit.
@@ -50,11 +51,11 @@ import (
 //   - keySteps: the tokens that keys of nested parses by content are
 //     written from, each before it is written.
 type workCounts struct {
-	boundaryRecords                        workCount
-	familySummaries, familySteps           workCount
-	closeStates, closeLinks, closeContexts workCount
-	packedEdges, summaryContexts           workCount
-	items, eligibilityRuns                 workCount
+	boundaryRecords                          workCount
+	familySummaries, familySteps             workCount
+	closeStates, closeLinks, closeContexts   workCount
+	packedEdges, summaryContexts             workCount
+	items, eligibilityRuns, eligibilitySteps workCount
 
 	captureSteps, linkSteps, conditions, soundSteps, readerSteps workCount
 	interned, loweredSlots, ruleSetSteps, clauseSteps, emitSteps workCount

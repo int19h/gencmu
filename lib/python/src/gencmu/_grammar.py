@@ -2270,8 +2270,9 @@ def lower(grammar: Grammar, features: frozenset[str]) -> Lowered:
     lowered = _Lowerer(grammar, features).lower()
     lowered.classifiers = classifiers
     lowered.implications = grammar.implications
-    from ._chart_readings import prepare
-    prepare(lowered)
+    if grammar.local_readings:
+        from ._chart_readings import prepare
+        prepare(lowered)
     return lowered
 
 

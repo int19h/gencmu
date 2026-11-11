@@ -9,6 +9,7 @@ from __future__ import annotations
 import contextlib
 import functools
 import math
+import time
 import unittest
 from contextlib import contextmanager
 from typing import Any, Callable, ContextManager, Iterator
@@ -56,32 +57,37 @@ class Growth(unittest.TestCase):
                     self.assertIsNone(error)
                 else:
                     pipeline = gencmu.load_pipeline(case["pipeline"])
-                watches = [made_items()]
-                if case.get("walks"):
-                    from gencmu._checks import ChosenChecks
-                    from gencmu._eligible import eligibility
-                    watches.extend([
-                        steps(ChosenChecks.preceding, "parent = self.flow.info(child).parent"),
-                        steps(eligibility, '_testing.count("walkSteps")'),
-                        steps(StageContext.chart_reading, '_testing.count("walkSteps")'),
-                    ])
+                from gencmu._checks import ChosenChecks
+                from gencmu._eligible import eligibility
+                walks = [steps(ChosenChecks.preceding, "parent = self.flow.info(child).parent")] if case.get("walks") else []
+                eligibility_steps = [
+                    steps(eligibility, '_testing.count("eligibilitySteps")'),
+                    steps(StageContext.chart_reading, '_testing.count("eligibilitySteps")'),
+                ]
 
-                def items(n: int, budget: int | None = None) -> int:
+                def measure(n: int, budgets: tuple[int, int, int] | None = None) -> tuple[int, int, int]:
                     text = case["text"].replace("{links}", " ".join([case["link"]] * n))
-                    with count_work(*watches, budget=budget) as work:
+                    start = time.perf_counter()
+                    with (
+                        count_work(made_items(), budget=budgets[0] if budgets else None) as items,
+                        count_work(*walks, budget=budgets[1] if budgets and walks else None) as walked,
+                        count_work(*eligibility_steps, budget=budgets[2] if budgets and "eligibilityMost" in case else None) as eligible,
+                    ):
                         result = pipeline.parse(text)
                     self.assertTrue(result.ok, text)
-                    return work.count
+                    counts = items.count, walked.count, eligible.count
+                    print(f"{case['link']!r}, {n} links: items/walks/eligibility={counts}, milliseconds={(time.perf_counter()-start)*1000:.3f}")
+                    return counts
 
-                small = items(case["small"])
-                # The longer parse stops at the first work step past its
-                # budget, so a regression fails before it costs much.
+                small = measure(case["small"])
+                # Each kind of work stops at its own first step past budget.
                 try:
-                    items(case["large"], case["most"] * small)
-                except OverBudget:
-                    self.fail(
-                        f"{case['link']}: {small} work steps for {case['small']} links, more than {case['most']} times as many for {case['large']}"
-                    )
+                    measure(case["large"], (
+                        case["most"] * small[0], case["most"] * small[1],
+                        case.get("eligibilityMost", 0) * small[2],
+                    ))
+                except OverBudget as error:
+                    self.fail(f"{case['link']}: small items/walks/eligibility={small}, {error}")
 
 
 class ItemCount(unittest.TestCase):

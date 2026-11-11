@@ -268,7 +268,12 @@ const AGAIN: u32 = 1 << 31;
 impl ESet {
     /// The place of an item in the set, by one lookup of its index.
     pub(crate) fn find(&self, item: &Item) -> Option<u32> {
-        work::count(Work::Found, 1);
+        self.find_counted(item, Work::Found)
+    }
+
+    /// Count a chart lookup under the work that asks for it.
+    pub(crate) fn find_counted(&self, item: &Item, counter: Work) -> Option<u32> {
+        work::count(counter, 1);
         self.index.get(item).copied()
     }
 
@@ -2797,23 +2802,23 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             }
         }
         let target = &mut chart.sets[set];
-        work::count(Work::Found, 1);
-        if let Some(&index) = target.index.get(&item).filter(|_| self.shared.boundaries.is_none()) {
-            // One ordinary step makes an item ordinary. It is then processed
-            // again, for what strictness held back, if it was processed.
-            let index = index as usize;
-            if target.is_strict(index) && !strict {
-                target.strict[index] = false;
-                // A fault leaves it as it was processed (tests/README.md).
-                if target.processed[index] && !witness::fault(Fault::Reprocess) {
-                    target.queue.push(index as u32 | AGAIN);
+        if self.shared.boundaries.is_none() {
+            work::count(Work::Found, 1);
+            if let Some(&index) = target.index.get(&item) {
+                // An ordinary advance releases a strict reconstruction item.
+                let index = index as usize;
+                if target.is_strict(index) && !strict {
+                    target.strict[index] = false;
+                    if target.processed[index] && !witness::fault(Fault::Reprocess) {
+                        target.queue.push(index as u32 | AGAIN);
+                    }
                 }
+                chart.record_advance(set, item, previous);
+                return Ok(());
             }
-            chart.record_advance(set, item, previous);
-            return Ok(());
-        }
-        if self.shared.boundaries.is_none() && target.failed.contains(&item) {
-            return Ok(());
+            if target.failed.contains(&item) {
+                return Ok(());
+            }
         }
         // The item counts once, and its selection counts each condition it
         // examines.
@@ -4185,7 +4190,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     for (set, items) in chart.sets.iter().enumerate() {
                         for (&key, completed) in &items.completed {
                             for &item in completed {
-                                work::count(Work::Walked, 1);
+                                work::count(Work::Eligibility, 1);
                                 index.entry(key).or_default().push((set as u32, item));
                             }
                         }
