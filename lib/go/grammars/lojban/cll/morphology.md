@@ -54,7 +54,7 @@ A cmavo's stress is free (CLL[^cll-s3-9]), so any of its vowels can be a capital
          ($v.parse(first-marked-cmavo) ⟹ Initial-Stress) ∪
          ($v.parse(last-marked-cmavo) ⟹ Final-Stress)
   | $l:letter-cmavo
-      :: Onset Cy Uncounted ∪ ($l.parse(… capital-letter …) ⟹ Initial-Stress ∪ Final-Stress)
+      :: Onset Cy Uncounted ∪ ($l.parse(stress-mark) ⟹ Initial-Stress ∪ Final-Stress)
   | $p:y-pair-cmavo
       :: Continued ∪
          ($p.parse(y-letters) ⟹ Uncounted) ∪
@@ -67,9 +67,9 @@ A cmavo's stress is free (CLL[^cll-s3-9]), so any of its vowels can be a capital
          ($w.parse(first-marked-cmavo) ⟹ Initial-Stress) ∪
          ($w.parse(last-marked-cmavo) ⟹ Final-Stress)
 %conditions
-  ¬$c.parse(… Syllable-Break …),
-  ¬$v.parse(… Syllable-Break …),
-  ¬$w.parse(… Syllable-Break …)
+  ¬$c.parse(has-comma),
+  ¬$v.parse(has-comma),
+  ¬$w.parse(has-comma)
 
 %rule plain-cmavo-body
   consonant cmavo-units
@@ -122,12 +122,12 @@ A cmavo's stress is free (CLL[^cll-s3-9]), so any of its vowels can be a capital
 %rule first-marked-cmavo
   [consonant] $u:cmavo-nucleus ["'" any-letters]
 %conditions
-  $u.parse(… capital-letter …)
+  $u.parse(stress-mark)
 
 %rule last-marked-cmavo
   [consonant] [any-letters "'"] $u:cmavo-nucleus
 %conditions
-  $u.parse(… capital-letter …)
+  $u.parse(stress-mark)
 
 ```
 
@@ -180,7 +180,7 @@ A brivla is a gismu, a lujvo or a borrowing (CLL[^cll-s4-3]). It ends in a vowel
   | $l:lujvo-form :: Lujvo Onset
   | $f:fuhivla-word :: Fuhivla ∪ ($f.first-token.parse(consonant) ⟹ Onset)
 %conditions
-  ¬$l.parse(… Syllable-Break …)
+  ¬$l.parse(has-comma)
 ```
 
 <details><summary>Railroad diagrams of <code>brivla-shape</code> and <code>brivla-word</code></summary>
@@ -244,8 +244,8 @@ A y-hyphen must be unstressed. `hyphen-y` tests its lowercase value and rejects 
   | "n" $n:lujvo-rest
 %conditions
   $r ≇ #ccv-rafsi,
-  ¬$r.parse("r" …),
-  $n.parse("r" …)
+  ¬$r.parse(r-letter …),
+  $n.parse(r-letter …)
 
 %rule lujvo-rest
   | final-rafsi
@@ -394,7 +394,7 @@ The slinku'i test of CLL[^cll-s4-7] says that a CV cmavo joined to the front of 
   | vowel-group
   | vowel-group $m:permissible-run fuhivla-body
 %conditions
-  ¬$m.parse(… n-affricate …)
+  ¬$m.parse(has-n-affricate)
 
 %rule vowel-group
   vowel | vowel-group vowel | vowel-group "'" vowel | vowel-group Syllable-Break vowel
@@ -483,7 +483,7 @@ Only a borrowing, a name or hesitation can hold a comma between two vowels. A cm
 
 A run with such a word divides into no words, and the forms stage hands it on as one foreign token ([../common/forms.md](../common/forms.md)). The words stage rejects that run unless it is inside a foreign quote or after `fa'o`.
 
-The comma rules read `Syllable-Break`, because the comma value is empty. `vowel-group`, `counted-letter` and `name-vowels` retain the written boundary. `la-or-doi`, `falling-vowels`, `rising-vowels` and `falling-i` read optional syllable boundaries. Part queries find a comma through its tag.
+The comma rules read `Syllable-Break`, because the comma value is empty. `vowel-group`, `counted-letter` and `name-vowels` retain the written boundary. `la-or-doi`, `falling-vowels`, `rising-vowels` and `falling-i` read optional syllable boundaries. `has-comma` finds a comma through its tag.
 
 The rules that test whether letters form a cmavo or a lujvo read a comma inside a diphthong as if it were absent. `cmavo-unit` and `cvv-rafsi` read `falling-vowels`. `vowel-cmavo` reads `rising-vowels`, and it reads `falling-vowels` through `cmavo-units`. `lujvo-form` and `lujvo-after-cvv` read a comma before the `i` or `u` that ends a first CVV rafsi. `cmavo-shape` and `brivla-word` then refuse a cmavo or a lujvo that has a comma.
 
@@ -510,14 +510,17 @@ A name needs one more test. Its `doi` test applies at its start or after a vowel
 %rule syllable-vowels
   vowel | falling-vowels | rising-vowels
 
+%rule has-comma
+  [any-letters] Syllable-Break [any-letters]
 ```
 
-<details><summary>Railroad diagrams of the 5 rules from <code>falling-vowels</code> to <code>syllable-vowels</code></summary>
+<details><summary>Railroad diagrams of the 6 rules from <code>falling-vowels</code> to <code>has-comma</code></summary>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/falling-vowels.svg" alt="Railroad diagram of the rule falling-vowels"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/rising-vowels.svg" alt="Railroad diagram of the rule rising-vowels"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/falling-i.svg" alt="Railroad diagram of the rule falling-i"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/one-syllable.svg" alt="Railroad diagram of the rule one-syllable"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/morphology/syllable-vowels.svg" alt="Railroad diagram of the rule syllable-vowels"></p>
+<p><img src="../../../docs/diagrams/lojban/cll/morphology/has-comma.svg" alt="Railroad diagram of the rule has-comma"></p>
 </details>
 
 
