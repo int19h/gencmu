@@ -11,7 +11,7 @@ import (
 func (dc *domDecoder) decodeLayeredPattern(raw any, depth int) (*domPattern, error) {
 	var err error
 	root := templateObj(raw)
-	problem := layeredPatternProblem(root, layeredPatternInspection{depth: depth, deferDepth: true, resolved: dc.expanded, name: func(name string) bool {
+	problem := layeredPatternProblem(root, layeredPatternInspection{depth: depth, deferDepth: true, name: func(name string) bool {
 		r, size := utf8.DecodeRuneInString(name)
 		// The public schema checks eligibility against the configured core.
 		return layeredRuleName(name) || strings.Contains(name, "(") && strings.HasSuffix(name, ")") ||
@@ -82,7 +82,7 @@ func (dc *domDecoder) decodeLayeredPattern(raw any, depth int) (*domPattern, err
 		}
 		switch {
 		case n["never"] == true:
-			p.Kind = "never"
+			p.Kind, p.At = "never", templateAt(n)
 		case n["param"] != nil:
 			p.Kind, p.Name, p.At = "param", templateText(n["param"]), templateAt(n)
 		case n["call"] != nil:
@@ -225,7 +225,7 @@ func writeLayeredPattern(w *jsonWriter, root *domPattern) {
 			at = true
 		case "never", "any", "wildcard":
 			w.raw("true")
-			at = p.Kind == "wildcard"
+			at = p.Kind == "wildcard" || p.Kind == "never" && p.At != [2]int{}
 		case "literal":
 			p.Value.writeJSON(w)
 			at = true

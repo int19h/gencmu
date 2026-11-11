@@ -1,0 +1,23 @@
+{
+  "description": "A nested empty pattern keeps a readable difference argument.",
+  "grammar": "%rule w \"a\"\n%rule inner(@Q) $x:w\n%conditions $x ≅ #@Q\n%rule use(@P) inner(#(·w ∖ @P))\n%rule text use(∅)",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "use(∅)",
+            "children": [
+              {
+                "rule": "inner(#(·w ∖ ∅))"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

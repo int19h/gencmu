@@ -1,0 +1,34 @@
+{
+  "description": "An empty pattern atom keeps its source position.",
+  "document": "```jbogenbau\n%rule text \"a\"\n%conditions $ ≇ #(·text ∩ ∅)\n```\n",
+  "expect": {
+    "dom": {
+      "format": 51,
+      "rules": [
+        {
+          "conditions": [
+            {
+              "right": {
+                "pattern": {
+                  "intersection": [
+                    {
+                      "name": "text",
+                      "exact": true
+                    },
+                    {
+                      "never": true,
+                      "at": [
+                        3,
+                        27
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

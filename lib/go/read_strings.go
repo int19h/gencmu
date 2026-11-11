@@ -39,6 +39,12 @@ func (b *domBuilder) patternAtom(n, first *Node) *domPattern {
 			tests = append(tests, p)
 		}
 	}
+	if first.Rule == "empty-set" {
+		if len(tests) != 0 {
+			b.fail(first, "an empty pattern cannot carry node decorations")
+		}
+		return &domPattern{Kind: "never", At: b.at(first)}
+	}
 	name := b.tokenValue(first)
 	named := first.Rule == "name" || first.Rule == "reference" || first.Kind == KindToken && (first.Terminal == "Lowercase-Name" || first.Terminal == "Emoji-Name")
 	terminal := !named && (first.Rule == "parameter" || first.Rule == "tag" || first.Rule == "string-terminal" || first.Rule == "string" || first.Rule == "range" || first.Rule == "wildcard" || first.Rule == "constant-reference" || first.Kind == KindToken && (isCapital(name) || engineTag(name)))

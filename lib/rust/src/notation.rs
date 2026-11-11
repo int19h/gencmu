@@ -1092,6 +1092,7 @@ impl<'a> Reader<'a> {
                         | "string-terminal"
                         | "constant-reference"
                         | "wildcard"
+                        | "empty-set"
                         | "range"
                         | "call"
                         | "parameter"
@@ -1736,6 +1737,7 @@ impl<'a> Reader<'a> {
                         | "string"
                         | "string-terminal"
                         | "wildcard"
+                        | "empty-set"
                         | "range"
                         | "constant-reference"
                         | "parameter"
@@ -1753,6 +1755,16 @@ impl<'a> Reader<'a> {
     fn pattern_atom(&self, node: &'a Node, call: Option<SourceCall>) -> R<crate::patterns::Pattern> {
         use crate::patterns::Pattern as P;
         let first = self.pattern_atom_base(node)?;
+        if rule_name(first) == "empty-set" {
+            if self
+                .parts(node)
+                .iter()
+                .any(|part| matches!(rule_name(part), "tag-test" | "value-test" | "default-value"))
+            {
+                return Err(self.error(first, "an empty pattern cannot carry node decorations"));
+            }
+            return Ok(P::Never(Some(self.first(first))));
+        }
         self.pattern_test_nodes(node, true)?;
         let (pattern, tested) = match rule_name(first) {
             "parameter" => (P::Source(self.source_parameter(first)?), true),

@@ -653,7 +653,7 @@ A tree comparison requires a bare capture on the left, or a node walk in a check
 
 A pattern starts with `#` and one node test, bare child list, or grouped predicate. An exact prefix suppresses the node test's single-child search.
 
-A pattern atom names a rule, terminal, constant, or wildcard. A tag test follows the atom, as in `#_<Tense>`. The reader converts it as [engine §9.3](../../../docs/engine.md#93-conversion-and-validation) says.
+A pattern atom names a rule, terminal, constant, wildcard, or `∅`. The empty atom matches nothing and accepts no decorations. A tag test follows the atom, as in `#_<Tense>`. The reader converts it as [engine §9.3](../../../docs/engine.md#93-conversion-and-validation) says.
 
 The brackets `⁅` and `⁆` enclose child items. A child list attaches to the preceding atom. Only a rule name, emoji rule, template family, exact call, or compatible parameter accepts an attached list.
 
@@ -701,7 +701,7 @@ Recognition admits repeated or reversed tests on node atoms. The reader restrict
   $exact ⟹ $exact.onward.parse(pattern-exact-start …)
 
 %rule pattern-atom
-  (pattern-name | tag | string | range | wildcard | constant-reference) [{symbol-test}]
+  (pattern-name | tag | string | range | wildcard | constant-reference | empty-set) [{symbol-test}]
 
 %rule pattern-name
   Lowercase-Name | Emoji-Name | call | parameter

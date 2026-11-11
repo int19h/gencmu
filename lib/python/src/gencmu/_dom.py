@@ -1309,6 +1309,10 @@ class DomBuilder:
         for kid in kids:
             if kid.rule == "default-value": raise self.fail(kid,"a default stands only on an elidable optional head")
         tests = [kid for kid in kids if kid.rule in ("tag-test", "value-test")]
+        if first.rule == "empty-set":
+            if tests:
+                raise self.fail(first, "an empty pattern cannot carry node decorations")
+            return {"node": {"never": True, "at": list(self.position(first))}}
         valid = first.rule in ("tag", "string-terminal", "string", "range", "wildcard", "constant-reference")
         if first.kind == "token":
             name = self.token_value(first)
@@ -1375,6 +1379,8 @@ class DomBuilder:
         if kind in ("pattern-node", "pattern-bare"):
             atom = (yield self._pattern_atom(self.only(node, "pattern-atom")))["node"] if kind == "pattern-node" else {"any": True}
             children = self.one(node, "pattern-children")
+            if atom.get("never") and (children is not None or any(part.kind == "token" and self.token_value(part) == "·" for part in self.kids(node))):
+                raise self.fail(self.only(node, "pattern-atom"), "an empty pattern cannot carry node decorations")
             if children is not None and not any(key in atom for key in ("name", "call", "param", "any")):
                 raise self.fail(children, "a child list requires a rule test")
             result = {key: value for key, value in atom.items() if key != "at"}

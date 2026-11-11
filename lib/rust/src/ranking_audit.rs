@@ -108,7 +108,7 @@ fn walk_body(
 }
 pub(crate) fn dead(p: &Pattern, reachable: &BTreeSet<String>, terms: &BTreeSet<String>) -> bool {
     match p {
-        Pattern::Never => true,
+        Pattern::Never(_) => true,
         Pattern::Name(n, _) => !reachable.contains(n),
         Pattern::Terminal(t, _) => {
             if t == "_" {

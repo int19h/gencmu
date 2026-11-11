@@ -14,7 +14,6 @@ pub(crate) struct Inspection<'a> {
     pub test: TestProblem<'a>,
     pub depth: usize,
     pub defer_depth: bool,
-    pub resolved: bool,
 }
 fn has(n: &Json, key: &str) -> bool {
     n.get(key).is_some()
@@ -142,7 +141,10 @@ fn inspect_shape(root: &Json, inspect: &Inspection<'_>) -> Result<(), String> {
             continue;
         }
         if has(n, "never") {
-            if !inspect.resolved || !only(n, &["never"]) || get(n, "never").as_bool() != Some(true) || t.inner {
+            if !(only(n, &["never"]) || only(n, &["never", "at"]) && position(get(n, "at")))
+                || get(n, "never").as_bool() != Some(true)
+                || t.inner
+            {
                 return Err("a malformed empty pattern".into());
             }
             continue;
@@ -306,7 +308,7 @@ fn atom(n: &Json) -> bool {
 pub(crate) fn text(root: &Json, term: &dyn Fn(&Json) -> String, literal: bool) -> String {
     let mut out = String::new();
     let mut pending = Vec::new();
-    if literal && get(root, "never").as_bool() != Some(true) {
+    if literal {
         out.push('#');
         if !atom(root) {
             out.push('(');

@@ -22,7 +22,7 @@ class Marks(Protocol):
     def changes_in_document(self, code: int) -> bool: ...
 
 
-FORMAT = 50
+FORMAT = 51
 MAX_DEPTH = 256
 TOO_DEEP = "nested too deeply"
 CONSTANT_NAME = USER_NAME
@@ -242,7 +242,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
                 if "const" in operand:
                     pending.append(("term", operand, 0, False, False))
                 else:
-                    problem = layered_pattern_problem(operand, resolved=expanded, name=rule_name, terminal=lambda name: name == "_Elided" or _tag(name))
+                    problem = layered_pattern_problem(operand, name=rule_name, terminal=lambda name: name == "_Elided" or _tag(name))
                     if problem:
                         return problem
                     pending.append(("pattern-part", operand, 0, False, False))
@@ -314,7 +314,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
         if "const" in pattern:
             pending.append(("term", pattern, 0, False, False))
         else:
-            problem = layered_pattern_problem(pattern, resolved=expanded, name=rule_name, terminal=lambda name: name == "_Elided" or _tag(name))
+            problem = layered_pattern_problem(pattern, name=rule_name, terminal=lambda name: name == "_Elided" or _tag(name))
             if problem:
                 return problem
             pending.append(("pattern-part", pattern, 0, False, False))
@@ -813,7 +813,7 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: l
         elif "pattern" in node:
             if keys != {"pattern"}:
                 return "a malformed pattern term"
-            problem = layered_pattern_problem(node['pattern'], depth=below, resolved=expanded,
+            problem = layered_pattern_problem(node['pattern'], depth=below,
                 name=lambda name: rule_name(name) and not _tag(name),
                 terminal=lambda name: name == "_Elided" or _tag(name))
             if problem:

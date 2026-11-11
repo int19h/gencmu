@@ -1,0 +1,16 @@
+{
+  "description": "A written empty candidate matches no node.",
+  "grammar": "%rule text \"a\"\n%check c #∅\n%warning \"bad\"",
+  "input": "a",
+  "options": {
+    "features": [
+      "c"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": []
+  }
+}

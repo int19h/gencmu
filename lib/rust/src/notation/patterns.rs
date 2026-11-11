@@ -92,6 +92,14 @@ impl<'a> Reader<'a> {
         if let Some(Val::Pattern(value)) = input {
             if rule_name(frame.node) == "pattern-node" && frame.atom.is_none() {
                 let atom = value.pattern(self, frame.node)?;
+                if matches!(atom, Pattern::Never(_))
+                    && (!frame.parts.is_empty() || self.tokens_of(frame.node).any(|token| self.value(token) == "·"))
+                {
+                    return Err(self.error(
+                        self.one(frame.node, "pattern-atom")?,
+                        "an empty pattern cannot carry node decorations",
+                    ));
+                }
                 if !frame.parts.is_empty() && !matches!(atom, Pattern::Name(..) | Pattern::Source(_) | Pattern::Any) {
                     return Err(self.error(frame.parts[0], "a child list requires a rule test"));
                 }

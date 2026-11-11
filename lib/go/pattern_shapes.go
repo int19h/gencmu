@@ -8,7 +8,6 @@ import (
 // Pattern constructors and child items occupy separate positions in layered DOMs.
 type layeredPatternInspection struct {
 	deferDepth     bool
-	resolved       bool
 	name, terminal func(string) bool
 	test           func(templateObject) string
 	depth          int
@@ -150,7 +149,7 @@ func layeredPatternProblem(root any, inspect layeredPatternInspection) string {
 			continue
 		}
 		if layeredHas(n, "never") {
-			if !inspect.resolved || !layeredOnly(n, "never") || n["never"] != true || t.inner {
+			if !(layeredOnly(n, "never") || layeredOnly(n, "never", "at") && templateAt(n) != [2]int{}) || n["never"] != true || t.inner {
 				return "a malformed empty pattern"
 			}
 			continue
@@ -307,7 +306,7 @@ func layeredPatternText(root templateObject, term func(templateObject) string, l
 	atom := func(n templateObject) bool { return layeredPatternSet(n) == "" && !layeredHas(n, "path") }
 	var out strings.Builder
 	pending := []task{{"pattern", root}}
-	if literal && root["never"] != true {
+	if literal {
 		out.WriteString("#")
 		if !atom(root) {
 			out.WriteString("(")

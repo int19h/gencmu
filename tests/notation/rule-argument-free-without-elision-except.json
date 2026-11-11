@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%rule text $x:A %conditions $x.without-elision-except(🆓).parse(rival)\n```\n",
   "expect": {
     "dom": {
-      "format": 50,
+      "format": 51,
       "rules": [
         {
           "name": "text",

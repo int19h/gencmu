@@ -1,0 +1,10 @@
+{
+  "description": "An empty key step counts nothing.",
+  "grammar": "%ambiguity-resolution fewest #∅, greedy\n%rule text \"a\"",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

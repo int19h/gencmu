@@ -773,6 +773,8 @@ The use determines the conversion, before ordinary validation:
 | Pattern node with `·`, tests, or children | One node test that accepts those decorations. `∅` is not a node test |
 | General term | Term whose type after constant binding is the required string, string-set, tag-set, or pattern type |
 
+A whole empty pattern prints as `#∅`, while an empty atom inside a pattern prints as `∅`. The argument `∅` retains its general empty-set category, distinct from the pattern argument `#∅`.
+
 A decorated use of `∅` reports `an empty pattern cannot carry node decorations` at that use.
 
 A name becomes `ref` in a body, `name` in a pattern, or `rule` in a rule argument. A tag becomes a body `ref`, pattern `terminal`, or singleton tag term. A string becomes a body or pattern `literal`, or retains its term form. A user constant becomes a pattern `constant` or the ordinary constructor for its other use. Other conversions keep their ordinary tests and type restrictions. No conversion changes runtime scope.
@@ -1003,7 +1005,7 @@ The name has one diagnostic role throughout the pipeline. Warning names obey the
 
 The loader binds a check's constants before inspecting its types and values, in declaration order as for a rule. It inspects the candidate pattern, conditions, then message. It resolves pattern names and template families against the stage. Splicing a named pattern target is illegal, as for other patterns.
 
-After constant resolution, inspect the candidate predicate through parentheses, unions, intersections and differences. The empty pattern passes this inspection and key-step inspection (§9.3). Every written node test in this predicate must be exact. Reject path operators in that predicate. Stop this inspection at child lists, whose ordinary pattern rules still apply. Tag tests, value tests and child lists are legal on candidate tests.
+After constant resolution, inspect the candidate predicate through parentheses, unions, intersections and differences. The atom `∅` matches nothing and passes this inspection and key-step inspection (§9.3). Every written node test in this predicate must be exact. Reject path operators in that predicate. Stop this inspection at child lists, whose ordinary pattern rules still apply. Tag tests, value tests and child lists are legal on candidate tests.
 
 Reject named captures anywhere in a check, including query arguments. Reject restoration methods in checks. Node walks, `.preceding-element` and `.local-readings` are legal only in check conditions. `.terminal` is legal only on `$` in a check message. Element receivers and absent values follow §10.
 
@@ -1561,7 +1563,7 @@ Each structural machine reuses one seal state. Completing another ranked option 
 
 A node test evaluates its atom and attached child list together at the current node. Unless `exact:true` is present, it propagates that complete local answer through a sole child. A bare child list follows the same rule without an atom. Each child pattern computes its own complete answer, with its own exact prefix.
 
-A bare child list uses the ordinary node form with `any:true` and its `children` array. Internal empty patterns use this same form. A list with one sibling gap uses the same sequence form as every other child list.
+A bare child list uses the ordinary node form with `any:true` and its `children` array. A list with one sibling gap uses the same sequence form as every other child list.
 
 Descendant paths combine local and child answers. First and last paths use only their respective child. Set operations combine complete predicate answers on one candidate. Difference complements the completed deterministic answer, never incomplete evidence or another unary layer.
 
@@ -3280,7 +3282,9 @@ The grammar does not state the restrictions below. Each of these is an error of 
 
   Parentheses make no DOM node and add no depth. Thus 256 optional wrappers around a reference or a plain string literal are allowed, and 257 are not. The reader reports the first offending declaration in document order. That declaration is a rule, constant, classifier, implication, or `%features` directive.
 
-  Resolved pattern values also meet the bound of 256. For this bound, each pattern-valued term has one term wrapper around its normalized pattern. Constant references add no level and contribute their bound patterns. Aliases retain the same depth. Adjacent unions flatten, as do adjacent intersections, before this count. Contextual `∅` resolves to the internal, always-false `never` leaf, which has no written pattern form.
+  Resolved pattern values also meet the bound of 256. For this bound, each pattern-valued term has one term wrapper around its normalized pattern. Constant references add no level and contribute their bound patterns. Aliases retain the same depth. Adjacent unions flatten, as do adjacent intersections, before this count.
+
+  Written and contextual `∅` give the same always-false `never` leaf. A written leaf carries its source position. The leaf counts as one pattern level and passes candidate and key-step inspection.
 
   The loader examines references in written order and reports the first reference whose substituted pattern exceeds the bound. This error uses the reference's document, position, and stage. The loader detects it before it copies or compiles the substituted pattern. Pattern type errors precede this depth error. Range endpoint values follow it. A resolved pattern without an offending reference uses its declaration's position.
 

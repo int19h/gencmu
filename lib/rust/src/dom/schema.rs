@@ -1165,7 +1165,6 @@ fn parts_problem(
                     name: Some(&name),
                     terminal: Some(&tag),
                     depth,
-                    resolved: expanded,
                     ..Default::default()
                 };
                 if let Some(problem) = crate::patterns::shapes::problem(value, &inspect) {

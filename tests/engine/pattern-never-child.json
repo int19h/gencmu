@@ -1,0 +1,10 @@
+{
+  "description": "An empty atom matches no child.",
+  "grammar": "%rule text $x:w\n%conditions $x ≇ #·w⁅ ∅ ⁆\n%rule w \"a\"",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

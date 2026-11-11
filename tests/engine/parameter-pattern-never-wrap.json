@@ -1,0 +1,26 @@
+{
+  "description": "Forwarded and direct empty arguments keep different instance names.",
+  "grammar": "%rule w \"a\"\n%rule use(@P) $x:w\n%conditions $x ≇ #@P\n%rule wrap(@P) use(#@P)\n%rule text wrap(∅) use(∅)",
+  "input": "aa",
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "wrap(∅)",
+            "children": [
+              {
+                "rule": "use(#∅)"
+              }
+            ]
+          },
+          {
+            "rule": "use(∅)"
+          }
+        ]
+      }
+    }
+  }
+}

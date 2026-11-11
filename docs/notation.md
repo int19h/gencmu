@@ -824,6 +824,8 @@ A predicate is a test that holds or fails. A tree pattern is a predicate on one 
 
 The left operand must be a bare capture or `$`, or a node in a check condition. The type of the right operand decides what the comparison does. [Engine §9](engine.md#9-from-notation-tree-to-dom) defines the diagnostic for a bare name in the right position.
 
+The atom `∅` matches nothing, as in `#∅`, `#(·w ∩ ∅)`, or `#·w⁅ ∅ ⁆`. It accepts no exact prefix, test, or child list. Such a decoration reports `an empty pattern cannot carry node decorations` at the atom.
+
 ### The structural tree
 
 Checks use the check tree, defined in "Checks". That view exposes chosen ranked options. Other pattern uses keep the seals defined below.

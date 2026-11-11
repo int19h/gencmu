@@ -9,7 +9,7 @@ use crate::json::Json;
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Pattern {
-    Never,
+    Never(Option<(usize, usize)>),
     Source(crate::dom::source::SourceSymbol),
     Name(String, (usize, usize)),
     Terminal(String, (usize, usize)),
@@ -52,7 +52,7 @@ fn exact(j: &Json, keys: &[&str]) -> bool {
 /// Convert patterns and child expressions without a recursive call stack.
 impl Pattern {
     pub(crate) fn empty() -> Self {
-        Self::Never
+        Self::Never(None)
     }
 
     pub(crate) fn from_json(j: &Json) -> Result<Self, String> {
@@ -388,7 +388,7 @@ fn pattern_key(p: &Pattern) -> String {
             Pattern::Node(node, exact, attached) => {
                 Pattern::Node(Box::new(plain(node)), *exact, attached.as_ref().map(children))
             }
-            Pattern::Never => Pattern::Never,
+            Pattern::Never(_) => Pattern::Never(None),
             Pattern::Any => Pattern::Any,
             Pattern::Path(s, n) => Pattern::Path(s.clone(), Box::new(plain(n))),
             Pattern::Union(xs) => Pattern::Union(xs.iter().map(plain).collect()),
@@ -464,7 +464,7 @@ impl Machine {
             return id;
         }
         let pred = match p {
-            Pattern::Never => Predicate::Union(Vec::new()),
+            Pattern::Never(_) => Predicate::Union(Vec::new()),
             Pattern::Source(_) => unreachable!("source symbols expand before pattern compilation"),
             Pattern::Node(node, exact, attached) => {
                 let test = self.node_test(node);
@@ -1072,7 +1072,7 @@ fn positive_elided(term: &Term) -> bool {
 
 pub(crate) fn check_problem(pattern: &Pattern) -> Option<&'static str> {
     match pattern {
-        Pattern::Never => None,
+        Pattern::Never(_) => None,
         Pattern::Union(parts) | Pattern::Intersection(parts) => parts.iter().find_map(check_problem),
         Pattern::Difference(left, right) => check_problem(left).or_else(|| check_problem(right)),
         Pattern::Node(_, true, _) => None,
@@ -1082,7 +1082,7 @@ pub(crate) fn check_problem(pattern: &Pattern) -> Option<&'static str> {
 
 pub(crate) fn ranking_problem(pattern: &Pattern) -> Option<&'static str> {
     match pattern {
-        Pattern::Never => None,
+        Pattern::Never(_) => None,
         Pattern::Union(parts) | Pattern::Intersection(parts) => parts.iter().find_map(ranking_problem),
         Pattern::Difference(a, b) => ranking_problem(a).or_else(|| ranking_problem(b)),
         Pattern::Node(inner, true, None)

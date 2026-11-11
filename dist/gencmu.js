@@ -3739,7 +3739,7 @@
 
   /**
    * @param {any} root
-   * @param {{name?:(name:string)=>boolean, terminal?:(name:string)=>boolean, test?:(test:any)=>string|null, depth?:number, deferDepth?:boolean, resolved?:boolean}} [inspect]
+   * @param {{name?:(name:string)=>boolean, terminal?:(name:string)=>boolean, test?:(test:any)=>string|null, depth?:number, deferDepth?:boolean}} [inspect]
    * @returns {string|null}
    */
   function layeredPatternProblem(root, inspect = {}) {
@@ -3805,7 +3805,7 @@
         continue;
       }
       if ('never' in n) {
-        if (!inspect.resolved || !exact(['never']) || n.never !== true || inner) return 'a malformed empty pattern';
+        if (!(exact(['never']) || exact(['never','at']) && position(n.at)) || n.never !== true || inner) return 'a malformed empty pattern';
         continue;
       }
       const compound = ['union','intersection','difference'].find(k => k in n);
@@ -3920,7 +3920,6 @@
       return (n.exact ? '·' : '')+text+('children' in n ? children(n.children) : '');
     };
     const text = pattern(root);
-    if(root.never)return text;
     return literal ? '#'+(atom(root) ? text : '('+text+')') : text;
   }
 
@@ -6376,7 +6375,7 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 50;
+  const DOM_FORMAT = 51;
   // A constant's name, without its `$`, begins with a capital (engine §2).
   const CONSTANT_NAME = /^(?!.*--)[A-Z][A-Za-z0-9_-]*$/;
   // A classifier name starts with a lowercase letter. A class name starts
@@ -6611,7 +6610,7 @@
       const child = (kind, value, context = {}) => push(kind, value, depth + 1, {params:task.params,check:task.check,...context});
       const fields = Object.keys(value);
       if (kind === "pattern") {
-        const problem = layeredPatternProblem(value, {depth, resolved:expanded, name:name=>ruleName(name) && !tag(name), terminal:name=>name === "_Elided" || tag(name)});
+        const problem = layeredPatternProblem(value, {depth, name:name=>ruleName(name) && !tag(name), terminal:name=>name === "_Elided" || tag(name)});
         if (problem) return problem;
         push("pattern-part",value,depth,{params:task.params});
         continue;
@@ -23817,6 +23816,7 @@
       if (kind === 'pattern-node' || kind === 'pattern-bare') {
         const atom = kind === 'pattern-node' ? (yield readPattern(only(node,'pattern-atom'))).node : {any:true};
         const list=one(node,'pattern-children');
+        if(atom.never && (list || parts(node).some(part=>tokenValue(part)==='·')))fail('an empty pattern cannot carry node decorations',only(node,'pattern-atom'));
         if (list && !['name','call','param','any'].some(key => key in atom)) fail('a child list requires a rule test',list);
         const {at:position,...fields}=atom;
         const exact=parts(node).some(part => tokenValue(part) === '·');
@@ -23909,6 +23909,10 @@
           first.kind === "token" && ["Lowercase-Name", "Emoji-Name"].includes(first.terminal);
         const tests = inner.filter(child => ["tag-test", "value-test"].includes(ruleOf(child)));
         const testsOnly = ["tag-test", "value-test"].includes(ruleOf(first));
+        if(ruleOf(first)==='empty-set') {
+          if(tests.length)fail('an empty pattern cannot carry node decorations',first);
+          return {node:{never:true,at:at(first)}};
+        }
         checkTestOrder(tests, true);
         if (named || ruleOf(first) === "call") for (const test of tests) if (ruleOf(test) === "tag-test") {
           for (const requirement of ofRule(test,"tag-requirement")) {

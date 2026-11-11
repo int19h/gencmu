@@ -16651,7 +16651,7 @@
   {
     "description": "A DOM envelope refuses unknown members.",
     "dom": {
-      "format": 50,
+      "format": 51,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -16665,7 +16665,7 @@
   {
     "description": "An empty complete DOM envelope is valid.",
     "dom": {
-      "format": 50,
+      "format": 51,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -16783,7 +16783,7 @@
   {
     "description": "Unsafe coordinates do not produce a duplicate-position problem.",
     "dom": {
-      "format": 50,
+      "format": 51,
       "rules": [
         {
           "name": "text",
@@ -16948,7 +16948,7 @@
   {
     "description": "An earlier malformed directive precedes excessive rule depth.",
     "dom": {
-      "format": 50,
+      "format": 51,
       "rules": [
         {
           "name": "text",
@@ -17854,7 +17854,7 @@
   {
     "description": "Ranked argument shape errors precede engine tags in constants.",
     "dom": {
-      "format": 50,
+      "format": 51,
       "rules": [],
       "directives": [],
       "constants": [
@@ -17902,7 +17902,7 @@
   {
     "description": "Ranked argument shape errors precede engine tags in implications.",
     "dom": {
-      "format": 50,
+      "format": 51,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -18081,7 +18081,7 @@
   {
     "description": "Well-shaped constants still refuse engine-tag literals.",
     "dom": {
-      "format": 50,
+      "format": 51,
       "rules": [],
       "directives": [],
       "constants": [
@@ -18106,7 +18106,7 @@
   {
     "description": "Well-shaped implications still refuse engine-tag literals.",
     "dom": {
-      "format": 50,
+      "format": 51,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -19054,7 +19054,7 @@
   {
     "description": "Ranked argument shape errors precede a non-closed constant term.",
     "dom": {
-      "format": 50,
+      "format": 51,
       "rules": [],
       "directives": [],
       "constants": [
@@ -19100,7 +19100,7 @@
   {
     "description": "A well-shaped constant still refuses a non-closed term.",
     "dom": {
-      "format": 50,
+      "format": 51,
       "rules": [],
       "directives": [],
       "constants": [
@@ -19141,7 +19141,7 @@
   {
     "description": "Ranked argument shape errors precede a non-closed implication term.",
     "dom": {
-      "format": 50,
+      "format": 51,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -19188,7 +19188,7 @@
   {
     "description": "A well-shaped implication still refuses a non-closed term.",
     "dom": {
-      "format": 50,
+      "format": 51,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -19660,7 +19660,7 @@
   {
     "description": "An implication checks then-side closedness before its capture type.",
     "dom": {
-      "format": 50,
+      "format": 51,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -19687,7 +19687,7 @@
   {
     "description": "An implication checks if-side closedness before its capture type.",
     "dom": {
-      "format": 50,
+      "format": 51,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -19714,7 +19714,7 @@
   {
     "description": "An earlier rule type fault precedes a later constant closedness fault.",
     "dom": {
-      "format": 50,
+      "format": 51,
       "rules": [
         {
           "name": "extra",
@@ -19761,7 +19761,7 @@
   {
     "description": "An earlier constant closedness fault precedes a later rule type fault.",
     "dom": {
-      "format": 50,
+      "format": 51,
       "rules": [
         {
           "name": "extra",
@@ -19808,7 +19808,7 @@
   {
     "description": "An earlier rule type fault precedes a later implication closedness fault.",
     "dom": {
-      "format": 50,
+      "format": 51,
       "rules": [
         {
           "name": "extra",
@@ -19856,7 +19856,7 @@
   {
     "description": "An earlier implication closedness fault precedes a later rule type fault.",
     "dom": {
-      "format": 50,
+      "format": 51,
       "rules": [
         {
           "name": "extra",
@@ -19904,7 +19904,7 @@
   {
     "description": "An earlier rule type fault precedes a later split delimiter fault in a supplied lexical DOM.",
     "dom": {
-      "format": 50,
+      "format": 51,
       "rules": [
         {
           "name": "text",
@@ -22776,7 +22776,7 @@
   {
     "description": "An earlier split delimiter fault precedes a later rule type fault.",
     "dom": {
-      "format": 50,
+      "format": 51,
       "rules": [
         {
           "name": "extra",
@@ -22831,7 +22831,7 @@
   {
     "description": "An earlier rule type fault precedes a split delimiter fault in a later rule.",
     "dom": {
-      "format": 50,
+      "format": 51,
       "rules": [
         {
           "name": "extra",
@@ -22901,7 +22901,7 @@
   {
     "description": "An earlier rule type fault precedes a split delimiter fault in a later implication.",
     "dom": {
-      "format": 50,
+      "format": 51,
       "rules": [
         {
           "name": "extra",
@@ -22957,7 +22957,7 @@
   {
     "description": "A later ranked shape error precedes an earlier split delimiter fault.",
     "dom": {
-      "format": 50,
+      "format": 51,
       "rules": [
         {
           "name": "later",
@@ -24258,7 +24258,7 @@
     "malformed": true
   },
   {
-    "description": "The resolved empty pattern is not a DOM leaf.",
+    "description": "An empty pattern is a valid DOM leaf.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -24288,7 +24288,7 @@
         1
       ]
     },
-    "malformed": true
+    "malformed": false
   },
   {
     "description": "The resolved empty pattern cannot carry an exact prefix.",
@@ -24327,7 +24327,7 @@
   {
     "description": "A check comparison requires a node on the left in a supplied DOM.",
     "dom": {
-      "format": 50,
+      "format": 51,
       "rules": [
         {
           "name": "text",
@@ -24440,7 +24440,7 @@
   {
     "description": "A check comparison requires a node or pattern on the right in a supplied DOM.",
     "dom": {
-      "format": 50,
+      "format": 51,
       "rules": [
         {
           "name": "text",
@@ -24553,7 +24553,7 @@
   {
     "description": "A supplied check comparison cannot use a terminal selector on its left.",
     "dom": {
-      "format": 50,
+      "format": 51,
       "rules": [
         {
           "name": "text",
@@ -24666,7 +24666,7 @@
   {
     "description": "A supplied check comparison cannot use a terminal selector on its right.",
     "dom": {
-      "format": 50,
+      "format": 51,
       "rules": [
         {
           "name": "text",
@@ -24779,7 +24779,7 @@
   {
     "description": "A supplied check comparison cannot restore elision on its left.",
     "dom": {
-      "format": 50,
+      "format": 51,
       "rules": [
         {
           "name": "text",
@@ -24892,7 +24892,7 @@
   {
     "description": "A supplied check comparison cannot restore elision on its right.",
     "dom": {
-      "format": 50,
+      "format": 51,
       "rules": [
         {
           "name": "text",
@@ -25003,9 +25003,9 @@
     "message": "a check cannot restore elision"
   },
   {
-    "description": "A child pattern in a supplied DOM cannot contain a resolved empty leaf.",
+    "description": "A child pattern in a supplied DOM can contain an empty leaf.",
     "dom": {
-      "format": 50,
+      "format": 51,
       "rules": [
         {
           "name": "text",
@@ -25136,7 +25136,6 @@
         }
       ]
     },
-    "malformed": true,
-    "message": "a malformed empty pattern"
+    "malformed": false
   }
 ]

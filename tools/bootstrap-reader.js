@@ -1028,6 +1028,7 @@ class Parser {
     else if (this.is('string')) children.push(this.leaf('string'));
     else if (this.is('_')) children.push(this.leaf('wildcard'));
     else if (this.is('constant')) children.push(this.leaf('constant-reference'));
+    else if (this.is('∅')) children.push(this.leaf('empty-set'));
     else return this.fail('expected a pattern node test');
     while (TEST_COMPARATORS.has(this.kindAt())) children.push(yield this.test());
     return this.node('pattern-atom',start,children);
