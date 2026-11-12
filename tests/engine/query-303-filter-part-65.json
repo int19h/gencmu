@@ -1,0 +1,24 @@
+{
+  "documents": {
+    "p.md": "```jbogenbau\n%stage before\n%ambiguity-resolution greedy\n%rule text $w0:word $w1:word $w2:word $w3:word $w4:word $w5:word $w6:word $w7:word $w8:word $w9:word $w10:word $w11:word $w12:word $w13:word $w14:word $w15:word $w16:word $w17:word $w18:word $w19:word $w20:word $w21:word $w22:word $w23:word $w24:word $w25:word $w26:word $w27:word $w28:word $w29:word $w30:word $w31:word $w32:word $w33:word $w34:word $w35:word $w36:word $w37:word $w38:word $w39:word $w40:word $w41:word $w42:word $w43:word $w44:word $w45:word $w46:word $w47:word $w48:word $w49:word $w50:word $w51:word $w52:word $w53:word $w54:word $w55:word $w56:word $w57:word $w58:word $w59:word $w60:word $w61:word $w62:word $w63:word $b:bad\n%emits $w0 :: X, $w1 :: X, $w2 :: X, $w3 :: X, $w4 :: X, $w5 :: X, $w6 :: X, $w7 :: X, $w8 :: X, $w9 :: X, $w10 :: X, $w11 :: X, $w12 :: X, $w13 :: X, $w14 :: X, $w15 :: X, $w16 :: X, $w17 :: X, $w18 :: X, $w19 :: X, $w20 :: X, $w21 :: X, $w22 :: X, $w23 :: X, $w24 :: X, $w25 :: X, $w26 :: X, $w27 :: X, $w28 :: X, $w29 :: X, $w30 :: X, $w31 :: X, $w32 :: X, $w33 :: X, $w34 :: X, $w35 :: X, $w36 :: X, $w37 :: X, $w38 :: X, $w39 :: X, $w40 :: X, $w41 :: X, $w42 :: X, $w43 :: X, $w44 :: X, $w45 :: X, $w46 :: X, $w47 :: X, $w48 :: X, $w49 :: X, $w50 :: X, $w51 :: X, $w52 :: X, $w53 :: X, $w54 :: X, $w55 :: X, $w56 :: X, $w57 :: X, $w58 :: X, $w59 :: X, $w60 :: X, $w61 :: X, $w62 :: X, $w63 :: X, $b :: Y\n%rule word \"a\"\n%rule bad \"b\"\n%error \"bad\"\n%stage last\n%ambiguity-resolution greedy\n%rule text {X} Y\n%conditions Dirty ⊆ $.parse(… word …).tags, Dirty ⊈ $.parse(… word …).error-free.tags\n%rule word\n | X :: Clean\n | Y :: Dirty\n```"
+  },
+  "pipelineDocument": "p.md",
+  "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaab",
+  "expect": {
+    "error": "reported",
+    "result": {
+      "stages": [
+        {
+          "name": "before",
+          "verdict": "unique"
+        },
+        {
+          "name": "last",
+          "verdict": "unique"
+        }
+      ],
+      "ok": false
+    }
+  },
+  "description": "Engine §4: a 65-token part view keeps filtered and unfiltered tags separate."
+}

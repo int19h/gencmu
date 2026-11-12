@@ -2239,9 +2239,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         Ok(self.drive(run)?.1.expect("an answer"))
     }
 
-    /// Remembers the answer of a nested parse from its chart. The chart
-    /// stops at its first empty set, which may lie before the span's end.
-    /// Only the items with an eligible proof tree count.
+    /// Filters qualified witnesses by the request's alignment constraints.
     fn aligned_answer(&mut self, request: Request, witnesses: &[QualifiedWitness]) -> Answer {
         let a = request.aligned.expect("an aligned request");
         let limit = witnesses.partition_point(|w| w.end <= a.match_end);
@@ -2288,6 +2286,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         }
         answer
     }
+    /// Collects eligible witnesses from the finished query chart (§4).
     fn settle(&mut self, request: Request, chart: &Chart) -> Answer {
         if let Some(id) = request.suffix {
             let state = &self.shared.suffixes[id];
@@ -2312,12 +2311,12 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let witnesses: Vec<(u32, u32)> = sets
             .flat_map(|set| {
                 let completed = &chart.sets[set].completed;
-                completed
-                    .get(&(rule, 0))
-                    .into_iter()
-                    .chain(request.contains.then_some(completed).into_iter().flat_map(|completed| {
-                        completed.iter().filter(|((r, origin), _)| *r == rule && *origin != 0).map(|(_, items)| items)
-                    }))
+                let roots: Box<dyn Iterator<Item = &Vec<u32>>> = if request.contains {
+                    Box::new(completed.iter().filter(|((r, _), _)| *r == rule).map(|(_, items)| items))
+                } else {
+                    Box::new(completed.get(&(rule, 0)).into_iter())
+                };
+                roots
                     .flatten()
                     .filter(move |&&index| {
                         chart.sets[set].items[index as usize].close_requested == chart.close_requested
@@ -3628,7 +3627,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         filtered: bool,
     ) -> NestedKey {
         if end - start > CONTENT_KEY_LIMIT {
-            return NestedKey::Place((rule, base + start, base + end));
+            let key = NestedKey::Place((rule, base + start, base + end));
+            return if filtered { NestedKey::Context { key: Box::new(key), filtered, errors: 0 } } else { key };
         }
         // The text over the source of the span's tokens (§1).
         let span = &tokens[start..end];
@@ -3815,6 +3815,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         tokens: &'t [Tok],
         base: usize,
     ) -> Result<Out, Halt<'t>> {
+        let filtered = matches!(query, Query::ErrorFree(_) | Query::ForestTags(_, true));
         self.shared.prepare_errors(tokens, base);
         let (start, match_end, _) = self.checked_bounds(span, frame, tokens.len())?;
         let mut anchor = span;
@@ -3852,7 +3853,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 suffix: None,
                 aligned: None,
                 contains: false,
-                filtered: matches!(query, Query::ForestTags(_, true)),
+                filtered,
             };
             if self.shared.running.contains(&place) {
                 return Err(Halt::Error(self.start_query(&request).expect_err("an active recursive query")));
@@ -3897,16 +3898,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     .as_ref()
                     .unwrap()
                     .normalized(a.observation),
-                filtered: matches!(query, Query::ErrorFree(_) | Query::ForestTags(_, true)),
+                filtered,
             },
-            None => self.nested_key(
-                tokens,
-                base,
-                start,
-                end,
-                rule,
-                matches!(query, Query::ErrorFree(_) | Query::ForestTags(_, true)),
-            ),
+            None => self.nested_key(tokens, base, start, end, rule, filtered),
         };
         let contains = matches!(
             query,
@@ -3915,7 +3909,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 | Query::ErrorFree(crate::query_forms::Mode::Part)
         );
         // A part query keeps one fixed context. Its nested answers remain
-        // reusable, unlike answers inside resumable suffix recognition (§4.4).
+        // reusable, unlike answers inside resumable suffix recognition (§4.3).
         let key = if contains { NestedKey::Part(Box::new(key)) } else { key };
         let begins = matches!(
             query,
@@ -3925,19 +3919,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         );
         let place = (rule, base + start, base + end);
         if self.shared.running.contains(&place) {
-            let request = Request {
-                tokens,
-                base,
-                start,
-                end,
-                rule,
-                key,
-                begins,
-                suffix: None,
-                aligned,
-                contains,
-                filtered: matches!(query, Query::ForestTags(_, true)),
-            };
+            let request =
+                Request { tokens, base, start, end, rule, key, begins, suffix: None, aligned, contains, filtered };
             return Err(Halt::Error(self.start_query(&request).expect_err("an active recursive query")));
         }
         let known = if self.shared.suffix_active > 0 {
@@ -3950,19 +3933,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         match known {
             Some(answer) => Ok(query.out(answer, &self.shared.tags)),
             None => {
-                let request = Request {
-                    tokens,
-                    base,
-                    start,
-                    end,
-                    rule,
-                    key,
-                    begins,
-                    suffix: None,
-                    aligned,
-                    contains,
-                    filtered: matches!(query, Query::ForestTags(_, true)),
-                };
+                let request =
+                    Request { tokens, base, start, end, rule, key, begins, suffix: None, aligned, contains, filtered };
                 if aligned.is_some() && self.shared.suffix_active == 0 {
                     if let Some(qualified) = self.shared.qualified.remove(&request.qualification_key()) {
                         let context = request.qualification_key();

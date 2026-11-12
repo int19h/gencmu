@@ -1,0 +1,29 @@
+{
+  "description": "Engine §4: part eligibility includes a later written optional in the fixed window.",
+  "grammar": "%rule text A B\n%conditions\n  $.parse(… r …).tags = ∅\n%rule r [+A B] A :: Seen",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}
