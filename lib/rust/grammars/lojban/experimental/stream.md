@@ -2,23 +2,23 @@
 
 This document is part of the words stage in the [experimental](pipeline.md) pipeline, after [../common/stream.md](../common/stream.md). A stage is one step of the pipeline. A token is one unit that a stage reads or emits. A tag marks a token by an identifier.
 
-[The word forms](morphology.md) tag CgV names and predicate words with `Cgv-Warning`. A nucleus is a syllable's vowel or diphthong. A glide is `i` or `u` before a nucleus. CgV combines a consonant, glide and nucleus. This stage enables the warning `experimental-cgv` by default. Disabling it changes no reading.
+[The word forms](morphology.md) tag CgV names and predicate words with `Cgv-Warning`. A nucleus is the vowel, diphthong or `y` at the center of a syllable. A glide is `i` or `u` before a nucleus. CgV combines a consonant, glide and nucleus. This stage enables the warning `experimental-cgv` by default. Disabling it changes no reading.
 
 The warning covers each marked word that the chosen derivation reads as Lojban. ZO targets, grammatical quotes, and ungrammatical quotes retain it. Replacement quotes still read Lojban words, so their marked words warn too. Erasure keeps warnings from the words that it reads. An opening delimiter also reads as a word and can warn.
 
 An opaque foreign body contains no such word reads. Thus ZOI bodies, including `la'o`, and raw one-word bodies cannot warn about their contents. Text after active FAhO cannot warn either. A raw closing delimiter also supplies no predicate or name read. `zoi gy. atkuila .gy.` needs no CgV word form in its body.
 
-`brivla-token` and `cmevla-token` read the marked and unmarked cases separately. They remove the marker tag after the test. Each warning retains the whole word's source range.
+`brivla-token` and `cmevla-token` read the marked and unmarked cases separately. `experimental-cgv` removes the marker tag after the test. Each warning retains the whole word's source range.
 
 ```jbogenbau
 %features experimental-cgv
 
 %redefine-rule brivla-token
-  | $b:BRIVLA<¬Cgv-Warning> :: $b.tags ∖ Cgv-Warning
+  | BRIVLA<¬Cgv-Warning>
   | *experimental-cgv<BRIVLA>
 
 %redefine-rule cmevla-token
-  | $n:CMEVLA<¬Cgv-Warning> :: $n.tags ∖ Cgv-Warning
+  | CMEVLA<¬Cgv-Warning>
   | *experimental-cgv<CMEVLA>
 
 %rule experimental-cgv
@@ -47,7 +47,7 @@ Each completed quotation is one opaque unit. Later erasers and joiners act on th
 
 ```jbogenbau
 %redefine-const $MAGIC-WORDS
-  $MAGIC-WORDS ∪ SUhUhUhUhUhUhUhU
+  $MAGIC-WORDS ∪ SUhUhUhUhUhUhUhU ∪ ZEhEI
 
 %redefine-const $WORD-QUOTE-MARKERS
   $WORD-QUOTE-MARKERS ∪ GOhOI
@@ -80,7 +80,7 @@ A magic right word rejects because this construction does not dispatch new word 
 
 The right reader keeps the shared y-letter exception and predicate-word warnings. Its particle alternative tests `Cmavo` directly, not through `cmavo-token`, so the diagnostic names the forbidden classes. It also forbids LOhAI and LEhAI, whose raw quote markers have special plain-word fallbacks.
 
-The spelling guard also covers `ze'ei`, so punctuation cannot escape into an earlier spacing region. SI excludes that spelling despite its dictionary class. The constructor hook also lets `ze'ei` take an unfinished replacement opener as its base. Nothing in this pipeline then reads `punctuation-word-gap`, which the shared rule still needs for Zantufa.
+The spelling guard also covers `ze'ei`, so punctuation cannot escape into an earlier spacing region. The lexicon gives the joiner its own class, ZEhEI, so SI reads only erasers. The constructor hook also lets `ze'ei` take an unfinished replacement opener as its base. Nothing in this pipeline then reads `punctuation-word-gap`, which the shared rule still needs for Zantufa.
 
 ```jbogenbau
 %extend-rule unit
@@ -109,15 +109,7 @@ The spelling guard also covers `ze'ei`, so punctuation cannot escape into an ear
   | brivla-token | cmevla-token | y-bu-word
 
 %rule zehei-word
-  $q:cmavo-token
-%conditions
-  $q.value = "ze'ei"
-
-%redefine-rule si-word
-  $q:cmavo-token
-%conditions
-  SI ⊆ $q.classes,
-  $q.value ≠ "ze'ei"
+  cmavo-token<ZEhEI>
 
 %redefine-rule zei-spelling
   Cmavo
@@ -125,13 +117,12 @@ The spelling guard also covers `ze'ei`, so punctuation cannot escape into an ear
   $.value = "zei" ∨ $.value = "ze'ei"
 ```
 
-<details><summary>Railroad diagrams of the 7 rules from <code>unit</code> to <code>zei-spelling</code></summary>
+<details><summary>Railroad diagrams of the 6 rules from <code>unit</code> to <code>zei-spelling</code></summary>
 <p><img src="../../../docs/diagrams/lojban/experimental/stream/unit.svg" alt="Railroad diagram of the rule unit"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/stream/constructor-word.svg" alt="Railroad diagram of the rule constructor-word"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/stream/zehei-compound.svg" alt="Railroad diagram of the rule zehei-compound"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/stream/nonmagic-zehei-right.svg" alt="Railroad diagram of the rule nonmagic-zehei-right"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/stream/zehei-word.svg" alt="Railroad diagram of the rule zehei-word"></p>
-<p><img src="../../../docs/diagrams/lojban/experimental/stream/si-word.svg" alt="Railroad diagram of the rule si-word"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/stream/zei-spelling.svg" alt="Railroad diagram of the rule zei-spelling"></p>
 </details>
 

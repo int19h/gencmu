@@ -2,15 +2,19 @@
 
 This document adds to [../common/cyrillic.md](../common/cyrillic.md) and [../cll/cyrillic.md](../cll/cyrillic.md) the Cyrillic conventions of the [experimental](pipeline.md) pipeline. Only that pipeline reads it. It stands right after [../cll/cyrillic.md](../cll/cyrillic.md), and it restates the letter rules of both documents. [The notation document](../../../docs/notation.md) explains the notation.
 
-A Cyrillic letter takes any combining marks after it, as a Latin letter does in [latin.md](latin.md). `letter-marks` of that document reads them. An acute or grave accent on a full vowel marks stress, as in [../common/cyrillic.md](../common/cyrillic.md). A breve on `и` or `у` makes the glide, as `й` and `ў` do. Every other mark is ignored.
+A Cyrillic letter takes any combining marks after it, as a Latin letter does in [latin.md](latin.md). `letter-marks` of that document reads them. An acute or grave accent on a full vowel marks stress, as in [../common/cyrillic.md](../common/cyrillic.md). A breve on `и` or `у` makes the glide, as `й` and `ў` do. The stage ignores every other mark.
 
-So `ё` reads as `е` and `ї` as `і`, because a dieresis means nothing here. The Cyrillic orthography already puts an apostrophe between two full vowels, so the Latin meaning of the dieresis has no job. A mark on a consonant is ignored, so `ќ` is `к`. A breve on another vowel is ignored, so `ӑ` is `а`. An accent on a glide is ignored, as on a Latin glide letter.
+So `ё` reads as `е` and `ї` as `і`, because a dieresis means nothing here. The Cyrillic orthography already puts an apostrophe between two full vowels, so the Latin meaning of the dieresis has no job. The stage ignores marks on consonants, so `ќ` is `к`. The stage ignores a breve on another vowel, so `ӑ` is `а`. The stage ignores accents on glides, as it does on Latin glide letters.
 
-The Cyrillic glides carry no `Glide` tag, and the word forms find them by position, as they do in `lojban/bpfk`.
+The Cyrillic glides carry no `Glide` tag, and the word forms find them by position, as they do in `lojban/bpfk`. These letters belong to the base Cyrillic orthographies. This layer adds marks without changing their positional readings.
+
+Latin `ɩ`, `q` and `w` are dedicated glide letters. Outside zbalermorna shorthand, this pipeline reads inherited Latin `ĭ` and `ŭ` only as glides, while the base conventions read them by position ([word forms](morphology.md#glide-letters)).
 
 `cyrillic-vowel` reads every Cyrillic vowel letter with its marks. Its tags work as those of `latin-vowel`. A capital full vowel without an accent has a stressed and a folded reading. An accented capital has one reading, stressed and `Accented`, which an all-capital run keeps, as "Capital runs" in [../common/latin.md](../common/latin.md) says. The three restated vowel rules take the readings that fit them.
 
 The `Vowel` tag marks the letters of `a`, `e`, `i`, `o` and `u`, full vowels and glides, and not `y`. The full vowels and the `y` letters carry `Syllabic`, and the glides do not. So `cyrillic-full-vowel` holds the full vowels of `cyrillic-vowel`, and `cyrillic-glide` holds the glides and carries `Vowel` on its header. The `y` forms stay in `cyrillic-vowel`.
+
+The restated vowel rules read `cyrillic-vowel` instead of the inherited vowel and glide readers. Nothing reads `cyrillic-plain-full-vowel`, `cyrillic-stressed-full-vowel`, `cyrillic-folded-full-vowel`, `cyrillic-plain-glide` or `cyrillic-folded-glide` in this pipeline.
 
 Joined vowels use the same public tags as isolated vowels. The emission filter keeps only `Stressed`, `Syllabic` and `Vowel`. Bookkeeping tags stay inside the phoneme stage.
 
@@ -124,7 +128,9 @@ Joined vowels use the same public tags as isolated vowels. The emission filter k
 <p><img src="../../../docs/diagrams/lojban/experimental/cyrillic/joined-vowel-with.svg" alt="Railroad diagram of the rule joined-vowel-with"></p>
 </details>
 
-The Cyrillic of CLL, in [../cll/cyrillic.md](../cll/cyrillic.md), ignores unknown marks too. It writes a diphthong as two plain vowels, as the Latin orthography does, so it has no glide letters. An accent on a vowel marks stress, as on a Latin vowel. Every other mark is ignored, the breve and the dieresis included. So `май` is `mai`, `мёи` is `mei` and `ма́и` is `mAi`. A capital vowel still marks stress, because this orthography has no all-capital runs.
+The Cyrillic of CLL, in [../cll/cyrillic.md](../cll/cyrillic.md), ignores unknown marks too. It writes a diphthong as two plain vowels, as the Latin orthography does, so it has no glide letters. An accent on a vowel marks stress, as on a Latin vowel. It ignores every other mark, the breve and the dieresis included. So `май` is `mai`, `мёи` is `mei` and `ма́и` is `mAi`. A capital vowel still marks stress, because this orthography has no all-capital runs.
+
+The restated CLL rules leave two inherited template instances without callers: `stressed-full-vowel-with("А", "Е", "И", "О", "У")` and `stressed-vowel-with("А", "Е", "И", "О", "У", "Ъ")`. This layer supplies letter readers that also accept combining marks.
 
 The `Vowel` tag marks the five full vowels and not `y`, so the restated `cll-cyrillic-plain-full-vowel` holds them and carries `Vowel` on its header. The hard sign stays in `cll-cyrillic-plain-vowel`.
 

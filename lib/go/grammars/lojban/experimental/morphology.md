@@ -4,7 +4,7 @@ This document is part of the forms stage in the [experimental](pipeline.md) pipe
 
 A layer is a document that changes earlier rules. This layer changes the word forms in [../bpfk/morphology.md](../bpfk/morphology.md). A lookahead tests input without reading it.
 
-The baseline is camxes-exp, the experimental grammar of the camxes parser, written as a parsing expression grammar (PEG). The rule names follow camxes-exp, while their comments state the morphology constraints, as in [../bpfk/morphology.md](../bpfk/morphology.md). The section on glide letters adds a test of gencmu's own to three inherited rules. The [Zantufa](../zantufa/pipeline.md) pipeline shares the `ie'o` hesitation and the permitted `mz` pair, as [../zantufa/morphology.md](../zantufa/morphology.md) describes. [The notation document](../../../docs/notation.md) explains the notation.
+The baseline is camxes-exp, the experimental grammar of the camxes parser, written as a parsing expression grammar (PEG). The rule names follow camxes-exp, while their comments state the morphology constraints, as in [../bpfk/morphology.md](../bpfk/morphology.md). The section on glide letters adds a test of gencmu's own to two inherited rules, `vowel` and `diphthong-letters`. The [Zantufa](../zantufa/pipeline.md) pipeline shares the `ie'o` hesitation and the permitted `mz` pair, as [../zantufa/morphology.md](../zantufa/morphology.md) describes. [The notation document](../../../docs/notation.md) explains the notation.
 
 The prose uses these Lojban terms for words:
 
@@ -42,8 +42,6 @@ The words stage drops hesitation outside opaque bodies, except before BU. That e
 
 ## The pair mz
 
-A diphthong combines two vowels in one syllable. A nucleus is a syllable's vowel or diphthong. A glide is an `i` or `u` before a nucleus.
-
 This layer adds the pair `mz` to the shared table of its own stitched pipeline. Thus `kamzi`, `bamzda` and `.djeimz.` have permissible consonant pairs.
 
 ```jbogenbau
@@ -66,7 +64,7 @@ Thus `atkuila` and `zgiaca'a` are borrowings, while `language` remains foreign. 
 
 The guard excludes neither cluster onsets nor CVV rafsi nor rafsi later in a borrowing. Thus `lanstia`, `baltcuiska`, `baistia` and `bailanguaska` remain borrowings. Borrowing rafsi retain their separate head exclusion. Their final onset before `y` remains ordinary, so `spagetiybroda` and `spagekuykla` stay foreign.
 
-The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The span test reads only that word, so it cannot mark CgV in a later word. [The experimental word stream](stream.md) reads this tag and supplies the warning. Disabling the warning changes no reading.
+The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The span test reads only that word, so it cannot mark CgV in a later word. [The experimental word stream](stream.md) reads this tag and supplies the warning.
 
 ```jbogenbau
 -- A name ends in a consonant, unlike a predicate word. It carries the template marks and its warning. The warning test inspects only this complete word.
@@ -230,19 +228,15 @@ A y-rafsi requires y where a classical extended form needs a vowel or apostrophe
 <p><img src="../../../docs/diagrams/lojban/experimental/morphology/any-fuhivla-rafsi.svg" alt="Railroad diagram of the rule any-fuhivla-rafsi"></p>
 </details>
 
-## A bare nai
-
-The implication marks every NAI word `Indicator`, as [the experimental lexicon](lexicon.md) marks the attitudinals. The mark comes from an implication, which the forms stage applies to each word that it emits. The indicator stage then attaches a bare `nai` to the word before it ([the experimental indicators](indicators.md)).
-
-```jbogenbau
-%implies NAI ⟹ Indicator
-```
-
 ## Glide letters
 
-The experimental phoneme stage reads `ɩ`, `q`, `w`, `ĭ` and `ŭ` as the glides `i` and `u`, with the tag `Glide` ([latin.md](latin.md)). `ɩ`, `q` and `w` also carry `Onglide`, because they write only a glide before its vowel. Such a letter is a glide wherever it stands. So no rule reads it as a vowel.
+The base Cyrillic orthographies read glide letters by position, as in `lojban/bpfk`. The experimental Cyrillic layer adds marks without changing that convention.
 
-A glide letter carries no `Vowel` tag, so the `Vowel` test of `vowel` does not read it. `diphthong-letters` refuses an onglide letter, so `ĭ` and `ŭ` can end a diphthong, as in `maĭ`. These tests of glide letters are gencmu's own.
+Dedicated `ɩ`, `q` and `w` write glides in this pipeline. The base Latin conventions accept the breve forms `ĭ` and `ŭ`. Their readings there depend on position. This pipeline instead gives those breve forms fixed glide readings.
+
+The experimental phoneme stage reads `ɩ`, `q`, `w`, `ĭ` and `ŭ` as the glides `i` and `u`, with the tag `Glide` ([latin.md](latin.md)). `ɩ`, `q` and `w` also carry `Onglide`, because they write only a glide before its vowel. The [shorthand reader](latin.md#vowels) uses its own vowel tags. Outside that shorthand, these letters always emit glides.
+
+An emitted glide carries no `Vowel` tag, so the `Vowel` test of `vowel` does not read it. `diphthong-letters` refuses an onglide letter, so `ĭ` and `ŭ` can end a diphthong, as in `maĭ`. These tests of glide letters are gencmu's own.
 
 When a diphthong ends in a glide letter, its second letter is no vowel. So the `a` of `maĭ` passes the `!nucleus` test of `vowel`, and without a change it reads as a vowel alone. `vowel` therefore also refuses a letter where a diphthong begins. Without a glide letter the extra test changes nothing, because a diphthong's second letter is then a nucleus, and the camxes test already fails.
 

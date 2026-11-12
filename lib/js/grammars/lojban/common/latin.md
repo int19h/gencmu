@@ -195,7 +195,7 @@ An ignored character at a pause edge is a comma or a non-breaking format charact
 
 ## The comma
 
-A comma between vowels is ignored, as it is between other letters. It creates no syllable break. The vowels on either side are one vowel group, as if they stood side by side. `me,iin` is `meiin`, and the Cyrillic `ма,и` is `ma'i`, as `маи` is. This document redefines `letters-after-vowel` without the `syllable-break` of [../cll/latin.md](../cll/latin.md). So nothing reads `syllable-break` in these pipelines.
+The stage ignores a comma between vowels, as it does between other letters. It creates no syllable break. The vowels on either side are one vowel group, as if they stood side by side. `me,iin` is `meiin`, and the Cyrillic `ма,и` is `ma'i`, as `маи` is. This document redefines `letters-after-vowel` without the `syllable-break` of [../cll/latin.md](../cll/latin.md). So nothing reads `syllable-break` in these pipelines.
 
 ```jbogenbau
 %redefine-rule letters-after-vowel
@@ -363,7 +363,7 @@ The `Vowel` tag marks the five full vowels and not `y`, so `accented-full-vowel`
 
 ## Digits
 
-Each digit emits the letters of its number word, so `2` is `re`. The first emission covers the character. The second is inserted at the end of that span, with empty source and text. It names the digit rule in `insertedBy`. Their values and images spell the number word.
+Each digit emits the letters of its number word, so `2` is `re`. The first emission covers the character. The stage inserts the second emission at the end of that span, with empty source and text. It names the digit rule in `insertedBy`. Their values and images spell the number word.
 
 The `digit-phonemes` template takes a character and two output strings. The named instances keep each digit rule and the decimal-point rule as the `insertedBy` rule.
 

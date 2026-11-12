@@ -31,7 +31,7 @@ The prose uses these Lojban terms, as [the CLL grammar](../cll/syntax.md) does:
 
 [The experimental lexicon](lexicon.md) gives each cmavo one selma'o. For example, `mi'ai` is KOhA, `la` is LE, `fi'oi` is SOI, `ma'oi` is ZO and `la'oi` is ZOhOI. `no'oi` and `po'oi` are NOhOI, with the terminators `ku'oi` and `ku'o`. The added classes include `LOhOI`, `NOhOI`, `KUhOI`, `KUhAU`, `LOhAI`, `LEhAI`, `ZOhOI` and `MEhOI`.
 
-[The notation document](../../../docs/notation.md) explains the notation. The terminals of this grammar (the symbols that each match one input token) are selma'o. A token is one unit of input. A tag marks a token by an identifier.
+[The notation document](../../../docs/notation.md) explains the notation. A terminal is a symbol that matches one input token. Each terminal matches a word class from an earlier stage, such as a selma'o, `BRIVLA` or `CMEVLA`. A token is one unit of input. A tag marks a token by an identifier.
 
 A stage is one step of a pipeline, with its own grammar. The pipeline is the sequence of stages that reads a text. The words stage emits each finished quote as one token of its opening class. The syntax reads one terminal for that token. Its internal structure remains in the tree of the words stage.
 
@@ -41,9 +41,11 @@ A free modifier is a phrase that stands in many positions. An elidable terminato
 
 The number and letter-string rules prevent a run from ending before a part that can continue it. Each rule tests its actual following node. Numbers continue with number parts or letter words. Letter strings continue with letter words or PA. A written BOI separates the run from the next part. The free-slot wrappers hold BOI and the following free modifiers.
 
+## Parse preferences
+
 A span is a range between input token boundaries. A ranked choice filters alternatives at one written position. An option qualifies when its complete reading passes the grammar's conditions. An earlier option can exclude a later option over the same span. The [notation document](../../../docs/notation.md#ranked-choices) defines when this occurs.
 
-A derivation is one complete grammatical reading. An admitted derivation survives ranked filtering. The stage ranks admitted derivations by `leftmost-longest #(·tense-modal ∪ ·free)`, then `fewest #(·gi-stag-connective ∪ ·bridi-tail-connective)`, then `late #·_<_Elided>`. After the first two steps tie, fewer omitted terminators win at the first differing boundary. Two best derivations with equal counts at every boundary tie, and a tie is an error.
+A derivation is one complete grammatical reading. An admitted derivation survives ranked filtering. The stage ranks admitted derivations by `leftmost-longest #(·tense-modal ∪ ·free)`, then `fewest #(·gi-stag-connective ∪ ·bridi-tail-connective)`, then `late #·_<_Elided>`. Late elision counts omitted terminators at each boundary. After the first two steps tie, fewer omitted terminators win at the first differing boundary. Two best derivations with equal counts at every boundary tie, and a tie is an error.
 
 The first step names `free` and `tense-modal`, and compares the spans of every occurrence of either. Both rules contribute to one count, without priority by rule name. The earliest differing start decides, with longer spans first. A unit that prevents the full text from completing contributes nothing.
 
@@ -57,13 +59,14 @@ The `leftmost-longest` step gives `to mi klama` the sentence `mi klama`, because
 
 The layer permits ambiguity beyond omitted terminators. It uses these rules to select a reading:
 
-- A free modifier's span is settled before the `fewest` step. Its terminator can be omitted.
 - In a tanru and between operators, `ke` directly after a joik, jek or ek opens the connective's own group. The selbri and mekso sections explain that choice.
-- A connection that can be a sumti connection is one ("Terms"). After span ranking, fewer bridi-tail links in the whole reading win. Equal counts leave late elision to decide.
+- A sumti connection takes priority over a term connection ([terms](#terms)).
 - A `be` group attaches to the tanru unit before it ("Selbri and tanru").
 - A subscript after a subscript nests. Any other free modifier after a subscript belongs to the word that the subscript marks ("Free modifiers, vocatives and indicators").
 
 The first step names `free`, so it settles a free modifier's span before the `fewest` step. An omitted terminator therefore closes as late as the text allows. In `mi viska to do klama le zarci`, `le zarci` stays inside the parenthesis.
+
+For example, `le sutra tavla` has two parses. One is a statement with the description `le sutra`, whose `ku` is elided before `tavla`, and the selbri `tavla`. The other is a fragment, the single description `le sutra tavla`, whose `ku` is elided at the end. `late #·_<_Elided>` takes the fragment.
 
 The experimental terminators `ku'au` and `ku'oi` are elidable: the rules below write them `[+KUhAU]` and `[+KUhOI]`.
 
@@ -77,7 +80,7 @@ The experimental terminators `ku'au` and `ku'oi` are elidable: the rules below w
 
 The layer changes the text in six ways. The first change makes a text-initial `nai` an indicator, as the indicator stage of the experimental pipeline reads it. The `indicators` rule takes that bare NAI. A separate `nai` stands only before a run of names, with `cbm` off. `nai .djan. mi klama` rejects by default. It parses with `--no-feature cbm`.
 
-The second change permits an ek after a text-leading `.i`, as in `.i .e do klama`. After that connective, an optional tense can precede `bo`. The rule writes that tense as a `tag`. A `stag` is a `tag` in this pipeline, so either name reads the same words.
+The second change permits an ek after a text-leading `.i`, as in `.i .e do klama`. After that connective, an optional tense can precede `bo`. The rule writes that tense as a `stag`, as other connective rules do. A `stag` reads a `tag` in this pipeline.
 
 The third change is that an ek, a jek or a joik directly after `.i` is always a connective. So `i.e`, `.iji` and `mi klama .i e` read `.i e` or `.i ji` as a connective. Without this rule, these texts tie, because a bare ek is a fragment. The rule `lone-i` is an `.i` that no ek, jek or joik follows directly. It stands in the bare-`.i` positions of `text-1` and `paragraph`, before a statement, a fragment or nothing.
 
@@ -97,7 +100,7 @@ The fifth change permits a text-initial run of names only with `cbm` off. Under 
 
 The sixth change permits all four connective families before the first `.i` of a text. Examples are `e mi klama` and `su'i mi klama`. An ek or a VUhU needs a nonempty `text-1` after it. So a bare `e` stays an ek fragment, and a bare `su'i` fails.
 
-A first-child path follows each node's first child. The `$NEEDS-TEXT` pattern finds an initial ek or VUhU along this path, even with conversion or free modifiers. The `text-token` wildcard tests that the following `text-1` starts with a token.
+A first-child path follows each node's first child. The `$NEEDS-TEXT` pattern finds an initial ek or VUhU along this path, even with conversion or free modifiers. The `any-token` wildcard tests that the following `text-1` starts with a token.
 
 The ranked choice compares complete candidates and prefers the form without an initial connective when both forms complete. So `e .i mi klama` reads an ek fragment and a following sentence. The initial-connective candidate remains available when the fragment reading cannot complete.
 
@@ -138,10 +141,10 @@ A written KEhE also closes a KE-wrapped forethought bridi. A later reset permits
   | ¬cbm? [{NAI}] {CMEVLA} 🆓 (text-1 ≻ $c:connective $t:text-1)
   | [indicators & {free}] (text-1 ≻ $c:connective $t:text-1)
 %conditions
-  $c ≇ $NEEDS-TEXT ∨ $t.first-token.parse(text-token),
+  $c ≇ $NEEDS-TEXT ∨ $t.first-token.parse(any-token),
   ¬$c.preceded-by(free)
 
-%rule text-token
+%rule any-token
   _
 
 %redefine-rule indicators
@@ -160,7 +163,7 @@ A written KEhE also closes a KE-wrapped forethought bridi. A later reset permits
   {{NIhO} / {free}} 🆓 [I 🆓 {{NIhO} / {free}} 🆓] [leading-separators]
 
 %rule leading-separators
-  {(I joik-jek-ek | lone-i) [[tag] BO] 🆓}
+  {(I joik-jek-ek | lone-i) [[stag] BO] 🆓}
 
 %redefine-rule paragraph
   paragraph-item [{lone-i 🆓 [paragraph-item]}]
@@ -190,7 +193,7 @@ A written KEhE also closes a KE-wrapped forethought bridi. A later reset permits
 
 <details><summary>Railroad diagrams of the 14 rules from <code>text</code> to <code>lone-i</code></summary>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/text.svg" alt="Railroad diagram of the rule text"></p>
-<p><img src="../../../docs/diagrams/lojban/experimental/syntax/text-token.svg" alt="Railroad diagram of the rule text-token"></p>
+<p><img src="../../../docs/diagrams/lojban/experimental/syntax/any-token.svg" alt="Railroad diagram of the rule any-token"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/indicators.svg" alt="Railroad diagram of the rule indicators"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/indicator.svg" alt="Railroad diagram of the rule indicator"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/text-1.svg" alt="Railroad diagram of the rule text-1"></p>
@@ -273,13 +276,13 @@ A reader is a rule that supplies one part of the family. The templates take four
 - Nonfinal tail
 - Nonfinal forethought bridi
 
-The ordinary named instances use `tail-terms` and `gek-sentence`. The main named instances use `main-tail` and `main-gek`. A connected final branch leaves its resets to the shared tail terms.
+The ordinary named instances use `tail-terms` and `gek-sentence`. The main named instances use `main-tail` and `main-gek-sentence`. A connected final branch leaves its resets to the shared tail terms.
 
 A KE group uses the ordinary reader inside its brackets. A reset closes that group before it reaches the shared tail terms.
 
 When NA starts a forethought opener's joik, jek or ek before `gi`, NA belongs to that opener. This form has NA, optional SE, JOI, JA or A, then `gi`. Thus `na je gi broda gi brode` keeps NA inside its connective. Both recursive NA forms exclude this opener, in sentences and selbri. KE can negate the whole bridi of this opener, as in `na ke je gi broda gi brode ke'e`. Before `ge`, NA instead negates the whole bridi, as in `na ge broda gi brode`.
 
-The `main-tail` reader separates open tails from tails with written VAU. The `main-gek` reader also separates open and closed forethought wrappers.
+The `main-tail` reader separates open tails from tails with written VAU. The `main-gek-sentence` reader also separates open and closed forethought wrappers.
 
 The open forethought reader requires omitted KEhE in each wrapper. The closed reader records a written final VAU or a written KEhE around the bridi.
 
@@ -330,10 +333,7 @@ An open tail can take terms after a reset. A closed tail can take only resets an
 %rule bridi-tail-1-with(@T, @G, @P, @H)
   | bridi-tail-2-with(@T, @G, @P, @H)
   | bridi-tail-1-with(@P, @H, @P, @H) bridi-tail-connective
-    connected-bridi-tail-with(tail-terms, gek-sentence, @P, @H) @T
-
-%rule connected-bridi-tail-with(@T, @G, @P, @H)
-  [bridi-tail-head] bridi-tail-2-with(@T, @G, @P, @H)
+    headed-bridi-tail-2-with(tail-terms, gek-sentence, @P, @H) @T
 
 %rule bridi-tail-2-with(@T, @G, @P, @H)
   | bridi-tail-3-with(@T, @G)
@@ -344,25 +344,31 @@ An open tail can take terms after a reset. A closed tail can take only resets an
   selbri @T | @G
 
 %rule headed-bridi-tail = headed-bridi-tail-with(tail-terms, gek-sentence, tail-terms, gek-sentence)
-%rule headed-bridi-tail-2 = headed-bridi-tail-2-with(tail-terms, gek-sentence,
-                                                     tail-terms, gek-sentence)
+%rule headed-bridi-tail-2 = headed-bridi-tail-2-with(
+  tail-terms, gek-sentence,
+  tail-terms, gek-sentence)
 %redefine-rule bridi-tail = bridi-tail-with(tail-terms, gek-sentence, tail-terms, gek-sentence)
 %redefine-rule bridi-tail-1 = bridi-tail-1-with(tail-terms, gek-sentence, tail-terms, gek-sentence)
-%rule connected-bridi-tail = connected-bridi-tail-with(tail-terms, gek-sentence,
-                                                       tail-terms, gek-sentence)
 %redefine-rule bridi-tail-2 = bridi-tail-2-with(tail-terms, gek-sentence, tail-terms, gek-sentence)
 %redefine-rule bridi-tail-3 = bridi-tail-3-with(tail-terms, gek-sentence)
 
-%rule main-headed-bridi-tail = headed-bridi-tail-with(main-tail, main-gek, main-tail, main-gek)
-%rule main-bridi-tail = bridi-tail-with(main-tail, main-gek, main-tail, main-gek)
-%rule main-bridi-tail-1 = bridi-tail-1-with(main-tail, main-gek, main-tail, main-gek)
-%rule main-bridi-tail-2 = bridi-tail-2-with(main-tail, main-gek, main-tail, main-gek)
-%rule main-bridi-tail-3 = bridi-tail-3-with(main-tail, main-gek)
-%rule connected-main-bridi-tail = connected-bridi-tail-with(tail-terms, gek-sentence,
-                                                            main-tail, main-gek)
-%rule connected-main-bridi-tail-2 = bridi-tail-2-with(tail-terms, gek-sentence, main-tail, main-gek)
-%rule headed-connected-main-bridi-tail-2 = headed-bridi-tail-2-with(tail-terms, gek-sentence,
-                                                                    main-tail, main-gek)
+%rule main-headed-bridi-tail = headed-bridi-tail-with(
+  main-tail, main-gek-sentence,
+  main-tail, main-gek-sentence)
+%rule main-bridi-tail = bridi-tail-with(main-tail, main-gek-sentence, main-tail, main-gek-sentence)
+%rule main-bridi-tail-1 = bridi-tail-1-with(
+  main-tail, main-gek-sentence,
+  main-tail, main-gek-sentence)
+%rule main-bridi-tail-2 = bridi-tail-2-with(
+  main-tail, main-gek-sentence,
+  main-tail, main-gek-sentence)
+%rule main-bridi-tail-3 = bridi-tail-3-with(main-tail, main-gek-sentence)
+%rule connected-main-bridi-tail-2 = bridi-tail-2-with(
+  tail-terms, gek-sentence,
+  main-tail, main-gek-sentence)
+%rule headed-connected-main-bridi-tail-2 = headed-bridi-tail-2-with(
+  tail-terms, gek-sentence,
+  main-tail, main-gek-sentence)
 
 %rule top-sentence
   [$h:reset-head IhAU 🆓]
@@ -388,40 +394,30 @@ An open tail can take terms after a reset. A closed tail can take only resets an
   $o ≇ $WRITTEN-VAU,
   $c ≅ $WRITTEN-VAU
 
-%rule main-gek
+%rule main-gek-sentence
   | gek-sentence
-  | open-gek IhAU 🆓 main-tail
-  | closed-gek {IhAU 🆓}
+  | open-gek-sentence IhAU 🆓 main-tail
+  | closed-gek-sentence {IhAU 🆓}
 
-%rule open-gek
+%rule open-gek-sentence
   | gek subsentence gik subsentence open-tail
-  | [tag] KE 🆓 open-gek omitted-kehe 🆓
-  | $n:NA 🆓 open-gek
+  | [tag] KE 🆓 open-gek-sentence [+KEhE=""] 🆓
+  | $n:NA 🆓 open-gek-sentence
 %conditions
   ¬$n.onward.parse(gek …)
 
-%rule closed-gek
-  | gek subsentence gik subsentence written-tail
+%rule closed-gek-sentence
+  | gek subsentence gik subsentence closed-tail
   | [tag] KE 🆓 gek-sentence KEhE 🆓
-  | [tag] KE 🆓 closed-gek omitted-kehe 🆓
-  | $n:NA 🆓 closed-gek
+  | [tag] KE 🆓 closed-gek-sentence [+KEhE=""] 🆓
+  | $n:NA 🆓 closed-gek-sentence
 %conditions
   ¬$n.onward.parse(gek …)
 
 %rule open-tail
-  [terms] omitted-vau 🆓
+  [terms] [+VAU=""] 🆓
 
-%rule omitted-vau
-  [+VAU]
-%conditions
-  $.value = ""
-
-%rule omitted-kehe
-  [+KEhE]
-%conditions
-  $.value = ""
-
-%rule written-tail
+%rule closed-tail
   [terms] VAU 🆓
 
 %rule gi-stag-connective
@@ -432,7 +428,7 @@ An open tail can take terms after a reset. A closed tail can take only resets an
 
 ```
 
-<details><summary>Railroad diagrams of the 40 rules from <code>top-sentence-link</code> to <code>bridi-tail-connective</code></summary>
+<details><summary>Railroad diagrams of the 35 rules from <code>top-sentence-link</code> to <code>bridi-tail-connective</code></summary>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/top-sentence-link.svg" alt="Railroad diagram of the rule top-sentence-link"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/top-subsentence.svg" alt="Railroad diagram of the rule top-subsentence"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/sentence.svg" alt="Railroad diagram of the rule sentence"></p>
@@ -442,14 +438,12 @@ An open tail can take terms after a reset. A closed tail can take only resets an
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/headed-bridi-tail-2-with.svg" alt="Railroad diagram of the rule headed-bridi-tail-2-with"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/bridi-tail-with.svg" alt="Railroad diagram of the rule bridi-tail-with"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/bridi-tail-1-with.svg" alt="Railroad diagram of the rule bridi-tail-1-with"></p>
-<p><img src="../../../docs/diagrams/lojban/experimental/syntax/connected-bridi-tail-with.svg" alt="Railroad diagram of the rule connected-bridi-tail-with"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/bridi-tail-2-with.svg" alt="Railroad diagram of the rule bridi-tail-2-with"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/bridi-tail-3-with.svg" alt="Railroad diagram of the rule bridi-tail-3-with"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/headed-bridi-tail.svg" alt="Railroad diagram of the rule headed-bridi-tail"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/headed-bridi-tail-2.svg" alt="Railroad diagram of the rule headed-bridi-tail-2"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/bridi-tail.svg" alt="Railroad diagram of the rule bridi-tail"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/bridi-tail-1.svg" alt="Railroad diagram of the rule bridi-tail-1"></p>
-<p><img src="../../../docs/diagrams/lojban/experimental/syntax/connected-bridi-tail.svg" alt="Railroad diagram of the rule connected-bridi-tail"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/bridi-tail-2.svg" alt="Railroad diagram of the rule bridi-tail-2"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/bridi-tail-3.svg" alt="Railroad diagram of the rule bridi-tail-3"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/main-headed-bridi-tail.svg" alt="Railroad diagram of the rule main-headed-bridi-tail"></p>
@@ -457,20 +451,17 @@ An open tail can take terms after a reset. A closed tail can take only resets an
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/main-bridi-tail-1.svg" alt="Railroad diagram of the rule main-bridi-tail-1"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/main-bridi-tail-2.svg" alt="Railroad diagram of the rule main-bridi-tail-2"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/main-bridi-tail-3.svg" alt="Railroad diagram of the rule main-bridi-tail-3"></p>
-<p><img src="../../../docs/diagrams/lojban/experimental/syntax/connected-main-bridi-tail.svg" alt="Railroad diagram of the rule connected-main-bridi-tail"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/connected-main-bridi-tail-2.svg" alt="Railroad diagram of the rule connected-main-bridi-tail-2"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/headed-connected-main-bridi-tail-2.svg" alt="Railroad diagram of the rule headed-connected-main-bridi-tail-2"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/top-sentence.svg" alt="Railroad diagram of the rule top-sentence"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/tail-terms.svg" alt="Railroad diagram of the rule tail-terms"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/gek-sentence.svg" alt="Railroad diagram of the rule gek-sentence"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/main-tail.svg" alt="Railroad diagram of the rule main-tail"></p>
-<p><img src="../../../docs/diagrams/lojban/experimental/syntax/main-gek.svg" alt="Railroad diagram of the rule main-gek"></p>
-<p><img src="../../../docs/diagrams/lojban/experimental/syntax/open-gek.svg" alt="Railroad diagram of the rule open-gek"></p>
-<p><img src="../../../docs/diagrams/lojban/experimental/syntax/closed-gek.svg" alt="Railroad diagram of the rule closed-gek"></p>
+<p><img src="../../../docs/diagrams/lojban/experimental/syntax/main-gek-sentence.svg" alt="Railroad diagram of the rule main-gek-sentence"></p>
+<p><img src="../../../docs/diagrams/lojban/experimental/syntax/open-gek-sentence.svg" alt="Railroad diagram of the rule open-gek-sentence"></p>
+<p><img src="../../../docs/diagrams/lojban/experimental/syntax/closed-gek-sentence.svg" alt="Railroad diagram of the rule closed-gek-sentence"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/open-tail.svg" alt="Railroad diagram of the rule open-tail"></p>
-<p><img src="../../../docs/diagrams/lojban/experimental/syntax/omitted-vau.svg" alt="Railroad diagram of the rule omitted-vau"></p>
-<p><img src="../../../docs/diagrams/lojban/experimental/syntax/omitted-kehe.svg" alt="Railroad diagram of the rule omitted-kehe"></p>
-<p><img src="../../../docs/diagrams/lojban/experimental/syntax/written-tail.svg" alt="Railroad diagram of the rule written-tail"></p>
+<p><img src="../../../docs/diagrams/lojban/experimental/syntax/closed-tail.svg" alt="Railroad diagram of the rule closed-tail"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/gi-stag-connective.svg" alt="Railroad diagram of the rule gi-stag-connective"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/bridi-tail-connective.svg" alt="Railroad diagram of the rule bridi-tail-connective"></p>
 </details>
@@ -898,11 +889,11 @@ The layer reads mekso with the rules below. Its number rule uses `number-part` f
 - `mex-2` reads a number, a lerfu string, a `vei` group, a forethought connection, or a `LAhE` or `NAhE` qualifier. It can also be a forethought expression or a reverse Polish expression. An operator that begins with an unconverted, ungrouped joik, jek or ek unit needs PEhO, including connected operators. Other initial forms permit omitted PEhO. The operands `ni'e` and `mo'e` are inside numbers. There is no `jo'i` array, although the lexicon has `jo'i`.
 - `bo` after an operator, with an optional tense or modal, groups two operands tighter (`li pa su'i bo re`). There is no `bi'e`. A forethought operator takes one or more mekso operands, as in `li gei so'i`.
 - An operator can be any of the four connective families. Each has one final slot of free modifiers.
-- Plain operator connections use `connective`, with all four families. BO and KE connections use `joik-jek-ek`, without VUhU. The KE preference covers JOI, JA and A. So `li ci su'i joi ke pi'i ke'e re du li xa` joins `su'i` to the operator's own `ke` group. Where the operator goes on after its `ke` group, as in `li ci su'i joi ke pi'i ke'e je bo vu'u re du li xa`, only the plain reading parses. The layer keeps it.
+- Plain operator connections use `connective`, with all four families. BO and KE connections use `joik-jek-ek`, without VUhU. The KE preference covers JOI, JA and A. So `li ci su'i joi ke pi'i ke'e re du li xa` joins `su'i` to the `ke` group that belongs to `joi`. Where the operator goes on after its `ke` group, as in `li ci su'i joi ke pi'i ke'e je bo vu'u re du li xa`, only the plain reading parses. The layer keeps it.
 - A quantifier is a whole mekso, as in `pa su'i re broda`. A competing `sumti-6` or selbri at its start excludes it. The queries preserve the selected mekso's omitted terminators and free-modifier boundaries. The `sumti-6` constructor holds a sumti without its own outer quantifier. Numeric LAhE and NAhE operands remain possible where no such sumti exists. So in `mi piso'umei jimpe`, `pi so'u mei jimpe` is the selbri, and not a quantifier of a description.
-- The first branch of a forethought quantifier cannot begin a `sumti-6` either. The rule `gek-barrier` tests that branch, including nested connections. So in `ge nai abu gi no drata`, `ge nai ... gi` joins the two sumti `abu` and `no drata`. The quantifier `ge nai abu gi no` over `drata` is not a reading. In the same way, `ge ge abu gi by gi no drata` joins two sumti, and the first one connects `abu` and `by`.
+- The first branch of a forethought quantifier cannot begin a `sumti-6` either. The rule `gek-sumti-start` tests that branch, including nested connections. So in `ge nai abu gi no drata`, `ge nai ... gi` joins the two sumti `abu` and `no drata`. The quantifier `ge nai abu gi no` over `drata` is not a reading. In the same way, `ge ge abu gi by gi no drata` joins two sumti, and the first one connects `abu` and `by`.
 - A forethought connection of numbers can form a quantifier, as in `lo ge pa gi re mi broda`. Numeric references also remain possible, as in `ge la'e pa gi re broda`.
-- Where no sumti reading remains, `gek-barrier` rejects the text, as in `ge abu gi by broda cu klama`. In `lo ge by gi re mi broda`, `ge by gi re mi` is the possessor sumti, with `broda` inside the description.
+- Where no sumti reading remains, `gek-sumti-start` rejects the text, as in `ge abu gi by broda cu klama`. In `lo ge by gi re mi broda`, `ge by gi re mi` is the possessor sumti, with `broda` inside the description.
 - `me` takes a mekso as well as a sumti, a whole mekso takes `moi`, and `nu'a` takes a whole operator.
 
 `mekso-fragment` admits a standalone mathematical expression after the sumti and predicate tests. `quantifier` uses that expression to quantify a sumti. In that position, an initial forethought operator needs PEhO, or the expression needs VEI brackets. Thus `su'i re prenu cu klama` starts with a connective, while `lo su'i re prenu` fails. Both `pe'o su'i re prenu cu klama` and `vei su'i re ve'o prenu` retain their quantified readings. The fragment in `mi klama .i su'i pa` needs neither marker because it quantifies no sumti.
@@ -925,10 +916,10 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
 %rule mekso-fragment
   $m:mex
 %conditions
-  ¬$m.without-elision.onward.parse((sumti-6 | gek-barrier | selbri) …)
+  ¬$m.without-elision.onward.parse((sumti-6 | gek-sumti-start | selbri) …)
 
-%rule gek-barrier
-  gek (sumti-6 | gek-barrier)
+%rule gek-sumti-start
+  gek (sumti-6 | gek-sumti-start)
 
 %redefine-rule mex
   {... mex-1 / operator}
@@ -990,7 +981,7 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
 <details><summary>Railroad diagrams of the 14 rules from <code>quantifier</code> to <code>lerfu-string</code></summary>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/quantifier.svg" alt="Railroad diagram of the rule quantifier"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/mekso-fragment.svg" alt="Railroad diagram of the rule mekso-fragment"></p>
-<p><img src="../../../docs/diagrams/lojban/experimental/syntax/gek-barrier.svg" alt="Railroad diagram of the rule gek-barrier"></p>
+<p><img src="../../../docs/diagrams/lojban/experimental/syntax/gek-sumti-start.svg" alt="Railroad diagram of the rule gek-sumti-start"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/mex.svg" alt="Railroad diagram of the rule mex"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/mex-1.svg" alt="Railroad diagram of the rule mex-1"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/mex-2.svg" alt="Railroad diagram of the rule mex-2"></p>
@@ -1192,12 +1183,6 @@ The first step names its free modifier, so a complete longer vocative outranks a
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/free-after-lerfu-string.svg" alt="Railroad diagram of the rule free-after-lerfu-string"></p>
 </details>
 
-## Choosing among parses
-
-Where a text has more than one parse, the stage follows [the notation document](../../../docs/notation.md), under "Ranked choices", "Ambiguity", and "Elided terminators". A ranked choice filters alternatives at one written position. The stage ranks admitted derivations by `leftmost-longest #(·tense-modal ∪ ·free)`, then `fewest #(·gi-stag-connective ∪ ·bridi-tail-connective)`, then `late #·_<_Elided>`. `late #·_<_Elided>` counts the omitted terminators of each admitted derivation at each boundary. After the first two steps tie, fewer omitted terminators win at the first differing boundary. Two best derivations with equal counts at every boundary tie, and a tie is an error.
-
-For example, `le sutra tavla` has two parses. One is a statement with the description `le sutra`, whose `ku` is elided before `tavla`, and the selbri `tavla`. The other is a fragment, the single description `le sutra tavla`, whose `ku` is elided at the end. `late #·_<_Elided>` takes the fragment.
-
 ## Differences from CLL and camxes-exp
 
 camxes-exp tries alternatives in order. This layer considers complete readings and uses conditions or ranked choices to select among them. Both this layer and CLL read `le sutra tavla` as a fragment.
@@ -1294,9 +1279,11 @@ Inside NUhI, this layer ranks the complete forethought body first. In `nu'i ge n
 
 camxes-exp excludes every bare NAhE operand that starts with a tense or modal because `na'e pu` matches `tag`. This layer excludes only one actual tagged term, whose tag reading duplicates it. A connection of terms remains possible, even with omitted KUs.
 
-After span ranking, the `fewest` step counts the occurrences of `bridi-tail-connective` and `gi-stag-connective` across the whole reading. The `gi-stag-connective` rule includes GI with a stag before BO or KE in that count. It favors sumti and term connections when these avoid a link. This includes terms marked with `fe` or `pu`, and bare `na ku` terms. The same ranking applies to A, JA, JOI, and VUhU. Equal counts leave late elision to decide, which can keep the first description open.
+The [parse preferences](#parse-preferences) count bridi-tail links across the whole reading. The `gi-stag-connective` rule includes GI with a stag before BO or KE in that count.
 
 Thus `mi nelci lo ka smuni .e lo ka pemci melbi` joins the two descriptions, as camxes-exp does. The step does not choose between two sumti connections with different scopes. Late elision still selects their closing boundaries.
+
+In `mi nelci lo nu mi djica gy .e lo nu do klama`, `.e` joins `gy` with the second description inside the first abstraction. Writing `ku` after `gy` makes `.e` join the two outer descriptions.
 
 In `mi djica lo nu do klama .e lo nu do citka .e lo plise cu cpacu`, the competing readings each have one bridi-tail link. Late elision keeps the first description open. The first `.e` links going to getting, while the second joins the eating event and the apple. camxes-exp instead joins the two outer event descriptions.
 
@@ -1322,7 +1309,7 @@ This layer deliberately limits KU omission more than camxes-exp. A bare tag term
 
 Thus a reader never has to guess which construct an omitted `ku` ends. CLL requires a written `ku` after a `na` term in every position.[^cll-s21-1]
 
-A gihek can start with NA or SE. These prefixes close the term's place only when they belong to the actual gihek. An ordinary connective without `.i` does not close that place.
+The [term rules](#terms) explain when NA or SE belongs to a closing gihek. An ordinary connective without `.i` does not close that place.
 
 Writing `ku` makes each rejected text below parse. For example, `mi pe na klama` becomes `mi pe na ku klama`. `ze'u na do tavla` becomes `ze'u ku na ku do tavla`.
 
@@ -1364,7 +1351,9 @@ In `lo broda noi brode no'oi brodi ku'oi ku'o do cu klama`, the two closers end 
 
 ### Tanru and linked arguments
 
-A sumti reading excludes a mekso only when both read the same words with the same boundaries. Thus `me ni'e broda brode` takes a mekso whose NIhE holds both predicates, as camxes-exp does. The same rule applies in `me ni'e broda to mi toi brode`. The sumti alternative instead closes NIhE before `brode`, which supplies its predicate.
+`la djonz. cu na'e pamoi cusku` has `na'e` on the selbri `pa moi`. camxes-exp reads the number `na'e pa` before `moi`, since its `mex MOI` form comes first.
+
+The [ME condition](#selbri-and-tanru) compares sumti and mekso readings with the same boundaries. Thus `me ni'e broda brode` takes a mekso whose NIhE holds both predicates, as camxes-exp does. The same rule applies in `me ni'e broda to mi toi brode`. The sumti alternative instead closes NIhE before `brode`, which supplies its predicate.
 
 The parenthesis in `me re to le rance` contains `le rance`. The SEI clause in `me re sei mi klama broda` contains `klama broda`. A separate sumti query cannot shorten these selected free modifiers.
 
@@ -1402,9 +1391,9 @@ An outer NAhE predicate modifier takes priority over an omitted-PEhO operator mo
 
 A connective operator has one effective final free slot in this layer and camxes-exp. camxes-exp never reads the second `free*`.
 
-The ranked choice in `operator` gives JOI, JA and A the same KE preference. camxes-exp first reads the plain connective. It joins `su'i` to a KE operator unit in `li pa su'i je ke pi'i ke'e re`. This layer gives the KE group to the connective instead. Both parsers keep the plain reading when the operator continues after its group, as in `li ci su'i joi ke pi'i ke'e je bo vu'u re du li xa`.
+The ranked choice in `operator` uses the [tanru KE preference](#tanru-and-linked-arguments) for JOI, JA and A. camxes-exp joins `su'i` to a KE operator unit in `li pa su'i je ke pi'i ke'e re`. This layer gives the KE group to the connective instead. Both parsers keep the plain reading when the operator continues after its group, as in `li ci su'i joi ke pi'i ke'e je bo vu'u re du li xa`.
 
-The quantifier restrictions test the selected mekso's restored view against `sumti-6`, `gek-barrier` and `selbri`. Each query keeps its free modifiers and omitted terminators at their selected boundaries. These tests correspond to camxes-exp's `!sumti_6` and `!selbri`.
+The quantifier restrictions test the selected mekso's restored view against `sumti-6`, `gek-sumti-start` and `selbri`. Each query keeps its free modifiers and omitted terminators at their selected boundaries. These tests correspond to camxes-exp's `!sumti_6` and `!selbri`.
 
 LAhE and NAhE exclude a quantifier only when their operand forms a sumti. Numeric operands remain possible in `la'e pa lu'u broda` and `ge la'e pa gi re broda`. The layer extends the sumti check into nested forethought connections.
 
@@ -1418,7 +1407,9 @@ The connective rules omit optional NAI because the indicator stage attaches thos
 
 The joik's initial NA and extended forethought forms follow camxes-exp. Its bare JA and JOI gihek alternatives instead use `connective` here, because `bridi-tail-connective` already admits that family. A bare JA or JOI answer therefore uses the text-initial connective slot, rather than a gihek fragment.
 
-The atomic tenses and FA atom follow camxes-exp's `tense_modal`. Its `stag` reads the same words as its `tag`, as in this layer.
+The atomic tenses and FA atom follow camxes-exp's `tense_modal`, except for free modifiers in VEI groups. Its `stag` reads the same words as its `tag`, as in this layer.
+
+The VEI form of `tense-atom` permits free modifiers after VEI and VEhO, as the VEI group of `mex-2` does. This keeps both mathematical groups consistent. Thus `mi vei to coi toi pa ve'o roi klama` and `mi vei pa ve'o to coi toi roi klama` parse here. camxes-exp has neither slot and rejects both texts.
 
 Only `ga` and `gu` introduce the extended forethought forms, so `ge je` and `gu'e je` remain invalid.
 

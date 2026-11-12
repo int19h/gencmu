@@ -8,7 +8,7 @@ A layer is a document that changes earlier rules. The syntax layer follows camxe
 
 A pipeline document defines an ordered sequence of stages. A stage is one step of a pipeline, with its own grammar. The phoneme stage is that of the `lojban/bpfk` pipeline, with the conventions of [latin.md](latin.md) and [cyrillic.md](cyrillic.md). The forms stage reads the working word forms of the BPFK, the Lojban language planning committee ([`../bpfk/morphology.md`](../bpfk/morphology.md)). A selma'o is a word class of cmavo. A lexicon gives the experimental cmavo their selma'o.
 
-A nucleus is a syllable's vowel or diphthong. A glide is `i` or `u` before a nucleus. CgV combines a consonant, a glide and a nucleus.
+A nucleus is the vowel, diphthong or `y` at the center of a syllable. A glide is `i` or `u` before a nucleus. CgV combines a consonant, a glide and a nucleus.
 
 A rafsi is a word form used inside compounds. An extended rafsi uses a whole or shortened word before a y-hyphen inside a compound. The forms stage also reads [`morphology.md`](morphology.md). It permits `mz`, accepts CgV names and borrowings, changes extended rafsi, and adds the hesitation word `ie'o`.
 
@@ -16,7 +16,7 @@ The indicator stage starts with the lojban/cll pipeline's stage ([`../cll/pipeli
 
 A feature is a named switch that the grammars test. The pipeline turns on `su-boundary`. That feature makes SU stop at the last surviving word of NIhO, LU, LUhEI, TUhE or TO.
 
-The words stage turns on the warning code `experimental-cgv`. It reports a name or predicate word that needs the CgV extension, as in `atkuila`. Disabling the warning changes no reading.
+The words stage turns on the warning code `experimental-cgv`. It reports a name or predicate word that needs the CgV extension, as in `atkuila`.
 
 The pipeline turns on two syntax features. `cbm` is the cmevla-brivla merger, which lets a name word (cmevla) also act as a predicate word (brivla). `soi-clause` makes `soi` a term that takes a subsentence, in place of CLL's free modifier of reciprocity. A caller (the program or person that asks for a parse) can turn either off to read the CLL form.
 
@@ -141,19 +141,7 @@ The word forms divide each run in one way only, so the stage's `lazy` step decid
   %include "syntax.md"
   ```
 
-A bridi-tail is a predicate with its following terms.
-
-A span is a range between input token boundaries.
-
-A ranked choice orders alternatives at one written position. An earlier option can exclude a later option over the same span. The [notation document](../../../docs/notation.md#ranked-choices) defines when this occurs. `leftmost-longest #(·tense-modal ∪ ·free)` prefers the reading whose free modifiers and tense-modals start earliest and run longest. `fewest #(·gi-stag-connective ∪ ·bridi-tail-connective)` next prefers fewer links across the whole reading. `late #·_<_Elided>` ranks the remaining readings.
-
-The `free` rule prefers the earliest, longest modifier among complete readings. A longer modifier that cannot complete the text excludes nothing.
-
-The pipeline does not declare `%elision-only`. A caller can turn the check on with `--elision-only on`. The check fails when filtering excludes the restored chosen derivation, or when that derivation is not the only best admitted reading of the written-back text.
-
-A condition can treat a written-back terminator differently from a written one. `$BARE-NA` and `$BARE-TAG` test `KU=""`, while `$WRITTEN-VAU` tests `VAU≠""`. These conditions see a written-back terminator as omitted, but the reconstruction reads it as a token. So such a condition can admit a second reading of the written-back text.
-
-The grammar has ambiguities that are not about terminators. For example, two sumti joined by an afterthought connective are also two terms joined in the same way, as in `mi .e do klama`. Rules of the grammar settle them, and the grammar lists them.
+The syntax layer defines [parse preferences](syntax.md#parse-preferences) beside their declaration and explains [elision checks](syntax.md#differences-from-cll-and-camxes-exp).
 
 ## Where it reads texts differently from camxes-exp
 
@@ -161,30 +149,17 @@ The grammar has ambiguities that are not about terminators. For example, two sum
 
 camxes-exp is the baseline of this pipeline, not its limit. gencmu considers every parse that its grammars allow. A PEG (parsing expression grammar) uses ordered choice, which keeps the first matching alternative in a fixed order. The pipeline accepts texts that camxes-exp rejects because its PEG does not backtrack into a completed first match. In `sei la alis cusku`, camxes-exp reads `la alis cusku` as one description and has no selbri left.
 
-The syntax layer preserves these camxes-exp preferences among complete readings, except where the departures below apply:
+The syntax document's [closing section](syntax.md#differences-from-cll-and-camxes-exp) gives the complete list of departures and their reasons.
 
-- A free modifier or a tense takes the earliest and longest span before connection ranking (the `leftmost-longest` step, [parse preferences](syntax.md#choosing-among-parses)).
-- An ek, a jek or a joik directly after `.i` belongs to `.i` ([text and paragraphs](syntax.md#the-text-and-its-paragraphs)).
-- After span ranking, the `fewest` step prefers fewer bridi-tail links in the whole reading ([terms](syntax.md#terms), [bridi-tails](syntax.md#sentences-and-bridi-tails)). Equal counts leave late elision to decide, which can keep the first description open. This applies to A, JA, JOI, and VUhU. A sumti connection also takes priority over a term connection. Term connections include terms marked with `fe` or `pu`, and bare `na ku` terms.
-- A `be` group attaches to the preceding tanru unit ([selbri and tanru](syntax.md#selbri-and-tanru)).
-- A final connection is last at its grammar level. Its bridi-tail connective owns a following `ke` group, with or without an intervening tag. A bare `gi` with a tag also owns its following `ke` group ([sentences and bridi-tails](syntax.md#sentences-and-bridi-tails)).
-- A subscript after another subscript nests ([free modifiers](syntax.md#free-modifiers-vocatives-and-indicators)).
+The syntax layer defines [connection preferences](syntax.md#text-and-sentence-connections), [term connections](syntax.md#terms-and-descriptions) and [bridi-tail connections](syntax.md#bridi-tail-connections).
 
-The first step names `free`, so it settles a free modifier's span before the `fewest` step. An omitted terminator therefore closes as late as the text allows. In `mi viska to do klama le zarci`, `le zarci` stays inside the parenthesis.
+Its [tanru comparison](syntax.md#tanru-and-linked-arguments) explains linked arguments and grouping after connectives.
 
-In `mi nelci le nu broda to brodi .e le nu brode melbi`, this layer keeps `brodi .e le nu brode melbi` inside the parenthesis. The experimental syntax permits `.e` between bridi-tails, as its [connection departures](syntax.md#bridi-tail-connections) explain. The `free` rule's span preference selects the later close. camxes-exp instead closes after `brodi`, and `.e` joins the two outer descriptions. The CLL grammar also closes before `.e`, which cannot connect its bridi-tails.
+Its [mekso comparison](syntax.md#mekso-and-connectives) explains mixed number runs and operator grouping.
 
-camxes-exp's PEG greedily reads `le nu brode melbi` as a description inside the parenthesis. That leaves no selbri for the second bridi-tail. camxes-exp does not backtrack into that completed description, so the inner connection fails. This layer also considers a description that ends before `melbi` and keeps the parenthesis open.
+Its [free-modifier comparison](syntax.md#free-modifiers-and-subscripts) explains parenthesis boundaries and subscripts.
 
-Written TOI closes the parenthesis in `mi nelci le nu broda to brodi toi .e le nu brode melbi`. The `.e` then joins the two outer descriptions in both grammars.
-
-Two related readings depart from camxes-exp. With a free modifier between `gi'e` and `ke`, camxes-exp takes the plain connection. This layer still gives the group to the connective, as in `mi broda gi'e to do toi ke ge brode gi brodi ke'e`.
-
-camxes-exp also splits a run that mixes digits and letters, as in `li pa by`, while this layer reads it as one operand. Without written BOI, a number consumes every following number part or letter word. A letter string consumes every following letter word or PA ([numbers and mekso](syntax.md#numbers-lerfu-strings-and-mekso)).
-
-The syntax document's [closing section](syntax.md#differences-from-cll-and-camxes-exp) gives the complete list of departures and their reasons. Bare NA and tag terms use its explicit [KU omission limits](syntax.md#deliberate-ku-omission-limits). A query is a parse requested by a condition. The syntax document states each query's boundary conditions.
-
-The unit preference includes vocatives, but it compares only readings that pass the grammar's conditions.
+Bare NA and tag terms use the syntax layer's explicit [KU omission limits](syntax.md#deliberate-ku-omission-limits).
 
 ### Explicit grammar differences
 
@@ -194,49 +169,11 @@ The PA class includes `ro'oi` beside `su'oi`. camxes-exp omits `ro'oi`, so it re
 
 camxes-exp adds `!glide` to its `glide` rule. No nucleus after a glide begins with another glide, so this lookahead changes no parse. The forms stage keeps the BPFK rule without it.
 
-The pipeline also accepts the following constructs by choice, which camxes-exp rejects. A stag is a tense or modal inside a connective. In a sentence's own terms, camxes-exp requires a stag between a connective and `bo` (`abs_term_2`). This grammar retains camxes-exp's two levels of terms but does not require that stag, so `fa mi .e bo fe do klama` parses here.
+The syntax layer's [term comparison](syntax.md#terms-and-descriptions) explains BO connections and bare forethought termsets.
 
-In `fa mi .e bo fe do .a fi mi klama`, one connected term precedes `klama`. Within that term, `bo` binds tighter than `.a`.
+Its [NOhOI comparison](syntax.md#nohoi-closers) explains the two relative-clause closers.
 
-Free modifiers can also follow `bo` in term connections. For example, `fa mi .e pu bo to broda toi fe do klama` parses here. camxes-exp has no such slot.
-
-The grammar also allows the two branches of a bare forethought termset to hold different numbers of terms, as CLL's termset with `nu'i` does. camxes-exp's `gek_termset` pairs the terms of its branches one to one. So `ge mi do gi ti klama` parses here, and camxes-exp rejects it.
-
-A bare forethought termset can close with `nu'u`, as in `ge mi gi do nu'u klama`. That closer also permits a nested first termset in `nu'i ge mi gi do nu'u ti nu'u`. camxes-exp gives a bare forethought termset no closer and rejects both texts.
-
-A NOhOI clause can also close with `ku'o`, as in `mi klama no'oi bajra ku'o`. camxes-exp closes it only with `ku'oi` and rejects that text.
-
-After `vu'o`, a connected sumti can follow without relative clauses here. So `mi viska ko'a vu'o .e ko'e` joins two sumti after `vu'o`. camxes-exp takes a connected sumti there only after relative clauses, so it joins two terms.
-
-### Preferred readings
-
-The examples below compare this layer's explicit preferences with camxes-exp. Some agree with its ordered choice, and others differ. The syntax document names each rule and its reason.
-
-In `lo broda noi brode no'oi brodi ku'o do cu klama`, `do` belongs to the open NOI clause after `ku'o` closes NOhOI. camxes-exp closes NOI there and puts `do` in the main bridi. The pair `ku'oi ku'o` closes both clauses and gives `do` to the main bridi here too. The [NOhOI closers](syntax.md#nohoi-closers) section gives both readings and their reason.
-
-`la djonz. cu na'e pamoi cusku` has `na'e` on the selbri `pa moi`. camxes-exp reads the number `na'e pa` before `moi`, since its `mex MOI` form comes first.
-
-In `mi nelci le su'u delno .enai le su'u stero delno`, `.enai` joins the two descriptions, as in camxes-exp. This reading avoids a bridi-tail link inside the first abstraction. The `fewest` step selects it before late elision.
-
-In `lo ka smuni .e fe lo ka pemci cu melbi`, `.e` joins terms before the main selbri `melbi`. camxes-exp instead keeps the connection inside the first abstraction and reads the text as a bare sumti. The written `cu` marks the main bridi, so this layer prefers the reading with a main bridi. The inner reading puts `cu` inside an abstraction.
-
-In `mi djica lo nu do klama .e lo nu do citka .e lo plise cu cpacu`, the competing readings each have one bridi-tail link. Late elision keeps the first description open. The first `.e` links going to getting, while the second joins the eating event and the apple. camxes-exp instead joins the two outer event descriptions.
-
-Writing `kei ku` after `klama` chooses `mi djica lo nu do klama kei ku .e lo nu do citka .e lo plise cu cpacu`. The wanting then covers two event descriptions, for going and for eating. The getting predicate remains inside the second description.
-
-In `mi djica lo nu do klama .e lo mlatu .e lo gerku cu citka`, the first description also stays open. The wanting covers going and eating inside one event description. The cat and dog supply connected terms for the eating predicate.
-
-Writing `gi'e` for the first `.e` gives `mi djica lo nu do klama gi'e lo mlatu .e lo gerku cu citka`. That connective cannot join sumti or terms, so it explicitly marks a bridi-tail link. Late elision still keeps that link inside the first event description.
-
-No preference based only on form selects the intended meaning in every text. This layer keeps the whole-reading count and leaves the other readings available through written words.
-
-Where both readings already connect sumti, the `fewest` step cannot choose, and late elision keeps the inner connection. In `mi nelci lo nu mi djica gy .e lo nu do klama`, `.e` therefore joins `gy` with the second description inside the first abstraction. A writer who means the two `nu` descriptions closes the first one. For example, `mi nelci lo nu mi djica gy ku .e lo nu do klama` makes `.e` join those descriptions. The step gives no preference between the two scopes, so late elision alone decides.
-
-A free modifier after a subscript can belong to the subscript or to the word that the subscript marks. The pipeline gives it to the word, as CLL's grammar does. So in `mi broda xi pa boi to do toi`, the parenthesis belongs to `broda`. camxes-exp gives it to the subscript.
-
-In `ge nai abu gi no drata`, a forethought connective can connect two sumti or make a quantifier. The pipeline connects the sumti `abu` and `no drata`, as CLL does. A CLL quantifier is a number or a `vei ... ve'o` group. camxes-exp reads the quantifier `ge nai abu gi no` with the selbri `drata`. Where no sumti reading remains, the pipeline rejects the text, as CLL does. So it rejects `ge abu gi by broda cu klama`, which camxes-exp reads with the quantifier `ge abu gi by`.
-
-ME takes a sumti or a mekso. A sumti excludes a mekso only when both read the same words with the same boundaries. In `me my moi`, this pipeline takes a sumti, while camxes-exp takes a mekso. This pipeline accepts `me my su'i pa` as a complete mekso. camxes-exp commits to a shorter sumti and rejects it.
+Its [sumti comparison](syntax.md#terms-and-descriptions) explains connections after VUhO.
 
 ### Quotes and indicators
 
@@ -250,7 +187,7 @@ A replacement quote is one unit of raw words in the words stage (`../common/loha
 
 The [indicator document](../cll/indicators.md#quotation-boundaries) defines quotation and parenthesis boundaries. Its [source comparison](../cll/indicators.md#quotation-and-parenthesis-boundaries) explains CLL and the official parser.
 
-A quote or a parenthesis whose terminator is elided can hold a fragment of terms or a whole sentence. So `to mi klama` holds `mi` or `mi klama`. The `leftmost-longest` step takes the longer parenthesis, so the sentence wins, as in camxes-exp.
+The syntax layer defines [quote and parenthesis preferences](syntax.md#parse-preferences) for omitted terminators.
 
 ### Erasure
 
