@@ -14,7 +14,7 @@ The closing section also records class corrections based on a definition's meani
 
 Each entry lists words by their normalized value and gives them one selma'o, as [../cll/lexicon.md](../cll/lexicon.md) explains. A selbri is a predicate. `la`, `lai` and `la'i` are LE because a name can be a selbri.
 
-The implication after the entries marks some words `Indicator`, which the indicator stage reads. They are the words of UI, CAI, DAhO, FUhE and FUhO. camxes-exp also reads a bare NAI as an indicator, and [the experimental word forms](morphology.md) mark the NAI words so.
+The implication after the entries marks some words `Indicator`, which the indicator stage reads. They are the words of UI, CAI, NAI, DAhO, FUhE and FUhO. camxes-exp also reads a bare NAI as an indicator.
 
 [The notation document](../../../docs/notation.md) explains the notation.
 
@@ -218,7 +218,8 @@ The implication after the entries marks some words `Indicator`, which the indica
   "se'u" ∈ SEhU
   -- #257 tracks the missing construction. SEhEhI has no experimental construction.
   "se'e'i" "ve'e'i" ∈ SEhEhI
-  "si" "si'au'i" "ze'ei" ∈ SI
+  "si" "si'au'i" ∈ SI
+  "ze'ei" ∈ ZEhEI
   -- #257 tracks the missing construction. SIhIhEI has no experimental construction.
   "si'i'ei" ∈ SIhIhEI
   -- #257 tracks the missing construction. SIhOI has no experimental construction.
@@ -295,8 +296,10 @@ The implication after the entries marks some words `Indicator`, which the indica
   "fi'ai" ∈ ZOhU
 ```
 
+The forms stage applies the implication to each word that it emits. The [indicator stage](indicators.md) then attaches a bare `nai` to the word before it.
+
 ```jbogenbau
-%implies UI ∪ CAI ∪ DAhO ∪ FUhE ∪ FUhO ⟹ Indicator
+%implies UI ∪ CAI ∪ NAI ∪ DAhO ∪ FUhE ∪ FUhO ⟹ Indicator
 ```
 
 ## Differences from CLL and camxes-exp
@@ -481,7 +484,7 @@ The Y word `ie'o` retains its dictionary class and acts as hesitation in the wor
 
 The ZOI delimiter rule skips a hesitation that no BU follows. Before `bu`, `ie'o` forms a letter word that can act as a delimiter.
 
-The dictionary gives `ze'ei` class SI, but the words stage treats that spelling as a joiner. Its result takes the right word's grammar and normalized value. The complete expression remains in its image. A magic right word and a missing right word both reject.
+The dictionary gives `ze'ei` class SI. This lexicon assigns it ZEhEI because the words stage reads it as a joiner. Its result takes the right word's grammar and normalized value. The complete expression remains in its image. A magic right word and a missing right word both reject.
 
 `ro'oi` belongs to PA here, beside `su'oi`. camxes-exp includes only `su'oi`, while camxes-beta includes both. The pipeline accepts `ro'oi broda` as a quantified description.
 

@@ -47,7 +47,7 @@
             ]
           },
           {
-            "terminal": "Cmavo<¬BU ¬DOhOI ¬FAhO ¬GOhOI ¬LEhAI ¬LEhU ¬LOhAI ¬LOhU ¬MEhOI ¬MUhOI ¬SA ¬SI ¬SU ¬SUhUhUhUhUhUhUhU ¬ZEI ¬ZO ¬ZOI ¬ZOhOI>",
+            "terminal": "Cmavo<¬BU ¬DOhOI ¬FAhO ¬GOhOI ¬LEhAI ¬LEhU ¬LOhAI ¬LOhU ¬MEhOI ¬MUhOI ¬SA ¬SI ¬SU ¬SUhUhUhUhUhUhUhU ¬ZEI ¬ZEhEI ¬ZO ¬ZOI ¬ZOhOI>",
             "rules": [
               "nonmagic-zehei-right"
             ]

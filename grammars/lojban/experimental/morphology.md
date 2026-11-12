@@ -230,14 +230,6 @@ A y-rafsi requires y where a classical extended form needs a vowel or apostrophe
 <p><img src="../../../docs/diagrams/lojban/experimental/morphology/any-fuhivla-rafsi.svg" alt="Railroad diagram of the rule any-fuhivla-rafsi"></p>
 </details>
 
-## A bare nai
-
-The implication marks every NAI word `Indicator`, as [the experimental lexicon](lexicon.md) marks the attitudinals. The mark comes from an implication, which the forms stage applies to each word that it emits. The indicator stage then attaches a bare `nai` to the word before it ([the experimental indicators](indicators.md)).
-
-```jbogenbau
-%implies NAI ⟹ Indicator
-```
-
 ## Glide letters
 
 The experimental phoneme stage reads `ɩ`, `q`, `w`, `ĭ` and `ŭ` as the glides `i` and `u`, with the tag `Glide` ([latin.md](latin.md)). `ɩ`, `q` and `w` also carry `Onglide`, because they write only a glide before its vowel. Such a letter is a glide wherever it stands. So no rule reads it as a vowel.

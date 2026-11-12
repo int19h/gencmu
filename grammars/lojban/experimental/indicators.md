@@ -4,7 +4,7 @@ This document is a layer (a document that changes earlier rules) over [the indic
 
 This layer adds bare NAI indicators and changes leading runs. It keeps the CLL stage's flat attachment. [The notation document](../../../docs/notation.md) explains the notation.
 
-A bare `nai` is an indicator, which [the experimental word forms](morphology.md) mark through an implication. Outside an indicator boundary, a `nai` after a word attaches to it. For example, `mi nai klama` is `mi klama` with the indicator `nai`. In `je nai`, the `nai` attaches to `je`. A bare `nai` stays in the stream at the start of a text or directly after `lu`. After `to`, `to'i` or `tu'e`, it attaches to the opener.
+A bare `nai` is an indicator, which [the experimental lexicon](lexicon.md) marks through an implication. Outside an indicator boundary, a `nai` after a word attaches to it. For example, `mi nai klama` is `mi klama` with the indicator `nai`. In `je nai`, the `nai` attaches to `je`. A bare `nai` stays in the stream at the start of a text or directly after `lu`. After `to`, `to'i` or `tu'e`, it attaches to the opener.
 
 An attitudinal expresses an attitude. A `nai` directly after an attitudinal attaches to the attitudinal, as in the CLL document. So `mi ui nai klama` gives `mi` the indicator `ui`, and `ui` carries `nai`. Any other `nai` is an indicator of its own. That includes a `nai` after a `fu'e`, as in `mi ui fu'e nai klama`, and a `nai` after a word that is not an attitudinal.
 
