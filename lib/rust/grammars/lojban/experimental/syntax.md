@@ -31,7 +31,7 @@ The prose uses these Lojban terms, as [the CLL grammar](../cll/syntax.md) does:
 
 [The experimental lexicon](lexicon.md) gives each cmavo one selma'o. For example, `mi'ai` is KOhA, `la` is LE, `fi'oi` is SOI, `ma'oi` is ZO and `la'oi` is ZOhOI. `no'oi` and `po'oi` are NOhOI, with the terminators `ku'oi` and `ku'o`. The added classes include `LOhOI`, `NOhOI`, `KUhOI`, `KUhAU`, `LOhAI`, `LEhAI`, `ZOhOI` and `MEhOI`.
 
-[The notation document](../../../docs/notation.md) explains the notation. The terminals of this grammar (the symbols that each match one input token) are selma'o. A token is one unit of input. A tag marks a token by an identifier.
+[The notation document](../../../docs/notation.md) explains the notation. A terminal is a symbol that matches one input token. Each terminal matches a word class from an earlier stage, such as a selma'o, `BRIVLA` or `CMEVLA`. A token is one unit of input. A tag marks a token by an identifier.
 
 A stage is one step of a pipeline, with its own grammar. The pipeline is the sequence of stages that reads a text. The words stage emits each finished quote as one token of its opening class. The syntax reads one terminal for that token. Its internal structure remains in the tree of the words stage.
 
@@ -41,9 +41,11 @@ A free modifier is a phrase that stands in many positions. An elidable terminato
 
 The number and letter-string rules prevent a run from ending before a part that can continue it. Each rule tests its actual following node. Numbers continue with number parts or letter words. Letter strings continue with letter words or PA. A written BOI separates the run from the next part. The free-slot wrappers hold BOI and the following free modifiers.
 
+## Parse preferences
+
 A span is a range between input token boundaries. A ranked choice filters alternatives at one written position. An option qualifies when its complete reading passes the grammar's conditions. An earlier option can exclude a later option over the same span. The [notation document](../../../docs/notation.md#ranked-choices) defines when this occurs.
 
-A derivation is one complete grammatical reading. An admitted derivation survives ranked filtering. The stage ranks admitted derivations by `leftmost-longest #(·tense-modal ∪ ·free)`, then `fewest #(·gi-stag-connective ∪ ·bridi-tail-connective)`, then `late #·_<_Elided>`. After the first two steps tie, fewer omitted terminators win at the first differing boundary. Two best derivations with equal counts at every boundary tie, and a tie is an error.
+A derivation is one complete grammatical reading. An admitted derivation survives ranked filtering. The stage ranks admitted derivations by `leftmost-longest #(·tense-modal ∪ ·free)`, then `fewest #(·gi-stag-connective ∪ ·bridi-tail-connective)`, then `late #·_<_Elided>`. Late elision counts omitted terminators at each boundary. After the first two steps tie, fewer omitted terminators win at the first differing boundary. Two best derivations with equal counts at every boundary tie, and a tie is an error.
 
 The first step names `free` and `tense-modal`, and compares the spans of every occurrence of either. Both rules contribute to one count, without priority by rule name. The earliest differing start decides, with longer spans first. A unit that prevents the full text from completing contributes nothing.
 
@@ -57,13 +59,14 @@ The `leftmost-longest` step gives `to mi klama` the sentence `mi klama`, because
 
 The layer permits ambiguity beyond omitted terminators. It uses these rules to select a reading:
 
-- A free modifier's span is settled before the `fewest` step. Its terminator can be omitted.
 - In a tanru and between operators, `ke` directly after a joik, jek or ek opens the connective's own group. The selbri and mekso sections explain that choice.
-- A connection that can be a sumti connection is one ("Terms"). After span ranking, fewer bridi-tail links in the whole reading win. Equal counts leave late elision to decide.
+- A sumti connection takes priority over a term connection ([terms](#terms)).
 - A `be` group attaches to the tanru unit before it ("Selbri and tanru").
 - A subscript after a subscript nests. Any other free modifier after a subscript belongs to the word that the subscript marks ("Free modifiers, vocatives and indicators").
 
 The first step names `free`, so it settles a free modifier's span before the `fewest` step. An omitted terminator therefore closes as late as the text allows. In `mi viska to do klama le zarci`, `le zarci` stays inside the parenthesis.
+
+For example, `le sutra tavla` has two parses. One is a statement with the description `le sutra`, whose `ku` is elided before `tavla`, and the selbri `tavla`. The other is a fragment, the single description `le sutra tavla`, whose `ku` is elided at the end. `late #·_<_Elided>` takes the fragment.
 
 The experimental terminators `ku'au` and `ku'oi` are elidable: the rules below write them `[+KUhAU]` and `[+KUhOI]`.
 
@@ -898,7 +901,7 @@ The layer reads mekso with the rules below. Its number rule uses `number-part` f
 - `mex-2` reads a number, a lerfu string, a `vei` group, a forethought connection, or a `LAhE` or `NAhE` qualifier. It can also be a forethought expression or a reverse Polish expression. An operator that begins with an unconverted, ungrouped joik, jek or ek unit needs PEhO, including connected operators. Other initial forms permit omitted PEhO. The operands `ni'e` and `mo'e` are inside numbers. There is no `jo'i` array, although the lexicon has `jo'i`.
 - `bo` after an operator, with an optional tense or modal, groups two operands tighter (`li pa su'i bo re`). There is no `bi'e`. A forethought operator takes one or more mekso operands, as in `li gei so'i`.
 - An operator can be any of the four connective families. Each has one final slot of free modifiers.
-- Plain operator connections use `connective`, with all four families. BO and KE connections use `joik-jek-ek`, without VUhU. The KE preference covers JOI, JA and A. So `li ci su'i joi ke pi'i ke'e re du li xa` joins `su'i` to the operator's own `ke` group. Where the operator goes on after its `ke` group, as in `li ci su'i joi ke pi'i ke'e je bo vu'u re du li xa`, only the plain reading parses. The layer keeps it.
+- Plain operator connections use `connective`, with all four families. BO and KE connections use `joik-jek-ek`, without VUhU. The KE preference covers JOI, JA and A. So `li ci su'i joi ke pi'i ke'e re du li xa` joins `su'i` to the `ke` group that belongs to `joi`. Where the operator goes on after its `ke` group, as in `li ci su'i joi ke pi'i ke'e je bo vu'u re du li xa`, only the plain reading parses. The layer keeps it.
 - A quantifier is a whole mekso, as in `pa su'i re broda`. A competing `sumti-6` or selbri at its start excludes it. The queries preserve the selected mekso's omitted terminators and free-modifier boundaries. The `sumti-6` constructor holds a sumti without its own outer quantifier. Numeric LAhE and NAhE operands remain possible where no such sumti exists. So in `mi piso'umei jimpe`, `pi so'u mei jimpe` is the selbri, and not a quantifier of a description.
 - The first branch of a forethought quantifier cannot begin a `sumti-6` either. The rule `gek-barrier` tests that branch, including nested connections. So in `ge nai abu gi no drata`, `ge nai ... gi` joins the two sumti `abu` and `no drata`. The quantifier `ge nai abu gi no` over `drata` is not a reading. In the same way, `ge ge abu gi by gi no drata` joins two sumti, and the first one connects `abu` and `by`.
 - A forethought connection of numbers can form a quantifier, as in `lo ge pa gi re mi broda`. Numeric references also remain possible, as in `ge la'e pa gi re broda`.
@@ -1192,12 +1195,6 @@ The first step names its free modifier, so a complete longer vocative outranks a
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/free-after-lerfu-string.svg" alt="Railroad diagram of the rule free-after-lerfu-string"></p>
 </details>
 
-## Choosing among parses
-
-Where a text has more than one parse, the stage follows [the notation document](../../../docs/notation.md), under "Ranked choices", "Ambiguity", and "Elided terminators". A ranked choice filters alternatives at one written position. The stage ranks admitted derivations by `leftmost-longest #(·tense-modal ∪ ·free)`, then `fewest #(·gi-stag-connective ∪ ·bridi-tail-connective)`, then `late #·_<_Elided>`. `late #·_<_Elided>` counts the omitted terminators of each admitted derivation at each boundary. After the first two steps tie, fewer omitted terminators win at the first differing boundary. Two best derivations with equal counts at every boundary tie, and a tie is an error.
-
-For example, `le sutra tavla` has two parses. One is a statement with the description `le sutra`, whose `ku` is elided before `tavla`, and the selbri `tavla`. The other is a fragment, the single description `le sutra tavla`, whose `ku` is elided at the end. `late #·_<_Elided>` takes the fragment.
-
 ## Differences from CLL and camxes-exp
 
 camxes-exp tries alternatives in order. This layer considers complete readings and uses conditions or ranked choices to select among them. Both this layer and CLL read `le sutra tavla` as a fragment.
@@ -1294,9 +1291,11 @@ Inside NUhI, this layer ranks the complete forethought body first. In `nu'i ge n
 
 camxes-exp excludes every bare NAhE operand that starts with a tense or modal because `na'e pu` matches `tag`. This layer excludes only one actual tagged term, whose tag reading duplicates it. A connection of terms remains possible, even with omitted KUs.
 
-After span ranking, the `fewest` step counts the occurrences of `bridi-tail-connective` and `gi-stag-connective` across the whole reading. The `gi-stag-connective` rule includes GI with a stag before BO or KE in that count. It favors sumti and term connections when these avoid a link. This includes terms marked with `fe` or `pu`, and bare `na ku` terms. The same ranking applies to A, JA, JOI, and VUhU. Equal counts leave late elision to decide, which can keep the first description open.
+The [parse preferences](#parse-preferences) count bridi-tail links across the whole reading. The `gi-stag-connective` rule includes GI with a stag before BO or KE in that count.
 
 Thus `mi nelci lo ka smuni .e lo ka pemci melbi` joins the two descriptions, as camxes-exp does. The step does not choose between two sumti connections with different scopes. Late elision still selects their closing boundaries.
+
+In `mi nelci lo nu mi djica gy .e lo nu do klama`, `.e` joins `gy` with the second description inside the first abstraction. Writing `ku` after `gy` makes `.e` join the two outer descriptions.
 
 In `mi djica lo nu do klama .e lo nu do citka .e lo plise cu cpacu`, the competing readings each have one bridi-tail link. Late elision keeps the first description open. The first `.e` links going to getting, while the second joins the eating event and the apple. camxes-exp instead joins the two outer event descriptions.
 
@@ -1322,7 +1321,7 @@ This layer deliberately limits KU omission more than camxes-exp. A bare tag term
 
 Thus a reader never has to guess which construct an omitted `ku` ends. CLL requires a written `ku` after a `na` term in every position.[^cll-s21-1]
 
-A gihek can start with NA or SE. These prefixes close the term's place only when they belong to the actual gihek. An ordinary connective without `.i` does not close that place.
+The [term rules](#terms) explain when NA or SE belongs to a closing gihek. An ordinary connective without `.i` does not close that place.
 
 Writing `ku` makes each rejected text below parse. For example, `mi pe na klama` becomes `mi pe na ku klama`. `ze'u na do tavla` becomes `ze'u ku na ku do tavla`.
 
@@ -1364,7 +1363,9 @@ In `lo broda noi brode no'oi brodi ku'oi ku'o do cu klama`, the two closers end 
 
 ### Tanru and linked arguments
 
-A sumti reading excludes a mekso only when both read the same words with the same boundaries. Thus `me ni'e broda brode` takes a mekso whose NIhE holds both predicates, as camxes-exp does. The same rule applies in `me ni'e broda to mi toi brode`. The sumti alternative instead closes NIhE before `brode`, which supplies its predicate.
+`la djonz. cu na'e pamoi cusku` has `na'e` on the selbri `pa moi`. camxes-exp reads the number `na'e pa` before `moi`, since its `mex MOI` form comes first.
+
+The [ME condition](#selbri-and-tanru) compares sumti and mekso readings with the same boundaries. Thus `me ni'e broda brode` takes a mekso whose NIhE holds both predicates, as camxes-exp does. The same rule applies in `me ni'e broda to mi toi brode`. The sumti alternative instead closes NIhE before `brode`, which supplies its predicate.
 
 The parenthesis in `me re to le rance` contains `le rance`. The SEI clause in `me re sei mi klama broda` contains `klama broda`. A separate sumti query cannot shorten these selected free modifiers.
 
@@ -1402,7 +1403,7 @@ An outer NAhE predicate modifier takes priority over an omitted-PEhO operator mo
 
 A connective operator has one effective final free slot in this layer and camxes-exp. camxes-exp never reads the second `free*`.
 
-The ranked choice in `operator` gives JOI, JA and A the same KE preference. camxes-exp first reads the plain connective. It joins `su'i` to a KE operator unit in `li pa su'i je ke pi'i ke'e re`. This layer gives the KE group to the connective instead. Both parsers keep the plain reading when the operator continues after its group, as in `li ci su'i joi ke pi'i ke'e je bo vu'u re du li xa`.
+The ranked choice in `operator` uses the [tanru KE preference](#tanru-and-linked-arguments) for JOI, JA and A. camxes-exp joins `su'i` to a KE operator unit in `li pa su'i je ke pi'i ke'e re`. This layer gives the KE group to the connective instead. Both parsers keep the plain reading when the operator continues after its group, as in `li ci su'i joi ke pi'i ke'e je bo vu'u re du li xa`.
 
 The quantifier restrictions test the selected mekso's restored view against `sumti-6`, `gek-barrier` and `selbri`. Each query keeps its free modifiers and omitted terminators at their selected boundaries. These tests correspond to camxes-exp's `!sumti_6` and `!selbri`.
 
@@ -1418,7 +1419,9 @@ The connective rules omit optional NAI because the indicator stage attaches thos
 
 The joik's initial NA and extended forethought forms follow camxes-exp. Its bare JA and JOI gihek alternatives instead use `connective` here, because `bridi-tail-connective` already admits that family. A bare JA or JOI answer therefore uses the text-initial connective slot, rather than a gihek fragment.
 
-The atomic tenses and FA atom follow camxes-exp's `tense_modal`. Its `stag` reads the same words as its `tag`, as in this layer.
+The atomic tenses and FA atom follow camxes-exp's `tense_modal`, except for free modifiers in VEI groups. Its `stag` reads the same words as its `tag`, as in this layer.
+
+The VEI form of `tense-atom` permits free modifiers after VEI and VEhO, as the VEI group of `mex-2` does. This keeps both mathematical groups consistent. Thus `mi vei to coi toi pa ve'o roi klama` and `mi vei pa ve'o to coi toi roi klama` parse here. camxes-exp has neither slot and rejects both texts.
 
 Only `ga` and `gu` introduce the extended forethought forms, so `ge je` and `gu'e je` remain invalid.
 

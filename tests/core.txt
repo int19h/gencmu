@@ -7082,3 +7082,5 @@ eberban.step3-fix2.later-paragraph
 eberban.step3-fix2.live-written-warning
 adhoc.syntax.gihek-ke-two-free-modifiers.cll
 adhoc.syntax.gihek-ke-two-free-modifiers.experimental
+experimental.vei-tense.free-after-open
+experimental.vei-tense.free-after-close
