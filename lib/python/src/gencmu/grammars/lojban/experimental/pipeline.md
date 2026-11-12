@@ -8,7 +8,7 @@ A layer is a document that changes earlier rules. The syntax layer follows camxe
 
 A pipeline document defines an ordered sequence of stages. A stage is one step of a pipeline, with its own grammar. The phoneme stage is that of the `lojban/bpfk` pipeline, with the conventions of [latin.md](latin.md) and [cyrillic.md](cyrillic.md). The forms stage reads the working word forms of the BPFK, the Lojban language planning committee ([`../bpfk/morphology.md`](../bpfk/morphology.md)). A selma'o is a word class of cmavo. A lexicon gives the experimental cmavo their selma'o.
 
-A nucleus is a syllable's vowel or diphthong. A glide is `i` or `u` before a nucleus. CgV combines a consonant, a glide and a nucleus.
+A nucleus is the vowel, diphthong or `y` at the center of a syllable. A glide is `i` or `u` before a nucleus. CgV combines a consonant, a glide and a nucleus.
 
 A rafsi is a word form used inside compounds. An extended rafsi uses a whole or shortened word before a y-hyphen inside a compound. The forms stage also reads [`morphology.md`](morphology.md). It permits `mz`, accepts CgV names and borrowings, changes extended rafsi, and adds the hesitation word `ie'o`.
 
@@ -16,7 +16,7 @@ The indicator stage starts with the lojban/cll pipeline's stage ([`../cll/pipeli
 
 A feature is a named switch that the grammars test. The pipeline turns on `su-boundary`. That feature makes SU stop at the last surviving word of NIhO, LU, LUhEI, TUhE or TO.
 
-The words stage turns on the warning code `experimental-cgv`. It reports a name or predicate word that needs the CgV extension, as in `atkuila`. Disabling the warning changes no reading.
+The words stage turns on the warning code `experimental-cgv`. It reports a name or predicate word that needs the CgV extension, as in `atkuila`.
 
 The pipeline turns on two syntax features. `cbm` is the cmevla-brivla merger, which lets a name word (cmevla) also act as a predicate word (brivla). `soi-clause` makes `soi` a term that takes a subsentence, in place of CLL's free modifier of reciprocity. A caller (the program or person that asks for a parse) can turn either off to read the CLL form.
 

@@ -355,13 +355,13 @@ The `Vowel` tag marks the five full vowels and not `y`. So `latin-full-vowel` ho
 
 Nothing reads the inherited `accented-full-vowel` or `folded-full-vowel` rules in this pipeline. The restated vowel rules read `latin-vowel` instead.
 
-The three restated rules have no `%emits`. Their walk reaches `latin-vowel`, which emits. The Cyrillic and zbalermorna extensions keep their own emissions.
+The three restated rules have no `%emits`. Ordinary vowel reads emit through `latin-vowel`. The [zbalermorna shorthand reader](../common/zbalermorna.md) instead reads `plain-vowel` or `stressed-vowel` through `zbalermorna-shorthand-vowel`. It emits their constituent tags, so their clauses supply its `Vowel` and `Stressed` tags. The `Vowel` tag also turns a glide letter into an ordinary vowel before the shorthand's inserted apostrophe. The shorthand needs that tag to preserve its word forms.
 
 ## Glide letters
 
 `ɩ` and `q` write the i-glide, and `w` writes the u-glide. `q` comes from the zbalermorna keyboard layout, and `ɩ` and `w` from krulermorna. Their capitals are `Ɩ`, the Unicode capital of `ɩ`, `Q` and `W`. A breve on `i` or `u`, in either case, also makes a glide letter: `ĭ`, `ŭ`, `Ĭ` and `Ŭ`.
 
-A glide letter is a glide wherever it stands. This stage reads it as `i` or `u` with the tag `Glide`, and it does not test what follows. The forms stage decides whether a glide can stand there, by the glide rules of the word forms ([morphology.md](morphology.md)). So `wa` is `ua`, while `mɩ` reads as the phonemes `m` and a glide `i`, which divide into no words.
+Outside [zbalermorna shorthand](#vowels), a glide letter is a glide wherever it stands. This stage reads it as `i` or `u` with the tag `Glide`, and it does not test what follows. The forms stage decides whether a glide can stand there, by the glide rules of the word forms ([morphology.md](morphology.md)). So `wa` is `ua`, while `mɩ` reads as the phonemes `m` and a glide `i`, which divide into no words.
 
 `ɩ`, `q` and `w` also carry `Onglide`. krulermorna writes an offglide with a diphthong letter, so these letters write only a glide before a vowel, and `kaw` divides into no words. A breve glide carries no `Onglide`, so it can also end a diphthong: `maĭ` is `mai`.
 

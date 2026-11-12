@@ -42,8 +42,6 @@ The words stage drops hesitation outside opaque bodies, except before BU. That e
 
 ## The pair mz
 
-A diphthong combines two vowels in one syllable. A nucleus is a syllable's vowel or diphthong. A glide is an `i` or `u` before a nucleus.
-
 This layer adds the pair `mz` to the shared table of its own stitched pipeline. Thus `kamzi`, `bamzda` and `.djeimz.` have permissible consonant pairs.
 
 ```jbogenbau
@@ -66,7 +64,7 @@ Thus `atkuila` and `zgiaca'a` are borrowings, while `language` remains foreign. 
 
 The guard excludes neither cluster onsets nor CVV rafsi nor rafsi later in a borrowing. Thus `lanstia`, `baltcuiska`, `baistia` and `bailanguaska` remain borrowings. Borrowing rafsi retain their separate head exclusion. Their final onset before `y` remains ordinary, so `spagetiybroda` and `spagekuykla` stay foreign.
 
-The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The span test reads only that word, so it cannot mark CgV in a later word. [The experimental word stream](stream.md) reads this tag and supplies the warning. Disabling the warning changes no reading.
+The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The span test reads only that word, so it cannot mark CgV in a later word. [The experimental word stream](stream.md) reads this tag and supplies the warning.
 
 ```jbogenbau
 -- A name ends in a consonant, unlike a predicate word. It carries the template marks and its warning. The warning test inspects only this complete word.
@@ -232,11 +230,13 @@ A y-rafsi requires y where a classical extended form needs a vowel or apostrophe
 
 ## Glide letters
 
-The base Cyrillic orthographies read glide letters by position, as in `lojban/bpfk`. The experimental Cyrillic layer adds marks without changing that convention. The Latin letters below are experimental additions, so their fixed glide readings do not change a base orthography.
+The base Cyrillic orthographies read glide letters by position, as in `lojban/bpfk`. The experimental Cyrillic layer adds marks without changing that convention.
 
-The experimental phoneme stage reads `ɩ`, `q`, `w`, `ĭ` and `ŭ` as the glides `i` and `u`, with the tag `Glide` ([latin.md](latin.md)). `ɩ`, `q` and `w` also carry `Onglide`, because they write only a glide before its vowel. Such a letter is a glide wherever it stands. So no rule reads it as a vowel.
+Dedicated `ɩ`, `q` and `w` write glides in this pipeline. The base Latin conventions accept the breve forms `ĭ` and `ŭ`. Their readings there depend on position. This pipeline instead gives those breve forms fixed glide readings.
 
-A glide letter carries no `Vowel` tag, so the `Vowel` test of `vowel` does not read it. `diphthong-letters` refuses an onglide letter, so `ĭ` and `ŭ` can end a diphthong, as in `maĭ`. These tests of glide letters are gencmu's own.
+The experimental phoneme stage reads `ɩ`, `q`, `w`, `ĭ` and `ŭ` as the glides `i` and `u`, with the tag `Glide` ([latin.md](latin.md)). `ɩ`, `q` and `w` also carry `Onglide`, because they write only a glide before its vowel. The [shorthand reader](latin.md#vowels) uses its own vowel tags. Outside that shorthand, these letters always emit glides.
+
+An emitted glide carries no `Vowel` tag, so the `Vowel` test of `vowel` does not read it. `diphthong-letters` refuses an onglide letter, so `ĭ` and `ŭ` can end a diphthong, as in `maĭ`. These tests of glide letters are gencmu's own.
 
 When a diphthong ends in a glide letter, its second letter is no vowel. So the `a` of `maĭ` passes the `!nucleus` test of `vowel`, and without a change it reads as a vowel alone. `vowel` therefore also refuses a letter where a diphthong begins. Without a glide letter the extra test changes nothing, because a diphthong's second letter is then a nucleus, and the camxes test already fails.
 
