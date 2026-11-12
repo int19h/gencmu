@@ -2976,9 +2976,9 @@ Binding a constant does not change method-signature text. A reported fault insid
 
 Check terms obey ordinary term rules, except for the boundary-atom limits of rule conditions. A check condition can contain several boundary atoms and read several nodes.
 
-A library rejects a check declaration with several faults. This specification does not fix which fault a library reports. The four libraries agree on acceptance and rejection. For a declaration with one fault, they also agree on its text and position. The diagnostic texts and positions below apply to a declaration with one fault.
+A library rejects a check declaration with several faults. This specification does not fix which fault a library reports. The four libraries agree on acceptance and rejection. For a check declaration with one fault, all libraries report the same position. They report the same text only where this specification names that text. Other loading texts are library-specific.
 
-Structural faults include malformed DOM members, names, references, parameters, integers, strings, argument kinds, and concatenations with too few operands.
+A fault in a term hides the type faults that depend on that term. The diagnostic texts and positions below apply to a declaration with one fault.
 
 In a check, a malformed reference reports `a malformed reference`. An undeclared or malformed parameter reports `an undeclared or malformed parameter`. An invalid rule argument reports `a malformed rule argument`. A malformed integer argument reports `a malformed integer argument`. A concatenation with too few operands reports `a malformed concatenation`. Each uses the faulty constructor's position.
 
@@ -2986,13 +2986,13 @@ A non-string message operand fails concatenation at the concatenation's position
 
 A malformed check name reports at the name. A check whose name is a rule reports `a rule and a check cannot share the name NAME` at the check declaration. A forbidden capture reference reports `a check cannot name a capture` at that reference, in conditions and messages. For a caller-supplied DOM without that source position, use the declaration's `at`.
 
-Every rule name in a check condition resolves against its stage. An unresolved name reports `NAME is not a rule of stage STAGE` at the name. This position also applies to names in the candidate pattern. A supplied DOM without a name position uses the check declaration's `at`.
+Every rule name in a check condition resolves against its stage. An unresolved name reports `NAME is not a rule of stage STAGE` at the name. This position also applies to names in the candidate pattern. A rule name in a query body has no DOM position and reports at the check declaration. An unknown classifier reports `NAME is not a classifier of stage STAGE` at the check declaration. A supplied DOM without a name position uses the check declaration's `at`.
 
 Section 2.4 defines the clauses where check methods are legal. A forbidden check method reports `a check method is outside its permitted clause` at the selector's leading dot. A restoration selector reports `a check cannot restore elision` at its leading dot.
 
 A method chain in a check message must read `$` through one permitted string method, including `.terminal`. Every other chain reports `a check message reads only $` at that atom's first token. A single non-string method result follows the non-string operand rule.
 
-Other faulty message atoms report at their first token. Clause and capture faults retain their positions above. A capture binder in a check query argument reports `a check cannot declare a capture` at the binder.
+A grouped atom in a check message reports `a recipe atom has no grouping or arguments` at its opening `(`. Other faulty message atoms report at their first token. Clause and capture faults retain their positions above. A capture binder in a check query argument reports `a check cannot declare a capture` at the binder.
 
 A check tree comparison requires a node on its left. A left operand that is not a node reports `a tree comparison requires a node on its left` at that operand. A wrong right operand reports `a tree comparison requires a node or pattern` at that operand. A self comparison in a check reports `a tree comparison cannot compare a node with itself` at the comparison.
 
@@ -3193,13 +3193,13 @@ An Integer token contains one or more ASCII decimal digits. It is legal only as 
 
 Reader method signature errors stand at the method receiver, including wrong target kinds, receiver kinds, arities, and noninteger arguments. A wrong argument separator stands at the first argument. Empty arguments, grouped choices, grouped integers, and fractions follow the syntax-error rule below. That rule also locates mixed runs and adjacent constants without an operator.
 
-Reader set type errors stand at the set expression or comparison that requires incompatible kinds. A guarded consequent error stands at its guard. Errors that binding reveals follow the stitching locations below. Unresolved query rule names are stitching errors at their definition. A recursive query gives a parse-time grammar error without a document location (§4).
+Reader set type errors stand at the set expression or comparison that requires incompatible kinds. A guarded consequent error stands at its guard. Errors that binding reveals follow the stitching locations below. Unresolved query rule names and unknown classifiers are stitching errors at their definition, including a check declaration. A recursive query gives a parse-time grammar error without a document location (§4).
 
 The lexical stage reads the longest punctuation token. `...` is one chain marker, never `..` followed by `.`. A range joins two scalar string endpoints with `..`. `.` selects a method. Header clauses use `::`, `:=`, and `:-`, while `:` binds a capture. Both readers follow the lexical forms above.
 
 `+` is the elision marker, and `++` is the string concatenation operator. Braces and `/` delimit repetition. Inside a string, braces and slash are literal characters. Strings accept single-guillemet escapes, and backslashes are ordinary string characters. Outside strings and comments, a bare backslash in grammar text is an error. A line comment can contain `-- see C:\temp`.
 
-A document can hold several errors. The reader reports one, and every reader chooses the same one, in this order:
+A document can hold several errors. Except for faults within a check declaration, every reader chooses the same error, in this order:
 
 1. Lexical recognition runs first. A lexical error stands at the furthest character that the lexical stage reaches. No preamble, escape, or syntax inspection occurs after that failure.
 2. After successful lexing, the names preamble pass of §1 inspects only the longest leading run of `%names` directives. Operand count and kind errors fail first at the directive. Within each valid path operand, malformed, nonscalar, and forbidden name escapes fail at `‹`, from left to right. These preamble errors precede all other errors in this step.
@@ -3229,7 +3229,7 @@ A document can hold several errors. The reader reports one, and every reader cho
 
 Within one constant definition or implication, the reader reports the error whose position comes first in the text, whichever check finds it.
 
-These steps make every reader report the same token for every combination of errors.
+Except for faults within a check declaration, these steps make every reader report the same token for every combination of errors.
 
 The following complete document reports a capture error at line 2, column 9. The syntax stage recognizes the grouped target, and the reader rejects it at `$x`.
 

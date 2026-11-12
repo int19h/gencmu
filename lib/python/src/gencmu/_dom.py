@@ -461,8 +461,13 @@ class DomBuilder:
                 raise self.lacks(atom, "valid token span")
             if atoms:
                 raise self.fail(atom, "juxtaposed recipe strings require ++, use ++ between string atoms")
-            if any(t.value in ("(", ")") for t in self.tokens[atom.span[0]:atom.span[1]]):
-                raise self.fail(atom, "a recipe atom accepts no grouping or arguments")
+            atom_start = atom.span[0]
+            for index in range(atom.span[0], atom.span[1]):
+                if self.tokens[index].value in ("(", ")"):
+                    line, column = self.grammar_text.position(self.tokens[atom_start].source[0])
+                    raise GencmuError("a recipe atom has no grouping or arguments", document=self.document, line=line, column=column)
+                if self.tokens[index].value == "++":
+                    atom_start = index + 1
             if any(t.value in ("∪", "∩", "∖", "⟹") for t in self.tokens[atom.span[0]:atom.span[1]]):
                 raise self.fail(atom, "a recipe atom accepts no set operator")
             before = self.recipe_context

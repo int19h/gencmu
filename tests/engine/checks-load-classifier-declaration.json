@@ -1,0 +1,14 @@
+{
+  "description": "An unknown classifier in a check reports at the declaration.",
+  "grammar": "%rule text \"a\"\n%check c #·text\n%conditions $.value.classify(nosuch) = $.tags\n%warning \"m\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 1
+    },
+    "message": "nosuch is not a classifier of stage main"
+  }
+}

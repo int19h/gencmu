@@ -148,7 +148,11 @@ pub(crate) fn check(
                             return Err(fail("a splice targets a rule"));
                         };
                         if !grammar.index.contains_key(name) {
-                            return Err(fail("a splice targets a rule"));
+                            return Err(if rule.query {
+                                fail(&format!("{name} is not a rule of stage {}", grammar.name))
+                            } else {
+                                fail("a splice targets a rule")
+                            });
                         }
                         splices.push((name, alt));
                     }

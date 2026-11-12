@@ -97,6 +97,10 @@ func (c *domChecker) target(t *domTerm, depth int) {
 	if c.deep(depth) {
 		return
 	}
+	if t != nil && t.Kind == tmInteger {
+		c.fail("a malformed integer argument")
+		return
+	}
 	if unresolvedTerm(t) {
 		c.term(t, depth, true)
 		return

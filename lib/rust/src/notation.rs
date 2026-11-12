@@ -2622,8 +2622,15 @@ impl<'a> Reader<'a> {
             }
             let written =
                 self.tokens.get(atom.span.clone()).ok_or_else(|| self.shape_error(atom, "valid token span"))?;
-            if written.iter().any(|t| matches!(t.value.as_str(), "(" | ")")) {
-                return Err(self.error(atom, "a recipe atom has no grouping or arguments"));
+            let mut atom_start = 0;
+            for (index, token) in written.iter().enumerate() {
+                if matches!(token.value.as_str(), "(" | ")") {
+                    let (line, column) = (self.position)(written[atom_start].source.start);
+                    return Err(Error::grammar("a recipe atom has no grouping or arguments").at(line, column));
+                }
+                if token.value == "++" {
+                    atom_start = index + 1;
+                }
             }
             if written.iter().any(|t| matches!(t.value.as_str(), "∪" | "∩" | "∖" | "⟹")) {
                 return Err(self.error(atom, "a recipe atom has no set operator"));

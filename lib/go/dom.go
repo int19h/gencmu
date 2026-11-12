@@ -1344,6 +1344,10 @@ func (dc *domDecoder) decodeExprNode(raw any, depth int) (*domExpr, error) {
 // decodeExprObj reads an expression, raw, whose members o are decoded.
 func (dc *domDecoder) decodeExprObj(raw any, o domObject, depth int) (*domExpr, error) {
 	// An expression has exactly the members of one form (docs/output.md).
+	if _, ok := o["param"]; ok && onlyMembers(o, "param", "at") {
+		name, at, err := domParameter(o)
+		return &domExpr{Kind: exParam, Name: name, At: at}, err
+	}
 	if !hasOneForm(o, exprForms) {
 		return nil, fmt.Errorf("a malformed expression")
 	}
@@ -1352,10 +1356,6 @@ func (dc *domDecoder) decodeExprObj(raw any, o domObject, depth int) (*domExpr, 
 			return nil, fmt.Errorf("a malformed remainder")
 		}
 		return &domExpr{Kind: exRemainder}, nil
-	}
-	if _, ok := o["param"]; ok {
-		name, at, err := domParameter(o)
-		return &domExpr{Kind: exParam, Name: name, At: at}, err
 	}
 	if _, ok := o["call"]; ok {
 		call, err := dc.decodeSourceCall(o, depth)
@@ -1531,16 +1531,16 @@ func (dc *domDecoder) decodeTermNode(raw any, depth int) (*domTerm, error) {
 	if err != nil {
 		return nil, err
 	}
+	if _, ok := o["param"]; ok && onlyMembers(o, "param", "at") {
+		name, at, err := domParameter(o)
+		return &domTerm{Kind: tmParam, Str: name, At: at}, err
+	}
 	if !hasOneForm(o, termForms) {
 		return nil, fmt.Errorf("a malformed term")
 	}
 	if body, present := o[tmBody]; present {
 		expr, err := dc.decodeExprAt(body, depth)
 		return &domTerm{Kind: tmBody, Body: expr}, err
-	}
-	if _, ok := o["param"]; ok {
-		name, at, err := domParameter(o)
-		return &domTerm{Kind: tmParam, Str: name, At: at}, err
 	}
 	if _, ok := o["call"]; ok {
 		call, err := dc.decodeSourceCall(o, depth)

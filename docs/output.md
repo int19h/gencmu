@@ -613,7 +613,7 @@ A library ignores unknown members of a directive. Its known members, `name`, `ar
 
 DOMs store unresolved references and source positions, never stage-resolved constant or classifier values. Source, cached, and supplied DOMs obey the same arity, type, capture, clause, and depth rules.
 
-Libraries reject a check declaration with several faults, but this specification does not fix which fault a library reports. Engine §9.3 gives the text and position for a declaration with one fault.
+Libraries reject a check declaration with several faults, but this specification does not fix which fault a library reports. Engine §9.3 fixes the position for a check declaration with one fault. It also fixes the text where the specification names that text.
 
 ### Pattern values
 

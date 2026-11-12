@@ -36956,5 +36956,415 @@
     },
     "malformed": true,
     "message": "a method has the wrong receiver or arguments"
+  },
+  {
+    "description": "A check boundary target rejects a parameter without a position.",
+    "dom": {
+      "format": 52,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "alternatives": [
+            {
+              "gates": [],
+              "expr": {
+                "empty": true
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "directives": [
+        {
+          "name": "ambiguity-resolution",
+          "steps": [
+            {
+              "step": "greedy"
+            }
+          ],
+          "at": [
+            3,
+            1
+          ]
+        }
+      ],
+      "constants": [],
+      "classifiers": [],
+      "implications": [],
+      "checks": [
+        {
+          "name": "c",
+          "pattern": {
+            "never": true
+          },
+          "conditions": [
+            {
+              "method": "followed-by",
+              "receiver": {
+                "capture": ""
+              },
+              "args": [
+                {
+                  "param": "P"
+                }
+              ]
+            }
+          ],
+          "warning": {
+            "concat": [
+              {
+                "string": "m"
+              }
+            ]
+          },
+          "at": [
+            2,
+            1
+          ]
+        }
+      ]
+    },
+    "malformed": true,
+    "message": "an undeclared or malformed parameter"
+  },
+  {
+    "description": "A check query body rejects a parameter without a position.",
+    "dom": {
+      "format": 52,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "alternatives": [
+            {
+              "gates": [],
+              "expr": {
+                "empty": true
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "directives": [
+        {
+          "name": "ambiguity-resolution",
+          "steps": [
+            {
+              "step": "greedy"
+            }
+          ],
+          "at": [
+            3,
+            1
+          ]
+        }
+      ],
+      "constants": [],
+      "classifiers": [],
+      "implications": [],
+      "checks": [
+        {
+          "name": "c",
+          "pattern": {
+            "never": true
+          },
+          "conditions": [
+            {
+              "method": "parse",
+              "receiver": {
+                "capture": ""
+              },
+              "args": [
+                {
+                  "body": {
+                    "param": "P"
+                  }
+                }
+              ]
+            }
+          ],
+          "warning": {
+            "concat": [
+              {
+                "string": "m"
+              }
+            ]
+          },
+          "at": [
+            2,
+            1
+          ]
+        }
+      ]
+    },
+    "malformed": true,
+    "message": "an undeclared or malformed parameter"
+  },
+  {
+    "description": "A check boundary target rejects an integer argument.",
+    "dom": {
+      "format": 52,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "alternatives": [
+            {
+              "gates": [],
+              "expr": {
+                "empty": true
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "directives": [
+        {
+          "name": "ambiguity-resolution",
+          "steps": [
+            {
+              "step": "greedy"
+            }
+          ],
+          "at": [
+            3,
+            1
+          ]
+        }
+      ],
+      "constants": [],
+      "classifiers": [],
+      "implications": [],
+      "checks": [
+        {
+          "name": "c",
+          "pattern": {
+            "never": true
+          },
+          "conditions": [
+            {
+              "method": "followed-by",
+              "receiver": {
+                "capture": ""
+              },
+              "args": [
+                {
+                  "integer": "2"
+                }
+              ]
+            }
+          ],
+          "warning": {
+            "concat": [
+              {
+                "string": "m"
+              }
+            ]
+          },
+          "at": [
+            2,
+            1
+          ]
+        }
+      ]
+    },
+    "malformed": true,
+    "message": "a malformed integer argument"
+  },
+  {
+    "description": "A check classify argument rejects an undeclared parameter.",
+    "dom": {
+      "format": 52,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "alternatives": [
+            {
+              "gates": [],
+              "expr": {
+                "empty": true
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "directives": [
+        {
+          "name": "ambiguity-resolution",
+          "steps": [
+            {
+              "step": "greedy"
+            }
+          ],
+          "at": [
+            3,
+            1
+          ]
+        }
+      ],
+      "constants": [],
+      "classifiers": [],
+      "implications": [],
+      "checks": [
+        {
+          "name": "c",
+          "pattern": {
+            "never": true
+          },
+          "conditions": [
+            {
+              "op": "∈",
+              "left": {
+                "string": "a"
+              },
+              "right": {
+                "method": "classify",
+                "receiver": {
+                  "method": "value",
+                  "receiver": {
+                    "capture": ""
+                  },
+                  "args": []
+                },
+                "args": [
+                  {
+                    "param": "P",
+                    "at": [
+                      5,
+                      30
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "warning": {
+            "concat": [
+              {
+                "string": "m"
+              }
+            ]
+          },
+          "at": [
+            2,
+            1
+          ]
+        }
+      ]
+    },
+    "malformed": true,
+    "message": "an undeclared or malformed parameter"
+  },
+  {
+    "description": "A check ngrams argument rejects an undeclared parameter.",
+    "dom": {
+      "format": 52,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "alternatives": [
+            {
+              "gates": [],
+              "expr": {
+                "empty": true
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "directives": [
+        {
+          "name": "ambiguity-resolution",
+          "steps": [
+            {
+              "step": "greedy"
+            }
+          ],
+          "at": [
+            3,
+            1
+          ]
+        }
+      ],
+      "constants": [],
+      "classifiers": [],
+      "implications": [],
+      "checks": [
+        {
+          "name": "c",
+          "pattern": {
+            "never": true
+          },
+          "conditions": [
+            {
+              "op": "∈",
+              "left": {
+                "string": "a"
+              },
+              "right": {
+                "method": "ngrams",
+                "receiver": {
+                  "method": "value",
+                  "receiver": {
+                    "capture": ""
+                  },
+                  "args": []
+                },
+                "args": [
+                  {
+                    "param": "P",
+                    "at": [
+                      5,
+                      30
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "warning": {
+            "concat": [
+              {
+                "string": "m"
+              }
+            ]
+          },
+          "at": [
+            2,
+            1
+          ]
+        }
+      ]
+    },
+    "malformed": true,
+    "message": "an undeclared or malformed parameter"
   }
 ]

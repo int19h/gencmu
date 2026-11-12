@@ -219,7 +219,11 @@ func (g *stageGrammar) resolveCheck(index int) *Error {
 		var fault *Error
 		walkClause(root, func(part clausePart) bool {
 			if fault == nil && part.t != nil && part.t.Kind == tmConst && g.constants[part.t.Str] == nil {
-				fault = g.constError(entry.doc, check.At, "$%s is not defined in stage %s", part.t.Str, g.name)
+				position := part.t.At
+				if position == [2]int{} {
+					position = check.At
+				}
+				fault = g.constError(entry.doc, position, "$%s is not defined in stage %s", part.t.Str, g.name)
 			}
 			return fault == nil
 		})

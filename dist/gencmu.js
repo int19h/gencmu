@@ -6791,7 +6791,7 @@
         else if ("method" in value) {
           if (task.check && typeof value.method === "string" && !METHODS.has(value.method)) return `unknown method ${value.method}`;
           if (CHECK_METHODS.has(value.method) && !task.check) return "a check method is outside its permitted clause";
-          if (["classify","ngrams"].includes(value.method) && Array.isArray(value.args) && value.args.some(hasUnresolved)) return "a parameter cannot replace a classifier name or integer argument";
+          if (["classify","ngrams"].includes(value.method) && Array.isArray(value.args) && value.args.some(hasUnresolved)) return task.check ? "an undeclared or malformed parameter" : "a parameter cannot replace a classifier name or integer argument";
           if (typeof value.method !== "string" || !Array.isArray(value.args) || !object(value.receiver) || (!task.check && !task.recipe && (value.method === "verbatim-text" || value.method === "emitted")) || (!task.query && QUERY_METHODS.has(value.method) && !FOREST_METHODS.has(value.method))) return "a malformed method";
           push("method-shape", value, depth, { recipe: task.recipe,check:task.check });
           child("term", value.receiver, { recipe: task.recipe,check:task.check });
@@ -11576,7 +11576,9 @@
       for (const part of valueParts(node)) {
         if ((part.node.op === "≅" || part.node.op === "≇") && typeof part.node.right?.capture === "string" && constituentComparisons([node.tags,node.conditions,...(node.alternatives ?? []).map((/** @type {any} */ alternative)=>alternative.tags)]).length) this.treeComparisons = true;
         if (part.pattern && !hasUnresolved(part.node)) {
-        patterns.set(part.node, this.evaluateClosed(path,part.node,at,undefined,"pattern"));
+        const value=this.evaluateClosed(path,part.node,at,undefined,"pattern");
+        // A wrongly typed constant retains its reference for the diagnostic.
+        if(!part.node.const || "pattern" in value)patterns.set(part.node,value);
         }
       }
       /** @param {any} source @returns {any} */
@@ -23399,7 +23401,11 @@
       for (const atom of some(node, "recipe-term")) {
         if (!Number.isSafeInteger(atom.span[0]) || !Number.isSafeInteger(atom.span[1]) || atom.span[0] < 0 || atom.span[1] < atom.span[0] || atom.span[1] > tokens.length) lacks(atom, "valid token span");
         if (concat.length) fail("juxtaposed recipe strings require ++. Use ++ between string atoms", atom);
-        if (tokens.slice(atom.span[0], atom.span[1]).some(token => ["(", ")"].includes(token.value))) fail("a recipe atom has no grouping or arguments", atom);
+        let atomStart=atom.span[0];
+        for(let index=atom.span[0];index<atom.span[1];index++) {
+          if(["(",")"].includes(tokens[index].value))failAt("a recipe atom has no grouping or arguments",positionOf(tokens[atomStart]));
+          if(tokens[index].value==="++")atomStart=index+1;
+        }
         if (tokens.slice(atom.span[0], atom.span[1]).some(token => ["∪", "∩", "∖", "⟹"].includes(token.value))) fail("a recipe atom has no set operator", atom);
         recipeContext = true;
         const term = yield readTerm(only(atom, "term"));

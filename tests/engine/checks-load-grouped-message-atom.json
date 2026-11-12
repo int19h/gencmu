@@ -1,0 +1,14 @@
+{
+  "description": "A grouped message atom reports at its opening parenthesis.",
+  "grammar": "%rule text \"a\"\n%check c #·text\n%warning \"x\" ++ ($.value)",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 17
+    },
+    "message": "a recipe atom has no grouping or arguments"
+  }
+}

@@ -369,9 +369,13 @@ func (b *domBuilder) recipe(n *Node) *domTerm {
 		if len(r.Items) > 0 {
 			b.fail(atom, "juxtaposed recipe strings require ++, use ++ between string atoms")
 		}
+		atomStart := atom.Span[0]
 		for i := atom.Span[0]; i < atom.Span[1]; i++ {
 			if b.toks[i].Value == "(" || b.toks[i].Value == ")" {
-				b.fail(atom, "a recipe uses no grouping or arguments")
+				panic(grammarError(b.doc, b.gt.at(b.toks[atomStart].Source[0]), "a recipe atom has no grouping or arguments"))
+			}
+			if b.toks[i].Value == "++" {
+				atomStart = i + 1
 			}
 			if b.toks[i].Value == "∪" || b.toks[i].Value == "∩" || b.toks[i].Value == "∖" || b.toks[i].Value == "⟹" {
 				b.fail(atom, "a recipe atom has no set operator")
