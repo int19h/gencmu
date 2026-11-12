@@ -83,7 +83,7 @@ This grammar writes most unbounded sequences with flat braces or left chains. Th
   [{I [jek | joik] [[stag] BO] 🆓}] [{NIhO} 🆓] [paragraphs]
 
 %rule paragraphs
-  paragraph [{NIhO} 🆓 paragraphs]
+  {paragraph / {NIhO} 🆓}
 
 %rule paragraph
   (statement | fragment) [{I 🆓 [statement | fragment]}]
@@ -484,7 +484,7 @@ The words stage builds each `zei` compound into one `BRIVLA`, which `tanru-unit-
   BE 🆓 term [links] [+BEhO 🆓]
 
 %rule links
-  BEI 🆓 term [links]
+  {BEI 🆓 term}
 ```
 
 <details><summary>Railroad diagrams of the 14 rules from <code>selbri</code> to <code>links</code></summary>
@@ -603,12 +603,12 @@ Operands connect in the same way. `operand` takes a `ke` group, `operand-1` the 
   | (LAhE 🆓 | NAhE BO 🆓) operand [+LUhU 🆓]
 
 %rule number
-  PA [{PA | lerfu-word}]
+  PA [{*number-continuation}]
 %conditions
   ¬$.following-tokens.parse(number-continuation …)
 
 %rule lerfu-string
-  lerfu-word [{PA | lerfu-word}]
+  lerfu-word [{*number-continuation}]
 %conditions
   ¬$.following-tokens.parse(number-continuation …)
 

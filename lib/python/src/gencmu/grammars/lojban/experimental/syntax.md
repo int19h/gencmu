@@ -154,7 +154,7 @@ A written KEhE also closes a KE-wrapped forethought bridi. A later reset permits
   [leading-separators] [paragraph-break] [paragraphs]
 
 %redefine-rule paragraphs
-  paragraph [paragraph-break [paragraphs]]
+  {paragraph / paragraph-break} [paragraph-break]
 
 %rule paragraph-break
   {{NIhO} / {free}} 🆓 [I 🆓 {{NIhO} / {free}} 🆓] [leading-separators]
@@ -839,7 +839,7 @@ The `ke-after` template supplies `selbri-4` and `operator`. Each named instance 
   BE 🆓 [term] [links] [+BEhO] 🆓
 
 %redefine-rule links
-  BEI 🆓 [term] [links]
+  {BEI 🆓 [term]}
 ```
 
 <details><summary>Railroad diagrams of the 12 rules from <code>selbri-1</code> to <code>links</code></summary>

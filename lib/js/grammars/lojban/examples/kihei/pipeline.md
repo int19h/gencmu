@@ -30,14 +30,13 @@ The replacement paragraph rule accepts an initial sequence of utterances and sub
 ```jbogenbau
 %extend-stage syntax
 %redefine-rule paragraph
-  utterance-sequence [{frame-group}]
-  | {frame-group}
+  utterance-sequence & {frame-group}
 
 %rule utterance-sequence
   (statement | fragment) [{I 🆓 [statement | fragment]}]
 
 %rule frame-group
-  frame [I 🆓 [{I 🆓}] [utterance-sequence]]
+  frame [{I 🆓} [utterance-sequence]]
 
 %rule frame
   KIhEI 🆓 [terms]
