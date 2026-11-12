@@ -52,6 +52,8 @@ A `y` is a nucleus exactly where no nucleus follows it. So the first `y` of a ru
 
 ### Whole hesitation runs
 
+`y-run` reads a whole run of `y` as one hesitation token, and `cmavo` excludes a pure `y` run. Full camxes-std reads the same whole run through its `initial_spaces` rule.
+
 The words stage drops hesitation in `lojban/bpfk` and `lojban/experimental`. Zantufa can retain attached hesitation, so its erasure can observe the whole-run division.
 
 
@@ -589,9 +591,11 @@ So an unmarked brivla is stressed on its penultimate counted syllable, and a pau
 
 
 
-The `syllable-onset` hook reads an ordinary onset. Syllables, stress tests, the brivla head, and the coda lookahead use it. This includes `final-syllable`. A layer can extend their shared onset without changing the other restrictions. The `cmavo`, `fuhivla-rafsi`, and `stressed-fuhivla-rafsi` rules read plain `onset` and remain unchanged by that extension.
+The `syllable-onset` hook reads an ordinary onset. Syllables, stress tests, the brivla head, and the coda lookahead use it. This includes `final-syllable`. A layer can extend their shared onset without changing the other restrictions. `cmavo` reads plain `onset`, and `fuhivla-rafsi` and `stressed-fuhivla-rafsi` read `glide` or `initial` directly. None of them reads `syllable-onset`, so that extension leaves them unchanged.
 
-A syllable has an onset, a nucleus, and an optional nonempty coda. A consonantal syllable has no nucleus, so the two kinds cannot consume the same complete letters. A coda ends before another syllable or a pause, which are incompatible boundaries. Before a pause, one consonant and two consonants have different lengths. The absent optional covers the empty coda once. A consonantal syllable requires a following syllabic consonant, so an empty coda cannot complete it.
+A syllable has an onset, a nucleus, and an optional nonempty coda. A consonantal syllable has no nucleus, so the two kinds cannot consume the same complete letters. A coda ends before another syllable or a pause, which are incompatible boundaries. Before a pause, one consonant and two consonants have different lengths. The absent optional covers the empty coda once.
+
+In a consonantal syllable, the coda begins with the syllabic consonant after the syllable's first consonant. Thus that coda cannot be empty.
 
 The coda test prevents a consonantal syllable from consuming the start of a following vowel-bearing syllable. If a coda stands before another syllable, omitting it leaves consonants that cannot begin that syllable. If it stands before a pause, omitting it leaves consonants before that required pause. Thus both presence choices cannot complete the same word.
 
@@ -707,9 +711,9 @@ A `y` is not followed by a nucleus, unless that nucleus is another `y`. An apost
 
 ## Consonants
 
-An initial pair is two consonants that can begin a word. `initial` reads a cluster where each pair of neighbors stands in `$INITIAL`. An affricate can stand only as the whole cluster, as in the PEG's rule `initial`. The closing section compares this limit with CLL 1.1 section 4.7.
+An initial pair is two consonants that can begin a word. `initial` reads no consonant, one consonant, or a cluster whose neighboring pairs stand in `$INITIAL`. An affricate can stand only as the whole cluster, as in the PEG's rule `initial`. The closing section compares this limit with CLL 1.1 section 4.7.
 
-A sibilant, another consonant and a liquid give the usual shape of a long cluster. No consonant or glide can follow the cluster. The initial can be empty only where no consonant or glide follows.
+A sibilant, another consonant and a liquid give the usual shape of a long cluster. No consonant or glide can follow the initial. The initial can be empty only where no consonant or glide follows.
 
 The raw pair test can differ from a test through consonant rules on one consonant in a run that breaks the pair law. Both reject `btb`, because every consonant of a complete word must pass its pair test.
 
@@ -727,7 +731,7 @@ The shared [`bu-form-ahead`](../common/forms.md#words-in-a-run) lookahead can cr
   $.value ∈ $INITIAL,
   ¬$.following-tokens.parse(consonant …)
 
--- An initial is a cluster from the table, or no consonant at all. No consonant or glide follows it.
+-- An initial is empty, one consonant, or a permitted cluster. No consonant or glide follows it.
 %rule initial
   [initial-consonants]
 %conditions
@@ -830,7 +834,7 @@ A run stays one hesitation token except for the split that prepares a letter wor
 These entries distinguish equal rewrites from differences in results:
 
 - Equal rewrite: [`cmavo`](#cmavo) and the [lexicon](../cll/lexicon.md) replace the PEG's `CMAVO` spelling list.
-- Result difference: `cmavo` excludes pure `y`, and [`y-run`](#whole-hesitation-runs) reads it whole, unlike the morphology-only parser's `cmavo_form`.
+- Result difference: `cmavo` excludes pure `y`, and [`y-run`](#whole-hesitation-runs) reads it whole, unlike the morphology-only parser's `cmavo_form`. Full camxes-std agrees with this pipeline.
 - Result difference: this pipeline accepts [`kyyykerlo`](../common/forms.md#differences-from-camxes), which full camxes-std rejects through its lexer wrapper.
 - Equal rewrite: [`lujvo`](#words) tests the whole word, where the PEG tests a start.
 - Equal rewrite: [`cmevla`](#cmevla) uses one name shape for the PEG's `jbocme` and `zifcme`.

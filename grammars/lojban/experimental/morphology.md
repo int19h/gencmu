@@ -97,7 +97,7 @@ The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The sp
 %rule cgv-onset
   cgv-initial glide
 
--- A CgV onset begins with the shared initial cluster. The cluster is not empty, and no consonant follows it.
+-- A CgV onset begins with a nonempty sequence of initial consonants. No consonant follows that sequence.
 %rule cgv-initial
   $c:initial-consonants
 %conditions

@@ -131,6 +131,8 @@ The [word-form comparison](morphology.md#differences-from-cll-and-the-reference-
 
 ### Syntax decisions
 
+A selbri is the predicate of a sentence. A bridi tail is a selbri with any terms after it.
+
 The BPFK recorded one decision on syntax, and this pipeline does not apply it. On 15 March 2016, the BPFK [ruled](https://mw.lojban.org/index.php?title=BPFK:_lo_nu_broda_ba_brode&oldid=119454) that a tense or modal attaches to a following selbri unless `ku` closes it. So `lo nu broda ba brode` means `lo nu broda cu ba brode`. This pipeline keeps the reading of CLL 1.1, where `ba` is a term inside the `nu` clause, the abstraction: `(lo [{nu (broda ba)} brode])`. camxes-std follows the decision and puts `ba` on `brode`.
 
 ### Shared indicators and syntax
