@@ -139,7 +139,7 @@ The CLL grammar settles two connective ambiguities with a ranked choice and a co
 
 ## Differences from CLL and the official parser
 
-The stage documents compare [Latin](latin.md#choices-beyond-cll), [Cyrillic](cyrillic.md#choices-beyond-cll), [forms](../common/forms.md#differences-from-camxes), [word forms](morphology.md#where-the-book-leaves-a-choice), [lexicon](lexicon.md#differences-from-the-cll-dictionary), [shared word processing](../common/stream.md#departures-from-cll-magic-words-and-the-reference-parsers), [CLL word processing](stream.md#differences-from-cll-and-bpfk), [indicators](indicators.md#differences-from-cll-and-camxes-std), and [syntax](syntax.md#differences-from-the-printed-cll-grammar) with their sources.
+The stage documents compare [Latin](latin.md#choices-beyond-cll), [Cyrillic](cyrillic.md#choices-beyond-cll), [forms](../common/forms.md#differences-from-camxes), [word forms](morphology.md#where-the-book-leaves-a-choice), [lexicon](lexicon.md#differences-from-the-cll-dictionary), [shared word processing](../common/stream.md#departures-from-cll-magic-words-and-the-reference-parsers), [CLL word processing](stream.md#differences-from-cll-and-bpfk), [indicators](indicators.md#differences-from-cll-and-camxes-std), and [syntax](syntax.md#differences-from-cll-and-the-official-parser) with their sources.
 
 The enabled `su-boundary` feature makes SU stop at the last surviving NIhO, LU, TUhE, or TO word. That word survives, as in camxes-std. Later LIhU, TOI, and TUhU do not cancel an earlier boundary. With the feature off, SU erases the whole text before it. Magic Words and camxes-std supply the boundaries.
 
