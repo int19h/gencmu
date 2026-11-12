@@ -67,7 +67,7 @@
                     "children": [
                       {
                         "kind": "rule",
-                        "rule": "quoted-word",
+                        "rule": "word-quote",
                         "children": [
                           {
                             "kind": "rule",

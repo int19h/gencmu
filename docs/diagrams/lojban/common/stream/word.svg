@@ -4,6 +4,6 @@
 <text class="title" x="10" y="24" textLength="33.6" lengthAdjust="spacingAndGlyphs">word</text>
 <text class="label" x="63.6" y="24" textLength="115.2" lengthAdjust="spacingAndGlyphs">conditions apply</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
-<g class="rule"><rect x="20" y="34" width="92" height="24" rx="0"/><text x="66" y="51" textLength="75.6" lengthAdjust="spacingAndGlyphs">read-word</text></g>
-<path d="M112 46h6m0 -8v16m4 -16v16"/>
+<g class="terminal"><rect x="20" y="34" width="100" height="24" rx="12"/><text x="70" y="51" textLength="84" lengthAdjust="spacingAndGlyphs">*word-base</text></g>
+<path d="M120 46h6m0 -8v16m4 -16v16"/>
 </svg>

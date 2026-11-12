@@ -31,7 +31,7 @@
                             "rule": "sa-nest",
                             "children": [
                               {
-                                "rule": "sa-open"
+                                "rule": "sa-reach"
                               },
                               {
                                 "rule": "spacing"

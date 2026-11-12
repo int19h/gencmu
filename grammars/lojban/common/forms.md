@@ -45,24 +45,24 @@ Ordinary word forms divide each run in one way only. Zantufa's `ra'oi` quote is 
 
 ```jbogenbau
 %rule text
-  | ε | pause-token
-  | [pause-token] runs [pause-token]
+  | ε | pause-run
+  | [pause-run] runs [pause-run]
 
 %rule runs
-  run | runs pause-token run
+  run | runs pause-run run
+
+%rule pause-run
+  {pause-token}
 
 %rule pause-token
-  {pause-part}
-
-%rule pause-part
   PAUSE
 %emits
   $ :: $.tags := " " :- $.image
 
 %rule run
-  word-run | foreign-token | unsegmentable-run
+  segmented-run | foreign-token | unsegmentable-run
 
-%rule word-run
+%rule segmented-run
   run-words
 
 %rule foreign-token
@@ -74,12 +74,12 @@ Ordinary word forms divide each run in one way only. Zantufa's `ra'oi` quote is 
   $f:phoneme-sequence
 %conditions
   ¬$f.following-tokens.parse(nonpause-phoneme …),
-  ¬$f.parse(word-run)
+  ¬$f.parse(segmented-run)
 %emits
   $ :: FOREIGN Run-Initial Run-Final := $.decomposed-source-text :- $.image
 
 %rule phoneme-sequence
-  nonpause-phoneme | phoneme-sequence nonpause-phoneme
+  {nonpause-phoneme}
 
 %rule nonpause-phoneme
   | "a" | "e" | "i" | "o" | "u" | "y"
@@ -92,10 +92,10 @@ Ordinary word forms divide each run in one way only. Zantufa's `ra'oi` quote is 
 <details><summary>Railroad diagrams of the 10 rules from <code>text</code> to <code>nonpause-phoneme</code></summary>
 <p><img src="../../../docs/diagrams/lojban/common/forms/text.svg" alt="Railroad diagram of the rule text"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/runs.svg" alt="Railroad diagram of the rule runs"></p>
+<p><img src="../../../docs/diagrams/lojban/common/forms/pause-run.svg" alt="Railroad diagram of the rule pause-run"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/pause-token.svg" alt="Railroad diagram of the rule pause-token"></p>
-<p><img src="../../../docs/diagrams/lojban/common/forms/pause-part.svg" alt="Railroad diagram of the rule pause-part"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/run.svg" alt="Railroad diagram of the rule run"></p>
-<p><img src="../../../docs/diagrams/lojban/common/forms/word-run.svg" alt="Railroad diagram of the rule word-run"></p>
+<p><img src="../../../docs/diagrams/lojban/common/forms/segmented-run.svg" alt="Railroad diagram of the rule segmented-run"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/foreign-token.svg" alt="Railroad diagram of the rule foreign-token"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/unsegmentable-run.svg" alt="Railroad diagram of the rule unsegmentable-run"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/phoneme-sequence.svg" alt="Railroad diagram of the rule phoneme-sequence"></p>
@@ -110,7 +110,7 @@ A run of phonemes that divides into no words becomes one `FOREIGN` token. Its va
 
 The stage tests only a whole run, and it tests the run in isolation. No rule except the two lookaheads reads past the run, so the isolated test agrees with a test in place. A `yy` that the y lookahead splits divides into words either way.
 
-The rule `word-run` is a run that divides into words. A pipeline that divides a run in another way extends `word-run`, as [../zantufa/morphology.md](../zantufa/morphology.md) does for `ra'oi`. So `unsegmentable-run` never takes a run that one of these ways reads.
+The rule `segmented-run` is a run that divides into words. A pipeline that divides a run in another way extends `segmented-run`, as [../zantufa/morphology.md](../zantufa/morphology.md) does for `ra'oi`. So `unsegmentable-run` never takes a run that one of these ways reads.
 
 ## Words in a run
 
@@ -129,7 +129,7 @@ The BPFK word forms set only `Onset` and `Continued`, with the meaning that the 
 
 ```jbogenbau
 %rule run-words
-  | $f:first-word :: $f.tags
+  | first-word
   | $r:run-words $v:later-word
       :: $v.tags ∪
          (Uncounted ⊆ $v.tags ⟹ Open-Stress ∩ $r.tags)
@@ -159,58 +159,50 @@ The parser tests it as soon as it reads `$r`. If the condition fails, the parser
 
 Before the cmavo `bu`, this stage splits prolonged y hesitation into a prefix and a final y token, with or without a pause. In the BPFK word family, the `post_word` test requires the whole cmavo, so `yy buntu` keeps `yy` whole. In the CLL word family, the test reads only the letters `bu`, so `yy buntu` splits `yy`. Both pieces stay hesitation, so the split changes no reading there.
 
+`y-prefix` stays recursive so that the forms stage can compare each prefix end before the final y.
+
 Both split rules mark their final y with `Spacing` for the Zantufa word stream. Other pipelines ignore it. The word reader drops the prefix and joins only the final y with BU. This split preserves source positions and leaves raw quote bodies unjoined.
 
 The words stage needs to know where a run begins and ends. A name that `bu` takes needs a pause before it (CLL[^cll-s17-4]). A `zoi` quote and a `zo'oi` quote end at the end of a run. So this stage tags the first word of each run `Run-Initial`, and the last word `Run-Final`.
+
+The templates `ordinary-word` and `split-y` take the tag for the first word of a run, or an empty set for later words. `ordinary-word` also takes the matching split rule, so the ordinary and split readings remain exclusive.
 
 ```jbogenbau
 %rule first-word
   ordinary-first-word | split-first-y
 
-%rule ordinary-first-word
-  $w:source-word
-%conditions
-  ¬$w.onward.parse(split-first-y …)
-%emits
-  $
-      :: Run-Initial ∪
-         $w.tags ∪
-         (¬$w.following-tokens.parse(nonpause-phoneme …) ⟹ Run-Final)
+%rule ordinary-first-word = ordinary-word(Run-Initial, split-first-y)
 
 %rule later-word
   ordinary-later-word | split-later-y
 
-%rule ordinary-later-word
+%rule ordinary-later-word = ordinary-word(∅, split-later-y)
+
+%rule ordinary-word(@Initial, @Split)
   $w:source-word
 %conditions
-  ¬$w.onward.parse(split-later-y …)
+  ¬$w.onward.parse(@Split …)
 %emits
   $
-      :: $w.tags ∪
+      :: @Initial ∪
+         $w.tags ∪
          (¬$w.following-tokens.parse(nonpause-phoneme …) ⟹ Run-Final)
 
-%rule split-first-y
-  $p:y-prefix $y:y-atom :: $.parse(source-word).tags
-%conditions
-  $.parse(hesitation-shape),
-  $.following-tokens.parse(bu-form-ahead …)
-%emits
-  $p :: Run-Initial ∪ $.parse(source-word).tags,
-  $y
-      :: Spacing ∪
-         $.parse(source-word).tags ∪
-         (¬$.following-tokens.parse(nonpause-phoneme …) ⟹ Run-Final)
+%rule split-first-y = split-y(Run-Initial)
+%rule split-later-y = split-y(∅)
 
-%rule split-later-y
+%rule split-y(@Initial)
   $p:y-prefix $y:y-atom :: $.parse(source-word).tags
 %conditions
   $.parse(hesitation-shape),
   $.following-tokens.parse(bu-form-ahead …)
 %emits
-  $p :: $.parse(source-word).tags,
+  $p
+      :: @Initial ∪
+         $.tags,
   $y
       :: Spacing ∪
-         $.parse(source-word).tags ∪
+         $.tags ∪
          (¬$.following-tokens.parse(nonpause-phoneme …) ⟹ Run-Final)
 
 %rule y-prefix
@@ -223,25 +215,23 @@ The words stage needs to know where a run begins and ends. A name that `bu` take
 %rule bu-form-ahead
   [pause-run] bu-form
 
-%rule pause-run
-  PAUSE | pause-run PAUSE
-
 %rule bu-form
   cmavo-shape="bu"
 
 ```
 
-<details><summary>Railroad diagrams of the 11 rules from <code>first-word</code> to <code>bu-form</code></summary>
+<details><summary>Railroad diagrams of the 12 rules from <code>first-word</code> to <code>bu-form</code></summary>
 <p><img src="../../../docs/diagrams/lojban/common/forms/first-word.svg" alt="Railroad diagram of the rule first-word"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/ordinary-first-word.svg" alt="Railroad diagram of the rule ordinary-first-word"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/later-word.svg" alt="Railroad diagram of the rule later-word"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/ordinary-later-word.svg" alt="Railroad diagram of the rule ordinary-later-word"></p>
+<p><img src="../../../docs/diagrams/lojban/common/forms/ordinary-word.svg" alt="Railroad diagram of the rule ordinary-word"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/split-first-y.svg" alt="Railroad diagram of the rule split-first-y"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/split-later-y.svg" alt="Railroad diagram of the rule split-later-y"></p>
+<p><img src="../../../docs/diagrams/lojban/common/forms/split-y.svg" alt="Railroad diagram of the rule split-y"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/y-prefix.svg" alt="Railroad diagram of the rule y-prefix"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/y-atom.svg" alt="Railroad diagram of the rule y-atom"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/bu-form-ahead.svg" alt="Railroad diagram of the rule bu-form-ahead"></p>
-<p><img src="../../../docs/diagrams/lojban/common/forms/pause-run.svg" alt="Railroad diagram of the rule pause-run"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/bu-form.svg" alt="Railroad diagram of the rule bu-form"></p>
 </details>
 

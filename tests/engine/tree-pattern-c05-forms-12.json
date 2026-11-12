@@ -108,290 +108,201 @@
                         "children": [
                           {
                             "kind": "rule",
-                            "rule": "phoneme-sequence",
+                            "rule": "nonpause-phoneme",
                             "span": [
                               0,
-                              7
+                              1
                             ],
                             "source": [
                               0,
-                              7
+                              1
+                            ],
+                            "tags": [
+                              "Consonant"
+                            ],
+                            "children": [
+                              {
+                                "kind": "token",
+                                "terminal": "\"r\"",
+                                "token": 0,
+                                "span": [
+                                  0,
+                                  1
+                                ],
+                                "source": [
+                                  0,
+                                  1
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "rule",
+                            "rule": "nonpause-phoneme",
+                            "span": [
+                              1,
+                              2
+                            ],
+                            "source": [
+                              1,
+                              2
+                            ],
+                            "tags": [
+                              "Vowel"
+                            ],
+                            "children": [
+                              {
+                                "kind": "token",
+                                "terminal": "\"o\"",
+                                "token": 1,
+                                "span": [
+                                  1,
+                                  2
+                                ],
+                                "source": [
+                                  1,
+                                  2
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "rule",
+                            "rule": "nonpause-phoneme",
+                            "span": [
+                              2,
+                              3
+                            ],
+                            "source": [
+                              2,
+                              3
                             ],
                             "tags": [],
                             "children": [
                               {
-                                "kind": "rule",
-                                "rule": "phoneme-sequence",
+                                "kind": "token",
+                                "terminal": "\"'\"",
+                                "token": 2,
                                 "span": [
-                                  0,
-                                  6
+                                  2,
+                                  3
                                 ],
                                 "source": [
-                                  0,
-                                  6
-                                ],
-                                "tags": [],
-                                "children": [
-                                  {
-                                    "kind": "rule",
-                                    "rule": "phoneme-sequence",
-                                    "span": [
-                                      0,
-                                      5
-                                    ],
-                                    "source": [
-                                      0,
-                                      5
-                                    ],
-                                    "tags": [],
-                                    "children": [
-                                      {
-                                        "kind": "rule",
-                                        "rule": "phoneme-sequence",
-                                        "span": [
-                                          0,
-                                          4
-                                        ],
-                                        "source": [
-                                          0,
-                                          4
-                                        ],
-                                        "tags": [],
-                                        "children": [
-                                          {
-                                            "kind": "rule",
-                                            "rule": "phoneme-sequence",
-                                            "span": [
-                                              0,
-                                              3
-                                            ],
-                                            "source": [
-                                              0,
-                                              3
-                                            ],
-                                            "tags": [],
-                                            "children": [
-                                              {
-                                                "kind": "rule",
-                                                "rule": "phoneme-sequence",
-                                                "span": [
-                                                  0,
-                                                  2
-                                                ],
-                                                "source": [
-                                                  0,
-                                                  2
-                                                ],
-                                                "tags": [],
-                                                "children": [
-                                                  {
-                                                    "kind": "rule",
-                                                    "rule": "phoneme-sequence",
-                                                    "span": [
-                                                      0,
-                                                      1
-                                                    ],
-                                                    "source": [
-                                                      0,
-                                                      1
-                                                    ],
-                                                    "tags": [
-                                                      "Consonant"
-                                                    ],
-                                                    "children": [
-                                                      {
-                                                        "kind": "rule",
-                                                        "rule": "nonpause-phoneme",
-                                                        "span": [
-                                                          0,
-                                                          1
-                                                        ],
-                                                        "source": [
-                                                          0,
-                                                          1
-                                                        ],
-                                                        "tags": [
-                                                          "Consonant"
-                                                        ],
-                                                        "children": [
-                                                          {
-                                                            "kind": "token",
-                                                            "terminal": "\"r\"",
-                                                            "token": 0,
-                                                            "span": [
-                                                              0,
-                                                              1
-                                                            ],
-                                                            "source": [
-                                                              0,
-                                                              1
-                                                            ]
-                                                          }
-                                                        ]
-                                                      }
-                                                    ]
-                                                  },
-                                                  {
-                                                    "kind": "rule",
-                                                    "rule": "nonpause-phoneme",
-                                                    "span": [
-                                                      1,
-                                                      2
-                                                    ],
-                                                    "source": [
-                                                      1,
-                                                      2
-                                                    ],
-                                                    "tags": [
-                                                      "Vowel"
-                                                    ],
-                                                    "children": [
-                                                      {
-                                                        "kind": "token",
-                                                        "terminal": "\"o\"",
-                                                        "token": 1,
-                                                        "span": [
-                                                          1,
-                                                          2
-                                                        ],
-                                                        "source": [
-                                                          1,
-                                                          2
-                                                        ]
-                                                      }
-                                                    ]
-                                                  }
-                                                ]
-                                              },
-                                              {
-                                                "kind": "rule",
-                                                "rule": "nonpause-phoneme",
-                                                "span": [
-                                                  2,
-                                                  3
-                                                ],
-                                                "source": [
-                                                  2,
-                                                  3
-                                                ],
-                                                "tags": [],
-                                                "children": [
-                                                  {
-                                                    "kind": "token",
-                                                    "terminal": "\"'\"",
-                                                    "token": 2,
-                                                    "span": [
-                                                      2,
-                                                      3
-                                                    ],
-                                                    "source": [
-                                                      2,
-                                                      3
-                                                    ]
-                                                  }
-                                                ]
-                                              }
-                                            ]
-                                          },
-                                          {
-                                            "kind": "rule",
-                                            "rule": "nonpause-phoneme",
-                                            "span": [
-                                              3,
-                                              4
-                                            ],
-                                            "source": [
-                                              3,
-                                              4
-                                            ],
-                                            "tags": [
-                                              "Vowel"
-                                            ],
-                                            "children": [
-                                              {
-                                                "kind": "token",
-                                                "terminal": "\"i\"",
-                                                "token": 3,
-                                                "span": [
-                                                  3,
-                                                  4
-                                                ],
-                                                "source": [
-                                                  3,
-                                                  4
-                                                ]
-                                              }
-                                            ]
-                                          }
-                                        ]
-                                      },
-                                      {
-                                        "kind": "rule",
-                                        "rule": "nonpause-phoneme",
-                                        "span": [
-                                          4,
-                                          5
-                                        ],
-                                        "source": [
-                                          4,
-                                          5
-                                        ],
-                                        "tags": [
-                                          "Consonant"
-                                        ],
-                                        "children": [
-                                          {
-                                            "kind": "token",
-                                            "terminal": "\"r\"",
-                                            "token": 4,
-                                            "span": [
-                                              4,
-                                              5
-                                            ],
-                                            "source": [
-                                              4,
-                                              5
-                                            ]
-                                          }
-                                        ]
-                                      }
-                                    ]
-                                  },
-                                  {
-                                    "kind": "rule",
-                                    "rule": "nonpause-phoneme",
-                                    "span": [
-                                      5,
-                                      6
-                                    ],
-                                    "source": [
-                                      5,
-                                      6
-                                    ],
-                                    "tags": [
-                                      "Consonant"
-                                    ],
-                                    "children": [
-                                      {
-                                        "kind": "token",
-                                        "terminal": "\"r\"",
-                                        "token": 5,
-                                        "span": [
-                                          5,
-                                          6
-                                        ],
-                                        "source": [
-                                          5,
-                                          6
-                                        ]
-                                      }
-                                    ]
-                                  }
+                                  2,
+                                  3
                                 ]
-                              },
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "rule",
+                            "rule": "nonpause-phoneme",
+                            "span": [
+                              3,
+                              4
+                            ],
+                            "source": [
+                              3,
+                              4
+                            ],
+                            "tags": [
+                              "Vowel"
+                            ],
+                            "children": [
                               {
-                                "kind": "rule",
-                                "rule": "nonpause-phoneme",
+                                "kind": "token",
+                                "terminal": "\"i\"",
+                                "token": 3,
+                                "span": [
+                                  3,
+                                  4
+                                ],
+                                "source": [
+                                  3,
+                                  4
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "rule",
+                            "rule": "nonpause-phoneme",
+                            "span": [
+                              4,
+                              5
+                            ],
+                            "source": [
+                              4,
+                              5
+                            ],
+                            "tags": [
+                              "Consonant"
+                            ],
+                            "children": [
+                              {
+                                "kind": "token",
+                                "terminal": "\"r\"",
+                                "token": 4,
+                                "span": [
+                                  4,
+                                  5
+                                ],
+                                "source": [
+                                  4,
+                                  5
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "rule",
+                            "rule": "nonpause-phoneme",
+                            "span": [
+                              5,
+                              6
+                            ],
+                            "source": [
+                              5,
+                              6
+                            ],
+                            "tags": [
+                              "Consonant"
+                            ],
+                            "children": [
+                              {
+                                "kind": "token",
+                                "terminal": "\"r\"",
+                                "token": 5,
+                                "span": [
+                                  5,
+                                  6
+                                ],
+                                "source": [
+                                  5,
+                                  6
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "rule",
+                            "rule": "nonpause-phoneme",
+                            "span": [
+                              6,
+                              7
+                            ],
+                            "source": [
+                              6,
+                              7
+                            ],
+                            "tags": [
+                              "Vowel"
+                            ],
+                            "children": [
+                              {
+                                "kind": "token",
+                                "terminal": "\"a\"",
+                                "token": 6,
                                 "span": [
                                   6,
                                   7
@@ -399,24 +310,6 @@
                                 "source": [
                                   6,
                                   7
-                                ],
-                                "tags": [
-                                  "Vowel"
-                                ],
-                                "children": [
-                                  {
-                                    "kind": "token",
-                                    "terminal": "\"a\"",
-                                    "token": 6,
-                                    "span": [
-                                      6,
-                                      7
-                                    ],
-                                    "source": [
-                                      6,
-                                      7
-                                    ]
-                                  }
                                 ]
                               }
                             ]

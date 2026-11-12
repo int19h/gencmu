@@ -168,4 +168,4 @@ The forms stage reads a run of `y` as hesitation and never looks it up in this c
 
 ## Differences from the CLL dictionary
 
-The classifier omits the CLL dictionary's `y` entry in Y. The forms stage recognizes hesitation directly, so this omission preserves its treatment without a dictionary lookup.
+The classifier omits the CLL dictionary's `y` entry in Y. The forms stage recognizes hesitation directly, so a run of `y` stays hesitation without a dictionary lookup.

@@ -64,23 +64,23 @@ A word of LU, TO or LUhEI opens a text of its own. The hesitation after such a w
   LU ∪ TO ∪ LUhEI
 ```
 
-This document extends the rule `word-run` of [../common/forms.md](../common/forms.md) to read a run in which a form follows `ra'oi`, as in `mira'oibroda`. So `unsegmentable-run` of [../common/forms.md](../common/forms.md) never takes such a run.
+This document extends the rule `segmented-run` of [../common/forms.md](../common/forms.md) to read a run in which a form follows `ra'oi`, as in `mira'oibroda`. So `unsegmentable-run` of [../common/forms.md](../common/forms.md) never takes such a run.
 
 The redefined `run-words` keeps the join conditions of [../common/forms.md](../common/forms.md). The condition that requires a joining tag follows from the condition that lists permitted tag combinations. The separate tag test lets the parser drop a join early, as [../common/forms.md](../common/forms.md) explains.
 
 ```jbogenbau
 -- Preserve quote state across pauses and hesitation. A quoted form belongs to rahoi-rest, not an ordinary run.
 %redefine-rule runs
-  | $r:run :: $r.tags
-  | $p:runs pause-token $r:run
+  | run
+  | $p:runs pause-run $r:run
       :: $r.tags ∪
          (RAhOI ⊆ $p.tags ∧ $r.parse(only-hesitation) ⟹ RAhOI)
-  | $q:runs pause-token $s:rahoi-rest :: $s.tags
+  | $q:runs pause-run $s:rahoi-rest :: $s.tags
 %conditions
   RAhOI ⊈ $p.tags ∨ ¬$r.parse(rahoi-rest),
   RAhOI ⊆ $q.tags
 
-%extend-rule word-run
+%extend-rule segmented-run
   run-words<RAhOI> $s:rahoi-rest :: $s.tags
 
 -- Keep the inherited word joins, stress boundaries, and hesitation spacing. A pending ra'oi reserves its quoted form.
@@ -184,7 +184,7 @@ The redefined `run-words` keeps the join conditions of [../common/forms.md](../c
 
 <details><summary>Railroad diagrams of the 11 rules from <code>runs</code> to <code>rahoi-form</code></summary>
 <p><img src="../../../docs/diagrams/lojban/zantufa/morphology/runs.svg" alt="Railroad diagram of the rule runs"></p>
-<p><img src="../../../docs/diagrams/lojban/zantufa/morphology/word-run.svg" alt="Railroad diagram of the rule word-run"></p>
+<p><img src="../../../docs/diagrams/lojban/zantufa/morphology/segmented-run.svg" alt="Railroad diagram of the rule segmented-run"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/morphology/run-words.svg" alt="Railroad diagram of the rule run-words"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/morphology/rahoi-rest.svg" alt="Railroad diagram of the rule rahoi-rest"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/morphology/rahoi-tail.svg" alt="Railroad diagram of the rule rahoi-tail"></p>

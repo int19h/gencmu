@@ -119,7 +119,7 @@
                 "children": [
                   {
                     "kind": "rule",
-                    "rule": "word-run",
+                    "rule": "segmented-run",
                     "span": [
                       0,
                       6
@@ -249,7 +249,7 @@
                                             "children": [
                                               {
                                                 "kind": "rule",
-                                                "rule": "plain-cmavo-body",
+                                                "rule": "consonant-cmavo",
                                                 "span": [
                                                   0,
                                                   3
@@ -463,7 +463,7 @@
                                         "children": [
                                           {
                                             "kind": "rule",
-                                            "rule": "plain-cmavo-body",
+                                            "rule": "consonant-cmavo",
                                             "span": [
                                               3,
                                               6

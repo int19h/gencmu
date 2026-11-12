@@ -1,5 +1,5 @@
 {
-  "description": "Bare replacement markers keep their erasure, compound, and quoted-word behavior.",
+  "description": "Bare replacement markers keep their erasure, compound, and word-quote behavior.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```"
   },

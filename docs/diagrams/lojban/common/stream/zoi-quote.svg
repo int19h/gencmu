@@ -26,10 +26,10 @@
 <g class="rule"><rect x="261" y="88" width="92" height="24" rx="0"/><text x="307" y="105" textLength="75.6" lengthAdjust="spacingAndGlyphs">raw-close</text></g>
 <path d="M353 100h10"/>
 <path d="M363 100h20"/>
-<g class="rule"><rect x="383" y="88" width="134" height="24" rx="0"/><text x="450" y="105" textLength="117.6" lengthAdjust="spacingAndGlyphs">quote-end-mark</text></g>
-<path d="M517 100H537"/>
-<path d="M363 100a10 10 0 0 0 10 -10V88a10 10 0 0 1 10 -10H517a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
-<path d="M537 100H758"/>
+<g class="rule"><rect x="383" y="88" width="176" height="24" rx="0"/><text x="471" y="105" textLength="159.6" lengthAdjust="spacingAndGlyphs">word-end-attachment</text></g>
+<path d="M559 100H579"/>
+<path d="M363 100a10 10 0 0 0 10 -10V88a10 10 0 0 1 10 -10H559a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<path d="M579 100H758"/>
 <path d="M758 100H778"/>
 <path d="M20 46a10 10 0 0 1 10 10V124a10 10 0 0 0 10 10"/>
 <path d="M40 134h20"/>
@@ -51,10 +51,10 @@
 <g class="rule"><rect x="261" y="176" width="92" height="24" rx="0"/><text x="307" y="193" textLength="75.6" lengthAdjust="spacingAndGlyphs">raw-close</text></g>
 <path d="M353 188h10"/>
 <path d="M363 188h20"/>
-<g class="rule"><rect x="383" y="176" width="134" height="24" rx="0"/><text x="450" y="193" textLength="117.6" lengthAdjust="spacingAndGlyphs">quote-end-mark</text></g>
-<path d="M517 188H537"/>
-<path d="M363 188a10 10 0 0 0 10 -10V176a10 10 0 0 1 10 -10H517a10 10 0 0 1 10 10V178a10 10 0 0 0 10 10"/>
-<path d="M537 188H740"/>
+<g class="rule"><rect x="383" y="176" width="176" height="24" rx="0"/><text x="471" y="193" textLength="159.6" lengthAdjust="spacingAndGlyphs">word-end-attachment</text></g>
+<path d="M559 188H579"/>
+<path d="M363 188a10 10 0 0 0 10 -10V176a10 10 0 0 1 10 -10H559a10 10 0 0 1 10 10V178a10 10 0 0 0 10 10"/>
+<path d="M579 188H740"/>
 <path d="M740 188H758a10 10 0 0 0 10 -10V110a10 10 0 0 1 10 -10"/>
 <path d="M778 100h6m0 -8v16m4 -16v16"/>
 </svg>

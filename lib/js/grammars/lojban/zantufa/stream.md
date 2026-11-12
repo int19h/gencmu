@@ -44,15 +44,11 @@ For quote markers, this layer only adds classes to the shared class sets. The sh
   $
 
 %rule rafsi-quote-target
-  $f:Rafsi-Form [quote-end-mark] :: $f.tags :- $.verbatim-text
+  $f:Rafsi-Form [word-end-attachment] :: $f.tags :- $.verbatim-text
 %conditions
-  ¬$.following-tokens.parse(quote-end-mark …)
+  ¬$.following-tokens.parse(word-end-attachment …)
 
-%rule rahoi-marker
-  $q:read-word [quote-marker-end] :: Word Cmavo ∪ $q.classes
-%conditions
-  RAhOI ⊆ $q.classes,
-  ¬$.following-tokens.parse(quote-marker-end …)
+%rule rahoi-marker = quote-marker(RAhOI)
 ```
 
 <details><summary>Railroad diagrams of the 4 rules from <code>quote</code> to <code>rahoi-marker</code></summary>
@@ -113,6 +109,8 @@ A magic word is never a plain word. `$MAGIC-WORDS` includes the extended marker 
 
 A word of LU, TO or LUhEI, the classes of `$TEXT-OPENERS`, that this stage reads as an unquoted word opens a text of its own. The forms stage gives the tag `Opener-Space` to the hesitation after such a word. A tag marks a token by an identifier. So that hesitation is space, and the word takes it with it. Inside a quote, such a hesitation is an attached Y word, as in `zo luyy si`, which erases the `yy` and keeps `zo lu`.
 
+The `word-base` hook reads the opener with its spacing or an ordinary word. The shared `word` rule applies its magic-word and quote exclusions.
+
 ```jbogenbau
 %redefine-const $MAGIC-WORDS
   $MAGIC-WORDS ∪ RAhOI ∪ LOhAI ∪ LEhAI
@@ -120,19 +118,15 @@ A word of LU, TO or LUhEI, the classes of `$TEXT-OPENERS`, that this stage reads
 %const $TEXT-OPENERS
   LU ∪ TO ∪ LUhEI
 
-%redefine-rule word
-  | $c:read-word :: $c.tags
+%redefine-rule word-base
+  | $c:read-word
   | $o:text-opener $p:opener-spaces :: $o.tags
 %conditions
   ¬$p.following-tokens.parse(opener-space-token …),
-  $c.classes ∩ $TEXT-OPENERS = ∅ ∨ ¬$c.following-tokens.parse(opener-space-token …),
-  $c.classes ∩ $MAGIC-WORDS = ∅,
-  ¬$c.onward.parse(quote …)
-%emits
-  $
+  $c.classes ∩ $TEXT-OPENERS = ∅ ∨ ¬$c.following-tokens.parse(opener-space-token …)
 
 %rule text-opener
-  $q:cmavo-token :: $q.tags
+  $q:cmavo-token
 %conditions
   $q.classes ∩ $TEXT-OPENERS ≠ ∅
 %emits
@@ -150,8 +144,8 @@ A word of LU, TO or LUhEI, the classes of `$TEXT-OPENERS`, that this stage reads
   ¬$h.onward.parse(y-bu-word …)
 ```
 
-<details><summary>Railroad diagrams of the 4 rules from <code>word</code> to <code>opener-space-token</code></summary>
-<p><img src="../../../docs/diagrams/lojban/zantufa/stream/word.svg" alt="Railroad diagram of the rule word"></p>
+<details><summary>Railroad diagrams of the 4 rules from <code>word-base</code> to <code>opener-space-token</code></summary>
+<p><img src="../../../docs/diagrams/lojban/zantufa/stream/word-base.svg" alt="Railroad diagram of the rule word-base"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/stream/text-opener.svg" alt="Railroad diagram of the rule text-opener"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/stream/opener-spaces.svg" alt="Railroad diagram of the rule opener-spaces"></p>
 <p><img src="../../../docs/diagrams/lojban/zantufa/stream/opener-space-token.svg" alt="Railroad diagram of the rule opener-space-token"></p>
@@ -180,7 +174,7 @@ A quote word that opens no quote is an ordinary word in Zantufa, which `si` eras
 
 ```jbogenbau
 %extend-rule unit
-  $b:bare-marker :: $b.tags
+  $b:bare-marker
 %conditions
   ¬$b.onward.parse(quote …),
   $b.following-tokens.parse((skipped si-word | skipped cmavo-token<BU>) …)
@@ -234,4 +228,4 @@ The rafsi quote refuses standalone material in its gap, as the shared one-word q
 
 The word `zei` acts as SI but retains the shared spelling-based punctuation restriction. Other SI words retain their ordinary spacing.
 
-The shared list lacks RAhOI, which only Zantufa uses. It also lacks GOhOI and MUhOI, which both `lojban/zantufa` and `lojban/experimental` use. It also omits LOhAI and LEhAI because the experimental pipeline permits their bare markers as plain words. Zantufa does not read a bare LOhAI or LEhAI as a plain word. Its SI/BU fallback applies only to `bare-marker`. Its own `word` rule replaces the shared one, so the shared Fault test for a bare LOhAI, and with it `lohai-constructor-tail`, never applies.
+The shared list lacks RAhOI, which only Zantufa uses. It also lacks GOhOI and MUhOI, which both `lojban/zantufa` and `lojban/experimental` use. It also omits LOhAI and LEhAI because the experimental pipeline permits their bare markers as plain words. Zantufa does not read a bare LOhAI or LEhAI as a plain word. Its SI/BU fallback applies only to `bare-marker`. Its own `word-base` hook replaces the one in [../common/lohai.md](../common/lohai.md), so the shared Fault test for a bare LOhAI, and with it `lohai-constructor-tail`, never applies.

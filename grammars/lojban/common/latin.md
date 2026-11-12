@@ -29,18 +29,20 @@ Quotes read `Quote-Material` as body text. Thus `zoi gy. !!! .gy.` keeps `!!!`. 
 
 A format character, of Unicode category Cf, is nothing, as a comma is. It is invisible, so a soft hyphen or a joiner inside a word does not split it. There are two exceptions, which are pauses. The zero-width space U+200B stands between words. The number signs of Arabic, Syriac and Kaithi are visible, as other punctuation is. Their code points are those of the Unicode property Prepended_Concatenation_Mark.
 
-The rule lists these code points instead of naming the property. Thus the pipelines need only the core properties, and they also work with a custom Unicode table.
+The rule `breaking-format-char` lists these code points instead of naming the property. Thus the pipelines need only the core properties, and they also work with a custom Unicode table.
 
-An ignored character at a pause edge is a comma or a non-breaking format character. Beside a word, an ignored-only edge stays uncovered. A quoted word can therefore keep that edge through its verbatim image. Between quiet cores, or after the final quiet core, a material token keeps an ignored-only stretch.
+The `format-char` rule keeps non-breaking format characters separate from the written comma in the tree. The foreign-run reader tests `commas` at each edge, including a single format character.
+
+An ignored character at a pause edge is a comma or a non-breaking format character. Beside a word, an ignored-only edge stays uncovered. A quoted word can therefore keep that edge through its verbatim image. Between quiet cores, or after a quiet core at the end of the text, a material token keeps an ignored-only stretch.
 
 ```jbogenbau
 %redefine-rule pause
-  spaced-pause | punctuation-pause
+  quiet-pause | punctuation-pause
 
-%redefine-rule edge-pause
+%redefine-rule text-edge
   pause | commas
 
-%redefine-rule spaced-pause
+%redefine-rule quiet-pause
   [left-pause-edge] pause-cores [right-pause-edge]
 
 %rule pause-cores
@@ -115,9 +117,9 @@ An ignored character at a pause edge is a comma or a non-breaking format charact
   ¬$c.parse(non-punctuation-char)
 
 %rule non-punctuation-char
-  alpha-char | mark-char | digit-char | space-char
+  letter-char | mark-char | digit-char | space-char
 
-%rule alpha-char
+%rule letter-char
   _General_Category_Letter
 
 %rule mark-char
@@ -129,7 +131,17 @@ An ignored character at a pause edge is a comma or a non-breaking format charact
 %rule digit-char
   "0".."9"
 
-%extend-rule comma
+%extend-rule commas
+  | format-char
+  | commas format-char
+
+%extend-rule edge-char
+  format-char
+
+%extend-rule any-lojban-char
+  format-char
+
+%rule format-char
   $c:_General_Category_Format
 %conditions
   ¬$c.parse(breaking-format-char)
@@ -150,10 +162,10 @@ An ignored character at a pause edge is a comma or a non-breaking format charact
   ¬$c.parse(core-char | punctuation-char)
 ```
 
-<details><summary>Railroad diagrams of the 25 rules from <code>pause</code> to <code>run-char</code></summary>
+<details><summary>Railroad diagrams of the 27 rules from <code>pause</code> to <code>run-char</code></summary>
 <p><img src="../../../docs/diagrams/lojban/common/latin/pause.svg" alt="Railroad diagram of the rule pause"></p>
-<p><img src="../../../docs/diagrams/lojban/common/latin/edge-pause.svg" alt="Railroad diagram of the rule edge-pause"></p>
-<p><img src="../../../docs/diagrams/lojban/common/latin/spaced-pause.svg" alt="Railroad diagram of the rule spaced-pause"></p>
+<p><img src="../../../docs/diagrams/lojban/common/latin/text-edge.svg" alt="Railroad diagram of the rule text-edge"></p>
+<p><img src="../../../docs/diagrams/lojban/common/latin/quiet-pause.svg" alt="Railroad diagram of the rule quiet-pause"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/pause-cores.svg" alt="Railroad diagram of the rule pause-cores"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/left-pause-edge.svg" alt="Railroad diagram of the rule left-pause-edge"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/right-pause-edge.svg" alt="Railroad diagram of the rule right-pause-edge"></p>
@@ -169,11 +181,14 @@ An ignored character at a pause edge is a comma or a non-breaking format charact
 <p><img src="../../../docs/diagrams/lojban/common/latin/punctuation-char.svg" alt="Railroad diagram of the rule punctuation-char"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/other-char.svg" alt="Railroad diagram of the rule other-char"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/non-punctuation-char.svg" alt="Railroad diagram of the rule non-punctuation-char"></p>
-<p><img src="../../../docs/diagrams/lojban/common/latin/alpha-char.svg" alt="Railroad diagram of the rule alpha-char"></p>
+<p><img src="../../../docs/diagrams/lojban/common/latin/letter-char.svg" alt="Railroad diagram of the rule letter-char"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/mark-char.svg" alt="Railroad diagram of the rule mark-char"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/combining-mark.svg" alt="Railroad diagram of the rule combining-mark"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/digit-char.svg" alt="Railroad diagram of the rule digit-char"></p>
-<p><img src="../../../docs/diagrams/lojban/common/latin/comma.svg" alt="Railroad diagram of the rule comma"></p>
+<p><img src="../../../docs/diagrams/lojban/common/latin/commas.svg" alt="Railroad diagram of the rule commas"></p>
+<p><img src="../../../docs/diagrams/lojban/common/latin/edge-char.2.svg" alt="Railroad diagram of the rule edge-char"></p>
+<p><img src="../../../docs/diagrams/lojban/common/latin/any-lojban-char.svg" alt="Railroad diagram of the rule any-lojban-char"></p>
+<p><img src="../../../docs/diagrams/lojban/common/latin/format-char.svg" alt="Railroad diagram of the rule format-char"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/breaking-format-char.svg" alt="Railroad diagram of the rule breaking-format-char"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/run-char.svg" alt="Railroad diagram of the rule run-char"></p>
 </details>
@@ -222,9 +237,9 @@ A run in which every vowel is a capital carries no stress mark, and the stage re
 
 An accent on a capital still marks stress there, and the other capitals fold. So `KLÁMA` is `klAma`. An accent is written on purpose, while a title in capitals marks no stress. A capital glide, `Ĭ` or `Ŭ`, folds to its plain vowel, as the capital Cyrillic glides do.
 
-`capital-shape` is that shape: its consonants and digits and its capital vowels, written out so that two groups are required. Consonants stand between every two groups, so the rules never split adjacent vowels into separate groups. `capital-consonants` reads a decimal point between two digits, as `non-vowels` does in an ordinary run (see "Digits"). So `MI2.3KLAMA` is a capital run. `capital-consonants` does not reuse `non-vowels`, because other scripts extend `non-vowel` with forms that hold a vowel. Forms such as the zbalermorna shorthand keep a run from folding.
+`capital-shape` is that shape: its non-vowels and its capital vowels, written out so that two groups are required. Non-vowels stand between every two groups, so the rules never split adjacent vowels into separate groups. `capital-non-vowels` reads a decimal point between two digits, as `non-vowels` does in an ordinary run (see "Digits"). So `MI2.3KLAMA` is a capital run. `capital-non-vowels` does not reuse `non-vowels`, because other scripts extend `non-vowel` with forms that hold a vowel. Forms such as the zbalermorna shorthand keep a run from folding.
 
-`capital-run` reads that shape with every vowel folded. An ordinary run is any other run of letters, which the condition states by exclusion. In an ordinary run, a capital vowel marks stress. No capital run matches `chars-with-non-lojban-char` in the bundled grammars, so `non-lojban-char-run` needs no separate test for it.
+`capital-run` reads that shape with every vowel folded. An ordinary run is any other run of letters, which the condition states by exclusion. In an ordinary run, a capital vowel marks stress. Every capital run matches `letters`, so the `letters` exclusion in `non-lojban-char-run` also excludes capital runs.
 
 The `Vowel` tag marks the five full vowels `a`, `e`, `i`, `o` and `u`, and it does not mark `y`. So `folded-full-vowel` holds the full vowels and carries `Vowel` on its header, and `folded-vowel` adds the two `y` forms. `folded-vowel` writes `$v:folded-full-vowel :: $v.tags`, because its `:: ∅` header stops the inner rule from passing its tags on.
 
@@ -241,20 +256,20 @@ The `Vowel` tag marks the five full vowels `a`, `e`, `i`, `o` and `u`, and it do
   capital-shape
 
 %rule capital-shape
-  [capital-consonants [commas]] capital-groups [[commas] capital-consonants]
+  [capital-non-vowels [commas]] capital-groups [[commas] capital-non-vowels]
 
 %rule capital-groups
-  | folded-vowel-group capital-gap folded-vowel-group
-  | capital-groups capital-gap folded-vowel-group
+  | folded-vowel-group capital-separator folded-vowel-group
+  | capital-groups capital-separator folded-vowel-group
 
-%rule capital-gap
-  [commas] capital-consonants [commas]
+%rule capital-separator
+  [commas] capital-non-vowels [commas]
 
-%rule capital-consonants
+%rule capital-non-vowels
   | capital-non-vowel
-  | capital-consonants capital-non-vowel
-  | capital-consonants commas capital-non-vowel
-  | $c:capital-consonants decimal-point digit
+  | capital-non-vowels capital-non-vowel
+  | capital-non-vowels commas capital-non-vowel
+  | $c:capital-non-vowels decimal-point digit
 %conditions
   $c.last-token.parse(digit)
 
@@ -292,8 +307,8 @@ The `Vowel` tag marks the five full vowels `a`, `e`, `i`, `o` and `u`, and it do
 <p><img src="../../../docs/diagrams/lojban/common/latin/capital-run.svg" alt="Railroad diagram of the rule capital-run"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/capital-shape.svg" alt="Railroad diagram of the rule capital-shape"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/capital-groups.svg" alt="Railroad diagram of the rule capital-groups"></p>
-<p><img src="../../../docs/diagrams/lojban/common/latin/capital-gap.svg" alt="Railroad diagram of the rule capital-gap"></p>
-<p><img src="../../../docs/diagrams/lojban/common/latin/capital-consonants.svg" alt="Railroad diagram of the rule capital-consonants"></p>
+<p><img src="../../../docs/diagrams/lojban/common/latin/capital-separator.svg" alt="Railroad diagram of the rule capital-separator"></p>
+<p><img src="../../../docs/diagrams/lojban/common/latin/capital-non-vowels.svg" alt="Railroad diagram of the rule capital-non-vowels"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/capital-non-vowel.svg" alt="Railroad diagram of the rule capital-non-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/folded-vowel-group.svg" alt="Railroad diagram of the rule folded-vowel-group"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/folded-vowel-group-plain.svg" alt="Railroad diagram of the rule folded-vowel-group-plain"></p>
@@ -305,11 +320,11 @@ The `Vowel` tag marks the five full vowels `a`, `e`, `i`, `o` and `u`, and it do
 
 ## Accents and breves
 
-A vowel with an acute or a grave accent is the stressed phoneme, as a capital vowel is. A breve on `i` or `u` marks a glide in some texts. The word grammar finds a glide by its position, so the stage emits the letter plain. Stage zero gives a precomposed letter as its base and its marks.
+A vowel with an acute or a grave accent is the stressed phoneme, as a capital vowel is. A breve on `i`, `u`, `I` or `U` marks a glide in some texts. The word grammar finds a glide by its position, so the stage emits the letter plain. Stage zero gives a precomposed letter as its base and its marks.
 
 A combining mark that no letter rule takes makes its run foreign, whatever its category. So in `lojban/bpfk` and `lojban/zantufa`, `mï` and `mi` followed by U+093E are foreign. The experimental layer reads both marks ([../experimental/latin.md](../experimental/latin.md)).
 
-The `Vowel` tag marks the five full vowels and not `y`, so `stressed-full-vowel` holds the stressed full vowels and carries `Vowel` on its header. The stressed `y` form stays in `stressed-vowel`.
+The `Vowel` tag marks the five full vowels and not `y`, so `accented-full-vowel` holds the stressed full vowels and carries `Vowel` on its header. The stressed `y` form stays in `stressed-vowel`.
 
 ```jbogenbau
 %extend-rule plain-vowel :: Vowel
@@ -318,7 +333,7 @@ The `Vowel` tag marks the five full vowels and not `y`, so `stressed-full-vowel`
 %emits
   $
 
-%rule stressed-full-vowel :: Vowel
+%rule accented-full-vowel :: Vowel
   | ("a" | "A") stress-mark := "a" :- "A"
   | ("e" | "E") stress-mark := "e" :- "E"
   | ("i" | "I") stress-mark := "i" :- "I"
@@ -326,7 +341,7 @@ The `Vowel` tag marks the five full vowels and not `y`, so `stressed-full-vowel`
   | ("u" | "U") stress-mark := "u" :- "U"
 
 %extend-rule stressed-vowel :: Stressed
-  | stressed-full-vowel :: Vowel
+  | accented-full-vowel :: Vowel
   | ("y" | "Y") stress-mark := "y" :- "Y"
 %emits
   $
@@ -340,7 +355,7 @@ The `Vowel` tag marks the five full vowels and not `y`, so `stressed-full-vowel`
 
 <details><summary>Railroad diagrams of the 5 rules from <code>plain-vowel</code> to <code>glide-mark</code></summary>
 <p><img src="../../../docs/diagrams/lojban/common/latin/plain-vowel.svg" alt="Railroad diagram of the rule plain-vowel"></p>
-<p><img src="../../../docs/diagrams/lojban/common/latin/stressed-full-vowel.svg" alt="Railroad diagram of the rule stressed-full-vowel"></p>
+<p><img src="../../../docs/diagrams/lojban/common/latin/accented-full-vowel.svg" alt="Railroad diagram of the rule accented-full-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/stressed-vowel.svg" alt="Railroad diagram of the rule stressed-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/stress-mark.svg" alt="Railroad diagram of the rule stress-mark"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/glide-mark.svg" alt="Railroad diagram of the rule glide-mark"></p>
@@ -377,16 +392,14 @@ A period between two digits is the decimal point in a foreign run too, so it bel
   digit
 
 %extend-rule lojban-chars
-  $c:lojban-chars "." $d:lojban-char
+  $c:lojban-chars "." digit-char
 %conditions
-  $c.last-token.parse(digit-char),
-  $d.parse(digit-char)
+  $c.last-token.parse(digit-char)
 
 %extend-rule chars-with-non-lojban-char
-  $c:chars-with-non-lojban-char "." $d:run-char
+  $c:chars-with-non-lojban-char "." digit-char
 %conditions
-  $c.last-token.parse(digit-char),
-  $d.parse(digit-char)
+  $c.last-token.parse(digit-char)
 
 %rule digit
   digit-0 | digit-1 | digit-2 | digit-3 | digit-4 | digit-5 | digit-6 | digit-7 | digit-8 | digit-9
@@ -423,7 +436,7 @@ A period between two digits is the decimal point in a foreign run too, so it bel
 <p><img src="../../../docs/diagrams/lojban/common/latin/items.svg" alt="Railroad diagram of the rule items"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/non-vowel.svg" alt="Railroad diagram of the rule non-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/non-vowels.svg" alt="Railroad diagram of the rule non-vowels"></p>
-<p><img src="../../../docs/diagrams/lojban/common/latin/any-lojban-char.svg" alt="Railroad diagram of the rule any-lojban-char"></p>
+<p><img src="../../../docs/diagrams/lojban/common/latin/any-lojban-char.2.svg" alt="Railroad diagram of the rule any-lojban-char"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/lojban-chars.svg" alt="Railroad diagram of the rule lojban-chars"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/chars-with-non-lojban-char.svg" alt="Railroad diagram of the rule chars-with-non-lojban-char"></p>
 <p><img src="../../../docs/diagrams/lojban/common/latin/digit.svg" alt="Railroad diagram of the rule digit"></p>

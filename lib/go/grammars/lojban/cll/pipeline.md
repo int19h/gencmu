@@ -68,7 +68,7 @@ The word forms divide each run in one way only, so the stage's `lazy` step decid
 
 The stage receives the phoneme values, images and tags. A run is a stretch with no internal pause. The stage hands on the source words of each run. It gives each word a tag for its class and, for a cmavo, a tag for its selma'o.
 
-If a run divides into no words, the stage hands the run on as one foreign token. The word forms divide a run into words in at most one way, so the choice among parses never decides where a word ends.
+If a run divides into no words, the stage hands the run on as one foreign token.
 
 ## Stage 3: words
 
@@ -80,7 +80,7 @@ If a run divides into no words, the stage hands the run on as one foreign token.
   ```jbogenbau
   %include "../common/stream.md"
   ```
-- [The CLL word stream](stream.md): the warning for a cmavo that uses `y` as a vowel
+- [The CLL word stream](stream.md): the warning for a cmavo with `y` as a vowel, and the name-pause rule before `bu`
   ```jbogenbau
   %include "stream.md"
   ```
