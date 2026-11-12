@@ -485,7 +485,7 @@
                                                     "children": [
                                                       {
                                                         "kind": "rule",
-                                                        "rule": "initial-cluster",
+                                                        "rule": "initial-consonants",
                                                         "span": [
                                                           2,
                                                           3

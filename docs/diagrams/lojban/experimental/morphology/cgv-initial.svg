@@ -4,6 +4,6 @@
 <text class="title" x="10" y="24" textLength="92.4" lengthAdjust="spacingAndGlyphs">cgv-initial</text>
 <text class="label" x="122.4" y="24" textLength="115.2" lengthAdjust="spacingAndGlyphs">conditions apply</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
-<g class="rule"><rect x="20" y="34" width="142" height="24" rx="0"/><text x="91" y="51" textLength="126" lengthAdjust="spacingAndGlyphs">initial-cluster</text></g>
-<path d="M162 46h6m0 -8v16m4 -16v16"/>
+<g class="rule"><rect x="20" y="34" width="168" height="24" rx="0"/><text x="104" y="51" textLength="151.2" lengthAdjust="spacingAndGlyphs">initial-consonants</text></g>
+<path d="M188 46h6m0 -8v16m4 -16v16"/>
 </svg>

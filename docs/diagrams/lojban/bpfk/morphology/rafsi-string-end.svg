@@ -28,7 +28,7 @@
 <g class="rule"><rect x="410" y="180" width="25" height="24" rx="0"/><text x="422.5" y="197" textLength="8.4" lengthAdjust="spacingAndGlyphs">y</text></g>
 <path d="M435 192H435a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V216a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="214" width="361" height="24" rx="12"/><text x="220.5" y="231" textLength="344.4" lengthAdjust="spacingAndGlyphs">hy-rafsi-of(vowel, diphthong, vowel, [h])</text></g>
-<path d="M401 226H435a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="terminal"><rect x="40" y="214" width="302" height="24" rx="12"/><text x="191" y="231" textLength="285.6" lengthAdjust="spacingAndGlyphs">hy-rafsi-of(vowel, diphthong, [h])</text></g>
+<path d="M342 226H435a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M455 46h6m0 -8v16m4 -16v16"/>
 </svg>
