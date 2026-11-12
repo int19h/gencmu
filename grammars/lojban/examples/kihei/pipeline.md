@@ -23,7 +23,7 @@ The inherited CLL stages already accept the word form of `ki'ei`. The classifier
   "ki'ei" ∈ KIhEI
 ```
 
-The syntax stage reads the new class as the terminal `KIhEI`. The word and indicator stages preserve this class on an ordinary `ki'ei` token.
+The syntax stage reads the new class as the terminal `KIhEI`. The word and indicator stages preserve this class on an ordinary `ki'ei` token. No further declaration has to mark `ki'ei` or restrict its class.
 
 The replacement paragraph rule accepts an initial sequence of utterances and subsequent groups with frames. It also accepts groups with frames at the start of a paragraph. Each group contains its frame and any subsequent `.i` sequence.
 

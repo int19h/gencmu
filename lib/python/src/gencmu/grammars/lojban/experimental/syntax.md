@@ -258,7 +258,9 @@ The afterthought connective between bridi-tails can be a gihek, joik, jek, ek or
 
 A structural pattern tests a node and its children. Connected bridi-tails group from the left, and `bridi-tail-1` uses left recursion.[^cll-s14-10] At a final plain connection, a whole-tail pattern tests whether the connective can own the same KE group. A continuing selbri or a head keeps the plain reading. A written inner VAU after written KEhE with nonempty shared tail terms also keeps it.
 
-A final connection is last at its grammar level. The layer reuses `bridi-tail-1-final` for the final plain connection. Its pattern excludes a complete KE-unit tail or KE-wrapped forethought sentence when the connective can own that group. An earlier plain connection remains available before a following connection. A head or BO continuation stops the whole-wrapper pattern.
+A final connection is last at its grammar level. The condition on `bridi-tail-with` tests its captured `bridi-tail-1-with`. Its pattern excludes a complete KE-unit tail or KE-wrapped forethought sentence when the connective can own that group. An earlier plain connection remains available before a following connection. A head or BO continuation stops the whole-wrapper pattern.
+
+The connection patterns must match the recursive alternative of `bridi-tail-1-with`. The outer-tail test excludes only a tail whose sole child is an elided VAU.
 
 The KU conditions apply in heads, tails, prenexes, fragments, and NUhI termsets. A bare NA or tag can omit KU before a written closing word, a gihek, or the text's end. A reset with IhAU also closes the place. A bare NA can also omit KU before any actual term. The "Terms" section gives the complete KU rule. A written CU separates runs of terms within a head.
 
@@ -316,23 +318,19 @@ An open tail can take terms after a reset. A closed tail can take only resets an
   [bridi-tail-head] bridi-tail-2-with(@T, @G, @P, @H)
 
 %rule bridi-tail-with(@T, @G, @P, @H)
-  | bridi-tail-1-final-with(@T, @G, @P, @H)
+  | $w:bridi-tail-1-with(@T, @G, @P, @H)
   | bridi-tail-1-with(@P, @H, @P, @H)
     (bridi-tail-connective [stag] | gi-stag-connective) KE 🆓
     headed-bridi-tail-with(tail-terms, gek-sentence, tail-terms, gek-sentence)
     [+KEhE] 🆓 @T
+%conditions
+  $w ≇ #⁅ bridi-tail-1-with bridi-tail-connective $CONNECTED-KE-TAIL @T ⁆ ∨
+    $w ≅ #⁅ bridi-tail-1-with bridi-tail-connective $CONNECTED-KE-WITH-VAU (@T ∖ ⁅ VAU<_Elided> ⁆) ⁆
 
 %rule bridi-tail-1-with(@T, @G, @P, @H)
   | bridi-tail-2-with(@T, @G, @P, @H)
   | bridi-tail-1-with(@P, @H, @P, @H) bridi-tail-connective
     connected-bridi-tail-with(tail-terms, gek-sentence, @P, @H) @T
-
-%rule bridi-tail-1-final-with(@T, @G, @P, @H)
-  | bridi-tail-2-with(@T, @G, @P, @H)
-  | bridi-tail-1-with(@P, @H, @P, @H) bridi-tail-connective
-    $b:connected-bridi-tail-with(tail-terms, gek-sentence, @P, @H) $t:@T
-%conditions
-  $b ≇ $CONNECTED-KE-TAIL ∨ ($b ≅ $CONNECTED-KE-WITH-VAU ∧ $t.source-text ≠ "")
 
 %rule connected-bridi-tail-with(@T, @G, @P, @H)
   [bridi-tail-head] bridi-tail-2-with(@T, @G, @P, @H)
@@ -350,8 +348,6 @@ An open tail can take terms after a reset. A closed tail can take only resets an
                                                      tail-terms, gek-sentence)
 %redefine-rule bridi-tail = bridi-tail-with(tail-terms, gek-sentence, tail-terms, gek-sentence)
 %redefine-rule bridi-tail-1 = bridi-tail-1-with(tail-terms, gek-sentence, tail-terms, gek-sentence)
-%redefine-rule bridi-tail-1-final = bridi-tail-1-final-with(tail-terms, gek-sentence,
-                                                            tail-terms, gek-sentence)
 %rule connected-bridi-tail = connected-bridi-tail-with(tail-terms, gek-sentence,
                                                        tail-terms, gek-sentence)
 %redefine-rule bridi-tail-2 = bridi-tail-2-with(tail-terms, gek-sentence, tail-terms, gek-sentence)
@@ -360,7 +356,6 @@ An open tail can take terms after a reset. A closed tail can take only resets an
 %rule main-headed-bridi-tail = headed-bridi-tail-with(main-tail, main-gek, main-tail, main-gek)
 %rule main-bridi-tail = bridi-tail-with(main-tail, main-gek, main-tail, main-gek)
 %rule main-bridi-tail-1 = bridi-tail-1-with(main-tail, main-gek, main-tail, main-gek)
-%rule main-bridi-tail-1-final = bridi-tail-1-final-with(main-tail, main-gek, main-tail, main-gek)
 %rule main-bridi-tail-2 = bridi-tail-2-with(main-tail, main-gek, main-tail, main-gek)
 %rule main-bridi-tail-3 = bridi-tail-3-with(main-tail, main-gek)
 %rule connected-main-bridi-tail = connected-bridi-tail-with(tail-terms, gek-sentence,
@@ -437,7 +432,7 @@ An open tail can take terms after a reset. A closed tail can take only resets an
 
 ```
 
-<details><summary>Railroad diagrams of the 43 rules from <code>top-sentence-link</code> to <code>bridi-tail-connective</code></summary>
+<details><summary>Railroad diagrams of the 40 rules from <code>top-sentence-link</code> to <code>bridi-tail-connective</code></summary>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/top-sentence-link.svg" alt="Railroad diagram of the rule top-sentence-link"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/top-subsentence.svg" alt="Railroad diagram of the rule top-subsentence"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/sentence.svg" alt="Railroad diagram of the rule sentence"></p>
@@ -447,7 +442,6 @@ An open tail can take terms after a reset. A closed tail can take only resets an
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/headed-bridi-tail-2-with.svg" alt="Railroad diagram of the rule headed-bridi-tail-2-with"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/bridi-tail-with.svg" alt="Railroad diagram of the rule bridi-tail-with"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/bridi-tail-1-with.svg" alt="Railroad diagram of the rule bridi-tail-1-with"></p>
-<p><img src="../../../docs/diagrams/lojban/experimental/syntax/bridi-tail-1-final-with.svg" alt="Railroad diagram of the rule bridi-tail-1-final-with"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/connected-bridi-tail-with.svg" alt="Railroad diagram of the rule connected-bridi-tail-with"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/bridi-tail-2-with.svg" alt="Railroad diagram of the rule bridi-tail-2-with"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/bridi-tail-3-with.svg" alt="Railroad diagram of the rule bridi-tail-3-with"></p>
@@ -455,14 +449,12 @@ An open tail can take terms after a reset. A closed tail can take only resets an
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/headed-bridi-tail-2.svg" alt="Railroad diagram of the rule headed-bridi-tail-2"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/bridi-tail.svg" alt="Railroad diagram of the rule bridi-tail"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/bridi-tail-1.svg" alt="Railroad diagram of the rule bridi-tail-1"></p>
-<p><img src="../../../docs/diagrams/lojban/experimental/syntax/bridi-tail-1-final.svg" alt="Railroad diagram of the rule bridi-tail-1-final"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/connected-bridi-tail.svg" alt="Railroad diagram of the rule connected-bridi-tail"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/bridi-tail-2.svg" alt="Railroad diagram of the rule bridi-tail-2"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/bridi-tail-3.svg" alt="Railroad diagram of the rule bridi-tail-3"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/main-headed-bridi-tail.svg" alt="Railroad diagram of the rule main-headed-bridi-tail"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/main-bridi-tail.svg" alt="Railroad diagram of the rule main-bridi-tail"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/main-bridi-tail-1.svg" alt="Railroad diagram of the rule main-bridi-tail-1"></p>
-<p><img src="../../../docs/diagrams/lojban/experimental/syntax/main-bridi-tail-1-final.svg" alt="Railroad diagram of the rule main-bridi-tail-1-final"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/main-bridi-tail-2.svg" alt="Railroad diagram of the rule main-bridi-tail-2"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/main-bridi-tail-3.svg" alt="Railroad diagram of the rule main-bridi-tail-3"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/connected-main-bridi-tail.svg" alt="Railroad diagram of the rule connected-main-bridi-tail"></p>
