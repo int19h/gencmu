@@ -8,7 +8,7 @@ So `ё` reads as `е` and `ї` as `і`, because a dieresis means nothing here. T
 
 The Cyrillic glides carry no `Glide` tag, and the word forms find them by position, as they do in `lojban/bpfk`. These letters belong to the base Cyrillic orthographies. This layer adds marks without changing their positional readings.
 
-Latin `ɩ`, `q` and `w` are dedicated glide letters. This pipeline reads inherited Latin `ĭ` and `ŭ` only as glides, while the base conventions read them by position ([word forms](morphology.md#glide-letters)).
+Latin `ɩ`, `q` and `w` are dedicated glide letters. Outside zbalermorna shorthand, this pipeline reads inherited Latin `ĭ` and `ŭ` only as glides, while the base conventions read them by position ([word forms](morphology.md#glide-letters)).
 
 `cyrillic-vowel` reads every Cyrillic vowel letter with its marks. Its tags work as those of `latin-vowel`. A capital full vowel without an accent has a stressed and a folded reading. An accented capital has one reading, stressed and `Accented`, which an all-capital run keeps, as "Capital runs" in [../common/latin.md](../common/latin.md) says. The three restated vowel rules take the readings that fit them.
 
