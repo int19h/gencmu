@@ -23,7 +23,7 @@
 # node tools/quoted-texts.js checks it.
 
 # Parts of texts that the sentences make claims about.
-ke brode ke'e bo brodi # grammars/lojban/cll/syntax.md @ "The plain joik reading remains" @ "The official lexer makes" = selbri-5 adhoc.syntax.joik-ke-group-then-bo adhoc.syntax.joik-ke-group-then-bo.bpfk
+ke brode ke'e bo brodi # grammars/lojban/cll/syntax.md @ "The plain joik reading remains" = selbri-5 adhoc.syntax.joik-ke-group-then-bo adhoc.syntax.joik-ke-group-then-bo.bpfk
 se se broda # grammars/lojban/cll/syntax.md = tanru-unit-2 adhoc.syntax.se-se-unit adhoc.syntax.se-se-unit.bpfk
 na'e se broda # grammars/lojban/cll/syntax.md = tanru-unit-2 adhoc.syntax.nahe-se-unit adhoc.syntax.nahe-se-unit.bpfk
 pa xy. # grammars/lojban/cll/syntax.md = number adhoc.syntax.number-then-lerfu adhoc.syntax.number-then-lerfu.bpfk
@@ -46,8 +46,6 @@ a klama # grammars/lojban/cll/morphology.md = words adhoc.prose.words-cll.aklama
 
 # Parts of readings that the grammar does not choose; each whole text has
 # its own case.
-ke cadzu ke'e # grammars/lojban/cll/syntax.md # the selbri of the reading that the gihek condition removes
-bo brodi # grammars/lojban/cll/syntax.md # the words after a ke group that the ke form cannot take, no constituent
 ke pi'i ke'e # grammars/lojban/cll/syntax.md # the operator group that the joik form reads together with its joik, so no rule spans it alone
 le sutra # grammars/lojban/cll/syntax.md # the description of the parse of le sutra tavla that the ranking rejects
 
@@ -62,8 +60,8 @@ terms zo'u # grammars/lojban/cll/syntax.md # notation: a rule name before the cm
 .i ja nai # grammars/lojban/cll/syntax.md # a connective between sentences
 .i joi # grammars/lojban/cll/syntax.md # a connective between sentences
 .i bo # grammars/lojban/cll/syntax.md @ "groups to the right" @ "This restriction also applies" # a part of the pinned text quoted after it on its line
-gi'e ke # grammars/lojban/cll/syntax.md @ "The official lexer makes" @ "GIhEK_KE" # the words of one token of the official parser's lexer
-joi ke # grammars/lojban/cll/syntax.md @ "reads only the first parse" @ "one token there too" # the words of one token of the official parser's lexer
+gi'e ke # grammars/lojban/cll/syntax.md # the words of one token of the official parser's lexer
+joi ke # grammars/lojban/cll/syntax.md # the words of one token of the official parser's lexer
 ca lo nu broda # grammars/lojban/cll/syntax.md # the shape of a tense with its sumti
 fi mi # grammars/lojban/cll/syntax.md # the shape of a place marker with its sumti
 pu ku # grammars/lojban/cll/syntax.md @ "a place marker" # the shape of a tense with an elided sumti
@@ -99,7 +97,7 @@ ia ie ii io iu ua ue ui uo uu # grammars/lojban/cll/shapes.md # notation: the ri
 zu'a nu'i la djordj. la'u lo mitre be li mu # grammars/lojban/cll/syntax.md = term adhoc.syntax.tag-termset.1.cll adhoc.syntax.tag-termset.9.bpfk
 zu'a nu'i la'u lo mitre be li mu # grammars/lojban/cll/syntax.md = term adhoc.syntax.tag-termset.2.cll adhoc.syntax.tag-termset.10.bpfk
 tag termset # grammars/lojban/cll/syntax.md @ "govern the whole termset" @ "In `term`" # These are names of grammar rules in an alternative, not Lojban words.
-gi'a brodi # grammars/lojban/cll/syntax.md @ "keeps plain `gi'e` inside" = words adhoc.syntax.gihek-ke-group-then-gihek-inside-nu-sumti adhoc.syntax.gihek-ke-group-then-gihek-inside-nu-sumti.bpfk
+gi'a brodi # grammars/lojban/cll/syntax.md @ "Elision ranking keeps" = words adhoc.syntax.gihek-ke-group-then-gihek-inside-nu-sumti adhoc.syntax.gihek-ke-group-then-gihek-inside-nu-sumti.bpfk
 pu ku # grammars/lojban/cll/syntax.md @ "The official parser needs written" = term adhoc.syntax.gek-term.3.cll adhoc.syntax.gek-term.4.bpfk
 na'e ke # grammars/lojban/cll/syntax.md @ "prints `nake`" = words adhoc.syntax.negation-scope.2.cll adhoc.syntax.negation-scope.4.bpfk
 nu'u fa'u # grammars/lojban/cll/syntax.md @ "cannot join its halves" = words adhoc.syntax.errata.5.cll adhoc.syntax.errata.6.bpfk

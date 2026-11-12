@@ -117,7 +117,7 @@ Indicators after `lu` begin quoted content. Those after `to`, `to'i` and `tu'e` 
   %include "syntax.md"
   ```
 
-The stage uses the printed CLL 1.1 grammar[^cll-c21], with selma'o as its terminals. The grammar's [simple tense-modals](syntax.md#tenses-and-modals) are the forms of `simple-tense-modal`. The first step names that rule and prefers the earliest group, then the longest one at that start. This pipeline ranks the parses here:
+The stage uses the printed CLL 1.1 grammar[^cll-c21], with word classes from earlier stages as its terminals. A terminal matches a class such as a selma'o, `BRIVLA` or `CMEVLA`. The grammar's [simple tense-modals](syntax.md#tenses-and-modals) are the forms of `simple-tense-modal`. The first step names that rule and prefers the earliest group, then the longest one at that start. This pipeline ranks the parses here:
 
 ```jbogenbau
 %ambiguity-resolution
@@ -129,19 +129,13 @@ A terminator is a closing word. Elision leaves it unwritten. A derivation is one
 
 A best reading has no better admitted competitor. `unique` means there is one admitted reading. `resolved` means several admitted readings have one best reading.
 
-Among parses with equal tense groups, `late #·_<_Elided>` prefers the parse that omits a terminator later. An elided terminator can end its constituent at any point that a complete parse of the whole text allows. [The notation document](../../../docs/notation.md#elided-terminators) defines this search. Numbers and letter strings cannot split before a continuation unit. The CLL grammar states that rule separately, under "Numbers, lerfu strings and mekso". Equal tense groups and equal elision counts at every position leave a tie, which is an error.
+Among parses with equal tense groups, `late #·_<_Elided>` prefers the parse that omits a terminator later. An elided terminator can end its constituent at any point that a complete parse of the whole text allows. [The notation document](../../../docs/notation.md#elided-terminators) defines this search and the `elision-only` check. The syntax grammar separately defines [number and letter boundaries](syntax.md#numbers-lerfu-strings-and-mekso). Equal tense groups and equal elision counts at every position leave a tie, which is an error.
 
-`elision-only` tests the chosen parse after `resolved`, or after `unique` when its tree holds an elided node. A tie fails before the check.
-
-The check restores that parse's omitted terminators and parses the restored text with the tense step, without an elision preference. The check fails when filtering excludes the restored chosen derivation, or when that derivation is not the only best admitted reading of the written-back text. Conditions and tags still read the original words. [The notation document](../../../docs/notation.md#elided-terminators) and `docs/engine.md` (§7) give the check exactly.
+After `resolved`, or after `unique` with an elided node in its tree, `elision-only` tests the chosen parse. A tie fails before the check.
 
 `le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` parses, and its description ends before `se farvi`. If terminators, the tense step, and grammar conditions leave an ambiguity unresolved, the text is an error that shows both readings.
 
-A tanru is a compound predicate. A tanru unit is one part of a tanru. A bridi-tail is a predicate with its following terms. The CLL grammar settles two connective ambiguities with a ranked choice and a condition. `mi broda joi ke brode ke'e` is a `ke` group joined to `broda` by `joi`.
-
-The printed grammar also reads `joi` before a tanru unit that begins with `ke`. The ranked choice in `selbri-4` of the CLL grammar removes that second reading. Where only the plain reading parses, as in `mi broda joi ke brode ke'e bo brodi`, the pipeline keeps it, as the printed grammar does.
-
-In the same way, `mi broda gi'e ke brode ke'e` is a `ke` group of bridi-tails after `gi'e`, as CLL[^cll-s14-10][^cll-s14-18] describes. The printed grammar also reads a plain `gi'e` before a bridi-tail that is one `ke` group. `late #·_<_Elided>` ties the two readings or prefers the plain one. The condition of the rule `bridi-tail-1-final` of the CLL grammar removes it. Where only the plain reading parses, as in `mi broda gi'e ke brode ke'e brodi`, the pipeline keeps it.
+The CLL grammar settles two connective ambiguities with a ranked choice and a condition. The syntax explains [joik connections](syntax.md#logical-and-non-logical-connectives) and [gihek connections](syntax.md#sentences-and-bridi-tails) beside their rules.
 
 ## Differences from CLL and the official parser
 
@@ -153,7 +147,7 @@ A stop at an open LU or TO agrees with CLL's subordinate texts, as the [word str
 
 [gencmu's Cyrillic](../common/cyrillic.md) assigns different values to some letters from CLL. This pipeline therefore selects only CLL's Cyrillic. A caller can turn it off with the `cll-cyrillic` feature.
 
-This pipeline reads neither the Loglan-compatible orthography nor Tengwar from CLL[^cll-s3-12]. CLL calls the former nonstandard and unused.
+This pipeline reads neither the Loglan-compatible orthography nor Tengwar from CLL[^cll-s3-12]. CLL says that the Loglan-compatible form served a planned rapprochement between the two language groups. That rapprochement never took place.
 
 The [indicator document](indicators.md#quotation-boundaries) defines quotation and parenthesis boundaries. Its [source comparison](indicators.md#quotation-and-parenthesis-boundaries) explains CLL and the official parser.
 
@@ -161,23 +155,11 @@ The [indicator document](indicators.md#quotation-boundaries) defines quotation a
 
 The pipeline chooses `late #·_<_Elided>` and `%elision-only` to fit CLL's conventions. Note 10 does not specify them. It does not say which parse a text has when the grammar allows more than one. Nor does it say how to find that no ambiguity results. `elision-only` tests one completion, as described above. "Elision policy and CLL advice" in [the CLL grammar](syntax.md#elision-policy-and-cll-advice) separates terminator advice, parser limitations, and boundaries that the whole text forces.
 
-Under this policy, `le nanmu joi le ninmu cu klama` parses with KU elided at the boundary that CLL[^cll-s14-14] intends. CLL describes the official parser's failed left-to-right reading. "Elision policy and CLL advice" in [the CLL grammar](syntax.md#elision-policy-and-cll-advice) explains the same kind of forced boundary in the examples[^cll-e8-48][^cll-e8-62]. CLL describes their merged readings without naming the official parser. CLL 1.1 section 8.6[^cll-e8-48] calls the omitted `ku'o` in `le poi blabi gerku cu klama` ungrammatical. This pipeline accepts the text because the merged reading cannot complete the outer description under the printed rules.
-
 [^cll-s19-13]: [CLL 1.1, section 19.13](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-erasure.html).
 
 [^cll-s3-12]: [CLL 1.1, section 3.12](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-oddball-orthographies.html).
 
 [^cll-s21-1]: [CLL 1.1, section 21.1](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/chapter-grammars.html#section-EBNF).
-
-[^cll-s14-14]: [CLL 1.1, section 14.14](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-non-logical-connectives.html).
-
-[^cll-s14-10]: [CLL 1.1, section 14.10](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-multiple-compound-bridi.html).
-
-[^cll-s14-18]: [CLL 1.1, section 14.18](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-sumtcita.html).
-
-[^cll-e8-48]: [CLL 1.1, section 8.6, example 8.48](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-descriptors.html#c8e6d2).
-
-[^cll-e8-62]: [CLL 1.1, section 8.7, example 8.62](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-possessive-sumti.html#c8e7d4).
 
 [^cll-c21]: [CLL 1.1, chapter 21](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/chapter-grammars.html).
 
