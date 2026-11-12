@@ -709,11 +709,9 @@ A `y` is not followed by a nucleus, unless that nucleus is another `y`. An apost
 
 ## Consonants
 
-An initial pair is two consonants that can begin a word. `initial` reads a cluster where each pair of neighbors stands in `$INITIAL`. An affricate can stand only as the whole cluster. That limit is a departure from CLL 4.7, and the closing section lists it.
+An initial pair is two consonants that can begin a word. `initial` reads a cluster where each pair of neighbors stands in `$INITIAL`. An affricate can stand only as the whole cluster, as in the PEG's rule `initial`. The closing section compares this limit with CLL 1.1 section 4.7.
 
 A sibilant, another consonant and a liquid give the usual shape of a long cluster. No consonant or glide can follow the cluster. The initial can be empty only where no consonant or glide follows.
-
-The pair law reads raw consonant tokens against `$PERMISSIBLE`. A law that reads each consonant through its own rule can differ on one consonant query inside a bad run, as in `btb`. They give the same words, because each consonant of a divided run passes its own test. A run with a consonant that fails stays foreign under both laws. The `bu` test is the only lookahead that leaves a run. Its `post-word` chain reads whole words, so it reads each letter of the run.
 
 ```jbogenbau
 -- The first two consonants decide this lookahead.
@@ -783,7 +781,7 @@ The pair law reads raw consonant tokens against `$PERMISSIBLE`. A law that reads
 
 
 
-The `letter-ban` hook reads a following syllable-initial apostrophe or glide. `$PERMISSIBLE` states the pair law of CLL[^cll-s3-6], and `n-affricate` states the triple law of CLL[^cll-s3-7]. This hook states the apostrophe rule and the committee's glide ban. No rule names one consonant letter, because the `Consonant` tag and a value test state each letter that a rule needs.
+The `letter-ban` hook reads a following syllable-initial apostrophe or glide. `$PERMISSIBLE` states the pair law of CLL.[^cll-s3-6] Like the PEG's rule `n`, `n-affricate` bans `ndj`, `ndz`, `ntc` and `nts`, including inside names. CLL 1.1 section 3.7 exempts names from this triple ban.[^cll-s3-7] This hook states the apostrophe rule and the committee's glide ban. No rule names one consonant letter, because the `Consonant` tag and a value test state each letter that a rule needs.
 
 ```jbogenbau
 -- Consonant letters cannot precede a syllable-initial apostrophe or glide.
@@ -802,6 +800,8 @@ The `letter-ban` hook reads a following syllable-initial apostrophe or glide. `$
 The [checkpoint record](https://mw.lojban.org/index.php?title=BPFK_Checkpoints&oldid=109606) defers morphology. CLL 1.3.4[^cll-later-a3-3] records two committee votes on word forms. One vote covers [consonants before glides](#consonant-restriction). The other requires a pause before and after every name, and so lifts the ban on `la`, `lai`, `la'i` and `doi` inside names. Any pause serves as the vote's dot. Hesitation also serves, because the Magic Words proposal counts `y` as whitespace.
 
 The PEG implements both votes. CLL 1.3.4 describes the rest of this working grammar, its extended rafsi included, as practice without a vote.
+
+CLL 1.3.4[^cll-later-s4-16] teaches `'y` only after a whole borrowing, as in `spageti'ykukte`. The PEG also permits forms such as `klama'ybroda`, under the [extended-rafsi restrictions](#borrowings-and-extended-rafsi). Such forms go beyond CLL 1.1[^cll-c4] and CLL 1.3.4[^cll-later-c4].
 
 The phoneme stage reads the text before this stage does. This comparison uses `camxes.peg` alone. The ilmentufa preprocessor applies the digit, decimal-point and accent conventions before the PEG runs. In five ways, the text that this stage reads differs from the text that the PEG reads:
 
@@ -831,10 +831,24 @@ A run stays one hesitation token except for the split that prepares a letter wor
 
 The consonant rules retain the ban on a consonant directly followed by a glide. The committee voted for this ban, and CLL 1.3.4 records the vote.[^cll-later-a3-3]
 
-The pair tables state the pair law and the initial law in one place for each fact. An affricate stands only as a whole initial cluster in this grammar. CLL 4.7 allows a longer cluster with an affricate pair inside it, so that limit departs from CLL.[^cll-s4-7]
+The pair tables state the pair law and the initial law in one place for each fact. The pair law reads raw consonant tokens against `$PERMISSIBLE`. The PEG states its pair law in its letter rules, such as `b` and `t`.
+
+The two laws can differ when a lookahead tests one consonant inside a run that breaks the pair law. Both reject the run `btb`, because the whole run must pass the pair law. The `post-word` lookahead can read beyond a run, but its chain reads whole words and tests each consonant. Thus both laws accept the same words.
+
+Like the PEG's rule `initial`, this grammar permits an affricate only as a whole initial cluster. CLL 1.1 section 4.7 permits longer initial clusters whose adjacent pairs are all initial pairs, including affricates.[^cll-s4-7]
+
+Like the PEG's rule `n`, this grammar bans `ndj`, `ndz`, `ntc` and `nts` inside names too. CLL 1.1 section 3.7 permits these triples in names, because their adjacent pairs are permissible.[^cll-s3-7]
 
 [^cll-s4-7]: [CLL 1.1, section 4.7](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-fuhivla.html).
+
+[^cll-s3-7]: [CLL 1.1, section 3.7](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-initial-pairs.html).
 
 [^cll-s3-6]: [CLL 1.1, section 3.6](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-clusters.html).
 
 [^cll-later-a3-3]: [CLL 1.3.4, appendix A3.3](https://github.com/int19h/cll/blob/v1.3.4/chapters/a03.xml#L155-L243). This later approval record has no CLL 1.1 counterpart.
+
+[^cll-c4]: [CLL 1.1, chapter 4](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/chapter-morphology.html). The [versioned source](https://github.com/int19h/cll/blob/v1.1-2016-08-26-html/chapters/04.xml) supplies the edition comparison.
+
+[^cll-later-c4]: [CLL 1.3.4, chapter 4](https://github.com/int19h/cll/blob/v1.3.4/chapters/04.xml).
+
+[^cll-later-s4-16]: [CLL 1.3.4, section 4.16](https://github.com/int19h/cll/blob/v1.3.4/chapters/04.xml#L6131-L6186). CLL 1.1's section 4.16 proposes a different mechanism and does not teach this form.
