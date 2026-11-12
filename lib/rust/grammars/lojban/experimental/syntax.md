@@ -784,7 +784,7 @@ In `be mi klama be do be ti`, `be do` belongs to `klama`, and `be ti` to the who
 
 A tanru unit can take a selbri relative clause. The clause opens with NOhOI (`no'oi` or `po'oi`) and contains a subsentence. It ends with `ku'oi` or `ku'o`. In that clause, `ke'a` refers to the selbri, as in `mi klama no'oi bajra`. The clauses join with `zi'e`, a joik, a jek or an ek. Forethought connections join two groups of clauses.
 
-The `ke-after` template supplies `selbri-4` and `operator`. Each named instance keeps its reference rule name. This layer changes their shared connective choices.
+The `afterthought-connection` template supplies `selbri-4` and `operator`. Each named instance keeps its reference rule name. This layer changes their shared connective choices.
 
 ```jbogenbau
 %redefine-rule selbri-1
@@ -793,9 +793,10 @@ The `ke-after` template supplies `selbri-4` and `operator`. Each named instance 
 %conditions
   ¬$n.onward.parse(gek …)
 
-%redefine-rule ke-after(@B, @U)
-  | @U
-  | ke-after(@B, @U) (joik-jek-ek [stag] KE 🆓 @B [+KEhE] 🆓 ≻ connective @U)
+%redefine-rule afterthought-connection(@Group, @Unit)
+  | @Unit
+  | afterthought-connection(@Group, @Unit)
+    (joik-jek-ek [stag] KE 🆓 @Group [+KEhE] 🆓 ≻ connective @Unit)
 
 %redefine-rule selbri-5
   {selbri-6 ... / joik-jek-ek [stag] BO 🆓}
@@ -844,7 +845,7 @@ The `ke-after` template supplies `selbri-4` and `operator`. Each named instance 
 
 <details><summary>Railroad diagrams of the 12 rules from <code>selbri-1</code> to <code>links</code></summary>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/selbri-1.svg" alt="Railroad diagram of the rule selbri-1"></p>
-<p><img src="../../../docs/diagrams/lojban/experimental/syntax/ke-after.svg" alt="Railroad diagram of the rule ke-after"></p>
+<p><img src="../../../docs/diagrams/lojban/experimental/syntax/afterthought-connection.svg" alt="Railroad diagram of the rule afterthought-connection"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/selbri-5.svg" alt="Railroad diagram of the rule selbri-5"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/tanru-unit.svg" alt="Railroad diagram of the rule tanru-unit"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/tanru-unit-1.svg" alt="Railroad diagram of the rule tanru-unit-1"></p>

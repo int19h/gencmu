@@ -285,7 +285,8 @@ The terms `zu'a nu'i la djordj. la'u lo mitre be li mu` and `zu'a nu'i la'u lo m
 %rule term
   sumti
   | (tag | FA 🆓) (sumti | [+KU 🆓])
-  | termset | tag termset | NA KU 🆓
+  | [tag] termset
+  | NA KU 🆓
 
 %rule termset
   NUhI 🆓 gek terms [+NUhU 🆓] gik terms [+NUhU 🆓]
@@ -404,7 +405,7 @@ A selbri is the predicate of a bridi[^cll-c5]. A tense or modal can come before 
 
 `selbri-4` joins units by a jek or joik in afterthought, `barda je melbi`, or by a joik followed by `ke ... ke'e`. These connections group from the left[^cll-s14-12]. The rule is written with left recursion, so the tree shows that grouping. It is not a chain, since its two forms of connection read different units after the connective. A ranked choice states them: the `ke` group of the joik comes first, and the plain connection second. Where the unit after a plain joik is only a `ke` group, both options read the same words, and the grammar takes the `ke` group.
 
-The template `ke-after(@B, @U)` supplies afterthought connections for `selbri-4` and `operator`, with `@B` as the KE-group body and `@U` as the tighter unit.
+The template `afterthought-connection(@Group, @Unit)` supplies afterthought connections for `selbri-4` and `operator`, with `@Group` as the KE-group body and `@Unit` as the tighter unit.
 
 `selbri-5` joins units by a jek or joik with `bo`, which binds more tightly than plain juxtaposition, as in `melbi je bo cmalu nixli`. It is a right chain, since a run of `bo` groups from the right[^cll-s5-4][^cll-s14-8][^cll-s14-12].
 
@@ -446,11 +447,12 @@ The words stage builds each `zei` compound into one `BRIVLA`, which `tanru-unit-
 %rule selbri-3
   {... selbri-4}
 
-%rule ke-after(@B, @U)
-  | @U
-  | ke-after(@B, @U) (joik [stag] KE 🆓 @B [+KEhE 🆓] ≻ joik-jek @U)
+%rule afterthought-connection(@Group, @Unit)
+  | @Unit
+  | afterthought-connection(@Group, @Unit)
+    (joik [stag] KE 🆓 @Group [+KEhE 🆓] ≻ joik-jek @Unit)
 
-%rule selbri-4 = ke-after(selbri-3, selbri-5)
+%rule selbri-4 = afterthought-connection(selbri-3, selbri-5)
 
 %rule selbri-5
   {selbri-6 ... / (jek | joik) [stag] BO 🆓}
@@ -492,7 +494,7 @@ The words stage builds each `zei` compound into one `BRIVLA`, which `tanru-unit-
 <p><img src="../../../docs/diagrams/lojban/cll/syntax/selbri-1.svg" alt="Railroad diagram of the rule selbri-1"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/syntax/selbri-2.svg" alt="Railroad diagram of the rule selbri-2"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/syntax/selbri-3.svg" alt="Railroad diagram of the rule selbri-3"></p>
-<p><img src="../../../docs/diagrams/lojban/cll/syntax/ke-after.svg" alt="Railroad diagram of the rule ke-after"></p>
+<p><img src="../../../docs/diagrams/lojban/cll/syntax/afterthought-connection.svg" alt="Railroad diagram of the rule afterthought-connection"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/syntax/selbri-4.svg" alt="Railroad diagram of the rule selbri-4"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/syntax/selbri-5.svg" alt="Railroad diagram of the rule selbri-5"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/syntax/selbri-6.svg" alt="Railroad diagram of the rule selbri-6"></p>
@@ -568,7 +570,7 @@ Operands connect in the same way. `operand` takes a `ke` group, `operand-1` the 
 %rule rp-operand
   operand | rp-expression
 
-%rule operator = ke-after(operator, operator-1)
+%rule operator = afterthought-connection(operator, operator-1)
 
 %rule operator-1
   | operator-2 | guhek operator-1 gik operator-2
@@ -654,7 +656,7 @@ An ek, gihek, or jek can take `na` before it, `se` before it, and `nai` after it
 
 A joik is a non-logical connective. It takes `se` before it and `nai` after it, but no `na`. It is `joi`, `ce`, `jo'u` and the rest of JOI, or an interval `bi'i` or `bi'o`. The interval has `ga'o` or `ke'i` on both sides or on neither[^cll-s14-14][^cll-s14-16]. `joik-ek` and `joik-jek` are the pairs that stand in the same position. Each carries a free-modifier slot.
 
-The recursive alternative of `selbri-4` and `operator` ranks two options after the left operand. The preferred option groups with the connective through `joik [stag] KE`. The plain option joins the left operand to another unit through `joik-jek`. The preferred option removes the plain reading only across the same span. Both readings can elide the same terminators, so elision ranking alone cannot choose between them.
+The shared `afterthought-connection` template ranks two options after the left operand in `selbri-4` and `operator`. The preferred option groups with the connective through `joik [stag] KE`. The plain option joins the left operand to another unit through `joik-jek`. The preferred option removes the plain reading only across the same span. Both readings can elide the same terminators, so elision ranking alone cannot choose between them.
 
 In `lojban/cll` and `lojban/bpfk`, `mi broda joi ke me le le brodi brodo ku me'u ke'e` remains the group. Its inner KU is omitted. Omitted terminators inside the group do not change the outer `ke` group.
 
