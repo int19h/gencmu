@@ -82,3 +82,12 @@ for (const diagnostic of [...result.warnings, ...result.error?.errors ?? []]) {
   void diagnostic.feature;
   void code, message, stage, rule, span, source;
 }
+
+// The public empty atom is valid with and without its optional position.
+const emptyPatternConstant: import("gencmu").GrammarDom["constants"][number] = {
+  name: "P", op: "define", value: { pattern: { never: true, at: [1, 11] } }, at: [1, 1]
+};
+const emptyPatternWithoutPosition: import("gencmu").GrammarDom["constants"][number] = {
+  name: "Q", op: "define", value: { pattern: { never: true } }, at: [2, 1]
+};
+void [emptyPatternConstant, emptyPatternWithoutPosition];

@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from weakref import ref
+
 from copy import copy
 
 from bisect import bisect_left, bisect_right
@@ -195,15 +197,18 @@ def evaluate_diagnostics(flow, tree, context, forest, features, stage, stage_ord
     strings = Emitter(context, forest, tree, flow.root, flow)
     strings.claim_gaps = False
     measures = Measures(context.tokens, context.sources)
+    from ._checks import ChosenChecks
+    enabled_checks = [check for _, check in context.lowered.grammar.checks
+                      if "error" in check or check["name"] in features]
+    checks = ChosenChecks(flow, context, features, enabled_checks) if context.observed is None and enabled_checks else None
+    occurrences = {}
     pending = [(flow.root, frozenset())]
     while pending:
         node, inherited = pending.pop()
-        if isinstance(node, DRead):
-            continue
-        p = node.production
-        suppressed = inherited | frozenset(p.suppress_warnings) if p.suppress_warnings else inherited
-        code = p.rule_name
-        recipe = p.error if p.error is not None else p.warning if code in features and code not in suppressed and "_" not in suppressed else None
+        p = node.production if isinstance(node, DNode) else None
+        suppressed = inherited | frozenset(p.suppress_warnings) if p is not None and p.suppress_warnings else inherited
+        code = p.rule_name if p is not None else None
+        recipe = (p.error if p.error is not None else p.warning if code in features and code not in suppressed and "_" not in suppressed else None) if p is not None else None
         if recipe is not None:
             if _testing.diagnostic_message is not None:
                 _testing.diagnostic_message(node, recipe)
@@ -212,7 +217,18 @@ def evaluate_diagnostics(flow, tree, context, forest, features, stage, stage_ord
             record_diagnostic(report, measures.own(node.start, node.end) if p.error is not None else ZERO_MEASURE,
                               DiagnosticIdentity(stage_order, len(flow.evaluated)))
             flow.add(node, report, "errors" if p.error is not None else "warnings")
-        pending.extend((child, suppressed) for child in reversed(node.children))
+        if checks is not None:
+            for check in checks.at(node, suppressed):
+                code = check["name"]
+                occurrence = occurrences.get(code, 0)
+                occurrences[code] = occurrence + 1
+                message = run(strings.recipe(node, check.get("error", check.get("warning"))))
+                report = ParseWarning(stage, code, code, (node.start, node.end), tree.source_of(node), message)
+                record_diagnostic(report, measures.own(node.start, node.end) if "error" in check else ZERO_MEASURE,
+                                  DiagnosticIdentity(stage_order, len(flow.evaluated), code, occurrence))
+                flow.add(node, report, "errors" if "error" in check else "warnings", True)
+        if isinstance(node, DNode):
+            pending.extend((child, suppressed) for child in reversed(node.children))
 
 
 def has_elided(tree: Node) -> bool:
@@ -387,7 +403,9 @@ class Emitter:
                 emitted = receiver.get("method") == "emitted"
                 name = receiver["receiver"]["capture"] if emitted else receiver["capture"]
                 part = self.capture(owner, name)
-                if emitted:
+                if method == "terminal":
+                    value = part.terminal if isinstance(part, DRead) else part.production.elided or ""
+                elif emitted:
                     value = yield self.string(part, method)
                 elif method == "verbatim-text":
                     value = self.verbatim(part)
@@ -657,6 +675,7 @@ class StageRunner:
         context.lines = self.lines
         start = lowered.rule_ids["text"]
         forest = Parser(context).parse(start)
+        context.stage_chart = ref(forest)
         ranking = rank(forest, lowered.steps, lowered.lean)
         if ranking is None:
             if forest.roots:

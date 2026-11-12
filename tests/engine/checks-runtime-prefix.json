@@ -1,0 +1,54 @@
+{
+  "description": "Issue #286: a failing check keeps diagnostics that the preorder walk already evaluates.",
+  "grammar": "%rule text \"a\"\n%warning \"own\"\n%check first\n #·text\n%warning \"first\"\n%check failure\n #·_\n%conditions $.value.split(\"\" ++ \"\")\n%warning \"bad\"",
+  "input": "a",
+  "options": {
+    "features": [
+      "text",
+      "first",
+      "failure"
+    ]
+  },
+  "expect": {
+    "error": "grammar",
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "text",
+        "rule": "text",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "message": "own"
+      },
+      {
+        "stage": "main",
+        "code": "first",
+        "rule": "first",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "message": "first"
+      }
+    ],
+    "result": {
+      "tree": null,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

@@ -9,6 +9,7 @@ export type DiagnosticEvent = {
     diagnostic: Diagnostic;
     kind: 'errors' | 'warnings';
     own: boolean;
+    check?: boolean;
 };
 export type NodeInfo = {
     parent: Derivation | null;
@@ -34,7 +35,7 @@ export type Carrier = {
 /** @typedef {import('./types.js').Derivation} Derivation */
 /** @typedef {import('./types.js').ParseWarning} Diagnostic */
 /** @typedef {{errors:Diagnostic[],warnings:Diagnostic[]}} DiagnosticLists */
-/** @typedef {{node:Derivation,diagnostic:Diagnostic,kind:'errors'|'warnings',own:boolean}} DiagnosticEvent */
+/** @typedef {{node:Derivation,diagnostic:Diagnostic,kind:'errors'|'warnings',own:boolean,check?:boolean}} DiagnosticEvent */
 /** @typedef {{parent:Derivation|null,erased:boolean,scope:EmissionScope}} NodeInfo */
 /** @typedef {{root:Derivation,rows:Carrier[],carrier:Carrier|null,unowned:DiagnosticLists}} EmissionScope */
 /** @typedef {{token:import('./tokens.js').AttachedToken,span:import('./types.js').Span,part:Derivation|null,emission:Derivation,scope:EmissionScope,support:import('./types.js').Span|null,own:DiagnosticLists,groups:(EmissionScope|import('./tokens.js').AttachedToken)[]}} Carrier */
@@ -53,7 +54,7 @@ export declare class DiagnosticFlow {
     input: import("./tokens.js").Token[];
     /** @type {Map<Derivation,NodeInfo>} */ nodes: Map<Derivation, NodeInfo>;
     /** @type {Derivation[]} */ order: Derivation[];
-    /** @type {Map<Derivation,DiagnosticEvent>} */ own: Map<Derivation, DiagnosticEvent>;
+    /** @type {Map<Derivation,DiagnosticEvent[]>} */ own: Map<Derivation, DiagnosticEvent[]>;
     /** @type {DiagnosticEvent[]} */ evaluated: DiagnosticEvent[];
     /** @type {Map<Derivation,EmissionScope>} */ scopeRoots: Map<Derivation, EmissionScope>;
     /** @type {WeakMap<object,Carrier>} */ carriers: WeakMap<object, Carrier>;
@@ -66,8 +67,8 @@ export declare class DiagnosticFlow {
     constructor(root: Derivation, input: import('./tokens.js').Token[]);
     /** @param {Derivation} node @returns {NodeInfo} */
     info(node: Derivation): NodeInfo;
-    /** @param {Derivation} node @param {Diagnostic} diagnostic @param {'errors'|'warnings'} kind */
-    add(node: Derivation, diagnostic: Diagnostic, kind: 'errors' | 'warnings'): void;
+    /** @param {Derivation} node @param {Diagnostic} diagnostic @param {'errors'|'warnings'} kind @param {boolean} [check] */
+    add(node: Derivation, diagnostic: Diagnostic, kind: 'errors' | 'warnings', check?: boolean): void;
     /** @returns {DiagnosticLists} */
     messages(): DiagnosticLists;
     /** Surviving chosen preorder, before output-node omission. @returns {DiagnosticEvent[]} */

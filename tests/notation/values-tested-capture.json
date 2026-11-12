@@ -2,7 +2,7 @@
   "document": "```jbogenbau\n%rule r $x:A<B>=\"a\"\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 52,
       "rules": [
         {
           "name": "r",
@@ -45,7 +45,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     }
   },
   "description": "A binder wraps the full tested primary (engine §9.2)."

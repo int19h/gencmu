@@ -1,0 +1,14 @@
+{
+  "description": "An empty pattern cannot take an exact prefix at a parameter use.",
+  "grammar": "%rule w \"a\"\n%rule use(@P) $x:w\n%conditions $x ≇ #·@P\n%rule text use(∅)",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 20
+    },
+    "message": "an empty pattern cannot carry node decorations, in use(∅) called at main.md:6:12"
+  }
+}

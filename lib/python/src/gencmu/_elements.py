@@ -4,9 +4,10 @@ from __future__ import annotations
 
 
 class Expansion(list):
-    def __init__(self, symbols=(), logical=None):
+    def __init__(self, symbols=(), elements=None, sites=None):
         super().__init__(symbols)
-        self.logical = tuple(("symbol", i) for i in range(len(self))) if logical is None else tuple(logical)
+        self.sites = None if sites is None else dict(sites)
+        self.elements = tuple(("symbol", i) for i in range(len(self))) if elements is None else tuple(elements)
 
 
 def shift(node, offset):
@@ -32,25 +33,30 @@ def shift(node, offset):
 
 
 def combine(parts):
-    symbols, logical = [], []
+    symbols, elements, sites = [], [], None
     for part in parts:
-        structure = getattr(part, "logical", None)
+        structure = getattr(part, "elements", None)
         if structure is None:
             structure = tuple(("symbol", i) for i in range(len(part)))
-        logical.extend(shift(node, len(symbols)) for node in structure)
+        elements.extend(shift(node, len(symbols)) for node in structure)
+        written = getattr(part, "sites", None)
+        if written:
+            if sites is None:
+                sites = {}
+            sites.update((index + len(symbols), expr) for index, expr in written.items())
         symbols.extend(part)
-    return Expansion(symbols, logical)
+    return Expansion(symbols, elements, sites)
 
 
 def optional(part, place):
-    logical = getattr(part, "logical", tuple(("symbol", i) for i in range(len(part))))
-    return Expansion(part, (("optional", 0, len(part), logical, place),))
+    elements = getattr(part, "elements", tuple(("symbol", i) for i in range(len(part))))
+    return Expansion(part, (("optional", 0, len(part), elements, place),), getattr(part, "sites", None))
 
 
-def inherited(logical):
-    while len(logical) == 1:
-        node = logical[0]
+def inherited(elements):
+    while len(elements) == 1:
+        node = elements[0]
         if node[0] == "symbol":
             return node[1]
-        logical = node[3]
+        elements = node[3]
     return None

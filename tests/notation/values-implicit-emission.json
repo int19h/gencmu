@@ -2,7 +2,7 @@
   "document": "```jbogenbau\n%rule r A %emits\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 52,
       "rules": [
         {
           "name": "r",
@@ -32,7 +32,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     }
   },
   "description": "A bare emission clause emits one whole carrier (engine §11)."

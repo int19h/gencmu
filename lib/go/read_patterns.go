@@ -85,6 +85,15 @@ func (f *patternFrame) resume(b *domBuilder, in any) readStep {
 					b.lacks(atom, "pattern atom")
 				}
 				f.atom = b.patternAtom(atom, atomParts[0])
+				if f.atom.Kind == "never" {
+					decorated := b.one(n, "child-list") != nil
+					for _, p := range b.parts(n) {
+						decorated = decorated || p.Kind == KindToken && b.tokenValue(p) == "·"
+					}
+					if decorated {
+						b.fail(atom, "an empty pattern cannot carry node decorations")
+					}
+				}
 			}
 			f.parts = nil
 			if children := b.one(n, "child-list"); children != nil {

@@ -46,7 +46,7 @@ The readings themselves are in the result's error (below), and the stage holds n
 
 `output` is the emitted tokens of a stage whose verdict is `unique` or `resolved`, the last stage included. It is absent for a rejection or any failure before ranking completes, including recognition errors, feature conflicts, and feature-condition runtime errors. It is absent for a tie, since a tied stage emits nothing (engine §6, §11). A `reported` result keeps that output.
 
-Emission failure prevents output (engine §11). It is also absent where the check of `elision-only` meets an error of the grammar or loses its witness (engine §7.7, §7.9).
+A runtime grammar error during check or message evaluation prevents output. Emission failure prevents output (engine §11). It is also absent where the check of `elision-only` meets an error of the grammar or loses its witness (engine §7.7, §7.9).
 
 Stage members stand in the order `name`, `verdict`, `witness`, `output`, `errors`, `warnings`. Empty stage-level diagnostic lists are absent. They retain diagnostics that have no carrier because a completed emission yields an empty output array. Lists on emitted tokens instead carry diagnostics forward. An earlier stage with errors and nonempty output does not stop the pipeline. Engine §12.1 defines the reporting stage and every ending's collection.
 
@@ -215,6 +215,8 @@ The spelling writes the terminal, then `<`, then requirements separated by one A
 
 Examples are `KOhA<UI Word>`, `KOhA<¬UI>`, `LE≠"lo"`, `X<¬A B>`, and `X<A>="s"`.
 
+A check uses the same named diagnostic shape as a rule. Its `code` and `rule` both name the check. Its `span` and `source` belong to the matched node. Empty omitted leaves keep the ordinary empty source convention. Several omissions at one position remain separate reports. Checks never receive competitor `rejection` evidence, because they are no ranked options.
+
 ### Loading errors
 
 A grammar that fails to load produces an error alone, outside any parse result. Its kind is `grammar`. The error has `document`, `line`, and `column` where known. A tie in a notation stage has `document`, with no `line` or `column` (engine §8).
@@ -249,15 +251,28 @@ The authoritative constructor contract is [engine §9.3](engine.md#93-conversion
 
 A grammar DOM (document object model) is the parsed form of a grammar document (engine §8, §9). A library makes it when it reads the document. The per-family preparsed files hold this data, including the entries that bootstrap the notation reader.
 
-Its envelope is `{"format":49,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. All five declaration arrays are present, including empty arrays. The envelope has no other members. Every declared item has `at:[line,column]`, counted from 1. Both coordinates must be integers from 1 to 9007199254740991 (2^53 − 1). This bound applies to every DOM source position.
+Its envelope is `{"format":52,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...],"checks":[CHECK...]}`. All six declaration arrays are present, including empty arrays. The envelope has no other members. Every declared item has `at:[line,column]`, counted from 1. Both coordinates must be integers from 1 to 9007199254740991 (2^53 − 1). This bound applies to every DOM source position.
 
-`format` is the version of the DOM, 49. A library refuses a bootstrap of another version and treats an optional cached DOM of another version as a cache miss. A format match alone never excuses invalid schema data.
+`format` is the version of the DOM, 52. A library refuses a bootstrap of another version and treats an optional cached DOM of another version as a cache miss. A format match alone never excuses invalid schema data.
 
 An optional member is absent only when its key is absent. A present `null` does not replace an omitted member. Every present member must satisfy its stated form, including exclusive targets and optional clauses.
 
 A written literal joins its decomposed text runs with exact decoded escapes. DOM depth follows the compound ancestors and transparent wrappers defined in engine §9.
 
 The cache identity follows engine §8.
+
+A check has this form, in canonical member order:
+
+```text
+{"name":"early-elision","pattern":PATTERN,"conditions":[COND...],
+ "warning":MESSAGE,"at":[line,column]}
+```
+
+`pattern` is a PATTERN literal or a constant reference `{"const":NAME,"at":[line,column]}` that resolves to a pattern. Exactly one of `error` and `warning` is present. `conditions` is always an array, including an empty array. No other members are legal. In particular, a check has no `op`, alternatives, parameters, arguments, tags, strings, emission, suppression or erasure.
+
+Check names use the rule-name repertoire, with warning names further restricted to valid feature names. The stage rejects duplicate checks and rule/check name collisions. Each check's `at` is the position of its `%check` keyword. Declaration ordering merges all six arrays by source position, with equal positions ordered as rules, directives, constants, classifiers, implications, then checks.
+
+A check pattern's candidate predicate is exact and has no path operator, as engine §2.4 defines. Nested child lists retain ordinary pattern rules. A check's named references must resolve to rules or template families, never checks.
 
 A rule has this form, in canonical member order:
 
@@ -475,6 +490,12 @@ Classifier arguments use `{"classifier":"lexicon"}`. Rule arguments are also leg
 
 String arguments are terms. A classifier name starts with a lowercase letter, so `🆓` cannot name a classifier.
 
+`.followed-by` and `.preceded-by` take one or more TARGET arguments, as defined after the ARG forms. They retain written order. Two or more arguments form a choice.
+
+Source and supplied DOM accept repeated targets, which change nothing. Both methods share TARGET's user-terminal and parameter-scope restrictions. Boundary targets identify grammar-built token classes, while engine tags describe stored character properties.
+
+Boundary receivers are `{"capture":"x"}`, or `{"capture":""}` for `$`. In check conditions, node walks are boundary receivers too. `.preceding-tokens` uses the ordinary zero-argument method shape and returns an ordinary projected span.
+
 `.parse` takes exactly one `{"body":EXPR}` argument. Its receiver is a capture or span, including a restored span except in suffix or part mode. The body contains no capture at any depth, but referenced rules retain their own captures. It can add the leaf `{"remainder":true}` at the first edge, at the last edge, or at both edges of its outer `seq`.
 
 That leaf has no other members and is legal nowhere else. It cannot be the complete body. Without it, the query uses whole mode.
@@ -485,9 +506,21 @@ For example, `$i.onward.parse(@Open …).error-free` in a template uses this unr
 {"method":"error-free","receiver":{"method":"parse","receiver":{"method":"onward","receiver":{"capture":"i"},"args":[]},"args":[{"body":{"seq":[{"param":"Open","at":[2,20]},{"remainder":true}]}}]},"args":[]}
 ```
 
-A first remainder selects suffix mode, and a last remainder selects prefix mode. A remainder at both edges selects part mode. Each remainder is unread and excluded from the witness. `.error-free` takes no arguments, accepts a forest receiver, and returns a forest.
+A first remainder selects suffix mode, and a last remainder selects prefix mode. A remainder at both edges selects part mode. Each remainder is unread and excluded from the witness. `.error-free` takes no arguments, accepts a forest receiver, and returns a forest. A bare `parse` result or its filtered result can stand as a condition.
 
-A bare `parse` result or its filtered result can stand as a condition. A forest also has `.tags`, which unions the tag sets of its witnesses. A forest supports no other method, operator, or implicit string conversion. Body wrappers add no DOM depth, and the remainder is a leaf.
+A forest also has `.tags`, which unions the tag sets of its witnesses. A forest also supports `.ending-after(S)`, as below. It supports no other method, operator, or implicit string conversion. Body wrappers add no DOM depth, and the remainder is a leaf.
+
+Check conditions represent `$` as `{"capture":""}`. Node walks use ordinary zero-argument method objects with names `parent`, `preceding-node` or `following-node`. The method `preceding-element` takes a node and gives an element value. `local-readings` takes a node or element and gives a forest. These methods have no arguments and are legal only in check conditions. Named captures and restoration methods are illegal anywhere in checks.
+
+For example, the first check uses this condition:
+
+```json
+{"method":"ending-after","receiver":{"method":"local-readings","receiver":{"method":"preceding-element","receiver":{"capture":""},"args":[]},"args":[]},"args":[{"capture":""}]}
+```
+
+`ending-after` takes a forest receiver and exactly one capture, node, element or span argument. Its result is a forest. It is legal in any forest position, including rule conditions. It compares projected ends and retains each witness's measure and eligibility (engine §10).
+
+Node presence uses `{"present":NODETERM}` for a walk. Bare `$` keeps `{"captured":""}`. A node can also supply either constituent operand of `≅` or `≇`. Ordinary node observations use the same method forms as captures. Element observations allow input strings, span selectors, positional tests and local readings only. The DOM contains no runtime node, element, forest, seal or absence marker.
 
 `.ngrams` takes exactly one `{"integer":"2"}` argument. Its digits match `[1-9][0-9]*`, without a size limit. This argument is not a value term and occurs only in `.ngrams`.
 
@@ -515,7 +548,7 @@ A recipe is `{"concat":[ATOM...]}` with a nonempty array. Atoms are `string`, st
 {"concat":[{"method":"value","receiver":{"capture":"a"},"args":[]},{"string":" "},{"method":"image","receiver":{"method":"emitted","receiver":{"capture":"b"},"args":[]},"args":[]}]}
 ```
 
-MESSAGE uses the same nonempty `concat` shape as RECIPE, but excludes both emitted-channel methods. It accepts the other five captured string methods, string literals, string constants, and `++`. It accepts no query or absent, item, or private ranked capture.
+MESSAGE uses the same nonempty `concat` shape as RECIPE, but excludes both emitted-channel methods. It accepts the other five captured string methods, string literals, string constants, and `++`. It accepts no query or absent, item, or private ranked capture. A check MESSAGE accepts only `$` as receiver and adds `.terminal` to those string methods. That zero-argument method is illegal in every other position.
 
 Recipe syntax joins atoms with `++` and accepts no other method chains or expression types. A recipe root always uses `concat`, including for one atom. After substitution, its array contains only recipe atoms. A parameter or call cannot replace the recipe root. Calls cannot be recipe atoms.
 
@@ -536,17 +569,15 @@ Conditions have these forms:
 {"nonempty":TERM}
 ```
 
-Comparators are `=`, `≠`, `∈`, `∉`, `⊆`, `⊈`, `≅`, and `≇`. Operand types follow engine §10. Tree comparison requires a bare capture, including `$`, on the left. Its right member is any term, and the loader checks its type (engine §10). A presence predicate uses `captured`, with an empty name for `$`.
+Comparators are `=`, `≠`, `∈`, `∉`, `⊆`, `⊈`, `≅`, and `≇`. Operand types follow engine §10. Tree comparison requires a bare capture, including `$`, on the left, or a node in a check condition. Its right member is any term, and the loader checks its type (engine §10). A presence predicate uses `captured`, with an empty name for `$`.
 
 TARGET follows the definition after the ARG forms. A CAPTURE is `{"capture":"x"}`, with an empty name for `$`. A boundary atom is a condition, so `not`, `any`, `all` and `if` can hold it (engine §4.2).
 
-A `parse` method or an `error-free` method over it is also a condition, with the forest forms above. A condition has no member but those of its one form.
+A `parse`, `local-readings`, `error-free` or `ending-after` method of forest type is also a condition, with the forms above. A condition has no member but those of its one form.
 
-A set term used as a condition stands as `{"nonempty":TERM}`. It tests that the set is not empty. TERM is a `union`, `intersection`, `difference`, `tag`, `emptySet`, `const`, or `param` term. TERM can also be a set-valued method: `tags`, `classes`, `split`, `ngrams`, or `classify`.
+A set term used as a condition stands as `{"nonempty":TERM}`. It tests that the set is not empty. TERM is a `union`, `intersection`, `difference`, `tag`, `emptySet`, `const`, or `param` term. TERM can also be a set-valued method: `tags`, `classes`, `split`, `ngrams`, or `classify`. A `.tags` method over a forest is such a term too. TERM can also be a guarded term, `{"if":COND,"then":TERM}`.
 
-A `.tags` method over a forest is such a term too. TERM can also be a guarded term, `{"if":COND,"then":TERM}`. A forest is no TERM of the wrapper. A bare `parse` or `error-free` method already writes that condition, so a forest under the wrapper is malformed.
-
-An `if` node in a condition position is always the condition form `{"if":COND,"then":COND}`.
+A forest is no TERM of the wrapper. A forest-valued method already writes that condition, so a forest under the wrapper is malformed. An `if` node in a condition position is always the condition form `{"if":COND,"then":COND}`.
 
 An emission is `{"items":[ITEM...]}` with a nonempty array. An item is either `{"capture":"x"}` or `{"insert":true}`, followed by optional `tags`, `value`, `image`, `before`, and `after`. The empty capture name denotes `$`. Only named capture items accept nonempty attachment arrays. Each attachment array contains capture names without `$`, in written order. Empty attachment arrays are omitted.
 
@@ -578,15 +609,21 @@ A directive of any other name is malformed (engine §9). An argument is a name o
 
 A library ignores unknown members of a directive. Its known members, `name`, `args`, `steps`, `conditions`, and `at`, keep their rules. An unknown member does not excuse a malformed known member.
 
-`rules`, `directives`, `constants`, `classifiers` and `implications` each keep the order in which the document has them. `at` is the line and column of an item's first token. So the order of all of a document's items is the order of their positions. No two items of a DOM share a position (engine §9).
+`rules`, `directives`, `constants`, `classifiers`, `implications` and `checks` each keep the order in which the document has them. `at` is the line and column of an item's first token. So the order of all of a document's items is the order of their positions. No two items of a DOM share a position (engine §9).
 
 DOMs store unresolved references and source positions, never stage-resolved constant or classifier values. Source, cached, and supplied DOMs obey the same arity, type, capture, clause, and depth rules.
+
+Libraries reject a check declaration with several faults, but this specification does not fix which fault a library reports. Engine §9.3 fixes the position for a check declaration with one fault. It also fixes the text where the specification names that text.
 
 ### Pattern values
 
 Pattern tag requirements must resolve to tag sets, as ordinary symbol requirements do.
 
 PATTERN tests one structural tree. An item consumes part of an ordered list of siblings. A pattern term has exactly one member, `pattern`, whose value is a PATTERN. Pattern terms also support `const`, `union`, `intersection`, `difference`, and contextual `emptySet`. Mixed pattern and tag-set operations are malformed.
+
+The empty pattern atom is `{"never":true,"at":[line,column]}`. Its optional `at` member records the written `∅` position. Constant resolution can give `{"never":true}` without a source position. Both forms match nothing, including inside other patterns. The atom accepts no node decorations. Its whole pattern spelling is `#∅`.
+
+An invalid `never` value, position, or extra member reports `a malformed empty pattern`.
 
 Node decorations are exact prefixes, tests, or child lists. Observable nodes are rule nodes and terminal leaves. Terminal leaves can be written or omitted. Seals are not observable nodes.
 
@@ -707,7 +744,7 @@ Union and intersection each require at least two operands. Neither permits a dir
 
 After substitution, the loader flattens any pattern intersection that substitution nests inside another intersection. This step precedes expanded-pattern validation, including in conditions and call arguments. Initial inspection still rejects nested PATTERN intersections in supplied and cached DOMs.
 
-The DOM accepts exactly the reader's output, apart from source coordinates. Unknown members and overlapping constructors are malformed at every level. No `boundary`, `written`, or `omitted` pattern form exists. Ordinary reading of canonical pattern spelling follows engine §2.3 and preserves the key of every valid shape.
+The DOM accepts exactly the reader's output, apart from source coordinates. Unknown members and overlapping constructors are malformed at every level. No `boundary`, `written`, or `omitted` pattern form exists. Ordinary reading of canonical pattern spelling follows engine §2.3 and preserves the key.
 
 A tree comparison uses the `op`, `left` and `right` members:
 
@@ -717,7 +754,7 @@ A tree comparison uses the `op`, `left` and `right` members:
 {"op":"≅","left":{"capture":"v"},"right":{"capture":"e"}}
 ```
 
-These operators require a bare capture, including `$`, on the left. The right member is any term, and the loader checks its type after constants and template arguments resolve (engine §10). A right term of constituent type is a `capture` term, with an empty name for `$`. A right term of another type than pattern or constituent is a type error.
+These operators require a bare capture, including `$`, on the left, or a node walk in a check condition. The right member is any term, and the loader checks its type after constants and template arguments resolve (engine §10). A right term of constituent type is a `capture` term, with an empty name for `$`, or a node walk in a check condition. A right term of another type than pattern or constituent is a type error.
 
 Pattern equality and implicit string conversion are malformed. Text, cached DOMs and supplied DOMs use the same grouping, field, arity and type restrictions. Resolution covers patterns in replaced definitions too.
 
@@ -743,7 +780,7 @@ The DOM holds no lowered helper, admission key, [seal](notation.md#the-structura
 
 The names dependency of a cached document is a resource map. If source conversion loads no names data, the entry omits `names`.
 
-`data/preparsed/FAMILY.json` holds the DOMs of all grammar documents under `grammars/FAMILY/`. `tools/sync.js` generates each file and copies it into every package. Its shape is `{"format":49,"bootstrap":HASH,"unicode":HASH,"properties":HASH_OR_NULL,"bundledNames":{RESOURCE:HASH},"documents":{PATH:{"hash":HASH,"names":{RESOURCE:HASH},"dom":DOM}}}`. `PATH` is relative to the package root, including the `grammars/` prefix. Each `HASH` is the FNV-1a hash of engine §8. `unicode` hashes the text of `data/unicode/unicode.txt`.
+`data/preparsed/FAMILY.json` holds the DOMs of all grammar documents under `grammars/FAMILY/`. `tools/sync.js` generates each file and copies it into every package. Its shape is `{"format":52,"bootstrap":HASH,"unicode":HASH,"properties":HASH_OR_NULL,"bundledNames":{RESOURCE:HASH},"documents":{PATH:{"hash":HASH,"names":{RESOURCE:HASH},"dom":DOM}}}`. `PATH` is relative to the package root, including the `grammars/` prefix. Each `HASH` is the FNV-1a hash of engine §8. `unicode` hashes the text of `data/unicode/unicode.txt`.
 
 The required `gencmu.json` omits the `bootstrap` header member. The hash of its complete text supplies that fingerprint for every other family. The notation reader uses its required entries without checking their source text hashes. Ordinary cache lookups still compare all other applicable identity members. Each document key selects its own family's preparsed file (engine §8), besides the required `gencmu.json`. Missing or malformed optional files give cache misses.
 

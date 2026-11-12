@@ -1,0 +1,22 @@
+{
+  "description": "An explicit query keeps optional terminal tags outside checks.",
+  "grammar": "%rule text $x:A\n%conditions $x.parse([A]), $x.parse([A]).tags = A\n%rule r A :: T",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "same"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

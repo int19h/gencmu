@@ -25,6 +25,9 @@ type defaultUse struct {
 }
 
 type stageGrammar struct {
+	localTargets        map[*domExpr]string
+	hasElements         bool
+	checks              []stageCheck
 	erasureChecks       []erasurePatternCheck
 	erasurePatterns     []erasurePatternUse
 	erasurePatternsDone bool
@@ -139,6 +142,9 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 }
 
 func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, *Error) {
+	if err := checkStageNames(docs); err != nil {
+		return nil, err
+	}
 	expanded, expansionError := expandTemplates(docs, uni)
 	if expansionError != nil {
 		expansionError.Stage = stageName
@@ -182,6 +188,7 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 			constant    *domConst
 			classifier  *domClassifier
 			implication *domImplication
+			check       *domCheck
 		}
 		var items []item
 		for _, x := range d.dom.Rules {
@@ -198,6 +205,9 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 		}
 		for _, x := range d.dom.Implications {
 			items = append(items, item{at: x.At, implication: x})
+		}
+		for _, check := range d.dom.Checks {
+			items = append(items, item{at: check.At, check: check})
 		}
 		slices.SortStableFunc(items, func(a, b item) int {
 			if a.at[0] != b.at[0] {
@@ -335,6 +345,11 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 				g.classifierSet.items = append(g.classifierSet.items, classifierItem{doc: d.path, classifier: c})
 				g.classifierSet.names[c.Name] = true
 				schedule(run, c.At, 3, func() *Error { return g.resolveClassifierKeys(index) })
+			} else if check := it.check; check != nil {
+				entry := stageCheck{doc: d.path, definition: check}
+				index := len(g.checks)
+				g.checks = append(g.checks, entry)
+				schedule(run, check.At, 5, func() *Error { return g.resolveCheck(index) })
 			} else {
 				implication := implicationItem{doc: d.path, implication: it.implication}
 				schedule(run, it.implication.At, 4, func() *Error { return g.addImplications([]implicationItem{implication}) })
@@ -464,6 +479,9 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 				}
 			}
 		}
+	}
+	if err := g.checkConditionReferences(); err != nil {
+		return nil, err
 	}
 	g.prepareBoundarySites()
 	return g, nil
@@ -647,7 +665,7 @@ func (g *stageGrammar) checkAlt(a *sAlt, checked *checkedClauses) *Error {
 				}
 			}
 			return nil
-		case cdInitial, cdEnd:
+		case cdPresent, cdInitial, cdEnd:
 			return checkTerm(c.Span)
 		case cdNot:
 			return checkCond(c.Inner)

@@ -72,7 +72,7 @@
     "suffix": ""
   },
   {
-    "name": "guards",
+    "name": "gates",
     "description": "Guards in a row before a tag term (engine §9).",
     "prefix": "%rule text :: ",
     "open": "$x ⟹ ",

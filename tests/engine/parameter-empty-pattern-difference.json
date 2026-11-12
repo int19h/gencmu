@@ -1,0 +1,11 @@
+{
+  "description": "Subtracting an empty argument keeps the other pattern.",
+  "grammar": "%rule w \"a\"\n%rule use(@P) $x:w\n%conditions $x ≅ #(·w ∖ @P)\n%rule text use(∅)",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": []
+  }
+}

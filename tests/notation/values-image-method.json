@@ -2,7 +2,7 @@
   "document": "```jbogenbau\n%rule r $x:A %conditions $x.image = \"i\"\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 52,
       "rules": [
         {
           "name": "r",
@@ -42,7 +42,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     }
   },
   "description": "The image method observes its own channel (engine §10)."

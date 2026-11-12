@@ -134,7 +134,7 @@ type diagnosticFlow struct {
 	run                    *stageRun
 	rec                    *recognizer
 	nodes                  map[*occurrence]*diagnosticNodeInfo
-	own                    map[*occurrence]diagnosticEvent
+	own                    map[*occurrence][]diagnosticEvent
 	scopeRoots             map[*occurrence]*emissionScope
 	order                  []*occurrence
 	evaluated              []diagnosticEvent
@@ -145,7 +145,7 @@ type diagnosticFlow struct {
 
 func newDiagnosticFlow(root *occurrence, run *stageRun, rec *recognizer) *diagnosticFlow {
 	main := &emissionScope{root: root}
-	flow := &diagnosticFlow{root: root, run: run, rec: rec, nodes: map[*occurrence]*diagnosticNodeInfo{}, own: map[*occurrence]diagnosticEvent{}, scopeRoots: map[*occurrence]*emissionScope{}, main: main, scopes: []*emissionScope{main}}
+	flow := &diagnosticFlow{root: root, run: run, rec: rec, nodes: map[*occurrence]*diagnosticNodeInfo{}, own: map[*occurrence][]diagnosticEvent{}, scopeRoots: map[*occurrence]*emissionScope{}, main: main, scopes: []*emissionScope{main}}
 	live := make([]int, len(run.toks))
 	type visit struct {
 		node, parent *occurrence
@@ -194,7 +194,7 @@ func (flow *diagnosticFlow) span(node *occurrence) (int, int) {
 
 func (flow *diagnosticFlow) add(node *occurrence, diagnostic Warning, isError bool) {
 	event := diagnosticEvent{node, diagnostic, isError, true}
-	flow.own[node] = event
+	flow.own[node] = append(flow.own[node], event)
 	flow.evaluated = append(flow.evaluated, event)
 }
 
@@ -222,9 +222,7 @@ func (flow *diagnosticFlow) events() []diagnosticEvent {
 		if flow.nodes[node].erased {
 			continue
 		}
-		if event, ok := flow.own[node]; ok {
-			events = append(events, event)
-		}
+		events = append(events, flow.own[node]...)
 		if node.d.kind == dRead {
 			token := flow.run.toks[flow.rec.base+int(node.d.tok)]
 			for _, diagnostic := range token.Errors {

@@ -1,0 +1,16 @@
+{
+  "description": "Issue #286: an uncalled template family is defined and matches no node.",
+  "grammar": "%rule pair(@L, @R) @L @R\n%rule text \"a\"\n%check family #·pair %warning \"bad\"",
+  "input": "a",
+  "options": {
+    "features": [
+      "family"
+    ]
+  },
+  "expect": {
+    "warnings": [],
+    "result": {
+      "ok": true
+    }
+  }
+}

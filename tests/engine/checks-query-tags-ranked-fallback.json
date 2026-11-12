@@ -1,0 +1,44 @@
+{
+  "description": "Local readings and the explicit query keep ranked tags through recognition.",
+  "grammar": "%rule text (r ≻ A) m :: ∅\n%rule r q A :: T\n%rule q ε\n%conditions ¬$.starts-input ∨ $.starts-input\n%rule m M\n%check same #·m\n%conditions $.preceding-element.local-readings, $.preceding-element.onward.parse((r ≻ A) …),\n  $.preceding-element.local-readings.tags = $.preceding-element.onward.parse((r ≻ A) …).tags,\n  $.preceding-element.local-readings.tags = ∅\n%warning \"same\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "m",
+      "tags": [
+        "M"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "same"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "same",
+        "rule": "same",
+        "span": [
+          1,
+          2
+        ],
+        "source": [
+          2,
+          3
+        ],
+        "message": "same"
+      }
+    ]
+  }
+}

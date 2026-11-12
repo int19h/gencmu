@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%rule a (\"a\"..\"z\" \"a\"..\"z\" $c:\"̀\"..\"ͯ\")\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 52,
       "rules": [
         {
           "alternatives": [
@@ -48,7 +48,8 @@
             }
           ]
         }
-      ]
+      ],
+      "checks": []
     }
   }
 }

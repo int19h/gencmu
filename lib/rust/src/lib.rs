@@ -44,6 +44,8 @@ extern crate self as gencmu;
 mod test_common;
 
 mod boundary;
+mod chart_readings;
+mod checks;
 mod clauses;
 mod competitor_rejection;
 mod diagnostic_audit;

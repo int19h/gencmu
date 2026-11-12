@@ -1,0 +1,8 @@
+{
+  "description": "A check rejects a string node operand and a forbidden terminal selector.",
+  "grammar": "%rule text \"a\"\n%check c #·text\n%conditions $.value ≅ $.terminal\n%warning \"m\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar"
+  }
+}

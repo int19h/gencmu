@@ -39,6 +39,12 @@ func (b *domBuilder) patternAtom(n, first *Node) *domPattern {
 			tests = append(tests, p)
 		}
 	}
+	if first.Rule == "empty-set" {
+		if len(tests) != 0 {
+			b.fail(first, "an empty pattern cannot carry node decorations")
+		}
+		return &domPattern{Kind: "never", At: b.at(first)}
+	}
 	name := b.tokenValue(first)
 	named := first.Rule == "rule-or-classifier-name" || first.Rule == "rule-reference" || first.Kind == KindToken && (first.Terminal == "Lowercase-Name" || first.Terminal == "Emoji-Name")
 	terminal := !named && (first.Rule == "parameter" || first.Rule == "tag" || first.Rule == "string-terminal" || first.Rule == "string" || first.Rule == "range" || first.Rule == "wildcard" || first.Rule == "constant-reference" || first.Kind == KindToken && (isCapital(name) || engineTag(name)))
@@ -132,24 +138,57 @@ func (c *domChecker) recipe(t *domTerm) {
 		c.fail("a malformed recipe")
 		return
 	}
+	previous := c.recipeContext
+	c.recipeContext = true
+	defer func() { c.recipeContext = previous }()
 	for _, atom := range t.Items {
-		if stringTermShape(atom) {
-			c.term(atom, 1, false)
-			continue
-		}
-		if atom == nil || atom.Kind != tmCall || len(atom.Items) != 1 {
+		if atom == nil || !stringTermShape(atom) && atom.Kind != tmCall {
 			c.fail("invalid recipe atom")
 			continue
 		}
-		r := atom.Items[0]
-		if r.Kind == tmCapture && (atom.Str == "value" || atom.Str == "image" || atom.Str == "source-text" || atom.Str == "decomposed-source-text" || atom.Str == "verbatim-text") {
+		c.term(atom, 1, false)
+		if c.problem != nil {
+			return
+		}
+		if c.structural {
 			continue
 		}
-		if r.Kind == tmCall && r.Str == "emitted" && len(r.Items) == 1 && r.Items[0].Kind == tmCapture && (atom.Str == "value" || atom.Str == "image") {
-			continue
+		if c.check {
+			ty, fault := termTypeMemo(atom, nil, c.types)
+			if fault != nil {
+				c.fail("%s", fault.problem)
+				return
+			}
+			if ty != tyString && ty != tyAny {
+				c.fail("++ requires string operands")
+				return
+			}
 		}
-		c.fail("invalid recipe method")
 	}
+	if c.structural {
+		return
+	}
+	if _, fault := termTypeMemo(t, nil, c.types); fault != nil {
+		c.fail("%s", fault.problem)
+		return
+	}
+	for _, atom := range t.Items {
+		if stringTermShape(atom) {
+			continue
+		}
+		if len(atom.Items) != 1 {
+			c.fail("invalid recipe method")
+			return
+		}
+		receiver := atom.Items[0]
+		valid := receiver.Kind == tmCapture && (atom.Str == "value" || atom.Str == "image" || atom.Str == "source-text" || atom.Str == "decomposed-source-text" || atom.Str == "verbatim-text" || c.check && atom.Str == "terminal")
+		valid = valid || !c.check && (atom.Str == "value" || atom.Str == "image") && receiver.Kind == tmCall && receiver.Str == "emitted"
+		if !valid {
+			c.fail("invalid recipe method")
+			return
+		}
+	}
+
 }
 
 func (b *domBuilder) constantRef(n *Node) *domTerm {
@@ -330,9 +369,13 @@ func (b *domBuilder) recipe(n *Node) *domTerm {
 		if len(r.Items) > 0 {
 			b.fail(atom, "juxtaposed recipe strings require ++, use ++ between string atoms")
 		}
+		atomStart := atom.Span[0]
 		for i := atom.Span[0]; i < atom.Span[1]; i++ {
 			if b.toks[i].Value == "(" || b.toks[i].Value == ")" {
-				b.fail(atom, "a recipe uses no grouping or arguments")
+				panic(grammarError(b.doc, b.gt.at(b.toks[atomStart].Source[0]), "a recipe atom has no grouping or arguments"))
+			}
+			if b.toks[i].Value == "++" {
+				atomStart = i + 1
 			}
 			if b.toks[i].Value == "∪" || b.toks[i].Value == "∩" || b.toks[i].Value == "∖" || b.toks[i].Value == "⟹" {
 				b.fail(atom, "a recipe atom has no set operator")
@@ -349,13 +392,25 @@ func (b *domBuilder) recipe(n *Node) *domTerm {
 			if t.Kind == tmUnion {
 				b.fail(atom, "juxtaposed recipe strings require ++, use ++ between string atoms")
 			}
+			if b.checkContext {
+				ty, problem := b.typeOf(t)
+				if problem != "" {
+					b.fail(atom, "%s", problem)
+				}
+				if ty != tyString && ty != tyAny {
+					b.fail(atom, "++ requires string operands")
+				}
+			}
 			valid := stringTermShape(t) || t.Kind == tmParam || t.Kind == tmSourceCall
 			if t.Kind == tmCall && len(t.Items) == 1 {
 				receiver := t.Items[0]
-				valid = receiver.Kind == tmCapture && (t.Str == "value" || t.Str == "image" || t.Str == "source-text" || t.Str == "decomposed-source-text" || t.Str == "verbatim-text")
+				valid = receiver.Kind == tmCapture && (t.Str == "value" || t.Str == "image" || t.Str == "source-text" || t.Str == "decomposed-source-text" || t.Str == "verbatim-text" || b.checkContext && t.Str == "terminal")
 				if receiver.Kind == tmCall && receiver.Str == "emitted" && len(receiver.Items) == 1 && receiver.Items[0].Kind == tmCapture {
 					valid = t.Str == "value" || t.Str == "image"
 				}
+			}
+			if b.checkContext && t.Kind == tmCall && (len(t.Items) != 1 || t.Items[0].Kind != tmCapture || t.Items[0].Str != "") {
+				valid = false
 			}
 			if !valid {
 				b.fail(atom, "a recipe requires a string or capture string method")
@@ -436,6 +491,7 @@ func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 		}
 		arguments := b.one(selector, "method-arguments")
 		if f.arguments == nil {
+			b.checkMethodClause(name, selector)
 			if !knownMethod(name) {
 				b.fail(f.n, "unknown method %s", name)
 			}
@@ -484,18 +540,18 @@ func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 			b.fail(f.n, "a parameter cannot replace a classifier name or integer argument")
 		}
 		f.dependent = f.dependent || argumentUnresolved
-		f.receiver = b.finishMethod(f.n, name, f.receiver, f.args, f.dependent)
+		f.receiver = b.finishMethod(f.n, name, f.receiver, f.args, f.dependent, f.selectors[f.index])
 		f.index++
 		if f.index == len(f.selectors) {
-			isPredicate := name == "starts-input" || name == "ends-input" || boundaryMethod(name) || name == "parse" || name == "error-free"
+			isPredicate := name == "starts-input" || name == "ends-input" || boundaryMethod(name) || name == "parse" || name == "error-free" || name == "ending-after" || name == "local-readings" || b.checkContext && f.inCondition && checkNodeTerm(f.receiver)
 			if f.inCondition && (name == "tags" || name == "classes" || name == "split" || name == "ngrams" || name == "classify") {
 				isPredicate = true
 			}
 			if isPredicate != f.inCondition {
-				if isPredicate && name != "parse" && name != "error-free" {
+				if isPredicate && name != "parse" && name != "error-free" && name != "ending-after" && name != "local-readings" {
 					b.fail(f.n, "a query method is a condition, not a term")
 				}
-				// parse and error-free are forests. They stand as terms,
+				// Forest methods stand as terms,
 				// and the type check faults them where a forest cannot
 				// stand (engine §9.3).
 				if !isPredicate {
@@ -521,6 +577,11 @@ const (
 	methodClassify
 	methodParse
 	methodErrorFree
+	methodEndingAfter
+	methodNode
+	methodElement
+	methodLocal
+	methodTerminal
 )
 
 var sourceMethods = map[string]sourceMethodKind{
@@ -532,12 +593,33 @@ var sourceMethods = map[string]sourceMethodKind{
 	"verbatim-text": methodRecipe, "emitted": methodRecipe,
 	"tags": methodTags, "followed-by": methodBoundary, "preceded-by": methodBoundary,
 	"ngrams": methodNgrams, "split": methodSplit, "classify": methodClassify,
-	"parse": methodParse, "error-free": methodErrorFree,
+	"parse": methodParse, "error-free": methodErrorFree, "ending-after": methodEndingAfter,
+	"parent": methodNode, "preceding-node": methodNode, "following-node": methodNode,
+	"preceding-element": methodElement, "local-readings": methodLocal, "terminal": methodTerminal,
 }
 
 func knownMethod(name string) bool { return sourceMethods[name] != 0 }
 
-func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args []*domTerm, dependent bool) *domTerm {
+func (b *domBuilder) checkMethodClause(name string, selector *Node) {
+	kind := sourceMethods[name]
+	if (kind == methodNode || kind == methodElement || kind == methodLocal || kind == methodTerminal) && (!b.checkContext || kind == methodTerminal && !b.inRecipe || kind != methodTerminal && b.inRecipe) {
+		b.fail(selector, "a check method is outside its permitted clause")
+	}
+	if b.checkContext && (name == "without-elision" || name == "without-elision-except") {
+		b.fail(selector, "a check cannot restore elision")
+	}
+}
+
+func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args []*domTerm, dependent bool, selector *Node) *domTerm {
+	if b.checkContext && b.inRecipe && receiver.Kind != tmCapture {
+		b.fail(n, "a check message reads only $")
+	}
+
+	kind := sourceMethods[name]
+	if b.checkContext && checkElementTerm(receiver) && !(kind == methodLocal || kind == methodSpan && name != "classes" || kind == methodEndingAfter) {
+		b.fail(n, "a method has the wrong receiver or arguments")
+	}
+
 	fail := func() {
 		if b.featureContext || dependent {
 			b.fail(n, "a method has the wrong receiver or arguments")
@@ -557,6 +639,12 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 	span := b.featureContext || isSpanTerm(receiver)
 	valid := false
 	switch sourceMethods[name] {
+	case methodNode, methodElement:
+		valid = b.checkContext && checkNodeTerm(receiver) && len(args) == 0
+	case methodLocal:
+		valid = b.checkContext && (checkNodeTerm(receiver) || checkElementTerm(receiver)) && len(args) == 0
+	case methodTerminal:
+		valid = b.checkContext && b.inRecipe && receiver.Kind == tmCapture && receiver.Str == "" && len(args) == 0
 	case methodParse:
 		valid = span && len(args) == 1 && args[0].Kind == tmBody
 		if valid {
@@ -568,6 +656,8 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 				b.fail(n, "suffix parse requires an ordinary span, not a restored span")
 			}
 		}
+	case methodEndingAfter:
+		valid = len(args) == 1 && (forestTerm(receiver) || unknown(receiver)) && (isSpanTerm(args[0]) || unknown(args[0]))
 	case methodErrorFree:
 		valid = len(args) == 0 && (forestTerm(receiver) || unknown(receiver))
 	case methodSpan:
@@ -585,7 +675,7 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 	case methodTags:
 		valid = (span || forestTerm(receiver)) && len(args) == 0
 	case methodBoundary:
-		valid = (b.featureContext || receiver.Kind == tmCapture || unknown(receiver)) && len(args) > 0
+		valid = (b.featureContext || receiver.Kind == tmCapture || b.checkContext && checkNodeTerm(receiver) || unknown(receiver)) && len(args) > 0
 		for _, a := range args {
 			if a.Kind == tmTag && isCapital(a.Str) {
 				a.Kind = tmTerminal

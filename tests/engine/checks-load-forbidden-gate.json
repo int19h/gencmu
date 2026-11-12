@@ -1,0 +1,8 @@
+{
+  "description": "Issue #286: the loader rejects forbidden gate.",
+  "grammar": "%rule text \"a\"\n%check bad f? #·_ %warning \"bad\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar"
+  }
+}

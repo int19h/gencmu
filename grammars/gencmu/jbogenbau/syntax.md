@@ -26,7 +26,7 @@ A keyword begins every declaration. Inside each declaration, punctuation and lex
 
 ## Documents
 
-A grammar text is a sequence of rules, directives, constant definitions, classifiers, and implications. Each starts with a keyword, so the next statement determines where the preceding one ends.
+A grammar text is a sequence of rules, checks, directives, constant definitions, classifiers and implications. Each starts with a keyword, so the next statement determines where the preceding one ends.
 
 The reader converts the recognized tree into a DOM, its document object model. Constructor names preserve the parts that this conversion needs.
 
@@ -35,12 +35,26 @@ The reader converts the recognized tree into a DOM, its document object model. C
   [{statement}]
 
 %rule statement
-  rule | ranking-directive | directive | constant-definition | classifier | implication-declaration
+  rule | check | ranking-directive | directive | constant-definition | classifier
+  | implication-declaration
 ```
 
 <details><summary>Railroad diagrams of <code>text</code> and <code>statement</code></summary>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/text.svg" alt="Railroad diagram of the rule text"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/statement.svg" alt="Railroad diagram of the rule statement"></p>
+</details>
+
+## Checks
+
+A check tests nodes after the stage chooses its tree. Its pattern selects candidate nodes, and its conditions restrict which candidates report. A check has exactly one diagnostic message and no rule body or output clause.
+
+```jbogenbau
+%rule check
+  KW-CHECK rule-name (pattern-literal | constant-reference) [conditions-clause] diagnostic-clause
+```
+
+<details><summary>Railroad diagram of <code>check</code></summary>
+<p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/check.svg" alt="Railroad diagram of the rule check"></p>
 </details>
 
 ## Rules and alternatives
@@ -568,7 +582,7 @@ These rules restate `union` and `intersection` for a condition. An operation nee
 
 The flat implication list preserves every operand for the reader's grouping. This keeps recognition work proportional to the list rather than its nested completions.
 
-A tree comparison requires a bare capture on the left. On the right, a pattern tests structure, and a bare capture compares two trees.
+A tree comparison requires a bare capture on the left, or a node walk in a check. Parentheses can group a node walk. On the right, a pattern tests structure, and a constituent compares two trees.
 
 ```jbogenbau
 %rule condition
@@ -611,13 +625,16 @@ A tree comparison requires a bare capture on the left. On the right, a pattern t
   "=" | "≠" | "∈" | "∉" | "⊆" | "⊈"
 
 %rule tree-comparison
-  capture-reference tree-comparator union
+  tree-left tree-comparator union
+
+%rule tree-left
+  (capture-reference | "(" tree-left ")") [{method-selector}]
 
 %rule tree-comparator
   "≅" | "≇"
 ```
 
-<details><summary>Railroad diagrams of the 14 rules from <code>condition</code> to <code>tree-comparator</code></summary>
+<details><summary>Railroad diagrams of the 15 rules from <code>condition</code> to <code>tree-comparator</code></summary>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/condition.svg" alt="Railroad diagram of the rule condition"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/any-of.svg" alt="Railroad diagram of the rule any-of"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/all-of.svg" alt="Railroad diagram of the rule all-of"></p>
@@ -631,14 +648,15 @@ A tree comparison requires a bare capture on the left. On the right, a pattern t
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/comparison.svg" alt="Railroad diagram of the rule comparison"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/comparator.svg" alt="Railroad diagram of the rule comparator"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/tree-comparison.svg" alt="Railroad diagram of the rule tree-comparison"></p>
+<p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/tree-left.svg" alt="Railroad diagram of the rule tree-left"></p>
 <p><img src="../../../docs/diagrams/gencmu/jbogenbau/syntax/tree-comparator.svg" alt="Railroad diagram of the rule tree-comparator"></p>
 </details>
 
 ## Tree patterns
 
-A pattern starts with `#` and one node test, bare child list, or grouped predicate. An exact prefix suppresses the node test's single-child search.
+A pattern starts with `#` and one node test, empty atom, bare child list, or grouped predicate. An exact prefix suppresses the node test's single-child search.
 
-A pattern atom names a rule, terminal, constant, or wildcard. A tag test follows the atom, as in `#_<Tense>`. The reader converts it as [engine §9.3](../../../docs/engine.md#93-conversion-and-validation) says.
+A pattern atom names a rule, terminal, constant, wildcard, or `∅`. The empty atom matches nothing and accepts no decorations. A tag test follows the atom, as in `#_<Tense>`. The reader converts it as [engine §9.3](../../../docs/engine.md#93-conversion-and-validation) says.
 
 The brackets `⁅` and `⁆` enclose child items. A child list attaches to the preceding atom. Only a rule name, emoji rule, template family, exact call, or compatible parameter accepts an attached list.
 
@@ -686,7 +704,7 @@ Recognition admits repeated or reversed tests on node atoms. Each node atom acce
   $exact ⟹ $exact.onward.parse(pattern-exact-start …)
 
 %rule pattern-atom
-  (pattern-rule | tag | string | range | wildcard | constant-reference) [{symbol-test}]
+  (pattern-rule | tag | string | range | wildcard | constant-reference | empty-set) [{symbol-test}]
 
 %rule pattern-rule
   Lowercase-Name | Emoji-Name | call | parameter

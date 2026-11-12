@@ -3,7 +3,7 @@
   "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule g A\n:- $.verbatim-text\n%emits $\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 52,
       "rules": [
         {
           "name": "g",
@@ -44,7 +44,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     }
   }
 }

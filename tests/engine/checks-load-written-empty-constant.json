@@ -1,0 +1,13 @@
+{
+  "description": "A constant cannot hide an inexact candidate test.",
+  "grammar": "%const $P #(⁅⋯⁆ ∖ ⁅⋯⁆)\n%rule text \"a\"\n%check c $P\n%warning \"bad\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 10
+    }
+  }
+}

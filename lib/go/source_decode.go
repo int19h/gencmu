@@ -56,10 +56,13 @@ func (dc *domDecoder) decodeSourceArguments(raw any, depth int) ([]*domArgument,
 func domParameter(o domObject) (string, [2]int, error) {
 	name, err := domString(o["param"])
 	if err != nil {
-		return "", [2]int{}, err
+		return "", [2]int{}, fmt.Errorf("an undeclared or malformed parameter")
 	}
 	at, err := domPosition(o["at"])
-	return name, at, err
+	if err != nil {
+		return "", [2]int{}, fmt.Errorf("an undeclared or malformed parameter")
+	}
+	return name, at, nil
 }
 
 func onlyMembers[V any](o map[string]V, members ...string) bool {

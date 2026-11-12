@@ -19,17 +19,23 @@ impl Node<'_> {
             Self::Query(value, _, _) => (3, value as *const _ as usize),
         }
     }
-    fn children(self) -> Vec<Self> {
+    fn forest(forest: &crate::lower::LForest) -> Vec<Node<'_>> {
+        let mut children = vec![match forest.target {
+            crate::lower::QueryTarget::Rule(rule) => Node::Query(&forest.span, rule, forest.clean),
+            crate::lower::QueryTarget::Local => Node::Span(&forest.span),
+        }];
+        children.extend(forest.after.iter().map(Node::Span));
+        children
+    }
+    pub(crate) fn children(self) -> Vec<Self> {
         match self {
             Self::Condition(condition) => match condition {
-                LCond::Matches(span, rule)
-                | LCond::Begins(span, rule)
-                | LCond::Ends(span, rule)
-                | LCond::Contains(span, rule) => {
-                    vec![Self::Query(span, *rule, false)]
-                }
-                LCond::ErrorFree(span, rule, _) => vec![Self::Query(span, *rule, true)],
-                LCond::Tree(span, ..) | LCond::Initial(span) | LCond::Final(span) | LCond::Boundary(_, span, ..) => {
+                LCond::Forest(forest) => Self::forest(forest),
+                LCond::Present(span)
+                | LCond::Tree(span, ..)
+                | LCond::Initial(span)
+                | LCond::Final(span)
+                | LCond::Boundary(_, span, ..) => {
                     vec![Self::Span(span)]
                 }
                 LCond::SameTree(left, _, right, _) => vec![Self::Span(left), Self::Span(right)],
@@ -39,7 +45,7 @@ impl Node<'_> {
                 LCond::If(left, right) => vec![Self::Condition(left), Self::Condition(right)],
             },
             Self::Term(term) => match term {
-                LTerm::ForestTags(span, rule, _, filtered) => vec![Self::Query(span, *rule, *filtered)],
+                LTerm::ForestTags(forest) => Self::forest(forest),
                 LTerm::Value(span)
                 | LTerm::Image(span)
                 | LTerm::Text(span)

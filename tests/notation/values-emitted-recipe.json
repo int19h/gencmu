@@ -2,7 +2,7 @@
   "document": "```jbogenbau\n%rule r :- $.emitted.image | A %emits\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 52,
       "rules": [
         {
           "name": "r",
@@ -47,7 +47,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     }
   },
   "description": "Recipes can read emitted child tokens through a channel method (engine §11)."

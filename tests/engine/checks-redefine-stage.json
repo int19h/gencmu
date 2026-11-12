@@ -1,0 +1,14 @@
+{
+  "description": "Issue #286: stage replacement clears its earlier check definitions.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text \"a\"\n%check bad #·_ %error \"bad\"\n%redefine-stage main\n%ambiguity-resolution greedy\n%rule text \"a\"\n%check bad\n #·_\n%warning \"bad\"\n```\n"
+  },
+  "pipelineDocument": "p.md",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": []
+  }
+}

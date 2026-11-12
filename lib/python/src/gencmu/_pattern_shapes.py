@@ -90,6 +90,10 @@ def layered_pattern_problem(root, *, name=None, terminal=None, test=None, depth=
             else:
                 return "a malformed pattern child item"
             continue
+        if "never" in node:
+            if not (keys == {"never"} or keys == {"never", "at"} and _position(node["at"])) or node["never"] is not True or inner:
+                return "a malformed empty pattern"
+            continue
         compound = next((key for key in _SETS if key in node), None)
         if compound:
             operands = node[compound]
@@ -233,6 +237,8 @@ def _print_layered(root, term, literal=True):
                 tasks.append(("text", ")"))
             if value["path"] == "first":
                 tasks.append(("text", " ⋰"))
+        elif value.get("never"):
+            out.append("∅")
         elif is_set(value):
             key = next(key for key in _SETS if key in value)
             for i, child in enumerate(value[key]):

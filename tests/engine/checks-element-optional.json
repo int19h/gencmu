@@ -1,0 +1,31 @@
+{
+  "description": "Issue #286: the preceding optional is one element with its own local readings.",
+  "grammar": "%rule text r \"b\"\n%rule r [\"a\" [\"b\"]] [+T]\n%check longer\n #·_<_Elided>\n%conditions $.preceding-element.local-readings.ending-after($)\n%warning $.terminal",
+  "input": "ab",
+  "options": {
+    "features": [
+      "longer"
+    ]
+  },
+  "expect": {
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "longer",
+        "rule": "longer",
+        "span": [
+          1,
+          1
+        ],
+        "source": [
+          1,
+          1
+        ],
+        "message": "T"
+      }
+    ],
+    "result": {
+      "ok": true
+    }
+  }
+}

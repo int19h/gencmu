@@ -181,7 +181,7 @@ fn capture_reads(start: ReadPart<'_>, out: &mut BTreeSet<String>) {
             },
             ReadPart::Condition(cond) => match cond {
                 Cond::Truthy(term) => stack.push(ReadPart::Term(term)),
-                Cond::Forest(term) => stack.push(ReadPart::Term(term)),
+                Cond::Present(term) | Cond::Forest(term) => stack.push(ReadPart::Term(term)),
                 Cond::SourceQuery(..) => unreachable!("source queries expand before grammar checks"),
                 Cond::Captured(name) => {
                     out.insert(name.clone());
@@ -576,6 +576,10 @@ impl RankedGroups {
         let mut analyses = FxMap::default();
         for group in &self.groups {
             self.validate_clauses(grammar, group, &mut spans, &mut analyses)?;
+            // Anonymous targets inherit their ranked helper's empty tags (§3.10).
+            if grammar.rules[group.source.0].query {
+                continue;
+            }
             let helper = graph.groups[&group.id];
             if !unsafe_tags[helper] {
                 continue;

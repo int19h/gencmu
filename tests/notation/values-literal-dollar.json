@@ -2,7 +2,7 @@
   "document": "```jbogenbau\n%rule r \"$\"\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 52,
       "rules": [
         {
           "name": "r",
@@ -27,7 +27,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     }
   },
   "description": "A dollar sign is an ordinary string character (engine §9.1)."

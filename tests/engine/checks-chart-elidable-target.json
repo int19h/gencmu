@@ -1,0 +1,56 @@
+{
+  "description": "Issue #286: an omitted terminator queries its optional without its stage caller prefix.",
+  "grammar": "%rule text A y [+T] z\n%rule y B | B C\n%rule z C T\n%check probe #·_<_Elided>\n%conditions $.local-readings\n%warning \"optional has a local reading\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    },
+    {
+      "text": "t",
+      "tags": [
+        "T"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "probe"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "probe",
+        "rule": "probe",
+        "span": [
+          2,
+          2
+        ],
+        "source": [
+          3,
+          3
+        ],
+        "message": "optional has a local reading"
+      }
+    ]
+  }
+}

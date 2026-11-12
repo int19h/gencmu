@@ -581,6 +581,10 @@ func (r *rankedGroups) validateTags(g *stageGrammar) *Error {
 		if err := r.validateClauses(g, group); err != nil {
 			return err
 		}
+		// Anonymous targets inherit their ranked helper's empty tags (§3.10).
+		if strings.HasPrefix(group.parent, "\x00parse:") {
+			continue
+		}
 		helper := graph.groups[group]
 		if !unsafe[helper] {
 			continue
@@ -674,7 +678,7 @@ func (g *rankedTagGraph) node(owner string, helper bool) int {
 	return len(g.nodes) - 1
 }
 
-// newRankedTagGraph summarizes logical arity without production products.
+// newRankedTagGraph summarizes element arity without production products.
 func newRankedTagGraph(g *stageGrammar, ranked *rankedGroups) *rankedTagGraph {
 	graph := &rankedTagGraph{groups: map[*rankedGroup]int{}}
 	named := map[string]int{}

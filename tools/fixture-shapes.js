@@ -172,7 +172,7 @@ export const fixtureShapes = {
   "dom-malformed.json": { shape: caseList(object({ description: string, malformed: boolean }, {
     dom: any, rule: any, directive: any, unicode: string, code: string, message: string,
   }, [exactly("dom", "rule", "directive")])) },
-  "growth.json": { shape: caseList(object({ description: string, pipeline: string, text: string, link: string, small: positive, large: positive, most: positive }, {}, [
+  "growth.json": { shape: caseList(object({ description: string, text: string, link: string, small: positive, large: positive, most: positive }, {pipeline: string, grammar: string, walks: boolean, eligibilityMost: positive}, [exactly("pipeline", "grammar"),
     (v) => v.large > v.small ? [] : ["large must exceed small"],
   ])) },
   "notation-growth.json": { shape: caseList(object({ name: string, description: string, prefix: string, open: string, middle: string, close: string, suffix: string })) },

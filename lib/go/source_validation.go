@@ -97,9 +97,26 @@ func (c *domChecker) target(t *domTerm, depth int) {
 	if c.deep(depth) {
 		return
 	}
+	if t != nil && t.Kind == tmInteger {
+		c.fail("a malformed integer argument")
+		return
+	}
 	if unresolvedTerm(t) {
 		c.term(t, depth, true)
 		return
+	}
+	if c.check && t != nil {
+		if t.Kind == tmRule && !c.ruleName(t.Str) {
+			c.fail("a malformed rule argument")
+			return
+		}
+		if t.Kind != tmRule && t.Kind != tmTerminal {
+			c.term(t, depth, false)
+			if !c.structural {
+				c.fail("a method has the wrong receiver or arguments")
+			}
+			return
+		}
 	}
 	if t == nil || t.Kind != tmRule && t.Kind != tmTerminal || t.Kind == tmRule && !c.ruleName(t.Str) ||
 		t.Kind == tmTerminal && (!isCapital(t.Str) || engineTag(t.Str) || !isTag(t.Str, c.uni)) {

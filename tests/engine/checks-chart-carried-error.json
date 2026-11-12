@@ -1,0 +1,52 @@
+{
+  "description": "Issue #286: the optional query preserves carried errors when selecting clean witnesses.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage before\n%ambiguity-resolution greedy\n%rule text bad\n%emits $ :: T\n%rule bad \"t\" :: T\n%error \"earlier\"\n%stage main\n%ambiguity-resolution greedy\n%rule text [+T] [+U] T\n%check any-reading #·_<_Elided>\n%conditions U ⊆ $.tags, $.preceding-element.local-readings\n%warning \"dirty local reading exists\"\n%check clean-reading #·_<_Elided>\n%conditions U ⊆ $.tags, $.preceding-element.local-readings.error-free\n%warning \"clean local reading exists\"\n```\n"
+  },
+  "pipelineDocument": "p.md",
+  "input": "t",
+  "options": {
+    "features": [
+      "any-reading",
+      "clean-reading"
+    ]
+  },
+  "expect": {
+    "error": "reported",
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "any-reading",
+        "rule": "any-reading",
+        "span": [
+          0,
+          0
+        ],
+        "source": [
+          0,
+          0
+        ],
+        "message": "dirty local reading exists"
+      }
+    ],
+    "result": {
+      "stages": [
+        {
+          "name": "before",
+          "output": [
+            {
+              "errors": [
+                {
+                  "code": "bad"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "main"
+        }
+      ]
+    }
+  }
+}

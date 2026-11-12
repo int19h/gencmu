@@ -2,7 +2,7 @@
   "document": "```jbogenbau\n%rule r A<>\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 52,
       "rules": [
         {
           "name": "r",
@@ -29,7 +29,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     }
   },
   "description": "An empty requirement list is a neutral test (engine §4)."

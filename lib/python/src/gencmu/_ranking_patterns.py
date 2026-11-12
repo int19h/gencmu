@@ -14,6 +14,8 @@ def requires_elided(pattern):
 
 
 def ranking_pattern_problem(pattern):
+    if pattern.get("never"):
+        return None
     for key in ("union", "intersection", "difference"):
         if key in pattern:
             return next((problem for child in pattern[key] if (problem := ranking_pattern_problem(child))), None)
@@ -27,6 +29,8 @@ def has_pattern_value(pattern):
 
 
 def possible_node_match(pattern, name=None, terminal=None, tags=None, value=None):
+    if pattern.get("never"):
+        return False
     def conjunction(values):
         return False if False in values else None if None in values else True
     def disjunction(values):

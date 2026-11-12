@@ -1,0 +1,65 @@
+{
+  "description": "Issue #286: a walk stops at an erased splice seal instead of skipping it.",
+  "grammar": "%rule text A *hidden B\n%rule hidden C\n%erased\n%check before\n #·A\n%conditions ¬$.following-node\n%warning \"before\"\n%check after\n #·B\n%conditions ¬$.preceding-node\n%warning \"after\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "before",
+      "after"
+    ]
+  },
+  "expect": {
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "before",
+        "rule": "before",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "message": "before"
+      },
+      {
+        "stage": "main",
+        "code": "after",
+        "rule": "after",
+        "span": [
+          2,
+          3
+        ],
+        "source": [
+          4,
+          5
+        ],
+        "message": "after"
+      }
+    ],
+    "result": {
+      "ok": true
+    }
+  }
+}

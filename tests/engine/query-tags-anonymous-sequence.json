@@ -1,0 +1,28 @@
+{
+  "description": "An anonymous query of several symbols has no tags.",
+  "grammar": "%rule text $x:r\n%conditions $x.parse(A A), $x.parse(A A).tags = ∅\n%rule r A A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "same"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

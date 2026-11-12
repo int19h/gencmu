@@ -1,0 +1,8 @@
+{
+  "description": "A check message rejects a node walk and a terminal chain.",
+  "grammar": "%rule text \"a\"\n%check c #·text\n%warning \"x\" ++ $.parent.terminal",
+  "input": "a",
+  "expect": {
+    "error": "grammar"
+  }
+}

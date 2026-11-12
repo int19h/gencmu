@@ -1,0 +1,8 @@
+{
+  "description": "A check message rejects tags and an emitted channel chain.",
+  "grammar": "%rule text \"a\"\n%check c #·text\n%warning $.tags ++ $.emitted.value",
+  "input": "a",
+  "expect": {
+    "error": "grammar"
+  }
+}

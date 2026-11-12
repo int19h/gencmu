@@ -1,4 +1,4 @@
-"""Independent checks of values and logical helpers from the specification."""
+"""Independent checks of values and element helpers from the specification."""
 
 from __future__ import annotations
 
@@ -101,7 +101,7 @@ class Values(unittest.TestCase):
             self.assertRegex(str(error), expected)
 
     def test_parent_helper_routes_preserve_optional_priority(self) -> None:
-        # Engine §4 keeps one logical parent across the physical helper
+        # Engine §4 keeps one element parent across the physical helper
         # routes introduced by a private capture.
         for capture in ("c", "$c:c"):
             for suffix, allowed in (("T", False), ("T U", True)):
@@ -145,7 +145,7 @@ class Values(unittest.TestCase):
                     self.assertEqual((error.line, error.column), (3 + prefix.count("\n"), len(prefix.rsplit("\n", 1)[-1]) + offset + 1))
 
     def test_captures_preserve_optional_query_priority(self) -> None:
-        # Engine §4 fixes the prefix before the logical optional. Its
+        # Engine §4 fixes the prefix before the element optional. Its
         # present D route reads the written T, even on an absent route.
         for optional in ("[c]", "[$c:c]", "[[$c:c]]", "[($c:c ≻ c)]"):
             with self.subTest(optional=optional):

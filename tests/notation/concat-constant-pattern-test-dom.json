@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%const $JOIN-1 (\"a\" ++ \"b\")\n%const $P #$JOIN-1=\"ab\"\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 52,
       "rules": [],
       "directives": [],
       "constants": [
@@ -50,7 +50,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     }
   }
 }

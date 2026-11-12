@@ -1,0 +1,40 @@
+{
+  "description": "Engine §10: ending-after requires a completed witness beyond the argument end.",
+  "grammar": "%rule text $x:\"a\" \"b\"\n%conditions $x.onward.parse(r …).ending-after($x)\n%rule r\n | short? \"a\"\n | long? \"a\" \"b\"",
+  "parses": [
+    {
+      "expect": {
+        "error": "rejected"
+      },
+      "options": {
+        "features": [
+          "short"
+        ]
+      }
+    },
+    {
+      "expect": {
+        "brackets": "(a b)",
+        "result": {
+          "ok": true
+        }
+      },
+      "options": {
+        "features": [
+          "long"
+        ]
+      }
+    },
+    {
+      "expect": {
+        "error": "rejected"
+      },
+      "options": {
+        "features": [
+          "short"
+        ]
+      }
+    }
+  ],
+  "input": "ab"
+}

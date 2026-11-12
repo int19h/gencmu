@@ -1,0 +1,14 @@
+{
+  "description": "A check cannot share a later rule's name.",
+  "grammar": "%rule text \"a\"\n%check bad\n #·_\n%warning \"bad\"\n%rule bad \"a\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 1
+    },
+    "message": "a rule and a check cannot share the name bad"
+  }
+}

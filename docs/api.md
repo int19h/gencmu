@@ -76,11 +76,15 @@ Ranked-choice loading errors also carry `code`, `group`, `option`, `expression`,
 
 ### The pipeline's features
 
-A feature is a named switch for a gate or warning code (engine §13).
+A feature is a named switch for a gate or warning code (engine §13). Warning checks use the same controls as warning rules. The `early-elision` check is on by default in `lojban/cll`, `lojban/bpfk`, `lojban/experimental` and the playground.
 
-A loaded pipeline lists its features (engine §13), in code point order of the names. The list includes classifier gates and every surviving warning rule, named by its code. Error codes are not selectable features. One name cannot serve different roles across stages. Each feature in the list has its name, its kind (`gate` or `warning`), and whether the pipeline turns it on by default. The CLI and the playground use the list to offer the features by name.
+A loaded pipeline lists its features (engine §13), in code point order of the names. The list includes classifier gates and every surviving warning rule and warning check, named by its code. Error codes are not selectable features. One name cannot serve different roles across stages. Each feature in the list has its name, its kind (`gate` or `warning`), and whether the pipeline turns it on by default. The CLI and the playground use the list to offer the features by name.
 
-Unconditional declarations, global or stage-local, set `default:true`. The inventory does not depend on the caller's last stage. Conditional declarations contribute feature names without defaults. Warning codes use the same enable and disable arguments as gates. Disabling a warning changes reports only, including message evaluation. Suppression follows the grammar and cannot enable a disabled code.
+The JavaScript audit gives the static ranking reports of `docs/design.md`. Python and Rust expose `ranking_reports()`. Go exposes `RankingReports()`. Python prints them through `format_ranking_reports()`. Go uses `FormatRankingReports`. Rust uses `format_ranking_reports`.
+
+Unconditional declarations, global or stage-local, set `default:true`. The inventory does not depend on the caller's last stage. Conditional declarations contribute feature names without defaults.
+
+Warning codes use the same enable and disable arguments as gates. Disabling a warning skips its evaluation. For a check, that includes its pattern, conditions and message. An enabled check can raise a runtime grammar error and stop output. Suppression follows the grammar and cannot enable a disabled code.
 
 ### Parsing
 
@@ -119,13 +123,13 @@ Parsing is synchronous, and you can use a loaded pipeline for any number of pars
 
 The result has the fields of `docs/output.md`, in the data types of the language. These fields are `ok`, the stages, the `tree` of the last stage, the `error`, and the `warnings`. With no warnings, `warnings` is an empty list, and the canonical JSON omits it.
 
-A `reported` error contains the ordered `errors` that count at the reporting stage. Each diagnostic has `stage`, `code`, `rule`, `span`, `source`, and `message`. Errors can also have a competitor `rejection` member (engine §12.1). Warnings use the six-member shape and have no `feature` member.
+A `reported` error contains the ordered `errors` that count at the reporting stage. Each diagnostic has `stage`, `code`, `rule`, `span`, `source`, and `message`. Rule errors can also have a competitor `rejection` member (engine §12.1). Checks use their name for both `code` and `rule`, and their matched node supplies their coordinates. Warnings use the six-member shape and have no `feature` member.
 
 A `reported` result keeps the chosen tree, its `unique` or `resolved` verdict, and the reporting stage's emitted output, with `ok:false`. Earlier stages continue despite chosen errors, with diagnostics carried on output tokens. Errors cannot be disabled. Erasure drops both carried errors and warnings, while suppression applies only in the raising stage.
 
 `until` selects the reporting stage. For example, inspection through forms reports surviving forms errors while preserving the emitted forms tokens. A tie lists errors and warnings from its two shown readings. Rejection, feature-conflict, and grammar envelopes also retain diagnostics under engine §12.1.
 
-Every other error result has a null `tree`. The recipe language has no message that can fail. Engine §12.1 defines the guard for a failure.
+Every other error result has a null `tree`. If a message recipe or check evaluation fails, the stage keeps its verdict and gives a `grammar` result. It has no output. Its envelope retains pending stage-level diagnostics, evaluated own messages outside erased subtrees, and carried input diagnostics under engine §12.1. Earlier stage outputs remain.
 
 The result also has `features`, the enabled feature names in code point order, without duplicates. This field stays outside canonical JSON. Go calls it `Features`.
 

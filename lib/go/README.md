@@ -104,7 +104,7 @@ Each stage-zero token stores every available Unicode property membership from th
 
 Grammar documents use the same decomposition. Escaped scalars inside strings remain exact. Resource paths decode escapes without decomposition. The `.decomposed-source-text` method decomposes the original source text of a span.
 
-The cache requires DOM format 49 and matching document, bootstrap, Unicode, properties, and required names fingerprints. Fingerprints use 64-bit FNV-1a over resource text.
+The cache requires DOM format 52 and matching document, bootstrap, Unicode, properties, and required names fingerprints. Fingerprints use 64-bit FNV-1a over resource text.
 
 A `Token` also has its attachments, `Before` and `After` (engine §11). These are tokens that belong to it and that no later stage reads, such as the indicators after a word. They are nil when there are none. An attached token has no span: its `Span` is zero, and the canonical JSON leaves it out.
 

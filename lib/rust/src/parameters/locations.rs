@@ -79,6 +79,7 @@ fn term(t: &mut dom::Term, n: &Json) {
 fn cond(c: &mut dom::Cond, n: &Json) {
     use dom::Cond;
     match c {
+        Cond::Present(t) => term(t, get(n, "present")),
         Cond::Forest(t) => term(t, n),
         Cond::Boundary(_, receiver, _, location) => {
             let location = std::sync::Arc::make_mut(location);
@@ -418,6 +419,11 @@ fn annotate_term(t: &dom::Term, n: &mut Json) {
 pub(crate) fn annotate_condition(c: &dom::Cond, n: &mut Json) {
     use dom::Cond;
     match c {
+        Cond::Present(t) => {
+            if let Some(value) = slot(n, "present") {
+                annotate_term(t, value);
+            }
+        }
         Cond::Forest(t) => annotate_term(t, n),
         Cond::SourceQuery(_, args, location) => {
             locate(n, location.at);
@@ -623,6 +629,27 @@ pub(crate) fn annotate_document(raw: &mut Json, dom: &Dom) {
             annotate_rule(rule, n)
         }
     }
+    if let Some(Json::Arr(checks)) = slot(raw, "checks") {
+        for (check, raw) in dom.checks.iter().zip(checks) {
+            if let Some(pattern) = slot(raw, "pattern") {
+                if let dom::Term::Pattern(value) = &check.pattern {
+                    annotate_pattern(value, pattern);
+                } else {
+                    annotate_term(&check.pattern, pattern);
+                }
+            }
+            if let Some(Json::Arr(conditions)) = slot(raw, "conditions") {
+                for (condition, raw) in check.conditions.iter().zip(conditions) {
+                    annotate_condition(condition, raw);
+                }
+            }
+            for (name, recipe) in [("error", &check.error), ("warning", &check.warning)] {
+                if let (Some(recipe), Some(raw)) = (recipe, slot(raw, name)) {
+                    annotate_term(recipe, raw);
+                }
+            }
+        }
+    }
     if let Some(Json::Arr(constants)) = slot(raw, "constants") {
         for (constant, n) in dom.constants.iter().zip(constants) {
             if let Some(n) = slot(n, "value") {
@@ -661,6 +688,22 @@ fn path_slot<'a>(mut n: &'a mut Json, path: &str) -> Option<&'a mut Json> {
 pub(crate) fn restore_document(dom: &mut Dom, raw: &Json) {
     for (r, n) in dom.rules.iter_mut().zip(list(get(raw, "rules"))) {
         restore_rule(r, n)
+    }
+    for (check, raw) in dom.checks.iter_mut().zip(list(get(raw, "checks"))) {
+        let pattern = get(raw, "pattern");
+        if let dom::Term::Pattern(value) = &mut check.pattern {
+            restore_pattern(value, pattern);
+        } else {
+            term(&mut check.pattern, pattern);
+        }
+        for (condition, raw) in check.conditions.iter_mut().zip(list(get(raw, "conditions"))) {
+            cond(condition, raw);
+        }
+        for (name, recipe) in [("error", &mut check.error), ("warning", &mut check.warning)] {
+            if let Some(recipe) = recipe {
+                term(recipe, get(raw, name));
+            }
+        }
     }
     for (d, n) in dom.directives.iter_mut().zip(list(get(raw, "directives"))) {
         if let Some(cs) = &mut d.conditions {

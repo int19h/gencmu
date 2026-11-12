@@ -91,9 +91,6 @@ func queryParts(part clausePart, g *lowered) (*domTerm, []string) {
 		return condition.Span, names
 	}
 	if term := part.t; term != nil && term.Kind == tmCall {
-		if term.Str == "tags" && len(term.Items) == 2 {
-			return term.Items[0], []string{term.Items[1].Str}
-		}
 		if term.Str == "parse" {
 			return term.Items[0], []string{g.stage.queryTargets[term.Items[1].Body]}
 		}

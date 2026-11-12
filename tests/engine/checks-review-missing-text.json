@@ -1,0 +1,16 @@
+{
+  "description": "Issue #286 review round 2: local readings without a text rule give the ordinary loading error.",
+  "grammar": "%rule top A [+T]\n%check missing #·_<_Elided>\n%conditions $.preceding-element.local-readings\n%warning \"missing\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "message": "has no rule text"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "description": "Issue #286: the loader rejects ranking reference.",
+  "grammar": "%ambiguity-resolution fewest #·bad\n%rule text \"a\"\n%check bad\n #·_\n%warning \"bad\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "description": "Issue #286: suppression under a spliced rule skips check evaluation.",
+  "grammar": "%rule text *s\n%rule s \"a\"\n%suppress-warnings bad\n%check bad\n #·_\n%conditions $.value.split(\"\" ++ \"\")\n%warning \"bad\"",
+  "input": "a",
+  "options": {
+    "features": [
+      "bad"
+    ]
+  },
+  "expect": {
+    "warnings": [],
+    "result": {
+      "ok": true
+    }
+  }
+}

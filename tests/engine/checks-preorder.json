@@ -1,0 +1,148 @@
+{
+  "description": "Issue #286: rule messages precede checks, and checks follow their stitched definition order.",
+  "grammar": "%rule text *wrapper\n%warning \"root\"\n%rule wrapper a [+T] [+U]\n%warning \"wrapper\"\n%rule a \"a\"\n%warning \"part\"\n%check leaves\n #·_\n%warning $.terminal\n%check nodes\n #·a\n%warning \"node\"\n%check omitted\n #·_<_Elided>\n%warning $.terminal",
+  "input": "a",
+  "options": {
+    "features": [
+      "text",
+      "wrapper",
+      "a",
+      "leaves",
+      "nodes",
+      "omitted"
+    ]
+  },
+  "expect": {
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "text",
+        "rule": "text",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "message": "root"
+      },
+      {
+        "stage": "main",
+        "code": "wrapper",
+        "rule": "wrapper",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "message": "wrapper"
+      },
+      {
+        "stage": "main",
+        "code": "a",
+        "rule": "a",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "message": "part"
+      },
+      {
+        "stage": "main",
+        "code": "nodes",
+        "rule": "nodes",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "message": "node"
+      },
+      {
+        "stage": "main",
+        "code": "leaves",
+        "rule": "leaves",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "message": "\"a\""
+      },
+      {
+        "stage": "main",
+        "code": "leaves",
+        "rule": "leaves",
+        "span": [
+          1,
+          1
+        ],
+        "source": [
+          1,
+          1
+        ],
+        "message": "T"
+      },
+      {
+        "stage": "main",
+        "code": "omitted",
+        "rule": "omitted",
+        "span": [
+          1,
+          1
+        ],
+        "source": [
+          1,
+          1
+        ],
+        "message": "T"
+      },
+      {
+        "stage": "main",
+        "code": "leaves",
+        "rule": "leaves",
+        "span": [
+          1,
+          1
+        ],
+        "source": [
+          1,
+          1
+        ],
+        "message": "U"
+      },
+      {
+        "stage": "main",
+        "code": "omitted",
+        "rule": "omitted",
+        "span": [
+          1,
+          1
+        ],
+        "source": [
+          1,
+          1
+        ],
+        "message": "U"
+      }
+    ],
+    "result": {
+      "ok": true
+    }
+  }
+}

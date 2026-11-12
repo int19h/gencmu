@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%rule text {(a ≻ b) / (c ≻ d)}\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 52,
       "rules": [
         {
           "alternatives": [
@@ -33,7 +33,8 @@
             }
           ]
         }
-      ]
+      ],
+      "checks": []
     }
   }
 }

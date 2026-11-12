@@ -1,0 +1,14 @@
+{
+  "description": "A span chain in a check message reports at the atom.",
+  "grammar": "%rule text \"a\"\n%check c #·text\n%warning \"x\" ++ $.onward.value",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "message": "a check message reads only $",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 17
+    }
+  }
+}

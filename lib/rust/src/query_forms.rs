@@ -64,7 +64,7 @@ pub(crate) fn suffix_body(body: &Expr) -> bool {
 }
 
 /// The old and new spellings share a target and therefore a recursion key (§4.3).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum Mode {
     Whole,
     Prefix,
@@ -103,34 +103,147 @@ pub(crate) fn body_core(body: &Expr) -> (Expr, Mode) {
     (body.clone(), Mode::Whole)
 }
 
-fn structural_key(body: &Expr) -> String {
-    let mut raw = String::new();
-    crate::dom::write_expr(&mut raw, body);
-    let raw = crate::json::parse_unbounded(&raw).expect("a query body DOM");
-    crate::parameters::map_nodes(&raw, |mut node| {
-        work::count(Work::Walked, 1);
-        if let crate::json::Json::Obj(fields) = &mut node {
-            fields.retain(|(key, _)| key != "at" && key != crate::parameters::SOURCE);
-            for (key, value) in fields.iter_mut() {
-                if matches!(key.as_str(), "seq" | "choice") {
-                    if let crate::json::Json::Arr(items) = value {
-                        let flat = std::mem::take(items)
-                            .into_iter()
-                            .flat_map(|item| {
-                                item.get(key)
-                                    .and_then(crate::json::Json::as_array)
-                                    .map_or_else(|| vec![item.clone()], |items| items.to_vec())
-                            })
-                            .collect();
-                        *items = flat;
-                    }
+// Normalize native expressions for query identity. Source locations do not
+// distinguish readings, and transparent sequences and choices flatten.
+fn reading_expression(body: &Expr, binders: bool, identity: bool) -> Expr {
+    use crate::dom::DefaultValue;
+    work::count(Work::Walked, 1);
+    let child = |e: &Expr| reading_expression(e, binders, identity);
+    match body {
+        Expr::Capture(_, inner) if binders => child(inner),
+        Expr::Seq(items) | Expr::Choice(items) => {
+            let sequence = matches!(body, Expr::Seq(_));
+            let mut parts = Vec::new();
+            for item in items {
+                let mut item = child(item);
+                match &mut item {
+                    Expr::Seq(inner) if identity && sequence => parts.extend(std::mem::take(inner)),
+                    Expr::Choice(inner) if identity && !sequence => parts.extend(std::mem::take(inner)),
+                    _ => parts.push(item),
                 }
             }
-            fields.sort_by(|a, b| a.0.cmp(&b.0));
+            if sequence {
+                Expr::Seq(parts)
+            } else {
+                Expr::Choice(parts)
+            }
         }
-        node
-    })
-    .to_json()
+        Expr::Ranked(items, at) => Expr::Ranked(items.iter().map(child).collect(), if identity { None } else { *at }),
+        Expr::And(items) => Expr::And(items.iter().map(child).collect()),
+        Expr::Optional(inner, mark, default) => Expr::Optional(
+            Box::new(child(inner)),
+            *mark,
+            default.as_ref().map(|d| DefaultValue {
+                term: if identity { identity_term(&d.term) } else { d.term.clone() },
+                at: if identity { None } else { d.at },
+            }),
+        ),
+        Expr::Repeat(inner, sep, chain) => {
+            Expr::Repeat(Box::new(child(inner)), sep.as_deref().map(|e| Box::new(child(e))), *chain)
+        }
+        Expr::Splice(inner) => Expr::Splice(Box::new(child(inner))),
+        Expr::Capture(name, inner) => Expr::Capture(name.clone(), Box::new(child(inner))),
+        Expr::Tested(op, term, inner) => {
+            Expr::Tested(op.clone(), if identity { identity_term(term) } else { term.clone() }, Box::new(child(inner)))
+        }
+        Expr::Literal(term) if identity => Expr::Literal(identity_term(term)),
+        Expr::ScalarRange(a, b) if identity => Expr::ScalarRange(identity_term(a), identity_term(b)),
+        _ => body.clone(),
+    }
+}
+
+fn identity_term(term: &Term) -> Term {
+    use crate::dom::Arg;
+    match term {
+        Term::Body(body) => Term::Body(std::sync::Arc::new(reading_expression(body, false, true))),
+        Term::Pattern(pattern) => Term::Pattern(Box::new(identity_pattern(pattern))),
+        Term::Union(parts) => Term::Union(parts.iter().map(identity_term).collect()),
+        Term::Intersection(parts) => Term::Intersection(parts.iter().map(identity_term).collect()),
+        Term::Difference(a, b) => Term::Difference(Box::new(identity_term(a)), Box::new(identity_term(b))),
+        Term::Call(name, args) => Term::Call(
+            name.clone(),
+            args.iter()
+                .map(|arg| match arg {
+                    Arg::Term(term) => Arg::Term(identity_term(term)),
+                    _ => arg.clone(),
+                })
+                .collect(),
+        ),
+        Term::If(cond, term) => Term::If(Box::new(identity_cond(cond)), Box::new(identity_term(term))),
+        Term::Const(name, _) => Term::Const(name.clone(), (0, 0)),
+        _ => term.clone(),
+    }
+}
+
+fn identity_cond(cond: &crate::dom::Cond) -> crate::dom::Cond {
+    use crate::dom::{Arg, BoundaryLocation, Cond};
+    match cond {
+        Cond::Present(t) => Cond::Present(identity_term(t)),
+        Cond::Forest(t) => Cond::Forest(identity_term(t)),
+        Cond::Truthy(t) => Cond::Truthy(identity_term(t)),
+        Cond::SourceQuery(name, args, _) => Cond::SourceQuery(
+            name.clone(),
+            args.iter()
+                .map(|a| match a {
+                    Arg::Term(t) => Arg::Term(identity_term(t)),
+                    _ => a.clone(),
+                })
+                .collect(),
+            BoundaryLocation::default(),
+        ),
+        Cond::Compare(op, a, b, _) => Cond::Compare(op.clone(), identity_term(a), identity_term(b), None),
+        Cond::Initial(t) => Cond::Initial(identity_term(t)),
+        Cond::Final(t) => Cond::Final(identity_term(t)),
+        Cond::Boundary(dir, t, names, _) => Cond::Boundary(*dir, identity_term(t), names.clone(), Default::default()),
+        Cond::Not(c) => Cond::Not(Box::new(identity_cond(c))),
+        Cond::Any(parts) => Cond::Any(parts.iter().map(identity_cond).collect()),
+        Cond::All(parts) => Cond::All(parts.iter().map(identity_cond).collect()),
+        Cond::If(a, b) => Cond::If(Box::new(identity_cond(a)), Box::new(identity_cond(b))),
+        Cond::Captured(_) => cond.clone(),
+    }
+}
+
+fn identity_pattern(pattern: &crate::patterns::Pattern) -> crate::patterns::Pattern {
+    use crate::patterns::Pattern as P;
+    match pattern {
+        P::Name(n, _) => P::Name(n.clone(), (0, 0)),
+        P::Terminal(n, _) => P::Terminal(n.clone(), (0, 0)),
+        P::Literal(t, _) => P::Literal(identity_term(t), (0, 0)),
+        P::Range(a, b, _) => P::Range(identity_term(a), identity_term(b), (0, 0)),
+        P::Wildcard(_) => P::Wildcard((0, 0)),
+        P::Constant(n, _) => P::Constant(n.clone(), (0, 0)),
+        P::Test(op, t, p, _) => P::Test(op.clone(), identity_term(t), Box::new(identity_pattern(p)), None),
+        P::Node(p, exact, children) => {
+            P::Node(Box::new(identity_pattern(p)), *exact, children.as_ref().map(identity_children))
+        }
+        P::Path(path, p) => P::Path(path.clone(), Box::new(identity_pattern(p))),
+        P::Union(parts) => P::Union(parts.iter().map(identity_pattern).collect()),
+        P::Intersection(parts) => P::Intersection(parts.iter().map(identity_pattern).collect()),
+        P::Difference(a, b) => P::Difference(Box::new(identity_pattern(a)), Box::new(identity_pattern(b))),
+        _ => pattern.clone(),
+    }
+}
+
+fn identity_children(children: &crate::patterns::Children) -> crate::patterns::Children {
+    use crate::patterns::Children as C;
+    match children {
+        C::Node(p) => C::Node(Box::new(identity_pattern(p))),
+        C::Sequence(parts) => C::Sequence(parts.iter().map(identity_children).collect()),
+        C::Choice(parts) => C::Choice(parts.iter().map(identity_children).collect()),
+        C::Optional(c) => C::Optional(Box::new(identity_children(c))),
+        C::Repeat(c, sep) => {
+            C::Repeat(Box::new(identity_children(c)), sep.as_deref().map(|c| Box::new(identity_children(c))))
+        }
+        C::Siblings => C::Siblings,
+    }
+}
+
+fn structural_key(body: &Expr) -> String {
+    format!("{:?}", reading_expression(body, false, true))
+}
+
+fn without_binders(body: &Expr) -> Expr {
+    reading_expression(body, true, false)
 }
 
 pub(crate) fn prepare(grammar: &mut crate::grammar::StageGrammar) -> Result<(), crate::error::Error> {
@@ -139,10 +252,82 @@ pub(crate) fn prepare(grammar: &mut crate::grammar::StageGrammar) -> Result<(), 
     use crate::fxhash::{FxMap, FxSet};
     use crate::grammar::{RuleClauses, StitchedAlternative, StitchedRule};
     use std::sync::Arc;
+    let local = grammar.checks.iter().any(|(_, check)| {
+        let mut pending: Vec<_> = check.conditions.iter().map(Part::Cond).collect();
+        while let Some(part) = pending.pop() {
+            if matches!(part, Part::Term(Term::Call(name, _)) if name == "local-readings") {
+                return true;
+            }
+            pending.extend(part.children());
+        }
+        false
+    });
+    grammar.has_elements = grammar.checks.iter().any(|(_, check)| {
+        let mut pending: Vec<_> = check.conditions.iter().map(Part::Cond).collect();
+        while let Some(part) = pending.pop() {
+            if matches!(part, Part::Term(Term::Call(name, _)) if name == "preceding-element") {
+                return true;
+            }
+            pending.extend(part.children());
+        }
+        false
+    });
+    let mut local_queries = Vec::new();
+    if local {
+        // Only written sites reachable in the chosen tree need reading targets.
+        // Erased alternatives contribute a seal and expose no child sites.
+        // Stage validation reports a missing start rule.
+        let mut rules: Vec<_> = grammar.index.get("text").copied().into_iter().collect();
+        let mut seen = FxSet::default();
+        while let Some(index) = rules.pop() {
+            if !seen.insert(index) {
+                continue;
+            }
+            for alternative in &grammar.rules[index].alternatives {
+                if alternative.erased {
+                    continue;
+                }
+                let mut pending = vec![(&alternative.alternative.expr, true)];
+                while let Some((expr, site)) = pending.pop() {
+                    if let Expr::Ref(name) = expr {
+                        if let Some(&index) = grammar.index.get(name) {
+                            rules.push(index);
+                        }
+                    }
+                    if site
+                        && !matches!(
+                            expr,
+                            Expr::Seq(_)
+                                | Expr::Choice(_)
+                                | Expr::And(_)
+                                | Expr::Capture(..)
+                                | Expr::Empty
+                                | Expr::Remainder
+                                | Expr::Repeat(_, _, Some(_))
+                        )
+                    {
+                        let body = Arc::new(without_binders(expr));
+                        let term = Term::Call(
+                            "parse".into(),
+                            vec![Arg::Term(Term::Capture(String::new())), Arg::Term(Term::Body(body.clone()))],
+                        );
+                        local_queries.push((expr as *const Expr as usize, alternative, body, term));
+                    }
+                    // Tests and splices replace the inner symbol's site.
+                    // Their containers still expose their own child sites.
+                    match expr {
+                        Expr::Tested(_, _, inner) | Expr::Splice(inner) => pending.push((inner, false)),
+                        _ => pending.extend(expression_children(expr).into_iter().map(|child| (child, true))),
+                    }
+                }
+            }
+        }
+    }
     let mut identities = FxMap::default();
     let mut seen = FxSet::default();
     let mut pending_rules = Vec::new();
     let mut targets = FxMap::default();
+    let mut contexts = Vec::new();
     for rule in &grammar.rules {
         for alternative in &rule.alternatives {
             let clauses = &alternative.clauses;
@@ -167,69 +352,82 @@ pub(crate) fn prepare(grammar: &mut crate::grammar::StageGrammar) -> Result<(), 
                 };
                 pending.extend(tags.iter().chain(&strings.value).chain(&strings.image).map(Part::Term));
             }
-            while let Some(part) = pending.pop() {
-                let identity = match part {
-                    Part::Term(term) => (false, term as *const Term as usize),
-                    Part::Cond(condition) => (true, condition as *const crate::dom::Cond as usize),
-                };
-                if !seen.insert(identity) {
-                    continue;
-                }
-                work::count(Work::Walked, 1);
-                if let Part::Term(Term::Call(name, args)) = part {
-                    if let ("parse", [Arg::Term(_), Arg::Term(Term::Body(body))]) = (name.as_str(), args.as_slice()) {
-                        let pointer = Arc::as_ptr(body) as usize;
-                        if let std::collections::hash_map::Entry::Vacant(entry) = targets.entry(pointer) {
-                            let (core, _) = body_core(body);
-                            let key = structural_key(&core);
-                            let target = identities
-                                .entry(key)
-                                .or_insert_with(|| {
-                                    if let Expr::Ref(name) = &core {
-                                        if !name.starts_with('_') {
-                                            return name.clone();
-                                        }
+            contexts.push((alternative.document.clone(), alternative.at, alternative.text_order, pending));
+        }
+    }
+    for (document, check) in &grammar.checks {
+        contexts.push((document.clone(), check.at, 0, check.conditions.iter().map(Part::Cond).collect()));
+    }
+    for (_, alternative, _, query) in &local_queries {
+        contexts.push((alternative.document.clone(), alternative.at, alternative.text_order, vec![Part::Term(query)]));
+    }
+    for (document, at, text_order, mut pending) in contexts {
+        while let Some(part) = pending.pop() {
+            let identity = match part {
+                Part::Term(term) => (false, term as *const Term as usize),
+                Part::Cond(condition) => (true, condition as *const crate::dom::Cond as usize),
+            };
+            if !seen.insert(identity) {
+                continue;
+            }
+            work::count(Work::Walked, 1);
+            if let Part::Term(Term::Call(name, args)) = part {
+                if let ("parse", [Arg::Term(_), Arg::Term(Term::Body(body))]) = (name.as_str(), args.as_slice()) {
+                    let pointer = Arc::as_ptr(body) as usize;
+                    if let std::collections::hash_map::Entry::Vacant(entry) = targets.entry(pointer) {
+                        let (core, _) = body_core(body);
+                        let key = structural_key(&core);
+                        let target = identities
+                            .entry(key)
+                            .or_insert_with(|| {
+                                if let Expr::Ref(name) = &core {
+                                    if !name.starts_with('_') {
+                                        return name.clone();
                                     }
-                                    let name = format!("\0parse:{}", pending_rules.len());
-                                    pending_rules.push(StitchedRule {
-                                        name: name.clone(),
-                                        query: true,
-                                        document: alternative.document.clone(),
-                                        alternatives: vec![StitchedAlternative {
-                                            alternative: Alternative {
-                                                gates: Vec::new(),
-                                                expr: core,
-                                                tags: None,
-                                                strings: Channels::default(),
-                                                ranked_locations: Default::default(),
-                                            },
-                                            written: None,
-                                            written_alternative: 0,
-                                            text_order: alternative.text_order,
-                                            clauses: Arc::new(RuleClauses {
-                                                tags: Some(Term::EmptySet),
-                                                strings: Channels::default(),
-                                                emit: None,
-                                                conditions: Vec::new(),
-                                                error: None,
-                                                warning: None,
-                                                suppress_warnings: Vec::new(),
-                                            }),
-                                            erased: false,
-                                            document: alternative.document.clone(),
-                                            at: alternative.at,
-                                        }],
-                                    });
-                                    name
-                                })
-                                .clone();
-                            entry.insert(target);
-                        }
+                                }
+                                let name = format!("\0parse:{}", pending_rules.len());
+                                pending_rules.push(StitchedRule {
+                                    name: name.clone(),
+                                    query: true,
+                                    document: document.clone(),
+                                    alternatives: vec![StitchedAlternative {
+                                        alternative: Alternative {
+                                            gates: Vec::new(),
+                                            expr: core,
+                                            tags: None,
+                                            strings: Channels::default(),
+                                            ranked_locations: Default::default(),
+                                        },
+                                        written: None,
+                                        written_alternative: 0,
+                                        text_order,
+                                        clauses: Arc::new(RuleClauses {
+                                            tags: None,
+                                            strings: Channels::default(),
+                                            emit: None,
+                                            conditions: Vec::new(),
+                                            error: None,
+                                            warning: None,
+                                            suppress_warnings: Vec::new(),
+                                        }),
+                                        erased: false,
+                                        document: document.clone(),
+                                        at,
+                                    }],
+                                });
+                                name
+                            })
+                            .clone();
+                        entry.insert(target);
                     }
                 }
-                pending.extend(part.children());
             }
+            pending.extend(part.children());
         }
+    }
+    for (expression, _, body, _) in &local_queries {
+        let pointer = Arc::as_ptr(body) as usize;
+        grammar.local_targets.insert(*expression, targets.remove(&pointer).expect("a prepared reading target"));
     }
     grammar.query_targets = targets;
     for rule in pending_rules {

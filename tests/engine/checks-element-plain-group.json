@@ -1,0 +1,31 @@
+{
+  "description": "Issue #286: a plain group exposes its chosen branch elements in place.",
+  "grammar": "%rule text (\"b\" \"a\" | \"a\") [+T] \"c\"\n%check last\n #·_<_Elided>\n%conditions $.preceding-element.value = \"a\"\n%warning \"last\"",
+  "input": "bac",
+  "options": {
+    "features": [
+      "last"
+    ]
+  },
+  "expect": {
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "last",
+        "rule": "last",
+        "span": [
+          2,
+          2
+        ],
+        "source": [
+          2,
+          2
+        ],
+        "message": "last"
+      }
+    ],
+    "result": {
+      "ok": true
+    }
+  }
+}

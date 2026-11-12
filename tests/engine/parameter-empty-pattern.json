@@ -1,0 +1,19 @@
+{
+  "description": "An empty argument supplies an always-false pattern.",
+  "grammar": "%rule w \"a\"\n%rule use(@P) $x:w\n%conditions $x ≇ #@P\n%rule text use(∅)",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "use(∅)"
+          }
+        ]
+      }
+    },
+    "warnings": []
+  }
+}

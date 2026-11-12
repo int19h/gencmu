@@ -1,0 +1,31 @@
+{
+  "description": "Issue #286: an absent captured optional remains an element with an empty span.",
+  "grammar": "%rule text \"z\" [$x:\"a\"] [+T] \"b\"\n%check empty\n #·_<_Elided>\n%conditions $.preceding-element.value = \"\", $.preceding-element.image = \"\", $.preceding-element.source-text = \"\", $.preceding-element.decomposed-source-text = \"\", $.preceding-element.first-token.value = \"\", $.preceding-element.last-token.value = \"\", $.preceding-element.tokens-after-first.value = \"\", $.preceding-element.preceding-tokens.value = \"z\", $.preceding-element.following-tokens.value = \"b\", ¬$.preceding-element.starts-input, ¬$.preceding-element.ends-input, $.preceding-node.value = \"z\"\n%warning \"empty\"",
+  "input": "zb",
+  "options": {
+    "features": [
+      "empty"
+    ]
+  },
+  "expect": {
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "empty",
+        "rule": "empty",
+        "span": [
+          1,
+          1
+        ],
+        "source": [
+          1,
+          1
+        ],
+        "message": "empty"
+      }
+    ],
+    "result": {
+      "ok": true
+    }
+  }
+}

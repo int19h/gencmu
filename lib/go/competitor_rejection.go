@@ -110,7 +110,7 @@ func (run *stageRun) expectedAt(rec *recognizer, items []*item, omitted []*produ
 func (run *stageRun) competitorRejections(flow *diagnosticFlow) {
 	for index, event := range flow.evaluated {
 		node := event.node
-		if !event.error || node.d.kind != dClose || node.d.prod.spliceTarget != nil {
+		if !event.error || diagnosticID(event.diagnostic).check != "" || node.d.kind != dClose || node.d.prod.spliceTarget != nil {
 			continue
 		}
 		parent := flow.nodes[node].parent
@@ -120,9 +120,11 @@ func (run *stageRun) competitorRejections(flow *diagnosticFlow) {
 		a, b := flow.span(node)
 		if evidence := run.competitorSlice(flow.rec, a, b, parent.d.prod); evidence != nil {
 			event.diagnostic.Rejection = evidence
-			own := flow.own[node]
-			own.diagnostic.Rejection = evidence
-			flow.own[node] = own
+			for index := range flow.own[node] {
+				if diagnosticID(flow.own[node][index].diagnostic) == diagnosticID(event.diagnostic) {
+					flow.own[node][index].diagnostic.Rejection = evidence
+				}
+			}
 			flow.evaluated[index].diagnostic.Rejection = evidence
 		}
 	}

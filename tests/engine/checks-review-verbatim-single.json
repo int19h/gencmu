@@ -1,0 +1,28 @@
+{
+  "description": "A check message reads the node's verbatim text.",
+  "grammar": "%rule text \"a\"\n%check c #·text\n%warning $.verbatim-text",
+  "input": "a",
+  "options": {
+    "features": [
+      "c"
+    ]
+  },
+  "expect": {
+    "warnings": [
+      {
+        "code": "c",
+        "message": "a",
+        "stage": "main",
+        "rule": "c",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ]
+      }
+    ]
+  }
+}

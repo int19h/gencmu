@@ -29,6 +29,8 @@ from ._template_nodes import has_unresolved
 from ._ranked import RankedGroups, reads
 from ._types import (
     TermType,
+    _NODE_METHODS,
+    check_type_fault,
     constant_value_type,
     constants_in,
     expected_problem,
@@ -41,7 +43,7 @@ from ._types import (
 )
 from ._validate import Marks, term_reads_own_tags
 from ._ranking_patterns import ranking_pattern_problem, requires_elided
-from ._logical import Expansion, combine, optional, inherited
+from ._elements import Expansion, combine, optional, inherited
 from ._strings import literal_string, spelling, ENGINE_TAGS
 
 Dom = dict[str, Any]
@@ -151,6 +153,8 @@ class Grammar:
     # document (engine §2).
     classifier_items: list[tuple[str, Dom]] = field(default_factory=list)
     feature_items: list[tuple[str, Dom]] = field(default_factory=list)
+    checks: list[tuple[str, Dom]] = field(default_factory=list)
+    local_readings: bool = False
     # The stage's implications, each side's tags with the constants' final
     # values (engine §2, §11).
     implications: list[tuple[frozenset[str], frozenset[str]]] = field(default_factory=list)
@@ -708,9 +712,9 @@ class _Constants:
         if isinstance(node.get("const"), str):
             constant = self.values[node["const"]]
             return constant.value if constant.type == "pattern" else {"string": constant.value} if constant.type == "string" else {"const": node["const"], "at": node["at"], "value": constant.value}
-        if node.get("op") in ("≅", "≇") and "capture" not in node["right"] and not has_unresolved(node["right"]):
+        if node.get("op") in ("≅", "≇") and "capture" not in node["right"] and node["right"].get("method") not in _NODE_METHODS and not has_unresolved(node["right"]):
             return {**node, "right":(yield self._closed("", node["right"], None, "pattern"))}
-        copy: dict[str, Any] = {}
+        copy: dict[str, Any] = shallow_copy(node) if hasattr(node, "at") else {}
         for key, value in node.items():
             copy[key] = yield self.with_values(value)
         return copy
@@ -802,7 +806,7 @@ def _value_parts(root: Any):
         if pattern or "pattern" in node:
             continue
         if node.get("op") in ("≅", "≇"):
-            pending.extend(((node["right"], "capture" not in node["right"]), (node["left"], False)))
+            pending.extend(((node["right"], "capture" not in node["right"] and node["right"].get("method") not in _NODE_METHODS), (node["left"], False)))
             continue
         if "alternatives" in node:
             keys = ("tags", "value", "image", "alternatives", "conditions", "emit")
@@ -824,7 +828,7 @@ def _value_parts(root: Any):
             keys = ("left", "right")
         else:
             keys = ("seq", "choice", "ranked", "and", "optional", "repeat", "separator", "literal", "range",
-                    "not", "any", "all", "union", "intersection", "difference", "concat", "items", "tags", "value", "image", "error", "warning", "conditions", "emit", "nonempty")
+                    "not", "any", "all", "union", "intersection", "difference", "concat", "items", "tags", "value", "image", "error", "warning", "conditions", "emit", "nonempty", "present")
         pending.extend((node[key], False) for key in reversed(keys) if key in node)
 
 
@@ -842,6 +846,16 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
     controls canonical terminal spellings in diagnostics."""
     from ._templates import expand_templates
     from ._ranked import expression_locations
+    check_names = set()
+    rule_names = {rule["name"] for _, dom in documents for rule in dom["rules"]}
+    for path, dom in documents:
+        for check in dom["checks"]:
+            name = check["name"]
+            if name in check_names:
+                raise _error(f"%check {name} is already defined", path, check["at"], stage)
+            if name in rule_names:
+                raise _error(f"a rule and a check cannot share the name {name}", path, check["at"], stage)
+            check_names.add(name)
     documents, template_order, _, validation, arguments_to_check, document_runs, erasure_checks, parameter_rules = expand_templates(documents, unicode)
     held_flags = {(entry[0], entry[1], tuple(entry[2])): entry[3] for entry in parameter_rules}
     rules: dict[str, Rule] = {}
@@ -854,8 +868,9 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
     resolutions: list[tuple[list[Dom], str, Any]] = []
     checks: list[tuple[int, Any, str, str, Any]] = []
     elision_only = False
+    named_checks = []
     for inspection_run, (path, dom) in zip(document_runs, documents):
-        declarations = sorted(((kind, item) for kind in ("rules", "directives", "constants", "classifiers", "implications")
+        declarations = sorted(((kind, item) for kind in ("rules", "directives", "constants", "classifiers", "implications", "checks")
                                for item in dom.get(kind, [])), key=lambda entry: entry[1]["at"])
         for kind, item in declarations:
             if kind == "rules":
@@ -946,6 +961,9 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
 
                 else:
                     raise _error(f"an unknown directive %{name}", path, at, stage)
+            elif kind == "checks":
+                checks.append((inspection_run, item["at"], path, "check", item))
+                named_checks.append((path, item))
             elif kind == "constants":
                 constants.add(path, item)
             elif kind == "classifiers":
@@ -962,6 +980,7 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
         owner = uses[0]
         checks.append((owner['inspection_run'], owner['at'], owner['path'], 'arguments', key))
     warning_codes = {name for name, rule in rules.items() if any(a.warning is not None for a in rule.alternatives)}
+    warning_codes.update(check["name"] for _, check in named_checks if "warning" in check)
     from ._template_nodes import nodes as diagnostic_nodes
     for name, rule in rules.items():
         for alternative in rule.alternatives:
@@ -979,13 +998,42 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
     from ._validate import input_conditions_problem
     from ._types import condition_type_fault
     resolved_features = []
+    resolved_checks = []
     resolved_classifiers = []
     implications = []
-    kinds = {"rule": 0, "arguments": 0, "deferred": 0, "features": 1, "ranking": 1, "classifier": 3, "implication": 4}
+    kinds = {"rule": 0, "arguments": 0, "deferred": 0, "features": 1, "ranking": 1, "classifier": 3, "implication": 4, "check": 5}
     checks.sort(key=lambda item: (item[0], tuple(item[1]), kinds[item[3]] if item[3] != 'arguments' else constants.arguments[item[4]][0]['kind']))
     for inspection_run, _, path, kind, item in checks:
         if kind == "rule":
             constants.check_rule(path,item,inspection_run)
+        elif kind == "check":
+            for reference in constants_in(item):
+                if reference["const"] not in constants.values:
+                    raise _error(f"${reference['const']} is not defined in stage {stage}", path, reference["at"], stage)
+            operand = item["pattern"]
+            position = getattr(operand, "at", None) or operand.get("at", item["at"])
+            body = run(constants._closed(path, operand if "const" in operand else {"pattern": operand}, position, "pattern"))
+            if not isinstance(body, dict) or "pattern" not in body:
+                raise _error("a check requires a pattern", path, position, stage)
+            pending = [body["pattern"]]
+            while pending:
+                part = pending.pop()
+                if part.get("never"):
+                    continue
+                key = next((key for key in ("union", "intersection", "difference") if key in part), None)
+                if key:
+                    pending.extend(part[key])
+                elif "path" in part or not part.get("exact"):
+                    raise _error("a check requires exact candidate tests without paths", path, position, stage)
+            clauses = {key: value for key, value in item.items() if key != "pattern"}
+            fault = check_type_fault({**clauses, "pattern": body["pattern"]}, constants.type_of)
+            if fault:
+                raise constants.fault_error(path, fault[1], item["at"], fault[0])
+            constants.check_value_uses(path, clauses, item["at"])
+            resolved = {**run(constants.with_values(clauses)), "pattern": body["pattern"]}
+            if "warning" in resolved and re.fullmatch(r"(?!.*--)[A-Za-z][A-Za-z0-9-]*", resolved["name"]) is None:
+                raise _error("a warning code must be a feature name", path, item["at"], stage)
+            resolved_checks.append((path, resolved))
         elif kind == "arguments":
             uses = constants.arguments.pop(item, [])
             if uses:
@@ -1118,9 +1166,22 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                 elif isinstance(value, list):
                     stack.extend(reversed(value))
     from ._template_nodes import nodes
+    for path, check in resolved_checks:
+        for node in nodes(check):
+            name = node.get("ref", node.get("rule"))
+            if isinstance(name, str) and not is_terminal_name(name) and name not in rules:
+                raise _error(f"{name} is not a rule of stage {stage}", path, getattr(node, "at", check["at"]), stage)
+            if isinstance(node.get("classifier"), str) and node["classifier"] not in classifier_names:
+                raise _error(f"{node['classifier']} is not a classifier of stage {stage}", path, check["at"], stage)
+        for pattern in [check["pattern"], *(node["pattern"] for node in nodes(check["conditions"]) if "pattern" in node)]:
+            for node, _ in walk_pattern(pattern):
+                if "name" in node and node["name"] not in rules:
+                    raise _error(f"{node['name']} is not a rule of stage {stage}", path, node.get("at", check["at"]), stage)
     erased = {rule.name for rule in rules.values() if all(alt.erased for alt in rule.alternatives)}
     def erased_pattern(root, path, at):
         for node in nodes(root):
+            if node.get("name") in check_names:
+                raise _error(f"a pattern cannot name check {node['name']}", path, at, stage)
             children = node.get("children")
             if erasure_checks is None and node.get("name") in erased and children is not None and children != [{"siblings": True}]:
                 raise _error(f"a pattern of erased rule {node['name']} permits only the child list ⁅ ⋯ ⁆", path, getattr(node, "at", None) or node.get("at") or at, stage)
@@ -1137,6 +1198,14 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
         if constant.type == "pattern":
             erased_pattern(constant.value["pattern"], constant.document, None)
             prohibited.update(node["name"] for node in nodes(constant.value["pattern"]) if isinstance(node.get("name"), str))
+    for path, check in resolved_checks:
+        patterns = [check["pattern"], *(node["pattern"] for node in nodes(check["conditions"]) if "pattern" in node)]
+        for pattern in patterns:
+            erased_pattern(pattern, path, check["at"])
+            prohibited.update(node["name"] for node in nodes(pattern) if isinstance(node.get("name"), str))
+        for node in nodes(check["conditions"]):
+            if node.get("method") in ("followed-by", "preceded-by"):
+                prohibited.update(arg["rule"] for arg in node["args"] if "rule" in arg)
     splices = []
     inspected = set()
     for rule in rules.values():
@@ -1172,6 +1241,7 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
         changes=changes,
         classifier_items=classifier_items,
         feature_items=resolved_features,
+        checks=resolved_checks,
         implications=implications,
         families=members(rules, family_names),
         query_terminals=frozenset(query_terminals),
@@ -1181,32 +1251,50 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
     from ._query_forms import query_body, query_identity
     from ._clause_walk import clause_children
     from ._templates import _print_body
+    from ._query_forms import without_binders
+    from ._clause_walk import expression_children
+    contexts = [(alt, [alt.conditions, alt.tags, alt.rule_tags, alt.emit]) for rule in rules.values() for alt in rule.alternatives]
+    for path, check in resolved_checks:
+        alternative = Alternative(gates=[], expr={"empty": True}, tags=None, rule_tags=None,
+                                  emit=None, conditions=[], erased=False, value=None, image=None,
+                                  rule_value=None, rule_image=None, document=path, at=tuple(check["at"]))
+        contexts.append((alternative, [check["conditions"]]))
+    local = any(node.get("method") == "local-readings" for _, check in resolved_checks for node in nodes(check["conditions"]))
+    grammar.local_readings = local
+    if local:
+        for rule in rules.values():
+            contexts.append((rule.alternatives[0], [{"method": "parse", "receiver": {"capture": ""}, "args": [{"body": {"ref": rule.name}}]}]))
+            for alt in rule.alternatives:
+                pending = [alt.expr]
+                while pending:
+                    expr = pending.pop()
+                    if not any(key in expr for key in ("seq", "choice", "and", "capture", "empty")) and not ("repeat" in expr and "chain" in expr):
+                        contexts.append((alt, [{"method": "parse", "receiver": {"capture": ""}, "args": [{"body": without_binders(expr)}]}]))
+                    pending.extend(expression_children(expr))
     seen_queries = set()
-    for rule in rules.values():
-        for alt in rule.alternatives:
-            pending = [alt.conditions, alt.tags, alt.rule_tags, alt.emit]
-            while pending:
-                _testing.count("walkSteps")
-                node = pending.pop()
-                if not isinstance(node, (dict, list, tuple)) or id(node) in seen_queries:
-                    continue
-                seen_queries.add(id(node))
-                if isinstance(node, dict) and node.get("method") == "parse":
-                    body = query_body(node["args"][0]["body"])[0]
-                    key = query_identity(node["args"][0]["body"])
-                    if key not in grammar.query_targets:
-                        ref = body.get("ref")
-                        if ref is not None and not ref.startswith("_"):
-                            target = "\0query:" + ref if is_terminal_name(ref) else ref
-                        else:
-                            target = "\0parse:" + str(len(grammar.query_rules))
-                            source = replace(alt, gates=[], expr=body, tags=None, rule_tags={"emptySet": True},
-                                             conditions=[], erased=False, emit=None, value=None, image=None,
-                                             rule_value=None, rule_image=None, error=None, warning=None, suppress_warnings=())
-                            grammar.query_rules[target] = Rule(target, [source], alt.document, alt.at)
-                            grammar.query_names[target] = run(_print_body(body, unicode))
-                        grammar.query_targets[key] = target
-                pending.extend(reversed(clause_children(node)))
+    for alt, pending in contexts:
+        while pending:
+            _testing.count("walkSteps")
+            node = pending.pop()
+            if not isinstance(node, (dict, list, tuple)) or id(node) in seen_queries:
+                continue
+            seen_queries.add(id(node))
+            if isinstance(node, dict) and node.get("method") == "parse":
+                body = query_body(node["args"][0]["body"])[0]
+                key = query_identity(node["args"][0]["body"])
+                if key not in grammar.query_targets:
+                    ref = body.get("ref")
+                    if ref is not None and not ref.startswith("_"):
+                        target = "\0query:" + ref if is_terminal_name(ref) else ref
+                    else:
+                        target = "\0parse:" + str(len(grammar.query_rules))
+                        source = replace(alt, gates=[], expr=body, tags=None, rule_tags=None,
+                                         conditions=[], erased=False, emit=None, value=None, image=None,
+                                         rule_value=None, rule_image=None, error=None, warning=None, suppress_warnings=())
+                        grammar.query_rules[target] = Rule(target, [source], alt.document, alt.at)
+                        grammar.query_names[target] = run(_print_body(body, unicode))
+                    grammar.query_targets[key] = target
+            pending.extend(reversed(clause_children(node)))
     grammar.query_terminals |= frozenset(name[7:] for name in grammar.query_targets.values() if name.startswith("\0query:"))
     for terminal in grammar.query_terminals:
         grammar.query_names["\0query:" + terminal] = terminal
@@ -1367,8 +1455,9 @@ class Production:
     whole_ready: bool = False
     tags_term: Dom | None = None
     emit: Any = None
-    # Logical helpers survive capture expansion beside the physical RHS.
-    logical: tuple = ()
+    # Element helpers survive capture expansion beside the physical RHS.
+    elements: tuple = ()
+    site_expressions: tuple = ()
     inherited: int | None = None
     source: Any = field(default=None, repr=False, compare=False)
     erased: bool = False
@@ -1409,6 +1498,7 @@ class Production:
     private_names: set = field(default_factory=set,repr=False,compare=False)
     ranked_bindings: tuple = field(default=(),repr=False,compare=False)
     parent_tags: Any = field(default=None,repr=False,compare=False)
+    chart_sites: tuple = field(default=(), repr=False, compare=False)
 
     @property
     def real_id(self):
@@ -1420,7 +1510,7 @@ class Production:
 
     @property
     def transparent(self) -> bool:
-        return self.helper or len(self.logical) == 1
+        return self.helper or len(self.elements) == 1
 
 
 _NO_NAMES: frozenset[str] = frozenset()
@@ -1477,6 +1567,10 @@ class Lowered:
     close_prefixes: list | None = None
     ranked_helpers: dict = field(default_factory=dict)
     written_helpers: dict = field(default_factory=dict)
+    element_expressions: dict = field(default_factory=dict)
+    helper_expressions: dict = field(default_factory=dict)
+    local_targets: dict = field(default_factory=dict)
+    chart_rules: dict = field(default_factory=dict)
     # Whether some production is contextual, so that the recognizer keeps a
     # table of frames (engine §4); lowering and the ranked preparation set it.
     contextual: bool = False
@@ -1533,6 +1627,8 @@ class _Lowerer:
         self.grammar = grammar
         self.unicode = grammar.unicode
         self.current_expr = None
+        self.element_expressions = {}
+        self.helper_expressions = {}
         self.helper_sources = {}
         self.helper_options = {}
         self.common_conditions = {}
@@ -1547,7 +1643,7 @@ class _Lowerer:
         # Whether a production is contextual, so that the recognizer keeps a
         # table of frames (engine §4).
         self.contextual = False
-        if grammar.ranked and grammar.ranked.groups:
+        if grammar.local_readings or grammar.ranked and grammar.ranked.groups:
             self._expand_plain = self._expand
             self._expand = self._expand_slot
         self.features = features
@@ -1611,6 +1707,8 @@ class _Lowerer:
         self.rule_names.append(f"\u0000{owner}\u0000{number}")
         self.rule_display.append(owner)
         self.helper_expansions[number] = expansions
+        if self.grammar.local_readings:
+            self.helper_expressions[number] = self.current_expr
         if self.grammar.ranked and self.grammar.ranked.groups:
             self.helper_sources[number] = (self.current_alt,id(self.current_expr))
         if elided is not None:
@@ -1682,8 +1780,18 @@ class _Lowerer:
     def _expand_slot(self, expr: Dom) -> Walk:
         previous = self.current_expr
         self.current_expr = expr
+        if self.grammar.local_readings:
+            self.element_expressions[id(expr)] = expr
         try:
-            return (yield self._expand_plain(expr))
+            result = yield self._expand_plain(expr)
+            expanded_optional = "optional" in expr and not expr.get("elidable") and _holds_capture(expr["optional"])
+            if self.grammar.local_readings and not expanded_optional and not any(key in expr for key in ("seq", "choice", "and", "capture", "empty")):
+                for route in result:
+                    if len(route) == 1:
+                        if route.sites is None:
+                            route.sites = {}
+                        route.sites[0] = expr
+            return result
         finally:
             self.current_expr = previous
 
@@ -1777,12 +1885,12 @@ class _Lowerer:
             return [Expansion([((kind, name, expr[RESOLVED]), None)])]
         if "capture" in expr:
             expanded = yield self._expand(expr["expr"])
-            return [Expansion([(expanded[0][0][0], expr["capture"])])]
+            return [Expansion([(expanded[0][0][0], expr["capture"])], sites=expanded[0].sites)]
         raise self.fail(f"an unknown expression {sorted(expr)}")
 
     def repeat_helper(self, items: list[list[_Sym]], separators: list[list[_Sym]]) -> int:
         number = len(self.rule_names)
-        recursive: list[list[_Sym]] = [[(("n", number), None)] + separator + item for separator in separators for item in items]
+        recursive: list[list[_Sym]] = [combine([Expansion([(("n", number), None)]), separator, item]) for separator in separators for item in items]
         helper = self.new_helper(items + recursive)
         assert helper == number
         return helper
@@ -1850,7 +1958,8 @@ class _Lowerer:
             elided_owner=self.rule_display[lhs] if elided is not None else None,
             tests=tests if any(test is not None for test in tests) else None,
             captures=captures,
-            logical=getattr(expansion, "logical", tuple(("symbol", i) for i in range(len(expansion)))),
+            elements=getattr(expansion, "elements", tuple(("symbol", i) for i in range(len(expansion)))),
+            site_expressions=tuple(expansion.sites.get(index) for index in range(len(expansion))) if getattr(expansion, "sites", None) else (),
             source=self.current_alt,
         )
         if self.grammar.ranked and self.grammar.ranked.groups:
@@ -1912,7 +2021,9 @@ class _Lowerer:
         production.optional_routes = {index: sym[3] for index, (sym, _) in enumerate(expansion) if len(sym) > 3}
         production.terminal_captures = {name for sym, name in expansion if name and len(sym) > 3 and sym[3] == "written"}
         production.forward_captures = {position: name for name, position in production.captures.items() if name in production.terminal_captures}
-        production.inherited = inherited(production.logical)
+        if option >= 0:
+            production.tags_term = {"emptySet": True}
+        production.inherited = inherited(production.elements)
         if production.tags_term is None and production.inherited is not None and production.inherited not in captures.values():
             captures[IMPLICIT] = production.inherited
         slots = [-1] * len(rhs)
@@ -2035,9 +2146,9 @@ class _Lowerer:
                     separators = self.expand(expr["separator"]) if "separator" in expr else [[]]
                     me: list[_Sym] = [(("n", lhs), None)]
                     if expr["chain"] == "left":
-                        recursive = [me + separator + item for separator in separators for item in items]
+                        recursive = [combine([me, separator, item]) for separator in separators for item in items]
                     else:
-                        recursive = [item + separator + me for item in items for separator in separators]
+                        recursive = [combine([item, separator, me]) for item in items for separator in separators]
                     expansions = items + recursive
                 else:
                     expansions = self.expand(expr)
@@ -2051,7 +2162,7 @@ class _Lowerer:
             self.rule_names.append(name)
             self.rule_display.append(name)
             self.rule_ids[name] = lhs
-            self.productions.append(Production(id=len(self.productions), lhs=lhs, rhs=(terminal,), terminal=(True,), rule_name=name, helper=True, slots=(0,), logical=(("symbol", 0),), inherited=0))
+            self.productions.append(Production(id=len(self.productions), lhs=lhs, rhs=(terminal,), terminal=(True,), rule_name=name, helper=True, slots=(0,), elements=(("symbol", 0),), inherited=0))
         from dataclasses import replace
         for target, alias in self.splice_aliases.items():
             for original in [p for p in self.productions if p.lhs == target]:
@@ -2078,6 +2189,8 @@ class _Lowerer:
             lean=self.grammar.lean,
             characters=self.characters,
             contextual=self.contextual,
+            element_expressions=self.element_expressions,
+            helper_expressions=self.helper_expressions,
         )
         from ._ranked_frame import prepare_ranked
         if self.grammar.tree_comparisons: lowered.tree_sites = []
@@ -2159,6 +2272,9 @@ def lower(grammar: Grammar, features: frozenset[str]) -> Lowered:
     lowered = _Lowerer(grammar, features).lower()
     lowered.classifiers = classifiers
     lowered.implications = grammar.implications
+    if grammar.local_readings:
+        from ._chart_readings import prepare
+        prepare(lowered)
     return lowered
 
 

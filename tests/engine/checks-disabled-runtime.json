@@ -1,0 +1,52 @@
+{
+  "description": "Issue #286: disabled warnings skip their conditions and failed conditions stop later evaluation.",
+  "grammar": "%rule text \"a\"\n%check bad\n #·_\n%conditions $.value.split(\"\" ++ \"\")\n%warning \"bad\"\n%check stopped\n #·_\n%conditions \"a\" = \"b\", $.value.split(\"\" ++ \"\")\n%warning \"bad\"",
+  "input": "a",
+  "parses": [
+    {
+      "options": {
+        "features": [
+          "stopped"
+        ]
+      },
+      "expect": {
+        "warnings": [],
+        "result": {
+          "ok": true
+        }
+      }
+    },
+    {
+      "options": {
+        "features": [
+          "bad"
+        ]
+      },
+      "expect": {
+        "error": "grammar",
+        "result": {
+          "tree": null,
+          "stages": [
+            {
+              "name": "main",
+              "verdict": "unique"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "options": {
+        "withoutFeatures": [
+          "bad"
+        ]
+      },
+      "expect": {
+        "result": {
+          "ok": true
+        },
+        "warnings": []
+      }
+    }
+  ]
+}

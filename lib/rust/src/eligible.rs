@@ -54,7 +54,7 @@ enum Next {
 /// place, in the order of their sets.
 type CompletedIndex = FxMap<(u32, u32), Vec<Place>>;
 
-/// Logical parent, optional occurrence, origin and capture scope.
+/// Element parent, optional occurrence, origin and capture scope.
 type OptionalIndex = FxMap<(u32, usize, u32, u32), Vec<Place>>;
 
 /// The chart of one nested parse, with what reading it needs.
@@ -76,6 +76,7 @@ impl<'a> Proofs<'a> {
     /// before it is read.
     fn count(&self) {
         work::count(Work::Searched, 1);
+        work::count(Work::Eligibility, 1);
     }
 
     fn item(&self, (set, index): Place) -> Item {
@@ -87,7 +88,7 @@ impl<'a> Proofs<'a> {
     /// recognizer made, with its test and its conditions passed.
     fn advanced(&self, item: Item, cap: Cap) -> Option<Place> {
         let next = self.chart.advances.get(&(item, cap))?;
-        self.chart.sets.get(cap.end as usize)?.find(next).map(|index| (cap.end, index))
+        self.chart.sets.get(cap.end as usize)?.find_counted(next, Work::Eligibility).map(|index| (cap.end, index))
     }
 
     /// The completed items of `rule` from `origin`, each with its place,
@@ -103,7 +104,7 @@ impl<'a> Proofs<'a> {
         };
         let found = index.get(&(rule, origin)).map_or(&[][..], Vec::as_slice);
         // Each completed item counts as the search reads it.
-        found.iter().copied().inspect(|_| work::count(Work::Searched, 1))
+        found.iter().copied().inspect(|_| self.count())
     }
 
     /// The index of the completed items of the whole chart, in one pass
@@ -169,7 +170,7 @@ impl<'a> Proofs<'a> {
             .max()
     }
 
-    /// All raw chart routes through the same logical optional. The index
+    /// All raw chart routes through the same element optional. The index
     /// includes partial parent readings: a blocker need not finish its rule.
     fn optional_routes(&self, fixed: Item, expression: usize) -> &[Place] {
         let index = self.optional_index.get_or_init(|| {
@@ -212,7 +213,7 @@ impl<'a> Proofs<'a> {
     }
 
     /// The furthest optional route that reaches a written terminator,
-    /// measured from this proof's own prefix before the logical optional.
+    /// measured from this proof's own prefix before the element optional.
     fn optional_blocked_until(&self, prefix: Place, expression: usize) -> Option<u32> {
         let fixed = self.item(prefix);
         let mut until = None;
@@ -250,7 +251,7 @@ impl<'a> Proofs<'a> {
     }
 
     /// Walk one eligible route back across the physical expansion of a
-    /// logical optional. Its permitted prefix and eligibility stay together.
+    /// element optional. Its permitted prefix and eligibility stay together.
     #[allow(clippy::too_many_arguments)]
     fn optional_permitted(
         &self,
@@ -282,6 +283,7 @@ impl<'a> Proofs<'a> {
                 continue;
             }
             for edge in &edges[at] {
+                work::count(Work::Eligibility, 1);
                 let (before, available, child) = match *edge {
                     Edge::Seed => continue,
                     Edge::Scan { before } => (before, e[before], None),
@@ -346,7 +348,8 @@ impl<'a> Proofs<'a> {
         let mut edges = Vec::new();
         let production = &self.g.prods[item.prod as usize];
         for &(pred, cap) in self.chart.links.get(&(set, item)).into_iter().flatten() {
-            let Some(index) = self.chart.sets[cap.start as usize].find(&pred) else {
+            work::count(Work::Eligibility, 1);
+            let Some(index) = self.chart.sets[cap.start as usize].find_counted(&pred, Work::Eligibility) else {
                 continue;
             };
             let before = (cap.start, index);
@@ -355,6 +358,7 @@ impl<'a> Proofs<'a> {
                 Sym::N(rule) => {
                     for &index in self.chart.sets[set as usize].completed.get(&(rule, cap.start)).into_iter().flatten()
                     {
+                        work::count(Work::Eligibility, 1);
                         let child = (set, index);
                         if self.cap(child) == cap
                             && self.item(child).lexical == self.chart.expected_lexical(pred, cap.start)
@@ -390,6 +394,7 @@ impl<'a> Proofs<'a> {
         let mut raw: FxMap<Place, Vec<RawEdge>> = FxMap::default();
         let mut omits = false;
         for &witness in witnesses {
+            work::count(Work::Eligibility, 1);
             if raw.contains_key(&witness) {
                 continue;
             }
@@ -398,6 +403,7 @@ impl<'a> Proofs<'a> {
             raw.insert(witness, found);
             let mut stack: Vec<(Place, Vec<Place>, usize)> = vec![(witness, below, 0)];
             while let Some((place, below, next)) = stack.last_mut() {
+                work::count(Work::Eligibility, 1);
                 if let Some(&target) = below.get(*next) {
                     *next += 1;
                     if let std::collections::hash_map::Entry::Vacant(entry) = raw.entry(target) {
@@ -415,15 +421,19 @@ impl<'a> Proofs<'a> {
             }
         }
         for &place in &order {
+            work::count(Work::Eligibility, 1);
             let list = raw[&place]
                 .iter()
-                .map(|&(before, child)| match (before, child) {
-                    (None, _) => Edge::Seed,
-                    (Some(before), None) => Edge::Scan { before: number[&before] },
-                    (Some(before), Some(child)) => {
-                        let omission = self.is_omission(child);
-                        omits |= omission;
-                        Edge::Complete { before: number[&before], child: number[&child], omission }
+                .map(|&(before, child)| {
+                    work::count(Work::Eligibility, 1);
+                    match (before, child) {
+                        (None, _) => Edge::Seed,
+                        (Some(before), None) => Edge::Scan { before: number[&before] },
+                        (Some(before), Some(child)) => {
+                            let omission = self.is_omission(child);
+                            omits |= omission;
+                            Edge::Complete { before: number[&before], child: number[&child], omission }
+                        }
                     }
                 })
                 .collect();
@@ -447,6 +457,7 @@ impl<'a> Proofs<'a> {
         while changed {
             changed = false;
             for x in 0..order.len() {
+                work::count(Work::Eligibility, 1);
                 for (channel, &ceiling) in ceilings.iter().enumerate() {
                     self.count();
                     let raw_support = raw[x];
@@ -459,6 +470,7 @@ impl<'a> Proofs<'a> {
                     let prod = &self.g.prods[item.prod as usize];
                     let (mut a, mut permits) = (0u8, 0u8);
                     for edge in &edges[x] {
+                        work::count(Work::Eligibility, 1);
                         let through = match *edge {
                             Edge::Seed => 1,
                             Edge::Scan { before } => {
@@ -918,7 +930,7 @@ mod tests {
             Ok(false)
         }
 
-        /// Enumerate eligible physical routes to the fixed logical prefix.
+        /// Enumerate eligible physical routes to the fixed element prefix.
         /// This oracle uses a finite proof search, rather than E/P tables.
         fn search_prefix(
             &mut self,
@@ -995,7 +1007,7 @@ mod tests {
     }
 
     /// Independent raw-chart oracle coverage for capture-expanded and
-    /// per-route helper optionals, including a multi-symbol logical route.
+    /// per-route helper optionals, including a multi-symbol element route.
     #[test]
     fn the_oracle_keeps_optional_blocker_routes() {
         for optional in ["[c]", "[$c:c]", "[[$c:c]]", "[($c:c ≻ c)]", "[$c:c D]", "parent", "recursive-prefix"] {
@@ -1094,7 +1106,7 @@ mod tests {
         }
         let document = format!("```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n{}\n```\n", lines.join("\n"));
         let dom = format!(
-            r#"{{"format":{},"rules":[{}],"directives":[{{"name":"ambiguity-resolution","steps":[{{"step":"greedy"}}],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}"#,
+            r#"{{"format":{},"rules":[{}],"directives":[{{"name":"ambiguity-resolution","steps":[{{"step":"greedy"}}],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[],"checks":[]}}"#,
             crate::dom::DOM_FORMAT,
             rules.join(",")
         );

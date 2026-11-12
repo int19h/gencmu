@@ -256,6 +256,9 @@ func (f *exprFrame) start(b *domBuilder) readStep {
 	case "tested-primary":
 		return give(b.tested(n))
 	case "capture", "captured-terminator":
+		if b.checkContext {
+			b.fail(n, "a check cannot declare a capture")
+		}
 		// Its place, then $, its name and its symbol, each at the capture,
 		// before what it wraps (engine §9).
 		// Inside flat braces it is an item capture, and the innermost
@@ -625,6 +628,9 @@ func (f *termFrame) start(b *domBuilder) readStep {
 		return give(b.constantRef(n))
 	case "capture-reference":
 		name := strings.TrimPrefix(b.tokenValue(b.token(n)), "$")
+		if b.checkContext && name != "" {
+			b.fail(n, "a check cannot name a capture")
+		}
 		if b.closedFor != "" {
 			b.fail(n, "%s is a closed term, and holds no capture", b.closedFor)
 		}
@@ -835,8 +841,16 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 			return ask(&conditionFrame{n: b.knownOf(n, conditionRules)})
 		case "tree-comparison":
 			f.compare = &domCond{Kind: cdCompare, At: b.at(n), Left: &domTerm{Kind: tmCapture, Str: strings.TrimPrefix(b.tokenValue(b.token(b.only(n, "capture-reference"))), "$")}}
+			if b.checkContext && f.compare.Left.Str != "" {
+				b.fail(b.only(n, "capture-reference"), "a check cannot name a capture")
+			}
 			f.compare.Op = b.operator(b.token(b.only(n, "tree-comparator")))
 			right := b.only(n, "union")
+			if len(b.some(n, "method-selector", 0)) > 0 {
+				f.right = right
+				// A tree comparison stores its capture outside a method receiver.
+				return ask(&methodFrame{n: n, receiver: f.compare.Left, started: true})
+			}
 			b.patternOperand(right)
 			return ask(&termFrame{n: right})
 		case "comparison":
@@ -849,7 +863,11 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 		case "set-condition":
 			return give(&domCond{Kind: cdTruthy, Left: b.truthyTerm(n)})
 		case "presence":
-			return give(&domCond{Kind: cdCaptured, Capture: strings.TrimPrefix(b.tokenValue(b.token(n)), "$")})
+			name := strings.TrimPrefix(b.tokenValue(b.token(n)), "$")
+			if b.checkContext && name != "" {
+				b.fail(n, "a check cannot name a capture")
+			}
+			return give(&domCond{Kind: cdCaptured, Capture: name})
 		default:
 			b.fail(n, "unexpected %s in a condition", n.Rule)
 		}
@@ -868,6 +886,19 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 	}
 	switch n.Rule {
 	case "tree-comparison":
+		if f.right != nil {
+			f.compare.Left = in.(*domTerm)
+			if !b.checkContext {
+				b.fail(n, "a tree comparison requires a bare capture")
+			}
+			if ty, fault := termTypeMemo(f.compare.Left, nil, b.types); fault == nil && ty != tyNode {
+				b.fail(n, "a tree comparison requires a node on its left")
+			}
+			right := f.right
+			f.right = nil
+			b.patternOperand(right)
+			return ask(&termFrame{n: right})
+		}
 		f.compare.Right = in.(*domTerm)
 		if fault := condTypeMemo(f.compare, nil, b.types); fault != nil && !b.featureContext {
 			where := n
@@ -894,10 +925,13 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 		return give(&domCond{Kind: cdNot, Inner: in.(*domCond)})
 	}
 	t := in.(*domTerm)
+	if b.checkContext && checkNodeTerm(t) {
+		return give(&domCond{Kind: cdPresent, Span: t})
+	}
 	if t.Str == "tags" || t.Str == "classes" || t.Str == "split" || t.Str == "ngrams" || t.Str == "classify" {
 		return give(&domCond{Kind: cdTruthy, Left: t})
 	}
-	if t.Str == "parse" || t.Str == "error-free" {
+	if t.Str == "parse" || t.Str == "error-free" || t.Str == "ending-after" || t.Str == "local-readings" {
 		return give(&domCond{Kind: cdForest, Left: t})
 	}
 	if t.Str == "ends-input" {

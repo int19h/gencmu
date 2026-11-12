@@ -42,6 +42,8 @@ def clause_children(node):
         return [node["left"], node["right"]]
     if "if" in node:
         return [node["if"], node["then"]]
+    if "present" in node:
+        return [node["present"]]
     if "nonempty" in node:
         return [node["nonempty"]]
     if "not" in node:

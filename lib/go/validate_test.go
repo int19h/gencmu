@@ -18,7 +18,7 @@ func TestDOMRules(t *testing.T) {
 	const good = `{"seq":[{"literal":{"string":"a"}},{"literal":{"string":"b"}}]}`
 	format := `"format":` + strconv.Itoa(domFormat)
 	rule := func(fields string) string {
-		return `{` + format + `,"rules":[{"name":"text","op":"define",` + fields + `,"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`
+		return `{` + format + `,"rules":[{"name":"text","op":"define",` + fields + `,"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[],"checks":[]}`
 	}
 	guarded := func(guard string) string {
 		return rule(`"alternatives":[{"gates":[` + guard + `],"expr":` + good + `}],"conditions":[]`)
@@ -639,7 +639,7 @@ func TestDeepConstant(t *testing.T) {
 	k := `{"name":"K","op":"define","value":` + deep + `,"at":[9999,1]}`
 	src := oneStage("%ambiguity-resolution greedy\n%rule text \"a\" \"b\"")
 	src = map[string]string{"grammars/test/p.md": src["p.md"], "grammars/test/g.md": src["g.md"]}
-	dom := `{"format":` + strconv.Itoa(domFormat) + `,"rules":[{"name":"text","op":"define","alternatives":[{"gates":[],"expr":{"seq":[{"literal":{"string":"a"}},{"literal":{"string":"b"}}]}}],"conditions":[],"at":[4,1]}],"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[3,1]}],"constants":[` + k + `],"classifiers":[],"implications":[]}`
+	dom := `{"format":` + strconv.Itoa(domFormat) + `,"rules":[{"name":"text","op":"define","alternatives":[{"gates":[],"expr":{"seq":[{"literal":{"string":"a"}},{"literal":{"string":"b"}}]}}],"conditions":[],"at":[4,1]}],"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[3,1]}],"constants":[` + k + `],"classifiers":[],"implications":[],"checks":[]}`
 	if _, err := decodeDOM(json.RawMessage(dom), bundled.uni); err == nil || !strings.Contains(err.Error(), "nested more than 256 deep") {
 		t.Fatalf("a deep constant: expected the nesting error, got %v", err)
 	}
@@ -752,7 +752,7 @@ func TestGuardFeatureName(t *testing.T) {
 	features := func(rules, classifiers string) []string {
 		src := oneStage("%ambiguity-resolution greedy\n%rule text \"a\" \"b\"")
 		src = map[string]string{"grammars/test/p.md": src["p.md"], "grammars/test/g.md": src["g.md"]}
-		dom := `{` + format + `,"rules":[` + rules + `],"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[3,1]}],"constants":[],"classifiers":[` + classifiers + `],"implications":[]}`
+		dom := `{` + format + `,"rules":[` + rules + `],"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[3,1]}],"constants":[],"classifiers":[` + classifiers + `],"implications":[],"checks":[]}`
 		src["data/preparsed/test.json"] = `{` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"grammars/test/g.md":{"hash":"` + fnv1a64(src["grammars/test/g.md"]) + `","dom":` + dom + `}}}`
 		d, err := LoadPipelineSources(src, "grammars/test/p.md")
 		if err != nil {
@@ -838,7 +838,7 @@ func TestMixedForms(t *testing.T) {
 		return err == nil && res.OK
 	}
 	document := func(expr, condition, emit string) string {
-		return `{` + format + `,"rules":[` + rule("text", expr, condition, emit, 4) + `],"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[3,1]}],"constants":[],"classifiers":[],"implications":[]}`
+		return `{` + format + `,"rules":[` + rule("text", expr, condition, emit, 4) + `],"directives":[{"name":"ambiguity-resolution","steps":[{"step":"greedy"}],"at":[3,1]}],"constants":[],"classifiers":[],"implications":[],"checks":[]}`
 	}
 	if !parse("") {
 		t.Fatal("the document does not accept the text")

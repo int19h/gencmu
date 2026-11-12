@@ -10,7 +10,7 @@ pub(crate) mod print;
 mod tests;
 pub(crate) use expand::expand;
 pub(crate) const SOURCE: &str = "\0source";
-pub(crate) const KINDS: [&str; 5] = ["rules", "constants", "directives", "classifiers", "implications"];
+pub(crate) const KINDS: [&str; 6] = ["rules", "directives", "constants", "classifiers", "implications", "checks"];
 pub(crate) fn obj<const N: usize>(fields: [(&str, Json); N]) -> Json {
     Json::Obj(fields.into_iter().map(|(k, v)| (k.into(), v)).collect())
 }
@@ -58,6 +58,8 @@ pub(crate) fn at(n: &Json) -> Option<(usize, usize)> {
 pub(crate) fn source_fields(root: &Json) -> Vec<(&str, &Json)> {
     let prefix: &[&str] = if has(root, "name") && has(root, "op") {
         &["instance", "args", "tags", "value", "image", "alternatives", "conditions", "error", "warning", "emit"]
+    } else if has(root, "name") && has(root, "pattern") && has(root, "conditions") {
+        &["pattern", "conditions", "error", "warning"]
     } else if has(root, "expr") && !has(root, "test") {
         &["expr", "tags", "value", "image"]
     } else if has(root, "capture") || has(root, "insert") {
@@ -71,6 +73,7 @@ pub(crate) fn source_fields(root: &Json) -> Vec<(&str, &Json)> {
         "left",
         "right",
         "not",
+        "present",
         "any",
         "all",
         "receiver",

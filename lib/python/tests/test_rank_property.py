@@ -326,6 +326,7 @@ def dom_of(rules: list[list[list[Any]]], names: list[str], lean: str) -> dict[st
             for number, alternatives in enumerate(rules)
         ],
         "directives": [{"name": "ambiguity-resolution", "steps": [{"step": "lazy" if lean == "lazy" else "greedy"}], "at": [9, 1]}],
+        "checks": [],
     }
 
 
@@ -449,6 +450,7 @@ def random_sugared(rng: random.Random) -> dict[str, Any]:
         "rules": rules,
         "directives": [{"name": "ambiguity-resolution", "steps": [{"step":"leftmost-longest","pattern":counted_pattern(counted)}, {"step": "greedy"}], "at": [9, 1]}],
         "constants": [],
+        "checks": [],
     }
 
 
@@ -481,6 +483,7 @@ def random_eliding(rng: random.Random) -> dict[str, Any]:
         "rules": rules,
         "directives": [{"name": "ambiguity-resolution", "steps": [{"step":"leftmost-longest","pattern":counted_pattern(counted)}, {"step":"late","pattern":OMITTED}], "at": [9, 1]}],
         "constants": [],
+        "checks": [],
     }
 
 
@@ -631,7 +634,7 @@ def random_rules_grammar(rng: random.Random) -> tuple[dict[str, Any], str, bool,
     ]
     steps = [{"step":"leftmost-longest","pattern":counted_pattern(counted)}, {"step":"late","pattern":OMITTED} if lean == "late #·_<_Elided>" else {"step": "greedy" if lean == "none" else lean}]
     directives: list[dict[str, Any]] = [{"name": "ambiguity-resolution", "steps": steps, "at": [1, 1]}]
-    dom = {"format": DOM_FORMAT, "rules": dom_rules, "directives": directives, "constants": []}
+    dom = {"format": DOM_FORMAT, "rules": dom_rules, "directives": directives, "constants": [], "checks": []}
     return dom, lean, elidable, terminals
 
 
@@ -694,6 +697,7 @@ class RankingProperty(unittest.TestCase):
             ],
             "directives": [{"name": "ambiguity-resolution", "steps": [{"step":"late","pattern":{"name":"text","exact":True,"at":[1,1]}}], "at": [1, 1]}],
             "constants": [],
+            "checks": [],
         }
         unicode = _unicode_table(_resources().unicode)
         lowered = lower(stitch("main", [("g.md", dom)], unicode), frozenset())
@@ -951,6 +955,7 @@ class LongInputs(unittest.TestCase):
             ],
             "directives": [{"name": "ambiguity-resolution", "steps": [{"step":"late","pattern":OMITTED}], "at": [1, 1]}],
             "constants": [],
+            "checks": [],
         }
         unicode = _unicode_table(_resources().unicode)
         lowered = lower(stitch("main", [("g.md", dom)], unicode), frozenset())

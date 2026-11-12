@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%features Cbm\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 52,
       "rules": [],
       "directives": [
         {
@@ -19,7 +19,8 @@
       ],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     }
   }
 }

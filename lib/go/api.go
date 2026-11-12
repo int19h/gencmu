@@ -452,6 +452,15 @@ func pipelineFeatures(stages []*stageGrammar, declared []string) ([]Feature, *Er
 		return nil
 	}
 	for _, g := range stages {
+		for _, entry := range g.checks {
+			kind := "error"
+			if entry.definition.Warning != nil {
+				kind = FeatureWarning
+			}
+			if err := add(entry.definition.Name, kind, entry.doc, entry.definition.At, g.name); err != nil {
+				return nil, err
+			}
+		}
 		for _, r := range g.rules {
 			for _, a := range r.alts {
 				for _, gate := range a.alt.Gates {
@@ -509,6 +518,11 @@ func pipelineFeatures(stages []*stageGrammar, declared []string) ([]Feature, *Er
 				if item.directive.Conditions == nil {
 					on[name] = true
 				}
+			}
+		}
+		for _, entry := range stage.checks {
+			if entry.definition.Warning != nil && tested[entry.definition.Name] == "" {
+				tested[entry.definition.Name] = stage.name
 			}
 		}
 		for _, rule := range stage.rules {

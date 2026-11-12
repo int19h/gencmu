@@ -20,6 +20,7 @@ pub(crate) struct ExprFlags {
 pub(crate) enum Part {
     Expr { whole: bool, flags: ExprFlags },
     Term,
+    Query,
     Body,
     RecipeAtom,
     Condition,
@@ -79,8 +80,21 @@ fn bare_capture(value: &Json) -> bool {
         && value.get("capture").and_then(Json::as_str).is_some_and(|name| name.is_empty() || is_capture_name(name))
 }
 
-fn span(value: &Json) -> bool {
+fn node(value: &Json, check: bool) -> bool {
     bare_capture(value)
+        || check
+            && matches!(
+                value.get("method").and_then(Json::as_str),
+                Some("parent" | "preceding-node" | "following-node")
+            )
+}
+fn element(value: &Json, check: bool) -> bool {
+    check && value.get("method").and_then(Json::as_str) == Some("preceding-element")
+}
+
+fn span(value: &Json, check: bool) -> bool {
+    node(value, check)
+        || element(value, check)
         || source::leaf(value)
         || matches!(
             value.get("method").and_then(Json::as_str),
@@ -97,11 +111,21 @@ fn span(value: &Json) -> bool {
         )
 }
 
-fn forest(value: &Json) -> bool {
-    source::leaf(value) || matches!(value.get("method").and_then(Json::as_str), Some("parse" | "error-free"))
+fn restored_json_span(mut value: &Json) -> bool {
+    for _ in 0..=DOM_MAX_DEPTH {
+        match value.get("method").and_then(Json::as_str) {
+            Some("without-elision" | "without-elision-except") => return true,
+            Some("onward") => {
+                let Some(inner) = value.get("receiver") else { return false };
+                value = inner;
+            }
+            _ => return false,
+        }
+    }
+    false
 }
 
-fn body_json_problem(body: &Json) -> Option<&'static str> {
+fn body_json_problem(body: &Json, check: bool) -> Option<&'static str> {
     let marker = "a remainder stands at one outer edge of a parse argument";
     let mut pending = vec![body];
     if let Some(items) = body.get("seq").and_then(Json::as_array) {
@@ -122,7 +146,7 @@ fn body_json_problem(body: &Json) -> Option<&'static str> {
     }
     while let Some(expression) = pending.pop() {
         crate::work::count(crate::work::Work::Walked, 1);
-        if expression.get("capture").is_some() {
+        if !check && expression.get("capture").is_some() {
             return Some("a parse argument cannot declare captures");
         }
         if expression.get("remainder").is_some() {
@@ -140,20 +164,6 @@ fn body_json_problem(body: &Json) -> Option<&'static str> {
         }
     }
     None
-}
-
-pub(crate) fn restored_span(mut value: &Json) -> bool {
-    for _ in 0..=256 {
-        match value.get("method").and_then(Json::as_str) {
-            Some("without-elision" | "without-elision-except") => return true,
-            Some("onward") => {
-                let Some(inner) = value.get("receiver") else { return false };
-                value = inner;
-            }
-            _ => return false,
-        }
-    }
-    false
 }
 
 fn string_atom(value: &Json) -> bool {
@@ -199,7 +209,7 @@ fn tested_base(value: &Json, unicode: &Unicode, expanded: bool) -> bool {
         })
 }
 
-fn recipe_atom(value: &Json) -> bool {
+fn recipe_atom(value: &Json, check: bool) -> bool {
     if string_atom(value) {
         return true;
     }
@@ -211,6 +221,7 @@ fn recipe_atom(value: &Json) -> bool {
                     && receiver.get("receiver").is_some_and(bare_capture)
         }
         Some("source-text" | "decomposed-source-text" | "verbatim-text") => bare_capture(receiver),
+        Some("terminal") => check && bare_capture(receiver),
         _ => false,
     }
 }
@@ -219,15 +230,19 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
     if crate::parameters::nodes(dom).any(|node| node.get(crate::parameters::SOURCE).is_some()) {
         return Some("a private source annotation in a supplied DOM".into());
     }
-    if !exact(dom, &["format", "rules", "directives", "constants", "classifiers", "implications"], &[])
+    if !exact(dom, &["format", "rules", "directives", "constants", "classifiers", "implications", "checks"], &[])
         || dom.get("format").and_then(Json::as_int) != Some(DOM_FORMAT)
     {
         return Some("not a DOM of this format".into());
     }
+    let mut check_nodes = FxSet::default();
+    for check in dom.get("checks").and_then(Json::as_array).into_iter().flatten() {
+        check_nodes.extend(crate::parameters::nodes(check).map(|node| node as *const Json as usize));
+    }
     let rule = |name: &str| rule_name(name, unicode, expanded);
     let mut pending = Vec::new();
     let mut positions = FxSet::default();
-    for name in ["rules", "directives", "constants", "classifiers", "implications"] {
+    for name in ["rules", "directives", "constants", "classifiers", "implications", "checks"] {
         let Some(items) = dom.get(name).and_then(Json::as_array) else {
             return Some("missing declaration array".into());
         };
@@ -243,6 +258,21 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
                 return Some("an undeclared or malformed parameter".into());
             }
             match name {
+                "checks" => {
+                    if !exact(item, &["name", "pattern", "conditions", "at"], &["error", "warning"])
+                        || !item.get("name").and_then(Json::as_str).is_some_and(rule)
+                        || item.get("error").is_some() == item.get("warning").is_some()
+                    {
+                        return Some("a malformed check".into());
+                    }
+                    let Some(pattern) = item.get("pattern") else { return Some("a malformed check".into()) };
+                    pending.push((if pattern.get("const").is_some() { Part::Term } else { Part::Pattern }, pattern, 0));
+                    let Some(conditions) = item.get("conditions").and_then(Json::as_array) else {
+                        return Some("a malformed check".into());
+                    };
+                    pending.extend(conditions.iter().map(|condition| (Part::Condition, condition, 0)));
+                    pending.push((Part::Recipe, item.get("error").or_else(|| item.get("warning")).unwrap(), 0));
+                }
                 "directives" => {
                     let name = item.get("name").and_then(Json::as_str);
                     let valid = if name == Some("ambiguity-resolution") {
@@ -479,7 +509,7 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
             }
         }
     }
-    parts_problem(pending, unicode, expanded)
+    parts_problem(pending, unicode, expanded, &check_nodes)
 }
 
 fn literal_split_problem(declaration: &Json) -> Option<&'static str> {
@@ -500,6 +530,7 @@ fn literal_split_problem(declaration: &Json) -> Option<&'static str> {
 pub(crate) fn decoded_problem(raw: &Json, dom: &mut Dom) -> Option<String> {
     enum Declaration {
         Rule(usize),
+        Check(usize),
         Constant(usize),
         Implication(usize),
     }
@@ -512,6 +543,9 @@ pub(crate) fn decoded_problem(raw: &Json, dom: &mut Dom) -> Option<String> {
     }
     for (index, implication) in dom.implications.iter().enumerate() {
         declarations.push((implication.at, Declaration::Implication(index)));
+    }
+    for (index, check) in dom.checks.iter().enumerate() {
+        declarations.push((check.at, Declaration::Check(index)));
     }
     declarations.sort_unstable_by_key(|(at, _)| *at);
     for (_, declaration) in declarations {
@@ -571,6 +605,19 @@ pub(crate) fn decoded_problem(raw: &Json, dom: &mut Dom) -> Option<String> {
                     }
                 }
             }
+            Declaration::Check(index) => {
+                let check = &dom.checks[index];
+                for condition in &check.conditions {
+                    if let Some(fault) = super::cond_type_context(condition, &|_| Type::Any, true) {
+                        return Some(fault.problem);
+                    }
+                }
+                for recipe in check.error.iter().chain(check.warning.iter()) {
+                    if let Err(fault) = super::check_recipe_type(recipe, &|_| Type::Any) {
+                        return Some(fault.problem);
+                    }
+                }
+            }
             Declaration::Constant(index) => {
                 let definition = &raw.get("constants").and_then(Json::as_array).unwrap()[index];
                 if let Some(problem) = literal_split_problem(definition) {
@@ -613,7 +660,7 @@ pub(crate) fn decoded_problem(raw: &Json, dom: &mut Dom) -> Option<String> {
 }
 
 pub(crate) fn names_problem(dom: &Json) -> Option<&'static str> {
-    let first_statement = ["rules", "directives", "constants", "classifiers", "implications"]
+    let first_statement = ["rules", "directives", "constants", "classifiers", "implications", "checks"]
         .into_iter()
         .flat_map(|key| array(dom, key).into_iter().flatten().map(move |item| (key, item)))
         .filter(|(key, item)| *key != "directives" || item.get("name").and_then(Json::as_str) != Some("names"))
@@ -629,9 +676,15 @@ pub(crate) fn names_problem(dom: &Json) -> Option<&'static str> {
     None
 }
 
-fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expanded: bool) -> Option<String> {
+fn parts_problem(
+    mut pending: Vec<(Part, &Json, usize)>,
+    unicode: &Unicode,
+    expanded: bool,
+    check_nodes: &FxSet<usize>,
+) -> Option<String> {
     let rule = |name: &str| rule_name(name, unicode, expanded);
     while let Some((kind, value, depth)) = pending.pop() {
+        let check = check_nodes.contains(&(value as *const Json as usize));
         if depth > DOM_MAX_DEPTH {
             return Some("nested too deeply".into());
         }
@@ -646,6 +699,9 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
             continue;
         }
         if value.get("call").is_some() && !matches!(kind, Part::Pattern | Part::PatternNode | Part::Argument) {
+            if matches!(kind, Part::Condition) {
+                return Some("a malformed condition".into());
+            }
             if !matches!(kind, Part::Expr { .. } | Part::Term | Part::Target | Part::Call) {
                 return Some("a call in the wrong source category".into());
             }
@@ -660,7 +716,7 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                     return Some("a malformed parse body".into());
                 }
                 let body = value.get("body").unwrap();
-                if let Some(problem) = body_json_problem(body) {
+                if let Some(problem) = body_json_problem(body, check) {
                     return Some(problem.into());
                 }
                 pending.push((
@@ -700,6 +756,9 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
             }
             Part::Expr { whole, flags } => {
                 let expression = |value, flags| (Part::Expr { whole: false, flags }, value, next);
+                if value.get("ref").is_some_and(|name| !name.as_str().is_some_and(|name| rule(name) || tag(name))) {
+                    return Some("a malformed reference".into());
+                }
                 if base(value, unicode, expanded) {
                     if value.get("ref").and_then(Json::as_str).is_some_and(|name| !rule(name) && !tag(name)) {
                         return Some("a malformed reference".into());
@@ -842,7 +901,7 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                     return Some("an empty recipe".into());
                 };
                 for atom in atoms {
-                    if !recipe_atom(atom) {
+                    if !recipe_atom(atom, check) && (!check || atom.get("method").is_none()) {
                         return Some("a recipe contains a non-string atom".into());
                     }
                     pending.push((Part::RecipeAtom, atom, next));
@@ -854,7 +913,7 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                 }
                 pending.push((Part::Term, value, depth));
             }
-            Part::Term | Part::RecipeAtom => {
+            Part::Term | Part::RecipeAtom | Part::Query => {
                 if exact(value, &["string"], &[]) && is_str(value.get("string"))
                     || exact(value, &["tag"], &[]) && value.get("tag").and_then(Json::as_str).is_some_and(tag)
                     || bare_capture(value)
@@ -888,67 +947,126 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                     };
                     let receiver = value.get("receiver").unwrap();
                     let name = value.get("method").and_then(Json::as_str).unwrap_or("");
-                    let capture = bare_capture(receiver) || source::leaf(receiver);
-                    let rule_arg = |arg: &Json| {
-                        source::leaf(arg)
-                            || exact(arg, &["rule"], &[]) && arg.get("rule").and_then(Json::as_str).is_some_and(rule)
-                    };
-                    let valid = match (name, args) {
-                        ("parse", [arg]) => {
-                            span(receiver)
-                                && exact(arg, &["body"], &[])
-                                && !(restored_span(receiver)
-                                    && arg
-                                        .get("body")
-                                        .and_then(|body| body.get("seq"))
-                                        .and_then(Json::as_array)
-                                        .and_then(|items| items.first())
-                                        .is_some_and(|first| first.get("remainder").is_some()))
-                        }
-                        ("error-free", []) => forest(receiver),
-                        ("without-elision", []) => capture,
-                        ("without-elision-except", [arg]) => capture && rule_arg(arg),
-                        ("verbatim-text", []) => matches!(kind, Part::RecipeAtom) && capture,
-                        ("emitted", []) => matches!(kind, Part::RecipeAtom) && capture,
-                        ("value" | "image", []) => {
-                            span(receiver) || receiver.get("method").and_then(Json::as_str) == Some("emitted")
-                        }
-                        (
-                            "source-text"
-                            | "decomposed-source-text"
-                            | "first-token"
-                            | "last-token"
-                            | "tokens-after-first"
-                            | "onward"
-                            | "following-tokens"
-                            | "preceding-tokens"
-                            | "classes",
-                            [],
-                        ) => span(receiver),
-                        ("tags", []) => span(receiver) || forest(receiver),
-                        ("ngrams", [arg]) => {
-                            exact(arg, &["integer"], &[])
-                                && arg.get("integer").and_then(Json::as_str).is_some_and(crate::dom::valid_integer)
-                        }
-                        ("split", [arg]) => {
-                            !is_rule_arg(arg) && !is_classifier_arg(arg) && arg.get("integer").is_none()
-                        }
-                        ("classify", [arg]) => {
-                            exact(arg, &["classifier"], &[])
-                                && arg.get("classifier").and_then(Json::as_str).is_some_and(is_classifier_name)
-                        }
-                        _ => false,
-                    };
-                    if !valid {
+                    if !crate::notation::is_known_method(name)
+                        || !check
+                            && name == "classify"
+                            && args.iter().any(|arg| {
+                                !exact(arg, &["classifier"], &[])
+                                    || !arg.get("classifier").and_then(Json::as_str).is_some_and(is_classifier_name)
+                            })
+                    {
                         return Some("a method has the wrong receiver or arguments".into());
                     }
-                    pending.push((kind, receiver, next));
+                    if !matches!(kind, Part::Query)
+                        && matches!(name, "starts-input" | "ends-input" | "followed-by" | "preceded-by")
+                    {
+                        return Some("a predicate method cannot supply a value".into());
+                    }
+                    if !check
+                        && matches!(
+                            name,
+                            "parent"
+                                | "preceding-node"
+                                | "following-node"
+                                | "preceding-element"
+                                | "local-readings"
+                                | "terminal"
+                        )
+                    {
+                        return Some("a check method is outside its permitted clause".into());
+                    }
+                    if !check {
+                        let shape = MethodReceiver {
+                            span: span(receiver, check),
+                            node: check && node(receiver, check),
+                            element: element(receiver, check),
+                            forest: source::leaf(receiver)
+                                || matches!(
+                                    receiver.get("method").and_then(Json::as_str),
+                                    Some("parse" | "error-free" | "ending-after" | "local-readings")
+                                ),
+                            bare: bare_capture(receiver) || source::leaf(receiver),
+                            restored: restored_json_span(receiver),
+                            emitted: receiver.get("method").and_then(Json::as_str) == Some("emitted"),
+                            string: true,
+                        };
+                        let arguments: Vec<_> = args
+                            .iter()
+                            .map(|arg| {
+                                if source::leaf(arg) {
+                                    MethodArgument::Unresolved
+                                } else if arg.get("body").is_some() {
+                                    MethodArgument::Body(
+                                        arg.get("body")
+                                            .and_then(|body| body.get("seq"))
+                                            .and_then(Json::as_array)
+                                            .and_then(|items| items.first())
+                                            .is_some_and(|first| first.get("remainder").is_some()),
+                                    )
+                                } else if arg.get("rule").is_some() || arg.get("terminal").is_some() {
+                                    MethodArgument::Rule
+                                } else if arg.get("classifier").is_some() {
+                                    MethodArgument::Classifier
+                                } else if let Some(value) = arg.get("integer").and_then(Json::as_str) {
+                                    MethodArgument::Integer(valid_integer(value))
+                                } else {
+                                    MethodArgument::Term(span(arg, check))
+                                }
+                            })
+                            .collect();
+                        if let Some(problem) =
+                            signature_problem(name, &shape, &arguments, matches!(kind, Part::RecipeAtom))
+                        {
+                            return Some(problem.into());
+                        }
+                    }
+                    pending.push((if matches!(kind, Part::Query) { Part::Term } else { kind }, receiver, next));
                     for arg in args {
+                        for key in ["rule", "classifier", "integer", "terminal"] {
+                            if arg.get(key).is_some()
+                                && (!exact(arg, &[key], &[])
+                                    || !arg.get(key).is_some_and(|value| matches!(value, Json::Str(_))))
+                            {
+                                return Some(
+                                    if key == "integer" {
+                                        "a malformed integer argument"
+                                    } else {
+                                        "a malformed method argument"
+                                    }
+                                    .into(),
+                                );
+                            }
+                        }
+                        if let Some(target) = arg.get("rule").and_then(Json::as_str) {
+                            if !matches!(name, "without-elision-except" | "followed-by" | "preceded-by")
+                                || !rule(target)
+                            {
+                                return Some("a malformed rule argument".into());
+                            }
+                        }
+                        if let Some(target) = arg.get("classifier").and_then(Json::as_str) {
+                            if name != "classify" || !is_classifier_name(target) {
+                                return Some("a malformed classifier argument".into());
+                            }
+                        }
+                        if let Some(digits) = arg.get("integer").and_then(Json::as_str) {
+                            if name != "ngrams" || !valid_integer(digits) {
+                                return Some("a malformed integer argument".into());
+                            }
+                        }
+                        if let Some(target) = arg.get("terminal").and_then(Json::as_str) {
+                            if !matches!(name, "followed-by" | "preceded-by") || !tag(target) || engine_tag(target) {
+                                return Some("a malformed boundary target".into());
+                            }
+                        }
                         if name == "parse" {
                             pending.push((Part::Body, arg, next));
                             continue;
                         }
-                        if arg.get("rule").is_none() && arg.get("classifier").is_none() && arg.get("integer").is_none()
+                        if arg.get("rule").is_none()
+                            && arg.get("classifier").is_none()
+                            && arg.get("integer").is_none()
+                            && arg.get("terminal").is_none()
                         {
                             pending.push((Part::Term, arg, next));
                         }
@@ -979,6 +1097,12 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                         .and_then(Json::as_str)
                         .is_some_and(|name| name.is_empty() || is_capture_name(name))
                 {
+                } else if check && exact(value, &["present"], &[]) {
+                    let receiver = value.get("present").unwrap();
+                    if !node(receiver, check) {
+                        return Some("a presence test requires a check node".into());
+                    }
+                    pending.push((Part::Term, receiver, next));
                 } else if exact(value, &["not"], &[]) {
                     pending.push((Part::Condition, value.get("not").unwrap(), next));
                 } else if exact(value, &["if", "then"], &[]) {
@@ -994,24 +1118,42 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                         return Some("a malformed comparator".into());
                     }
                     if matches!(value.get("op").and_then(Json::as_str), Some("≅" | "≇"))
+                        && !check
                         && !bare_capture(value.get("left").unwrap())
                     {
                         return Some("a tree comparison requires a bare capture".into());
                     }
-                    pending.push((Part::Term, value.get("left").unwrap(), next));
-                    pending.push((Part::Term, value.get("right").unwrap(), next));
+                    if check && matches!(value.get("op").and_then(Json::as_str), Some("≅" | "≇")) {
+                        pending.push((Part::Term, value.get("right").unwrap(), next));
+                        pending.push((Part::Term, value.get("left").unwrap(), next));
+                    } else {
+                        pending.push((Part::Term, value.get("left").unwrap(), next));
+                        pending.push((Part::Term, value.get("right").unwrap(), next));
+                    }
                 } else if exact(value, &["method", "receiver", "args"], &[]) {
-                    if matches!(value.get("method").and_then(Json::as_str), Some("parse" | "error-free")) {
+                    if matches!(
+                        value.get("method").and_then(Json::as_str),
+                        Some("parse" | "error-free" | "ending-after" | "local-readings")
+                    ) {
                         pending.push((Part::Term, value, depth));
+                        continue;
+                    }
+                    if check
+                        && matches!(
+                            value.get("method").and_then(Json::as_str),
+                            Some("starts-input" | "ends-input" | "followed-by" | "preceded-by")
+                        )
+                    {
+                        pending.push((Part::Query, value, depth));
                         continue;
                     }
                     let receiver = value.get("receiver").unwrap();
                     let args = value.get("args").and_then(Json::as_array);
-                    if !span(receiver)
+                    if !span(receiver, check)
                         || !match (value.get("method").and_then(Json::as_str), args) {
                             (Some("starts-input" | "ends-input"), Some([])) => true,
                             (Some("followed-by" | "preceded-by"), Some(args)) => {
-                                (bare_capture(receiver) || source::leaf(receiver))
+                                (node(receiver, check) || source::leaf(receiver))
                                     && !args.is_empty()
                                     && args.iter().all(|arg| {
                                         source::leaf(arg)
@@ -1026,6 +1168,12 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                             _ => false,
                         }
                     {
+                        if matches!(value.get("method").and_then(Json::as_str), Some("followed-by" | "preceded-by"))
+                            && !node(receiver, check)
+                            && !source::leaf(receiver)
+                        {
+                            return Some("a method has the wrong receiver or arguments".into());
+                        }
                         return Some("a malformed query predicate".into());
                     }
                     pending.push((Part::Term, receiver, next));

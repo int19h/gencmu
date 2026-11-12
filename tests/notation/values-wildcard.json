@@ -2,7 +2,7 @@
   "document": "```jbogenbau\n%rule r _\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 52,
       "rules": [
         {
           "name": "r",
@@ -25,7 +25,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     }
   },
   "description": "The wildcard has its own DOM form (docs/output.md) (engine §9.3)."

@@ -1,0 +1,31 @@
+{
+  "description": "Issue #286: a local query cannot see tokens before its element start.",
+  "grammar": "%rule text \"z\" r [+T] \"b\"\n%rule r \"a\" | \"a\" \"b\"\n%conditions $.preceding-tokens.value = \"z\"\n%check local\n #·_<_Elided>\n%conditions ¬$.preceding-element.local-readings\n%warning \"local\"",
+  "input": "zab",
+  "options": {
+    "features": [
+      "local"
+    ]
+  },
+  "expect": {
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "local",
+        "rule": "local",
+        "span": [
+          2,
+          2
+        ],
+        "source": [
+          2,
+          2
+        ],
+        "message": "local"
+      }
+    ],
+    "result": {
+      "ok": true
+    }
+  }
+}

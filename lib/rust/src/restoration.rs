@@ -413,7 +413,16 @@ pub(crate) fn demanded(g: &crate::lower::Lowered) -> crate::fxhash::FxSet<u32> {
     }
     fn term(t: &LTerm, p: &Prod, w: &mut FxSet<u32>, todo: &mut Vec<u32>) {
         match t {
-            LTerm::ForestTags(s, r, ..) => query(s, *r, p, w, todo),
+            LTerm::ForestTags(forest) => {
+                if let crate::lower::QueryTarget::Rule(rule) = forest.target {
+                    query(&forest.span, rule, p, w, todo);
+                } else {
+                    span(&forest.span, p, w);
+                }
+                for end in &forest.after {
+                    span(end, p, w);
+                }
+            }
             LTerm::Text(s)
             | LTerm::DecomposedText(s)
             | LTerm::Value(s)
@@ -440,14 +449,21 @@ pub(crate) fn demanded(g: &crate::lower::Lowered) -> crate::fxhash::FxSet<u32> {
     fn cond(c: &LCond, p: &Prod, w: &mut FxSet<u32>, todo: &mut Vec<u32>) {
         match c {
             LCond::SameTree(..) => (),
-            LCond::Matches(s, r)
-            | LCond::Begins(s, r)
-            | LCond::Ends(s, r)
-            | LCond::Contains(s, r)
-            | LCond::ErrorFree(s, r, _) => query(s, *r, p, w, todo),
-            LCond::Initial(s) | LCond::Final(s) | LCond::Boundary(_, s, _, _, _) | LCond::Tree(s, _, _) => {
-                span(s, p, w)
+            LCond::Forest(forest) => {
+                if let crate::lower::QueryTarget::Rule(rule) = forest.target {
+                    query(&forest.span, rule, p, w, todo);
+                } else {
+                    span(&forest.span, p, w);
+                }
+                for end in &forest.after {
+                    span(end, p, w);
+                }
             }
+            LCond::Present(s)
+            | LCond::Initial(s)
+            | LCond::Final(s)
+            | LCond::Boundary(_, s, _, _, _)
+            | LCond::Tree(s, _, _) => span(s, p, w),
             LCond::Cmp(_, a, b) => {
                 term(a, p, w, todo);
                 term(b, p, w, todo);
@@ -758,20 +774,30 @@ pub(crate) fn local_demands(g: &crate::lower::Lowered) -> Vec<LocalDemand> {
             _ => {}
         }
     }
+    fn query(s: &Span, rule: u32, out: &mut LocalDemand) {
+        let aligned = if let Span::From(inner) = s { &**inner } else { s };
+        if let Span::WithoutElision(inner, _) = aligned {
+            if let Span::Cap(c) = &**inner {
+                out.captures.insert(*c);
+                if let Some(rules) = out.queries.entry(*c).or_insert_with(|| Some(Default::default())) {
+                    rules.insert(rule);
+                }
+                return;
+            }
+        }
+        span(s, out);
+    }
     fn term(t: &LTerm, out: &mut LocalDemand) {
         match t {
-            LTerm::ForestTags(s, rule, ..) => {
-                let aligned = if let Span::From(inner) = s { &**inner } else { s };
-                if let Span::WithoutElision(inner, _) = aligned {
-                    if let Span::Cap(c) = &**inner {
-                        out.captures.insert(*c);
-                        if let Some(rules) = out.queries.entry(*c).or_insert_with(|| Some(Default::default())) {
-                            rules.insert(*rule);
-                        }
-                        return;
-                    }
+            LTerm::ForestTags(forest) => {
+                for end in &forest.after {
+                    span(end, out);
                 }
-                span(s, out);
+                if let crate::lower::QueryTarget::Rule(rule) = forest.target {
+                    query(&forest.span, rule, out);
+                } else {
+                    span(&forest.span, out);
+                }
             }
             LTerm::Text(s)
             | LTerm::DecomposedText(s)
@@ -799,24 +825,21 @@ pub(crate) fn local_demands(g: &crate::lower::Lowered) -> Vec<LocalDemand> {
     fn cond(c: &LCond, out: &mut LocalDemand) {
         match c {
             LCond::SameTree(..) => (),
-            LCond::Matches(s, rule)
-            | LCond::Begins(s, rule)
-            | LCond::Ends(s, rule)
-            | LCond::Contains(s, rule)
-            | LCond::ErrorFree(s, rule, _) => {
-                let aligned = if let Span::From(inner) = s { &**inner } else { s };
-                if let Span::WithoutElision(inner, _) = aligned {
-                    if let Span::Cap(c) = &**inner {
-                        out.captures.insert(*c);
-                        if let Some(rules) = out.queries.entry(*c).or_insert_with(|| Some(Default::default())) {
-                            rules.insert(*rule);
-                        }
-                        return;
-                    }
+            LCond::Forest(forest) => {
+                for end in &forest.after {
+                    span(end, out);
                 }
-                span(s, out);
+                if let crate::lower::QueryTarget::Rule(rule) = forest.target {
+                    query(&forest.span, rule, out);
+                } else {
+                    span(&forest.span, out);
+                }
             }
-            LCond::Initial(s) | LCond::Final(s) | LCond::Boundary(_, s, _, _, _) | LCond::Tree(s, _, _) => span(s, out),
+            LCond::Present(s)
+            | LCond::Initial(s)
+            | LCond::Final(s)
+            | LCond::Boundary(_, s, _, _, _)
+            | LCond::Tree(s, _, _) => span(s, out),
             LCond::Cmp(_, a, b) => {
                 term(a, out);
                 term(b, out);

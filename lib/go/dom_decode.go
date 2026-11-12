@@ -10,7 +10,10 @@ type domObject = map[string]any
 
 // A conversion job reads one constructor. Its children fill stable result
 // nodes through later jobs, so conversion needs no recursive call stack.
-type domDecoder struct{ pending []func() error }
+type domDecoder struct {
+	pending  []func() error
+	expanded bool
+}
 
 func (dc *domDecoder) run() error {
 	slices.Reverse(dc.pending)

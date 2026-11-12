@@ -140,6 +140,15 @@ fn inspect_shape(root: &Json, inspect: &Inspection<'_>) -> Result<(), String> {
             }
             continue;
         }
+        if has(n, "never") {
+            if !(only(n, &["never"]) || only(n, &["never", "at"]) && position(get(n, "at")))
+                || get(n, "never").as_bool() != Some(true)
+                || t.inner
+            {
+                return Err("a malformed empty pattern".into());
+            }
+            continue;
+        }
         if let Some(key) = set(n) {
             if !only(n, &[key]) {
                 return Err("a malformed pattern".into());
@@ -194,7 +203,7 @@ fn inspect_shape(root: &Json, inspect: &Inspection<'_>) -> Result<(), String> {
                             && !has(e, "exact")
                             && !has(e, "children")
                 }) else {
-                    return Err("a pattern tag test requires an undecorated atom".into());
+                    return Err("a pattern tag test requires a node atom".into());
                 };
                 for requirement in requirements {
                     if !only(requirement, &["value", "negated"])
@@ -217,7 +226,7 @@ fn inspect_shape(root: &Json, inspect: &Inspection<'_>) -> Result<(), String> {
                     && !has(target, "exact")
                     && !has(target, "children");
                 if !matches!(get(n, "test").as_str(), Some("=" | "≠")) || !(terminal_atom(target) || rule_atom) {
-                    return Err("a pattern value test requires an undecorated atom".into());
+                    return Err("a pattern value test requires a node atom".into());
                 }
                 if !string_term(get(n, "value")) {
                     return Err("a malformed pattern value test".into());
@@ -366,6 +375,8 @@ pub(crate) fn text(root: &Json, term: &dyn Fn(&Json) -> String, literal: bool) -
                     if axis == "first" {
                         tasks.push(Task::Text(" ⋰"));
                     }
+                } else if get(n, "never").as_bool() == Some(true) {
+                    tasks.push(Task::Text("∅"));
                 } else if let Some(key) = set(n) {
                     for (i, child) in get(n, key).as_array().unwrap().iter().enumerate() {
                         if i > 0 {

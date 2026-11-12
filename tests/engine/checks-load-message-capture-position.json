@@ -1,0 +1,14 @@
+{
+  "description": "A capture in a check message reports at the reference.",
+  "grammar": "%rule text \"a\"\n%check c #·text\n%warning \"m\" ++ $y.value",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 17
+    },
+    "message": "a check cannot name a capture"
+  }
+}

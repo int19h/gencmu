@@ -1,0 +1,44 @@
+{
+  "description": "Local readings and the explicit query keep tested rule tags from the chart.",
+  "grammar": "%rule text r<T> m :: ∅\n%rule r A :: T\n%rule m M\n%check same #·m\n%conditions $.preceding-element.local-readings, $.preceding-element.onward.parse(r<T> …),\n  $.preceding-element.local-readings.tags = $.preceding-element.onward.parse(r<T> …).tags,\n  $.preceding-element.local-readings.tags = T\n%warning \"same\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "m",
+      "tags": [
+        "M"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "same"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "same",
+        "rule": "same",
+        "span": [
+          1,
+          2
+        ],
+        "source": [
+          2,
+          3
+        ],
+        "message": "same"
+      }
+    ]
+  }
+}

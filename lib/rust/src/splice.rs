@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 
-use crate::dom::{ClassifierDef, ConstDef, Directive, Dom, ImplicationDef, RuleDef};
+use crate::dom::{CheckDef, ClassifierDef, ConstDef, Directive, Dom, ImplicationDef, RuleDef};
 use crate::error::{Error, SpliceProblem};
 use crate::fxhash::{FxMap, FxSet};
 use crate::work::{self, Work};
@@ -14,6 +14,7 @@ use crate::work::{self, Work};
 #[derive(Clone, Copy)]
 pub(crate) enum Item<'a> {
     Rule(&'a RuleDef),
+    Check(&'a CheckDef),
     Directive(&'a Directive),
     Constant(&'a ConstDef),
     Classifier(&'a ClassifierDef),
@@ -24,6 +25,7 @@ impl Item<'_> {
     pub(crate) fn at(&self) -> (usize, usize) {
         match self {
             Item::Rule(rule) => rule.at,
+            Item::Check(check) => check.at,
             Item::Directive(directive) => directive.at,
             Item::Constant(constant) => constant.at,
             Item::Classifier(classifier) => classifier.at,
@@ -38,6 +40,7 @@ impl Item<'_> {
 #[derive(Clone, Copy)]
 enum Place {
     Rule(usize),
+    Check(usize),
     Directive(usize),
     Constant(usize),
     Classifier(usize),
@@ -48,6 +51,7 @@ impl Place {
     fn item(self, dom: &Dom) -> Item<'_> {
         match self {
             Place::Rule(index) => Item::Rule(&dom.rules[index]),
+            Place::Check(index) => Item::Check(&dom.checks[index]),
             Place::Directive(index) => Item::Directive(&dom.directives[index]),
             Place::Constant(index) => Item::Constant(&dom.constants[index]),
             Place::Classifier(index) => Item::Classifier(&dom.classifiers[index]),
@@ -66,6 +70,7 @@ fn places_in_order(dom: &Dom) -> Vec<Place> {
         .chain((0..dom.constants.len()).map(Place::Constant))
         .chain((0..dom.classifiers.len()).map(Place::Classifier))
         .chain((0..dom.implications.len()).map(Place::Implication))
+        .chain((0..dom.checks.len()).map(Place::Check))
         .collect();
     places.sort_by_key(|place| place.item(dom).at());
     places
@@ -275,6 +280,7 @@ impl Splicer<'_> {
                     let Some(stage) = self.selected.map(|index| &mut self.stages[index]) else {
                         let what = match item {
                             Item::Rule(rule) => format!("the rule {}", rule.name),
+                            Item::Check(check) => format!("the check {}", check.name),
                             Item::Constant(constant) => format!("the constant ${}", constant.name),
                             Item::Classifier(classifier) => format!("the classifier {}", classifier.name),
                             Item::Implication(_) => "%implies".to_string(),
@@ -294,6 +300,7 @@ impl Splicer<'_> {
                     run.unresolved |= dom.unresolved;
                     match item {
                         Item::Rule(rule) => run.rules.push(rule.clone()),
+                        Item::Check(check) => run.checks.push(check.clone()),
                         Item::Constant(constant) => run.constants.push(constant.clone()),
                         Item::Classifier(classifier) => run.classifiers.push(classifier.clone()),
                         Item::Implication(implication) => run.implications.push(implication.clone()),

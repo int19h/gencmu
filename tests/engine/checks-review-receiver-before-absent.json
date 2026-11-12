@@ -1,0 +1,21 @@
+{
+  "description": "Issue #286 review: a filter runs its receiver before it reads an absent endpoint.",
+  "grammar": "%rule text \"a\"\n%rule r \"a\"\n%conditions $.value.split(\"\" ++ \"\")\n%check order #·text\n%conditions $.parse(r …).ending-after($.following-node)\n%warning \"bad\"",
+  "input": "a",
+  "options": {
+    "features": [
+      "order"
+    ]
+  },
+  "expect": {
+    "error": "grammar",
+    "result": {
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

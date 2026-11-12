@@ -2,7 +2,7 @@
   "document": "```jbogenbau\n%rule r A %emits ε :: ∅ := \"x\"\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 52,
       "rules": [
         {
           "name": "r",
@@ -42,7 +42,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     }
   },
   "description": "An insertion uses an epsilon target and permits empty tags (engine §11)."

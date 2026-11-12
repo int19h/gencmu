@@ -276,9 +276,12 @@ func templateFromJSON(raw []byte) (templateObject, error) {
 }
 
 func templateDocument(rules []any) templateObject {
-	return templateObject{"format": float64(domFormat), "rules": rules, "directives": []any{}, "constants": []any{}, "classifiers": []any{}, "implications": []any{}}
+	return templateObject{"format": float64(domFormat), "rules": rules, "directives": []any{}, "constants": []any{}, "classifiers": []any{}, "implications": []any{}, "checks": []any{}}
 }
 func templateChildPosition(key, position string) string {
+	if key == "body" {
+		return "expr"
+	}
 	if key == "children" || position == "pattern-item" && (key == "choice" || key == "optional" || key == "repeat" || key == "separator") {
 		return "pattern-item"
 	}

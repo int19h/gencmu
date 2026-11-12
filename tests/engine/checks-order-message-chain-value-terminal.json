@@ -1,0 +1,8 @@
+{
+  "description": "A check message rejects a value and terminal chain.",
+  "grammar": "%rule text \"a\"\n%check c #·text\n%warning \"x\" ++ $.value.terminal",
+  "input": "a",
+  "expect": {
+    "error": "grammar"
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "description": "Issue #286: a tie keeps its verdict and merges check reports by multiplicity.",
+  "grammar": "%ambiguity-resolution fewest #·_<_Elided>\n%rule text a | b\n%rule a \"a\"\n%rule b \"a\"\n%check error\n #·_\n%error $.terminal\n%check warning\n #·_\n%warning \"warning\"",
+  "input": "a",
+  "options": {
+    "features": [
+      "warning"
+    ]
+  },
+  "expect": {
+    "error": "ambiguous",
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "warning",
+        "rule": "warning",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "message": "warning"
+      }
+    ],
+    "result": {
+      "error": {
+        "reason": "tie",
+        "errors": [
+          {
+            "stage": "main",
+            "code": "error",
+            "rule": "error",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ],
+            "message": "\"a\""
+          }
+        ]
+      },
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "tie"
+        }
+      ]
+    }
+  }
+}

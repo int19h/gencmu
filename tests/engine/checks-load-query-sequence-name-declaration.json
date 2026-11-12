@@ -1,0 +1,14 @@
+{
+  "description": "An unknown rule in a check query reports at the declaration for a sequence.",
+  "grammar": "%rule text \"a\"\n%check c #·text\n%conditions $.onward.parse(\"a\" nosuch)\n%warning \"m\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 1
+    },
+    "message": "nosuch is not a rule of stage main"
+  }
+}

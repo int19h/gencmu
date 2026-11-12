@@ -116,6 +116,8 @@ impl Pattern {
                                 Self::Difference(Box::new(operands.pop().unwrap()), Box::new(right))
                             }
                         }
+                    } else if node.get("never").is_some() {
+                        Self::Never(node.get("at").map(|_| at(node)).transpose()?)
                     } else if node.get("path").is_some() {
                         Self::Path(string(node, "path")?, Box::new(values.pop().unwrap().pattern()))
                     } else if node.get("test").is_some() {
@@ -179,6 +181,13 @@ fn write_parts<'a>(out: &mut dom::writing::Pieces<'a>, root: Write<'a>) {
         match task {
             Write::Raw(text) => out.push_str(&text),
             Write::Pattern(pattern) => match pattern {
+                Pattern::Never(at) => {
+                    out.push_str("{\"never\":true");
+                    if let Some((line, column)) = at {
+                        out.push_str(&format!(",\"at\":[{line},{column}]"));
+                    }
+                    out.push_str("}");
+                }
                 Pattern::Node(node, exact, children) => tasks.push(Write::Atom(node, *exact, children.as_ref())),
                 Pattern::Path(path, inner) => {
                     out.push_str("{\"path\":");

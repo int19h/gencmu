@@ -1,0 +1,81 @@
+{
+  "description": "Issue #286: the reader preserves checks, node presence, local readings and terminal messages.",
+  "document": "```jbogenbau\n%rule text \"a\"\n%check one\n  #·text\n%conditions\n  ¬$.parent\n%warning $.terminal\n%const $P #·_\n%check two\n  $P\n%conditions\n  $.preceding-element.local-readings.ending-after($)\n%error $.value\n```\n",
+  "cacheMisses": true,
+  "expect": {
+    "dom": {
+      "format": 52,
+      "checks": [
+        {
+          "name": "one",
+          "pattern": {
+            "name": "text",
+            "exact": true
+          },
+          "conditions": [
+            {
+              "not": {
+                "present": {
+                  "method": "parent",
+                  "receiver": {
+                    "capture": ""
+                  },
+                  "args": []
+                }
+              }
+            }
+          ],
+          "warning": {
+            "concat": [
+              {
+                "method": "terminal",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": []
+              }
+            ]
+          }
+        },
+        {
+          "name": "two",
+          "pattern": {
+            "const": "P"
+          },
+          "conditions": [
+            {
+              "method": "ending-after",
+              "receiver": {
+                "method": "local-readings",
+                "receiver": {
+                  "method": "preceding-element",
+                  "receiver": {
+                    "capture": ""
+                  },
+                  "args": []
+                },
+                "args": []
+              },
+              "args": [
+                {
+                  "capture": ""
+                }
+              ]
+            }
+          ],
+          "error": {
+            "concat": [
+              {
+                "method": "value",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": []
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

@@ -524,7 +524,7 @@ fn grammar_dom(source: &Source) -> String {
         directives.push("{\"name\":\"elision-only\",\"args\":[],\"at\":[3,1]}".to_string());
     }
     format!(
-        "{{\"format\":{DOM_FORMAT},\"rules\":[{}],\"directives\":[{}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}",
+        "{{\"format\":{DOM_FORMAT},\"rules\":[{}],\"directives\":[{}],\"constants\":[],\"classifiers\":[],\"implications\":[],\"checks\":[]}}",
         rules.join(","),
         directives.join(",")
     )

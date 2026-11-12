@@ -141,8 +141,9 @@ func TestDeferredQueriesShareStructuralTargetsAndRetainTests(t *testing.T) {
 	}
 	for _, target := range []string{targets[4], targets[6], targets[7]} {
 		for _, production := range lowered.rules[lowered.byName[target]].prods {
-			if !production.helper || production.tags == nil || production.tags.Kind != tmEmptySet {
-				t.Fatal("anonymous target does not seal its root", target)
+			// Engine §3.10: an anonymous target takes the tags of its one symbol.
+			if !production.helper || production.tags != nil && production.tags.Kind == tmEmptySet {
+				t.Fatal("anonymous target forces empty tags on its root", target)
 			}
 		}
 	}

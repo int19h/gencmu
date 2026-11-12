@@ -654,7 +654,7 @@ func walkValues(root valuePart, visit func(valuePart) *Error, patterns bool) *Er
 			c := part.cond
 			if c.Kind == cdCompare && (c.Op == "≅" || c.Op == "≇") {
 				terms(c.Left)
-				children = append(children, valuePart{term: c.Right, pattern: c.Right.Kind != tmCapture})
+				children = append(children, valuePart{term: c.Right, pattern: !checkNodeTerm(c.Right)})
 			} else {
 				for _, p := range (clausePart{c: c}).children() {
 					children = append(children, valuePart{term: p.t, cond: p.c})
@@ -787,7 +787,7 @@ func (r *resolver) cond(c *domCond) *domCond {
 		w.clauseSteps.add("clause steps")
 	}
 	left, right, span := r.term(c.Left), r.term(c.Right), r.term(c.Span)
-	if (c.Op == "≅" || c.Op == "≇") && right.Kind != tmPattern && right.Kind != tmCapture && !valueHasSource(c.Right) {
+	if (c.Op == "≅" || c.Op == "≇") && right.Kind != tmPattern && !checkNodeTerm(right) && !valueHasSource(c.Right) {
 		right = &domTerm{Kind: tmPattern, Pattern: r.patternValue(c.Right)}
 	}
 	inner := r.cond(c.Inner)

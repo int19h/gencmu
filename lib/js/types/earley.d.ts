@@ -344,6 +344,7 @@ declare class Pending {
     key: string;
     unseen: boolean;
     errorFree: boolean;
+    /** @type {any} */ target: any;
     /** The count of aligned queries when the query halted (engine §4.3). */
     asked: number;
     /** @type {import("./types.js").AlignedSpan|null} */
@@ -428,6 +429,7 @@ export declare function settled<T>(evaluation: () => T | Halt): T;
 export type QueryAnswer = boolean | {
     accepted: boolean;
     tags: TagSet;
+    ends?: [number, TagSet][];
 };
 export type Advanced = {
     dot: number;
@@ -572,6 +574,9 @@ export type SuffixState = {
     dependent: boolean;
     extend: ((end: number) => void) | null;
 };
+/** Retain the raw main chart until chosen-tree checks finish.
+ * @param {ParseContext} context @param {Chart} chart */
+export declare function retainStageChart(context: ParseContext, chart: Chart): void;
 /**
  * @param {Chart} chart
  * @returns {{position: number, expected: Expectation[], boundary?:any}}

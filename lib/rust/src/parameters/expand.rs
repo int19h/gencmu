@@ -190,6 +190,7 @@ fn empty(rules: Vec<Json>) -> Json {
     obj([
         ("format", Json::Int(dom::DOM_FORMAT)),
         ("rules", Json::Arr(rules)),
+        ("checks", Json::Arr(Vec::new())),
         ("constants", Json::Arr(Vec::new())),
         ("directives", Json::Arr(Vec::new())),
         ("classifiers", Json::Arr(Vec::new())),
@@ -232,6 +233,7 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
                     "directives" => 1,
                     "constants" => 2,
                     "classifiers" => 3,
+                    "checks" => 5,
                     _ => 4,
                 },
                 inspection_run,
@@ -927,6 +929,9 @@ impl Expander<'_> {
                 return Ok(arg);
             }
         } else if position == "pattern" {
+            if has(&arg, "emptySet") {
+                return Ok(obj([("never", Json::Bool(true))]));
+            }
             for (k, out) in [("rule", "name"), ("tag", "terminal"), ("terminal", "terminal")] {
                 if has(&arg, k) {
                     return Ok(obj([(out, get(&arg, k).clone()), ("at", get(use_, "at").clone())]));
@@ -985,6 +990,9 @@ impl Expander<'_> {
             let mut converted = self.convert(arg, position, event, root)?;
             if position != "pattern" || !has(root, "exact") && !has(root, "children") {
                 return Ok(converted);
+            }
+            if has(&converted, "never") {
+                return Err(event.fail(root, "an empty pattern cannot carry node decorations".into()));
             }
             if ["union", "intersection", "difference", "path"].iter().any(|k| has(&converted, k)) {
                 return Err(event.fail(root, "a compound pattern cannot carry node decorations".into()));
@@ -1082,6 +1090,9 @@ impl Expander<'_> {
                 }
             }
             set(&mut result, k, substituted);
+        }
+        if position == "pattern" && has(&result, "test") && has(get(&result, "expr"), "never") {
+            return Err(event.fail(get(root, "expr"), "an empty pattern cannot carry node decorations".into()));
         }
         if position == "pattern" && has(&result, "test") && has(get(&result, "expr"), "exact") {
             if has(&result, "exact") {

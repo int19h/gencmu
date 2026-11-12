@@ -1,0 +1,15 @@
+{
+  "description": "Engine §10: ending-after rejects an invalid receiver or argument list.",
+  "grammar": "%rule text A\n%conditions $.parse(A).ending-after($, $)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

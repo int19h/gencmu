@@ -148,6 +148,13 @@ func layeredPatternProblem(root any, inspect layeredPatternInspection) string {
 			}
 			continue
 		}
+		if layeredHas(n, "never") {
+			if !(layeredOnly(n, "never") || layeredOnly(n, "never", "at") && templateAt(n) != [2]int{}) || n["never"] != true || t.inner {
+				return "a malformed empty pattern"
+			}
+			continue
+		}
+
 		if key := layeredPatternSet(n); key != "" {
 			a, ok := n[key].([]any)
 			if !layeredOnly(n, key) || !ok || len(a) < 2 || key == "difference" && len(a) != 2 {
@@ -199,7 +206,7 @@ func layeredPatternProblem(root any, inspect layeredPatternInspection) string {
 				expr := templateObj(n["expr"])
 				ruleAtom := (expr["name"] != nil || expr["call"] != nil || expr["param"] != nil) && !layeredHas(expr, "exact") && !layeredHas(expr, "children")
 				if !(layeredTerminalAtom(expr) || ruleAtom) || !ok {
-					return "a pattern tag test requires an undecorated atom"
+					return "a pattern tag test requires a node atom"
 				}
 				for _, value := range a {
 					r := templateObj(value)
@@ -217,7 +224,7 @@ func layeredPatternProblem(root any, inspect layeredPatternInspection) string {
 				}
 				ruleAtom := (target["name"] != nil || target["call"] != nil || target["param"] != nil) && !layeredHas(target, "exact") && !layeredHas(target, "children")
 				if n["test"] != "=" && n["test"] != "≠" || !(layeredTerminalAtom(target) || ruleAtom) {
-					return "a pattern value test requires an undecorated atom"
+					return "a pattern value test requires a node atom"
 				}
 				if !layeredStringTerm(n["value"]) {
 					return "a malformed pattern value test"
@@ -356,6 +363,8 @@ func layeredPatternText(root templateObject, term func(templateObject) string, l
 			}
 		default:
 			switch {
+			case n["never"] == true:
+				out.WriteString("∅")
 			case layeredHas(n, "path"):
 				if n["path"] != "first" {
 					prefix := "⋮ "

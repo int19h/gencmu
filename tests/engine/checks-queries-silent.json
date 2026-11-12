@@ -1,0 +1,10 @@
+{
+  "description": "Issue #286: queries never run checks on their witnesses.",
+  "grammar": "%rule text \"a\"\n%conditions $.parse(hidden)\n%rule hidden \"a\"\n%check query\n #·hidden\n%error \"query\"",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

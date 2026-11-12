@@ -1,0 +1,35 @@
+{
+  "description": "General and pattern empty arguments name different nested instances.",
+  "grammar": "%rule w \"a\"\n%rule inner(@Q) $x:w\n%conditions $x ≇ #@Q\n%rule use(@P) inner(#@P)\n%rule text use(∅) | inner(∅)",
+  "input": "a",
+  "expect": {
+    "error": "ambiguous",
+    "result": {
+      "error": {
+        "readings": [
+          {
+            "rule": "text",
+            "children": [
+              {
+                "rule": "inner(∅)"
+              }
+            ]
+          },
+          {
+            "rule": "text",
+            "children": [
+              {
+                "rule": "use(∅)",
+                "children": [
+                  {
+                    "rule": "inner(#∅)"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

@@ -272,6 +272,9 @@ class RankedGroups:
                     pending.append(parent)
         for group in self.groups:
             self.validate_clauses(group)
+            # Anonymous targets inherit their ranked helper's empty tags (§3.10).
+            if group.rule.startswith("\0parse:"):
+                continue
             helper = graph.groups[group]
             if helper not in unsafe:
                 continue
@@ -304,7 +307,7 @@ class TagNode:
 
 
 class TagGraph:
-    """Logical empty routes and unary inheritance, without products."""
+    """Element empty routes and unary inheritance, without products."""
     def __init__(self, ranked):
         self.nodes, self.groups = [], {}
         named = {rule.name: self.node(rule.name, False) for rule in ranked.rules.values()}

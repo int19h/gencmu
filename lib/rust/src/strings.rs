@@ -263,6 +263,17 @@ impl<'a> Strings<'a> {
                         }
                         let target = self.capture(owner, receiver);
                         values.push(match name.as_str() {
+                            "terminal" => match self.tree.nodes[target as usize].kind {
+                                IKind::Read { terminal, .. } => self.grammar.terminals[terminal as usize].clone(),
+                                IKind::Close { prod, .. } => {
+                                    let p = &self.grammar.prods[prod as usize];
+                                    if p.syms.is_empty() {
+                                        self.grammar.rules[p.rule as usize].elided.clone().unwrap_or_default()
+                                    } else {
+                                        String::new()
+                                    }
+                                }
+                            },
                             "value" => self.input(target, Channel::Value),
                             "image" => self.input(target, Channel::Image),
                             "source-text" | "decomposed-source-text" => {

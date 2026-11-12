@@ -1,0 +1,16 @@
+{
+  "description": "An empty candidate predicate is legal inside pattern set operations.",
+  "grammar": "%const $P #·text\n%redefine-const $P ∅\n%rule text \"a\"\n%check c #(($P ∪ $P) ∩ (·text ∖ $P))\n%warning \"bad\"",
+  "input": "a",
+  "options": {
+    "features": [
+      "c"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": []
+  }
+}

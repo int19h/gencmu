@@ -1,0 +1,18 @@
+{
+  "description": "A generated compound pattern name reads back as a body.",
+  "grammar": "%rule w \"a\"\n%rule inner(@Q) $x:w\n%conditions $x ≇ #@Q\n%rule text inner(#(·w ∩ ∅))",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "inner(#(·w ∩ ∅))"
+          }
+        ]
+      }
+    }
+  }
+}

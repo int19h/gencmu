@@ -2,7 +2,7 @@
 
 gencmu is a parser for Lojban and other loglangs. A literate grammar document mixes prose with grammar rules. gencmu loads these Markdown documents at runtime. This is the Python library. An API is the operations that a library exposes.
 
-The library is pure Python, uses the standard library only, and needs Python 3.14 or later. It implements the engine specification of the gencmu repository, `docs/engine.md`. A document object model (DOM) stores parsed grammar rules. The library reads DOM format 49 and writes result format 17. It writes the canonical JSON of `docs/output.md`.
+The library is pure Python, uses the standard library only, and needs Python 3.14 or later. It implements the engine specification of the gencmu repository, `docs/engine.md`. A document object model (DOM) stores parsed grammar rules. The library reads DOM format 52 and writes result format 17. It writes the canonical JSON of `docs/output.md`.
 
 ```python
 import gencmu

@@ -8,7 +8,7 @@ from ._source_lines import SourceLines
 def competitor_rejections(flow, forest):
     for event in flow.evaluated:
         node = event.node
-        if event.kind != "errors" or not hasattr(node, "production") or node.production.splice_of is not None:
+        if event.check or event.kind != "errors" or not hasattr(node, "production") or node.production.splice_of is not None:
             continue
         parent = flow.info(node).parent
         if (parent is None or not hasattr(parent, "production") or parent.production.ranked is None

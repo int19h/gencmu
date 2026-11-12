@@ -1,0 +1,14 @@
+{
+  "description": "A layer can make a key step count nothing with an empty pattern.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%const $P #·text\n%redefine-const $P ∅\n%ambiguity-resolution leftmost-longest $P, greedy\n%rule text \"a\"\n```\n"
+  },
+  "pipelineDocument": "p.md",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": []
+  }
+}

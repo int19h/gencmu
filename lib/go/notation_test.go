@@ -551,7 +551,7 @@ func TestNotationTie(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	bootstrap := `{"format":` + strconv.Itoa(domFormat) + `,"documents":{"grammars/gencmu/jbogenbau/pipeline.md":{"hash":"0","dom":{"format":` + strconv.Itoa(domFormat) + `,"rules":[],"directives":[{"name":"stage","args":["syntax"],"at":[1,1]},{"name":"include","args":["../../../n.md"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}},"n.md":{"hash":"0","dom":` + string(notation.json()) + `}}}`
+	bootstrap := `{"format":` + strconv.Itoa(domFormat) + `,"documents":{"grammars/gencmu/jbogenbau/pipeline.md":{"hash":"0","dom":{"format":` + strconv.Itoa(domFormat) + `,"rules":[],"directives":[{"name":"stage","args":["syntax"],"at":[1,1]},{"name":"include","args":["../../../n.md"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[],"checks":[]}},"n.md":{"hash":"0","dom":` + string(notation.json()) + `}}}`
 	tying, nerr := newNotationReader(bootstrap, bundled.uni)
 	if nerr != nil {
 		t.Fatal(nerr)
@@ -748,7 +748,7 @@ func TestFormat17Refused(t *testing.T) {
 		t.Fatal(err)
 	}
 	dom := func(format int, expr string) string {
-		return `{"format":` + strconv.Itoa(format) + `,"rules":[{"name":"text","op":"define","alternatives":[{"gates":[],"expr":` + expr + `}],"conditions":[],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}`
+		return `{"format":` + strconv.Itoa(format) + `,"rules":[{"name":"text","op":"define","alternatives":[{"gates":[],"expr":` + expr + `}],"conditions":[],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[],"checks":[]}`
 	}
 	entry := func(format int, d string) string {
 		return `{"format":` + strconv.Itoa(format) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"0","dom":` + d + `}}}`

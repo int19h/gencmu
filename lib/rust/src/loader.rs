@@ -391,6 +391,7 @@ fn read_document_named(notation: &Pipeline, text: &str, defer: bool, names: &Nam
         position: &position,
         closed_for: Default::default(),
         in_recipe: Default::default(),
+        check_context: Default::default(),
         head_defaults: Default::default(),
         default_head: Default::default(),
     };
@@ -443,6 +444,16 @@ fn check_read(dom: &Dom, unicode: &Unicode) -> Result<(), Error> {
                 })
                 .map(|classifier| classifier.at),
         )
+        .chain(
+            dom.checks
+                .iter()
+                .filter(|check| {
+                    crate::dom::term_too_deep(&check.pattern)
+                        || crate::dom::conditions_too_deep(&check.conditions)
+                        || check.error.iter().chain(check.warning.iter()).any(crate::dom::term_too_deep)
+                })
+                .map(|check| check.at),
+        )
         .collect();
     deep.sort();
     if let Some(&(line, column)) = deep.first() {
@@ -492,6 +503,7 @@ fn check_read(dom: &Dom, unicode: &Unicode) -> Result<(), Error> {
                 .iter()
                 .map(|classifier| (Dom { classifiers: vec![classifier.clone()], ..Dom::default() }, classifier.at)),
         )
+        .chain(dom.checks.iter().map(|check| (Dom { checks: vec![check.clone()], ..Dom::default() }, check.at)))
         .collect();
     singles.sort_by_key(|(_, at)| *at);
     for (single, at) in singles {

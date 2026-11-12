@@ -297,6 +297,7 @@ export type GrammarDom = {
     constants: DomConstant[];
     classifiers: DomClassifier[];
     implications: DomImplication[];
+    checks: DomCheck[];
 };
 export type DomClassifier = {
     name: string;
@@ -332,6 +333,14 @@ export type DomConstant = {
 };
 export type Recipe = {
     concat: Term[];
+};
+export type DomCheck = {
+    name: string;
+    pattern: any;
+    conditions: Condition[];
+    error?: Recipe;
+    warning?: Recipe;
+    at: Position;
 };
 export type DomDirective = {
     conditions?: Condition[];
@@ -436,6 +445,9 @@ export type Pattern = ((PatternRuleAtom & {
     any: true;
     exact?: true;
     children: PatternChildren;
+} | {
+    never: true;
+    at?: Position;
 } | {
     union: Pattern[];
 } | {
@@ -580,6 +592,8 @@ export type Condition = {
 } | {
     nonempty: Term;
 } | {
+    present: Term;
+} | {
     op: Comparator;
     left: Term;
     right: Term;
@@ -631,6 +645,7 @@ export type Argument = Term | {
     integer: string;
 };
 export type GrammarSymbol = {
+    expression?: Expr;
     slot?: import("./ranked.js").RankedGroup;
     name: string;
     terminal: boolean;
@@ -689,7 +704,7 @@ export type Production = {
     walksTrees?: boolean;
     treePrefixUntil?: number;
     source?: import("./grammar.js").StitchedAlternative;
-    logicalSource?: import("./grammar.js").StitchedAlternative;
+    elementSource?: import("./grammar.js").StitchedAlternative;
     writtenExpression?: Expr;
     rankedGroup?: import("./ranked.js").RankedGroup;
     rankedOption?: number;
@@ -721,7 +736,7 @@ export type Production = {
     id: number;
     lhs: string;
     rhs: GrammarSymbol[];
-    logical?: import("./logical.js").LogicalSymbol[];
+    elements?: import("./elements.js").Element[];
     helper: boolean;
     treeRoot?: boolean;
     spliceOf?: string;
@@ -798,6 +813,8 @@ export type Resolution = {
     elisionOnly: boolean;
 };
 export type LoweredGrammar = {
+    checks: DomCheck[];
+    elementExpressions: Map<string, Expr>;
     queryTargets: Map<string, string>;
     queryNames: Map<string, string>;
     treeComparisons: boolean;
@@ -911,6 +928,14 @@ export type AlignedSpan = {
 export type Scope = {
     boundaryValue?: boolean;
     boundary?: (atom: any) => boolean;
+    checkValue?: (term: any) => SpanValue;
+    checkPresence?: (term: any) => boolean;
+    checkTerminal?: () => string;
+    localReading?: (term: any) => {
+        start: number;
+        rule: string;
+        site: any;
+    };
     capture: (name: string) => SpanValue;
 };
 export type Rope = {
@@ -1207,6 +1232,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {DomConstant[]} constants
  * @property {DomClassifier[]} classifiers
  * @property {DomImplication[]} implications
+ * @property {DomCheck[]} checks
  */
 /**
  * A `%classifier` item: the classifier's name and the entries it adds
@@ -1244,6 +1270,15 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {Position} at
  */
 /** @typedef {{concat:Term[]}} Recipe */
+/**
+ * @typedef {object} DomCheck
+ * @property {string} name
+ * @property {any} pattern
+ * @property {Condition[]} conditions
+ * @property {Recipe} [error]
+ * @property {Recipe} [warning]
+ * @property {Position} at
+ */
 /**
  * @typedef {object} DomDirective
  * @property {Condition[]} [conditions]
@@ -1323,6 +1358,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {((PatternRuleAtom & {exact?:true,children?:PatternChildren})
  *   | ((PatternAtom | {test:"="|"≠", value:Term, expr:PatternTestTarget} | PatternTagTest) & {exact?:true})
  *   | {any:true, exact?:true, children:PatternChildren}
+ *   | {never:true, at?:Position}
  *   | {union:Pattern[]} | {intersection:Pattern[]} | {difference:[Pattern,Pattern]}
  *   | {path:"descendant"|"first"|"last", pattern:Pattern})} Pattern
  */
@@ -1374,7 +1410,7 @@ export type ParseContext = import("./earley.js").ParseContext;
 /**
  * A condition.
  * @typedef {{method: string, receiver: Term, args: Argument[]} | {any: Condition[]} | {all: Condition[]} | {not: Condition} | {captured: string}
- *   | {if: Condition, then: Condition} | {nonempty: Term}
+ *   | {if: Condition, then: Condition} | {nonempty: Term} | {present:Term}
  *   | {op: Comparator, left: Term, right: Term}} Condition
  */
 /**
@@ -1396,6 +1432,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  */
 /**
  * @typedef {object} GrammarSymbol
+ * @property {Expr} [expression]
  * @property {import("./ranked.js").RankedGroup} [slot]
  * @property {string} name
  * @property {boolean} terminal
@@ -1450,7 +1487,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {boolean} [walksTrees]
  * @property {number} [treePrefixUntil]
  * @property {import("./grammar.js").StitchedAlternative} [source]
- * @property {import("./grammar.js").StitchedAlternative} [logicalSource]
+ * @property {import("./grammar.js").StitchedAlternative} [elementSource]
  * @property {Expr} [writtenExpression]
  * @property {import("./ranked.js").RankedGroup} [rankedGroup]
  * @property {number} [rankedOption]
@@ -1470,7 +1507,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {number} id
  * @property {string} lhs
  * @property {GrammarSymbol[]} rhs
- * @property {import("./logical.js").LogicalSymbol[]} [logical]
+ * @property {import("./elements.js").Element[]} [elements]
  * @property {boolean} helper
  * @property {boolean} [treeRoot]
  * @property {string} [spliceOf]
@@ -1518,6 +1555,8 @@ export type ParseContext = import("./earley.js").ParseContext;
 /**
  * A grammar lowered for one set of features.
  * @typedef {object} LoweredGrammar
+ * @property {DomCheck[]} checks
+ * @property {Map<string,Expr>} elementExpressions
  * @property {Map<string,string>} queryTargets
  * @property {Map<string,string>} queryNames
  * @property {boolean} treeComparisons
@@ -1597,6 +1636,10 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {object} Scope
  * @property {boolean} [boundaryValue]
  * @property {(atom:any)=>boolean} [boundary]
+ * @property {(term:any)=>SpanValue} [checkValue]
+ * @property {(term:any)=>boolean} [checkPresence]
+ * @property {()=>string} [checkTerminal]
+ * @property {(term:any)=>{start:number,rule:string,site:any}} [localReading]
  * @property {(name: string) => SpanValue} capture
  */
 /**

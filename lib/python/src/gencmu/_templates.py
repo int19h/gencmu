@@ -220,10 +220,10 @@ def expand_templates(documents, unicode):
 
     serial = 0
     for inspection_run, (path, dom) in enumerate(documents):
-        declarations = sorted([(key, r) for key in ('rules', 'constants', 'directives', 'classifiers', 'implications') for r in dom[key]], key=lambda item: item[1]['at'])
+        declarations = sorted([(key, r) for key in ('rules', 'directives', 'constants', 'classifiers', 'implications', 'checks') for r in dom[key]], key=lambda item: item[1]['at'])
         for kind, rule in declarations:
             event = dict(path=path, rule=rule, index=serial, inspection_run=inspection_run,
-                         kind={"rules": 0, "directives": 1, "constants": 2, "classifiers": 3, "implications": 4}[kind])
+                         kind={"rules": 0, "directives": 1, "constants": 2, "classifiers": 3, "implications": 4, "checks": 5}[kind])
             serial += 1
             source_events.append(event)
             if kind != 'rules':
@@ -414,6 +414,8 @@ def expand_templates(documents, unicode):
             if any(k in arg for k in ('call', 'test', 'range', 'wildcard', 'splice')):
                 return arg
         elif position == 'pattern':
+            if arg.get('emptySet'):
+                return {'never': True}
             if 'rule' in arg:
                 return dict(name=arg['rule'], at=use['at'])
             if 'tag' in arg or 'terminal' in arg:
@@ -452,6 +454,8 @@ def expand_templates(documents, unicode):
             converted = convert(env[root['param']], position, event, root)
             if position != 'pattern' or not (root.get('exact') or 'children' in root):
                 return converted
+            if converted.get('never'):
+                fail(event, root, 'an empty pattern cannot carry node decorations')
             if any(key in converted for key in ('union', 'intersection', 'difference', 'path')):
                 fail(event, root, 'a compound pattern cannot carry node decorations')
             result = dict(converted)
@@ -508,6 +512,8 @@ def expand_templates(documents, unicode):
                         fail(event, head, 'an elidable parameter head requires one bare user tag')
             next_position = child_position(key, position)
             result[key] = yield substitute_walk(value, env, event, next_position)
+        if position == 'pattern' and 'test' in result and result['expr'].get('never'):
+            fail(event, root['expr'], 'an empty pattern cannot carry node decorations')
         if position == 'pattern' and 'test' in result and result['expr'].get('exact'):
             if result.get('exact'):
                 use = root['expr']
@@ -703,7 +709,7 @@ def expand_templates(documents, unicode):
             fail(event, event['rule'], problem)
     output = [rewritten_definitions[id(e)] for items in ordinary.values() for e in items]
     output.extend(rewritten_definitions[id(e)] for i in queue for e in i['definitions'])
-    expanded_docs = [(path, {**dom, 'rules': [], **{k: [rewrite(item, dict(path=path, rule=item)) for item in dom[k]] for k in ('constants', 'directives', 'classifiers', 'implications')}}) for path, dom in documents]
+    expanded_docs = [(path, {**dom, 'rules': [], **{k: [rewrite(item, dict(path=path, rule=item)) for item in dom[k]] for k in ('checks', 'constants', 'directives', 'classifiers', 'implications')}}) for path, dom in documents]
     expanded_docs.extend((e['path'], empty_dom(documents[0][1]['format'], [e['rule']])) for e in output)
     order = [n for n in slots if n in current or n in ordinary] + [effective(i) for i in queue if not i['name']]
     instance_names = {effective(i) for i in queue}
@@ -717,7 +723,7 @@ def effective(instance):
 
 
 def empty_dom(format_, rules):
-    return dict(format=format_, rules=rules, directives=[], constants=[], classifiers=[], implications=[])
+    return dict(format=format_, rules=rules, checks=[], directives=[], constants=[], classifiers=[], implications=[])
 
 
 def child_position(key, position):

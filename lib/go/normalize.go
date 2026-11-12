@@ -3,6 +3,12 @@ package gencmu
 // Parentheses add no union or Boolean grouping anywhere in the source DOM.
 func flattenGroups(d *domDoc) {
 	var stack []any
+	for _, check := range d.Checks {
+		stack = append(stack, check.Pattern, check.Warning, check.Error)
+		for _, condition := range check.Conditions {
+			stack = append(stack, condition)
+		}
+	}
 	for _, r := range d.Rules {
 		stack = append(stack, r)
 	}

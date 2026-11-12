@@ -529,6 +529,7 @@ class SharedClauses(Linear):
                 "constants": [{"name": "K", "op": "define", "value": {"tag": "K"}, "at": [2, 1]}],
                 "classifiers": [],
                 "implications": [],
+                "checks": [],
             }
             return lambda: stitch("s", [("t.md", dom)], pipeline._unicode)
 
@@ -558,6 +559,7 @@ class SharedClauses(Linear):
                 "constants": [],
                 "classifiers": [],
                 "implications": [],
+                "checks": [],
             }
             return lambda: stitch("s", [("t.md", dom)], pipeline._unicode)
 
@@ -650,6 +652,7 @@ class GuardedClauses(Linear):
             "constants": [{"name": "K", "op": "define", "value": {"tag": "K"}, "at": [2, 1]}],
             "classifiers": [],
             "implications": [],
+            "checks": [],
         }
         return rule, dom
 
@@ -768,6 +771,7 @@ def pipeline_dom(directives: list[dict[str, Any]], rules: int = 0) -> dict[str, 
         "constants": [],
         "classifiers": [],
         "implications": [],
+        "checks": [],
     }
 
 

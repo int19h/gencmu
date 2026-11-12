@@ -1,0 +1,32 @@
+{
+  "description": "Issue #286: node local readings retain a capture-expanded site and can complete beyond the chosen span.",
+  "grammar": "%rule text [$x:r] \"b\"\n%rule r\n | \"a\" :: R\n | \"a\" \"b\" :: R\n%check longer\n #·r\n%conditions $.local-readings.ending-after($), R ⊆ $.local-readings.tags\n%warning \"longer\"\n%check leaf\n #·_\n%conditions $.local-readings.ending-after($)\n%warning \"bad\"",
+  "input": "ab",
+  "options": {
+    "features": [
+      "longer",
+      "leaf"
+    ]
+  },
+  "expect": {
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "longer",
+        "rule": "longer",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "message": "longer"
+      }
+    ],
+    "result": {
+      "ok": true
+    }
+  }
+}

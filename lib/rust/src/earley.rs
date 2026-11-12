@@ -13,7 +13,7 @@ use suffix::{SuffixKey, SuffixState};
 use crate::eligible::Proofs;
 use crate::fxhash::{FxMap, FxSet};
 
-use crate::lower::{Characters, CmpOp, LCond, LTerm, Lowered, Span, Sym, SymbolTest, TestOp};
+use crate::lower::{Characters, CmpOp, LCond, LTerm, Lowered, QueryTarget, Span, Sym, SymbolTest, TestOp};
 use crate::result::Attachment;
 use crate::tags::{difference, intersection, is_subset, union_all, SetId, TagId, TagList, Tags};
 use crate::unicode::Unicode;
@@ -268,7 +268,12 @@ const AGAIN: u32 = 1 << 31;
 impl ESet {
     /// The place of an item in the set, by one lookup of its index.
     pub(crate) fn find(&self, item: &Item) -> Option<u32> {
-        work::count(Work::Found, 1);
+        self.find_counted(item, Work::Found)
+    }
+
+    /// Count a chart lookup under the work that asks for it.
+    pub(crate) fn find_counted(&self, item: &Item, counter: Work) -> Option<u32> {
+        work::count(counter, 1);
         self.index.get(item).copied()
     }
 
@@ -331,8 +336,13 @@ impl ESet {
     }
 }
 
+type ChartPlace = (u32, u32);
+type LocalCompletions = FxMap<(u32, u32), Vec<ChartPlace>>;
+
 #[derive(Debug, Default)]
 pub(crate) struct Chart {
+    local_completions: OnceCell<LocalCompletions>,
+    local_eligibility: OnceCell<FxMap<(u32, u32), u8>>,
     pub annotations: FxMap<(u32, Item), crate::boundary::Annotations>,
     pub completed_annotations: FxMap<(u32, Cap, u32), crate::boundary::Annotations>,
     pub sources: crate::boundary::Sources,
@@ -933,6 +943,11 @@ impl Contents {
 /// What a nested parse's answer is remembered by (§4).
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum NestedKey {
+    WitnessEnds {
+        key: Box<NestedKey>,
+        mode: crate::query_forms::Mode,
+        filtered: bool,
+    },
     Context {
         key: Box<NestedKey>,
         filtered: bool,
@@ -962,6 +977,7 @@ enum NestedKey {
 /// text, and the memo of nested parses, which `next_stage` clears before a
 /// parse over other tokens or with other rules.
 pub(crate) struct Shared<'a> {
+    pub stage_chart: Option<Rc<Chart>>,
     error_prefix: Vec<usize>,
     error_base: usize,
     pattern_values: RefCell<FxMap<(usize, usize, usize), Rc<str>>>,
@@ -979,6 +995,7 @@ pub(crate) struct Shared<'a> {
     /// Whether a span parses as a rule, and its tags as it: what `matches`
     /// and `tags` read of one nested parse.
     memo: FxMap<NestedKey, Answer>,
+    witness_ends: FxMap<NestedKey, Vec<(usize, SetId)>>,
     /// The contents that the keys of the memo and of `begins` number.
     contents: Contents,
     /// Original qualified witnesses, shared by alignment constraints and endpoints.
@@ -1003,6 +1020,7 @@ pub(crate) struct Shared<'a> {
 impl<'a> Shared<'a> {
     pub(crate) fn new(unicode: &'a Unicode, text: &'a [char]) -> Shared<'a> {
         Shared {
+            stage_chart: None,
             error_prefix: Vec::new(),
             error_base: 0,
             pattern_values: RefCell::new(FxMap::default()),
@@ -1018,6 +1036,7 @@ impl<'a> Shared<'a> {
             text,
             source_lines: OnceCell::new(),
             memo: FxMap::default(),
+            witness_ends: FxMap::default(),
             contents: Contents::default(),
             qualified: FxMap::default(),
             begins: FxMap::default(),
@@ -1088,6 +1107,7 @@ impl<'a> Shared<'a> {
     /// Forgets the nested parses of the previous parse, whose rules and
     /// tokens may differ.
     pub(crate) fn next_stage(&mut self) {
+        self.stage_chart = None;
         self.error_prefix.clear();
         self.machine = None;
         self.boundaries = None;
@@ -1095,6 +1115,7 @@ impl<'a> Shared<'a> {
         self.emission_targets.clear();
         self.pattern_grammar = 0;
         self.memo.clear();
+        self.witness_ends.clear();
         self.contents.clear();
         self.qualified.clear();
         self.begins.clear();
@@ -1172,6 +1193,7 @@ pub(crate) struct Recognizer<'g, 's, 'a> {
 /// parts, and `$`, the whole constituent, from the item's origin to `end`.
 #[derive(Clone)]
 pub(crate) struct Frame<'c> {
+    pub check: Option<(&'c crate::checks::Tree<'c>, u32)>,
     pub prefix: u32,
     pub parent_prefix: u32,
     pub structure: u32,
@@ -1216,6 +1238,11 @@ fn span_bounds(span: &Span, frame: &Frame, input: usize) -> Bounds {
         None => (start as usize, end as usize),
     };
     match span {
+        Span::Node(_) | Span::Element(_) => {
+            let (tree, root) = frame.check.expect("a chosen-tree frame");
+            let (start, end, tags) = tree.value(root, span).expect("a present check value");
+            (start, end, tags.map_or(Whose::Tokens, Whose::Cap))
+        }
         Span::Cap(slot) => {
             let cap = frame.caps.get(*slot);
             let (start, end) = projected(cap.start, cap.end);
@@ -1262,6 +1289,7 @@ pub(crate) enum Halt<'t> {
     Error(EngineError),
     Pending(Box<Request<'t>>),
     Invalid,
+    Absent,
 }
 
 impl From<EngineError> for Halt<'_> {
@@ -1286,6 +1314,7 @@ pub(crate) struct Request<'t> {
     aligned: Option<Alignment>,
     contains: bool,
     filtered: bool,
+    witness_ends: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1312,7 +1341,7 @@ impl Request<'_> {
     }
     fn qualification_key(&self) -> QualificationKey {
         let mut key = &self.key;
-        while let NestedKey::Context { key: inner, .. } = key {
+        while let NestedKey::Context { key: inner, .. } | NestedKey::WitnessEnds { key: inner, .. } = key {
             key = inner;
         }
         match key {
@@ -1365,20 +1394,22 @@ fn took(last: &mut Option<Out>) -> Out {
 /// The kind of a nested query, which says what its answer gives.
 #[derive(Debug, Clone, Copy)]
 enum Query {
-    ErrorFree(crate::query_forms::Mode),
-    Matches,
-    Begins,
-    Ends,
-    Contains,
-    ForestTags(crate::query_forms::Mode, bool),
+    Forest(crate::query_forms::Mode, bool, bool),
 }
 
 impl Query {
+    fn mode(self) -> crate::query_forms::Mode {
+        let Self::Forest(mode, ..) = self;
+        mode
+    }
+    fn filtered(self) -> bool {
+        matches!(self, Self::Forest(_, true, _))
+    }
     fn out(self, (holds, set, clean): Answer, tags: &Tags) -> Out {
         match self {
-            Query::Matches | Query::Begins | Query::Ends | Query::Contains => Out::Bool(holds),
-            Query::ErrorFree(_) => Out::Bool(clean),
-            Query::ForestTags(..) => Out::Value(Value::Set(tags.shared(set))),
+            Self::Forest(_, _, true) => Out::Value(Value::Set(tags.shared(set))),
+            Self::Forest(_, true, false) => Out::Bool(clean),
+            _ => Out::Bool(holds),
         }
     }
 }
@@ -1434,6 +1465,7 @@ enum Task<'n> {
     Whole(Wanted),
     /// A query that halted the evaluation, which its answer resumes.
     Await(Query),
+    Filtered(Query, NestedKey, &'n [Span], usize),
 }
 
 /// An evaluation of a step's conditions or of a tag term, as a stack of
@@ -1561,6 +1593,7 @@ impl<'g> Held<'g> {
                     m.concat(f.seal_prefix, seal)
                 })
             }),
+            check: None,
             parent_tags: Cell::new(None),
         }
     }
@@ -1643,6 +1676,7 @@ struct Run<'t, 'g> {
 impl<'t, 'g> Run<'t, 'g> {
     /// A run that starts with `first`, an empty set, as its set 0.
     fn new(tokens: &'t [Tok], base: usize, start: u32, recon: Option<&'g Recon<'g>>, first: ESet) -> Run<'t, 'g> {
+        work::count(Work::Recognitions, 1);
         let mut chart = Chart { boundary_root: Some(start), record_links: recon.is_some(), ..Default::default() };
         chart.caps.push(CapEntry {
             parent: 0,
@@ -2133,7 +2167,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let first = self.shared.fresh_set();
         let mut run = Run::new(tokens, base, start, self.recon, first);
         // A non-stage root is a query whose completed items need eligibility.
-        run.chart.record_links |= start != self.g.start || self.g.has_errors;
+        run.chart.record_links |= start != self.g.start || self.g.has_errors || !self.g.chart_rules.is_empty();
         run.chart.machine = self.shared.machine.clone();
         run.chart.boundaries = self.shared.boundaries.clone();
         Ok(self.drive(run)?.0)
@@ -2184,6 +2218,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                         }
                     }
                 }
+                Err(Halt::Absent) => unreachable!("a chosen-tree value outside a check"),
                 Err(Halt::Invalid) => unreachable!("a rejected observation is handled by its production"),
                 Err(Halt::Error(error)) => break Err(error),
                 Err(Halt::Pending(request)) => match self.start_query(&request) {
@@ -2261,14 +2296,21 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             let mut accepted = false;
             let mut clean = false;
             let mut lists = Vec::new();
+            let mut ends = Vec::new();
             for w in witnesses {
                 if aligned(&w) {
                     accepted = true;
                     clean |= w.clean;
                     if !request.filtered || w.clean {
                         lists.push(w.tags);
+                        if request.witness_ends {
+                            ends.push((w.end - request.base - request.start, w.tags));
+                        }
                     }
                 }
+            }
+            if request.witness_ends {
+                self.shared.witness_ends.insert(request.key.clone(), ends);
             }
             let list = union_all(lists.iter().map(|set| self.shared.tags.list(*set)));
             let answer = (accepted, self.shared.tags.set(list), clean);
@@ -2281,6 +2323,14 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let list =
             union_all(retained.iter().filter(|w| !request.filtered || w.clean).map(|w| self.shared.tags.list(w.tags)));
         let answer = (!retained.is_empty(), self.shared.tags.set(list), retained.iter().any(|w| w.clean));
+        if request.witness_ends {
+            let ends = retained
+                .iter()
+                .filter(|w| !request.filtered || w.clean)
+                .map(|w| (w.end - request.base - request.start, w.tags))
+                .collect();
+            self.shared.witness_ends.insert(request.key.clone(), ends);
+        }
         if self.shared.suffix_active == 0 {
             self.shared.memo.insert(request.key, answer);
         }
@@ -2309,7 +2359,26 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     .collect();
                 let tags = &self.shared.tags;
                 let list = union_all(lists.into_iter().flatten().map(|set| tags.list(*set)));
-                return (holds, self.shared.tags.set(list), clean);
+                let set = self.shared.tags.set(list);
+                if request.witness_ends {
+                    let ends = state
+                        .answers
+                        .iter()
+                        .filter(|(pos, (holds, clean))| {
+                            range.contains(pos) && if request.filtered { *clean } else { *holds }
+                        })
+                        .map(|(pos, _)| {
+                            (
+                                *pos - request.base - request.start,
+                                if request.filtered { state.clean_tags.get(pos) } else { state.tags.get(pos) }
+                                    .copied()
+                                    .unwrap_or(0),
+                            )
+                        })
+                        .collect();
+                    self.shared.witness_ends.insert(request.key, ends);
+                }
+                return (holds, set, clean);
             }
             let (holds, clean) = state.answers[&(request.base + request.end)];
             let tags = if request.filtered {
@@ -2319,6 +2388,14 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             }
             .copied()
             .unwrap_or(0);
+            if request.witness_ends {
+                let ends = if if request.filtered { clean } else { holds } {
+                    vec![(request.end - request.start, tags)]
+                } else {
+                    vec![]
+                };
+                self.shared.witness_ends.insert(request.key, ends);
+            }
             return (holds, tags, clean);
         }
         let rule = request.rule;
@@ -2394,6 +2471,14 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             .collect();
         let accepted = !retained.is_empty();
         let clean = retained.iter().any(|(_, clean)| *clean);
+        if request.witness_ends {
+            let ends = retained
+                .iter()
+                .filter(|(_, clean)| !request.filtered || *clean)
+                .map(|&((set, index), _)| (set as usize, chart.sets[set as usize].tagset[index as usize]))
+                .collect();
+            self.shared.witness_ends.insert(request.key.clone(), ends);
+        }
         if request.begins {
             let tags = &self.shared.tags;
             let list = union_all(
@@ -2709,23 +2794,23 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             }
         }
         let target = &mut chart.sets[set];
-        work::count(Work::Found, 1);
-        if let Some(&index) = target.index.get(&item).filter(|_| self.shared.boundaries.is_none()) {
-            // One ordinary step makes an item ordinary. It is then processed
-            // again, for what strictness held back, if it was processed.
-            let index = index as usize;
-            if target.is_strict(index) && !strict {
-                target.strict[index] = false;
-                // A fault leaves it as it was processed (tests/README.md).
-                if target.processed[index] && !witness::fault(Fault::Reprocess) {
-                    target.queue.push(index as u32 | AGAIN);
+        if self.shared.boundaries.is_none() {
+            work::count(Work::Found, 1);
+            if let Some(&index) = target.index.get(&item) {
+                // An ordinary advance releases a strict reconstruction item.
+                let index = index as usize;
+                if target.is_strict(index) && !strict {
+                    target.strict[index] = false;
+                    if target.processed[index] && !witness::fault(Fault::Reprocess) {
+                        target.queue.push(index as u32 | AGAIN);
+                    }
                 }
+                chart.record_advance(set, item, previous);
+                return Ok(());
             }
-            chart.record_advance(set, item, previous);
-            return Ok(());
-        }
-        if self.shared.boundaries.is_none() && target.failed.contains(&item) {
-            return Ok(());
+            if target.failed.contains(&item) {
+                return Ok(());
+            }
         }
         // The item counts once, and its selection counts each condition it
         // examines.
@@ -3788,6 +3873,12 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let mut pending = vec![span];
         while let Some(span) = pending.pop() {
             match span {
+                Span::Node(_) | Span::Element(_) => {
+                    let (tree, root) = frame.check.expect("a chosen-tree frame");
+                    if tree.value(root, span).is_none() {
+                        return Err(Halt::Absent);
+                    }
+                }
                 Span::WithoutElision(inner, _) => {
                     let structure = self.span_structure(inner, frame);
                     if self
@@ -3820,18 +3911,52 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     /// A query's answer from the memo. One not yet known halts the
     /// evaluation, which waits for it in `Task::Await`.
     #[allow(clippy::too_many_arguments)]
-    fn query<'t>(
+    fn query<'n, 't>(
         &mut self,
-        eval: &mut Eval<'_>,
-        span: &Span,
-        rule: u32,
+        eval: &mut Eval<'n>,
+        span: &'n Span,
+        target: QueryTarget,
         query: Query,
         frame: &Frame,
         tokens: &'t [Tok],
         base: usize,
+        after: &'n [Span],
     ) -> Result<Out, Halt<'t>> {
         self.shared.prepare_errors(tokens, base);
         let (start, match_end, _) = self.checked_bounds(span, frame, tokens.len())?;
+        let rule = match target {
+            QueryTarget::Rule(rule) => rule,
+            QueryTarget::Local => {
+                let (tree, root) = frame.check.expect("a local reading frame");
+                tree.target(root, span).expect("a prepared local reading target")
+            }
+        };
+        if matches!(target, QueryTarget::Local) {
+            let (tree, root) = frame.check.expect("a local reading frame");
+            if let Some(site) = tree.chart_site(root, span) {
+                if let Some(rows) = self.chart_reading(site, start, tokens, query.filtered()) {
+                    let holds = !rows.is_empty();
+                    let tags = self.shared.tags.set(union_all(rows.iter().map(|(_, set)| self.shared.tags.list(*set))));
+                    let key = NestedKey::WitnessEnds {
+                        key: Box::new(NestedKey::Place((rule, base + start, base + tokens.len()))),
+                        mode: query.mode(),
+                        filtered: query.filtered(),
+                    };
+                    self.shared.witness_ends.insert(key.clone(), rows);
+                    return self.filtered_query(
+                        query,
+                        (holds, tags, holds),
+                        &key,
+                        after,
+                        frame,
+                        tokens.len(),
+                        base,
+                        base + start,
+                    );
+                }
+            }
+        }
+        let witness_ends = !after.is_empty();
         let mut anchor = span;
         while let Span::From(inner) = anchor {
             anchor = inner;
@@ -3849,13 +3974,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             None
         };
         let end = if aligned.is_some() { tokens.len() } else { match_end };
-        if matches!(
-            query,
-            Query::Ends
-                | Query::Contains
-                | Query::ForestTags(crate::query_forms::Mode::Suffix | crate::query_forms::Mode::Part, _)
-                | Query::ErrorFree(crate::query_forms::Mode::Suffix | crate::query_forms::Mode::Part)
-        ) {
+        if matches!(query.mode(), crate::query_forms::Mode::Suffix | crate::query_forms::Mode::Part) {
             let place = (rule, base + start, base + end);
             let mut request = Request {
                 tokens,
@@ -3863,17 +3982,21 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 start,
                 end,
                 rule,
-                key: NestedKey::Suffix(place),
+                key: if witness_ends {
+                    NestedKey::WitnessEnds {
+                        key: Box::new(NestedKey::Suffix(place)),
+                        mode: query.mode(),
+                        filtered: query.filtered(),
+                    }
+                } else {
+                    NestedKey::Suffix(place)
+                },
                 begins: false,
                 suffix: None,
                 aligned: None,
-                contains: matches!(
-                    query,
-                    Query::Contains
-                        | Query::ForestTags(crate::query_forms::Mode::Part, _)
-                        | Query::ErrorFree(crate::query_forms::Mode::Part)
-                ),
-                filtered: matches!(query, Query::ForestTags(_, true)),
+                contains: query.mode() == crate::query_forms::Mode::Part,
+                filtered: query.filtered(),
+                witness_ends,
             };
             if self.shared.running.contains(&place) {
                 return Err(Halt::Error(self.start_query(&request).expect_err("an active recursive query")));
@@ -3895,11 +4018,33 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     }
                     .copied()
                     .unwrap_or(0);
-                    return Ok(query.out((holds.0, tags, holds.1), &self.shared.tags));
+                    let answer = (holds.0, tags, holds.1);
+                    if witness_ends {
+                        let ends = if if request.filtered { holds.1 } else { holds.0 } {
+                            vec![(end - start, tags)]
+                        } else {
+                            vec![]
+                        };
+                        self.shared.witness_ends.insert(request.key.clone(), ends);
+                    }
+                    return self.filtered_query(
+                        query,
+                        answer,
+                        &request.key,
+                        after,
+                        frame,
+                        tokens.len(),
+                        base,
+                        base + start,
+                    );
                 }
             }
             request.suffix = Some(id);
-            eval.tasks.push(Task::Await(query));
+            if witness_ends {
+                eval.tasks.push(Task::Filtered(query, request.key.clone(), after, base + start));
+            } else {
+                eval.tasks.push(Task::Await(query));
+            }
             return Err(Halt::Pending(Box::new(request)));
         }
         let key = match aligned {
@@ -3923,23 +4068,16 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     .as_ref()
                     .unwrap()
                     .normalized(a.observation),
-                filtered: matches!(query, Query::ErrorFree(_) | Query::ForestTags(_, true)),
+                filtered: query.filtered(),
             },
-            None => self.nested_key(
-                tokens,
-                base,
-                start,
-                end,
-                rule,
-                matches!(query, Query::ErrorFree(_) | Query::ForestTags(_, true)),
-            ),
+            None => self.nested_key(tokens, base, start, end, rule, query.filtered()),
         };
-        let begins = matches!(
-            query,
-            Query::Begins
-                | Query::ErrorFree(crate::query_forms::Mode::Prefix)
-                | Query::ForestTags(crate::query_forms::Mode::Prefix, _)
-        );
+        let key = if witness_ends {
+            NestedKey::WitnessEnds { key: Box::new(key), mode: query.mode(), filtered: query.filtered() }
+        } else {
+            key
+        };
+        let begins = query.mode() == crate::query_forms::Mode::Prefix;
         let place = (rule, base + start, base + end);
         if self.shared.running.contains(&place) {
             let request = Request {
@@ -3953,7 +4091,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 suffix: None,
                 aligned,
                 contains: false,
-                filtered: matches!(query, Query::ForestTags(_, true)),
+                filtered: query.filtered(),
+                witness_ends,
             };
             return Err(Halt::Error(self.start_query(&request).expect_err("an active recursive query")));
         }
@@ -3965,7 +4104,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             self.shared.memo.get(&key).copied()
         };
         match known {
-            Some(answer) => Ok(query.out(answer, &self.shared.tags)),
+            Some(answer) => self.filtered_query(query, answer, &key, after, frame, tokens.len(), base, base + start),
             None => {
                 let request = Request {
                     tokens,
@@ -3978,20 +4117,130 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     suffix: None,
                     aligned,
                     contains: false,
-                    filtered: matches!(query, Query::ForestTags(_, true)),
+                    filtered: query.filtered(),
+                    witness_ends,
                 };
                 if aligned.is_some() && self.shared.suffix_active == 0 {
                     if let Some(qualified) = self.shared.qualified.remove(&request.qualification_key()) {
                         let context = request.qualification_key();
+                        let key = request.key.clone();
                         let answer = self.aligned_answer(request, &qualified);
                         self.shared.qualified.insert(context, qualified);
-                        return Ok(query.out(answer, &self.shared.tags));
+                        return self.filtered_query(
+                            query,
+                            answer,
+                            &key,
+                            after,
+                            frame,
+                            tokens.len(),
+                            base,
+                            base + start,
+                        );
                     }
                 }
-                eval.tasks.push(Task::Await(query));
+                if witness_ends {
+                    eval.tasks.push(Task::Filtered(query, request.key.clone(), after, base + start));
+                } else {
+                    eval.tasks.push(Task::Await(query));
+                }
                 Err(Halt::Pending(Box::new(request)))
             }
         }
+    }
+
+    fn chart_reading(
+        &self,
+        site: crate::chart_readings::Site,
+        start: usize,
+        tokens: &[Tok],
+        clean: bool,
+    ) -> Option<Vec<(usize, SetId)>> {
+        let chart = self.shared.stage_chart.as_ref()?;
+        if self.recon.is_some() || !site.qualified || start == 0 && site.settles_entry {
+            return None;
+        }
+        let test = |end, set| {
+            site.test.map_or(true, |test| {
+                test_holds(&self.g.tests[test as usize], &tokens[start..end], &self.shared.tags, set)
+            })
+        };
+        let mut rows = Vec::new();
+        match site.symbol {
+            Sym::T(terminal) => {
+                if let Some(token) = tokens.get(start) {
+                    if self.shared.reads(self.matchers[terminal as usize], token, false)
+                        && (!clean || token.errors.is_empty())
+                        && test(start + 1, token.tags)
+                    {
+                        rows.push((1, token.tags));
+                    }
+                }
+            }
+            Sym::N(rule) => {
+                let index = chart.local_completions.get_or_init(|| {
+                    let mut index: FxMap<(u32, u32), Vec<(u32, u32)>> = FxMap::default();
+                    for (set, items) in chart.sets.iter().enumerate() {
+                        for (&key, completed) in &items.completed {
+                            for &item in completed {
+                                work::count(Work::Eligibility, 1);
+                                index.entry(key).or_default().push((set as u32, item));
+                            }
+                        }
+                    }
+                    index
+                });
+                let states = chart.local_eligibility.get_or_init(|| {
+                    let all: Vec<_> = index.values().flatten().copied().collect();
+                    let flags = self.proofs(chart).flags(&all, tokens, self.shared.carried_errors(0, tokens.len()));
+                    all.into_iter().zip(flags).collect()
+                });
+                for &(set, item) in index.get(&(rule, start as u32)).into_iter().flatten() {
+                    let flags = states[&(set, item)];
+                    if flags == 0 || clean && flags & 1 == 0 {
+                        continue;
+                    }
+                    let raw = &chart.sets[set as usize].items[item as usize];
+                    if chart.boundaries.as_ref().is_some_and(|machine| !machine.borrow().accepts(raw.boundary)) {
+                        continue;
+                    }
+                    let tags = chart.sets[set as usize].tagset[item as usize];
+                    if test(set as usize, tags) {
+                        rows.push((set as usize - start, tags));
+                    }
+                }
+            }
+        }
+        Some(rows)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn filtered_query<'t>(
+        &mut self,
+        query: Query,
+        answer: Answer,
+        key: &NestedKey,
+        after: &[Span],
+        frame: &Frame,
+        length: usize,
+        base: usize,
+        start: usize,
+    ) -> Result<Out, Halt<'t>> {
+        if after.is_empty() {
+            return Ok(query.out(answer, &self.shared.tags));
+        }
+        let mut endpoint = 0;
+        for span in after {
+            endpoint = endpoint.max(base + self.checked_bounds(span, frame, length)?.1);
+        }
+        let witnesses = self.shared.witness_ends.get(key).expect("the receiver forest answer");
+        let lists: Vec<_> = witnesses
+            .iter()
+            .filter(|(end, _)| start + end > endpoint)
+            .map(|(_, set)| self.shared.tags.list(*set))
+            .collect();
+        let holds = !lists.is_empty();
+        let set = self.shared.tags.set(union_all(lists));
+        Ok(query.out((holds, set, holds), &self.shared.tags))
     }
 
     /// A set value, with scalar strings converted to singleton sets (§10).
@@ -4062,6 +4311,28 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 Task::Cond(cond) => {
                     work::count(Work::Visits, 1);
                     match cond {
+                        LCond::SameTree(left, positive, right, _) if frame.check.is_some() => {
+                            let (tree, root) = frame.check.unwrap();
+                            let left = tree.node(root, left).ok_or(Halt::Absent)?;
+                            let right = tree.node(root, right).ok_or(Halt::Absent)?;
+                            Out::Bool(
+                                (tree.nodes[left as usize].identity == tree.nodes[right as usize].identity)
+                                    == *positive,
+                            )
+                        }
+                        LCond::Tree(span, positive, pattern) if frame.check.is_some() => {
+                            let (tree, root) = frame.check.unwrap();
+                            let node = tree.node(root, span).ok_or(Halt::Absent)?;
+                            Out::Bool(tree.machine.matches(tree.nodes[node as usize].structure, pattern) == *positive)
+                        }
+                        LCond::Boundary(forward, span, targets, _, _) if frame.check.is_some() => {
+                            let (start, end, _) = self.checked_bounds(span, frame, tokens.len())?;
+                            Out::Bool(frame.check.unwrap().0.boundary(
+                                *forward,
+                                if *forward { end } else { start },
+                                targets,
+                            ))
+                        }
                         LCond::SameTree(left, positive, right, _) => {
                             let m = self.shared.machine.as_ref().expect("demanded identities").borrow();
                             let a = m.tree(self.span_structure(left, frame)).map(|tree| tree.identity);
@@ -4162,19 +4433,21 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                             eval.push(Task::Implies(consequent), Task::Cond(antecedent));
                             continue;
                         }
-                        LCond::ErrorFree(span, rule, mode) => {
-                            self.query(eval, span, *rule, Query::ErrorFree(*mode), frame, tokens, base)?
-                        }
-                        LCond::Matches(span, rule) => {
-                            self.query(eval, span, *rule, Query::Matches, frame, tokens, base)?
-                        }
-                        LCond::Begins(span, rule) => {
-                            self.query(eval, span, *rule, Query::Begins, frame, tokens, base)?
-                        }
-                        LCond::Ends(span, rule) => self.query(eval, span, *rule, Query::Ends, frame, tokens, base)?,
-                        LCond::Contains(span, rule) => {
-                            self.query(eval, span, *rule, Query::Contains, frame, tokens, base)?
-                        }
+                        LCond::Present(span) => match self.checked_bounds(span, frame, tokens.len()) {
+                            Ok(_) => Out::Bool(true),
+                            Err(Halt::Absent) => Out::Bool(false),
+                            Err(halt) => return Err(halt),
+                        },
+                        LCond::Forest(forest) => self.query(
+                            eval,
+                            &forest.span,
+                            forest.target,
+                            Query::Forest(forest.mode, forest.clean, false),
+                            frame,
+                            tokens,
+                            base,
+                            &forest.after,
+                        )?,
                         // Where the input of the parse that reads the
                         // condition begins (§10). Positions count from the
                         // start of the tokens that parse reads, a nested
@@ -4265,15 +4538,16 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                             },
                             (start, end, Whose::Tokens) => Value::Set(self.token_tags(tokens, start, end)),
                         },
-                        LTerm::ForestTags(span, rule, mode, filtered) => {
+                        LTerm::ForestTags(forest) => {
                             match self.query(
                                 eval,
-                                span,
-                                *rule,
-                                Query::ForestTags(*mode, *filtered),
+                                &forest.span,
+                                forest.target,
+                                Query::Forest(forest.mode, forest.clean, true),
                                 frame,
                                 tokens,
                                 base,
+                                &forest.after,
                             )? {
                                 Out::Value(value) => value,
                                 _ => unreachable!("a set of tags"),
@@ -4299,6 +4573,10 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     })
                 }
                 Task::Await(query) => query.out(eval.answer.take().expect("the answer"), &self.shared.tags),
+                Task::Filtered(query, key, after, start) => {
+                    let answer = eval.answer.take().expect("the receiver answer");
+                    self.filtered_query(query, answer, &key, after, frame, tokens.len(), base, start)?
+                }
                 Task::BoundaryYes(cond) => {
                     let yes = took(&mut last).holds();
                     eval.boundary_value = Some(false);
@@ -4480,6 +4758,30 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         Ok(last.expect("a value"))
     }
 
+    pub(crate) fn check_condition(
+        &mut self,
+        condition: &LCond,
+        frame: &Frame,
+        tokens: &[Tok],
+    ) -> Result<bool, EngineError> {
+        let mut eval = Eval {
+            tasks: vec![Task::Cond(condition)],
+            hidden: false,
+            answer: None,
+            boundary_value: None,
+            obligations: vec![],
+        };
+        loop {
+            match self.evaluate(&mut eval, frame, tokens, 0) {
+                Ok(out) => return Ok(out.holds()),
+                Err(Halt::Absent) => return Ok(false),
+                Err(Halt::Invalid) => unreachable!("restoration is forbidden in checks"),
+                Err(Halt::Error(error)) => return Err(error),
+                Err(Halt::Pending(request)) => eval.answer = Some(self.answer(*request)?),
+            }
+        }
+    }
+
     /// Tests an omitted prediction only when rejection evidence requests it (§12.1).
     pub(crate) fn omitted_allowed(
         &mut self,
@@ -4510,7 +4812,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         loop {
             match self.evaluate(&mut eval, &frame, tokens, 0) {
                 Ok(out) => return Ok(out.holds()),
-                Err(Halt::Invalid) => return Ok(false),
+                Err(Halt::Invalid | Halt::Absent) => return Ok(false),
                 Err(Halt::Error(error)) => return Err(error),
                 Err(Halt::Pending(request)) => eval.answer = Some(self.answer(*request)?),
             }
@@ -4543,6 +4845,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         loop {
             match self.evaluate(&mut eval, frame, tokens, base) {
                 Ok(out) => return self.as_set(out.value()),
+                Err(Halt::Absent) => unreachable!("a chosen-tree value in a tag term"),
                 Err(Halt::Invalid) => {
                     return Err(EngineError {
                         message: "a reached span has a cyclic restoration observation".into(),
@@ -4672,6 +4975,7 @@ mod tests {
                 parent_prefix: 0,
                 lexical: None,
                 parent_structure: u32::MAX,
+                check: None,
                 parent_tags: Cell::new(None),
                 structure: u32::MAX,
                 caps: Caps::All(&[]),
@@ -4756,6 +5060,7 @@ mod tests {
                 parent_prefix: 0,
                 lexical: None,
                 parent_structure: u32::MAX,
+                check: None,
                 parent_tags: Cell::new(None),
                 structure: u32::MAX,
                 caps: Caps::All(&[]),
@@ -5060,6 +5365,7 @@ mod tests {
             parent_prefix: 0,
             lexical: None,
             parent_structure: u32::MAX,
+            check: None,
             parent_tags: Cell::new(None),
             structure: u32::MAX,
             caps: Caps::All(&caps),
@@ -5164,6 +5470,7 @@ mod tests {
                 parent_prefix: 0,
                 lexical: None,
                 parent_structure: u32::MAX,
+                check: None,
                 parent_tags: Cell::new(None),
                 structure: u32::MAX,
                 caps: Caps::All(&caps),

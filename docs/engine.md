@@ -22,7 +22,7 @@ A pipeline runs grammar stages in sequence (§13). A stage is one step with its 
 - `insertedBy` names the rule that inserts an `ε` emission item (§11). Other tokens lack it, including covering items over empty constituents.
 - `before` and `after` are the token's attachments (§11). These are two lists of tokens that belong to the token and that no later stage reads. Both are empty unless an emission gives the token attachments. An attached token has no `span`.
 
-A diagnostic keeps its raising stage, rule, and preorder occurrence ordinal as its private identity (§12.1). Its charge also remains fixed across stages (§6). No terminal, test, pattern, or ordinary method reads diagnostics. The forest filter `.error-free` observes their measure, without exposing their objects (§4).
+A rule diagnostic keeps its raising stage, rule and preorder occurrence ordinal as its private identity (§12.1). A check uses its name and its own occurrence ordinal instead. Its charge also remains fixed across stages (§6). No terminal, test, pattern, or ordinary method reads diagnostics. The forest filter `.error-free` observes their measure, without exposing their objects (§4).
 
 Caller tokens cannot supply nonempty diagnostic lists. This is a usage error (§13). When the engine copies the token, it accepts and drops empty lists.
 
@@ -440,7 +440,7 @@ Core abbreviation lookup still comes first. A missing extra file names its resol
 
 A required names file that is absent gives `PATH was not found`, where `PATH` is its resolved path. The grammar error names that path as its document and has no line or column.
 
-The DOM retains each `%names` directive and its decoded path. Its declaration order follows source positions across all five declaration arrays. Distinct names declarations require distinct positions. Every statement of another kind must follow all names declarations.
+The DOM retains each `%names` directive and its decoded path. Its declaration order follows source positions across all six declaration arrays. Distinct names declarations require distinct positions. Every statement of another kind must follow all names declarations.
 
 Pipeline splicing consumes these directives before stage stitching. They never enter a stitched grammar or bootstrap stage. Supplied DOMs follow the same preamble placement and path rules. Canonical stitching omits these directives because it prints decoded strings with core abbreviations or numeric escapes.
 
@@ -504,7 +504,7 @@ The caller can supply engine tags to represent earlier stages. Each supplied pro
 
 ## 2. Grammars
 
-A grammar is the stitching of the items of one stage of a pipeline (§13) into a set of rules, directives, constants, classifiers and implications. An item is a rule, a directive, a constant definition, a classifier or an implication, read from a document (§8, §9). A rule has a name and alternatives, and optionally rule-level tags, recipes, conditions, a diagnostic message, suppression, and an output directive. An alternative has gates, an expression, and optionally tags and recipes. The grammar DOM (document object model), in `docs/output.md`, is the exact data.
+A grammar stitches one stage's items (§13) into rules, checks, directives, constants, classifiers, and implications. An item is a rule, check, directive, constant definition, classifier, or implication from a document (§8, §9). A rule has a name and alternatives, and optionally rule-level tags, recipes, conditions, a diagnostic message, suppression, and an output directive. An alternative has gates, an expression, and optionally tags and recipes. The grammar DOM (document object model), in `docs/output.md`, is the exact data.
 
 Corresponding stitching errors use common wording across libraries. A located message begins with `document:line:column: `. The formatter adds the stage from its structured field. The description has no additional enclosing-rule prefix.
 
@@ -529,7 +529,7 @@ The loader resolves implication sides in declaration order and builds their memb
 
 Classifier membership errors print keys with the canonical string spelling of §9.1. They say `the classifier NAME: KEY is already in CLASS` or `the classifier NAME: KEY is not in CLASS, so ∉ has nothing to remove`. Their messages begin with the entry's location.
 
-The loader records declarations in written order within each expanded document run. Equal DOM positions retain the category order of rules, directives, constants, classifiers, then implications. It rejects a duplicate resolution directive as soon as it records that directive.
+The loader records declarations in written order within each expanded document run. Equal DOM positions retain the category order of rules, directives, constants, classifiers, implications, then checks. It rejects a duplicate resolution directive as soon as it records that directive.
 
 After recording declarations, the loader binds constant versions. It then checks rule uses, feature conditions, classifier keys, and implication sides in the same declaration order. Feature conditions first require every constant reference in their complete list to resolve. Feature-shape, type, and value inspection follow in that order. Final rule references follow the expanded rule order of §2.3. The loader checks for a resolution directive and the start rule `text` before those references.
 
@@ -581,7 +581,7 @@ Each declaration creates an immutable version `(name, declaration-index)`. A red
 
 The loader builds a directed graph of dependencies between versions. It rejects unknown names and cycles across all versions, including replaced definitions. A cycle error gives source positions and its dependency path. Acyclic versions evaluate in dependency order. Every version of one name must have the same type.
 
-The printed dependency path starts at the repeated version and ends by naming it again. It excludes any acyclic entry path. If any cycle name has multiple declarations, every path element includes its declaration location as `$NAME [DOCUMENT:LINE:COLUMN]`.
+The printed dependency path starts at the repeated version and ends by naming it again. It excludes any acyclic entry path. If any cycle name has multiple declarations, every path entry includes its declaration location as `$NAME [DOCUMENT:LINE:COLUMN]`.
 
 A predecessor remains an expression, not a snapshot of earlier values. Its other references use final definitions. Thus after `%const $A A`, `%const $B $A` and `%redefine-const $A B`, both final values are `B`. Redefining A as `$B ∪ C` instead creates a cycle between final A and B.
 
@@ -689,11 +689,11 @@ A ranked choice supplies a seal, an opaque leaf (§4.1). Private conditions keep
 
 For guarded tag terms, ranked tag safety examines every tag set that normalization in §3.7 can return. It shares that normalization without expanding body production combinations.
 
-The ranked helper uses the logical tag constructors of §3.7. An untagged unary production inherits its child's tags. Untagged zero-symbol and multi-symbol productions return empty tags. Explicit tag terms replace inheritance.
+For ranked-choice safety analysis only, the ranked helper uses the logical tag constructors of §3.7. An untagged unary production inherits its child's tags in this analysis. Untagged zero-symbol and multi-symbol productions have empty tags in this analysis. Explicit tag terms replace inheritance.
 
-Compute provable emptiness over all logical alternatives and helpers, including disabled features. Mark a rule or helper unsafe when an explicit tag term differs from literal `∅` after constant expansion. Without explicit terms, mark it unsafe when its only logical symbol is a terminal.
+Compute provable emptiness over all alternatives and helpers in element structure, including disabled features. If an explicit tag term differs from literal `∅` after constant expansion, mark the rule or helper unsafe. If it has no explicit term and its only element is a terminal, mark it unsafe.
 
-The loader derives these facts from written expressions and shared logical helpers. It records empty logical routes and possible unary inheritance without enumerating their combinations. A capturing plain optional retains one logical slot, including its absent route. Its unary content supplies inheritance without an extra helper site. Other optionals and flat repetitions retain their written helper sites. A chain uses its named rule instead of a repetition helper.
+The loader derives these facts from written expressions and shared element helpers. It records empty element routes and possible unary inheritance without enumerating their combinations. A capturing plain optional retains one element slot, including its absent route. Its unary content supplies inheritance without an extra helper site. Other optionals and flat repetitions retain their written helper sites. A chain uses its named rule instead of a repetition helper.
 
 Structural productivity and nonempty facts use a separate graph of written branches and concatenations. Each written branch occurs once in this graph. Both graphs include disabled alternatives and ignore conditions and symbol tests. Neither graph invokes production lowering.
 
@@ -799,9 +799,13 @@ The use determines the conversion, before ordinary validation:
 | Signed requirement | Tag, tag-set constant, or unnegated spliced requirement list |
 | Value test or range endpoint | String literal or string constant |
 | Value or image recipe | String literal, string constant, or closed concatenation |
-| Pattern operand | Name, call, tag, string, constant, terminal atom, or whole pattern predicate |
-| Pattern node with `·`, tests, or children | One node test that accepts those decorations |
+| Pattern operand | Name, call, tag, string, constant, terminal atom, whole pattern predicate, or contextual `∅` |
+| Pattern node with `·`, tests, or children | One node test that accepts those decorations. `∅` is not a node test |
 | General term | Term whose type after constant binding is the required string, string-set, tag-set, or pattern type |
+
+A whole empty pattern prints as `#∅`, while an empty atom inside a pattern prints as `∅`. The argument `∅` retains its general empty-set category, distinct from the pattern argument `#∅`.
+
+A decorated use of `∅` reports `an empty pattern cannot carry node decorations` at that use.
 
 A name becomes `ref` in a body, `name` in a pattern, or `rule` in a rule argument. A tag becomes a body `ref`, pattern `terminal`, or singleton tag term. A string becomes a body or pattern `literal`, or retains its term form. A user constant becomes a pattern `constant` or the ordinary constructor for its other use. Other conversions keep their ordinary tests and type restrictions. No conversion changes runtime scope.
 
@@ -897,13 +901,13 @@ A union containing only bare tags prints as a run with single spaces. A union co
 
 For other term operators, the printer follows §9.2 binding and associativity. It adds parentheses exactly where removing them changes the normalized DOM. It prints no leading no-op operator. Pattern operators follow the binding rules in `docs/notation.md`, with the same grouping rule.
 
-Pattern literals print `#` directly before a node test, constant, parameter, or bare child list. Other whole patterns print inside `#(…)`. A node's exact prefix prints `·` without a following space. Tests follow their terminal without spaces. A child list attaches without a space and always retains its brackets, including with one child.
+Pattern literals print `#` directly before a node test, empty atom, constant, parameter, or bare child list. Other whole patterns print inside `#(…)`. A node's exact prefix prints `·` without a following space. Tests follow their terminal without spaces. A child list attaches without a space and always retains its brackets, including with one child.
 
 A nonempty list prints `⁅ `, its items, and ` ⁆`. An empty list prints `⁅⁆`. Child items have one separating space. Optional brackets and braces have no internal padding. A separator prints as ` / `, and a sibling gap prints `⋯`.
 
 Pattern tag requirements use the ordinary term printer, including when their spelling supplies an instance name.
 
-Paths print as `⋮ P`, `⋱ P`, and `P ⋰`. If the operand is a compound pattern, the printer adds parentheses around it. A node test, constant, parameter, or bare child list takes no parentheses. Thus nested paths retain parentheses. A path over children prints `⁅ A B ⁆ ⋰`, with the list boundary intact.
+Paths print as `⋮ P`, `⋱ P`, and `P ⋰`. If the operand is a compound pattern, the printer adds parentheses around it. A node test, empty atom, constant, parameter, or bare child list takes no parentheses. Thus nested paths retain parentheses. A path over children prints `⁅ A B ⁆ ⋰`, with the list boundary intact.
 
 Pattern union, intersection, and difference use spaces around their operators. Intersection operands that are unions or differences take parentheses. Union and intersection flatten their own kind. A difference's left operand takes no parentheses. If its right operand is a union or difference, that operand takes parentheses. Other parentheses follow binding strength.
 
@@ -1023,13 +1027,29 @@ The expanded grammar first lists ordinary rules and named instances in declarati
 
 Production numbering, reference checks, rule traversal for diagnostics, and the audit use this expanded order. Expected entries still sort their `rules` by code point. Template declarations have no runtime rule slot. Within a rule, alternatives and applicable edits retain their existing order.
 
+### 2.4 Checks
+
+A check is a stage item with a name, candidate pattern, condition list and exactly one diagnostic recipe. It has no productions. [Checks](notation.md#checks) defines its notation and receivers. The DOM is defined in `docs/output.md`.
+
+A stage defines each check name once. Repeated includes can therefore cause duplicate checks. A rule and a check cannot share a name in one stage. A check cannot be templated, extended or redefined. It accepts no alternative, gate, tags, strings, suppression, emission or erasure.
+
+The name has one diagnostic role throughout the pipeline. Warning names obey the feature-name rules and join the feature inventory (§13). An error cannot be disabled. A rule body, pattern, query target, boundary target, splice or ranking step cannot refer to a check.
+
+The loader binds a check's constants and inspects its candidate pattern, conditions and message. It resolves pattern names and template families against the stage. Splicing a named pattern target is illegal, as for other patterns.
+
+After constant resolution, inspect the candidate predicate through parentheses, unions, intersections and differences. The atom `∅` matches nothing and passes this inspection and key-step inspection (§9.3). Every written node test in this predicate must be exact. Reject path operators in that predicate. Stop this inspection at child lists, whose ordinary pattern rules still apply. Tag tests, value tests and child lists are legal on candidate tests.
+
+Reject named captures anywhere in a check, including query arguments. Reject restoration methods in checks. Node walks, `.preceding-element` and `.local-readings` are legal only in check conditions. `.terminal` is legal only on `$` in a check message. Element receivers and absent values follow §10.
+
+Each violation is a loading error, also for a disabled warning check. A comparison of identical node terms through `≅` or `≇` is illegal. Body shape, exactness and path errors stand at the check body. Section 9.3 gives diagnostic texts and positions without selecting one fault among several. A `%redefine-stage` discards checks before surviving-stage inspection (§13).
+
 ## 3. Lowering
 
 This section writes productions as `lhs → symbols`. This is not jbogenbau, the notation of gencmu grammars (`docs/notation.md`), but the context-free grammar that a jbogenbau grammar is lowered to.
 
 Lowering turns a grammar, given the set of enabled features, into a context-free grammar of productions. The lowered grammar is what the parser runs. Lowering decides nothing that a user can observe, except through §4 to §6 and its errors. For the same features, the stage also resolves its classifiers (§2).
 
-Every production of a named rule records its rule. Productions from extensions, expanded alternatives and recursive chain levels all belong to the rule. So a ranking step that names the rule counts their nonempty constituents (§6). Helpers belong to no named rule. A close of a production with one logical symbol does not affect the action comparison. Its constituent is still a node that a step can count (§6).
+Every production of a named rule records its rule. Productions from extensions, expanded alternatives and recursive chain levels all belong to the rule. So a ranking step that names the rule counts their nonempty constituents (§6). Helpers belong to no named rule. A close of a production with one element does not affect the action comparison. Its constituent is still a node that a step can count (§6).
 
 A stage lowers its grammar when a parse gives it the enabled features. So a pipeline whose documents read and stitch loads, whatever errors lowering finds for some features. An error that lowering finds is an error of the grammar for the features of that parse. It ends the stage as the stage's result, as other parsing errors do. The stage has no verdict, no tree and no output, and no later stage runs.
 
@@ -1066,13 +1086,15 @@ Lowered productions retain their diagnostic recipes and suppression lists (§3.6
 
 ### 3.2 Expression expansion
 
+An element is one symbol of a lowered production in helper structure. Keep its expression and chosen span for check observations (§10). Capture expansion must preserve the same element boundaries, including empty optionals.
+
 The reader and DOM validation enforce expression shape, terminal types, range endpoints, and elidable heads before lowering. Lowering relies on these guarantees.
 
 Lowering expands each remaining alternative into sequences of symbols. `(a | b)` expands to both, in written order. A plain optional `[x]` with a capture outside nested ranked groups expands in place as `(ε | x)` does (§3.5).
 
 It expands first to the empty sequence, then to each expansion of `x`, in order. It has no helper.
 
-A plain optional whose captures occur only inside ranked groups uses a separate helper for each route. The absent route has an empty helper. Each present route has a helper for its expansion of `x`. These helpers preserve the optional as one logical symbol. Any other `[x]`, plain or elidable (§3.8), is a helper `h → ε | x`.
+A plain optional whose captures occur only inside ranked groups uses a separate helper for each route. The absent route has an empty helper. Each present route has a helper for its expansion of `x`. These helpers preserve the optional as one element. Any other `[x]`, plain or elidable (§3.8), is a helper `h → ε | x`.
 
 The engine names the helpers, and it never shows their names. A helper is a production whose left side is a helper name.
 
@@ -1086,11 +1108,11 @@ A capture inside `x` or `s` is an item capture (§3.5). It binds to the helper's
 
 So `A [$b:B] [$c:C]` expands to `A`, `A C`, `A B` and `A B C`, in that order. `A [B] [$c:C]` expands to `A h` and `A h C`, which share one helper `h → ε | B`. A plain optional that holds a capture, whose content has k expansions, contributes 1 + k expansions: the empty one, then those k. A sequence multiplies these counts, as for a choice. So `[$b:B]` doubles the expansions of its alternative, and `[($a:A | B | C)]` contributes four. The nested `[A [$b:B]]` contributes three: `ε`, `A` and `A B`.
 
-Physical expansion binds captures to their enclosing named production. Logical structure still represents every plain optional as one helper symbol, present or absent. Ranking transparency, default tags, ranked tag safety, and query priority use that structure.
+Physical expansion binds captures to their enclosing named production. Element structure still represents every plain optional as one helper symbol, present or absent. Ranking transparency, default tags, ranked tag safety, and query priority use that structure.
 
-An absent optional supplies empty helper tags. A present optional computes its content's tags through the same recursive logical structure. `A [$b:B]` therefore has two logical symbols in both physical expansions. `[$a:A]` inherits A's tags when present. `[$a:A $b:B]` inherits none because its content has two logical symbols.
+An absent optional supplies empty helper tags. A present optional computes its content's tags through the same recursive element structure. `A [$b:B]` therefore has two elements in both physical expansions. When present, `[$a:A]` inherits A's tags. `[$a:A $b:B]` inherits none because its content has two elements.
 
-Expansion preserves actual selected children and omission records. It creates no optional node in the accepted output tree. Named-rule cycle exclusion uses actual rule occurrences over spans. A logical helper never adds a named-rule cycle.
+Expansion preserves actual selected children and omission records. It creates no optional node in the accepted output tree. Named-rule cycle exclusion uses actual rule occurrences over spans. An element helper never adds a named-rule cycle.
 
 A tested symbol expands to that one symbol, which carries the test. It adds no helper. So the numbering, the transparent closes of §6 and the constituents of a production are those of the symbol without its test. Two productions that differ only in the test of a symbol are two productions.
 
@@ -1104,9 +1126,9 @@ Every level of a chain is then a constituent of `r`. The ranking sees its closes
 
 An item of braces, flat or chain, that can derive the empty sequence is an error of the grammar. Lowering decides this over the structural grammar of the enabled features. That is every production that §3.1 to §3.5 make from the stitched stage, helpers included. Clause attachment (§3.6) does not yet remove any production whose condition simplifies to false. Tests are ignored. So a production that a false condition removes still counts, and so does a production that a test can never pass.
 
-Logical optional markers consume no symbols and name no rules in this structural grammar.
+The optional markers of element structure consume no symbols and name no rules in this structural grammar.
 
-When one sequence continues along one route, lowering extends its owned physical and logical prefixes in place. Branches receive independent prefixes before either branch extends them.
+When one sequence continues along one route, lowering extends its owned physical and element prefixes in place. Branches receive independent prefixes before either branch extends them.
 
 A rule that `text` cannot reach counts too, and lowering makes sure that all remaining braces meet these rules, reachable or not. An alternative that a gate drops, and a definition that a later `%redefine-rule` replaces, do not count. An alternative that an `%extend-rule` adds counts like any other. Every implementation decides nullability in this phase, whatever order it builds its productions in.
 
@@ -1191,11 +1213,13 @@ Capture lowering decides every presence test attached to a production. A test th
 
 ### 3.7 Tag inheritance
 
-Explicit alternative and definition tag terms union. If neither exists, inheritance uses logical helper structure, not the physical expansion's symbol count.
+Explicit alternative and definition tag terms union. If neither exists, inheritance uses element structure, not the physical expansion's symbol count.
 
-A production with one logical symbol inherits that symbol's tags. A production with zero or several logical symbols has empty tags. Each optional remains one logical helper. Its absent route has empty tags. Its present content applies this same rule recursively. A splice is one logical call with the target constituent's tags.
+At run time, a ranked helper returns no tags.
 
-Flat-repeat helpers and named chain levels retain their own logical production structure. Ranked tag safety uses these same inheritance edges (§2.1). Explicit `:: ∅` stops inheritance.
+Other productions with one element inherit that symbol's tags. Those with zero or several elements have empty tags. Each optional remains one element helper. Its absent route has empty tags. Its present content applies this same rule recursively. A splice is one element call with the target constituent's tags.
+
+Flat-repeat helpers and named chain levels retain their own element structure. For ranked tag safety, §2.1 defines a separate inheritance analysis. Explicit `:: ∅` stops inheritance.
 
 A restoration has the empty helper production's empty tags. A terminal that reads a synthetic token contributes no inherited constituent tags (§7.5). Pattern leaf tags remain separate.
 
@@ -1267,13 +1291,17 @@ Query helpers follow every production from the written grammar, including its he
 
 `parse(C)` lowers its capture-free constituent to an anonymous query target. Its identity is structural, keyed by the lowered constituent after substitution and reference resolution. Grouping, source positions, and the remainder mark do not distinguish targets. The memo retains the query mode separately.
 
+An anonymous target takes tags like a rule without written tags (§3.7). A production of one symbol inherits that symbol's tags. A production of several symbols has none. A ranked group's helper returns no tags at run time (§3.7). This rule applies to helpers of the stage chart too.
+
+A group in an anonymous target has no named parent and receives no `ranked-choice-tags` report.
+
 An undecorated rule call reuses that rule's query target. An undecorated user-tag terminal reuses its helper, including a tag that only `parse` names. Every other constituent uses a structurally keyed anonymous target that retains its tests and decorations. This includes literals, ranges, wildcards, engine tags, and tested symbols.
 
 Thus `parse(x)` and `parse(x …)` share their target and their recursive-query test. Lowering fixes only identity and target. Recognition uses the same whole, prefix, suffix, or part machinery as the query of that mode. An anonymous target's diagnostic name is its canonical constituent spelling, without remainder. A single nominal target keeps its public name.
 
 ### 3.11 Spliced calls
 
-`*r` lowers to one call of r with a transparent occurrence marker. It never copies r's expression into its caller. The call keeps every target clause, including emission, erasure, diagnostic, and suppression. Its logical slot contributes r's computed tags.
+`*r` lowers to one call of r with a transparent occurrence marker. It never copies r's expression into its caller. The call keeps every target clause, including emission, erasure, diagnostic, and suppression. Its element slot contributes r's computed tags.
 
 Recognition retains the target rule identity for cycle exclusion. A spliced and an ordinary call share the same rule-and-span cycle key. Output trees omit the spliced root and flatten its children in order. Patterns and tree identities use its anonymous exported view (§4.1). Action comparison ignores its close, regardless of its symbol count. Rejection expectations retain the called definition as their owner.
 
@@ -1282,6 +1310,8 @@ A capture of a splice retains that anonymous constituent, including its span, ta
 If a stage ranking pattern, other pattern, or neighbor target names its rule, the loader rejects that splice. It resolves pattern constants, choices, template families, and exact instance keys for this inspection. Query targets do not prohibit splicing. A splice cannot supply a stage root or occur in a pattern.
 
 ## 4. Recognition
+
+Recognition, ordinary queries and reconstruction never run checks. A local-reading query uses the query semantics below and §10, without ranked admission.
 
 The parser is an Earley recognizer, a parser for any context-free grammar, over the lowered grammar. The set of items that it produces specifies it, and any algorithm that produces that set is correct. The recognizer builds one set of items for each position in the input.
 
@@ -1408,16 +1438,16 @@ A nested parse follows written-terminator priority. In plain words, a nested rea
 
 Whether an omission is forbidden depends on the production prefix that the proof tree holds fixed, as follows:
 
-- Where the preceding logical symbol is a nonterminal `Y`, the fixed prefix is the preceding item in that proof tree. It retains its captures. The omission is forbidden when the chart advances that item over a completed `Y` that ends at some position `p′ ≥ p`. The resulting item then advances over a completed nonempty alternative of the optional, from `p′`. That completed `Y` passes `Y`'s test, if it has one.
+- Where the preceding element is a nonterminal `Y`, the fixed prefix is the preceding item in that proof tree. It retains its captures. When the chart advances that item over a completed `Y` ending at `p′ ≥ p`, it forbids the omission. The resulting item then advances over a completed nonempty alternative of the optional, from `p′`. If `Y` has a test, that completed `Y` passes it.
 - Where no preceding nonterminal applies, the fixed prefix is the item before the optional itself. The omission is forbidden when the chart advances that item over a completed nonempty alternative of the optional, from `p`.
 
-The preceding symbol is read in logical helper structure (§3.2). The fixed prefix ends before that symbol, independent of capture expansion. A preceding plain optional supplies both absent and present blocker routes. Its nested helpers keep the same logical boundaries.
+The preceding symbol is read in element structure (§3.2). The fixed prefix ends before that symbol, independent of capture expansion. A preceding plain optional supplies both absent and present blocker routes. Its nested helpers keep the same element boundaries.
 
 The fixed prefix retains its actual boundary record (§4.2). Different boundary records cannot share an omission blocker.
 
 Three cases use the prefix immediately before the elidable optional: production start, a preceding terminal, and an initial recursive self-reference. The blocker search retains each proof's own prefix and eligible route. An omission does not record which constituent it closes.
 
-For `r → B [c] [+T] D T`, capturing `c` changes no query answer. Both forms use the optional helper as the preceding logical symbol. Its absent and present routes take part in the same blocker search.
+For `r → B [c] [+T] D T`, capturing `c` changes no query answer. Both forms use the optional helper as the preceding element. Its absent and present routes take part in the same blocker search.
 
 The blocking advances come from the unfiltered query chart. The query's chart ends with its span. A bounded whole query sees no written continuation past that span. A prefix query with `.onward` or `.following-tokens` sees the remaining input.
 
@@ -1440,7 +1470,7 @@ The transitions are:
 - A predicted item has E unless it is a completed unerased error occurrence. Its F flag holds for a zero measure.
 - An advance that is not an omission gives E from an E predecessor. A completion also needs E in its completed child. An advance over a completed child needs F in both the predecessor and the child. If the token carries no error, an advance over it keeps the predecessor's F. Otherwise it clears F.
 - An omission gives E only from a predecessor with P. It keeps that predecessor's F flag.
-- Before an optional with preceding logical nonterminal Y, P follows an E advance over Y whose fixed prefix permits the omission. P retains that advance's F flag.
+- Before an optional with preceding element nonterminal Y, P follows an E advance over Y whose fixed prefix permits the omission. P retains that advance's F flag.
 - Before an optional without such a nonterminal, P requires E and permission for that fixed prefix's omission. P retains the F flag of that proof.
 - A completed unerased own error has no ordinary E, P, or F. An erased completion instead uses its interior's written-priority support and resets its measure, so it has E and F. This erased-completion rule replaces the general completion rule for that item. The ordinary fixed-prefix rules determine P.
 
@@ -1466,9 +1496,9 @@ Compare candidate and witness close groups through `min(b,c)`, including both bo
 
 A prefix cannot end between records of one close group. An empty prefix compares the complete initial group. Under `.without-elision`, an extra omission at exactly `b` disagrees. The witness can consume suffix tokens later, and the omission still disagrees. Under `.without-elision-except(F)`, it disagrees unless the paragraphs below permit it.
 
-`$x.without-elision-except(F)` relaxes the comparison in one way. The witness can hold extra closes that the candidate lacks. Each extra close must meet three conditions. `F` permits its elidable optional (§2.2). It is a close record, never a block. In the witness's tokens and records through `min(b,c)`, a kept element stands on each side of it.
+`$x.without-elision-except(F)` relaxes the comparison in one way. The witness can hold extra closes that the candidate lacks. Each extra close must meet three conditions. `F` permits its elidable optional (§2.2). It is a close record, never a block. In the witness's tokens and records through `min(b,c)`, a kept token or record stands on each side of it.
 
-A kept element is an original token, or a witness record that equals a candidate record in the comparison below. Other extra closes can stand between the extra close and those kept elements.
+A kept token or record is an original token, or a witness record that equals a candidate record in the comparison below. Other extra closes can stand between the extra close and those kept tokens or records.
 
 So an extra close at a boundary `p` with `a < p < min(b,c)` can qualify, because tokens stand on both sides. At `a`, an extra close must follow a kept candidate record at `a`. At `min(b,c)`, it must come before a kept candidate record there. When `a` equals `min(b,c)`, it must stand between two kept records.
 
@@ -1561,7 +1591,7 @@ A tag test works in the same way. Take `text → [X] body<B>` and `body → X Y 
 
 In a derivation, an empty elidable helper supplies one omission at its input boundary. Its record holds the terminal, boundary, source, and default value. It does not record which constituent it closes. The step `late #·_<_Elided>` reads omission counts. Aligned queries read their owned ordered close records.
 
-The query blocker relation uses the logical preceding symbol described above. Braces use their expanded logical productions. Production start, a preceding terminal, and an initial recursive self-reference retain their immediate-prefix treatment.
+The query blocker relation uses the preceding element described above. Braces use their expanded element productions. Production start, a preceding terminal, and an initial recursive self-reference retain their immediate-prefix treatment.
 
 A counted derivation is a noncyclic derivation of a completed `text` item that spans the input. With a counted derivation, a stage accepts its input. Ranked admission preserves this recognition for the sealed grammar. Section 6.1 defines admission before ranking, with raw charts and query answers unchanged.
 
@@ -1591,7 +1621,7 @@ Each structural machine reuses one seal state. Completing another ranked option 
 
 A node test evaluates its atom and attached child list together at the current node. Unless `exact:true` is present, it propagates that complete local answer through a sole child. A bare child list follows the same rule without an atom. Each child pattern computes its own complete answer, with its own exact prefix.
 
-A bare child list uses the ordinary node form with `any:true` and its `children` array. Internal empty patterns use this same form. A list with one sibling gap uses the same sequence form as every other child list.
+A bare child list uses the ordinary node form with `any:true` and its `children` array. A list with one sibling gap uses the same sequence form as every other child list.
 
 Descendant paths combine local and child answers. First and last paths use only their respective child. Set operations combine complete predicate answers on one candidate. Difference complements the completed deterministic answer, never incomplete evidence or another unary layer.
 
@@ -1629,7 +1659,7 @@ A family-summary context depends on the candidate's normalized observations and 
 
 Let the candidate's group at a boundary `p` hold `n` records. The test at `p` is an automaton whose states are pairs `(i, t)`. `i` counts the candidate records matched, and `t` says whether a deletion follows the last match. A witness record that equals the next candidate record moves `(i, t)` to `(i+1, 0)`. A permitted close moves `(i, t)` to `(i, 1)`. At `i = 0`, that move needs `p > a`.
 
-At a boundary `p < min(b,c)`, `(n, 0)` and `(n, 1)` accept. At `min(b,c)`, only `(m, 0)` accepts, where `m` leaves out a candidate block that starts there and ends after it. Beyond `b`, every group passes. A run can make several deletions in a row. So other extra closes can stand between a deleted close and the kept element on each side.
+At a boundary `p < min(b,c)`, `(n, 0)` and `(n, 1)` accept. At `min(b,c)`, only `(m, 0)` accepts, where `m` leaves out a candidate block that starts there and ends after it. Beyond `b`, every group passes. A run can make several deletions in a row. So other extra closes can stand between a deleted close and the kept token or record on each side.
 
 An item keeps an end set: the states that its own records at its end reach from `(0, 0)`. It keeps a start set: the states from which its own records at its start reach acceptance. An empty item keeps the relation between states instead. A boundary strictly inside an item holds a complete group. When the item grows past it, the group passes if the two parts' sets share a state. Otherwise the group fails, and the item's summary is dead.
 
@@ -1730,7 +1760,7 @@ A rule node's name is its rule. A token node's name is the terminal that read it
 
 Let the receiver span `[a,b)` in derivation D. `$x.followed-by(S)` is true when `b < N` and D has a counting node of a name in `S` whose first token is `b`. `$x.preceded-by(S)` is true when `a > 0` and D has a counting node of a name in `S` whose last token is `a−1`. Otherwise each is false.
 
-A condition item holds at most one atom (§9.3). The same rule applies to each condition appended by tag-guard lowering. An `%error` rule can carry a boundary atom in its conditions.
+A rule condition item holds at most one atom (§9.3). The same rule applies to each condition appended by tag-guard lowering. An `%error` rule can carry a boundary atom in its conditions.
 
 A choice of names is one atom. Its value in D is its value under §10, with the atom's value in D. If any condition item fails, that derivation does not count. This filter applies before ranked admission and ranking (§6). It applies to the counted derivations of a stage, to query witnesses, and to the derivations of §7.
 
@@ -1961,13 +1991,15 @@ Each key step compares two derivations by its counts:
 
 The blame measure is `(b,s,n)`. Its components are source blame b, sourceless error count s, and total error count n. Smaller b wins, then smaller s, then larger n. Thus `(0,0,0)` beats every faulty reading. Any number of sourceless errors costs less than one blamed source code point.
 
-If every token that an error occurrence reads has an empty source, the occurrence adds `(0,1,1)`. Otherwise it adds `(L,0,1)`, where L is its source-envelope length under §1, gaps included. Empty sources at different points still receive the sourceless charge, despite their nonempty envelope.
+If an error occurrence reads no token, its charge is `(0,1,1)`. This includes a check error on an omitted terminator. If every token that a nonempty error occurrence reads has an empty source, the occurrence adds `(0,1,1)`. Otherwise it adds `(L,0,1)`, where L is its source-envelope length under §1, gaps included. Empty sources at different points still receive the sourceless charge, despite their nonempty envelope.
 
 A prefix count of tokens with nonempty sources supplies the all-empty test in O(1) after O(N) preprocessing. Preprocessed source bounds permit an O(1) envelope lookup for each span. Ranking never rescans a span's tokens to compute its charge.
 
 A constituent adds its own charge, its children's measures, and the carried charges of directly read input tokens. A wrapper error therefore adds its own charge even around another error. Overlapping source intervals charge separately, rather than forming a union. A token's carried measure sums the fixed charges of the diagnostics that it carries. Warnings contribute nothing. Attached display copies contribute nothing independently of their carrier (§11.5).
 
 An erased occurrence contributes `(0,0,0)` to its parent, whatever its interior measure. Pending diagnostics of earlier stages that emit no tokens add once at stage level (§12.1). That common contribution changes no comparison between the stage's derivations. It does affect whether any error counts for reporting and §7.
+
+Checks run after ranking, so their own-stage charges change no profile or choice. They count for reporting and §7, and later stages count their carried charges normally.
 
 The profile starts with these three components, followed by the grammar key counts. A pending boundary obligation retains its proof and measure together. A failed obligation drops both. Every profile comparison uses smaller blame, fewer sourceless errors, and more total errors as the greater profile. Equal measures and equal grammar counts give equal profiles.
 
@@ -1989,7 +2021,7 @@ Only an occurrence makes a component nonzero. A sparse map stores only nonzero c
 
 The stage retains every derivation with the greatest profile before applying its lean. The verdict total counts all admitted derivations with the best measure, before grammar key steps select profiles. That total determines `unique`. The remaining comparison of actions and elisions applies within the forest of greatest profiles.
 
-A derivation is read as its sequence of actions in bottom-up order. An action is a read of a token as a terminal, or a close of a production over a span. Closes of helpers, spliced calls, and productions with exactly one logical symbol are transparent. They are part of the sequence, but two sequences never differ at one. The other actions are visible.
+A derivation is read as its sequence of actions in bottom-up order. An action is a read of a token as a terminal, or a close of a production over a span. Closes of helpers, spliced calls, and productions with exactly one element are transparent. They are part of the sequence, but two sequences never differ at one. The other actions are visible.
 
 So the closes of flat braces are transparent. The close of a chain's level is visible where its production has more than one symbol (§3.3).
 
@@ -2205,7 +2237,7 @@ The tag closure uses linear work in productions and inheritance edges.
 
 The check is on where the stage declares `%elision-only` or the caller asks for it. When it is on, it runs for `resolved`. It also runs for `unique` when the chosen tree holds an elided node. A resolved stage runs the enabled check even when its chosen tree elides nothing. The check runs after the stage emits its tokens (§6, §11).
 
-Any counted error skips the check, including a carried error or an earlier stage-level error. Emission still runs (§11). A tie never reaches the check, because a tie ends the stage first. The check does not run for a unique tree with no elided node. An error of the grammar found during emission ends the stage before the check. A caller can switch the check off for a stage that declares it.
+Any counted error skips `elision-only`, including an error check, a carried error, or an earlier stage-level error. Emission still runs (§11). A tie never reaches the check, because a tie ends the stage first. The check does not run for a unique tree with no elided node. An error of the grammar found during emission ends the stage before the check. A caller can switch the check off for a stage that declares it.
 
 Uniqueness counts the original input's admitted derivations with the best measure (§6). Readings with worse measures never change that verdict or start this check. Restoration can create another derivation. For `text → "a" [+T] | "a" T`, input `a` has one derivation, with `T` elided. After restoration, the optional and the bare `T` both read the synthetic token. Their profiles are equal, so the check fails.
 
@@ -2318,7 +2350,7 @@ It never copies the identity of D. So two different words stay different in the 
 
 A capture whose span holds only synthetic tokens is present, and `$x` holds as a condition. Its text, value, and image are empty, and the union of its tokens' tags is empty. It still has its constituent's own tags. So `$x.tags` can hold `Mark` while `$x.first-token.tags` is empty.
 
-A constituent's tags are its production's tag terms, evaluated over its own captures (§4). A synthetic token gives a constituent no tag. A capture of a terminal that read a synthetic token has no tags. A production that inherits from one logical symbol (§3.7) inherits none from such a terminal. A restoration has none, as its empty production has none. A tag term can still give a constituent tags of its own, such as `:: Mark`, also where its span projects to empty.
+A constituent's tags are its production's tag terms, evaluated over its own captures (§4). A synthetic token gives a constituent no tag. A capture of a terminal that read a synthetic token has no tags. A production that inherits from one element (§3.7) inherits none from such a terminal. A restoration has none, as its empty production has none. A tag term can still give a constituent tags of its own, such as `:: Mark`, also where its span projects to empty.
 
 A test of a reference reads the reference's projected span and its constituent's tags. `t="s"` compares `s` with the value of the projected span, and the tag test reads the constituent's tags. A test of a terminal reads the token that the terminal reads, with its recognition values. This is the one observation that reads a synthetic token's values. Recognition reads them too, to match a terminal and to restore (§7.4). It lets `T="ta"` read a written-back `T="ta"`.
 
@@ -2566,6 +2598,8 @@ A DOM holds the definitions of constants and the references to them as the docum
 
 ## 9. From notation tree to DOM
 
+The `check` constructor gives one check declaration in the document's `checks` array. Its `%check` keyword, pattern, conditions and diagnostic retain source order.
+
 ### 9.1 Lexical forms
 
 The reader selects the longest punctuation token. `...`, `..`, `.`, and `…` are distinct tokens. They denote a chain marker, a range separator, a method selector, and query remainder respectively. `:-`, `:=`, `::`, and `:` denote image, value, tags, and capture binding. A range cannot consume part of a chain marker.
@@ -2646,7 +2680,8 @@ Recognition productions:
 
 ```text
 text = [statement {statement}]
-statement = rule | ranking-directive | directive | constant-definition | classifier | implication-declaration
+statement = rule | check | ranking-directive | directive | constant-definition | classifier | implication-declaration
+check = KW-CHECK rule-name (pattern-literal | constant-reference) [conditions-clause] diagnostic-clause
 rule = rule-keyword (rule-name | call) ("=" call | (body | header-clauses headed-body) [conditions-clause] [diagnostic-clause] [suppress-warnings-clause] [output-clause])
 rule-keyword = KW-RULE | KW-REDEFINE-RULE | KW-EXTEND-RULE
 rule-name = Identifier | Emoji-Name
@@ -2754,7 +2789,8 @@ presence = Capture
 negation = "¬" condition-primary
 comparison = union comparator union
 comparator = "=" | "≠" | "∈" | "∉" | "⊆" | "⊈"
-tree-comparison = capture-reference tree-comparator union
+tree-comparison = tree-left tree-comparator union
+tree-left = (capture-reference | "(" tree-left ")") [method-selector {method-selector}]
 tree-comparator = "≅" | "≇"
 pattern-literal = "#" pattern-primary
 pattern-union = pattern-intersection {("∪" | "∖") pattern-intersection}
@@ -2767,7 +2803,7 @@ pattern-node = [$exact:"·"] $atom:pattern-atom [$list:child-list]
   assert (¬($list) ⟹ ¬($atom.onward.parse(pattern-attached-start …)))
 bare-child-list = [$exact:"·"] child-list
   assert ($exact ⟹ $exact.onward.parse(pattern-exact-start …))
-pattern-atom = (pattern-rule | tag | string | range | wildcard | constant-reference) [symbol-test {symbol-test}]
+pattern-atom = (pattern-rule | tag | string | range | wildcard | constant-reference | empty-set) [symbol-test {symbol-test}]
 pattern-rule = Lowercase-Name | Emoji-Name | call | parameter
 child-list = "⁅" [child-choice] "⁆"
 child-choice = child-alternative {"|" child-alternative}
@@ -2875,7 +2911,7 @@ capture-string-method = capture-reference "." string-method
 string-method = "value" | "image" | "source-text" | "decomposed-source-text" | "verbatim-text"
               | "emitted.value" | "emitted.image"
 pattern-atom = pattern-rule [tag-test] [value-test]
-             | terminal [tag-test] [value-test] | constant-reference [tag-test] [value-test]
+             | terminal [tag-test] [value-test] | constant-reference [tag-test] [value-test] | "∅"
 ```
 
 These valid forms restrict the recognition forms without replacing their grammar. Recognition enforces the leading bar after header clauses and the count and order of clauses. It also enforces two or more ranked options, unmixed choice operators, and the number and placement of markers. Failures of those rules are syntax errors at the furthest position reached.
@@ -2926,17 +2962,39 @@ A pattern argument is one term that the pattern grammar consumes. The argument r
 
 ### 9.3 Conversion and validation
 
-The reader completes argument-independent definition and boundary checks before reading the next declaration. Internal projections impose no additional nesting limit or earlier depth error. Supplied-DOM validation applies the same boundary rules to projected template definitions.
+For declarations other than checks, the reader completes argument-independent definition and boundary checks before reading the next declaration. Internal projections impose no additional nesting limit or earlier depth error. Supplied-DOM validation applies the same boundary rules to projected template definitions.
 
-Within one declaration, structural shape errors precede type errors. Closed-term restrictions, empty literal split delimiters, own-tag reads, and engine-tag introduction also follow structural shape inspection. Pattern shape errors retain their specific reason. DOM conversion reuses one parsed JSON tree and never reparses a subtree at each ancestor. Decoding applies no early depth bound before the declaration checks.
+In declarations other than checks, structural shape errors precede type errors. Closed-term restrictions, empty literal split delimiters, own-tag reads, and engine-tag introduction also follow structural shape inspection. Pattern shape errors retain their specific reason. DOM conversion reuses one parsed JSON tree and never reparses a subtree at each ancestor. Decoding applies no early depth bound before the declaration checks.
 
-Semantic faults belong to their declarations. Closedness precedes type selection only within that declaration. Across declarations, the earliest erroneous declaration in source order wins. Empty literal split delimiters are inspected within their owning declaration's semantic phase. Every declaration's structural shape must pass before these delimiter faults are selected.
+For declarations other than checks, semantic faults belong to their declarations. Closedness precedes type selection within each such declaration. Among those declarations, the earliest erroneous declaration in source order wins. Empty literal split delimiters follow structural inspection within their owning declaration.
 
 A known non-string operand fails concatenation even if it contains a parameter. This local failure uses the concatenation's position.
 
 Readers use common diagnostic text for unclosed grammar fences, capture restrictions, method signatures, and directive operands. A method with an invalid receiver or arguments reports `a method has the wrong receiver or arguments`. If type inspection detects the signature error, it uses this text too. Advice for restored spans and bare captures keeps its specific text. A diagnostic position remains separate from its text. A library can prefix the text with that position.
 
-Binding a constant does not change method-signature text. A fault inside a receiver or argument retains that operand's own diagnostic.
+Binding a constant does not change method-signature text. A reported fault inside a receiver or argument retains that operand's own diagnostic.
+
+Check terms obey ordinary term rules, except for the boundary-atom limits of rule conditions. A check condition can contain several boundary atoms and read several nodes.
+
+A library rejects a check declaration with several faults. This specification does not fix which fault a library reports. The four libraries agree on acceptance and rejection. For a check declaration with one fault, all libraries report the same position. They report the same text only where this specification names that text. Other loading texts are library-specific.
+
+A fault in a term hides the type faults that depend on that term. The diagnostic texts and positions below apply to a declaration with one fault.
+
+In a check, a malformed reference reports `a malformed reference`. An undeclared or malformed parameter reports `an undeclared or malformed parameter`. An invalid rule argument reports `a malformed rule argument`. A malformed integer argument reports `a malformed integer argument`. A concatenation with too few operands reports `a malformed concatenation`. Each uses the faulty constructor's position.
+
+A non-string message operand fails concatenation at the concatenation's position.
+
+A malformed check name reports at the name. A check whose name is a rule reports `a rule and a check cannot share the name NAME` at the check declaration. A forbidden capture reference reports `a check cannot name a capture` at that reference, in conditions and messages. For a caller-supplied DOM without that source position, use the declaration's `at`.
+
+Every rule name in a check condition resolves against its stage. An unresolved name reports `NAME is not a rule of stage STAGE` at the name. This position also applies to names in the candidate pattern. A rule name in a query body has no DOM position and reports at the check declaration. An unknown classifier reports `NAME is not a classifier of stage STAGE` at the check declaration. A supplied DOM without a name position uses the check declaration's `at`.
+
+Section 2.4 defines the clauses where check methods are legal. A forbidden check method reports `a check method is outside its permitted clause` at the selector's leading dot. A restoration selector reports `a check cannot restore elision` at its leading dot.
+
+A method chain in a check message must read `$` through one permitted string method, including `.terminal`. Every other chain reports `a check message reads only $` at that atom's first token. A single non-string method result follows the non-string operand rule.
+
+A grouped atom in a check message reports `a recipe atom has no grouping or arguments` at its opening `(`. Other faulty message atoms report at their first token. Clause and capture faults retain their positions above. A capture binder in a check query argument reports `a check cannot declare a capture` at the binder.
+
+A check tree comparison requires a node on its left. A left operand that is not a node reports `a tree comparison requires a node on its left` at that operand. A wrong right operand reports `a tree comparison requires a node or pattern` at that operand. A self comparison in a check reports `a tree comparison cannot compare a node with itself` at the comparison.
 
 The following table is the complete constructor contract, including the template forms of §2.3. A constructor is a recognized syntax-tree part. Its row specifies required parts, lookup order, and DOM conversion. Names outside this table are wrappers, never constructors. Each wrapper contributes its children recursively in written order.
 
@@ -2956,7 +3014,7 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 
 | Constructor | Required parts and lookup order | DOM conversion |
 | --- | --- | --- |
-| The root | Declaration constructors in source order | Five ordered item arrays, including empty arrays. A known non-declaration part is an error. |
+| The root | Declaration constructors in source order | Six ordered item arrays, including empty arrays. A known non-declaration part is an error. |
 | `directive` | Keyword token, then ordered `directive-identifier`, `directive-string`, `directive-terminal`, or `directive-term` parts | Validate written operand count and types before converting terms. Report every wrong operand at the directive. Produce `name` and valid argument values as `args`. A following `conditions-clause` gives optional `conditions` only for `%features`. |
 | `ranking-directive` | Keyword token, then `ranking-step` parts in order | Produce `name` and the steps as `steps`. Report every wrong step at the directive. |
 | `ranking-step` | One name token, alone or followed by one `pattern-literal` or `constant-reference` | A lean `{"step":NAME}`, or `{"step":NAME,"pattern":P}` where P is the PATTERN or the `const` term |
@@ -2975,6 +3033,7 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `constant-keyword` | One `%const` or `%redefine-const` token | `define` or `redefine` |
 | `constant-reference` | One user constant reference token | `const`, name without `$`, and reference `at` |
 | `rule` | `rule-keyword`, then `rule-name` or head `call`. A binding supplies another `call`. Otherwise inspect `header-tags`, `value-clause`, `image-clause`, then `body` or `headed-body`, followed by trailing clause constructors. | Ordinary definition, template with `params`, instance edit with `args`, or named `instance` binding. Bindings return before header clauses and body lookup. |
+| `check` | `rule-name`, `pattern-literal` or `constant-reference`, optional `conditions-clause`, then `error-clause` or `warning-clause` | `name`, `pattern`, `conditions`, `error` or `warning`, then `at`. Missing conditions give `[]`. Reject every other clause. |
 | `call` | Call-name token, then ordered `call-argument` parts | `call`, ordered `args`, and call `at` |
 | `parameter` | One parameter token | `param` without `@`, and its `at` |
 | `call-argument` | One `requirement-argument`, `target-argument`, `body-argument`, `symbol-argument`, or `term` | ARG from `docs/output.md`, preserving its category |
@@ -3045,7 +3104,7 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `guarded-term` | One or more `any-of`, then a `union` or `term` | Right-nested `if` terms around the final value |
 | `union` | One or more `intersection` parts and their operators | Fold union and difference left. Flatten every union operand that is itself a union. A sole part stays unchanged. |
 | `intersection` | One or more `concatenation` parts | `intersection`, or sole part |
-| `empty-set` | One `∅` token | `emptySet:true` |
+| `empty-set` | One `∅` token | Pattern atom: `never:true` with `at`. Other terms: `emptySet:true`. |
 | `capture-reference` | One capture token | `capture`, name without `$`, with empty name for `$` |
 | `condition` | One or more `any-of`, then optional nested `condition` | Right-nested condition `if`, or sole condition |
 | `any-of` | One or more `all-of` | `any`, or sole condition. Flatten nested `any`. |
@@ -3059,15 +3118,15 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `comparator` | One ordinary comparison token | Precomposed comparator from the token value |
 | `negation` | One `condition-primary` | `not` |
 | `presence` | One capture token | `captured`, with empty name for `$` |
-| `tree-comparison` | `capture-reference`, `tree-comparator`, `union` | `op`, capture `left`, and a `right` term whose type the loader checks after resolution |
+| `tree-comparison` | `capture-reference` with optional selectors, or grouped `tree-left`, then `tree-comparator` and `union` | `op`, node `left`, and a `right` term whose type the loader checks after resolution |
 | `tree-comparator` | One `≅` or `≇` token | Precomposed comparator from the token value |
 | `pattern-literal` | One `pattern-primary` | Pattern term containing that whole pattern |
 | `pattern-union` | One or more `pattern-intersection`, with operators | Fold union and difference left. Flatten every union operand that is itself a union. |
 | `pattern-intersection` | One or more `pattern-path` parts | Flatten intersection operands into one array, or retain the sole predicate |
 | `pattern-primary` | One `pattern-node`, `bare-child-list`, or grouped `pattern-union` | Delegate without a grouping wrapper |
-| `pattern-node` | One `pattern-atom`, optional adjacent prefix, and optional adjacent `child-list` | Atom with optional `exact:true` and `children` array |
+| `pattern-node` | One `pattern-atom`, optional adjacent prefix, and optional adjacent `child-list` | Reject decorations on `∅` at the atom. Other atoms retain optional `exact:true` and `children`. |
 | `bare-child-list` | One `child-list` and optional adjacent prefix | `any:true`, optional `exact:true`, and required `children` array |
-| `pattern-atom` | Name token, `rule-reference`, `rule-or-classifier-name`, `call`, `parameter`, `tag`, `string`, `string-terminal`, `range`, `wildcard`, or `constant-reference`, with written tests | A tag test and a value test take any atom. A tested constant must resolve to a string after binding. Preserve tag then value order. |
+| `pattern-atom` | Name token, `rule-reference`, `rule-or-classifier-name`, `call`, `parameter`, `tag`, `string`, `string-terminal`, `range`, `wildcard`, `constant-reference`, or `empty-set`, with written tests | `∅` gives `never:true` with `at` and accepts no decorations. Other atoms accept tag and value tests. A tested constant must resolve to a string after binding. Preserve tag then value order. |
 | `child-list` | Optional `child-choice` | Item array, including empty or singleton |
 | `child-choice` | One or more `child-alternative` parts | Sole array, or one choice item. Flatten singleton choice alternatives. |
 | `child-alternative` | First `child-sequence`, otherwise required `child-set-operation` | Item array, with a set wrapped as one `child` |
@@ -3075,7 +3134,7 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `child-intersection` | One or more `child-path` parts | Require whole-pattern operands, then flatten intersection operands or retain the sole pattern |
 | `child-sequence` | One or more `child-item` parts | Concatenate plain groups into one item array |
 | `child-item` | One `child-path`, `child-optional`, `child-repetition`, or gap token | Converted path items, corresponding wrapper, or `siblings:true` |
-| `child-primary` | One `pattern-node`, `bare-child-list`, or grouped `child-choice` | Node or bare list becomes one `child`. A group contributes its item array. |
+| `child-primary` | One `pattern-node`, `bare-child-list`, or grouped `child-choice` | A node or bare list becomes one `child`. A group contributes its item array. |
 | `child-path` | One `child-primary` and optional path token | Without a path, retain its item array. With a path, require one whole pattern and wrap that path in `child`. |
 | `child-optional` | One nonempty `child-choice` | `optional` item with an item array |
 | `child-repetition` | One nonempty `child-choice` and optional nonempty separator `child-choice` | `repeat` item with arrays and optional `separator` |
@@ -3134,13 +3193,13 @@ An Integer token contains one or more ASCII decimal digits. It is legal only as 
 
 Reader method signature errors stand at the method receiver, including wrong target kinds, receiver kinds, arities, and noninteger arguments. A wrong argument separator stands at the first argument. Empty arguments, grouped choices, grouped integers, and fractions follow the syntax-error rule below. That rule also locates mixed runs and adjacent constants without an operator.
 
-Reader set type errors stand at the set expression or comparison that requires incompatible kinds. A guarded consequent error stands at its guard. Errors that binding reveals follow the stitching locations below. Unresolved query rule names are stitching errors at their definition. A recursive query gives a parse-time grammar error without a document location (§4).
+Reader set type errors stand at the set expression or comparison that requires incompatible kinds. A guarded consequent error stands at its guard. Errors that binding reveals follow the stitching locations below. Unresolved query rule names and unknown classifiers are stitching errors at their definition, including a check declaration. A recursive query gives a parse-time grammar error without a document location (§4).
 
 The lexical stage reads the longest punctuation token. `...` is one chain marker, never `..` followed by `.`. A range joins two scalar string endpoints with `..`. `.` selects a method. Header clauses use `::`, `:=`, and `:-`, while `:` binds a capture. Both readers follow the lexical forms above.
 
 `+` is the elision marker, and `++` is the string concatenation operator. Braces and `/` delimit repetition. Inside a string, braces and slash are literal characters. Strings accept single-guillemet escapes, and backslashes are ordinary string characters. Outside strings and comments, a bare backslash in grammar text is an error. A line comment can contain `-- see C:\temp`.
 
-A document can hold several errors. The reader reports one, and every reader chooses the same one, in this order:
+A document can hold several errors. Except for faults within a check declaration, every reader chooses the same error, in this order:
 
 1. Lexical recognition runs first. A lexical error stands at the furthest character that the lexical stage reaches. No preamble, escape, or syntax inspection occurs after that failure.
 2. After successful lexing, the names preamble pass of §1 inspects only the longest leading run of `%names` directives. Operand count and kind errors fail first at the directive. Within each valid path operand, malformed, nonscalar, and forbidden name escapes fail at `‹`, from left to right. These preamble errors precede all other errors in this step.
@@ -3170,7 +3229,7 @@ A document can hold several errors. The reader reports one, and every reader cho
 
 Within one constant definition or implication, the reader reports the error whose position comes first in the text, whichever check finds it.
 
-These steps make every reader report the same token for every combination of errors.
+Except for faults within a check declaration, these steps make every reader report the same token for every combination of errors.
 
 The following complete document reports a capture error at line 2, column 9. The syntax stage recognizes the grouped target, and the reader rejects it at `$x`.
 
@@ -3323,9 +3382,9 @@ Parentheses after the `rule-keyword` fail the syntax stage at `(`, column 6 in `
 
   The reader does not know the type of a constant, so it lets a constant stand for a value of any type but a span. After the loader stitches the stage, it makes sure again that the types agree (§2). It reports an error there at the first constant of the smallest construct whose parts disagree.
 
-  A fault that names no constant sorts at its own construct's position. A DOM without that coordinate uses written clause order between positioned faults. The semantic order follows header tags, value, and image, then each alternative's expression, tags, value, and image. Conditions follow the alternatives, then the diagnostic message, suppression, and emission items. A structural work queue does not define this order.
+  In declarations other than checks, a fault that names no constant sorts at its own construct's position. A DOM without that coordinate uses written clause order between positioned faults. The semantic order follows header tags, value, and image, then each alternative's expression, tags, value, and image. Conditions follow the alternatives, then the diagnostic message, suppression, and emission items. A structural work queue does not define this order.
 
-  Among faults that name constants, the earliest constant position wins. This order includes all clauses, alternatives, body operands, and symbol tests. Retained call arguments follow the same order, including arguments that substitution does not use.
+  In declarations other than checks, the earliest constant position wins among faults that name constants. This order includes all clauses, alternatives, body operands, and symbol tests. Retained call arguments follow the same order, including arguments that substitution does not use.
 
   A signed tag requirement and a recipe atom are separate source constructs. Their type faults name the failing operand, without private container names. Ordinary term concatenation remains one construct.
 - After method selection, a capture or span converts to its input value when a string is required or in `=` or `≠` (§10). It cannot convert to tags, sets, or patterns.
@@ -3368,6 +3427,8 @@ Parentheses after the `rule-keyword` fail the syntax stage at `(`, column 6 in `
 
   A step with the wrong form, a lean elsewhere than last, or two leans is an error at the directive. A directive with no step fails the syntax stage at the token after it, as in `%ambiguity-resolution` alone.
 
+  The empty pattern passes key-step inspection and counts nothing. The audit labels its step impossible.
+
   The pattern of a key step is exact and local, after constants and template arguments resolve. It is made of node tests that each carry `exact`, with their tests, joined by union, intersection and difference. A child list, a path, a bare list or a node test without `exact` in it is an error at the pattern. A rule name in it must be defined in the stage, as in a body.
 
   An atom requires `_Elided` when its tag test holds the mark without negation. A union requires it when every operand does, an intersection when any operand does, and a difference when its left operand does. A `leftmost-longest` pattern that requires the mark is an error at the pattern, because the step never counts an omitted terminator (§6). The loader does not ask which derivations exist for any of these checks.
@@ -3376,7 +3437,7 @@ Parentheses after the `rule-keyword` fail the syntax stage at `(`, column 6 in `
 
 - A DOM node at depth greater than 256 is an error. Depth counts compound ancestors, from zero at each root. The following rules cover every form in `docs/output.md`.
 
-  Each expression, condition, tag term, recipe, constant value, classifier key, and implication side starts at depth zero. A diagnostic recipe also starts at zero.
+ Each expression, condition, tag term, recipe, constant value, classifier key, and implication side starts at depth zero. Each check pattern and condition also starts at zero. A diagnostic recipe also starts at zero.
 
   Feature conditions also start at depth zero. An emission item's tag term and recipes also start at zero. Declarations, alternatives, emission lists, emission items, arrays, positions, gates, and signed requirement records add no depth. A recipe root always uses `concat`, including for one atom. Other `concat` nodes require at least two string operands.
 
@@ -3385,7 +3446,7 @@ Parentheses after the `rule-keyword` fail the syntax stage at `(`, column 6 in `
   | Expression `seq`, `choice`, `ranked`, `and`, `optional`, `repeat`, `capture`, `splice`, or `test` | Parent depth plus one |
   | Expression `literal` or `range` | Parent depth for the string term or each endpoint |
   | Term `union`, `intersection`, `difference`, `if`, `concat`, `method`, or `pattern` | Parent depth plus one |
-  | Condition `any`, `all`, `not`, `if`, `method`, `nonempty`, or comparison | Parent depth plus one |
+  | Condition `any`, `all`, `not`, `if`, `method`, `nonempty`, `present`, or comparison | Parent depth plus one |
   | Pattern `union`, `intersection`, `difference`, path, or `test` | Parent depth plus one |
   | Pattern `literal` or `range` | Parent depth for the string term or each endpoint |
   | Node test or bare list with `children` | Each child item is at the node's depth plus one |
@@ -3407,7 +3468,9 @@ Parentheses after the `rule-keyword` fail the syntax stage at `(`, column 6 in `
 
   Parentheses make no DOM node and add no depth. Thus 256 optional wrappers around a reference or a plain string literal are allowed, and 257 are not. The reader reports the first offending declaration in document order. That declaration is a rule, constant, classifier, implication, or `%features` directive.
 
-  Resolved pattern values also meet the bound of 256. For this bound, each pattern-valued term has one term wrapper around its normalized pattern. Constant references add no level and contribute their bound patterns. Aliases retain the same depth. Adjacent unions flatten, as do adjacent intersections, before this count. When `∅` supplies a pattern, its normalized form is the difference of two unrestricted child lists.
+  Resolved pattern values also meet the bound of 256. For this bound, each pattern-valued term has one term wrapper around its normalized pattern. Constant references add no level and contribute their bound patterns. Aliases retain the same depth. Adjacent unions flatten, as do adjacent intersections, before this count.
+
+  Written and contextual `∅` give the same always-false `never` leaf. A written leaf carries its source position. The leaf counts as one pattern level and passes candidate and key-step inspection.
 
   The loader examines references in written order and reports the first reference whose substituted pattern exceeds the bound. This error uses the reference's document, position, and stage. The loader detects it before it copies or compiles the substituted pattern. Pattern type errors precede this depth error. Range endpoint values follow it. A resolved pattern without an offending reference uses its declaration's position.
 
@@ -3460,7 +3523,7 @@ Each of the following is an error of the document too, and the reader reports it
 - A capture that no alternative of the definition captures is an error, in any clause, `$x` presence tests included.
 - A condition that applies (§3.6) to no production of the definition, whatever features are enabled, is an error.
 
-A condition item holds at most one boundary atom. If the receiver of its atom is a capture, the item reads no other capture and no `$`. A boundary atom can stand in conditions, a guarded header or alternative tag term (§3.7), or an emission item's tag clause.
+A rule condition item holds at most one boundary atom. If the receiver of its atom is a capture, the item reads no other capture and no `$`. A boundary atom can stand in conditions, a guarded header or alternative tag term (§3.7), or an emission item's tag clause.
 
 Its target is one ordinary rule, exact instance, user tag, or a choice of these. `🆓` counts as a rule name. Each target must be one that some recognition can build. It is a rule reachable through body references from `text` or from the body of a `parse`. Or it is a tag that such a rule reads as a terminal.
 
@@ -3518,14 +3581,15 @@ For `r → $e:empty $a:word`, with `empty → ε`, `%emits $, $e ($a)` is a docu
 
 #### Malformed DOMs
 
-A document's items are its rules, its directives, its constant definitions, its classifiers and its implications. The DOM keeps them in five lists, each in the order written. All five lists are present, including when empty. Every item has the position of its first token, so the order of all of a document's items is the order of their positions.
+A document's items are its rules, its checks, its directives, its constant definitions, its classifiers and its implications. The DOM keeps them in six lists, each in the order written. All six lists are present, including empty lists. Every item has the position of its first token, so the order of all of a document's items is the order of their positions.
 
 A DOM is malformed in each of these cases, whether it is read, cached or in the bootstrap. Template-dependent types defer until expansion (§2.3).
 
-- It lacks any of the five declaration arrays, or one is not an array.
+- It lacks any of the six declaration arrays, or one is not an array.
 - Two of its items share a position.
 - A template, binding, call, parameter, or argument violates the forms of §2.3 or `docs/output.md`.
-- A rule's name is neither a valid emoji scalar nor a name beginning with `a` to `z`.
+- A rule's or check's name is neither a valid emoji scalar nor a name beginning with `a` to `z`.
+- A check lacks its pattern, conditions array or sole diagnostic, or has a member beyond its schema (§2.4, `docs/output.md`).
 - It has an expression, a term or a condition with members of two forms, or with a member that its form lacks (`docs/output.md`).
 - It has a `ref` that is neither a valid name nor a valid emoji scalar.
 - Its `splice` does not contain exactly one rule `ref` or `call`. A terminal, parameter, grouped expression, or nested splice is invalid.
@@ -3587,7 +3651,7 @@ Child arrays retain their context throughout unresolved inspection. An optional 
 
 Take an atom that names a rule whose every definition carries `%erased`. An attached child list is a document error unless it contains only one sibling gap, `⁅ ⋯ ⁆`. This check follows stitching. A mixed rule with an unerased definition does not trigger it.
 
-For a template-family atom, this error requires at least one instance and fully erased definitions in every instance. A parameter as the atom postpones this check until substitution. A child-list parameter occupies one element, so a known erased atom takes this check on its written list.
+For a template-family atom, this error requires at least one instance and fully erased definitions in every instance. A parameter as the atom postpones this check until substitution. A child-list parameter occupies one child item, so a known erased atom takes this check on its written list.
 
 If X is declared, `#⁅ A @X ⁆` and `#⁅ ⋯ @X ⁆` remain valid. Their closed items remain child items beside the parameter. A parameter postpones only the type or binding that its value determines. It never postpones the surrounding field, arity, context, or forbidden-gap rules. Source, supplied, and cached patterns all obey the exact schema in `docs/output.md`.
 
@@ -3634,7 +3698,7 @@ That input is the stage's input or, in a nested parse (§4), the span that the n
 
 During §7 reconstruction, `.without-elision` and `.without-elision-except(F)` take their closes from the current candidate's projected omission events. Neither borrows the selected main derivation's list. Neither introduces an additional synthetic token where that event already has one.
 
-Terms include strings, string sets, tag sets, patterns, captures, ordinary or restored spans, and query forests. Method selection uses the actual receiver before implicit conversion to a value string. Captures never convert to tags or patterns. A bare capture used as a condition tests presence. Ill-typed combinations remain document errors.
+Terms include strings, string sets, tag sets, patterns, captures, ordinary or restored spans, and query forests. Check conditions add nodes and element values. Method selection uses the actual receiver before implicit conversion to a value string. Captures never convert to tags or patterns. A bare capture used as a condition tests presence. Ill-typed combinations remain document errors.
 
 | term | type | value |
 | --- | --- | --- |
@@ -3718,7 +3782,7 @@ A rule target resolves where its rule or exact instance is defined in the stage 
 
 Each terminal target keeps the helper of §3.10, in ranked alternatives and in ordinary alternatives. A terminal target of a boundary atom has no helper. It names the token nodes that its terminal read (§4.2).
 
-If the span begins at its evaluating parse's input start, `s.starts-input` holds. That is the start of the stage's input, or, in a nested parse (§4), the start of the span that the parse reads. As a condition, a nonempty query forest holds. A tag set or string set in a Boolean position holds where it is not empty. Forests admit `.error-free` and `.tags`. They admit no string conversion, comparison, or set operator.
+If the span begins at its evaluating parse's input start, `s.starts-input` holds. That is the start of the stage's input, or, in a nested parse (§4), the start of the span that the parse reads. As a condition, a nonempty query forest holds. A tag set or string set in a Boolean position holds where it is not empty. Forests admit `.error-free`, `.ending-after(S)` and `.tags`. They admit no string conversion, comparison, or set operator.
 
 If the production has capture `x`, `$x` holds as a condition (§3.6). `$` always holds. `¬c` negates. For `∨`, one true condition suffices. For `∧`, every condition must hold.
 
@@ -3736,12 +3800,12 @@ Within a term, the engine evaluates operands, method receivers, and arguments fr
 
 `A ⟹ t`, where `A` is a condition and `t` a tag set or string set, is `t` where `A` holds. Where `A` does not hold, it is the empty set of the same kind. A guarded term binds looser than `∪`, `∩` and `∖`, so it stands in parentheses inside any of them. Its condition must be well typed even when presence simplification removes it. A scalar string consequent converts to a singleton. An untyped `∅` consequent retains its context's set kind.
 
-A tree comparison has operator `≅` or `≇`, a bare capture, including `$`, on the left and a term on the right. The type of the right term decides the comparison, after constants and template arguments resolve:
+A tree comparison has operator `≅` or `≇`, a bare capture, including `$`, on the left and a term on the right. In checks, nodes can stand on either side as constituents. The type of the right term decides the comparison, after constants and template arguments resolve:
 
 - A bare capture, including `$`, has constituent type. In this position they denote the constituent itself, not its span. Then the comparison tests the two structural trees for equality (`docs/notation.md`).
 - A pattern literal and contextual `∅` have pattern type. If all operands of a union, an intersection or a difference have pattern type, the operation has pattern type. Parentheses keep the type. Then the comparison tests the left constituent against the pattern.
 - A constant or a parameter has the type of its value. No template argument reads a capture, so no parameter has constituent type.
-- Every other term is a type error at the term. A guarded term gives a set, so it is such an error. No method gives constituent type, so a span, a restored span, a string, a string set and a tag set are such errors. The implicit string conversion of `=` does not apply before the type is chosen. So `$x ≅ $y.value` is a type error. A set operation with an operand of another type is a type error at the operation.
+- Every other term is a type error at the term. A guarded term gives a set, so it is such an error. Outside checks, no method gives constituent type. A span, restored span, element, string, string set or tag set cannot supply a constituent. The implicit string conversion of `=` does not apply before the type is chosen. So `$x ≅ $y.value` is a type error. A set operation with an operand of another type is a type error at the operation.
 
 Missing-capture simplification follows §3.6. A comparison of two captures uses both, as any condition with two captures does. Its capture analysis inspects both operands after their types resolve. That covers presence, readiness, item scope, frame demand and the privacy rules of ranked captures. After simplification, `≇` negates the `≅` answer in both uses. A pattern literal is closed, and its value tests use string literals or constants, and its tag tests use tag sets.
 
@@ -3753,24 +3817,30 @@ For a bare name after either tree comparator, use the diagnostic of §9.3. A rig
 
 | Method | Accepted receiver | Result |
 | --- | --- | --- |
-| `.value`, `.image`, `.source-text`, `.decomposed-source-text` | Capture or span | String from projected original input (§5) |
-| `.onward` | Capture or span | Span from original start to context end |
-| `.preceding-tokens` | Capture or span | Ordinary span from context start to original start |
-| `.following-tokens` | Capture or span | Ordinary span from original end to context end |
-| `.first-token`, `.last-token`, `.tokens-after-first` | Capture or span | Ordinary projected token span |
-| `.starts-input` | Capture or span | Predicate on original start |
-| `.ends-input` | Capture or span | Predicate on original end |
-| `.followed-by(S)`, `.preceded-by(S)` | A bare capture, including `$` | Boundary atom on the parse itself (§4.2) |
-| `.parse(C)` | Capture or span | Witness forest, with an initial remainder restricted to ordinary receivers (§4) |
+| `.value`, `.image`, `.source-text`, `.decomposed-source-text` | Capture, node, element or span | String from projected original input (§5) |
+| `.onward` | Capture, node, element or span | Span from original start to context end |
+| `.preceding-tokens` | Capture, node, element or span | Ordinary span from context start to original start |
+| `.following-tokens` | Capture, node, element or span | Ordinary span from original end to context end |
+| `.first-token`, `.last-token`, `.tokens-after-first` | Capture, node, element or span | Ordinary projected token span |
+| `.starts-input` | Capture, node, element or span | Predicate on original start |
+| `.ends-input` | Capture, node, element or span | Predicate on original end |
+| `.followed-by(S)`, `.preceded-by(S)` | `$`, bare capture or check node | Boundary atom on the parse itself (§4.2) |
+| `.parse(C)` | Capture, node or span | Witness forest, with an initial remainder restricted to ordinary receivers (§4) |
 | `.error-free` | Witness forest only | Forest of zero-measure witnesses |
-| `.tags`, `.classes` | Capture or span | Tag set |
+| `.ending-after(S)` | Witness forest only | Witnesses ending after capture, node, element or span S |
+| `.parent`, `.preceding-node`, `.following-node` | Check node only | Parent, previous sibling or next sibling |
+| `.preceding-element` | Check node only | Preceding element in the production |
+| `.local-readings` | Check node or element only | Eligible prefix witnesses of the reading expression |
+| `.terminal` | `$` in a check message only | Canonical terminal identity, or empty string for a rule |
+| `.tags` | Capture, node, span or witness forest | Tag set |
+| `.classes` | Capture, node or span | Tag set |
 | `.tags` on a forest | Witness forest | Union of the witness tag sets (§4) |
 | `.classify(classifier)` | String, or converted capture or span | Tag set from `classifier` |
 | `.split(d)` | String, or converted capture or span | String set |
 | `.ngrams(n)` | String, or converted capture or span | String set, with a positive integer literal argument |
 | `.without-elision` | Bare capture, including `$` | Restored span |
 | `.without-elision-except(F)` | Bare capture, including `$`, with one ordinary rule name or exact instance | Restored span with a close family |
-| `.verbatim-text` | Bare capture, including `$`, in a recipe | String (§11) |
+| `.verbatim-text` | Bare capture, including check `$`, in a recipe | String (§11) |
 | `.emitted.value`, `.emitted.image` | Bare capture, including `$`, in a recipe | String walk of the receiver's own derivation (§11) |
 
 ### Method selection and juxtaposition
@@ -3786,6 +3856,63 @@ The context is the stage's input or the nested query's bounds (§4). `.onward` a
 A tag literal denotes a singleton tag set. Juxtaposed bare tag names or string literals form one union atom. Both runs share grouping, flattening, and adjacency restrictions. Constant references and method calls require explicit operators.
 
 Other tag atoms need operators. Adjacent multi-name atoms beside `∩` or `∖` require parentheses. Inside a child list, juxtaposition instead constructs child sequences. A pattern constant supplies no implicit surrounding pattern literal.
+
+### Check observations
+
+A check condition evaluates in the whole stage input, with `$` bound to its candidate node. Named captures are illegal. Node values supply capture observations, including constituent tags, spans, queries, boundary tests, presence and tree comparison. Boundary tests read the actual chosen derivation, including erased interiors, without rule-condition restrictions (§4.2).
+
+Node walks use the check tree (§12.1). A seal supplies no node. An erased root remains reachable with its exported tags and span, although it is no candidate. An omitted leaf has an empty span and string, and ordinary tags `{T}`. Only pattern tests observe its additional `_Elided` mark.
+
+An evaluated read of an absent node or element makes its whole condition false, irrespective of enclosing operators. Normal short-circuit evaluation still decides whether the read occurs. Node presence alone is the exception. A bare walk tests existence, so its negation holds for an absent node. An element has no presence test.
+
+An element value carries an expression and its chosen span. Span selectors give ordinary spans, and input string methods and positional tests read that span. Elements have no tags, capture binders, tree identity, boundary methods, walks or message use. They support `.local-readings`, but direct ordinary query methods require a node, capture or span.
+
+To find `.preceding-element`, locate the candidate's reading symbol in its production's element structure (§3.2). An omitted terminator uses its elidable optional as that symbol. While it is first in an optional, a helper of flat braces or a ranked group, move to that helper's position in the enclosing sequence. Captured plain optionals keep their element positions after physical expansion.
+
+At a named production's first symbol, no predecessor exists. Otherwise the previous element supplies its expression and chosen span. Never cross a named production boundary.
+
+A plain group's chosen branch supplies its elements in place. A flat repeat supplies `h → x | h s x`, with item and separator elements in place. An optional starting `s` follows the recursive `h`. An optional starting a later `x` follows the separator's last element, or `h` with an empty separator.
+
+Chains use their generated productions: `r → r s x` or `r → x s r`. An absent optional still supplies an element and an empty span. [Element values](notation.md#element-values) gives examples.
+
+For an element over `[s,p)`, `.local-readings` is the prefix query `parse(E …)` in context `[s,N)`. Here `N` is the stage-input end. Remove all capture binders from the element's expression E. Retain symbol tests, optional markers, defaults, choices, repetitions, splices and template arguments.
+
+For a named node, E is its reading reference with its site test. The root and generated recursive chain references use an untested reference to their rule. A written leaf uses its terminal and site tests. Its forest therefore has at most one witness over its token. Spliced roots supply no nodes. Each exposed node uses its own site inside the called rule.
+
+An omitted leaf uses its elidable optional, without binders but with tests and default.
+
+The enclosing definition contributes no clause to this query. This excludes its conditions, flat-repeat item conditions and private ranked conditions. Called rules retain their own clauses. The query's context starts at s, so it sees nothing before s. All ranked options remain available because queries run no ranked admission.
+
+Witnesses must complete, but the following text need not fit them. Ordinary query eligibility and written-terminator priority apply, and witnesses contain no own counted error occurrence (§4).
+
+#### Answers from the stage chart
+
+A local-reading query has exactly the result and the runtime errors of the prefix query above. A chart answer has the same witness tags as that query. For most targets, the stage chart already holds that answer. For such a target, each library answers from the stage chart and runs no new recognition. The chart answer applies to a target with all of these properties:
+
+- The chosen derivation comes from the main recognition of the stage, not from reconstruction (engine §7).
+- The target is one symbol of the lowered stage grammar: a rule reference with or without its site test, a terminal, or a generated helper. Optionals, flat braces and ranked groups are helpers.
+- A helper binds no capture. Here a capture is a binder that the grammar writes, and internal slots of the lowering do not count. The helper's expression must be available. Its expression and clauses equal the binder-free target. No observation in its recognition depends on an enclosing frame. A ranked helper without conditions qualifies, despite the bookkeeping of ranked admission.
+- A plain optional with captures outside nested ranked groups expands in place, so it is not one symbol. A plain optional whose captures stand only inside ranked groups keeps route helpers, and those helpers must pass the helper test above. A captured elidable optional keeps its helper, but it binds a capture.
+- The target is not an elidable optional. In the query, the omission stands at the start of the query's production. In the stage, it follows the earlier symbols of the enclosing production, and written-terminator priority reads them (engine §4).
+- No condition and no tag term that the target reaches at recognition reads `.preceding-tokens` or `.starts-input`. The target reaches the rules that it calls at any depth, and the query targets in their conditions and tag terms. This covers resolved template instances with their actual arguments, guarded tag clauses and conditions that the lowering adds.
+- If `s` is the start of the stage input, the target does not reach both the entry rule and a boundary atom. Main recognition settles a completion of the entry rule over the whole input, and settlement can drop it (engine §4.2). Inside the query, the same completion is an inner one, its literals stay pending, and recognition advances over it.
+
+The test changes no result, so no DOM, output or diagnostic shows it. Lowering computes the static properties once for each element site and for each reading reference of a node, in each lowered grammar. These include whether the target reaches the entry rule and a boundary atom. Each request then tests its recognition mode and its start `s` before it takes the chart answer. A result that several feature sets share holds for each of them. The test keeps exact template arguments, site tests and splice calls.
+
+The answer is the same for these reasons:
+
+- The stage chart predicted the target at `s`, because the chosen derivation reads the element there. Demands of enclosing conditions can split its items without changing their proofs. The chart answer takes every completed item of the target at origin `s`, whatever its demands. For a tested reference, it keeps the items that pass the site test. For a helper target, the helper's completed items at `s` stand for the query's root.
+- Both contexts end at `N`, and the tokens are the same. So conditions and tag terms that read only inside `[s,N)` give the same values.
+- A completed item keeps its pending boundary literals in its boundary record (engine §4.2). A query settles the literals that remain on its witness root. The chart answer settles the record of the completed item in the same way. So `.preceded-by` before `s` and `.followed-by` after the witness give the query's values.
+- Ranked admission removes no item from the chart (engine §6.1). So the chart holds every ranked option, as the query does.
+- Main recognition applies no query filter. So the library computes query eligibility over the stage chart, as the least fixed point of engine §4. A proof can repeat a rule over one span, as any finite query proof can. A cycle without finite support gives no proof. The cycle exclusion of counted derivations (engine §6) does not apply. The flags E, P and F describe one proof together, also where `.error-free` follows `.local-readings`.
+- Every step of the query has an equal step in main recognition, with the same observations. The test above excludes the changes that settlement of the entry rule makes. The stage has a chosen derivation, so main recognition raised no grammar error. So the query raises none.
+
+The library computes this eligibility once in a parse, on demand, and every qualifying local reading of the parse shares it. Its work is the work of query eligibility in one recognition of the stage input (engine §4). The growth cases bound recognition items and eligibility steps by separate factors. A target that does not qualify runs its query, and its cost counts apart. Memo reuse between such queries needs the same context, target, frames and eligibility. A completed item alone still proves neither that a local reading exists nor that it is eligible.
+
+A forest filter evaluates its receiver before its argument, as a method chain reads from left to right. It filters that answer's witnesses without repeating recognition.
+
+For any forest f, `f.ending-after(S)` retains witnesses whose ends exceed S's end in stage-input positions. S is a capture, node, element or span. Project restored ends to original positions first (§7.3), for both witnesses and S. Synthetic tokens alone cannot extend an end. Filtering retains each witness's eligibility and measure, so chained filters must hold on the same witness.
 
 ## 11. Emission
 
@@ -3889,7 +4016,7 @@ An implied image evaluates the selected value recipe as a string for image use. 
 
 ### 11.3 Recipe evaluation and cycles
 
-A recipe contains only string literals, string constants, and seven captured string methods. They are `.value`, `.image`, `.source-text`, `.decomposed-source-text`, `.verbatim-text`, `.emitted.value`, and `.emitted.image`. Its atoms join with `++` from left to right without a separator. Every other atom is a document error.
+An ordinary recipe contains only string literals, string constants, and seven captured string methods. They are `.value`, `.image`, `.source-text`, `.decomposed-source-text`, `.verbatim-text`, `.emitted.value`, and `.emitted.image`. A check message adds `.terminal` on `$` (§12.1). Its atoms join with `++` from left to right without a separator. Every other atom is a document error.
 
 Juxtaposed literals form a string set everywhere terms permit them. A recipe requires a string. The reader rejects a string set at its first literal and tells the author to use `++`. It rejects a second recipe term at its first token with the same instruction. Recipe atoms cannot use grouping parentheses or method arguments.
 
@@ -3981,7 +4108,9 @@ A stage whose verdict is `tie` emits nothing (§6), at whichever stage it is. Th
 
 ### 11.5 Diagnostic carriers
 
-After message evaluation and successful emission, assign each surviving diagnostic to one emitted token. Consider both own-stage occurrences and carried diagnostics on input tokens, including tokens that emit nothing directly. For an own diagnostic, its constituent is the occurrence and its position is that occurrence's input start. For a carried diagnostic, its constituent is the leaf that reads its carrier and its position is that leaf's start.
+After message evaluation and successful emission, assign each surviving diagnostic to one emitted token. Consider both own-stage occurrences and carried diagnostics on input tokens, including tokens that emit nothing directly. For an own rule diagnostic, its constituent is the occurrence and its position is that occurrence's input start. A check diagnostic uses its candidate node and that node's input start. For a carried diagnostic, its constituent is the leaf that reads its carrier and its position is that leaf's start.
+
+For a check on a leaf, rule 3 starts at the nearest enclosing occurrence in the derivation, spliced calls included. For a check on a rule node, that rule supplies it.
 
 Assignment uses the first applicable rule:
 
@@ -4022,17 +4151,28 @@ A node with a nonempty span has the source of its tokens (§1). A node with an e
 
 ### 12.1 Deferred reports
 
-A diagnostic belongs to a source occurrence, before tree construction omits spliced calls. Every `%error` occurrence contributes one error. Every enabled, unsuppressed `%warning` occurrence contributes one warning. Each chain level and source occurrence counts separately. A failed condition creates no occurrence.
+A check reads a separate view, the check tree. Build the structural tree of Tree patterns, but expose chosen ranked-option nodes in place of ranked seals. Keep erased roots with their seals, including any ranked group under erasure. Flatten helpers and unerased spliced calls, and remove structurally empty named children after this expansion. Always retain the root. Erased roots and their descendants are no candidates. Other rule nodes, written leaves and omitted terminators are candidates. Check patterns, tree comparisons and node walks use this view. Other pattern uses retain ranked seals.
 
-The raising stage assigns each diagnostic a private identity: stage, effective rule, and preorder occurrence ordinal among that stage's diagnostic occurrences. Number the source occurrences before warning enablement, suppression, and erasure remove reports. Concrete tag variants share one occurrence and identity. Two occurrences of one rule at one boundary retain different identities.
+
+A rule diagnostic belongs to a source occurrence, before tree construction omits spliced calls. A check diagnostic belongs to its matched candidate node. Every `%error` occurrence contributes one error. Every enabled, unsuppressed `%warning` occurrence contributes one warning. Each chain level and source occurrence counts separately. A failed condition creates no occurrence.
+
+The raising stage assigns each rule diagnostic a private identity: stage, effective rule, and preorder occurrence ordinal among that stage's diagnostic occurrences. Number the source occurrences before warning enablement, suppression, and erasure remove reports. Concrete tag variants share one occurrence and identity. Two occurrences of one rule at one boundary retain different identities.
+
+A check diagnostic's private identity contains the stage, check name and occurrence ordinal among that check's occurrences. Number occurrences before erasure removes reports, after their patterns and conditions pass. Several omissions at one boundary remain distinct occurrences.
 
 Carried diagnostics keep their identities and fixed charges through later stages. A collection includes each carried identity once.
 
 A diagnostic stores `stage`, `code`, `rule`, `span`, `source`, and `message`, followed by optional `rejection`. Its code is its rule's effective name. Its coordinates remain those of the raising stage. Neither identity nor charge appears in canonical JSON (`docs/output.md`).
 
-After choice, the stage evaluates each own-stage diagnostic message once from its occurrence and captures. A tie evaluates its first reading and then its second, with own identities scoped by reading. Evaluation follows preorder before splice omission, including chosen erased subtrees whose diagnostics the owner walk subsequently drops. Disabled and suppressed warnings evaluate no message. The recipe follows §11.3 but excludes `.emitted`, queries, and absent, item, or private ranked captures.
+After choice, one preorder walk evaluates rule messages and checks before emission. It visits every rule occurrence, written leaf and omitted terminator before splice omission. At a rule occurrence, evaluate its own message first, including under erasure. If the visited item maps to a check candidate, test each check there in stitched definition order.
 
-A message failure gives `grammar`, retains the verdict, and prevents emission and reconstruction. Previously evaluated messages outside erased subtrees remain available under the failure collection below. No message recipe can fail in the present recipe language. This failure rule is a guard.
+Each check tests its pattern, its conditions in written order, then its message. Stop at the first failed condition. A matching pattern and all true conditions give one occurrence. Disabled or suppressed warning checks evaluate nothing, including their patterns and conditions. Queries, recognition, ranking and reconstruction never run checks.
+
+A tie walks its first shown reading, then its second, with own identities scoped by reading. Rule recipes follow §11.3, without `.emitted`, queries or absent, item or private ranked captures. A check recipe reads only `$` through recipe string methods and `.terminal`. It accepts no node walk or element. `.terminal` gives the canonical leaf terminal, or the empty string for a rule. Omitted terminals give their tag, and string constants give their resolved literal identity. Symbol tests take no part.
+
+The recipe language has no message that can fail, but a check condition can. The message failure rule is a guard.
+
+A runtime grammar error in a message or any check evaluation stops the walk. The result is `grammar`, keeps the verdict, and prevents emission and reconstruction. Earlier evaluated messages outside erasure remain available under the failure collection below. A check failure never makes another reading win. An enabled check can therefore stop output, although warning controls change no accepted reading or chosen tree.
 
 Suppression applies to the raising stage's own warning occurrences under its owning rule, including that rule and spliced calls. Nested suppression sets unite. `_` suppresses all warnings, and a disabled warning stays disabled. Suppression neither removes carried warnings from earlier stages nor affects errors, measures, recognition, ranking, or emission. Templates pass suppression to each instance.
 
@@ -4040,7 +4180,9 @@ After stitching, every explicit suppression code names a warning of that stage. 
 
 The reporting stage is the stage named by `until`. Without `until`, it is the pipeline's last stage. Stage order means pipeline execution order, rather than name order. Earlier stages with chosen errors evaluate messages, emit, assign carriers, and continue. They retain their verdicts and outputs. A stage that emits an empty output retains its unowned diagnostics in its stage-level `errors` and `warnings` (§11.5).
 
-For a chosen reporting derivation, the engine collects earlier stage-level diagnostics first, in stage order. It then walks the reporting derivation in preorder, skipping erased subtrees before spliced roots disappear. An own-stage occurrence supplies its diagnostic, and a token leaf supplies its carried lists. A parent precedes children, and siblings retain their written order. Errors and warnings preserve that order in separate lists. A token leaf supplies its carried lists in their stored order, including the carrier and attachment order that §11.5 defines.
+For a chosen reporting derivation, the engine collects earlier stage-level diagnostics first, in stage order. It then walks the reporting derivation in preorder, skipping erased subtrees before spliced roots disappear. An own rule occurrence supplies its diagnostic, then its checks supply theirs in definition order. A leaf supplies its checks, then its carried lists. A parent precedes children, and siblings retain their written order.
+
+Errors and warnings preserve that order in separate lists. A token leaf supplies its carried lists in their stored order, including the carrier and attachment order that §11.5 defines.
 
 Every ending first includes the pending stage-level diagnostics of earlier stages, once by identity. Its remaining collection is as follows:
 
@@ -4051,7 +4193,7 @@ Every ending first includes the pending stage-level diagnostics of earlier stage
 - `ambiguous`, reason `elision-only`: Use the `ok` warning collection over the chosen derivation. No error counts, including at stage level, so the envelope has no `errors` member. Keep stage output.
 - `feature-conflict` or `grammar`: Collect carried diagnostics over the whole failed-stage input in token order. For a grammar failure after choice, insert evaluated own-stage diagnostics after pending stage-level diagnostics and before the carried list. Their order is the chosen preorder, or the two readings' evaluation order for a tie. The `grammar` ending omits evaluated own-stage diagnostics from erased subtrees. These failures have no failed-stage output and a null result tree.
 
-A failure's `errors` and `warnings` members use the envelope rules of `docs/output.md`. The result's `warnings` also contains its complete warning collection. Warning controls change neither recognition nor the selected derivation.
+A failure's `errors` and `warnings` members use the envelope rules of `docs/output.md`. The result's `warnings` also contains its complete warning collection. Warning controls change neither recognition nor the selected derivation. A runtime grammar error in an enabled check can stop the walk.
 
 A tie collection starts with pending stage-level diagnostics once, then the first reading's counted diagnostics, then new diagnostics from the second. A carried identity already included does not repeat. Own-stage identities are reading-local, so compare their complete output objects, including `rejection`, by multiplicity. A second-reading occurrence is new only beyond the multiplicity already collected for its complete object. Apply this rule separately to errors and warnings. Diagnostics from unshown readings contribute nothing.
 
@@ -4085,7 +4227,7 @@ Disk loaders open the resolved path. Source-map loaders look up that exact key, 
 
 Stage selection continues across grammar blocks and include boundaries. The includer's next item goes into the stage selected at the end of the include.
 
-Replacement clears rules, constants, classifiers, implications, local feature declarations, and the ambiguity policy. It does not clear global `%features` or other stages. Later extensions append to the replacement. Names preambles select document-scoped resources before include expansion (§1). Splicing consumes those declarations without changing the selected stage.
+Replacement clears rules, checks, constants, classifiers, implications, local feature declarations, and the ambiguity policy. It does not clear global `%features` or other stages. Later extensions append to the replacement. Names preambles select document-scoped resources before include expansion (§1). Splicing consumes those declarations without changing the selected stage.
 
 The loader reads every source document, including source whose stage items a later replacement discards. Only surviving stage definitions undergo grammar validation (§2). This includes every feature check in this section. Discarded feature declarations and replaced rule alternatives undergo none of these checks. Source syntax, DOM shape and depth, and include errors still fail the load.
 
@@ -4093,7 +4235,7 @@ A `%features` before the first stage selector declares global defaults. Every la
 
 - An `%include` of a document that does not exist is an error at the `%include`. The error names the documents that included it.
 - An `%include` of a document that is already being included, which is a cycle, is an error at the `%include`. The error names the documents that included it.
-- A rule, an `%ambiguity-resolution`, a constant definition, a classifier or an implication before the first `%stage` is an error.
+- A rule, check, `%ambiguity-resolution`, constant definition, classifier or implication before the first `%stage` is an error.
 - A `%stage` with the name of an earlier one is an error.
 - An `%extend-stage` or `%redefine-stage` that names no earlier stage is an error at that selector.
 - A stage with no rules is an error at its `%stage`.
@@ -4151,11 +4293,11 @@ A rejection, ambiguity, feature conflict, or grammar failure ends the run with t
 
 The result's `tree` is null for every error except `reported`, including failures after choice. When no error counts at the reporting stage and no other failure occurs, `ok` is true. Warnings follow the collection and erasure rules of §12.1, rather than unconditional accumulation across stages.
 
-A pipeline's features are its gate names, warning-rule names, and names declared by `%features`. Error codes are not selectable features. The counted gates and diagnostics come from each stage's surviving definitions after stitching (§2). Alternatives that `%redefine-rule` replaces and stage items that `%redefine-stage` discards no longer count. The gates of every classifier's entries count too. The loader counts them before any gate drops an alternative (§3.1), whatever features are on.
+A pipeline's features are its gate names, warning-rule and warning-check names, and names declared by `%features`. Error codes are not selectable features. The counted gates and diagnostics come from each stage's surviving definitions after stitching (§2). Alternatives that `%redefine-rule` replaces and stage items that `%redefine-stage` discards no longer count. The gates of every classifier's entries count too. The loader counts them before any gate drops an alternative (§3.1), whatever features are on.
 
 Local declarations also contribute their names to this inventory. An unconditional local declaration sets `default:true`, as a global declaration does, even when the caller stops before that stage. A conditional declaration sets no default.
 
-A gate uses `f?` or `¬f?`. A warning feature names a `%warning` rule and has kind `warning`. One name cannot serve as a gate, warning code, or error code in different roles anywhere in the pipeline. During pipeline loading, the loader rejects role conflicts. A `%features` declaration cannot name an error code.
+A gate uses `f?` or `¬f?`. A warning feature names a `%warning` rule or check and has kind `warning`. One name cannot serve as a gate, warning code, or error code in different roles anywhere in the pipeline. During pipeline loading, the loader rejects role conflicts. A `%features` declaration cannot name an error code.
 
 A name that only `%features` declares is a gate. A pipeline lists its features, each with its kind and whether an unconditional `%features` declares it as a default. Conditional declarations contribute names, but no defaults.
 

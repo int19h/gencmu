@@ -1,0 +1,31 @@
+{
+  "description": "Issue #286 review: chained end filters keep the same eligible witness and its tags.",
+  "grammar": "%rule text a \"b\" \"c\"\n%rule a \"a\"\n%rule r short | middle | long\n%rule short \"a\" :: Short\n%rule middle \"a\" \"b\" :: Middle\n%rule long \"a\" \"b\" \"c\" :: Long\n%check ends #·a\n%conditions $.onward.parse(r …).ending-after($.following-node).ending-after($).error-free.tags = Long\n%warning \"long\"",
+  "input": "abc",
+  "options": {
+    "features": [
+      "ends"
+    ]
+  },
+  "expect": {
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "ends",
+        "rule": "ends",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "message": "long"
+      }
+    ],
+    "result": {
+      "ok": true
+    }
+  }
+}

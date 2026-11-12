@@ -105,6 +105,42 @@ class Diagnostics(unittest.TestCase):
         _, suppression = notes(case)
         self.assertTrue(any(note["kind"] == "unused-suppression" and note["code"] == "warn" for note in suppression))
 
+    def test_warning_checks_use_the_suppressed_alternative_reach_set(self):
+        # Tag tests do not make an atom dead (docs/design.md).
+        cases = [
+            ('"a"', '#·outside', True, ''),
+            ('"a"', '#(·outside ∩ ·_)', True, ''),
+            ('"a"', '#(·outside ∖ ·_)', True, ''),
+            ('"a"', '#(·outside ∪ ·_)', False, ''),
+            ('"a"', '#·r', False, ''),
+            ('child', '#·child', False, ''),
+            ('"a"', '#·r⁅·outside⁆', False, ''),
+            ('"a"', '#·outside', True, '%extend-rule r outside\n'),
+            ('"a"', '#·_<_Elided>', False, ''),
+        ]
+        for body, pattern, unused, extra in cases:
+            for code in ('never', '_'):
+                with self.subTest(body=body, pattern=pattern, code=code, extra=extra):
+                    grammar = (f'%rule text r | outside\n%rule r {body}\n%suppress-warnings {code}\n'
+                               f'{extra}%rule outside "b"\n%rule child "a"\n%check never {pattern}\n%warning "never"')
+                    pipeline, error = load_case_pipeline({'grammar': grammar})
+                    self.assertIsNone(error)
+                    notes = pipeline.ranking_reports()[0].get('diagnosticNotes', [])
+                    self.assertEqual([(n['rule'], n['code']) for n in notes if n['kind'] == 'unused-suppression'],
+                                     [('r', code)] if unused else [])
+
+    def test_spliced_document_doms_put_checks_last(self):
+        from gencmu._pipeline import _Loader, _resources
+        sources = {
+            'pipeline.md': '```jbogenbau\n%stage main\n%include "one.md"\n%include "two.md"\n```',
+            'one.md': '```jbogenbau\n%ambiguity-resolution greedy\n%rule text "a"\n```',
+            'two.md': '```jbogenbau\n%check probe #·_\n%warning "probe"\n```',
+        }
+        documents = _Loader(sources.get, _resources()).splice('pipeline.md').stages[0].documents
+        self.assertEqual([(len(dom['rules']), len(dom['checks'])) for _, dom in documents], [(1, 0), (0, 1)])
+        for _, dom in documents:
+            self.assertEqual(list(dom), ['format', 'rules', 'directives', 'constants', 'classifiers', 'implications', 'checks'])
+
     def test_corpus_fields_keep_codes_and_source_positions(self):
         result = run_case(fixture("error-shape"))[1]
         got = outcome({}, result=result)

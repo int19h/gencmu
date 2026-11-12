@@ -22,10 +22,11 @@ impl Measure {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub(crate) struct DiagnosticIdentity {
     pub(crate) stage_order: usize,
     pub(crate) ordinal: usize,
+    pub(crate) check: Option<(String, usize)>,
 }
 
 #[derive(Debug)]
@@ -121,7 +122,7 @@ mod tests {
         // Engine §1: public coordinates do not change the private fixed charge.
         let mut diagnostic = Warning::new("before".into(), "fault".into(), 0..1, 2..6, "fault".into());
         diagnostic.record = Some(Arc::new(DiagnosticRecord {
-            identity: Arc::new(DiagnosticIdentity { stage_order: 1, ordinal: 2 }),
+            identity: Arc::new(DiagnosticIdentity { stage_order: 1, ordinal: 2, ..Default::default() }),
             measure: Measure([Nat::Small(4), Nat::ZERO, Nat::ONE]),
         }));
         let mut copied = diagnostic.clone();

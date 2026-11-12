@@ -1,0 +1,17 @@
+{
+  "description": "Issue #286: node and element local readings keep their symbol tests.",
+  "grammar": "%rule text $r:r=\"a\" [+T] \"b\"\n%rule r \"a\" | \"a\" \"b\"\n%check node\n #·r\n%conditions $.local-readings.ending-after($)\n%warning \"bad\"\n%check element\n #·_<_Elided>\n%conditions $.preceding-element.local-readings.ending-after($)\n%warning \"bad\"",
+  "input": "ab",
+  "options": {
+    "features": [
+      "node",
+      "element"
+    ]
+  },
+  "expect": {
+    "warnings": [],
+    "result": {
+      "ok": true
+    }
+  }
+}

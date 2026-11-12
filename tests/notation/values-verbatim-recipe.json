@@ -2,7 +2,7 @@
   "document": "```jbogenbau\n%rule r :- $.verbatim-text | A %emits\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 52,
       "rules": [
         {
           "name": "r",
@@ -43,7 +43,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     }
   },
   "description": "A verbatim recipe retains its capture receiver and extends only the image's uncovered source gaps (engine §9.3, §11.1)."

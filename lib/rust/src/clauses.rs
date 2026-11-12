@@ -92,6 +92,7 @@ pub(crate) fn simplify_cond(cond: &Cond, has: &dyn Fn(&str) -> bool) -> Simple {
         Cond::Compare(op, left, right, location) => {
             Simple::Cond(Cond::Compare(op.clone(), simplify_value(left, has), simplify_value(right, has), *location))
         }
+        Cond::Present(term) => Simple::Cond(Cond::Present(term.clone())),
         Cond::Forest(term) => Simple::Cond(Cond::Forest(simplify_value(term, has))),
         Cond::Initial(_) | Cond::Final(_) | Cond::Boundary(_, _, _, _) => Simple::Cond(cond.clone()),
     }
@@ -252,7 +253,7 @@ impl<'a> Part<'a> {
     pub(crate) fn children(self) -> Vec<Part<'a>> {
         match self {
             Part::Term(Term::Body(body)) => crate::query_forms::body_terms(body).into_iter().map(Part::Term).collect(),
-            Part::Cond(Cond::Forest(term)) => vec![Part::Term(term)],
+            Part::Cond(Cond::Present(term) | Cond::Forest(term)) => vec![Part::Term(term)],
             Part::Term(Term::Call(_, args)) | Part::Cond(Cond::SourceQuery(_, args, _)) => args
                 .iter()
                 .filter_map(|arg| match arg {
@@ -318,7 +319,7 @@ fn walk_captures<'a>(start: Part<'a>, values: bool, presences: bool, out: &mut V
             },
             Part::Cond(cond) => match cond {
                 Cond::Truthy(term) => stack.push(Part::Term(term)),
-                Cond::Forest(term) => stack.push(Part::Term(term)),
+                Cond::Present(term) | Cond::Forest(term) => stack.push(Part::Term(term)),
                 Cond::SourceQuery(_, args, _) => stack.extend(args.iter().filter_map(|arg| match arg {
                     Arg::Term(term) => Some(Part::Term(term)),
                     _ => None,
@@ -459,7 +460,7 @@ impl<'a> Shaped<'a> {
                         Outcome::Empty => Outcome::False,
                         _ => used,
                     },
-                    Cond::Forest(_) => used,
+                    Cond::Present(_) | Cond::Forest(_) => used,
                     Cond::SourceQuery(..) => unreachable!("source queries expand before grammar checks"),
                     Cond::Captured(name) => {
                         if has(name) {

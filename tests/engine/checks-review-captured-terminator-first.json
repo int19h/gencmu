@@ -1,0 +1,14 @@
+{
+  "description": "A captured terminator in a check query reports at its binder.",
+  "grammar": "%rule text \"a\"\n%check c #·text\n%conditions $.parse(\"a\" [$x:+T])\n%warning \"m\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "message": "a check cannot declare a capture",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 26
+    }
+  }
+}

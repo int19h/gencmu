@@ -10,7 +10,7 @@ func flowNode(a, b int, erased bool, kids ...*occurrence) *occurrence {
 }
 func flowRead(index int) *occurrence { return &occurrence{d: readNode(int32(index), 0)} }
 func flowDiagnostic(code string, stage, ordinal int) Warning {
-	return recordDiagnostic(Warning{Stage: "main", Code: code, Rule: code, Span: [2]int{0, 1}, Source: [2]int{0, 1}, Message: code}, fixedMeasure(1, 0, 1), &diagnosticIdentity{stage, ordinal})
+	return recordDiagnostic(Warning{Stage: "main", Code: code, Rule: code, Span: [2]int{0, 1}, Source: [2]int{0, 1}, Message: code}, fixedMeasure(1, 0, 1), &diagnosticIdentity{stageOrder: stage, ordinal: ordinal})
 }
 func flowCodes(list []Warning) []string {
 	result := make([]string, len(list))

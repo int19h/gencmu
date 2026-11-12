@@ -1,0 +1,14 @@
+{
+  "description": "An undeclared parameter in a check reports at the parameter.",
+  "grammar": "%rule text \"a\"\n%check c #·text\n%conditions $.value = @P\n%warning \"m\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 23
+    },
+    "message": "an undeclared or malformed parameter"
+  }
+}

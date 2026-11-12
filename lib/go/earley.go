@@ -233,6 +233,8 @@ const (
 )
 
 type recognizer struct {
+	localCompletions                      map[[2]int32][]*symNode
+	localEligibility                      map[*item]uint8
 	predictionIndexes                     map[int]map[predictionName][]rankedPrediction
 	skippedCache                          map[int]map[*production]bool
 	measures                              *diagnosticMeasures
@@ -1371,7 +1373,7 @@ func (r *recognizer) begun(start int32, errorFree bool) bool {
 }
 
 // begunTags also unions the tags of the eligible prefix witnesses (§4).
-func (r *recognizer) begunTags(start int32, errorFree bool) (bool, *tagset) {
+func (r *recognizer) begunTags(start int32, errorFree bool, query ...*nestedQuery) (bool, *tagset) {
 	var items []*item
 	tagsOf := map[*item]*tagset{}
 	for _, s := range r.sets {
@@ -1388,9 +1390,13 @@ func (r *recognizer) begunTags(start int32, errorFree bool) (bool, *tagset) {
 	eligible := r.eligibleItems(items, errorFree)
 	var sets []*tagset
 	for _, it := range eligible {
+		if len(query) > 0 && query[0].key.witnessEnds {
+			q := query[0]
+			q.ends = append(q.ends, witnessEnd{r.base + int(it.set) - q.at.a, tagsOf[it]})
+		}
 		sets = append(sets, tagsOf[it])
 	}
-	return len(eligible) > 0, r.run.ps.in.unionAll(sets)
+	return len(sets) > 0, r.run.ps.in.unionAll(sets)
 }
 
 func sortSyms(s []*symNode) {

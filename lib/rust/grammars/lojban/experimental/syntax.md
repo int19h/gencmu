@@ -1215,6 +1215,8 @@ The experimental pipeline enables `cbm` and `soi-clause` because camxes-exp cann
 
 The layer writes `[+X] 🆓` where CLL writes `/X#/`. This permits free modifiers after omitted terminators and explains many restated rules. The number and lerfu conditions keep each run together despite that extra slot. camxes-exp reads its digit runs and its letter runs as far as possible, but it splits mixed runs. This layer and camxes-exp give the sentence reading to `to mi klama` and `lu mi klama`.
 
+The layer keeps the CLL `early-elision` check. The rules `omitted-vau` and `omitted-kehe` each contain only their elidable optional. Their omissions have no preceding element, so the check gives no warning there. Other omissions use this layer's own element structure and local readings.
+
 The layer omits `%elision-only`, one interpretation of CLL's rule for omitted terminators.[^cll-s21-1] A caller can turn the check on with `--elision-only on`. The check fails when filtering excludes the restored chosen derivation, or when that derivation is not the only best admitted reading of the written-back text.
 
 A condition can treat a written-back terminator differently from a written one. `$BARE-NA` and `$BARE-TAG` test `KU=""`, while `$WRITTEN-VAU` tests `VAU≠""`. These conditions see a written-back terminator as omitted, but the reconstruction reads it as a token. So such a condition can admit a second reading of the written-back text.

@@ -1,0 +1,23 @@
+{
+  "description": "Engine §10: ending-after filters whole, prefix, suffix and part forests and their tags.",
+  "grammar": "%rule text A B\n%conditions $.parse(A B).ending-after($.first-token), $.parse(A …).ending-after($.preceding-tokens), $.parse(… B).ending-after($.first-token), $.parse(… B …).ending-after($.first-token), Long ⊆ $.parse(r …).ending-after($.first-token).tags, Short ⊈ $.parse(r …).ending-after($.first-token).tags\n%rule r\n | A :: Short\n | A B :: Long",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

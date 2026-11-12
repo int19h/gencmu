@@ -81,6 +81,8 @@ func (dc *domDecoder) decodeLayeredPattern(raw any, depth int) (*domPattern, err
 			scheduleItems(values, p.Attached, d+1)
 		}
 		switch {
+		case n["never"] == true:
+			p.Kind, p.At = "never", templateAt(n)
 		case n["param"] != nil:
 			p.Kind, p.Name, p.At = "param", templateText(n["param"]), templateAt(n)
 		case n["call"] != nil:
@@ -221,9 +223,9 @@ func writeLayeredPattern(w *jsonWriter, root *domPattern) {
 		case "name", "terminal", "constant", "param":
 			w.str(p.Name)
 			at = true
-		case "any", "wildcard":
+		case "never", "any", "wildcard":
 			w.raw("true")
-			at = p.Kind == "wildcard"
+			at = p.Kind == "wildcard" || p.Kind == "never" && p.At != [2]int{}
 		case "literal":
 			p.Value.writeJSON(w)
 			at = true

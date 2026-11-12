@@ -4,8 +4,9 @@ import unittest
 from unittest.mock import patch
 
 import gencmu
+from .shared import calls, count_work
 from gencmu import _testing
-from gencmu._earley import CONTENT_KEY_LIMIT, StageContext
+from gencmu._earley import CONTENT_KEY_LIMIT, StageContext, Parser
 from gencmu._grammar import lower
 from gencmu._trampoline import run
 
@@ -32,12 +33,12 @@ class TokenReads:
 def tracked_keys(counts, budget):
     original = StageContext.query_key
 
-    def query_key(context, rule, start, end, error_free):
+    def query_key(context, rule, start, end, error_free, ending_after=None):
         counts["calls"] += 1
         tokens = context.tokens
         context.tokens = TokenReads(tokens, counts, end - start > CONTENT_KEY_LIMIT, budget)
         try:
-            return original(context, rule, start, end, error_free)
+            return original(context, rule, start, end, error_free, ending_after)
         finally:
             context.tokens = tokens
 
@@ -54,6 +55,17 @@ def tokens(size):
 
 
 class QueryKeyWork(unittest.TestCase):
+    def test_optional_helper_uses_the_stage_chart(self):
+        for body, recognitions in (("[r]", 1), ("[$x:r]", 2)):
+            with self.subTest(body=body):
+                loaded = pipeline(f'%rule text {body} [+T]\n%rule r "a"\n%check c #·_<_Elided>\n'
+                                  '%conditions $.preceding-element.local-readings\n%warning "local"')
+                with count_work(calls(Parser.walk)) as work:
+                    result = loaded.parse("a", features={"c"})
+                self.assertTrue(result.ok, result.error)
+                self.assertEqual([warning.code for warning in result.warnings], ["c"])
+                self.assertEqual(work.count, recognitions)
+
     def assert_linear_keys(self, condition, extra=""):
         loaded = pipeline("%rule text {word}\n%rule word A\n%conditions " + condition + extra)
         tail = sum(range(CONTENT_KEY_LIMIT + 1))

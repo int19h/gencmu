@@ -1,0 +1,46 @@
+{
+  "description": "Issue #286: checks resolve template families and query calls in the stitched stage.",
+  "grammar": "%rule pair(@L, @R) @L @R\n%rule text pair(\"a\", \"b\")\n%check family #·pair %warning \"family\"\n%check query #·text %conditions $.parse(pair(\"a\", \"b\")) %warning \"query\"",
+  "input": "ab",
+  "options": {
+    "features": [
+      "family",
+      "query"
+    ]
+  },
+  "expect": {
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "query",
+        "rule": "query",
+        "span": [
+          0,
+          2
+        ],
+        "source": [
+          0,
+          2
+        ],
+        "message": "query"
+      },
+      {
+        "stage": "main",
+        "code": "family",
+        "rule": "family",
+        "span": [
+          0,
+          2
+        ],
+        "source": [
+          0,
+          2
+        ],
+        "message": "family"
+      }
+    ],
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -22,7 +22,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "ref": "A"
@@ -55,7 +56,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "wildcard": true
@@ -88,7 +90,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "empty": true
@@ -121,7 +124,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "literal": {
@@ -156,7 +160,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "literal": {
@@ -191,7 +196,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "literal": {
@@ -226,7 +232,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "range": [
@@ -266,7 +273,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "range": [
@@ -306,7 +314,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "ref": "A"
@@ -344,7 +353,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "ref": "A"
@@ -382,7 +392,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "ref": "A"
@@ -420,7 +431,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "ref": "A"
@@ -458,7 +470,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "ref": "A"
@@ -491,7 +504,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "ref": "A"
@@ -524,7 +538,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "ref": "A"
@@ -560,7 +575,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "capture": "x",
@@ -596,7 +612,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "test": "=",
@@ -635,7 +652,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "test": "tags",
@@ -679,7 +697,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "test": "=",
@@ -729,7 +748,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "test": "=",
@@ -774,7 +794,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "tag": "Tag"
@@ -818,7 +839,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "tag": "Tag"
@@ -862,7 +884,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "tag": "Tag"
@@ -906,7 +929,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "tag": "Tag"
@@ -948,7 +972,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "if": {
@@ -998,7 +1023,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "op": "=",
@@ -1044,7 +1070,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "op": "=",
@@ -1090,7 +1117,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "op": "=",
@@ -1143,7 +1171,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "op": "=",
@@ -1189,7 +1218,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "op": "=",
@@ -1239,7 +1269,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "op": "=",
@@ -1293,7 +1324,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "op": "=",
@@ -1354,7 +1386,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "op": "=",
@@ -1407,7 +1440,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "emptySet": true
@@ -1451,7 +1485,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "tag": "Tag"
@@ -1496,7 +1531,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "method": "starts-input",
@@ -1540,7 +1576,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "method": "starts-input",
@@ -1584,7 +1621,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "method": "starts-input",
@@ -1637,7 +1675,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "method": "starts-input",
@@ -1690,7 +1729,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "method": "starts-input",
@@ -1741,7 +1781,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "op": "=",
@@ -1787,7 +1828,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "method": "parse",
@@ -1837,7 +1879,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "method": "followed-by",
@@ -1885,7 +1928,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "op": "=",
@@ -1925,7 +1969,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "name": "text",
@@ -1967,7 +2012,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "terminal": "A",
@@ -2009,7 +2055,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "constant": "C",
@@ -2051,7 +2098,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "wildcard": true,
@@ -2093,7 +2141,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "literal": {
@@ -2137,7 +2186,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "literal": {
@@ -2181,7 +2231,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "range": [
@@ -2230,7 +2281,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "range": [
@@ -2279,7 +2331,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "test": "=",
@@ -2327,7 +2380,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "test": "tags",
@@ -2380,7 +2434,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "test": "=",
@@ -2439,7 +2494,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "test": "=",
@@ -2487,7 +2543,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "path": "descendant",
@@ -2532,7 +2589,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "path": "first",
@@ -2577,7 +2635,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "path": "last",
@@ -2622,7 +2681,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "any": true,
@@ -2671,7 +2731,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "any": true,
@@ -2714,7 +2775,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "any": true,
@@ -2767,7 +2829,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "any": true,
@@ -2825,7 +2888,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "any": true,
@@ -2878,7 +2942,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "any": true,
@@ -2942,7 +3007,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "union": [
@@ -2995,7 +3061,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "intersection": [
@@ -3048,7 +3115,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "terminal": "A",
@@ -3100,7 +3168,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "tag": "Tag"
@@ -3132,7 +3201,8 @@
         }
       ],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "tag": "Tag"
@@ -3165,7 +3235,8 @@
             1
           ]
         }
-      ]
+      ],
+      "checks": []
     },
     "leaf": {
       "tag": "Tag"
@@ -3227,7 +3298,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "tag": "Tag"
@@ -3273,7 +3345,8 @@
       ],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "capture": ""
@@ -3288,7 +3361,7 @@
   {
     "description": "Template expression parameter",
     "dom": {
-      "format": 49,
+      "format": 52,
       "rules": [
         {
           "name": "use",
@@ -3329,7 +3402,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "param": "X",
@@ -3346,7 +3420,7 @@
   {
     "description": "Call with transparent body argument",
     "dom": {
-      "format": 49,
+      "format": 52,
       "rules": [
         {
           "name": "use",
@@ -3391,7 +3465,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "ref": "A"
@@ -3413,7 +3488,7 @@
   {
     "description": "Call with transparent target choice",
     "dom": {
-      "format": 49,
+      "format": 52,
       "rules": [
         {
           "name": "use",
@@ -3458,7 +3533,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "rule": "a"
@@ -3485,7 +3561,7 @@
   {
     "description": "Call with transparent requirements argument",
     "dom": {
-      "format": 49,
+      "format": 52,
       "rules": [
         {
           "name": "use",
@@ -3530,7 +3606,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "call": "use",
@@ -3559,7 +3636,7 @@
   {
     "description": "Call with tested symbol argument",
     "dom": {
-      "format": 49,
+      "format": 52,
       "rules": [
         {
           "name": "use",
@@ -3604,7 +3681,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "call": "use",
@@ -3637,7 +3715,7 @@
   {
     "description": "Template literal keeps the string depth",
     "dom": {
-      "format": 49,
+      "format": 52,
       "rules": [
         {
           "name": "use",
@@ -3678,7 +3756,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "literal": {
@@ -3697,7 +3776,7 @@
   {
     "description": "Template range keeps the string depth",
     "dom": {
-      "format": 49,
+      "format": 52,
       "rules": [
         {
           "name": "use",
@@ -3738,7 +3817,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "leaf": {
       "range": [
@@ -3796,7 +3876,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "wrapper": {
       "optional": "$inner"
@@ -3850,7 +3931,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "wrapper": {
       "optional": "$inner"
@@ -3907,7 +3989,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     },
     "wrapper": {
       "optional": "$inner"

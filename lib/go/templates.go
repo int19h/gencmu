@@ -167,7 +167,7 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 			rule templateObject
 		}
 		items := []item{}
-		for _, kind := range []string{"rules", "constants", "directives", "classifiers", "implications"} {
+		for _, kind := range []string{"rules", "directives", "constants", "classifiers", "implications", "checks"} {
 			for _, v := range templateList(raw[kind]) {
 				items = append(items, item{kind, templateObj(v)})
 			}
@@ -175,7 +175,7 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 		sort.SliceStable(items, func(i, j int) bool { return before(templateAt(items[i].rule), templateAt(items[j].rule)) })
 		for _, it := range items {
 			r := it.rule
-			e := &templateEvent{path: d.path, rule: r, index: serial, inspectionRun: docIndex, kind: map[string]int{"rules": 0, "directives": 1, "constants": 2, "classifiers": 3, "implications": 4}[it.kind]}
+			e := &templateEvent{path: d.path, rule: r, index: serial, inspectionRun: docIndex, kind: map[string]int{"rules": 0, "directives": 1, "constants": 2, "classifiers": 3, "implications": 4, "checks": 5}[it.kind]}
 			serial++
 			sourceEvents = append(sourceEvents, e)
 			if it.kind != "rules" {
@@ -546,7 +546,7 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 	for index, d := range docs {
 		dom := templateCopy(rawDocs[index])
 		dom["rules"] = []any{}
-		for _, kind := range []string{"constants", "directives", "classifiers", "implications"} {
+		for _, kind := range []string{"constants", "directives", "classifiers", "implications", "checks"} {
 			items := []any{}
 			for _, v := range templateList(dom[kind]) {
 				e := &templateEvent{path: d.path, rule: templateObj(v)}
@@ -830,6 +830,9 @@ func (x *templateExpander) convert(arg templateObject, position string, e *templ
 			}
 		}
 	case "pattern":
+		if arg["emptySet"] == true {
+			return templateObject{"never": true}
+		}
 		if arg["rule"] != nil {
 			return templateObject{"name": arg["rule"], "at": use["at"]}
 		}
@@ -893,6 +896,9 @@ func (x *templateExpander) substitute(root any, env map[string]templateObject, e
 			converted := x.convert(env[templateText(n["param"])], position, e, n)
 			if position != "pattern" || n["exact"] == nil && n["children"] == nil {
 				return converted
+			}
+			if converted["never"] == true {
+				x.fail(e, n, "an empty pattern cannot carry node decorations")
 			}
 			for _, key := range []string{"union", "intersection", "difference", "path"} {
 				if converted[key] != nil {
@@ -987,6 +993,9 @@ func (x *templateExpander) substitute(root any, env map[string]templateObject, e
 				}
 			}
 			r[k] = x.substitute(v, env, e, templateChildPosition(k, position))
+		}
+		if position == "pattern" && r["test"] != nil && templateObj(r["expr"])["never"] == true {
+			x.fail(e, templateObj(n["expr"]), "an empty pattern cannot carry node decorations")
 		}
 		if position == "pattern" && r["test"] != nil && templateObj(r["expr"])["exact"] != nil {
 			if r["exact"] != nil {

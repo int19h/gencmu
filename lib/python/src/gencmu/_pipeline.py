@@ -322,13 +322,14 @@ class NotationReader:
         # classifiers, in the order of the document.
         items = (
             [("rules", rule) for rule in dom["rules"]]
+            + [("checks", check) for check in dom["checks"]]
             + [("directives", directive) for directive in dom["directives"]]
             + [("classifiers", classifier) for classifier in dom["classifiers"]]
             + [("constants", constant) for constant in dom["constants"]]
             + [("implications", implication) for implication in dom["implications"]]
         )
         items.sort(key=lambda item: (item[1]["at"][0], item[1]["at"][1]))
-        empty = {"rules": [], "directives": [], "constants": [], "classifiers": [], "implications": []}
+        empty = {"rules": [], "checks": [], "directives": [], "constants": [], "classifiers": [], "implications": []}
         alone = [(item["at"], dom_problem({**dom, **empty, key: [item]}, self.unicode)) for key, item in items]
         if problem == TOO_DEEP:
             # The bound on nesting, reported at the first item too deep, or
@@ -701,6 +702,8 @@ def _pipeline_features(grammars: list[Grammar], declared: frozenset[str]) -> tup
                 for kind in ("error", "warning"):
                     if getattr(alternative, kind) is not None:
                         roles.append((rule.name, kind, alternative.document, alternative.at))
+        roles.extend((check["name"], "error" if "error" in check else "warning", document, check["at"])
+                     for document, check in grammar.checks)
         for document, classifier in grammar.classifier_items:
             for entry in classifier["entries"]:
                 roles.extend((gate["feature"], "gate", document, entry["at"]) for gate in entry["gates"])
@@ -732,6 +735,9 @@ def _pipeline_features(grammars: list[Grammar], declared: frozenset[str]) -> tup
                     tested.setdefault(gate["feature"], grammar.stage)
                 if alt.warning is not None:
                     tested.setdefault(rule.name, grammar.stage)
+        for _, check in grammar.checks:
+            if "warning" in check:
+                tested.setdefault(check["name"], grammar.stage)
         for name in grammar.classifier_gates:
             tested.setdefault(name, grammar.stage)
     return tuple(Feature(name, kinds.get(name, "gate"), name in defaults) for name in sorted((kinds.keys() | declared | local) - errors))

@@ -223,6 +223,9 @@ func firstTooDeep(dom *domDoc, uni *unicodeTable, found *domProblem) *domProblem
 	for _, m := range dom.Implications {
 		items = append(items, item{m.At, &domDoc{Implications: []*domImplication{m}}})
 	}
+	for _, check := range dom.Checks {
+		items = append(items, item{check.At, &domDoc{Checks: []*domCheck{check}}})
+	}
 	sort.SliceStable(items, func(i, j int) bool {
 		a, b := items[i].at, items[j].at
 		return a[0] < b[0] || (a[0] == b[0] && a[1] < b[1])
@@ -244,6 +247,7 @@ type bracesEntry struct {
 }
 
 type domBuilder struct {
+	checkContext    bool
 	allowedMarked   map[*Node]bool
 	parameters      map[string]bool
 	partsCache      map[*Node][]*Node
@@ -299,7 +303,7 @@ var domRules = map[string]bool{
 	"splice": true, "error-clause": true, "warning-clause": true, "suppress-warnings-clause": true, "suppression-code": true, "call": true, "parameter": true, "call-argument": true, "requirement-argument": true, "target-argument": true, "body-argument": true, "symbol-argument": true, "parse-selector": true, "parse-argument": true,
 
 	"rule-name": true, "body": true, "primary": true, "emit-target": true, "condition-primary": true, "method-argument": true, "term-atom": true,
-	"directive": true, "ranking-directive": true, "ranking-step": true, "rule": true, "rule-keyword": true, "alternative": true, "choice": true, "ranked-body": true, "ranked-choice": true,
+	"check": true, "directive": true, "ranking-directive": true, "ranking-step": true, "rule": true, "rule-keyword": true, "alternative": true, "choice": true, "ranked-body": true, "ranked-choice": true,
 	"some-of": true, "sequence": true, "repetition": true, "rule-reference": true,
 	"string": true, "tag": true, "rule-or-classifier-name": true,
 	"tested-primary": true, "value-comparator": true, "test-operand": true, "capture": true, "captured-terminator": true, "group": true, "optional": true,
@@ -525,12 +529,14 @@ func (b *domBuilder) document(root *Node) *domDoc {
 			continue
 		}
 		switch c.Rule {
-		case "rule", "constant-definition", "classifier", "implication-declaration", "directive", "ranking-directive":
+		case "check", "rule", "constant-definition", "classifier", "implication-declaration", "directive", "ranking-directive":
 		default:
 			b.fail(c, "the notation gives a %s where an item stands", c.Rule)
 		}
 		item := &domDoc{}
 		switch c.Rule {
+		case "check":
+			item.Checks = append(item.Checks, b.check(c))
 		case "rule":
 			item.Rules = append(item.Rules, b.rule(c))
 		case "constant-definition":
@@ -626,6 +632,7 @@ func (b *domBuilder) document(root *Node) *domDoc {
 		d.Constants = append(d.Constants, item.Constants...)
 		d.Classifiers = append(d.Classifiers, item.Classifiers...)
 		d.Implications = append(d.Implications, item.Implications...)
+		d.Checks = append(d.Checks, item.Checks...)
 	}
 	return d
 }
@@ -1037,7 +1044,7 @@ func (b *domBuilder) tagOf(n *Node) string {
 }
 
 func isSpanTerm(t *domTerm) bool {
-	return t.Kind == tmCapture || t.Kind == tmParam || t.Kind == tmSourceCall || (t.Kind == tmCall && isSpanFunction(t.Str))
+	return checkNodeTerm(t) || checkElementTerm(t) || t.Kind == tmParam || t.Kind == tmSourceCall || (t.Kind == tmCall && isSpanFunction(t.Str))
 }
 
 // isStringTerm says whether a term, not a rule, is a string (§10). A
@@ -1047,7 +1054,7 @@ func (b *domBuilder) isStringTerm(t *domTerm) bool {
 		return false
 	}
 	ty, problem := b.typeOf(t)
-	return problem == "" && (ty == tyString || ty == tyAny || ty == tySpan)
+	return problem == "" && (ty == tyString || ty == tyAny || ty == tySpan || ty == tyNode)
 }
 
 // typeOf is a term's type, or why its parts do not agree, through the

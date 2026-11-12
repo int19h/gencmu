@@ -82,3 +82,20 @@ def body_target(lowered, body):
     if found is None:
         found = lowered.query_identities[id(body)] = (body, query_identity(body))
     return lowered.grammar.query_targets[found[1]]
+
+
+def without_binders(root):
+    """Keep a reading expression without its capture binders or lowered tests."""
+    from ._template_nodes import map_nodes
+    return map_nodes(root, lambda node: node["expr"] if isinstance(node, dict) and "capture" in node
+                     else {key: value for key, value in node.items() if key != "resolved"} if isinstance(node, dict) else node)
+
+
+def local_target(lowered, expression):
+    """Memoize local targets by their stable written expression."""
+    if set(expression) == {"ref"}:
+        return lowered.grammar.query_targets[query_identity(expression)]
+    found = lowered.local_targets.get(id(expression))
+    if found is None:
+        found = lowered.local_targets[id(expression)] = (expression, lowered.grammar.query_targets[query_identity(without_binders(expression))])
+    return found[1]

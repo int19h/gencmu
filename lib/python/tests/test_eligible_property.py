@@ -145,6 +145,7 @@ def random_dom(rng: random.Random) -> dict[str, Any]:
         ],
         "directives": [{"name": "ambiguity-resolution", "steps": [{"step": "greedy"}], "at": [1, 1]}],
         "constants": [],
+        "checks": [],
     }
 
 

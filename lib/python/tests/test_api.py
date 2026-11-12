@@ -288,6 +288,16 @@ class Options(unittest.TestCase):
                 self.assertNotIn('vocabularyWarnings', report)
                 self.assertEqual('ranking step 1: impossible' in pipeline.format_ranking_reports(), impossible)
 
+    def test_empty_key_step_is_impossible(self):
+        source = '```jbogenbau\n%stage main\n%const $P #·text\n%redefine-const $P ∅\n%const $Q #·text ∩ $P\n%ambiguity-resolution leftmost-longest $P, fewest $Q, greedy\n%rule text "a"\n```'
+        pipeline = gencmu.load_pipeline_sources({'p.md': source}, 'p.md')
+        step = pipeline.ranking_reports()[0]['keySteps'][0]
+        self.assertEqual(step['status'], 'impossible')
+        self.assertEqual(step['pattern'], '#∅')
+        nested=pipeline.ranking_reports()[0]['keySteps'][1]
+        self.assertEqual(nested['status'], 'impossible')
+        self.assertEqual(nested['pattern'], '#(·text ∩ ∅)')
+
     def test_pipeline_exposes_only_documented_members(self) -> None:
         self.assertEqual({name for name in dir(self.pipeline) if not name.startswith("_")}, {"features", "parse", "parse_tokens", "ranking_reports", "format_ranking_reports"})
 
@@ -751,7 +761,7 @@ class Robustness(unittest.TestCase):
             "documents": {
                 "grammars/test/g.md": {
                     "hash": fnv1a64(sources["grammars/test/g.md"]),
-                    "dom": {"format": DOM_FORMAT, "rules": [{}], "directives": [], "constants": [], "classifiers": [], "implications": []},
+                    "dom": {"format": DOM_FORMAT, "rules": [{}], "directives": [], "constants": [], "classifiers": [], "implications": [], "checks": []},
                 }
             },
         }
@@ -845,7 +855,7 @@ class Robustness(unittest.TestCase):
         depth = 20_000
         unicode_hash = fnv1a64(bundled_text("data/unicode/unicode.txt") or "")
         last = f"grammars/test/d{depth}.md"
-        include = {"format": DOM_FORMAT, "rules": [], "directives": [], "constants": [], "classifiers": [], "implications": []}
+        include = {"format": DOM_FORMAT, "rules": [], "directives": [], "constants": [], "classifiers": [], "implications": [], "checks": []}
 
         def sources(end: str | None) -> dict[str, str]:
             texts = {f"grammars/test/d{index}.md": f'```jbogenbau\n%include "d{index + 1}.md"\n```\n' for index in range(depth)}

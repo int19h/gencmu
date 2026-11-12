@@ -1,0 +1,8 @@
+{
+  "description": "A check message rejects tags and restoration.",
+  "grammar": "%rule text \"a\"\n%check c #·text\n%warning \"x\" ++ $.tags ++ $.without-elision.value",
+  "input": "a",
+  "expect": {
+    "error": "grammar"
+  }
+}

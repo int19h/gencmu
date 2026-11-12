@@ -12,6 +12,7 @@ import (
 // docItem is an item of a document: a rule, a directive, a constant's
 // definition, a classifier or an implication.
 type docItem struct {
+	check       *domCheck
 	rule        *domRule
 	dir         *domDirective
 	constant    *domConst
@@ -21,6 +22,8 @@ type docItem struct {
 
 func (it docItem) at() [2]int {
 	switch {
+	case it.check != nil:
+		return it.check.At
 	case it.rule != nil:
 		return it.rule.At
 	case it.constant != nil:
@@ -52,6 +55,9 @@ func itemsInOrder(dom *domDoc) []docItem {
 	}
 	for _, m := range dom.Implications {
 		items = append(items, docItem{implication: m})
+	}
+	for _, check := range dom.Checks {
+		items = append(items, docItem{check: check})
 	}
 	sort.SliceStable(items, func(i, j int) bool {
 		a, b := items[i].at(), items[j].at()
@@ -220,6 +226,9 @@ func splicePipelineWithNames(pipelinePath string, domOf func(string, []string) (
 			default:
 				s := selected
 				if s == nil {
+					if item.check != nil {
+						return grammarError(docPath, at, "the check %s stands before the first %%stage", item.check.Name)
+					}
 					if item.rule != nil {
 						return grammarError(docPath, at, "the rule %s stands before the first %%stage", item.rule.Name)
 					}
@@ -240,6 +249,8 @@ func splicePipelineWithNames(pipelinePath string, domOf func(string, []string) (
 				}
 				run.unresolved = run.unresolved || f.unresolved
 				switch {
+				case item.check != nil:
+					run.Checks = append(run.Checks, item.check)
 				case item.rule != nil:
 					run.Rules = append(run.Rules, item.rule)
 				case item.constant != nil:

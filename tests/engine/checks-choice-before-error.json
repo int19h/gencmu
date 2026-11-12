@@ -1,0 +1,24 @@
+{
+  "description": "Issue #286: a check error reports on the already chosen reading.",
+  "grammar": "%ambiguity-resolution fewest #·a, greedy\n%rule text a | b\n%rule a \"a\"\n%rule b \"a\"\n%check chosen\n #·b\n%error \"chosen\"",
+  "input": "a",
+  "expect": {
+    "error": "reported",
+    "result": {
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "b"
+          }
+        ]
+      },
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ]
+    }
+  }
+}

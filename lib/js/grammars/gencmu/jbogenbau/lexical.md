@@ -386,6 +386,7 @@ The `keywords` classifier assigns each known keyword its tag. The fallback emits
 
 ```jbogenbau
 %classifier keywords
+  "check" ∈ KW-CHECK
   "rule" ∈ KW-RULE
   "redefine-rule" ∈ KW-REDEFINE-RULE
   "extend-rule" ∈ KW-EXTEND-RULE

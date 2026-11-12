@@ -45,7 +45,7 @@ const (
 	nextNone            = iota // no elidable optional comes next
 	nextAlone                  // one comes next, and it has no constituent
 	nextConstituent            // one comes next, after the node of its constituent Y
-	nextLogicalOptional        // the preceding optional has several physical routes
+	nextElementOptional        // the preceding optional has several physical routes
 )
 
 // eligibility holds the states of the items that some queried items rest on.
@@ -94,10 +94,10 @@ func (e *eligibility) next(it *item) int {
 	if d >= len(rhs) || rhs[d].term || !e.helpers[rhs[d].id] {
 		return nextNone
 	}
-	if it.prod.precedingLogicalOptional(d) != nil {
-		return nextLogicalOptional
+	if it.prod.precedingElementOptional(d) != nil {
+		return nextElementOptional
 	}
-	if d == 0 || rhs[d-1].term || (d == 1 && rhs[0].id == it.prod.lhs && it.prod.precedingLogicalOptional(0) == nil) {
+	if d == 0 || rhs[d-1].term || (d == 1 && rhs[0].id == it.prod.lhs && it.prod.precedingElementOptional(0) == nil) {
 		return nextAlone
 	}
 	return nextConstituent
@@ -106,9 +106,30 @@ func (e *eligibility) next(it *item) int {
 // eligibleItems keeps of the completed items those that have an eligible
 // proof tree (§4).
 func (r *recognizer) eligibleItems(items []*item, errorFree bool) []*item {
+	states := r.eligibilityStates(items, errorFree)
+	var out []*item
+	for _, it := range items {
+		if states[it] != 0 && (!errorFree || states[it]&1 != 0) {
+			out = append(out, it)
+		}
+	}
+	return out
+}
+
+func eligibilityStep() {
+	if w := work.Load(); w != nil {
+		w.eligibilitySteps.add("eligibility steps")
+	}
+}
+
+func (r *recognizer) eligibilityStates(items []*item, errorFree bool) map[*item]uint8 {
 	helpers := r.g.elidable
 	if !r.g.anyElidable && !r.g.hasErrors && !errorFree || len(items) == 0 {
-		return items
+		states := map[*item]uint8{}
+		for _, item := range items {
+			states[item] = 1
+		}
+		return states
 	}
 	if w := work.Load(); w != nil {
 		w.eligibilityRuns.add("eligibilityRuns")
@@ -123,15 +144,18 @@ func (r *recognizer) eligibleItems(items []*item, errorFree bool) []*item {
 		kid  int
 	}
 	for _, root := range items {
+		eligibilityStep()
 		if _, ok := e.index[root]; ok {
 			continue
 		}
 		e.index[root] = -1
 		stack := []frame{{it: root}}
 		for len(stack) > 0 {
+			eligibilityStep()
 			f := &stack[len(stack)-1]
 			var below *item
 			for below == nil && f.next < 2*len(f.it.links) {
+				eligibilityStep()
 				l := f.it.links[f.next/2]
 				if f.next%2 == 0 {
 					below = r.before(f.it, l)
@@ -165,7 +189,11 @@ func (r *recognizer) eligibleItems(items []*item, errorFree bool) []*item {
 	// With no omission, every item of a chart has a finite proof tree, made
 	// from predicted items in the order in which the recognizer made it.
 	if !omits && !r.g.hasErrors && !errorFree {
-		return items
+		states := map[*item]uint8{}
+		for _, item := range items {
+			states[item] = 1
+		}
+		return states
 	}
 	// The prefixes that the chart advances over a written optional, from
 	// the whole chart, and for each item before a constituent Y, the
@@ -174,7 +202,9 @@ func (r *recognizer) eligibleItems(items []*item, errorFree bool) []*item {
 	reads := map[*item]bool{}
 	for _, s := range r.sets {
 		for _, it := range s.items {
+			eligibilityStep()
 			for _, l := range it.links {
+				eligibilityStep()
 				if e.written(l) {
 					reads[r.before(it, l)] = true
 				}
@@ -184,6 +214,7 @@ func (r *recognizer) eligibleItems(items []*item, errorFree bool) []*item {
 	further := map[*item]int32{}
 	for it := range reads {
 		for _, l := range it.links {
+			eligibilityStep()
 			if l.sym == nil {
 				continue
 			}
@@ -193,7 +224,7 @@ func (r *recognizer) eligibleItems(items []*item, errorFree bool) []*item {
 			}
 		}
 	}
-	logical := newLogicalPriority(r, reads)
+	element := newElementPriority(r, reads)
 	n := len(e.order)
 	next := make([]int, n)
 	for i, it := range e.order {
@@ -213,20 +244,54 @@ func (r *recognizer) eligibleItems(items []*item, errorFree bool) []*item {
 		}
 		return len(r.run.toks[index].Errors) > 0
 	}
-	children := func(sym *symNode, states []uint8) uint8 {
-		var result uint8
-		for _, child := range sym.items {
-			result |= states[e.index[child]]
+	// Many links share one completed symbol. Update its two masks only
+	// when a child's state grows, rather than aggregating all children at
+	// every incoming link in every fixed-point sweep.
+	childMasks := map[*symNode][2]uint8{}
+	childUses := map[*item][]*symNode{}
+	for _, it := range e.order {
+		for _, edge := range it.links {
+			eligibilityStep()
+			if edge.sym == nil {
+				continue
+			}
+			if _, seen := childMasks[edge.sym]; seen {
+				continue
+			}
+			childMasks[edge.sym] = [2]uint8{}
+			for _, child := range edge.sym.items {
+				eligibilityStep()
+				childUses[child] = append(childUses[child], edge.sym)
+			}
 		}
-		return result
+	}
+	children := func(sym *symNode, channel int) uint8 {
+		eligibilityStep()
+		return childMasks[sym][channel]
+	}
+	// A saturated mask cannot gain a new proof state in later sweeps.
+	ceilings := [2]uint8{1, 1}
+	if r.g.hasErrors {
+		ceilings[0] = 3
+	}
+	for _, token := range r.run.toks {
+		eligibilityStep()
+		if len(token.Errors) != 0 {
+			ceilings = [2]uint8{3, 3}
+			break
+		}
 	}
 	for changed := true; changed; {
 		changed = false
 		for x, it := range e.order {
+			eligibilityStep()
 			for channel := 0; channel < 2; channel++ {
 				states, permissions := R, RP
 				if channel == 1 {
 					states, permissions = E, P
+				}
+				if states[x] == ceilings[channel] && (permissions[x] == ceilings[channel] || next[x] == nextNone) {
+					continue
 				}
 				stateOf := func(item *item) uint8 { return states[e.index[item]] }
 				beforeStates := func(item *item, edge link) uint8 {
@@ -244,7 +309,7 @@ func (r *recognizer) eligibleItems(items []*item, errorFree bool) []*item {
 						}
 						return before
 					}
-					return combineProofStates(before, children(edge.sym, states))
+					return combineProofStates(before, children(edge.sym, channel))
 				}
 				a, p := uint8(0), uint8(0)
 				if it.dot == 0 {
@@ -258,6 +323,7 @@ func (r *recognizer) eligibleItems(items []*item, errorFree bool) []*item {
 				}
 				if !it.restores {
 					for _, edge := range it.links {
+						eligibilityStep()
 						through := advance(it, edge)
 						if through == 0 {
 							continue
@@ -277,7 +343,7 @@ func (r *recognizer) eligibleItems(items []*item, errorFree bool) []*item {
 						}
 					}
 				}
-				if a != 0 && next[x] == nextLogicalOptional {
+				if a != 0 && next[x] == nextElementOptional {
 					predecessors := func(item *item, edge link, bit uint8) uint8 {
 						before := beforeStates(item, edge)
 						var allowed uint8
@@ -294,7 +360,7 @@ func (r *recognizer) eligibleItems(items []*item, errorFree bool) []*item {
 									allowed |= b
 								}
 							} else {
-								child := children(edge.sym, states)
+								child := children(edge.sym, channel)
 								for _, c := range []uint8{1, 2} {
 									if child&c != 0 && combineProofStates(b, c) == bit {
 										allowed |= b
@@ -305,7 +371,7 @@ func (r *recognizer) eligibleItems(items []*item, errorFree bool) []*item {
 						return allowed
 					}
 					for _, bit := range []uint8{1, 2} {
-						if a&bit != 0 && logical.permitsEligible(it, bit, stateOf, predecessors) {
+						if a&bit != 0 && element.permitsEligible(it, bit, stateOf, predecessors) {
 							p |= bit
 						}
 					}
@@ -333,6 +399,12 @@ func (r *recognizer) eligibleItems(items []*item, errorFree bool) []*item {
 				}
 				if states[x]|a != states[x] {
 					states[x] |= a
+					for _, symbol := range childUses[it] {
+						eligibilityStep()
+						mask := childMasks[symbol]
+						mask[channel] |= a
+						childMasks[symbol] = mask
+					}
 					changed = true
 				}
 				if permissions[x]|p != permissions[x] {
@@ -342,13 +414,11 @@ func (r *recognizer) eligibleItems(items []*item, errorFree bool) []*item {
 			}
 		}
 	}
-	var out []*item
-	for _, it := range items {
-		if E[e.index[it]] != 0 && (!errorFree || E[e.index[it]]&1 != 0) {
-			out = append(out, it)
-		}
+	states := map[*item]uint8{}
+	for _, item := range items {
+		states[item] = E[e.index[item]]
 	}
-	return out
+	return states
 }
 
 func combineProofStates(left, right uint8) uint8 {

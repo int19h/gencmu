@@ -1,0 +1,8 @@
+{
+  "description": "Issue #286: the loader rejects message capture.",
+  "grammar": "%rule text \"a\"\n%check bad #·_ %warning $x.value",
+  "input": "a",
+  "expect": {
+    "error": "grammar"
+  }
+}

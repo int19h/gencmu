@@ -161,45 +161,89 @@ func (run *stageRun) buildTree(rec *recognizer, d *dn) *Node {
 func (run *stageRun) evaluateDiagnostics(flow *diagnosticFlow, features map[string]bool) {
 	rec := flow.rec
 	strings := &stringEmitter{run: run, rec: rec, observing: true}
+	var checks *checkTree
+	for _, entry := range rec.g.stage.checks {
+		if entry.definition.Error != nil || features[entry.definition.Name] {
+			checks = newCheckTree(flow, features)
+			break
+		}
+	}
 	type visit struct {
 		node       *occurrence
 		suppressed map[string]bool
 	}
+	occurrences := map[string]int{}
 	pending := []visit{{node: flow.root, suppressed: map[string]bool{}}}
 	for len(pending) > 0 {
 		at := pending[len(pending)-1]
 		pending = pending[:len(pending)-1]
 		node, suppressed := at.node, at.suppressed
-		if node.d.kind != dClose {
-			continue
+		if node.d.kind == dClose {
+			p := node.d.prod
+			if len(p.suppressWarnings) > 0 {
+				copied := map[string]bool{}
+				for code := range suppressed {
+					copied[code] = true
+				}
+				for _, code := range p.suppressWarnings {
+					copied[code] = true
+				}
+				suppressed = copied
+			}
+			code, recipe := p.ruleName, p.error
+			if recipe == nil && features[code] && !suppressed[code] && !suppressed["_"] {
+				recipe = p.warning
+			}
+			if recipe != nil {
+				if hook := diagnosticMessage.Load(); hook != nil && hook.stages[rec.g.stage] {
+					hook.call(node, recipe)
+				}
+				a, b := rec.base+int(node.d.start), rec.base+int(node.d.end)
+				report := Warning{Stage: run.name, Code: code, Rule: code, Span: [2]int{a, b}, Source: run.spanSource(a, b), Message: strings.recipe(node, recipe)}
+				measure := diagnosticMeasure{}
+				if p.error != nil {
+					measure = rec.ownMeasure(node.d.start, node.d.end)
+				}
+				report = recordDiagnostic(report, measure, &diagnosticIdentity{stageOrder: run.stageOrder, ordinal: len(flow.evaluated)})
+				flow.add(node, report, p.error != nil)
+			}
 		}
-		p := node.d.prod
-		if len(p.suppressWarnings) > 0 {
-			copied := map[string]bool{}
-			for code := range suppressed {
-				copied[code] = true
+		if checks != nil {
+			if current := checks.bySource[node]; current != nil && current.candidate {
+				for _, entry := range rec.g.stage.checks {
+					check := entry.definition
+					error := check.Error != nil
+					if !error && (!features[check.Name] || suppressed[check.Name] || suppressed["_"]) {
+						continue
+					}
+					if !checks.machine.matches(current.span.structure, check.Pattern.Pattern) {
+						continue
+					}
+					holds := true
+					for _, condition := range check.Conditions {
+						if !checks.condition(current, condition) {
+							holds = false
+							break
+						}
+					}
+					if !holds {
+						continue
+					}
+					recipe := check.Warning
+					if error {
+						recipe = check.Error
+					}
+					a, b := current.span.a, current.span.b
+					report := Warning{Stage: run.name, Code: check.Name, Rule: check.Name, Span: [2]int{a, b}, Source: run.spanSource(a, b), Message: strings.recipe(node, recipe)}
+					measure := diagnosticMeasure{}
+					if error {
+						measure = rec.ownMeasure(int32(a-rec.base), int32(b-rec.base))
+					}
+					report = recordDiagnostic(report, measure, &diagnosticIdentity{stageOrder: run.stageOrder, ordinal: len(flow.evaluated), check: check.Name, occurrence: occurrences[check.Name]})
+					occurrences[check.Name]++
+					flow.add(node, report, error)
+				}
 			}
-			for _, code := range p.suppressWarnings {
-				copied[code] = true
-			}
-			suppressed = copied
-		}
-		code, recipe := p.ruleName, p.error
-		if recipe == nil && features[code] && !suppressed[code] && !suppressed["_"] {
-			recipe = p.warning
-		}
-		if recipe != nil {
-			if hook := diagnosticMessage.Load(); hook != nil && hook.stages[rec.g.stage] {
-				hook.call(node, recipe)
-			}
-			a, b := rec.base+int(node.d.start), rec.base+int(node.d.end)
-			report := Warning{Stage: run.name, Code: code, Rule: code, Span: [2]int{a, b}, Source: run.spanSource(a, b), Message: strings.recipe(node, recipe)}
-			measure := diagnosticMeasure{}
-			if p.error != nil {
-				measure = rec.ownMeasure(node.d.start, node.d.end)
-			}
-			report = recordDiagnostic(report, measure, &diagnosticIdentity{run.stageOrder, len(flow.evaluated)})
-			flow.add(node, report, p.error != nil)
 		}
 		for index := len(node.kids) - 1; index >= 0; index-- {
 			pending = append(pending, visit{node.kids[index], suppressed})

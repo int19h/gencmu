@@ -2,7 +2,7 @@
   "document": "```jbogenbau\n%rule r A<B>=\"X,Y\"\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 52,
       "rules": [
         {
           "name": "r",
@@ -42,7 +42,8 @@
       "directives": [],
       "constants": [],
       "classifiers": [],
-      "implications": []
+      "implications": [],
+      "checks": []
     }
   },
   "description": "A tag test can precede one exact value test (engine §9.2)."

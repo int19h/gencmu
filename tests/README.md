@@ -131,7 +131,9 @@ A pattern describes required result fields. `expect.result` is a pattern matched
 - An array matches when it has the same length and each element matches.
 - Anything else matches when it is equal.
 
-`expect.error` accepts `grammar`, `usage`, `rejected`, `reported`, `ambiguous`, or `feature-conflict`. `expect.message` requires `expect.error: "grammar"`. It pins an agreed error reason, without a resource path, location prefix, or stage suffix. It applies to loading and runtime grammar errors. The runtime comparison removes exactly the prefix built from the error's structured document, line, and column. It preserves the public result.
+`expect.error` accepts `grammar`, `usage`, `rejected`, `reported`, `ambiguous`, or `feature-conflict`. `expect.message` requires `expect.error: "grammar"`. It pins an agreed error reason, without the leading resource path, location prefix, or stage suffix. It applies to loading and runtime grammar errors. The runtime comparison removes exactly the prefix built from the error's structured document, line, and column. It preserves the public result.
+
+Paths in instance call-site context are relative to the case's document root.
 
 The runner constructs that exact prefix from the originating error's document, line, and column. It preserves colons inside document names.
 
@@ -473,9 +475,13 @@ The harness records both revisions, environment, selection manifest, raw timings
   "small": 10, "large": 40, "most": 5}, ...]
 ```
 
-Each item says that a bundled pipeline's work on a long text grows in proportion to its length. A condition that reparses each whole prefix makes work grow faster than text length. No other case exposes this cost. The library builds two texts from `text`. It replaces `{links}` with `small` copies of `link`, joined by spaces, and then with `large` copies.
+Each item says that a pipeline's work on a long text grows in proportion to its length. A condition that reparses each whole prefix makes work grow faster than text length. No other case exposes this cost. The library builds two texts from `text`. It replaces `{links}` with `small` copies of `link`, joined by spaces, and then with `large` copies.
 
 Both texts must parse. The library counts recognizer items for each text in the main parse and every nested parse. It excludes items made while loading the pipeline. A library with a shared memo (engine §4.3) counts with the memo off, so that answers from the small text never shorten the large one. The count for `large` copies must be at most `most` times the count for `small` copies.
+
+Each case supplies exactly one of `pipeline` and `grammar`. The latter loads an inline grammar through the existing source loader. Optional `walks:true` also bounds traversal through preceding elements. That count grows by at most the same `most` factor. Each library uses its existing work counter or monitored steps for this traversal.
+
+Optional `eligibilityMost` bounds eligibility steps by a separate factor. This count includes proof traversal, chart indexing and lookups for eligibility, in main and nested parses. It excludes recognition items and the preceding-element traversal. The large text costs at most `eligibilityMost` times the small text's eligibility steps. Without this field, the case sets no eligibility budget.
 
 ## Notation growth cases: `notation-growth.json`
 

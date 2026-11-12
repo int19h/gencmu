@@ -1,0 +1,31 @@
+{
+  "description": "A node walk on the right of ≅ can give a true result.",
+  "grammar": "%rule text a b a\n%rule a \"a\"\n%rule b \"b\"\n%check c #·b\n%conditions $.preceding-node ≅ $.following-node\n%warning \"comparison\"",
+  "input": "aba",
+  "options": {
+    "features": [
+      "c"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "c",
+        "rule": "c",
+        "span": [
+          1,
+          2
+        ],
+        "source": [
+          1,
+          2
+        ],
+        "message": "comparison"
+      }
+    ]
+  }
+}

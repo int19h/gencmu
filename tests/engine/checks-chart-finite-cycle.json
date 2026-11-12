@@ -1,0 +1,31 @@
+{
+  "description": "Issue #286: query eligibility permits a finite proof that repeats a rule over one span.",
+  "grammar": "%rule text a\n%rule a b :: A | \"x\" :: B\n%rule b a\n%check probe #·a\n%conditions A ⊆ $.local-readings.tags\n%warning \"finite recursive proof gives A\"",
+  "input": "x",
+  "options": {
+    "features": [
+      "probe"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "probe",
+        "rule": "probe",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "message": "finite recursive proof gives A"
+      }
+    ]
+  }
+}

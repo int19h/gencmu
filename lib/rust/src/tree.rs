@@ -298,48 +298,132 @@ pub(crate) fn public_tree(tree: &ITree, context: &TreeContext) -> Node {
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn evaluate_reports(
     tree: &ITree,
-    g: &Lowered,
+    recognizer: &mut Recognizer,
     sources: &Sources,
     features: &BTreeSet<String>,
     stage: &str,
     stage_order: usize,
     tokens: &[Tok],
-    text: &[char],
     flow: &mut DiagnosticFlow,
 ) -> Result<(), EngineError> {
+    let g = recognizer.g;
     let charges = Measures::new(tokens);
-    let mut strings = crate::strings::Strings::new(g, tree, tokens, sources, text, &g.unicode);
+    let mut strings = crate::strings::Strings::new(g, tree, tokens, sources, recognizer.shared.text, &g.unicode);
     strings.observe();
+    let check_tree = g
+        .checks
+        .iter()
+        .any(|check| check.definition.error.is_some() || features.contains(&check.definition.name))
+        .then(|| crate::checks::Tree::new(g, tree, tokens, &mut recognizer.shared.tags, features));
+    let mut occurrences = FxMap::<String, usize>::default();
     let mut stack = vec![(0u32, Rc::new(BTreeSet::<String>::new()))];
     while let Some((index, mut suppressed)) = stack.pop() {
         work::count(Counted::Walked, 1);
         let node = &tree.nodes[index as usize];
-        let IKind::Close { prod, start, end, .. } = node.kind else { continue };
-        let production = &g.prods[prod as usize];
-        if !production.suppress_warnings.is_empty() {
-            Rc::make_mut(&mut suppressed).extend(production.suppress_warnings.iter().cloned());
+        let (start, end) = span_of(tree, index);
+        if let IKind::Close { prod, .. } = node.kind {
+            let production = &g.prods[prod as usize];
+            if !production.suppress_warnings.is_empty() {
+                Rc::make_mut(&mut suppressed).extend(production.suppress_warnings.iter().cloned());
+            }
+            let code = &g.rules[production.rule as usize].name;
+            let warning = production
+                .warning
+                .as_ref()
+                .filter(|_| features.contains(code) && !suppressed.contains("_") && !suppressed.contains(code));
+            for (recipe, is_error) in production.error.iter().map(|r| (r, true)).chain(warning.map(|r| (r, false))) {
+                crate::diagnostics::message(code)?;
+                let report = Warning {
+                    record: Some(Arc::new(DiagnosticRecord {
+                        identity: Arc::new(DiagnosticIdentity {
+                            stage_order,
+                            ordinal: flow.ordinal(),
+                            ..Default::default()
+                        }),
+                        measure: if is_error { charges.own(start as usize, end as usize) } else { Measure::ZERO },
+                    })),
+                    rejection: None,
+                    stage: stage.to_string(),
+                    code: code.clone(),
+                    rule: code.clone(),
+                    span: start as usize..end as usize,
+                    source: source_of(sources, start as usize, end as usize),
+                    message: strings.override_string(index, recipe)?,
+                };
+                flow.add(index, report, is_error);
+            }
         }
-        let code = &g.rules[production.rule as usize].name;
-        let warning = production
-            .warning
-            .as_ref()
-            .filter(|_| features.contains(code) && !suppressed.contains("_") && !suppressed.contains(code));
-        for (recipe, is_error) in production.error.iter().map(|r| (r, true)).chain(warning.map(|r| (r, false))) {
-            crate::diagnostics::message(code)?;
-            let report = Warning {
-                record: Some(Arc::new(DiagnosticRecord {
-                    identity: Arc::new(DiagnosticIdentity { stage_order, ordinal: flow.ordinal() }),
-                    measure: if is_error { charges.own(start as usize, end as usize) } else { Measure::ZERO },
-                })),
-                rejection: None,
-                stage: stage.to_string(),
-                code: code.clone(),
-                rule: code.clone(),
-                span: start as usize..end as usize,
-                source: source_of(sources, start as usize, end as usize),
-                message: strings.override_string(index, recipe)?,
-            };
-            flow.add(index, report, is_error);
+        if let Some((check_tree, id)) =
+            check_tree.as_ref().and_then(|tree| tree.by_derivation[index as usize].map(|id| (tree, id)))
+        {
+            let current = &check_tree.nodes[id as usize];
+            if current.candidate {
+                for check in &g.checks {
+                    let definition = &check.definition;
+                    let error = definition.error.is_some();
+                    if !error
+                        && (!features.contains(&definition.name)
+                            || suppressed.contains("_")
+                            || suppressed.contains(&definition.name))
+                    {
+                        continue;
+                    }
+                    let crate::dom::Term::Pattern(pattern) = &definition.pattern else {
+                        unreachable!("a bound check predicate")
+                    };
+                    if !check_tree.machine.matches(current.structure, pattern) {
+                        continue;
+                    }
+                    let frame = Frame {
+                        prefix: u32::MAX,
+                        parent_prefix: u32::MAX,
+                        structure: u32::MAX,
+                        caps: Caps::All(&[]),
+                        prod: 0,
+                        origin: start,
+                        end,
+                        tags: Cell::new(Some(current.tags)),
+                        project: None,
+                        lexical: None,
+                        parent_structure: u32::MAX,
+                        parent_tags: Cell::new(None),
+                        check: Some((check_tree, id)),
+                    };
+                    let mut holds = true;
+                    for condition in &check.conditions {
+                        if !recognizer.check_condition(condition, &frame, tokens)? {
+                            holds = false;
+                            break;
+                        }
+                    }
+                    if !holds {
+                        continue;
+                    }
+                    crate::diagnostics::message(&definition.name)?;
+                    let recipe = definition.error.as_ref().or(definition.warning.as_ref()).expect("a check message");
+                    let occurrence = occurrences.entry(definition.name.clone()).or_default();
+                    let identity = DiagnosticIdentity {
+                        stage_order,
+                        ordinal: flow.ordinal(),
+                        check: Some((definition.name.clone(), *occurrence)),
+                    };
+                    *occurrence += 1;
+                    let report = Warning {
+                        record: Some(Arc::new(DiagnosticRecord {
+                            identity: Arc::new(identity),
+                            measure: if error { charges.own(start as usize, end as usize) } else { Measure::ZERO },
+                        })),
+                        rejection: None,
+                        stage: stage.to_string(),
+                        code: definition.name.clone(),
+                        rule: definition.name.clone(),
+                        span: start as usize..end as usize,
+                        source: source_of(sources, start as usize, end as usize),
+                        message: strings.override_string(index, recipe)?,
+                    };
+                    flow.add_check(index, report, error);
+                }
+            }
         }
         stack.extend(node.children.iter().rev().map(|&child| (child, suppressed.clone())));
     }
@@ -842,6 +926,7 @@ pub(crate) fn emit(
                             parent_prefix: u32::MAX,
                             lexical: None,
                             parent_structure: u32::MAX,
+                            check: None,
                             parent_tags: Cell::new(None),
                             structure: identity_scope
                                 .as_ref()
@@ -932,6 +1017,7 @@ pub(crate) fn emit(
                     parent_prefix: u32::MAX,
                     lexical: None,
                     parent_structure: u32::MAX,
+                    check: None,
                     parent_tags: Cell::new(None),
                     structure: identity_scope
                         .as_ref()

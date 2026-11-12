@@ -16,6 +16,13 @@
     "rejected"
   ],
   "loads": {
+    "check": [
+      "rejected",
+      "rejected",
+      "(q [t r])",
+      "(q s)",
+      "rejected"
+    ],
     "statement": [
       "rejected",
       "rejected",
@@ -561,6 +568,13 @@
       "rejected"
     ],
     "set-atom": [
+      "rejected",
+      "rejected",
+      "(q [t r])",
+      "(q s)",
+      "rejected"
+    ],
+    "tree-left": [
       "rejected",
       "rejected",
       "(q [t r])",
@@ -1716,7 +1730,7 @@
     },
     {
       "description": "A tree comparison requires its comparator before its bare-name check.",
-      "find": "{\"name\":\"tree-comparison\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"capture-reference\"},{\"ref\":\"tree-comparator\"},{\"ref\":\"union\"}]}}],\"conditions\":[],\"at\":[*]}",
+      "find": "{\"name\":\"tree-comparison\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"tree-left\"},{\"ref\":\"tree-comparator\"},{\"ref\":\"union\"}]}}],\"conditions\":[],\"at\":[*]}",
       "replace": "{\"name\":\"tree-comparison\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"capture-reference\"},{\"literal\":{\"string\":\":\"}},{\"ref\":\"union\"}]}}],\"conditions\":[],\"at\":[*]}",
       "document": "```jbogenbau\n%rule text $x:A %conditions $x : B\n```\n",
       "inputs": [],
@@ -1854,7 +1868,7 @@
     },
     {
       "description": "A bare pattern terminal checks the engine-tag inventory.",
-      "find": "{\"name\":\"pattern-atom\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"choice\":[{\"ref\":\"pattern-rule\"},{\"ref\":\"tag\"},{\"ref\":\"string\"},{\"ref\":\"range\"},{\"ref\":\"wildcard\"},{\"ref\":\"constant-reference\"}]},{\"optional\":{\"repeat\":{\"ref\":\"symbol-test\"}}}]}}],\"conditions\":[],\"at\":[*]}",
+      "find": "{\"name\":\"pattern-atom\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"choice\":[{\"ref\":\"pattern-rule\"},{\"ref\":\"tag\"},{\"ref\":\"string\"},{\"ref\":\"range\"},{\"ref\":\"wildcard\"},{\"ref\":\"constant-reference\"},{\"ref\":\"empty-set\"}]},{\"optional\":{\"repeat\":{\"ref\":\"symbol-test\"}}}]}}],\"conditions\":[],\"at\":[*]}",
       "replace": "{\"name\":\"pattern-atom\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"ref\":\"Engine-Tag\"}}],\"conditions\":[],\"at\":[*]}",
       "document": "```jbogenbau\n%const $P #_Nope\n```\n",
       "inputs": [],

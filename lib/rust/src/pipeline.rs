@@ -255,6 +255,14 @@ fn pipeline_features(stages: &[StageGrammar], declared: &[String]) -> Result<Vec
                 }
             }
         }
+        for (document, check) in &stage.checks {
+            uses.push((
+                &check.name,
+                if check.error.is_some() { "error" } else { "warning" },
+                document.as_ref(),
+                check.at,
+            ));
+        }
         for (document, classifier) in &stage.classifiers {
             for entry in &classifier.entries {
                 uses.extend(
@@ -308,8 +316,13 @@ fn pipeline_features(stages: &[StageGrammar], declared: &[String]) -> Result<Vec
                 tested.entry(rule.name.clone()).or_insert_with(|| stage.name.clone());
             }
         }
-        for gate in stage.rules.iter().flat_map(|rule| &rule.alternatives).flat_map(|alt| &alt.alternative.gates) {
-            tested.entry(gate.feature.clone()).or_insert_with(|| stage.name.clone());
+        for (_, check) in &stage.checks {
+            if check.warning.is_some() {
+                tested.entry(check.name.clone()).or_insert_with(|| stage.name.clone());
+            }
+        }
+        for guard in stage.rules.iter().flat_map(|rule| &rule.alternatives).flat_map(|alt| &alt.alternative.gates) {
+            tested.entry(guard.feature.clone()).or_insert_with(|| stage.name.clone());
         }
         for gate in
             stage.classifiers.iter().flat_map(|(_, classifier)| &classifier.entries).flat_map(|entry| &entry.gates)
@@ -749,6 +762,8 @@ impl Pipeline {
                 return Err(Box::new(error));
             }
         };
+        let chart = std::rc::Rc::new(chart);
+        shared.stage_chart = Some(chart.clone());
         let n = input.len();
         let accepted = chart.accepts(lowered.start, n);
         let ranked = if accepted {
@@ -804,13 +819,12 @@ impl Pipeline {
         let mut flow = DiagnosticFlow::new(&lowered, &chosen, &input);
         let reports = evaluate_reports(
             &chosen,
-            &lowered,
+            &mut Recognizer { g: &lowered, matchers: &matchers, shared, recon: None },
             &sources,
             features,
             &grammar.name,
             index,
             &input,
-            shared.text,
             &mut flow,
         );
         run.evaluated = flow.messages();
@@ -823,13 +837,12 @@ impl Pipeline {
             let mut second_flow = DiagnosticFlow::new(&lowered, &second, &input);
             let reports = evaluate_reports(
                 &second,
-                &lowered,
+                &mut Recognizer { g: &lowered, matchers: &matchers, shared, recon: None },
                 &sources,
                 features,
                 &grammar.name,
                 index,
                 &input,
-                shared.text,
                 &mut second_flow,
             );
             run.evaluated = diagnostic_flow::join([run.evaluated.parts(), second_flow.messages().parts()]);
