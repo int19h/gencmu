@@ -8,7 +8,7 @@ The executable baseline is camxes-std, the standard grammar of the camxes parser
 
 Outside the working morphology and the project choices below, this pipeline follows CLL 1.1. It uses the [Magic Words stream](../common/stream.md).
 
-A pipeline document defines an ordered sequence of stages. A stage is one step of a pipeline, with its own grammar. Beyond CLL's orthography, the phoneme stage reads the conventions of [`../common/latin.md`](../common/latin.md). camxes-std's PEG reads some of them itself, such as digits and `h`. The [word-form document](morphology.md#differences-from-cll-and-the-reference-peg) compares them. The phoneme stage also reads gencmu's Cyrillic and zbalermorna.
+A pipeline document defines an ordered sequence of stages. A stage is one step of a pipeline, with its own grammar.
 
 ## Erasure boundary
 
@@ -19,6 +19,8 @@ A feature is a named switch that the grammars test. The pipeline turns on `su-bo
 ```
 
 ## Stage 1: phonemes
+
+Beyond CLL's orthography, the phoneme stage reads the conventions of [`../common/latin.md`](../common/latin.md). camxes-std's PEG reads some of them itself, such as digits and `h`. The [word-form document](morphology.md#differences-from-cll-and-the-reference-peg) compares them. The phoneme stage also reads gencmu's Cyrillic and zbalermorna.
 
 ```jbogenbau
 %stage phonemes

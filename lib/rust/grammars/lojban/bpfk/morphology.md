@@ -18,7 +18,7 @@ The prose uses these Lojban terms for words:
 - A lujvo is a compound word.
 - A rafsi is a word form used inside compounds.
 
-Where a rule corresponds to a PEG rule, its name uses lowercase letters and hyphens for underscores. Other named parts support conditions or expose a word-form restriction. C denotes a consonant. V denotes `a`, `e`, `i`, `o`, or `u`.
+Most rules that correspond to PEG rules use lowercase names and hyphens for underscores. The PEG's `BRIVLA` becomes `brivla-word`, and `EOF` becomes `end-of-text`. Its separate `brivla` rule already has the lowercase name. Other named parts support conditions or expose a word-form restriction. C denotes a consonant. V denotes `a`, `e`, `i`, `o`, or `u`.
 
 ## How this grammar states the morphology
 
@@ -26,13 +26,11 @@ A diphthong combines two vowels in one syllable. A nucleus is the vowel, diphtho
 
 This grammar states the morphology's rules directly. Its alternatives have no order. It retains PEG lookaheads where they state word shapes, stress, hyphens, or word boundaries. A lookahead tests the text without consuming it. The conditions use a prefix parse to test starts, including text beyond the word and before the next pause. They use a whole parse to test a complete captured span.
 
-Different letters or incompatible conditions separate most alternatives. Other alternatives overlap as prefixes, but only one can complete the surrounding word. Their comments and the prose name the letters, stress, hyphens, or boundaries that force completion. At the end of a lookahead, alternative endpoints need no preference because the test asks only whether a form begins. Inside a lookahead, optionals and repetitions need an exclusion or completion argument, or an argument that every reading gives the PEG's answer.
+Different letters or incompatible conditions separate most alternatives. Other alternatives overlap as prefixes, but only one can complete the surrounding word. Their comments and the prose name the letters, stress, hyphens, or boundaries that force completion.
 
 A y-hyphen is a `y` between rafsi. An r-hyphen is `r` before a consonant, or `n` before `r`.
 
-Plain optionals and repetitions express parts whose presence or count follows from their context. A shorter name body leaves a letter that the required final consonant cannot absorb before the pause. A shorter nucleus-apostrophe run leaves an apostrophe where the word must end, so the `post-word` test fails. A shorter unstressed rafsi or syllable run cannot reach the stressed core or its required hyphen. Consonantal syllables cannot consume the start of a following vowel-bearing syllable. A following rafsi cannot start with an apostrophe or the consonant pair that an r-hyphen supplies.
 
-Where two stress tests apply to the same constituent, one alternative joins their conditions with `∨`. The grammar gives names one general shape. Nonempty final codas use one form, with an optional syllabic consonant before the required consonant. These forms remove duplicate proofs of the same word. The closing section explains deliberate differences from camxes-std.
 
 ## Words
 
@@ -50,19 +48,19 @@ Hesitation that stands as its own word is one token. The [Magic Words proposal](
 
 A `y` is a nucleus exactly where no nucleus follows it. So the first `y` of a run is a nucleus exactly when the run has an odd number of letters. A run with an even number can follow a word directly: `kyyykerlo` is `ky yy kerlo`, but `bayyy` is no text. So a run of `y` has `Onset` where no nucleus begins it.
 
-Ilmentufa's morphology-only parser accepts this division of `kyyykerlo`, but full camxes-std rejects the text. Its lexer wrapper calls `spaces` after `ky`, and that rule refuses a leading Y token. The [shared forms document](../common/forms.md#differences-from-camxes) compares the word streams.
+
 
 ### Whole hesitation runs
 
-The camxes-std [morphology-only parser](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-morpho.js) splits a bare odd y run through its `cmavo_form` onset alternative. Its `initial_spaces` reader instead reads a whole run. The [full camxes-std parser](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.js) uses that whole-run spacing reading. Both reference parsers keep every y inside the `ybu` letter word before BU.
+The words stage drops hesitation in `lojban/bpfk` and `lojban/experimental`. Zantufa can retain attached hesitation, so its erasure can observe the whole-run division.
 
-`cmavo` excludes a pure `y` run, and `y-run` reads the whole run as hesitation, in agreement with camxes-std's spacing rule. The words stage drops this hesitation in `lojban/bpfk` and `lojban/experimental`. Zantufa can retain attached hesitation, so its erasure can observe the whole-run division.
+
 
 ### Word shapes and boundaries
 
 One template states the shape of each word. A word shape carries `Continued`, so another word can follow it directly. If no nucleus begins the word, it carries `Onset`. Only a word with `Onset` can follow another word without a pause.
 
-Hesitation is a direct run of `y` letters, outside `cmavo`. It keeps the test that no name begins at its own start. `cmavo` keeps its exclusion of a pure `y` run, so a particle is never hesitation.
+Hesitation is a run of `y` letters, outside `cmavo`. Its name test excludes a name that begins at the same start. `cmavo` excludes a pure `y` run, so a particle is never hesitation.
 
 ```jbogenbau
 -- A word shape carries its join property and an onset mark when no nucleus begins it.
@@ -80,7 +78,7 @@ Hesitation is a direct run of `y` letters, outside `cmavo`. It keeps the test th
 %rule brivla-shape
   $b:word-shape(brivla-word) :: $b.tags
 
--- A direct run of y letters that does not begin a name. It cannot end before another y. It ends at a word boundary.
+-- A run of y letters that does not begin a name. It cannot end before another y. It ends at a word boundary.
 %rule y-run-body
   {y}
 %conditions
@@ -88,7 +86,7 @@ Hesitation is a direct run of `y` letters, outside `cmavo`. It keeps the test th
   ¬$.following-tokens.parse(y …),
   $.following-tokens.parse(post-word …)
 
--- Hesitation is a direct y run with the shared onset mark.
+-- Hesitation carries the shared onset mark.
 %redefine-rule y-run = word-shape(y-run-body)
 ```
 
@@ -155,12 +153,12 @@ One counted syllable follows it in both readings, and the letters fix both ends.
 
 ## Cmevla
 
-A name is a run of letters that ends in a consonant before a pause. The repeated sounds exclude that final consonant, so only one repetition count reaches it. The PEG also offers a syllabified name shape, which requires the same general shape and ends at the same pause. The single `cmevla` form covers both name readings without duplicate proofs.
+A name is a run of letters that ends in a consonant before a pause. A shorter repetition leaves a letter that the required final consonant cannot absorb before the pause. An apostrophe and a consonant use distinct letters. A glide needs a following nucleus, and a vowel forbids one, so one letter gives one sound reading. One general shape covers syllabified names too, without two readings of the same word.
 
-No sound in the repetition needs a test against a pause. The final consonant of `cmevla` always follows the repetition, so the repetition cannot take that consonant and still complete the name.
+No sound in the repetition needs a test against a pause. The final consonant always follows the repetition, so the repetition cannot take that consonant and still complete the name.
 
 ```jbogenbau
--- A name forbids an initial apostrophe and ends in a consonant before a pause. A syllabified name requires the same general shape and ends at the same pause. An apostrophe and a consonant use distinct letters. A glide needs a following nucleus, and a vowel forbids one, so one letter gives one sound reading. No pause test stands on the sounds, because the final consonant always follows them.
+-- A name forbids an initial apostrophe and ends in a consonant before a pause.
 %rule cmevla
   [{nucleus | glide | h | consonant}] $c:consonant
 %conditions
@@ -177,10 +175,10 @@ No sound in the repetition needs a test against a pause. The final consonant of 
 
 ## Cmavo
 
-A cmavo is not the start of a name, and not the start of a lujvo that begins with a CVC rafsi and a y-hyphen. Its form is an onset and nuclei joined by apostrophes. A pause or another word follows it. `CVCy_lujvo` keeps `bajykerlo` one lujvo, rather than `ba jy kerlo`.
+A cmavo is not the start of a name, and not the start of a lujvo that begins with a CVC rafsi and a y-hyphen. Its form is an onset and nuclei joined by apostrophes. A pause or another word follows it. A shorter nucleus-apostrophe run leaves an apostrophe before the word boundary, so it cannot complete the particle. `cvcy-lujvo` keeps `bajykerlo` one lujvo, rather than `ba jy kerlo`.
 
 ```jbogenbau
--- A lujvo that begins with a CVC rafsi and a y-hyphen. Stress separates its two forms.
+-- A lujvo that begins with a CVC rafsi and a y-hyphen. Stress separates its two forms. Only a lookahead.
 %rule cvcy-lujvo
   | cvc-rafsi y [h] [{initial-rafsi}] brivla-core
   | stressed-cvc-rafsi y short-final-rafsi
@@ -189,7 +187,6 @@ A cmavo is not the start of a name, and not the start of a lujvo that begins wit
 %rule cmavo
   $o:onset [{nucleus h}] cmavo-last-nucleus
 %conditions
--- Detect a CVC rafsi with a y-hyphen before the compound core. Stress separates the two forms. Unhyphenated initial rafsi cannot start where the core starts, because of stress and their own exclusions. Only a lookahead.
   ¬$o.onward.parse((h | cluster | cmevla | cvcy-lujvo) …),
   $.value.ngrams(1) ≠ "y",
   $.following-tokens.parse(post-word …)
@@ -206,7 +203,7 @@ A cmavo is not the start of a name, and not the start of a lujvo that begins wit
 The last nucleus of a cmavo is unstressed, or it is not followed by a consonant cluster. So `MIklama` is not `mI klama`. One condition covers both reasons for the same nucleus.
 
 ```jbogenbau
--- A particle ends in an unstressed nucleus, or in a nucleus with no following consonant cluster. One nucleus covers both cases.
+-- Read the last nucleus of a particle.
 %rule cmavo-last-nucleus
   $n:nucleus
 %conditions
@@ -224,11 +221,13 @@ The last nucleus of a cmavo is unstressed, or it is not followed by a consonant 
 
 A gismu has CCVCV or CVCCV shape. A CCVCV gismu begins with a consonant cluster, which a cmavo forbids. In a CVCCV gismu, the first vowel is stressed before a cluster, which the last cmavo nucleus forbids. Thus a gismu cannot complete at a cmavo start, even though its branch bypasses the `brivla` rule.
 
-The `brivla` rule excludes cmavo starts directly. Unstressed initial rafsi precede its core, which contains the stressed syllable. The borrowing head excludes rafsi strings, including gismu starts, so a borrowing and a gismu cannot complete together. The `lujvo` conditions exclude both gismu and borrowings from compounds. The other cores differ in consonant positions, apostrophes, hyphens, or stress.
+The `brivla` rule excludes cmavo starts directly. Unstressed initial rafsi precede its core, which contains the stressed syllable. The borrowing head excludes rafsi strings, including gismu starts, so a borrowing and a gismu cannot complete together. The `lujvo` conditions exclude both gismu and borrowings from compounds. The other cores differ in consonant positions, apostrophes, hyphens, or stress. Only the full initial rafsi run can reach the stressed core.
 
 No syllable of a borrowing has `y` as its nucleus. A borrowing cannot cross a y-hyphen. Its head excludes the rafsi strings that describe the classical cores. The `cvv-final-rafsi` form has an apostrophe where neither gismu shape permits one.
 
 The `short-final-rafsi` rule reads a consonant and diphthong, or an initial pair and vowel. Its diphthong cannot split into a gismu's final vowel and another word, because that vowel forbids a following nucleus. The `cvv-final-rafsi` rule stresses its first vowel, while the apostrophe form of the stressed instance of `cvv-rafsi-of` stresses its second vowel.
+
+A stressed long y-rafsi leaves consonant-y after its CCV prefix, and no short final starts with consonant-y. No short final starts with an apostrophe, so a stressed CVV form cannot compete with an apostrophe-y form. Stressed extended forms need an unstressed first syllable and apostrophe-y, or a borrowing head.
 
 ```jbogenbau
 -- A predicate word cannot start where a particle begins. Unstressed initial rafsi precede its stressed core.
@@ -237,7 +236,7 @@ The `short-final-rafsi` rule reads a consonant and diphthong, or an initial pair
 %conditions
   ¬$.onward.parse(cmavo …)
 
--- Borrowing heads exclude rafsi strings. The other cores differ in consonant positions, apostrophes, hyphens, or stress. A stressed long y-rafsi leaves consonant-y after its CCV prefix, and no short final starts with consonant-y. No short final starts with an apostrophe, so a stressed CVV form cannot compete with an apostrophe-y form. Stressed extended forms need an unstressed first syllable and apostrophe-y, or a borrowing head.
+-- A core is a borrowing, root, final CVV form, or stressed rafsi with a short final rafsi.
 %rule brivla-core
   | fuhivla | gismu | cvv-final-rafsi
   | (stressed-extended-rafsi | stressed-y-rafsi | stressed-y-less-rafsi) short-final-rafsi
@@ -253,10 +252,10 @@ The `short-final-rafsi` rule reads a consonant and diphthong, or an initial pair
 
 A short rafsi without a y-hyphen cannot start an extended rafsi or borrowing, or stand directly before one. Thus `spageti'ybroda` begins with `spageti'y`, and `selspageti` is one borrowing. The short form excludes rafsi with `y` or `'y` through `y-less-rafsi`, and extended forms through `any-extended-rafsi`.
 
-The comment on `initial-rafsi` states why its three alternatives cannot complete the same initial rafsi.
+Initial borrowing rafsi need an unstressed first syllable. Extended brivla forms need two syllables before apostrophe-y. Their stressed counterparts also need a short final that cannot start with consonant-y or apostrophe. Thus the three alternatives cannot complete the same initial rafsi.
 
 ```jbogenbau
--- A short unhyphenated rafsi cannot start or directly precede an extended rafsi or borrowing. It excludes y-rafsi and hy-rafsi through y-less-rafsi, and extended forms through any-extended-rafsi. Initial borrowing rafsi need an unstressed first syllable. Extended brivla forms need two syllables before apostrophe-y. The stressed counterparts also need a short final that cannot start with consonant-y or apostrophe.
+-- An initial rafsi is an extended form, an ordinary y-rafsi, or a short unhyphenated form.
 %rule initial-rafsi
   | extended-rafsi | y-rafsi
   | $l:y-less-rafsi
@@ -280,7 +279,7 @@ The comment on `initial-rafsi` states why its three alternatives cannot complete
 
 A consonantal syllable has a consonant and then a coda that begins with a syllabic consonant. A borrowing is a head of unstressed syllables, a stressed syllable, any number of consonantal syllables and a final syllable. Its head does not begin with a string of rafsi. It also does not begin with a cmavo, or with a consonant and a string of rafsi. That last test is the slinku'i test of CLL[^cll-s4-7].
 
-An extended rafsi lets a brivla or a borrowing, whole or cut short, stand before a y-hyphen inside a compound. A `brivla_rafsi` is a head of two syllables or more, followed by `'y`, as `klama'y` in `klama'ybroda`. A `fuhivla_rafsi` is the head of a borrowing followed by an onset and `y`. The onset is a consonant, as in `aktyiismu`, a legal initial cluster, or a glide, as in `spageiybroda`. Each has a stressed form, which stands before `short-final-rafsi`.
+An extended rafsi lets a brivla or a borrowing, whole or cut short, stand before a y-hyphen inside a compound. A `brivla-rafsi` is a head of two syllables or more, followed by `'y`, as `klama'y` in `klama'ybroda`. A `fuhivla-rafsi` is the head of a borrowing followed by an onset and `y`. The onset is a consonant, as in `aktyiismu`, a legal initial cluster, or a glide, as in `spageiybroda`. Each has a stressed form, which stands before `short-final-rafsi`.
 
 ```jbogenbau
 -- A borrowing ends with its stressed syllable and final syllable. A vowel-bearing final syllable cannot start with a consonantal syllable.
@@ -307,7 +306,7 @@ An extended rafsi lets a brivla or a borrowing, whole or cut short, stand before
 %conditions
   $.onward.parse(two-syllables …)
 
--- Require two vowel-bearing syllables. A consonantal syllable cannot consume the start of the second one.
+-- Read two vowel-bearing syllables, with consonantal syllables between them.
 %rule two-syllables
   syllable [{consonantal-syllable}] syllable
 
@@ -390,24 +389,24 @@ The slinku'i test and a borrowing's head look for a string of rafsi. That is any
 
 The core of a brivla ends it, and a pause or another word follows it. Its final syllable has a nucleus with no stress mark and is not followed by a name.
 
-Three rules test `final-syllable` at one anchor each, and no rule repeats its `post-word` test. In `gismu`, the witness begins at the last consonant, and its nucleus is the last vowel of the body. In `cvv-final-rafsi`, the witness begins at the final vowel, and its nucleus is that vowel. In `short-final-rafsi`, the witness begins at the start of the body, and its nucleus ends the body. Each witness ends where its body ends, so its `post-word` test reads the same place as a test on the body.
+Three rules test `final-syllable` at one place each. In `gismu`, the final syllable that the test reads begins at the last consonant and ends at the last vowel. In `cvv-final-rafsi`, that syllable begins and ends at the final vowel. In `short-final-rafsi`, that syllable spans the whole body. Each tested syllable ends where its body ends, so its `post-word` test reads the same place as a test on the body.
 
-The callers of the stressed CVC form put a consonant after it. A short final rafsi begins with a consonant, and an initial pair begins with a consonant. So no caller can put `y` after the stressed CVC form, and no test against `y` stands on that form.
+
 
 Each rafsi shape stands once as a template. The stress argument of a template is one stress unit. The units are `stressed-vowel`, `unstressed-vowel`, `stressed-diphthong` and `unstressed-diphthong`. Plain `vowel` or `diphthong` as an argument means either stress. The two plain units cover the stressed unit and the unstressed unit of each kind.
 
-The tail of the `y` templates is an argument, `[h]` or `ε`. The first vowel of the apostrophe form of CVV stays unstressed in each binding. The long apostrophe-y body takes its own final-vowel argument. A layer can change that vowel without a change to the other parts.
+The tail of the `y` templates is an argument, `[h]` or `ε`. The first vowel of the apostrophe form of CVV stays unstressed in each binding.
 
 `y-less-rafsi` and `rafsi-string-end` read the apostrophe-y shape of either stress through `hy-rafsi-of`. The named apostrophe-y bindings stand in the experimental layer, which reads them inside compounds. `gismu` reads the stressed long shape and one more vowel.
 
 ```jbogenbau
--- A root is the stressed long shape and a vowel. Its final syllable test stands at its last consonant.
+-- A root is the stressed long shape and a vowel.
 %rule gismu
   $s:long-rafsi-of(stressed-vowel) vowel
 %conditions
   $s.last-token.onward.parse(final-syllable …)
 
--- A CVV final rafsi ends with a valid final syllable. Its test stands at its final vowel.
+-- A CVV final rafsi ends with a valid final syllable.
 %rule cvv-final-rafsi
   consonant stressed-vowel h $v:vowel
 %conditions
@@ -445,7 +444,7 @@ The tail of the `y` templates is an argument, `[h]` or `ε`. The first vowel of 
 %rule y-rafsi-of(@V, @T)
   (long-rafsi-of(@V) | cvc-rafsi-of(@V)) y @T
 
--- A classical body ends with apostrophe-y. The long body takes its own final-vowel argument.
+-- A classical body ends with apostrophe-y.
 %rule hy-rafsi-of(@V, @D, @LV, @T)
   (long-rafsi @LV | ccv-rafsi-of(@V) | cvv-rafsi-of(@V, @D)) h y @T
 
@@ -464,7 +463,7 @@ The tail of the `y` templates is an argument, `[h]` or `ε`. The first vowel of 
 -- A stressed long rafsi or CVC rafsi ends before y.
 %rule stressed-y-rafsi = y-rafsi-of(stressed-vowel, ε)
 
--- A stressed short rafsi is a CVC, CCV or CVV rafsi. No test against y stands here, because each caller puts a consonant after it.
+-- A stressed short rafsi is a CVC, CCV or CVV rafsi. The CVC alternative needs no test against y, because each caller puts a consonant after it.
 %rule stressed-y-less-rafsi = short-rafsi-of(stressed-vowel, stressed-diphthong)
 
 -- An unhyphenated rafsi excludes a y rafsi and an apostrophe-y rafsi of either stress at its start. It cannot end directly before an apostrophe. Its body is a CVC, CCV or CVV rafsi, whose forms differ in their second or third letter.
@@ -497,6 +496,8 @@ The tail of the `y` templates is an argument, `[h]` or `ε`. The first vowel of 
 
 
 
+A following rafsi cannot begin with an apostrophe or the consonant pair that an r-hyphen supplies. Thus an optional apostrophe or r-hyphen cannot consume the start of the following rafsi.
+
 ```jbogenbau
 -- The hyphen is r before a consonant, or n before r. Each letter reads as a full consonant, so its pair with the next letter must stand in the table.
 %rule r-hyphen
@@ -519,7 +520,7 @@ The tail of the `y` templates is an argument, `[h]` or `ε`. The first vowel of 
 
 A counted syllable has a vowel or diphthong as its nucleus, not `y`. Consonantal syllables do not count.
 
-A vowel, diphthong or syllable is stressed in two cases. In one, the vowel after its onset carries `Stressed`, a written stress mark (`stressed`). In the other, one more counted syllable follows it before a pause (`stress`). Intervening `y` syllables and consonantal syllables do not count. It is unstressed when neither test holds. A capital glide, or a capital second letter of a diphthong, marks nothing.
+A vowel, diphthong or syllable is stressed in two cases. In one, the vowel after its onset carries `Stressed`, a written stress mark (`stressed`). In the other, one more counted syllable follows it before a pause (`stress`). Intervening `y` syllables and consonantal syllables do not count. The vowel, diphthong or syllable is unstressed when neither test holds. A capital glide, or a capital second letter of a diphthong, marks nothing.
 
 So an unmarked brivla is stressed on its penultimate counted syllable, and a pause must follow it. Another word can directly follow a brivla whose stress is marked.
 
@@ -532,35 +533,37 @@ So an unmarked brivla is stressed on its penultimate counted syllable, and a pau
   ¬$n.following-tokens.parse(cmevla …),
   $n.following-tokens.parse(post-word …)
 
+-- A unit is stressed by a written mark or its position before the final syllable. One constituent covers both cases.
 %rule stressed-unit(@U)
   $s:@U
 %conditions
   $s.onward.parse(stressed …) ∨ $s.following-tokens.parse(stress …)
 
+-- An unstressed unit has neither a written stress mark nor positional stress.
 %rule unstressed-unit(@U)
   $s:@U
 %conditions
   ¬$s.onward.parse(stressed …),
   ¬$s.following-tokens.parse(stress …)
 
--- A syllable is stressed by a written mark or its position before the final syllable. One constituent covers both cases.
+-- Read a stressed syllable.
 %rule stressed-syllable = stressed-unit(syllable)
 
--- A diphthong is stressed by a written mark or its position before the final syllable. One constituent covers both cases.
+-- Read a stressed diphthong.
 %rule stressed-diphthong = stressed-unit(diphthong)
 
--- A vowel is stressed by a written mark or its position before the final syllable. One constituent covers both cases.
+-- Read a stressed vowel.
 %rule stressed-vowel = stressed-unit(vowel)
 
--- An unstressed vowel-bearing syllable has a nucleus. A consonantal syllable has none. Only one kind can complete at a syllable boundary. The plain form has neither a written stress mark nor positional stress.
+-- Read an unstressed counted syllable or a consonantal syllable.
 %rule unstressed-syllable
   unstressed-unit(syllable)
   | consonantal-syllable
 
--- An unstressed diphthong has neither a written stress mark nor positional stress.
+-- Read an unstressed diphthong.
 %rule unstressed-diphthong = unstressed-unit(diphthong)
 
--- An unstressed vowel has neither a written stress mark nor positional stress.
+-- Read an unstressed vowel.
 %rule unstressed-vowel = unstressed-unit(vowel)
 
 -- Positional stress precedes the last counted syllable before a pause. The counted syllable cannot start with y. The test asks whether a split reaches that final syllable and the pause.
@@ -592,20 +595,20 @@ So an unmarked brivla is stressed on its penultimate counted syllable, and a pau
 
 The `syllable-onset` hook reads an ordinary onset. Syllables, stress tests, the brivla head, and the coda lookahead use it. This includes `final-syllable`. A layer can extend their shared onset without changing the other restrictions. The `cmavo`, `fuhivla-rafsi`, and `stressed-fuhivla-rafsi` rules read plain `onset` and remain unchanged by that extension.
 
-A syllable has an onset, a nucleus, and an optional nonempty coda. A consonantal syllable has a consonant and then a coda that begins with a syllabic consonant. A consonantal syllable cannot consume the same complete letters as a syllable with a nucleus. A coda ends before another syllable or a pause, which are incompatible boundaries. Before a pause, one consonant and two consonants have different lengths. The absent optional covers the empty coda once.
+A syllable has an onset, a nucleus, and an optional nonempty coda. A consonantal syllable has no nucleus, so the two kinds cannot consume the same complete letters. A coda ends before another syllable or a pause, which are incompatible boundaries. Before a pause, one consonant and two consonants have different lengths. The absent optional covers the empty coda once. A consonantal syllable requires a following syllabic consonant, so an empty coda cannot complete it.
 
-If a coda stands before another syllable, omitting it leaves consonants that cannot begin that syllable. If it stands before a pause, omitting it leaves consonants before that required pause. Thus both presence choices cannot complete the same word.
+The coda test prevents a consonantal syllable from consuming the start of a following vowel-bearing syllable. If a coda stands before another syllable, omitting it leaves consonants that cannot begin that syllable. If it stands before a pause, omitting it leaves consonants before that required pause. Thus both presence choices cannot complete the same word.
 
 ```jbogenbau
 -- This hook supplies the shared onset for syllables, stress tests, the brivla head and coda lookahead.
 %rule syllable-onset
   onset
 
--- A vowel-bearing syllable has the given nucleus and an optional nonempty coda. Omitting a required coda leaves consonants that cannot start the following syllable.
+-- A vowel-bearing syllable has the given nucleus and an optional nonempty coda.
 %rule syllable-of(@N)
   syllable-onset @N [coda]
 
--- A counted syllable has a vowel or diphthong as its nucleus, never y. Its optional nonempty coda leaves no duplicate empty reading at a pause.
+-- A counted syllable has a vowel or diphthong as its nucleus, never y.
 %rule syllable = syllable-of((vowel | diphthong))
 
 -- The second consonant must be syllabic. The nonempty coda contains it.
@@ -614,12 +617,11 @@ If a coda stands before another syllable, omitting it leaves consonants that can
 %conditions
   $c.following-tokens.parse(syllabic …)
 
--- A nonempty coda ends before a syllable or a pause. Those following boundaries cannot coincide. A final coda has one consonant or a syllabic consonant and another consonant, whose lengths before the pause cannot coincide.
+-- Read a nonempty coda before a syllable or a pause.
 %rule coda
   | $c:consonant
   | [syllabic] $p:consonant
 %conditions
--- A vowel-bearing syllable has a nucleus. A consonantal syllable has none, so they cannot consume the same complete syllable.
   ¬$c.onward.parse((syllable-of(nucleus) | consonantal-syllable) …),
   $c.following-tokens.parse((syllable-of(nucleus) | consonantal-syllable) …),
   $p.following-tokens.parse(pause …)
@@ -712,6 +714,10 @@ A `y` is not followed by a nucleus, unless that nucleus is another `y`. An apost
 An initial pair is two consonants that can begin a word. `initial` reads a cluster where each pair of neighbors stands in `$INITIAL`. An affricate can stand only as the whole cluster, as in the PEG's rule `initial`. The closing section compares this limit with CLL 1.1 section 4.7.
 
 A sibilant, another consonant and a liquid give the usual shape of a long cluster. No consonant or glide can follow the cluster. The initial can be empty only where no consonant or glide follows.
+
+The raw pair test can differ from a test through consonant rules on one consonant in a run that breaks the pair law. Both reject `btb`, because every consonant of a complete word must pass its pair test.
+
+The shared [`bu-form-ahead`](../common/forms.md#words-in-a-run) lookahead can cross a pause. Its `post-word` chain reads whole words up to the next pause, so it tests every consonant. Thus both pair tests accept the same words.
 
 ```jbogenbau
 -- The first two consonants decide this lookahead.
@@ -823,9 +829,19 @@ The PEG's first spelling of `BY`, the rule `ybu <- Y space_char* BU`, reads more
 
 A run stays one hesitation token except for the split that prepares a letter word before BU. That split separates its final y from the hesitation prefix. The words stage drops the prefix and forms `y bu` from the final y and BU. Thus `ybu`, `y bu`, `yyybu`, `.y.bu`, and `yy bu` each produce the same letter word.
 
-### Duplicate proofs
+### Equivalent rewrites and result differences
 
-[How this grammar states the morphology](#how-this-grammar-states-the-morphology) explains how the rules avoid duplicate proofs without changing ordinary word division or word classes.
+These entries distinguish equal rewrites from differences in results:
+
+- Equal rewrite: [`cmavo`](#cmavo) and the [lexicon](../cll/lexicon.md) replace the PEG's `CMAVO` spelling list.
+- Result difference: `cmavo` excludes pure `y`, and [`y-run`](#whole-hesitation-runs) reads it whole, unlike the morphology-only parser's `cmavo_form`.
+- Result difference: this pipeline accepts [`kyyykerlo`](../common/forms.md#differences-from-camxes), which full camxes-std rejects through its lexer wrapper.
+- Equal rewrite: [`lujvo`](#words) tests the whole word, where the PEG tests a start.
+- Equal rewrite: [`cmevla`](#cmevla) uses one name shape for the PEG's `jbocme` and `zifcme`.
+- Equal rewrite: the [stress templates](#syllables-and-stress) join the PEG's ordered stress alternatives with `∨`.
+- Equal rewrite: [`stressed-y-less-rafsi`](#rafsi) omits the PEG's `stressed_y_less_rafsi` test against following `y`.
+- Equal rewrite: [`coda`](#syllables-and-stress) is nonempty, where the PEG's `coda` can be empty before a pause.
+- Equal rewrite: [`consonant`](#consonants) tests raw pairs, where the PEG states the pair law in its letter rules.
 
 ### Consonant restriction
 
@@ -833,7 +849,7 @@ The consonant rules retain the ban on a consonant directly followed by a glide. 
 
 The pair tables state the pair law and the initial law in one place for each fact. The pair law reads raw consonant tokens against `$PERMISSIBLE`. The PEG states its pair law in its letter rules, such as `b` and `t`.
 
-The two laws can differ when a lookahead tests one consonant inside a run that breaks the pair law. Both reject the run `btb`, because the whole run must pass the pair law. The `post-word` lookahead can read beyond a run, but its chain reads whole words and tests each consonant. Thus both laws accept the same words.
+The [consonant rules](#consonants) explain why raw pair tests and the PEG's letter tests accept the same words.
 
 Like the PEG's rule `initial`, this grammar permits an affricate only as a whole initial cluster. CLL 1.1 section 4.7 permits longer initial clusters whose adjacent pairs are all initial pairs, including affricates.[^cll-s4-7]
 

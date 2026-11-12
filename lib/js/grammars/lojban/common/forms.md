@@ -25,7 +25,7 @@ The `lojban/cll` pipeline stitches [../cll/shapes.md](../cll/shapes.md) and [../
 
 The text is runs and pauses. A run is a stretch of text with no pause inside. The phoneme stage emits a pause as one or more `PAUSE` tokens. The phoneme stage decides what counts as a pause. In the orthography of *The Complete Lojban Language* (CLL), a pause is a space or a period. In the conventions that the other pipelines read, other punctuation is a pause too.
 
-The numbered pause rules of CLL[^cll-s4-9] and its stress rule[^cll-s4-2] hold within one run. A pause satisfies each of them, so two words with a pause between them never constrain each other.
+In the CLL word family, the numbered pause rules of CLL[^cll-s4-9] and its stress rule[^cll-s4-2] hold within one run. A pause satisfies each of them, so two words with a pause between them never constrain each other. The BPFK exceptions concern [letter words](#words-in-a-run) and [hesitation](#words).
 
 A lookahead tests following input without consuming it. The BPFK word forms look ahead only as far as the next pause. BPFK is the Lojban language planning committee. This stage reads each run on its own, except for two lookaheads.
 
