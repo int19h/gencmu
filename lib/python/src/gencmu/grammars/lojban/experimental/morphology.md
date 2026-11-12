@@ -52,7 +52,7 @@ This layer adds the pair `mz` to the shared table of its own stitched pipeline. 
 
 ## Consonants before glides
 
-The `letter-ban` hook reads only a syllable-initial apostrophe. Experimental accepts a consonant before a glide in names and borrowings, as CLL 1.1 section 3.4 permits.[^cll-s3-4] BPFK and Zantufa keep their source ban. The CLL word family already accepts these forms. A CgV sequence is a consonant, a glide and its nucleus.
+The `banned-after-consonant` hook reads only a syllable-initial apostrophe. Experimental accepts a consonant before a glide in names and borrowings, as CLL 1.1 section 3.4 permits.[^cll-s3-4] BPFK and Zantufa keep their source ban. The CLL word family already accepts these forms. A CgV sequence is a consonant, a glide and its nucleus.
 
 The consonant rules retain every restriction except the glide ban. A borrowing syllable onset can add a glide after a nonempty legal initial. Particles and rafsi slots keep the ordinary onset. Classical rafsi still require their original vowel positions, so CgV creates no new classical compound shape.
 
@@ -99,7 +99,7 @@ The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The sp
 
 -- A CgV onset begins with the shared initial cluster. The cluster is not empty, and no consonant follows it.
 %rule cgv-initial
-  $c:initial-cluster
+  $c:initial-consonants
 %conditions
   ¬$c.following-tokens.parse(consonant …)
 
@@ -119,12 +119,12 @@ The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The sp
   $c.value ≠ "r"
 
 -- Consonant letters cannot precede a syllable-initial apostrophe but can precede a glide.
-%redefine-rule letter-ban
+%redefine-rule banned-after-consonant
   h
 
 ```
 
-<details><summary>Railroad diagrams of the 10 rules from <code>cmevla-shape</code> to <code>letter-ban</code></summary>
+<details><summary>Railroad diagrams of the 10 rules from <code>cmevla-shape</code> to <code>banned-after-consonant</code></summary>
 <p><img src="../../../docs/diagrams/lojban/experimental/morphology/cmevla-shape.svg" alt="Railroad diagram of the rule cmevla-shape"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/morphology/brivla-shape.svg" alt="Railroad diagram of the rule brivla-shape"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/morphology/cgv-form.svg" alt="Railroad diagram of the rule cgv-form"></p>
@@ -134,7 +134,7 @@ The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The sp
 <p><img src="../../../docs/diagrams/lojban/experimental/morphology/cgv-initial.svg" alt="Railroad diagram of the rule cgv-initial"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/morphology/fuhivla.svg" alt="Railroad diagram of the rule fuhivla"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/morphology/cgv-rafsi-continuation.svg" alt="Railroad diagram of the rule cgv-rafsi-continuation"></p>
-<p><img src="../../../docs/diagrams/lojban/experimental/morphology/letter-ban.svg" alt="Railroad diagram of the rule letter-ban"></p>
+<p><img src="../../../docs/diagrams/lojban/experimental/morphology/banned-after-consonant.svg" alt="Railroad diagram of the rule banned-after-consonant"></p>
 </details>
 
 ## Extended rafsi
@@ -143,7 +143,7 @@ An extended rafsi is a whole or shortened word before a y-hyphen. It has a class
 
 A `hy_rafsi` is a CCVCV, CVCCV, CCV, or CVV rafsi body followed by `'y`. The BPFK grammar reads that shape only through the `hy-rafsi-of` template in lookaheads. It ends a rafsi string, and it keeps `y-less-rafsi` from starting one. This layer also reads it inside compounds.
 
-`hy-rafsi` takes a long rafsi with an unstressed vowel, a CCV rafsi, or a CVV rafsi before `'y`. The long form leaves a consonant after a CCV prefix, so the shorter form cannot reach the apostrophe there. CVV differs in its second or third letter. The stressed forms have the same separation. After these redefinitions, nothing reads the rules `brivla-rafsi`, `stressed-brivla-rafsi` and `two-syllables` of [../bpfk/morphology.md](../bpfk/morphology.md).
+`hy-rafsi` takes a long rafsi with an unstressed vowel, a CCV rafsi, or a CVV rafsi before `'y`. The long form leaves a consonant after a CCV prefix, so the shorter form cannot reach the apostrophe there. CVV differs in its second or third letter. The stressed forms have the same separation. After these redefinitions, nothing reads the rules `brivla-rafsi`, `stressed-brivla-rafsi` and `two-counted-syllables` of [../bpfk/morphology.md](../bpfk/morphology.md).
 
 ```jbogenbau
 -- An extended rafsi has a classical apostrophe-y form or a borrowing head. Borrowing heads exclude rafsi strings, which include hy-rafsi.
@@ -154,11 +154,11 @@ A `hy_rafsi` is a CCVCV, CVCCV, CCV, or CVV rafsi body followed by `'y`. The BPF
 %redefine-rule stressed-extended-rafsi
   stressed-hy-rafsi | stressed-fuhivla-rafsi
 
--- An apostrophe-y rafsi ends its classical body with apostrophe-y. The long classical form appends an unstressed vowel to a long rafsi in this layer. Another apostrophe can follow the hyphen.
-%rule hy-rafsi = hy-rafsi-of(unstressed-vowel, unstressed-diphthong, unstressed-vowel, [h])
+-- An apostrophe-y rafsi ends its classical body with apostrophe-y. Another apostrophe can follow the hyphen.
+%rule hy-rafsi = hy-rafsi-of(unstressed-vowel, unstressed-diphthong, [h])
 
 -- A stressed apostrophe-y rafsi ends its stressed classical body with apostrophe-y.
-%rule stressed-hy-rafsi = hy-rafsi-of(stressed-vowel, stressed-diphthong, stressed-vowel, ε)
+%rule stressed-hy-rafsi = hy-rafsi-of(stressed-vowel, stressed-diphthong, ε)
 ```
 
 <details><summary>Railroad diagrams of the 4 rules from <code>extended-rafsi</code> to <code>stressed-hy-rafsi</code></summary>
