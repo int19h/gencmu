@@ -591,14 +591,36 @@ class StageContext:
 
     def contains_answer(self, rule: str, start: int, end: int, error_free: bool = False):
         """The NestedAnswer of a part query (§4)."""
-        state = yield self.suffix(rule, start, end, error_free)
+        self.require_inactive(rule, start, end)
+        key = ("part", self.query_key(rule, start, end, error_free))
+        if not self.suffix_active and key in self.memo:
+            if (False, key) in self.tainted:
+                self.aligned_asked += 1
+            return self.memo[key]
+        # This scan keeps one fixed window. It neither retains a suffix
+        # chart nor disables the memo of its nested queries (§4.4).
+        state = SuffixState(error_free=error_free)
+        active = rule, start, end
+        self.running.add(active)
+        asked = self.aligned_asked
+        try:
+            yield state.resume(self, self.lowered.rule_ids[rule], start, end)
+        finally:
+            self.running.discard(active)
+            if state.walk is not None:
+                state.walk.close()
         gathered = Gathered()
         accepted = False
         for position in range(start, end + 1):
             if state.answers.get(position):
                 accepted = True
                 gathered.add(state.tags.get(position, EMPTY))
-        return NestedAnswer(accepted, gathered.value())
+        answer = NestedAnswer(accepted, gathered.value())
+        if not self.suffix_active:
+            self.memo[key] = answer
+            if self.aligned_asked != asked:
+                self.tainted.add((False, key))
+        return answer
 
     def query_key(self, rule, start, end, error_free):
         key = self.nested_key(rule, start, end)

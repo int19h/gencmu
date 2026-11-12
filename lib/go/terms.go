@@ -832,8 +832,10 @@ func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal, errorFree 
 		return answer.holds, answer.tags, nil
 	}
 	var suffix *suffixState
+	// Part queries scan one fixed window. They keep no resumable suffix
+	// chart and do not disable the memo of their nested queries (§4.4).
 	if kind == cdSuffix || kind == cdContains {
-		if ps.suffixActive > 0 {
+		if kind == cdContains || ps.suffixActive > 0 {
 			suffix = &suffixState{answers: map[int]bool{}, tags: map[int]*tagset{}, errorFree: errorFree}
 		} else {
 			suffix = run.suffixState(g, start, s.a, s.b, errorFree)
@@ -976,7 +978,9 @@ func (q *nestedQuery) recognizer(run *stageRun) *recognizer {
 		alignedQueryHook(1)
 	}
 	if q.suffix != nil {
-		run.ps.suffixActive++
+		if q.key.kind == cdSuffix {
+			run.ps.suffixActive++
+		}
 		if r := q.suffix.rec; r != nil {
 			r.query, r.n, r.lo, r.hi = q, b-a, a, b
 			return r
@@ -1009,7 +1013,7 @@ func (run *stageRun) drive(root *recognizer) {
 		failure := recover()
 		// A parse that failed frees its place, as one that finished does.
 		for _, r := range frames {
-			if r.suffix != nil {
+			if r.suffix != nil && r.query.key.kind == cdSuffix {
 				run.ps.suffixActive--
 			}
 			if r.query != nil {
@@ -1049,7 +1053,10 @@ func (run *stageRun) drive(root *recognizer) {
 			run.settle(r)
 			// A nested recognition is done with its walk, which the next
 			// can reuse.
-			if r.suffix == nil {
+			if r.suffix == nil || r.query.key.kind == cdContains {
+				if r.suffix != nil {
+					r.suffix.rec = nil
+				}
 				run.walks = append(run.walks, r.w)
 				r.w = walk{}
 				run.recycle(r)

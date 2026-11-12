@@ -1,0 +1,10 @@
+{
+  "description": "Engine §4: nested part queries reuse answers for equal windows.",
+  "grammar": "%rule text\n  \"a\" | \"a\" $x:text\n%conditions\n  $x.parse(… text …)",
+  "input": "aaaaaaaaaaaaaaaaaaaaaaaa",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}
