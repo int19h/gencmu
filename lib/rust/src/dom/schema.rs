@@ -699,6 +699,9 @@ fn parts_problem(
             continue;
         }
         if value.get("call").is_some() && !matches!(kind, Part::Pattern | Part::PatternNode | Part::Argument) {
+            if matches!(kind, Part::Condition) {
+                return Some("a malformed condition".into());
+            }
             if !matches!(kind, Part::Expr { .. } | Part::Term | Part::Target | Part::Call) {
                 return Some("a call in the wrong source category".into());
             }
@@ -945,7 +948,8 @@ fn parts_problem(
                     let receiver = value.get("receiver").unwrap();
                     let name = value.get("method").and_then(Json::as_str).unwrap_or("");
                     if !crate::notation::is_known_method(name)
-                        || name == "classify"
+                        || !check
+                            && name == "classify"
                             && args.iter().any(|arg| {
                                 !exact(arg, &["classifier"], &[])
                                     || !arg.get("classifier").and_then(Json::as_str).is_some_and(is_classifier_name)
@@ -1023,7 +1027,14 @@ fn parts_problem(
                                 && (!exact(arg, &[key], &[])
                                     || !arg.get(key).is_some_and(|value| matches!(value, Json::Str(_))))
                             {
-                                return Some("a malformed method argument".into());
+                                return Some(
+                                    if key == "integer" {
+                                        "a malformed integer argument"
+                                    } else {
+                                        "a malformed method argument"
+                                    }
+                                    .into(),
+                                );
                             }
                         }
                         if let Some(target) = arg.get("rule").and_then(Json::as_str) {

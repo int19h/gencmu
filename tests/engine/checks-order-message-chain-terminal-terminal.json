@@ -1,14 +1,8 @@
 {
-  "description": "A check message rejects terminal followed by terminal.",
+  "description": "A check message rejects two terminal selectors.",
   "grammar": "%rule text \"a\"\n%check c #·text\n%warning \"x\" ++ $.terminal.terminal",
   "input": "a",
   "expect": {
-    "error": "grammar",
-    "message": "a check message reads only $",
-    "where": {
-      "document": "main.md",
-      "line": 5,
-      "column": 17
-    }
+    "error": "grammar"
   }
 }

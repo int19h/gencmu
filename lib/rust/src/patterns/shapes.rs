@@ -226,7 +226,7 @@ fn inspect_shape(root: &Json, inspect: &Inspection<'_>) -> Result<(), String> {
                     && !has(target, "exact")
                     && !has(target, "children");
                 if !matches!(get(n, "test").as_str(), Some("=" | "≠")) || !(terminal_atom(target) || rule_atom) {
-                    return Err("a pattern value test requires an undecorated atom".into());
+                    return Err("a pattern value test requires a node atom".into());
                 }
                 if !string_term(get(n, "value")) {
                     return Err("a malformed pattern value test".into());

@@ -764,10 +764,8 @@ func (c *domCond) writeJSON(w *jsonWriter) {
 		t := &domTerm{Kind: tmCall, Str: name, Items: []*domTerm{c.Span}}
 		if c.Kind == cdBoundary {
 			t.Str = c.Op
-			t.Items = append(t.Items, c.Targets...)
-		} else if c.Kind != cdInitial && c.Kind != cdEnd {
-			t.Items = append(t.Items, c.queryTargets()...)
 		}
+		t.Items = append(t.Items, c.Targets...)
 		t.writeJSON(w)
 	case cdNot:
 		w.raw(`{"not":`)
@@ -1555,6 +1553,9 @@ func (dc *domDecoder) decodeTermNode(raw any, depth int) (*domTerm, error) {
 	for _, k := range []string{tmString, tmTag, tmCapture, tmRule, tmClassifier, tmTerminal, tmInteger} {
 		if v, ok := o[k]; ok {
 			s, err := domString(v)
+			if k == tmInteger && err != nil {
+				return nil, fmt.Errorf("a malformed integer argument")
+			}
 			return &domTerm{Kind: k, Str: s}, err
 		}
 	}
@@ -1644,11 +1645,11 @@ func (dc *domDecoder) decodeCondNode(raw any, depth int) (*domCond, error) {
 		switch {
 		case name == "parse" || name == "error-free" || name == "ending-after" || name == "local-readings":
 			return &domCond{Kind: cdForest, Left: &domTerm{Kind: tmCall, Str: name, Items: append([]*domTerm{receiver}, args...)}}, nil
-		case name == "ends-input" && len(args) == 0:
-			return &domCond{Kind: cdEnd, Span: receiver}, nil
-		case name == "starts-input" && len(args) == 0:
-			return &domCond{Kind: cdInitial, Span: receiver}, nil
-		case boundaryMethod(name) && len(args) >= 1:
+		case name == "ends-input":
+			return &domCond{Kind: cdEnd, Span: receiver, Targets: args}, nil
+		case name == "starts-input":
+			return &domCond{Kind: cdInitial, Span: receiver, Targets: args}, nil
+		case boundaryMethod(name):
 			return &domCond{Kind: cdBoundary, Op: name, Span: receiver, Targets: args}, nil
 		}
 		return nil, fmt.Errorf("a malformed predicate method")

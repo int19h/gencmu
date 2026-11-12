@@ -224,7 +224,7 @@ func layeredPatternProblem(root any, inspect layeredPatternInspection) string {
 				}
 				ruleAtom := (target["name"] != nil || target["call"] != nil || target["param"] != nil) && !layeredHas(target, "exact") && !layeredHas(target, "children")
 				if n["test"] != "=" && n["test"] != "≠" || !(layeredTerminalAtom(target) || ruleAtom) {
-					return "a pattern value test requires an undecorated atom"
+					return "a pattern value test requires a node atom"
 				}
 				if !layeredStringTerm(n["value"]) {
 					return "a malformed pattern value test"

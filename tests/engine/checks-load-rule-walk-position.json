@@ -1,5 +1,5 @@
 {
-  "description": "A forbidden check selector precedes the tree comparison's receiver fault.",
+  "description": "A rule condition rejects a node walk in a tree comparison.",
   "grammar": "%rule text $x:\"a\"\n%conditions $x.preceding-node ≅ $x",
   "input": "a",
   "expect": {

@@ -613,7 +613,7 @@ A library ignores unknown members of a directive. Its known members, `name`, `ar
 
 DOMs store unresolved references and source positions, never stage-resolved constant or classifier values. Source, cached, and supplied DOMs obey the same arity, type, capture, clause, and depth rules.
 
-Check validation follows the complete fault order of engine §9.3. Structural inspection of the whole declaration precedes semantic inspection in written order.
+Libraries reject a check declaration with several faults, but this specification does not fix which fault a library reports. Engine §9.3 gives the text and position for a declaration with one fault.
 
 ### Pattern values
 

@@ -1393,6 +1393,48 @@ func isRuleName(name string, uni *unicodeTable) bool {
 	return classifierName.MatchString(name) || uni.isEmojiName(name)
 }
 
+// methodArgument checks the nominal kind and the shape of one argument.
+func (c *domChecker) methodArgument(name string, arg *domTerm, depth int) {
+
+	if arg == nil {
+		c.fail("a malformed method argument")
+		return
+	}
+	switch arg.Kind {
+	case tmRule:
+		if (name != "without-elision-except" && name != "followed-by" && name != "preceded-by") || !c.ruleName(arg.Str) {
+			c.fail("a malformed rule argument")
+			return
+		}
+	case tmClassifier:
+		if name != "classify" || !classifierName.MatchString(arg.Str) {
+			c.fail("a malformed classifier argument")
+			return
+		}
+	case tmInteger:
+		if name != "ngrams" || !validInteger(arg.Str) {
+			c.fail("a malformed integer argument")
+			return
+		}
+	case tmTerminal:
+		if (name != "followed-by" && name != "preceded-by") || !isClass(arg.Str) {
+			c.fail("a malformed boundary target")
+			return
+		}
+	case tmBody:
+		if name != "parse" {
+			c.fail("a malformed parse argument")
+			return
+		}
+		previous := c.parseBody
+		c.parseBody = true
+		c.term(arg, depth, true)
+		c.parseBody = previous
+	default:
+		c.term(arg, depth, true)
+	}
+}
+
 // term checks a term; argument says it is a function's argument, where a
 // span may stand. A nil term is an absent, optional one.
 func (c *domChecker) term(t *domTerm, depth int, argument bool) {
@@ -1567,43 +1609,7 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 			}
 			c.term(t.Items[0], depth+1, true)
 			for _, arg := range t.Items[1:] {
-				if arg == nil {
-					c.fail("a malformed method argument")
-					return
-				}
-				switch arg.Kind {
-				case tmRule:
-					if (t.Str != "without-elision-except" && t.Str != "followed-by" && t.Str != "preceded-by") || !c.ruleName(arg.Str) {
-						c.fail("a malformed rule argument")
-						return
-					}
-				case tmClassifier:
-					if t.Str != "classify" || !classifierName.MatchString(arg.Str) {
-						c.fail("a malformed classifier argument")
-						return
-					}
-				case tmInteger:
-					if t.Str != "ngrams" || !validInteger(arg.Str) {
-						c.fail("a malformed integer argument")
-						return
-					}
-				case tmTerminal:
-					if (t.Str != "followed-by" && t.Str != "preceded-by") || !isClass(arg.Str) {
-						c.fail("a malformed boundary target")
-						return
-					}
-				case tmBody:
-					if t.Str != "parse" {
-						c.fail("a malformed parse argument")
-						return
-					}
-					previous := c.parseBody
-					c.parseBody = true
-					c.term(arg, depth+1, true)
-					c.parseBody = previous
-				default:
-					c.term(arg, depth+1, true)
-				}
+				c.methodArgument(t.Str, arg, depth+1)
 			}
 			return
 		}
@@ -1835,7 +1841,7 @@ func (c *domChecker) condition(d *domCond, depth int) {
 			}
 		}
 		if !c.structural && (d.Span == nil || d.Span.Kind != tmCapture && !(c.check && checkNodeTerm(d.Span)) && !unresolvedTerm(d.Span) || !boundaryMethod(d.Op) || len(d.Targets) == 0) {
-			if c.check || d.Span != nil && d.Span.Kind != tmCapture && !unresolvedTerm(d.Span) {
+			if c.check || len(d.Targets) == 0 || d.Span != nil && d.Span.Kind != tmCapture && !unresolvedTerm(d.Span) {
 				c.fail("a method has the wrong receiver or arguments")
 			} else {
 				c.fail("a malformed boundary atom")
@@ -1849,6 +1855,20 @@ func (c *domChecker) condition(d *domCond, depth int) {
 			c.target(t, depth+1)
 		}
 	case cdInitial, cdEnd:
+		method := "starts-input"
+		if d.Kind == cdEnd {
+			method = "ends-input"
+		}
+		for _, arg := range d.Targets {
+			c.methodArgument(method, arg, depth+1)
+		}
+		if c.problem != nil {
+			return
+		}
+		if !c.structural && len(d.Targets) != 0 {
+			c.fail("a method has the wrong receiver or arguments")
+			return
+		}
 		if c.check {
 			c.term(d.Span, depth+1, true)
 			if c.problem != nil {

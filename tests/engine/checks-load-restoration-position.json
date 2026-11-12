@@ -1,14 +1,8 @@
 {
-  "description": "A restoration selector in a check reports before a later capture.",
+  "description": "A check rejects restoration and a named capture.",
   "grammar": "%rule text \"a\"\n%check c #·text\n%conditions $.without-elision.value = $y.value\n%warning \"m\"",
   "input": "a",
   "expect": {
-    "error": "grammar",
-    "where": {
-      "document": "main.md",
-      "line": 5,
-      "column": 14
-    },
-    "message": "a check cannot restore elision"
+    "error": "grammar"
   }
 }

@@ -1,14 +1,8 @@
 {
-  "description": "A later malformed integer precedes an earlier comparison type fault.",
+  "description": "A check rejects an invalid tree operand and a malformed integer.",
   "grammar": "%rule text \"a\"\n%check c #·text\n%conditions $ ≅ \"a\", $.value.ngrams(0)\n%warning \"m\"",
   "input": "a",
   "expect": {
-    "error": "grammar",
-    "message": "a malformed integer argument",
-    "where": {
-      "document": "main.md",
-      "line": 5,
-      "column": 37
-    }
+    "error": "grammar"
   }
 }

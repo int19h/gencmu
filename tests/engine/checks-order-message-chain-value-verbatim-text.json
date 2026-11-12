@@ -1,14 +1,8 @@
 {
-  "description": "A check message rejects value followed by verbatim-text.",
+  "description": "A check message rejects a value and verbatim-text chain.",
   "grammar": "%rule text \"a\"\n%check c #·text\n%warning $.value.verbatim-text",
   "input": "a",
   "expect": {
-    "error": "grammar",
-    "message": "a check message reads only $",
-    "where": {
-      "document": "main.md",
-      "line": 5,
-      "column": 10
-    }
+    "error": "grammar"
   }
 }

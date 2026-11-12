@@ -1,14 +1,8 @@
 {
-  "description": "A check message rejects the $.terminal.value chain.",
+  "description": "A check message rejects a terminal and value chain.",
   "grammar": "%rule text \"a\"\n%check c #·text\n%warning $.terminal.value",
   "input": "a",
   "expect": {
-    "error": "grammar",
-    "message": "a check message reads only $",
-    "where": {
-      "document": "main.md",
-      "line": 5,
-      "column": 10
-    }
+    "error": "grammar"
   }
 }

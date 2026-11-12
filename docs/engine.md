@@ -1035,13 +1035,13 @@ A stage defines each check name once. Repeated includes can therefore cause dupl
 
 The name has one diagnostic role throughout the pipeline. Warning names obey the feature-name rules and join the feature inventory (§13). An error cannot be disabled. A rule body, pattern, query target, boundary target, splice or ranking step cannot refer to a check.
 
-The loader binds a check's constants before inspecting its types and values, in declaration order as for a rule. It inspects the candidate pattern, conditions, then message. It resolves pattern names and template families against the stage. Splicing a named pattern target is illegal, as for other patterns.
+The loader binds a check's constants and inspects its candidate pattern, conditions and message. It resolves pattern names and template families against the stage. Splicing a named pattern target is illegal, as for other patterns.
 
 After constant resolution, inspect the candidate predicate through parentheses, unions, intersections and differences. The atom `∅` matches nothing and passes this inspection and key-step inspection (§9.3). Every written node test in this predicate must be exact. Reject path operators in that predicate. Stop this inspection at child lists, whose ordinary pattern rules still apply. Tag tests, value tests and child lists are legal on candidate tests.
 
 Reject named captures anywhere in a check, including query arguments. Reject restoration methods in checks. Node walks, `.preceding-element` and `.local-readings` are legal only in check conditions. `.terminal` is legal only on `$` in a check message. Element receivers and absent values follow §10.
 
-Each violation is a loading error, also for a disabled warning check. A comparison of identical node terms through `≅` or `≇` is illegal. Body shape, exactness and path errors stand at the check body. Malformed check structure precedes type inspection (§9.3). A `%redefine-stage` discards checks before surviving-stage inspection (§13).
+Each violation is a loading error, also for a disabled warning check. A comparison of identical node terms through `≅` or `≇` is illegal. Body shape, exactness and path errors stand at the check body. Section 9.3 gives diagnostic texts and positions without selecting one fault among several. A `%redefine-stage` discards checks before surviving-stage inspection (§13).
 
 ## 3. Lowering
 
@@ -2962,39 +2962,39 @@ A pattern argument is one term that the pattern grammar consumes. The argument r
 
 ### 9.3 Conversion and validation
 
-The reader completes argument-independent definition and boundary checks before reading the next declaration. Internal projections impose no additional nesting limit or earlier depth error. Supplied-DOM validation applies the same boundary rules to projected template definitions.
+For declarations other than checks, the reader completes argument-independent definition and boundary checks before reading the next declaration. Internal projections impose no additional nesting limit or earlier depth error. Supplied-DOM validation applies the same boundary rules to projected template definitions.
 
-Within one declaration, structural shape errors precede type errors. Closed-term restrictions, empty literal split delimiters, own-tag reads, and engine-tag introduction also follow structural shape inspection. Pattern shape errors retain their specific reason. DOM conversion reuses one parsed JSON tree and never reparses a subtree at each ancestor. Decoding applies no early depth bound before the declaration checks.
+In declarations other than checks, structural shape errors precede type errors. Closed-term restrictions, empty literal split delimiters, own-tag reads, and engine-tag introduction also follow structural shape inspection. Pattern shape errors retain their specific reason. DOM conversion reuses one parsed JSON tree and never reparses a subtree at each ancestor. Decoding applies no early depth bound before the declaration checks.
 
-Semantic faults belong to their declarations. Closedness precedes type selection only within that declaration. Across declarations, the earliest erroneous declaration in source order wins. Empty literal split delimiters are inspected within their owning declaration's semantic phase. Every declaration's structural shape must pass before these delimiter faults are selected.
+For declarations other than checks, semantic faults belong to their declarations. Closedness precedes type selection within each such declaration. Among those declarations, the earliest erroneous declaration in source order wins. Empty literal split delimiters follow structural inspection within their owning declaration.
 
 A known non-string operand fails concatenation even if it contains a parameter. This local failure uses the concatenation's position.
 
 Readers use common diagnostic text for unclosed grammar fences, capture restrictions, method signatures, and directive operands. A method with an invalid receiver or arguments reports `a method has the wrong receiver or arguments`. If type inspection detects the signature error, it uses this text too. Advice for restored spans and bare captures keeps its specific text. A diagnostic position remains separate from its text. A library can prefix the text with that position.
 
-Binding a constant does not change method-signature text. A fault inside a receiver or argument retains that operand's own diagnostic.
+Binding a constant does not change method-signature text. A reported fault inside a receiver or argument retains that operand's own diagnostic.
 
 Check terms obey ordinary term rules, except for the boundary-atom limits of rule conditions. A check condition can contain several boundary atoms and read several nodes.
 
-Structural inspection covers the whole check declaration before semantic inspection starts. Structural faults include malformed DOM members, names, references, parameters, integers, strings, argument kinds, and concatenations with too few operands. A structural fault anywhere precedes every semantic fault.
+A library rejects a check declaration with several faults. This specification does not fix which fault a library reports. The four libraries agree on acceptance and rejection. For a declaration with one fault, they also agree on its text and position. The diagnostic texts and positions below apply to a declaration with one fault.
 
-In a check, a malformed reference reports `a malformed reference`. An undeclared or malformed parameter reports `an undeclared or malformed parameter`. An invalid rule argument reports `a malformed rule argument`. A concatenation with too few operands reports `a malformed concatenation`. Each uses the faulty constructor's position.
+Structural faults include malformed DOM members, names, references, parameters, integers, strings, argument kinds, and concatenations with too few operands.
 
-Semantic inspection follows written order. Conditions come in written order, then the message. Message operands come in written order. A non-string operand is a fault at its place in that order. It fails the concatenation at the concatenation's position.
+In a check, a malformed reference reports `a malformed reference`. An undeclared or malformed parameter reports `an undeclared or malformed parameter`. An invalid rule argument reports `a malformed rule argument`. A malformed integer argument reports `a malformed integer argument`. A concatenation with too few operands reports `a malformed concatenation`. Each uses the faulty constructor's position.
 
-Within an operand, a receiver's fault precedes its selectors' faults. At a selector, check restrictions precede the ordinary signature rule. Check restrictions concern capture references, methods outside their permitted clause, restoration selectors, and message receivers.
+A non-string message operand fails concatenation at the concatenation's position.
 
 A malformed check name reports at the name. A check whose name is a rule reports `a rule and a check cannot share the name NAME` at the check declaration. A forbidden capture reference reports `a check cannot name a capture` at that reference, in conditions and messages. For a caller-supplied DOM without that source position, use the declaration's `at`.
 
 Every rule name in a check condition resolves against its stage. An unresolved name reports `NAME is not a rule of stage STAGE` at the name. This position also applies to names in the candidate pattern. A supplied DOM without a name position uses the check declaration's `at`.
 
-Section 2.4 defines the clauses where check methods are legal. A forbidden check method reports `a check method is outside its permitted clause` at the selector's leading dot. A restoration selector reports `a check cannot restore elision` at its leading dot. These restrictions precede semantic faults inside arguments. Structural argument faults precede them, under the structural inspection rule.
+Section 2.4 defines the clauses where check methods are legal. A forbidden check method reports `a check method is outside its permitted clause` at the selector's leading dot. A restoration selector reports `a check cannot restore elision` at its leading dot.
 
-A method chain in a check message must read `$` through one permitted string method, including `.terminal`. Every other chain reports `a check message reads only $` at that atom's first token. This restriction precedes the ordinary signature rule, including for chains of `.terminal` methods. A single non-string method result follows the non-string operand rule.
+A method chain in a check message must read `$` through one permitted string method, including `.terminal`. Every other chain reports `a check message reads only $` at that atom's first token. A single non-string method result follows the non-string operand rule.
 
 Other faulty message atoms report at their first token. Clause and capture faults retain their positions above. A capture binder in a check query argument reports `a check cannot declare a capture` at the binder.
 
-A check tree comparison requires a node on its left. A left operand that is not a node reports `a tree comparison requires a node on its left` at that operand. A wrong right operand reports `a tree comparison requires a node or pattern` at that operand. A fault of the left operand precedes a fault of the right operand. A self comparison in a check reports `a tree comparison cannot compare a node with itself` at the comparison.
+A check tree comparison requires a node on its left. A left operand that is not a node reports `a tree comparison requires a node on its left` at that operand. A wrong right operand reports `a tree comparison requires a node or pattern` at that operand. A self comparison in a check reports `a tree comparison cannot compare a node with itself` at the comparison.
 
 The following table is the complete constructor contract, including the template forms of §2.3. A constructor is a recognized syntax-tree part. Its row specifies required parts, lookup order, and DOM conversion. Names outside this table are wrappers, never constructors. Each wrapper contributes its children recursively in written order.
 
@@ -3382,9 +3382,9 @@ Parentheses after the `rule-keyword` fail the syntax stage at `(`, column 6 in `
 
   The reader does not know the type of a constant, so it lets a constant stand for a value of any type but a span. After the loader stitches the stage, it makes sure again that the types agree (§2). It reports an error there at the first constant of the smallest construct whose parts disagree.
 
-  A fault that names no constant sorts at its own construct's position. A DOM without that coordinate uses written clause order between positioned faults. The semantic order follows header tags, value, and image, then each alternative's expression, tags, value, and image. Conditions follow the alternatives, then the diagnostic message, suppression, and emission items. A structural work queue does not define this order.
+  In declarations other than checks, a fault that names no constant sorts at its own construct's position. A DOM without that coordinate uses written clause order between positioned faults. The semantic order follows header tags, value, and image, then each alternative's expression, tags, value, and image. Conditions follow the alternatives, then the diagnostic message, suppression, and emission items. A structural work queue does not define this order.
 
-  Among faults that name constants, the earliest constant position wins. This order includes all clauses, alternatives, body operands, and symbol tests. Retained call arguments follow the same order, including arguments that substitution does not use.
+  In declarations other than checks, the earliest constant position wins among faults that name constants. This order includes all clauses, alternatives, body operands, and symbol tests. Retained call arguments follow the same order, including arguments that substitution does not use.
 
   A signed tag requirement and a recipe atom are separate source constructs. Their type faults name the failing operand, without private container names. Ordinary term concatenation remains one construct.
 - After method selection, a capture or span converts to its input value when a string is required or in `=` or `≠` (§10). It cannot convert to tags, sets, or patterns.

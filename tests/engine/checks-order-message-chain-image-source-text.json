@@ -1,14 +1,8 @@
 {
-  "description": "A check message rejects image followed by source-text.",
+  "description": "A check message rejects an image and source-text chain.",
   "grammar": "%rule text \"a\"\n%check c #·text\n%warning \"x\" ++ $.image.source-text",
   "input": "a",
   "expect": {
-    "error": "grammar",
-    "message": "a check message reads only $",
-    "where": {
-      "document": "main.md",
-      "line": 5,
-      "column": 17
-    }
+    "error": "grammar"
   }
 }

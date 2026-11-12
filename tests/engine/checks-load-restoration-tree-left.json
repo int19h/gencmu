@@ -1,14 +1,8 @@
 {
-  "description": "A restoration selector is forbidden in a check condition.",
+  "description": "A check rejects restoration as a tree operand.",
   "grammar": "%rule text \"a\"\n%check c #·text\n%conditions $.without-elision ≅ $\n%warning \"m\"",
   "input": "a",
   "expect": {
-    "error": "grammar",
-    "where": {
-      "document": "main.md",
-      "line": 5,
-      "column": 14
-    },
-    "message": "a check cannot restore elision"
+    "error": "grammar"
   }
 }

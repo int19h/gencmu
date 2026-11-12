@@ -1,14 +1,8 @@
 {
-  "description": "A check message rejects value followed by value.",
+  "description": "A check message rejects two value selectors.",
   "grammar": "%rule text \"a\"\n%check c #·text\n%warning $.value.value",
   "input": "a",
   "expect": {
-    "error": "grammar",
-    "message": "a check message reads only $",
-    "where": {
-      "document": "main.md",
-      "line": 5,
-      "column": 10
-    }
+    "error": "grammar"
   }
 }

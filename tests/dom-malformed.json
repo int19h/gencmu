@@ -1500,7 +1500,7 @@
     "malformed": false
   },
   {
-    "description": "A boundary target must be a rule or a user tag terminal (engine §9).",
+    "description": "A rule boundary target cannot be a property terminal.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -1533,7 +1533,7 @@
     "malformed": true
   },
   {
-    "description": "A boundary target must be a rule or a user tag terminal (engine §9).",
+    "description": "A rule boundary target cannot be the wildcard.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -1566,7 +1566,7 @@
     "malformed": true
   },
   {
-    "description": "A boundary target must be a rule or a user tag terminal (engine §9).",
+    "description": "A rule boundary target cannot be a string.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -1599,7 +1599,7 @@
     "malformed": true
   },
   {
-    "description": "A boundary target must be a rule or a user tag terminal (engine §9).",
+    "description": "A rule boundary target cannot be a capitalized rule name.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -1632,7 +1632,7 @@
     "malformed": true
   },
   {
-    "description": "A boundary target must be a rule or a user tag terminal (engine §9).",
+    "description": "A rule boundary target rejects extra members.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -3753,7 +3753,7 @@
     "malformed": true
   },
   {
-    "description": "A feature condition rejects the wrong named argument form for split (engine §§9, 13).",
+    "description": "A feature condition rejects a rule argument for split.",
     "directive": {
       "name": "features",
       "args": [
@@ -3786,7 +3786,7 @@
     "malformed": true
   },
   {
-    "description": "A feature condition rejects the wrong named argument form for split (engine §§9, 13).",
+    "description": "A feature condition rejects a classifier argument for split.",
     "directive": {
       "name": "features",
       "args": [
@@ -3819,7 +3819,7 @@
     "malformed": true
   },
   {
-    "description": "A feature condition rejects the wrong named argument form for split (engine §§9, 13).",
+    "description": "A feature condition rejects a terminal argument for split.",
     "directive": {
       "name": "features",
       "args": [
@@ -4498,7 +4498,7 @@
     "malformed": false
   },
   {
-    "description": "An ngrams integer argument is canonical positive decimal text: 2.",
+    "description": "An ngrams argument accepts the canonical text 2.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -4693,7 +4693,7 @@
     "malformed": true
   },
   {
-    "description": "An ngrams integer argument is canonical positive decimal text: 2.",
+    "description": "An ngrams argument rejects a JSON number.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -4946,7 +4946,7 @@
     "malformed": true
   },
   {
-    "description": "ngrams rejects metadata as a value receiver.",
+    "description": "An ngrams receiver cannot be an integer argument.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -4985,7 +4985,7 @@
     "malformed": true
   },
   {
-    "description": "ngrams rejects metadata as a value receiver.",
+    "description": "An ngrams receiver cannot be a rule argument.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -5024,7 +5024,7 @@
     "malformed": true
   },
   {
-    "description": "ngrams rejects metadata as a value receiver.",
+    "description": "An ngrams receiver cannot be a classifier argument.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -5205,7 +5205,7 @@
     "malformed": true
   },
   {
-    "description": "Engine §10 accepts repeated rule and terminal targets in supplied DOM.",
+    "description": "A prefix parse accepts repeated rule and terminal targets.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -5260,7 +5260,7 @@
     "malformed": false
   },
   {
-    "description": "Engine §10 accepts repeated rule and terminal targets in supplied DOM.",
+    "description": "A whole parse accepts repeated rule and terminal targets.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -5308,7 +5308,7 @@
     "malformed": false
   },
   {
-    "description": "Engine §10 accepts repeated rule and terminal targets in supplied DOM.",
+    "description": "A followed-by atom accepts repeated rule and terminal targets.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -5350,7 +5350,7 @@
     "malformed": false
   },
   {
-    "description": "Engine §10 accepts repeated rule and terminal targets in supplied DOM.",
+    "description": "A preceded-by atom accepts repeated rule and terminal targets.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -5392,7 +5392,7 @@
     "malformed": false
   },
   {
-    "description": "Engine §9.3 rejects a string set in a scalar value test.",
+    "description": "A symbol value test rejects a string set.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -5426,7 +5426,7 @@
     "malformed": true
   },
   {
-    "description": "Engine §9.3 rejects a string set in a scalar value test.",
+    "description": "A pattern value test rejects a string set.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -23305,7 +23305,7 @@
     "malformed": true
   },
   {
-    "description": "A default requires an elidable optional and one string operand.",
+    "description": "An elidable optional rejects a null default.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -23330,7 +23330,7 @@
     "malformed": true
   },
   {
-    "description": "A default requires an elidable optional and one string operand.",
+    "description": "An elidable optional rejects a tag as its default.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -23357,7 +23357,7 @@
     "malformed": true
   },
   {
-    "description": "A default requires an elidable optional and one string operand.",
+    "description": "An elidable optional rejects a number in its default string field.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -23384,7 +23384,7 @@
     "malformed": true
   },
   {
-    "description": "A default requires an elidable optional and one string operand.",
+    "description": "A plain optional rejects a default value.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -25139,7 +25139,7 @@
     "malformed": false
   },
   {
-    "description": "A left operand fault precedes a forbidden selector on the right.",
+    "description": "A check rejects a string on the left and a terminal selector on the right.",
     "dom": {
       "format": 52,
       "rules": [
@@ -25248,11 +25248,10 @@
         }
       ]
     },
-    "malformed": true,
-    "message": "a tree comparison requires a node on its left"
+    "malformed": true
   },
   {
-    "description": "A left operand fault precedes restoration on the right.",
+    "description": "A check rejects a string on the left and restoration on the right.",
     "dom": {
       "format": 52,
       "rules": [
@@ -25361,11 +25360,10 @@
         }
       ]
     },
-    "malformed": true,
-    "message": "a tree comparison requires a node on its left"
+    "malformed": true
   },
   {
-    "description": "A receiver capture fault precedes a forbidden selector.",
+    "description": "A check rejects a named capture and a terminal selector in a condition.",
     "dom": {
       "format": 52,
       "rules": [
@@ -25470,11 +25468,10 @@
         }
       ]
     },
-    "malformed": true,
-    "message": "a check cannot name a capture"
+    "malformed": true
   },
   {
-    "description": "A faulty receiver selector precedes its outer forbidden selector.",
+    "description": "A check rejects a value selector with arguments and a terminal selector.",
     "dom": {
       "format": 52,
       "rules": [
@@ -25587,11 +25584,10 @@
         }
       ]
     },
-    "malformed": true,
-    "message": "a method has the wrong receiver or arguments"
+    "malformed": true
   },
   {
-    "description": "A forbidden selector precedes a capture fault in its argument.",
+    "description": "A check rejects a terminal selector with a named capture argument.",
     "dom": {
       "format": 52,
       "rules": [
@@ -25700,11 +25696,10 @@
         }
       ]
     },
-    "malformed": true,
-    "message": "a check method is outside its permitted clause"
+    "malformed": true
   },
   {
-    "description": "A message receiver capture fault precedes its selector.",
+    "description": "A check message rejects a terminal selector on a named capture.",
     "dom": {
       "format": 52,
       "rules": [
@@ -25792,8 +25787,7 @@
         }
       ]
     },
-    "malformed": true,
-    "message": "a check cannot name a capture"
+    "malformed": true
   },
   {
     "description": "An empty atom rejects a zero position.",
@@ -26101,7 +26095,7 @@
     "malformed": true
   },
   {
-    "description": "A receiver capture fault precedes a binder fault in a query argument.",
+    "description": "A check rejects a named receiver and a capture binder in its query.",
     "dom": {
       "format": 52,
       "rules": [
@@ -26209,8 +26203,7 @@
         }
       ]
     },
-    "malformed": true,
-    "message": "a check cannot name a capture"
+    "malformed": true
   },
   {
     "description": "A check rejects a restoration with no receiver.",
@@ -26283,7 +26276,7 @@
     "malformed": true
   },
   {
-    "description": "A check forbids restoration with an extra capture argument.",
+    "description": "A check rejects restoration with an extra capture argument.",
     "dom": {
       "format": 52,
       "rules": [
@@ -26357,11 +26350,10 @@
         }
       ]
     },
-    "malformed": true,
-    "message": "a check cannot restore elision"
+    "malformed": true
   },
   {
-    "description": "A check forbids restoration of a string.",
+    "description": "A check rejects restoration of a string receiver.",
     "dom": {
       "format": 52,
       "rules": [
@@ -26431,11 +26423,10 @@
         }
       ]
     },
-    "malformed": true,
-    "message": "a check cannot restore elision"
+    "malformed": true
   },
   {
-    "description": "A check forbids restoration of following tokens.",
+    "description": "A check rejects restoration of an onward span.",
     "dom": {
       "format": 52,
       "rules": [
@@ -26509,11 +26500,10 @@
         }
       ]
     },
-    "malformed": true,
-    "message": "a check cannot restore elision"
+    "malformed": true
   },
   {
-    "description": "A check forbids nested restoration.",
+    "description": "A check rejects nested restoration methods.",
     "dom": {
       "format": 52,
       "rules": [
@@ -26587,11 +26577,10 @@
         }
       ]
     },
-    "malformed": true,
-    "message": "a check cannot restore elision"
+    "malformed": true
   },
   {
-    "description": "A check rejects a restoration receiver with extra members.",
+    "description": "A check rejects restoration of a receiver with extra members.",
     "dom": {
       "format": 52,
       "rules": [
@@ -27091,7 +27080,7 @@
     "malformed": false
   },
   {
-    "description": "In a check, an ngrams integer argument is canonical positive decimal text: 0.",
+    "description": "A check rejects zero as an ngrams integer argument.",
     "dom": {
       "format": 52,
       "rules": [
@@ -27161,10 +27150,11 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": true,
+    "message": "a malformed integer argument"
   },
   {
-    "description": "In a check, an ngrams integer argument is canonical positive decimal text: 02.",
+    "description": "A check rejects leading zeros in an ngrams integer argument.",
     "dom": {
       "format": 52,
       "rules": [
@@ -27234,10 +27224,11 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": true,
+    "message": "a malformed integer argument"
   },
   {
-    "description": "In a check, an ngrams integer argument is canonical positive decimal text: -1.",
+    "description": "A check rejects a negative ngrams integer argument.",
     "dom": {
       "format": 52,
       "rules": [
@@ -27307,10 +27298,11 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": true,
+    "message": "a malformed integer argument"
   },
   {
-    "description": "A check rejects a numeric integer argument.",
+    "description": "A check rejects a JSON number as an integer argument.",
     "dom": {
       "format": 52,
       "rules": [
@@ -27380,7 +27372,8 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": true,
+    "message": "a malformed integer argument"
   },
   {
     "description": "In a check, an integer argument cannot occur in split.",
@@ -27453,7 +27446,8 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": true,
+    "message": "a malformed integer argument"
   },
   {
     "description": "A check rejects integer metadata in a parse body.",
@@ -27501,7 +27495,7 @@
                 "receiver": {
                   "method": "parse",
                   "receiver": {
-                    "string": "ab"
+                    "capture": ""
                   },
                   "args": [
                     {
@@ -27605,7 +27599,8 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": true,
+    "message": "a malformed integer argument"
   },
   {
     "description": "A check rejects an integer as an ngrams receiver.",
@@ -29152,7 +29147,7 @@
     "malformed": true
   },
   {
-    "description": "A check rejects condition body sequence.",
+    "description": "A check condition cannot be a body sequence.",
     "dom": {
       "format": 52,
       "rules": [
@@ -29193,18 +29188,10 @@
             {
               "seq": [
                 {
-                  "param": "X",
-                  "at": [
-                    2,
-                    20
-                  ]
+                  "ref": "text"
                 },
                 {
-                  "param": "X",
-                  "at": [
-                    2,
-                    20
-                  ]
+                  "ref": "text"
                 }
               ]
             }
@@ -29223,10 +29210,11 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": true,
+    "message": "a malformed condition"
   },
   {
-    "description": "A check rejects condition literal.",
+    "description": "A check condition cannot be a body literal.",
     "dom": {
       "format": 52,
       "rules": [
@@ -29266,11 +29254,7 @@
           "conditions": [
             {
               "literal": {
-                "param": "X",
-                "at": [
-                  2,
-                  20
-                ]
+                "string": "a"
               }
             }
           ],
@@ -29288,10 +29272,11 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": true,
+    "message": "a malformed condition"
   },
   {
-    "description": "A check rejects call cannot replace condition.",
+    "description": "A call cannot replace a check condition.",
     "dom": {
       "format": 52,
       "rules": [
@@ -29356,10 +29341,11 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": true,
+    "message": "a malformed condition"
   },
   {
-    "description": "A check rejects call cannot replace negated condition.",
+    "description": "A call cannot replace a negated check condition.",
     "dom": {
       "format": 52,
       "rules": [
@@ -29426,10 +29412,11 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": true,
+    "message": "a malformed condition"
   },
   {
-    "description": "A check rejects call cannot replace disjunct.",
+    "description": "A call cannot replace a disjunct in a check.",
     "dom": {
       "format": 52,
       "rules": [
@@ -29501,10 +29488,11 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": true,
+    "message": "a malformed condition"
   },
   {
-    "description": "A check rejects call cannot replace conjunct.",
+    "description": "A call cannot replace a conjunct in a check.",
     "dom": {
       "format": 52,
       "rules": [
@@ -29576,10 +29564,11 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": true,
+    "message": "a malformed condition"
   },
   {
-    "description": "A check rejects call cannot replace implication antecedent.",
+    "description": "A call cannot replace an implication antecedent in a check.",
     "dom": {
       "format": 52,
       "rules": [
@@ -29649,10 +29638,11 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": true,
+    "message": "a malformed condition"
   },
   {
-    "description": "A check rejects call cannot replace implication consequent.",
+    "description": "A call cannot replace an implication consequent in a check.",
     "dom": {
       "format": 52,
       "rules": [
@@ -29722,10 +29712,11 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": true,
+    "message": "a malformed condition"
   },
   {
-    "description": "A check rejects parameter cannot replace pattern children root.",
+    "description": "A check child list rejects a bare pattern atom.",
     "dom": {
       "format": 52,
       "rules": [
@@ -29772,7 +29763,7 @@
                 "pattern": {
                   "children": [
                     {
-                      "param": "X",
+                      "name": "text",
                       "at": [
                         3,
                         22
@@ -29798,10 +29789,11 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": true,
+    "message": "a malformed pattern child item"
   },
   {
-    "description": "A check rejects call cannot replace pattern children root.",
+    "description": "A check child list rejects a bare call.",
     "dom": {
       "format": 52,
       "rules": [
@@ -29882,7 +29874,7 @@
     "malformed": true
   },
   {
-    "description": "A check rejects parameter cannot replace pattern sequence entry.",
+    "description": "A check child sequence rejects a bare pattern atom.",
     "dom": {
       "format": 52,
       "rules": [
@@ -29929,7 +29921,7 @@
                 "pattern": {
                   "children": [
                     {
-                      "param": "X",
+                      "name": "text",
                       "at": [
                         3,
                         22
@@ -29964,10 +29956,11 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": true,
+    "message": "a malformed pattern child item"
   },
   {
-    "description": "A check rejects call cannot replace pattern sequence entry.",
+    "description": "A check child sequence rejects a bare call.",
     "dom": {
       "format": 52,
       "rules": [
@@ -30057,7 +30050,7 @@
     "malformed": true
   },
   {
-    "description": "A check rejects parameter cannot replace pattern optional item.",
+    "description": "A check child optional rejects a bare pattern atom.",
     "dom": {
       "format": 52,
       "rules": [
@@ -30106,7 +30099,7 @@
                     {
                       "optional": [
                         {
-                          "param": "X",
+                          "name": "text",
                           "at": [
                             3,
                             22
@@ -30134,10 +30127,11 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": true,
+    "message": "a malformed pattern child item"
   },
   {
-    "description": "A check rejects call cannot replace pattern optional item.",
+    "description": "A check child optional rejects a bare call.",
     "dom": {
       "format": 52,
       "rules": [
@@ -30222,7 +30216,7 @@
     "malformed": true
   },
   {
-    "description": "A check rejects parameter cannot replace pattern repeat item.",
+    "description": "A check child repetition rejects a bare pattern atom.",
     "dom": {
       "format": 52,
       "rules": [
@@ -30271,7 +30265,7 @@
                     {
                       "repeat": [
                         {
-                          "param": "X",
+                          "name": "text",
                           "at": [
                             3,
                             22
@@ -30299,10 +30293,11 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": true,
+    "message": "a malformed pattern child item"
   },
   {
-    "description": "A check rejects call cannot replace pattern repeat item.",
+    "description": "A check child repetition rejects a bare call.",
     "dom": {
       "format": 52,
       "rules": [
@@ -30387,7 +30382,7 @@
     "malformed": true
   },
   {
-    "description": "A check rejects parameter cannot replace pattern repeat separator.",
+    "description": "A check child separator rejects a bare pattern atom.",
     "dom": {
       "format": 52,
       "rules": [
@@ -30447,7 +30442,7 @@
                       ],
                       "separator": [
                         {
-                          "param": "X",
+                          "name": "text",
                           "at": [
                             3,
                             22
@@ -30475,10 +30470,11 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": true,
+    "message": "a malformed pattern child item"
   },
   {
-    "description": "A check rejects call cannot replace pattern repeat separator.",
+    "description": "A check child separator rejects a bare call.",
     "dom": {
       "format": 52,
       "rules": [
@@ -30574,7 +30570,7 @@
     "malformed": true
   },
   {
-    "description": "A check rejects call cannot replace pattern literal string.",
+    "description": "A call cannot replace a pattern literal string in a check.",
     "dom": {
       "format": 52,
       "rules": [
@@ -30656,7 +30652,7 @@
     "malformed": true
   },
   {
-    "description": "A check rejects call cannot replace pattern range endpoint.",
+    "description": "A call cannot replace a pattern range endpoint in a check.",
     "dom": {
       "format": 52,
       "rules": [
@@ -30743,7 +30739,7 @@
     "malformed": true
   },
   {
-    "description": "A check rejects call cannot replace pattern value-test operand.",
+    "description": "A call cannot replace a pattern value operand in a check.",
     "dom": {
       "format": 52,
       "rules": [
@@ -30829,7 +30825,7 @@
     "malformed": true
   },
   {
-    "description": "A check rejects pattern literal string requires a valid position (missing).",
+    "description": "A pattern literal in a check requires its position.",
     "dom": {
       "format": 52,
       "rules": [
@@ -30875,11 +30871,7 @@
               "right": {
                 "pattern": {
                   "literal": {
-                    "param": "X",
-                    "at": [
-                      3,
-                      22
-                    ]
+                    "string": "a"
                   }
                 }
               }
@@ -30899,10 +30891,11 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": true,
+    "message": "a malformed pattern position"
   },
   {
-    "description": "A check rejects pattern literal string requires a valid position (zero).",
+    "description": "A pattern literal in a check rejects a zero position.",
     "dom": {
       "format": 52,
       "rules": [
@@ -30948,11 +30941,7 @@
               "right": {
                 "pattern": {
                   "literal": {
-                    "param": "X",
-                    "at": [
-                      3,
-                      22
-                    ]
+                    "string": "a"
                   },
                   "at": [
                     0,
@@ -30976,10 +30965,11 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": true,
+    "message": "a malformed pattern position"
   },
   {
-    "description": "A check rejects pattern range endpoint requires a valid position (missing).",
+    "description": "A pattern range in a check requires its position.",
     "dom": {
       "format": 52,
       "rules": [
@@ -31026,11 +31016,7 @@
                 "pattern": {
                   "range": [
                     {
-                      "param": "X",
-                      "at": [
-                        3,
-                        22
-                      ]
+                      "string": "a"
                     },
                     {
                       "string": "z"
@@ -31054,10 +31040,11 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": true,
+    "message": "a malformed pattern position"
   },
   {
-    "description": "A check rejects pattern range endpoint requires a valid position (zero).",
+    "description": "A pattern range in a check rejects a zero position.",
     "dom": {
       "format": 52,
       "rules": [
@@ -31104,11 +31091,7 @@
                 "pattern": {
                   "range": [
                     {
-                      "param": "X",
-                      "at": [
-                        3,
-                        22
-                      ]
+                      "string": "a"
                     },
                     {
                       "string": "z"
@@ -31136,10 +31119,11 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": true,
+    "message": "a malformed pattern position"
   },
   {
-    "description": "A check rejects pattern test order tags then tags on a parameter.",
+    "description": "A check pattern rejects a tag test after another tag test.",
     "dom": {
       "format": 52,
       "rules": [
@@ -31188,7 +31172,7 @@
                   "expr": {
                     "test": "tags",
                     "expr": {
-                      "param": "X",
+                      "name": "text",
                       "at": [
                         3,
                         22
@@ -31215,10 +31199,11 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": true,
+    "message": "a pattern tag test requires a node atom"
   },
   {
-    "description": "A check rejects pattern test order = then tags on a parameter.",
+    "description": "A check pattern rejects a tag test after an equality test.",
     "dom": {
       "format": 52,
       "rules": [
@@ -31267,7 +31252,7 @@
                   "expr": {
                     "test": "=",
                     "expr": {
-                      "param": "X",
+                      "name": "text",
                       "at": [
                         3,
                         22
@@ -31296,10 +31281,11 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": true,
+    "message": "a pattern tag test requires a node atom"
   },
   {
-    "description": "A check rejects pattern test order ≠ then tags on a parameter.",
+    "description": "A check pattern rejects a tag test after an inequality test.",
     "dom": {
       "format": 52,
       "rules": [
@@ -31348,7 +31334,7 @@
                   "expr": {
                     "test": "≠",
                     "expr": {
-                      "param": "X",
+                      "name": "text",
                       "at": [
                         3,
                         22
@@ -31377,10 +31363,11 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": true,
+    "message": "a pattern tag test requires a node atom"
   },
   {
-    "description": "A check rejects pattern test order = then = on a parameter.",
+    "description": "A check pattern rejects two equality tests.",
     "dom": {
       "format": 52,
       "rules": [
@@ -31429,7 +31416,7 @@
                   "expr": {
                     "test": "=",
                     "expr": {
-                      "param": "X",
+                      "name": "text",
                       "at": [
                         3,
                         22
@@ -31460,10 +31447,11 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": true,
+    "message": "a pattern value test requires a node atom"
   },
   {
-    "description": "A check rejects pattern test order ≠ then = on a parameter.",
+    "description": "A check pattern rejects an equality test after an inequality test.",
     "dom": {
       "format": 52,
       "rules": [
@@ -31512,7 +31500,7 @@
                   "expr": {
                     "test": "≠",
                     "expr": {
-                      "param": "X",
+                      "name": "text",
                       "at": [
                         3,
                         22
@@ -31543,10 +31531,11 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": true,
+    "message": "a pattern value test requires a node atom"
   },
   {
-    "description": "A check rejects pattern test order = then ≠ on a parameter.",
+    "description": "A check pattern rejects an inequality test after an equality test.",
     "dom": {
       "format": 52,
       "rules": [
@@ -31595,7 +31584,7 @@
                   "expr": {
                     "test": "=",
                     "expr": {
-                      "param": "X",
+                      "name": "text",
                       "at": [
                         3,
                         22
@@ -31626,10 +31615,11 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": true,
+    "message": "a pattern value test requires a node atom"
   },
   {
-    "description": "A check rejects pattern test order ≠ then ≠ on a parameter.",
+    "description": "A check pattern rejects two inequality tests.",
     "dom": {
       "format": 52,
       "rules": [
@@ -31678,7 +31668,7 @@
                   "expr": {
                     "test": "≠",
                     "expr": {
-                      "param": "X",
+                      "name": "text",
                       "at": [
                         3,
                         22
@@ -31709,180 +31699,11 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": true,
+    "message": "a pattern value test requires a node atom"
   },
   {
-    "description": "A check rejects pattern = test rejects two nested tag tests.",
-    "dom": {
-      "format": 52,
-      "rules": [
-        {
-          "name": "text",
-          "op": "define",
-          "alternatives": [
-            {
-              "gates": [],
-              "expr": {
-                "empty": true
-              }
-            }
-          ],
-          "conditions": [],
-          "at": [
-            1,
-            1
-          ]
-        }
-      ],
-      "directives": [],
-      "constants": [],
-      "classifiers": [],
-      "implications": [],
-      "checks": [
-        {
-          "name": "r16",
-          "pattern": {
-            "name": "text",
-            "exact": true,
-            "at": [
-              2,
-              1
-            ]
-          },
-          "conditions": [
-            {
-              "op": "≅",
-              "left": {
-                "capture": ""
-              },
-              "right": {
-                "pattern": {
-                  "test": "=",
-                  "expr": {
-                    "test": "tags",
-                    "expr": {
-                      "test": "tags",
-                      "expr": {
-                        "param": "X",
-                        "at": [
-                          3,
-                          22
-                        ]
-                      },
-                      "requirements": []
-                    },
-                    "requirements": []
-                  },
-                  "value": {
-                    "string": "a"
-                  }
-                }
-              }
-            }
-          ],
-          "warning": {
-            "concat": [
-              {
-                "string": "m"
-              }
-            ]
-          },
-          "at": [
-            2,
-            1
-          ]
-        }
-      ]
-    },
-    "malformed": true
-  },
-  {
-    "description": "A check rejects pattern ≠ test rejects two nested tag tests.",
-    "dom": {
-      "format": 52,
-      "rules": [
-        {
-          "name": "text",
-          "op": "define",
-          "alternatives": [
-            {
-              "gates": [],
-              "expr": {
-                "empty": true
-              }
-            }
-          ],
-          "conditions": [],
-          "at": [
-            1,
-            1
-          ]
-        }
-      ],
-      "directives": [],
-      "constants": [],
-      "classifiers": [],
-      "implications": [],
-      "checks": [
-        {
-          "name": "r16",
-          "pattern": {
-            "name": "text",
-            "exact": true,
-            "at": [
-              2,
-              1
-            ]
-          },
-          "conditions": [
-            {
-              "op": "≅",
-              "left": {
-                "capture": ""
-              },
-              "right": {
-                "pattern": {
-                  "test": "≠",
-                  "expr": {
-                    "test": "tags",
-                    "expr": {
-                      "test": "tags",
-                      "expr": {
-                        "param": "X",
-                        "at": [
-                          3,
-                          22
-                        ]
-                      },
-                      "requirements": []
-                    },
-                    "requirements": []
-                  },
-                  "value": {
-                    "string": "a"
-                  }
-                }
-              }
-            }
-          ],
-          "warning": {
-            "concat": [
-              {
-                "string": "m"
-              }
-            ]
-          },
-          "at": [
-            2,
-            1
-          ]
-        }
-      ]
-    },
-    "malformed": true
-  },
-  {
-    "description": "A check rejects pattern tags test rejects a union target containing a parameter.",
+    "description": "A check pattern rejects a tag test on a union.",
     "dom": {
       "format": 52,
       "rules": [
@@ -31931,7 +31752,7 @@
                   "expr": {
                     "union": [
                       {
-                        "param": "X",
+                        "name": "text",
                         "at": [
                           3,
                           22
@@ -31965,10 +31786,11 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": true,
+    "message": "a pattern tag test requires a node atom"
   },
   {
-    "description": "A check rejects pattern tags test rejects a path target containing a parameter.",
+    "description": "A check pattern rejects a tag test on a path.",
     "dom": {
       "format": 52,
       "rules": [
@@ -32017,7 +31839,7 @@
                   "expr": {
                     "path": "descendant",
                     "pattern": {
-                      "param": "X",
+                      "name": "text",
                       "at": [
                         3,
                         22
@@ -32043,10 +31865,11 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": true,
+    "message": "a pattern tag test requires a node atom"
   },
   {
-    "description": "A check rejects pattern tags test rejects a children target containing a parameter.",
+    "description": "A check pattern rejects a tag test on a child list.",
     "dom": {
       "format": 52,
       "rules": [
@@ -32096,7 +31919,7 @@
                     "children": [
                       {
                         "child": {
-                          "param": "X",
+                          "name": "text",
                           "at": [
                             3,
                             22
@@ -32125,10 +31948,11 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": true,
+    "message": "a pattern tag test requires a node atom"
   },
   {
-    "description": "A check rejects pattern = test rejects a union target containing a parameter.",
+    "description": "A check pattern rejects an equality test on a union.",
     "dom": {
       "format": 52,
       "rules": [
@@ -32177,7 +32001,7 @@
                   "expr": {
                     "union": [
                       {
-                        "param": "X",
+                        "name": "text",
                         "at": [
                           3,
                           22
@@ -32213,10 +32037,11 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": true,
+    "message": "a pattern value test requires a node atom"
   },
   {
-    "description": "A check rejects pattern = test rejects a path target containing a parameter.",
+    "description": "A check pattern rejects an equality test on a path.",
     "dom": {
       "format": 52,
       "rules": [
@@ -32265,7 +32090,7 @@
                   "expr": {
                     "path": "descendant",
                     "pattern": {
-                      "param": "X",
+                      "name": "text",
                       "at": [
                         3,
                         22
@@ -32293,10 +32118,11 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": true,
+    "message": "a pattern value test requires a node atom"
   },
   {
-    "description": "A check rejects pattern = test rejects a children target containing a parameter.",
+    "description": "A check pattern rejects an equality test on a child list.",
     "dom": {
       "format": 52,
       "rules": [
@@ -32346,7 +32172,7 @@
                     "children": [
                       {
                         "child": {
-                          "param": "X",
+                          "name": "text",
                           "at": [
                             3,
                             22
@@ -32377,10 +32203,11 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": true,
+    "message": "a pattern value test requires a node atom"
   },
   {
-    "description": "A check rejects pattern ≠ test rejects a union target containing a parameter.",
+    "description": "A check pattern rejects an inequality test on a union.",
     "dom": {
       "format": 52,
       "rules": [
@@ -32429,7 +32256,7 @@
                   "expr": {
                     "union": [
                       {
-                        "param": "X",
+                        "name": "text",
                         "at": [
                           3,
                           22
@@ -32465,10 +32292,11 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": true,
+    "message": "a pattern value test requires a node atom"
   },
   {
-    "description": "A check rejects pattern ≠ test rejects a path target containing a parameter.",
+    "description": "A check pattern rejects an inequality test on a path.",
     "dom": {
       "format": 52,
       "rules": [
@@ -32517,7 +32345,7 @@
                   "expr": {
                     "path": "descendant",
                     "pattern": {
-                      "param": "X",
+                      "name": "text",
                       "at": [
                         3,
                         22
@@ -32545,10 +32373,11 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": true,
+    "message": "a pattern value test requires a node atom"
   },
   {
-    "description": "A check rejects pattern ≠ test rejects a children target containing a parameter.",
+    "description": "A check pattern rejects an inequality test on a child list.",
     "dom": {
       "format": 52,
       "rules": [
@@ -32598,7 +32427,7 @@
                     "children": [
                       {
                         "child": {
-                          "param": "X",
+                          "name": "text",
                           "at": [
                             3,
                             22
@@ -32629,7 +32458,8 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": true,
+    "message": "a pattern value test requires a node atom"
   },
   {
     "description": "A check rejects string membership in tags.",
@@ -32981,7 +32811,7 @@
     "message": "a method has the wrong receiver or arguments"
   },
   {
-    "description": "A check condition accepts two template boundary atoms.",
+    "description": "A check accepts a conjunction of two boundary atoms.",
     "dom": {
       "format": 52,
       "rules": [
@@ -33374,7 +33204,7 @@
     "malformed": true
   },
   {
-    "description": "A check rejects its first pattern comparison before a later tag comparison.",
+    "description": "A check rejects pattern equality and a comparison of tags with a string.",
     "dom": {
       "format": 52,
       "rules": [
@@ -33449,101 +33279,6 @@
               },
               "right": {
                 "string": "b"
-              }
-            }
-          ],
-          "warning": {
-            "concat": [
-              {
-                "string": "m"
-              }
-            ]
-          },
-          "at": [
-            2,
-            1
-          ]
-        }
-      ]
-    },
-    "malformed": true
-  },
-  {
-    "description": "A check rejects its first tag comparison before a later pattern comparison.",
-    "dom": {
-      "format": 52,
-      "rules": [
-        {
-          "name": "text",
-          "op": "define",
-          "alternatives": [
-            {
-              "gates": [],
-              "expr": {
-                "empty": true
-              }
-            }
-          ],
-          "conditions": [],
-          "at": [
-            1,
-            1
-          ]
-        }
-      ],
-      "directives": [],
-      "constants": [],
-      "classifiers": [],
-      "implications": [],
-      "checks": [
-        {
-          "name": "r16",
-          "pattern": {
-            "name": "text",
-            "exact": true,
-            "at": [
-              2,
-              1
-            ]
-          },
-          "conditions": [
-            {
-              "op": "=",
-              "left": {
-                "method": "tags",
-                "receiver": {
-                  "capture": ""
-                },
-                "args": []
-              },
-              "right": {
-                "string": "b"
-              }
-            },
-            {
-              "op": "=",
-              "left": {
-                "pattern": {
-                  "any": true,
-                  "children": [
-                    {
-                      "child": {
-                        "at": [
-                          4,
-                          17
-                        ],
-                        "terminal": "A"
-                      }
-                    }
-                  ]
-                }
-              },
-              "right": {
-                "const": "S",
-                "at": [
-                  4,
-                  30
-                ]
               }
             }
           ],
@@ -33633,7 +33368,7 @@
     "malformed": true
   },
   {
-    "description": "A check rejects its first pattern comparison before a later mixed union.",
+    "description": "A check rejects pattern equality and a union of different value types.",
     "dom": {
       "format": 52,
       "rules": [
@@ -33738,7 +33473,7 @@
     "malformed": true
   },
   {
-    "description": "A conjunction in a check rejects its first pattern comparison.",
+    "description": "A check rejects a conjunction of pattern equality and incompatible value types.",
     "dom": {
       "format": 52,
       "rules": [
@@ -33815,105 +33550,6 @@
                   },
                   "right": {
                     "string": "b"
-                  }
-                }
-              ]
-            }
-          ],
-          "warning": {
-            "concat": [
-              {
-                "string": "m"
-              }
-            ]
-          },
-          "at": [
-            2,
-            1
-          ]
-        }
-      ]
-    },
-    "malformed": true
-  },
-  {
-    "description": "A conjunction in a check rejects its first tag comparison.",
-    "dom": {
-      "format": 52,
-      "rules": [
-        {
-          "name": "text",
-          "op": "define",
-          "alternatives": [
-            {
-              "gates": [],
-              "expr": {
-                "empty": true
-              }
-            }
-          ],
-          "conditions": [],
-          "at": [
-            1,
-            1
-          ]
-        }
-      ],
-      "directives": [],
-      "constants": [],
-      "classifiers": [],
-      "implications": [],
-      "checks": [
-        {
-          "name": "r16",
-          "pattern": {
-            "name": "text",
-            "exact": true,
-            "at": [
-              2,
-              1
-            ]
-          },
-          "conditions": [
-            {
-              "all": [
-                {
-                  "op": "=",
-                  "left": {
-                    "method": "tags",
-                    "receiver": {
-                      "capture": ""
-                    },
-                    "args": []
-                  },
-                  "right": {
-                    "string": "b"
-                  }
-                },
-                {
-                  "op": "=",
-                  "left": {
-                    "pattern": {
-                      "any": true,
-                      "children": [
-                        {
-                          "child": {
-                            "at": [
-                              4,
-                              17
-                            ],
-                            "terminal": "A"
-                          }
-                        }
-                      ]
-                    }
-                  },
-                  "right": {
-                    "const": "S",
-                    "at": [
-                      4,
-                      30
-                    ]
                   }
                 }
               ]
@@ -34081,1830 +33717,6 @@
       ]
     },
     "malformed": true
-  },
-  {
-    "description": "An empty delimiter fails beside a check of call-open.",
-    "dom": {
-      "format": 52,
-      "rules": [
-        {
-          "name": "text",
-          "op": "define",
-          "alternatives": [
-            {
-              "gates": [],
-              "expr": {
-                "empty": true
-              }
-            }
-          ],
-          "conditions": [],
-          "at": [
-            1,
-            1
-          ]
-        }
-      ],
-      "directives": [
-        {
-          "name": "ambiguity-resolution",
-          "steps": [
-            {
-              "step": "greedy"
-            }
-          ],
-          "at": [
-            20,
-            1
-          ]
-        }
-      ],
-      "constants": [
-        {
-          "name": "KEYWORDS",
-          "op": "define",
-          "value": {
-            "union": [
-              {
-                "string": "rule"
-              },
-              {
-                "string": "redefine-rule"
-              },
-              {
-                "string": "extend-rule"
-              },
-              {
-                "string": "conditions"
-              },
-              {
-                "string": "emits"
-              },
-              {
-                "string": "erased"
-              },
-              {
-                "string": "ambiguity-resolution"
-              },
-              {
-                "string": "stage"
-              },
-              {
-                "string": "extend-stage"
-              },
-              {
-                "string": "redefine-stage"
-              },
-              {
-                "string": "include"
-              },
-              {
-                "string": "features"
-              },
-              {
-                "string": "const"
-              },
-              {
-                "string": "redefine-const"
-              },
-              {
-                "string": "classifier"
-              },
-              {
-                "string": "implies"
-              },
-              {
-                "string": "names"
-              }
-            ]
-          },
-          "at": [
-            352,
-            1
-          ]
-        }
-      ],
-      "classifiers": [],
-      "implications": [],
-      "checks": [
-        {
-          "name": "r16",
-          "pattern": {
-            "name": "text",
-            "exact": true,
-            "at": [
-              2,
-              1
-            ]
-          },
-          "conditions": [
-            {
-              "nonempty": {
-                "method": "split",
-                "receiver": {
-                  "string": "x"
-                },
-                "args": [
-                  {
-                    "string": ""
-                  }
-                ]
-              }
-            },
-            {
-              "not": {
-                "method": "parse",
-                "receiver": {
-                  "method": "following-tokens",
-                  "receiver": {
-                    "capture": ""
-                  },
-                  "args": []
-                },
-                "args": [
-                  {
-                    "body": {
-                      "seq": [
-                        {
-                          "ref": "call-open"
-                        },
-                        {
-                          "remainder": true
-                        }
-                      ]
-                    }
-                  }
-                ]
-              }
-            }
-          ],
-          "warning": {
-            "concat": [
-              {
-                "string": "m"
-              }
-            ]
-          },
-          "at": [
-            2,
-            1
-          ]
-        }
-      ]
-    },
-    "malformed": true,
-    "message": "split has an empty delimiter"
-  },
-  {
-    "description": "An empty delimiter fails beside a check of name-character and call-open.",
-    "dom": {
-      "format": 52,
-      "rules": [
-        {
-          "name": "text",
-          "op": "define",
-          "alternatives": [
-            {
-              "gates": [],
-              "expr": {
-                "empty": true
-              }
-            }
-          ],
-          "conditions": [],
-          "at": [
-            1,
-            1
-          ]
-        }
-      ],
-      "directives": [
-        {
-          "name": "ambiguity-resolution",
-          "steps": [
-            {
-              "step": "greedy"
-            }
-          ],
-          "at": [
-            20,
-            1
-          ]
-        }
-      ],
-      "constants": [
-        {
-          "name": "KEYWORDS",
-          "op": "define",
-          "value": {
-            "union": [
-              {
-                "string": "rule"
-              },
-              {
-                "string": "redefine-rule"
-              },
-              {
-                "string": "extend-rule"
-              },
-              {
-                "string": "conditions"
-              },
-              {
-                "string": "emits"
-              },
-              {
-                "string": "erased"
-              },
-              {
-                "string": "ambiguity-resolution"
-              },
-              {
-                "string": "stage"
-              },
-              {
-                "string": "extend-stage"
-              },
-              {
-                "string": "redefine-stage"
-              },
-              {
-                "string": "include"
-              },
-              {
-                "string": "features"
-              },
-              {
-                "string": "const"
-              },
-              {
-                "string": "redefine-const"
-              },
-              {
-                "string": "classifier"
-              },
-              {
-                "string": "implies"
-              },
-              {
-                "string": "names"
-              }
-            ]
-          },
-          "at": [
-            352,
-            1
-          ]
-        }
-      ],
-      "classifiers": [],
-      "implications": [],
-      "checks": [
-        {
-          "name": "r16",
-          "pattern": {
-            "name": "text",
-            "exact": true,
-            "at": [
-              2,
-              1
-            ]
-          },
-          "conditions": [
-            {
-              "nonempty": {
-                "method": "split",
-                "receiver": {
-                  "string": "x"
-                },
-                "args": [
-                  {
-                    "string": ""
-                  }
-                ]
-              }
-            },
-            {
-              "not": {
-                "method": "parse",
-                "receiver": {
-                  "method": "following-tokens",
-                  "receiver": {
-                    "capture": ""
-                  },
-                  "args": []
-                },
-                "args": [
-                  {
-                    "body": {
-                      "seq": [
-                        {
-                          "ref": "name-character"
-                        },
-                        {
-                          "remainder": true
-                        }
-                      ]
-                    }
-                  }
-                ]
-              }
-            },
-            {
-              "if": {
-                "captured": ""
-              },
-              "then": {
-                "not": {
-                  "method": "parse",
-                  "receiver": {
-                    "method": "following-tokens",
-                    "receiver": {
-                      "capture": ""
-                    },
-                    "args": []
-                  },
-                  "args": [
-                    {
-                      "body": {
-                        "seq": [
-                          {
-                            "ref": "call-open"
-                          },
-                          {
-                            "remainder": true
-                          }
-                        ]
-                      }
-                    }
-                  ]
-                }
-              }
-            }
-          ],
-          "warning": {
-            "concat": [
-              {
-                "string": "m"
-              }
-            ]
-          },
-          "at": [
-            2,
-            1
-          ]
-        }
-      ]
-    },
-    "malformed": true,
-    "message": "split has an empty delimiter"
-  },
-  {
-    "description": "An empty delimiter fails beside a check of name-character.",
-    "dom": {
-      "format": 52,
-      "rules": [
-        {
-          "name": "text",
-          "op": "define",
-          "alternatives": [
-            {
-              "gates": [],
-              "expr": {
-                "empty": true
-              }
-            }
-          ],
-          "conditions": [],
-          "at": [
-            1,
-            1
-          ]
-        }
-      ],
-      "directives": [
-        {
-          "name": "ambiguity-resolution",
-          "steps": [
-            {
-              "step": "greedy"
-            }
-          ],
-          "at": [
-            20,
-            1
-          ]
-        }
-      ],
-      "constants": [
-        {
-          "name": "KEYWORDS",
-          "op": "define",
-          "value": {
-            "union": [
-              {
-                "string": "rule"
-              },
-              {
-                "string": "redefine-rule"
-              },
-              {
-                "string": "extend-rule"
-              },
-              {
-                "string": "conditions"
-              },
-              {
-                "string": "emits"
-              },
-              {
-                "string": "erased"
-              },
-              {
-                "string": "ambiguity-resolution"
-              },
-              {
-                "string": "stage"
-              },
-              {
-                "string": "extend-stage"
-              },
-              {
-                "string": "redefine-stage"
-              },
-              {
-                "string": "include"
-              },
-              {
-                "string": "features"
-              },
-              {
-                "string": "const"
-              },
-              {
-                "string": "redefine-const"
-              },
-              {
-                "string": "classifier"
-              },
-              {
-                "string": "implies"
-              },
-              {
-                "string": "names"
-              }
-            ]
-          },
-          "at": [
-            352,
-            1
-          ]
-        }
-      ],
-      "classifiers": [],
-      "implications": [],
-      "checks": [
-        {
-          "name": "r16",
-          "pattern": {
-            "name": "text",
-            "exact": true,
-            "at": [
-              2,
-              1
-            ]
-          },
-          "conditions": [
-            {
-              "nonempty": {
-                "method": "split",
-                "receiver": {
-                  "string": "x"
-                },
-                "args": [
-                  {
-                    "string": ""
-                  }
-                ]
-              }
-            },
-            {
-              "not": {
-                "method": "parse",
-                "receiver": {
-                  "method": "following-tokens",
-                  "receiver": {
-                    "capture": ""
-                  },
-                  "args": []
-                },
-                "args": [
-                  {
-                    "body": {
-                      "seq": [
-                        {
-                          "ref": "name-character"
-                        },
-                        {
-                          "remainder": true
-                        }
-                      ]
-                    }
-                  }
-                ]
-              }
-            }
-          ],
-          "warning": {
-            "concat": [
-              {
-                "string": "m"
-              }
-            ]
-          },
-          "at": [
-            2,
-            1
-          ]
-        }
-      ]
-    },
-    "malformed": true,
-    "message": "split has an empty delimiter"
-  },
-  {
-    "description": "An empty delimiter fails beside a check of engine-name-part.",
-    "dom": {
-      "format": 52,
-      "rules": [
-        {
-          "name": "text",
-          "op": "define",
-          "alternatives": [
-            {
-              "gates": [],
-              "expr": {
-                "empty": true
-              }
-            }
-          ],
-          "conditions": [],
-          "at": [
-            1,
-            1
-          ]
-        }
-      ],
-      "directives": [
-        {
-          "name": "ambiguity-resolution",
-          "steps": [
-            {
-              "step": "greedy"
-            }
-          ],
-          "at": [
-            20,
-            1
-          ]
-        }
-      ],
-      "constants": [
-        {
-          "name": "KEYWORDS",
-          "op": "define",
-          "value": {
-            "union": [
-              {
-                "string": "rule"
-              },
-              {
-                "string": "redefine-rule"
-              },
-              {
-                "string": "extend-rule"
-              },
-              {
-                "string": "conditions"
-              },
-              {
-                "string": "emits"
-              },
-              {
-                "string": "erased"
-              },
-              {
-                "string": "ambiguity-resolution"
-              },
-              {
-                "string": "stage"
-              },
-              {
-                "string": "extend-stage"
-              },
-              {
-                "string": "redefine-stage"
-              },
-              {
-                "string": "include"
-              },
-              {
-                "string": "features"
-              },
-              {
-                "string": "const"
-              },
-              {
-                "string": "redefine-const"
-              },
-              {
-                "string": "classifier"
-              },
-              {
-                "string": "implies"
-              },
-              {
-                "string": "names"
-              }
-            ]
-          },
-          "at": [
-            352,
-            1
-          ]
-        }
-      ],
-      "classifiers": [],
-      "implications": [],
-      "checks": [
-        {
-          "name": "r16",
-          "pattern": {
-            "name": "text",
-            "exact": true,
-            "at": [
-              2,
-              1
-            ]
-          },
-          "conditions": [
-            {
-              "nonempty": {
-                "method": "split",
-                "receiver": {
-                  "string": "x"
-                },
-                "args": [
-                  {
-                    "string": ""
-                  }
-                ]
-              }
-            },
-            {
-              "not": {
-                "method": "parse",
-                "receiver": {
-                  "method": "following-tokens",
-                  "receiver": {
-                    "capture": ""
-                  },
-                  "args": []
-                },
-                "args": [
-                  {
-                    "body": {
-                      "seq": [
-                        {
-                          "ref": "engine-name-part"
-                        },
-                        {
-                          "remainder": true
-                        }
-                      ]
-                    }
-                  }
-                ]
-              }
-            }
-          ],
-          "warning": {
-            "concat": [
-              {
-                "string": "m"
-              }
-            ]
-          },
-          "at": [
-            2,
-            1
-          ]
-        }
-      ]
-    },
-    "malformed": true,
-    "message": "split has an empty delimiter"
-  },
-  {
-    "description": "An empty delimiter fails beside a check of digit.",
-    "dom": {
-      "format": 52,
-      "rules": [
-        {
-          "name": "text",
-          "op": "define",
-          "alternatives": [
-            {
-              "gates": [],
-              "expr": {
-                "empty": true
-              }
-            }
-          ],
-          "conditions": [],
-          "at": [
-            1,
-            1
-          ]
-        }
-      ],
-      "directives": [
-        {
-          "name": "ambiguity-resolution",
-          "steps": [
-            {
-              "step": "greedy"
-            }
-          ],
-          "at": [
-            20,
-            1
-          ]
-        }
-      ],
-      "constants": [
-        {
-          "name": "KEYWORDS",
-          "op": "define",
-          "value": {
-            "union": [
-              {
-                "string": "rule"
-              },
-              {
-                "string": "redefine-rule"
-              },
-              {
-                "string": "extend-rule"
-              },
-              {
-                "string": "conditions"
-              },
-              {
-                "string": "emits"
-              },
-              {
-                "string": "erased"
-              },
-              {
-                "string": "ambiguity-resolution"
-              },
-              {
-                "string": "stage"
-              },
-              {
-                "string": "extend-stage"
-              },
-              {
-                "string": "redefine-stage"
-              },
-              {
-                "string": "include"
-              },
-              {
-                "string": "features"
-              },
-              {
-                "string": "const"
-              },
-              {
-                "string": "redefine-const"
-              },
-              {
-                "string": "classifier"
-              },
-              {
-                "string": "implies"
-              },
-              {
-                "string": "names"
-              }
-            ]
-          },
-          "at": [
-            352,
-            1
-          ]
-        }
-      ],
-      "classifiers": [],
-      "implications": [],
-      "checks": [
-        {
-          "name": "r16",
-          "pattern": {
-            "name": "text",
-            "exact": true,
-            "at": [
-              2,
-              1
-            ]
-          },
-          "conditions": [
-            {
-              "nonempty": {
-                "method": "split",
-                "receiver": {
-                  "string": "x"
-                },
-                "args": [
-                  {
-                    "string": ""
-                  }
-                ]
-              }
-            },
-            {
-              "method": "parse",
-              "receiver": {
-                "method": "following-tokens",
-                "receiver": {
-                  "capture": ""
-                },
-                "args": []
-              },
-              "args": [
-                {
-                  "body": {
-                    "seq": [
-                      {
-                        "ref": "digit"
-                      },
-                      {
-                        "remainder": true
-                      }
-                    ]
-                  }
-                }
-              ]
-            }
-          ],
-          "warning": {
-            "concat": [
-              {
-                "string": "m"
-              }
-            ]
-          },
-          "at": [
-            2,
-            1
-          ]
-        }
-      ]
-    },
-    "malformed": true,
-    "message": "split has an empty delimiter"
-  },
-  {
-    "description": "An empty delimiter fails beside a positive check of call-open.",
-    "dom": {
-      "format": 52,
-      "rules": [
-        {
-          "name": "text",
-          "op": "define",
-          "alternatives": [
-            {
-              "gates": [],
-              "expr": {
-                "empty": true
-              }
-            }
-          ],
-          "conditions": [],
-          "at": [
-            1,
-            1
-          ]
-        }
-      ],
-      "directives": [
-        {
-          "name": "ambiguity-resolution",
-          "steps": [
-            {
-              "step": "greedy"
-            }
-          ],
-          "at": [
-            20,
-            1
-          ]
-        }
-      ],
-      "constants": [
-        {
-          "name": "KEYWORDS",
-          "op": "define",
-          "value": {
-            "union": [
-              {
-                "string": "rule"
-              },
-              {
-                "string": "redefine-rule"
-              },
-              {
-                "string": "extend-rule"
-              },
-              {
-                "string": "conditions"
-              },
-              {
-                "string": "emits"
-              },
-              {
-                "string": "erased"
-              },
-              {
-                "string": "ambiguity-resolution"
-              },
-              {
-                "string": "stage"
-              },
-              {
-                "string": "extend-stage"
-              },
-              {
-                "string": "redefine-stage"
-              },
-              {
-                "string": "include"
-              },
-              {
-                "string": "features"
-              },
-              {
-                "string": "const"
-              },
-              {
-                "string": "redefine-const"
-              },
-              {
-                "string": "classifier"
-              },
-              {
-                "string": "implies"
-              },
-              {
-                "string": "names"
-              }
-            ]
-          },
-          "at": [
-            352,
-            1
-          ]
-        }
-      ],
-      "classifiers": [],
-      "implications": [],
-      "checks": [
-        {
-          "name": "r16",
-          "pattern": {
-            "name": "text",
-            "exact": true,
-            "at": [
-              2,
-              1
-            ]
-          },
-          "conditions": [
-            {
-              "nonempty": {
-                "method": "split",
-                "receiver": {
-                  "string": "x"
-                },
-                "args": [
-                  {
-                    "string": ""
-                  }
-                ]
-              }
-            },
-            {
-              "method": "parse",
-              "receiver": {
-                "method": "following-tokens",
-                "receiver": {
-                  "capture": ""
-                },
-                "args": []
-              },
-              "args": [
-                {
-                  "body": {
-                    "seq": [
-                      {
-                        "ref": "call-open"
-                      },
-                      {
-                        "remainder": true
-                      }
-                    ]
-                  }
-                }
-              ]
-            }
-          ],
-          "warning": {
-            "concat": [
-              {
-                "string": "m"
-              }
-            ]
-          },
-          "at": [
-            2,
-            1
-          ]
-        }
-      ]
-    },
-    "malformed": true,
-    "message": "split has an empty delimiter"
-  },
-  {
-    "description": "An empty delimiter fails beside a check of star-character.",
-    "dom": {
-      "format": 52,
-      "rules": [
-        {
-          "name": "text",
-          "op": "define",
-          "alternatives": [
-            {
-              "gates": [],
-              "expr": {
-                "empty": true
-              }
-            }
-          ],
-          "conditions": [],
-          "at": [
-            1,
-            1
-          ]
-        }
-      ],
-      "directives": [
-        {
-          "name": "ambiguity-resolution",
-          "steps": [
-            {
-              "step": "greedy"
-            }
-          ],
-          "at": [
-            20,
-            1
-          ]
-        }
-      ],
-      "constants": [
-        {
-          "name": "KEYWORDS",
-          "op": "define",
-          "value": {
-            "union": [
-              {
-                "string": "rule"
-              },
-              {
-                "string": "redefine-rule"
-              },
-              {
-                "string": "extend-rule"
-              },
-              {
-                "string": "conditions"
-              },
-              {
-                "string": "emits"
-              },
-              {
-                "string": "erased"
-              },
-              {
-                "string": "ambiguity-resolution"
-              },
-              {
-                "string": "stage"
-              },
-              {
-                "string": "extend-stage"
-              },
-              {
-                "string": "redefine-stage"
-              },
-              {
-                "string": "include"
-              },
-              {
-                "string": "features"
-              },
-              {
-                "string": "const"
-              },
-              {
-                "string": "redefine-const"
-              },
-              {
-                "string": "classifier"
-              },
-              {
-                "string": "implies"
-              },
-              {
-                "string": "names"
-              }
-            ]
-          },
-          "at": [
-            352,
-            1
-          ]
-        }
-      ],
-      "classifiers": [],
-      "implications": [],
-      "checks": [
-        {
-          "name": "r16",
-          "pattern": {
-            "name": "text",
-            "exact": true,
-            "at": [
-              2,
-              1
-            ]
-          },
-          "conditions": [
-            {
-              "nonempty": {
-                "method": "split",
-                "receiver": {
-                  "string": "x"
-                },
-                "args": [
-                  {
-                    "string": ""
-                  }
-                ]
-              }
-            },
-            {
-              "not": {
-                "method": "parse",
-                "receiver": {
-                  "method": "following-tokens",
-                  "receiver": {
-                    "capture": ""
-                  },
-                  "args": []
-                },
-                "args": [
-                  {
-                    "body": {
-                      "seq": [
-                        {
-                          "ref": "star-character"
-                        },
-                        {
-                          "remainder": true
-                        }
-                      ]
-                    }
-                  }
-                ]
-              }
-            }
-          ],
-          "warning": {
-            "concat": [
-              {
-                "string": "m"
-              }
-            ]
-          },
-          "at": [
-            2,
-            1
-          ]
-        }
-      ]
-    },
-    "malformed": true,
-    "message": "split has an empty delimiter"
-  },
-  {
-    "description": "An empty delimiter fails beside a boundary check of guard.",
-    "dom": {
-      "format": 52,
-      "rules": [
-        {
-          "name": "text",
-          "op": "define",
-          "alternatives": [
-            {
-              "gates": [],
-              "expr": {
-                "empty": true
-              }
-            }
-          ],
-          "conditions": [],
-          "at": [
-            1,
-            1
-          ]
-        }
-      ],
-      "directives": [
-        {
-          "name": "ambiguity-resolution",
-          "steps": [
-            {
-              "step": "greedy"
-            }
-          ],
-          "at": [
-            20,
-            1
-          ]
-        }
-      ],
-      "constants": [
-        {
-          "name": "KEYWORDS",
-          "op": "define",
-          "value": {
-            "union": [
-              {
-                "string": "rule"
-              },
-              {
-                "string": "redefine-rule"
-              },
-              {
-                "string": "extend-rule"
-              },
-              {
-                "string": "conditions"
-              },
-              {
-                "string": "emits"
-              },
-              {
-                "string": "erased"
-              },
-              {
-                "string": "ambiguity-resolution"
-              },
-              {
-                "string": "stage"
-              },
-              {
-                "string": "extend-stage"
-              },
-              {
-                "string": "redefine-stage"
-              },
-              {
-                "string": "include"
-              },
-              {
-                "string": "features"
-              },
-              {
-                "string": "const"
-              },
-              {
-                "string": "redefine-const"
-              },
-              {
-                "string": "classifier"
-              },
-              {
-                "string": "implies"
-              },
-              {
-                "string": "names"
-              }
-            ]
-          },
-          "at": [
-            352,
-            1
-          ]
-        }
-      ],
-      "classifiers": [],
-      "implications": [],
-      "checks": [
-        {
-          "name": "r16",
-          "pattern": {
-            "name": "text",
-            "exact": true,
-            "at": [
-              2,
-              1
-            ]
-          },
-          "conditions": [
-            {
-              "nonempty": {
-                "method": "split",
-                "receiver": {
-                  "string": "x"
-                },
-                "args": [
-                  {
-                    "string": ""
-                  }
-                ]
-              }
-            },
-            {
-              "not": {
-                "method": "followed-by",
-                "receiver": {
-                  "capture": ""
-                },
-                "args": [
-                  {
-                    "rule": "guard"
-                  }
-                ]
-              }
-            }
-          ],
-          "warning": {
-            "concat": [
-              {
-                "string": "m"
-              }
-            ]
-          },
-          "at": [
-            2,
-            1
-          ]
-        }
-      ]
-    },
-    "malformed": true,
-    "message": "split has an empty delimiter"
-  },
-  {
-    "description": "An empty delimiter fails beside value comparisons in a check.",
-    "dom": {
-      "format": 52,
-      "rules": [
-        {
-          "name": "text",
-          "op": "define",
-          "alternatives": [
-            {
-              "gates": [],
-              "expr": {
-                "empty": true
-              }
-            }
-          ],
-          "conditions": [],
-          "at": [
-            1,
-            1
-          ]
-        }
-      ],
-      "directives": [
-        {
-          "name": "ambiguity-resolution",
-          "steps": [
-            {
-              "step": "greedy"
-            }
-          ],
-          "at": [
-            20,
-            1
-          ]
-        }
-      ],
-      "constants": [
-        {
-          "name": "KEYWORDS",
-          "op": "define",
-          "value": {
-            "union": [
-              {
-                "string": "rule"
-              },
-              {
-                "string": "redefine-rule"
-              },
-              {
-                "string": "extend-rule"
-              },
-              {
-                "string": "conditions"
-              },
-              {
-                "string": "emits"
-              },
-              {
-                "string": "erased"
-              },
-              {
-                "string": "ambiguity-resolution"
-              },
-              {
-                "string": "stage"
-              },
-              {
-                "string": "extend-stage"
-              },
-              {
-                "string": "redefine-stage"
-              },
-              {
-                "string": "include"
-              },
-              {
-                "string": "features"
-              },
-              {
-                "string": "const"
-              },
-              {
-                "string": "redefine-const"
-              },
-              {
-                "string": "classifier"
-              },
-              {
-                "string": "implies"
-              },
-              {
-                "string": "names"
-              }
-            ]
-          },
-          "at": [
-            352,
-            1
-          ]
-        }
-      ],
-      "classifiers": [],
-      "implications": [],
-      "checks": [
-        {
-          "name": "r16",
-          "pattern": {
-            "name": "text",
-            "exact": true,
-            "at": [
-              2,
-              1
-            ]
-          },
-          "conditions": [
-            {
-              "nonempty": {
-                "method": "split",
-                "receiver": {
-                  "string": "x"
-                },
-                "args": [
-                  {
-                    "string": ""
-                  }
-                ]
-              }
-            },
-            {
-              "op": "≠",
-              "left": {
-                "method": "value",
-                "receiver": {
-                  "capture": ""
-                },
-                "args": []
-              },
-              "right": {
-                "string": "*"
-              }
-            },
-            {
-              "op": "∉",
-              "left": {
-                "method": "value",
-                "receiver": {
-                  "method": "parent",
-                  "receiver": {
-                    "capture": ""
-                  },
-                  "args": []
-                },
-                "args": []
-              },
-              "right": {
-                "union": [
-                  {
-                    "string": ")"
-                  },
-                  {
-                    "string": "*"
-                  }
-                ]
-              }
-            }
-          ],
-          "warning": {
-            "concat": [
-              {
-                "string": "m"
-              }
-            ]
-          },
-          "at": [
-            2,
-            1
-          ]
-        }
-      ]
-    },
-    "malformed": true,
-    "message": "split has an empty delimiter"
-  },
-  {
-    "description": "An empty delimiter fails beside keyword and include-tail checks.",
-    "dom": {
-      "format": 52,
-      "rules": [
-        {
-          "name": "text",
-          "op": "define",
-          "alternatives": [
-            {
-              "gates": [],
-              "expr": {
-                "empty": true
-              }
-            }
-          ],
-          "conditions": [],
-          "at": [
-            1,
-            1
-          ]
-        }
-      ],
-      "directives": [
-        {
-          "name": "ambiguity-resolution",
-          "steps": [
-            {
-              "step": "greedy"
-            }
-          ],
-          "at": [
-            20,
-            1
-          ]
-        }
-      ],
-      "constants": [
-        {
-          "name": "KEYWORDS",
-          "op": "define",
-          "value": {
-            "union": [
-              {
-                "string": "rule"
-              },
-              {
-                "string": "redefine-rule"
-              },
-              {
-                "string": "extend-rule"
-              },
-              {
-                "string": "conditions"
-              },
-              {
-                "string": "emits"
-              },
-              {
-                "string": "erased"
-              },
-              {
-                "string": "ambiguity-resolution"
-              },
-              {
-                "string": "stage"
-              },
-              {
-                "string": "extend-stage"
-              },
-              {
-                "string": "redefine-stage"
-              },
-              {
-                "string": "include"
-              },
-              {
-                "string": "features"
-              },
-              {
-                "string": "const"
-              },
-              {
-                "string": "redefine-const"
-              },
-              {
-                "string": "classifier"
-              },
-              {
-                "string": "implies"
-              },
-              {
-                "string": "names"
-              }
-            ]
-          },
-          "at": [
-            352,
-            1
-          ]
-        }
-      ],
-      "classifiers": [],
-      "implications": [],
-      "checks": [
-        {
-          "name": "r16",
-          "pattern": {
-            "name": "text",
-            "exact": true,
-            "at": [
-              2,
-              1
-            ]
-          },
-          "conditions": [
-            {
-              "nonempty": {
-                "method": "split",
-                "receiver": {
-                  "string": "x"
-                },
-                "args": [
-                  {
-                    "string": ""
-                  }
-                ]
-              }
-            },
-            {
-              "op": "∉",
-              "left": {
-                "method": "value",
-                "receiver": {
-                  "capture": ""
-                },
-                "args": []
-              },
-              "right": {
-                "const": "KEYWORDS",
-                "at": [
-                  378,
-                  18
-                ]
-              }
-            },
-            {
-              "if": {
-                "present": {
-                  "method": "parent",
-                  "receiver": {
-                    "capture": ""
-                  },
-                  "args": []
-                }
-              },
-              "then": {
-                "not": {
-                  "method": "parse",
-                  "receiver": {
-                    "method": "following-tokens",
-                    "receiver": {
-                      "capture": ""
-                    },
-                    "args": []
-                  },
-                  "args": [
-                    {
-                      "body": {
-                        "seq": [
-                          {
-                            "ref": "include-tail"
-                          },
-                          {
-                            "remainder": true
-                          }
-                        ]
-                      }
-                    }
-                  ]
-                }
-              }
-            },
-            {
-              "if": {
-                "present": {
-                  "method": "parent",
-                  "receiver": {
-                    "method": "parent",
-                    "receiver": {
-                      "capture": ""
-                    },
-                    "args": []
-                  },
-                  "args": []
-                }
-              },
-              "then": {
-                "not": {
-                  "method": "parse",
-                  "receiver": {
-                    "method": "following-tokens",
-                    "receiver": {
-                      "capture": ""
-                    },
-                    "args": []
-                  },
-                  "args": [
-                    {
-                      "body": {
-                        "seq": [
-                          {
-                            "ref": "include-tail"
-                          },
-                          {
-                            "remainder": true
-                          }
-                        ]
-                      }
-                    }
-                  ]
-                }
-              }
-            }
-          ],
-          "warning": {
-            "concat": [
-              {
-                "string": "m"
-              }
-            ]
-          },
-          "at": [
-            2,
-            1
-          ]
-        }
-      ]
-    },
-    "malformed": true,
-    "message": "split has an empty delimiter"
   },
   {
     "description": "A check rejects an empty split delimiter in its membership operand.",
@@ -36125,7 +33937,7 @@
     "message": "a method has the wrong receiver or arguments"
   },
   {
-    "description": "In a check, wrapper: a bare set term as a condition",
+    "description": "A check condition rejects a bare set term.",
     "dom": {
       "format": 52,
       "rules": [
@@ -36184,7 +33996,7 @@
     "malformed": true
   },
   {
-    "description": "In a check, wrapper: a wrapped string as a condition",
+    "description": "A check rejects a wrapped string as a condition.",
     "dom": {
       "format": 52,
       "rules": [
@@ -36245,7 +34057,7 @@
     "malformed": true
   },
   {
-    "description": "In a check, wrapper: a wrapped parse forest as a condition",
+    "description": "A check rejects a wrapped parse forest as a condition.",
     "dom": {
       "format": 52,
       "rules": [
@@ -36316,7 +34128,7 @@
     "malformed": true
   },
   {
-    "description": "In a check, wrapper: a wrapped error-free forest as a condition",
+    "description": "A check rejects a wrapped error-free forest as a condition.",
     "dom": {
       "format": 52,
       "rules": [
@@ -36391,7 +34203,7 @@
     "malformed": true
   },
   {
-    "description": "In a check, wrapper: a wrapper with an extra member",
+    "description": "A check condition wrapper rejects an extra member.",
     "dom": {
       "format": 52,
       "rules": [
@@ -36930,155 +34742,7 @@
     "message": "a method has the wrong receiver or arguments"
   },
   {
-    "description": "A check split rejects an empty delimiter.",
-    "dom": {
-      "format": 52,
-      "rules": [
-        {
-          "name": "text",
-          "op": "define",
-          "alternatives": [
-            {
-              "gates": [],
-              "expr": {
-                "empty": true
-              }
-            }
-          ],
-          "conditions": [],
-          "at": [
-            1,
-            1
-          ]
-        }
-      ],
-      "directives": [],
-      "constants": [],
-      "classifiers": [],
-      "implications": [],
-      "checks": [
-        {
-          "name": "r16",
-          "pattern": {
-            "name": "text",
-            "exact": true,
-            "at": [
-              2,
-              1
-            ]
-          },
-          "conditions": [
-            {
-              "op": "∈",
-              "left": {
-                "string": "a"
-              },
-              "right": {
-                "method": "split",
-                "receiver": {
-                  "method": "value",
-                  "receiver": {
-                    "capture": ""
-                  },
-                  "args": []
-                },
-                "args": [
-                  {
-                    "string": ""
-                  }
-                ]
-              }
-            }
-          ],
-          "warning": {
-            "concat": [
-              {
-                "string": "m"
-              }
-            ]
-          },
-          "at": [
-            2,
-            1
-          ]
-        }
-      ]
-    },
-    "malformed": true,
-    "message": "split has an empty delimiter"
-  },
-  {
-    "description": "A check condition rejects a recipe-only method.",
-    "dom": {
-      "format": 52,
-      "rules": [
-        {
-          "name": "text",
-          "op": "define",
-          "alternatives": [
-            {
-              "gates": [],
-              "expr": {
-                "empty": true
-              }
-            }
-          ],
-          "conditions": [],
-          "at": [
-            1,
-            1
-          ]
-        }
-      ],
-      "directives": [],
-      "constants": [],
-      "classifiers": [],
-      "implications": [],
-      "checks": [
-        {
-          "name": "r16",
-          "pattern": {
-            "name": "text",
-            "exact": true,
-            "at": [
-              2,
-              1
-            ]
-          },
-          "conditions": [
-            {
-              "op": "=",
-              "left": {
-                "method": "verbatim-text",
-                "receiver": {
-                  "capture": ""
-                },
-                "args": []
-              },
-              "right": {
-                "string": "a"
-              }
-            }
-          ],
-          "warning": {
-            "concat": [
-              {
-                "string": "m"
-              }
-            ]
-          },
-          "at": [
-            2,
-            1
-          ]
-        }
-      ]
-    },
-    "malformed": true,
-    "message": "a method has the wrong receiver or arguments"
-  },
-  {
-    "description": "A check selects its first type fault before a later capture fault.",
+    "description": "A check rejects a string tree operand and a named capture condition.",
     "dom": {
       "format": 52,
       "rules": [
@@ -37143,11 +34807,10 @@
         }
       ]
     },
-    "malformed": true,
-    "message": "a tree comparison requires a node or pattern"
+    "malformed": true
   },
   {
-    "description": "A check selects its first type fault before a later capture fault. Self comparison.",
+    "description": "A check rejects a self comparison and a named capture condition.",
     "dom": {
       "format": 52,
       "rules": [
@@ -37212,11 +34875,10 @@
         }
       ]
     },
-    "malformed": true,
-    "message": "a tree comparison cannot compare a node with itself"
+    "malformed": true
   },
   {
-    "description": "A check selects a condition fault before its message fault.",
+    "description": "A check rejects a self comparison and a named capture in its message.",
     "dom": {
       "format": 52,
       "rules": [
@@ -37282,11 +34944,10 @@
         }
       ]
     },
-    "malformed": true,
-    "message": "a tree comparison cannot compare a node with itself"
+    "malformed": true
   },
   {
-    "description": "A check selects its first type fault before a later node-walk fault.",
+    "description": "A check rejects invalid node operands in two comparisons.",
     "dom": {
       "format": 52,
       "rules": [
@@ -37365,8 +35026,7 @@
         }
       ]
     },
-    "malformed": true,
-    "message": "a tree comparison requires a node or pattern"
+    "malformed": true
   },
   {
     "description": "A check message rejects the value then value chain.",
@@ -37429,8 +35089,7 @@
         }
       ]
     },
-    "malformed": true,
-    "message": "a check message reads only $"
+    "malformed": true
   },
   {
     "description": "A check message rejects the terminal then value chain.",
@@ -37496,8 +35155,7 @@
         }
       ]
     },
-    "malformed": true,
-    "message": "a check message reads only $"
+    "malformed": true
   },
   {
     "description": "A check message rejects the value then verbatim-text chain.",
@@ -37560,8 +35218,7 @@
         }
       ]
     },
-    "malformed": true,
-    "message": "a check message reads only $"
+    "malformed": true
   },
   {
     "description": "A check message rejects the terminal then terminal chain.",
@@ -37627,8 +35284,7 @@
         }
       ]
     },
-    "malformed": true,
-    "message": "a check message reads only $"
+    "malformed": true
   },
   {
     "description": "A check message rejects the value then terminal chain.",
@@ -37694,8 +35350,7 @@
         }
       ]
     },
-    "malformed": true,
-    "message": "a check message reads only $"
+    "malformed": true
   },
   {
     "description": "A check message rejects the image then source-text chain.",
@@ -37761,11 +35416,10 @@
         }
       ]
     },
-    "malformed": true,
-    "message": "a check message reads only $"
+    "malformed": true
   },
   {
-    "description": "A non-string operand precedes a capture fault in a check message.",
+    "description": "A check message rejects tags and a named capture.",
     "dom": {
       "format": 52,
       "rules": [
@@ -37828,81 +35482,10 @@
         }
       ]
     },
-    "malformed": true,
-    "message": "++ requires string operands"
+    "malformed": true
   },
   {
-    "description": "A non-string operand precedes a later capture fault in a check message.",
-    "dom": {
-      "format": 52,
-      "rules": [
-        {
-          "name": "text",
-          "op": "define",
-          "alternatives": [
-            {
-              "gates": [],
-              "expr": {
-                "empty": true
-              }
-            }
-          ],
-          "conditions": [],
-          "at": [
-            1,
-            1
-          ]
-        }
-      ],
-      "directives": [],
-      "constants": [],
-      "classifiers": [],
-      "implications": [],
-      "checks": [
-        {
-          "name": "c",
-          "pattern": {
-            "name": "text",
-            "exact": true,
-            "at": [
-              2,
-              1
-            ]
-          },
-          "conditions": [],
-          "warning": {
-            "concat": [
-              {
-                "string": "x"
-              },
-              {
-                "method": "tags",
-                "receiver": {
-                  "capture": ""
-                },
-                "args": []
-              },
-              {
-                "method": "value",
-                "receiver": {
-                  "capture": "x"
-                },
-                "args": []
-              }
-            ]
-          },
-          "at": [
-            2,
-            1
-          ]
-        }
-      ]
-    },
-    "malformed": true,
-    "message": "++ requires string operands"
-  },
-  {
-    "description": "A non-string operand precedes a walk fault in a check message.",
+    "description": "A check message rejects tags and a node walk.",
     "dom": {
       "format": 52,
       "rules": [
@@ -37969,11 +35552,10 @@
         }
       ]
     },
-    "malformed": true,
-    "message": "++ requires string operands"
+    "malformed": true
   },
   {
-    "description": "A non-string operand precedes a restoration fault in a check message.",
+    "description": "A check message rejects tags and restoration.",
     "dom": {
       "format": 52,
       "rules": [
@@ -38043,11 +35625,10 @@
         }
       ]
     },
-    "malformed": true,
-    "message": "++ requires string operands"
+    "malformed": true
   },
   {
-    "description": "A non-string operand precedes an emitted channel fault in a check message.",
+    "description": "A check message rejects tags and an emitted channel chain.",
     "dom": {
       "format": 52,
       "rules": [
@@ -38114,11 +35695,10 @@
         }
       ]
     },
-    "malformed": true,
-    "message": "++ requires string operands"
+    "malformed": true
   },
   {
-    "description": "A structural concatenation fault precedes a check type fault.",
+    "description": "A check rejects a string tree operand and an empty concatenation.",
     "dom": {
       "format": 52,
       "rules": [
@@ -38185,11 +35765,10 @@
         }
       ]
     },
-    "malformed": true,
-    "message": "a malformed concatenation"
+    "malformed": true
   },
   {
-    "description": "A malformed pattern name precedes a check capture restriction.",
+    "description": "A check rejects a malformed pattern name and a named capture.",
     "dom": {
       "format": 52,
       "rules": [
@@ -38258,11 +35837,10 @@
         }
       ]
     },
-    "malformed": true,
-    "message": "a malformed pattern rule name"
+    "malformed": true
   },
   {
-    "description": "A malformed reference precedes a check capture restriction.",
+    "description": "A check rejects a malformed reference and a named query receiver.",
     "dom": {
       "format": 52,
       "rules": [
@@ -38330,11 +35908,10 @@
         }
       ]
     },
-    "malformed": true,
-    "message": "a malformed reference"
+    "malformed": true
   },
   {
-    "description": "An undeclared parameter precedes a check capture restriction.",
+    "description": "A check rejects an undeclared parameter and a named capture.",
     "dom": {
       "format": 52,
       "rules": [
@@ -38404,11 +35981,10 @@
         }
       ]
     },
-    "malformed": true,
-    "message": "an undeclared or malformed parameter"
+    "malformed": true
   },
   {
-    "description": "A malformed rule argument precedes check restoration.",
+    "description": "A check rejects restoration with an invalid rule argument.",
     "dom": {
       "format": 52,
       "rules": [
@@ -38478,8 +36054,7 @@
         }
       ]
     },
-    "malformed": true,
-    "message": "a malformed rule argument"
+    "malformed": true
   },
   {
     "description": "An element receiver rejects parse by its signature.",
@@ -39082,6 +36657,302 @@
       "classifiers": [],
       "implications": [],
       "checks": []
+    },
+    "malformed": true,
+    "message": "a method has the wrong receiver or arguments"
+  },
+  {
+    "description": "A check boundary atom requires a target.",
+    "dom": {
+      "format": 52,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "alternatives": [
+            {
+              "gates": [],
+              "expr": {
+                "empty": true
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "directives": [
+        {
+          "name": "ambiguity-resolution",
+          "steps": [
+            {
+              "step": "greedy"
+            }
+          ],
+          "at": [
+            3,
+            1
+          ]
+        }
+      ],
+      "constants": [],
+      "classifiers": [],
+      "implications": [],
+      "checks": [
+        {
+          "name": "c",
+          "pattern": {
+            "never": true
+          },
+          "conditions": [
+            {
+              "method": "followed-by",
+              "receiver": {
+                "capture": ""
+              },
+              "args": []
+            }
+          ],
+          "warning": {
+            "concat": [
+              {
+                "string": "m"
+              }
+            ]
+          },
+          "at": [
+            2,
+            1
+          ]
+        }
+      ]
+    },
+    "malformed": true,
+    "message": "a method has the wrong receiver or arguments"
+  },
+  {
+    "description": "A backward check boundary atom requires a target.",
+    "dom": {
+      "format": 52,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "alternatives": [
+            {
+              "gates": [],
+              "expr": {
+                "empty": true
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "directives": [
+        {
+          "name": "ambiguity-resolution",
+          "steps": [
+            {
+              "step": "greedy"
+            }
+          ],
+          "at": [
+            3,
+            1
+          ]
+        }
+      ],
+      "constants": [],
+      "classifiers": [],
+      "implications": [],
+      "checks": [
+        {
+          "name": "c",
+          "pattern": {
+            "never": true
+          },
+          "conditions": [
+            {
+              "method": "preceded-by",
+              "receiver": {
+                "capture": ""
+              },
+              "args": []
+            }
+          ],
+          "warning": {
+            "concat": [
+              {
+                "string": "m"
+              }
+            ]
+          },
+          "at": [
+            2,
+            1
+          ]
+        }
+      ]
+    },
+    "malformed": true,
+    "message": "a method has the wrong receiver or arguments"
+  },
+  {
+    "description": "A check input-start test rejects a rule argument.",
+    "dom": {
+      "format": 52,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "alternatives": [
+            {
+              "gates": [],
+              "expr": {
+                "empty": true
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "directives": [
+        {
+          "name": "ambiguity-resolution",
+          "steps": [
+            {
+              "step": "greedy"
+            }
+          ],
+          "at": [
+            3,
+            1
+          ]
+        }
+      ],
+      "constants": [],
+      "classifiers": [],
+      "implications": [],
+      "checks": [
+        {
+          "name": "c",
+          "pattern": {
+            "never": true
+          },
+          "conditions": [
+            {
+              "method": "starts-input",
+              "receiver": {
+                "capture": ""
+              },
+              "args": [
+                {
+                  "rule": "text"
+                }
+              ]
+            }
+          ],
+          "warning": {
+            "concat": [
+              {
+                "string": "m"
+              }
+            ]
+          },
+          "at": [
+            2,
+            1
+          ]
+        }
+      ]
+    },
+    "malformed": true,
+    "message": "a malformed rule argument"
+  },
+  {
+    "description": "A check input-end test rejects a surplus string argument.",
+    "dom": {
+      "format": 52,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "alternatives": [
+            {
+              "gates": [],
+              "expr": {
+                "empty": true
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "directives": [
+        {
+          "name": "ambiguity-resolution",
+          "steps": [
+            {
+              "step": "greedy"
+            }
+          ],
+          "at": [
+            3,
+            1
+          ]
+        }
+      ],
+      "constants": [],
+      "classifiers": [],
+      "implications": [],
+      "checks": [
+        {
+          "name": "c",
+          "pattern": {
+            "never": true
+          },
+          "conditions": [
+            {
+              "method": "ends-input",
+              "receiver": {
+                "capture": ""
+              },
+              "args": [
+                {
+                  "string": "a"
+                }
+              ]
+            }
+          ],
+          "warning": {
+            "concat": [
+              {
+                "string": "m"
+              }
+            ]
+          },
+          "at": [
+            2,
+            1
+          ]
+        }
+      ]
     },
     "malformed": true,
     "message": "a method has the wrong receiver or arguments"

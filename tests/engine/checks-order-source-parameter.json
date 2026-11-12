@@ -1,14 +1,8 @@
 {
-  "description": "A later malformed parameter precedes an earlier comparison type fault.",
+  "description": "A check rejects an invalid tree operand and an undeclared parameter.",
   "grammar": "%rule text \"a\"\n%check c #·text\n%conditions $ ≅ \"a\", @P = \"a\"\n%warning \"m\"",
   "input": "a",
   "expect": {
-    "error": "grammar",
-    "message": "an undeclared or malformed parameter",
-    "where": {
-      "document": "main.md",
-      "line": 5,
-      "column": 22
-    }
+    "error": "grammar"
   }
 }
