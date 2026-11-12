@@ -185,7 +185,7 @@ A cmavo is not the start of a name, and not the start of a lujvo that begins wit
   | cvc-rafsi y [h] [{initial-rafsi}] brivla-core
   | stressed-cvc-rafsi y short-final-rafsi
 
--- A particle is an onset and nuclei joined by apostrophes. It excludes a name start, a CVCy compound start and pure y. The pure y test says that not every letter of the span is y. It ends at a complete word boundary.
+-- A particle is an onset and nuclei joined by apostrophes. It excludes an apostrophe start, a cluster start, a name start, a CVCy compound start and pure y. The pure y test says that not every letter of the span is y. It ends at a complete word boundary.
 %rule cmavo
   $o:onset [{nucleus h}] cmavo-last-nucleus
 %conditions
