@@ -12,10 +12,10 @@ The review labels 95 words CONSISTENT, twelve INCONSISTENT, 27 UNCLEAR and six N
 
 The text sources are the IRC and mail archives of [jbocirvei](https://github.com/int19h/jbocirvei/tree/8c1579254e73c72d20d202557e42d4d92346f6bc). Their commit is `8c1579254e73c72d20d202557e42d4d92346f6bc`. The `irc/` sources are `ckule`, `jbosnu` and `lojban`. The `mail/` sources include each list's raw `cur/` messages and rendered `threads/` files.
 
-The searches use case-insensitive literal spellings with ASCII letter and apostrophe boundaries. Each row's word replaces `bi'ai` in this command:
+The searches use case-insensitive literal spellings with ASCII letter and apostrophe boundaries. Run the command from the root of a corpus checkout at that commit. Each row's word replaces `bi'ai`:
 
 ```sh
-rg -n -i "(^|[^a-z'])bi'ai([^a-z']|$)" /build/jbocirvei/corpus/irc /build/jbocirvei/corpus/mail | wc -l
+rg -n -i "(^|[^a-z'])bi'ai([^a-z']|$)" irc mail | wc -l
 ```
 
 One matching physical line counts once, even if it contains the word twice. The search uses ripgrep's default file filtering. It does not normalize apostrophe variants or joined word forms. It excludes dictionary files, wiki pages and parser repositories.
@@ -25,6 +25,12 @@ These totals include mentions, bot replies, quoted text and repeated messages. N
 The totals differ from `Lines examined` in 132 of 140 rows. For `bi'ai`, the search gives 829 matching lines, while the recorded sample has 40 excerpts. The summary gives no selection rule that reproduces that sample. The sample counts therefore remain unverified, and the search totals do not replace them.
 
 The classification judgments and lexicon admissions remain unchanged. The locations below support inspection of the contested judgments. They do not establish which excerpts formed the recorded samples.
+
+## Samples larger than the documented search
+
+The rows marked † record samples larger than this search finds. The named sources cannot supply those sample sizes under the documented search. `bi'au` records twelve examined lines but has one matching line. `zei'i` records ten but has nine. `ui'a` records six but has three.
+
+The one matching `bi'au` line is [irc/lojban/2016/2016-06-16.txt:125](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/irc/lojban/2016/2016-06-16.txt#L125). Its admission remains a maintainer decision. These markers change no judgment or lexicon entry.
 
 ## Consistent use
 
@@ -36,7 +42,7 @@ CONSISTENT records the reviewer's judgment that use matches the selected definit
 | `au'y` | BY | [67686](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/dict/au%27y/en-67686.md) | 2 | 2 |
 | `ba'oi` | ROI | [16212](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/dict/ba%27oi/en-16212.md) | 5 | 376 |
 | `bi'ai` | CAhA | [60530](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/dict/bi%27ai/en-60530.md) | 40 | 829 |
-| `bi'au` | UI | [73212](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/dict/bi%27au/en-73212.md) | 12 | 1 |
+| `bi'au` | UI | [73212](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/dict/bi%27au/en-73212.md) | 12 [†](#samples-larger-than-the-documented-search) | 1 |
 | `bo'a` | KOhA | [67080](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/dict/bo%27a/en-67080.md) | 20 | 167 |
 | `bo'ai` | LI | [67093](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/dict/bo%27ai/en-67093.md) | 3 | 22 |
 | `bo'e` | KOhA | [67081](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/dict/bo%27e/en-67081.md) | 5 | 172 |
@@ -144,7 +150,7 @@ INCONSISTENT means that the use conflicts with the selected definition or lacks 
 | `tei'u` | TEIhU | [64003](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/dict/tei%27u/en-64003.md) | 6 | 23 | Quotation opener use conflicts with terminator definition |
 | `zai'u` | ZAIhU | [68594](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/dict/zai%27u/en-68594.md) | 1 | 10 | Again use conflicts with following quotation requirement |
 | `zei'a` | TAhE | [66120](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/dict/zei%27a/en-66120.md) | 14 | 149 | Word joining conflicts with TAhE tense definition |
-| `zei'i` | UI | [71483](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/dict/zei%27i/en-71483.md) | 10 | 9 | Compound brackets conflict with UI contour definition |
+| `zei'i` | UI | [71483](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/dict/zei%27i/en-71483.md) | 10 [†](#samples-larger-than-the-documented-search) | 9 | Compound brackets conflict with UI contour definition |
 | `zi'u` | LAhE | [73556](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/dict/zi%27u/en-73556.md) | 1 | 116 | Relative clause attachment conflicts with LAhE definition |
 
 ## Unclear use
@@ -191,7 +197,7 @@ NOT-THE-WORD means that the context points to a mistake for another word. These 
 | `ce'ei` | MOI | [75017](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/dict/ce%27ei/en-75017.md) | 3 | 7 | Speaker corrects it to ca'ei |
 | `le'au` | SEI | [65567](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/dict/le%27au/en-65567.md) | 1 | 18 | Speaker corrects it to le'ai |
 | `sa'oi` | SAhOI | [70487](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/dict/sa%27oi/en-70487.md) | 1 | 15 | Correction frame needs sa'ai |
-| `ui'a` | UI | [69887](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/dict/ui%27a/en-69887.md) | 6 | 3 | Speaker corrects it to ui'e |
+| `ui'a` | UI | [69887](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/dict/ui%27a/en-69887.md) | 6 [†](#samples-larger-than-the-documented-search) | 3 | Speaker corrects it to ui'e |
 | `xo'oi` | NOI | [73373](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/dict/xo%27oi/en-73373.md) | 2 | 13 | Speaker identifies a mistake for xa'i |
 
 ## Locations for contested judgments
