@@ -147,13 +147,13 @@ A stop at an open LU or TO agrees with CLL's subordinate texts, as the [word str
 
 [gencmu's Cyrillic](../common/cyrillic.md) assigns different values to some letters from CLL. This pipeline therefore selects only CLL's Cyrillic. A caller can turn it off with the `cll-cyrillic` feature.
 
-This pipeline reads neither the Loglan-compatible orthography nor Tengwar from CLL[^cll-s3-12]. CLL says that the Loglan-compatible form served a planned rapprochement between the two language groups. That rapprochement never took place.
+This pipeline reads neither the Loglan-compatible orthography nor Tengwar from CLL[^cll-s3-12]. CLL says that the Loglan-compatible form was designed for a planned rapprochement between the Logical Language Group and The Loglan Institute. That rapprochement never took place.
 
 The [indicator document](indicators.md#quotation-boundaries) defines quotation and parenthesis boundaries. Its [source comparison](indicators.md#quotation-and-parenthesis-boundaries) explains CLL and the official parser.
 
 `late #·_<_Elided>` and `%elision-only` together interpret note 10 of CLL[^cll-s21-1]. That note permits an omitted terminator when no grammatical ambiguity results.
 
-The pipeline chooses `late #·_<_Elided>` and `%elision-only` to fit CLL's conventions. Note 10 does not specify them. It does not say which parse a text has when the grammar allows more than one. Nor does it say how to find that no ambiguity results. `elision-only` tests one completion, as described above. "Elision policy and CLL advice" in [the CLL grammar](syntax.md#elision-policy-and-cll-advice) separates terminator advice, parser limitations, and boundaries that the whole text forces.
+The pipeline chooses `late #·_<_Elided>` and `%elision-only` to fit CLL's conventions. Note 10 does not specify them. It does not say which parse a text has when the grammar allows more than one. Nor does it say how to find that no ambiguity results. `elision-only` tests the chosen parse with its omitted terminators restored, as [the notation document](../../../docs/notation.md#elided-terminators) defines. "Elision policy and CLL advice" in [the CLL grammar](syntax.md#elision-policy-and-cll-advice) separates terminator advice, parser limitations, and boundaries that the whole text forces.
 
 [^cll-s19-13]: [CLL 1.1, section 19.13](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-erasure.html).
 

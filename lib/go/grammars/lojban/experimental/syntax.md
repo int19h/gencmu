@@ -892,7 +892,7 @@ Emphasis before an attitude or its NAI remains attached to that token. It does n
 
 ## Numbers, lerfu strings and mekso
 
-The layer reads mekso with the rules below. Its number and lerfu rules leave the CLL helper `number-continuation` unreachable because their conditions read the actual following node. No reachable rule calls `operand`, `operand-1` to `operand-3` or `rp-operand`. The forms are these:
+The layer reads mekso with the rules below. Its number rule uses `number-part` for its extra operand forms. Its lerfu rule keeps `PA | lerfu-word` explicit so that rejection diagnostics name `lerfu-string`. These rules leave the CLL helper `number-continuation` unreachable. No reachable rule calls `operand`, `operand-1` to `operand-3` or `rp-operand`. The forms are these:
 
 - A number starts with PA, `ni'e` selbri or `mo'e` sumti. It continues with those parts or lerfu words. A lerfu string starts with a letter word and continues with letter words or PA. Thus `li cy mu my ci no` is one lerfu string, and `li pa by` is one number.
 - `mex-2` reads a number, a lerfu string, a `vei` group, a forethought connection, or a `LAhE` or `NAhE` qualifier. It can also be a forethought expression or a reverse Polish expression. An operator that begins with an unconverted, ungrouped joik, jek or ek unit needs PEhO, including connected operators. Other initial forms permit omitted PEhO. The operands `ni'e` and `mo'e` are inside numbers. There is no `jo'i` array, although the lexicon has `jo'i`.

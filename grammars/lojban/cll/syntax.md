@@ -860,6 +860,8 @@ For example, `le sutra tavla` has two parses. One is a statement with the descri
 
 The following comparisons cover printed rules, earlier stages, and the readings of CLL examples.
 
+The official parser, CLL's reference implementation, uses a YACC grammar. YACC is a parser generator. The printed EBNF copies that grammar and cites its rule numbers.
+
 ### Printed rules and translations
 
 1. Printed rule 972 reads `[NAhE] (time [space] | space [time]) & CAhA [KI]`. CLL[^cll-s21-1] ranks `...` above `&`, and `&` above `|`. It gives no precedence between juxtaposition and `&`. This grammar follows its notation and ranks juxtaposition higher.
@@ -867,7 +869,7 @@ The following comparisons cover printed rules, earlier stages, and the readings 
    That precedence attaches `[NAhE]` only to the time and space branch, and `[KI]` only to the CAhA branch. The repair instead surrounds the combination with those optionals. It reads `[NAhE] ((time [space] | space [time]) & CAhA) [KI]`.
 
    The repair admits `ba za ki`, `na'e ka'e`, `pu ki`, and `na'e ca'a` as single simple-tense-modal forms. The alternative precedence preserves rule 972's intended scope but splits `ZEhA [PU [NAI]]` in rule 1030. Either precedence therefore needs a repair. This grammar also parenthesizes `(ZEhA [PU [NAI]])` in `time`. Those parentheses leave its chosen reading unchanged.
-2. A text can begin with `.i` separators followed by `ni'o` markers, as in `.i ni'o mi klama`. The printed `text-1` makes the two alternatives. YACC is a parser generator. Its rule 2 (`text_B_2`) lets any number of `.i` forms precede a `ni'o` run. The grammars of camxes, another Lojban parser, call the printed form "a bug in the BNF".
+2. A text can begin with `.i` separators followed by `ni'o` markers, as in `.i ni'o mi klama`. The printed `text-1` makes the two alternatives. Rule 2 (`text_B_2`) of the official parser's YACC grammar lets any number of `.i` forms precede a `ni'o` run. The grammars of camxes, another Lojban parser, call the printed form "a bug in the BNF".
 3. A `lo'u ... le'u` quote can be empty, `lo'u le'u`. The printed `sumti-6` requires at least one word. YACC rule 436 reads the body of the quote as one token that can be empty.
 4. The free-modifier slot after a `lu ... li'u` quote follows the quote whether or not `li'u` is written, so `lu cy. to toi` is a quote followed by a parenthesis. The printed `sumti-6` writes `/LIhU#/`, which drops the slot with the elided `li'u`. YACC rule 432 (`quote_arg`) attaches free modifiers to the whole quote, and its `LIhU` gap carries none. Every other elidable terminator keeps its slot as printed.
 5. A run can contain several FUhE groups, as in `ui fu'e ia mi klama`. Printed rule 411 permits one group. CLL[^cll-s19-8] lets local attitudinals coexist with marked attitudes and says that FUhO "cancels all in-force attitudinals". This grammar infers permission for several FUhE groups. The indicator stage uses the same rule after a word.
@@ -875,7 +877,7 @@ The following comparisons cover printed rules, earlier stages, and the readings 
    A leading `fu'e` still needs an indicator. Thus, `fu'e ui mi klama` parses here, but the official parser rejects it.
 6. The printed grammar permits both a connective's `ke` group and a plain connection to a KE unit. The printed `selbri-4` and `operator` rules each supply both readings. The ranked choices select the group, as ["Logical and non-logical connectives"](#logical-and-non-logical-connectives) explains.
 
-   The official lexer makes `joi ke` one token, `JOIK_KE`, and reads only the group. It also makes that token where only a plain reading completes, so it rejects those texts. This grammar keeps the plain reading there, as the printed grammar does.
+   The official lexer divides input into tokens for the official parser. It makes `joi ke` one token, `JOIK_KE`, and reads only the group. It also makes that token where only a plain reading completes, so it rejects those texts. This grammar keeps the plain reading there, as the printed grammar does.
 
 7. Printed rule 50 reads a `ke` group of tails after a gihek. Rule 51 also permits a plain gihek before a tail whose selbri is a `ke` tanru unit. The condition on `bridi-tail` follows CLL's grouping descriptions[^cll-s14-10][^cll-s14-18], as ["Sentences and bridi-tails"](#sentences-and-bridi-tails) explains. The CLL example[^cll-e14-164] puts the tense between the gihek and `ke`.
 
@@ -918,6 +920,8 @@ CLL itself says so in two places. CLL[^cll-s14-17] gives the example[^cll-e14-15
 #### Sentence connectives and prenexes
 
 CLL 1.1 prints the examples[^cll-e16-77][^cll-e16-78] with a second `zo'u` after `.ije`. The example[^cll-e16-77] is `roda zo'u mi prami da .ije naku zo'u do prami da`. The example[^cll-e16-78] is `su'oda zo'u mi prami da .ije naku zo'u do prami da`. This grammar rejects both printed texts. Without the second `zo'u`, `naku` forms a term of the second sentence. The initial prenex binds `da` in both sentences.
+
+The correction removes the second `zo'u` from the example[^cll-e16-77].
 
 The official parser accepts both printed texts. Its lexer has no `lexer_T_1000` driver, so it never produces `I_JEK_820`. Instead, `.ije` without `bo` becomes `I_819`, the paragraph separator. This separator can contain `i` and a connective, and a prenex can follow it. Thus, `.ije` binds as loosely as bare `.i` in that parser.
 
@@ -998,7 +1002,7 @@ The `lojban/cll` and `lojban/bpfk` pipelines accept `le poi blabi gerku cu klama
 
 CLL[^cll-s9-5] warns that a non-logical connective can continue the modal's selbri without `fe'u`. The `lojban/cll` and `lojban/bpfk` pipelines read `mi fi'o broda joi pu brode` with `fe'u` elided before `joi`. The whole text forces that boundary.
 
-In `le broda brode`, both selbri stay inside the description, as CLL[^cll-s6-2] warns. In `mi fi'o kanla viska do`, `kanla viska` remains the modal selbri, as CLL[^cll-s9-9] warns for the example[^cll-e9-60]. Neither text forces the intended outside selbri. These passages therefore describe these pipelines' readings too and give no departure.
+In `le broda brode`, both selbri stay inside the description, as CLL[^cll-s6-2] warns. In `mi fi'o kanla viska do`, `kanla viska` remains the modal selbri, as CLL[^cll-s9-9] warns for the example[^cll-e9-61]. Neither text forces the intended outside selbri. These passages therefore describe these pipelines' readings too and give no departure.
 
 CLL[^cll-s6-11] says that `do'u` is rarely needed. CLL[^cll-s19-12] gives the same advice for `se'u`, except before an outside selbri. The `lojban/cll` and `lojban/bpfk` pipelines read `mi coi broda brode gi'e brodi` and `mi sei do broda brode gi'e brodi` with the free modifier ending before `brode`.
 
@@ -1208,7 +1212,7 @@ The indivisible-number rule follows these CLL requirements in the `lojban/cll` a
 
 [^cll-e8-62]: [CLL 1.1, section 8.7, example 8.62](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-possessive-sumti.html#c8e7d4).
 
-[^cll-e9-60]: [CLL 1.1, section 9.9, example 9.60](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-modal-selbri.html#c9e9d6).
+[^cll-e9-61]: [CLL 1.1, section 9.9, example 9.61](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-modal-selbri.html#c9e9d7).
 
 [^cll-e18-93]: [CLL 1.1, section 18.11, example 18.93](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-mekso-selbri.html#c18e11d13).
 
