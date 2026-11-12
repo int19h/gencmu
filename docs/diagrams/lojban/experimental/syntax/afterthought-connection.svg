@@ -1,19 +1,19 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="787" height="256" viewBox="0 0 787 256" role="img" aria-label="Railroad diagram of the rule ke-after">
+<svg xmlns="http://www.w3.org/2000/svg" width="821" height="256" viewBox="0 0 821 256" role="img" aria-label="Railroad diagram of the rule afterthought-connection">
 <style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}.rank-frame{fill:none;stroke:#777;stroke-width:1;stroke-dasharray:3 3}</style>
 <rect width="100%" height="100%" fill="#fff"/>
-<text class="title" x="10" y="24" textLength="134.4" lengthAdjust="spacingAndGlyphs">ke-after(@B, @U)</text>
+<text class="title" x="10" y="24" textLength="319.2" lengthAdjust="spacingAndGlyphs">afterthought-connection(@Group, @Unit)</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
 <path d="M20 46h20"/>
-<g class="terminal"><rect x="40" y="34" width="33" height="24" rx="12"/><text x="56.5" y="51" textLength="16.8" lengthAdjust="spacingAndGlyphs">@U</text></g>
-<path d="M73 46H767"/>
+<g class="terminal"><rect x="40" y="34" width="58" height="24" rx="12"/><text x="69" y="51" textLength="42" lengthAdjust="spacingAndGlyphs">@Unit</text></g>
+<path d="M98 46H801"/>
 <path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
 <path d="M40 80h20"/>
-<g class="terminal"><rect x="60" y="68" width="151" height="24" rx="12"/><text x="135.5" y="85" textLength="134.4" lengthAdjust="spacingAndGlyphs">ke-after(@B, @U)</text></g>
-<path d="M211 80H727a10 10 0 0 1 10 10V92a10 10 0 0 1 -10 10H60a10 10 0 0 0 -10 10V150a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="68" width="336" height="24" rx="12"/><text x="228" y="85" textLength="319.2" lengthAdjust="spacingAndGlyphs">afterthought-connection(@Group, @Unit)</text></g>
+<path d="M396 80H761a10 10 0 0 1 10 10V92a10 10 0 0 1 -10 10H60a10 10 0 0 0 -10 10V150a10 10 0 0 0 10 10"/>
 <path d="M60 160h88"/>
 <text class="label" x="64" y="155" textLength="79.2" lengthAdjust="spacingAndGlyphs">≻ same span</text>
 <path d="M148 160h10"/>
-<g class="ranked-choice"><rect class="rank-frame" x="163" y="117" width="559" height="98" rx="4"/>
+<g class="ranked-choice"><rect class="rank-frame" x="163" y="117" width="593" height="98" rx="4"/>
 <path d="M158 160h10"/>
 <path d="M168 160h20"/>
 <path d="M188 160h16"/>
@@ -30,28 +30,28 @@
 <path d="M466 160h10"/>
 <g class="rule"><rect x="476" y="148" width="33" height="24" rx="0"/><text x="492.5" y="165" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M509 160h10"/>
-<g class="terminal"><rect x="519" y="148" width="33" height="24" rx="12"/><text x="535.5" y="165" textLength="16.8" lengthAdjust="spacingAndGlyphs">@B</text></g>
-<path d="M552 160h10"/>
-<path d="M562 160h20"/>
-<g class="terminal"><rect x="582" y="148" width="50" height="24" rx="12"/><text x="607" y="165" textLength="33.6" lengthAdjust="spacingAndGlyphs">KEhE</text></g>
-<path d="M632 160H654"/>
-<path d="M562 160a10 10 0 0 0 10 -10V148a10 10 0 0 1 10 -10H634a10 10 0 0 1 10 10V150a10 10 0 0 0 10 10"/>
-<text class="label" x="586" y="133" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
-<path d="M654 160h10"/>
-<g class="rule"><rect x="664" y="148" width="33" height="24" rx="0"/><text x="680.5" y="165" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
-<path d="M697 160H717"/>
+<g class="terminal"><rect x="519" y="148" width="67" height="24" rx="12"/><text x="552.5" y="165" textLength="50.4" lengthAdjust="spacingAndGlyphs">@Group</text></g>
+<path d="M586 160h10"/>
+<path d="M596 160h20"/>
+<g class="terminal"><rect x="616" y="148" width="50" height="24" rx="12"/><text x="641" y="165" textLength="33.6" lengthAdjust="spacingAndGlyphs">KEhE</text></g>
+<path d="M666 160H688"/>
+<path d="M596 160a10 10 0 0 0 10 -10V148a10 10 0 0 1 10 -10H668a10 10 0 0 1 10 10V150a10 10 0 0 0 10 10"/>
+<text class="label" x="620" y="133" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
+<path d="M688 160h10"/>
+<g class="rule"><rect x="698" y="148" width="33" height="24" rx="0"/><text x="714.5" y="165" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M731 160H751"/>
 <path d="M168 160a10 10 0 0 1 10 10V188a10 10 0 0 0 10 10"/>
 <path d="M188 198h16"/>
 <text class="label" x="192" y="193" textLength="7.2" lengthAdjust="spacingAndGlyphs">2</text>
 <path d="M204 198h10"/>
 <g class="rule"><rect x="214" y="186" width="100" height="24" rx="0"/><text x="264" y="203" textLength="84" lengthAdjust="spacingAndGlyphs">connective</text></g>
 <path d="M314 198h10"/>
-<g class="terminal"><rect x="324" y="186" width="33" height="24" rx="12"/><text x="340.5" y="203" textLength="16.8" lengthAdjust="spacingAndGlyphs">@U</text></g>
-<path d="M357 198H697a10 10 0 0 0 10 -10V170a10 10 0 0 1 10 -10"/>
-<path d="M717 160h10"/>
+<g class="terminal"><rect x="324" y="186" width="58" height="24" rx="12"/><text x="353" y="203" textLength="42" lengthAdjust="spacingAndGlyphs">@Unit</text></g>
+<path d="M382 198H731a10 10 0 0 0 10 -10V170a10 10 0 0 1 10 -10"/>
+<path d="M751 160h10"/>
 </g>
-<path d="M727 160H747"/>
-<path d="M747 160H747a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M767 46h6m0 -8v16m4 -16v16"/>
+<path d="M761 160H781"/>
+<path d="M781 160H781a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M801 46h6m0 -8v16m4 -16v16"/>
 <text class="label" x="10" y="242" textLength="734.4" lengthAdjust="spacingAndGlyphs">A qualified higher proof removes a lower proof only over the same span and with dominating open facts.</text>
 </svg>

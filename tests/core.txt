@@ -7080,3 +7080,5 @@ eberban.step3-fix2.nested-omitted-sune
 eberban.step3-fix2.nested-written-sune
 eberban.step3-fix2.later-paragraph
 eberban.step3-fix2.live-written-warning
+adhoc.syntax.gihek-ke-two-free-modifiers.cll
+adhoc.syntax.gihek-ke-two-free-modifiers.experimental

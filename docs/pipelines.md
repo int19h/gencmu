@@ -119,13 +119,13 @@ Use example filenames that do not clash with your own files. The commands below 
    ```jbogenbau
    %extend-stage syntax
    %redefine-rule paragraph
-     utterance-sequence [{frame-group}] | {frame-group}
+     utterance-sequence & {frame-group}
 
    %rule utterance-sequence
      (statement | fragment) [{I 🆓 [statement | fragment]}]
 
    %rule frame-group
-     frame [I 🆓 [{I 🆓}] [utterance-sequence]]
+     frame [{I 🆓} [utterance-sequence]]
 
    %rule frame
      KIhEI 🆓 [terms]
@@ -198,12 +198,12 @@ Use example filenames that do not clash with your own files. The commands below 
 
    ````text
    text › text-1 › paragraphs › paragraph
-     statement › statement-1 › statement-2 › statement-3 › sentence › bridi-tail › bridi-tail-1-final › bridi-tail-2 › bridi-tail-3
+     statement › statement-1 › statement-2 › statement-3 › sentence › bridi-tail › bridi-tail-1 › bridi-tail-2 › bridi-tail-3
        selbri › selbri-1 › selbri-2 › selbri-3 › selbri-4 › selbri-5 › selbri-6 › tanru-unit › tanru-unit-1 › tanru-unit-2 · broda
        tail-terms
          ⟨VAU⟩
      I "i"
-     statement › statement-1 › statement-2 › statement-3 › sentence › bridi-tail › bridi-tail-1-final › bridi-tail-2 › bridi-tail-3
+     statement › statement-1 › statement-2 › statement-3 › sentence › bridi-tail › bridi-tail-1 › bridi-tail-2 › bridi-tail-3
        selbri › selbri-1 › selbri-2 › selbri-3 › selbri-4 › selbri-5 › selbri-6 › tanru-unit › tanru-unit-1 › tanru-unit-2 · brode
        tail-terms
          ⟨VAU⟩
@@ -217,12 +217,12 @@ Use example filenames that do not clash with your own files. The commands below 
 
    ````text
    text › text-1 › paragraphs › paragraph › utterance-sequence
-     statement › statement-1 › statement-2 › statement-3 › sentence › bridi-tail › bridi-tail-1-final › bridi-tail-2 › bridi-tail-3
+     statement › statement-1 › statement-2 › statement-3 › sentence › bridi-tail › bridi-tail-1 › bridi-tail-2 › bridi-tail-3
        selbri › selbri-1 › selbri-2 › selbri-3 › selbri-4 › selbri-5 › selbri-6 › tanru-unit › tanru-unit-1 › tanru-unit-2 · broda
        tail-terms
          ⟨VAU⟩
      I "i"
-     statement › statement-1 › statement-2 › statement-3 › sentence › bridi-tail › bridi-tail-1-final › bridi-tail-2 › bridi-tail-3
+     statement › statement-1 › statement-2 › statement-3 › sentence › bridi-tail › bridi-tail-1 › bridi-tail-2 › bridi-tail-3
        selbri › selbri-1 › selbri-2 › selbri-3 › selbri-4 › selbri-5 › selbri-6 › tanru-unit › tanru-unit-1 › tanru-unit-2 · brode
        tail-terms
          ⟨VAU⟩
@@ -244,7 +244,7 @@ Use example filenames that do not clash with your own files. The commands below 
        KIhEI "ki'ei"
        terms › terms-1 › terms-2 › term › sumti › sumti-1 › sumti-2 › sumti-3 › sumti-4 › sumti-5 › sumti-6 · ko'a
      I "i"
-     utterance-sequence › statement › statement-1 › statement-2 › statement-3 › sentence › bridi-tail › bridi-tail-1-final › bridi-tail-2 › bridi-tail-3
+     utterance-sequence › statement › statement-1 › statement-2 › statement-3 › sentence › bridi-tail › bridi-tail-1 › bridi-tail-2 › bridi-tail-3
        selbri › selbri-1 › selbri-2 › selbri-3 › selbri-4 › selbri-5 › selbri-6 › tanru-unit › tanru-unit-1 › tanru-unit-2 · broda
        tail-terms
          ⟨VAU⟩
