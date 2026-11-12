@@ -68,7 +68,7 @@ The diphthong instances use `diphthong-phonemes` for their two output strings. T
 
 A vowel diacritic and its full-vowel form are the same phoneme. BAHEBU (U+ED98) after either form or a diphthong diacritic makes it stressed. A repeated stress mark is one mark. SEMIVOWEL IY (U+EDAA) and SEMIVOWEL UY (U+EDAB) read as plain vowels `i` and `u`, even without a following vowel.
 
-A diphthong diacritic is two phonemes and stands where a vowel stands. The first emission covers the character and any stress marks. The second is inserted after them, with empty source and text. In a stressed diphthong, only the first token carries `Stressed`. That token has a lowercase value and an uppercase image.
+A diphthong diacritic is two phonemes and stands where a vowel stands. The first emission covers the character and any stress marks. The stage inserts the second emission after them, with empty source and text. In a stressed diphthong, only the first token carries `Stressed`. That token has a lowercase value and an uppercase image.
 
 CNIMAHO BU (U+ED8B) followed by a plain or stressed vowel is that vowel and an apostrophe. The vowel's token covers the shorthand too, as a stressed vowel's token covers its stress mark. The rule emits the apostrophe as a token with an empty span.
 

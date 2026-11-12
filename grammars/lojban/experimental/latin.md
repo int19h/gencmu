@@ -8,11 +8,11 @@ Stage zero decomposes every text, so an accented letter arrives as its base lett
 
 - Genuine punctuation is a word break. Other numbers, controls, private-use and unassigned characters make their run foreign. Format characters follow [../common/latin.md](../common/latin.md): U+200B and the visible number signs are word breaks, and the others are nothing.
 - A straight or curly quotation mark, a backtick or a spacing acute accent is an apostrophe between letters and punctuation at a word edge.
-- A length mark, such as `~`, and the middle dot `·` are ignored wherever they stand.
+- The stage ignores length marks, such as `~`, and the middle dot `·` wherever they stand.
 - An acute or grave accent marks stress. A dieresis on a vowel means an apostrophe before it.
 - `ɩ` and `q` write the i-glide, and `w` writes the u-glide. A breve on `i` or `u` writes a glide too. These glide letters are glides wherever they stand.
 - Krulermorna is a Lojban spelling system. Its letters `ą`, `ę` and `ǫ` write ai, ei and oi. Both `ǎ` and `ꜷ` write au.
-- Every other combining mark on a Latin letter is accepted and ignored.
+- The stage accepts and ignores every other combining mark on a Latin letter.
 - Text in another script stays foreign.
 
 ## Genuine punctuation
@@ -213,7 +213,7 @@ The `lojban/bpfk` and `lojban/zantufa` pipelines keep `~`, `～`, `〜` and `·`
 
 Stage zero sorts each uninterrupted run of marks of nonzero combining class by class. Within such a run, an ogonek comes before an accent, while an accent and a caron keep their written order. A mark of class zero, such as the grapheme joiner U+034F or U+093E, interrupts the run, and no mark moves across it. So in `a` U+0301 U+034F U+0328 the ogonek stays after the accent. The rules test only which tags a run has, so the order never matters.
 
-A letter rule tests only the marks that mean something on its letter. Any other mark is ignored. So a breve on `a` and an ogonek on `i` change nothing. `named-mark` lists the five meaningful marks with their tags once. `letter-mark` reads a named mark, which keeps its tags, or any other combining mark with no tag.
+A letter rule tests only the marks that mean something on its letter. The letter rule ignores every other mark. So a breve on `a` and an ogonek on `i` change nothing. `named-mark` lists the five meaningful marks with their tags once. `letter-mark` reads a named mark, which keeps its tags, or any other combining mark with no tag.
 
 ```jbogenbau
 %rule letter-marks :: $m.tags
@@ -330,13 +330,11 @@ The `Vowel` tag marks the five full vowels and not `y`. So `latin-full-vowel` ho
 
 %redefine-rule plain-vowel
   latin-vowel<¬Stressed ¬Folded ¬Dieresis>
-      :: (($.first-token.value ≠ "y" ∧ $.first-token.value ≠ "Y") ⟹ Vowel)
 
 %redefine-rule stressed-vowel
   latin-vowel<Stressed ¬Folded ¬Dieresis>
-      :: Stressed ∪ (($.first-token.value ≠ "y" ∧ $.first-token.value ≠ "Y") ⟹ Vowel)
 
-%redefine-rule folded-vowel :: (($.first-token.value ≠ "y" ∧ $.first-token.value ≠ "Y") ⟹ Vowel)
+%redefine-rule folded-vowel
   | latin-vowel<Capital ¬Stressed ¬Dieresis>
   | latin-vowel<Accented ¬Dieresis>
   | latin-diphthong-i<Capital ¬Stressed ¬Dieresis>
@@ -353,6 +351,8 @@ The `Vowel` tag marks the five full vowels and not `y`. So `latin-full-vowel` ho
 <p><img src="../../../docs/diagrams/lojban/experimental/latin/folded-vowel.svg" alt="Railroad diagram of the rule folded-vowel"></p>
 </details>
 
+Nothing reads the inherited `accented-full-vowel` or `folded-full-vowel` rules in this pipeline. The restated vowel rules read `latin-vowel` instead.
+
 The three restated rules have no `%emits`. Their walk reaches `latin-vowel`, which emits. The Cyrillic and zbalermorna extensions keep their own emissions.
 
 ## Glide letters
@@ -365,7 +365,7 @@ A glide letter is a glide wherever it stands. This stage reads it as `i` or `u` 
 
 The `Onglide` tag marks those dedicated glide letters and not the breve glides. So `onglide-letter` holds them and carries `Onglide` on its header, and the breve glides stay in `glide-letter`.
 
-A capital glide letter is plain. A glide is never stressed, so an accent on a glide letter is ignored: `ĭ́` is the glide `i`.
+A capital glide letter is plain. The stage ignores an accent on a glide letter because a glide is never stressed. Thus `ĭ́` is the glide `i`.
 
 ```jbogenbau
 %rule onglide-letter :: Onglide ∪ ($m ⟹ $m.tags ∩ Dieresis)
@@ -393,11 +393,11 @@ A capital glide letter is plain. A glide is never stressed, so an accent on a gl
 
 krulermorna writes a diphthong with one letter: `ą` for ai, `ę` for ei, `ǫ` for oi, and `ǎ` for au. Its vlipa variant writes au as `ꜷ` U+A737, with the capital `Ꜷ` U+A736. Stage zero gives `ą` as `a` and an ogonek, and `ǎ` as `a` and a caron. `ꜷ` has no decomposition.
 
-A diphthong letter stands where a vowel stands and gives two phonemes. The first covers the letter and its marks. The second is inserted after it, with empty source and text.
+A diphthong letter stands where a vowel stands and gives two phonemes. The first covers the letter and its marks. The stage inserts the second phoneme after the first, with empty source and text.
 
 An accent stresses the first vowel, so `ą́` has image `Ai`. A capital marks stress outside an all-capital run. An accented capital diphthong letter is `Accented`, as a vowel is, and stays stressed in an all-capital run. Only the first token carries `Stressed`, as for zbalermorna.
 
-An ogonek and a caron together on `a` give no reading, so the run is foreign. On `e` and `o`, the ogonek forms the diphthong and the caron is ignored.
+An ogonek and a caron together on `a` give no reading, so the run is foreign. On `e` and `o`, the ogonek forms the diphthong, and the stage ignores the caron.
 
 ```jbogenbau
 %rule latin-diphthong-i :: ($m ⟹ $m.tags ∩ Dieresis)

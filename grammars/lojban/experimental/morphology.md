@@ -232,6 +232,8 @@ A y-rafsi requires y where a classical extended form needs a vowel or apostrophe
 
 ## Glide letters
 
+The base Cyrillic orthographies read glide letters by position, as in `lojban/bpfk`. The experimental Cyrillic layer adds marks without changing that convention. The Latin letters below are experimental additions, so their fixed glide readings do not change a base orthography.
+
 The experimental phoneme stage reads `ɩ`, `q`, `w`, `ĭ` and `ŭ` as the glides `i` and `u`, with the tag `Glide` ([latin.md](latin.md)). `ɩ`, `q` and `w` also carry `Onglide`, because they write only a glide before its vowel. Such a letter is a glide wherever it stands. So no rule reads it as a vowel.
 
 A glide letter carries no `Vowel` tag, so the `Vowel` test of `vowel` does not read it. `diphthong-letters` refuses an onglide letter, so `ĭ` and `ŭ` can end a diphthong, as in `maĭ`. These tests of glide letters are gencmu's own.

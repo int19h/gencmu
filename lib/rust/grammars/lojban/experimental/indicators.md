@@ -8,7 +8,7 @@ A bare `nai` is an indicator, which [the experimental lexicon](lexicon.md) marks
 
 An attitudinal expresses an attitude. A `nai` directly after an attitudinal attaches to the attitudinal, as in the CLL document. So `mi ui nai klama` gives `mi` the indicator `ui`, and `ui` carries `nai`. Any other `nai` is an indicator of its own. That includes a `nai` after a `fu'e`, as in `mi ui fu'e nai klama`, and a `nai` after a word that is not an attitudinal.
 
-Without the condition below, the grammar admits both attachments of `nai`. The condition removes the reading where `nai` attaches separately to the word. This document restates `indicator-run` with that condition. If a run ends in an attitudinal, its next indicator of its own is not a `nai`. A `fu'e` before that `nai` lifts this. A `ba'e` between an attitudinal and its `nai` goes with the `nai`, as in the CLL document.
+Without the condition below, the grammar admits both attachments of `nai`. The condition removes the reading where `nai` attaches separately to the word. This document restates `indicator-run` with that condition and splices its two initial forms from the inherited `indicator-step`. If a run ends in an attitudinal, its next indicator of its own is not a `nai`. A `fu'e` before that `nai` lifts this. A `ba'e` between an attitudinal and its `nai` goes with the `nai`, as in the CLL document.
 
 A `nai` is an indicator here, so a `words-with-attachments` run never begins with one.
 
@@ -32,8 +32,7 @@ The name `$INDICATOR-BOUNDARIES` also covers CIhAU, which opens no quotation. Cl
   [fuhe] indicator
 
 %redefine-rule indicator-run
-  | [fuhe] indicator
-  | [fuhe] attitudinal-nai
+  | *indicator-step
   | indicator-run [fuhe] attitudinal-nai
   | $r:indicator-run $i:indicator
   | indicator-run fuhe indicator
