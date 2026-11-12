@@ -100,7 +100,7 @@ The fifth change permits a text-initial run of names only with `cbm` off. Under 
 
 The sixth change permits all four connective families before the first `.i` of a text. Examples are `e mi klama` and `su'i mi klama`. An ek or a VUhU needs a nonempty `text-1` after it. So a bare `e` stays an ek fragment, and a bare `su'i` fails.
 
-A first-child path follows each node's first child. The `$NEEDS-TEXT` pattern finds an initial ek or VUhU along this path, even with conversion or free modifiers. The `text-token` wildcard tests that the following `text-1` starts with a token.
+A first-child path follows each node's first child. The `$NEEDS-TEXT` pattern finds an initial ek or VUhU along this path, even with conversion or free modifiers. The `any-token` wildcard tests that the following `text-1` starts with a token.
 
 The ranked choice compares complete candidates and prefers the form without an initial connective when both forms complete. So `e .i mi klama` reads an ek fragment and a following sentence. The initial-connective candidate remains available when the fragment reading cannot complete.
 
@@ -141,10 +141,10 @@ A written KEhE also closes a KE-wrapped forethought bridi. A later reset permits
   | ¬cbm? [{NAI}] {CMEVLA} 🆓 (text-1 ≻ $c:connective $t:text-1)
   | [indicators & {free}] (text-1 ≻ $c:connective $t:text-1)
 %conditions
-  $c ≇ $NEEDS-TEXT ∨ $t.first-token.parse(text-token),
+  $c ≇ $NEEDS-TEXT ∨ $t.first-token.parse(any-token),
   ¬$c.preceded-by(free)
 
-%rule text-token
+%rule any-token
   _
 
 %redefine-rule indicators
@@ -193,7 +193,7 @@ A written KEhE also closes a KE-wrapped forethought bridi. A later reset permits
 
 <details><summary>Railroad diagrams of the 14 rules from <code>text</code> to <code>lone-i</code></summary>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/text.svg" alt="Railroad diagram of the rule text"></p>
-<p><img src="../../../docs/diagrams/lojban/experimental/syntax/text-token.svg" alt="Railroad diagram of the rule text-token"></p>
+<p><img src="../../../docs/diagrams/lojban/experimental/syntax/any-token.svg" alt="Railroad diagram of the rule any-token"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/indicators.svg" alt="Railroad diagram of the rule indicators"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/indicator.svg" alt="Railroad diagram of the rule indicator"></p>
 <p><img src="../../../docs/diagrams/lojban/experimental/syntax/text-1.svg" alt="Railroad diagram of the rule text-1"></p>
