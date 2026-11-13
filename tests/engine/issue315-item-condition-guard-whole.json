@@ -1,0 +1,14 @@
+{
+  "description": "An item condition with $ reports its guard capture before its consequent capture (engine §§2 and 9.3).",
+  "grammar": "%rule text {$c:A $e:B}\n%conditions ($e ⟹ $c.value = $.value)",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "a condition of text reads $e, an item capture, together with $, which is not complete at each item",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

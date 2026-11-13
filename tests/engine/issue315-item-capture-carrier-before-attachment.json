@@ -1,0 +1,14 @@
+{
+  "description": "An emission item checks its carrier before its attachments for item captures (engine §§2 and 9.3).",
+  "grammar": "%rule text {$c:A} {$e:B}\n%emits ($e) $c",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "%emits of text names $c, an item capture, which only a condition reads",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

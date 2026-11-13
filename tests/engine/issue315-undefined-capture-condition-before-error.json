@@ -1,0 +1,14 @@
+{
+  "description": "Conditions precede the diagnostic message in undefined capture checks (engine §§2 and 9.3).",
+  "grammar": "%rule text A\n%conditions $c.value = \"x\"\n%error $e.value",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "$c is captured by no alternative of text",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

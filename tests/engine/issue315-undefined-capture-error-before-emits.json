@@ -1,0 +1,14 @@
+{
+  "description": "The diagnostic message precedes emission items in undefined capture checks (engine §§2 and 9.3).",
+  "grammar": "%rule text A\n%error $c.value\n%emits $e",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "$c is captured by no alternative of text",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

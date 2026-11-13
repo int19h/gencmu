@@ -913,12 +913,19 @@ func TestBootstrapGuardMembers(t *testing.T) {
 
 func TestAbsentRecipeCaptureOrder(t *testing.T) {
 	for _, recipe := range []string{"$x.value ++ $y.value", "$y.value ++ $x.value"} {
-		for _, grammar := range []string{"%rule text := " + recipe + " | [$x:A] [$y:B]", "%rule text [$x:A] [$y:B] %emits $ := " + recipe} {
-			_, err := LoadPipelineSources(map[string]string{"p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n", "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n" + grammar + "\n```\n"}, "p.md")
+		first := recipe[:2]
+		for _, c := range []struct {
+			grammar  string
+			expected string
+		}{
+			{"%rule text := " + recipe + " | [$x:A] [$y:B]", "a recipe of text uses " + first + ", which a production lacks"},
+			{"%rule text [$x:A] [$y:B] %emits $ := " + recipe, "an item recipe of text uses absent capture " + first},
+		} {
+			_, err := LoadPipelineSources(map[string]string{"p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n", "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n" + c.grammar + "\n```\n"}, "p.md")
 			if isGuardedCrash(err) || err == nil {
 				t.Fatalf("expected an error for an absent capture, got %v", err)
 			}
-			if !strings.Contains(err.Error(), "capture "+recipe[:2]) {
+			if !strings.Contains(err.Error(), c.expected) {
 				t.Fatal(err)
 			}
 		}

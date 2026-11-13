@@ -523,7 +523,7 @@ Corresponding stitching errors use common wording across libraries. A located me
 
 A duplicate rule names its earlier document as `%rule NAME is already defined, in DOCUMENT; %redefine-rule replaces a rule`. An invalid extension says `%extend-rule NAME extends a rule that is not defined before it`. An undefined constant dependency adds `; dependency $FROM → $MISSING` after its undefined-constant message.
 
-An undefined capture diagnostic chooses the first name that no alternative captures, in written clause order. The order is header tags and recipes, alternative tags and recipes, conditions, diagnostic message, then emission items. Each emission visits its carrier, tags, recipes, then attachments. Within each clause, receivers, operands, guards, and branches keep their written order. Presence tests and value reads share that order.
+An undefined capture diagnostic chooses the first name that no alternative captures, in written clause order. The item-capture checks of §9.3 use the same order. The order is header tags and recipes, alternative tags and recipes, conditions, diagnostic message, then emission items. Each emission visits its carrier, tags, recipes, then attachments. Within each clause, receivers, operands, guards, and branches keep their written order. Presence tests and value reads share that order.
 
 The loader resolves implication sides in declaration order and builds their membership index once.
 
@@ -3439,7 +3439,7 @@ Once the reader reads an ordinary definition (§2), it makes sure that the whole
 
 Definition analysis visits productions in expansion order after capture-name and condition-applicability analysis. For each production, it inspects rule tags, alternative tags, selected string recipes, diagnostic recipe, empty emission, stray attachments, capture order, then emission items. Selected recipes use value before image. Each item contributes its value recipe, image recipe, then tags. Insertion anchors follow all productions.
 
-A tag term that reads an absent capture reports `a tag term of RULE uses $NAME, which a production lacks; guard it with $NAME ⟹`. An item recipe that reads an absent capture reports `an item recipe of RULE uses absent capture $NAME`.
+A tag term that reads an absent capture reports `a tag term of RULE uses $NAME, which a production lacks; guard it with $NAME ⟹`. A selected recipe that reads an absent capture reports `a recipe of RULE uses $NAME, which a production lacks`. An item recipe that reads an absent capture reports `an item recipe of RULE uses absent capture $NAME`. Each diagnostic names the first absent capture in the clause order of §2.
 
 A definition that contains a ranked choice defers two problem kinds until ranked validation completes: recipe-capture absence and empty emission. Recipe-capture absence means a production lacks a recipe's capture. A selected rule, alternative, item, or diagnostic recipe can report this problem. Empty emission means a production retains no items. These checks use explicit problem kinds, never message text.
 
@@ -3943,7 +3943,7 @@ A losing runtime option runs no recipes, although its syntax and effective const
 
 Recipe name analysis includes every receiver. `$` in an item recipe names the enclosing rule occurrence, even when its carrier is a captured child. Unknown names and private ranked captures fail before absent-carrier pruning. After pruning, validate effective constituent recipes on their selected channels and item recipes on retained items. An alternative's explicit recipes can suppress definition recipes separately per channel.
 
-A selected recipe that reads a capture absent from its production is a document error, reported at the definition (§9.3). The diagnostic names the first absent capture in the recipe's written order. Item recipes use the same order. An alternative recipe serves that alternative's productions. A rule-level recipe serves each production where no alternative recipe overrides it on that channel. Optional recipe cases need separate alternatives.
+A selected recipe that reads a capture absent from its production is a document error, reported at the definition (§9.3). The diagnostic says `a recipe of RULE uses $NAME, which a production lacks`. It names the first absent capture in the clause order of §2. Item recipes use the same order. An alternative recipe serves that alternative's productions. A rule-level recipe serves each production where no alternative recipe overrides it on that channel. Optional recipe cases need separate alternatives.
 
 Item recipes on an absent carrier drop with the item. An absent attachment drops alone. Tag terms retain §3.6's guarded missing-capture rule.
 

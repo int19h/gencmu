@@ -1665,16 +1665,23 @@ fn an_elidable_optional_and_captures_are_checked_where_they_stand() {
 #[test]
 fn absent_recipe_capture_order() {
     for recipe in ["$x.value ++ $y.value", "$y.value ++ $x.value"] {
-        for grammar in [
-            format!("%rule text := {recipe} | [$x:A] [$y:B]"),
-            format!("%rule text [$x:A] [$y:B] %emits $ := {recipe}"),
+        let first = &recipe[..2];
+        for (grammar, expected) in [
+            (
+                format!("%rule text := {recipe} | [$x:A] [$y:B]"),
+                format!("a recipe of text uses {first}, which a production lacks"),
+            ),
+            (
+                format!("%rule text [$x:A] [$y:B] %emits $ := {recipe}"),
+                format!("an item recipe of text uses absent capture {first}"),
+            ),
         ] {
             let sources = std::collections::BTreeMap::from([
                 ("p.md".to_string(), "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
                 ("g.md".to_string(), format!("```jbogenbau\n%ambiguity-resolution greedy\n{grammar}\n```\n")),
             ]);
             let error = gencmu::load_pipeline_sources(&sources, "p.md").expect_err("an absent recipe capture");
-            assert!(error.message.contains(&format!("capture {}", &recipe[..2])), "{error}");
+            assert!(error.message.contains(&expected), "{error}");
         }
     }
 }

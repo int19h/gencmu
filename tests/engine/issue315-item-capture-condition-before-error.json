@@ -1,0 +1,14 @@
+{
+  "description": "Conditions precede the diagnostic message in item capture checks (engine §§2 and 9.3).",
+  "grammar": "%rule text {$c:A} {$e:B}\n%conditions ($c.tags ∩ $e.tags)\n%error $e.value",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "a condition of text reads $c and $e, item captures of two pairs of braces",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

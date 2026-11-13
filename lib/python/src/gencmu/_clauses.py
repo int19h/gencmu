@@ -417,7 +417,31 @@ def _brace_helper_sequences(braces: Dom) -> list[set[str]]:
     return names + [{capture["capture"] for capture in left} | right for left in separators for right in names]
 
 
-def _item_capture_problem(rule: Dom, places: dict[int, dict[str, ItemCapture]], productions: list[tuple[Dom, set[str]]]) -> str | None:
+def _rule_clauses(rule: Dom):
+    """The clauses of a rule in the inspection order of engine §2, each with
+    its kind, DOM node, and mentioned captures in written order."""
+    for key in ("tags", "value", "image"):
+        if key in rule:
+            yield "a clause", rule[key], list(mentions_in_order(rule[key]))
+    for alternative in rule["alternatives"]:
+        for key in ("tags", "value", "image"):
+            if key in alternative:
+                yield "a clause", alternative[key], list(mentions_in_order(alternative[key]))
+    for condition in rule["conditions"]:
+        yield "condition", condition, list(mentions_in_order(condition))
+    for key in ("error", "warning"):
+        if key in rule:
+            yield "a clause", rule[key], list(mentions_in_order(rule[key]))
+    for item in rule.get("emit", {}).get("items", ()):
+        names: list[str] = [item["capture"]] if "capture" in item else []
+        for key in ("tags", "value", "image"):
+            if key in item:
+                names.extend(mentions_in_order(item[key]))
+        names.extend(attachments_of(item))
+        yield "%emits", item, names
+
+
+def _item_capture_problem(rule: Dom, places: dict[int, dict[str, ItemCapture]], productions: list[tuple[Dom, set[str]]], clauses: list[tuple[str, Any, list[str]]] | None = None) -> str | None:
     """Why the item captures of a definition cannot be read (engine §3.6,
     §9), or None. ``places`` gives the item captures of each alternative
     with braces, by the identity of its expression, and ``productions`` each
@@ -430,23 +454,18 @@ def _item_capture_problem(rule: Dom, places: dict[int, dict[str, ItemCapture]], 
     production."""
     alternatives = rule["alternatives"]
     item_names: set[str] = set().union(*places.values())
-    emit = rule.get("emit")
-    emitted: list[Dom] = emit["items"] if emit is not None else []
-    named = [name for item in emitted if "capture" in item for name in attachment_order(item)]
-    others: list[tuple[str, Any]] = [("a clause", rule.get(key)) for key in ("tags", "value", "image", "error", "warning")]
-    others.extend(("a clause", alternative.get(key)) for alternative in alternatives for key in ("tags", "value", "image"))
-    others.extend(("%emits", item) for item in emitted)
-    for kind, clause in others:
-        if clause is None:
-            continue
-        mentioned = [*(named if kind == "%emits" else []), *mentions_in_order(clause)]
-        item = next((name for name in mentioned if name in item_names), None)
-        if item is not None:
-            return f"{kind} of {rule['name']} names ${item}, an item capture, which only a condition reads"
+    if clauses is None:
+        clauses = list(_rule_clauses(rule))
     sequences: dict[int, list[list[Any]]] = {}
     helpers: dict[int, list[set[str]]] = {}
-    for condition in rule["conditions"]:
-        mentioned = list(dict.fromkeys(mentions_in_order(condition)))
+    for kind, clause, names in clauses:
+        if kind != "condition":
+            item = next((name for name in names if name in item_names), None)
+            if item is not None:
+                return f"{kind} of {rule['name']} names ${item}, an item capture, which only a condition reads"
+            continue
+        condition = clause
+        mentioned = list(dict.fromkeys(names))
         inside = [name for name in mentioned if name in item_names]
         if not inside:
             continue
@@ -1362,7 +1381,7 @@ def validation_captures(rule, alternative):
     for value in (rule.get('tags'), alternative.get('tags')):
         clause(value)
     value = alternative.get('value', rule.get('value'))
-    for recipe in (value, alternative.get('image', rule.get('image', value))):
+    for recipe in (value, alternative.get('image', rule.get('image', value)), rule.get('error'), rule.get('warning')):
         for name in captures_in(recipe):
             ask(forbidden=[name])
     if items and not any('insert' in i or i.get('capture') == WHOLE for i in items):
@@ -1447,19 +1466,13 @@ def _definition_issues(rule: Dom, held: Any = None):
     items: list[Dom] = emit["items"] if emit is not None else []
     places = {id(a["expr"]): found for a in alternatives if "capture" not in a["expr"] if (found := item_captures(a["expr"]))}
     item_places: set[str] = set().union(*places.values())
-    clauses: list[Any] = [rule.get("tags"), rule.get("value"), rule.get("image"), rule.get("error"), rule.get("warning")]
-    clauses.extend(alternative.get(channel) for alternative in alternatives for channel in ("tags", "value", "image"))
-    clauses.extend(rule["conditions"])
-    for item in items:
-        clauses.extend([{"capture": item["capture"]} if "capture" in item else None,
-                        item.get("tags"), item.get("value"), item.get("image")])
-        clauses.extend({"capture": name} for name in attachments_of(item))
-    for clause in clauses:
-        for name in mentions_in_order(clause):
+    clauses = list(_rule_clauses(rule))
+    for _, _, names in clauses:
+        for name in names:
             if name not in known and name not in item_places:
                 yield DefinitionIssue("independent", f"${name} is captured by no alternative of {rule['name']}")
     if places:
-        problem = _item_capture_problem(rule, places, [(alternative, present) for (alternative, _), present in zip(productions, presents)])
+        problem = _item_capture_problem(rule, places, [(alternative, present) for (alternative, _), present in zip(productions, presents)], clauses)
         if problem is not None:
             yield DefinitionIssue("independent", problem)
     # The rule-level clauses depend only on a production's captures, which
@@ -1572,7 +1585,7 @@ def _definition_issues(rule: Dom, held: Any = None):
                 continue
             absent = first_absent_recipe_capture(recipe, present)
             if absent is not None:
-                yield DefinitionIssue("recipe-capture", f"a selected recipe reads an absent capture ${absent}")
+                yield DefinitionIssue("recipe-capture", f"a recipe of {rule['name']} uses ${absent}, which a production lacks")
         if emission is None or key in checked_emissions:
             continue
         checked_emissions.add(key)
