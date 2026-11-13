@@ -1837,7 +1837,7 @@ impl Constants<'_> {
             if conditions.iter().any(crate::clauses::has_bare_empty_set) {
                 return Err(located("a condition of %features is the empty set".to_string(), document, directive.at));
             }
-            feature_condition_problem(conditions).map_err(|message| located(message, document, directive.at))?;
+            input_conditions_problem(conditions).map_err(|message| located(message, document, directive.at))?;
             for condition in conditions.iter() {
                 if let Some(fault) = crate::dom::cond_type_fault(condition, &|name| self.ty(name)) {
                     return Err(located(fault.problem, document, directive.at));
@@ -2634,8 +2634,8 @@ fn check_cond(grammar: &StageGrammar, cond: &Cond, compared: &mut bool) -> Resul
     }
 }
 
-// Validate the token-only scope before checking resolved constant types (§13).
-fn feature_condition_problem(conditions: &[Cond]) -> Result<(), String> {
+/// Validate the token-only scope before checking resolved constant types (§13).
+fn input_conditions_problem(conditions: &[Cond]) -> Result<(), String> {
     fn term(value: &Term) -> Result<(), String> {
         match value {
             Term::Capture(name) if !name.is_empty() => Err("feature conditions can read only $".into()),

@@ -177,7 +177,15 @@ pub struct Pipeline {
     pub(crate) changes: Vec<Change>,
     /// Each stage's lowered grammars and classifiers.
     caches: Vec<StageCache>,
+    /// Each stage's feature conditions, lowered once when the pipeline loads.
+    input_features: Vec<InputFeatures>,
     pub(crate) tree_recovery: BTreeMap<usize, Arc<TreeLocationRecovery>>,
+}
+
+/// A stage's feature declarations use one empty grammar and their lowered conditions.
+struct InputFeatures {
+    grammar: Lowered,
+    conditions: Vec<Option<Vec<(crate::lower::LCond, usize)>>>,
 }
 
 impl std::fmt::Debug for Pipeline {
@@ -339,8 +347,27 @@ impl Pipeline {
         let features = pipeline_features(&stages, &declared)?;
         let changes = stages.iter().flat_map(|stage| stage.changes.iter().cloned()).collect();
         let caches = stages.iter().map(StageCache::new).collect();
-        let pipeline =
-            Pipeline { stages, declared, features, unicode, changes, caches, tree_recovery: BTreeMap::new() };
+        let input_features = stages
+            .iter()
+            .map(|stage| InputFeatures {
+                grammar: Lowered::input(unicode.clone()),
+                conditions: stage
+                    .features
+                    .iter()
+                    .map(|(_, directive)| directive.conditions.as_deref().map(crate::lower::input_conditions))
+                    .collect(),
+            })
+            .collect();
+        let pipeline = Pipeline {
+            stages,
+            declared,
+            features,
+            unicode,
+            changes,
+            caches,
+            input_features,
+            tree_recovery: BTreeMap::new(),
+        };
         Ok(pipeline)
     }
 
@@ -588,11 +615,12 @@ impl Pipeline {
             run.collected = Lists::default();
             run.evaluated = Lists::default();
             let mut failure = None;
-            for (_, directive) in &self.stages[index].features {
-                let held = match &directive.conditions {
+            let input_features = &self.input_features[index];
+            for ((_, directive), conditions) in self.stages[index].features.iter().zip(&input_features.conditions) {
+                let held = match conditions {
                     Some(conditions) => {
-                        let input_grammar = crate::lower::Lowered::input(self.unicode.clone());
-                        let mut evaluator = Recognizer { g: &input_grammar, matchers: &[], shared, recon: None };
+                        let mut evaluator =
+                            Recognizer { g: &input_features.grammar, matchers: &[], shared, recon: None };
                         evaluator.input_conditions(conditions, &run.input)
                     }
                     None => Ok(true),

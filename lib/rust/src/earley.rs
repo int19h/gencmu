@@ -4438,10 +4438,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     /// Evaluate feature conditions on the whole stage input (§13).
     pub(crate) fn input_conditions(
         &mut self,
-        conditions: &[crate::dom::Cond],
+        conditions: &[(LCond, usize)],
         tokens: &[Tok],
     ) -> Result<bool, EngineError> {
-        let conditions = crate::lower::input_conditions(conditions);
         if conditions.is_empty() {
             return Ok(true);
         }
@@ -4461,7 +4460,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             parent_structure: 0,
             parent_tags: Cell::new(None),
         };
-        let mut eval = Eval::conditions(&conditions, Vec::new());
+        let mut eval = Eval::conditions(conditions, Vec::new());
         match self.evaluate(&mut eval, &frame, tokens, 0) {
             Ok(out) => Ok(out.holds()),
             Err(Halt::Error(error)) => Err(error),
