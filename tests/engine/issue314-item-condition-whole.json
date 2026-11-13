@@ -1,0 +1,14 @@
+{
+  "description": "An item condition cannot read the whole constituent $ (engine §3.6, §9).",
+  "grammar": "%rule text {$c:A}\n%conditions ($c.tags ∩ $.tags)",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "a condition of text reads $c, an item capture, together with $, which is not complete at each item",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

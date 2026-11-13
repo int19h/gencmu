@@ -1,0 +1,14 @@
+{
+  "description": "A tag-set premise reads its capture even in a Boolean position, so an absent capture requires a presence guard (engine §3.6).",
+  "grammar": "%rule text :: ($c.tags ⟹ X)\n | $c:A\n | C",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    },
+    "message": "a tag term of text uses $c, which a production lacks; guard it with $c ⟹"
+  }
+}

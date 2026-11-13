@@ -1,0 +1,14 @@
+{
+  "description": "A Boolean set condition must name a declared capture (engine §3.6).",
+  "grammar": "%rule text A\n%conditions $x.tags",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "$x is captured by no alternative of text",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

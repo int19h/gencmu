@@ -14,6 +14,7 @@ from typing import AbstractSet, Any, Union
 from copy import copy
 
 from ._trampoline import Walk, run
+from ._clause_walk import clause_children
 
 Dom = dict[str, Any]
 
@@ -63,27 +64,11 @@ def mentions_in_order(dom: Any):
     stack = [dom]
     while stack:
         node = stack.pop()
-        if isinstance(node, list):
-            stack.extend(reversed(node))
-            continue
-        if not isinstance(node, dict):
-            continue
-        for key in ("capture", "captured"):
-            if isinstance(node.get(key), str):
-                yield node[key]
-        if "pattern" in node:
-            continue
-        if "method" in node:
-            children = [node["receiver"], *node["args"]]
-        elif "op" in node:
-            children = [node["left"], node["right"]]
-        elif "if" in node:
-            children = [node["if"], node["then"]]
-        elif "not" in node:
-            children = [node["not"]]
-        else:
-            children = next((node[key] for key in ("any", "all", "union", "intersection", "difference", "concat") if key in node), [])
-        stack.extend(reversed(children))
+        if isinstance(node, dict):
+            for key in ("capture", "captured"):
+                if isinstance(node.get(key), str):
+                    yield node[key]
+        stack.extend(reversed(clause_children(node)))
 
 
 def mentioned_in(dom: Any) -> set[str]:
@@ -448,20 +433,20 @@ def _item_capture_problem(rule: Dom, places: dict[int, dict[str, ItemCapture]], 
     emit = rule.get("emit")
     emitted: list[Dom] = emit["items"] if emit is not None else []
     named = [name for item in emitted if "capture" in item for name in attachment_order(item)]
-    others: list[tuple[str, Any]] = [("a clause", rule.get(key)) for key in ("tags", "value", "image")]
+    others: list[tuple[str, Any]] = [("a clause", rule.get(key)) for key in ("tags", "value", "image", "error", "warning")]
     others.extend(("a clause", alternative.get(key)) for alternative in alternatives for key in ("tags", "value", "image"))
     others.extend(("%emits", item) for item in emitted)
     for kind, clause in others:
         if clause is None:
             continue
-        mentioned = [*(named if kind == "%emits" else []), *sorted(mentioned_in(clause))]
+        mentioned = [*(named if kind == "%emits" else []), *mentions_in_order(clause)]
         item = next((name for name in mentioned if name in item_names), None)
         if item is not None:
             return f"{kind} of {rule['name']} names ${item}, an item capture, which only a condition reads"
     sequences: dict[int, list[list[Any]]] = {}
     helpers: dict[int, list[set[str]]] = {}
     for condition in rule["conditions"]:
-        mentioned = sorted(mentioned_in(condition))
+        mentioned = list(dict.fromkeys(mentions_in_order(condition)))
         inside = [name for name in mentioned if name in item_names]
         if not inside:
             continue

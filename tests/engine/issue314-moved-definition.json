@@ -1,0 +1,14 @@
+{
+  "description": "A preceding rule shifts the definition error position (engine §3.6).",
+  "grammar": "%rule other B\n%rule text :: ($c.tags ⟹ X)\n | $c:A\n | C",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "a tag term of text uses $c, which a production lacks; guard it with $c ⟹",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 1
+    }
+  }
+}

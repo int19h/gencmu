@@ -1,0 +1,14 @@
+{
+  "description": "A clause reports its first written item capture, before later names (engine §3.6).",
+  "grammar": "%rule text {$c:A} {$e:B} := $e.value ++ $c.value",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "a clause of text names $e, an item capture, which only a condition reads",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}
