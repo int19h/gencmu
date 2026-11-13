@@ -1,0 +1,15 @@
+{
+  "description": "A guarded set cannot replace a scalar string argument (engine §10).",
+  "grammar": "%rule text $c:A | $d:B\n%conditions ($c ⟹ $c.value).split(($d ⟹ $d.value))",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

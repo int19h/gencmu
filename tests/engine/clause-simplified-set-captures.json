@@ -1,0 +1,17 @@
+{
+  "description": "A set condition uses only captures left after its guards resolve (engine §3.6).",
+  "grammar": "%rule text $c:A | $d:B\n%conditions ($c ⟹ $c.classes) ∪ ($d ⟹ $d.classes)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

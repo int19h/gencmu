@@ -1,0 +1,17 @@
+{
+  "description": "A guarded parameter remains open in its template even when its argument is a closed set (engine §3.6).",
+  "grammar": "%rule text t(Word)\n%rule t(@S) $c:A | $d:B\n%conditions $c ⟹ @S",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

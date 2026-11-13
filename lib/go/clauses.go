@@ -214,14 +214,72 @@ func firstPresence(a, b string) string {
 // Partial reducers return the next guard with the reduced clause.
 // A deciding or dropped part contributes no guard.
 func simplifyCondPartial(c *domCond, has func(string) truth, fixed map[clausePart]fixedReduction) (*domCond, truth, string) {
-	if known, ok := fixed[clausePart{c: c}]; ok {
-		if !known.ready {
-			known.value.c, known.truth, _ = simplifyCondPartial(c, has, nil)
-			known.ready = true
-			fixed[clausePart{c: c}] = known
-		}
-		return known.value.c, known.truth, ""
+	r := simplifyClause(clausePart{c: c}, has, fixed)
+	return r.value.c, r.truth, r.guard
+}
+
+func simplifyTermPartial(t *domTerm, has func(string) truth, fixed map[clausePart]fixedReduction) (*domTerm, string) {
+	r := simplifyClause(clausePart{t: t}, has, fixed)
+	return r.value.t, r.guard
+}
+
+// simplifyClause evaluates children before their parent with an explicit
+// stack. The reducers below read cached children, so validation can simplify
+// a document before its depth check without recursive calls down the tree.
+func simplifyClause(root clausePart, has func(string) truth, fixed map[clausePart]fixedReduction) fixedReduction {
+	if r, ok := fixed[root]; ok && r.ready {
+		return r
 	}
+	type visit struct {
+		p     clausePart
+		ready bool
+	}
+	pending := []visit{{p: root}}
+	values := map[clausePart]fixedReduction{}
+	for len(pending) > 0 {
+		at := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		if r, ok := fixed[at.p]; ok && r.ready {
+			values[at.p] = r
+			continue
+		}
+		if _, ok := values[at.p]; ok {
+			continue
+		}
+		if !at.ready {
+			pending = append(pending, visit{p: at.p, ready: true})
+			var children []clausePart
+			if at.p.t != nil {
+				switch at.p.t.Kind {
+				case tmIf, tmUnion, tmIntersection, tmDifference, tmConcat, tmCall:
+					children = at.p.children()
+				}
+			} else if at.p.c != nil {
+				switch at.p.c.Kind {
+				case cdNot, cdAll, cdAny, cdIf, cdCompare, cdTruthy:
+					children = at.p.children()
+				}
+			}
+			for i := len(children) - 1; i >= 0; i-- {
+				pending = append(pending, visit{p: children[i]})
+			}
+			continue
+		}
+		r := fixedReduction{ready: true}
+		if at.p.c != nil {
+			r.value.c, r.truth, r.guard = reduceCond(at.p.c, has, values)
+		} else {
+			r.value.t, r.guard = reduceTerm(at.p.t, has, values)
+		}
+		values[at.p] = r
+		if _, ok := fixed[at.p]; ok {
+			fixed[at.p] = r
+		}
+	}
+	return values[root]
+}
+
+func reduceCond(c *domCond, has func(string) truth, fixed map[clausePart]fixedReduction) (*domCond, truth, string) {
 	if w := work.Load(); w != nil {
 		w.readerSteps.add("reader steps")
 	}
@@ -314,15 +372,7 @@ func simplifyCondPartial(c *domCond, has func(string) truth, fixed map[clausePar
 	return c, open, ""
 }
 
-func simplifyTermPartial(t *domTerm, has func(string) truth, fixed map[clausePart]fixedReduction) (*domTerm, string) {
-	if known, ok := fixed[clausePart{t: t}]; ok {
-		if !known.ready {
-			known.value.t, _ = simplifyTermPartial(t, has, nil)
-			known.ready = true
-			fixed[clausePart{t: t}] = known
-		}
-		return known.value.t, ""
-	}
+func reduceTerm(t *domTerm, has func(string) truth, fixed map[clausePart]fixedReduction) (*domTerm, string) {
 	if w := work.Load(); w != nil {
 		w.readerSteps.add("reader steps")
 	}
@@ -391,6 +441,7 @@ func simplifyTermPartial(t *domTerm, has func(string) truth, fixed map[clausePar
 
 // fixedReduction is computed once for a part without presence tests.
 type fixedReduction struct {
+	guard string
 	value clausePart
 	truth truth
 	ready bool
@@ -512,226 +563,42 @@ const (
 	oEmpty
 )
 
-// simplifiedOutcome is the outcome of a clause for a production that has
-// the captures has says it has. It walks the clause once, with an explicit
-// stack, and builds no simplified clause, so a deep clause costs its size.
-//
-// With req, the clause must hold no presence test, and has is not asked.
-// Its outcome is then the same for every production but for what it
-// lacks, so req gets, in order, each capture whose absence makes it lack
-// one: the captures its parts use, less those of parts it reduces away.
+// simplifiedOutcome reads the lowering simplifier's result. With req,
+// the part reads no presence and its remaining captures are recorded once.
 func simplifiedOutcome(start clausePart, has func(string) bool, req *[]string) outcome {
-	type frame struct {
-		p       clausePart
-		combine bool
-		start   int
-	}
 	if req != nil {
 		has = func(string) bool { return true }
 	}
-	first := func(a, b outcome) outcome {
-		if a.lacks {
-			return outcome{kind: oUses, lacks: true, missing: a.missing}
-		}
-		return outcome{kind: oUses, lacks: b.lacks, missing: b.missing}
+	if start.c != nil {
+		c, tv := simplifyCond(start.c, has)
+		return clauseOutcome(clausePart{c: c}, tv, has, req)
 	}
-	// What a part gives as written: the first capture it uses that the
-	// production lacks.
-	asWritten := func(p clausePart) outcome {
-		used := outcome{kind: oUses}
-		if req != nil {
-			walkClause(p, func(q clausePart) bool {
-				if q.t != nil && q.t.Kind == tmCapture {
-					*req = append(*req, q.t.Str)
-				}
-				return true
-			})
-			return used
-		}
-		walkClause(p, func(q clausePart) bool {
-			if !used.lacks && q.t != nil && q.t.Kind == tmCapture && !has(q.t.Str) {
-				used = outcome{kind: oUses, lacks: true, missing: q.t.Str}
-			}
-			return !used.lacks
-		})
-		return used
+	return clauseOutcome(clausePart{t: simplifyTerm(start.t, has)}, open, has, req)
+}
+
+// clauseOutcome inspects an already simplified clause, without reducing it.
+func clauseOutcome(p clausePart, tv truth, has func(string) bool, req *[]string) outcome {
+	switch tv {
+	case alwaysTrue:
+		return outcome{kind: oTrue}
+	case alwaysFalse:
+		return outcome{kind: oFalse}
 	}
-	kids := func(p clausePart) []clausePart {
-		if p.t != nil {
-			switch p.t.Kind {
-			case tmIf, tmUnion, tmIntersection, tmDifference, tmConcat:
-				return p.children()
-			}
-			return nil
-		}
-		switch p.c.Kind {
-		case cdNot, cdAny, cdAll, cdIf, cdCompare, cdTruthy:
-			return p.children()
-		}
-		return nil
+	if p.t != nil && isEmptySet(p.t) {
+		return outcome{kind: oEmpty}
 	}
-	stack := []frame{{p: start}}
-	var done []outcome
-	for len(stack) > 0 {
-		if w := work.Load(); w != nil {
-			w.readerSteps.add("reader steps")
-		}
-		top := stack[len(stack)-1]
-		stack = stack[:len(stack)-1]
-		p := top.p
-		if !top.combine {
-			ks := kids(p)
-			at := 0
+	out := outcome{kind: oUses}
+	walkClause(p, func(q clausePart) bool {
+		if q.t != nil && q.t.Kind == tmCapture {
 			if req != nil {
-				at = len(*req)
-			}
-			stack = append(stack, frame{p: p, combine: true, start: at})
-			for i := len(ks) - 1; i >= 0; i-- {
-				stack = append(stack, frame{p: ks[i]})
-			}
-			continue
-		}
-		n := len(kids(p))
-		parts := appendCounted(nil, done[len(done)-n:], readerCount(), "reader steps")
-		done = done[:len(done)-n]
-		var o outcome
-		if p.t != nil {
-			switch p.t.Kind {
-			case tmEmptySet:
-				o = outcome{kind: oEmpty}
-			case tmConst:
-				// A constant is its value here; an empty one is ∅.
-				if isEmptySet(p.t) {
-					o = outcome{kind: oEmpty}
-				} else {
-					o = outcome{kind: oUses}
-				}
-			case tmIf:
-				cond, then := parts[0], parts[1]
-				switch {
-				case cond.kind == oFalse || then.kind == oEmpty:
-					o = outcome{kind: oEmpty}
-				case cond.kind == oTrue:
-					o = then
-				default:
-					o = first(cond, then)
-				}
-			case tmUnion:
-				o = outcome{kind: oEmpty}
-				for _, part := range parts {
-					if part.kind == oEmpty {
-						continue
-					}
-					if o.kind == oEmpty {
-						o = part
-					} else {
-						o = first(o, part)
-					}
-				}
-			case tmIntersection:
-				o = outcome{kind: oUses}
-				for _, part := range parts {
-					if part.kind == oEmpty {
-						o = outcome{kind: oEmpty}
-						break
-					}
-					o = first(o, part)
-				}
-			case tmDifference:
-				switch {
-				case parts[0].kind == oEmpty:
-					o = outcome{kind: oEmpty}
-				case parts[1].kind == oEmpty:
-					o = parts[0]
-				default:
-					o = first(parts[0], parts[1])
-				}
-			default:
-				// A capture, a literal or a call, as written.
-				o = asWritten(p)
-			}
-		} else {
-			switch p.c.Kind {
-			case cdCaptured:
-				o = outcome{kind: oFalse}
-				if has(p.c.Capture) {
-					o = outcome{kind: oTrue}
-				}
-			case cdNot:
-				o = parts[0]
-				switch o.kind {
-				case oTrue:
-					o = outcome{kind: oFalse}
-				case oFalse:
-					o = outcome{kind: oTrue}
-				}
-			case cdAll, cdAny:
-				decides, drops := oFalse, oTrue
-				if p.c.Kind == cdAny {
-					decides, drops = oTrue, oFalse
-				}
-				o = outcome{kind: drops}
-				for _, part := range parts {
-					if part.kind == decides {
-						o = outcome{kind: decides}
-						break
-					}
-					if part.kind == drops {
-						continue
-					}
-					if o.kind == drops {
-						o = part
-					} else {
-						o = first(o, part)
-					}
-				}
-			case cdIf:
-				premise, then := parts[0], parts[1]
-				switch {
-				case premise.kind == oFalse:
-					o = outcome{kind: oTrue}
-				case premise.kind == oTrue:
-					o = then
-				case then.kind == oTrue:
-					o = outcome{kind: oTrue}
-				case then.kind == oFalse:
-					o = premise
-				default:
-					o = first(premise, then)
-				}
-			case cdTruthy:
-				// A set term that simplifies to the empty set is false,
-				// and a closed one that is not empty is true (§3.6).
-				if value, ok := closedSetValue(p.c.Left); ok && len(value) > 0 {
-					o = outcome{kind: oTrue}
-				} else if parts[0].kind == oEmpty {
-					o = outcome{kind: oFalse}
-				} else {
-					o = asWritten(p)
-				}
-			case cdCompare:
-				// An empty side is ∅, which uses nothing.
-				left, right := parts[0], parts[1]
-				if left.kind == oEmpty {
-					left = outcome{kind: oUses}
-				}
-				if right.kind == oEmpty {
-					right = outcome{kind: oUses}
-				}
-				o = first(left, right)
-			default:
-				// Span predicate methods, as written.
-				o = asWritten(p)
+				*req = append(*req, q.t.Str)
+			} else if !out.lacks && !has(q.t.Str) {
+				out.lacks, out.missing = true, q.t.Str
 			}
 		}
-		// A part whose outcome is a constant lacks nothing, whatever the
-		// parts below it use.
-		if req != nil && o.kind != oUses {
-			*req = (*req)[:top.start]
-		}
-		done = append(done, o)
-	}
-	return done[0]
+		return !out.lacks
+	})
+	return out
 }
 
 // orderedMentions lists the captures a clause mentions, presence tests

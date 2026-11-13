@@ -1,0 +1,17 @@
+{
+  "description": "A true tag guard keeps its closed consequent and drops an absent guarded capture (engine §3.6).",
+  "grammar": "%rule text $c:A | $d:B :: ((($c ⟹ Word) ∪ Other) ⟹ Third) ∪ ($d ⟹ $d.tags)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "description": "A set term that becomes closed after its guard resolves makes the condition true in every production (engine §3.6).",
+  "documents": {
+    "main.md": "```jbogenbau\n%stage main\n%rule text $c:A $d:B\n%conditions ($c ⟹ Word) ∪ ($d ⟹ Other)\n```\n"
+  },
+  "pipelineDocument": "main.md",
+  "input": "ab",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

@@ -236,23 +236,16 @@ struct Reduction<'a> {
     shape: Outcome<'a>,
     guard: Option<&'a str>,
 }
-impl Reduction<'_> {
-    fn plain(shape: Outcome<'_>) -> Reduction<'_> {
-        Reduction { shape, guard: None }
-    }
-}
 struct PartialNode<'a> {
     guard: Option<usize>,
     part: Part<'a>,
     children: Vec<usize>,
-    reads: Vec<&'a str>,
-    fixed: bool,
 }
 /// A borrowed clause in postorder. Each assignment updates the affected
 /// ancestors and returns the next guard without constructing a new clause.
 struct PartialClause<'a> {
     nodes: Vec<PartialNode<'a>>,
-    reduced: Vec<Reduction<'a>>,
+    reduced: Vec<super::Reduced<'a>>,
     condition: bool,
     affected: Vec<Vec<usize>>,
     guard_ids: FxMap<&'a str, usize>,
@@ -276,8 +269,6 @@ impl<'a> PartialClause<'a> {
                 continue;
             }
             let children = done.split_off(done.len() - children.len());
-            let fixed = !matches!(part, Part::Cond(Cond::Captured(name)) if !name.is_empty())
-                && children.iter().all(|&i: &usize| nodes[i].fixed);
             let guard = match part {
                 Part::Cond(Cond::Captured(name)) if !name.is_empty() => {
                     let next = guard_ids.len();
@@ -289,14 +280,8 @@ impl<'a> PartialClause<'a> {
                 }
                 _ => None,
             };
-            let mut node = PartialNode { part, children, fixed, reads: Vec::new(), guard };
-            let value = if node.children.is_empty() && !matches!(part, Part::Cond(Cond::Captured(_))) {
-                let shaped = Shaped::of(part, &|_| true);
-                node.reads = shaped.uses;
-                Reduction::plain(shaped.shape)
-            } else {
-                Self::combine(&node, &reduced, &assigned)
-            };
+            let node = PartialNode { part, children, guard };
+            let value = Self::combine(&node, &reduced, &assigned);
             done.push(nodes.len());
             nodes.push(node);
             reduced.push(value);
@@ -335,95 +320,9 @@ impl<'a> PartialClause<'a> {
             pending: Vec::new(),
         }
     }
-    fn combine(node: &PartialNode<'a>, values: &[Reduction<'a>], assigned: &[Option<bool>]) -> Reduction<'a> {
-        let used = Outcome::Uses(None);
-        let plain = Reduction::plain;
-        let first = |a: Reduction<'a>, b: Reduction<'a>| Reduction { shape: used, guard: a.guard.or(b.guard) };
-        let child = |i| values[node.children[i]];
-        match node.part {
-            Part::Cond(Cond::Captured(name)) => match node.guard.map_or(Some(true), |index| assigned[index]) {
-                Some(true) => plain(Outcome::True),
-                Some(false) => plain(Outcome::False),
-                None => Reduction { shape: used, guard: Some(name) },
-            },
-            Part::Cond(Cond::Not(_)) => {
-                let inner = child(0);
-                match inner.shape {
-                    Outcome::True => plain(Outcome::False),
-                    Outcome::False => plain(Outcome::True),
-                    _ => inner,
-                }
-            }
-            Part::Cond(Cond::All(_) | Cond::Any(_)) => {
-                let all = matches!(node.part, Part::Cond(Cond::All(_)));
-                let mut result = plain(if all { Outcome::True } else { Outcome::False });
-                for &index in &node.children {
-                    let value = values[index];
-                    match value.shape {
-                        Outcome::True if !all => return plain(Outcome::True),
-                        Outcome::False if all => return plain(Outcome::False),
-                        Outcome::True | Outcome::False => {}
-                        _ => result = first(result, value),
-                    }
-                }
-                result
-            }
-            Part::Cond(Cond::If(_, _)) => {
-                let (premise, then) = (child(0), child(1));
-                match (premise.shape, then.shape) {
-                    (Outcome::False, _) | (_, Outcome::True) => plain(Outcome::True),
-                    (Outcome::True, _) => then,
-                    _ => first(premise, then),
-                }
-            }
-            Part::Term(Term::If(_, _)) => {
-                let (premise, then) = (child(0), child(1));
-                match (premise.shape, then.shape) {
-                    (Outcome::False, _) | (_, Outcome::Empty) => plain(Outcome::Empty),
-                    (Outcome::True, _) => then,
-                    _ => first(premise, then),
-                }
-            }
-            Part::Term(Term::Union(_) | Term::Intersection(_)) => {
-                let intersection = matches!(node.part, Part::Term(Term::Intersection(_)));
-                let mut result = plain(if intersection { used } else { Outcome::Empty });
-                for &index in &node.children {
-                    let value = values[index];
-                    if value.shape == Outcome::Empty {
-                        if intersection {
-                            return plain(Outcome::Empty);
-                        }
-                    } else {
-                        result = first(result, value);
-                    }
-                }
-                result
-            }
-            Part::Term(Term::Difference(_, _)) => {
-                let (left, right) = (child(0), child(1));
-                if left.shape == Outcome::Empty {
-                    plain(Outcome::Empty)
-                } else if right.shape == Outcome::Empty {
-                    left
-                } else {
-                    first(left, right)
-                }
-            }
-            Part::Cond(Cond::Compare(_, _, _, _)) => first(child(0), child(1)),
-            // A set term that simplifies to the empty set is false, and
-            // a closed one that is not empty is true (§3.6).
-            Part::Cond(Cond::Truthy(term)) => {
-                let inner = child(0);
-                if matches!(crate::clauses::closed_set_value(term), Some(value) if !value.is_empty()) {
-                    plain(Outcome::True)
-                } else if inner.shape == Outcome::Empty {
-                    plain(Outcome::False)
-                } else {
-                    Reduction { shape: used, guard: inner.guard }
-                }
-            }
-            _ => unreachable!("a variable clause node"),
-        }
+    fn combine(node: &PartialNode<'a>, values: &[super::Reduced<'a>], assigned: &[Option<bool>]) -> super::Reduced<'a> {
+        let children = node.children.iter().map(|&index| values[index].clone()).collect();
+        super::Reduced::combine(node.part, children, &|_| node.guard.map_or(Some(true), |index| assigned[index]))
     }
     fn assign(&mut self, slot: usize, value: Option<bool>) {
         self.assigned[slot] = value;
@@ -443,19 +342,11 @@ impl<'a> PartialClause<'a> {
             self.reduced[index] = Self::combine(&self.nodes[index], &self.reduced, &self.assigned);
             self.dirty[index] = false;
         }
-        *self.reduced.last().expect("a clause root")
+        let root = self.reduced.last().expect("a clause root");
+        Reduction { shape: root.shape(), guard: root.guard() }
     }
     fn reads(&self) -> Vec<&'a str> {
-        let mut pending = vec![self.nodes.len() - 1];
-        let mut out = Vec::new();
-        while let Some(index) = pending.pop() {
-            if matches!(self.reduced[index].shape, Outcome::Uses(_)) {
-                let node = &self.nodes[index];
-                out.extend_from_slice(&node.reads);
-                pending.extend(node.children.iter().rev());
-            }
-        }
-        out
+        self.reduced.last().expect("a clause root").captures()
     }
 }
 

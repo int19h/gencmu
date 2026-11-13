@@ -1,0 +1,15 @@
+{
+  "description": "A guarded parse condition applies nowhere when its guard and query capture occur in separate productions (engine §3.6).",
+  "grammar": "%rule text $c:A | $d:B\n%conditions $c ⟹ $d.parse(other)\n%rule other B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

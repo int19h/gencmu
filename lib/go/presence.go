@@ -99,9 +99,10 @@ func guardedBody(p clausePart) clausePart {
 }
 
 // clauseSplit is a list of parts: the items of a union, the conditions of
-// a list, or one clause alone. shared lists the parts that are not
-// guarded, and byCapture the guarded parts under their captures, each in
-// the order written.
+// a list, or one clause alone. shared lists the parts that no capture
+// indexes. byCapture lists the parts that a capture indexes: guarded parts,
+// fixed conditions under a capture that they use, and disjunctions under
+// their guard. Each list keeps the order written.
 type clauseSplit struct {
 	parts     []clausePart
 	shape     []partShape
@@ -109,13 +110,21 @@ type clauseSplit struct {
 	byCapture map[string][]int
 }
 
-func splitParts(parts []clausePart) *clauseSplit {
+// splitParts classifies every part and indexes it in written order.
+// prepare can refine a condition's index from its presence-free result.
+func splitParts(parts []clausePart, skip func(int) bool, prepare func(int, clausePart, partShape, string) (partShape, string)) *clauseSplit {
 	s := &clauseSplit{parts: parts, shape: make([]partShape, len(parts)), byCapture: map[string][]int{}}
 	for i, p := range parts {
 		presenceStep()
+		if skip != nil && skip(i) {
+			continue
+		}
 		shape, capture := shapeOf(p)
+		if prepare != nil {
+			shape, capture = prepare(i, p, shape, capture)
+		}
 		s.shape[i] = shape
-		if shape == partGuarded {
+		if shape == partGuarded || capture != "" {
 			s.byCapture[capture] = append(s.byCapture[capture], i)
 		} else {
 			s.shared = append(s.shared, i)
@@ -194,7 +203,7 @@ type termLowering struct {
 }
 
 func newTermLowering(t *domTerm) *termLowering {
-	tl := &termLowering{whole: t, split: splitParts(termParts(t))}
+	tl := &termLowering{whole: t, split: splitParts(termParts(t), nil, nil)}
 	tl.simplified = make([]*domTerm, len(tl.split.parts))
 	none := func(string) bool { return false }
 	for i, p := range tl.split.parts {
@@ -289,83 +298,72 @@ type condLowering struct {
 	// simplified is each fixed condition simplified, and each guarded
 	// condition's consequent, with the captures each uses.
 	simplified []*domCond
-	// truth is what each fixed condition simplified to.
+	// truth is what each fixed condition, and each guarded condition's
+	// consequent, simplified to.
 	truth []truth
 	uses  []map[string]bool
-	// always are the fixed conditions that use no capture but $.
-	always []int
 	// junctions holds each ∧ and ∨ split into its parts.
 	junctions map[int]*junction
 }
 
-func newCondLowering(conds []*domCond) *condLowering {
-	cl := &condLowering{split: &clauseSplit{byCapture: map[string][]int{}}, junctions: map[int]*junction{}}
-	s := cl.split
-	s.parts = make([]clausePart, len(conds))
-	s.shape = make([]partShape, len(conds))
-	cl.simplified = make([]*domCond, len(conds))
-	cl.truth = make([]truth, len(conds))
-	cl.uses = make([]map[string]bool, len(conds))
-	none := func(string) bool { return false }
-	var others []int
+// prepareConditions classifies and indexes a condition list for lowering or
+// checks. fixed records a presence-free body and returns its used captures.
+// Other parts stay separate so checks can stop revisiting applied conditions.
+func prepareConditions(conds []*domCond, skip func(int) bool, fixed func(int, clausePart, partShape) []string) (*clauseSplit, map[int]*junction, []int) {
+	parts := make([]clausePart, len(conds))
 	for i, c := range conds {
-		presenceStep()
-		p := clausePart{c: c}
-		s.parts[i] = p
-		shape, capture := shapeOf(p)
-		body := p
-		if shape == partGuarded {
-			body = guardedBody(p)
-		}
-		var simplified *domCond
-		if shape != partOther {
-			// A condition without a presence test stays open.
-			var tv truth
-			simplified, tv = simplifyCond(body.c, none)
-			if shape == partFixed {
-				cl.truth[i] = tv
-			}
-		}
-		s.shape[i] = shape
-		if j := junctionOf(c, shape); j != nil {
-			s.shape[i] = partJunction
-			cl.junctions[i] = j
-			// An ∨ is found under one of its guards, since it is true
-			// where a production lacks it. Any other junction stands with
-			// the conditions every production looks at.
-			if key := junctionKey(j); key != "" {
-				s.byCapture[key] = append(s.byCapture[key], i)
-			} else {
+		parts[i] = clausePart{c: c}
+	}
+	junctions := map[int]*junction{}
+	var others []int
+	prepare := func(i int, p clausePart, shape partShape, key string) (partShape, string) {
+		if j := junctionOf(p.c, shape); j != nil {
+			shape = partJunction
+			junctions[i] = j
+			key = junctionKey(j)
+			if key == "" {
 				others = append(others, i)
 			}
-			continue
-		}
-		if shape == partOther {
+		} else if shape == partOther {
 			others = append(others, i)
-			continue
+		} else {
+			body := p
+			if shape == partGuarded {
+				body = guardedBody(p)
+			}
+			used := fixed(i, body, shape)
+			if shape == partFixed {
+				for _, name := range used {
+					presenceStep()
+					if name != "" && (key == "" || name < key) {
+						key = name
+					}
+				}
+			}
 		}
+		return shape, key
+	}
+	s := splitParts(parts, skip, prepare)
+	return s, junctions, others
+}
+
+func newCondLowering(conds []*domCond) *condLowering {
+	cl := &condLowering{simplified: make([]*domCond, len(conds)), truth: make([]truth, len(conds)), uses: make([]map[string]bool, len(conds))}
+	fixed := func(i int, body clausePart, _ partShape) []string {
+		// A condition without a presence test stays open.
+		simplified, tv := simplifyCond(body.c, func(string) bool { return false })
 		cl.simplified[i] = simplified
+		cl.truth[i] = tv
 		used := map[string]bool{}
 		condCaptures(simplified, used)
 		cl.uses[i] = used
-		if shape == partGuarded {
-			s.byCapture[capture] = append(s.byCapture[capture], i)
-			continue
-		}
-		key := ""
+		names := make([]string, 0, len(used))
 		for name := range used {
-			presenceStep()
-			if name != "" && (key == "" || name < key) {
-				key = name
-			}
+			names = append(names, name)
 		}
-		if key == "" {
-			cl.always = append(cl.always, i)
-		} else {
-			s.byCapture[key] = append(s.byCapture[key], i)
-		}
+		return names
 	}
-	s.shared = mergeIndices(cl.always, others)
+	cl.split, cl.junctions, _ = prepareConditions(conds, nil, fixed)
 	return cl
 }
 
@@ -501,7 +499,7 @@ type termCheck struct {
 }
 
 func newTermCheck(t *domTerm) *termCheck {
-	tc := &termCheck{whole: t, split: splitParts(termParts(t))}
+	tc := &termCheck{whole: t, split: splitParts(termParts(t), nil, nil)}
 	tc.kind = make([]int8, len(tc.split.parts))
 	tc.req = make([][]string, len(tc.split.parts))
 	seen := map[string]bool{}
@@ -574,7 +572,7 @@ type condCheck struct {
 	applied []bool
 	left    int
 	others  []int
-	// constant marks each fixed condition that is always true.
+	// constant marks each simplified body that is always true.
 	constant []bool
 	// template gives, per condition, its form as its template writes
 	// it, where it held a parameter.
@@ -585,68 +583,38 @@ type condCheck struct {
 
 // newCondCheck splits the conditions; skip says which need no check.
 func newCondCheck(conds []*domCond, skip func(*domCond) bool) *condCheck {
-	cc := &condCheck{conds: conds, split: &clauseSplit{byCapture: map[string][]int{}}, junctions: map[int]*junction{}}
-	s := cc.split
 	n := len(conds)
-	s.parts, s.shape = make([]clausePart, n), make([]partShape, n)
-	cc.req, cc.applied = make([][]string, n), make([]bool, n)
-	var always []int
-	for i, c := range conds {
-		presenceStep()
-		p := clausePart{c: c}
-		s.parts[i] = p
-		if skip(c) {
-			cc.applied[i] = true
-			continue
-		}
-		cc.left++
-		shape, capture := shapeOf(p)
-		s.shape[i] = shape
-		if j := junctionOf(c, shape); j != nil {
-			s.shape[i] = partJunction
-			cc.junctions[i] = j
-			if key := junctionKey(j); key != "" {
-				s.byCapture[key] = append(s.byCapture[key], i)
-			} else {
-				cc.others = append(cc.others, i)
-			}
-			continue
-		}
-		if shape == partOther {
-			cc.others = append(cc.others, i)
-			continue
-		}
-		body := p
-		if shape == partGuarded {
-			body = guardedBody(p)
-		}
+	cc := &condCheck{conds: conds, req: make([][]string, n), applied: make([]bool, n)}
+	fixed := func(i int, body clausePart, _ partShape) []string {
 		var req []string
 		outcome := simplifiedOutcome(body, nil, &req)
 		cc.req[i] = req
-		if shape == partFixed && outcome.kind == oTrue {
-			// A fixed condition that is always true applies to no
-			// production (§3.6).
+		if outcome.kind == oTrue {
+			// A true body applies nowhere, including where its guard is absent (§3.6).
 			if cc.constant == nil {
 				cc.constant = make([]bool, n)
 			}
 			cc.constant[i] = true
 		}
-		key := capture
-		if shape == partFixed {
-			for _, name := range req {
-				presenceStep()
-				if name != "" && (key == "" || name < key) {
-					key = name
-				}
-			}
-			if key == "" {
-				always = append(always, i)
-				continue
-			}
-		}
-		s.byCapture[key] = append(s.byCapture[key], i)
+		return req
 	}
-	s.shared = always
+	skipped := func(i int) bool {
+		yes := skip(conds[i])
+		cc.applied[i] = yes
+		if !yes {
+			cc.left++
+		}
+		return yes
+	}
+	cc.split, cc.junctions, cc.others = prepareConditions(conds, skipped, fixed)
+	// Checks stop revisiting applied other-shaped conditions.
+	shared := cc.split.shared[:0]
+	for _, i := range cc.split.shared {
+		if cc.split.shape[i] != partOther && cc.split.shape[i] != partJunction {
+			shared = append(shared, i)
+		}
+	}
+	cc.split.shared = shared
 	return cc
 }
 
@@ -737,10 +705,7 @@ type junction struct {
 	// For lowering: each fixed part simplified, and each guarded part's
 	// consequent, with what it simplified to.
 	simplified []*domCond
-	// For the checks: the outcome of the same, with the captures whose
-	// absence makes it lack one.
-	kind []int8
-	req  [][]string
+	truth      []truth
 	// guards are the captures that guard parts, each once, and guarded
 	// all the guarded parts in order.
 	guards  []string
@@ -748,9 +713,8 @@ type junction struct {
 	// shared are the fixed parts that the whole keeps and the other parts,
 	// in order. changed says whether the whole is rebuilt for every
 	// production.
-	shared   []int
-	changed  bool
-	fixedReq []string
+	shared  []int
+	changed bool
 }
 
 // newJunction splits c, an ∧ or an ∨ of at least one part.
@@ -761,12 +725,10 @@ func newJunction(c *domCond) *junction {
 		presenceStep()
 		parts[i] = clausePart{c: it}
 	}
-	j.split = splitParts(parts)
-	n := len(parts)
-	j.simplified = make([]*domCond, n)
-	j.kind, j.req = make([]int8, n), make([][]string, n)
-	none := func(string) bool { return false }
-	seenGuard, seenReq := map[string]bool{}, map[string]bool{}
+	j.split = splitParts(parts, nil, nil)
+	j.simplified = make([]*domCond, len(parts))
+	j.truth = make([]truth, len(parts))
+	seenGuard := map[string]bool{}
 	var fixedKept, others []int
 	for i, p := range parts {
 		shape := j.split.shape[i]
@@ -784,10 +746,7 @@ func newJunction(c *domCond) *junction {
 				j.guards = append(j.guards, g)
 			}
 		}
-		j.simplified[i], _ = simplifyCond(body.c, none)
-		var req []string
-		j.kind[i] = simplifiedOutcome(body, nil, &req).kind
-		j.req[i] = req
+		j.simplified[i], j.truth[i] = simplifyCond(body.c, func(string) bool { return false })
 		if shape == partGuarded {
 			continue
 		}
@@ -795,13 +754,6 @@ func newJunction(c *domCond) *junction {
 			j.changed = true
 		}
 		fixedKept = append(fixedKept, i)
-		for _, name := range req {
-			presenceStep()
-			if !seenReq[name] {
-				seenReq[name] = true
-				j.fixedReq = append(j.fixedReq, name)
-			}
-		}
 	}
 	j.shared = mergeIndices(fixedKept, others)
 	return j
@@ -841,7 +793,7 @@ func (j *junction) lower(names []string, has func(string) bool) (*domCond, truth
 	var items []*domCond
 	changed := j.changed
 	for _, i := range mergeIndices(j.shared, j.present(names)) {
-		s, tv := j.simplified[i], open
+		s, tv := j.simplified[i], j.truth[i]
 		if j.split.shape[i] == partOther {
 			s, tv = simplifyCond(j.split.parts[i].c, has)
 			if s != j.split.parts[i].c {
@@ -868,57 +820,9 @@ func (j *junction) lower(names []string, has func(string) bool) (*domCond, truth
 	return &domCond{Kind: j.c.Kind, Items: items}, open
 }
 
-// outcome is what simplifiedOutcome gives for the junction for a
-// production whose captures are names, by has: its kind, and whether it
-// lacks a capture.
+// outcome reads lower's result, so both callers use one junction traversal.
 func (j *junction) outcome(names []string, has func(string) bool) (int8, bool) {
-	decO, dropO := oFalse, oTrue
-	if j.any {
-		decO, dropO = oTrue, oFalse
-	}
-	if j.any && j.lacksGuard(has) {
-		return decO, false
-	}
-	kept, lacks := 0, false
-	for _, i := range mergeIndices(j.shared, j.present(names)) {
-		kind := j.kind[i]
-		partLacks := false
-		switch j.split.shape[i] {
-		case partOther:
-			o := simplifiedOutcome(j.split.parts[i], has, nil)
-			kind, partLacks = o.kind, o.lacks
-		case partGuarded:
-			if kind == oUses {
-				for _, name := range j.req[i] {
-					presenceStep()
-					if !has(name) {
-						partLacks = true
-						break
-					}
-				}
-			}
-		}
-		switch kind {
-		case decO:
-			return decO, false
-		case dropO:
-			continue
-		}
-		kept++
-		lacks = lacks || partLacks
-	}
-	// The fixed parts that the whole keeps lack what their captures say.
-	for _, name := range j.fixedReq {
-		if lacks {
-			break
-		}
-		presenceStep()
-		if !has(name) {
-			lacks = true
-		}
-	}
-	if kept == 0 {
-		return dropO, false
-	}
-	return oUses, lacks
+	c, tv := j.lower(names, has)
+	o := clauseOutcome(clausePart{c: c}, tv, has, nil)
+	return o.kind, o.lacks
 }

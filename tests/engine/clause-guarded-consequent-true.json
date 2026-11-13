@@ -1,0 +1,23 @@
+{
+  "description": "A guarded true consequent makes the condition true in every production (engine §3.6).",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 1
+    }
+  },
+  "documents": {
+    "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text $c:A | $d:B\n%conditions $c ⟹ Word\n```\n"
+  },
+  "pipelineDocument": "main.md"
+}

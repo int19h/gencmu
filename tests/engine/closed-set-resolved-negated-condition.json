@@ -1,0 +1,17 @@
+{
+  "description": "A closed guarded set under negation leaves the runtime set condition (engine §3.6).",
+  "grammar": "%rule text $c:A | $d:B\n%conditions ¬(($c ⟹ Word) ∪ Other) ∨ $.tags ∩ A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

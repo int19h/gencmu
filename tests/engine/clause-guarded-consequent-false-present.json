@@ -1,0 +1,23 @@
+{
+  "description": "A present guard with a false consequent removes its production (engine §3.6).",
+  "grammar": "%rule text $c:A | $d:B\n%conditions $c ⟹ ¬Word",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected",
+    "result": {
+      "ok": false,
+      "tree": null,
+      "error": {
+        "kind": "rejected",
+        "stage": "main"
+      }
+    }
+  }
+}

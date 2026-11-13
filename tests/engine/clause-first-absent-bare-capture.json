@@ -1,0 +1,16 @@
+{
+  "description": "A tag diagnostic names the first absent bare capture in written order (engine §3.6).",
+  "grammar": "%rule text :: ($c ≅ $d ⟹ X)\n | $c:A $d:B\n | C",
+  "tokens": [
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "message": "a tag term of text uses $c, which a production lacks; guard it with $c ⟹"
+  }
+}
