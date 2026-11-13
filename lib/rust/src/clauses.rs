@@ -770,8 +770,10 @@ impl<'a> TermSplit<'a> {
     }
 }
 
-/// How one condition of a list simplifies for each production: as a `∧`
-/// or a `∨` split into its parts, or whole.
+/// How one condition of a list simplifies for each production: fixed,
+/// guarded by one capture, as a `∧` or a `∨` split into its parts, or
+/// whole. Lowering holds each result as `Simple`, and the checks hold it as
+/// `Shaped`.
 enum CondParts<'a, T> {
     Fixed(T),
     Guarded(&'a str, T),

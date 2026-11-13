@@ -99,9 +99,10 @@ func guardedBody(p clausePart) clausePart {
 }
 
 // clauseSplit is a list of parts: the items of a union, the conditions of
-// a list, or one clause alone. shared lists the parts that are not
-// guarded, and byCapture the guarded parts under their captures, each in
-// the order written.
+// a list, or one clause alone. shared lists the parts that no capture
+// indexes. byCapture lists the parts that a capture indexes: guarded parts,
+// fixed conditions under a capture that they use, and disjunctions under
+// their guard. Each list keeps the order written.
 type clauseSplit struct {
 	parts     []clausePart
 	shape     []partShape
