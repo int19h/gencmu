@@ -3,8 +3,11 @@
 //! and the checks of a definition as a whole.
 
 use std::collections::HashMap;
+#[path = "clause_reduction.rs"]
+mod reduction;
 #[path = "capture_validation.rs"]
 mod validation;
+use reduction::Reduced;
 
 use crate::fxhash::{FxMap, FxSet};
 use crate::work::{self, Mutant, Work};
@@ -23,118 +26,13 @@ pub(crate) enum Simple {
 /// (engine §3.6): each presence test becomes true or false, and `⟹`, `¬`,
 /// `∧` and `∨` over a true or false part are reduced.
 pub(crate) fn simplify_cond(cond: &Cond, has: &dyn Fn(&str) -> bool) -> Simple {
-    work::count(Work::Walked, 1);
-    match cond {
-        // A set term that simplifies to the empty set is false (§3.6).
-        Cond::Truthy(term) => match simplify_term(term, has) {
-            None => Simple::False,
-            // A closed set term that is not empty is true (§3.6).
-            Some(term) => match closed_set_value(&term) {
-                Some(value) if !value.is_empty() => Simple::True,
-                _ => Simple::Cond(Cond::Truthy(term)),
-            },
-        },
-        Cond::SourceQuery(..) => unreachable!("source queries expand before clause checks"),
-        Cond::Captured(name) => {
-            if has(name) {
-                Simple::True
-            } else {
-                Simple::False
-            }
-        }
-        Cond::Not(inner) => match simplify_cond(inner, has) {
-            Simple::True => Simple::False,
-            Simple::False => Simple::True,
-            Simple::Cond(inner) => Simple::Cond(Cond::Not(Box::new(inner))),
-        },
-        Cond::All(items) => {
-            let mut left = Vec::new();
-            for item in items {
-                match simplify_cond(item, has) {
-                    Simple::False => return Simple::False,
-                    Simple::True => {}
-                    Simple::Cond(item) => left.push(item),
-                }
-            }
-            match left.len() {
-                0 => Simple::True,
-                1 => Simple::Cond(left.pop().expect("one condition")),
-                _ => Simple::Cond(Cond::All(left)),
-            }
-        }
-        Cond::Any(items) => {
-            let mut left = Vec::new();
-            for item in items {
-                match simplify_cond(item, has) {
-                    Simple::True => return Simple::True,
-                    Simple::False => {}
-                    Simple::Cond(item) => left.push(item),
-                }
-            }
-            match left.len() {
-                0 => Simple::False,
-                1 => Simple::Cond(left.pop().expect("one condition")),
-                _ => Simple::Cond(Cond::Any(left)),
-            }
-        }
-        Cond::If(antecedent, consequent) => {
-            let antecedent = match simplify_cond(antecedent, has) {
-                Simple::False => return Simple::True,
-                Simple::True => return simplify_cond(consequent, has),
-                Simple::Cond(antecedent) => antecedent,
-            };
-            match simplify_cond(consequent, has) {
-                Simple::True => Simple::True,
-                Simple::False => Simple::Cond(Cond::Not(Box::new(antecedent))),
-                Simple::Cond(consequent) => Simple::Cond(Cond::If(Box::new(antecedent), Box::new(consequent))),
-            }
-        }
-        Cond::Compare(op, left, right, location) => {
-            Simple::Cond(Cond::Compare(op.clone(), simplify_value(left, has), simplify_value(right, has), *location))
-        }
-        Cond::Forest(term) => Simple::Cond(Cond::Forest(simplify_value(term, has))),
-        Cond::Initial(_) | Cond::Final(_) | Cond::Boundary(_, _, _, _) => Simple::Cond(cond.clone()),
-    }
+    Reduced::of(Part::Cond(cond), &|name| Some(has(name))).condition()
 }
 
-/// Simplifies a term for a production (engine §3.6): `None` where it is
-/// the empty set, written `∅` or left by a guard that does not hold. The
-/// empty set is dropped from a union, makes an intersection empty, makes a
-/// difference whose first part it is empty and one whose second part it is
-/// its first part, and makes a guarded term empty.
+/// Simplifies a term with the same reducer as conditions and checks.
 pub(crate) fn simplify_term(term: &Term, has: &dyn Fn(&str) -> bool) -> Option<Term> {
-    work::count(Work::Walked, 1);
-    match term {
-        Term::EmptySet => None,
-        Term::If(cond, then) => match simplify_cond(cond, has) {
-            Simple::False => None,
-            Simple::True => simplify_term(then, has),
-            Simple::Cond(cond) => Some(Term::If(Box::new(cond), Box::new(simplify_term(then, has)?))),
-        },
-        Term::Union(items) => {
-            let mut left: Vec<Term> = items.iter().filter_map(|item| simplify_term(item, has)).collect();
-            match left.len() {
-                0 => None,
-                1 => left.pop(),
-                _ => Some(Term::Union(left)),
-            }
-        }
-        Term::Intersection(items) => {
-            let mut left = Vec::with_capacity(items.len());
-            for item in items {
-                left.push(simplify_term(item, has)?);
-            }
-            Some(Term::Intersection(left))
-        }
-        Term::Difference(left, right) => {
-            let left = simplify_term(left, has)?;
-            Some(match simplify_term(right, has) {
-                None => left,
-                Some(right) => Term::Difference(Box::new(left), Box::new(right)),
-            })
-        }
-        _ => Some(term.clone()),
-    }
+    let value = Reduced::of(Part::Term(term), &|name| Some(has(name)));
+    (value.shape() != Outcome::Empty).then(|| value.term())
 }
 
 /// Whether a bare empty set stands as the term of a set-as-condition
@@ -278,7 +176,7 @@ impl<'a> Part<'a> {
                 vec![Part::Cond(antecedent), Part::Cond(consequent)]
             }
             Part::Cond(Cond::Compare(_, left, right, _)) => vec![Part::Term(left), Part::Term(right)],
-            Part::Cond(Cond::Truthy(term)) => vec![Part::Term(term)],
+            Part::Cond(Cond::Truthy(term) | Cond::Forest(term)) => vec![Part::Term(term)],
             _ => Vec::new(),
         }
     }
@@ -362,8 +260,8 @@ fn cond_presences<'a>(cond: &'a Cond, out: &mut Vec<&'a str>) {
 /// the checks of a definition need it: a condition true or false, or else
 /// the first capture its simplified form uses that the production lacks,
 /// if any; a term empty, or else that first capture. It walks the clause
-/// once, with an explicit stack, and builds no simplified clause, so a
-/// deep clause costs its size.
+/// with the shared simplifier, borrowing its reduced form, so a deep
+/// clause needs no recursive cloning before its depth check.
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum Outcome<'a> {
     True,
@@ -388,150 +286,8 @@ impl<'a> Shaped<'a> {
     /// The shape of a clause for a production whose presence tests `has`
     /// answers. A part that reads no presence never asks it.
     fn of(start: Part<'a>, has: &dyn Fn(&str) -> bool) -> Shaped<'a> {
-        // Each part is met twice: first to push its parts, then to combine
-        // their outcomes, which stand on `done` in the order written. When
-        // a part is combined, the captures of its leaves stand last in
-        // `uses`. So a part that the simplified form drops removes them by
-        // a truncation to where it started.
-        let mut stack: Vec<(Part<'a>, Option<usize>)> = vec![(start, None)];
-        let mut done: Vec<Outcome<'a>> = Vec::new();
-        let mut uses: Vec<&'a str> = Vec::new();
-        let used = Outcome::Uses(None);
-        while let Some((part, combine)) = stack.pop() {
-            work::count(Work::Walked, 1);
-            let Some(from) = combine else {
-                let children = part.reducing_children();
-                stack.push((part, Some(uses.len())));
-                stack.extend(children.into_iter().rev().map(|child| (child, None)));
-                continue;
-            };
-            let outcome = match part {
-                Part::Term(term) => match term {
-                    Term::EmptySet => Outcome::Empty,
-                    Term::If(..) => {
-                        let then = done.pop().expect("the term");
-                        match done.pop().expect("the condition") {
-                            Outcome::False => Outcome::Empty,
-                            Outcome::True => then,
-                            Outcome::Uses(_) => match then {
-                                Outcome::Empty => Outcome::Empty,
-                                Outcome::Uses(_) => used,
-                                _ => unreachable!("a term is empty or uses captures"),
-                            },
-                            Outcome::Empty => unreachable!("a condition is not empty"),
-                        }
-                    }
-                    Term::Union(items) => {
-                        let parts = done.split_off(done.len() - items.len());
-                        if parts.iter().any(|outcome| matches!(outcome, Outcome::Uses(_))) {
-                            used
-                        } else {
-                            Outcome::Empty
-                        }
-                    }
-                    Term::Intersection(items) => {
-                        let parts = done.split_off(done.len() - items.len());
-                        if parts.iter().all(|outcome| matches!(outcome, Outcome::Uses(_))) {
-                            used
-                        } else {
-                            Outcome::Empty
-                        }
-                    }
-                    Term::Difference(..) => {
-                        done.pop().expect("the second part");
-                        match done.pop().expect("the first part") {
-                            Outcome::Uses(_) => used,
-                            _ => Outcome::Empty,
-                        }
-                    }
-                    // A capture, a literal or a call, as written.
-                    _ => {
-                        walk_captures(part, true, false, &mut uses);
-                        used
-                    }
-                },
-                Part::Cond(cond) => match cond {
-                    // A set term that simplifies to the empty set is
-                    // false, and a closed one that is not empty is true
-                    // (§3.6).
-                    Cond::Truthy(term) => match done.pop().expect("the term") {
-                        _ if matches!(closed_set_value(term), Some(value) if !value.is_empty()) => Outcome::True,
-                        Outcome::Empty => Outcome::False,
-                        _ => used,
-                    },
-                    Cond::Forest(_) => used,
-                    Cond::SourceQuery(..) => unreachable!("source queries expand before grammar checks"),
-                    Cond::Captured(name) => {
-                        if has(name) {
-                            Outcome::True
-                        } else {
-                            Outcome::False
-                        }
-                    }
-                    Cond::Not(_) => match done.pop().expect("the condition") {
-                        Outcome::True => Outcome::False,
-                        Outcome::False => Outcome::True,
-                        other => other,
-                    },
-                    Cond::All(items) | Cond::Any(items) => {
-                        let all = matches!(cond, Cond::All(_));
-                        let parts = done.split_off(done.len() - items.len());
-                        let (stop, skip) = if all { (Outcome::False, true) } else { (Outcome::True, false) };
-                        let mut left = 0;
-                        let mut stopped = false;
-                        for outcome in parts {
-                            match outcome {
-                                Outcome::True if !all => stopped = true,
-                                Outcome::False if all => stopped = true,
-                                Outcome::True | Outcome::False => {}
-                                Outcome::Uses(_) => left += 1,
-                                Outcome::Empty => unreachable!("a condition is not empty"),
-                            }
-                        }
-                        if stopped {
-                            stop
-                        } else if left == 0 {
-                            if skip {
-                                Outcome::True
-                            } else {
-                                Outcome::False
-                            }
-                        } else {
-                            used
-                        }
-                    }
-                    Cond::If(..) => {
-                        let consequent = done.pop().expect("the consequent");
-                        match done.pop().expect("the antecedent") {
-                            Outcome::False => Outcome::True,
-                            Outcome::True => consequent,
-                            Outcome::Uses(_) => match consequent {
-                                Outcome::True => Outcome::True,
-                                Outcome::False | Outcome::Uses(_) => used,
-                                Outcome::Empty => unreachable!("a condition is not empty"),
-                            },
-                            Outcome::Empty => unreachable!("a condition is not empty"),
-                        }
-                    }
-                    // An empty side is written out as ∅, which uses nothing.
-                    Cond::Compare(..) => {
-                        done.truncate(done.len() - 2);
-                        used
-                    }
-                    Cond::Initial(_) | Cond::Final(_) | Cond::Boundary(_, _, _, _) => {
-                        walk_captures(part, true, false, &mut uses);
-                        used
-                    }
-                },
-            };
-            // A part that is decided or empty uses nothing in the
-            // simplified form, and neither do its parts.
-            if !matches!(outcome, Outcome::Uses(_)) {
-                uses.truncate(from);
-            }
-            done.push(outcome);
-        }
-        Shaped { shape: done.pop().expect("the outcome"), uses }
+        let value = Reduced::of(start, &|name| Some(has(name)));
+        Shaped { shape: value.shape(), uses: value.captures() }
     }
 
     /// The outcome for a production that has the captures `has`: the
@@ -711,12 +467,17 @@ fn know_cond<'a, T>(cond: &'a Cond, fixed: &dyn Fn(&'a Cond) -> T) -> Known<'a, 
     }
 }
 
+/// The least named capture, excluding the whole constituent `$`.
+fn least_capture<'a>(names: impl IntoIterator<Item = &'a str>) -> Option<&'a str> {
+    names.into_iter().filter(|name| !name.is_empty()).min()
+}
+
 /// The first name in order of the captures, other than `$`, that a
 /// simplified condition uses as values or spans.
 fn first_capture(cond: &Cond) -> Option<String> {
     let mut out = Vec::new();
     cond_captures(cond, &mut out);
-    out.into_iter().filter(|name| !name.is_empty()).min().map(str::to_string)
+    least_capture(out).map(str::to_string)
 }
 
 /// The presence tests of a part that reads none: never asked.
@@ -741,7 +502,7 @@ impl<'a> TermSplit<'a> {
             Known::Fixed(Some(term)) if !unindexed => {
                 let mut out = Vec::new();
                 term_captures(&term, &mut out);
-                match out.into_iter().filter(|name| !name.is_empty()).min().map(str::to_string) {
+                match least_capture(out).map(str::to_string) {
                     Some(name) => Known::Needs(name, Some(term)),
                     None => Known::Fixed(Some(term)),
                 }
@@ -791,16 +552,23 @@ impl<'a, T> CondParts<'a, T> {
             Known::Fixed(value) => Self::Fixed(value),
             Known::Guarded(name, value) => Self::Guarded(name, value),
             Known::Needs(..) => unreachable!("a condition part needs no capture"),
-            Known::Other => match cond {
-                Cond::All(items) => Self::All(Split::new(items, know, |_| false)),
-                Cond::Any(items) => Self::Any(Split::new(items, know, |_| false)),
-                cond => Self::Whole(cond),
-            },
+            Known::Other => Self::other(cond, fixed),
         }
     }
 
-    /// Evaluates selected parts in written order. The result decides a
-    /// junction with `stop`, or joins the remaining parts with `join`.
+    /// The caller has already classified this condition as other-shaped.
+    fn other(cond: &'a Cond, fixed: &dyn Fn(&'a Cond) -> T) -> Self {
+        let know = |part| know_cond(part, fixed);
+        match cond {
+            Cond::All(items) => Self::All(Split::new(items, know, |_| false)),
+            Cond::Any(items) => Self::Any(Split::new(items, know, |_| false)),
+            cond => Self::Whole(cond),
+        }
+    }
+
+    /// A `∧` stops at a false part and a `∨` at a true one.
+    /// A `∨` is also true where a guard of it is absent.
+    /// Other selected parts join in written order.
     fn evaluate<'n, R: PartialEq>(
         &self,
         own: impl Iterator<Item = &'n str>,
@@ -845,8 +613,8 @@ impl<'a, T> CondParts<'a, T> {
 }
 
 impl<'a> CondParts<'a, Simple> {
-    fn new(cond: &'a Cond) -> Self {
-        Self::prepare(cond, &|part| simplify_cond(part, &no_presence))
+    fn for_lowering(cond: &'a Cond) -> Self {
+        Self::other(cond, &|part| simplify_cond(part, &no_presence))
     }
 
     fn simplify<'n>(&self, own: impl Iterator<Item = &'n str>, has: &dyn Fn(&str) -> bool) -> Simple {
@@ -896,7 +664,7 @@ impl<'a> CondListSplit<'a> {
             known => known,
         };
         let split = Split::new(conds, know, |_| false);
-        let parts = split.other.iter().map(|&index| (index, CondParts::<Simple>::new(split.parts[index].0))).collect();
+        let parts = split.other.iter().map(|&index| (index, CondParts::for_lowering(split.parts[index].0))).collect();
         CondListSplit { split, parts }
     }
 
@@ -974,7 +742,7 @@ impl<'a> CondCheck<'a> {
     fn reach(&self) -> Reach<'a> {
         match self {
             CondCheck::Fixed(shaped) => match shaped.shape {
-                Outcome::Uses(_) => match shaped.uses.iter().copied().filter(|name| !name.is_empty()).min() {
+                Outcome::Uses(_) => match least_capture(shaped.uses.iter().copied()) {
                     Some(name) => Reach::Named(name),
                     None => Reach::Every,
                 },

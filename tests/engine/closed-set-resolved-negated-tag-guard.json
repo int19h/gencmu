@@ -1,0 +1,17 @@
+{
+  "description": "A false tag guard removes its absent capture after closed-set reduction (engine §3.6).",
+  "grammar": "%rule text $c:A | $d:B :: (¬(($c ⟹ Word) ∪ Other) ⟹ $d.tags)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}
