@@ -103,9 +103,9 @@ A vowel of a word form has one of the lowercase values `a e i o u`, with or with
 
 The diphthongs of CLL[^cll-s3-4] are the falling `ai ei oi au` and the rising `ia ie ii io iu ua ue ui uo uu`. The rising ones can stand only in names and borrowings, and in a cmavo only as the whole word. A name can also have `iy` and `uy`. A diphthong can have a capital on either letter or on both, and it then marks one stressed syllable.
 
-Cmavo stress is free.[^cll-s3-9] `stressed-vowel` reads a stressed vowel, and `stressed-name-vowel` also reads stressed `y`.
+Cmavo stress is free.[^cll-s3-9] `stressed-vowel` reads a stressed vowel, and `stressed-name-vowel` also reads stressed `y`. A part query for `stressed-name-vowel` tests a stretch for a stressed vowel or `y`.
 
-The rule `any-letter` includes commas through `Syllable-Break`. A part query for `stressed-name-vowel` tests a whole stretch for a stressed vowel.
+The rule `any-letter` includes commas through `Syllable-Break`.
 
 ```jbogenbau
 %rule vowel
@@ -253,7 +253,7 @@ The forms stage uses the stress on the first syllable of a name, for the pause r
 %rule name-item
   | consonant | "'" | Syllable-Break
   | $v:vowel :: Nucleus Counted Single-End ∪ ($v.parse(stressed-vowel) ⟹ Marked)
-  | $y:"y" :: Nucleus ∪ ($y.parse(… stressed-name-vowel …) ⟹ Marked)
+  | $y:"y" :: Nucleus ∪ ($y.parse(stressed-name-vowel) ⟹ Marked)
   | $d:brivla-diphthong :: Nucleus Counted ∪ ($d.parse(… stressed-name-vowel …) ⟹ Marked)
   | $e:y-diphthong :: Nucleus ∪ ($e.parse(… stressed-name-vowel …) ⟹ Marked)
 
