@@ -1113,7 +1113,7 @@ class DomBuilder:
                 from ._query_forms import query_body, query_capture
                 from . import _testing
                 argument = self.only(parsed, "parse-argument")
-                body = yield self._expr(self.only(argument, "choice"), True)
+                body = yield self._expr(self.only(argument, "choice"))
                 if query_capture(body):
                     pending = [argument]
                     binder = argument

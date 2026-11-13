@@ -6741,7 +6741,7 @@
               if (queryCapture(parsed.body)) return "a parse argument cannot declare captures";
               // A stripped outer sequence charges one level, however many
               // remainder leaves it held (engine §9).
-              push("expr",parsed.body,depth + (Array.isArray(arg.body.seq) && !Array.isArray(parsed.body.seq) ? 2 : 1),{params:task.params,whole:true});
+              push("expr",parsed.body,depth + (Array.isArray(arg.body.seq) && !Array.isArray(parsed.body.seq) ? 2 : 1),{params:task.params});
             } else if (object(arg) && typeof arg.rule === "string") { if (Object.keys(arg).length !== 1 || !["without-elision-except", "followed-by", "preceded-by"].includes(value.method) || !ruleName(arg.rule)) return "a malformed rule argument"; }
             else if (object(arg) && typeof arg.terminal === "string") { if (Object.keys(arg).length !== 1 || !TARGET_METHODS.has(value.method) || !/^(?!.*--)[A-Z][A-Za-z0-9_-]*$/.test(arg.terminal)) return "a malformed boundary target"; }
             else if (object(arg) && "integer" in arg) { if (Object.keys(arg).length !== 1 || value.method !== "ngrams" || typeof arg.integer !== "string" || !/^[1-9][0-9]*$/.test(arg.integer)) return "a malformed integer argument"; }
@@ -23288,7 +23288,7 @@
         const argumentsNode = one(selector, "method-arguments");
         if (parsed) {
           const argument = only(parsed,"parse-argument");
-          let body = yield readExpression(only(argument,"choice"),true);
+          let body = yield readExpression(only(argument,"choice"));
           const capture = queryCapture(body);
           if (capture) fail("a parse argument cannot declare captures",descendant(argument,"capture") ?? argument);
           const markers = parts(argument).filter(child => child.kind === "token" && valueOf(child) === "…");

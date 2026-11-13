@@ -1397,7 +1397,7 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 			return
 		}
 		// The body wrapper is not a syntax node (engine §9).
-		c.expr(t.Body, depth, true, false, false, false, false)
+		c.expr(t.Body, depth, false, false, false, false, false)
 	case tmString:
 		if !utf8.ValidString(t.Str) {
 			c.fail("a string is not valid UTF-8")

@@ -368,7 +368,7 @@ An expression has no member but those of its one form, including template forms 
 
 `seq`, `choice`, `ranked`, and `and` require at least two children. `and` accepts at most 16.
 
-`repeat` is braces (engine §3, §9). Its value is the item, and its `separator` is present only where the braces have `/`. Its `chain` is present only for a chain: `left` for `{... x / s}` and `right` for `{x ... / s}`. So `{x}` is `{"repeat":X}`, `{x / s}` is `{"repeat":X,"separator":S}`, and `[{x}]` is `{"optional":{"repeat":X}}`. A `repeat` with a `chain` is the whole `expr` of its alternative, and never part of another expression. A list counts one or more items, and an optional list is an `optional`.
+`repeat` is braces (engine §3, §9). Its value is the item, and its `separator` is present only where the braces have `/`. Its `chain` is present only for a chain: `left` for `{... x / s}` and `right` for `{x ... / s}`. So `{x}` is `{"repeat":X}`, `{x / s}` is `{"repeat":X,"separator":S}`, and `[{x}]` is `{"optional":{"repeat":X}}`. A `repeat` with a `chain` is the whole `expr` of its alternative, and never part of another expression. A `repeat` with a `chain` is never the `body` of a query. A list counts one or more items, and an optional list is an `optional`.
 
 SPLICETARGET is one rule `ref` or `call`, including an emoji rule. It cannot be a terminal, parameter, test, group, or nested splice. Outer tests can wrap a splice, and a capture can bind that tested occurrence.
 

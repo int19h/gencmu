@@ -1,0 +1,11 @@
+{
+  "description": "A chain as the body of a parse query is an error at its { (docs/notation.md, engine §9).",
+  "document": "```jbogenbau\n%rule a $y:A %conditions $y.parse({ ... \"a\" / \"b\" })\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 35,
+      "message": "a chain is the whole expression of its alternative: name it as a rule to use it here"
+    }
+  }
+}

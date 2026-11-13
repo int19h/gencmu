@@ -447,7 +447,7 @@ func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 				f.parseArgument = b.only(parsed, "parse-argument")
 				f.dependent = f.dependent || b.sourceSyntaxUnresolved(f.parseArgument)
 				f.readingBody = true
-				return ask(&exprFrame{n: b.only(f.parseArgument, "choice"), whole: true})
+				return ask(&exprFrame{n: b.only(f.parseArgument, "choice")})
 			}
 			if arguments != nil {
 				f.arguments = b.some(arguments, "method-argument", 1)

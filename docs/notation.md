@@ -243,6 +243,8 @@ A pair of braces has at most one marker, and the separator has none. So `{... x 
 
 A chain is the whole of its rule. That means two things. First, the chain is the whole expression of its alternative. A chain inside parentheses, brackets, other braces, a capture, a sequence, a choice or `&` is an error of the document.
 
+The body of a `parse` query is not an alternative, so a chain cannot be the whole of it (see "Conditions"). A query observes no tree, because its forest gives only emptiness, `.error-free` and `.tags`, and no ranking applies inside it. A chain changes only the grouping inside a witness, so without a tree observation it would observe what `{x / s}` observes.
+
 Second, that alternative is the only alternative of its rule that the gates leave (see "Feature gates"). A warning does not remove an alternative. So a rule with another alternative beside its chain is an error of the grammar for the features that leave both. For those features, gencmu finds the error when it prepares the grammar, as it finds an error of a classifier. A `%extend-rule` of a chain's rule can cause this error.
 
 The chain's alternative can still have gates and tags of its own, and its rule can have clauses. A chain can be optional, or part of a sequence, through a rule. Name the chain as a rule. Then write the rule's name there, as in `[tag]`.
