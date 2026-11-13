@@ -1,0 +1,14 @@
+{
+  "description": "A method receiver precedes its argument when reporting an absent capture (engine §3.6).",
+  "grammar": "%rule text\n | $a:A $b:B\n | C :: ($b.value.split($a.value) ⟹ X)",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "a tag term of text uses $b, which a production lacks; guard it with $b ⟹",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

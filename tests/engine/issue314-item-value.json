@@ -1,0 +1,14 @@
+{
+  "description": "An item capture is legal only in a condition (engine §3.6).",
+  "grammar": "%rule text {$c:A} $d:B\n%emits $d := $c.value",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "%emits of text names $c, an item capture, which only a condition reads",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

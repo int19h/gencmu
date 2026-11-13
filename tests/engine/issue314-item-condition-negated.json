@@ -1,0 +1,24 @@
+{
+  "description": "A Boolean set condition tests every captured list item (engine §3.6).",
+  "grammar": "%rule text {$c:A}\n%conditions ¬($c.tags ∩ X)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "brackets": "(a b)",
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "description": "A Boolean set condition tests every captured list item (engine §3.6).",
+  "grammar": "%rule text {$c:A}\n%conditions $c.tags",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "X"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "A",
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "brackets": "(a b)",
+    "result": {
+      "ok": true
+    }
+  }
+}

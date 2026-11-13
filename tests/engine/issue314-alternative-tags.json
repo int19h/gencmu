@@ -1,0 +1,14 @@
+{
+  "description": "Alternative tags retain capture reads inside Boolean premises (engine §3.6).",
+  "grammar": "%rule text\n | $c:A\n | C :: ($c.tags ⟹ X)",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "a tag term of text uses $c, which a production lacks; guard it with $c ⟹",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}
