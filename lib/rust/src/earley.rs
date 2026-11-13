@@ -947,6 +947,8 @@ enum NestedKey {
     /// A long span: its place.
     Place(Place),
     Suffix(Place),
+    /// A fixed-window part query has its own answer, outside suffix sharing.
+    Part(Box<NestedKey>),
     Aligned {
         place: Place,
         match_end: usize,
@@ -1696,7 +1698,7 @@ impl<'t, 'g> Run<'t, 'g> {
         let mut run = Run::new(tokens, request.base + request.start, request.rule, None, first);
         run.chart.boundary_root = None;
         run.chart.record_links = true;
-        run.chart.suffix = request.suffix.is_some();
+        run.chart.suffix = request.suffix.is_some() || request.contains;
         if run.chart.suffix {
             run.chart.positions.set(FxMap::default()).expect("an empty positions cache");
         }
@@ -2237,9 +2239,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         Ok(self.drive(run)?.1.expect("an answer"))
     }
 
-    /// Remembers the answer of a nested parse from its chart. The chart
-    /// stops at its first empty set, which may lie before the span's end.
-    /// Only the items with an eligible proof tree count.
+    /// Filters qualified witnesses by the request's alignment constraints.
     fn aligned_answer(&mut self, request: Request, witnesses: &[QualifiedWitness]) -> Answer {
         let a = request.aligned.expect("an aligned request");
         let limit = witnesses.partition_point(|w| w.end <= a.match_end);
@@ -2286,31 +2286,10 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         }
         answer
     }
+    /// Collects eligible witnesses from the finished query chart (§4).
     fn settle(&mut self, request: Request, chart: &Chart) -> Answer {
         if let Some(id) = request.suffix {
             let state = &self.shared.suffixes[id];
-            if request.contains {
-                let range = (request.base + request.start)..=(request.base + request.end);
-                let mut holds = false;
-                let mut clean = false;
-                let lists: Vec<_> = state
-                    .answers
-                    .iter()
-                    .filter(|(pos, _)| range.contains(pos))
-                    .map(|(pos, (h, c))| {
-                        holds |= h;
-                        clean |= c;
-                        if request.filtered {
-                            state.clean_tags.get(pos)
-                        } else {
-                            state.tags.get(pos)
-                        }
-                    })
-                    .collect();
-                let tags = &self.shared.tags;
-                let list = union_all(lists.into_iter().flatten().map(|set| tags.list(*set)));
-                return (holds, self.shared.tags.set(list), clean);
-            }
             let (holds, clean) = state.answers[&(request.base + request.end)];
             let tags = if request.filtered {
                 state.clean_tags.get(&(request.base + request.end))
@@ -2324,17 +2303,20 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let rule = request.rule;
         let tokens = &request.tokens[request.start..request.end];
         let query_base = request.base + request.start;
-        let sets = if request.begins || request.aligned.is_some() {
+        let sets = if request.begins || request.contains || request.aligned.is_some() {
             0..chart.sets.len()
         } else {
             tokens.len()..(tokens.len() + 1).min(chart.sets.len())
         };
         let witnesses: Vec<(u32, u32)> = sets
             .flat_map(|set| {
-                chart.sets[set]
-                    .completed
-                    .get(&(rule, 0))
-                    .into_iter()
+                let completed = &chart.sets[set].completed;
+                let roots: Box<dyn Iterator<Item = &Vec<u32>>> = if request.contains {
+                    Box::new(completed.iter().filter(|((r, _), _)| *r == rule).map(|(_, items)| items))
+                } else {
+                    Box::new(completed.get(&(rule, 0)).into_iter())
+                };
+                roots
                     .flatten()
                     .filter(move |&&index| {
                         chart.sets[set].items[index as usize].close_requested == chart.close_requested
@@ -2554,7 +2536,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             }
             if run.head == run.chart.sets[e].queue.len() {
                 if run.chart.suffix {
-                    self.retain_suffix(run);
+                    if run.request.as_ref().unwrap().suffix.is_some() {
+                        self.retain_suffix(run);
+                    }
                     if e == run.tokens.len() {
                         return false;
                     }
@@ -3643,7 +3627,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         filtered: bool,
     ) -> NestedKey {
         if end - start > CONTENT_KEY_LIMIT {
-            return NestedKey::Place((rule, base + start, base + end));
+            let key = NestedKey::Place((rule, base + start, base + end));
+            return if filtered { NestedKey::Context { key: Box::new(key), filtered, errors: 0 } } else { key };
         }
         // The text over the source of the span's tokens (§1).
         let span = &tokens[start..end];
@@ -3830,6 +3815,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         tokens: &'t [Tok],
         base: usize,
     ) -> Result<Out, Halt<'t>> {
+        let filtered = matches!(query, Query::ErrorFree(_) | Query::ForestTags(_, true));
         self.shared.prepare_errors(tokens, base);
         let (start, match_end, _) = self.checked_bounds(span, frame, tokens.len())?;
         let mut anchor = span;
@@ -3852,9 +3838,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         if matches!(
             query,
             Query::Ends
-                | Query::Contains
-                | Query::ForestTags(crate::query_forms::Mode::Suffix | crate::query_forms::Mode::Part, _)
-                | Query::ErrorFree(crate::query_forms::Mode::Suffix | crate::query_forms::Mode::Part)
+                | Query::ForestTags(crate::query_forms::Mode::Suffix, _)
+                | Query::ErrorFree(crate::query_forms::Mode::Suffix)
         ) {
             let place = (rule, base + start, base + end);
             let mut request = Request {
@@ -3867,13 +3852,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 begins: false,
                 suffix: None,
                 aligned: None,
-                contains: matches!(
-                    query,
-                    Query::Contains
-                        | Query::ForestTags(crate::query_forms::Mode::Part, _)
-                        | Query::ErrorFree(crate::query_forms::Mode::Part)
-                ),
-                filtered: matches!(query, Query::ForestTags(_, true)),
+                contains: false,
+                filtered,
             };
             if self.shared.running.contains(&place) {
                 return Err(Halt::Error(self.start_query(&request).expect_err("an active recursive query")));
@@ -3886,17 +3866,12 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 id
             };
             let state = &self.shared.suffixes[id];
-            if !request.contains {
-                if let Some(&holds) = state.answers.get(&(base + end)) {
-                    let tags = if request.filtered {
-                        state.clean_tags.get(&(base + end))
-                    } else {
-                        state.tags.get(&(base + end))
-                    }
-                    .copied()
-                    .unwrap_or(0);
-                    return Ok(query.out((holds.0, tags, holds.1), &self.shared.tags));
-                }
+            if let Some(&holds) = state.answers.get(&(base + end)) {
+                let tags =
+                    if request.filtered { state.clean_tags.get(&(base + end)) } else { state.tags.get(&(base + end)) }
+                        .copied()
+                        .unwrap_or(0);
+                return Ok(query.out((holds.0, tags, holds.1), &self.shared.tags));
             }
             request.suffix = Some(id);
             eval.tasks.push(Task::Await(query));
@@ -3923,17 +3898,19 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     .as_ref()
                     .unwrap()
                     .normalized(a.observation),
-                filtered: matches!(query, Query::ErrorFree(_) | Query::ForestTags(_, true)),
+                filtered,
             },
-            None => self.nested_key(
-                tokens,
-                base,
-                start,
-                end,
-                rule,
-                matches!(query, Query::ErrorFree(_) | Query::ForestTags(_, true)),
-            ),
+            None => self.nested_key(tokens, base, start, end, rule, filtered),
         };
+        let contains = matches!(
+            query,
+            Query::Contains
+                | Query::ForestTags(crate::query_forms::Mode::Part, _)
+                | Query::ErrorFree(crate::query_forms::Mode::Part)
+        );
+        // A part query keeps one fixed context. Its nested answers remain
+        // reusable, unlike answers inside resumable suffix recognition (§4.3).
+        let key = if contains { NestedKey::Part(Box::new(key)) } else { key };
         let begins = matches!(
             query,
             Query::Begins
@@ -3942,19 +3919,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         );
         let place = (rule, base + start, base + end);
         if self.shared.running.contains(&place) {
-            let request = Request {
-                tokens,
-                base,
-                start,
-                end,
-                rule,
-                key,
-                begins,
-                suffix: None,
-                aligned,
-                contains: false,
-                filtered: matches!(query, Query::ForestTags(_, true)),
-            };
+            let request =
+                Request { tokens, base, start, end, rule, key, begins, suffix: None, aligned, contains, filtered };
             return Err(Halt::Error(self.start_query(&request).expect_err("an active recursive query")));
         }
         let known = if self.shared.suffix_active > 0 {
@@ -3967,19 +3933,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         match known {
             Some(answer) => Ok(query.out(answer, &self.shared.tags)),
             None => {
-                let request = Request {
-                    tokens,
-                    base,
-                    start,
-                    end,
-                    rule,
-                    key,
-                    begins,
-                    suffix: None,
-                    aligned,
-                    contains: false,
-                    filtered: matches!(query, Query::ForestTags(_, true)),
-                };
+                let request =
+                    Request { tokens, base, start, end, rule, key, begins, suffix: None, aligned, contains, filtered };
                 if aligned.is_some() && self.shared.suffix_active == 0 {
                     if let Some(qualified) = self.shared.qualified.remove(&request.qualification_key()) {
                         let context = request.qualification_key();

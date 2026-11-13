@@ -591,14 +591,13 @@ class StageContext:
 
     def contains_answer(self, rule: str, start: int, end: int, error_free: bool = False):
         """The NestedAnswer of a part query (§4)."""
-        state = yield self.suffix(rule, start, end, error_free)
-        gathered = Gathered()
-        accepted = False
-        for position in range(start, end + 1):
-            if state.answers.get(position):
-                accepted = True
-                gathered.add(state.tags.get(position, EMPTY))
-        return NestedAnswer(accepted, gathered.value())
+        self.require_inactive(rule, start, end)
+        key = ("part", self.query_key(rule, start, end, error_free))
+        if not self.suffix_active and key in self.memo:
+            if (False, key) in self.tainted:
+                self.aligned_asked += 1
+            return self.memo[key]
+        return (yield self.answer(rule, start, end, key, False, error_free, contains=True))
 
     def query_key(self, rule, start, end, error_free):
         key = self.nested_key(rule, start, end)
@@ -719,7 +718,7 @@ class StageContext:
                 _testing.aligned_query(-1)
             self.running.discard(request)
 
-    def answer(self, rule: str, start: int, end: int, key: tuple[Any, ...], begins: bool, error_free: bool = False) -> Walk:
+    def answer(self, rule: str, start: int, end: int, key: tuple[Any, ...], begins: bool, error_free: bool = False, *, contains: bool = False) -> Walk:
         """Parses tokens start..end alone as rule, and remembers the answer
         under key. The parse is a walk on the stack of the parse that asked,
         so a chain of nested parses costs heap and not the call stack. A
@@ -731,7 +730,7 @@ class StageContext:
         if number is None:
             raise _GrammarFault(f"{rule} is not a rule of this stage")
         bound = _memo.limit()
-        shared = self.shared_key(rule, start, end, begins, error_free) if bound > 0 and not self.suffix_active and end - start <= CONTENT_KEY_LIMIT else None
+        shared = self.shared_key(rule, start, end, begins, error_free) if not contains and bound > 0 and not self.suffix_active and end - start <= CONTENT_KEY_LIMIT else None
         # Shared answers cannot hide recursive aligned or suffix requests (§4.3).
         found = self.lowered.memo.get(shared, bound) if shared is not None and not self.aligned_active else None
         if found is not None:
@@ -747,19 +746,19 @@ class StageContext:
         asked = self.aligned_asked
         self.running.add(running)
         try:
-            forest: Forest = yield Parser(self, start, end, query=True).walk(number)
+            forest: Forest = yield Parser(self, start, end, query=True, contains=contains).walk(number)
         finally:
             # Also when the parse failed, so that the place is free again.
             self.running.discard(running)
-        return self.remember(key, number, shared, begins, asked, bound, forest, error_free)
+        return self.remember(key, number, shared, begins, asked, bound, forest, error_free, contains=contains)
 
     def remember(
-        self, key: tuple[Any, ...], number: int, shared: tuple[Any, ...] | None, begins: bool, asked: int, bound: int, forest: Forest, error_free: bool = False
+        self, key: tuple[Any, ...], number: int, shared: tuple[Any, ...] | None, begins: bool, asked: int, bound: int, forest: Forest, error_free: bool = False, *, contains: bool = False
     ) -> NestedAnswer | bool:
         """Remembers the answer of a nested parse in the memo of the parse,
         and in the shared memo unless it depends on an aligned query (engine
         §4.3)."""
-        answer = self.settle(number, begins, forest, error_free)
+        answer = self.settle(number, begins, forest, error_free, contains=contains)
         if not self.suffix_active:
             (self.prefix_memo if begins else self.memo)[key] = answer
             if self.aligned_asked != asked:
@@ -798,9 +797,9 @@ class StageContext:
             ),
         )
 
-    def settle(self, number: int, begins: bool, forest: Forest, error_free: bool = False) -> NestedAnswer | bool:
+    def settle(self, number: int, begins: bool, forest: Forest, error_free: bool = False, *, contains: bool = False) -> NestedAnswer | bool:
         """Compute the current query answer without retaining it."""
-        if not begins:
+        if not begins and not contains:
             # The answer reads the completed items of the rule over the span
             # that have an eligible proof tree, under written-terminator
             # priority (engine §4).
@@ -809,12 +808,12 @@ class StageContext:
             for root in found_items:
                 gathered.add(self.tagtab.get(forest.tag[root]))
             return NestedAnswer(bool(found_items), gathered.value())
-        # A completed item of the rule from the span's start, in any set.
+        # Part witnesses can start anywhere in the finished window (§4).
         productions = forest.lowered.productions
         witnesses = [
             item
             for item, (prod, dot, origin) in enumerate(zip(forest.prod, forest.dot, forest.origin))
-            if item in forest.tag and origin == 0 and productions[prod].lhs == number and dot == len(productions[prod].rhs) and not productions[prod].close_requested
+            if item in forest.tag and (contains or origin == 0) and productions[prod].lhs == number and dot == len(productions[prod].rhs) and not productions[prod].close_requested
         ]
         # Only an item with an eligible proof tree counts (engine §4).
         found_items = eligible(forest, boundary_witnesses(forest, witnesses), error_free)
@@ -1120,9 +1119,10 @@ class Evaluator:
 class Parser:
     """One Earley parse of tokens start..end of a stage's input."""
 
-    def __init__(self, context: StageContext, start: int = 0, end: int | None = None, *, observe: bool = False, family: FamilyMatcher | None = None, query: bool = False, suffix: SuffixState | None = None) -> None:
+    def __init__(self, context: StageContext, start: int = 0, end: int | None = None, *, observe: bool = False, family: FamilyMatcher | None = None, query: bool = False, suffix: SuffixState | None = None, contains: bool = False) -> None:
         self.query = query
         self.suffix = suffix
+        self.contains = contains
         self.observe = observe
         self.family = family
         self.context = context
@@ -1181,6 +1181,7 @@ class Parser:
         evaluator = self.evaluator
         n = self.end - base
         suffix = self.suffix
+        all_starts = suffix is not None or self.contains
 
         # The reconstruction mode of the check of engine §7.4, on the context
         # of the reconstructed input R alone; every other parse reads as
@@ -1902,7 +1903,7 @@ class Parser:
 
         current = [0]
         following: list[int] = []
-        if suffix is None and begin(start_rule, 0, requested=self.observe):
+        if not all_starts and begin(start_rule, 0, requested=self.observe):
             yield from predict(start_rule, 0, requested=self.observe)
         furthest = 0
         proofs = None
@@ -1911,10 +1912,10 @@ class Parser:
             if j > 0:
                 agenda = following
                 following = []
-            if suffix is not None:
+            if all_starts:
                 if begin(start_rule,j):
                     yield from predict(start_rule,j)
-            if suffix is None and not agenda and not sets[j]:
+            if not all_starts and not agenda and not sets[j]:
                 break
             furthest = j
             while agenda:

@@ -238,6 +238,7 @@ type recognizer struct {
 	measures                              *diagnosticMeasures
 	trees                                 *treeArena
 	suffix                                *suffixState
+	contains                              bool
 	scans                                 []*item
 	scanIndex                             int
 	boundarySeen                          map[*boundaryRecord]bool
@@ -494,15 +495,15 @@ func (r *recognizer) resume() *nestedQuery {
 // nextEntry takes the next entry of the queue, from the next set once one
 // is done, and readies its step: false when the recognition is over.
 func (r *recognizer) nextEntry() bool {
-	for r.at <= r.n && (r.suffix != nil || r.at < len(r.sets)) {
+	for r.at <= r.n && (r.suffix != nil || r.contains || r.at < len(r.sets)) {
 		k := r.at
 		s := r.set(k)
 		if !r.entered {
-			if len(s.items) > 0 {
+			if len(s.items) > 0 || r.contains {
 				r.furthest = k
 			}
 			r.entered = true
-			if r.suffix != nil {
+			if r.suffix != nil || r.contains {
 				r.scans, r.scanIndex = nil, 0
 				if r.beginPredict(s, r.startRule, false, 0) {
 					r.step = step{kind: stepPredict, rule: r.startRule, k: k}
@@ -615,7 +616,7 @@ func (r *recognizer) predictFrom(st *step) *nestedQuery {
 			if strict && reading.last[baseProduction(p)] < 0 {
 				continue
 			}
-			if len(p.predictConds) == 0 && r.suffix == nil && len(p.rhs) > 0 && p.rhs[0].term && !r.canRead(k, p.rhs[0].id) {
+			if len(p.predictConds) == 0 && r.suffix == nil && !r.contains && len(p.rhs) > 0 && p.rhs[0].term && !r.canRead(k, p.rhs[0].id) {
 				continue
 			}
 		}
@@ -627,7 +628,7 @@ func (r *recognizer) predictFrom(st *step) *nestedQuery {
 		if q != nil {
 			return q
 		}
-		if r.suffix == nil && len(p.rhs) > 0 && p.rhs[0].term && !r.canRead(k, p.rhs[0].id) {
+		if r.suffix == nil && !r.contains && len(p.rhs) > 0 && p.rhs[0].term && !r.canRead(k, p.rhs[0].id) {
 			continue
 		}
 		if ok {
@@ -1372,11 +1373,16 @@ func (r *recognizer) begun(start int32, errorFree bool) bool {
 
 // begunTags also unions the tags of the eligible prefix witnesses (§4).
 func (r *recognizer) begunTags(start int32, errorFree bool) (bool, *tagset) {
+	return r.partialTags(start, errorFree, false)
+}
+
+// partialTags tests prefix or part witnesses on the finished window (§4).
+func (r *recognizer) partialTags(start int32, errorFree, contains bool) (bool, *tagset) {
 	var items []*item
 	tagsOf := map[*item]*tagset{}
 	for _, s := range r.sets {
 		for key, c := range s.syms {
-			if key.rule == start && key.origin == 0 && key.requested == closeKinds(r.closeRequested) && (r.boundaries == nil || r.boundaries.accepts(c.boundary, func(*boundaryLiteral) {})) {
+			if key.rule == start && (contains || key.origin == 0) && key.requested == closeKinds(r.closeRequested) && (r.boundaries == nil || r.boundaries.accepts(c.boundary, func(*boundaryLiteral) {})) {
 				items = append(items, c.items...)
 				for _, it := range c.items {
 					tagsOf[it] = c.tags

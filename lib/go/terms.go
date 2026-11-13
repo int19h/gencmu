@@ -832,18 +832,16 @@ func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal, errorFree 
 		return answer.holds, answer.tags, nil
 	}
 	var suffix *suffixState
-	if kind == cdSuffix || kind == cdContains {
+	if kind == cdSuffix {
 		if ps.suffixActive > 0 {
 			suffix = &suffixState{answers: map[int]bool{}, tags: map[int]*tagset{}, errorFree: errorFree}
 		} else {
 			suffix = run.suffixState(g, start, s.a, s.b, errorFree)
-			if kind == cdSuffix {
-				if answer, known := suffix.answers[s.b]; known {
-					if suffix.dependent {
-						ps.alignedAsked++
-					}
-					return answer, suffix.tags[s.b], nil
+			if answer, known := suffix.answers[s.b]; known {
+				if suffix.dependent {
+					ps.alignedAsked++
 				}
+				return answer, suffix.tags[s.b], nil
 			}
 		}
 	}
@@ -982,7 +980,7 @@ func (q *nestedQuery) recognizer(run *stageRun) *recognizer {
 			return r
 		}
 	}
-	r := &recognizer{run: run, g: q.g, base: a, n: b - a, lo: a, hi: b, query: q, closeRequested: q.aligned != nil, w: run.walk(), suffix: q.suffix}
+	r := &recognizer{run: run, g: q.g, base: a, n: b - a, lo: a, hi: b, query: q, closeRequested: q.aligned != nil, w: run.walk(), suffix: q.suffix, contains: q.key.kind == cdContains}
 	if q.aligned != nil && q.aligned.family != "" {
 		r.family = newFamilyArena(q.aligned.arena, q.aligned.observation, a, q.aligned.end, q.g.stage.families[q.aligned.family])
 	}
@@ -1106,14 +1104,7 @@ func (run *stageRun) settle(rec *recognizer) {
 	} else if q.key.kind == cdSuffix {
 		res.holds, res.tags = q.suffix.answers[q.at.b], q.suffix.tags[q.at.b]
 	} else if q.key.kind == cdContains {
-		var sets []*tagset
-		for at, holds := range q.suffix.answers {
-			if holds && at >= q.at.a && at <= q.at.b {
-				res.holds = true
-				sets = append(sets, q.suffix.tags[at])
-			}
-		}
-		res.tags = ps.in.unionAll(sets)
+		res.holds, res.tags = rec.partialTags(start, q.key.errorFree, true)
 	} else if q.key.kind == cdPrefix {
 		res.holds, res.tags = rec.begunTags(start, q.key.errorFree)
 	} else {
