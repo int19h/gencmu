@@ -1,0 +1,14 @@
+{
+  "description": "An item condition reports its first written late capture, regardless of binder order (engine §3.6).",
+  "grammar": "%rule text {$c:A} $z:B $y:C\n%conditions $c.value = $z.value ++ $y.value",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "a condition of text reads $z with the item capture $c, but a production binds $z after the braces",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

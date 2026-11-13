@@ -1,0 +1,14 @@
+{
+  "description": "An item condition with $ reports the first item capture and ignores repeated mentions (engine §3.6).",
+  "grammar": "%rule text {$e:A $c:B}\n%conditions ($e.tags ∩ $c.tags ∩ $e.tags ∩ $.tags)",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "a condition of text reads $e, an item capture, together with $, which is not complete at each item",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

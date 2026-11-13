@@ -1,0 +1,14 @@
+{
+  "description": "An item condition reports conflicting braces in capture mention order (engine §3.6).",
+  "grammar": "%rule text {$m:A} {$b:B} {$a:C}\n%conditions ($m.tags ∩ $b.tags ∩ $a.tags)",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "a condition of text reads $m and $b, item captures of two pairs of braces",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

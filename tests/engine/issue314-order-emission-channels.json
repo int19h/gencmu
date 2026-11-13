@@ -1,0 +1,14 @@
+{
+  "description": "An emission item reports its first written item capture across its clauses (engine §3.6).",
+  "grammar": "%rule text {$c:A} {$e:B} $d:C\n%emits $d :: $e.tags := $c.value",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "%emits of text names $e, an item capture, which only a condition reads",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

@@ -3269,7 +3269,7 @@ Parentheses after the `rule-keyword` fail the syntax stage at `(`, column 6 in `
 - A capture name that one production of an alternative holds twice is an error. It is reported at the second capture in the text that such a production reads. Several productions can read a name twice, at different second captures. The error then stands at the one of those captures that comes first in the text. So `($x:A | $y:B) ($y:C | $x:D)` is an error at `$y:C`, the second capture of the production `B C`. `A D` reads `$x` twice too, but its second capture, `$x:D`, comes later.
 
   The productions are the expansions of §3.2, taken before any gate applies. So the error does not depend on the features: `f? [$x:A] $x:B` is an error with `f` off too. A name in two branches of a choice is no error, since no expansion reads both, as in `A ($x:B | $x:C)`. A name in two items of `&`, or in an optional and beside it, is an error, since some expansion reads both.
-- A clause other than a condition that names an item capture is an error at the clause. An item condition cannot also read `$` or an item capture of other braces. It cannot read a capture that a production binds after those braces. The reader finds these when it validates the rule's clauses, after the alternatives.
+- A clause other than a condition that names an item capture is an error at the definition. An item condition cannot also read `$` or an item capture of other braces. It cannot read a capture that a production binds after those braces. The reader finds these when it validates the rule's clauses, after the alternatives.
 
 #### Optionals
 

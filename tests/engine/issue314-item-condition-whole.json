@@ -1,5 +1,5 @@
 {
-  "description": "An item capture is legal only in a condition (engine §3.6).",
+  "description": "An item condition cannot read the whole constituent $ (engine §3.6, §9).",
   "grammar": "%rule text {$c:A}\n%conditions ($c.tags ∩ $.tags)",
   "input": "",
   "expect": {

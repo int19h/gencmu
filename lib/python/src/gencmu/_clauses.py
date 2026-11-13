@@ -433,20 +433,20 @@ def _item_capture_problem(rule: Dom, places: dict[int, dict[str, ItemCapture]], 
     emit = rule.get("emit")
     emitted: list[Dom] = emit["items"] if emit is not None else []
     named = [name for item in emitted if "capture" in item for name in attachment_order(item)]
-    others: list[tuple[str, Any]] = [("a clause", rule.get(key)) for key in ("tags", "value", "image")]
+    others: list[tuple[str, Any]] = [("a clause", rule.get(key)) for key in ("tags", "value", "image", "error", "warning")]
     others.extend(("a clause", alternative.get(key)) for alternative in alternatives for key in ("tags", "value", "image"))
     others.extend(("%emits", item) for item in emitted)
     for kind, clause in others:
         if clause is None:
             continue
-        mentioned = [*(named if kind == "%emits" else []), *sorted(mentioned_in(clause))]
+        mentioned = [*(named if kind == "%emits" else []), *mentions_in_order(clause)]
         item = next((name for name in mentioned if name in item_names), None)
         if item is not None:
             return f"{kind} of {rule['name']} names ${item}, an item capture, which only a condition reads"
     sequences: dict[int, list[list[Any]]] = {}
     helpers: dict[int, list[set[str]]] = {}
     for condition in rule["conditions"]:
-        mentioned = sorted(mentioned_in(condition))
+        mentioned = list(dict.fromkeys(mentions_in_order(condition)))
         inside = [name for name in mentioned if name in item_names]
         if not inside:
             continue
