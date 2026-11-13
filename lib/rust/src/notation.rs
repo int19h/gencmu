@@ -896,10 +896,7 @@ impl<'a> Reader<'a> {
         }
         let conjunctions = frame.conjunctions.as_ref().expect("the conjunctions");
         match conjunctions.get(frame.parts.len()) {
-            Some(&conjunction) => Ok(Step::Call(Frame::Conjunction(Conjunction::new(
-                conjunction,
-                false,
-            )))),
+            Some(&conjunction) => Ok(Step::Call(Frame::Conjunction(Conjunction::new(conjunction, false)))),
             None => Ok(Step::Done(Val::Expr(if frame.ranked {
                 self.ranked.set(self.ranked.get() - 1);
                 let separator =
