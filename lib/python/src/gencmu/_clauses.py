@@ -79,6 +79,8 @@ def mentions_in_order(dom: Any):
             children = [node["left"], node["right"]]
         elif "if" in node:
             children = [node["if"], node["then"]]
+        elif "nonempty" in node:
+            children = [node["nonempty"]]
         elif "not" in node:
             children = [node["not"]]
         else:
