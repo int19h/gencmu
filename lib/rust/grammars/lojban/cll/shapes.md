@@ -50,7 +50,6 @@ CLL[^cll-s3-7] forbids the triples `ndj ndz ntc nts`, except in a name. The shar
 
 %rule consonants
   {consonant}
-
 ```
 
 <details><summary>Railroad diagrams of the 7 rules from <code>consonant</code> to <code>consonants</code></summary>
@@ -134,7 +133,6 @@ The rule `any-letter` includes commas through `Syllable-Break`.
 
 %rule any-letter
   consonant | vowel | "y" | "'" | Syllable-Break
-
 ```
 
 <details><summary>Railroad diagrams of the 9 rules from <code>vowel</code> to <code>any-letter</code></summary>
@@ -199,7 +197,7 @@ A brivla with marked stress must have `S2`, and one without any capital vowel mu
   | "y"<¬Stressed>
   | "'" | Syllable-Break
   | $v:vowel :: Counted Single-End ∪ ($v.parse(stressed-vowel) ⟹ Marked)
-  | $d:brivla-diphthong :: Counted ∪ ($d.parse(… stressed-name-vowel …) ⟹ Marked)
+  | $d:brivla-diphthong :: Counted ∪ ($d.parse(… stressed-vowel …) ⟹ Marked)
 
 %rule brivla-diphthong
   falling-diphthong | rising-diphthong
@@ -254,7 +252,7 @@ The forms stage uses the stress on the first syllable of a name, for the pause r
   | consonant | "'" | Syllable-Break
   | $v:vowel :: Nucleus Counted Single-End ∪ ($v.parse(stressed-vowel) ⟹ Marked)
   | $y:"y" :: Nucleus ∪ ($y.parse(stressed-name-vowel) ⟹ Marked)
-  | $d:brivla-diphthong :: Nucleus Counted ∪ ($d.parse(… stressed-name-vowel …) ⟹ Marked)
+  | $d:brivla-diphthong :: Nucleus Counted ∪ ($d.parse(… stressed-vowel …) ⟹ Marked)
   | $e:y-diphthong :: Nucleus ∪ ($e.parse(… stressed-name-vowel …) ⟹ Marked)
 
 %rule name-vowel

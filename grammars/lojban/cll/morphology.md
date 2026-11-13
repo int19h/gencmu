@@ -124,7 +124,6 @@ A cmavo's stress is free (CLL[^cll-s3-9]), so any of its vowels can be a capital
   [consonant] [any-letters "'"] $u:cmavo-nucleus
 %conditions
   $u.parse(… stressed-name-vowel …)
-
 ```
 
 <details><summary>Railroad diagrams of the 16 rules from <code>cmavo-shape</code> to <code>last-marked-cmavo</code></summary>
@@ -265,7 +264,6 @@ A y-hyphen must be unstressed. `hyphen-y` tests its lowercase value and rejects 
   | "n" hyphen-y affricate
 %conditions
   $l.value ++ $r.value ∉ $PERMISSIBLE
-
 ```
 
 <details><summary>Railroad diagrams of the 9 rules from <code>hyphen-y</code> to <code>mandatory-y</code></summary>
@@ -354,7 +352,7 @@ The slinku'i test of CLL[^cll-s4-7] says that a CV cmavo joined to the front of 
 %rule fuhivla-word
   $f:fuhivla-form
 %conditions
-  $f.parse([window-lead] consonant consonant [any-letters]),
+  $f.parse([window-lead] consonant consonant …),
   ¬$f.parse(gismu-form | lujvo-form | lujvo-after-cv | lujvo-after-cvv),
   ¬$f.parse(one-syllable | combination)
 
@@ -420,7 +418,8 @@ Pauses surround a name (rules 2 and 4), so its shape carries neither `Onset` nor
             (N1 ∪ N2) ∩ $n.parse(name-scan).tags ≠ ∅ ⟹
           Initial-Stress)
 %conditions
-  ¬$n.parse(la-or-doi [any-letters] | [any-letters] name-vowel la-or-doi [any-letters])
+  ¬$n.parse(la-or-doi …),
+  ¬$n.parse(… name-vowel la-or-doi …)
 
 %rule cmevla
   | permissible-run
@@ -459,7 +458,7 @@ Only a borrowing, a name or hesitation can hold a comma between two vowels. A cm
 
 A run with such a word divides into no words, and the forms stage hands it on as one foreign token ([../common/forms.md](../common/forms.md)). The words stage rejects that run unless it is inside a foreign quote or after `fa'o`.
 
-The comma rules read `Syllable-Break`, because the comma value is empty. `vowel-group`, `window-letter` and `name-vowels` retain the written boundary. `la-or-doi`, `falling-vowels` and `rising-vowels` read optional syllable boundaries. Part queries find a comma through its tag.
+The comma rules read `Syllable-Break`, because the comma value is empty. `vowel-group`, `window-letter` and `name-vowels` retain the written boundary. `la-or-doi`, `falling-vowels` and `rising-vowels` read optional syllable boundaries. [Part queries](../../../docs/notation.md#conditions) find a comma through its tag.
 
 The rules that test whether letters form a cmavo or a lujvo read a comma inside a diphthong as if it were absent. `cmavo-unit` and `cvv-rafsi` read `falling-vowels`. `vowel-cmavo` reads `rising-vowels`, and it reads `falling-vowels` through `cmavo-units`. `lujvo-form` reads the first CVV rafsi through `cvv-rafsi`. The slinku'i test uses `lujvo-after-cvv` for a borrowing that begins with `i` or `u`. `cmavo-shape` and `brivla-word` then refuse a cmavo or a lujvo that has a comma.
 
@@ -485,7 +484,6 @@ A name needs one more test. Its `doi` test applies at its start or after a vowel
 
 %rule syllable-vowels
   vowel | falling-vowels | rising-vowels
-
 ```
 
 <details><summary>Railroad diagrams of the 4 rules from <code>falling-vowels</code> to <code>syllable-vowels</code></summary>
