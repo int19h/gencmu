@@ -1,8 +1,8 @@
 //! Static notes for report rules and guarded tag terms.
 use crate::clauses::Part;
 use crate::dom::{Arg, Cond, EmitItem, Expr, RuleDef, Term};
-use crate::fxhash::{FxMap, FxSet};
 use crate::grammar::StageGrammar;
+use crate::hash::{FastMap, FastSet};
 use crate::work::{self, Work};
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
@@ -33,7 +33,7 @@ pub struct DiagnosticNote {
 }
 fn references(expr: &Expr, written: bool) -> Vec<String> {
     let mut refs = Vec::new();
-    let mut seen = FxSet::default();
+    let mut seen = FastSet::default();
     let mut pending = vec![expr];
     while let Some(expr) = pending.pop() {
         work::count(Work::Walked, 1);
@@ -68,7 +68,7 @@ fn references(expr: &Expr, written: bool) -> Vec<String> {
 #[derive(Clone, Default)]
 struct Targets {
     entries: Vec<(String, u8)>,
-    indexes: FxMap<String, usize>,
+    indexes: FastMap<String, usize>,
 }
 impl Targets {
     fn new() -> Self {
@@ -129,13 +129,13 @@ fn key(part: Part<'_>) -> (u8, usize) {
         Part::Cond(condition) => (1, condition as *const Cond as usize),
     }
 }
-fn targets(root: Part<'_>, cache: &mut FxMap<(u8, usize), Arc<Targets>>) -> Arc<Targets> {
+fn targets(root: Part<'_>, cache: &mut FastMap<(u8, usize), Arc<Targets>>) -> Arc<Targets> {
     if let Some(found) = cache.get(&key(root)) {
         return found.clone();
     }
     let mut names = Targets::new();
     let mut pending = vec![(root, false)];
-    let mut seen = FxSet::default();
+    let mut seen = FastSet::default();
     while let Some((part, filtered)) = pending.pop() {
         work::count(Work::Walked, 1);
         if !seen.insert((key(part), filtered)) {
@@ -167,13 +167,13 @@ fn merge(into: &mut Targets, from: &Targets) {
     }
 }
 pub(crate) fn notes(g: &StageGrammar) -> Vec<DiagnosticNote> {
-    let mut refs = FxMap::<usize, Vec<String>>::default();
+    let mut refs = FastMap::<usize, Vec<String>>::default();
     let mut edges = BTreeMap::new();
     let mut warnings = BTreeSet::new();
     let mut errors = BTreeSet::new();
     for rule in &g.rules {
         let mut children = Vec::new();
-        let mut seen_children = FxSet::default();
+        let mut seen_children = FastSet::default();
         for alt in &rule.alternatives {
             work::count(Work::Walked, 1);
             children.extend(
@@ -192,10 +192,10 @@ pub(crate) fn notes(g: &StageGrammar) -> Vec<DiagnosticNote> {
         }
         edges.insert(rule.name.clone(), children);
     }
-    let mut roots_cache = FxMap::default();
-    let mut definition_roots = FxMap::<usize, (Targets, Targets, Targets)>::default();
-    let mut queries = FxMap::<(usize, usize), Vec<(String, u8)>>::default();
-    let mut guarded = FxMap::<usize, bool>::default();
+    let mut roots_cache = FastMap::default();
+    let mut definition_roots = FastMap::<usize, (Targets, Targets, Targets)>::default();
+    let mut queries = FastMap::<(usize, usize), Vec<(String, u8)>>::default();
+    let mut guarded = FastMap::<usize, bool>::default();
     let mut notes = Vec::new();
     for rule in g.rules.iter().filter(|rule| !rule.query) {
         for alt in &rule.alternatives {
@@ -330,7 +330,7 @@ pub(crate) fn notes(g: &StageGrammar) -> Vec<DiagnosticNote> {
             }
         }
     }
-    let mut seen = FxSet::default();
+    let mut seen = FastSet::default();
     notes.into_iter().filter(|note| seen.insert(note.clone())).collect()
 }
 

@@ -16,7 +16,7 @@
 use std::cell::OnceCell;
 
 use crate::earley::{Cap, Chart, Item};
-use crate::fxhash::FxMap;
+use crate::hash::FastMap;
 use crate::lower::{Lowered, OptionalBoundary, Sym};
 use crate::work::{self, Mutant, Work};
 
@@ -52,10 +52,10 @@ enum Next {
 
 /// The completed items of the chart by rule and origin, each with its
 /// place, in the order of their sets.
-type CompletedIndex = FxMap<(u32, u32), Vec<Place>>;
+type CompletedIndex = FastMap<(u32, u32), Vec<Place>>;
 
 /// Logical parent, optional occurrence, origin and capture scope.
-type OptionalIndex = FxMap<(u32, usize, u32, u32), Vec<Place>>;
+type OptionalIndex = FastMap<(u32, usize, u32, u32), Vec<Place>>;
 
 /// The chart of one nested parse, with what reading it needs.
 pub(crate) struct Proofs<'a> {
@@ -229,7 +229,7 @@ impl<'a> Proofs<'a> {
                 .find(|b| b.expression == expression && b.end == item.dot as usize)
                 .unwrap();
             let mut pending = vec![after];
-            let mut seen = crate::fxhash::FxSet::default();
+            let mut seen = crate::hash::FastSet::default();
             while let Some(place) = pending.pop() {
                 if !seen.insert(place) {
                     continue;
@@ -261,11 +261,11 @@ impl<'a> Proofs<'a> {
         edges: &[Vec<Edge>],
         states: (&[u8], &[u8]),
         tokens: &[crate::earley::Tok],
-        blocked: &mut FxMap<(Place, usize), Option<u32>>,
+        blocked: &mut FastMap<(Place, usize), Option<u32>>,
     ) -> bool {
         let (e, p) = states;
         let mut pending = vec![(x, bit)];
-        let mut seen = crate::fxhash::FxSet::default();
+        let mut seen = crate::hash::FastSet::default();
         while let Some((at, wanted)) = pending.pop() {
             if !seen.insert((at, wanted)) {
                 continue;
@@ -384,10 +384,10 @@ impl<'a> Proofs<'a> {
         // The items that the witnesses rest on, children before the items
         // made from them where the edges allow, so that one sweep settles
         // most of them.
-        let mut number: FxMap<Place, usize> = FxMap::default();
+        let mut number: FastMap<Place, usize> = FastMap::default();
         let mut order: Vec<Place> = Vec::new();
         let mut edges: Vec<Vec<Edge>> = Vec::new();
-        let mut raw: FxMap<Place, Vec<RawEdge>> = FxMap::default();
+        let mut raw: FastMap<Place, Vec<RawEdge>> = FastMap::default();
         let mut omits = false;
         for &witness in witnesses {
             if raw.contains_key(&witness) {
@@ -435,9 +435,9 @@ impl<'a> Proofs<'a> {
             return everything;
         }
         let next: Vec<Next> = order.iter().map(|&place| self.next(self.item(place))).collect();
-        let mut written: FxMap<Place, bool> = FxMap::default();
-        let mut blocked: FxMap<Place, Option<u32>> = FxMap::default();
-        let mut optional_blocked = FxMap::default();
+        let mut written: FastMap<Place, bool> = FastMap::default();
+        let mut blocked: FastMap<Place, Option<u32>> = FastMap::default();
+        let mut optional_blocked = FastMap::default();
         let mut e = vec![0u8; order.len()];
         let mut p = vec![0u8; order.len()];
         let mut raw = vec![0u8; order.len()];

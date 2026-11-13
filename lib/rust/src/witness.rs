@@ -7,7 +7,7 @@
 use std::cell::RefCell;
 
 use crate::earley::{Cap, Chart, Item, Tok};
-use crate::fxhash::{FxMap, FxSet};
+use crate::hash::{FastMap, FastSet};
 use crate::lower::{Lowered, Sym};
 use crate::rank::restored_terminal;
 use crate::tree::{IKind, ITree};
@@ -206,8 +206,8 @@ pub(crate) struct CheckForest<'a> {
 /// its predecessor stands, which is where its child begins.
 #[derive(Debug, Default)]
 pub(crate) struct Marks {
-    pub items: FxSet<(u32, u32)>,
-    pub links: FxSet<(u32, u32, u32)>,
+    pub items: FastSet<(u32, u32)>,
+    pub links: FastSet<(u32, u32, u32)>,
 }
 
 /// One action of W(D), as the ranking writes a derivation: a read of a
@@ -303,8 +303,8 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
     // reaches, by set and index.
     let mut found: Vec<Vec<u32>> = vec![Vec::new(); count];
     let mut marks = Marks::default();
-    type Seeds = FxMap<(u32, u32, u32), Vec<u32>>;
-    let mut seeds: FxMap<u32, Seeds> = FxMap::default();
+    type Seeds = FastMap<(u32, u32, u32), Vec<u32>>;
+    let mut seeds: FastMap<u32, Seeds> = FastMap::default();
     for &index in &order {
         let node = &chosen.nodes[index as usize];
         let IKind::Close { prod, .. } = node.kind else {

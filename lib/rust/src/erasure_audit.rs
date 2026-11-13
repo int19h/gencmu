@@ -1,7 +1,7 @@
 //! Effects of lifting one written erasure (design, Diagnostics and debugging).
 use crate::dom::{EmitItem, Expr};
-use crate::fxhash::FxMap;
 use crate::grammar::StageGrammar;
+use crate::hash::FastMap;
 use crate::work::{self, Work};
 use std::collections::BTreeSet;
 use std::sync::Arc;
@@ -47,7 +47,7 @@ struct Emission {
     fixed: bool,
     captures: BTreeSet<String>,
 }
-fn add(effects: &mut FxMap<String, u8>, pending: &mut Vec<String>, name: &str, bits: u8) {
+fn add(effects: &mut FastMap<String, u8>, pending: &mut Vec<String>, name: &str, bits: u8) {
     let old = effects.entry(name.into()).or_default();
     if *old | bits != *old {
         *old |= bits;
@@ -55,10 +55,10 @@ fn add(effects: &mut FxMap<String, u8>, pending: &mut Vec<String>, name: &str, b
     }
 }
 pub(crate) fn notes(g: &StageGrammar) -> (Vec<ErasureReport>, Vec<IdleErasure>) {
-    let mut alternatives = FxMap::default();
-    let mut emissions = FxMap::<usize, Emission>::default();
-    let mut effects = FxMap::default();
-    let mut dependents = FxMap::<String, Vec<(&str, u8)>>::default();
+    let mut alternatives = FastMap::default();
+    let mut emissions = FastMap::<usize, Emission>::default();
+    let mut effects = FastMap::default();
+    let mut dependents = FastMap::<String, Vec<(&str, u8)>>::default();
     let mut pending = Vec::new();
     for rule in &g.rules {
         if rule.alternatives.len() > 1 {
@@ -149,7 +149,7 @@ pub(crate) fn notes(g: &StageGrammar) -> (Vec<ErasureReport>, Vec<IdleErasure>) 
     }
     let mut result = Vec::new();
     let mut definitions = Vec::<(usize, bool)>::new();
-    let mut definition_indexes = FxMap::default();
+    let mut definition_indexes = FastMap::default();
     for rule in &g.rules {
         for (alternative, alt) in rule.alternatives.iter().enumerate().filter(|(_, alt)| alt.erased) {
             let own = &alternatives[&(alt as *const _ as usize)];

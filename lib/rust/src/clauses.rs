@@ -9,7 +9,7 @@ mod reduction;
 mod validation;
 use reduction::Reduced;
 
-use crate::fxhash::{FxMap, FxSet};
+use crate::hash::{FastMap, FastSet};
 use crate::work::{self, Mutant, Work};
 
 use crate::dom::{constants_in_cond, constants_in_term, Arg, Cond, EmitItem, Expr, Mark, RuleDef, Term};
@@ -66,13 +66,13 @@ pub(crate) fn term_has_bare_empty_set(term: &Term) -> bool {
 /// The value of a closed set term, or `None` where the term is not closed
 /// or its value is not fixed. A closed term is the term of §10, read as
 /// the template writes it.
-pub(crate) fn closed_set_value(term: &Term) -> Option<FxSet<String>> {
+pub(crate) fn closed_set_value(term: &Term) -> Option<FastSet<String>> {
     match term {
-        Term::EmptySet => Some(FxSet::default()),
+        Term::EmptySet => Some(FastSet::default()),
         Term::Tag(name) => Some([name.clone()].into_iter().collect()),
         Term::Str(text) => Some([text.clone()].into_iter().collect()),
         Term::Union(items) => {
-            let mut out = FxSet::default();
+            let mut out = FastSet::default();
             for item in items {
                 out.extend(closed_set_value(item)?);
             }
@@ -330,9 +330,9 @@ struct Split<'a, P, T> {
     /// The guarded parts whose result counts, under the name of their
     /// guard. A name whose parts all have a neutral result stays, with no
     /// parts, so that a `∨` can ask whether a production has every guard.
-    guarded: FxMap<&'a str, Vec<usize>>,
+    guarded: FastMap<&'a str, Vec<usize>>,
     /// The parts that need a capture, under its name.
-    needs: FxMap<String, Vec<usize>>,
+    needs: FastMap<String, Vec<usize>>,
     /// The parts of other shapes, in the order written.
     other: Vec<usize>,
 }
@@ -349,8 +349,8 @@ impl<'a, P: Copy, T> Split<'a, P, T> {
         let mut split = Split {
             parts: Vec::new(),
             fixed: Vec::new(),
-            guarded: FxMap::default(),
-            needs: FxMap::default(),
+            guarded: FastMap::default(),
+            needs: FastMap::default(),
             other: Vec::new(),
         };
         for part in parts {
@@ -647,7 +647,7 @@ impl<'a> CondParts<'a, Simple> {
 pub(crate) struct CondListSplit<'a> {
     split: Split<'a, &'a Cond, Simple>,
     /// For each condition of another shape, its own split.
-    parts: FxMap<usize, CondParts<'a, Simple>>,
+    parts: FastMap<usize, CondParts<'a, Simple>>,
 }
 
 impl<'a> CondListSplit<'a> {
@@ -781,9 +781,9 @@ pub(crate) struct EmitIndex<'a> {
     /// The items that every production keeps.
     always: Vec<usize>,
     /// The other items, under the name of their carrier.
-    carriers: FxMap<&'a str, Vec<usize>>,
+    carriers: FastMap<&'a str, Vec<usize>>,
     /// The capture items under the name of each of their attachments.
-    attached: FxMap<&'a str, Vec<usize>>,
+    attached: FastMap<&'a str, Vec<usize>>,
     /// The capture items with an attachment of `$`, which every
     /// production has.
     attached_always: Vec<usize>,
@@ -793,8 +793,8 @@ impl<'a> EmitIndex<'a> {
     pub(crate) fn new(items: &'a [EmitItem]) -> EmitIndex<'a> {
         let mut index = EmitIndex {
             always: Vec::new(),
-            carriers: FxMap::default(),
-            attached: FxMap::default(),
+            carriers: FastMap::default(),
+            attached: FastMap::default(),
             attached_always: Vec::new(),
         };
         for (at, item) in items.iter().enumerate() {
@@ -823,7 +823,7 @@ impl<'a> EmitIndex<'a> {
     /// The items found under each of `own` in `map`, with `always`, in
     /// the order written and each once.
     fn gather<'n>(
-        map: &FxMap<&'a str, Vec<usize>>,
+        map: &FastMap<&'a str, Vec<usize>>,
         always: &[usize],
         own: impl Iterator<Item = &'n str>,
     ) -> Vec<usize> {
@@ -1032,7 +1032,7 @@ impl<'e> CaptureSequences<'e> {
             work::count(Work::Checked, 1);
             self.names[index]
         };
-        let mut seen: FxSet<Vec<&str>> = FxSet::default();
+        let mut seen: FastSet<Vec<&str>> = FastSet::default();
         let mut out = Vec::new();
         for list in lists {
             let key: Vec<&str> = list.iter().map(name).collect();
@@ -1486,7 +1486,7 @@ fn brace_helper_sequences((item, separator): FlatBraces<'_>) -> Vec<Vec<&str>> {
 fn mentioned_in(part: Part<'_>) -> Vec<&str> {
     let mut names = Vec::new();
     walk_captures(part, true, true, &mut names);
-    let mut seen: FxSet<&str> = FxSet::default();
+    let mut seen: FastSet<&str> = FastSet::default();
     names.retain(|name| seen.insert(name));
     names
 }
@@ -1548,7 +1548,7 @@ fn rule_clauses(rule: &RuleDef) -> Vec<RuleClause<'_>> {
 fn item_capture_problem(rule: &RuleDef, clauses: &[RuleClause<'_>]) -> Option<String> {
     let places: Vec<ItemsAndBraces> =
         rule.alternatives.iter().map(|alternative| item_captures_and_braces(&alternative.expr)).collect();
-    let item_names: FxSet<&str> = places.iter().flat_map(|(items, _)| items.iter().map(|(name, _)| *name)).collect();
+    let item_names: FastSet<&str> = places.iter().flat_map(|(items, _)| items.iter().map(|(name, _)| *name)).collect();
     if item_names.is_empty() {
         return None;
     }
@@ -1768,10 +1768,10 @@ fn definition_fault(rule: &RuleDef, defer_issue: &mut impl FnMut(&DefinitionIssu
         .collect();
     // Where each production reads each capture, first, and every capture
     // any production reads, so that a question about one is not a scan.
-    let positions: Vec<FxMap<&str, usize>> = productions
+    let positions: Vec<FastMap<&str, usize>> = productions
         .iter()
         .map(|(_, captures)| {
-            let mut at = FxMap::default();
+            let mut at = FastMap::default();
             for (position, &name) in captures.iter().enumerate() {
                 work::count(Work::Checked, 1);
                 if work::mutated(Mutant::FirstByScan) {
@@ -1789,7 +1789,7 @@ fn definition_fault(rule: &RuleDef, defer_issue: &mut impl FnMut(&DefinitionIssu
             at
         })
         .collect();
-    let everywhere: FxSet<&str> = productions.iter().flat_map(|(_, captures)| captures.iter().copied()).collect();
+    let everywhere: FastSet<&str> = productions.iter().flat_map(|(_, captures)| captures.iter().copied()).collect();
     let captures_of = |index: usize| {
         let at = &positions[index];
         // Each question is one lookup, where a scan of the captures was
@@ -1801,7 +1801,7 @@ fn definition_fault(rule: &RuleDef, defer_issue: &mut impl FnMut(&DefinitionIssu
     };
     // An item capture binds to the productions of its braces' helper, not
     // to those listed here (engine §3.5).
-    let item_names: FxSet<&str> =
+    let item_names: FastSet<&str> =
         rule.alternatives.iter().flat_map(|alternative| item_capture_names(&alternative.expr)).collect();
     let any_has = |name: &str| {
         work::count(Work::Checked, 1);
@@ -1840,7 +1840,7 @@ fn definition_fault(rule: &RuleDef, defer_issue: &mut impl FnMut(&DefinitionIssu
     let by_scan = each_part || work::mutated(Mutant::AppliesByScan);
     // The productions that have each capture. A condition that needs one
     // asks only those, and an inserted tag's anchor counts them.
-    let mut holders: FxMap<&str, Vec<usize>> = FxMap::default();
+    let mut holders: FastMap<&str, Vec<usize>> = FastMap::default();
     if !rule.conditions.is_empty() || items.iter().any(|item| matches!(item, EmitItem::Insert(..))) {
         for (index, at) in positions.iter().enumerate() {
             for &name in at.keys() {
@@ -1923,7 +1923,7 @@ fn definition_fault(rule: &RuleDef, defer_issue: &mut impl FnMut(&DefinitionIssu
     let rule_check = rule_tags.map(TermCheck::new);
     let alternative_checks: Vec<Option<TermCheck>> =
         alternative_tags.iter().map(|term| term.map(TermCheck::new)).collect();
-    let guarded_tags: FxSet<*const Term> = rule
+    let guarded_tags: FastSet<*const Term> = rule
         .tags
         .iter()
         .chain(rule.alternatives.iter().filter_map(|a| a.tags.as_ref()))

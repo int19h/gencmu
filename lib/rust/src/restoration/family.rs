@@ -1,9 +1,9 @@
 //! Boundary summaries for the deletion test of engine §4.1.
 
 use super::{Aligned, Observations, Sequence, INVALID};
-use crate::fxhash::FxMap;
+use crate::hash::FastMap;
 #[cfg(test)]
-use crate::fxhash::FxSet;
+use crate::hash::FastSet;
 use crate::work::{count, Work};
 use std::collections::BTreeMap;
 
@@ -96,14 +96,14 @@ struct Summary {
 pub(crate) struct Families {
     oracle: Option<Sequence<(Aligned, bool)>>,
     contexts: Vec<Context>,
-    context_ids: FxMap<(u32, usize, usize), u32>,
+    context_ids: FastMap<(u32, usize, usize), u32>,
     summaries: Vec<Summary>,
-    ids: FxMap<Summary, u32>,
+    ids: FastMap<Summary, u32>,
     #[cfg(test)]
-    taken: FxSet<(u32, Ends)>,
-    joins: FxMap<(u32, u32), u32>,
-    records: FxMap<(u32, Aligned, bool), u32>,
-    tokens: FxMap<(u32, usize, usize), u32>,
+    taken: FastSet<(u32, Ends)>,
+    joins: FastMap<(u32, u32), u32>,
+    records: FastMap<(u32, Aligned, bool), u32>,
+    tokens: FastMap<(u32, usize, usize), u32>,
 }
 impl Families {
     pub(crate) fn enable_oracle(&mut self) {

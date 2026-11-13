@@ -302,7 +302,7 @@ impl Children {
     }
 }
 
-use crate::fxhash::FxMap;
+use crate::hash::FastMap;
 type Bits = Vec<u64>;
 fn bit(bits: &[u64], i: usize) -> bool {
     bits.get(i / 64).is_some_and(|x| x & (1u64 << (i % 64)) != 0)
@@ -364,12 +364,12 @@ pub(crate) struct Machine {
     pub node_values: bool,
     predicates: Vec<Predicate>,
     machines: Vec<Nfa>,
-    ids: FxMap<String, usize>,
+    ids: FastMap<String, usize>,
     states: Vec<State>,
-    state_ids: FxMap<State, u32>,
-    transitions: FxMap<String, u32>,
-    restoration_keys: FxMap<u32, (u32, u32)>,
-    restoration_states: FxMap<(u32, u32), u32>,
+    state_ids: FastMap<State, u32>,
+    transitions: FastMap<String, u32>,
+    restoration_keys: FastMap<u32, (u32, u32)>,
+    restoration_states: FastMap<(u32, u32), u32>,
     pub empty: u32,
     pub observations: Option<crate::restoration::Observations>,
     pub families: crate::restoration::family::Families,
@@ -428,12 +428,12 @@ impl Machine {
             node_values: false,
             predicates: vec![],
             machines: vec![],
-            ids: FxMap::default(),
+            ids: FastMap::default(),
             states: vec![],
-            state_ids: FxMap::default(),
-            transitions: FxMap::default(),
-            restoration_keys: FxMap::default(),
-            restoration_states: FxMap::default(),
+            state_ids: FastMap::default(),
+            transitions: FastMap::default(),
+            restoration_keys: FastMap::default(),
+            restoration_states: FastMap::default(),
             empty: 0,
             observations: None,
             families: Default::default(),

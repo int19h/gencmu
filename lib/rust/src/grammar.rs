@@ -12,7 +12,7 @@ use crate::dom::{
     ImplicationDef, Op, RuleDef, Term, Type,
 };
 use crate::error::Error;
-use crate::fxhash::{FxMap, FxSet};
+use crate::hash::{FastMap, FastSet};
 use crate::patterns::Pattern;
 use crate::unicode::Unicode;
 use crate::work::{self, Mutant, Work};
@@ -105,7 +105,7 @@ pub struct Change {
 
 #[derive(Debug, Clone)]
 pub(crate) struct StageGrammar {
-    pub query_targets: FxMap<usize, String>,
+    pub query_targets: FastMap<usize, String>,
     pub tree_comparisons: bool,
     pub tree_expressions: bool,
     pub features: Vec<(Arc<str>, crate::dom::Directive)>,
@@ -118,7 +118,7 @@ pub(crate) struct StageGrammar {
     pub lean: Lean,
     pub elision_only: bool,
     pub ranked: Arc<crate::ranked::RankedGroups>,
-    pub close_families: Arc<Vec<FxSet<u32>>>,
+    pub close_families: Arc<Vec<FastSet<u32>>>,
     /// The rule replacements and extensions recorded during stitching.
     pub changes: Vec<Change>,
     /// The stage's `%classifier` items in stitching order, each with its
@@ -139,7 +139,7 @@ pub(crate) struct Implication {
 
 /// Each classifier of a stage resolved for one set of features, by name:
 /// each key with its classes (engine §2).
-pub(crate) type ClassifierTables = FxMap<String, FxMap<String, Vec<String>>>;
+pub(crate) type ClassifierTables = FastMap<String, FastMap<String, Vec<String>>>;
 
 impl StageGrammar {
     /// Each classifier of the stage for one set of features: each key's
@@ -154,9 +154,9 @@ impl StageGrammar {
         #[derive(Default)]
         struct Classes {
             slots: Vec<Option<String>>,
-            at: FxMap<String, usize>,
+            at: FastMap<String, usize>,
         }
-        let mut building: FxMap<String, FxMap<String, Classes>> = FxMap::default();
+        let mut building: FastMap<String, FastMap<String, Classes>> = FastMap::default();
         for (document, classifier) in &self.classifiers {
             let table = building.entry(classifier.name.clone()).or_default();
             for entry in &classifier.entries {
@@ -580,7 +580,7 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
     crate::boundary::reachable(&grammar)?;
     // Shared clauses are checked once, with the first alternative that
     // holds them.
-    let mut checked: FxSet<*const RuleClauses> = FxSet::default();
+    let mut checked: FastSet<*const RuleClauses> = FastSet::default();
     let mut tree_comparisons = false;
     let mut tree_expressions = false;
     for rule in &grammar.rules {
@@ -616,13 +616,13 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
 }
 
 /// Membership reads only written reference paths, before gates or lowering.
-fn close_families(grammar: &StageGrammar) -> Vec<FxSet<u32>> {
+fn close_families(grammar: &StageGrammar) -> Vec<FastSet<u32>> {
     enum Part<'a> {
         Term(&'a Term),
         Cond(&'a Cond),
     }
     let mut pending = Vec::new();
-    let mut seen = FxSet::default();
+    let mut seen = FastSet::default();
     for rule in &grammar.rules {
         for alternative in &rule.alternatives {
             pending.extend(alternative.alternative.tags.iter().map(Part::Term));
@@ -637,7 +637,7 @@ fn close_families(grammar: &StageGrammar) -> Vec<FxSet<u32>> {
             }
         }
     }
-    let mut roots = FxSet::default();
+    let mut roots = FastSet::default();
     while let Some(part) = pending.pop() {
         match part {
             Part::Term(term) => match term {
@@ -671,7 +671,7 @@ fn close_families(grammar: &StageGrammar) -> Vec<FxSet<u32>> {
         }
     }
     if roots.is_empty() {
-        return vec![FxSet::default(); grammar.rules.len()];
+        return vec![FastSet::default(); grammar.rules.len()];
     }
     fn edges(expr: &Expr, grammar: &StageGrammar, out: &mut Vec<u32>) {
         match expr {
@@ -702,7 +702,7 @@ fn close_families(grammar: &StageGrammar) -> Vec<FxSet<u32>> {
         .collect();
     (0..grammar.rules.len())
         .map(|root| {
-            let mut members = FxSet::default();
+            let mut members = FastSet::default();
             if !roots.contains(&(root as u32)) {
                 return members;
             }
@@ -718,7 +718,7 @@ fn close_families(grammar: &StageGrammar) -> Vec<FxSet<u32>> {
 }
 
 /// Potential input consumption ignores gates, tests, and productivity.
-fn consuming(expr: &Expr, rules: &FxSet<String>) -> bool {
+fn consuming(expr: &Expr, rules: &FastSet<String>) -> bool {
     let mut pending = vec![expr];
     while let Some(expr) = pending.pop() {
         match expr {
@@ -741,7 +741,7 @@ fn consuming(expr: &Expr, rules: &FxSet<String>) -> bool {
 }
 
 fn emission_overlap(grammar: &StageGrammar) -> Result<(), Error> {
-    let mut reads = FxSet::default();
+    let mut reads = FastSet::default();
     loop {
         let mut changed = false;
         for rule in &grammar.rules {
@@ -762,7 +762,7 @@ fn emission_overlap(grammar: &StageGrammar) -> Result<(), Error> {
             {
                 continue;
             }
-            let mut captures = FxMap::<String, bool>::default();
+            let mut captures = FastMap::<String, bool>::default();
             let mut pending = vec![&alternative.alternative.expr];
             while let Some(expr) = pending.pop() {
                 match expr {
@@ -1878,7 +1878,7 @@ impl Constants<'_> {
         // substituted once, and the alternatives that share them share the
         // result.
         // The map keeps each original alive, so that no address is reused.
-        let mut substituted: FxMap<*const RuleClauses, (Arc<RuleClauses>, Arc<RuleClauses>)> = FxMap::default();
+        let mut substituted: FastMap<*const RuleClauses, (Arc<RuleClauses>, Arc<RuleClauses>)> = FastMap::default();
         for rule in &mut grammar.rules {
             for alternative in &mut rule.alternatives {
                 if let Some(tags) = alternative.alternative.tags.as_mut() {

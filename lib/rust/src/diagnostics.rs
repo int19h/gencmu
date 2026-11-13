@@ -2,8 +2,8 @@
 use crate::clauses::Part;
 use crate::dom::{Cond, Dom, EmitItem, Expr, RuleDef, Term};
 use crate::error::Error;
-use crate::fxhash::FxSet;
 use crate::grammar::StageGrammar;
+use crate::hash::FastSet;
 use std::sync::Arc;
 
 pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
@@ -26,8 +26,8 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
 }
 fn pattern_names(
     pattern: &crate::patterns::Pattern,
-    names: &mut FxSet<String>,
-    erased: &FxSet<String>,
+    names: &mut FastSet<String>,
+    erased: &FastSet<String>,
     resolved_checks: bool,
     document: &str,
 ) -> Result<(), Error> {
@@ -65,7 +65,7 @@ pub(crate) fn check(
     checked_patterns: &[(crate::patterns::Pattern, String)],
     source_checks: Option<&[crate::parameters::expand::ErasurePatternCheck]>,
 ) -> Result<(), Error> {
-    let erased: FxSet<String> = grammar
+    let erased: FastSet<String> = grammar
         .rules
         .iter()
         .filter(|rule| rule.alternatives.iter().all(|alt| alt.erased))
@@ -82,13 +82,13 @@ pub(crate) fn check(
         }
     }
     // Resolved patterns include unused templates and replaced definitions (§9.3).
-    let mut unused = FxSet::default();
+    let mut unused = FastSet::default();
     for (pattern, document) in checked_patterns {
         pattern_names(pattern, &mut unused, &erased, source_checks.is_some(), document)?;
     }
-    let mut prohibited = FxSet::default();
+    let mut prohibited = FastSet::default();
     let mut splices = Vec::new();
-    let mut warnings = FxSet::default();
+    let mut warnings = FastSet::default();
     for step in &grammar.steps {
         pattern_names(&step.pattern, &mut prohibited, &erased, source_checks.is_some(), "")?;
     }
@@ -96,8 +96,8 @@ pub(crate) fn check(
     for (document, dom) in documents {
         pending.extend(dom.constants.iter().map(|c| (Part::Term(&c.value), document.as_ref())));
     }
-    let mut expressions = FxSet::default();
-    let mut parts = FxSet::default();
+    let mut expressions = FastSet::default();
+    let mut parts = FastSet::default();
     for rule in &grammar.rules {
         for alt in &rule.alternatives {
             let fail = |message| Error::grammar(message).in_document(&alt.document).at(alt.at.0, alt.at.1);

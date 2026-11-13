@@ -1385,7 +1385,7 @@ fn character_tokens(unicode: &Unicode, tags: &mut crate::tags::Tags, chars: &[ch
     crate::work::count(crate::work::Work::StageZero, 1);
     let decomposed = unicode.decompose_with_origins(chars);
     let mut input = Vec::with_capacity(decomposed.len());
-    let mut profiles = crate::fxhash::FxMap::default();
+    let mut profiles = crate::hash::FastMap::default();
     let mut public = Vec::with_capacity(decomposed.len());
     for (index, scalar) in decomposed.iter().enumerate() {
         let c = scalar.character;

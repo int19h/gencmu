@@ -1,8 +1,8 @@
 //! Rejection evidence over non-error competitors (engine §12.1).
 use crate::diagnostic_flow::DiagnosticFlow;
 use crate::earley::{Cap, Chart, EngineError, Item, Recognizer, Tok};
-use crate::fxhash::{FxMap, FxSet};
 use crate::grammar::StageGrammar;
+use crate::hash::{FastMap, FastSet};
 use crate::lower::{Lowered, Sym};
 use crate::result::{Expected, RejectionEvidence};
 use crate::tree::{IKind, ITree};
@@ -15,14 +15,14 @@ type Prediction = (u32, u32);
 type Closed = (u32, u32, Cap);
 #[derive(Default)]
 struct Omissions {
-    indexes: FxMap<u32, FxMap<Prediction, Vec<Item>>>,
-    allowed: FxMap<Key, bool>,
+    indexes: FastMap<u32, FastMap<Prediction, Vec<Item>>>,
+    allowed: FastMap<Key, bool>,
 }
 impl Omissions {
     fn candidates(&mut self, chart: &Chart, g: &Lowered, at: u32, name: Prediction) -> Vec<Item> {
         work::count(Work::Walked, 1);
         let index = self.indexes.entry(at).or_insert_with(|| {
-            let mut index = FxMap::<_, Vec<_>>::default();
+            let mut index = FastMap::<_, Vec<_>>::default();
             for &item in chart.sets.get(at as usize).into_iter().flat_map(|set| &set.skipped) {
                 work::count(Work::Walked, 1);
                 index.entry((g.prods[item.prod as usize].rule, item.lexical)).or_default().push(item);
@@ -88,10 +88,10 @@ pub(crate) fn rejection(
 #[derive(Default)]
 struct Slice {
     queue: Vec<Key>,
-    reached: FxSet<Key>,
-    sets: FxMap<u32, Vec<Item>>,
-    omitted: FxMap<u32, Vec<Item>>,
-    omitted_seen: FxSet<Key>,
+    reached: FastSet<Key>,
+    sets: FastMap<u32, Vec<Item>>,
+    omitted: FastMap<u32, Vec<Item>>,
+    omitted_seen: FastSet<Key>,
 }
 impl Slice {
     fn add(&mut self, g: &Lowered, key: Key) {
@@ -153,8 +153,8 @@ fn slice(
             && Arc::ptr_eq(&grammar.rules[slot.source.0].alternatives[slot.source.1].clauses, clauses)
     };
     let mut slice = Slice::default();
-    let mut entries = FxMap::<(u32, Prediction), Vec<Key>>::default();
-    let mut groups_of = FxMap::<Key, Closed>::default();
+    let mut entries = FastMap::<(u32, Prediction), Vec<Key>>::default();
+    let mut groups_of = FastMap::<Key, Closed>::default();
     // One index of completed children avoids a scan per incoming advance.
     for (at, set) in chart.sets.iter().enumerate().skip(start as usize).take((cap - start + 1) as usize) {
         for (&(rule, origin), indexes) in &set.completed {
@@ -175,8 +175,8 @@ fn slice(
             }
         }
     }
-    let mut advances = FxMap::<Key, Vec<Advance>>::default();
-    let mut completions = FxMap::<Closed, Vec<(Key, Key)>>::default();
+    let mut advances = FastMap::<Key, Vec<Advance>>::default();
+    let mut completions = FastMap::<Closed, Vec<(Key, Key)>>::default();
     for (at, set) in chart.sets.iter().enumerate().skip(start as usize).take((cap - start + 1) as usize) {
         for &item in &set.items {
             work::count(Work::Walked, 1);
@@ -213,8 +213,8 @@ fn slice(
     })? {
         slice.omit(start, item);
     }
-    let mut predictions = FxSet::default();
-    let mut reached_groups = FxSet::default();
+    let mut predictions = FastSet::default();
+    let mut reached_groups = FastSet::default();
     let mut cursor = 0;
     while cursor < slice.queue.len() {
         let key @ (at, item) = slice.queue[cursor];

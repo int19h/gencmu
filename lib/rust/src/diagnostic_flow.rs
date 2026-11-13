@@ -1,6 +1,6 @@
 //! Diagnostic owners and reporting collections (engine §11.5 and §12.1).
 use crate::earley::Tok;
-use crate::fxhash::{FxMap, FxSet};
+use crate::hash::{FastMap, FastSet};
 use crate::lower::Lowered;
 use crate::result::{Attachment, Warning};
 use crate::tree::{IKind, ITree};
@@ -30,7 +30,7 @@ fn identity(diagnostic: &Warning) -> usize {
 
 pub(crate) fn join<'a>(collections: impl IntoIterator<Item = (&'a [Warning], &'a [Warning])>) -> Lists {
     let mut result = Lists::default();
-    let (mut errors, mut warnings) = (FxSet::default(), FxSet::default());
+    let (mut errors, mut warnings) = (FastSet::default(), FastSet::default());
     for (left, right) in collections {
         for (source, into, seen) in
             [(left, &mut result.errors, &mut errors), (right, &mut result.warnings, &mut warnings)]
@@ -111,8 +111,8 @@ fn object_key(diagnostic: &Warning) -> ObjectKey {
 pub(crate) fn tied(first: &[Event], second: &[Event]) -> Lists {
     let mut result = Lists::default();
     for error in [true, false] {
-        let mut carried = FxSet::default();
-        let (mut counts, mut later) = (FxMap::default(), FxMap::default());
+        let mut carried = FastSet::default();
+        let (mut counts, mut later) = (FastMap::default(), FastMap::default());
         for (reading, events) in [first, second].into_iter().enumerate() {
             for event in events.iter().filter(|event| event.error == error) {
                 work::count(Work::Walked, 1);
@@ -429,8 +429,9 @@ impl<'a> DiagnosticFlow<'a> {
                         Group::Lists(lists) => lists.clone(),
                     })
                     .collect();
-                let displayed_errors: FxSet<_> = groups.iter().flat_map(|group| &group.errors).map(identity).collect();
-                let displayed_warnings: FxSet<_> =
+                let displayed_errors: FastSet<_> =
+                    groups.iter().flat_map(|group| &group.errors).map(identity).collect();
+                let displayed_warnings: FastSet<_> =
                     groups.iter().flat_map(|group| &group.warnings).map(identity).collect();
                 let own = &self.rows[row].own;
                 let own = Lists {

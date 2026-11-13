@@ -136,13 +136,13 @@ fn structural_key(body: &Expr) -> String {
 pub(crate) fn prepare(grammar: &mut crate::grammar::StageGrammar) -> Result<(), crate::error::Error> {
     use crate::clauses::Part;
     use crate::dom::{Alternative, Arg, Channels};
-    use crate::fxhash::{FxMap, FxSet};
     use crate::grammar::{RuleClauses, StitchedAlternative, StitchedRule};
+    use crate::hash::{FastMap, FastSet};
     use std::sync::Arc;
-    let mut identities = FxMap::default();
-    let mut seen = FxSet::default();
+    let mut identities = FastMap::default();
+    let mut seen = FastSet::default();
     let mut pending_rules = Vec::new();
-    let mut targets = FxMap::default();
+    let mut targets = FastMap::default();
     for rule in &grammar.rules {
         for alternative in &rule.alternatives {
             let clauses = &alternative.clauses;

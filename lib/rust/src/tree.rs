@@ -11,8 +11,8 @@ use crate::diagnostic_flow::{DiagnosticFlow, Lists};
 use crate::measures::{DiagnosticIdentity, DiagnosticRecord, Measure, Measures};
 
 use crate::earley::{Cap, Caps, EngineError, Frame, Recognizer, Tok};
-use crate::fxhash::{FxMap, FxSet};
 use crate::grammar::Implication;
+use crate::hash::{FastMap, FastSet};
 use crate::lower::{LCond, LEmit, LEmitItem, LTerm, Lowered, Sym};
 use crate::rank::{DNode, Ranker};
 use crate::result::{Attachment, Node, NodeKind, Restoration, Warning};
@@ -402,7 +402,7 @@ enum Work<'g> {
 /// this emission has inherited.
 struct Forwarding {
     on: bool,
-    inherited: FxSet<u32>,
+    inherited: FastSet<u32>,
 }
 
 fn span_of(tree: &ITree, index: u32) -> (u32, u32) {
@@ -534,9 +534,9 @@ struct Implications {
     /// Each implication's consequent.
     consequents: Vec<TagList>,
     /// The implications whose antecedent holds a tag.
-    by_tag: FxMap<TagId, Vec<u32>>,
+    by_tag: FastMap<TagId, Vec<u32>>,
     /// The closure of each set asked about so far.
-    closures: FxMap<SetId, SetId>,
+    closures: FastMap<SetId, SetId>,
 }
 
 impl Implications {
@@ -547,14 +547,14 @@ impl Implications {
             list
         };
         let mut consequents = Vec::with_capacity(implications.len());
-        let mut by_tag: FxMap<TagId, Vec<u32>> = FxMap::default();
+        let mut by_tag: FastMap<TagId, Vec<u32>> = FastMap::default();
         for (index, implication) in (0..).zip(implications) {
             for tag in side(&implication.antecedent) {
                 by_tag.entry(tag).or_default().push(index);
             }
             consequents.push(side(&implication.consequent));
         }
-        Implications { consequents, by_tag, closures: FxMap::default() }
+        Implications { consequents, by_tag, closures: FastMap::default() }
     }
 
     /// A token's explicit tags with the tags of the implications, added
@@ -569,9 +569,9 @@ impl Implications {
             return closure;
         }
         let start = tags.list(set);
-        let mut have: FxSet<TagId> = start.iter().copied().collect();
+        let mut have: FastSet<TagId> = start.iter().copied().collect();
         let mut queue: Vec<TagId> = start.clone();
-        let mut fired: FxSet<u32> = FxSet::default();
+        let mut fired: FastSet<u32> = FastSet::default();
         let mut added: TagList = Vec::new();
         while let Some(tag) = queue.pop() {
             // Each tag looks only at the implications it is an antecedent
@@ -619,7 +619,7 @@ impl Implications {
 }
 
 /// The boundary names that emission tags can test, resolved once per emission.
-fn emission_targets(g: &Lowered) -> FxMap<String, Sym> {
+fn emission_targets(g: &Lowered) -> FastMap<String, Sym> {
     let mut terms = Vec::new();
     for production in &g.prods {
         match &production.emit {
@@ -635,7 +635,7 @@ fn emission_targets(g: &Lowered) -> FxMap<String, Sym> {
         Condition(&'a LCond),
     }
     let mut pending: Vec<_> = terms.into_iter().map(Part::Term).collect();
-    let mut names = FxSet::default();
+    let mut names = FastSet::default();
     while let Some(part) = pending.pop() {
         match part {
             Part::Term(term) => match term {
@@ -656,7 +656,7 @@ fn emission_targets(g: &Lowered) -> FxMap<String, Sym> {
         }
     }
     if names.is_empty() {
-        return FxMap::default();
+        return FastMap::default();
     }
     g.rules
         .iter()
@@ -681,7 +681,7 @@ pub(crate) fn emit(
     recognizer.shared.emission_boundaries.clear();
     recognizer.shared.emission_targets = emission_targets(g);
     if !recognizer.shared.emission_targets.is_empty() {
-        let targets: FxSet<_> = recognizer.shared.emission_targets.values().copied().collect();
+        let targets: FastSet<_> = recognizer.shared.emission_targets.values().copied().collect();
         for node in &tree.nodes {
             let (symbol, start, end) = match &node.kind {
                 IKind::Read { tok, terminal } => (Sym::T(*terminal), *tok, *tok + 1),
@@ -704,10 +704,10 @@ pub(crate) fn emit(
     let mut out: Vec<Emitted> = Vec::new();
     let mut strings =
         crate::strings::Strings::new(g, tree, tokens, sources, recognizer.shared.text, recognizer.shared.unicode);
-    let mut forwarding = Forwarding { on: tokens.iter().any(Tok::has_attachments), inherited: FxSet::default() };
+    let mut forwarding = Forwarding { on: tokens.iter().any(Tok::has_attachments), inherited: FastSet::default() };
     // The output positions of the marks of the items being emitted.
     let mut marks: Vec<usize> = Vec::new();
-    let mut identity_memo = FxMap::default();
+    let mut identity_memo = FastMap::default();
     let mut stack = vec![Work::Visit(0, 0)];
     while let Some(work) = stack.pop() {
         match work {

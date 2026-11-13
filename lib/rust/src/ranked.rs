@@ -3,8 +3,8 @@
 use crate::clauses::{simplify_cond, Simple};
 use crate::dom::{Arg, Cond, EmitItem, Expr, Term};
 use crate::error::{Error, GroupSite};
-use crate::fxhash::{FxMap, FxSet};
 use crate::grammar::StageGrammar;
+use crate::hash::{FastMap, FastSet};
 use crate::json::Json;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -21,9 +21,9 @@ pub(crate) struct Group {
 #[derive(Debug, Clone, Default)]
 pub(crate) struct RankedGroups {
     pub groups: Vec<Group>,
-    pub expressions: FxMap<usize, usize>,
-    pub owners: FxMap<usize, usize>,
-    pub paths: FxMap<usize, String>,
+    pub expressions: FastMap<usize, usize>,
+    pub owners: FastMap<usize, usize>,
+    pub paths: FastMap<usize, String>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 struct Span {
@@ -53,7 +53,7 @@ struct Route {
 struct ClauseAnalysis {
     conditions: Vec<BTreeSet<String>>,
     exports: BTreeSet<String>,
-    projections: FxMap<BTreeSet<String>, Vec<Route>>,
+    projections: FastMap<BTreeSet<String>, Vec<Route>>,
 }
 fn join(mut left: Route, right: &Route) -> Route {
     let offset = left.length;
@@ -69,7 +69,7 @@ fn join(mut left: Route, right: &Route) -> Route {
     left
 }
 fn unique(routes: impl IntoIterator<Item = Route>) -> Vec<Route> {
-    let mut seen = FxSet::default();
+    let mut seen = FastSet::default();
     routes.into_iter().filter(|route| seen.insert(route.clone())).collect()
 }
 fn product(left: Vec<Route>, right: Vec<Route>) -> Vec<Route> {
@@ -126,7 +126,7 @@ fn routes(
                 }
                 candidates.extend(states);
                 candidates.sort_by(|a, b| a.mask.cmp(&b.mask).then(a.order.cmp(&b.order)));
-                let mut seen = FxSet::default();
+                let mut seen = FastSet::default();
                 states = candidates
                     .into_iter()
                     .filter(|state| seen.insert((state.mask != 0, state.route.clone())))
@@ -218,7 +218,7 @@ impl RankedGroups {
         grammar: &StageGrammar,
         group: &Group,
         spans: &mut Option<SymbolSpans>,
-        analyses: &mut FxMap<(usize, usize), ClauseAnalysis>,
+        analyses: &mut FastMap<(usize, usize), ClauseAnalysis>,
     ) -> Result<(), Error> {
         let source = &grammar.rules[group.source.0].alternatives[group.source.1];
         let analysis = analyses.entry(group.source).or_insert_with(|| ClauseAnalysis {
@@ -233,7 +233,7 @@ impl RankedGroups {
                 })
                 .collect(),
             exports: export_reads(source),
-            projections: FxMap::default(),
+            projections: FastMap::default(),
         });
         let mut needed: BTreeSet<String> = analysis.exports.intersection(&group.names).cloned().collect();
         for names in &analysis.conditions {
@@ -507,7 +507,7 @@ impl RankedGroups {
         );
         error.diagnostic.get_or_insert_with(Default::default).expression = self.written_expression(grammar, group);
         let mut queue = vec![(helper, vec![error.group().cloned().unwrap()], None)];
-        let mut seen = FxSet::default();
+        let mut seen = FastSet::default();
         seen.insert(helper);
         let mut at = 0;
         while at < queue.len() {
@@ -573,7 +573,7 @@ impl RankedGroups {
             at += 1;
         }
         let mut spans = None;
-        let mut analyses = FxMap::default();
+        let mut analyses = FastMap::default();
         for group in &self.groups {
             self.validate_clauses(grammar, group, &mut spans, &mut analyses)?;
             let helper = graph.groups[&group.id];
@@ -581,7 +581,7 @@ impl RankedGroups {
                 continue;
             }
             let mut outward = vec![helper];
-            let mut seen = FxSet::default();
+            let mut seen = FastSet::default();
             seen.insert(helper);
             let mut at = 0;
             while at < outward.len() {
@@ -739,7 +739,7 @@ struct TagNode {
 }
 struct TagGraph {
     nodes: Vec<TagNode>,
-    groups: FxMap<usize, usize>,
+    groups: FastMap<usize, usize>,
 }
 #[derive(Clone, Default)]
 struct Unary {
@@ -753,14 +753,14 @@ impl TagGraph {
         id
     }
     fn new(grammar: &StageGrammar, ranked: &RankedGroups) -> Self {
-        let mut graph = Self { nodes: vec![], groups: FxMap::default() };
+        let mut graph = Self { nodes: vec![], groups: FastMap::default() };
         for owner in 0..grammar.rules.len() {
             graph.node(owner, false);
         }
-        let mut captured = FxMap::default();
+        let mut captured = FastMap::default();
         for (rule, definition) in grammar.rules.iter().enumerate() {
             for (alternative, source) in definition.alternatives.iter().enumerate() {
-                let mut memo = FxMap::default();
+                let mut memo = FastMap::default();
                 let expr = &source.alternative.expr;
                 let body = if let Expr::Repeat(inner, separator, Some(_)) = expr {
                     let body = graph.describe(grammar, ranked, (rule, alternative), inner, &mut memo, &mut captured);
@@ -790,8 +790,8 @@ impl TagGraph {
         ranked: &RankedGroups,
         source: (usize, usize),
         expr: &Expr,
-        memo: &mut FxMap<usize, Unary>,
-        captured: &mut FxMap<usize, bool>,
+        memo: &mut FastMap<usize, Unary>,
+        captured: &mut FastMap<usize, bool>,
     ) -> Unary {
         let key = expr as *const Expr as usize;
         if let Some(known) = memo.get(&key) {
@@ -868,7 +868,7 @@ impl TagGraph {
         result
     }
 }
-fn common_capture(expr: &Expr, memo: &mut FxMap<usize, bool>) -> bool {
+fn common_capture(expr: &Expr, memo: &mut FastMap<usize, bool>) -> bool {
     let key = expr as *const Expr as usize;
     if let Some(&known) = memo.get(&key) {
         return known;
@@ -893,7 +893,7 @@ fn common_capture(expr: &Expr, memo: &mut FxMap<usize, bool>) -> bool {
 struct WrittenSpans {
     count: usize,
     branches: Vec<(usize, Vec<usize>)>,
-    memo: FxMap<usize, usize>,
+    memo: FastMap<usize, usize>,
 }
 impl WrittenSpans {
     fn expression(&mut self, expr: &Expr, grammar: &StageGrammar) -> usize {
@@ -949,7 +949,7 @@ struct SymbolSpans {
 }
 impl SymbolSpans {
     fn new(grammar: &StageGrammar) -> Self {
-        let mut graph = WrittenSpans { count: grammar.rules.len() + 1, branches: vec![], memo: FxMap::default() };
+        let mut graph = WrittenSpans { count: grammar.rules.len() + 1, branches: vec![], memo: FastMap::default() };
         for (i, rule) in grammar.rules.iter().enumerate() {
             for source in &rule.alternatives {
                 let rhs = graph.expression(&source.alternative.expr, grammar);

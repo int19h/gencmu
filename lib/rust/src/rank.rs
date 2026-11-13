@@ -18,7 +18,7 @@
 //! follows them. Derivations are kept as a shared DAG, so comparing two of
 //! them walks only where they differ.
 
-use crate::fxhash::FxMap;
+use crate::hash::FastMap;
 use std::cmp::Ordering;
 use std::rc::Rc;
 
@@ -199,10 +199,10 @@ type SlotMaxima = std::collections::BTreeSet<String>;
 #[derive(Clone)]
 struct Admission {
     groups: Vec<Vec<SlotCandidate>>,
-    at: FxMap<Node, Vec<SlotCandidate>>,
-    counts: FxMap<Key, Counts>,
-    masks: FxMap<Key, Vec<bool>>,
-    maxima: FxMap<(usize, u32, Option<u32>), SlotMaxima>,
+    at: FastMap<Node, Vec<SlotCandidate>>,
+    counts: FastMap<Key, Counts>,
+    masks: FastMap<Key, Vec<bool>>,
+    maxima: FastMap<(usize, u32, Option<u32>), SlotMaxima>,
     stats: crate::slot_stats::SlotStatistics,
     reported_splits: Vec<bool>,
 }
@@ -246,7 +246,7 @@ fn slot_links(
 ) -> Vec<(Item, Cap, usize)> {
     let Some(view) = view else { return raw_slot_links(g, chart, set, item) };
     let index = chart.sets[set as usize].find(&item).expect("a ranked item");
-    let mut seen = crate::fxhash::FxSet::default();
+    let mut seen = crate::hash::FastSet::default();
     let mut links = Vec::new();
     for &raw in &view.members[&(set, view.aliases[set as usize][index as usize])] {
         for (before, cap, option) in raw_slot_links(g, chart, set, chart.sets[set as usize].items[raw as usize]) {
@@ -339,8 +339,8 @@ impl Admission {
         projection: Option<&RestorationView>,
     ) -> Self {
         let mut groups = Vec::<Vec<SlotCandidate>>::new();
-        let mut ids = FxMap::<String, usize>::default();
-        let mut at = FxMap::<Node, Vec<SlotCandidate>>::default();
+        let mut ids = FastMap::<String, usize>::default();
+        let mut at = FastMap::<Node, Vec<SlotCandidate>>::default();
         let mut stats = crate::slot_stats::SlotStatistics {
             chart_facts: chart.sets.iter().map(|s| s.items.len()).sum(),
             ..Default::default()
@@ -391,9 +391,9 @@ impl Admission {
             groups,
             at,
             reported_splits,
-            counts: FxMap::default(),
-            masks: FxMap::default(),
-            maxima: FxMap::default(),
+            counts: FastMap::default(),
+            masks: FastMap::default(),
+            maxima: FastMap::default(),
             stats,
         }
     }
@@ -608,7 +608,7 @@ pub(crate) struct Ranking {
 /// in the size of the grammar, so it is an exact `Nat`.
 struct Vectors {
     nodes: Vec<VNode>,
-    leaves: FxMap<u32, u32>,
+    leaves: FastMap<u32, u32>,
 }
 
 #[derive(Debug, Clone)]
@@ -635,7 +635,7 @@ const NO_ELISIONS: u32 = 0;
 
 impl Vectors {
     fn new() -> Vectors {
-        Vectors { nodes: vec![VNode::Empty], leaves: FxMap::default() }
+        Vectors { nodes: vec![VNode::Empty], leaves: FastMap::default() }
     }
 
     fn hint(&self, vector: u32) -> u64 {
@@ -891,16 +891,16 @@ pub(crate) struct Ranker<'c> {
     raw_membership: bool,
     witness_shown: Option<u32>,
     canonical_channel: Option<Box<Ranker<'c>>>,
-    canonical_imports: FxMap<u32, u32>,
+    canonical_imports: FastMap<u32, u32>,
     pub dag: Dag<'c>,
-    memo: FxMap<Key, u32>,
+    memo: FastMap<Key, u32>,
     results: Vec<NodeResult>,
     fsets: Vec<Vec<u32>>,
-    fset_index: FxMap<Vec<u32>, u32>,
+    fset_index: FastMap<Vec<u32>, u32>,
     /// How the key steps count, add and compare profiles (§6).
     profiles: Profiles,
     /// When the profiles decide, the summaries of the nodes (§6).
-    summaries: Option<FxMap<Key, Summary>>,
+    summaries: Option<FastMap<Key, Summary>>,
     /// The runtime witness marks of W(D) (tests/README.md). With them, each
     /// count also says whether it includes a derivation made of marked links
     /// only. Every elision-only check supplies these marks, including without a test hook.
@@ -1327,13 +1327,13 @@ impl<'c> Ranker<'c> {
             raw_membership: false,
             witness_shown: None,
             canonical_channel: None,
-            canonical_imports: FxMap::default(),
+            canonical_imports: FastMap::default(),
             dag,
-            memo: FxMap::default(),
+            memo: FastMap::default(),
             results: Vec::new(),
             fsets: vec![Vec::new()],
-            fset_index: FxMap::default(),
-            summaries: decide.then(FxMap::default),
+            fset_index: FastMap::default(),
+            summaries: decide.then(FastMap::default),
             profiles,
             marks: None,
             check: false,
@@ -1377,7 +1377,7 @@ impl<'c> Ranker<'c> {
                 .map(|index| (false, vec![index]))
                 .collect();
         }
-        let mut found: FxMap<ErasedState, usize> = FxMap::default();
+        let mut found: FastMap<ErasedState, usize> = FastMap::default();
         let mut groups: Vec<(bool, Vec<usize>)> = Vec::new();
         for (index, &member) in members.iter().enumerate() {
             work::count(Work::Walked, 1);
@@ -1401,7 +1401,7 @@ impl<'c> Ranker<'c> {
         if let Some((observed, project)) = self.dag.projection {
             ranker = ranker.observing(observed, project);
         }
-        ranker.summaries = Some(FxMap::default());
+        ranker.summaries = Some(FastMap::default());
         ranker.canonical_only = true;
         ranker.admission = self.admission.clone();
         ranker.views = self.views.clone();
@@ -1691,11 +1691,11 @@ impl<'c> Ranker<'c> {
         match deps {
             Deps::Close(child) => Deps::Close(child.map(map)),
             Deps::Group(nodes) => {
-                let mut seen = crate::fxhash::FxSet::default();
+                let mut seen = crate::hash::FastSet::default();
                 Deps::Group(nodes.into_iter().map(map).filter(|n| seen.insert(*n)).collect())
             }
             Deps::Links(links) => {
-                let mut seen = crate::fxhash::FxSet::default();
+                let mut seen = crate::hash::FastSet::default();
                 Deps::Links(links.into_iter().map(|(a, b)| (map(a), map(b))).filter(|n| seen.insert(*n)).collect())
             }
             _ => deps,
@@ -2143,7 +2143,7 @@ impl<'c> Ranker<'c> {
                         all.add(&self.profiles, first, &summaries[&members[indices[0]]].all);
                     }
                 }
-                let retained: crate::fxhash::FxSet<_> = all.kept.drain(..).collect();
+                let retained: crate::hash::FastSet<_> = all.kept.drain(..).collect();
                 let mut mask = vec![false; members.len()];
                 for (_, indices) in groups {
                     if retained.contains(&(indices[0] as u32)) {
@@ -2499,10 +2499,10 @@ struct RankingNodeKey {
 pub(crate) struct Profiles {
     steps: Vec<StepKind>,
     patterns: Vec<crate::patterns::Pattern>,
-    answers: FxMap<RankingNodeKey, bool>,
+    answers: FastMap<RankingNodeKey, bool>,
     values: Vec<bool>,
     node_values: bool,
-    span_values: FxMap<(u32, u32), std::rc::Rc<str>>,
+    span_values: FastMap<(u32, u32), std::rc::Rc<str>>,
     vectors: Vectors,
 }
 
@@ -2511,10 +2511,10 @@ impl Profiles {
         Profiles {
             steps: [StepKind::Fewest,StepKind::Fewest,StepKind::Most].into_iter().chain(steps.iter().map(|step| step.kind)).collect(),
             patterns: steps.iter().map(|step|step.pattern.clone()).collect(),
-            answers: FxMap::default(),
+            answers: FastMap::default(),
             values: steps.iter().map(|step|step.pattern.walk().any(|part| matches!(part,crate::patterns::Part::Pattern(crate::patterns::Pattern::Test(op,_,_, _)) if op != "tags"))).collect(),
             node_values: steps.iter().any(|step| crate::patterns::reads_node_values(&step.pattern)),
-            span_values: FxMap::default(),
+            span_values: FastMap::default(),
             vectors: Vectors::new(),
         }
     }
@@ -3126,16 +3126,16 @@ struct SlotScope {
 struct SlotViews {
     wrapped: std::collections::BTreeSet<u32>,
     nodes: Vec<(Node, usize)>,
-    index: FxMap<(Node, usize), Node>,
+    index: FastMap<(Node, usize), Node>,
     scopes: Vec<SlotScope>,
-    scope_index: FxMap<(Node, Node, usize), usize>,
+    scope_index: FastMap<(Node, Node, usize), usize>,
 }
 impl SlotViews {
     fn new(g: &Lowered) -> Option<Self> {
         if g.ranked.slots.is_empty() {
             return None;
         }
-        let mut users: FxMap<u32, Vec<u32>> = FxMap::default();
+        let mut users: FastMap<u32, Vec<u32>> = FastMap::default();
         for p in &g.prods {
             if !p.tree_root {
                 for s in &p.syms {
@@ -3162,9 +3162,9 @@ impl SlotViews {
         Some(Self {
             wrapped,
             nodes: vec![],
-            index: FxMap::default(),
+            index: FastMap::default(),
             scopes: vec![SlotScope::default()],
-            scope_index: FxMap::default(),
+            scope_index: FastMap::default(),
         })
     }
     fn unpack(&self, node: Node) -> (Node, usize) {
@@ -3233,7 +3233,7 @@ impl Ranker<'_> {
         if self.views.is_none() {
             return nodes;
         }
-        let mut seen: crate::fxhash::FxSet<Node> = nodes.iter().copied().collect();
+        let mut seen: crate::hash::FastSet<Node> = nodes.iter().copied().collect();
         let mut at = 0;
         while at < nodes.len() {
             let deps = self.deps((nodes[at], 0));

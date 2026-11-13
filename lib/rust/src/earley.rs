@@ -11,7 +11,7 @@ use std::sync::Arc;
 use suffix::{SuffixKey, SuffixState};
 
 use crate::eligible::Proofs;
-use crate::fxhash::{FxMap, FxSet};
+use crate::hash::{FastMap, FastSet};
 
 use crate::lower::{Characters, CmpOp, LCond, LTerm, Lowered, Span, Sym, SymbolTest, TestOp};
 use crate::result::Attachment;
@@ -244,18 +244,18 @@ pub(crate) struct ESet {
     /// For a completed item, its constituent's tag set; else `u32::MAX`.
     pub tagset: Vec<SetId>,
     pub completed_structures: Vec<u32>,
-    index: FxMap<Item, u32>,
-    failed: FxSet<Item>,
-    waiting: FxMap<u128, Vec<u32>>,
+    index: FastMap<Item, u32>,
+    failed: FastSet<Item>,
+    waiting: FastMap<u128, Vec<u32>>,
     /// Completed items by (rule, origin).
-    pub completed: FxMap<(u32, u32), Vec<u32>>,
+    pub completed: FastMap<(u32, u32), Vec<u32>>,
     /// The origins of each rule's completed items, in order of completion.
-    pub origins: FxMap<u32, Vec<u32>>,
-    done: FxSet<CompletionKey>,
-    empty: FxMap<u128, Vec<(SetId, u32, u32, u8)>>,
+    pub origins: FastMap<u32, Vec<u32>>,
+    done: FastSet<CompletionKey>,
+    empty: FastMap<u128, Vec<(SetId, u32, u32, u8)>>,
     /// The rules predicted here, each with whether every prediction of it
     /// was strict (§7.4).
-    predicted: FxMap<u128, bool>,
+    predicted: FastMap<u128, bool>,
     /// The productions that prediction skipped here because the next token
     /// lacked their first terminal. A production whose condition failed is
     /// not one of them.
@@ -333,8 +333,8 @@ impl ESet {
 
 #[derive(Debug, Default)]
 pub(crate) struct Chart {
-    pub annotations: FxMap<(u32, Item), crate::boundary::Annotations>,
-    pub completed_annotations: FxMap<(u32, Cap, u32), crate::boundary::Annotations>,
+    pub annotations: FastMap<(u32, Item), crate::boundary::Annotations>,
+    pub completed_annotations: FastMap<(u32, Cap, u32), crate::boundary::Annotations>,
     pub sources: crate::boundary::Sources,
     pub boundary_failures: Vec<crate::boundary::Failure>,
     pub boundaries: Option<Rc<RefCell<crate::boundary::Records>>>,
@@ -345,14 +345,14 @@ pub(crate) struct Chart {
     pub close_requested: u8,
     suffix: bool,
     pub lexical: Vec<LexicalFrame>,
-    lexical_index: FxMap<String, u32>,
-    pub helper_entries: FxMap<(u32, Item), u32>,
+    lexical_index: FastMap<String, u32>,
+    pub helper_entries: FastMap<(u32, Item), u32>,
     pub machine: Option<Rc<RefCell<Machine>>>,
-    pub terminal_states: FxMap<(u32, u32, bool, bool), u32>,
+    pub terminal_states: FastMap<(u32, u32, bool, bool), u32>,
     /// Reconstruction and eligibility retain their actual recognition advances.
     record_links: bool,
-    pub links: FxMap<(u32, Item), Vec<(Item, Cap)>>,
-    pub advances: FxMap<(Item, Cap), Item>,
+    pub links: FastMap<(u32, Item), Vec<(Item, Cap)>>,
+    pub advances: FastMap<(Item, Cap), Item>,
     /// The sets the parse reached, and at most one empty set after them.
     pub sets: Vec<ESet>,
     /// The last position whose set holds an item, or 0: how far the parse
@@ -363,15 +363,15 @@ pub(crate) struct Chart {
     /// the one it extends, and an item's sequence is the number of its
     /// entry. Entry 0 is the empty sequence.
     caps: Vec<CapEntry>,
-    caps_index: FxMap<(u32, Cap), u32>,
+    caps_index: FastMap<(u32, Cap), u32>,
     /// The positions of the sets that hold each item, in order, made when a
     /// derivation is first rebuilt.
-    positions: std::cell::OnceCell<FxMap<Item, Vec<u32>>>,
+    positions: std::cell::OnceCell<FastMap<Item, Vec<u32>>>,
 }
 
 #[derive(Debug, Clone)]
 pub(crate) struct LexicalFrame {
-    pub tree_demands: Option<FxMap<u32, usize>>,
+    pub tree_demands: Option<std::collections::BTreeMap<u32, usize>>,
     family: Option<(u32, u32)>,
     pub observes_closes: bool,
     pub captures: std::collections::BTreeMap<String, Cap>,
@@ -392,8 +392,8 @@ pub(crate) struct LexicalFrame {
 #[derive(Default)]
 pub(crate) struct RestorationView {
     pub aliases: Vec<Vec<u32>>,
-    pub members: FxMap<(u32, u32), Vec<u32>>,
-    states: FxMap<u32, u32>,
+    pub members: FastMap<(u32, u32), Vec<u32>>,
+    states: FastMap<u32, u32>,
     caps: Vec<u32>,
     lexical: Vec<u32>,
 }
@@ -452,7 +452,7 @@ impl Chart {
                 }
             }
         }
-        let mut captures = FxMap::default();
+        let mut captures = FastMap::default();
         view.caps.push(0);
         for entry in self.caps.iter().skip(1) {
             work::count(Work::Walked, 1);
@@ -460,7 +460,7 @@ impl Chart {
             let next = captures.len() as u32 + 1;
             view.caps.push(*captures.entry(key).or_insert(next));
         }
-        let mut frames = FxMap::default();
+        let mut frames = FastMap::default();
         view.lexical.push(0);
         for (index, raw) in self.lexical.iter().enumerate() {
             work::count(Work::Walked, 1);
@@ -475,7 +475,7 @@ impl Chart {
             view.lexical.push(*frames.entry(key).or_insert(index as u32 + 1));
         }
         for (set, data) in self.sets.iter().enumerate() {
-            let mut found = FxMap::default();
+            let mut found = FastMap::default();
             let mut aliases = Vec::new();
             for (index, item) in data.items.iter().enumerate() {
                 work::count(Work::Walked, 1);
@@ -689,8 +689,8 @@ impl Chart {
 impl Chart {
     /// The positions of the sets that hold each item, in order. Each item
     /// counts as it is examined.
-    fn item_positions(&self) -> FxMap<Item, Vec<u32>> {
-        let mut positions: FxMap<Item, Vec<u32>> = FxMap::default();
+    fn item_positions(&self) -> FastMap<Item, Vec<u32>> {
+        let mut positions: FastMap<Item, Vec<u32>> = FastMap::default();
         for (at, eset) in self.sets.iter().enumerate() {
             for item in &eset.items {
                 work::count(Work::Walked, 1);
@@ -862,7 +862,7 @@ type ObservedToken = (SetId, Box<str>, Box<str>, Box<str>, usize, usize);
 #[derive(Debug, Default)]
 struct Contents {
     /// The newest content with each hash.
-    heads: FxMap<u64, u32>,
+    heads: FastMap<u64, u32>,
     /// For each content, the one before it with the same hash, or
     /// `u32::MAX`.
     next: Vec<u32>,
@@ -874,7 +874,7 @@ impl Contents {
     /// The number of the content of `span`, whose sources lie in `text`,
     /// which starts at `low` in the original text.
     fn number(&mut self, text: &[char], span: &[Tok], low: usize) -> u32 {
-        let mut hasher = crate::fxhash::FxHasher::default();
+        let mut hasher = crate::hash::FastHasher::default();
         text.hash(&mut hasher);
         for token in span {
             (token.tags, &token.text, &token.value, &token.image, token.source.0 - low, token.source.1 - low)
@@ -966,9 +966,9 @@ enum NestedKey {
 pub(crate) struct Shared<'a> {
     error_prefix: Vec<usize>,
     error_base: usize,
-    pattern_values: RefCell<FxMap<(usize, usize, usize), Rc<str>>>,
-    pub emission_boundaries: FxSet<(bool, u32, Sym)>,
-    pub emission_targets: FxMap<String, Sym>,
+    pattern_values: RefCell<FastMap<(usize, usize, usize), Rc<str>>>,
+    pub emission_boundaries: FastSet<(bool, u32, Sym)>,
+    pub emission_targets: FastMap<String, Sym>,
     pub boundaries: Option<Rc<RefCell<crate::boundary::Records>>>,
     pub machine: Option<Rc<RefCell<Machine>>>,
     close_demands: Arc<[crate::restoration::LocalDemand]>,
@@ -980,21 +980,21 @@ pub(crate) struct Shared<'a> {
     source_lines: OnceCell<Vec<usize>>,
     /// Whether a span parses as a rule, and its tags as it: what `matches`
     /// and `tags` read of one nested parse.
-    memo: FxMap<NestedKey, Answer>,
+    memo: FastMap<NestedKey, Answer>,
     /// The contents that the keys of the memo and of `begins` number.
     contents: Contents,
     /// Original qualified witnesses, shared by alignment constraints and endpoints.
-    qualified: FxMap<QualificationKey, Vec<QualifiedWitness>>,
+    qualified: FastMap<QualificationKey, Vec<QualifiedWitness>>,
     /// What `begins` reads, apart, since it can hold where `matches` does
     /// not.
-    begins: FxMap<NestedKey, Answer>,
+    begins: FastMap<NestedKey, Answer>,
     /// The nested parses running, by place, whatever the kind of query that
     /// started each.
-    running: FxSet<Place>,
-    suffix_keys: FxMap<SuffixKey, usize>,
+    running: FastSet<Place>,
+    suffix_keys: FastMap<SuffixKey, usize>,
     suffixes: Vec<SuffixState>,
     suffix_active: usize,
-    suffix_deps: FxMap<(usize, u32), bool>,
+    suffix_deps: FastMap<(usize, u32), bool>,
     /// Empty sets with room, kept from the charts of nested parses that
     /// finished, which later charts reuse.
     spare: Vec<ESet>,
@@ -1007,10 +1007,10 @@ impl<'a> Shared<'a> {
         Shared {
             error_prefix: Vec::new(),
             error_base: 0,
-            pattern_values: RefCell::new(FxMap::default()),
+            pattern_values: RefCell::new(FastMap::default()),
             boundaries: None,
-            emission_boundaries: FxSet::default(),
-            emission_targets: FxMap::default(),
+            emission_boundaries: FastSet::default(),
+            emission_targets: FastMap::default(),
             machine: None,
             close_demands: Arc::new([]),
             close_prefixes: Arc::new([]),
@@ -1019,15 +1019,15 @@ impl<'a> Shared<'a> {
             unicode,
             text,
             source_lines: OnceCell::new(),
-            memo: FxMap::default(),
+            memo: FastMap::default(),
             contents: Contents::default(),
-            qualified: FxMap::default(),
-            begins: FxMap::default(),
-            running: FxSet::default(),
-            suffix_keys: FxMap::default(),
+            qualified: FastMap::default(),
+            begins: FastMap::default(),
+            running: FastSet::default(),
+            suffix_keys: FastMap::default(),
             suffixes: Vec::new(),
             suffix_active: 0,
-            suffix_deps: FxMap::default(),
+            suffix_deps: FastMap::default(),
             spare: Vec::new(),
             lists: Vec::new(),
         }
@@ -1700,7 +1700,7 @@ impl<'t, 'g> Run<'t, 'g> {
         run.chart.record_links = true;
         run.chart.suffix = request.suffix.is_some() || request.contains;
         if run.chart.suffix {
-            run.chart.positions.set(FxMap::default()).expect("an empty positions cache");
+            run.chart.positions.set(FastMap::default()).expect("an empty positions cache");
         }
         run.chart.close_requested = u8::from(request.aligned.is_some());
         run.chart.family = request.aligned.and_then(|a| a.family);
@@ -4628,7 +4628,7 @@ mod tests {
             .map(|n| {
                 let mut shared = Shared::new(&pipeline.unicode, &chars);
                 // Names that share their first byte, which the table's hash
-                // must still spread (fxhash.rs).
+                // must still spread (hash.rs).
                 let names: Vec<String> = (0..n).map(|index| format!("t{index}")).collect();
                 let tokens: Vec<Tok> = names
                     .iter()

@@ -4,7 +4,7 @@
 
 use super::{closed_set_value, walk_captures, Outcome, Part, Simple};
 use crate::dom::{Cond, Term};
-use crate::fxhash::FxSet;
+use crate::hash::FastSet;
 use crate::work::{self, Work};
 use std::rc::Rc;
 
@@ -146,12 +146,12 @@ impl<'a> Reduced<'a> {
     }
 
     /// Closed-set evaluation reads the reduced term, without materializing it.
-    fn closed_set(&self) -> Option<FxSet<String>> {
+    fn closed_set(&self) -> Option<FastSet<String>> {
         let mut pending = vec![(self, false)];
-        let mut done: Vec<Option<FxSet<String>>> = Vec::new();
+        let mut done: Vec<Option<FastSet<String>>> = Vec::new();
         while let Some((value, ready)) = pending.pop() {
             if value.shape() == Outcome::Empty {
-                done.push(Some(FxSet::default()));
+                done.push(Some(FastSet::default()));
                 continue;
             }
             let compound = matches!(

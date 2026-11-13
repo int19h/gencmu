@@ -11,9 +11,9 @@ pub(super) struct SuffixKey {
 
 #[derive(Default)]
 pub(super) struct SuffixState {
-    pub(super) answers: FxMap<usize, (bool, bool)>,
-    pub(super) tags: FxMap<usize, SetId>,
-    pub(super) clean_tags: FxMap<usize, SetId>,
+    pub(super) answers: FastMap<usize, (bool, bool)>,
+    pub(super) tags: FastMap<usize, SetId>,
+    pub(super) clean_tags: FastMap<usize, SetId>,
     pub(super) retained: Option<Retained>,
     pub(super) transient: bool,
 }
@@ -33,12 +33,12 @@ fn reads_end(g: &Lowered, root: u32) -> bool {
     use crate::query_dependencies::Node;
     let plans = crate::restoration::plans_by_production(g);
     let mut pending = vec![(root, false)];
-    let mut seen = FxSet::default();
+    let mut seen = FastSet::default();
     while let Some((rule, nested)) = pending.pop() {
         if !seen.insert((rule, nested)) {
             continue;
         }
-        let mut clauses = FxSet::default();
+        let mut clauses = FastSet::default();
         let mut dependent = false;
         for &id in &g.rules[rule as usize].prods {
             let production = &g.prods[id as usize];

@@ -65,7 +65,7 @@ fn known_dom_members(dom: &Json) -> Option<Json> {
     }
 }
 
-use crate::fxhash::FxSet;
+use crate::hash::FastSet;
 use crate::json::{write_str, Json};
 use crate::tags::is_name;
 use crate::unicode::Unicode;
@@ -561,7 +561,7 @@ pub(crate) fn engine_literals(term: &Term) -> Vec<(String, usize)> {
                         .map(|(name, _)| name)
                         .filter(|name| parts.iter().all(|part| part.iter().any(|(other, _)| other == *name)))
                         .cloned()
-                        .collect::<FxSet<_>>();
+                        .collect::<FastSet<_>>();
                     values.push(parts.into_iter().flatten().filter(|(name, _)| retained.contains(name)).collect());
                 }
                 Term::Difference(..) => {

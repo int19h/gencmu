@@ -3,7 +3,7 @@
 
 use std::collections::BTreeSet;
 
-use crate::fxhash::{FxMap, FxSet};
+use crate::hash::{FastMap, FastSet};
 use std::sync::Arc;
 
 use crate::clauses::{simplify_cond, simplify_value, CondListSplit, EmitIndex, Simple, TermSplit};
@@ -234,8 +234,8 @@ pub(crate) struct Prod {
     pub syms: Vec<Sym>,
     /// Plain optional boundaries, including routes expanded for captures (§4).
     pub optionals: Vec<OptionalBoundary>,
-    pub routes: FxMap<usize, u8>,
-    pub forward_captures: FxMap<usize, String>,
+    pub routes: FastMap<usize, u8>,
+    pub forward_captures: FastMap<usize, String>,
     /// For each position, its capture slot.
     pub cap_at: Vec<Option<u32>>,
     /// For each position, the id of its symbol's test in the grammar's
@@ -248,7 +248,7 @@ pub(crate) struct Prod {
     pub emit: LEmit,
     pub strings: crate::dom::Channels,
     pub item_strings: Vec<crate::dom::Channels>,
-    pub names: FxMap<String, u32>,
+    pub names: FastMap<String, u32>,
     /// `%erased`: its constituent contributes empty value and image strings (§11).
     pub erased: bool,
     /// Conditions, each with the dot at which it is evaluated, in order of
@@ -340,11 +340,11 @@ pub(crate) struct Lowered {
     pub has_errors: bool,
     pub profile_possible: ProfilePossible,
     pub tree_demands: Arc<[crate::tree_identity::Demand]>,
-    pub tree_cases: Option<Arc<FxMap<crate::tree_identity::DemandKey, usize>>>,
+    pub tree_cases: Option<Arc<FastMap<crate::tree_identity::DemandKey, usize>>>,
     pub tree_expressions: bool,
     pub unicode: Arc<crate::unicode::Unicode>,
     pub ranked: RankedRuntime,
-    pub close_families: Arc<Vec<FxSet<u32>>>,
+    pub close_families: Arc<Vec<FastSet<u32>>>,
     pub rules: Vec<LRule>,
     pub prods: Vec<Prod>,
     pub terminals: Vec<String>,
@@ -411,13 +411,13 @@ impl std::ops::Deref for Prepared {
 
 #[derive(Debug, Clone, Default)]
 pub(crate) struct RankedRuntime {
-    pub slots: FxMap<u32, usize>,
-    pub options: FxMap<u32, usize>,
-    pub contextual: FxSet<u32>,
-    pub written: FxMap<u32, String>,
-    pub plans: FxMap<RankedPlanKey, RankedPlan>,
-    pub private_names: FxMap<u32, BTreeSet<String>>,
-    pub bindings: FxMap<u32, (Vec<String>, Vec<String>)>,
+    pub slots: FastMap<u32, usize>,
+    pub options: FastMap<u32, usize>,
+    pub contextual: FastSet<u32>,
+    pub written: FastMap<u32, String>,
+    pub plans: FastMap<RankedPlanKey, RankedPlan>,
+    pub private_names: FastMap<u32, BTreeSet<String>>,
+    pub bindings: FastMap<u32, (Vec<String>, Vec<String>)>,
 }
 
 pub(crate) type RankedPlanKey = (u32, Vec<String>, Vec<String>, Vec<String>);
@@ -490,7 +490,7 @@ type Item = (Sym, Option<String>, Option<u32>);
 struct Sequence {
     items: Vec<Item>,
     optionals: Vec<OptionalBoundary>,
-    routes: FxMap<usize, u8>,
+    routes: FastMap<usize, u8>,
     logical_width: usize,
     inherited: Option<usize>,
 }
@@ -504,7 +504,7 @@ impl Sequence {
             logical_width: 1,
             inherited: Some(0),
             optionals: Vec::new(),
-            routes: FxMap::default(),
+            routes: FastMap::default(),
         }
     }
     fn optional(&mut self, expression: usize) {
@@ -558,14 +558,14 @@ struct Lowerer<'a> {
     grammar: &'a StageGrammar,
     terminals: Vec<String>,
     characters: Vec<Option<Characters>>,
-    terminal_index: FxMap<String, u32>,
+    terminal_index: FastMap<String, u32>,
     tests: Vec<SymbolTest>,
     /// The id of each test, so that a test met again is found at once.
-    test_index: FxMap<SymbolTest, u32>,
+    test_index: FastMap<SymbolTest, u32>,
     helpers: Vec<HelperDef>,
     /// Stable occurrence numbers retain identity across route expansion.
-    optional_ids: FxMap<usize, usize>,
-    splices: FxMap<u32, Sym>,
+    optional_ids: FastMap<usize, usize>,
+    splices: FastMap<u32, Sym>,
     owner: u32,
     alternative: usize,
     /// For each place of sugar being expanded, and the alternative itself at
@@ -834,7 +834,7 @@ impl<'a> Lowerer<'a> {
                 let mut routes = vec![Sequence::new()];
                 routes.extend(self.expand(inner));
                 let nested = self.places.pop().expect("the optional's nested places");
-                let roots: FxSet<usize> = nested.into_iter().collect();
+                let roots: FastSet<usize> = nested.into_iter().collect();
                 routes
                     .into_iter()
                     .map(|route| {
@@ -988,11 +988,11 @@ fn holds_capture(expr: &Expr, include_ranked: bool) -> bool {
 struct Missing;
 
 struct Scope<'a> {
-    names: &'a FxMap<String, u32>,
+    names: &'a FastMap<String, u32>,
     cap_pos: &'a [usize],
     rules: &'a std::collections::HashMap<String, usize>,
-    query_rules: &'a FxMap<String, u32>,
-    body_targets: &'a FxMap<usize, String>,
+    query_rules: &'a FastMap<String, u32>,
+    body_targets: &'a FastMap<usize, String>,
     /// The latest position of a capture mentioned so far.
     last: Option<usize>,
     /// Whether `$` has been mentioned so far.
@@ -1209,11 +1209,11 @@ impl<'a> Scope<'a> {
 /// Lower validated stage-input conditions through the ordinary condition lowering.
 pub(crate) fn input_conditions(conditions: &[Cond]) -> Vec<(LCond, usize)> {
     let mut scope = Scope {
-        names: &FxMap::default(),
+        names: &FastMap::default(),
         cap_pos: &[],
         rules: &std::collections::HashMap::new(),
-        query_rules: &FxMap::default(),
-        body_targets: &FxMap::default(),
+        query_rules: &FastMap::default(),
+        body_targets: &FastMap::default(),
         last: None,
         whole: false,
         site: None,
@@ -1269,12 +1269,12 @@ pub(crate) fn lower(
         grammar,
         terminals: Vec::new(),
         characters: Vec::new(),
-        terminal_index: FxMap::default(),
+        terminal_index: FastMap::default(),
         tests: Vec::new(),
-        test_index: FxMap::default(),
+        test_index: FastMap::default(),
         helpers: Vec::new(),
-        optional_ids: FxMap::default(),
-        splices: FxMap::default(),
+        optional_ids: FastMap::default(),
+        splices: FastMap::default(),
         owner: 0,
         alternative: 0,
         places: Vec::new(),
@@ -1295,7 +1295,7 @@ pub(crate) fn lower(
     // the alternative as written (engine §3.5). Every helper of such an
     // alternative is contextual (§4), and its own productions drop the item
     // conditions (§3.6).
-    let item_alts: FxMap<(usize, usize), FxSet<String>> = grammar
+    let item_alts: FastMap<(usize, usize), FastSet<String>> = grammar
         .rules
         .iter()
         .enumerate()
@@ -1354,7 +1354,7 @@ pub(crate) fn lower(
             }
             let roots = lowerer.places.pop().expect("the alternative's places");
             let mut stack: Vec<usize> = roots.into_iter().rev().collect();
-            let mut numbered = FxSet::default();
+            let mut numbered = FastSet::default();
             while let Some(helper) = stack.pop() {
                 if !numbered.insert(helper) {
                     continue;
@@ -1383,7 +1383,7 @@ pub(crate) fn lower(
             elided_owner: None,
         })
         .collect();
-    let mut families = FxMap::default();
+    let mut families = FastMap::default();
     for helper in &lowerer.helpers {
         let family = *families.entry(helper.expr).or_insert(rules.len() as u32);
         rules.push(LRule {
@@ -1431,7 +1431,7 @@ pub(crate) fn lower(
     // (§3.3), decided over the structural grammar: every production made
     // so far, helpers included, before a false condition removes any, with
     // tests ignored. Every remaining alternative counts, reachable or not.
-    let erased_sequences: crate::fxhash::FxSet<usize> = order
+    let erased_sequences: crate::hash::FastSet<usize> = order
         .iter()
         .enumerate()
         .filter_map(|(index, pending)| {
@@ -1462,7 +1462,7 @@ pub(crate) fn lower(
         }
     }
 
-    let mut private_helpers: FxMap<u32, BTreeSet<String>> = FxMap::default();
+    let mut private_helpers: FastMap<u32, BTreeSet<String>> = FastMap::default();
     if !grammar.ranked.groups.is_empty() {
         let mut helper_productions = vec![Vec::new(); lowerer.helpers.len()];
         for (index, pending) in order.iter().enumerate() {
@@ -1511,7 +1511,7 @@ pub(crate) fn lower(
             .expect("a written alternative")
     };
     type IndexedConditions = (Vec<Cond>, Vec<usize>);
-    let mut common_conditions: FxMap<(u32, usize, Vec<String>), IndexedConditions> = FxMap::default();
+    let mut common_conditions: FastMap<(u32, usize, Vec<String>), IndexedConditions> = FastMap::default();
     for pending in &order {
         let Some((number, _)) = pending.source else { continue };
         let private = private_for(pending);
@@ -1542,7 +1542,7 @@ pub(crate) fn lower(
 
     // Query helpers belong to the lowered grammar. Cloning the written
     // grammar would invalidate the expression identities of ranked groups.
-    let mut query_rules = FxMap::default();
+    let mut query_rules = FastMap::default();
     let mut query_symbols = Vec::new();
     for terminal in query_terminals(grammar) {
         let rule = rules.len() as u32;
@@ -1568,9 +1568,9 @@ pub(crate) fn lower(
     // The splits of the clauses, each made when a production first needs
     // it. They are found by the place of the clause, which every
     // production of its alternatives shares.
-    let mut term_splits: FxMap<*const Term, TermSplit> = FxMap::default();
-    let mut cond_splits: FxMap<*const Vec<Cond>, CondListSplit> = FxMap::default();
-    let mut emit_indexes: FxMap<*const Vec<EmitItem>, EmitIndex> = FxMap::default();
+    let mut term_splits: FastMap<*const Term, TermSplit> = FastMap::default();
+    let mut cond_splits: FastMap<*const Vec<Cond>, CondListSplit> = FastMap::default();
+    let mut emit_indexes: FastMap<*const Vec<EmitItem>, EmitIndex> = FastMap::default();
     'productions: for pending in order {
         let syms: Vec<Sym> = pending.sequence.iter().map(|(sym, _, _)| *sym).collect();
         let tests: Vec<u32> = if pending.sequence.iter().any(|(_, _, test)| test.is_some()) {
@@ -1580,7 +1580,7 @@ pub(crate) fn lower(
         };
         let mut cap_at = vec![None; syms.len()];
         let mut cap_pos = Vec::new();
-        let mut names = FxMap::default();
+        let mut names = FastMap::default();
         for (position, (_, name, _)) in pending.sequence.iter().enumerate() {
             if let Some(name) = name {
                 cap_at[position] = Some(cap_pos.len() as u32);
@@ -1924,8 +1924,8 @@ pub(crate) fn lower(
             owner: rule,
             syms: vec![symbol],
             optionals: Vec::new(),
-            routes: FxMap::default(),
-            forward_captures: FxMap::default(),
+            routes: FastMap::default(),
+            forward_captures: FastMap::default(),
             cap_at: vec![Some(0)],
             tests: Vec::new(),
             cap_pos: vec![0],
@@ -1933,7 +1933,7 @@ pub(crate) fn lower(
             emit: LEmit::None,
             strings: Default::default(),
             item_strings: Vec::new(),
-            names: FxMap::default(),
+            names: FastMap::default(),
             erased: false,
             conds: Vec::new(),
             cond_at: vec![0; 3],
@@ -2111,15 +2111,15 @@ fn reads_by_passes(prods: &[Prod], reads: &mut [bool]) {
 fn ranked_runtime(
     grammar: &StageGrammar,
     lowered: &Lowered,
-    query_rules: &FxMap<String, u32>,
-    item_alts: &FxMap<(usize, usize), FxSet<String>>,
+    query_rules: &FastMap<String, u32>,
+    item_alts: &FastMap<(usize, usize), FastSet<String>>,
 ) -> RankedRuntime {
     if grammar.ranked.groups.is_empty() && item_alts.is_empty() {
         return RankedRuntime::default();
     }
     let mut runtime = RankedRuntime::default();
     let condition_offsets = crate::boundary::condition_offsets(grammar);
-    let mut source_private: FxMap<(usize, usize), BTreeSet<String>> = FxMap::default();
+    let mut source_private: FastMap<(usize, usize), BTreeSet<String>> = FastMap::default();
     for group in &grammar.ranked.groups {
         source_private.entry(group.source).or_default().extend(group.names.iter().cloned());
     }
@@ -2146,7 +2146,7 @@ fn ranked_runtime(
     }
     let nested = |p: &Prod| {
         let mut names = BTreeSet::new();
-        let mut visited = FxSet::default();
+        let mut visited = FastSet::default();
         let mut pending: Vec<u32> = p
             .syms
             .iter()
@@ -2187,7 +2187,7 @@ fn ranked_runtime(
         let known = runtime.private_names.get(&(id as u32)).into_iter().flatten().cloned().collect();
         runtime.bindings.insert(id as u32, (declared.into_iter().collect(), known));
     }
-    let mut incoming = FxSet::default();
+    let mut incoming = FastSet::default();
     let mut queue = Vec::new();
     for p in &lowered.prods {
         if p.rule as usize >= grammar.rules.len() {
@@ -2227,9 +2227,9 @@ fn ranked_runtime(
             let p = &lowered.prods[id as usize];
             let slot = p.slot.as_ref().expect("a contextual helper source");
             let source = &grammar.rules[slot.source.0].alternatives[slot.source.1];
-            let local: FxMap<String, u32> =
+            let local: FastMap<String, u32> =
                 slot.names.iter().enumerate().filter_map(|(i, n)| n.as_ref().map(|n| (n.clone(), i as u32))).collect();
-            let mut names: FxMap<String, u32> = prefix.iter().map(|name| (name.clone(), u32::MAX)).collect();
+            let mut names: FastMap<String, u32> = prefix.iter().map(|name| (name.clone(), u32::MAX)).collect();
             names.extend(local.clone());
             let has = |name: &str| name.is_empty() || names.contains_key(name);
             let mut scope = Scope {
@@ -2331,7 +2331,7 @@ fn ranked_runtime(
                 }
             }
             let private_source = source_private.get(&slot.source);
-            let public: FxMap<String, u32> = prefix
+            let public: FastMap<String, u32> = prefix
                 .iter()
                 .filter(|name| !private_source.is_some_and(|private| private.contains(*name)))
                 .map(|name| (name.clone(), u32::MAX))
@@ -2467,7 +2467,7 @@ fn cycles(rules: &[LRule], prods: &[Prod]) -> Vec<Option<u32>> {
     let count = rules.len();
     let nullable = nullable_rules(count, prods.iter().map(|production| (production.rule, production.syms.as_slice())));
     let mut edges: Vec<Vec<u32>> = vec![Vec::new(); count];
-    let mut seen: FxSet<(u32, u32)> = FxSet::default();
+    let mut seen: FastSet<(u32, u32)> = FastSet::default();
     for production in prods {
         // Each test of a symbol counts before it is made, so a search that
         // tests more symbols counts more.
@@ -2599,7 +2599,7 @@ fn query_terminals(grammar: &StageGrammar) -> BTreeSet<String> {
     let mut stack = Vec::new();
     let result: BTreeSet<String> =
         grammar.query_targets.values().filter(|name| is_terminal_name(name)).cloned().collect();
-    let mut seen = FxSet::default();
+    let mut seen = FastSet::default();
     for rule in &grammar.rules {
         for a in &rule.alternatives {
             stack.extend(a.alternative.tags.iter().map(Part::T));

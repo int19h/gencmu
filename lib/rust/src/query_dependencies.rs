@@ -1,5 +1,5 @@
 //! Shared clause walks for query dependencies (engine §4.3).
-use crate::fxhash::{FxMap, FxSet};
+use crate::hash::{FastMap, FastSet};
 use crate::lower::{LCond, LEmit, LEmitItem, LTerm, Lowered, Prod, RankedPlan, Span, Sym};
 use crate::work::{self, Work};
 
@@ -73,7 +73,7 @@ impl Node<'_> {
 pub(crate) fn walk<'a>(
     production: &'a Prod,
     plans: &[&'a RankedPlan],
-    seen: &mut FxSet<(u8, usize)>,
+    seen: &mut FastSet<(u8, usize)>,
     mut visit: impl FnMut(Node<'a>),
 ) {
     let mut pending: Vec<_> = production.conds.iter().map(|(condition, _)| Node::Condition(condition)).collect();
@@ -106,12 +106,12 @@ pub(crate) fn walk<'a>(
 
 pub(crate) fn carried(g: &Lowered) -> Vec<bool> {
     let plans = crate::restoration::plans_by_production(g);
-    let mut users: FxMap<u32, Vec<usize>> = FxMap::default();
+    let mut users: FastMap<u32, Vec<usize>> = FastMap::default();
     let mut dependent = vec![false; g.rules.len()];
     let mut ready = Vec::new();
     for (id, rule) in g.rules.iter().enumerate() {
-        let mut targets = FxSet::default();
-        let mut seen = FxSet::default();
+        let mut targets = FastSet::default();
+        let mut seen = FastSet::default();
         for &number in &rule.prods {
             work::count(Work::Lowered, 1);
             let production = &g.prods[number as usize];

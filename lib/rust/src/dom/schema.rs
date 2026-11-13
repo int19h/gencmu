@@ -226,7 +226,7 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
     }
     let rule = |name: &str| rule_name(name, unicode, expanded);
     let mut pending = Vec::new();
-    let mut positions = FxSet::default();
+    let mut positions = FastSet::default();
     for name in ["rules", "directives", "constants", "classifiers", "implications"] {
         let Some(items) = dom.get(name).and_then(Json::as_array) else {
             return Some("missing declaration array".into());
@@ -387,7 +387,7 @@ pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -
                         else {
                             return Some("an empty emission list".into());
                         };
-                        let mut names = FxSet::default();
+                        let mut names = FastSet::default();
                         for output in items {
                             let capture = output.get("capture").and_then(Json::as_str);
                             let insert = is_true(output.get("insert"));
@@ -1179,7 +1179,7 @@ fn json_boundary_atoms(value: &Json) -> Vec<&Json> {
     found
 }
 fn boundary_problem(rule: &Json) -> Option<&'static str> {
-    let mut allowed = FxSet::default();
+    let mut allowed = FastSet::default();
     for condition in rule.get("conditions").and_then(Json::as_array).unwrap_or(&[]) {
         let atoms = json_boundary_atoms(condition);
         if atoms.len() > 1 {

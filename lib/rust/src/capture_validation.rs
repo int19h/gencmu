@@ -33,7 +33,7 @@ fn flat<T: Clone>(tree: &Link<T>) -> Vec<T> {
     out
 }
 struct Presence<'a> {
-    names: FxSet<&'a str>,
+    names: FastSet<&'a str>,
     order: Vec<&'a str>,
 }
 #[derive(Clone)]
@@ -92,11 +92,16 @@ fn pick<'a>(into: &mut States<'a>, state: usize, w: Witness<'a>) {
         into[state] = Some(w);
     }
 }
-fn query<'a>(expr: &'a Expr, required: &FxSet<&str>, forbidden: &FxSet<&str>, order: &[&str]) -> Option<Witness<'a>> {
+fn query<'a>(
+    expr: &'a Expr,
+    required: &FastSet<&str>,
+    forbidden: &FastSet<&str>,
+    order: &[&str],
+) -> Option<Witness<'a>> {
     if forbidden.contains("") || required.iter().any(|n| forbidden.contains(n)) {
         return None;
     }
-    fn visit<'a>(e: &'a Expr, yes: &FxSet<&str>, no: &FxSet<&str>, order: &[&str]) -> States<'a> {
+    fn visit<'a>(e: &'a Expr, yes: &FastSet<&str>, no: &FastSet<&str>, order: &[&str]) -> States<'a> {
         work::count(Work::Checked, 1);
         let mut out = states();
         match e {
@@ -197,7 +202,7 @@ fn query<'a>(expr: &'a Expr, required: &FxSet<&str>, forbidden: &FxSet<&str>, or
         return None;
     }
     let order = flat(&w.names);
-    let mut names: FxSet<_> = order.iter().copied().collect();
+    let mut names: FastSet<_> = order.iter().copied().collect();
     names.insert("");
     w.present = Some(Arc::new(Presence { names, order }));
     Some(w)
@@ -248,7 +253,7 @@ struct PartialClause<'a> {
     reduced: Vec<super::Reduced<'a>>,
     condition: bool,
     affected: Vec<Vec<usize>>,
-    guard_ids: FxMap<&'a str, usize>,
+    guard_ids: FastMap<&'a str, usize>,
     assigned: Vec<Option<bool>>,
     dirty: Vec<bool>,
     pending: Vec<usize>,
@@ -257,7 +262,7 @@ impl<'a> PartialClause<'a> {
     fn new(root: Part<'a>) -> Self {
         let mut nodes: Vec<PartialNode<'a>> = Vec::new();
         let mut reduced = Vec::new();
-        let mut guard_ids = FxMap::default();
+        let mut guard_ids = FastMap::default();
         let mut assigned = Vec::new();
         let mut pending = vec![(root, false)];
         let mut done = Vec::new();
@@ -448,7 +453,7 @@ impl<'a> Queries<'a> {
 fn independent_choices(expr: &Expr) -> Option<Vec<Vec<&str>>> {
     let mut branches = vec![expr];
     let mut witnesses: Vec<Vec<&str>> = Vec::new();
-    let mut seen = FxSet::default();
+    let mut seen = FastSet::default();
     while let Some(expr) = branches.pop() {
         match expr {
             Expr::Choice(items) | Expr::Ranked(items, _) => {
@@ -595,7 +600,7 @@ pub(super) fn captures(rule: &RuleDef, alternative: usize) -> Vec<Vec<&str>> {
         }
     }
     q.witnesses.sort_by_cached_key(|w| flat(&w.key));
-    let mut seen = FxSet::default();
+    let mut seen = FastSet::default();
     q.witnesses
         .into_iter()
         .map(|w| w.present.as_ref().expect("a completed query witness").order.clone())

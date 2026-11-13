@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use crate::dom::{ClassifierDef, ConstDef, Directive, Dom, ImplicationDef, RuleDef};
 use crate::error::{Error, SpliceProblem};
-use crate::fxhash::{FxMap, FxSet};
+use crate::hash::{FastMap, FastSet};
 use crate::work::{self, Work};
 
 /// An item of a document: a rule, a directive, a constant's definition, a
@@ -135,9 +135,9 @@ struct Splicer<'d> {
     /// The documents on the chain of includes, the stages' names with
     /// where each is in `stages`, and the features listed, so that a
     /// check of one is not a scan.
-    on_chain: FxSet<Arc<str>>,
-    stage_index: FxMap<String, usize>,
-    feature_set: FxSet<String>,
+    on_chain: FastSet<Arc<str>>,
+    stage_index: FastMap<String, usize>,
+    feature_set: FastSet<String>,
     /// Whether the last item placed went into the stage's last run: an
     /// include or a stage selector ends a run.
     open_run: bool,
@@ -317,9 +317,9 @@ pub(crate) fn splice(path: &str, documents: &mut dyn Documents) -> Result<Splice
         documents,
         stages: Vec::new(),
         features: Vec::new(),
-        on_chain: FxSet::default(),
-        stage_index: FxMap::default(),
-        feature_set: FxSet::default(),
+        on_chain: FastSet::default(),
+        stage_index: FastMap::default(),
+        feature_set: FastSet::default(),
         open_run: false,
         selected: None,
     };
@@ -343,7 +343,7 @@ pub(crate) fn splice(path: &str, documents: &mut dyn Documents) -> Result<Splice
             return Err(error);
         }
     }
-    let mut owners = FxMap::default();
+    let mut owners = FastMap::default();
     for item in &splicer.declarations {
         if item.generation != splicer.generations[item.stage] {
             continue;

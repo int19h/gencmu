@@ -12,7 +12,7 @@ fn parameter(name: &str) -> bool {
 }
 
 pub(super) fn head<'a>(item: &'a Json, pending: &mut Vec<(Part, &'a Json, usize)>) -> Option<&'static str> {
-    let mut scope = FxSet::default();
+    let mut scope = FastSet::default();
     if let Some(params) = item.get("params") {
         let Some(params) = params.as_array().filter(|xs| !xs.is_empty()) else {
             return Some("malformed template parameters");

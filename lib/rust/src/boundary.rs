@@ -1,5 +1,5 @@
 //! Finite complete-tree boundary records (engine §4.2).
-use crate::fxhash::{FxMap, FxSet};
+use crate::hash::{FastMap, FastSet};
 use crate::lower::{LCond, Lowered};
 use std::collections::BTreeSet;
 
@@ -88,10 +88,10 @@ impl Record {
 #[derive(Debug, Clone)]
 pub(crate) struct Records {
     pub records: Vec<Record>,
-    index: FxMap<Record, u32>,
+    index: FastMap<Record, u32>,
     pub literals: Vec<Literal>,
-    literal_index: FxMap<Literal, u32>,
-    names: FxMap<String, u32>,
+    literal_index: FastMap<Literal, u32>,
+    names: FastMap<String, u32>,
     forward: Bits,
     backward: Bits,
 }
@@ -117,10 +117,10 @@ impl Records {
     pub fn new(g: &Lowered) -> Option<Self> {
         let mut out = Self {
             records: vec![],
-            index: FxMap::default(),
+            index: FastMap::default(),
             literals: vec![],
-            literal_index: FxMap::default(),
-            names: FxMap::default(),
+            literal_index: FastMap::default(),
+            names: FastMap::default(),
             forward: Bits::new(),
             backward: Bits::new(),
         };
@@ -361,24 +361,24 @@ pub(crate) struct Site {
     pub rule: u32,
     pub condition: usize,
 }
-pub(crate) fn condition_offsets(g: &crate::grammar::StageGrammar) -> FxMap<usize, usize> {
+pub(crate) fn condition_offsets(g: &crate::grammar::StageGrammar) -> FastMap<usize, usize> {
     condition_sites(g).0
 }
 pub(crate) struct GuardSite {
     pub alternative: Option<usize>,
     pub condition: usize,
 }
-type GuardSites = FxMap<usize, FxMap<usize, GuardSite>>;
+type GuardSites = FastMap<usize, FastMap<usize, GuardSite>>;
 pub(crate) fn guard_identity(atom: &crate::dom::Cond) -> usize {
     let crate::dom::Cond::Boundary(_, _, _, source) = atom else { unreachable!("a boundary atom") };
     std::sync::Arc::as_ptr(source) as usize
 }
-pub(crate) fn condition_sites(g: &crate::grammar::StageGrammar) -> (FxMap<usize, usize>, GuardSites) {
-    let mut offsets = FxMap::default();
-    let mut guard_sites = FxMap::default();
+pub(crate) fn condition_sites(g: &crate::grammar::StageGrammar) -> (FastMap<usize, usize>, GuardSites) {
+    let mut offsets = FastMap::default();
+    let mut guard_sites = FastMap::default();
     for rule in &g.rules {
         let mut count = 0;
-        let mut definitions = FxMap::default();
+        let mut definitions = FastMap::default();
         let mut order = Vec::new();
         for (alternative, alt) in rule.alternatives.iter().enumerate() {
             let key = std::sync::Arc::as_ptr(&alt.clauses) as usize;
@@ -392,8 +392,8 @@ pub(crate) fn condition_sites(g: &crate::grammar::StageGrammar) -> (FxMap<usize,
             let clauses = &alternatives[0].1.clauses;
             offsets.insert(key, count);
             count += clauses.conditions.len();
-            let mut seen: FxSet<usize> = clauses.conditions.iter().flat_map(dom_atoms).map(guard_identity).collect();
-            let sites = guard_sites.entry(key).or_insert_with(FxMap::default);
+            let mut seen: FastSet<usize> = clauses.conditions.iter().flat_map(dom_atoms).map(guard_identity).collect();
+            let sites = guard_sites.entry(key).or_insert_with(FastMap::default);
             for (alternative, alt) in alternatives {
                 for (owner, term) in clauses
                     .tags
@@ -428,8 +428,8 @@ struct Source {
 }
 #[derive(Debug, Clone, Default)]
 pub(crate) struct Annotations {
-    pub start: FxMap<u32, u32>,
-    pub end: FxMap<u32, u32>,
+    pub start: FastMap<u32, u32>,
+    pub end: FastMap<u32, u32>,
 }
 #[derive(Debug)]
 pub(crate) struct Failure {
@@ -448,13 +448,13 @@ impl Sources {
         self.nodes[id as usize].parents.extend(inputs);
         id
     }
-    pub fn add(&mut self, map: &mut FxMap<u32, u32>, literal: u32, site: Option<Site>) {
+    pub fn add(&mut self, map: &mut FastMap<u32, u32>, literal: u32, site: Option<Site>) {
         let id = *map.entry(literal).or_insert_with(|| self.node());
         if let Some(site) = site {
             self.nodes[id as usize].sites.insert(site);
         }
     }
-    fn select(&mut self, bits: &Bits, inputs: &[&FxMap<u32, u32>]) -> FxMap<u32, u32> {
+    fn select(&mut self, bits: &Bits, inputs: &[&FastMap<u32, u32>]) -> FastMap<u32, u32> {
         bits.iter()
             .map(|literal| {
                 let id = self.join(inputs.iter().filter_map(|m| m.get(&literal).copied()));
@@ -493,7 +493,7 @@ impl Sources {
     }
     pub fn sites(&self, id: u32) -> BTreeSet<Site> {
         let mut sites = BTreeSet::new();
-        let mut seen = FxSet::default();
+        let mut seen = FastSet::default();
         let mut stack = vec![id];
         while let Some(id) = stack.pop() {
             if !seen.insert(id) {
@@ -566,10 +566,10 @@ pub(crate) fn definition_problem(rule: &crate::dom::RuleDef) -> Option<(String, 
 }
 
 /// Reach through body references, regardless of gates and conditions.
-fn reach(g: &crate::grammar::StageGrammar, roots: Vec<String>) -> (FxSet<String>, FxSet<String>) {
+fn reach(g: &crate::grammar::StageGrammar, roots: Vec<String>) -> (FastSet<String>, FastSet<String>) {
     use crate::dom::Expr;
-    let mut rules = FxSet::default();
-    let mut terminals = FxSet::default();
+    let mut rules = FastSet::default();
+    let mut terminals = FastSet::default();
     let mut pending = roots;
     while let Some(name) = pending.pop() {
         if crate::grammar::is_terminal_name(&name) {
@@ -610,7 +610,7 @@ pub(crate) fn reachable(g: &crate::grammar::StageGrammar) -> Result<(), crate::e
     }
     let mut atoms = vec![];
     let mut roots = vec!["text".to_string()];
-    let mut seen = FxSet::default();
+    let mut seen = FastSet::default();
     for rule in &g.rules {
         for alt in &rule.alternatives {
             let mut stack = vec![];

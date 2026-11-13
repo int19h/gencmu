@@ -5,7 +5,7 @@
 use std::cell::RefCell;
 use std::sync::Arc;
 
-use crate::fxhash::FxMap;
+use crate::hash::FastMap;
 use crate::unicode::Unicode;
 use crate::work::{self, Mutant, Work};
 
@@ -18,11 +18,11 @@ pub(crate) type TagList = Vec<TagId>;
 #[derive(Debug, Default)]
 pub(crate) struct Tags {
     names: Vec<String>,
-    index: FxMap<String, TagId>,
+    index: FastMap<String, TagId>,
     /// The sets, each shared, so that a term can read one without a copy.
     sets: Vec<Arc<TagList>>,
-    set_index: FxMap<Arc<TagList>, SetId>,
-    public_sets: RefCell<FxMap<SetId, crate::result::Tags>>,
+    set_index: FastMap<Arc<TagList>, SetId>,
+    public_sets: RefCell<FastMap<SetId, crate::result::Tags>>,
 }
 
 impl Tags {

@@ -2,8 +2,8 @@
 
 use crate::dom::Expr;
 use crate::error::Error;
-use crate::fxhash::FxMap;
 use crate::grammar::StageGrammar;
+use crate::hash::FastMap;
 use crate::work::{self, Work};
 
 #[derive(Clone, Copy)]
@@ -26,7 +26,12 @@ struct Node {
     users: Vec<usize>,
 }
 
-fn intern<'a>(site: Site<'a>, sites: &mut Vec<Site<'a>>, nodes: &mut Vec<Node>, seen: &mut FxMap<Key, usize>) -> usize {
+fn intern<'a>(
+    site: Site<'a>,
+    sites: &mut Vec<Site<'a>>,
+    nodes: &mut Vec<Node>,
+    seen: &mut FastMap<Key, usize>,
+) -> usize {
     work::count(Work::Walked, 1);
     let key = match site {
         Site::Rule(rule) => Key::Rule(rule),
@@ -45,7 +50,7 @@ fn intern<'a>(site: Site<'a>, sites: &mut Vec<Site<'a>>, nodes: &mut Vec<Node>, 
 pub(crate) fn check(grammar: &StageGrammar) -> Result<(), Error> {
     let mut sites = Vec::new();
     let mut nodes = Vec::new();
-    let mut seen = FxMap::default();
+    let mut seen = FastMap::default();
     let mut errors = Vec::new();
     for rule in &grammar.rules {
         for alternative in &rule.alternatives {

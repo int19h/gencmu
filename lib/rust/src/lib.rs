@@ -55,9 +55,9 @@ mod eligible;
 mod erasure_audit;
 mod error;
 pub use erasure_audit::{ErasureReport, IdleErasure};
-mod fxhash;
 mod grammar;
 mod guarded_tags;
+mod hash;
 pub use diagnostic_audit::DiagnosticNote;
 #[doc(hidden)]
 pub use diagnostics::with_diagnostic_messages;

@@ -1,7 +1,7 @@
 //! Selected string recipes and their dependencies (engine §11).
 use crate::dom::{Arg, Channels, Term};
 use crate::earley::{EngineError, Tok};
-use crate::fxhash::FxSet;
+use crate::hash::FastSet;
 use crate::lower::Lowered;
 use crate::tree::{IKind, ITree, Sources};
 
@@ -28,7 +28,7 @@ pub(crate) struct Strings<'a> {
     unicode: &'a crate::unicode::Unicode,
     observing: bool,
     covered: Vec<bool>,
-    claims: FxSet<(usize, usize)>,
+    claims: FastSet<(usize, usize)>,
     claim_points: Vec<usize>,
     claimed_cells: Vec<bool>,
     saved: Vec<[Option<String>; 2]>,
@@ -53,7 +53,7 @@ impl<'a> Strings<'a> {
             unicode,
             observing: false,
             covered: Vec::new(),
-            claims: FxSet::default(),
+            claims: FastSet::default(),
             claim_points: Vec::new(),
             claimed_cells: Vec::new(),
             saved: vec![[None, None]; tree.nodes.len()],

@@ -1,5 +1,5 @@
 //! Exact structural observations for compared occurrences (engine §4.1).
-use crate::fxhash::{FxMap, FxSet};
+use crate::hash::{FastMap, FastSet};
 use crate::lower::{LCond, LTerm, Lowered, Span, Sym};
 use std::collections::BTreeSet;
 
@@ -54,26 +54,26 @@ impl Default for Tree {
 #[derive(Debug)]
 pub(crate) struct Arena {
     nodes: Vec<Node>,
-    node_ids: FxMap<Node, u32>,
+    node_ids: FastMap<Node, u32>,
     sequences: Vec<(u32, u32)>,
-    sequence_ids: FxMap<(u32, u32), u32>,
-    concatenations: FxMap<(u32, u32), u32>,
-    seals: FxMap<(usize, usize), u32>,
+    sequence_ids: FastMap<(u32, u32), u32>,
+    concatenations: FastMap<(u32, u32), u32>,
+    seals: FastMap<(usize, usize), u32>,
     states: Vec<Tree>,
-    state_ids: FxMap<Tree, u32>,
+    state_ids: FastMap<Tree, u32>,
 }
 
 impl Arena {
     pub(crate) fn new() -> Self {
         Self {
             nodes: Vec::new(),
-            node_ids: FxMap::default(),
+            node_ids: FastMap::default(),
             sequences: vec![(0, 0)],
-            sequence_ids: FxMap::default(),
-            concatenations: FxMap::default(),
-            seals: FxMap::default(),
+            sequence_ids: FastMap::default(),
+            concatenations: FastMap::default(),
+            seals: FastMap::default(),
             states: vec![Tree::default()],
-            state_ids: FxMap::default(),
+            state_ids: FastMap::default(),
         }
     }
 
@@ -169,7 +169,7 @@ impl Arena {
 #[derive(Debug, Clone, Default)]
 pub(crate) struct Demand {
     pub whole: bool,
-    pub captures: FxSet<u32>,
+    pub captures: FastSet<u32>,
     pub lexical: BTreeSet<String>,
     parent_prefix: bool,
     pub prefix_until: usize,
@@ -254,7 +254,7 @@ fn demand_state(
     prod: u32,
     ctx: Context,
     states: &mut Vec<DemandState>,
-    indexed: &mut FxMap<DemandKey, usize>,
+    indexed: &mut FastMap<DemandKey, usize>,
 ) -> usize {
     let key = DemandKey::context(prod, &ctx);
     if let Some(&id) = indexed.get(&key) {
@@ -302,9 +302,9 @@ fn demand_state(
     id
 }
 
-pub(crate) fn demands(g: &Lowered) -> (Vec<Demand>, FxMap<DemandKey, usize>) {
+pub(crate) fn demands(g: &Lowered) -> (Vec<Demand>, FastMap<DemandKey, usize>) {
     let mut states = vec![];
-    let mut indexed = FxMap::default();
+    let mut indexed = FastMap::default();
     for (id, p) in g.prods.iter().enumerate() {
         if !g.ranked.contextual.contains(&p.rule) {
             demand_state(g, id as u32, Context::default(), &mut states, &mut indexed);
@@ -361,7 +361,7 @@ pub(crate) fn case_indices(
     ready: &[String],
     known: &[String],
     inside: bool,
-) -> Option<FxMap<u32, usize>> {
+) -> Option<std::collections::BTreeMap<u32, usize>> {
     if g.tree_demands.is_empty() {
         return None;
     }
@@ -470,15 +470,15 @@ fn enter(g: &Lowered, id: u32, context: &Context, queue: &mut Vec<Context>) {
 pub(crate) fn check_cycles(
     g: &Lowered,
     rows: &[(u32, Vec<Sym>)],
-    erased: &FxSet<usize>,
+    erased: &FastSet<usize>,
     grammar: &crate::grammar::StageGrammar,
 ) -> Result<(), crate::lower::LowerError> {
     use crate::clauses::Part;
     let stage = &grammar.name;
-    let mut order = FxMap::default();
+    let mut order = FastMap::default();
     let mut next_order = 0;
     for (owner, rule) in grammar.rules.iter().enumerate() {
-        let mut groups = FxMap::<usize, Vec<_>>::default();
+        let mut groups = FastMap::<usize, Vec<_>>::default();
         let mut definitions = Vec::new();
         for alternative in &rule.alternatives {
             let key = std::sync::Arc::as_ptr(&alternative.clauses) as usize;
@@ -580,7 +580,7 @@ pub(crate) fn check_cycles(
             enter(g, id as u32, &Context::default(), &mut queue);
         }
     }
-    let mut seen = FxSet::default();
+    let mut seen = FastSet::default();
     let mut at = 0;
     while let Some(context) = queue.get(at).cloned() {
         at += 1;
@@ -614,7 +614,7 @@ pub(crate) fn check_cycles(
     });
     for (id, at, roots) in sites {
         let mut reachable = Vec::new();
-        let mut known = FxSet::default();
+        let mut known = FastSet::default();
         let mut pending: Vec<_> = roots.into_iter().rev().collect();
         while let Some(rule) = pending.pop() {
             if !known.insert(rule) {
@@ -623,8 +623,8 @@ pub(crate) fn check_cycles(
             reachable.push(rule);
             pending.extend(edges[rule as usize].iter().rev().map(|(rule, _)| *rule));
         }
-        let mut done = FxSet::default();
-        let mut active = FxMap::default();
+        let mut done = FastSet::default();
+        let mut active = FastMap::default();
         let mut path = Vec::new();
         for root in reachable {
             if done.contains(&root) {
@@ -690,7 +690,7 @@ fn emission_identity(
     root: u32,
     working: bool,
     arena: &mut Arena,
-    memo: &mut FxMap<(u32, bool), Tree>,
+    memo: &mut FastMap<(u32, bool), Tree>,
 ) -> Tree {
     use crate::tree::IKind;
     let mut pending = vec![(root, false)];
@@ -777,7 +777,7 @@ pub(crate) fn emission_scope(
     term: &LTerm,
     tokens: &[crate::earley::Tok],
     machine: &mut Option<std::rc::Rc<std::cell::RefCell<crate::patterns::Machine>>>,
-    memo: &mut FxMap<(u32, bool), Tree>,
+    memo: &mut FastMap<(u32, bool), Tree>,
 ) -> Option<EmissionScope> {
     let mut reads = Vec::new();
     term_comparisons(term, &mut reads);
@@ -821,7 +821,7 @@ pub(crate) fn emission_scope(
 #[cfg(test)]
 mod sealed_tests {
     use super::{emission_identity, Arena, Node};
-    use crate::fxhash::FxMap;
+    use crate::hash::FastMap;
     #[test]
     fn own_emission_identity_keeps_its_working_root() {
         // Engine §4.1: private and exported identities retain separate caches.
@@ -860,7 +860,7 @@ mod sealed_tests {
             warnings: Vec::new(),
         };
         let mut arena = Arena::new();
-        let mut memo = FxMap::default();
+        let mut memo = FastMap::default();
         let exported = emission_identity(&g, &tree, std::slice::from_ref(&token), 0, false, &mut arena, &mut memo);
         let private = emission_identity(&g, &tree, std::slice::from_ref(&token), 0, true, &mut arena, &mut memo);
         assert_ne!(exported.identity, private.identity);

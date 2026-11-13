@@ -6,7 +6,7 @@ use crate::dom::{
     Directive, Dom, EmitItem, Entry, Expr, FeatureKind, Gate, ImplicationDef, Mark, Op, RuleDef, Term, Type,
 };
 use crate::error::Error;
-use crate::fxhash::{FxMap, FxSet};
+use crate::hash::{FastMap, FastSet};
 use crate::result::{Node, NodeKind, Token};
 use crate::work::{self, Work};
 mod calls;
@@ -16,9 +16,9 @@ mod normalize;
 mod patterns;
 
 pub(crate) struct Reader<'a> {
-    pub unresolved_nodes: std::cell::RefCell<FxMap<usize, bool>>,
-    pub parts_cache: std::cell::RefCell<FxMap<usize, Vec<&'a Node>>>,
-    pub parameters: std::cell::RefCell<FxSet<String>>,
+    pub unresolved_nodes: std::cell::RefCell<FastMap<usize, bool>>,
+    pub parts_cache: std::cell::RefCell<FastMap<usize, Vec<&'a Node>>>,
+    pub parameters: std::cell::RefCell<FastSet<String>>,
     pub reading_head: std::cell::Cell<bool>,
     pub unresolved: std::cell::Cell<bool>,
     pub unicode: &'a crate::unicode::Unicode,
@@ -27,7 +27,7 @@ pub(crate) struct Reader<'a> {
     pub tokens: &'a [Token],
     pub strings: &'a crate::string_escapes::DocumentStrings<'a>,
     /// Each capture's boxed target identifies its source node.
-    pub captures: std::cell::RefCell<FxMap<usize, &'a Node>>,
+    pub captures: std::cell::RefCell<FastMap<usize, &'a Node>>,
     /// Whether the innermost braces around the construct being read are a
     /// chain, where no capture stands, or flat braces, where a capture is an
     /// item capture, and how many ranked groups stand between those braces
@@ -38,12 +38,12 @@ pub(crate) struct Reader<'a> {
     pub item: std::cell::Cell<bool>,
     pub ranked: std::cell::Cell<usize>,
     pub marked: std::cell::Cell<usize>,
-    pub allowed_marked: std::cell::RefCell<FxSet<usize>>,
+    pub allowed_marked: std::cell::RefCell<FastSet<usize>>,
     /// The document position of a grammar-text index.
     pub position: &'a dyn Fn(usize) -> (usize, usize),
     /// The source identity of the current elidable head.
     pub default_head: std::cell::Cell<usize>,
-    pub head_defaults: std::cell::RefCell<FxMap<usize, crate::dom::DefaultValue>>,
+    pub head_defaults: std::cell::RefCell<FastMap<usize, crate::dom::DefaultValue>>,
     pub in_recipe: std::cell::Cell<bool>,
     /// The closed operand that the reader currently reads (engine §9, §10).
     pub closed_for: std::cell::Cell<Option<&'static str>>,
@@ -665,7 +665,7 @@ impl<'a> Reader<'a> {
         let items = crate::clauses::item_capture_names(&expr);
         if !items.is_empty() {
             let captures = self.captures.borrow();
-            let mut seen: FxMap<&str, &Node> = FxMap::default();
+            let mut seen: FastMap<&str, &Node> = FastMap::default();
             let mut capture_targets = Vec::new();
             let mut pending = vec![&expr];
             while let Some(node) = pending.pop() {
@@ -2497,7 +2497,7 @@ impl<'a> Reader<'a> {
                 None => EmitItem::Insert(tags, strings),
             });
         }
-        let mut named = FxSet::default();
+        let mut named = FastSet::default();
         for item in &items {
             if let EmitItem::Capture(name, _, attachments) = item {
                 for name in attachments.before.iter().chain(std::iter::once(name)).chain(&attachments.after) {
