@@ -772,56 +772,103 @@ impl<'a> TermSplit<'a> {
 
 /// How one condition of a list simplifies for each production: as a `∧`
 /// or a `∨` split into its parts, or whole.
-enum CondParts<'a> {
-    All(Split<'a, &'a Cond, Simple>),
-    Any(Split<'a, &'a Cond, Simple>),
+enum CondParts<'a, T> {
+    Fixed(T),
+    Guarded(&'a str, T),
+    All(Split<'a, &'a Cond, T>),
+    Any(Split<'a, &'a Cond, T>),
     Whole(&'a Cond),
 }
 
-impl<'a> CondParts<'a> {
-    fn new(cond: &'a Cond) -> CondParts<'a> {
-        let fixed = |part: &'a Cond| simplify_cond(part, &no_presence);
-        let know = |part| know_cond(part, &fixed);
-        match cond {
-            Cond::All(items) => CondParts::All(Split::new(items, know, |_| false)),
-            Cond::Any(items) => CondParts::Any(Split::new(items, know, |_| false)),
-            cond => CondParts::Whole(cond),
+impl<'a, T> CondParts<'a, T> {
+    /// Classifies a condition once, using the caller's representation of
+    /// a presence-free result. Lowering and checks use this same split.
+    fn prepare(cond: &'a Cond, fixed: &dyn Fn(&'a Cond) -> T) -> Self {
+        let know = |part| know_cond(part, fixed);
+        match know(cond) {
+            Known::Fixed(value) => Self::Fixed(value),
+            Known::Guarded(name, value) => Self::Guarded(name, value),
+            Known::Needs(..) => unreachable!("a condition part needs no capture"),
+            Known::Other => match cond {
+                Cond::All(items) => Self::All(Split::new(items, know, |_| false)),
+                Cond::Any(items) => Self::Any(Split::new(items, know, |_| false)),
+                cond => Self::Whole(cond),
+            },
         }
     }
 
-    /// The condition simplified for a production, as `simplify_cond`
-    /// gives it.
-    fn simplify<'n>(&self, own: impl Iterator<Item = &'n str>, has: &dyn Fn(&str) -> bool) -> Simple {
+    /// Evaluates selected parts in written order. The result decides a
+    /// junction with `stop`, or joins the remaining parts with `join`.
+    fn evaluate<'n, R: PartialEq>(
+        &self,
+        own: impl Iterator<Item = &'n str>,
+        has: &dyn Fn(&str) -> bool,
+        fixed: impl Fn(&T) -> R,
+        whole: impl Fn(&'a Cond) -> R,
+        truth: impl Fn(bool) -> R,
+        join: impl Fn(bool, Vec<R>) -> R,
+    ) -> R {
         let (split, all) = match self {
-            CondParts::Whole(cond) => return simplify_cond(cond, has),
-            CondParts::All(split) => (split, true),
-            CondParts::Any(split) => (split, false),
+            Self::Fixed(value) => return fixed(value),
+            Self::Guarded(name, value) => return if has(name) { fixed(value) } else { truth(true) },
+            Self::Whole(cond) => return whole(cond),
+            Self::All(split) => (split, true),
+            Self::Any(split) => (split, false),
         };
-        // A `∧` stops at a false part and a `∨` at a true one. A `∨` is
-        // also true where a guard of it is absent.
-        let (stop, rest) = if all { (Simple::False, Simple::True) } else { (Simple::True, Simple::False) };
         let (chosen, present) = split.select(own);
         if !all && present < split.guarded.len() {
-            return Simple::True;
+            return truth(true);
         }
+        let stop = truth(!all);
+        let rest = truth(all);
         let mut left = Vec::with_capacity(chosen.len());
         for index in chosen {
-            let simple = match &split.parts[index] {
-                (_, Some(known)) => known.clone(),
-                (part, None) => simplify_cond(part, has),
+            let value = match &split.parts[index] {
+                (_, Some(known)) => fixed(known),
+                (part, None) => whole(part),
             };
-            match simple {
-                Simple::Cond(cond) => left.push(cond),
-                simple if simple == stop => return stop,
-                _ => {}
+            if value == stop {
+                return stop;
+            }
+            if value != rest {
+                left.push(value);
             }
         }
-        match left.len() {
-            0 => rest,
-            1 => Simple::Cond(left.pop().expect("one condition")),
-            _ if all => Simple::Cond(Cond::All(left)),
-            _ => Simple::Cond(Cond::Any(left)),
+        if left.is_empty() {
+            rest
+        } else {
+            join(all, left)
         }
+    }
+}
+
+impl<'a> CondParts<'a, Simple> {
+    fn new(cond: &'a Cond) -> Self {
+        Self::prepare(cond, &|part| simplify_cond(part, &no_presence))
+    }
+
+    fn simplify<'n>(&self, own: impl Iterator<Item = &'n str>, has: &dyn Fn(&str) -> bool) -> Simple {
+        self.evaluate(
+            own,
+            has,
+            Clone::clone,
+            |cond| simplify_cond(cond, has),
+            |value| if value { Simple::True } else { Simple::False },
+            |all, values| {
+                let mut left: Vec<Cond> = values
+                    .into_iter()
+                    .map(|value| match value {
+                        Simple::Cond(cond) => cond,
+                        _ => unreachable!("constant junction parts were reduced"),
+                    })
+                    .collect();
+                match left.len() {
+                    1 => Simple::Cond(left.pop().expect("one condition")),
+                    _ if all => Simple::Cond(Cond::All(left)),
+                    _ => Simple::Cond(Cond::Any(left)),
+                }
+            },
+        )
     }
 }
 
@@ -830,7 +877,7 @@ impl<'a> CondParts<'a> {
 pub(crate) struct CondListSplit<'a> {
     split: Split<'a, &'a Cond, Simple>,
     /// For each condition of another shape, its own split.
-    parts: FxMap<usize, CondParts<'a>>,
+    parts: FxMap<usize, CondParts<'a, Simple>>,
 }
 
 impl<'a> CondListSplit<'a> {
@@ -847,7 +894,7 @@ impl<'a> CondListSplit<'a> {
             known => known,
         };
         let split = Split::new(conds, know, |_| false);
-        let parts = split.other.iter().map(|&index| (index, CondParts::new(split.parts[index].0))).collect();
+        let parts = split.other.iter().map(|&index| (index, CondParts::<Simple>::new(split.parts[index].0))).collect();
         CondListSplit { split, parts }
     }
 
@@ -911,28 +958,11 @@ enum Reach<'a> {
 
 /// A condition split once for the check of a definition (§9), to find
 /// its outcome for each production as `simplified_outcome` finds it.
-enum CondCheck<'a> {
-    Fixed(Shaped<'a>),
-    Guarded(&'a str, Shaped<'a>),
-    All(Split<'a, &'a Cond, Shaped<'a>>),
-    Any(Split<'a, &'a Cond, Shaped<'a>>),
-    Whole(&'a Cond),
-}
+type CondCheck<'a> = CondParts<'a, Shaped<'a>>;
 
 impl<'a> CondCheck<'a> {
-    fn new(cond: &'a Cond) -> CondCheck<'a> {
-        let fixed = |part: &'a Cond| Shaped::of(Part::Cond(part), &no_presence);
-        let know = |part| know_cond(part, &fixed);
-        match know(cond) {
-            Known::Fixed(shaped) => CondCheck::Fixed(shaped),
-            Known::Guarded(name, shaped) => CondCheck::Guarded(name, shaped),
-            Known::Needs(..) => unreachable!("a condition of the check needs no capture"),
-            Known::Other => match cond {
-                Cond::All(items) => CondCheck::All(Split::new(items, know, |_| false)),
-                Cond::Any(items) => CondCheck::Any(Split::new(items, know, |_| false)),
-                cond => CondCheck::Whole(cond),
-            },
-        }
+    fn new(cond: &'a Cond) -> Self {
+        Self::prepare(cond, &|part| Shaped::of(Part::Cond(part), &no_presence))
     }
 
     /// The productions that the condition can apply to, as far as that is
@@ -954,40 +984,22 @@ impl<'a> CondCheck<'a> {
     }
 
     fn outcome<'n>(&self, own: impl Iterator<Item = &'n str>, has: &dyn Fn(&str) -> bool) -> Outcome<'a> {
-        let (split, all) = match self {
-            CondCheck::Fixed(shaped) => return shaped.outcome(has),
-            CondCheck::Guarded(name, shaped) => return if has(name) { shaped.outcome(has) } else { Outcome::True },
-            CondCheck::Whole(cond) => return simplified_outcome(Part::Cond(cond), has),
-            CondCheck::All(split) => (split, true),
-            CondCheck::Any(split) => (split, false),
-        };
-        // A `∧` stops at a false part and a `∨` at a true one. A `∨` is
-        // also true where a guard of it is absent.
-        let (stop, rest) = if all { (Outcome::False, Outcome::True) } else { (Outcome::True, Outcome::False) };
-        let (chosen, present) = split.select(own);
-        if !all && present < split.guarded.len() {
-            return Outcome::True;
-        }
-        let (mut used, mut left) = (None, 0);
-        for index in chosen {
-            let outcome = match &split.parts[index] {
-                (_, Some(shaped)) => shaped.outcome(has),
-                (part, None) => simplified_outcome(Part::Cond(part), has),
-            };
-            match outcome {
-                Outcome::Uses(part) => {
-                    used = used.or(part);
-                    left += 1;
+        self.evaluate(
+            own,
+            has,
+            |shaped| shaped.outcome(has),
+            |cond| simplified_outcome(Part::Cond(cond), has),
+            |value| if value { Outcome::True } else { Outcome::False },
+            |_, values| {
+                let mut used = None;
+                for value in values {
+                    if let Outcome::Uses(part) = value {
+                        used = used.or(part);
+                    }
                 }
-                outcome if outcome == stop => return stop,
-                _ => {}
-            }
-        }
-        if left == 0 {
-            rest
-        } else {
-            Outcome::Uses(used)
-        }
+                Outcome::Uses(used)
+            },
+        )
     }
 }
 
