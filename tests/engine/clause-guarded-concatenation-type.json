@@ -1,0 +1,15 @@
+{
+  "description": "Concatenation rejects guarded sets where scalar strings are required (engine §10).",
+  "grammar": "%rule text $c:A | $d:B\n%conditions ($c ⟹ $c.value) ++ ($d ⟹ $d.value) = \"a\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

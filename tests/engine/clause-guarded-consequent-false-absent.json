@@ -1,0 +1,17 @@
+{
+  "description": "An absent guard drops a condition whose consequent is false (engine §3.6).",
+  "grammar": "%rule text $c:A | $d:B\n%conditions $c ⟹ ¬Word",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "description": "Reversing bare comparison operands reverses the first absent capture in the tag diagnostic (engine §3.6).",
+  "grammar": "%rule text :: ($d ≅ $c ⟹ X)\n | $c:A $d:B\n | C",
+  "tokens": [
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "message": "a tag term of text uses $d, which a production lacks; guard it with $d ⟹"
+  }
+}

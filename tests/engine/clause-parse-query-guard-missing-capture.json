@@ -1,0 +1,16 @@
+{
+  "description": "A tag guard reads its parse query capture after simplification (engine §3.6).",
+  "grammar": "%rule text :: ($d.parse(other) ⟹ X)\n | $c:A\n | $d:B\n%rule other B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "message": "a tag term of text uses $d, which a production lacks; guard it with $d ⟹"
+  }
+}

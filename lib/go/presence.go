@@ -348,13 +348,11 @@ func prepareConditions(conds []*domCond, skip func(int) bool, fixed func(int, cl
 
 func newCondLowering(conds []*domCond) *condLowering {
 	cl := &condLowering{simplified: make([]*domCond, len(conds)), truth: make([]truth, len(conds)), uses: make([]map[string]bool, len(conds))}
-	fixed := func(i int, body clausePart, shape partShape) []string {
+	fixed := func(i int, body clausePart, _ partShape) []string {
 		// A condition without a presence test stays open.
 		simplified, tv := simplifyCond(body.c, func(string) bool { return false })
 		cl.simplified[i] = simplified
-		if shape == partFixed {
-			cl.truth[i] = tv
-		}
+		cl.truth[i] = tv
 		used := map[string]bool{}
 		condCaptures(simplified, used)
 		cl.uses[i] = used
@@ -573,7 +571,7 @@ type condCheck struct {
 	applied []bool
 	left    int
 	others  []int
-	// constant marks each fixed condition that is always true.
+	// constant marks each simplified body that is always true.
 	constant []bool
 	// template gives, per condition, its form as its template writes
 	// it, where it held a parameter.
@@ -586,12 +584,12 @@ type condCheck struct {
 func newCondCheck(conds []*domCond, skip func(*domCond) bool) *condCheck {
 	n := len(conds)
 	cc := &condCheck{conds: conds, req: make([][]string, n), applied: make([]bool, n)}
-	fixed := func(i int, body clausePart, shape partShape) []string {
+	fixed := func(i int, body clausePart, _ partShape) []string {
 		var req []string
 		outcome := simplifiedOutcome(body, nil, &req)
 		cc.req[i] = req
-		if shape == partFixed && outcome.kind == oTrue {
-			// A fixed condition that is always true applies to no production (§3.6).
+		if outcome.kind == oTrue {
+			// A true body applies nowhere, including where its guard is absent (§3.6).
 			if cc.constant == nil {
 				cc.constant = make([]bool, n)
 			}

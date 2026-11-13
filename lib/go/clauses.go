@@ -592,7 +592,7 @@ func clauseOutcome(p clausePart, tv truth, has func(string) bool, req *[]string)
 		if q.t != nil && q.t.Kind == tmCapture {
 			if req != nil {
 				*req = append(*req, q.t.Str)
-			} else if !has(q.t.Str) {
+			} else if !out.lacks && !has(q.t.Str) {
 				out.lacks, out.missing = true, q.t.Str
 			}
 		}
