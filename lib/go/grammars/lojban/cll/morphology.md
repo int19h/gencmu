@@ -54,7 +54,7 @@ A cmavo's stress is free (CLL[^cll-s3-9]), so any of its vowels can be a capital
          ($v.parse(first-marked-cmavo) ⟹ Initial-Stress) ∪
          ($v.parse(last-marked-cmavo) ⟹ Final-Stress)
   | $l:letter-cmavo
-      :: Onset Cy Uncounted ∪ ($l.parse(has-stressed-vowel) ⟹ Initial-Stress ∪ Final-Stress)
+      :: Onset Cy Uncounted ∪ ($l.parse(… stressed-name-vowel …) ⟹ Initial-Stress ∪ Final-Stress)
   | $p:y-pair-cmavo
       :: Continued ∪
          ($p.parse(all-y-cmavo) ⟹ Uncounted) ∪
@@ -118,12 +118,12 @@ A cmavo's stress is free (CLL[^cll-s3-9]), so any of its vowels can be a capital
 %rule first-marked-cmavo
   [consonant] $u:cmavo-nucleus ["'" any-letters]
 %conditions
-  $u.parse(has-stressed-vowel)
+  $u.parse(… stressed-name-vowel …)
 
 %rule last-marked-cmavo
   [consonant] [any-letters "'"] $u:cmavo-nucleus
 %conditions
-  $u.parse(has-stressed-vowel)
+  $u.parse(… stressed-name-vowel …)
 
 ```
 
