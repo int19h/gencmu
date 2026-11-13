@@ -50,12 +50,9 @@ CLL[^cll-s3-7] forbids the triples `ndj ndz ntc nts`, except in a name. The shar
 
 %rule consonants
   {consonant}
-
-%rule has-n-affricate
-  [consonants] n-affricate [consonants]
 ```
 
-<details><summary>Railroad diagrams of the 8 rules from <code>consonant</code> to <code>has-n-affricate</code></summary>
+<details><summary>Railroad diagrams of the 7 rules from <code>consonant</code> to <code>consonants</code></summary>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/consonant.svg" alt="Railroad diagram of the rule consonant"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/initial-pair.svg" alt="Railroad diagram of the rule initial-pair"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/consonant-pair.svg" alt="Railroad diagram of the rule consonant-pair"></p>
@@ -63,12 +60,11 @@ CLL[^cll-s3-7] forbids the triples `ndj ndz ntc nts`, except in a name. The shar
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/affricate.svg" alt="Railroad diagram of the rule affricate"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/n-affricate.svg" alt="Railroad diagram of the rule n-affricate"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/consonants.svg" alt="Railroad diagram of the rule consonants"></p>
-<p><img src="../../../docs/diagrams/lojban/cll/shapes/has-n-affricate.svg" alt="Railroad diagram of the rule has-n-affricate"></p>
 </details>
 
 
 
-A permissible run is a run of consonants whose adjacent pairs are all permissible. A name can have such a run anywhere (CLL[^cll-s3-7]). A borrowing can have one in its middle, with no `n` triple in it (CLL[^cll-s4-7]). The borrowing rules in [morphology.md](morphology.md#borrowings) use `has-n-affricate` to exclude those triples.
+A permissible run is a run of consonants whose adjacent pairs are all permissible. A name can have such a run anywhere (CLL[^cll-s3-7]). A borrowing can have one in its middle, with no `n` triple in it (CLL[^cll-s4-7]). The borrowing rules in [morphology.md](morphology.md#borrowings) exclude those triples with a [part query](../../../docs/notation.md#conditions) for `n-affricate`.
 
 `permissible-run` reads a nonempty consonant run. Every two adjacent values must form a pair in `$PERMISSIBLE`. A single consonant has no pair and satisfies the condition. So `.tlaiv.` and `.ekstcat.` are names, but `.djeimz.` and `.bobb.` are not.
 
@@ -106,9 +102,9 @@ A vowel of a word form has one of the lowercase values `a e i o u`, with or with
 
 The diphthongs of CLL[^cll-s3-4] are the falling `ai ei oi au` and the rising `ia ie ii io iu ua ue ui uo uu`. The rising ones can stand only in names and borrowings, and in a cmavo only as the whole word. A name can also have `iy` and `uy`. A diphthong can have a capital on either letter or on both, and it then marks one stressed syllable.
 
-Cmavo stress is free.[^cll-s3-9] `stressed-vowel` reads a stressed vowel, and `stressed-name-vowel` also reads stressed `y`.
+Cmavo stress is free.[^cll-s3-9] `stressed-vowel` reads a stressed vowel, and `stressed-name-vowel` also reads stressed `y`. A part query for `stressed-vowel` tests a stretch for a stressed vowel. One for `stressed-name-vowel` also finds a stressed `y`.
 
-The rule `any-letter` includes commas through `Syllable-Break`. The `has-stressed-vowel` query tests the whole stretch for a stressed vowel.
+The rule `any-letter` includes commas through `Syllable-Break`.
 
 ```jbogenbau
 %rule vowel
@@ -137,12 +133,9 @@ The rule `any-letter` includes commas through `Syllable-Break`. The `has-stresse
 
 %rule any-letter
   consonant | vowel | "y" | "'" | Syllable-Break
-
-%rule has-stressed-vowel
-  [any-letters] stressed-name-vowel [any-letters]
 ```
 
-<details><summary>Railroad diagrams of the 10 rules from <code>vowel</code> to <code>has-stressed-vowel</code></summary>
+<details><summary>Railroad diagrams of the 9 rules from <code>vowel</code> to <code>any-letter</code></summary>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/vowel.svg" alt="Railroad diagram of the rule vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/stressed-vowel.svg" alt="Railroad diagram of the rule stressed-vowel"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/stressed-name-vowel.svg" alt="Railroad diagram of the rule stressed-name-vowel"></p>
@@ -152,7 +145,6 @@ The rule `any-letter` includes commas through `Syllable-Break`. The `has-stresse
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/y-diphthong.svg" alt="Railroad diagram of the rule y-diphthong"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/any-letters.svg" alt="Railroad diagram of the rule any-letters"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/any-letter.svg" alt="Railroad diagram of the rule any-letter"></p>
-<p><img src="../../../docs/diagrams/lojban/cll/shapes/has-stressed-vowel.svg" alt="Railroad diagram of the rule has-stressed-vowel"></p>
 </details>
 
 
@@ -205,7 +197,7 @@ A brivla with marked stress must have `S2`, and one without any capital vowel mu
   | "y"<¬Stressed>
   | "'" | Syllable-Break
   | $v:vowel :: Counted Single-End ∪ ($v.parse(stressed-vowel) ⟹ Marked)
-  | $d:brivla-diphthong :: Counted ∪ ($d.parse(has-stressed-vowel) ⟹ Marked)
+  | $d:brivla-diphthong :: Counted ∪ ($d.parse(… stressed-vowel …) ⟹ Marked)
 
 %rule brivla-diphthong
   falling-diphthong | rising-diphthong
@@ -259,9 +251,9 @@ The forms stage uses the stress on the first syllable of a name, for the pause r
 %rule name-item
   | consonant | "'" | Syllable-Break
   | $v:vowel :: Nucleus Counted Single-End ∪ ($v.parse(stressed-vowel) ⟹ Marked)
-  | $y:"y" :: Nucleus ∪ ($y.parse(has-stressed-vowel) ⟹ Marked)
-  | $d:brivla-diphthong :: Nucleus Counted ∪ ($d.parse(has-stressed-vowel) ⟹ Marked)
-  | $e:y-diphthong :: Nucleus ∪ ($e.parse(has-stressed-vowel) ⟹ Marked)
+  | $y:"y" :: Nucleus ∪ ($y.parse(stressed-name-vowel) ⟹ Marked)
+  | $d:brivla-diphthong :: Nucleus Counted ∪ ($d.parse(… stressed-vowel …) ⟹ Marked)
+  | $e:y-diphthong :: Nucleus ∪ ($e.parse(… stressed-name-vowel …) ⟹ Marked)
 
 %rule name-vowel
   vowel | "y"
