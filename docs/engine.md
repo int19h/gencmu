@@ -1370,7 +1370,7 @@ Each terminal target reads exactly one original token carrying its tag. Whole, p
 
 Queries in every mode run nested recognition for a rule target. Suffix recognition follows §4.4. For an ordinary span, a nested parse recognizes only its tokens, with `rule` as the start rule, over the same lowered grammar. It applies tests and conditions as the main parse does. Whole, prefix, suffix, and part recognition of a terminal starts from its query helper (§3.10). For those queries, `rule` below names that helper.
 
-`view.parse(C)` returns the forest of eligible witnesses of C over that view. C is any body constituent. No part of its argument syntax can bind a capture. Called rules can retain their own captures.
+`view.parse(C)` returns the forest of eligible witnesses of C over that view. C is any body constituent except a chain (§9). No part of its argument syntax can bind a capture. Called rules can retain their own captures.
 
 The mark `…` denotes unread remainder at an outer edge of C. It can stand at one edge or at both edges. It cannot stand alone, inside a nested constituent, or between constituents. An explicit `ε` permits an empty target.
 
