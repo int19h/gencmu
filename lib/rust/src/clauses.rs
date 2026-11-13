@@ -1485,11 +1485,55 @@ fn brace_helper_sequences((item, separator): FlatBraces<'_>) -> Vec<Vec<&str>> {
 /// each once, in the order written.
 fn mentioned_in(part: Part<'_>) -> Vec<&str> {
     let mut names = Vec::new();
-    walk_captures(part, true, false, &mut names);
-    walk_captures(part, false, true, &mut names);
+    walk_captures(part, true, true, &mut names);
     let mut seen: FxSet<&str> = FxSet::default();
     names.retain(|name| seen.insert(name));
     names
+}
+
+enum RuleClause<'a> {
+    Clause(Vec<&'a str>),
+    Condition(&'a Cond, Vec<&'a str>),
+    Emit(Vec<&'a str>),
+}
+
+/// The clauses of a rule in the inspection order of engine §2, each with
+/// the captures it mentions in written order.
+fn rule_clauses(rule: &RuleDef) -> Vec<RuleClause<'_>> {
+    let mut out = Vec::new();
+    for term in rule
+        .tags
+        .iter()
+        .chain(&rule.strings.value)
+        .chain(&rule.strings.image)
+        .chain(rule.alternatives.iter().flat_map(|a| a.tags.iter().chain(&a.strings.value).chain(&a.strings.image)))
+    {
+        out.push(RuleClause::Clause(mentioned_in(Part::Term(term))));
+    }
+    for cond in &rule.conditions {
+        out.push(RuleClause::Condition(cond, mentioned_in(Part::Cond(cond))));
+    }
+    for term in rule.error.iter().chain(&rule.warning) {
+        out.push(RuleClause::Clause(mentioned_in(Part::Term(term))));
+    }
+    for item in rule.emit.iter().flatten() {
+        let mut names = Vec::new();
+        let (tags, strings) = match item {
+            EmitItem::Capture(name, tags, attachments) => {
+                names.push(name.as_str());
+                (tags, &attachments.strings)
+            }
+            EmitItem::Insert(tags, strings) => (tags, strings),
+        };
+        for term in tags.iter().chain(&strings.value).chain(&strings.image) {
+            walk_captures(Part::Term(term), true, true, &mut names);
+        }
+        if let EmitItem::Capture(_, _, attachments) = item {
+            names.extend(attachments.names());
+        }
+        out.push(RuleClause::Emit(names));
+    }
+    out
 }
 
 /// Why the item captures of a definition cannot be read (engine §3.6, §9),
@@ -1501,7 +1545,7 @@ fn mentioned_in(part: Part<'_>) -> Vec<&str> {
 /// production of its braces' helper, with the captures that the enclosing
 /// production binds before the braces. In an alternative that has none of
 /// its item captures, it is an ordinary condition of that alternative.
-fn item_capture_problem(rule: &RuleDef) -> Option<String> {
+fn item_capture_problem(rule: &RuleDef, clauses: &[RuleClause<'_>]) -> Option<String> {
     let places: Vec<ItemsAndBraces> =
         rule.alternatives.iter().map(|alternative| item_captures_and_braces(&alternative.expr)).collect();
     let item_names: FxSet<&str> = places.iter().flat_map(|(items, _)| items.iter().map(|(name, _)| *name)).collect();
@@ -1509,48 +1553,32 @@ fn item_capture_problem(rule: &RuleDef) -> Option<String> {
         return None;
     }
     let is_item = |name: &str| item_names.contains(name);
-    let clauses = rule
-        .tags
-        .iter()
-        .chain(&rule.strings.value)
-        .chain(&rule.strings.image)
-        .chain(&rule.error)
-        .chain(&rule.warning)
-        .chain(rule.alternatives.iter().flat_map(|a| a.tags.iter().chain(&a.strings.value).chain(&a.strings.image)));
-    for term in clauses {
-        if let Some(name) = mentioned_in(Part::Term(term)).into_iter().find(|name| is_item(name)) {
-            return Some(format!(
-                "a clause of {} names ${name}, an item capture, which only a condition reads",
-                rule.name
-            ));
-        }
-    }
-    for item in rule.emit.iter().flatten() {
-        let mut names: Vec<&str> = Vec::new();
-        let (tags, strings) = match item {
-            EmitItem::Capture(name, tags, attachments) => {
-                // An item names its own capture and its attachments.
-                names.push(name);
-                names.extend(attachments.names());
-                (tags, &attachments.strings)
-            }
-            EmitItem::Insert(tags, strings) => (tags, strings),
-        };
-        names.extend(tags.iter().flat_map(|term| mentioned_in(Part::Term(term))));
-        names.extend(strings.value.iter().chain(&strings.image).flat_map(|term| mentioned_in(Part::Term(term))));
-        if let Some(name) = names.into_iter().find(|name| is_item(name)) {
-            return Some(format!(
-                "%emits of {} names ${name}, an item capture, which only a condition reads",
-                rule.name
-            ));
-        }
-    }
     // Made when a condition first needs them: each alternative's capture
     // sequences with its braces, and its productions' plain capture sets.
     let mut sequences: Vec<Option<Vec<Vec<Read>>>> = vec![None; rule.alternatives.len()];
     let mut productions: Vec<Option<Vec<Vec<&str>>>> = vec![None; rule.alternatives.len()];
-    for cond in &rule.conditions {
-        let mentioned = mentioned_in(Part::Cond(cond));
+    for clause in clauses {
+        let (cond, mentioned) = match clause {
+            RuleClause::Clause(names) => {
+                if let Some(name) = names.iter().find(|name| is_item(name)) {
+                    return Some(format!(
+                        "a clause of {} names ${name}, an item capture, which only a condition reads",
+                        rule.name
+                    ));
+                }
+                continue;
+            }
+            RuleClause::Emit(names) => {
+                if let Some(name) = names.iter().find(|name| is_item(name)) {
+                    return Some(format!(
+                        "%emits of {} names ${name}, an item capture, which only a condition reads",
+                        rule.name
+                    ));
+                }
+                continue;
+            }
+            RuleClause::Condition(cond, mentioned) => (*cond, mentioned),
+        };
         let inside: Vec<&str> = mentioned.iter().copied().filter(|name| is_item(name)).collect();
         let Some(&first) = inside.first() else { continue };
         if mentioned.contains(&"") {
@@ -1791,40 +1819,18 @@ fn definition_fault(rule: &RuleDef, defer_issue: &mut impl FnMut(&DefinitionIssu
 
     // A capture mentioned anywhere, presence tests included, that no
     // alternative captures.
-    let mut mentioned: Vec<&str> = Vec::new();
-    for term in
-        rule.tags.iter().chain(&rule.strings.value).chain(&rule.strings.image).chain(&rule.error).chain(&rule.warning)
+    let clauses = rule_clauses(rule);
+    if let Some(name) = clauses
+        .iter()
+        .flat_map(|clause| match clause {
+            RuleClause::Clause(names) | RuleClause::Condition(_, names) | RuleClause::Emit(names) => names.iter(),
+        })
+        .find(|name| !any_has(name))
     {
-        walk_captures(Part::Term(term), true, true, &mut mentioned);
-    }
-    for alternative in &rule.alternatives {
-        for term in alternative.tags.iter().chain(&alternative.strings.value).chain(&alternative.strings.image) {
-            walk_captures(Part::Term(term), true, true, &mut mentioned);
-        }
-    }
-    for cond in &rule.conditions {
-        walk_captures(Part::Cond(cond), true, true, &mut mentioned);
-    }
-    for item in items {
-        let (tags, strings) = match item {
-            EmitItem::Capture(name, tags, attachments) => {
-                mentioned.push(name);
-                (tags, &attachments.strings)
-            }
-            EmitItem::Insert(tags, strings) => (tags, strings),
-        };
-        for term in tags.iter().chain(&strings.value).chain(&strings.image) {
-            walk_captures(Part::Term(term), true, true, &mut mentioned);
-        }
-        if let EmitItem::Capture(_, _, attachments) = item {
-            mentioned.extend(attachments.names());
-        }
-    }
-    if let Some(name) = mentioned.iter().find(|name| !any_has(name)) {
         return immediate(format!("${name} is captured by no alternative of {}", rule.name));
     }
     if !item_names.is_empty() {
-        if let Some(problem) = item_capture_problem(rule) {
+        if let Some(problem) = item_capture_problem(rule, &clauses) {
             return immediate(problem);
         }
     }
@@ -1958,7 +1964,7 @@ fn definition_fault(rule: &RuleDef, defer_issue: &mut impl FnMut(&DefinitionIssu
             if let Some(missing) = used.into_iter().find(|name| !has(name)) {
                 let issue = DefinitionIssue {
                     kind: DefinitionKind::RecipeCapture,
-                    message: format!("a selected recipe of {} uses absent capture ${missing}", rule.name),
+                    message: format!("a recipe of {} uses ${missing}, which a production lacks", rule.name),
                 };
                 if !defer_issue(&issue) {
                     return Some(issue);

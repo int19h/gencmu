@@ -1,0 +1,14 @@
+{
+  "description": "Across clauses, a production's alternative tags are checked before the header recipe, so the tag term reports its absent capture (engine §9.3).",
+  "grammar": "%rule text := $a.value\n | $a:A $b:B\n | C :: $b.tags",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "a tag term of text uses $b, which a production lacks; guard it with $b ⟹",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

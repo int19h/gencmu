@@ -624,6 +624,56 @@ func orderedMentions(p clausePart) []string {
 	return out
 }
 
+type ruleClause struct {
+	kind           string
+	cond           *domCond
+	conditionIndex int
+	names          []string
+}
+
+// ruleClauses lists the clauses of a rule in the inspection order of engine §2,
+// each with its kind and the captures it mentions in written order.
+func ruleClauses(r *domRule) []ruleClause {
+	var out []ruleClause
+	addTerm := func(t *domTerm) {
+		if t != nil {
+			out = append(out, ruleClause{kind: "a clause", names: orderedMentions(clausePart{t: t})})
+		}
+	}
+	for _, t := range []*domTerm{r.Tags, r.Value, r.Image} {
+		addTerm(t)
+	}
+	for _, a := range r.Alternatives {
+		for _, t := range []*domTerm{a.Tags, a.Value, a.Image} {
+			addTerm(t)
+		}
+	}
+	for i, c := range r.Conditions {
+		out = append(out, ruleClause{kind: "condition", cond: c, conditionIndex: i, names: orderedMentions(clausePart{c: c})})
+	}
+	for _, t := range []*domTerm{r.Error, r.Warning} {
+		addTerm(t)
+	}
+	if r.Emit != nil {
+		for _, it := range r.Emit.Items {
+			var names []string
+			if !it.IsInsert {
+				names = append(names, it.Capture)
+			}
+			for _, t := range []*domTerm{it.Tags, it.Value, it.Image} {
+				if t != nil {
+					names = append(names, orderedMentions(clausePart{t: t})...)
+				}
+			}
+			if !it.IsInsert {
+				names = append(names, it.attachments()...)
+			}
+			out = append(out, ruleClause{kind: "%emits", names: names})
+		}
+	}
+	return out
+}
+
 // itemCaptureProblem is why the item captures of a definition cannot be
 // read (engine §3.6, §9), or "". Only a condition reads an item capture,
 // and a pattern comparison names none. In each alternative whose item
@@ -635,7 +685,7 @@ func orderedMentions(p clausePart) []string {
 // production of that alternative. itemsByAlt holds each alternative's
 // item captures with their places, items is every item capture's name,
 // and waits says whether a clause waits for its constants.
-func itemCaptureProblem(r *domRule, itemsByAlt []map[string]itemPlace, items map[string]bool, waits func(any) bool) string {
+func itemCaptureProblem(r *domRule, clauses []ruleClause, itemsByAlt []map[string]itemPlace, items map[string]bool, waits func(any) bool) string {
 	firstItem := func(names []string) string {
 		for _, name := range names {
 			if items[name] {
@@ -644,49 +694,18 @@ func itemCaptureProblem(r *domRule, itemsByAlt []map[string]itemPlace, items map
 		}
 		return ""
 	}
-	// Every clause but a condition.
-	type clause struct {
-		kind  string
-		names []string
-	}
-	var others []clause
-	for _, t := range []*domTerm{r.Tags, r.Value, r.Image, r.Error, r.Warning} {
-		if t != nil {
-			others = append(others, clause{"a clause", orderedMentions(clausePart{t: t})})
-		}
-	}
-	for _, a := range r.Alternatives {
-		for _, t := range []*domTerm{a.Tags, a.Value, a.Image} {
-			if t != nil {
-				others = append(others, clause{"a clause", orderedMentions(clausePart{t: t})})
-			}
-		}
-	}
-	if r.Emit != nil {
-		for _, it := range r.Emit.Items {
-			var names []string
-			if !it.IsInsert {
-				names = append(names, it.captures()...)
-			}
-			for _, t := range []*domTerm{it.Tags, it.Value, it.Image} {
-				if t != nil {
-					names = append(names, orderedMentions(clausePart{t: t})...)
-				}
-			}
-			others = append(others, clause{"%emits", names})
-		}
-	}
-	for _, c := range others {
-		if name := firstItem(c.names); name != "" {
-			return fmt.Sprintf("%s of %s names $%s, an item capture, which only a condition reads", c.kind, r.Name, name)
-		}
-	}
 	// The conditions that read an item capture, checked in each
 	// alternative whose item captures they read (engine §3.6).
 	sequences := make([][][]string, len(r.Alternatives))
 	helperSequences := map[*domExpr][][]string{}
-	for conditionIndex, c := range r.Conditions {
-		mentioned := orderedMentions(clausePart{c: c})
+	for _, cl := range clauses {
+		if cl.kind != "condition" {
+			if name := firstItem(cl.names); name != "" {
+				return fmt.Sprintf("%s of %s names $%s, an item capture, which only a condition reads", cl.kind, r.Name, name)
+			}
+			continue
+		}
+		c, conditionIndex, mentioned := cl.cond, cl.conditionIndex, cl.names
 		var inside []string
 		whole := false
 		for _, name := range mentioned {
@@ -941,38 +960,7 @@ func definitionFault(r *domRule, deferIssue func(definitionKind, string) bool) *
 		return immediate("an erased definition cannot carry recipes or emission")
 	}
 	// A capture no alternative captures, wherever it is mentioned.
-	var names []string
-	mention := func(part clausePart) {
-		walkClause(part, func(p clausePart) bool {
-			switch {
-			case p.t != nil && p.t.Kind == tmCapture:
-				names = append(names, p.t.Str)
-			case p.c != nil && p.c.Kind == cdCaptured:
-				names = append(names, p.c.Capture)
-			}
-			return true
-		})
-	}
-	for _, term := range []*domTerm{r.Tags, r.Value, r.Image, r.Error, r.Warning} {
-		mention(clausePart{t: term})
-	}
-	for _, a := range r.Alternatives {
-		for _, term := range []*domTerm{a.Tags, a.Value, a.Image} {
-			mention(clausePart{t: term})
-		}
-	}
-	for _, c := range r.Conditions {
-		mention(clausePart{c: c})
-	}
-	for _, item := range items {
-		if !item.IsInsert {
-			names = append(names, item.Capture)
-		}
-		for _, term := range []*domTerm{item.Tags, item.Value, item.Image} {
-			mention(clausePart{t: term})
-		}
-		names = append(names, item.attachments()...)
-	}
+	clauses := ruleClauses(r)
 	// The item captures of each alternative, which bind to the helper of
 	// their braces, not to the productions listed above (engine §3.5).
 	var itemsByAlt []map[string]itemPlace
@@ -985,14 +973,16 @@ func definitionFault(r *domRule, deferIssue func(definitionKind, string) bool) *
 			itemNames[name] = true
 		}
 	}
-	for _, name := range names {
-		step()
-		if capturedBy[name] == 0 && !itemNames[name] {
-			return immediate(fmt.Sprintf("$%s is captured by no alternative of %s", name, r.Name))
+	for _, cl := range clauses {
+		for _, name := range cl.names {
+			step()
+			if capturedBy[name] == 0 && !itemNames[name] {
+				return immediate(fmt.Sprintf("$%s is captured by no alternative of %s", name, r.Name))
+			}
 		}
 	}
 	if len(itemNames) > 0 {
-		if msg := itemCaptureProblem(r, itemsByAlt, itemNames, waits); msg != "" {
+		if msg := itemCaptureProblem(r, clauses, itemsByAlt, itemNames, waits); msg != "" {
 			return immediate(msg)
 		}
 	}
@@ -1127,7 +1117,7 @@ func definitionFault(r *domRule, deferIssue func(definitionKind, string) bool) *
 			}
 		}
 		for _, recipe := range effectiveRecipes(r, a) {
-			if msg := recipeCapturesProblem(recipe, has); msg != "" {
+			if msg := recipeCapturesProblem(r.Name, recipe, has); msg != "" {
 				if !deferIssue(definitionRecipeCapture, msg) {
 					return &definitionIssue{definitionRecipeCapture, msg}
 				}

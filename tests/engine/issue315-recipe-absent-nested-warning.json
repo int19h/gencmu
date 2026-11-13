@@ -1,0 +1,14 @@
+{
+  "description": "A warning recipe reports an absent capture in a nested choice with the selected recipe message (engine §§9.3 and 11.4).",
+  "grammar": "%rule text ($c:A | B) C\n%warning $c.value",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "a recipe of text uses $c, which a production lacks",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

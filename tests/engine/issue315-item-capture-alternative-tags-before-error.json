@@ -1,0 +1,14 @@
+{
+  "description": "Alternative tag clauses precede the diagnostic message in item capture checks (engine §§2 and 9.3).",
+  "grammar": "%rule text\n | {$c:A} {$e:B} :: $c.tags\n%error $e.value",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "a clause of text names $c, an item capture, which only a condition reads",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "description": "A warning recipe that reads a capture present in every production beside a nested choice succeeds (engine §§9.3 and 11.4).",
+  "grammar": "%rule text ($c:A | B) $d:C\n%warning $d.value",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "text"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    },
+    "warnings": [
+      {
+        "stage": "main",
+        "code": "text",
+        "rule": "text",
+        "span": [
+          0,
+          2
+        ],
+        "source": [
+          0,
+          3
+        ],
+        "message": "c"
+      }
+    ],
+    "brackets": "(b c)"
+  }
+}

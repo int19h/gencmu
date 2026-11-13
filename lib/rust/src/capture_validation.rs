@@ -537,7 +537,7 @@ pub(super) fn captures(rule: &RuleDef, alternative: usize) -> Vec<Vec<&str>> {
     }
     let value = alt.strings.value.as_ref().or(rule.strings.value.as_ref());
     let image = alt.strings.image.as_ref().or(rule.strings.image.as_ref()).or(value);
-    for t in value.into_iter().chain(image) {
+    for t in value.into_iter().chain(image).chain(&rule.error).chain(&rule.warning) {
         let mut used = Vec::new();
         term_captures(t, &mut used);
         for n in used {

@@ -179,9 +179,9 @@ func effectiveRecipes(r *domRule, a *domAlt) []*domTerm {
 	return []*domTerm{v, i, r.Error, r.Warning}
 }
 
-func recipeCapturesProblem(recipe *domTerm, has func(string) bool) string {
+func recipeCapturesProblem(ruleName string, recipe *domTerm, has func(string) bool) string {
 	if missing, found := firstAbsentRecipeCapture(recipe, has); found {
-		return "a selected recipe reads an absent capture $" + missing
+		return fmt.Sprintf("a recipe of %s uses $%s, which a production lacks", ruleName, missing)
 	}
 	return ""
 }
