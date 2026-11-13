@@ -64,7 +64,7 @@ CLL[^cll-s3-7] forbids the triples `ndj ndz ntc nts`, except in a name. The shar
 
 
 
-A permissible run is a run of consonants whose adjacent pairs are all permissible. A name can have such a run anywhere (CLL[^cll-s3-7]). A borrowing can have one in its middle, with no `n` triple in it (CLL[^cll-s4-7]). The borrowing rules in [morphology.md](morphology.md#borrowings) exclude those triples with a part query for `n-affricate`.
+A permissible run is a run of consonants whose adjacent pairs are all permissible. A name can have such a run anywhere (CLL[^cll-s3-7]). A borrowing can have one in its middle, with no `n` triple in it (CLL[^cll-s4-7]). The borrowing rules in [morphology.md](morphology.md#borrowings) exclude those triples with a [part query](../../../docs/notation.md#conditions) for `n-affricate`.
 
 `permissible-run` reads a nonempty consonant run. Every two adjacent values must form a pair in `$PERMISSIBLE`. A single consonant has no pair and satisfies the condition. So `.tlaiv.` and `.ekstcat.` are names, but `.djeimz.` and `.bobb.` are not.
 
@@ -102,7 +102,7 @@ A vowel of a word form has one of the lowercase values `a e i o u`, with or with
 
 The diphthongs of CLL[^cll-s3-4] are the falling `ai ei oi au` and the rising `ia ie ii io iu ua ue ui uo uu`. The rising ones can stand only in names and borrowings, and in a cmavo only as the whole word. A name can also have `iy` and `uy`. A diphthong can have a capital on either letter or on both, and it then marks one stressed syllable.
 
-Cmavo stress is free.[^cll-s3-9] `stressed-vowel` reads a stressed vowel, and `stressed-name-vowel` also reads stressed `y`. A part query for `stressed-name-vowel` tests a stretch for a stressed vowel or `y`.
+Cmavo stress is free.[^cll-s3-9] `stressed-vowel` reads a stressed vowel, and `stressed-name-vowel` also reads stressed `y`. A part query for `stressed-vowel` tests a stretch for a stressed vowel. One for `stressed-name-vowel` also finds a stressed `y`.
 
 The rule `any-letter` includes commas through `Syllable-Break`.
 

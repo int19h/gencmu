@@ -458,7 +458,7 @@ Only a borrowing, a name or hesitation can hold a comma between two vowels. A cm
 
 A run with such a word divides into no words, and the forms stage hands it on as one foreign token ([../common/forms.md](../common/forms.md)). The words stage rejects that run unless it is inside a foreign quote or after `fa'o`.
 
-The comma rules read `Syllable-Break`, because the comma value is empty. `vowel-group`, `window-letter` and `name-vowels` retain the written boundary. `la-or-doi`, `falling-vowels` and `rising-vowels` read optional syllable boundaries. [Part queries](../../../docs/notation.md#conditions) find a comma through its tag.
+The comma rules read `Syllable-Break`, because the comma value is empty. `vowel-group`, `window-letter` and `name-vowels` retain the written boundary. `la-or-doi`, `falling-vowels` and `rising-vowels` read optional syllable boundaries. The [part query](../../../docs/notation.md#conditions) `… Syllable-Break …` finds a comma through its tag.
 
 The rules that test whether letters form a cmavo or a lujvo read a comma inside a diphthong as if it were absent. `cmavo-unit` and `cvv-rafsi` read `falling-vowels`. `vowel-cmavo` reads `rising-vowels`, and it reads `falling-vowels` through `cmavo-units`. `lujvo-form` reads the first CVV rafsi through `cvv-rafsi`. The slinku'i test uses `lujvo-after-cvv` for a borrowing that begins with `i` or `u`. `cmavo-shape` and `brivla-word` then refuse a cmavo or a lujvo that has a comma.
 
