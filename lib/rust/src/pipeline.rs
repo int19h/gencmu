@@ -591,13 +591,15 @@ impl Pipeline {
             for (_, directive) in &self.stages[index].features {
                 let held = match &directive.conditions {
                     Some(conditions) => {
-                        crate::features::holds(conditions, &run.public_input, shared.text, &self.unicode)
+                        let input_grammar = crate::lower::Lowered::input(self.unicode.clone());
+                        let mut evaluator = Recognizer { g: &input_grammar, matchers: &[], shared, recon: None };
+                        evaluator.input_conditions(conditions, &run.input)
                     }
                     None => Ok(true),
                 };
                 match held {
-                    Err(message) => {
-                        failure = Some(self.grammar_error(index, EngineError { message, rule: None }));
+                    Err(error) => {
+                        failure = Some(self.grammar_error(index, error));
                         break;
                     }
                     Ok(false) => continue,

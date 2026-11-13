@@ -4435,6 +4435,40 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         Ok(last.expect("a value"))
     }
 
+    /// Evaluate feature conditions on the whole stage input (§13).
+    pub(crate) fn input_conditions(
+        &mut self,
+        conditions: &[crate::dom::Cond],
+        tokens: &[Tok],
+    ) -> Result<bool, EngineError> {
+        let conditions = crate::lower::input_conditions(conditions);
+        if conditions.is_empty() {
+            return Ok(true);
+        }
+        let tags = self.token_tags(tokens, 0, tokens.len());
+        let tags = self.shared.tags.set_shared(tags);
+        let frame = Frame {
+            prefix: 0,
+            parent_prefix: 0,
+            structure: 0,
+            caps: Caps::All(&[]),
+            prod: 0,
+            origin: 0,
+            end: tokens.len() as u32,
+            tags: Cell::new(Some(tags)),
+            project: None,
+            lexical: None,
+            parent_structure: 0,
+            parent_tags: Cell::new(None),
+        };
+        let mut eval = Eval::conditions(&conditions, Vec::new());
+        match self.evaluate(&mut eval, &frame, tokens, 0) {
+            Ok(out) => Ok(out.holds()),
+            Err(Halt::Error(error)) => Err(error),
+            Err(_) => unreachable!("input conditions cannot request queries or restoration"),
+        }
+    }
+
     /// Tests an omitted prediction only when rejection evidence requests it (§12.1).
     pub(crate) fn omitted_allowed(
         &mut self,
