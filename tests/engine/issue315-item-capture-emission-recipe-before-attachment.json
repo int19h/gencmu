@@ -1,0 +1,14 @@
+{
+  "description": "The item-capture check reads an emission item's recipe before its before-attachment (engine §§2 and 9.3).",
+  "grammar": "%rule text {$c:A} {$e:B} $d:C\n%emits ($e) $d :- $c.value",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "message": "%emits of text names $c, an item capture, which only a condition reads",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}
