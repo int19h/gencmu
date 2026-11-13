@@ -475,7 +475,7 @@ Classifier arguments use `{"classifier":"lexicon"}`. Rule arguments are also leg
 
 String arguments are terms. A classifier name starts with a lowercase letter, so `🆓` cannot name a classifier.
 
-`.parse` takes exactly one `{"body":EXPR}` argument. Its receiver is a capture or span, including a restored span except in suffix or part mode. The body contains no capture at any depth, but referenced rules retain their own captures. It can add the leaf `{"remainder":true}` at the first edge, at the last edge, or at both edges of its outer `seq`.
+`.parse` takes exactly one `{"body":EXPR}` argument. Its receiver is a capture or span, including a restored span except in suffix or part mode. The body contains no capture at any depth, but referenced rules retain their own captures. The body is never a `repeat` with a `chain`. It can add the leaf `{"remainder":true}` at the first edge, at the last edge, or at both edges of its outer `seq`.
 
 That leaf has no other members and is legal nowhere else. It cannot be the complete body. Without it, the query uses whole mode.
 

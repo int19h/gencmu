@@ -243,11 +243,13 @@ A pair of braces has at most one marker, and the separator has none. So `{... x 
 
 A chain is the whole of its rule. That means two things. First, the chain is the whole expression of its alternative. A chain inside parentheses, brackets, other braces, a capture, a sequence, a choice or `&` is an error of the document.
 
-The body of a `parse` query is not an alternative, so a chain cannot be the whole of it (see "Conditions"). A query observes no tree, because its forest gives only emptiness, `.error-free` and `.tags`, and no ranking applies inside it. A chain changes only the grouping inside a witness, so without a tree observation it would observe what `{x / s}` observes.
-
 Second, that alternative is the only alternative of its rule that the gates leave (see "Feature gates"). A warning does not remove an alternative. So a rule with another alternative beside its chain is an error of the grammar for the features that leave both. For those features, gencmu finds the error when it prepares the grammar, as it finds an error of a classifier. A `%extend-rule` of a chain's rule can cause this error.
 
 The chain's alternative can still have gates and tags of its own, and its rule can have clauses. A chain can be optional, or part of a sequence, through a rule. Name the chain as a rule. Then write the rule's name there, as in `[tag]`.
+
+The body of a `parse` query is no alternative, so a chain cannot be the whole of it (see "Conditions"). A query reads no tree. Its forest gives only emptiness, `.error-free` and `.tags`, and no ranking applies inside it. So nothing in a query reads the levels of a chain.
+
+Write the flat list `{x / s}` in the body, or name the chain as a rule and write its name. A right chain whose separator starts with `[+T]` counts other readings than the flat list (see "Elided terminators"). Name that chain as a rule to keep its readings.
 
 An item of braces must read at least one token. An item that can match no tokens is an error of the grammar, found as the error above. So `{[x]}` and `{ε}` are errors, and so is `{r}` where `r` can match no tokens for the features of the parse. The Lojban syntax grammars, for example, define `🆓` as `[{free}]`, so `{🆓}` is an error there.
 
@@ -1161,7 +1163,7 @@ Repeated targets are accepted and change nothing. Engine tags are excluded becau
 
 An ordinary query ignores carried diagnostics and reads a faulty token like any other token. Its witness contains no own error occurrence outside erased subtrees. This applies to `parse`, including aligned queries. Queries evaluate no diagnostic message.
 
-`span.parse(C)` returns a forest, the shared set of eligible query witnesses. C is any body constituent. No part of its argument syntax can bind a capture. Called rules retain their own captures. The anonymous query target has structural identity after lowering.
+`span.parse(C)` returns a forest, the shared set of eligible query witnesses. C is any body constituent. A chain cannot be the whole of C (see [How braces are written](#how-braces-are-written)). No part of its argument syntax can bind a capture. Called rules retain their own captures. The anonymous query target has structural identity after lowering.
 
 The mark `…` denotes unread remainder at an outer edge of the argument. It can stand at one edge or at both edges. It never stands inside an optional, group, or other nested constituent. `parse(C)` covers the whole view, and `parse(C …)` covers a prefix.
 

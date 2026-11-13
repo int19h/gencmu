@@ -23104,6 +23104,53 @@
     "malformed": false
   },
   {
+    "description": "A flat repeat with a separator as the body of a parse query is well-formed (docs/output.md).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "gates": [],
+          "expr": {
+            "capture": "y",
+            "expr": {
+              "ref": "A"
+            }
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "method": "parse",
+          "receiver": {
+            "capture": "y"
+          },
+          "args": [
+            {
+              "body": {
+                "repeat": {
+                  "literal": {
+                    "string": "a"
+                  }
+                },
+                "separator": {
+                  "literal": {
+                    "string": "b"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
     "description": "A chain as the body of a parse query is malformed, since a repeat with a chain is never the body of a query (docs/output.md).",
     "rule": {
       "name": "text",
