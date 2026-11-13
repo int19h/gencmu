@@ -1,0 +1,13 @@
+{
+  "description": "A chain passed as a body argument to a parse query parameter is a grammar error at load (docs/notation.md, docs/output.md).",
+  "grammar": "%rule text = t({... A / B})\n%rule t(@B) $y:A\n%conditions $y.parse(@B)",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 1
+    }
+  }
+}

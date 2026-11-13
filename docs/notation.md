@@ -247,7 +247,11 @@ Second, that alternative is the only alternative of its rule that the gates leav
 
 The chain's alternative can still have gates and tags of its own, and its rule can have clauses. A chain can be optional, or part of a sequence, through a rule. Name the chain as a rule. Then write the rule's name there, as in `[tag]`.
 
-An item of braces must read at least one token. An item that can match no tokens is an error of the grammar, found as the error above. So `{[x]}` and `{ε}` are errors, and so is `{r}` where `r` can match no tokens for the features of the parse. The Lojban syntax grammars, for example, define `🆓` as `[{free}]`, so `{🆓}` is an error there.
+The body of a `parse` query is not an alternative, so a chain cannot be the whole of it (see "Conditions"). A query reads no tree. Its forest gives only emptiness, `.error-free` and `.tags`, and no ranking applies inside it. So nothing in a query reads the nested levels of a chain (see "Chains in the tree").
+
+Write the flat list `{x / s}` in the body, or name the chain as a rule and write its name. A right chain whose separator starts with `[+T]` can count other readings than the flat list (see "Elided terminators"). Name that chain as a rule to keep its readings.
+
+An item of braces must read at least one token. An item that can match no tokens is an error of the grammar. gencmu finds it during the preparation of the grammar, as it finds a second alternative beside a chain. So `{[x]}` and `{ε}` are errors, and so is `{r}` where `r` can match no tokens for the features of the parse. The Lojban syntax grammars, for example, define `🆓` as `[{free}]`, so `{🆓}` is an error there.
 
 gencmu decides this from the rules alone, as the gates and stitching leave them. It ignores every test and condition. So a rule `r` whose only alternative is `ε` with a condition that never holds still makes `{r}` an error. An alternative that a gate drops does not count, and one that an `%extend-rule` adds does.
 
@@ -1159,7 +1163,7 @@ Repeated targets are accepted and change nothing. Engine tags are excluded becau
 
 An ordinary query ignores carried diagnostics and reads a faulty token like any other token. Its witness contains no own error occurrence outside erased subtrees. This applies to `parse`, including aligned queries. Queries evaluate no diagnostic message.
 
-`span.parse(C)` returns a forest, the shared set of eligible query witnesses. C is any body constituent. No part of its argument syntax can bind a capture. Called rules retain their own captures. The anonymous query target has structural identity after lowering.
+`span.parse(C)` returns a forest, the shared set of eligible query witnesses. C is any body constituent. A chain cannot be the whole of C (see [How braces are written](#how-braces-are-written)). No part of its argument syntax can bind a capture. Called rules retain their own captures. The anonymous query target has structural identity after lowering.
 
 The mark `…` denotes unread remainder at an outer edge of the argument. It can stand at one edge or at both edges. It never stands inside an optional, group, or other nested constituent. `parse(C)` covers the whole view, and `parse(C …)` covers a prefix.
 

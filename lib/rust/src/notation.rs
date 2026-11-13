@@ -896,10 +896,7 @@ impl<'a> Reader<'a> {
         }
         let conjunctions = frame.conjunctions.as_ref().expect("the conjunctions");
         match conjunctions.get(frame.parts.len()) {
-            Some(&conjunction) => Ok(Step::Call(Frame::Conjunction(Conjunction::new(
-                conjunction,
-                frame.whole && conjunctions.len() == 1,
-            )))),
+            Some(&conjunction) => Ok(Step::Call(Frame::Conjunction(Conjunction::new(conjunction, false)))),
             None => Ok(Step::Done(Val::Expr(if frame.ranked {
                 self.ranked.set(self.ranked.get() - 1);
                 let separator =
@@ -1886,8 +1883,7 @@ impl<'a> Reader<'a> {
                 frame.dependent |= self.source_unresolved(argument);
                 frame.arguments = Some(Vec::new());
                 frame.reading_body = true;
-                let mut choice = Choice::new(self.one(argument, "choice")?);
-                choice.whole = true;
+                let choice = Choice::new(self.one(argument, "choice")?);
                 return Ok(Step::Call(Frame::Choice(choice)));
             }
             frame.arguments = Some(match self.rules(selector, "method-arguments").next() {
@@ -2615,7 +2611,6 @@ impl<'a> Conjunction<'a> {
 }
 
 struct Choice<'a> {
-    whole: bool,
     ranked: bool,
     node: &'a Node,
     conjunctions: Option<Vec<&'a Node>>,
@@ -2624,7 +2619,7 @@ struct Choice<'a> {
 
 impl<'a> Choice<'a> {
     fn new(node: &'a Node) -> Self {
-        Choice { whole: false, ranked: rule_name(node) == "ranked-choice", node, conjunctions: None, parts: Vec::new() }
+        Choice { ranked: rule_name(node) == "ranked-choice", node, conjunctions: None, parts: Vec::new() }
     }
 }
 

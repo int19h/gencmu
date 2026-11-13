@@ -664,7 +664,7 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                     return Some(problem.into());
                 }
                 pending.push((
-                    Part::Expr { whole: true, flags: ExprFlags { query: true, ..ExprFlags::default() } },
+                    Part::Expr { whole: false, flags: ExprFlags { query: true, ..ExprFlags::default() } },
                     body,
                     // The argument wrapper adds no depth (engine §9).
                     depth,
