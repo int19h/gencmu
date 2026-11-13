@@ -1,0 +1,20 @@
+{
+  "description": "A guarded string and nested presence read a real stage-input token (engine §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%features f\n%conditions \"x\" ∈ ($ ⟹ \"x\"), ¬$ ∨ $.classes = A\n%ambiguity-resolution greedy\n%rule text f? A\n```\n"
+  },
+  "pipelineDocument": "p.md",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

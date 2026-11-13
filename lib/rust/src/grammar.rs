@@ -1837,7 +1837,7 @@ impl Constants<'_> {
             if conditions.iter().any(crate::clauses::has_bare_empty_set) {
                 return Err(located("a condition of %features is the empty set".to_string(), document, directive.at));
             }
-            crate::features::problem(conditions).map_err(|message| located(message, document, directive.at))?;
+            input_conditions_problem(conditions).map_err(|message| located(message, document, directive.at))?;
             for condition in conditions.iter() {
                 if let Some(fault) = crate::dom::cond_type_fault(condition, &|name| self.ty(name)) {
                     return Err(located(fault.problem, document, directive.at));
@@ -2632,6 +2632,85 @@ fn check_cond(grammar: &StageGrammar, cond: &Cond, compared: &mut bool) -> Resul
             Ok(())
         }
     }
+}
+
+/// Validate the token-only scope before checking resolved constant types (§13).
+fn input_conditions_problem(conditions: &[Cond]) -> Result<(), String> {
+    fn term(value: &Term) -> Result<(), String> {
+        match value {
+            Term::Capture(name) if !name.is_empty() => Err("feature conditions can read only $".into()),
+            Term::Call(name, args) => {
+                if !matches!(
+                    name.as_str(),
+                    "tags"
+                        | "classes"
+                        | "value"
+                        | "image"
+                        | "source-text"
+                        | "decomposed-source-text"
+                        | "first-token"
+                        | "tokens-after-first"
+                        | "last-token"
+                        | "split"
+                        | "ngrams"
+                        | "concat"
+                ) || name == "tags" && args.len() != 1
+                {
+                    return Err("feature conditions can read only tokens".into());
+                }
+                for arg in args {
+                    if let Arg::Term(value) = arg {
+                        term(value)?;
+                    }
+                }
+                Ok(())
+            }
+            Term::Union(items) | Term::Intersection(items) => {
+                for value in items {
+                    term(value)?;
+                }
+                Ok(())
+            }
+            Term::Difference(left, right) => {
+                term(left)?;
+                term(right)
+            }
+            Term::If(condition, value) => {
+                cond(condition)?;
+                term(value)
+            }
+            _ => Ok(()),
+        }
+    }
+    fn cond(value: &Cond) -> Result<(), String> {
+        match value {
+            Cond::Truthy(inner) => term(inner),
+            Cond::Compare(op, left, right, _) if !matches!(op.as_str(), "≅" | "≇") => {
+                term(left)?;
+                term(right)
+            }
+            Cond::Not(inner) => cond(inner),
+            Cond::Any(items) | Cond::All(items) => {
+                for value in items {
+                    cond(value)?;
+                }
+                Ok(())
+            }
+            Cond::If(left, right) => {
+                cond(left)?;
+                cond(right)
+            }
+            Cond::Captured(name) if name.is_empty() => Ok(()),
+            _ => Err("feature conditions can read only tokens".into()),
+        }
+    }
+    for condition in conditions {
+        cond(condition)?;
+        if let Some(fault) = crate::dom::cond_type_fault(condition, &|_| Type::Any) {
+            return Err(fault.problem);
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]

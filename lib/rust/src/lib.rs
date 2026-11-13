@@ -55,7 +55,6 @@ mod eligible;
 mod erasure_audit;
 mod error;
 pub use erasure_audit::{ErasureReport, IdleErasure};
-mod features;
 mod fxhash;
 mod grammar;
 mod guarded_tags;

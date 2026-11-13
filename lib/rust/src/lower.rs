@@ -430,6 +430,33 @@ pub(crate) struct RankedPlan {
 }
 
 impl Lowered {
+    /// Input conditions have no productions, queries, classifiers, or constituent tags.
+    pub(crate) fn input(unicode: Arc<crate::unicode::Unicode>) -> Self {
+        Self {
+            reads_errors: Vec::new(),
+            has_errors: false,
+            profile_possible: Default::default(),
+            tree_demands: Arc::from([]),
+            tree_cases: None,
+            tree_expressions: false,
+            unicode,
+            close_families: Arc::new(Vec::new()),
+            ranked: RankedRuntime::default(),
+            start: 0,
+            elides: false,
+            rules: Vec::new(),
+            prods: Vec::new(),
+            terminals: Vec::new(),
+            tests: Vec::new(),
+            characters: Vec::new(),
+            cycle: Vec::new(),
+            reads_until: Vec::new(),
+            classifiers: Arc::new(Default::default()),
+            implications: Arc::from([]),
+            prepared: Prepared::default(),
+        }
+    }
+
     pub(crate) fn route(&self, prod: u32) -> u8 {
         let p = &self.prods[prod as usize];
         if self.rules[p.rule as usize].elided.is_some() {
@@ -971,6 +998,7 @@ struct Scope<'a> {
     /// Whether `$` has been mentioned so far.
     whole: bool,
     site: Option<crate::boundary::Site>,
+    input: bool,
 }
 
 impl<'a> Scope<'a> {
@@ -1170,10 +1198,28 @@ impl<'a> Scope<'a> {
             Cond::If(antecedent, consequent) => {
                 LCond::If(Box::new(self.cond(antecedent)?), Box::new(self.cond(consequent)?))
             }
-            // Simplification has decided every presence test (§3.6).
+            // Stage input is always present (§13).
+            Cond::Captured(name) if self.input && name.is_empty() => LCond::All(Vec::new()),
+            // Rule simplification has decided all other presence tests (§3.6).
             Cond::Captured(_) => return Err(Missing),
         })
     }
+}
+
+/// Lower validated stage-input conditions through the ordinary condition lowering.
+pub(crate) fn input_conditions(conditions: &[Cond]) -> Vec<(LCond, usize)> {
+    let mut scope = Scope {
+        names: &FxMap::default(),
+        cap_pos: &[],
+        rules: &std::collections::HashMap::new(),
+        query_rules: &FxMap::default(),
+        body_targets: &FxMap::default(),
+        last: None,
+        whole: false,
+        site: None,
+        input: true,
+    };
+    conditions.iter().map(|cond| (scope.cond(cond).expect("validated input condition"), 0)).collect()
 }
 
 /// A production before numbering.
@@ -1646,6 +1692,7 @@ pub(crate) fn lower(
                 last: None,
                 whole: false,
                 site: None,
+                input: false,
             };
             // Every clause is simplified for this production first (§3.6),
             // from its split, which is made once for each clause.
@@ -2194,6 +2241,7 @@ fn ranked_runtime(
                 last: None,
                 whole: false,
                 site: None,
+                input: false,
             };
             let mut conditions = vec![Vec::new(); p.syms.len() + 1];
             let nested = nested(p);
@@ -2297,6 +2345,7 @@ fn ranked_runtime(
                 last: None,
                 whole: false,
                 site: None,
+                input: false,
             };
             let terms: Vec<Term> = source
                 .alternative
