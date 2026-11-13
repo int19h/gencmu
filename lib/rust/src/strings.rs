@@ -141,11 +141,11 @@ impl<'a> Strings<'a> {
             for (start, end) in extensions {
                 let first = self.claim_points.binary_search(&start).expect("a source endpoint");
                 let last = self.claim_points.binary_search(&end).expect("a source endpoint");
-                for cell in first..last {
-                    if self.claimed_cells[cell] {
+                for claimed in &mut self.claimed_cells[first..last] {
+                    if *claimed {
                         return Err(Self::failure("different verbatim spans claim the same uncovered source text"));
                     }
-                    self.claimed_cells[cell] = true;
+                    *claimed = true;
                 }
             }
         }
