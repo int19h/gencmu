@@ -298,7 +298,8 @@ type condLowering struct {
 	// simplified is each fixed condition simplified, and each guarded
 	// condition's consequent, with the captures each uses.
 	simplified []*domCond
-	// truth is what each fixed condition simplified to.
+	// truth is what each fixed condition, and each guarded condition's
+	// consequent, simplified to.
 	truth []truth
 	uses  []map[string]bool
 	// junctions holds each ∧ and ∨ split into its parts.
