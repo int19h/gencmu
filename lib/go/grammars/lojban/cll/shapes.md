@@ -51,11 +51,9 @@ CLL[^cll-s3-7] forbids the triples `ndj ndz ntc nts`, except in a name. The shar
 %rule consonants
   {consonant}
 
-%rule has-n-affricate
-  [consonants] n-affricate [consonants]
 ```
 
-<details><summary>Railroad diagrams of the 8 rules from <code>consonant</code> to <code>has-n-affricate</code></summary>
+<details><summary>Railroad diagrams of the 7 rules from <code>consonant</code> to <code>consonants</code></summary>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/consonant.svg" alt="Railroad diagram of the rule consonant"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/initial-pair.svg" alt="Railroad diagram of the rule initial-pair"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/consonant-pair.svg" alt="Railroad diagram of the rule consonant-pair"></p>
@@ -63,12 +61,11 @@ CLL[^cll-s3-7] forbids the triples `ndj ndz ntc nts`, except in a name. The shar
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/affricate.svg" alt="Railroad diagram of the rule affricate"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/n-affricate.svg" alt="Railroad diagram of the rule n-affricate"></p>
 <p><img src="../../../docs/diagrams/lojban/cll/shapes/consonants.svg" alt="Railroad diagram of the rule consonants"></p>
-<p><img src="../../../docs/diagrams/lojban/cll/shapes/has-n-affricate.svg" alt="Railroad diagram of the rule has-n-affricate"></p>
 </details>
 
 
 
-A permissible run is a run of consonants whose adjacent pairs are all permissible. A name can have such a run anywhere (CLL[^cll-s3-7]). A borrowing can have one in its middle, with no `n` triple in it (CLL[^cll-s4-7]). The borrowing rules in [morphology.md](morphology.md#borrowings) use `has-n-affricate` to exclude those triples.
+A permissible run is a run of consonants whose adjacent pairs are all permissible. A name can have such a run anywhere (CLL[^cll-s3-7]). A borrowing can have one in its middle, with no `n` triple in it (CLL[^cll-s4-7]). The borrowing rules in [morphology.md](morphology.md#borrowings) exclude those triples with a part query for `n-affricate`.
 
 `permissible-run` reads a nonempty consonant run. Every two adjacent values must form a pair in `$PERMISSIBLE`. A single consonant has no pair and satisfies the condition. So `.tlaiv.` and `.ekstcat.` are names, but `.djeimz.` and `.bobb.` are not.
 
