@@ -73,46 +73,32 @@ class Records:
         self.literals = []
         self.empty = self.intern(True, 0, 0, 0, 0)
         seen = set()
+
+        def add_condition(condition):
+            seen.add(id(condition))
+            for atom in atoms(condition):
+                mask = self.targets(atom)
+                if atom['method'] == 'followed-by':
+                    self.forward |= mask
+                else:
+                    self.backward |= mask
+
         for p in productions:
             for condition in p.conds_predict:
                 if id(condition) not in seen:
-                    seen.add(id(condition))
-                    for atom in atoms(condition):
-                        mask = self.targets(atom)
-                        if atom['method'] == 'followed-by':
-                            self.forward |= mask
-                        else:
-                            self.backward |= mask
+                    add_condition(condition)
             for cs in p.conds_at.values():
                 for condition in cs:
                     if id(condition) not in seen:
-                        seen.add(id(condition))
-                        for atom in atoms(condition):
-                            mask = self.targets(atom)
-                            if atom['method'] == 'followed-by':
-                                self.forward |= mask
-                            else:
-                                self.backward |= mask
+                        add_condition(condition)
             if p.items is not None:
                 for condition in p.items.conditions:
                     if id(condition) not in seen:
-                        seen.add(id(condition))
-                        for atom in atoms(condition):
-                            mask = self.targets(atom)
-                            if atom['method'] == 'followed-by':
-                                self.forward |= mask
-                            else:
-                                self.backward |= mask
+                        add_condition(condition)
             if p.slot is not None:
                 for condition in p.slot.ranked_conditions:
                     if id(condition) not in seen:
-                        seen.add(id(condition))
-                        for atom in atoms(condition):
-                            mask = self.targets(atom)
-                            if atom['method'] == 'followed-by':
-                                self.forward |= mask
-                            else:
-                                self.backward |= mask
+                        add_condition(condition)
 
     def targets(self, atom):
         mask = 0

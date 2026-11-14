@@ -1442,7 +1442,7 @@ def rank_original(forest: Forest, steps: tuple[tuple[str, str], ...], lean: str,
         return None
     space = Profiles(steps, forest.tagtab, getattr(forest, "original_tokens", forest.tokens), measures_of(forest))
     ranker: Profiled | Ranker
-    if any(measure[2] for measure in space.measures.carried) or can_count_profiles(forest.lowered, steps) and not (forest.project is not None and not any(p.error is not None for p in forest.lowered.productions) and all(requires_elided(pattern) for _, pattern in steps)):
+    if any(measure[2] for measure in space.measures.carried) or can_count_profiles(forest.lowered, steps) and not (forest.project is not None and not forest.lowered.has_errors and all(requires_elided(pattern) for _, pattern in steps)):
         ranker = Profiled(forest, space, lean)
     else:
         ranker = Ranker(forest, lean)

@@ -41,7 +41,7 @@ from ._types import (
 )
 from ._validate import Marks, term_reads_own_tags
 from ._ranking_patterns import ranking_pattern_problem, requires_elided
-from ._logical import Expansion, combine, extend_all, optional, inherited
+from ._logical import Expansion, extend_all, freeze, inherited, logical_of, optional
 from ._guarded_tags import variants
 from ._strings import literal_string, spelling, ENGINE_TAGS
 
@@ -1579,6 +1579,9 @@ class _Lowerer:
         # by its identity, with the clause kept so that the identity stays
         # its own.
         self.prepared: dict[int, tuple[Any, Any]] = {}
+        # Each condition's capture names found once for all the productions
+        # that share it, by its identity, with the condition kept so that
+        # the identity stays its own.
         self.condition_names: dict[int, tuple[Any, frozenset[str], tuple[str, ...], bool]] = {}
 
     def emission(self, emit: Dom | None) -> Emission | None:
@@ -1698,7 +1701,7 @@ class _Lowerer:
             sequences = [Expansion()]
             for item in expr["seq"]:
                 sequences = extend_all(sequences, (yield self._expand(item)))
-            return sequences
+            return freeze(sequences)
         if "ranked" in expr:
             options, labels = [], []
             for number, option in enumerate(expr["ranked"]):
@@ -1724,7 +1727,7 @@ class _Lowerer:
                 for index in range(len(items)):
                     if mask >> index & 1:
                         sequences = extend_all(sequences, expanded[index])
-                result.extend(sequences)
+                result.extend(freeze(sequences))
             return result
         if "optional" in expr:
             inner = expr["optional"]
@@ -1846,7 +1849,7 @@ class _Lowerer:
         if alt is not None and alt.erased:
             self.erased_structural.add(len(self.structural))
         self.structural.append((lhs, rhs, terminal))
-        has_long = bool([sym for sym, _ in expansion if len(sym) > 2])
+        has_long = any(len(sym) > 2 for sym, _ in expansion)
         if has_long:
             tests_tuple = tuple([sym[2] if len(sym) > 2 else None for sym, _ in expansion])
             tests = tests_tuple if any(test is not None for test in tests_tuple) else None
@@ -1855,9 +1858,7 @@ class _Lowerer:
         # A production reads each name at most once (engine §3.5); the
         # reader and the check of a DOM have made sure of it.
         captures: dict[str, int] = {name: position for position, (_, name) in enumerate(expansion) if name is not None}
-        logical = expansion.logical if isinstance(expansion, Expansion) else getattr(expansion, "logical", None)
-        if logical is None:
-            logical = tuple(("symbol", i) for i in range(len(expansion)))
+        logical = logical_of(expansion)
         production = Production(
             id=len(self.productions),
             lhs=lhs,
@@ -1943,6 +1944,8 @@ class _Lowerer:
             production.slots = (-1,) * len(rhs)
         else:
             slots = [-1] * len(rhs)
+            # Written captures are added in physical order. Only the
+            # implicit capture can come out of order.
             positions = sorted(captures.values()) if implicit else captures.values()
             for index, position in enumerate(positions):
                 slots[position] = index
@@ -1963,8 +1966,7 @@ class _Lowerer:
                     production.conds_predict.extend(conditions)
                 else:
                     production.conds_at.setdefault(at, []).extend(conditions)
-                    if rhs:
-                        production.whole_ready = True
+                    production.whole_ready = True
             elif at >= 0 and at not in production.conds_at:
                 production.conds_at[at] = []
             production.tags_term = term

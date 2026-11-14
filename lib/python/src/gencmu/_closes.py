@@ -5,7 +5,7 @@ from typing import Any, Iterator
 
 from . import _testing
 from ._model import Restoration
-from ._clause_walk import clause_children, production_clauses
+from ._clause_walk import clause_children, own_clauses, production_clauses, source_clauses
 from ._query_forms import body_target
 
 
@@ -277,6 +277,9 @@ def needed(lowered: Any) -> frozenset[int]:
     wanted = set()
     seen = set()
     rules = [lowered.rule_ids["text"]]
+    # Each clause root and source scanned once for all the productions that
+    # share it, by its identity, with the object kept so that the identity
+    # stays its own.
     clause_captures: dict[int, tuple[Any, tuple[str, ...]]] = {}
 
     def scan_clause(root: Any) -> tuple[str, ...]:
@@ -319,13 +322,16 @@ def needed(lowered: Any) -> frozenset[int]:
         clause_captures[id(root)] = (root, result)
         return result
 
-    def check_clause(root: Any, production: Any) -> None:
-        for name in scan_clause(root):
+    def check_captures(names: tuple[str, ...], production: Any) -> None:
+        for name in names:
             at = production.captures.get(name)
             if not name or at is None or production.contextual:
                 wanted.update((production.lhs, lowered.rule_ids[production.rule_name]))
             elif not production.terminal[at]:
                 wanted.add(production.rhs[at])
+
+    def check_clause(root: Any, production: Any) -> None:
+        check_captures(scan_clause(root), production)
 
     while rules:
         rule = rules.pop()
@@ -337,42 +343,18 @@ def needed(lowered: Any) -> frozenset[int]:
             for symbol, terminal in zip(production.rhs, production.terminal):
                 if not terminal and symbol not in seen:
                     rules.append(symbol)
-            for condition in production.conds_predict:
-                check_clause(condition, production)
-            for conditions in production.conds_at.values():
-                for condition in conditions:
-                    check_clause(condition, production)
-            if production.tags_term is not None:
-                check_clause(production.tags_term, production)
-            if production.emit is not None:
-                check_clause(production.emit, production)
-            if production.slot is not None and production.slot.ranked_conditions:
-                for condition in production.slot.ranked_conditions:
-                    check_clause(condition, production)
-            if production.parent_tags is not None:
-                check_clause(production.parent_tags, production)
-            if production.items is not None and production.items.conditions:
-                for condition in production.items.conditions:
-                    check_clause(condition, production)
+            for clause in own_clauses(production):
+                check_clause(clause, production)
             source = production.source
             if source is not None:
                 cached_source = clause_captures.get(id(source))
                 if cached_source is None:
                     source_caps: list[str] = []
-                    for item in (
-                        source.conditions, source.tags, source.rule_tags, source.emit,
-                        source.value, source.image, source.rule_value, source.rule_image,
-                        source.error, source.warning,
-                    ):
+                    for item in source_clauses(source):
                         if item is not None:
                             source_caps.extend(scan_clause(item))
                     cached_source = clause_captures[id(source)] = (source, tuple(source_caps))
-                for name in cached_source[1]:
-                    at = production.captures.get(name)
-                    if not name or at is None or production.contextual:
-                        wanted.update((production.lhs, lowered.rule_ids[production.rule_name]))
-                    elif not production.terminal[at]:
-                        wanted.add(production.rhs[at])
+                check_captures(cached_source[1], production)
     pending = list(wanted)
     while pending:
         rule = pending.pop()
