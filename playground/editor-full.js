@@ -343,7 +343,7 @@ export function createFullEditor(container, options = {}) {
       const viewHeight = view.scrollDOM.clientHeight || container.clientHeight || 720;
       view.scrollDOM.scrollTop = isPhone
         ? Math.max(0, block.top + 6)
-        : Math.max(0, block.top + 6 - Math.min(540, Math.floor(viewHeight * 0.75)));
+        : Math.max(0, block.top - Math.floor(viewHeight / 3));
     };
     applyScroll();
     view.measure();

@@ -228,7 +228,7 @@ async function main() {
         send(id, request);
       };
     });
-    if (!/^library \d+\.\d+\.\d+/.test(version)) throw new Error(`the worker did not report the library's version: ${version}`);
+    if (!/^Library \d+\.\d+\.\d+/.test(version)) throw new Error(`the worker did not report the library's version: ${version}`);
 
     // The brand title shows "gencmu" and the help menu links to the repository.
     const heading = await run(() => {
@@ -625,8 +625,7 @@ async function main() {
       names: [...group.children].map((option) => option.value),
     })));
     assert.deepEqual(pipelineGroups, [
-      { label: "lojban", names: ["lojban/cll", "lojban/bpfk", "lojban/experimental", "lojban/zantufa"] },
-      { label: "lojban/examples", names: ["lojban/examples/kihei"] },
+      { label: "lojban", names: ["lojban/cll", "lojban/bpfk", "lojban/experimental", "lojban/zantufa", "lojban/examples/kihei"] },
       { label: "eberban", names: ["eberban/refgram"] },
       { label: "gencmu", names: ["gencmu/jbogenbau"] },
     ]);

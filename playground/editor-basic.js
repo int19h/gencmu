@@ -163,7 +163,7 @@ export function createBasicEditor(container, options = {}) {
         document.getElementById("app")?.classList.contains("phone");
       textarea.scrollTop = isPhone
         ? Math.max(0, lineTop - PADDING_TOP_PX)
-        : Math.max(0, lineTop - Math.floor(viewHeight * 0.6));
+        : Math.max(0, lineTop - Math.floor(viewHeight / 3));
       reportCursor();
     },
     markError(line, message = "") {

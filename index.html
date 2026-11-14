@@ -31,13 +31,13 @@
       </button>
 
       <nav class="menu help-menu" id="help-menu" role="menu" aria-label="Help and documentation" hidden>
-        <p class="help-head"><b style="font-size:15px">gencmu</b><span style="color:var(--muted)">playground</span></p>
+        <p class="help-head"><b style="font-size:15px">gencmu</b><span style="color:var(--muted)">playground</span><span class="spacer help-phone-only"></span><span class="help-ver-phone" id="version-phone">library 0.1.0</span></p>
         <a class="help-link" role="menuitem" href="https://github.com/int19h/gencmu/blob/main/README.md" target="_blank" rel="noopener"><b>About gencmu</b><span>The README: what gencmu is and how to use it</span></a>
         <a class="help-link" role="menuitem" href="https://github.com/int19h/gencmu/blob/main/docs/notation.md" target="_blank" rel="noopener"><b>The notation</b><span>How a grammar document is written</span></a>
         <a class="help-link" role="menuitem" href="https://github.com/int19h/gencmu/blob/main/docs/pipelines.md" target="_blank" rel="noopener"><b>Pipelines</b><span>The bundled pipelines and their stages</span></a>
         <a class="help-link" role="menuitem" href="https://github.com/int19h/gencmu/blob/main/docs/playground.md" target="_blank" rel="noopener"><b>The playground</b><span>What each view shows</span></a>
         <a class="help-link" role="menuitem" href="https://github.com/int19h/gencmu" target="_blank" rel="noopener"><b>Source on GitHub</b><span>int19h/gencmu</span></a>
-        <div class="help-foot"><span id="version">library ...</span> · <span>Runs in your browser · nothing is sent</span></div>
+        <div class="help-foot"><span id="version">Library 0.1.0</span></div>
       </nav>
 
       <span class="brand" id="brand-title"><span class="brand-name g">gencmu</span><span class="brand-sub">playground</span></span>
@@ -82,7 +82,7 @@
         <h2 class="opt-run-h2">Run</h2>
         <div class="frow no-border">
           <div>
-            <div style="font-size:13px;font-weight:600">Elision-only</div>
+            <div style="font-size:13px">Elision-only</div>
             <small id="elision-only-desc">Default: on for the syntax stage</small>
           </div>
           <div class="seg3" id="elision-only-segs" role="radiogroup" aria-label="Elision-only">
@@ -98,7 +98,7 @@
         </div>
         <div class="frow">
           <div>
-            <label for="until" style="font-size:13px;font-weight:600">Run until</label>
+            <label for="until" style="font-size:13px">Run until</label>
           </div>
           <select id="until">
             <option value="">syntax, the last stage</option>
@@ -108,8 +108,8 @@
     </header>
 
     <main class="work" id="workspace">
-      <section class="left free" aria-label="Input and result">
-        <section class="tcard" aria-label="Text">
+      <section class="left" aria-label="Input and result">
+        <section class="tcard free" aria-label="Text">
           <label class="sr-only" for="input">Text</label>
           <textarea id="input" rows="3" spellcheck="false" autocomplete="off" autocapitalize="off">mi klama le zarci</textarea>
           <button type="button" class="btn plain phone-ex-btn" id="phone-examples-button" aria-label="Examples" title="Examples">
@@ -230,7 +230,7 @@
             </div>
             <div class="ebody" id="editor-body" role="region" aria-label="Grammar document"></div>
             <div class="eerr sans" id="doc-error-bar" role="alert" hidden>
-              <span class="mono" id="doc-error-loc" style="font-weight:700"></span>
+              <span class="mono" id="doc-error-loc" style="font-weight:600"></span>
               <span id="doc-error-text" style="flex:1 1 auto;min-width:0"></span>
               <button type="button" class="btn" id="doc-error-jump" style="flex:none">Go to 1:1</button>
             </div>

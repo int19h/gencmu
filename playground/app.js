@@ -14,17 +14,6 @@
     createEditor = basic.createBasicEditor;
   }
 
-  function syncTheme() {
-    const app = $("app");
-    const forceDark = location.hash === "#dark" || location.hash.endsWith("&dark");
-    const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
-    app.classList.toggle("dark", !!(forceDark || prefersDark));
-  }
-  syncTheme();
-  if (window.matchMedia) {
-    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", syncTheme);
-  }
-
   const LOGO_PARTS = [
     { id: "blue-under-upper", cx: 78, turn: "38.571428571429", jam: "3.086" },
     { id: "blue-over-lower", cx: 78, turn: "38.571428571429", jam: "3.086" },
@@ -116,7 +105,7 @@
 
   function firstHeading(markdown) {
     const match = /^#\s+(.*)$/m.exec(markdown || "");
-    return match ? match[1].trim() : "";
+    return match ? match[1].replace(/`([^`]*)`/g, "$1").trim() : "";
   }
 
   const pipelineOf = (path) =>
@@ -147,7 +136,13 @@
 
   function pipelineTitle(name) {
     const heading = firstHeading(bundled[pipelinePath(name)]);
-    return heading.replace(/^The\s+/i, "").replace(/\s+pipeline$/i, "");
+    const cleaned = heading
+      .replace(/^The\s+/i, "")
+      .replace(/\bpipeline\b\s*/gi, "")
+      .replace(/\s+,/g, ",")
+      .replace(/\s+/g, " ")
+      .trim();
+    return cleaned ? cleaned.charAt(0).toUpperCase() + cleaned.slice(1) : "";
   }
 
   const EXAMPLES = [
@@ -245,7 +240,7 @@
   const TABS = ["brackets", "tree", "json", "canonical", "tokens", "trace", "audit"];
   function loadFragment() {
     const raw = location.hash.slice(1);
-    if (!raw || raw === "dark") return;
+    if (!raw) return;
     const params = new URLSearchParams(raw);
     if (params.has("text")) state.text = params.get("text");
     const pipeline = params.get("pipeline");
@@ -267,7 +262,6 @@
 
   let fragmentTimer = 0;
   function saveFragment() {
-    if (location.hash === "#dark") return;
     clearTimeout(fragmentTimer);
     fragmentTimer = setTimeout(() => {
       const params = new URLSearchParams();
@@ -429,7 +423,8 @@
       case "ready":
         workerReady = true;
         timings.workerReady = performance.now() - client.startedAt;
-        $("version").textContent = `library ${message.version}`;
+        $("version").textContent = `Library ${message.version}`;
+        if ($("version-phone")) $("version-phone").textContent = `library ${message.version}`;
         break;
       case "phase":
         if (!running || message.id !== running.id) break;
@@ -477,17 +472,17 @@
       }
       case "failed":
         if (message.id === null) {
-          stopWorker(`The parser worker stopped, which is a bug in gencmu:\n${message.message}\nA new one is started for the next change.`);
+          stopWorker(message.message);
           break;
         }
         if (!running || message.id !== running.id) break;
         finishRun(running.generation === generation);
         if (running.generation === generation) {
-          showFailure(`The parser failed, which is a bug in gencmu:\n${message.message}`);
+          showFailure(message.message);
         }
         break;
       case "crashed":
-        stopWorker(`The parser worker stopped: ${message.message}. A new one is started for the next change.`);
+        stopWorker(message.message);
         break;
     }
   }
@@ -570,7 +565,7 @@
     const topbar = $("topbar");
     const width = window.innerWidth;
 
-    if (width <= 560) {
+    if (width < 440) {
       app.classList.add("phone");
       delete topbar.dataset.overflow;
       if (!wasPhone) {
@@ -590,13 +585,13 @@
     delete topbar.dataset.overflow;
 
     const overflows = () => topbar.scrollWidth > topbar.clientWidth + 1;
-    if (!overflows()) return;
+    if (!overflows() && width > 870) return;
 
     topbar.dataset.overflow = "1";
-    if (!overflows()) return;
+    if (!overflows() && width > 680) return;
 
     topbar.dataset.overflow = "2";
-    if (!overflows()) return;
+    if (!overflows() && width > 500) return;
 
     topbar.dataset.overflow = "3";
     if (!overflows()) return;
@@ -716,19 +711,25 @@
 
   function checkBadgeIcon() {
     const s = document.createElement("span");
-    s.innerHTML = `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.2l3.2 3.2L13 4.6"/></svg>`;
+    s.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>`;
     return s.firstElementChild;
   }
 
   function crossIcon() {
     const s = document.createElement("span");
-    s.innerHTML = `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>`;
+    s.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>`;
     return s.firstElementChild;
   }
 
-  function warnIcon() {
+  function warnIcon(size = 15) {
     const s = document.createElement("span");
-    s.innerHTML = `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.2L14.5 13.5H1.5L8 2.2z"/><path d="M8 6.3v3.4"/><circle cx="8" cy="11.6" r="0.8" fill="currentColor" stroke="none"/></svg>`;
+    s.innerHTML = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>`;
+    return s.firstElementChild;
+  }
+
+  function tieIcon() {
+    const s = document.createElement("span");
+    s.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M16 3h5v5"/><path d="M8 3H3v5"/><path d="M12 22v-8.3a4 4 0 0 0-1.2-2.9L3 3"/><path d="m15 9 6-6"/></svg>`;
     return s.firstElementChild;
   }
 
@@ -801,9 +802,13 @@
     );
     const issueHref = `https://github.com/int19h/gencmu/issues/new?title=${issueTitle}&body=${issueBody}`;
 
-    const box = element("div", { class: "alert-box bad box", id: "parser-error", role: "alert" },
-      element("h2", { text: "The parser stopped" }),
-      element("p", { style: "margin:0;font-size:13.5px", text: "This is a bug in gencmu. A new parser starts with your next change." }),
+    const headRow = element("div", { style: "display:flex;align-items:center;gap:8px;color:var(--bad)" },
+      warnIcon(18),
+      element("h2", { style: "margin:0;font-size:15px;font-weight:650;color:var(--bad)", text: "The parser stopped" }));
+
+    const box = element("div", { class: "alert-box bad box", id: "parser-error", role: "alert", style: "gap:10px" },
+      headRow,
+      element("p", { style: "margin:0", text: "This is a bug in gencmu. A new parser starts with your next change." }),
       element("pre", { class: "parser-stop-pre", text }),
       element("div", { style: "display:flex;flex-wrap:wrap;gap:8px;align-items:center" },
         element("a", {
@@ -821,7 +826,7 @@
         })));
     $("diagnostics").replaceChildren(box);
     $("output").replaceChildren(element("p", { class: "empty-out", text: "No result." }));
-    $("copy-output").hidden = true;
+    updateTabToolbar(false);
   }
 
   function renderSummary(message) {
@@ -833,7 +838,7 @@
 
     if (message.loadError) {
       badge.className = "badge bad";
-      fill(badge, [crossIcon(), "Grammar error"]);
+      fill(badge, [warnIcon(), "Grammar error"]);
       copyLinkBtn.hidden = true;
     } else if (message.parseError) {
       badge.className = "badge bad";
@@ -855,10 +860,10 @@
         fill(badge, [crossIcon(), `Rejected by ${err.stage}`]);
       } else if (err.kind === "ambiguous" && err.reason === "tie") {
         badge.className = "badge tie";
-        fill(badge, [warnIcon(), `Tie in ${err.stage}`]);
+        fill(badge, [tieIcon(), `Tie in ${err.stage}`]);
       } else if (err.kind === "ambiguous") {
-        badge.className = "badge bad";
-        fill(badge, [crossIcon(), `Elision-only check failed in ${err.stage}`]);
+        badge.className = "badge warn";
+        fill(badge, [warnIcon(), `Elision-only check failed in ${err.stage}`]);
       } else if (err.kind === "reported") {
         badge.className = "badge bad";
         fill(badge, [crossIcon(), `Errors in ${err.stage}`]);
@@ -941,7 +946,7 @@
         } else if (isPhone) {
           detailText = String(report.output);
         } else {
-          detailText = `${plural(report.output, "token")}${report.verdict === "resolved" ? " · resolved" : ""}`;
+          detailText = plural(report.output, "token");
         }
         chips.push(element("button", {
           type: "button",
@@ -981,9 +986,9 @@
 
     if (message.loadError) {
       const error = message.loadError;
-      boxes.push(element("div", { class: "explain-divider box", id: "explanation", role: "alert" },
-        element("p", { class: "explain-lead", text: `The ${message.pipeline} pipeline cannot load` }),
-        element("pre", { class: "alert-pre", style: "margin:0;white-space:pre-wrap" }, linkified(error.message))));
+      boxes.push(element("div", { class: "alert-box bad box", id: "explanation", role: "alert" },
+        element("h2", { text: `The ${message.pipeline} pipeline cannot load` }),
+        element("p", { class: "alert-pre" }, linkified(error.message))));
     }
 
     if (message.parseError) {
@@ -1017,12 +1022,58 @@
     }
 
     if (parse && parse.warnings && parse.warnings.length) {
+      const warnBlocks = (parse.warningsText || "").split(/\n\n+/).map((block) => {
+        const wLines = block.split("\n");
+        if (wLines.length >= 3 && /\^/.test(wLines[2])) {
+          const ex = formatExcerptNode(wLines[1], wLines[2], "var(--warn)");
+          ex.style.background = "var(--surface)";
+          ex.style.border = "1px solid var(--warn-line)";
+          return element("div", { style: "display:flex;flex-direction:column;gap:8px" },
+            element("p", { style: "margin:0;font-size:13.5px", text: wLines[0] }),
+            ex);
+        }
+        return element("pre", { class: "alert-pre", text: block });
+      });
       boxes.push(element("div", { class: "alert-box warn box" },
         element("h3", { text: plural(parse.warnings.length, "warning") }),
-        element("pre", { class: "alert-pre", text: parse.warningsText })));
+        warnBlocks));
     }
 
     fill($("diagnostics"), boxes);
+  }
+
+  function formatExcerptNode(srcLine, caretLine, caretColor) {
+    const srcParts = [];
+    const srcMatch = srcLine.match(/^(\s*\d*\s*[|│]\s?)(.*)$/);
+    if (srcMatch) {
+      srcParts.push(element("span", { style: "color:var(--faint)", text: srcMatch[1] }), srcMatch[2]);
+    } else {
+      srcParts.push(srcLine);
+    }
+
+    const caretParts = [];
+    const caretMatch = caretLine.match(/^(\s*[|│]\s?)(\s*)(\^+)(.*)$/);
+    if (caretMatch) {
+      caretParts.push(
+        element("span", { style: "color:var(--faint)", text: caretMatch[1] }),
+        caretMatch[2],
+        element("span", { style: `color:${caretColor};font-weight:700`, text: caretMatch[3] }),
+        caretMatch[4]
+      );
+    } else {
+      const plainCaret = caretLine.match(/^(\s*)(\^+)(.*)$/);
+      if (plainCaret) {
+        caretParts.push(
+          plainCaret[1],
+          element("span", { style: `color:${caretColor};font-weight:700`, text: plainCaret[2] }),
+          plainCaret[3]
+        );
+      } else {
+        caretParts.push(caretLine);
+      }
+    }
+
+    return element("pre", { class: "excerpt" }, srcParts, "\n", caretParts);
   }
 
   function renderRejectionBox(parse, error) {
@@ -1047,17 +1098,7 @@
     children.push(element("p", { class: "explain-lead" }, leadParts));
 
     if (lines.length >= 3 && /\^/.test(lines[2])) {
-      const srcLine = lines[1];
-      const caretLine = lines[2];
-      const caretMatch = caretLine.match(/^(\s*)(\^+)(.*)$/);
-      if (caretMatch) {
-        children.push(element("pre", { class: "excerpt" },
-          `${srcLine}\n${caretMatch[1]}`,
-          element("span", { style: "color:var(--bad);font-weight:700", text: caretMatch[2] }),
-          caretMatch[3]));
-      } else {
-        children.push(element("pre", { class: "excerpt", text: `${srcLine}\n${caretLine}` }));
-      }
+      children.push(formatExcerptNode(lines[1], lines[2], "var(--bad)"));
     }
 
     const byRule = error.expectedByRule || [];
@@ -1104,7 +1145,6 @@
         },
       }));
     }
-    actionRow.push(element("span", { class: "spacer" }));
     if (error.stage) {
       actionRow.push(element("button", {
         type: "button",
@@ -1116,7 +1156,9 @@
         },
       }));
     }
-    children.push(element("div", { style: "display:flex;flex-wrap:wrap;align-items:center;gap:8px" }, actionRow));
+    if (actionRow.length > 0) {
+      children.push(element("div", { style: "display:flex;flex-wrap:wrap;align-items:center;gap:8px" }, actionRow));
+    }
 
     return element("div", { class: "explain-divider box", id: "explanation" }, children);
   }
@@ -1142,17 +1184,9 @@
       }
     }
 
-    const excerptEl = (() => {
-      if (!srcLine) return element("pre", { class: "excerpt", text: tie.summary });
-      const caretMatch = caretLine.match(/^(\s*)(\^+)(.*)$/);
-      if (caretMatch) {
-        return element("pre", { class: "excerpt" },
-          `${srcLine}\n${caretMatch[1]}`,
-          element("span", { style: "color:var(--warn);font-weight:700", text: caretMatch[2] }),
-          caretMatch[3]);
-      }
-      return element("pre", { class: "excerpt", text: `${srcLine}\n${caretLine}` });
-    })();
+    const excerptEl = srcLine
+      ? formatExcerptNode(srcLine, caretLine, "var(--warn)")
+      : element("pre", { class: "excerpt", text: tie.summary });
 
     return element("div", { class: "explain-divider box", id: "explanation" },
       element("p", { class: "explain-lead", text: leadText }),
@@ -1160,10 +1194,10 @@
       excerptEl,
       element("dl", { class: "tie-dl" },
         element("dt", { text: "First reading" }),
-        element("dd", { class: "mono", text: firstDiff }),
+        element("dd", { text: firstDiff }),
         element("dt", { text: "Second reading" }),
-        element("dd", { class: "mono", text: secondDiff })),
-      element("p", { class: "explain-sub", text: `${tie.advice} Both readings are shown below.` }));
+        element("dd", { text: secondDiff })),
+      element("p", { class: "explain-sub", text: tie.advice || "" }));
   }
 
   function jumpToRuleName(ruleName) {
@@ -1202,11 +1236,13 @@
     return frag;
   }
 
-  function updateTabToolbar(hasCopyText = true) {
-    $("elided-toggle").hidden = state.tab !== "brackets";
-    $("canonical-toggle").hidden = state.tab !== "json";
-    const showCopy = ["brackets", "tree", "json", "audit"].includes(state.tab) && hasCopyText;
+  function updateTabToolbar(hasOutput = true) {
+    $("elided-toggle").hidden = !(state.tab === "brackets" && hasOutput);
+    $("canonical-toggle").hidden = !(state.tab === "json" && hasOutput);
+    const showCopy = ["brackets", "tree", "json", "audit"].includes(state.tab) && hasOutput;
     $("copy-output").hidden = !showCopy;
+    $("output-controls").hidden =
+      $("elided-toggle").hidden && $("canonical-toggle").hidden && $("copy-output").hidden;
   }
 
   function renderOutput(message) {
@@ -1365,6 +1401,13 @@
     ].filter(Boolean));
   }
 
+  function chevronIcon(dir) {
+    const s = document.createElement("span");
+    const d = dir === "left" ? "m15 18-6-6 6-6" : "m9 18 6-6-6-6";
+    s.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="${d}"/></svg>`;
+    return s.firstElementChild;
+  }
+
   function renderTrace(trace) {
     const output = $("output");
     if (!trace) {
@@ -1424,29 +1467,29 @@
     const prevBtn = element("button", {
       type: "button",
       class: "btn",
+      style: "padding:0 8px",
       "aria-label": "Previous position",
       disabled: trace.position <= 0,
-      text: "‹",
       onclick: () => {
         if (state.trace.position > 0) {
           state.trace.position--;
           schedule(0);
         }
       },
-    });
+    }, chevronIcon("left"));
     const nextBtn = element("button", {
       type: "button",
       class: "btn",
+      style: "padding:0 8px",
       "aria-label": "Next position",
       disabled: trace.position >= trace.count,
-      text: "›",
       onclick: () => {
         if (state.trace.position < trace.count) {
           state.trace.position++;
           schedule(0);
         }
       },
-    });
+    }, chevronIcon("right"));
 
     const parsedTrace = parseTraceText(trace.text);
 
@@ -1466,9 +1509,10 @@
     const lines = (rawText || "").split("\n");
     const summaryLine = lines[0] || "";
     const summaryMatch = summaryLine.match(/at (position \d+.*)$/i);
-    const summary = summaryMatch
+    const rawSummary = summaryMatch
       ? summaryMatch[1].charAt(0).toUpperCase() + summaryMatch[1].slice(1)
       : summaryLine;
+    const summary = rawSummary.replace(/:$/, "");
 
     const buckets = new Map([
       ["Completed", []],
@@ -1899,7 +1943,7 @@
     } else {
       const parentDir = entryDir.slice(0, entryDir.slice(0, -1).lastIndexOf("/") + 1);
       if (parentDir && path.startsWith(parentDir)) {
-        rel = `../${path.slice(parentDir.length)}`;
+        rel = path.slice(parentDir.length);
       } else {
         rel = path.replace(/^grammars\//, "");
       }
@@ -1910,13 +1954,12 @@
   function renderDocLabel(label) {
     const slashIdx = label.lastIndexOf("/");
     if (slashIdx < 0) {
-      return [element("span", { class: "s", text: label })];
+      return element("span", { class: "s", text: label });
     }
-    return [
+    return element("span", {},
       element("small", { class: "s", text: label.slice(0, slashIdx + 1) }),
       document.createElement("wbr"),
-      element("span", { class: "s", text: label.slice(slashIdx + 1) }),
-    ];
+      element("span", { class: "s", text: label.slice(slashIdx + 1) }));
   }
 
   function renderDocuments() {
@@ -1936,7 +1979,7 @@
     const allEditsCount = client.edits.size;
     $("download-edited").hidden = false;
     $("download-edited").disabled = !allEditsCount;
-    $("download-edited").textContent = "Download edited";
+    if ($("download-edited-label")) $("download-edited-label").textContent = "Download edited";
 
     const stageGroups = [
       { stage: "pipeline", label: "Pipeline", paths: [entry, ...before] },
@@ -1997,7 +2040,7 @@
           onclick: () => openDocument(path, 0, 1),
         },
         element("span", { class: "mono" },
-          label,
+          renderDocLabel(label),
           hasError
             ? element("span", { class: "dot bad" })
             : edited
@@ -2072,13 +2115,14 @@
     }
     const line = error.line || 1;
     const col = error.column || 1;
-    const firstLine = (error.message || "Grammar error").split("\n")[0];
+    const rawFirstLine = (error.message || "Grammar error").split("\n")[0];
+    const strippedLine = rawFirstLine.replace(/^[^\s:]+:\d+(?::\d+)?:\s*(?:stage\s+[^:]+:\s*)?/, "");
     $("doc-error-loc").textContent = `${line}:${col}`;
-    $("doc-error-text").textContent = firstLine;
+    $("doc-error-text").textContent = strippedLine || rawFirstLine;
     $("doc-error-jump").textContent = `Go to ${line}:${col}`;
     $("doc-error-jump").onclick = () => editor.goTo(line, col);
     errBar.hidden = false;
-    editor.markError(line, error.message || "Grammar error", col);
+    editor.markError(line, strippedLine || rawFirstLine, col);
   }
 
   function openDocument(path, line = 0, column = 1) {
@@ -2158,11 +2202,6 @@
     for (const btn of $("pipeline-menu").querySelectorAll(".mitem")) {
       const selected = btn.dataset.pipeline === state.pipeline;
       btn.setAttribute("aria-selected", String(selected));
-      const existingSvg = btn.querySelector("svg");
-      if (existingSvg) existingSvg.remove();
-      if (selected) {
-        btn.insertBefore(checkIcon(), btn.querySelector("small"));
-      }
     }
     updateTopBarOverflow();
   }
@@ -2226,7 +2265,7 @@
     const menuItems = [];
 
     for (const name of pipelineNames) {
-      const parent = name.slice(0, name.lastIndexOf("/"));
+      const parent = name.split("/")[0];
       const title = pipelineTitle(name);
       if (!groups.has(parent)) {
         groups.set(parent, element("optgroup", { label: parent }));
@@ -2248,7 +2287,6 @@
         },
       },
       element("span", { class: "mono", text: name }),
-      name === state.pipeline ? checkIcon() : null,
       element("small", { text: title })));
     }
     fill(pipeline, [...groups.values()]);
@@ -2306,6 +2344,23 @@
   initControls();
   renderOptions();
   renderDocuments();
+  {
+    const initialStages = pipelineOf(pipelinePath(state.pipeline)).stages;
+    const initialChips = [];
+    initialStages.forEach((stage, index) => {
+      if (index > 0) {
+        initialChips.push(element("span", { class: "arrow", "aria-hidden": "true", text: "→" }));
+      }
+      initialChips.push(element("span", { class: "stage idle" },
+        element("b", { text: stage.name }),
+        element("span", { class: "sr-only", text: " " }),
+        element("span", { text: "not run" })));
+    });
+    fill($("stage-flow"), initialChips);
+    $("copy-link").hidden = true;
+    $("output").replaceChildren(element("p", { class: "empty-out", text: "…" }));
+    updateTabToolbar(false);
+  }
   updateTopBarOverflow();
   self.playground = {
     state,
