@@ -42,6 +42,7 @@ import { missing as parserMissing } from "./markdown.js";
 import { DIAGRAMS, documentLines, elisionOutcomes, ownedLines, withDiagrams } from "./railroad.js";
 import { browserModule } from "./bundle-imports.js";
 import { syncVendorEditor } from "./vendor-editor.js";
+import { exampleProblems } from "./examples.js";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const sourceDirectory = path.join(root, "lib", "js", "src");
@@ -230,6 +231,19 @@ for (const [file, { dom }] of Object.entries(documents)) {
 }
 if (sprawling.length) {
   console.error(sprawling.join("\n"));
+  process.exit(1);
+}
+loader.usePreparsed({
+  format: DOM_FORMAT,
+  bootstrap: loader.bootstrapHash,
+  unicode: loader.unicodeHash,
+  properties: loader.propertiesHash,
+  bundledNames,
+  documents,
+});
+const { problems: badExamples } = exampleProblems(root, { loader, runExamples: check });
+if (badExamples.length) {
+  console.error(badExamples.join("\n"));
   process.exit(1);
 }
 // Keep the descriptive recognition productions aligned with the bundled grammar.

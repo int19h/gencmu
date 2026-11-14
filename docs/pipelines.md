@@ -561,6 +561,60 @@ For invalid constructs, use `%error` only for messages that add information or s
 
 Use `--` for comments inside grammar blocks. A comment ends at LF, CRLF, CR, or the file end. A string retains literal `--`. The notation has no block comment form.
 
+## Playground examples
+
+Each grammar family can define playground examples in `grammars/FAMILY/examples.json`. A family without examples has no `examples.json` file.
+
+The file holds a JSON array of example objects in menu order. The playground shows only the examples whose `pipelines` array names the active pipeline.
+
+| Field | Required | Meaning | Overridable |
+| --- | --- | --- | --- |
+| `id` | yes | Lowercase ASCII letters, digits, and single internal hyphens. Unique within the file. | no |
+| `title` | yes | The menu label, in simple English, with no final period. | no |
+| `text` | yes | The nonempty input text to parse. It can contain `\n`. | no |
+| `pipelines` | yes | A nonempty array of family pipeline names without repeats. The first entry is the default pipeline. | no |
+| `expect` | yes | The expected outcome from the outcome table below. | no |
+| `stage` | no | The stage that a non-accepted outcome names. Forbidden when `expect` is `accepted`. | no |
+| `features` | no | An object that maps feature names to `true` or `false`. | yes, merged |
+| `elisionOnly` | no | `true` or `false`. Absent uses the grammar default. | yes |
+| `view` | no | One of `brackets`, `tree`, `json`, `tokens`, `trace`, or `audit`. Absent defaults to `brackets`. | yes |
+| `showElided` | no | `true` or `false` for the Brackets toggle. Absent defaults to `false`. | yes |
+| `gloss` | no | An English rendering of `text`, in simple English. | no |
+| `warnings` | no | A nonempty array of distinct warning codes. Allowed only when `expect` is `accepted`. | yes |
+| `hint` | no | The body text of the example note, in simple English. | yes |
+| `open` | no | The document and target to open in the grammar pane. | yes |
+| `byPipeline` | no | An object that maps a pipeline in `pipelines` to per-pipeline overrides. | not applicable |
+
+### Expected outcomes
+
+`expect` takes one of seven values:
+
+| `expect` | Matching parse result | Menu pill |
+| --- | --- | --- |
+| `accepted` | `ok` is true, and the distinct warning codes match `warnings` | `accepted`, or `accepted` with a warning count |
+| `rejected` | error kind `rejected` | `rejected` |
+| `reported` | error kind `reported` | `reported` |
+| `tie` | error kind `ambiguous` with reason `tie` | `tie` |
+| `elision-only` | error kind `ambiguous` with reason `elision-only` | `elision-only` |
+| `feature-conflict` | error kind `feature-conflict` | `feature conflict` |
+| `grammar` | error kind `grammar`, including a pipeline load error | `grammar error` |
+
+When `stage` is present, the error stage must equal `stage`. An accepted example without `warnings` must produce no warnings.
+
+### Per-pipeline overrides and targets
+
+Each key of `byPipeline` must appear in `pipelines`. An override object can contain `features`, `warnings`, `elisionOnly`, `view`, `showElided`, `hint`, and `open`.
+
+`features` merges with the top-level `features` map, and the pipeline entry wins. Any other override field replaces the top-level field for that pipeline, and `null` clears it.
+
+Every top-level feature must exist in every pipeline in `pipelines`. Every feature or warning code in an override must exist in that pipeline, and merged features must not disable an expected warning.
+
+`open` is an object with `document` and either `rule` or `anchor`, never both. `document` is a repository path such as `grammars/lojban/cll/syntax.md` that belongs to the target pipeline.
+
+`rule` names a rule defined in `document`. `anchor` is a literal string that occurs once in `document`.
+
+`node tools/sync.js` bundles the example files into `dist/grammars.js` and copies them to the library packages. `node tools/sync.js --check` validates the format and runs every example on every listed pipeline.
+
 ## Common mistakes
 
 These reproductions create temporary files at the repository root. The recorded errors use `/path/to/gencmu` as that root. Your errors will name your own path.

@@ -1,0 +1,222 @@
+[
+  {
+    "id": "right-grouped-chain",
+    "title": "A right-grouped predicate chain",
+    "text": "a mi dona tcu mian",
+    "pipelines": [
+      "eberban/refgram"
+    ],
+    "expect": "accepted",
+    "gloss": "I like all cats. Word for word, I like the set of all cats.",
+    "hint": "An Eberban chain groups from the right: tcu mian forms the set of all cats, and dona links mi to that set.",
+    "open": {
+      "document": "grammars/eberban/refgram/syntax.md",
+      "rule": "chain"
+    }
+  },
+  {
+    "id": "explicit-binding",
+    "title": "Choose who receives an apple",
+    "text": "mi duna vo mo vei meon",
+    "pipelines": [
+      "eberban/refgram"
+    ],
+    "expect": "accepted",
+    "gloss": "I give you an apple.",
+    "hint": "The words vo mo name the recipient. The closer vei returns to the main chain."
+  },
+  {
+    "id": "elided-binding",
+    "title": "Leave the final closer unwritten",
+    "text": "duna ve mi fo mo fa meon",
+    "pipelines": [
+      "eberban/refgram"
+    ],
+    "expect": "accepted",
+    "showElided": true,
+    "gloss": "I give you an apple.",
+    "hint": "Replace [+VEI] with VEI in bind-group to require the final closing word.",
+    "open": {
+      "document": "grammars/eberban/refgram/syntax.md",
+      "rule": "bind-group"
+    }
+  },
+  {
+    "id": "spaceless-morphology",
+    "title": "Words without spaces",
+    "text": "aza.ualis.kine.eberban",
+    "pipelines": [
+      "eberban/refgram"
+    ],
+    "expect": "accepted",
+    "view": "tokens",
+    "gloss": "Alice learns Eberban.",
+    "hint": "The dots mark pauses before ualis and eberban, and after ualis. The forms stage finds five words without spaces.",
+    "open": {
+      "document": "grammars/eberban/refgram/morphology.md",
+      "rule": "compound-run"
+    }
+  },
+  {
+    "id": "enumeration",
+    "title": "Join two actions",
+    "text": "mi pe etiansa bu dona pei meon",
+    "pipelines": [
+      "eberban/refgram"
+    ],
+    "expect": "accepted",
+    "gloss": "I eat and like an apple.",
+    "hint": "The words pe and pei group the actions. The word bu separates them."
+  },
+  {
+    "id": "compounds-and-quotes",
+    "title": "Compounds, grammatical quotes and foreign quotes",
+    "text": "a ca mi dona eberban cai siro co [I like Eberban]",
+    "pipelines": [
+      "eberban/refgram"
+    ],
+    "expect": "accepted",
+    "gloss": "The Eberban text \"mi dona eberban\" has the translation \"I like Eberban\".",
+    "hint": "The forms stage reads the compound eberban and the foreign quote co [...] as single tokens, while syntax parses ca ... cai.",
+    "open": {
+      "document": "grammars/eberban/refgram/syntax.md",
+      "rule": "grammatical-quote"
+    }
+  },
+  {
+    "id": "spelling-quote",
+    "title": "Spell a name",
+    "text": "za ce bu o bu tco cei",
+    "pipelines": [
+      "eberban/refgram"
+    ],
+    "expect": "accepted",
+    "gloss": "Named BOB3.",
+    "hint": "Each unit inside ce and cei spells one character. The unit tco spells the digit 3."
+  },
+  {
+    "id": "number",
+    "title": "Count cats with a digit",
+    "text": "mi dona 2 ji mian",
+    "pipelines": [
+      "eberban/refgram"
+    ],
+    "expect": "accepted",
+    "gloss": "I like two cats.",
+    "hint": "The digit 2 becomes ta. The word ji makes the number count things."
+  },
+  {
+    "id": "verb-resumption-pa",
+    "title": "Resuming the deepest matching verb with pa",
+    "text": "a mi jveo per jveo gour pa jveo va bjan",
+    "pipelines": [
+      "eberban/refgram"
+    ],
+    "expect": "accepted",
+    "showElided": true,
+    "gloss": "I am a friend of a person who is a friend of a beautiful dog.",
+    "hint": "The particle pa resumes the latest matching jveo in the chain. Remove the fewest #·passed-step step from %ambiguity-resolution to see a tie.",
+    "open": {
+      "document": "grammars/eberban/refgram/pipeline.md",
+      "anchor": "fewest #·passed-step"
+    }
+  },
+  {
+    "id": "erasers-ra-and-ri",
+    "title": "Erasing sentences with ra and chains with ri",
+    "text": "a mi pban ra a mi dona meon ri mi dona mian",
+    "pipelines": [
+      "eberban/refgram"
+    ],
+    "expect": "accepted",
+    "gloss": "I like a cat. The erased words are a faulty sentence and a chain that says \"I like an apple\".",
+    "hint": "The particle ra erases the faulty sentence a mi pban with its consonant error, and ri restarts the chain after a.",
+    "open": {
+      "document": "grammars/eberban/refgram/syntax.md",
+      "rule": "sentence-erasure"
+    }
+  },
+  {
+    "id": "hyphen-warning",
+    "title": "An accepted text with a hyphen warning",
+    "text": "a mi dona tcu mian bja-n",
+    "pipelines": [
+      "eberban/refgram"
+    ],
+    "expect": "accepted",
+    "gloss": "I like all beautiful cats.",
+    "warnings": [
+      "hyphen-misplaced"
+    ],
+    "hint": "Eberban allows hyphens at syllable boundaries and warns on bja-n before a final consonant. Set hyphen-misplaced to Off in Options to hide the warning.",
+    "open": {
+      "document": "grammars/eberban/refgram/morphology.md",
+      "rule": "hyphen-misplaced"
+    }
+  },
+  {
+    "id": "missing-binding",
+    "title": "Explain an unfinished binding",
+    "text": "mi duna vo",
+    "pipelines": [
+      "eberban/refgram"
+    ],
+    "expect": "reported",
+    "stage": "syntax",
+    "gloss": "Intended: I give you an apple. The text stops after the word vo.",
+    "hint": "The recipient is missing after vo. Add mo vei meon to say \"I give you an apple.\"",
+    "open": {
+      "document": "grammars/eberban/refgram/syntax.md",
+      "rule": "bind-empty-vi"
+    }
+  },
+  {
+    "id": "reported-consonant-fault",
+    "title": "A voicing fault inside a root",
+    "text": "a mi dona pban",
+    "pipelines": [
+      "eberban/refgram"
+    ],
+    "expect": "reported",
+    "stage": "syntax",
+    "gloss": "The text has no full meaning. It reads \"I like\" and then pban, which is not a valid word.",
+    "hint": "The forms stage marks pb with %error and hands the word on, so syntax builds a complete tree and reports pb.",
+    "open": {
+      "document": "grammars/eberban/refgram/morphology.md",
+      "rule": "pair-voiceness"
+    }
+  },
+  {
+    "id": "ra-needs-starter",
+    "title": "After ra, a sentence needs its starter",
+    "text": "a mi dona tcu mian ra mo dona tcu gour",
+    "pipelines": [
+      "eberban/refgram"
+    ],
+    "expect": "reported",
+    "stage": "syntax",
+    "gloss": "Intended: You like all dogs. The erased sentence says \"I like all cats\".",
+    "hint": "The message comes from the %error clause of this rule. Write a before mo to correct the text.",
+    "open": {
+      "document": "grammars/eberban/refgram/syntax.md",
+      "rule": "erasure-needs-starter"
+    }
+  },
+  {
+    "id": "rejected-prefix-before-number",
+    "title": "A free prefix before a number",
+    "text": "a mi bure di 3 ji meon",
+    "pipelines": [
+      "eberban/refgram"
+    ],
+    "expect": "rejected",
+    "stage": "syntax",
+    "view": "trace",
+    "gloss": "Intended: I eat three apples, with the attention on the number.",
+    "hint": "A number takes no free prefix such as di, and no %error rule covers this position, so syntax rejects the text.",
+    "open": {
+      "document": "grammars/eberban/refgram/syntax.md",
+      "rule": "base-verb"
+    }
+  }
+]

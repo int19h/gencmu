@@ -448,9 +448,28 @@
       const entry = loadPipeline(request.pipeline);
       const answer = { kind: "result", id, text: request.text, pipeline: request.pipeline, info: entry.info || null, loadError: entry.error || null };
       if (request.locateRule) {
-        const stage = entry.pipeline?.stages.find((stage) => stage.name === request.locateRule.stage);
-        const rule = stage?.grammar.rules.get(request.locateRule.name);
-        answer.ruleLocation = rule ? rule.at : null;
+        let found = null;
+        const doc = request.locateRule.document || null;
+        const name = request.locateRule.name;
+        for (const stage of entry.pipeline?.stages || []) {
+          const rule = stage.grammar.rules.get(name);
+          if (!rule) continue;
+          if (doc) {
+            const alt = rule.alternatives.find((a) => a.document === doc);
+            if (alt && alt.at) {
+              found = alt.at;
+              break;
+            }
+            if (rule.at && rule.at.document === doc) {
+              found = rule.at;
+              break;
+            }
+          }
+          if (!found && rule.at) {
+            found = rule.at;
+          }
+        }
+        answer.ruleLocation = found;
       }
       if (entry.error) return Object.assign(answer, { ms: now() - started });
       let parsed;

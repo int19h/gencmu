@@ -145,72 +145,71 @@
     return cleaned ? cleaned.charAt(0).toUpperCase() + cleaned.slice(1) : "";
   }
 
-  const EXAMPLES = [
-    { label: "A sentence", text: "mi klama le zarci", pipeline: "lojban/cll" },
-    { label: "A text with omitted endings", text: "lo lojbo cu tavla fi lo nu mi klama le zarci .i do pu tavla mi", pipeline: "lojban/cll" },
-    { label: "A repeated le is rejected", text: "mi klama le le", pipeline: "lojban/cll" },
-    { label: "sa erases the earlier words", text: "mi klama sa do", pipeline: "lojban/cll" },
-    { label: "Lojban written in Cyrillic", text: "ми клама ле зарши", pipeline: "lojban/cll" },
-    { label: "BPFK accepts an omitted ending", text: "le lojbo se farvi le loglo gi'enai mintu ja dunli le logla", pipeline: "lojban/bpfk" },
-    {
-      label: "A whole MOI expression wins (Zantufa)",
-      text: "mi se su'i pa re moi",
-      pipeline: "lojban/zantufa",
-      document: "grammars/lojban/zantufa/syntax.md",
-      rule: "tanru-unit-1",
-      hint: "A ranked choice prefers the first qualifying option over the same text. MOI makes the expression describe something. Replace ≻ with | in the open MOI group to see a tie.",
-    },
-    {
-      label: "A whole MOI expression wins (experimental)",
-      text: "mi se ga pa gi re moi",
-      pipeline: "lojban/experimental",
-      document: "grammars/lojban/experimental/syntax.md",
-      rule: "tanru-unit-2",
-      hint: "SE exchanges argument places. The whole mathematical expression with MOI wins over this conversion. Replace each ≻ with | in the open MOI group to see a tie.",
-    },
-    {
-      label: "ME prefers an argument (experimental)",
-      text: "mi me by",
-      pipeline: "lojban/experimental",
-      tab: "tree",
-      document: "grammars/lojban/experimental/syntax.md",
-      rule: "me-unit",
-      hint: "A sumti is an argument. A mex is a mathematical expression. The condition excludes mex only when sumti reads the same words with the same boundaries. Remove the %conditions clause to see a tie.",
-    },
-    {
-      label: "ME accepts a number (experimental)",
-      text: "mi me pa",
-      pipeline: "lojban/experimental",
-      tab: "tree",
-      document: "grammars/lojban/experimental/syntax.md",
-      rule: "me-unit",
-      hint: "Here pa qualifies only as a mathematical expression. No sumti reads it with the same boundaries, so the condition permits mex.",
-    },
-    {
-      label: "The earliest, longest tense wins (CLL)",
-      text: "mi viska pu va ca gi do gi la djan",
-      pipeline: "lojban/cll",
-      document: "grammars/lojban/cll/pipeline.md",
-      anchor: "%ambiguity-resolution\n  ",
-      hint: "The stage prefers the earliest and longest simple-tense-modal group, so pu va wins. Remove the leftmost-longest step from the pipeline directive to see a tie.",
-    },
-    {
-      label: "A rule with preferred options (notation)",
-      text: "%rule text (a ≻ b ≻ c)",
-      pipeline: "gencmu/jbogenbau",
-      tab: "tree",
-      hint: "The notation pipeline reads grammar source as text. The Tree tab shows ranked-choice. Change ≻ to | to see ordinary alternatives.",
-    },
-    {
-      label: "A rule with tree tests (notation)",
-      pipeline: "gencmu/jbogenbau",
-      tab: "tree",
-      text: "%rule text $x:pair\n%conditions\n  $x ≅ #⁅ A ⋯ B ⁆,\n  $x ≇ #(⋮ C),\n  $x ≅ #(A ⋰),\n  $x ≅ #(⋱ B)",
-      hint: "A tree pattern tests a constructed tree. Here ≅ requires a match, and ≇ rejects one. ⋯ skips children at one level. ⋮ searches downward through the tree. ⋰ follows first children, and ⋱ follows last children. Edit the Text box to change the rule.",
-    },
-  ];
+  const preferredFamilies = ["lojban", "eberban", "gencmu"];
+  const exampleFiles = Object.keys(bundled)
+    .filter((key) => /^grammars\/[^/]+\/examples\.json$/.test(key))
+    .sort((a, b) => {
+      const fa = a.split("/")[1];
+      const fb = b.split("/")[1];
+      const ra = preferredFamilies.indexOf(fa);
+      const rb = preferredFamilies.indexOf(fb);
+      const rankA = ra < 0 ? preferredFamilies.length : ra;
+      const rankB = rb < 0 ? preferredFamilies.length : rb;
+      return rankA - rankB || (a < b ? -1 : a > b ? 1 : 0);
+    });
+  const allExamples = exampleFiles.flatMap((file) => {
+    try {
+      const parsed = JSON.parse(bundled[file]);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
+
+  function resolveOpenDocument(pipelineName, docPath) {
+    if (!docPath) return "";
+    if (docPath.startsWith("grammars/")) return docPath;
+    return self.gencmuPipeline.resolvePath(pipelinePath(pipelineName), docPath);
+  }
+
+  function mergeExampleForPipeline(example, pipelineName) {
+    const override =
+      example.byPipeline &&
+      typeof example.byPipeline === "object" &&
+      example.byPipeline[pipelineName] &&
+      typeof example.byPipeline[pipelineName] === "object"
+        ? example.byPipeline[pipelineName]
+        : {};
+
+    let features = example.features ? Object.assign({}, example.features) : {};
+    if ("features" in override) {
+      if (override.features === null) features = {};
+      else if (override.features && typeof override.features === "object") {
+        features = Object.assign(features, override.features);
+      }
+    }
+
+    const pick = (field, fallback) => {
+      if (field in override) {
+        return override[field] === null ? fallback : override[field];
+      }
+      return example[field] !== undefined ? example[field] : fallback;
+    };
+
+    return {
+      features,
+      warnings: pick("warnings", null),
+      elisionOnly: pick("elisionOnly", null),
+      view: pick("view", "brackets"),
+      showElided: Boolean(pick("showElided", false)),
+      hint: pick("hint", null),
+      open: pick("open", null),
+    };
+  }
 
   let exampleRule = null;
+  let activeExample = null;
+  let lastRuleLocation = null;
 
   // ---- State ---------------------------------------------------------------
 
@@ -348,7 +347,7 @@
       view,
       trace,
       audit: state.tab === "audit",
-      locateRule: exampleRule ? { stage: "syntax", name: exampleRule.rule } : null,
+      locateRule: exampleRule ? { document: exampleRule.document, name: exampleRule.rule } : null,
     };
   }
 
@@ -447,25 +446,31 @@
         if (running.generation === generation) {
           show(message);
           if (exampleRule) {
+            const targetRule = exampleRule;
+            exampleRule = null;
             const location = message.ruleLocation;
             if (location) {
+              lastRuleLocation = location;
               openDocument(location.document, location.line, location.column);
+              const actualDocLabel = `${shortLabel(location.document, pipelinePath(state.pipeline).replace(/pipeline\.md$/, ""))}.md`;
               showExampleNote({
-                title: exampleRule.label || "Example note",
-                text: exampleRule.hint || "",
+                title: targetRule.title || "Example note",
+                gloss: targetRule.gloss || "",
+                text: targetRule.hint || "",
                 ruleLink: {
-                  label: `Jump to %rule ${exampleRule.rule} in ${location.document.split("/").pop()}:${location.line} →`,
+                  label: `Open ${actualDocLabel} at ${targetRule.rule}`,
                   onClick: () => openDocument(location.document, location.line, location.column),
                 },
               });
             } else {
+              lastRuleLocation = null;
               showExampleNote({
-                title: exampleRule.label || "Example note",
-                text: `Cannot find rule ${exampleRule.rule} in the active grammar. ${exampleRule.hint || ""}`.trim(),
+                title: targetRule.title || "Example note",
+                gloss: targetRule.gloss || "",
+                text: `Cannot find rule ${targetRule.rule} in the active grammar. ${targetRule.hint || ""}`.trim(),
                 ruleLink: null,
               });
             }
-            exampleRule = null;
           }
         }
         break;
@@ -838,22 +843,34 @@
 
     if (message.loadError) {
       badge.className = "badge bad";
+      badge.removeAttribute("aria-label");
       fill(badge, [warnIcon(), "Grammar error"]);
       copyLinkBtn.hidden = true;
     } else if (message.parseError) {
       badge.className = "badge bad";
+      badge.removeAttribute("aria-label");
       fill(badge, [crossIcon(), "Error"]);
       copyLinkBtn.hidden = false;
     } else if (message.parse.ok) {
       const warned = message.parse.warnings.length;
-      badge.className = warned ? "badge warn" : "badge good";
-      fill(badge, [
-        warned ? warnIcon() : checkBadgeIcon(),
-        warned ? `Accepted · ${plural(warned, "warning")}` : "Accepted",
-      ]);
+      if (warned > 0) {
+        const warnLabel = plural(warned, "warning");
+        badge.className = "badge badge-joined";
+        badge.setAttribute("aria-label", `Accepted, ${warnLabel}`);
+        fill(badge, [
+          element("span", { class: "part-ok" }, checkBadgeIcon(), "Accepted"),
+          element("span", { class: "sr-only", text: ", " }),
+          element("span", { class: "part-warn", text: warnLabel }),
+        ]);
+      } else {
+        badge.className = "badge good";
+        badge.removeAttribute("aria-label");
+        fill(badge, [checkBadgeIcon(), "Accepted"]);
+      }
       copyLinkBtn.hidden = false;
     } else {
       copyLinkBtn.hidden = false;
+      badge.removeAttribute("aria-label");
       const err = message.parse.error;
       if (err.kind === "rejected") {
         badge.className = "badge bad";
@@ -2208,13 +2225,30 @@
 
   function showExampleNote(info) {
     const box = $("example-hint");
-    if (!info || !info.text) {
+    if (!info || (!info.gloss && !info.text)) {
       box.hidden = true;
       return;
     }
     box.hidden = false;
     $("example-hint-title").textContent = info.title || "Example note";
-    $("example-hint-text").textContent = info.text;
+    const glossEl = $("example-hint-gloss");
+    if (glossEl) {
+      if (info.gloss) {
+        glossEl.hidden = false;
+        glossEl.textContent = info.gloss;
+      } else {
+        glossEl.hidden = true;
+        glossEl.textContent = "";
+      }
+    }
+    const textEl = $("example-hint-text");
+    if (info.text) {
+      textEl.hidden = false;
+      textEl.textContent = info.text;
+    } else {
+      textEl.hidden = true;
+      textEl.textContent = "";
+    }
     const ruleBtn = $("example-hint-rule");
     if (info.ruleLink) {
       ruleBtn.hidden = false;
@@ -2222,40 +2256,228 @@
       ruleBtn.onclick = info.ruleLink.onClick;
     } else {
       ruleBtn.hidden = true;
+      ruleBtn.onclick = null;
     }
   }
 
   $("example-hint-dismiss").addEventListener("click", () => {
+    activeExample = null;
     showExampleNote(null);
   });
 
+  function makeExampleOutcomePill(example, pipelineName) {
+    const merged = mergeExampleForPipeline(example, pipelineName);
+    const warnCount = Array.isArray(merged.warnings) ? merged.warnings.length : 0;
+    if (example.expect === "accepted" && warnCount > 0) {
+      const warnLabel = warnCount === 1 ? "1 warning" : `${warnCount} warnings`;
+      return element("span", {
+        class: "ex-pill pill-joined",
+        "aria-label": `accepted, ${warnLabel}`,
+      },
+      element("span", { class: "part-ok", text: "accepted" }),
+      element("span", { class: "sr-only", text: ", " }),
+      element("span", { class: "part-warn", text: warnLabel }));
+    }
+    const table = {
+      accepted: { label: "accepted", cls: "ok" },
+      rejected: { label: "rejected", cls: "no" },
+      reported: { label: "reported", cls: "no" },
+      tie: { label: "tie", cls: "tie" },
+      "elision-only": { label: "elision-only", cls: "tie" },
+      "feature-conflict": { label: "feature conflict", cls: "no" },
+      grammar: { label: "grammar error", cls: "no" },
+    };
+    const entry = table[example.expect] || { label: example.expect || "accepted", cls: "ok" };
+    return element("span", { class: `ex-pill ${entry.cls}`, text: entry.label });
+  }
+
+  function renderExamplesMenu() {
+    const examples = $("examples");
+    const exmenu = $("examples-menu");
+    if (!examples || !exmenu) return;
+
+    const currentPipeline = state.pipeline;
+    const matching = allExamples.filter(
+      (ex) => Array.isArray(ex.pipelines) && ex.pipelines.includes(currentPipeline)
+    );
+    const otherCount = allExamples.length - matching.length;
+
+    const selectOptions = [element("option", { value: "", text: "Examples…" })];
+    const exItems = [
+      element("p", { class: "mgroup", text: `Examples for ${currentPipeline}` }),
+    ];
+
+    matching.forEach((example, idx) => {
+      const title = example.title || example.label || example.id;
+      const firstLine = (example.text || "").split("\n")[0];
+      selectOptions.push(element("option", { value: example.id, text: title }));
+      const btnAttrs = {
+        type: "button",
+        class: "exitem",
+        role: "menuitem",
+        "data-example-id": example.id,
+        onclick: () => {
+          closeAllMenus();
+          applyExample(example);
+        },
+      };
+      if (idx === matching.length - 1 && otherCount > 0) {
+        btnAttrs.style = "margin-bottom: 6px";
+      }
+      exItems.push(element("button", btnAttrs,
+        element("span", { class: "ex-top" },
+          element("b", { text: title }),
+          makeExampleOutcomePill(example, currentPipeline)),
+        element("code", { class: "mono", text: firstLine })));
+    });
+
+    if (matching.length === 0) {
+      exItems.push(element("p", {
+        class: "ex-empty",
+        text: "No examples for this pipeline.",
+      }));
+    }
+
+    if (otherCount > 0) {
+      const footText =
+        otherCount === 1
+          ? "Other pipelines have 1 more example."
+          : `Other pipelines have ${otherCount} more examples.`;
+      exItems.push(element("p", { class: "ex-foot", text: footText }));
+    }
+
+    fill(examples, selectOptions);
+    fill(exmenu, exItems);
+  }
+
   function applyExample(example) {
+    activeExample = example;
     state.text = example.text;
     $("input").value = example.text;
-    state.pipeline = example.pipeline;
-    state.elision = example.elision || "";
+    state.showAllRules = false;
+
+    if (Array.isArray(example.pipelines) && example.pipelines.length > 0) {
+      if (!example.pipelines.includes(state.pipeline)) {
+        state.pipeline = example.pipelines[0];
+      }
+    } else if (example.pipeline) {
+      state.pipeline = example.pipeline;
+    }
+
+    const merged = mergeExampleForPipeline(example, state.pipeline);
+    state.features = new Set();
+    state.without = new Set();
+    if (merged.features && typeof merged.features === "object") {
+      for (const [fname, fval] of Object.entries(merged.features)) {
+        if (fval === true) state.features.add(fname);
+        else if (fval === false) state.without.add(fname);
+      }
+    }
+
+    if (merged.elisionOnly === true) state.elision = "on";
+    else if (merged.elisionOnly === false) state.elision = "off";
+    else state.elision = example.elision || "";
+
     state.until = "";
-    showExampleNote(
-      example.hint
-        ? { title: example.label || "Example note", text: example.hint, ruleLink: null }
-        : null
-    );
-    renderOptions();
-    renderDocuments();
-    exampleRule = example.rule ? example : null;
-    if (example.document) {
-      openDocument(example.document, 1, 1);
-      if (example.anchor) {
-        const val = editor.getValue();
-        const at = val.indexOf(example.anchor);
-        if (at >= 0) {
-          editor.goTo(val.slice(0, at).split("\n").length, 1);
-        }
+    state.trace.stage = "";
+
+    const hasExplicitElided =
+      "showElided" in example ||
+      Boolean(
+        example.byPipeline &&
+          example.byPipeline[state.pipeline] &&
+          "showElided" in example.byPipeline[state.pipeline]
+      );
+    state.showElided = hasExplicitElided ? Boolean(merged.showElided) : false;
+    $("show-elided").checked = state.showElided;
+
+    const openSpec =
+      merged.open ||
+      (example.document
+        ? {
+            document: example.document,
+            rule: example.rule || null,
+            anchor: example.anchor || null,
+          }
+        : null);
+    const docPath =
+      openSpec && openSpec.document
+        ? resolveOpenDocument(state.pipeline, openSpec.document)
+        : "";
+    const docLabel = docPath
+      ? `${shortLabel(docPath, pipelinePath(state.pipeline).replace(/pipeline\.md$/, ""))}.md`
+      : "";
+
+    const noteTitle = example.title || example.label || "Example note";
+    const noteGloss = example.gloss || "";
+    const noteHint = merged.hint || "";
+
+    let ruleLink = null;
+    if (openSpec && docPath) {
+      if (openSpec.anchor) {
+        const anchorText = openSpec.anchor;
+        const jumpToAnchor = () => {
+          const val = client.text(docPath);
+          const at = val.indexOf(anchorText);
+          const line = at >= 0 ? val.slice(0, at).split("\n").length : 1;
+          openDocument(docPath, line, 1);
+        };
+        ruleLink = {
+          label: `Open ${docLabel} at ${anchorText}`,
+          onClick: jumpToAnchor,
+        };
+        exampleRule = null;
+        lastRuleLocation = null;
+        jumpToAnchor();
+      } else if (openSpec.rule) {
+        const ruleName = openSpec.rule;
+        exampleRule = {
+          document: docPath,
+          rule: ruleName,
+          title: noteTitle,
+          gloss: noteGloss,
+          hint: noteHint,
+          docLabel,
+        };
+        ruleLink = {
+          label: `Open ${docLabel} at ${ruleName}`,
+          onClick: () => {
+            if (lastRuleLocation && lastRuleLocation.document) {
+              openDocument(lastRuleLocation.document, lastRuleLocation.line, lastRuleLocation.column);
+            } else {
+              openDocument(docPath, 1, 1);
+            }
+          },
+        };
+        openDocument(docPath, 1, 1);
+      } else {
+        exampleRule = null;
+        lastRuleLocation = null;
+        openDocument(docPath, 1, 1);
       }
     } else {
+      exampleRule = null;
+      lastRuleLocation = null;
       openDocument(null);
     }
-    selectTab(example.tab || "brackets", false);
+
+    showExampleNote(
+      noteGloss || noteHint
+        ? {
+            title: noteTitle,
+            gloss: noteGloss,
+            text: noteHint,
+            ruleLink,
+          }
+        : null
+    );
+
+    renderExamplesMenu();
+    renderOptions();
+    renderDocuments();
+
+    const targetView = example.tab || merged.view || "brackets";
+    selectTab(targetView, false);
   }
 
   function initControls() {
@@ -2293,28 +2515,15 @@
     fill(pmenu, menuItems);
 
     const examples = $("examples");
-    const exmenu = $("examples-menu");
-    const exItems = [element("p", { class: "mgroup", text: "Examples" })];
-    EXAMPLES.forEach((example, index) => {
-      examples.append(element("option", { value: String(index), text: example.label }));
-      exItems.push(element("button", {
-        type: "button",
-        class: "exitem",
-        role: "menuitem",
-        onclick: () => {
-          closeAllMenus();
-          applyExample(example);
-        },
-      },
-      element("b", { text: example.label }),
-      element("code", { class: "mono", text: example.text.replace(/\n/g, " ") })));
-    });
-    fill(exmenu, exItems);
+    renderExamplesMenu();
 
     examples.addEventListener("change", () => {
       if (examples.value === "") return;
-      const example = EXAMPLES[Number(examples.value)];
+      const val = examples.value;
       examples.value = "";
+      const example =
+        allExamples.find((ex) => ex.id === val) ||
+        allExamples[Number(val)];
       if (!example) return;
       applyExample(example);
     });
@@ -2323,6 +2532,7 @@
     $("input").addEventListener("input", () => {
       state.text = $("input").value;
       state.showAllRules = false;
+      activeExample = null;
       showExampleNote(null);
       schedule(TEXT_DELAY);
     });
@@ -2331,7 +2541,17 @@
       state.pipeline = pipeline.value;
       state.until = "";
       state.trace.stage = "";
-      showExampleNote(null);
+      if (
+        activeExample &&
+        Array.isArray(activeExample.pipelines) &&
+        !activeExample.pipelines.includes(state.pipeline)
+      ) {
+        activeExample = null;
+        showExampleNote(null);
+      } else if (!activeExample) {
+        showExampleNote(null);
+      }
+      renderExamplesMenu();
       renderOptions();
       renderDocuments();
       schedule(0);
@@ -2370,6 +2590,8 @@
     schedule,
     openDocument,
     editor,
+    examples: allExamples,
+    applyExample,
   };
   startWorker();
   selectTab(state.tab, false);
