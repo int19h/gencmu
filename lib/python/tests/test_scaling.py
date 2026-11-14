@@ -16,7 +16,7 @@ from typing import Any, Callable, ContextManager
 from unittest import mock
 
 import gencmu
-from gencmu import _clauses, _grammar, _splice, _tags, _types
+from gencmu import _clauses, _grammar, _logical, _splice, _tags, _types
 from gencmu._clauses import definition_problem
 from gencmu._pipeline import DOM_FORMAT
 from gencmu._earley import EdgeSets, Evaluator, Forest, Parser, StageContext, reading_last
@@ -816,6 +816,25 @@ class Pipelines(Linear):
             return work
 
         self.assert_linear(lambda: [steps(splice_pipeline, weight=reads)], make, 2000)
+
+
+class SequenceExpansions(Linear):
+    @staticmethod
+    def make(n: int) -> Callable[[], object]:
+        expr = {"seq": [{"ref": "A"} for _ in range(n)]}
+        lowerer = _Lowerer.__new__(_Lowerer)
+        return lambda: lowerer.expand(expr)
+
+    @staticmethod
+    def watches() -> list[Watch]:
+        return [steps(_grammar.extend_all, weight=reads), steps(_logical, weight=reads)]
+
+    def test_a_flat_sequence_copies_its_logical_entries_linearly(self) -> None:
+        self.assert_linear(self.watches, self.make, 1000)
+
+    def test_a_flat_sequence_that_copies_its_logical_prefix_at_each_item_fails_at_the_first_unit_past_its_budget(self) -> None:
+        copy = ("a_logical.extend(suffix)", "a.logical = tuple(a_logical) + suffix")
+        self.assert_mutant_stops(self.watches, self.make, 1000, lambda: mutant(_grammar, "extend_all", copy))
 
 
 if __name__ == "__main__":

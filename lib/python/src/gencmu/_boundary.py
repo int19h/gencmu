@@ -73,20 +73,32 @@ class Records:
         self.literals = []
         self.empty = self.intern(True, 0, 0, 0, 0)
         seen = set()
+
+        def add_condition(condition):
+            seen.add(id(condition))
+            for atom in atoms(condition):
+                mask = self.targets(atom)
+                if atom['method'] == 'followed-by':
+                    self.forward |= mask
+                else:
+                    self.backward |= mask
+
         for p in productions:
-            conditions = p.conds_predict + [c for cs in p.conds_at.values() for c in cs] + (list(p.items.conditions) if p.items else [])
+            for condition in p.conds_predict:
+                if id(condition) not in seen:
+                    add_condition(condition)
+            for cs in p.conds_at.values():
+                for condition in cs:
+                    if id(condition) not in seen:
+                        add_condition(condition)
+            if p.items is not None:
+                for condition in p.items.conditions:
+                    if id(condition) not in seen:
+                        add_condition(condition)
             if p.slot is not None:
-                conditions += p.slot.ranked_conditions
-            for condition in conditions:
-                if id(condition) in seen:
-                    continue
-                seen.add(id(condition))
-                for atom in atoms(condition):
-                    mask = self.targets(atom)
-                    if atom['method'] == 'followed-by':
-                        self.forward |= mask
-                    else:
-                        self.backward |= mask
+                for condition in p.slot.ranked_conditions:
+                    if id(condition) not in seen:
+                        add_condition(condition)
 
     def targets(self, atom):
         mask = 0

@@ -41,7 +41,8 @@ from ._types import (
 )
 from ._validate import Marks, term_reads_own_tags
 from ._ranking_patterns import ranking_pattern_problem, requires_elided
-from ._logical import Expansion, combine, optional, inherited
+from ._logical import Expansion, extend_all, freeze, inherited, logical_of, optional
+from ._guarded_tags import variants
 from ._strings import literal_string, spelling, ENGINE_TAGS
 
 Dom = dict[str, Any]
@@ -1497,20 +1498,24 @@ class Lowered:
         return index
 
     def __post_init__(self) -> None:
-        self.has_errors = any(production.error is not None for production in self.productions)
-        self.elidable_helpers = frozenset(
-            production.lhs for production in self.productions if production.helper and production.elided is not None
-        )
+        has_errors = False
+        elidable_helpers: set[int] = set()
         self.by_first_terminal = [{} for _ in self.rule_names]
         self.by_first_characters = [{} for _ in self.rule_names]
         self.unfiltered_predictions = [[] for _ in self.rule_names]
         for production in self.productions:
+            if production.error is not None:
+                has_errors = True
+            if production.helper and production.elided is not None:
+                elidable_helpers.add(production.lhs)
             if production.rhs and production.terminal[0]:
                 first: str = production.rhs[0]  # type: ignore[assignment]
                 table = self.by_first_characters if first in self.characters else self.by_first_terminal
                 table[production.lhs].setdefault(first, []).append(production.id)
             if not production.rhs or not production.terminal[0] or production.conds_predict:
                 self.unfiltered_predictions[production.lhs].append(production.id)
+        self.has_errors = has_errors
+        self.elidable_helpers = frozenset(elidable_helpers)
 
 
 CharacterClass = Union[tuple[int, int], str, None]
@@ -1574,6 +1579,10 @@ class _Lowerer:
         # by its identity, with the clause kept so that the identity stays
         # its own.
         self.prepared: dict[int, tuple[Any, Any]] = {}
+        # Each condition's capture names found once for all the productions
+        # that share it, by its identity, with the condition kept so that
+        # the identity stays its own.
+        self.condition_names: dict[int, tuple[Any, frozenset[str], tuple[str, ...], bool]] = {}
 
     def emission(self, emit: Dom | None) -> Emission | None:
         """An emission's items indexed once for all the productions that
@@ -1689,10 +1698,10 @@ class _Lowerer:
 
     def _expand(self, expr: Dom) -> Walk:
         if "seq" in expr:
-            parts = []
+            sequences = [Expansion()]
             for item in expr["seq"]:
-                parts.append((yield self._expand(item)))
-            return [combine(combination) for combination in itertools.product(*parts)]
+                sequences = extend_all(sequences, (yield self._expand(item)))
+            return freeze(sequences)
         if "ranked" in expr:
             options, labels = [], []
             for number, option in enumerate(expr["ranked"]):
@@ -1714,8 +1723,11 @@ class _Lowerer:
                 expanded.append((yield self._expand(item)))
             result: list[list[_Sym]] = []
             for mask in range(1, 1 << len(items)):
-                parts = [expanded[index] for index in range(len(items)) if mask >> index & 1]
-                result.extend(combine(combination) for combination in itertools.product(*parts))
+                sequences = [Expansion()]
+                for index in range(len(items)):
+                    if mask >> index & 1:
+                        sequences = extend_all(sequences, expanded[index])
+                result.extend(freeze(sequences))
             return result
         if "optional" in expr:
             inner = expr["optional"]
@@ -1824,19 +1836,29 @@ class _Lowerer:
             self.common_conditions[key] = [c for c in conditions if reads(c).isdisjoint(names)]
         return self.common_conditions[key]
 
+    def _condition_info(self, condition: Any) -> tuple[frozenset[str], tuple[str, ...], bool]:
+        found = self.condition_names.get(id(condition))
+        if found is None:
+            names = frozenset(captures_in(condition))
+            found = self.condition_names[id(condition)] = (condition, names, tuple(names - {WHOLE}), WHOLE in names)
+        return found[1], found[2], found[3]
+
     def add(self, lhs: int, expansion: list[_Sym], alt: Alternative | None, elided: tuple[str, SymbolTest | None] | None = None, option: int = -1, items: tuple[str, ...] = ()) -> None:
-        rhs = tuple(sym[1] for sym, _ in expansion)
-        terminal = tuple(sym[0] == "t" for sym, _ in expansion)
+        rhs = tuple([sym[1] for sym, _ in expansion])
+        terminal = tuple([sym[0] == "t" for sym, _ in expansion])
         if alt is not None and alt.erased:
             self.erased_structural.add(len(self.structural))
         self.structural.append((lhs, rhs, terminal))
-        tests = tuple(sym[2] if len(sym) > 2 else None for sym, _ in expansion)
+        has_long = any(len(sym) > 2 for sym, _ in expansion)
+        if has_long:
+            tests_tuple = tuple([sym[2] if len(sym) > 2 else None for sym, _ in expansion])
+            tests = tests_tuple if any(test is not None for test in tests_tuple) else None
+        else:
+            tests = None
         # A production reads each name at most once (engine §3.5); the
         # reader and the check of a DOM have made sure of it.
-        captures: dict[str, int] = {}
-        for position, (_, name) in enumerate(expansion):
-            if name is not None:
-                captures[name] = position
+        captures: dict[str, int] = {name: position for position, (_, name) in enumerate(expansion) if name is not None}
+        logical = logical_of(expansion)
         production = Production(
             id=len(self.productions),
             lhs=lhs,
@@ -1848,9 +1870,9 @@ class _Lowerer:
             elided=elided[0] if elided is not None else None,
             elided_test=elided[1] if elided is not None else None,
             elided_owner=self.rule_display[lhs] if elided is not None else None,
-            tests=tests if any(test is not None for test in tests) else None,
+            tests=tests,
             captures=captures,
-            logical=getattr(expansion, "logical", tuple(("symbol", i) for i in range(len(expansion)))),
+            logical=logical,
             source=self.current_alt,
         )
         if self.grammar.ranked and self.grammar.ranked.groups:
@@ -1871,19 +1893,20 @@ class _Lowerer:
             for condition in self.prepare(self.ranked_common(expansion, alt), True).kept(present):
                 if condition is False:
                     return
-                names = captures_in(condition)
+                names, named, has_whole = self._condition_info(condition)
                 if not names <= present:
                     # A condition that uses a capture this production lacks
                     # does not apply to it.
                     continue
-                if WHOLE in names and rhs:
+                if has_whole and rhs:
                     # Evaluated when the item is complete, in written order
                     # with the conditions on captures that become ready at
                     # the same advance (engine §4).
                     production.conds_at.setdefault(len(rhs) - 1, []).append(condition)
                     production.whole_ready = True
-                elif names - {WHOLE}:
-                    production.conds_at.setdefault(max(captures[name] for name in names), []).append(condition)
+                elif named:
+                    trigger = captures[named[0]] if len(named) == 1 else max([captures[name] for name in named])
+                    production.conds_at.setdefault(trigger, []).append(condition)
                 else:
                     # No capture, or only $ over an empty production: at
                     # prediction.
@@ -1909,22 +1932,48 @@ class _Lowerer:
             production.contextual = self.contextual = True
             if items and self.current_alt is not None:
                 production.items = ItemClauses(items, tuple(condition for condition in self.current_alt.conditions if not mentioned_in(condition).isdisjoint(items)))
-        production.optional_routes = {index: sym[3] for index, (sym, _) in enumerate(expansion) if len(sym) > 3}
-        production.terminal_captures = {name for sym, name in expansion if name and len(sym) > 3 and sym[3] == "written"}
-        production.forward_captures = {position: name for name, position in production.captures.items() if name in production.terminal_captures}
+        if has_long:
+            production.optional_routes = {index: sym[3] for index, (sym, _) in enumerate(expansion) if len(sym) > 3}
+            production.terminal_captures = {name for sym, name in expansion if name and len(sym) > 3 and sym[3] == "written"}
+            production.forward_captures = {position: name for name, position in production.captures.items() if name in production.terminal_captures}
         production.inherited = inherited(production.logical)
-        if production.tags_term is None and production.inherited is not None and production.inherited not in captures.values():
+        implicit = production.tags_term is None and production.inherited is not None and production.inherited not in captures.values()
+        if implicit:
             captures[IMPLICIT] = production.inherited
-        slots = [-1] * len(rhs)
-        for index, position in enumerate(sorted(captures.values())):
-            slots[position] = index
-        production.slots = tuple(slots)
-        from ._guarded_tags import variants
-        try:
-            concrete = variants(production.tags_term)
-        except ValueError as error:
-            raise self.fail(str(error)) from error
+        if not captures:
+            production.slots = (-1,) * len(rhs)
+        else:
+            slots = [-1] * len(rhs)
+            # Written captures are added in physical order. Only the
+            # implicit capture can come out of order.
+            positions = sorted(captures.values()) if implicit else captures.values()
+            for index, position in enumerate(positions):
+                slots[position] = index
+            production.slots = tuple(slots)
+        if production.tags_term is None:
+            concrete = [(None, [])]
+        else:
+            try:
+                concrete = variants(production.tags_term)
+            except ValueError as error:
+                raise self.fail(str(error)) from error
         source_id = len(self.productions)
+        if len(concrete) == 1:
+            term, conditions = concrete[0]
+            at = len(rhs) - 1
+            if conditions:
+                if at < 0:
+                    production.conds_predict.extend(conditions)
+                else:
+                    production.conds_at.setdefault(at, []).extend(conditions)
+                    production.whole_ready = True
+            elif at >= 0 and at not in production.conds_at:
+                production.conds_at[at] = []
+            production.tags_term = term
+            production.source_id = source_id
+            production.guard_conditions = conditions
+            self.productions.append(production)
+            return
         for term, conditions in concrete:
             at = len(production.rhs) - 1
             ready = {index: list(items) for index, items in production.conds_at.items()}
@@ -2093,6 +2142,8 @@ class _Lowerer:
         of the grammar (engine §3.3). Nullability is decided over the
         structural grammar, every production that the gates leave,
         reachable or not, before a false condition removes any."""
+        if not self.brace_items:
+            return
         nullable: set[Union[str, int]] = set()
         # Each rule's productions that are not yet known to derive ε, by
         # the rules among their symbols that are not yet known to.

@@ -56,12 +56,28 @@ def clause_children(node):
     return [node[key] for key in ("conditions", "tags", "emit", "value", "image", "error", "warning") if key in node]
 
 
+def source_clauses(source):
+    return [source.conditions, source.tags, source.rule_tags, source.emit,
+            source.value, source.image, source.rule_value, source.rule_image,
+            source.error, source.warning]
+
+
+def own_clauses(production):
+    yield from production.conds_predict
+    for conditions in production.conds_at.values():
+        yield from conditions
+    if production.tags_term is not None:
+        yield production.tags_term
+    if production.emit is not None:
+        yield production.emit
+    if production.slot is not None:
+        yield from production.slot.ranked_conditions
+    if production.parent_tags is not None:
+        yield production.parent_tags
+    if production.items is not None:
+        yield from production.items.conditions
+
+
 def production_clauses(production):
     source = production.source
-    return [production.conds_predict, list(production.conds_at.values()),
-            production.tags_term, production.emit,
-            production.slot.ranked_conditions if production.slot else None,
-            production.parent_tags, production.items.conditions if production.items else None,
-            [source.conditions, source.tags, source.rule_tags, source.emit,
-             source.value, source.image, source.rule_value, source.rule_image,
-             source.error, source.warning] if source else None]
+    return [*own_clauses(production), *(source_clauses(source) if source else ())]

@@ -87,7 +87,7 @@ def can_count_profiles(lowered, steps):
     key = tuple(id(pattern) for _, pattern in steps)
     if key in decisions:
         return decisions[key]
-    if any(p.error is not None for p in lowered.productions):
+    if lowered.has_errors:
         decisions[key] = True
         return True
     if not steps:

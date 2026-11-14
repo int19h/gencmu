@@ -346,8 +346,10 @@ def observation_machine(lowered: Any) -> PatternMachine | None:
         pending.extend(production.conds_predict)
         for conditions in production.conds_at.values():
             pending.extend(conditions)
-        pending.append(production.tags_term)
-        pending.append(production.emit)
+        if production.tags_term is not None:
+            pending.append(production.tags_term)
+        if production.emit is not None:
+            pending.append(production.emit)
     roots = []
     seen: set[int] = set()
     while pending:
