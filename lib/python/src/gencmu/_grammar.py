@@ -1948,7 +1948,7 @@ class _Lowerer:
                 slots[position] = index
             production.slots = tuple(slots)
         if production.tags_term is None:
-            concrete = [(None, ())]
+            concrete = [(None, [])]
         else:
             try:
                 concrete = variants(production.tags_term)
