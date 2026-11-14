@@ -933,8 +933,11 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
   | VEI 🆓 mex [+VEhO] 🆓
   | gek mex gik mex-2
   | (LAhE 🆓 | NAhE 🆓 [BO 🆓]) mex [+LUhU] 🆓
-  | (PEhO 🆓 operator | forethought-operator) {mex} [+KUhE] 🆓
+  | (PEhO 🆓 operator | forethought-operator) [{$a:mex}] mex [+KUhE] 🆓
   | FUhA 🆓 rp-expression
+%conditions
+  $a ≇ #(⋱ mex-2⁅ ⋯ KUhE<_Elided> [🆓] ⁆),
+  $ ≇ #·mex-2⁅ ⋯ KUhE<_Elided> [🆓] ⁆ ∨ KUhE ⊈ $.following-tokens.first-token.tags
 
 %rule forethought-operator
   $o:operator
