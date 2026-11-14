@@ -129,6 +129,19 @@
       phase("loading", path);
       try {
         const pipeline = loader.pipeline(path);
+        const ruleLocations = {};
+        for (const stage of pipeline.stages) {
+          for (const [ruleName, rule] of stage.grammar.rules) {
+            if (rule.at && !ruleLocations[ruleName]) {
+              ruleLocations[ruleName] = {
+                document: rule.at.document,
+                line: rule.at.line,
+                column: rule.at.column || 1,
+                stage: stage.name,
+              };
+            }
+          }
+        }
         entry = {
           pipeline,
           info: {
@@ -141,6 +154,7 @@
             // Each feature a switch can change: its name, whether it is a
             // gate or a warning, and whether the pipeline turns it on.
             features: pipeline.features.map((feature) => ({ name: feature.name, kind: feature.kind, default: feature.default })),
+            ruleLocations,
           },
         };
       } catch (error) {
@@ -163,17 +177,100 @@
         elisionOnly: request.elisionOnly,
       });
       const ms = now() - started;
-      last = { key, result, ms, summary: summarize(result), renders: new Map(), traces: new Map() };
+      last = { key, result, ms, summary: summarize(result, entry.pipeline), renders: new Map(), traces: new Map() };
       return last;
     }
 
-    function summarize(result) {
+    function summarize(result, pipeline) {
       const error = result.error;
+      let errorDetails = null;
+      if (error) {
+        const stageName = error.stage || null;
+        const stageReport = stageName ? result.stages.find((s) => s.name === stageName) : null;
+        const stageObj = pipeline && stageName ? pipeline.stages.find((s) => s.name === stageName) : null;
+        const rulesMap = stageObj && stageObj.grammar ? stageObj.grammar.rules : null;
+
+        let found = null;
+        const tokIdx = error.token === undefined ? null : error.token;
+        if (tokIdx !== null && stageReport && Array.isArray(stageReport.input)) {
+          if (tokIdx < stageReport.input.length) {
+            const tok = stageReport.input[tokIdx];
+            found = {
+              text: tok.text,
+              value: tok.value || "",
+              image: tok.image || "",
+              tags: tok.tags ? [...tok.tags] : [],
+              span: tok.span ? [tok.span[0], tok.span[1]] : null,
+              source: tok.source ? [tok.source[0], tok.source[1]] : null,
+            };
+          } else {
+            found = { endOfInput: true, count: stageReport.input.length };
+          }
+        }
+
+        let expectedByRule = null;
+        if (error.expected) {
+          const byRule = new Map();
+          for (const exp of error.expected) {
+            for (const rName of exp.rules || []) {
+              let list = byRule.get(rName);
+              if (!list) {
+                list = [];
+                byRule.set(rName, list);
+              }
+              list.push(exp.terminal);
+            }
+          }
+          expectedByRule = [...byRule.entries()].map(([rule, terminals]) => {
+            const rInfo = rulesMap ? rulesMap.get(rule) : null;
+            return {
+              rule,
+              terminals,
+              at: rInfo && rInfo.at ? { document: rInfo.at.document, line: rInfo.at.line, column: rInfo.at.column || 1 } : null,
+            };
+          });
+        }
+
+        let boundary = null;
+        if (error.boundary) {
+          const rInfo = rulesMap && error.boundary.rule ? rulesMap.get(error.boundary.rule) : null;
+          boundary = {
+            rule: error.boundary.rule,
+            condition: error.boundary.condition,
+            at: error.boundary.at,
+            location: rInfo && rInfo.at ? { document: rInfo.at.document, line: rInfo.at.line, column: rInfo.at.column || 1 } : null,
+          };
+        }
+
+        errorDetails = {
+          kind: error.kind,
+          feature: error.feature || null,
+          reason: error.reason || null,
+          stage: stageName,
+          token: tokIdx,
+          source: error.source ? [error.source[0], error.source[1]] : null,
+          line: error.line || null,
+          column: error.column || null,
+          document: error.document || null,
+          message: error.message,
+          found,
+          expectedByRule,
+          boundary,
+        };
+      }
+      const explanation = gencmu.explainError(result);
+      if (errorDetails && errorDetails.expectedByRule) {
+        errorDetails.expectedByRule.sort((a, b) => {
+          const af = a.rule === "free" ? 1 : 0;
+          const bf = b.rule === "free" ? 1 : 0;
+          return af - bf || b.terminals.length - a.terminals.length || (a.rule < b.rule ? -1 : 1);
+        });
+      }
       return {
         ok: result.ok,
         text: result.text,
         features: result.features || [],
-        warnings: (result.warnings || []).map((warning) => ({ stage: warning.stage, code: warning.code, rule: warning.rule, span:warning.span,source:warning.source,message:warning.message })),
+        warnings: (result.warnings || []).map((warning) => ({ stage: warning.stage, feature: warning.feature, rule: warning.rule, code: warning.code, message: warning.message })),
         warningsText: gencmu.explainWarnings(result),
         stages: result.stages.map((stage) => ({
           name: stage.name,
@@ -182,18 +279,14 @@
           input: stage.input ? stage.input.length : 0,
           output: stage.output ? stage.output.length : null,
         })),
-        error: error ? {
-          kind: error.kind, feature: error.feature || null, reason: error.reason || null, stage: error.stage || null, token: error.token === undefined ? null : error.token,
-          line: error.line || null, column: error.column || null, message: error.message,
-          ...(error.errors ? {errors:error.errors.map(diagnostic=>({...diagnostic,span:[...diagnostic.span],source:[...diagnostic.source]}))} : {}),
-        } : null,
-        explanation: gencmu.explainError(result),
-        ties: result.stages.filter((stage) => stage.verdict === "tie").map((stage) => tieView(result, stage)),
+        error: errorDetails,
+        explanation,
+        ties: result.stages.filter((stage) => stage.verdict === "tie" || (stage.error && stage.error.kind === "ambiguous")).map((stage) => tieView(result, stage)),
       };
     }
 
     // A tie as the page shows it: explainTies's account of where the two
-    // readings first differ, then both readings, as brackets and as trees,
+    // readings first differ, then both readings, as brackets, trees, and JSON,
     // for the page to lay side by side. The readings are in the stage's
     // error.
     function tieView(result, stage) {
@@ -201,17 +294,46 @@
       const text = gencmu.explainTies({ text: result.text, stages: [stage] });
       const cut = text.indexOf("\n  first: ");
       const end = text.lastIndexOf("\n");
+      let firstDiff = "";
+      let secondDiff = "";
+      if (cut >= 0 && end > cut) {
+        const mid = text.slice(cut + 1, end);
+        for (const line of mid.split("\n")) {
+          const m1 = /^\s*first:\s+(.*)$/.exec(line);
+          if (m1) firstDiff = m1[1];
+          const m2 = /^\s*second:\s+(.*)$/.exec(line);
+          if (m2) secondDiff = m2[1];
+        }
+      }
       const readings = (stage.error && stage.error.readings) || [];
-      const brackets = (node) => node ? gencmu.nodeBrackets(node, tokens, { showElided: true }) : "";
+      const brackets = (node, showElided) => node ? gencmu.nodeBrackets(node, tokens, { showElided }) : "";
       const tree = (node) => node ? gencmu.nodeTree(node, tokens, result.text) : "";
+      const jsonText = (node) => {
+        if (!node) return "";
+        const val = gencmu.displayValue({ ...result, tree: node, error: null });
+        return val === null ? "" : gencmu.prettyJson(val);
+      };
+      const canonicalText = (node) => {
+        if (!node) return "";
+        return gencmu.prettyJson(gencmu.resultJson({ ...result, tree: node, error: null }));
+      };
       return {
         stage: stage.name,
+        reason: (stage.error && stage.error.reason) || "tie",
         summary: cut < 0 ? text : text.slice(0, cut),
+        firstDiff,
+        secondDiff,
         advice: end < 0 ? "" : text.slice(end + 1),
-        first: brackets(readings[0]),
-        second: brackets(readings[1]),
+        first: brackets(readings[0], true),
+        second: brackets(readings[1], true),
+        firstPlain: brackets(readings[0], false),
+        secondPlain: brackets(readings[1], false),
         firstTree: tree(readings[0]),
         secondTree: tree(readings[1]),
+        firstJson: jsonText(readings[0]),
+        secondJson: jsonText(readings[1]),
+        firstCanonical: canonicalText(readings[0]),
+        secondCanonical: canonicalText(readings[1]),
       };
     }
 
@@ -289,9 +411,18 @@
         // The tokens around the position, for the page's picker.
         const from = Math.max(0, traced.position - 40);
         const to = Math.min(traced.tokens.length, traced.position + 40);
+        const stageReport = parsed.result.stages.find((s) => s.name === traced.stage);
+        const furthest = stageReport && stageReport.error && stageReport.error.kind === "rejected"
+          ? stageReport.error.token
+          : null;
         answer = {
-          stage: traced.stage, position: traced.position, count: traced.tokens.length,
-          from, tokens: traced.tokens.slice(from, to).map((token) => token.text),
+          stage: traced.stage,
+          position: traced.position,
+          count: traced.tokens.length,
+          from,
+          tokens: traced.tokens.slice(from, to).map((token) => token.text),
+          tokenTags: traced.tokens.slice(from, to).map((token) => (token.tags ? [...token.tags] : [])),
+          furthest,
           text: gencmu.formatTrace(traced),
         };
       } catch (error) {
