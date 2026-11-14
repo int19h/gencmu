@@ -329,12 +329,14 @@
       const tree = (node) => node ? gencmu.nodeTree(node, tokens, result.text) : "";
       const jsonText = (node) => {
         if (!node) return "";
-        const val = gencmu.displayValue({ ...result, tree: node, error: null });
+        const val = gencmu.displayValue({ ...result, stages: [stage], tree: node, error: null });
         return val === null ? "" : gencmu.prettyJson(val);
       };
       const canonicalText = (node) => {
         if (!node) return "";
-        return gencmu.prettyJson(gencmu.resultJson({ ...result, tree: node, error: null }));
+        return gencmu.prettyJson(
+          gencmu.resultJson({ ...result, stages: [], tree: node, error: null, warnings: [] }).tree
+        );
       };
       return {
         stage: stage.name,

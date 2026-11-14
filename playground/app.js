@@ -6,12 +6,17 @@
   const bundled = self.gencmuGrammars;
 
   let createEditor;
-  try {
-    const full = await import(new URL("playground/editor-full.js", document.baseURI).href);
-    createEditor = full.createFullEditor;
-  } catch {
+  if (self.gencmuEditor === "basic") {
     const basic = await import(new URL("playground/editor-basic.js", document.baseURI).href);
     createEditor = basic.createBasicEditor;
+  } else {
+    try {
+      const full = await import(new URL("playground/editor-full.js", document.baseURI).href);
+      createEditor = full.createFullEditor;
+    } catch {
+      const basic = await import(new URL("playground/editor-basic.js", document.baseURI).href);
+      createEditor = basic.createBasicEditor;
+    }
   }
 
   const LOGO_PARTS = [

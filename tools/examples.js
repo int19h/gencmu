@@ -163,20 +163,28 @@ export function createExampleContext(root, options = {}) {
   function getPipelineInfo(name) {
     if (pipelineCache.has(name)) return pipelineCache.get(name);
     const entryPath = `grammars/${name}/pipeline.md`;
-    const pipeline = loader.pipeline(entryPath);
+    let pipeline = null;
+    let loadError = null;
+    try {
+      pipeline = loader.pipeline(entryPath);
+    } catch (error) {
+      loadError = error;
+    }
     const docs = new Set([entryPath]);
-    splicePipeline(
-      entryPath,
-      (docPath, inherited) => {
-        docs.add(docPath);
-        const text = readSource(docPath);
-        return text === undefined ? undefined : loader.documentDom(docPath, inherited, text);
-      },
-      new Set(pipeline.features.map((f) => f.name))
-    );
-    const features = new Map(pipeline.features.map((f) => [f.name, f]));
-    const stages = new Map(pipeline.stages.map((s) => [s.name, s]));
-    const info = { pipeline, docs, features, stages };
+    if (pipeline) {
+      splicePipeline(
+        entryPath,
+        (docPath, inherited) => {
+          docs.add(docPath);
+          const text = readSource(docPath);
+          return text === undefined ? undefined : loader.documentDom(docPath, inherited, text);
+        },
+        new Set(pipeline.features.map((f) => f.name))
+      );
+    }
+    const features = new Map(pipeline ? pipeline.features.map((f) => [f.name, f]) : []);
+    const stages = new Map(pipeline ? pipeline.stages.map((s) => [s.name, s]) : []);
+    const info = { pipeline, loadError, docs, features, stages };
     pipelineCache.set(name, info);
     return info;
   }
@@ -303,7 +311,7 @@ export function checkExampleEntries(file, family, parsed, context, options = {})
       } else {
         for (const p of validPipelines) {
           const pInfo = context.getPipelineInfo(p);
-          if (!pInfo.stages.has(entry.stage)) {
+          if (pInfo.pipeline && !pInfo.stages.has(entry.stage)) {
             report(`unknown stage "${entry.stage}" in pipeline "${p}"`);
           }
         }
@@ -337,7 +345,7 @@ export function checkExampleEntries(file, family, parsed, context, options = {})
         }
         for (const p of targetPipelines) {
           const pInfo = context.getPipelineInfo(p);
-          if (!pInfo.features.has(feat)) {
+          if (pInfo.pipeline && !pInfo.features.has(feat)) {
             report(`pipeline "${p}" does not declare feature "${feat}"`);
           }
         }
@@ -465,7 +473,7 @@ export function checkExampleEntries(file, family, parsed, context, options = {})
       const pInfo = context.getPipelineInfo(p);
       const merged = mergeExampleForPipeline(entry, p);
 
-      if (Array.isArray(merged.warnings)) {
+      if (pInfo.pipeline && Array.isArray(merged.warnings)) {
         for (const code of merged.warnings) {
           if (typeof code !== "string" || !code) continue;
           const feat = pInfo.features.get(code);
@@ -481,10 +489,10 @@ export function checkExampleEntries(file, family, parsed, context, options = {})
         const docRaw = merged.open.document;
         if (typeof docRaw === "string" && docRaw.trim().length > 0) {
           const resolvedDoc = resolveOpenDocument(p, docRaw);
-          if (!pInfo.docs.has(resolvedDoc)) {
+          if (pInfo.pipeline && !pInfo.docs.has(resolvedDoc)) {
             report(`open document "${docRaw}" is outside pipeline "${p}"`);
           } else {
-            if (typeof merged.open.rule === "string" && merged.open.rule.trim().length > 0) {
+            if (pInfo.pipeline && typeof merged.open.rule === "string" && merged.open.rule.trim().length > 0) {
               const ruleName = merged.open.rule;
               let foundInDoc = false;
               for (const stage of pInfo.pipeline.stages) {
@@ -527,22 +535,29 @@ export function checkExampleEntries(file, family, parsed, context, options = {})
         let actualOutcome;
         let actualStage = null;
         let actualWarnings = [];
-        try {
-          const result = pInfo.pipeline.parse(entry.text, {
-            features,
-            withoutFeatures,
-            elisionOnly: merged.elisionOnly,
-          });
-          actualOutcome = result.ok
-            ? "accepted"
-            : result.error.kind === "ambiguous"
-              ? "tie"
-              : result.error.kind;
-          actualStage = result.ok ? null : result.error.stage || null;
-          actualWarnings = [...new Set((result.warnings || []).map((w) => w.code))];
-        } catch (error) {
-          actualOutcome = error && error.name === "GencmuError" ? error.kind : "internal";
-          actualStage = (error && error.where && error.where.stage) || null;
+        if (pInfo.loadError) {
+          actualOutcome = "grammar";
+          actualStage = (pInfo.loadError.where && pInfo.loadError.where.stage) || null;
+        } else {
+          try {
+            const result = pInfo.pipeline.parse(entry.text, {
+              features,
+              withoutFeatures,
+              elisionOnly: merged.elisionOnly,
+            });
+            actualOutcome = result.ok
+              ? "accepted"
+              : result.error.kind === "ambiguous"
+                ? result.error.reason === "elision-only"
+                  ? "elision-only"
+                  : "tie"
+                : result.error.kind;
+            actualStage = result.ok ? null : result.error.stage || null;
+            actualWarnings = [...new Set((result.warnings || []).map((w) => w.code))];
+          } catch (error) {
+            actualOutcome = error && error.name === "GencmuError" ? error.kind : "internal";
+            actualStage = (error && error.where && error.where.stage) || null;
+          }
         }
 
         const outcomeMatch = actualOutcome === entry.expect;

@@ -1072,12 +1072,14 @@ async function main() {
       const shownAgain = !document.getElementById("workspace").classList.contains("grammar-hidden");
 
       const ed = self.playground.editor;
+      const expectedVariant = self.gencmuEditor === "basic" ? "basic" : "full";
+      const expectedCap = expectedVariant === "full";
       const hasEditorApi =
         ed &&
-        ed.variant === "full" &&
-        ed.capabilities?.syntaxColors === true &&
-        ed.capabilities?.wrappedLineNumbers === true &&
-        ed.capabilities?.marginMarks === true &&
+        ed.variant === expectedVariant &&
+        ed.capabilities?.syntaxColors === expectedCap &&
+        ed.capabilities?.wrappedLineNumbers === expectedCap &&
+        ed.capabilities?.marginMarks === expectedCap &&
         typeof ed.getValue === "function" &&
         typeof ed.setValue === "function" &&
         typeof ed.goTo === "function" &&
@@ -1085,7 +1087,7 @@ async function main() {
         typeof ed.clearMarks === "function" &&
         typeof ed.focus === "function";
 
-      return { helpOpen, hasPlaygroundDoc, helpClosed, movedSplit, resetSplit, hidden, shownAgain, hasEditorApi };
+      return { helpOpen, hasPlaygroundDoc, helpClosed, movedSplit, resetSplit, hidden, shownAgain, hasEditorApi, expectedVariant };
     });
     if (
       !layoutChecks.helpOpen ||
@@ -1101,54 +1103,56 @@ async function main() {
     }
 
     // Full editor checks: syntax colors, error marks in the gutter, and Go to line:column.
-    await run(() => {
-      self.playground.openDocument("grammars/lojban/cll/syntax.md", 345, 1);
-    });
-    const fullTokens = await run(() => {
-      const content = document.querySelector("#editor-body .cm-content");
-      return {
-        label: content ? content.getAttribute("aria-label") : null,
-        hasK: !!document.querySelector("#editor-body .cm-content .k"),
-        hasD: !!document.querySelector("#editor-body .cm-content .d"),
-        hasT: !!document.querySelector("#editor-body .cm-content .t"),
-        hasP: !!document.querySelector("#editor-body .cm-content .p"),
-      };
-    });
-    if (fullTokens.label !== "syntax.md" || !fullTokens.hasK || !fullTokens.hasD || !fullTokens.hasT || !fullTokens.hasP) {
-      throw new Error(`full editor syntax colors or label missing: ${JSON.stringify(fullTokens)}`);
+    if (layoutChecks.expectedVariant === "full") {
+      await run(() => {
+        self.playground.openDocument("grammars/lojban/cll/syntax.md", 345, 1);
+      });
+      const fullTokens = await run(() => {
+        const content = document.querySelector("#editor-body .cm-content");
+        return {
+          label: content ? content.getAttribute("aria-label") : null,
+          hasK: !!document.querySelector("#editor-body .cm-content .k"),
+          hasD: !!document.querySelector("#editor-body .cm-content .d"),
+          hasT: !!document.querySelector("#editor-body .cm-content .t"),
+          hasP: !!document.querySelector("#editor-body .cm-content .p"),
+        };
+      });
+      if (fullTokens.label !== "syntax.md" || !fullTokens.hasK || !fullTokens.hasD || !fullTokens.hasT || !fullTokens.hasP) {
+        throw new Error(`full editor syntax colors or label missing: ${JSON.stringify(fullTokens)}`);
+      }
+      const syntaxSource = await run(() => self.playground.editor.getValue());
+      await editGrammar("introducing a grammar error in full editor", syntaxSource.replace("sumti-tail [+KU", "sumti-tali [+KU"));
+      await idle("the grammar error in full editor", "#doc-error-bar:not([hidden])");
+      await run(() => self.playground.editor.goTo(350, 21));
+      const fullErrorMarks = await run(() => {
+        const gutterErr = document.querySelector("#editor-body .cm-errorLineGutter .cm-errorLineNumber");
+        const lineErr = document.querySelector("#editor-body .cm-errorLine");
+        const srText = document.getElementById("editor-error-sr")?.textContent || "";
+        const jumpBtn = document.getElementById("doc-error-jump");
+        return {
+          gutterAria: gutterErr ? gutterErr.getAttribute("aria-label") : null,
+          hasLineErr: !!lineErr,
+          srText,
+          jumpText: jumpBtn ? jumpBtn.textContent : null,
+        };
+      });
+      if (
+        !fullErrorMarks.gutterAria ||
+        !/, error$/.test(fullErrorMarks.gutterAria) ||
+        !fullErrorMarks.hasLineErr ||
+        !/^Line \d+, error:/.test(fullErrorMarks.srText) ||
+        !/^Go to \d+:\d+$/.test(fullErrorMarks.jumpText || "")
+      ) {
+        throw new Error(`full editor error marks missing: ${JSON.stringify(fullErrorMarks)}`);
+      }
+      await page.locator("#doc-error-jump").click();
+      const jumpedLine = await run(() => self.playground.editor.getCursor().lineText);
+      if (jumpedLine !== "%rule sumti-6") {
+        throw new Error(`full editor Go to line:column did not move to %rule sumti-6: ${jumpedLine}`);
+      }
+      await page.locator("#doc-reset").click();
+      await idle("resetting full editor grammar error");
     }
-    const syntaxSource = await run(() => self.playground.editor.getValue());
-    await editGrammar("introducing a grammar error in full editor", syntaxSource.replace("sumti-tail [+KU", "sumti-tali [+KU"));
-    await idle("the grammar error in full editor", "#doc-error-bar:not([hidden])");
-    await run(() => self.playground.editor.goTo(350, 21));
-    const fullErrorMarks = await run(() => {
-      const gutterErr = document.querySelector("#editor-body .cm-errorLineGutter .cm-errorLineNumber");
-      const lineErr = document.querySelector("#editor-body .cm-errorLine");
-      const srText = document.getElementById("editor-error-sr")?.textContent || "";
-      const jumpBtn = document.getElementById("doc-error-jump");
-      return {
-        gutterAria: gutterErr ? gutterErr.getAttribute("aria-label") : null,
-        hasLineErr: !!lineErr,
-        srText,
-        jumpText: jumpBtn ? jumpBtn.textContent : null,
-      };
-    });
-    if (
-      !fullErrorMarks.gutterAria ||
-      !/, error$/.test(fullErrorMarks.gutterAria) ||
-      !fullErrorMarks.hasLineErr ||
-      !/^Line \d+, error:/.test(fullErrorMarks.srText) ||
-      !/^Go to \d+:\d+$/.test(fullErrorMarks.jumpText || "")
-    ) {
-      throw new Error(`full editor error marks missing: ${JSON.stringify(fullErrorMarks)}`);
-    }
-    await page.locator("#doc-error-jump").click();
-    const jumpedLine = await run(() => self.playground.editor.getCursor().lineText);
-    if (jumpedLine !== "%rule sumti-6") {
-      throw new Error(`full editor Go to line:column did not move to %rule sumti-6: ${jumpedLine}`);
-    }
-    await page.locator("#doc-reset").click();
-    await idle("resetting full editor grammar error");
 
     // Round 5 & Round 6 checks: wrapped lines and .wrun in Tree/JSON/Audit/Trace,
     // examples menu width (380-520px) on desktop, Tokens tags row below 520px, and measured top-bar steps.
@@ -1277,9 +1281,26 @@ async function main() {
     }
     console.log(`redesigned layout, full editor, and phone checks work in ${browser}`);
 
-    // Basic editor variant: served without playground/vendor/.
+    // Basic editor variant: served without playground/vendor/, with zero failed requests.
     const basicPage = await instance.newPage();
-    await basicPage.route("**/playground/vendor/**", (route) => route.fulfill({ status: 404, body: "missing" }));
+    const basicFailedRequests = [];
+    basicPage.on("requestfailed", (req) => {
+      basicFailedRequests.push(`${req.method()} ${req.url()} (${req.failure()?.errorText || "failed"})`);
+    });
+    basicPage.on("response", (res) => {
+      if (res.status() >= 400) {
+        basicFailedRequests.push(`${res.request().method()} ${res.url()} (HTTP ${res.status()})`);
+      }
+    });
+    if (fs.existsSync(path.join(repository, "playground/vendor/codemirror.js"))) {
+      const basicGrammarsBody = fs
+        .readFileSync(path.join(repository, "dist/grammars.js"), "utf8")
+        .replace('root.gencmuEditor = "full";', 'root.gencmuEditor = "basic";');
+      await basicPage.route("**/dist/grammars.js", (route) =>
+        route.fulfill({ status: 200, contentType: "text/javascript", body: basicGrammarsBody })
+      );
+      await basicPage.route("**/playground/vendor/**", (route) => route.fulfill({ status: 404, body: "missing" }));
+    }
     await basicPage.goto(target);
     const basicStarted = await (async () => {
       for (let attempt = 0; attempt < 600; attempt++) {
@@ -1383,6 +1404,9 @@ async function main() {
       });
       if (restored) break;
       await sleep(100);
+    }
+    if (basicFailedRequests.length > 0) {
+      throw new Error(`basic editor variant had failed network requests: ${basicFailedRequests.join("; ")}`);
     }
     console.log(`basic editor variant works in ${browser}`);
     console.log(`playground works in ${browser} at ${target}, ${version}`);
