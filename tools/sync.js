@@ -41,6 +41,7 @@ import { fixtureShapeProblems } from "./check-fixtures.js";
 import { missing as parserMissing } from "./markdown.js";
 import { DIAGRAMS, documentLines, elisionOutcomes, ownedLines, withDiagrams } from "./railroad.js";
 import { browserModule } from "./bundle-imports.js";
+import { syncVendorEditor } from "./vendor-editor.js";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const sourceDirectory = path.join(root, "lib", "js", "src");
@@ -53,6 +54,7 @@ for (const file of fs.readdirSync(sourceDirectory).filter((name) => name.endsWit
 const copies = ["lib/js/grammars", "lib/python/src/gencmu/grammars", "lib/go/grammars", "lib/rust/grammars"];
 const grammars = path.join(root, "grammars");
 const check = process.argv.includes("--check");
+const basicEditor = process.argv.includes("--basic-editor");
 const stale = [];
 const includeEdges = sourceIncludeEdges(root);
 
@@ -399,6 +401,10 @@ ${bodies.join("\n")}
   root.gencmu = gencmuFactory();
 })(typeof self !== "undefined" ? self : this);
 `);
+
+for (const item of syncVendorEditor({ checkMode: check, basicEditor })) {
+  stale.push(item);
+}
 
 if (check && stale.length) {
   console.error(`out of date; run node tools/sync.js:\n  ${stale.join("\n  ")}`);
