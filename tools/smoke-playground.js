@@ -148,14 +148,19 @@ async function main() {
     };
     const type = (text) => change("typing", "input", text, "input");
     const choose = (path) => change("choosing a pipeline", "pipeline", path.replace(/^grammars\//, "").replace(/\/pipeline\.md$/, ""), "change");
-    const tokenTable = () => run(() => ({
-      header: [...document.querySelectorAll("#output table.tokens th")].map((cell) => cell.textContent),
-      rows: [...document.querySelectorAll("#output table.tokens tbody tr")].map((row) =>
-        [...row.querySelectorAll("td")].map((cell, index) => index === 6 ?
-          [...cell.querySelectorAll(".tag")].map((tag) => tag.textContent) :
-          index >= 8 ? JSON.parse(cell.textContent) : cell.textContent)),
-    }));
-    const tokenHeader = ["#", "text", "value", "image", "span", "source", "tags", "insertedBy", "before", "after"];
+    const tokenTable = () => run(() => {
+      const header = [...document.querySelectorAll("#output table.tokens th")].map((cell) => cell.textContent);
+      return {
+        header,
+        rows: [...document.querySelectorAll("#output table.tokens tbody tr")].map((row) =>
+          [...row.querySelectorAll("td")].map((cell, index) => {
+            const col = header[index];
+            if (col === "tags") return [...cell.querySelectorAll(".tag")].map((tag) => tag.textContent);
+            if (col === "before" || col === "after") return JSON.parse(cell.textContent);
+            return cell.textContent;
+          })),
+      };
+    });
 
     await page.goto(target);
     // The status is "loading" and then "busy" until the first answer, which
@@ -697,10 +702,13 @@ async function main() {
       tags: ["Cmavo", "Continued", "Indicator", "Run-Final", "Run-Initial", "UI", "Word"], source: [9, 11],
       after: [{text: "nai", value: "nai", image: "nai",
         tags: ["Cmavo", "Continued", "NAI", "Onset", "Run-Final", "Run-Initial", "Word"], source: [12, 15]}]}];
-    assert.deepEqual(await tokenTable(), {header: tokenHeader, rows: [
-      ["0", '"m,I"', '"mi"', '"mI"', "1–2", "5–8", miTags, "", beforeTokens, afterTokens],
-      ["1", '"klAma"', '"klama"', '"klAma"', "4–5", "16–21", klamaTags, "", [], []],
-    ]}, "the token table must show format 15 fields and recursive attachments");
+    assert.deepEqual(await tokenTable(), {
+      header: ["#", "text", "value", "image", "span", "source", "tags", "before", "after"],
+      rows: [
+        ["0", '"m,I"', '"mi"', '"mI"', "1–2", "5–8", miTags, beforeTokens, afterTokens],
+        ["1", '"klAma"', '"klama"', '"klAma"', "4–5", "16–21", klamaTags, [], []],
+      ],
+    }, "the token table must show format 15 fields, omit empty columns, and show recursive attachments");
     await page.locator("#tab-tree").click();
     const imageTree = await idle("the tree with images");
     assert.match(imageTree.output, /KOhA "mI"\n\s+◂ BAhE "ba'e"\n\s+▸ UI "ui"\n\s+▸ NAI "nai"/);
@@ -886,17 +894,18 @@ async function main() {
     await stale();
 
     // An empty text has a tree whose brackets are empty (docs/output.md).
-    // The page shows that rendering, with its Copy button, and does not say
-    // that there is no tree. It says only that the rendering is empty.
+    // When there is no output to copy, the page hides Elided and Copy and
+    // shows "The text is empty." as .empty-out without saying there is no tree.
     const emptyRendering = async (what) => {
       const answer = await answerFor("");
       if (answer.error) throw new Error(`the playground failed: ${answer.error}`);
       const empty = await run(() => ({
         pre: document.querySelector("#output pre.result-text") ? document.querySelector("#output pre.result-text").textContent : null,
         copy: !document.getElementById("copy-output")?.hidden,
+        elided: !document.getElementById("elided-toggle")?.hidden,
         text: document.getElementById("output").textContent,
       }));
-      if (empty.pre !== "" || !empty.copy || /No tree|no tokens/.test(empty.text) || !/The bracket rendering is empty/.test(empty.text)) {
+      if (empty.pre !== null || empty.copy || empty.elided || /No tree|no tokens/.test(empty.text) || empty.text.trim() !== "The text is empty.") {
         throw new Error(`the empty bracket rendering of ${what} was not shown as one: ${JSON.stringify(empty)}`);
       }
     };
@@ -917,9 +926,10 @@ async function main() {
     if (shownFor !== "lojban/zantufa") throw new Error(`the empty image was checked under ${shownFor}, not the edited pipeline`);
     await page.locator("#tab-tokens").click();
     await idle("the inserted token table", "#output table.tokens");
-    assert.deepEqual(await tokenTable(), {header: tokenHeader,
-      rows: [["0", '""', '""', '""', "0–0", "0–0", ["X"], "text", [], []]]},
-      "the token table must keep empty values and images and show insertedBy");
+    assert.deepEqual(await tokenTable(), {
+      header: ["#", "text", "value", "image", "span", "source", "tags", "insertedBy"],
+      rows: [["0", '""', '""', '""', "0–0", "0–0", ["X"], "text"]],
+    }, "the token table must keep empty values and images, show insertedBy, and omit empty columns");
     await page.locator("#tab-brackets").click();
     await idle("the empty brackets after the inserted token assertion");
     await run((path) => self.playground.client.setDocument(path, self.gencmuGrammars[path]), imageless);
@@ -936,7 +946,7 @@ async function main() {
       ed.editValue(ed.getValue().replace("%rule", "%rule "));
     });
     await until("the edited word shapes to be read", () =>
-      document.getElementById("status").textContent.includes("Reading grammars/lojban/cll/shapes.md") ? true : null);
+      document.getElementById("status").textContent.includes("Reading shapes.md") ? true : null);
     await choose("grammars/lojban/experimental/pipeline.md");
     const other = await until("an answer under the experimental pipeline", () => {
       const status = document.getElementById("status");
@@ -1140,18 +1150,57 @@ async function main() {
     await page.locator("#doc-reset").click();
     await idle("resetting full editor grammar error");
 
-    await page.setViewportSize({ width: 390, height: 844 });
-    const phone390 = await run(() => {
-      window.dispatchEvent(new Event("resize"));
-      return document.getElementById("app").classList.contains("phone");
+    // Round 5 checks: wrapped lines in Tree/JSON/Audit, measured top-bar steps, and phone chevron/version.
+    await page.locator("#tab-tree").click();
+    await idle("tree view for wrapped line check");
+    const wrappedTreeCheck = await run(() => {
+      const pre = document.querySelector("#output pre.result-text.code-block");
+      const wlines = pre ? [...pre.querySelectorAll(".wline")] : [];
+      return {
+        hasRawText: !!(pre && typeof pre.dataset.rawText === "string" && pre.dataset.rawText.length > 0),
+        rawMatchesText: !!(pre && pre.dataset.rawText === pre.textContent),
+        textIndent: wlines[0] ? wlines[0].style.textIndent : null,
+        pad0: wlines[0] ? wlines[0].style.paddingLeft : null,
+        pad1: wlines[1] ? wlines[1].style.paddingLeft : null,
+        versionPhone: document.getElementById("version-phone")?.textContent || "",
+      };
     });
-    await page.setViewportSize({ width: 320, height: 640 });
-    const phone320 = await run(() => {
-      window.dispatchEvent(new Event("resize"));
-      return document.getElementById("app").classList.contains("phone");
-    });
-    if (!phone390 || !phone320) {
-      throw new Error(`phone layout did not activate at 390/320: ${JSON.stringify({ phone390, phone320 })}`);
+    if (
+      !wrappedTreeCheck.hasRawText ||
+      !wrappedTreeCheck.rawMatchesText ||
+      wrappedTreeCheck.textIndent !== "-4ch" ||
+      wrappedTreeCheck.pad0 !== "calc(4ch)" ||
+      wrappedTreeCheck.pad1 !== "calc(6ch)" ||
+      !/^Library \d+\.\d+\.\d+$/.test(wrappedTreeCheck.versionPhone)
+    ) {
+      throw new Error(`Round 5 wrapped line or phone version check failed: ${JSON.stringify(wrappedTreeCheck)}`);
+    }
+    await page.locator("#tab-brackets").click();
+    await idle("returning to brackets before width checks");
+
+    for (const [w, expectedPhone, expectedStep] of [
+      [1440, false, ""],
+      [760, false, "1"],
+      [600, false, "2"],
+      [560, true, ""],
+      [390, true, ""],
+      [320, true, ""],
+    ]) {
+      await page.setViewportSize({ width: w, height: 844 });
+      const m = await run(() => {
+        window.dispatchEvent(new Event("resize"));
+        const app = document.getElementById("app");
+        const topbar = document.getElementById("topbar");
+        return {
+          phone: app.classList.contains("phone"),
+          step: topbar.getAttribute("data-overflow") || "",
+          scrollW: document.documentElement.scrollWidth,
+          winW: window.innerWidth,
+        };
+      });
+      if (m.phone !== expectedPhone || m.step !== expectedStep || m.scrollW > m.winW) {
+        throw new Error(`width check failed at ${w}px: ${JSON.stringify({ m, expectedPhone, expectedStep })}`);
+      }
     }
     console.log(`redesigned layout, full editor, and phone checks work in ${browser}`);
 

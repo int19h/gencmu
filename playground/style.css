@@ -324,6 +324,10 @@ textarea:focus-visible,
 
 .top-phase,
 .topbar-phase {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 13px;
   color: var(--muted);
   white-space: nowrap;
@@ -364,8 +368,8 @@ textarea:focus-visible,
   padding: 0 8px;
 }
 
-.topbar.step-3 .brand-sub,
-.topbar[data-overflow="3"] .brand-sub {
+.topbar.step-3 .brand,
+.topbar[data-overflow="3"] .brand {
   display: none !important;
 }
 
@@ -996,6 +1000,10 @@ textarea:focus-visible,
   cursor: pointer;
 }
 
+.stage i.tok-word {
+  font-style: normal;
+}
+
 button.stage:hover {
   background: var(--sunk);
 }
@@ -1279,15 +1287,27 @@ button.stage:hover {
   color: var(--ink);
 }
 
-.result-text.code-block {
+.result-text.code-block,
+.reading.code-block {
   font: 13px/1.55 var(--mono);
-  white-space: pre;
-  overflow-x: auto;
+  white-space: normal;
+  overflow-x: hidden;
+}
+
+.wline {
+  display: block;
+  min-height: 1.55em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.wsp {
+  display: none;
 }
 
 .rlabel {
   margin: 0;
-  padding: 10px 18px 0;
+  padding: 14px 18px 0;
   font-size: 12px;
   font-weight: 650;
   letter-spacing: 0.04em;
@@ -1297,15 +1317,14 @@ button.stage:hover {
 
 .reading {
   margin: 0;
-  padding: 6px 18px 14px;
-  font: 15px/1.85 var(--mono);
+  padding: 0 18px;
+  font: 15px/1.9 var(--mono);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  border-bottom: 1px solid var(--soft);
 }
 
 .reading:last-child {
-  border-bottom: 0;
+  padding-bottom: 20px;
 }
 
 .b1 {
@@ -1383,7 +1402,7 @@ table.tokens td.num {
   white-space: nowrap;
 }
 
-table.tokens td.tags {
+table.tokens .tags-list {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
@@ -1395,6 +1414,7 @@ table.tokens .tag {
   border-radius: 4px;
   background: var(--soft);
   font: 11.5px var(--mono);
+  white-space: nowrap;
 }
 
 /* Trace view */
@@ -2181,6 +2201,10 @@ small.s,
 
 .app.phone .phone-ghead .gcount {
   font-size: 13px;
+}
+
+.app.phone .phone-ghead[aria-expanded="true"] .chev {
+  transform: rotate(180deg);
 }
 
 .app.phone .grammar.phone-collapsed .panes {

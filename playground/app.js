@@ -68,18 +68,26 @@
       if (phaseEl) phaseEl.hidden = true;
     } else if (kind === "loading" || kind === "busy") {
       if (errLink) errLink.hidden = true;
-      if (phaseEl && !phaseEl.hidden) {
-        phaseEl.textContent = text;
-      }
-      busyTimer = setTimeout(() => {
-        if (status.dataset.state === "loading" || status.dataset.state === "busy") {
-          setLogoMotion("turning");
-          if (phaseEl) {
-            phaseEl.textContent = status.textContent;
-            phaseEl.hidden = false;
-          }
+      if (!shown) {
+        setLogoMotion("turning");
+        if (phaseEl) {
+          phaseEl.textContent = text;
+          phaseEl.hidden = false;
         }
-      }, 150);
+      } else {
+        if (phaseEl && !phaseEl.hidden) {
+          phaseEl.textContent = text;
+        }
+        busyTimer = setTimeout(() => {
+          if (status.dataset.state === "loading" || status.dataset.state === "busy") {
+            setLogoMotion("turning");
+            if (phaseEl) {
+              phaseEl.textContent = status.textContent;
+              phaseEl.hidden = false;
+            }
+          }
+        }, 150);
+      }
     } else {
       setLogoMotion("still");
       if (errLink) errLink.hidden = true;
@@ -298,11 +306,14 @@
     let text = "Parsing…";
     if (phase === "waiting") text = "Working…";
     else if (phase === "starting") text = workerReady ? "Working…" : "Starting the parser…";
-    else if (phase === "loading") text = `Loading the ${state.pipeline} pipeline…`;
-    else if (phase === "reading") text = `Reading ${running.path} with the notation grammar…`;
-    else if (phase === "rendering") text = "Rendering…";
+    else if (phase === "loading") text = `Loading ${state.pipeline}…`;
+    else if (phase === "reading") {
+      const p = running.path || "";
+      const fileName = p.slice(p.lastIndexOf("/") + 1);
+      text = `Reading ${fileName}…`;
+    } else if (phase === "rendering") text = "Rendering…";
     else if (phase === "tracing") text = "Tracing…";
-    setStatus("busy", text);
+    setStatus(workerReady ? "busy" : "loading", text);
   }
 
   // ---- Worker management ---------------------------------------------------
@@ -423,7 +434,7 @@
         workerReady = true;
         timings.workerReady = performance.now() - client.startedAt;
         $("version").textContent = `Library ${message.version}`;
-        if ($("version-phone")) $("version-phone").textContent = `library ${message.version}`;
+        if ($("version-phone")) $("version-phone").textContent = `Library ${message.version}`;
         break;
       case "phase":
         if (!running || message.id !== running.id) break;
@@ -568,47 +579,48 @@
   function updateTopBarOverflow() {
     const app = $("app");
     const topbar = $("topbar");
-    const width = window.innerWidth;
+    const phaseEl = $("topbar-phase");
+    const leftEl = document.querySelector(".left");
 
-    if (width < 440) {
-      app.classList.add("phone");
+    app.classList.remove("phone");
+    delete topbar.dataset.overflow;
+
+    const clientW = document.documentElement.clientWidth || window.innerWidth;
+    const leftOverflows = leftEl ? (leftEl.offsetWidth > clientW || leftEl.scrollWidth > clientW) : false;
+
+    let topBarOverflows = false;
+    if (!leftOverflows) {
+      const phaseDisplay = phaseEl ? phaseEl.style.display : "";
+      if (phaseEl) phaseEl.style.display = "none";
+
+      const overflows = () => topbar.scrollWidth > topbar.clientWidth;
+      if (overflows()) {
+        topbar.dataset.overflow = "1";
+        if (overflows()) {
+          topbar.dataset.overflow = "2";
+          if (overflows()) {
+            topbar.dataset.overflow = "3";
+            if (overflows()) {
+              topBarOverflows = true;
+            }
+          }
+        }
+      }
+
+      if (phaseEl) phaseEl.style.display = phaseDisplay;
+    }
+
+    if (leftOverflows || topBarOverflows) {
       delete topbar.dataset.overflow;
+      app.classList.add("phone");
       if (!wasPhone) {
         wasPhone = true;
         updatePhoneGrammarState();
-        if (shown) renderSummary(shown);
       }
       updatePhoneTabsFade();
-      return;
-    }
-
-    app.classList.remove("phone");
-    if (wasPhone) {
+    } else if (wasPhone) {
       wasPhone = false;
-      if (shown) renderSummary(shown);
     }
-    delete topbar.dataset.overflow;
-
-    const overflows = () => topbar.scrollWidth > topbar.clientWidth + 1;
-    if (!overflows() && width > 870) return;
-
-    topbar.dataset.overflow = "1";
-    if (!overflows() && width > 680) return;
-
-    topbar.dataset.overflow = "2";
-    if (!overflows() && width > 500) return;
-
-    topbar.dataset.overflow = "3";
-    if (!overflows()) return;
-
-    delete topbar.dataset.overflow;
-    app.classList.add("phone");
-    if (!wasPhone) {
-      wasPhone = true;
-      updatePhoneGrammarState();
-      if (shown) renderSummary(shown);
-    }
-    updatePhoneTabsFade();
   }
 
   function updatePhoneTabsFade() {
@@ -939,14 +951,17 @@
       if (report.error) {
         const err = message.parse && message.parse.error;
         const isTie = err && err.stage === stage.name && err.kind === "ambiguous" && err.reason === "tie";
+        const isAmbig = err && err.stage === stage.name && err.kind === "ambiguous";
         const errLabel = isTie
           ? "tie"
-          : err && err.stage === stage.name && err.kind === "rejected"
-            ? "rejected"
-            : report.error;
+          : isAmbig
+            ? "ambiguous"
+            : err && err.stage === stage.name && err.kind === "rejected"
+              ? "rejected"
+              : report.error;
         chips.push(element("button", {
           type: "button",
-          class: `stage ${isTie ? "tie" : "bad"}`,
+          class: `stage ${isAmbig ? "tie" : "bad"}`,
           title: `Show tokens for ${stage.name}`,
           onclick: () => {
             state.tokenStage = index > 0 ? stageList[index - 1].name : stage.name;
@@ -957,13 +972,19 @@
         element("span", { class: "sr-only", text: " " }),
         element("span", { text: errLabel })));
       } else {
-        let detailText;
-        if (isLast && !report.output) {
-          detailText = report.verdict || "accepted";
-        } else if (isPhone) {
-          detailText = String(report.output);
+        const hasTokenCount = !(isLast && !report.output) &&
+          report.output !== null && report.output !== undefined;
+        let detailSpan;
+        let plainDetail;
+        if (hasTokenCount) {
+          const word = report.output === 1 ? " token" : " tokens";
+          plainDetail = `${report.output}${word}`;
+          detailSpan = element("span", {},
+            String(report.output),
+            element("i", { class: "tok-word", text: word }));
         } else {
-          detailText = plural(report.output, "token");
+          plainDetail = report.verdict || "accepted";
+          detailSpan = element("span", { text: plainDetail });
         }
         chips.push(element("button", {
           type: "button",
@@ -976,13 +997,14 @@
         },
         element("b", { text: stage.name }),
         element("span", { class: "sr-only", text: " " }),
-        element("span", { text: detailText }),
-        report.verdict && !detailText.includes(report.verdict)
+        detailSpan,
+        report.verdict && !plainDetail.includes(report.verdict)
           ? element("span", { class: "sr-only", text: ` ${report.verdict}` })
           : null));
       }
     });
     fill(stageFlow, chips);
+    updateTopBarOverflow();
 
     const used = message.parse && !message.loadError ? message.parse.features : [];
     const featsEl = $("features-used");
@@ -1015,20 +1037,60 @@
     }
 
     const parse = message.parse;
-    if (parse && parse.error && !(parse.error.kind === "ambiguous" && parse.error.reason === "tie")) {
+    if (parse && parse.error && parse.error.kind !== "ambiguous") {
       const error = parse.error;
       if (error.kind === "rejected") {
         boxes.push(renderRejectionBox(parse, error));
+      } else if (error.kind === "reported") {
+        const repBlocks = (parse.explanation || "").split(/\n\n+/).map((block) => {
+          const rLines = block.split("\n");
+          if (rLines.length >= 3 && /\^/.test(rLines[2])) {
+            const ex = formatExcerptNode(rLines[1], rLines[2], "var(--bad)");
+            ex.style.background = "var(--surface)";
+            ex.style.border = "1px solid var(--bad-line)";
+            const extra = rLines.length > 3
+              ? element("pre", { class: "alert-pre", text: rLines.slice(3).join("\n") })
+              : null;
+            return element("div", { style: "display:flex;flex-direction:column;gap:8px" },
+              element("p", { style: "margin:0;font-size:13.5px", text: rLines[0] }),
+              ex,
+              extra);
+          }
+          return element("pre", { class: "alert-pre", text: block });
+        });
+        boxes.push(element("div", { class: "alert-box bad box", id: "explanation", role: "alert" },
+          element("div", { style: "display:flex;align-items:center;gap:8px;color:var(--bad)" },
+            warnIcon(18),
+            element("h2", { style: "margin:0;font-size:15px;font-weight:650;color:var(--bad)", text: `Reported errors in ${error.stage}` })),
+          repBlocks));
+      } else if (error.kind === "feature-conflict") {
+        const feat = error.feature || "";
+        const turnOnRow = feat
+          ? element("div", { style: "display:flex;flex-wrap:wrap;gap:8px;align-items:center" },
+              element("button", {
+                type: "button",
+                class: "btn",
+                text: `Turn on ${feat}`,
+                onclick: () => {
+                  state.features.add(feat);
+                  state.without.delete(feat);
+                  renderOptions();
+                  schedule(0);
+                },
+              }))
+          : null;
+        boxes.push(element("div", { class: "alert-box bad box", id: "explanation", role: "alert" },
+          element("div", { style: "display:flex;align-items:center;gap:8px;color:var(--bad)" },
+            warnIcon(18),
+            element("h2", { style: "margin:0;font-size:15px;font-weight:650;color:var(--bad)", text: `Required feature ${feat} is disabled` })),
+          element("p", { style: "margin:0;font-size:13.5px", text: parse.explanation }),
+          turnOnRow));
       } else {
-        const titles = {
-          ambiguous: `Ambiguous in ${error.stage}`,
-          reported: `Reported errors in ${error.stage}`,
-          "feature-conflict": `Required feature ${error.feature || ""} is disabled`,
-          grammar: `Grammar error in ${error.stage || "pipeline"}`,
-        };
-        boxes.push(element("div", { class: "explain-divider box", id: "explanation" },
-          element("p", { class: "explain-lead", text: titles[error.kind] || "Not accepted" }),
-          element("pre", { class: "excerpt" }, linkified(parse.explanation))));
+        boxes.push(element("div", { class: "alert-box bad box", id: "explanation", role: "alert" },
+          element("div", { style: "display:flex;align-items:center;gap:8px;color:var(--bad)" },
+            warnIcon(18),
+            element("h2", { style: "margin:0;font-size:15px;font-weight:650;color:var(--bad)", text: `Grammar error in ${error.stage || "pipeline"}` })),
+          element("p", { class: "alert-pre" }, linkified(parse.explanation))));
       }
     }
 
@@ -1052,7 +1114,9 @@
         return element("pre", { class: "alert-pre", text: block });
       });
       boxes.push(element("div", { class: "alert-box warn box" },
-        element("h3", { text: plural(parse.warnings.length, "warning") }),
+        element("div", { style: "display:flex;align-items:center;gap:8px;color:var(--warn)" },
+          warnIcon(18),
+          element("h3", { text: plural(parse.warnings.length, "warning") })),
         warnBlocks));
     }
 
@@ -1253,6 +1317,37 @@
     return frag;
   }
 
+  function renderWrappedLines(rawText, { className = "result-text code-block", linkify = false, tabindex = null } = {}) {
+    const pre = element("pre", { class: className });
+    if (tabindex !== null) pre.tabIndex = tabindex;
+    pre.dataset.rawText = rawText || "";
+    const lines = (rawText || "").split("\n");
+    const nodes = lines.map((line, idx) => {
+      const m = /^( *)/.exec(line);
+      const leadCount = m ? m[1].length : 0;
+      const leadSpaces = line.slice(0, leadCount);
+      const rest = line.slice(leadCount);
+      const span = element("span", {
+        class: "wline",
+        style: `padding-left:calc(${leadCount}ch + 4ch);text-indent:-4ch`,
+      });
+      if (leadCount > 0) {
+        span.append(element("span", { class: "wsp", text: leadSpaces }));
+      }
+      if (linkify) {
+        span.append(linkified(rest));
+      } else {
+        span.append(rest);
+      }
+      if (idx < lines.length - 1) {
+        span.append(element("span", { class: "wsp", text: "\n" }));
+      }
+      return span;
+    });
+    fill(pre, nodes);
+    return pre;
+  }
+
   function updateTabToolbar(hasOutput = true) {
     $("elided-toggle").hidden = !(state.tab === "brackets" && hasOutput);
     $("canonical-toggle").hidden = !(state.tab === "json" && hasOutput);
@@ -1275,10 +1370,10 @@
     if (state.tab === "audit") {
       if (message.audit === undefined || message.audit === null) {
         updateTabToolbar(false);
-        output.replaceChildren(empty("…"));
+        output.replaceChildren();
       } else {
         updateTabToolbar(true);
-        output.replaceChildren(element("pre", { class: "result-text code-block", tabindex: "0" }, linkified(message.audit)));
+        output.replaceChildren(renderWrappedLines(message.audit, { className: "result-text code-block", linkify: true, tabindex: 0 }));
       }
       return;
     }
@@ -1294,13 +1389,13 @@
       if (message.output && message.output.format === "tokens") {
         renderTokens(message.output);
       } else {
-        output.replaceChildren(empty("…"));
+        output.replaceChildren();
       }
       return;
     }
 
     const parse = message.parse;
-    if (parse && parse.error && parse.error.kind === "ambiguous" && parse.error.reason === "tie" && parse.ties && parse.ties.length) {
+    if (parse && parse.error && parse.error.kind === "ambiguous" && parse.ties && parse.ties.length) {
       const tie = parse.ties[0];
       updateTabToolbar(true);
       if (state.tab === "brackets") {
@@ -1315,18 +1410,18 @@
       } else if (state.tab === "tree") {
         fill(output, [
           element("p", { class: "rlabel", text: "First reading" }),
-          element("pre", { class: "reading", style: "font-size:13px;line-height:1.55;white-space:pre;overflow-x:auto", text: tie.firstTree || "" }),
+          renderWrappedLines(tie.firstTree || "", { className: "reading code-block" }),
           element("p", { class: "rlabel", text: "Second reading" }),
-          element("pre", { class: "reading", style: "font-size:13px;line-height:1.55;white-space:pre;overflow-x:auto", text: tie.secondTree || "" }),
+          renderWrappedLines(tie.secondTree || "", { className: "reading code-block" }),
         ]);
       } else {
         const firstJ = state.canonical ? tie.firstCanonical : tie.firstJson;
         const secondJ = state.canonical ? tie.secondCanonical : tie.secondJson;
         fill(output, [
           element("p", { class: "rlabel", text: "First reading" }),
-          element("pre", { class: "reading", style: "font-size:13px;line-height:1.55;white-space:pre;overflow-x:auto", text: firstJ || "" }),
+          renderWrappedLines(firstJ || "", { className: "reading code-block" }),
           element("p", { class: "rlabel", text: "Second reading" }),
-          element("pre", { class: "reading", style: "font-size:13px;line-height:1.55;white-space:pre;overflow-x:auto", text: secondJ || "" }),
+          renderWrappedLines(secondJ || "", { className: "reading code-block" }),
         ]);
       }
       return;
@@ -1336,7 +1431,7 @@
     const expectedFormat = state.tab === "json" && state.canonical ? "canonical" : state.tab;
     if (!result || result.format !== expectedFormat) {
       updateTabToolbar(false);
-      output.replaceChildren(empty("…"));
+      output.replaceChildren();
       return;
     }
 
@@ -1349,19 +1444,17 @@
       return;
     }
 
-    updateTabToolbar(true);
-    if (result.text === "" && result.format === "brackets") {
-      fill(output, [
-        element("p", { class: "empty-hint", text: "The bracket rendering is empty." }),
-        element("pre", { class: "result-text", tabindex: "0", text: "" }),
-      ]);
+    if (result.text === "") {
+      updateTabToolbar(false);
+      output.replaceChildren(empty("The text is empty."));
       return;
     }
 
+    updateTabToolbar(true);
     if (result.format === "brackets") {
       output.replaceChildren(element("pre", { class: "result-text", tabindex: "0" }, formatColoredBrackets(result.text)));
     } else {
-      output.replaceChildren(element("pre", { class: "result-text code-block", tabindex: "0", text: result.text }));
+      output.replaceChildren(renderWrappedLines(result.text, { className: "result-text code-block", tabindex: 0 }));
     }
   }
 
@@ -1389,20 +1482,66 @@
       return;
     }
 
+    const allColumns = [
+      {
+        title: "#",
+        empty: () => false,
+        cell: (row) => element("td", { class: "num", text: String(row.index) }),
+      },
+      {
+        title: "text",
+        empty: (row) => row.text === undefined || row.text === null,
+        cell: (row) => element("td", {}, element("code", { text: JSON.stringify(row.text) })),
+      },
+      {
+        title: "value",
+        empty: (row) => row.value === undefined || row.value === null,
+        cell: (row) => element("td", {}, element("code", { text: JSON.stringify(row.value) })),
+      },
+      {
+        title: "image",
+        empty: (row) => row.image === undefined || row.image === null,
+        cell: (row) => element("td", {}, element("code", { text: JSON.stringify(row.image) })),
+      },
+      {
+        title: "span",
+        empty: (row) => !row.span,
+        cell: (row) => element("td", { class: "num", text: row.span }),
+      },
+      {
+        title: "source",
+        empty: (row) => !row.source,
+        cell: (row) => element("td", { class: "num", text: row.source }),
+      },
+      {
+        title: "tags",
+        empty: (row) => !row.tags || row.tags.length === 0,
+        cell: (row) =>
+          element("td", { class: "tags" },
+            element("div", { class: "tags-list" },
+              row.tags.map((tag) => element("span", { class: "tag", text: tag })))),
+      },
+      {
+        title: "insertedBy",
+        empty: (row) => !row.insertedBy,
+        cell: (row) => element("td", {}, element("code", { text: row.insertedBy })),
+      },
+      {
+        title: "before",
+        empty: (row) => !row.before || row.before === "[]",
+        cell: (row) => element("td", {}, element("code", { text: row.before })),
+      },
+      {
+        title: "after",
+        empty: (row) => !row.after || row.after === "[]",
+        cell: (row) => element("td", {}, element("code", { text: row.after })),
+      },
+    ];
+    const columns = allColumns.filter((col) => !result.rows.every((row) => col.empty(row)));
     const header = element("tr", {},
-      ["#", "text", "value", "image", "span", "source", "tags", "insertedBy", "before", "after"].map((title) =>
-        element("th", { scope: "col", text: title })));
+      columns.map((col) => element("th", { scope: "col", text: col.title })));
     const rows = result.rows.map((row) => element("tr", {},
-      element("td", { class: "num", text: String(row.index) }),
-      element("td", {}, element("code", { text: JSON.stringify(row.text) })),
-      element("td", {}, element("code", { text: JSON.stringify(row.value) })),
-      element("td", {}, element("code", { text: JSON.stringify(row.image) })),
-      element("td", { class: "num", text: row.span }),
-      element("td", { class: "num", text: row.source }),
-      element("td", { class: "tags" }, row.tags.map((tag) => element("span", { class: "tag", text: tag }))),
-      element("td", {}, element("code", { text: row.insertedBy })),
-      element("td", {}, element("code", { text: row.before })),
-      element("td", {}, element("code", { text: row.after }))));
+      columns.map((col) => col.cell(row))));
 
     const note = result.total > result.rows.length
       ? element("p", { class: "empty-hint", text: `Showing the first ${result.rows.length} of ${result.total} tokens.` })
@@ -1428,7 +1567,7 @@
   function renderTrace(trace) {
     const output = $("output");
     if (!trace) {
-      output.replaceChildren(element("p", { class: "empty-out", text: "…" }));
+      output.replaceChildren();
       return;
     }
 
@@ -1649,20 +1788,21 @@
     } else {
       countBadge.hidden = true;
     }
+    updateTopBarOverflow();
 
     const info = infos.get(state.pipeline);
     const featuresEl = $("features");
     if (!info) {
-      featuresEl.replaceChildren(element("div", { class: "frow no-border" },
+      featuresEl.replaceChildren(element("div", { class: "frow" },
         element("small", { text: "Loading features…" })));
       return;
     }
 
     if (!info.features.length) {
-      featuresEl.replaceChildren(element("div", { class: "frow no-border" },
+      featuresEl.replaceChildren(element("div", { class: "frow" },
         element("small", { text: "This pipeline declares no features or warnings." })));
     } else {
-      fill(featuresEl, info.features.map((feature, idx) => {
+      fill(featuresEl, info.features.map((feature) => {
         const name = feature.name;
         const mode = state.without.has(name) ? "off" : state.features.has(name) ? "on" : "grammar";
         const desc = `${feature.kind === "warning" ? "Warning" : "Gate"} · ${feature.default ? "on" : "off"} by default`;
@@ -1676,7 +1816,7 @@
           schedule(0);
         };
 
-        return element("div", { class: `frow${idx === 0 ? " no-border" : ""}` },
+        return element("div", { class: "frow" },
           element("div", {},
             element("div", { class: "mono", text: name }),
             element("small", { text: desc })),
@@ -1799,10 +1939,13 @@
   $("copy-output").addEventListener("click", (event) => {
     const pre = document.querySelector("#output pre.result-text");
     if (pre) {
-      copyText(pre.textContent, event.currentTarget, "Copy");
+      const text = pre.dataset.rawText !== undefined ? pre.dataset.rawText : pre.textContent;
+      copyText(text, event.currentTarget, "Copy");
       return;
     }
-    const readings = [...document.querySelectorAll("#output pre.reading")].map((n) => n.textContent);
+    const readings = [...document.querySelectorAll("#output pre.reading")].map((n) =>
+      n.dataset.rawText !== undefined ? n.dataset.rawText : n.textContent
+    );
     if (readings.length) {
       copyText(readings.join("\n\n"), event.currentTarget, "Copy");
     }
@@ -2113,7 +2256,7 @@
         index ? ", " : "",
         element("button", {
           type: "button",
-          class: "link",
+          class: "link mono",
           text: path.replace(/^grammars\//, "").replace(/\.md$/, ""),
           title: path,
           onclick: () => openDocument(path, 0, 1),
@@ -2577,8 +2720,9 @@
         element("span", { text: "not run" })));
     });
     fill($("stage-flow"), initialChips);
+    $("verdict-top").hidden = true;
     $("copy-link").hidden = true;
-    $("output").replaceChildren(element("p", { class: "empty-out", text: "…" }));
+    $("output").replaceChildren();
     updateTabToolbar(false);
   }
   updateTopBarOverflow();

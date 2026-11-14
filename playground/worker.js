@@ -291,7 +291,26 @@
     // error.
     function tieView(result, stage) {
       const tokens = stage.input || [];
-      const text = gencmu.explainTies({ text: result.text, stages: [stage] });
+      let text = gencmu.explainTies({ text: result.text, stages: [stage] });
+      if (!text && stage.error && stage.error.kind === "ambiguous") {
+        const firstAct = stage.error.witness && stage.error.witness[0];
+        const at = firstAct ? (firstAct.kind === "read" ? firstAct.token : firstAct.kind === "close" ? firstAct.span[1] : firstAct.at || 0) : 0;
+        const synth = gencmu.explainTies({
+          text: result.text,
+          stages: [{ ...stage, verdict: "tie", witness: [{ kind: "read", token: at, terminal: "" }, { kind: "read", token: at, terminal: "" }] }],
+        });
+        const synthLines = synth.split("\n");
+        const errLines = gencmu.explainError(result).split("\n");
+        const r1 = errLines.find((l) => l.startsWith("  the first reading ")) || "";
+        const r2 = errLines.find((l) => l.startsWith("  the second reading ")) || "";
+        const lead = `The ${stage.name} stage's text is ambiguous even with every elided terminator written out, so the ambiguity is not about terminators (elision-only).`;
+        const body = [lead, "They first differ here:"];
+        if (synthLines.length >= 4) body.push(synthLines[2], synthLines[3]);
+        if (r1) body.push(r1);
+        if (r2) body.push(r2);
+        body.push("  first:  ", "  second: ", "The grammar must say which reading it means. Until it does, the text is an error.");
+        text = body.join("\n");
+      }
       const cut = text.indexOf("\n  first: ");
       const end = text.lastIndexOf("\n");
       let firstDiff = "";

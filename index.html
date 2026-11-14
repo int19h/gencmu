@@ -31,7 +31,7 @@
       </button>
 
       <nav class="menu help-menu" id="help-menu" role="menu" aria-label="Help and documentation" hidden>
-        <p class="help-head"><b style="font-size:15px">gencmu</b><span style="color:var(--muted)">playground</span><span class="spacer help-phone-only"></span><span class="help-ver-phone" id="version-phone">library 0.1.0</span></p>
+        <p class="help-head"><b style="font-size:15px">gencmu</b><span style="color:var(--muted)">playground</span><span class="spacer help-phone-only"></span><span class="help-ver-phone" id="version-phone">Library 0.1.0</span></p>
         <a class="help-link" role="menuitem" href="https://github.com/int19h/gencmu/blob/main/README.md" target="_blank" rel="noopener"><b>About gencmu</b><span>The README: what gencmu is and how to use it</span></a>
         <a class="help-link" role="menuitem" href="https://github.com/int19h/gencmu/blob/main/docs/notation.md" target="_blank" rel="noopener"><b>The notation</b><span>How a grammar document is written</span></a>
         <a class="help-link" role="menuitem" href="https://github.com/int19h/gencmu/blob/main/docs/pipelines.md" target="_blank" rel="noopener"><b>Pipelines</b><span>The bundled pipelines and their stages</span></a>
@@ -41,7 +41,7 @@
       </nav>
 
       <span class="brand" id="brand-title"><span class="brand-name g">gencmu</span><span class="brand-sub">playground</span></span>
-      <span id="status" class="sr-only" role="status" aria-live="polite" data-state="loading">Starting parser...</span>
+      <span id="status" class="sr-only" role="status" aria-live="polite" data-state="loading">Starting the parser…</span>
 
       <button type="button" class="pbtn" id="pipeline-button" aria-label="Pipeline" aria-haspopup="listbox" aria-expanded="false">
         <span class="pname mono" id="pipeline-label">lojban/cll</span>
@@ -131,8 +131,8 @@
 
         <section class="vcard" id="result" aria-label="Verdict" data-for="" data-pipeline="" aria-busy="true">
           <div id="summary">
-            <div class="vtop" id="verdict-top">
-              <span class="badge" id="verdict-badge">Loading...</span>
+            <div class="vtop" id="verdict-top" hidden>
+              <span class="badge" id="verdict-badge"></span>
               <span id="timing" title="Parse time"></span>
               <span class="spacer"></span>
               <button type="button" class="btn plain" id="copy-link">
@@ -156,7 +156,7 @@
               <button type="button" class="tab" id="tab-trace" role="tab" data-view="trace" aria-selected="false">Trace</button>
               <button type="button" class="tab" id="tab-audit" role="tab" data-view="audit" aria-selected="false">Audit</button>
             </div>
-            <div class="tab-actions" id="output-controls">
+            <div class="tab-actions" id="output-controls" hidden>
               <label class="chk-label" id="elided-toggle" title="Show elided terminators, the terminators the text leaves out, in angle brackets such as ⟨ku⟩">
                 <input type="checkbox" id="show-elided" checked>
                 <span>Elided<span class="sr-only"> terminators</span></span>
