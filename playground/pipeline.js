@@ -288,5 +288,41 @@
     return found;
   }
 
-  root.gencmuPipeline = { pipelineStages, resolvePath, documentMentions, hooks };
-})(typeof self !== "undefined" ? self : this);
+  function isPlainObject(value) {
+    return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+  }
+
+  function mergeExampleForPipeline(example, pipelineName) {
+    const override =
+      isPlainObject(example.byPipeline) && isPlainObject(example.byPipeline[pipelineName])
+        ? example.byPipeline[pipelineName]
+        : {};
+
+    let features = {};
+    if (isPlainObject(example.features)) {
+      features = { ...example.features };
+    }
+    if (isPlainObject(override.features)) {
+      features = { ...features, ...override.features };
+    }
+
+    const pick = (field, fallback) => {
+      if (field in override) {
+        return override[field] === null ? fallback : override[field];
+      }
+      return example[field] !== undefined ? example[field] : fallback;
+    };
+
+    return {
+      features,
+      warnings: pick("warnings", null),
+      elisionOnly: pick("elisionOnly", undefined),
+      view: pick("view", "brackets"),
+      showElided: pick("showElided", false),
+      hint: pick("hint", null),
+      open: pick("open", null),
+    };
+  }
+
+  root.gencmuPipeline = { pipelineStages, resolvePath, documentMentions, mergeExampleForPipeline, hooks };
+})(typeof self !== "undefined" ? self : globalThis);

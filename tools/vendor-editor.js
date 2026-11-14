@@ -18,6 +18,7 @@ const nodeModulesDir = path.join(libJsDir, "node_modules");
 const vendorDir = path.join(root, "playground", "vendor");
 const bundlePath = path.join(vendorDir, "codemirror.js");
 const licensePath = path.join(vendorDir, "LICENSE");
+const fullEditorPath = path.join(root, "playground", "editor-full.js");
 
 export const PINNED_PACKAGES = Object.freeze({
   "@codemirror/commands": "6.11.1",
@@ -109,13 +110,19 @@ function runEsbuild(esbuild, options) {
     const platPkg = `@esbuild/${process.platform}-${process.arch}`;
     const binSource = path.join(nodeModulesDir, platPkg, "bin", "esbuild");
     if (!fs.existsSync(binSource)) throw error;
-    const binCopy = path.join(os.tmpdir(), `gencmu-esbuild-${esbuild.version}`);
-    if (!fs.existsSync(binCopy)) {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "gencmu-esbuild-"));
+    const binCopy = path.join(tmpDir, "esbuild");
+    const prevBinPath = process.env.ESBUILD_BINARY_PATH;
+    try {
       fs.copyFileSync(binSource, binCopy);
       fs.chmodSync(binCopy, 0o755);
+      process.env.ESBUILD_BINARY_PATH = binCopy;
+      return esbuild.buildSync(options);
+    } finally {
+      if (prevBinPath === undefined) delete process.env.ESBUILD_BINARY_PATH;
+      else process.env.ESBUILD_BINARY_PATH = prevBinPath;
+      fs.rmSync(tmpDir, { recursive: true, force: true });
     }
-    process.env.ESBUILD_BINARY_PATH = binCopy;
-    return esbuild.buildSync(options);
   }
 }
 
@@ -168,6 +175,7 @@ export function syncVendorEditor({ checkMode = false, basicEditor = false } = {}
     for (const [fullPath, label] of [
       [bundlePath, "playground/vendor/codemirror.js"],
       [licensePath, "playground/vendor/LICENSE"],
+      [fullEditorPath, "playground/editor-full.js"],
     ]) {
       if (!fs.existsSync(fullPath)) continue;
       stale.push(label);

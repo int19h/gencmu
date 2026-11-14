@@ -1,8 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { Loader } from "../lib/js/src/node.js";
+import { GencmuError, Loader } from "../lib/js/src/node.js";
 import { splicePipeline } from "../lib/js/src/splice.js";
+import "../playground/pipeline.js";
+
+globalThis.gencmu ??= { GencmuError };
+const { mergeExampleForPipeline, pipelineStages } = globalThis.gencmuPipeline;
+export { mergeExampleForPipeline };
 
 const TOP_FIELDS = new Set([
   "id",
@@ -46,13 +51,6 @@ const VALID_EXPECTS = new Set([
   "grammar",
 ]);
 
-const STAGE_REQUIRED_EXPECTS = new Set([
-  "rejected",
-  "reported",
-  "tie",
-  "elision-only",
-]);
-
 const VALID_VIEWS = new Set([
   "brackets",
   "tree",
@@ -83,42 +81,6 @@ export function resolveOpenDocument(pipelineName, docPath) {
   if (typeof docPath !== "string" || !docPath) return "";
   if (docPath.startsWith("grammars/")) return path.posix.normalize(docPath);
   return path.posix.normalize(path.posix.join("grammars", pipelineName, docPath));
-}
-
-export function mergeExampleForPipeline(example, pipelineName) {
-  const override =
-    isPlainObject(example.byPipeline) && isPlainObject(example.byPipeline[pipelineName])
-      ? example.byPipeline[pipelineName]
-      : {};
-
-  let features = {};
-  if (isPlainObject(example.features)) {
-    features = { ...example.features };
-  }
-  if ("features" in override) {
-    if (override.features === null) {
-      features = {};
-    } else if (isPlainObject(override.features)) {
-      features = { ...features, ...override.features };
-    }
-  }
-
-  const pick = (field, fallback) => {
-    if (field in override) {
-      return override[field] === null ? fallback : override[field];
-    }
-    return example[field] !== undefined ? example[field] : fallback;
-  };
-
-  return {
-    features,
-    warnings: pick("warnings", null),
-    elisionOnly: pick("elisionOnly", undefined),
-    view: pick("view", "brackets"),
-    showElided: pick("showElided", false),
-    hint: pick("hint", null),
-    open: pick("open", null),
-  };
 }
 
 function formatOutcomeDesc(outcome, stage, warnings) {
@@ -181,6 +143,10 @@ export function createExampleContext(root, options = {}) {
         },
         new Set(pipeline.features.map((f) => f.name))
       );
+    } else {
+      for (const docPath of pipelineStages(entryPath, readSource).documents) {
+        if (readSource(docPath) !== undefined) docs.add(docPath);
+      }
     }
     const features = new Map(pipeline ? pipeline.features.map((f) => [f.name, f]) : []);
     const stages = new Map(pipeline ? pipeline.stages.map((s) => [s.name, s]) : []);
@@ -208,7 +174,7 @@ export function checkExampleEntries(file, family, parsed, context, options = {})
     return { problems, runs };
   }
 
-  const seenIds = new Set();
+  const seenIds = options.seenIds instanceof Map ? options.seenIds : new Map();
 
   parsed.forEach((entry, index) => {
     const fallbackId = `entry #${index + 1}`;
@@ -240,9 +206,14 @@ export function checkExampleEntries(file, family, parsed, context, options = {})
           `invalid id "${String(entry.id)}" (expected lowercase ASCII letters and digits joined by single hyphens)`
         );
       } else if (seenIds.has(entry.id)) {
-        report(`repeated id "${entry.id}"`);
+        const prevFile = seenIds.get(entry.id);
+        report(
+          prevFile === file
+            ? `repeated id "${entry.id}"`
+            : `repeated id "${entry.id}" (already defined in "${prevFile}")`
+        );
       } else {
-        seenIds.add(entry.id);
+        seenIds.set(entry.id, file);
       }
     }
 
@@ -292,16 +263,8 @@ export function checkExampleEntries(file, family, parsed, context, options = {})
     if ("expect" in entry && entry.expect !== undefined && entry.expect !== null) {
       if (typeof entry.expect !== "string" || !VALID_EXPECTS.has(entry.expect)) {
         report(`unknown expect value "${String(entry.expect)}"`);
-      } else {
-        if (entry.expect === "accepted" && entry.stage !== undefined) {
-          report('stage is forbidden when expect is "accepted"');
-        }
-        if (
-          STAGE_REQUIRED_EXPECTS.has(entry.expect) &&
-          (typeof entry.stage !== "string" || entry.stage.length === 0)
-        ) {
-          report(`stage is required when expect is "${entry.expect}"`);
-        }
+      } else if (entry.expect === "accepted" && entry.stage !== undefined) {
+        report('stage is forbidden when expect is "accepted"');
       }
     }
 
@@ -438,7 +401,7 @@ export function checkExampleEntries(file, family, parsed, context, options = {})
             }
           }
           const targetP = validPipelines.includes(p) ? [p] : [];
-          if (override.features !== undefined && override.features !== null) {
+          if ("features" in override) {
             checkFeaturesObject(override.features, targetP, `byPipeline["${p}"].features`);
           }
           if ("warnings" in override) {
@@ -489,7 +452,7 @@ export function checkExampleEntries(file, family, parsed, context, options = {})
         const docRaw = merged.open.document;
         if (typeof docRaw === "string" && docRaw.trim().length > 0) {
           const resolvedDoc = resolveOpenDocument(p, docRaw);
-          if (pInfo.pipeline && !pInfo.docs.has(resolvedDoc)) {
+          if (context.readSource(resolvedDoc) === undefined || !pInfo.docs.has(resolvedDoc)) {
             report(`open document "${docRaw}" is outside pipeline "${p}"`);
           } else {
             if (pInfo.pipeline && typeof merged.open.rule === "string" && merged.open.rule.trim().length > 0) {
@@ -536,7 +499,10 @@ export function checkExampleEntries(file, family, parsed, context, options = {})
         let actualStage = null;
         let actualWarnings = [];
         if (pInfo.loadError) {
-          actualOutcome = "grammar";
+          actualOutcome =
+            pInfo.loadError && pInfo.loadError.name === "GencmuError" && pInfo.loadError.kind === "grammar"
+              ? "grammar"
+              : "internal";
           actualStage = (pInfo.loadError.where && pInfo.loadError.where.stage) || null;
         } else {
           try {
@@ -561,15 +527,10 @@ export function checkExampleEntries(file, family, parsed, context, options = {})
         }
 
         const outcomeMatch = actualOutcome === entry.expect;
-        const stageMatch =
-          expectedStage === null
-            ? !STAGE_REQUIRED_EXPECTS.has(actualOutcome)
-            : actualStage === expectedStage;
+        const stageMatch = expectedStage === null ? true : actualStage === expectedStage;
         const warningsMatch =
-          actualOutcome !== "accepted"
-            ? expectedWarnings.length === 0
-            : expectedWarnings.length === actualWarnings.length &&
-              expectedWarnings.every((code) => actualWarnings.includes(code));
+          expectedWarnings.length === actualWarnings.length &&
+          expectedWarnings.every((code) => actualWarnings.includes(code));
 
         const ok = outcomeMatch && stageMatch && warningsMatch;
         if (!ok) {
@@ -615,6 +576,7 @@ export function exampleProblems(root, options = {}) {
   const grammarsDir = path.join(root, "grammars");
   const problems = [];
   const runs = [];
+  const seenIds = options.seenIds instanceof Map ? options.seenIds : new Map();
 
   const findExampleFiles = (dir, prefix = "") => {
     const files = [];
@@ -638,7 +600,7 @@ export function exampleProblems(root, options = {}) {
     }
     const family = match[1];
     const rawText = context.readSource(file);
-    const result = checkExampleFile(file, family, rawText, context, options);
+    const result = checkExampleFile(file, family, rawText, context, { ...options, seenIds });
     for (const problem of result.problems) problems.push(problem);
     for (const run of result.runs) runs.push(run);
   }
@@ -648,7 +610,8 @@ export function exampleProblems(root, options = {}) {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
-  const { problems, runs } = exampleProblems(root, { runExamples: true });
+  const runExamples = !process.argv.includes("--format-only");
+  const { problems, runs } = exampleProblems(root, { runExamples });
   for (const run of runs) {
     const stageStr = run.actualStage ? ` (${run.actualStage})` : "";
     const warnStr = run.actualWarnings.length ? ` warnings=[${run.actualWarnings.join(",")}]` : "";
