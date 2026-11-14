@@ -74,19 +74,45 @@ class Records:
         self.empty = self.intern(True, 0, 0, 0, 0)
         seen = set()
         for p in productions:
-            conditions = p.conds_predict + [c for cs in p.conds_at.values() for c in cs] + (list(p.items.conditions) if p.items else [])
+            for condition in p.conds_predict:
+                if id(condition) not in seen:
+                    seen.add(id(condition))
+                    for atom in atoms(condition):
+                        mask = self.targets(atom)
+                        if atom['method'] == 'followed-by':
+                            self.forward |= mask
+                        else:
+                            self.backward |= mask
+            for cs in p.conds_at.values():
+                for condition in cs:
+                    if id(condition) not in seen:
+                        seen.add(id(condition))
+                        for atom in atoms(condition):
+                            mask = self.targets(atom)
+                            if atom['method'] == 'followed-by':
+                                self.forward |= mask
+                            else:
+                                self.backward |= mask
+            if p.items is not None:
+                for condition in p.items.conditions:
+                    if id(condition) not in seen:
+                        seen.add(id(condition))
+                        for atom in atoms(condition):
+                            mask = self.targets(atom)
+                            if atom['method'] == 'followed-by':
+                                self.forward |= mask
+                            else:
+                                self.backward |= mask
             if p.slot is not None:
-                conditions += p.slot.ranked_conditions
-            for condition in conditions:
-                if id(condition) in seen:
-                    continue
-                seen.add(id(condition))
-                for atom in atoms(condition):
-                    mask = self.targets(atom)
-                    if atom['method'] == 'followed-by':
-                        self.forward |= mask
-                    else:
-                        self.backward |= mask
+                for condition in p.slot.ranked_conditions:
+                    if id(condition) not in seen:
+                        seen.add(id(condition))
+                        for atom in atoms(condition):
+                            mask = self.targets(atom)
+                            if atom['method'] == 'followed-by':
+                                self.forward |= mask
+                            else:
+                                self.backward |= mask
 
     def targets(self, atom):
         mask = 0

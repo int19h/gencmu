@@ -277,6 +277,56 @@ def needed(lowered: Any) -> frozenset[int]:
     wanted = set()
     seen = set()
     rules = [lowered.rule_ids["text"]]
+    clause_captures: dict[int, tuple[Any, tuple[str, ...]]] = {}
+
+    def scan_clause(root: Any) -> tuple[str, ...]:
+        cached = clause_captures.get(id(root))
+        if cached is not None:
+            return cached[1]
+        captures: list[str] = []
+        pending = [root]
+        while pending:
+            node = pending.pop()
+            if isinstance(node, (list, tuple)):
+                pending.extend(node)
+            elif isinstance(node, dict):
+                method = node.get("method")
+                targets = (
+                    [
+                        body_target(lowered, arg["body"]) if "body" in arg else arg.get("rule", "\0query:" + arg.get("terminal", ""))
+                        for arg in node.get("args", [])
+                    ]
+                    if method in ("parse",)
+                    else []
+                )
+                span = node.get("receiver")
+                for target in targets:
+                    target = lowered.rule_ids[target]
+                    rules.append(target)
+                    spans = [span]
+                    while spans:
+                        part = spans.pop()
+                        if isinstance(part, dict):
+                            if part.get("method") in ("without-elision", "without-elision-except"):
+                                wanted.add(target)
+                            spans.extend(part.values())
+                        elif isinstance(part, (list, tuple)):
+                            spans.extend(part)
+                if method in ("without-elision", "without-elision-except"):
+                    captures.append(node["receiver"]["capture"])
+                pending.extend(node.values())
+        result = tuple(captures)
+        clause_captures[id(root)] = (root, result)
+        return result
+
+    def check_clause(root: Any, production: Any) -> None:
+        for name in scan_clause(root):
+            at = production.captures.get(name)
+            if not name or at is None or production.contextual:
+                wanted.update((production.lhs, lowered.rule_ids[production.rule_name]))
+            elif not production.terminal[at]:
+                wanted.add(production.rhs[at])
+
     while rules:
         rule = rules.pop()
         if rule in seen:
@@ -284,37 +334,45 @@ def needed(lowered: Any) -> frozenset[int]:
         seen.add(rule)
         for number in lowered.rule_productions[rule]:
             production = lowered.productions[number]
-            rules.extend(symbol for symbol,terminal in zip(production.rhs,production.terminal) if not terminal)
-            pending = production_clauses(production)
-            while pending:
-                node = pending.pop()
-                if isinstance(node,(list,tuple)):
-                    pending.extend(node)
-                elif isinstance(node,dict):
-                    method = node.get("method")
-                    targets = [body_target(lowered, arg["body"]) if "body" in arg else arg.get("rule", "\0query:" + arg.get("terminal", ""))
-                               for arg in node.get("args", [])] if method in ("parse",) else []
-                    span = node.get("receiver")
-                    for target in targets:
-                        target = lowered.rule_ids[target]
-                        rules.append(target)
-                        spans = [span]
-                        while spans:
-                            part = spans.pop()
-                            if isinstance(part,dict):
-                                if part.get("method") in ("without-elision", "without-elision-except"):
-                                    wanted.add(target)
-                                spans.extend(part.values())
-                            elif isinstance(part,(list,tuple)):
-                                spans.extend(part)
-                    if node.get("method") in ("without-elision", "without-elision-except"):
-                        name = node["receiver"]["capture"]
-                        at = production.captures.get(name)
-                        if not name or at is None or production.contextual:
-                            wanted.update((production.lhs,lowered.rule_ids[production.rule_name]))
-                        elif not production.terminal[at]:
-                            wanted.add(production.rhs[at])
-                    pending.extend(node.values())
+            for symbol, terminal in zip(production.rhs, production.terminal):
+                if not terminal and symbol not in seen:
+                    rules.append(symbol)
+            for condition in production.conds_predict:
+                check_clause(condition, production)
+            for conditions in production.conds_at.values():
+                for condition in conditions:
+                    check_clause(condition, production)
+            if production.tags_term is not None:
+                check_clause(production.tags_term, production)
+            if production.emit is not None:
+                check_clause(production.emit, production)
+            if production.slot is not None and production.slot.ranked_conditions:
+                for condition in production.slot.ranked_conditions:
+                    check_clause(condition, production)
+            if production.parent_tags is not None:
+                check_clause(production.parent_tags, production)
+            if production.items is not None and production.items.conditions:
+                for condition in production.items.conditions:
+                    check_clause(condition, production)
+            source = production.source
+            if source is not None:
+                cached_source = clause_captures.get(id(source))
+                if cached_source is None:
+                    source_caps: list[str] = []
+                    for item in (
+                        source.conditions, source.tags, source.rule_tags, source.emit,
+                        source.value, source.image, source.rule_value, source.rule_image,
+                        source.error, source.warning,
+                    ):
+                        if item is not None:
+                            source_caps.extend(scan_clause(item))
+                    cached_source = clause_captures[id(source)] = (source, tuple(source_caps))
+                for name in cached_source[1]:
+                    at = production.captures.get(name)
+                    if not name or at is None or production.contextual:
+                        wanted.update((production.lhs, lowered.rule_ids[production.rule_name]))
+                    elif not production.terminal[at]:
+                        wanted.add(production.rhs[at])
     pending = list(wanted)
     while pending:
         rule = pending.pop()
