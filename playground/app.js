@@ -4,7 +4,15 @@
   "use strict";
   const $ = (id) => document.getElementById(id);
   const bundled = self.gencmuGrammars;
-  const { createBasicEditor } = self.gencmuEditorBasic;
+
+  let createEditor;
+  try {
+    const full = await import(new URL("playground/editor-full.js", document.baseURI).href);
+    createEditor = full.createFullEditor;
+  } catch {
+    const basic = await import(new URL("playground/editor-basic.js", document.baseURI).href);
+    createEditor = basic.createBasicEditor;
+  }
 
   function syncTheme() {
     const app = $("app");
@@ -1852,7 +1860,7 @@
     $("editor-stats").textContent = `Line ${lastCursorPos.line}, column ${lastCursorPos.column}`;
   }
 
-  const editor = createBasicEditor($("editor-body"), {
+  const editor = createEditor($("editor-body"), {
     onChange: (value) => {
       updateEditorStats();
       const path = state.open;
@@ -1870,6 +1878,14 @@
       updateEditorStats(pos);
     },
   });
+  const editorCapabilities = editor.capabilities || {
+    syntaxColors: false,
+    wrappedLineNumbers: false,
+    marginMarks: false,
+  };
+  $("editor-col").dataset.syntaxColors = String(!!editorCapabilities.syntaxColors);
+  $("editor-col").dataset.wrappedLineNumbers = String(!!editorCapabilities.wrappedLineNumbers);
+  $("editor-col").dataset.marginMarks = String(!!editorCapabilities.marginMarks);
 
   function documentError() {
     const error = (shown && shown.loadError) || (shown && shown.parse && shown.parse.error);
@@ -2012,7 +2028,15 @@
     } else {
       $("documents-list-view").hidden = true;
       $("grammar-panes").hidden = false;
-      $("doc-path").textContent = state.open;
+      const slash = state.open.lastIndexOf("/");
+      if (slash >= 0) {
+        fill($("doc-path"), [
+          element("span", { class: "doc-path-dir", text: state.open.slice(0, slash + 1) }),
+          state.open.slice(slash + 1),
+        ]);
+      } else {
+        $("doc-path").textContent = state.open;
+      }
       const edited = isEdited(state.open);
       $("doc-edited-pill").hidden = !edited;
       $("doc-reset").hidden = !edited;
@@ -2060,6 +2084,7 @@
   function openDocument(path, line = 0, column = 1) {
     if (!path) {
       state.open = null;
+      editor.setLabel("Grammar document");
       renderDocuments();
       return;
     }
@@ -2072,10 +2097,12 @@
       state.phoneGrammarOpen = true;
       updatePhoneGrammarState();
     }
+    renderDocuments();
+    const baseName = path.slice(path.lastIndexOf("/") + 1) || "Grammar document";
+    editor.setLabel(baseName);
     lastCursorPos = { line: line || 1, column: column || 1 };
     editor.setValue(normalized(client.text(path)));
     updateEditorStats(lastCursorPos);
-    renderDocuments();
     renderDocumentError();
     if (line) {
       editor.goTo(line, column || 1);

@@ -228,13 +228,7 @@
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
               </button>
             </div>
-            <div class="ebody" id="editor-body">
-              <div class="gutter" id="editor-gutter" aria-hidden="true"></div>
-              <div class="ecode-wrap">
-                <div class="ecode-overlay" id="editor-overlay" aria-hidden="true"></div>
-                <textarea id="doc-text" class="ecode" spellcheck="false" autocomplete="off" autocapitalize="off" aria-label="Grammar document"></textarea>
-              </div>
-            </div>
+            <div class="ebody" id="editor-body" role="region" aria-label="Grammar document"></div>
             <div class="eerr sans" id="doc-error-bar" role="alert" hidden>
               <span class="mono" id="doc-error-loc" style="font-weight:700"></span>
               <span id="doc-error-text" style="flex:1 1 auto;min-width:0"></span>
@@ -256,7 +250,6 @@
   <script src="dist/grammars.js"></script>
   <script src="playground/worker.js"></script>
   <script src="playground/pipeline.js"></script>
-  <script src="playground/editor-basic.js"></script>
   <script src="playground/app.js"></script>
 </body>
 </html>

@@ -137,6 +137,15 @@ async function main() {
       }, { id, value, event });
       if (left) throw new Error(`right after ${what} the old result was still shown as current: ${JSON.stringify(left)}`);
     };
+    const editGrammar = async (what, value) => {
+      const left = await run((value) => {
+        self.playground.editor.editValue(value);
+        const status = document.getElementById("status").dataset.state;
+        const busy = document.getElementById("result").getAttribute("aria-busy");
+        return busy === "true" && status !== "ready" ? null : { status, busy };
+      }, value);
+      if (left) throw new Error(`right after ${what} the old result was still shown as current: ${JSON.stringify(left)}`);
+    };
     const type = (text) => change("typing", "input", text, "input");
     const choose = (path) => change("choosing a pipeline", "pipeline", path.replace(/^grammars\//, "").replace(/\/pipeline\.md$/, ""), "change");
     const tokenTable = () => run(() => ({
@@ -457,19 +466,17 @@ async function main() {
       }
       if (check.document) {
         const opened = await run(() => {
-          const editor = document.getElementById("doc-text");
-          return { path: document.getElementById("doc-path").textContent,
-            line: editor.value.slice(editor.selectionStart).split("\n")[0] };
+          const cur = self.playground.editor.getCursor();
+          return { path: document.getElementById("doc-path").textContent, line: cur.lineText };
         });
         if (opened.path !== check.document || opened.line !== check.rule) {
           throw new Error(`${check.label}: the editor did not open the relevant rule: ${JSON.stringify(opened)}`);
         }
       }
       if (check.edit) {
-        const editor = page.locator("#doc-text");
-        const source = await editor.inputValue();
+        const source = await run(() => self.playground.editor.getValue());
         if (!source.includes(check.edit[0])) throw new Error(`${check.label}: the suggested edit is absent`);
-        await change("editing a grammar", "doc-text", source.replaceAll(check.edit[0], check.edit[1]), "input");
+        await editGrammar("editing a grammar", source.replaceAll(check.edit[0], check.edit[1]));
         const edited = await answerFor(text);
         if (edited.error || (check.tie ? !/Tie in syntax/.test(edited.verdict)
           : !/^Accepted/.test(edited.verdict) || !check.editedOutput.test(edited.output))) {
@@ -478,10 +485,7 @@ async function main() {
         if (check.document === "grammars/lojban/cll/pipeline.md") {
           await page.locator("#examples").selectOption(preset.value);
           await answerFor(text);
-          const line = await run(() => {
-            const editor = document.getElementById("doc-text");
-            return editor.value.slice(editor.selectionStart).split("\n")[0];
-          });
+          const line = await run(() => self.playground.editor.getCursor().lineText);
           if (line !== check.rule) throw new Error("a changed step prevented navigation to the directive");
         }
         await page.locator("#doc-reset").click();
@@ -579,10 +583,10 @@ async function main() {
         throw new Error(`${kind} rule navigation changed the preset result: ${JSON.stringify(answer)}`);
       }
       const opened = await run(() => {
-        const editor = document.getElementById("doc-text");
+        const cur = self.playground.editor.getCursor();
         const hint = document.getElementById("example-hint");
-        return { path: document.getElementById("doc-path").textContent, offset: editor.selectionStart,
-          line: editor.value.slice(editor.selectionStart).split("\n")[0], hint: hint.hidden ? "" : hint.textContent };
+        return { path: document.getElementById("doc-path").textContent, offset: cur.offset,
+          line: cur.lineText, hint: hint.hidden ? "" : hint.textContent };
       });
       if (kind === "renamed") {
         if (!opened.hint.includes("Cannot find rule tanru-unit-1 in the active grammar.") || opened.offset !== 0) {
@@ -656,8 +660,7 @@ async function main() {
     await errorLink.click();
     const openedDiscarded = await run(() => document.getElementById("doc-path").textContent);
     if (openedDiscarded !== discarded) throw new Error(`discarded source did not open: ${openedDiscarded}`);
-    await page.locator("#doc-text").fill("```jbogenbau\n%rule old \"x\"\n```\n");
-    await page.locator("#doc-text").dispatchEvent("input");
+    await editGrammar("repairing discarded source", "```jbogenbau\n%rule old \"x\"\n```\n");
     const repaired = await answerFor("b");
     if (repaired.error || repaired.output.trim() !== "b") throw new Error(`stage patch failed: ${JSON.stringify(repaired)}`);
     const groups = await run(() => [...document.querySelectorAll(".doc-group")].map(group => ({
@@ -753,9 +756,8 @@ async function main() {
     // not use it should not wait for that.
     await run(() => {
       [...document.querySelectorAll("button.doc")].find((button) => button.dataset.doc === "grammars/lojban/cll/shapes.md").click();
-      const editor = document.getElementById("doc-text");
-      editor.value = editor.value.replace("%rule", "%rule ");
-      editor.dispatchEvent(new Event("input"));
+      const ed = self.playground.editor;
+      ed.editValue(ed.getValue().replace("%rule", "%rule "));
     });
     await until("the edited word shapes to be read", () =>
       document.getElementById("status").textContent.includes("Reading grammars/lojban/cll/shapes.md") ? true : null);
@@ -886,6 +888,10 @@ async function main() {
       const ed = self.playground.editor;
       const hasEditorApi =
         ed &&
+        ed.variant === "full" &&
+        ed.capabilities?.syntaxColors === true &&
+        ed.capabilities?.wrappedLineNumbers === true &&
+        ed.capabilities?.marginMarks === true &&
         typeof ed.getValue === "function" &&
         typeof ed.setValue === "function" &&
         typeof ed.goTo === "function" &&
@@ -908,6 +914,56 @@ async function main() {
       throw new Error(`the redesigned layout checks failed: ${JSON.stringify(layoutChecks)}`);
     }
 
+    // Full editor checks: syntax colors, error marks in the gutter, and Go to line:column.
+    await run(() => {
+      self.playground.openDocument("grammars/lojban/cll/syntax.md", 345, 1);
+    });
+    const fullTokens = await run(() => {
+      const content = document.querySelector("#editor-body .cm-content");
+      return {
+        label: content ? content.getAttribute("aria-label") : null,
+        hasK: !!document.querySelector("#editor-body .cm-content .k"),
+        hasD: !!document.querySelector("#editor-body .cm-content .d"),
+        hasT: !!document.querySelector("#editor-body .cm-content .t"),
+        hasP: !!document.querySelector("#editor-body .cm-content .p"),
+      };
+    });
+    if (fullTokens.label !== "syntax.md" || !fullTokens.hasK || !fullTokens.hasD || !fullTokens.hasT || !fullTokens.hasP) {
+      throw new Error(`full editor syntax colors or label missing: ${JSON.stringify(fullTokens)}`);
+    }
+    const syntaxSource = await run(() => self.playground.editor.getValue());
+    await editGrammar("introducing a grammar error in full editor", syntaxSource.replace("sumti-tail [+KU", "sumti-tali [+KU"));
+    await idle("the grammar error in full editor", "#doc-error-bar:not([hidden])");
+    await run(() => self.playground.editor.goTo(350, 21));
+    const fullErrorMarks = await run(() => {
+      const gutterErr = document.querySelector("#editor-body .cm-errorLineGutter .cm-errorLineNumber");
+      const lineErr = document.querySelector("#editor-body .cm-errorLine");
+      const srText = document.getElementById("editor-error-sr")?.textContent || "";
+      const jumpBtn = document.getElementById("doc-error-jump");
+      return {
+        gutterAria: gutterErr ? gutterErr.getAttribute("aria-label") : null,
+        hasLineErr: !!lineErr,
+        srText,
+        jumpText: jumpBtn ? jumpBtn.textContent : null,
+      };
+    });
+    if (
+      !fullErrorMarks.gutterAria ||
+      !/, error$/.test(fullErrorMarks.gutterAria) ||
+      !fullErrorMarks.hasLineErr ||
+      !/^Line \d+, error:/.test(fullErrorMarks.srText) ||
+      !/^Go to \d+:\d+$/.test(fullErrorMarks.jumpText || "")
+    ) {
+      throw new Error(`full editor error marks missing: ${JSON.stringify(fullErrorMarks)}`);
+    }
+    await page.locator("#doc-error-jump").click();
+    const jumpedLine = await run(() => self.playground.editor.getCursor().lineText);
+    if (jumpedLine !== "%rule sumti-6") {
+      throw new Error(`full editor Go to line:column did not move to %rule sumti-6: ${jumpedLine}`);
+    }
+    await page.locator("#doc-reset").click();
+    await idle("resetting full editor grammar error");
+
     await page.setViewportSize({ width: 390, height: 844 });
     const phone390 = await run(() => {
       window.dispatchEvent(new Event("resize"));
@@ -921,7 +977,84 @@ async function main() {
     if (!phone390 || !phone320) {
       throw new Error(`phone layout did not activate at 390/320: ${JSON.stringify({ phone390, phone320 })}`);
     }
-    console.log(`redesigned layout and phone checks work in ${browser}`);
+    console.log(`redesigned layout, full editor, and phone checks work in ${browser}`);
+
+    // Basic editor variant: served without playground/vendor/.
+    const basicPage = await instance.newPage();
+    await basicPage.route("**/playground/vendor/**", (route) => route.fulfill({ status: 404, body: "missing" }));
+    await basicPage.goto(target);
+    const basicStarted = await (async () => {
+      for (let attempt = 0; attempt < 600; attempt++) {
+        const val = await basicPage.evaluate(() => {
+          const status = document.getElementById("status");
+          return status && ["ready", "error"].includes(status.dataset.state)
+            ? { state: status.dataset.state, variant: self.playground?.editor?.variant, caps: self.playground?.editor?.capabilities }
+            : null;
+        });
+        if (val !== null) return val;
+        await sleep(100);
+      }
+      throw new Error("timed out waiting for basic editor variant to start");
+    })();
+    if (
+      basicStarted.state !== "ready" ||
+      basicStarted.variant !== "basic" ||
+      basicStarted.caps?.syntaxColors !== false ||
+      basicStarted.caps?.wrappedLineNumbers !== false ||
+      basicStarted.caps?.marginMarks !== false
+    ) {
+      throw new Error(`basic editor variant did not initialize as expected: ${JSON.stringify(basicStarted)}`);
+    }
+    await basicPage.evaluate(() => {
+      self.playground.openDocument("grammars/lojban/cll/syntax.md", 345, 1);
+    });
+    const basicOpened = await basicPage.evaluate(() => {
+      const ta = document.getElementById("doc-text");
+      const cur = self.playground.editor.getCursor();
+      return {
+        hasTextarea: ta instanceof HTMLTextAreaElement,
+        hasCm: !!document.querySelector("#editor-body .cm-editor"),
+        label: ta ? ta.getAttribute("aria-label") : null,
+        lineText: cur.lineText,
+      };
+    });
+    if (!basicOpened.hasTextarea || basicOpened.hasCm || basicOpened.label !== "syntax.md" || basicOpened.lineText !== "%rule sumti-6") {
+      throw new Error(`basic editor did not open syntax.md on %rule sumti-6: ${JSON.stringify(basicOpened)}`);
+    }
+    await basicPage.evaluate(() => {
+      const ed = self.playground.editor;
+      ed.editValue(ed.getValue().replace("sumti-tail [+KU", "sumti-tali [+KU"));
+      ed.goTo(1, 1);
+    });
+    for (let attempt = 0; attempt < 600; attempt++) {
+      const readyErr = await basicPage.evaluate(() => {
+        const status = document.getElementById("status");
+        const bar = document.getElementById("doc-error-bar");
+        return status.dataset.state === "ready" && bar && !bar.hidden ? true : null;
+      });
+      if (readyErr) break;
+      await sleep(100);
+    }
+    await basicPage.locator("#doc-error-jump").click();
+    const basicJumped = await basicPage.evaluate(() => ({
+      lineText: self.playground.editor.getCursor().lineText,
+      srText: document.getElementById("editor-error-sr")?.textContent || "",
+    }));
+    if (basicJumped.lineText !== "%rule sumti-6" || !/^Line \d+, error:/.test(basicJumped.srText)) {
+      throw new Error(`basic editor Go to line:column or sr text failed: ${JSON.stringify(basicJumped)}`);
+    }
+    await basicPage.locator("#doc-reset").click();
+    for (let attempt = 0; attempt < 600; attempt++) {
+      const restored = await basicPage.evaluate(() => {
+        const status = document.getElementById("status");
+        const bar = document.getElementById("doc-error-bar");
+        const badge = document.querySelector("#summary .badge");
+        return status.dataset.state === "ready" && bar?.hidden && badge?.textContent === "Accepted" ? true : null;
+      });
+      if (restored) break;
+      await sleep(100);
+    }
+    console.log(`basic editor variant works in ${browser}`);
     console.log(`playground works in ${browser} at ${target}, ${version}`);
   } finally {
     await instance.close();
