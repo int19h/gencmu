@@ -681,7 +681,9 @@
         menuEl.style.right = `${Math.max(8, topbarRect.right - rect.right)}px`;
         menuEl.style.left = "auto";
       } else {
-        const left = Math.max(8, Math.min(rect.left - topbarRect.left, topbarRect.width - 360));
+        menuEl.style.left = "8px";
+        const menuW = menuEl.offsetWidth || 360;
+        const left = Math.max(8, Math.min(rect.left - topbarRect.left, topbarRect.width - menuW - 8));
         menuEl.style.left = `${left}px`;
       }
     }
@@ -1317,7 +1319,37 @@
     return frag;
   }
 
-  function renderWrappedLines(rawText, { className = "result-text code-block", linkify = false, tabindex = null } = {}) {
+  function appendSpaceRuns(parent, text, { linkifyRuns = false, extraClass = "", mode = "code" } = {}) {
+    if (!text) return;
+    if (linkifyRuns) {
+      for (const part of text.split(/( +)/)) {
+        if (!part) continue;
+        if (part[0] === " ") {
+          parent.append(part);
+        } else {
+          const cls = extraClass ? `wrun ${extraClass}` : "wrun";
+          parent.append(element("span", { class: cls }, linkified(part)));
+        }
+      }
+      return;
+    }
+    const re = mode === "tree" ? /[^ ]+(?: [›·])*/g : /[^ ]+/g;
+    let last = 0;
+    let m;
+    const cls = extraClass ? `wrun ${extraClass}` : "wrun";
+    while ((m = re.exec(text)) !== null) {
+      if (m.index > last) {
+        parent.append(text.slice(last, m.index));
+      }
+      parent.append(element("span", { class: cls, text: m[0] }));
+      last = re.lastIndex;
+    }
+    if (last < text.length) {
+      parent.append(text.slice(last));
+    }
+  }
+
+  function renderWrappedLines(rawText, { className = "result-text code-block", linkify = false, mode = "code", tabindex = null } = {}) {
     const pre = element("pre", { class: className });
     if (tabindex !== null) pre.tabIndex = tabindex;
     pre.dataset.rawText = rawText || "";
@@ -1334,11 +1366,7 @@
       if (leadCount > 0) {
         span.append(element("span", { class: "wsp", text: leadSpaces }));
       }
-      if (linkify) {
-        span.append(linkified(rest));
-      } else {
-        span.append(rest);
-      }
+      appendSpaceRuns(span, rest, { linkifyRuns: linkify, mode });
       if (idx < lines.length - 1) {
         span.append(element("span", { class: "wsp", text: "\n" }));
       }
@@ -1410,9 +1438,9 @@
       } else if (state.tab === "tree") {
         fill(output, [
           element("p", { class: "rlabel", text: "First reading" }),
-          renderWrappedLines(tie.firstTree || "", { className: "reading code-block" }),
+          renderWrappedLines(tie.firstTree || "", { className: "reading code-block", mode: "tree" }),
           element("p", { class: "rlabel", text: "Second reading" }),
-          renderWrappedLines(tie.secondTree || "", { className: "reading code-block" }),
+          renderWrappedLines(tie.secondTree || "", { className: "reading code-block", mode: "tree" }),
         ]);
       } else {
         const firstJ = state.canonical ? tie.firstCanonical : tie.firstJson;
@@ -1454,7 +1482,11 @@
     if (result.format === "brackets") {
       output.replaceChildren(element("pre", { class: "result-text", tabindex: "0" }, formatColoredBrackets(result.text)));
     } else {
-      output.replaceChildren(renderWrappedLines(result.text, { className: "result-text code-block", tabindex: 0 }));
+      output.replaceChildren(renderWrappedLines(result.text, {
+        className: "result-text code-block",
+        mode: result.format === "tree" ? "tree" : "code",
+        tabindex: 0,
+      }));
     }
   }
 
@@ -1486,7 +1518,7 @@
       {
         title: "#",
         empty: () => false,
-        cell: (row) => element("td", { class: "num", text: String(row.index) }),
+        cell: (row) => element("td", { class: "num idx", text: String(row.index) }),
       },
       {
         title: "text",
@@ -1515,11 +1547,12 @@
       },
       {
         title: "tags",
+        thClass: "tags",
         empty: (row) => !row.tags || row.tags.length === 0,
         cell: (row) =>
           element("td", { class: "tags" },
             element("div", { class: "tags-list" },
-              row.tags.map((tag) => element("span", { class: "tag", text: tag })))),
+              (row.tags || []).map((tag) => element("span", { class: "tag", text: tag })))),
       },
       {
         title: "insertedBy",
@@ -1538,10 +1571,13 @@
       },
     ];
     const columns = allColumns.filter((col) => !result.rows.every((row) => col.empty(row)));
+    const hasTagsCol = columns.some((col) => col.title === "tags");
+    const nonTagCols = hasTagsCol ? columns.length - 1 : columns.length;
     const header = element("tr", {},
-      columns.map((col) => element("th", { scope: "col", text: col.title })));
-    const rows = result.rows.map((row) => element("tr", {},
-      columns.map((col) => col.cell(row))));
+      columns.map((col) => element("th", { scope: "col", class: col.thClass || null, text: col.title })));
+    const rows = result.rows.map((row) => element("tr", {
+      class: row.tags && row.tags.length > 0 ? "has-tags" : null,
+    }, columns.map((col) => col.cell(row))));
 
     const note = result.total > result.rows.length
       ? element("p", { class: "empty-hint", text: `Showing the first ${result.rows.length} of ${result.total} tokens.` })
@@ -1550,7 +1586,10 @@
     fill($("output"), [
       topBar,
       element("div", { class: "table-wrap" },
-        element("table", { class: "tokens" },
+        element("table", {
+          class: hasTagsCol ? "tokens has-tags-col" : "tokens",
+          style: hasTagsCol ? `--non-tag-cols: ${nonTagCols}` : null,
+        },
           element("thead", {}, header),
           element("tbody", {}, rows))),
       note,
@@ -1589,7 +1628,7 @@
     if (trace.error) {
       fill(output, [
         element("div", { class: "trace-controls" }, stageSegs),
-        element("pre", { class: "result-text code-block" }, linkified(trace.error)),
+        renderWrappedLines(trace.error, { className: "result-text code-block", linkify: true }),
       ]);
       return;
     }
@@ -1720,12 +1759,13 @@
     if (defIdx > 0) {
       const ruleName = itemText.slice(0, defIdx).trim();
       rest = itemText.slice(defIdx);
-      p.appendChild(element("button", {
+      const btn = element("button", {
         type: "button",
         class: "link",
-        text: ruleName,
         onclick: () => jumpToRuleName(ruleName),
-      }));
+      });
+      appendSpaceRuns(btn, ruleName);
+      p.appendChild(btn);
     }
 
     const tokenRe = /(•|\(elidable[^)]*\)|\[\d+\.\.\d+\])/g;
@@ -1733,20 +1773,20 @@
     let m;
     while ((m = tokenRe.exec(rest)) !== null) {
       if (m.index > last) {
-        p.appendChild(document.createTextNode(rest.slice(last, m.index)));
+        appendSpaceRuns(p, rest.slice(last, m.index));
       }
       const part = m[0];
       if (part === "•") {
-        p.appendChild(element("i", { text: "•" }));
+        p.appendChild(element("i", { class: "wrun", text: "•" }));
       } else if (part.startsWith("(elidable")) {
-        p.appendChild(element("span", { class: "faint", text: part }));
+        appendSpaceRuns(p, part, { extraClass: "faint" });
       } else {
-        p.appendChild(element("em", { text: part }));
+        p.appendChild(element("em", { class: "wrun", text: part }));
       }
       last = tokenRe.lastIndex;
     }
     if (last < rest.length) {
-      p.appendChild(document.createTextNode(rest.slice(last)));
+      appendSpaceRuns(p, rest.slice(last));
     }
     return p;
   }

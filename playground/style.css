@@ -409,8 +409,9 @@ textarea:focus-visible,
 
 #examples-menu {
   left: 380px;
-  width: 380px;
-  max-width: calc(100vw - 16px);
+  width: max-content;
+  min-width: 380px;
+  max-width: min(520px, calc(100vw - 16px));
 }
 
 #options-menu {
@@ -553,6 +554,9 @@ textarea:focus-visible,
 
 .ex code,
 .exitem code {
+  display: block;
+  width: 100%;
+  contain: inline-size;
   font: 12.5px var(--mono);
   color: var(--muted);
   white-space: nowrap;
@@ -563,13 +567,14 @@ textarea:focus-visible,
 
 .ex-top {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: flex-start;
+  gap: 12px;
   width: 100%;
 }
 
 .ex-pill {
   margin-left: auto;
+  margin-top: 1px;
   flex: none;
   padding: 1px 8px;
   border-radius: 999px;
@@ -1269,6 +1274,51 @@ button.stage:hover {
   .cl {
     display: none;
   }
+
+  table.tokens.has-tags-col {
+    display: grid;
+    grid-template-columns: max-content repeat(calc(var(--non-tag-cols, 6) - 1), minmax(max-content, 1fr));
+  }
+
+  table.tokens.has-tags-col thead,
+  table.tokens.has-tags-col tbody {
+    display: contents;
+  }
+
+  table.tokens.has-tags-col tr {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+    border-bottom: 1px solid var(--soft);
+  }
+
+  table.tokens.has-tags-col th,
+  table.tokens.has-tags-col td {
+    border-bottom: 0;
+  }
+
+  table.tokens.has-tags-col th.tags {
+    display: none;
+  }
+
+  table.tokens.has-tags-col tr.has-tags td:not(.tags) {
+    padding-bottom: 2px;
+  }
+
+  table.tokens.has-tags-col tr.has-tags td.tags {
+    grid-column: 2 / -1;
+    order: 10;
+    padding-top: 2px;
+    padding-bottom: 8px;
+  }
+
+  table.tokens.has-tags-col tr:not(.has-tags) td.tags {
+    display: none;
+  }
+
+  table.tokens.has-tags-col td.tags .tags-list {
+    contain: inline-size;
+  }
 }
 
 #output {
@@ -1298,11 +1348,26 @@ button.stage:hover {
   display: block;
   min-height: 1.55em;
   white-space: pre-wrap;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .wsp {
   display: none;
+}
+
+.wrun {
+  display: inline-block;
+  max-width: 100%;
+  text-indent: 0;
+  overflow-wrap: anywhere;
+}
+
+.wsp + .wrun,
+.wline > .wrun:first-child,
+.item > .wrun:first-child,
+.item > .link:first-child .wrun:first-child {
+  max-width: calc(100% + 4ch);
 }
 
 .rlabel {
@@ -1518,7 +1583,8 @@ table.tokens .tag {
   text-indent: -4ch;
   font: 13px/1.65 var(--mono);
   white-space: pre-wrap;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .item .link {
@@ -2045,6 +2111,8 @@ small.s,
   left: 8px !important;
   right: 8px !important;
   width: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
 }
 
 .app.phone .work {

@@ -1150,18 +1150,28 @@ async function main() {
     await page.locator("#doc-reset").click();
     await idle("resetting full editor grammar error");
 
-    // Round 5 checks: wrapped lines in Tree/JSON/Audit, measured top-bar steps, and phone chevron/version.
+    // Round 5 & Round 6 checks: wrapped lines and .wrun in Tree/JSON/Audit/Trace,
+    // examples menu width (380-520px) on desktop, Tokens tags row below 520px, and measured top-bar steps.
     await page.locator("#tab-tree").click();
     await idle("tree view for wrapped line check");
     const wrappedTreeCheck = await run(() => {
       const pre = document.querySelector("#output pre.result-text.code-block");
       const wlines = pre ? [...pre.querySelectorAll(".wline")] : [];
+      const wruns = pre ? [...pre.querySelectorAll(".wrun")] : [];
+      const brokenHyphens = wruns.filter((r) => {
+        const lh = parseFloat(getComputedStyle(r).lineHeight) || 20;
+        return (r.textContent || "").includes("-") && r.getBoundingClientRect().height > lh * 1.5;
+      });
+      const leadingSep = wruns.filter((r) => /^[›·]/.test((r.textContent || "").trim()));
       return {
         hasRawText: !!(pre && typeof pre.dataset.rawText === "string" && pre.dataset.rawText.length > 0),
         rawMatchesText: !!(pre && pre.dataset.rawText === pre.textContent),
         textIndent: wlines[0] ? wlines[0].style.textIndent : null,
         pad0: wlines[0] ? wlines[0].style.paddingLeft : null,
         pad1: wlines[1] ? wlines[1].style.paddingLeft : null,
+        wrunCount: wruns.length,
+        brokenHyphenCount: brokenHyphens.length,
+        leadingSepCount: leadingSep.length,
         versionPhone: document.getElementById("version-phone")?.textContent || "",
       };
     });
@@ -1171,10 +1181,41 @@ async function main() {
       wrappedTreeCheck.textIndent !== "-4ch" ||
       wrappedTreeCheck.pad0 !== "calc(4ch)" ||
       wrappedTreeCheck.pad1 !== "calc(6ch)" ||
+      wrappedTreeCheck.wrunCount === 0 ||
+      wrappedTreeCheck.brokenHyphenCount !== 0 ||
+      wrappedTreeCheck.leadingSepCount !== 0 ||
       !/^Library \d+\.\d+\.\d+$/.test(wrappedTreeCheck.versionPhone)
     ) {
-      throw new Error(`Round 5 wrapped line or phone version check failed: ${JSON.stringify(wrappedTreeCheck)}`);
+      throw new Error(`Round 5/6 wrapped line or phone version check failed: ${JSON.stringify(wrappedTreeCheck)}`);
     }
+
+    await choose("grammars/lojban/experimental/pipeline.md");
+    await idle("lojban/experimental for examples menu width check");
+    await page.locator("#examples-button").click();
+    const expMenuCheck = await run(() => {
+      const menu = document.getElementById("examples-menu");
+      const rect = menu.getBoundingClientRect();
+      const items = [...menu.querySelectorAll(".exitem")];
+      const wrapped = items.filter((btn) => btn.querySelector(".ex-top b").getClientRects().length > 1);
+      const alignItems = items[0] ? getComputedStyle(items[0].querySelector(".ex-top")).alignItems : null;
+      return {
+        width: Math.round(rect.width),
+        wrappedCount: wrapped.length,
+        alignItems,
+      };
+    });
+    if (
+      expMenuCheck.width < 380 ||
+      expMenuCheck.width > 520 ||
+      expMenuCheck.wrappedCount !== 0 ||
+      expMenuCheck.alignItems !== "flex-start"
+    ) {
+      throw new Error(`Round 6 experimental examples menu check failed: ${JSON.stringify(expMenuCheck)}`);
+    }
+    await page.keyboard.press("Escape");
+
+    await choose("grammars/lojban/cll/pipeline.md");
+    await idle("returning to lojban/cll before width checks");
     await page.locator("#tab-brackets").click();
     await idle("returning to brackets before width checks");
 
@@ -1201,6 +1242,38 @@ async function main() {
       if (m.phone !== expectedPhone || m.step !== expectedStep || m.scrollW > m.winW) {
         throw new Error(`width check failed at ${w}px: ${JSON.stringify({ m, expectedPhone, expectedStep })}`);
       }
+    }
+
+    // At 390px phone viewport, check Tokens table tags second-line layout.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.locator("#tab-tokens").click();
+    await idle("tokens view at 390px");
+    const phoneTokCheck = await run(() => {
+      const wrap = document.querySelector("#output .table-wrap");
+      const table = document.querySelector("#output table.tokens");
+      const thTags = table ? table.querySelector("th.tags") : null;
+      const row = table ? table.querySelector("tbody tr.has-tags") : null;
+      const tdText = row ? row.querySelectorAll("td")[1] : null;
+      const tdTags = row ? row.querySelector("td.tags") : null;
+      const rText = tdText ? tdText.getBoundingClientRect() : null;
+      const rTags = tdTags ? tdTags.getBoundingClientRect() : null;
+      return {
+        thTagsDisplay: thTags ? getComputedStyle(thTags).display : null,
+        textLeft: rText ? Math.round(rText.left) : null,
+        tagsLeft: rTags ? Math.round(rTags.left) : null,
+        textBottom: rText ? Math.round(rText.bottom) : null,
+        tagsTop: rTags ? Math.round(rTags.top) : null,
+        wrapClientW: wrap ? wrap.clientWidth : 0,
+        wrapScrollW: wrap ? wrap.scrollWidth : 1,
+      };
+    });
+    if (
+      phoneTokCheck.thTagsDisplay !== "none" ||
+      Math.abs(phoneTokCheck.tagsLeft - phoneTokCheck.textLeft) > 1 ||
+      phoneTokCheck.tagsTop < phoneTokCheck.textBottom - 2 ||
+      phoneTokCheck.wrapScrollW > phoneTokCheck.wrapClientW
+    ) {
+      throw new Error(`Round 6 phone tokens table check failed: ${JSON.stringify(phoneTokCheck)}`);
     }
     console.log(`redesigned layout, full editor, and phone checks work in ${browser}`);
 
