@@ -84,6 +84,8 @@ async function main() {
         if (url.origin === origin && (url.protocol === protocol || url.protocol === "blob:") && !/\.md\/?$/i.test(pathname)) continue;
         const prefix = "/int19h/gencmu/blob/main/";
         const file = path.join(repository, pathname.slice(prefix.length));
+        if (url.href === "https://github.com/int19h/gencmu") continue;
+        if (url.origin === "https://github.com" && !url.username && !url.password && url.pathname === "/int19h/gencmu/issues/new") continue;
         if (url.origin === "https://github.com" && !url.username && !url.password && url.pathname.startsWith(prefix) &&
             repositoryFiles.has(pathname.slice(prefix.length)) && fs.existsSync(file) && fs.statSync(file).isFile()) continue;
         throw new Error(`invalid playground link: ${href}`);
@@ -106,7 +108,7 @@ async function main() {
       const result = document.getElementById("result");
       if (status.dataset.state === "error") return { error: status.textContent };
       if (status.dataset.state !== "ready" || result.dataset.for !== text || result.hasAttribute("aria-busy")) return null;
-      const output = document.querySelector("#output pre");
+      const output = document.querySelector("#output pre.result-text");
       const explanation = document.getElementById("explanation");
       return { output: output ? output.textContent : "", explanation: explanation ? explanation.textContent : "",
                verdict: document.querySelector("#summary .badge").textContent };
@@ -118,7 +120,7 @@ async function main() {
       if (status.dataset.state === "error") return { error: status.textContent };
       if (status.dataset.state !== "ready" || document.getElementById("result").hasAttribute("aria-busy")) return null;
       if (selector && !document.querySelector(selector)) return null;
-      const output = document.querySelector("#output pre");
+      const output = document.querySelector("#output pre") || document.getElementById("output");
       return { boxes: [...document.querySelectorAll("#diagnostics .box")].map((box) => box.textContent), output: output ? output.textContent : null };
     }, selector || null);
     // A change marks the shown result stale at once, before any answer: the
@@ -219,10 +221,11 @@ async function main() {
     });
     if (!/^library \d+\.\d+\.\d+/.test(version)) throw new Error(`the worker did not report the library's version: ${version}`);
 
-    // The word "gencmu" in the heading links to the repository.
+    // The brand title shows "gencmu" and the help menu links to the repository.
     const heading = await run(() => {
-      const link = document.querySelector("h1 a");
-      return link ? { text: link.textContent, href: link.getAttribute("href") } : null;
+      const title = document.querySelector("#brand-title .g");
+      const link = document.querySelector('#help-menu a[href="https://github.com/int19h/gencmu/blob/main/README.md"]');
+      return title && link ? { text: title.textContent, href: link.getAttribute("href") } : null;
     });
     if (!heading || heading.text !== "gencmu" || heading.href !== "https://github.com/int19h/gencmu/blob/main/README.md") {
       throw new Error(`the heading does not link gencmu to the repository: ${JSON.stringify(heading)}`);
@@ -406,6 +409,9 @@ async function main() {
     const presets = await run(() => [...document.querySelectorAll("#examples option")]
       .filter((option) => option.value !== "").map((option) => ({ value: option.value, label: option.textContent })));
     if (presets.length !== exampleChecks.length) throw new Error("every example needs a browser assertion");
+    if (!(await page.locator("#show-elided").isChecked())) throw new Error("Elided is not checked by default");
+    await page.locator("#show-elided").uncheck();
+    await answerFor(await page.locator("#input").inputValue());
     for (const check of exampleChecks) {
       const preset = presets.find((preset) => preset.label === check.label);
       if (!preset) throw new Error(`missing example ${check.label}`);
@@ -414,7 +420,7 @@ async function main() {
       const answer = await answerFor(text);
       await assertLinks();
       if (answer.error) throw new Error(`${check.label}: ${answer.error}`);
-      if (check.rejected ? !/rejected by the syntax stage/.test(answer.verdict) : !/^accepted/.test(answer.verdict)) {
+      if (check.rejected ? !/Rejected by syntax/.test(answer.verdict) : !/^Accepted/.test(answer.verdict)) {
         throw new Error(`${check.label}: unexpected verdict ${JSON.stringify(answer)}`);
       }
       if (check.output && !check.output.test(answer.output.trim())) throw new Error(`${check.label}: unexpected output ${answer.output}`);
@@ -424,19 +430,23 @@ async function main() {
       const summary = await page.locator("#summary").textContent();
       if (check.summary && !check.summary.test(summary)) throw new Error(`${check.label}: unexpected summary ${summary}`);
       if (check.conditionalFeature) {
-        const control = page.locator(`#features select[data-feature="${check.conditionalFeature}"]`);
-        if (await control.inputValue() !== "grammar") throw new Error("a conditional feature does not follow its grammar initially");
-        await control.selectOption("off");
+        await page.locator("#options-button").click();
+        const group = page.locator(`#features [role="radiogroup"][aria-label="${check.conditionalFeature}"]`);
+        if (await group.locator('button[data-value="grammar"]').getAttribute("aria-checked") !== "true") {
+          throw new Error("a conditional feature does not follow its grammar initially");
+        }
+        await group.locator('button[data-value="off"]').click();
         const disabled = await answerFor(text);
         if (!/required feature sa-su is disabled/.test(disabled.verdict) || !/words.*requires disabled feature sa-su/.test(disabled.explanation)) {
           throw new Error(`the disabled required feature was not reported: ${JSON.stringify(disabled)}`);
         }
-        await control.selectOption("on");
+        await group.locator('button[data-value="on"]').click();
         const enabled = await answerFor(text);
-        if (!/^accepted/.test(enabled.verdict)) throw new Error("a caller-enabled feature did not parse");
-        await control.selectOption("grammar");
+        if (!/^Accepted/.test(enabled.verdict)) throw new Error("a caller-enabled feature did not parse");
+        await group.locator('button[data-value="grammar"]').click();
         const restored = await answerFor(text);
-        if (!/^accepted/.test(restored.verdict)) throw new Error("the grammar did not restore its conditional feature");
+        if (!/^Accepted/.test(restored.verdict)) throw new Error("the grammar did not restore its conditional feature");
+        await page.locator("#options-button").click();
       }
       if (check.elided) {
         await page.locator("#show-elided").check();
@@ -461,8 +471,8 @@ async function main() {
         if (!source.includes(check.edit[0])) throw new Error(`${check.label}: the suggested edit is absent`);
         await change("editing a grammar", "doc-text", source.replaceAll(check.edit[0], check.edit[1]), "input");
         const edited = await answerFor(text);
-        if (edited.error || (check.tie ? !/a tie in the syntax stage/.test(edited.verdict)
-          : !/^accepted/.test(edited.verdict) || !check.editedOutput.test(edited.output))) {
+        if (edited.error || (check.tie ? !/Tie in syntax/.test(edited.verdict)
+          : !/^Accepted/.test(edited.verdict) || !check.editedOutput.test(edited.output))) {
           throw new Error(`${check.label}: the edit did not show its claimed effect: ${JSON.stringify(edited)}`);
         }
         if (check.document === "grammars/lojban/cll/pipeline.md") {
@@ -481,7 +491,7 @@ async function main() {
       if (check.inputEdit) {
         await type(text.replaceAll(check.inputEdit[0], check.inputEdit[1]));
         const edited = await answerFor(await page.locator("#input").inputValue());
-        if (edited.error || !/^accepted/.test(edited.verdict) || !check.editedOutput.test(edited.output) || check.absent.test(edited.output)) {
+        if (edited.error || !/^Accepted/.test(edited.verdict) || !check.editedOutput.test(edited.output) || check.absent.test(edited.output)) {
           throw new Error(`${check.label}: the text edit did not show ordinary alternatives: ${JSON.stringify(edited)}`);
         }
       }
@@ -496,8 +506,8 @@ async function main() {
     await type(tokenText);
     await answerFor(tokenText);
     await page.locator("#tab-tokens").click();
-    await idle("the token stage selector", "#token-stages button");
-    await page.locator("#token-stages button").filter({hasText: /^indicators \(/}).click();
+    await idle("the token stage selector", "#token-stage-segs button");
+    await page.locator("#token-stage-segs button").filter({hasText: /^indicators \(/}).click();
     await idle("the indicators token table", "#output table.tokens");
     const miTags = ["Cmavo", "Continued", "Final-Stress", "Initial-Stress", "KOhA", "Onset", "Run-Final", "Run-Initial", "Word"];
     const klamaTags = ["BRIVLA", "Continued", "Gismu", "Initial-Stress", "Onset", "Run-Final", "Run-Initial", "Stress-Guard", "Word"];
@@ -528,12 +538,13 @@ async function main() {
       before: [{classes: ["BAhE"], image: "ba'e"}],
       after: [{classes: ["UI"], image: "ui", after: [{classes: ["NAI"], image: "nai"}]}]},
       "display JSON must render images and nested attachments");
-    await page.locator("#tab-canonical").click();
+    await page.locator("#show-canonical").check();
     const canonical = JSON.parse((await idle("the canonical JSON with values and images")).output);
     assert.equal(canonical.format, 17);
     const indicator = canonical.stages.find((stage) => stage.name === "indicators").output[0];
     assert.deepEqual(indicator, {text: "m,I", value: "mi", image: "mI", tags: miTags,
       span: [1, 2], source: [5, 8], before: beforeTokens, after: afterTokens});
+    await page.locator("#show-canonical").uncheck();
     await page.locator("#tab-brackets").click();
     await idle("the brackets after the token assertions");
     console.log(`format 15 token and tree views work in ${browser}`);
@@ -600,7 +611,7 @@ async function main() {
     await type(rejected);
     const explained = await answerFor(rejected);
     if (explained.error) throw new Error(`the playground failed: ${explained.error}`);
-    if (!/rejected/.test(explained.verdict) || !/The syntax stage cannot read the text/.test(explained.explanation) ||
+    if (!/Rejected by syntax/.test(explained.verdict) || !/The syntax stage cannot read the text/.test(explained.explanation) ||
         !/\^/.test(explained.explanation) || !/sumti-6: .*LE/.test(explained.explanation)) {
       throw new Error(`${rejected} was not explained as a rejection: ${JSON.stringify(explained)}`);
     }
@@ -652,8 +663,8 @@ async function main() {
     const groups = await run(() => [...document.querySelectorAll(".doc-group")].map(group => ({
       name: group.querySelector(".doc-stage").textContent, text: group.textContent,
     })));
-    if (!groups.some(group => group.name === "a" && group.text.includes("lojban/zantufa/syntax")) ||
-        groups.some(group => group.name === "a" && group.text.includes("lojban/common/latin"))) {
+    if (!groups.some(group => group.name === "a" && group.text.includes("syntax")) ||
+        groups.some(group => group.name === "a" && group.text.includes("common/latin"))) {
       throw new Error(`wrong stage contributions: ${JSON.stringify(groups)}`);
     }
     await run(paths => paths.forEach(path => self.playground.client.setDocument(path, self.gencmuGrammars[path])),
@@ -672,8 +683,8 @@ async function main() {
     await type(tied);
     const tie = await answerFor(tied);
     if (tie.error) throw new Error(`the playground failed: ${tie.error}`);
-    if (!/a tie in the syntax stage/.test(tie.verdict) || !/The syntax stage is ambiguous/.test(tie.explanation) ||
-        !/first/.test(tie.explanation) || !/second/.test(tie.explanation) || tie.output !== "") {
+    if (!/Tie in syntax/.test(tie.verdict) || !/The syntax stage is ambiguous/.test(tie.explanation) ||
+        !/first/i.test(tie.explanation) || !/second/i.test(tie.explanation) || tie.output !== "") {
       throw new Error(`${tied} was not shown as a tie: ${JSON.stringify(tie)}`);
     }
     await run((path) => self.playground.client.setDocument(path, self.gencmuGrammars[path]), tiedPipeline);
@@ -703,7 +714,7 @@ async function main() {
       if (answer.error) throw new Error(`the playground failed: ${answer.error}`);
       const empty = await run(() => ({
         pre: document.querySelector("#output pre.result-text") ? document.querySelector("#output pre.result-text").textContent : null,
-        copy: !!document.querySelector("#output .copy-row button"),
+        copy: !document.getElementById("copy-output")?.hidden,
         text: document.getElementById("output").textContent,
       }));
       if (empty.pre !== "" || !empty.copy || /No tree|no tokens/.test(empty.text) || !/The bracket rendering is empty/.test(empty.text)) {
@@ -741,7 +752,7 @@ async function main() {
     // while for a long one such as the CLL word shapes; a pipeline that does
     // not use it should not wait for that.
     await run(() => {
-      [...document.querySelectorAll("button.doc")].find((button) => button.textContent === "lojban/cll/shapes").click();
+      [...document.querySelectorAll("button.doc")].find((button) => button.dataset.doc === "grammars/lojban/cll/shapes.md").click();
       const editor = document.getElementById("doc-text");
       editor.value = editor.value.replace("%rule", "%rule ");
       editor.dispatchEvent(new Event("input"));
@@ -772,8 +783,8 @@ async function main() {
       return line ? { text: line.textContent, codes: [...line.querySelectorAll("code")].map((code) => code.textContent) } : null;
     });
     const escaped = (name) => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const named = features && features.codes.map((name) => `${escaped(name)}`).join(", ");
-    if (!features || !features.codes.length || !new RegExp(`^Features: ${named}$`).test(features.text)) {
+    const named = features && features.codes.map((name) => `${escaped(name)}`).join("");
+    if (!features || !features.codes.length || !new RegExp(`^Enabled features${named}$`).test(features.text)) {
       throw new Error(`the features used were not listed by name: ${JSON.stringify(features)}`);
     }
     await stale();
@@ -800,7 +811,7 @@ async function main() {
     if (afterFailure.error) throw new Error(`a failure for another run ended the current one: ${afterFailure.error}`);
     if (!afterFailure.output.includes("klama")) throw new Error(`no brackets after a stale failure: ${JSON.stringify(afterFailure)}`);
     const boxes = await run(() => [...document.querySelectorAll("#diagnostics .box")].map((box) => box.textContent));
-    if (boxes.some((box) => /went wrong/.test(box))) throw new Error(`a failure for another run was shown: ${JSON.stringify(boxes)}`);
+    if (boxes.some((box) => /went wrong|The parser stopped/.test(box))) throw new Error(`a failure for another run was shown: ${JSON.stringify(boxes)}`);
 
     // A failure outside any run, here of a worker told to start with no
     // documents, stops that worker. The page says so, and the next change
@@ -810,7 +821,7 @@ async function main() {
       const status = document.getElementById("status");
       return status.dataset.state === "error" ? { text: document.getElementById("diagnostics").textContent, worker: !!self.playground.client.worker } : null;
     });
-    if (!/The parser worker stopped/.test(broken.text) || broken.worker) {
+    if (!/The parser stopped/.test(broken.text) || broken.worker) {
       throw new Error(`a failure outside a run did not stop the worker: ${JSON.stringify(broken)}`);
     }
     await type(last);
@@ -849,6 +860,68 @@ async function main() {
     const traced = await idle("a trace from a link", "#trace-picker .gap");
     await assertLinks();
     if (traced.error || !traced.output) throw new Error(`a link to the Trace tab gave no trace: ${JSON.stringify(traced)}`);
+
+    // The redesigned layout controls work: popover menus, split handle, hide
+    // and show grammar, basic editor interface, and phone layout at 390 and 320.
+    const layoutChecks = await run(() => {
+      const helpBtn = document.getElementById("help-button");
+      const helpMenu = document.getElementById("help-menu");
+      helpBtn.click();
+      const helpOpen = !helpMenu.hidden && helpBtn.getAttribute("aria-expanded") === "true";
+      const hasPlaygroundDoc = [...helpMenu.querySelectorAll("a")].some((a) => (a.getAttribute("href") || "").endsWith("docs/playground.md"));
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      const helpClosed = helpMenu.hidden && helpBtn.getAttribute("aria-expanded") === "false";
+
+      const split = document.getElementById("split-handle");
+      split.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", shiftKey: true }));
+      const movedSplit = split.getAttribute("aria-valuenow");
+      split.dispatchEvent(new KeyboardEvent("keydown", { key: "Home" }));
+      const resetSplit = split.getAttribute("aria-valuenow");
+
+      document.getElementById("hide-grammar").click();
+      const hidden = document.getElementById("workspace").classList.contains("grammar-hidden");
+      document.getElementById("show-grammar").click();
+      const shownAgain = !document.getElementById("workspace").classList.contains("grammar-hidden");
+
+      const ed = self.playground.editor;
+      const hasEditorApi =
+        ed &&
+        typeof ed.getValue === "function" &&
+        typeof ed.setValue === "function" &&
+        typeof ed.goTo === "function" &&
+        typeof ed.markError === "function" &&
+        typeof ed.clearMarks === "function" &&
+        typeof ed.focus === "function";
+
+      return { helpOpen, hasPlaygroundDoc, helpClosed, movedSplit, resetSplit, hidden, shownAgain, hasEditorApi };
+    });
+    if (
+      !layoutChecks.helpOpen ||
+      !layoutChecks.hasPlaygroundDoc ||
+      !layoutChecks.helpClosed ||
+      layoutChecks.movedSplit !== "45" ||
+      layoutChecks.resetSplit !== "35" ||
+      !layoutChecks.hidden ||
+      !layoutChecks.shownAgain ||
+      !layoutChecks.hasEditorApi
+    ) {
+      throw new Error(`the redesigned layout checks failed: ${JSON.stringify(layoutChecks)}`);
+    }
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    const phone390 = await run(() => {
+      window.dispatchEvent(new Event("resize"));
+      return document.getElementById("app").classList.contains("phone");
+    });
+    await page.setViewportSize({ width: 320, height: 640 });
+    const phone320 = await run(() => {
+      window.dispatchEvent(new Event("resize"));
+      return document.getElementById("app").classList.contains("phone");
+    });
+    if (!phone390 || !phone320) {
+      throw new Error(`phone layout did not activate at 390/320: ${JSON.stringify({ phone390, phone320 })}`);
+    }
+    console.log(`redesigned layout and phone checks work in ${browser}`);
     console.log(`playground works in ${browser} at ${target}, ${version}`);
   } finally {
     await instance.close();
