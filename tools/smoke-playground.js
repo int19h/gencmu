@@ -684,6 +684,76 @@ async function main() {
       console.log(`example works in ${browser}: ${check.id}`);
     }
 
+    // Round 8 example state transitions:
+    // 1. A Trace example's position label is at the rejection after another example (digits-in-cll -> repeated-le).
+    await choose("grammars/lojban/cll/pipeline.md");
+    await idle("lojban/cll before example state transitions");
+    await selectExampleById("digits-in-cll");
+    await answerFor("mi ponse 2 gerku");
+    await selectExampleById("repeated-le");
+    await answerFor("mi klama le le");
+    const traceAfterExample = await run(() => ({
+      stage: document.querySelector('.trace-stage-segs button[aria-checked="true"]')?.textContent || "",
+      label: document.querySelector(".trace-pos-label")?.textContent || "",
+    }));
+    if (traceAfterExample.stage !== "syntax" || traceAfterExample.label !== 'Position 4, after "le" and before the end') {
+      throw new Error(`Trace example did not open at its rejection position after another example: ${JSON.stringify(traceAfterExample)}`);
+    }
+
+    // 2. A Tokens example shows the last stage after selecting phonemes.
+    await page.locator('#view-tabs [role="tab"][data-view="tokens"]').click();
+    await idle("tokens view before selecting phonemes", "#token-stage-segs button");
+    await page.locator("#token-stage-segs button").filter({ hasText: /^phonemes \(/ }).click();
+    await idle("phonemes token stage selected");
+    await selectExampleById("quotes-and-compounds");
+    await answerFor(".alfa. bu sinxa zoi gy. α .gy. pe lo cmaci zei ciste");
+    const tokenStageAfterExample = await run(() =>
+      document.querySelector('#token-stage-segs button[aria-checked="true"]')?.textContent || ""
+    );
+    if (!/^words \(/.test(tokenStageAfterExample)) {
+      throw new Error(`Tokens example did not reset token stage to the default stage after phonemes: ${JSON.stringify(tokenStageAfterExample)}`);
+    }
+
+    // 3. A rule example keeps its cursor line after another example, and editing text does not snap the cursor back.
+    await selectExampleById("clause-erasure-sa");
+    await answerFor("mi citka lo badna sa lo plise");
+    await selectExampleById("cyrillic");
+    await answerFor("ми клама ле зарши");
+    const ruleLineAfterExample = await run(() => ({
+      path: document.getElementById("doc-path").textContent,
+      line: self.playground.editor.getCursor().lineText,
+    }));
+    if (
+      ruleLineAfterExample.path !== "grammars/lojban/cll/cyrillic.md" ||
+      ruleLineAfterExample.line !== "%rule cll-cyrillic-consonant :: Consonant"
+    ) {
+      throw new Error(`rule example did not keep its cursor line after another example: ${JSON.stringify(ruleLineAfterExample)}`);
+    }
+    await run(() => self.playground.editor.goTo(1, 1));
+    await type("mi klama");
+    await answerFor("mi klama");
+    const lineAfterTyping = await run(() => self.playground.editor.getCursor().line);
+    if (lineAfterTyping !== 1) {
+      throw new Error(`typing after a rule example snapped the editor cursor away from line 1: ${lineAfterTyping}`);
+    }
+
+    // 4. A rejection that also carries %error diagnostics shows both boxes (eberban/refgram pair-voiceness).
+    await choose("grammars/eberban/refgram/pipeline.md");
+    await idle("eberban/refgram for rejection with %error");
+    const eberbanRej = "a mi pban bure di 3 ji meon";
+    await type(eberbanRej);
+    await answerFor(eberbanRej);
+    const eberbanBoxes = await run(() =>
+      [...document.querySelectorAll("#diagnostics .box")].map((b) => b.textContent)
+    );
+    if (
+      eberbanBoxes.length < 2 ||
+      !eberbanBoxes.some((b) => b.includes("The syntax stage cannot read the text")) ||
+      !eberbanBoxes.some((b) => b.includes("pair-voiceness"))
+    ) {
+      throw new Error(`rejection with %error did not show both boxes: ${JSON.stringify(eberbanBoxes)}`);
+    }
+
     // Format 15 separates original text, normalized values and images.
     // Attachments keep all token fields except span, at every depth.
     await choose("grammars/lojban/cll/pipeline.md");
@@ -1300,6 +1370,9 @@ async function main() {
         route.fulfill({ status: 200, contentType: "text/javascript", body: basicGrammarsBody })
       );
       await basicPage.route("**/playground/vendor/**", (route) => route.fulfill({ status: 404, body: "missing" }));
+      await basicPage.route("**/playground/editor-full.js", (route) => route.fulfill({ status: 404, body: "missing" }));
+    } else if (fs.existsSync(path.join(repository, "playground/editor-full.js"))) {
+      throw new Error("basic build still ships playground/editor-full.js");
     }
     await basicPage.goto(target);
     const basicStarted = await (async () => {

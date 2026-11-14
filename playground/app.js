@@ -185,40 +185,7 @@
     return self.gencmuPipeline.resolvePath(pipelinePath(pipelineName), docPath);
   }
 
-  function mergeExampleForPipeline(example, pipelineName) {
-    const override =
-      example.byPipeline &&
-      typeof example.byPipeline === "object" &&
-      example.byPipeline[pipelineName] &&
-      typeof example.byPipeline[pipelineName] === "object"
-        ? example.byPipeline[pipelineName]
-        : {};
-
-    let features = example.features ? Object.assign({}, example.features) : {};
-    if ("features" in override) {
-      if (override.features === null) features = {};
-      else if (override.features && typeof override.features === "object") {
-        features = Object.assign(features, override.features);
-      }
-    }
-
-    const pick = (field, fallback) => {
-      if (field in override) {
-        return override[field] === null ? fallback : override[field];
-      }
-      return example[field] !== undefined ? example[field] : fallback;
-    };
-
-    return {
-      features,
-      warnings: pick("warnings", null),
-      elisionOnly: pick("elisionOnly", null),
-      view: pick("view", "brackets"),
-      showElided: Boolean(pick("showElided", false)),
-      hint: pick("hint", null),
-      open: pick("open", null),
-    };
-  }
+  const { mergeExampleForPipeline } = self.gencmuPipeline;
 
   let exampleRule = null;
   let activeExample = null;
@@ -236,9 +203,8 @@
     tab: "brackets",
     showElided: true,
     canonical: false,
-    pretty: true,
     tokenStage: "",
-    trace: { stage: "", position: 0 },
+    trace: { stage: "", position: 0, toRejection: false },
     open: null,
     showAllRules: false,
     grammarHidden: false,
@@ -270,28 +236,47 @@
     }
     if (params.get("canonical") === "1") state.canonical = true;
     if (params.get("elided") === "0") state.showElided = false;
+    if (params.get("tokens")) state.tokenStage = params.get("tokens");
+    if (params.get("stage")) state.trace.stage = params.get("stage");
+    if (params.has("pos")) {
+      const pos = Number(params.get("pos"));
+      if (Number.isInteger(pos) && pos >= 0) state.trace.position = pos;
+    }
+  }
+
+  function buildFragment() {
+    const params = new URLSearchParams();
+    params.set("text", state.text);
+    params.set("pipeline", state.pipeline);
+    if (state.features.size) params.set("features", [...state.features].join(","));
+    if (state.without.size) params.set("without", [...state.without].join(","));
+    if (state.elision) params.set("elision", state.elision);
+    if (state.until) params.set("until", state.until);
+    if (state.tab === "json" && state.canonical) params.set("view", "canonical");
+    else if (state.tab !== "brackets") params.set("view", state.tab);
+    if (!state.showElided) params.set("elided", "0");
+    if (state.canonical && state.tab !== "json") params.set("canonical", "1");
+    if (state.tokenStage) params.set("tokens", state.tokenStage);
+    if (state.trace.stage) params.set("stage", state.trace.stage);
+    if (state.trace.position > 0) params.set("pos", String(state.trace.position));
+    return "#" + params.toString().replace(/\+/g, "%20");
   }
 
   let fragmentTimer = 0;
+  function flushFragment() {
+    clearTimeout(fragmentTimer);
+    fragmentTimer = 0;
+    const hash = buildFragment();
+    try {
+      history.replaceState(null, "", hash);
+    } catch {
+      try { location.replace(hash); } catch { /* ignore */ }
+    }
+  }
+
   function saveFragment() {
     clearTimeout(fragmentTimer);
-    fragmentTimer = setTimeout(() => {
-      const params = new URLSearchParams();
-      params.set("text", state.text);
-      params.set("pipeline", state.pipeline);
-      if (state.features.size) params.set("features", [...state.features].join(","));
-      if (state.without.size) params.set("without", [...state.without].join(","));
-      if (state.elision) params.set("elision", state.elision);
-      if (state.until) params.set("until", state.until);
-      if (state.tab === "json" && state.canonical) params.set("view", "canonical");
-      else if (state.tab !== "brackets") params.set("view", state.tab);
-      const hash = "#" + params.toString().replace(/\+/g, "%20");
-      try {
-        history.replaceState(null, "", hash);
-      } catch {
-        try { location.replace(hash); } catch { /* ignore */ }
-      }
-    }, 300);
+    fragmentTimer = setTimeout(flushFragment, 300);
   }
 
   // ---- Busy & Phase status -------------------------------------------------
@@ -343,12 +328,20 @@
       if (!info.stages.some((stage) => stage.name === state.trace.stage)) {
         state.trace.stage = defaultTraceStage(info);
       }
-      trace = { stage: state.trace.stage, position: state.trace.position };
+      trace = {
+        stage: state.trace.stage,
+        position: state.trace.position,
+        ...(state.trace.toRejection ? { toRejection: true } : {}),
+      };
     } else if (state.tab === "trace") {
-      trace = { stage: null, position: state.trace.position };
+      trace = {
+        stage: null,
+        position: state.trace.position,
+        ...(state.trace.toRejection ? { toRejection: true } : {}),
+      };
     }
     let view;
-    if (state.tab === "json" && state.canonical) view = { format: "canonical", pretty: state.pretty };
+    if (state.tab === "json" && state.canonical) view = { format: "canonical" };
     else if (state.tab === "tokens") view = { format: "tokens", stage: state.tokenStage };
     else if (state.tab === "tree" || state.tab === "json") view = { format: state.tab };
     else view = { format: "brackets", showElided: state.showElided };
@@ -457,8 +450,8 @@
           worker: message.ms,
           parse: message.parseMs,
         });
-        finishRun(running.generation === generation);
         remember(message);
+        finishRun(running.generation === generation);
         if (running.generation === generation) {
           show(message);
           if (exampleRule) {
@@ -800,7 +793,7 @@
     const info = infos.get(state.pipeline);
     const stageList = info
       ? info.stages
-      : [{ name: "chars" }, { name: "words" }, { name: "indicators" }, { name: "syntax" }];
+      : pipelineOf(pipelinePath(state.pipeline)).stages;
     const chips = [];
     stageList.forEach((stage, index) => {
       if (index > 0) {
@@ -858,7 +851,6 @@
     const info = message.info || infos.get(message.pipeline);
     const badge = $("verdict-badge");
     const copyLinkBtn = $("copy-link");
-    const isPhone = $("app").classList.contains("phone");
 
     if (message.loadError) {
       badge.className = "badge bad";
@@ -931,7 +923,7 @@
       ? info.stages
       : reports.length
         ? reports
-        : [{ name: "chars" }, { name: "words" }, { name: "indicators" }, { name: "syntax" }];
+        : pipelineOf(pipelinePath(message.pipeline || state.pipeline)).stages;
 
     stageList.forEach((stage, index) => {
       if (index > 0) {
@@ -1027,49 +1019,95 @@
     }
   }
 
+  function findCaretLineIndex(lines, fromIndex = 1) {
+    for (let i = fromIndex; i < lines.length; i++) {
+      if (/^\s*[|│]\s*\^+\s*$/.test(lines[i])) return i;
+    }
+    return -1;
+  }
+
+  function renderReportedErrorBox(err) {
+    const bodyChildren = [];
+    const ruleBtn = err.rule
+      ? element("button", {
+          type: "button",
+          class: "link",
+          text: err.rule,
+          onclick: () => jumpToRuleName(err.rule, err.stage),
+        })
+      : null;
+    if (err.code && err.stage && ruleBtn) {
+      bodyChildren.push(element("p", { style: "margin:0;font-size:13.5px" },
+        `Error ${err.code} in the ${err.stage} stage, rule `,
+        ruleBtn,
+        `: ${err.message}`));
+    } else if (err.message) {
+      bodyChildren.push(element("p", { style: "margin:0;font-size:13.5px", text: err.message }));
+    }
+    if (err.owner) {
+      bodyChildren.push(element("p", { style: "margin:0;font-size:13px;color:var(--muted-text)", text: err.owner }));
+    }
+    if (err.excerpt) {
+      const [srcLine, caretLine] = err.excerpt.split("\n");
+      const ex = formatExcerptNode(srcLine || "", caretLine || "", "var(--bad)");
+      ex.style.background = "var(--surface)";
+      ex.style.border = "1px solid var(--bad-line)";
+      bodyChildren.push(ex);
+    }
+    if (err.rejection) {
+      const ev = err.rejection;
+      bodyChildren.push(element("p", {
+        style: "margin:0;font-size:13px",
+        text: `The competing readings reach token ${ev.token}, line ${ev.line}, column ${ev.column}:`,
+      }));
+      if (ev.excerpt) {
+        const [rSrc, rCaret] = ev.excerpt.split("\n");
+        const rex = formatExcerptNode(rSrc || "", rCaret || "", "var(--bad)");
+        rex.style.background = "var(--surface)";
+        rex.style.border = "1px solid var(--bad-line)";
+        bodyChildren.push(rex);
+      }
+      const expText = ev.expected && ev.expected.length
+        ? ev.expected.map((e) => `  ${e.terminal}: ${(e.rules || []).join(", ")}`).join("\n")
+        : "No terminal can continue those readings.";
+      bodyChildren.push(element("pre", { class: "alert-pre", text: expText }));
+    }
+    return element("div", { class: "alert-box bad box", role: "alert" },
+      element("div", { style: "display:flex;align-items:center;gap:8px;color:var(--bad)" },
+        warnIcon(18),
+        element("h2", { style: "margin:0;font-size:15px;font-weight:650;color:var(--bad)", text: `Reported error in ${err.stage || "pipeline"}` })),
+      element("div", { style: "display:flex;flex-direction:column;gap:8px" }, bodyChildren));
+  }
+
   function renderDiagnostics(message) {
     const boxes = [];
 
     if (message.loadError) {
       const error = message.loadError;
-      boxes.push(element("div", { class: "alert-box bad box", id: "explanation", role: "alert" },
+      boxes.push(element("div", { class: "alert-box bad box", role: "alert" },
         element("h2", { text: `The ${message.pipeline} pipeline cannot load` }),
         element("p", { class: "alert-pre" }, linkified(error.message))));
     }
 
     if (message.parseError) {
-      boxes.push(element("div", { class: "alert-box bad box", id: "explanation", role: "alert" },
+      boxes.push(element("div", { class: "alert-box bad box", role: "alert" },
         element("h2", { text: "The parser could not run" }),
         element("pre", { class: "alert-pre" }, linkified(message.parseError.message))));
     }
 
     const parse = message.parse;
-    if (parse && parse.error && parse.error.kind !== "ambiguous") {
-      const error = parse.error;
+    const error = parse && parse.error;
+    if (error && error.kind !== "ambiguous") {
       if (error.kind === "rejected") {
         boxes.push(renderRejectionBox(parse, error));
       } else if (error.kind === "reported") {
-        const repBlocks = (parse.explanation || "").split(/\n\n+/).map((block) => {
-          const rLines = block.split("\n");
-          if (rLines.length >= 3 && /\^/.test(rLines[2])) {
-            const ex = formatExcerptNode(rLines[1], rLines[2], "var(--bad)");
-            ex.style.background = "var(--surface)";
-            ex.style.border = "1px solid var(--bad-line)";
-            const extra = rLines.length > 3
-              ? element("pre", { class: "alert-pre", text: rLines.slice(3).join("\n") })
-              : null;
-            return element("div", { style: "display:flex;flex-direction:column;gap:8px" },
-              element("p", { style: "margin:0;font-size:13.5px", text: rLines[0] }),
-              ex,
-              extra);
-          }
-          return element("pre", { class: "alert-pre", text: block });
-        });
-        boxes.push(element("div", { class: "alert-box bad box", id: "explanation", role: "alert" },
-          element("div", { style: "display:flex;align-items:center;gap:8px;color:var(--bad)" },
-            warnIcon(18),
-            element("h2", { style: "margin:0;font-size:15px;font-weight:650;color:var(--bad)", text: `Reported errors in ${error.stage}` })),
-          repBlocks));
+        if (!Array.isArray(error.errors) || error.errors.length === 0) {
+          boxes.push(element("div", { class: "alert-box bad box", role: "alert" },
+            element("div", { style: "display:flex;align-items:center;gap:8px;color:var(--bad)" },
+              warnIcon(18),
+              element("h2", { style: "margin:0;font-size:15px;font-weight:650;color:var(--bad)", text: `Reported error in ${error.stage}` })),
+            element("pre", { class: "alert-pre", text: parse.explanation || "" })));
+        }
       } else if (error.kind === "feature-conflict") {
         const feat = error.feature || "";
         const turnOnRow = feat
@@ -1086,14 +1124,14 @@
                 },
               }))
           : null;
-        boxes.push(element("div", { class: "alert-box bad box", id: "explanation", role: "alert" },
+        boxes.push(element("div", { class: "alert-box bad box", role: "alert" },
           element("div", { style: "display:flex;align-items:center;gap:8px;color:var(--bad)" },
             warnIcon(18),
             element("h2", { style: "margin:0;font-size:15px;font-weight:650;color:var(--bad)", text: `Required feature ${feat} is disabled` })),
-          element("p", { style: "margin:0;font-size:13.5px", text: parse.explanation }),
+          element("p", { style: "margin:0;font-size:13.5px", text: error.message || parse.explanation }),
           turnOnRow));
       } else {
-        boxes.push(element("div", { class: "alert-box bad box", id: "explanation", role: "alert" },
+        boxes.push(element("div", { class: "alert-box bad box", role: "alert" },
           element("div", { style: "display:flex;align-items:center;gap:8px;color:var(--bad)" },
             warnIcon(18),
             element("h2", { style: "margin:0;font-size:15px;font-weight:650;color:var(--bad)", text: `Grammar error in ${error.stage || "pipeline"}` })),
@@ -1107,19 +1145,63 @@
       }
     }
 
+    if (error && Array.isArray(error.errors) && error.errors.length > 0) {
+      for (const err of error.errors) {
+        boxes.push(renderReportedErrorBox(err));
+      }
+    }
+
     if (parse && parse.warnings && parse.warnings.length) {
-      const warnBlocks = (parse.warningsText || "").split(/\n\n+/).map((block) => {
-        const wLines = block.split("\n");
-        if (wLines.length >= 3 && /\^/.test(wLines[2])) {
-          const ex = formatExcerptNode(wLines[1], wLines[2], "var(--warn)");
+      let warnBlocks;
+      if (parse.warnings.every((w) => w && typeof w.excerpt === "string")) {
+        warnBlocks = parse.warnings.map((w) => {
+          const ruleBtn = w.rule
+            ? element("button", {
+                type: "button",
+                class: "link",
+                text: w.rule,
+                onclick: () => jumpToRuleName(w.rule, w.stage),
+              })
+            : null;
+          const items = [
+            ruleBtn
+              ? element("p", { style: "margin:0;font-size:13.5px" },
+                  `Warning ${w.code} in the ${w.stage} stage, rule `,
+                  ruleBtn,
+                  `: ${w.message}`)
+              : element("p", { style: "margin:0;font-size:13.5px", text: `Warning ${w.code} in the ${w.stage} stage, rule ${w.rule}: ${w.message}` }),
+          ];
+          if (w.owner) {
+            items.push(element("p", { style: "margin:0;font-size:13px;color:var(--muted-text)", text: w.owner }));
+          }
+          const [srcLine, caretLine] = w.excerpt.split("\n");
+          const ex = formatExcerptNode(srcLine || "", caretLine || "", "var(--warn)");
           ex.style.background = "var(--surface)";
           ex.style.border = "1px solid var(--warn-line)";
-          return element("div", { style: "display:flex;flex-direction:column;gap:8px" },
-            element("p", { style: "margin:0;font-size:13.5px", text: wLines[0] }),
-            ex);
-        }
-        return element("pre", { class: "alert-pre", text: block });
-      });
+          items.push(ex);
+          return element("div", { style: "display:flex;flex-direction:column;gap:8px" }, items);
+        });
+      } else {
+        warnBlocks = (parse.warningsText || "").split(/\n\n+/).map((block) => {
+          const wLines = block.split("\n");
+          const caretIdx = findCaretLineIndex(wLines, 2);
+          if (caretIdx >= 2) {
+            const ex = formatExcerptNode(wLines[caretIdx - 1], wLines[caretIdx], "var(--warn)");
+            ex.style.background = "var(--surface)";
+            ex.style.border = "1px solid var(--warn-line)";
+            const headerNodes = wLines.slice(0, caretIdx - 1).map((line, idx) =>
+              element("p", {
+                style: idx === 0 ? "margin:0;font-size:13.5px" : "margin:0;font-size:13px;color:var(--muted-text)",
+                text: line,
+              })
+            );
+            return element("div", { style: "display:flex;flex-direction:column;gap:8px" },
+              headerNodes,
+              ex);
+          }
+          return element("pre", { class: "alert-pre", text: block });
+        });
+      }
       boxes.push(element("div", { class: "alert-box warn box" },
         element("div", { style: "display:flex;align-items:center;gap:8px;color:var(--warn)" },
           warnIcon(18),
@@ -1127,6 +1209,9 @@
         warnBlocks));
     }
 
+    if (boxes.length > 0 && !boxes[0].id) {
+      boxes[0].id = "explanation";
+    }
     fill($("diagnostics"), boxes);
   }
 
@@ -1185,8 +1270,16 @@
     }
     children.push(element("p", { class: "explain-lead" }, leadParts));
 
-    if (lines.length >= 3 && /\^/.test(lines[2])) {
-      children.push(formatExcerptNode(lines[1], lines[2], "var(--bad)"));
+    let caretIdx = -1;
+    if (typeof error.excerpt === "string" && error.excerpt) {
+      const [srcLine, caretLine] = error.excerpt.split("\n");
+      children.push(formatExcerptNode(srcLine || "", caretLine || "", "var(--bad)"));
+      caretIdx = findCaretLineIndex(lines, 2);
+    } else {
+      caretIdx = findCaretLineIndex(lines, 2);
+      if (caretIdx >= 2) {
+        children.push(formatExcerptNode(lines[caretIdx - 1], lines[caretIdx], "var(--bad)"));
+      }
     }
 
     const byRule = error.expectedByRule || [];
@@ -1206,7 +1299,7 @@
                 if (group.at && group.at.document) {
                   openDocument(group.at.document, group.at.line || 1, group.at.column || 1);
                 } else {
-                  jumpToRuleName(group.rule);
+                  jumpToRuleName(group.rule, error.stage);
                 }
               },
             })
@@ -1217,8 +1310,31 @@
         );
       }
       children.push(element("dl", { class: "exp expected-summary" }, dlItems));
-    } else if (lines.length > 3) {
-      children.push(element("pre", { class: "excerpt" }, linkified(lines.slice(3).join("\n"))));
+    } else {
+      const afterExcerpt = caretIdx >= 0 ? caretIdx + 1 : 1;
+      if (lines.length > afterExcerpt && lines[afterExcerpt] === "Nothing could have continued there.") {
+        children.push(element("p", { class: "explain-sub", text: lines[afterExcerpt] }));
+      }
+    }
+
+    if (error.boundary) {
+      const b = error.boundary;
+      const bRuleBtn = element("button", {
+        type: "button",
+        class: "link",
+        text: b.rule,
+        onclick: () => {
+          if (b.location && b.location.document) {
+            openDocument(b.location.document, b.location.line || 1, b.location.column || 1);
+          } else {
+            jumpToRuleName(b.rule, error.stage);
+          }
+        },
+      });
+      children.push(element("p", { class: "explain-sub" },
+        "Failed boundary condition in rule ",
+        bRuleBtn,
+        ` (condition ${b.condition} at position ${b.at}).`));
     }
 
     const actionRow = [];
@@ -1239,7 +1355,11 @@
         class: "btn",
         text: "Trace here",
         onclick: () => {
-          state.trace = { stage: error.stage, position: error.token === null || error.token === undefined ? 0 : error.token };
+          state.trace = {
+            stage: error.stage,
+            position: error.token === null || error.token === undefined ? 0 : error.token,
+            toRejection: false,
+          };
           selectTab("trace", true);
         },
       }));
@@ -1248,10 +1368,14 @@
       children.push(element("div", { style: "display:flex;flex-wrap:wrap;align-items:center;gap:8px" }, actionRow));
     }
 
-    return element("div", { class: "explain-divider box", id: "explanation" }, children);
+    return element("div", { class: "explain-divider box" }, children);
   }
 
   function renderTieBox(tie) {
+    if (tie.reason && tie.reason !== "tie") {
+      return element("div", { class: "explain-divider box" },
+        element("pre", { class: "excerpt", text: tie.summary || "" }));
+    }
     const summaryLines = (tie.summary || "").split("\n");
     const leadText = summaryLines[0] || `The ${tie.stage} stage is ambiguous.`;
     let srcLine = "";
@@ -1260,9 +1384,12 @@
     let secondDiff = tie.secondDiff || tie.second || "";
 
     const differIdx = summaryLines.findIndex((l) => l.startsWith("They first differ here:"));
-    if (differIdx >= 0 && summaryLines.length > differIdx + 2) {
-      srcLine = summaryLines[differIdx + 1];
-      caretLine = summaryLines[differIdx + 2];
+    if (differIdx >= 0) {
+      const caretIdx = findCaretLineIndex(summaryLines, differIdx + 2);
+      if (caretIdx >= differIdx + 2) {
+        srcLine = summaryLines[caretIdx - 1];
+        caretLine = summaryLines[caretIdx];
+      }
     }
     for (const line of summaryLines) {
       if (line.startsWith("  the first reading ")) {
@@ -1276,7 +1403,7 @@
       ? formatExcerptNode(srcLine, caretLine, "var(--warn)")
       : element("pre", { class: "excerpt", text: tie.summary });
 
-    return element("div", { class: "explain-divider box", id: "explanation" },
+    return element("div", { class: "explain-divider box" },
       element("p", { class: "explain-lead", text: leadText }),
       element("p", { class: "explain-sub", text: "They first differ here:" }),
       excerptEl,
@@ -1288,10 +1415,22 @@
       element("p", { class: "explain-sub", text: tie.advice || "" }));
   }
 
-  function jumpToRuleName(ruleName) {
+  function jumpToRuleName(ruleName, stageName) {
     const info = infos.get(state.pipeline);
     if (!info || !info.ruleLocations) return;
-    const loc = info.ruleLocations[ruleName];
+    let loc = null;
+    if (stageName && info.ruleLocations[stageName] && info.ruleLocations[stageName][ruleName]) {
+      loc = info.ruleLocations[stageName][ruleName];
+    } else if (info.ruleLocations[ruleName] && info.ruleLocations[ruleName].document) {
+      loc = info.ruleLocations[ruleName];
+    } else {
+      for (const stageObj of Object.values(info.ruleLocations)) {
+        if (stageObj && typeof stageObj === "object" && stageObj[ruleName] && stageObj[ruleName].document) {
+          loc = stageObj[ruleName];
+          break;
+        }
+      }
+    }
     if (loc && loc.document) {
       openDocument(loc.document, loc.line || 1, loc.column || 1);
     }
@@ -1299,8 +1438,22 @@
 
   // ---- Output views --------------------------------------------------------
 
-  function formatColoredBrackets(text) {
+  function formatColoredBrackets(text, spans) {
     const frag = document.createDocumentFragment();
+    if (Array.isArray(spans) && spans.length > 0) {
+      for (const [kind, chunk] of spans) {
+        if (!chunk) continue;
+        if (!kind) {
+          frag.appendChild(document.createTextNode(chunk));
+        } else {
+          const span = document.createElement("span");
+          span.className = kind;
+          span.textContent = chunk;
+          frag.appendChild(span);
+        }
+      }
+      return frag;
+    }
     const re = /(\(|\)|\[|\]|\{|\}|⟨[^⟩]*⟩)/g;
     let lastIndex = 0;
     let match;
@@ -1381,6 +1534,24 @@
     return pre;
   }
 
+  const CANONICAL_LINES = 3000;
+  function sliceLines(rawText, maxLines) {
+    const text = rawText || "";
+    let total = 1;
+    let cutIndex = -1;
+    let pos = 0;
+    while ((pos = text.indexOf("\n", pos)) !== -1) {
+      if (total === maxLines) cutIndex = pos;
+      total++;
+      pos++;
+    }
+    return {
+      shownText: cutIndex >= 0 ? text.slice(0, cutIndex) : text,
+      totalLines: total,
+      capped: cutIndex >= 0,
+    };
+  }
+
   function updateTabToolbar(hasOutput = true) {
     $("elided-toggle").hidden = !(state.tab === "brackets" && hasOutput);
     $("canonical-toggle").hidden = !(state.tab === "json" && hasOutput);
@@ -1434,11 +1605,13 @@
       if (state.tab === "brackets") {
         const firstText = state.showElided ? tie.first : (tie.firstPlain ?? tie.first);
         const secondText = state.showElided ? tie.second : (tie.secondPlain ?? tie.second);
+        const firstSpans = state.showElided ? tie.firstSpans : (tie.firstPlainSpans ?? tie.firstSpans);
+        const secondSpans = state.showElided ? tie.secondSpans : (tie.secondPlainSpans ?? tie.secondSpans);
         fill(output, [
           element("p", { class: "rlabel", text: "First reading" }),
-          element("pre", { class: "reading" }, formatColoredBrackets(firstText || "")),
+          element("pre", { class: "reading" }, formatColoredBrackets(firstText || "", firstSpans)),
           element("p", { class: "rlabel", text: "Second reading" }),
-          element("pre", { class: "reading" }, formatColoredBrackets(secondText || "")),
+          element("pre", { class: "reading" }, formatColoredBrackets(secondText || "", secondSpans)),
         ]);
       } else if (state.tab === "tree") {
         fill(output, [
@@ -1485,7 +1658,19 @@
 
     updateTabToolbar(true);
     if (result.format === "brackets") {
-      output.replaceChildren(element("pre", { class: "result-text", tabindex: "0" }, formatColoredBrackets(result.text)));
+      output.replaceChildren(element("pre", { class: "result-text", tabindex: "0" }, formatColoredBrackets(result.text, result.spans)));
+    } else if (result.format === "canonical") {
+      const { shownText, totalLines, capped } = sliceLines(result.text, CANONICAL_LINES);
+      const pre = renderWrappedLines(shownText, {
+        className: "result-text code-block",
+        mode: "code",
+        tabindex: 0,
+      });
+      pre.dataset.rawText = result.text || "";
+      const note = capped
+        ? element("p", { class: "empty-hint", text: `Showing the first ${CANONICAL_LINES} of ${totalLines} lines.` })
+        : null;
+      fill(output, [pre, note]);
     } else {
       output.replaceChildren(renderWrappedLines(result.text, {
         className: "result-text code-block",
@@ -1626,6 +1811,7 @@
         text: stage.name,
         onclick: () => {
           state.trace.stage = stage.name;
+          state.trace.toRejection = false;
           schedule(0);
         },
       })));
@@ -1638,8 +1824,11 @@
       return;
     }
 
+    const traceChanged = state.trace.stage !== trace.stage || state.trace.position !== trace.position;
     state.trace.stage = trace.stage;
     state.trace.position = trace.position;
+    state.trace.toRejection = false;
+    if (traceChanged) saveFragment();
 
     const pickerItems = [];
     if (trace.from > 0) pickerItems.push(element("span", { class: "faint", text: "… " }));
@@ -1651,6 +1840,7 @@
       title: `Position ${position}`,
       onclick: () => {
         state.trace.position = position;
+        state.trace.toRejection = false;
         schedule(0);
       },
     }, element("span"));
@@ -1673,6 +1863,7 @@
       onclick: () => {
         if (state.trace.position > 0) {
           state.trace.position--;
+          state.trace.toRejection = false;
           schedule(0);
         }
       },
@@ -1686,12 +1877,13 @@
       onclick: () => {
         if (state.trace.position < trace.count) {
           state.trace.position++;
+          state.trace.toRejection = false;
           schedule(0);
         }
       },
     }, chevronIcon("right"));
 
-    const parsedTrace = parseTraceText(trace.text);
+    const parsedTrace = parseTraceText(trace.text, trace.stage);
 
     fill(output, [
       element("div", { class: "trace-controls" },
@@ -1705,7 +1897,7 @@
     ]);
   }
 
-  function parseTraceText(rawText) {
+  function parseTraceText(rawText, stageName) {
     const lines = (rawText || "").split("\n");
     const summaryLine = lines[0] || "";
     const summaryMatch = summaryLine.match(/at (position \d+.*)$/i);
@@ -1737,7 +1929,12 @@
       }
       if (currentBucket) {
         const trimmed = line.trim();
-        if (trimmed && trimmed !== "none") currentBucket.push(trimmed);
+        if (!trimmed || trimmed === "none") continue;
+        if (line.startsWith("      ") && currentBucket.length > 0) {
+          currentBucket[currentBucket.length - 1] += "\n" + trimmed;
+        } else {
+          currentBucket.push(trimmed);
+        }
       }
     }
 
@@ -1747,7 +1944,7 @@
         title,
         element("span", { text: items.length === 0 ? "none" : plural(items.length, "item") })));
       for (const itemText of items) {
-        children.push(formatTraceItem(itemText));
+        children.push(formatTraceItem(itemText, stageName));
       }
     }
 
@@ -1757,17 +1954,20 @@
     };
   }
 
-  function formatTraceItem(itemText) {
+  function formatTraceItem(itemText, stageName) {
     const p = element("p", { class: "item" });
-    const defIdx = itemText.indexOf(" ≔ ");
-    let rest = itemText;
+    const [firstLine, ...extraLines] = itemText.split("\n");
+    const defIdx = firstLine.indexOf(" ≔ ");
+    let rest = firstLine;
     if (defIdx > 0) {
-      const ruleName = itemText.slice(0, defIdx).trim();
-      rest = itemText.slice(defIdx);
+      const ruleName = firstLine.slice(0, defIdx).trim();
+      const helperMatch = /^\u2039(.+) part\u203a$/.exec(ruleName);
+      const targetRule = helperMatch ? helperMatch[1] : ruleName;
+      rest = firstLine.slice(defIdx);
       const btn = element("button", {
         type: "button",
         class: "link",
-        onclick: () => jumpToRuleName(ruleName),
+        onclick: () => jumpToRuleName(targetRule, stageName),
       });
       appendSpaceRuns(btn, ruleName);
       p.appendChild(btn);
@@ -1793,13 +1993,24 @@
     if (last < rest.length) {
       appendSpaceRuns(p, rest.slice(last));
     }
+    for (const extra of extraLines) {
+      p.appendChild(document.createElement("br"));
+      const subSpan = element("span", { class: "faint" });
+      appendSpaceRuns(subSpan, extra, { extraClass: "faint" });
+      p.appendChild(subSpan);
+    }
     return p;
   }
 
   // ---- Options menu --------------------------------------------------------
 
   function defaultTraceStage(info) {
-    const error = shown && shown.parse && shown.parse.error;
+    const error =
+      shown &&
+      shown.text === state.text &&
+      shown.pipeline === state.pipeline &&
+      shown.parse &&
+      shown.parse.error;
     if (error && error.stage && info.stages.some((stage) => stage.name === error.stage)) return error.stage;
     return info.stages[info.stages.length - 1].name;
   }
@@ -1836,6 +2047,21 @@
     updateTopBarOverflow();
 
     const info = infos.get(state.pipeline);
+    const elisionDescEl = $("elision-only-desc");
+    if (elisionDescEl) {
+      if (!info) {
+        elisionDescEl.textContent = "Default: set by the pipeline";
+      } else {
+        const elisionStages = info.stages.filter((s) => s.elisionOnly).map((s) => s.name);
+        if (elisionStages.length === 1) {
+          elisionDescEl.textContent = `Default: on for the ${elisionStages[0]} stage`;
+        } else if (elisionStages.length > 1) {
+          elisionDescEl.textContent = `Default: on for the ${elisionStages.join(", ")} stages`;
+        } else {
+          elisionDescEl.textContent = "Default: off for every stage";
+        }
+      }
+    }
     const featuresEl = $("features");
     if (!info) {
       featuresEl.replaceChildren(element("div", { class: "frow" },
@@ -1997,21 +2223,22 @@
   });
 
   $("copy-link").addEventListener("click", (event) => {
-    saveFragment();
-    copyText(location.href, event.currentTarget, null);
+    flushFragment();
+    copyText(location.href, event.currentTarget, "Share");
   });
 
   async function copyText(text, button, restoreLabel) {
-    const prevHTML = button.innerHTML;
+    const labelEl = button.querySelector("span") || button;
+    if (button._copyTimer) clearTimeout(button._copyTimer);
     try {
       await navigator.clipboard.writeText(text);
-      button.textContent = "Copied";
+      labelEl.textContent = "Copied";
     } catch {
-      button.textContent = "Copy failed";
+      labelEl.textContent = "Copy failed";
     }
-    setTimeout(() => {
-      if (restoreLabel) button.textContent = restoreLabel;
-      else button.innerHTML = prevHTML;
+    button._copyTimer = setTimeout(() => {
+      button._copyTimer = 0;
+      labelEl.textContent = restoreLabel;
     }, 1500);
   }
 
@@ -2450,6 +2677,7 @@
 
   $("example-hint-dismiss").addEventListener("click", () => {
     activeExample = null;
+    exampleRule = null;
     showExampleNote(null);
   });
 
@@ -2496,7 +2724,7 @@
     ];
 
     matching.forEach((example, idx) => {
-      const title = example.title || example.label || example.id;
+      const title = example.title || example.id;
       const firstLine = (example.text || "").split("\n")[0];
       selectOptions.push(element("option", { value: example.id, text: title }));
       const btnAttrs = {
@@ -2538,20 +2766,8 @@
     fill(exmenu, exItems);
   }
 
-  function applyExample(example) {
-    activeExample = example;
-    state.text = example.text;
-    $("input").value = example.text;
+  function applyExampleForPipeline(example) {
     state.showAllRules = false;
-
-    if (Array.isArray(example.pipelines) && example.pipelines.length > 0) {
-      if (!example.pipelines.includes(state.pipeline)) {
-        state.pipeline = example.pipelines[0];
-      }
-    } else if (example.pipeline) {
-      state.pipeline = example.pipeline;
-    }
-
     const merged = mergeExampleForPipeline(example, state.pipeline);
     state.features = new Set();
     state.without = new Set();
@@ -2564,10 +2780,19 @@
 
     if (merged.elisionOnly === true) state.elision = "on";
     else if (merged.elisionOnly === false) state.elision = "off";
-    else state.elision = example.elision || "";
+    else state.elision = "";
 
     state.until = "";
-    state.trace.stage = "";
+    state.tokenStage = "";
+    state.canonical = false;
+    $("show-canonical").checked = false;
+
+    const targetView = merged.view || "brackets";
+    state.trace = {
+      stage: "",
+      position: 0,
+      toRejection: targetView === "trace",
+    };
 
     const hasExplicitElided =
       "showElided" in example ||
@@ -2579,15 +2804,7 @@
     state.showElided = hasExplicitElided ? Boolean(merged.showElided) : false;
     $("show-elided").checked = state.showElided;
 
-    const openSpec =
-      merged.open ||
-      (example.document
-        ? {
-            document: example.document,
-            rule: example.rule || null,
-            anchor: example.anchor || null,
-          }
-        : null);
+    const openSpec = merged.open || null;
     const docPath =
       openSpec && openSpec.document
         ? resolveOpenDocument(state.pipeline, openSpec.document)
@@ -2596,7 +2813,7 @@
       ? `${shortLabel(docPath, pipelinePath(state.pipeline).replace(/pipeline\.md$/, ""))}.md`
       : "";
 
-    const noteTitle = example.title || example.label || "Example note";
+    const noteTitle = example.title || "Example note";
     const noteGloss = example.gloss || "";
     const noteHint = merged.hint || "";
 
@@ -2664,8 +2881,21 @@
     renderOptions();
     renderDocuments();
 
-    const targetView = example.tab || merged.view || "brackets";
     selectTab(targetView, false);
+  }
+
+  function applyExample(example) {
+    activeExample = example;
+    state.text = example.text;
+    $("input").value = example.text;
+
+    if (Array.isArray(example.pipelines) && example.pipelines.length > 0) {
+      if (!example.pipelines.includes(state.pipeline)) {
+        state.pipeline = example.pipelines[0];
+      }
+    }
+
+    applyExampleForPipeline(example);
   }
 
   function initControls() {
@@ -2709,9 +2939,7 @@
       if (examples.value === "") return;
       const val = examples.value;
       examples.value = "";
-      const example =
-        allExamples.find((ex) => ex.id === val) ||
-        allExamples[Number(val)];
+      const example = allExamples.find((ex) => ex.id === val);
       if (!example) return;
       applyExample(example);
     });
@@ -2721,24 +2949,30 @@
       state.text = $("input").value;
       state.showAllRules = false;
       activeExample = null;
+      exampleRule = null;
       showExampleNote(null);
       schedule(TEXT_DELAY);
     });
 
     pipeline.addEventListener("change", () => {
       state.pipeline = pipeline.value;
+      state.features.clear();
+      state.without.clear();
+      state.elision = "";
       state.until = "";
-      state.trace.stage = "";
+      state.tokenStage = "";
+      state.trace = { stage: "", position: 0, toRejection: false };
+      exampleRule = null;
       if (
         activeExample &&
         Array.isArray(activeExample.pipelines) &&
-        !activeExample.pipelines.includes(state.pipeline)
+        activeExample.pipelines.includes(state.pipeline)
       ) {
-        activeExample = null;
-        showExampleNote(null);
-      } else if (!activeExample) {
-        showExampleNote(null);
+        applyExampleForPipeline(activeExample);
+        return;
       }
+      activeExample = null;
+      showExampleNote(null);
       renderExamplesMenu();
       renderOptions();
       renderDocuments();

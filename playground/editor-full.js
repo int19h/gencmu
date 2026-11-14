@@ -9,6 +9,7 @@ import {
   RangeSetBuilder,
   StateEffect,
   StateField,
+  Transaction,
 } from "./vendor/codemirror.js";
 import {
   Decoration,
@@ -45,20 +46,9 @@ const markKeyword = Decoration.mark({ class: "k" });
 const markDef = Decoration.mark({ class: "d" });
 const markTerm = Decoration.mark({ class: "t" });
 
-function tokenizeJbogenbauLine(text, lineFrom, builder, state) {
+function tokenizeJbogenbauLine(text, lineFrom, builder) {
   let i = 0;
   const len = text.length;
-
-  if (state.inBlockComment) {
-    const closeIdx = text.indexOf("*)", i);
-    if (closeIdx < 0) {
-      if (len > 0) builder.add(lineFrom, lineFrom + len, markPunct);
-      return;
-    }
-    builder.add(lineFrom, lineFrom + closeIdx + 2, markPunct);
-    i = closeIdx + 2;
-    state.inBlockComment = false;
-  }
 
   while (i < len) {
     const ch = text[i];
@@ -70,18 +60,6 @@ function tokenizeJbogenbauLine(text, lineFrom, builder, state) {
     if (ch === "-" && text[i + 1] === "-") {
       builder.add(lineFrom + i, lineFrom + len, markPunct);
       break;
-    }
-
-    if (ch === "(" && text[i + 1] === "*") {
-      const closeIdx = text.indexOf("*)", i + 2);
-      if (closeIdx < 0) {
-        builder.add(lineFrom + i, lineFrom + len, markPunct);
-        state.inBlockComment = true;
-        break;
-      }
-      builder.add(lineFrom + i, lineFrom + closeIdx + 2, markPunct);
-      i = closeIdx + 2;
-      continue;
     }
 
     const rest = text.slice(i);
@@ -166,7 +144,6 @@ function buildSyntaxDecorations(doc) {
   const builder = new RangeSetBuilder();
   const state = {
     fenceMode: null,
-    inBlockComment: false,
   };
 
   for (let ln = 1; ln <= doc.lines; ln++) {
@@ -180,7 +157,6 @@ function buildSyntaxDecorations(doc) {
       if (openFence) {
         if (openFence[1] === "jbogenbau") {
           state.fenceMode = "jbogenbau";
-          state.inBlockComment = false;
           if (to > from) builder.add(from, to, markPunct);
         } else {
           state.fenceMode = "other";
@@ -197,10 +173,9 @@ function buildSyntaxDecorations(doc) {
     } else {
       if (/^\s*```\s*$/.test(text)) {
         state.fenceMode = null;
-        state.inBlockComment = false;
         if (to > from) builder.add(from, to, markPunct);
       } else if (to > from) {
-        tokenizeJbogenbauLine(text, from, builder, state);
+        tokenizeJbogenbauLine(text, from, builder);
       }
     }
   }
@@ -323,6 +298,7 @@ export function createFullEditor(container, options = {}) {
   if (typeof options.onCursorChange === "function") cursorListeners.add(options.onCursorChange);
 
   const labelCompartment = new Compartment();
+  const historyCompartment = new Compartment();
   let suppressChange = false;
 
   function cursorFromState(state) {
@@ -373,7 +349,7 @@ export function createFullEditor(container, options = {}) {
         lineNumbers(),
         highlightActiveLineGutter(),
         highlightActiveLine(),
-        history(),
+        historyCompartment.of(history()),
         keymap.of(defaultKeymap.concat(historyKeymap)),
         EditorView.lineWrapping,
         syntaxHighlightPlugin,
@@ -415,6 +391,12 @@ export function createFullEditor(container, options = {}) {
         view.dispatch({
           changes: { from: 0, to: current.length, insert: next },
           selection: { anchor: 0 },
+          annotations: Transaction.addToHistory.of(false),
+          effects: historyCompartment.reconfigure([]),
+        });
+        view.dispatch({
+          annotations: Transaction.addToHistory.of(false),
+          effects: historyCompartment.reconfigure(history()),
         });
       } finally {
         suppressChange = false;
