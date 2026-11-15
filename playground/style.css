@@ -111,6 +111,10 @@ a:hover {
   color: var(--faint);
 }
 
+.muted {
+  color: var(--muted);
+}
+
 .spacer {
   flex: 1 1 0;
 }
@@ -701,7 +705,7 @@ textarea:focus-visible,
 }
 
 .left {
-  flex: var(--left-grow, 35) 1 0;
+  flex: var(--left-grow, 35) 1 105px;
   min-width: min-content;
   display: flex;
   flex-direction: column;
@@ -1257,6 +1261,10 @@ button.stage:hover {
     border-bottom: 0;
   }
 
+  table.tokens.has-tags-col th.errors,
+  table.tokens.has-tags-col td.errors,
+  table.tokens.has-tags-col th.warnings,
+  table.tokens.has-tags-col td.warnings,
   table.tokens.has-tags-col th.tags {
     display: none;
   }
@@ -1265,7 +1273,9 @@ button.stage:hover {
     padding-bottom: 2px;
   }
 
-  table.tokens.has-tags-col tr.has-tags td.tags {
+  table.tokens.has-tags-col tr.has-tags td.tags,
+  table.tokens.has-tags-col tr.has-tags td.tags.tags-narrow-only {
+    display: block;
     grid-column: 2 / -1;
     order: 10;
     padding-top: 2px;
@@ -1274,6 +1284,10 @@ button.stage:hover {
 
   table.tokens.has-tags-col tr:not(.has-tags) td.tags {
     display: none;
+  }
+
+  table.tokens.has-tags-col td.tags .tok-narrow-only {
+    display: inline-block;
   }
 
   table.tokens.has-tags-col td.tags .tags-list {
@@ -1301,11 +1315,21 @@ button.stage:hover {
 .reading.code-block {
   font: 13px/1.55 var(--mono);
   white-space: normal;
-  overflow-x: hidden;
+  overflow-x: auto;
+  padding-right: 0;
+  --code-pad-r: 18px;
+}
+
+.result-text.code-block.more,
+.reading.code-block.more {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 48px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 48px), transparent);
 }
 
 .wline {
   display: block;
+  width: 100%;
+  padding-right: var(--code-pad-r, 18px);
   min-height: 1.55em;
   white-space: pre-wrap;
   overflow-wrap: normal;
@@ -1442,6 +1466,21 @@ table.tokens .tag {
   white-space: nowrap;
 }
 
+table.tokens .tag.tok-err {
+  background: var(--bad-bg);
+  color: var(--bad);
+}
+
+table.tokens .tag.tok-warn {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+
+table.tokens .tok-narrow-only,
+table.tokens .tags-narrow-only {
+  display: none;
+}
+
 /* Trace view */
 .trace-controls {
   display: flex;
@@ -1560,6 +1599,10 @@ table.tokens .tag {
 .item em {
   font-style: normal;
   color: var(--faint);
+}
+
+.item .t {
+  color: var(--b2);
 }
 
 /* ---- Right column: Grammar pane ---------------------------------------- */
@@ -1720,12 +1763,57 @@ small.s,
 }
 
 .docpick {
+  position: relative;
   display: none;
   align-items: center;
   gap: 8px;
   padding: 6px 8px 6px 14px;
   border-bottom: 1px solid var(--soft);
   font-family: var(--sans);
+}
+
+#doc-more-actions {
+  display: none;
+}
+
+.doc-more-menu {
+  right: 14px;
+  left: auto;
+  top: calc(100% - 8px);
+  width: max-content;
+  min-width: 210px;
+  max-width: calc(100vw - 32px);
+  padding: 4px 0;
+}
+
+.doc-more-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.doc-more-item:hover:not(:disabled) {
+  background: var(--sunk);
+}
+
+.doc-more-item:disabled {
+  color: var(--faint);
+  cursor: default;
+}
+
+.doc-more-item.sep {
+  border-top: 1px solid var(--soft);
 }
 
 .docpick select {
@@ -2011,7 +2099,7 @@ small.s,
   display: none;
 }
 
-.app.phone .menu {
+.app.phone .topbar .menu {
   left: 8px !important;
   right: 8px !important;
   width: auto !important;
@@ -2135,13 +2223,18 @@ small.s,
   padding: 8px 14px 18px;
 }
 
+.app.phone .result-text.code-block,
+.app.phone .reading.code-block {
+  padding-right: 0;
+  --code-pad-r: 14px;
+}
+
 .app.phone .grammar {
   flex: 0 0 auto;
   min-width: 0;
   width: 100%;
   border: 1px solid var(--line);
   border-radius: 10px;
-  overflow: hidden;
 }
 
 .app.phone .split,
@@ -2199,6 +2292,14 @@ small.s,
   padding: 0 10px;
   border-radius: 9px;
   font-size: 14px;
+}
+
+.app.phone #doc-more-actions {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  flex: none;
 }
 
 .app.phone #help-menu {

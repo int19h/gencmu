@@ -31,8 +31,8 @@ When a stage ties between two readings, the card shows where the two readings fi
 - The Brackets view shows nested groups cycling `( )`, `[ ]`, and `{ }`, with single-child rules collapsed. Turn on Elided to show omitted terminators in angle brackets, such as `⟨ku⟩` and `⟨vau⟩`.
 - The Tree view shows one node per line. Single-child rule chains join with `›`, and one-line leaves follow `·`.
 - The JSON view shows the display JSON projection by default, with hollow rules left out. Turn on Canonical to see the canonical JSON from [`docs/output.md`](output.md).
-- The Tokens view lists the tokens that a stage emitted, with their text, value, image, spans, tags, and attachments.
-- The Trace view shows what one stage's Earley recognizer did at one position between its input tokens. It lists the completed, advanced, predicted, and dropped items at that position.
+- The Tokens view lists the tokens that a stage emitted, with their text, value, image, spans, errors, warnings, tags, and attachments.
+- The Trace view shows what one stage's Earley recognizer did at one position between its input tokens. It lists the completed, advanced, predicted, and dropped items there, and what the stage could read next.
 - The Audit view reports static checks on the pipeline's grammars for each stage. It lists unreachable rules, overridden or extended rules, inert `%erased` clauses, and gated classifier entries. It also prints templates, instances, ranking steps, counted rules, boundary notes, and erasures.
 
 ## Grammar pane

@@ -209,9 +209,23 @@
           <div class="editor-col" id="editor-col">
             <div class="docpick sans">
               <select id="doc-select" aria-label="Document"></select>
-              <button type="button" class="btn" id="doc-more-actions" aria-label="More actions" title="More actions">
+              <button type="button" class="btn" id="doc-more-actions" aria-label="More actions" title="More actions" aria-haspopup="menu" aria-expanded="false">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
               </button>
+              <div class="menu doc-more-menu" id="doc-more-menu" role="menu" aria-label="More actions" hidden>
+                <button type="button" class="doc-more-item" id="doc-more-reset" role="menuitem" disabled>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+                  <span id="doc-more-reset-label">Reset</span>
+                </button>
+                <button type="button" class="doc-more-item" id="doc-more-download" role="menuitem">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
+                  <span id="doc-more-download-label">Download</span>
+                </button>
+                <button type="button" class="doc-more-item sep" id="doc-more-download-edited" role="menuitem" disabled>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
+                  <span id="doc-more-download-edited-label">Download edited (0)</span>
+                </button>
+              </div>
             </div>
             <div class="ebar sans">
               <span class="mono" id="doc-path"></span>

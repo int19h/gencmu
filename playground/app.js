@@ -630,10 +630,25 @@
     tabsEl.classList.toggle("more", hasMore);
   }
 
+  function updateCodeBlockFade(pre) {
+    if (!pre) return;
+    const hasMore =
+      pre.scrollWidth > pre.clientWidth + 2 &&
+      pre.scrollLeft + pre.clientWidth < pre.scrollWidth - 2;
+    pre.classList.toggle("more", hasMore);
+  }
+
+  function updateAllCodeBlocksFade() {
+    for (const pre of document.querySelectorAll(".code-block")) {
+      updateCodeBlockFade(pre);
+    }
+  }
+
   $("view-tabs").addEventListener("scroll", updatePhoneTabsFade, { passive: true });
   window.addEventListener("resize", () => {
     updateTopBarOverflow();
     updatePhoneTabsFade();
+    updateAllCodeBlocksFade();
   });
 
   // ---- Popover menus -------------------------------------------------------
@@ -643,6 +658,7 @@
     { button: "pipeline-button", menu: "pipeline-menu" },
     { button: "examples-button", menu: "examples-menu" },
     { button: "options-button", menu: "options-menu" },
+    { button: "doc-more-actions", menu: "doc-more-menu" },
   ];
 
   function closeAllMenus(exceptMenuId = null) {
@@ -671,7 +687,7 @@
     btnEl.classList.toggle("open", opening);
     if (anchorEl) anchorEl.classList.toggle("open", opening);
     menuEl.hidden = !opening;
-    if (opening && !$("app").classList.contains("phone")) {
+    if (opening && menuId !== "doc-more-menu" && !$("app").classList.contains("phone")) {
       const ref = anchorEl || btnEl;
       const rect = ref.getBoundingClientRect();
       const topbarRect = $("topbar").getBoundingClientRect();
@@ -1519,7 +1535,7 @@
       const rest = line.slice(leadCount);
       const span = element("span", {
         class: "wline",
-        style: `padding-left:calc(${leadCount}ch + 4ch);text-indent:-4ch`,
+        style: `padding-left:calc(${leadCount}ch + 4ch);text-indent:-4ch;min-width:calc(${leadCount}ch + 28ch + var(--code-pad-r, 18px))`,
       });
       if (leadCount > 0) {
         span.append(element("span", { class: "wsp", text: leadSpaces }));
@@ -1531,6 +1547,7 @@
       return span;
     });
     fill(pre, nodes);
+    pre.addEventListener("scroll", () => updateCodeBlockFade(pre), { passive: true });
     return pre;
   }
 
@@ -1578,6 +1595,7 @@
       } else {
         updateTabToolbar(true);
         output.replaceChildren(renderWrappedLines(message.audit, { className: "result-text code-block", linkify: true, tabindex: 0 }));
+        updateAllCodeBlocksFade();
       }
       return;
     }
@@ -1585,6 +1603,7 @@
     if (state.tab === "trace") {
       updateTabToolbar(false);
       renderTrace(message.trace);
+      updateAllCodeBlocksFade();
       return;
     }
 
@@ -1620,6 +1639,7 @@
           element("p", { class: "rlabel", text: "Second reading" }),
           renderWrappedLines(tie.secondTree || "", { className: "reading code-block", mode: "tree" }),
         ]);
+        updateAllCodeBlocksFade();
       } else {
         const firstJ = state.canonical ? tie.firstCanonical : tie.firstJson;
         const secondJ = state.canonical ? tie.secondCanonical : tie.secondJson;
@@ -1629,6 +1649,7 @@
           element("p", { class: "rlabel", text: "Second reading" }),
           renderWrappedLines(secondJ || "", { className: "reading code-block" }),
         ]);
+        updateAllCodeBlocksFade();
       }
       return;
     }
@@ -1671,12 +1692,14 @@
         ? element("p", { class: "empty-hint", text: `Showing the first ${CANONICAL_LINES} of ${totalLines} lines.` })
         : null;
       fill(output, [pre, note]);
+      updateAllCodeBlocksFade();
     } else {
       output.replaceChildren(renderWrappedLines(result.text, {
         className: "result-text code-block",
         mode: result.format === "tree" ? "tree" : "code",
         tabindex: 0,
       }));
+      updateAllCodeBlocksFade();
     }
   }
 
@@ -1703,6 +1726,11 @@
       ]);
       return;
     }
+
+    const hasErrorsCol = !result.rows.every((row) => !row.errors || row.errors.length === 0);
+    const hasWarningsCol = !result.rows.every((row) => !row.warnings || row.warnings.length === 0);
+    const hasTagsOnlyCol = !result.rows.every((row) => !row.tags || row.tags.length === 0);
+    const hasChipsCol = hasErrorsCol || hasWarningsCol || hasTagsOnlyCol;
 
     const allColumns = [
       {
@@ -1736,13 +1764,50 @@
         cell: (row) => element("td", { class: "num", text: row.source }),
       },
       {
-        title: "tags",
-        thClass: "tags",
-        empty: (row) => !row.tags || row.tags.length === 0,
+        title: "errors",
+        thClass: "errors",
+        empty: () => !hasErrorsCol,
         cell: (row) =>
-          element("td", { class: "tags" },
+          element("td", { class: "errors" },
             element("div", { class: "tags-list" },
-              (row.tags || []).map((tag) => element("span", { class: "tag", text: tag })))),
+              (row.errors || []).map((code) => element("span", {
+                class: "tag tok-err",
+                "aria-label": `Error: ${code}`,
+                text: code,
+              })))),
+      },
+      {
+        title: "warnings",
+        thClass: "warnings",
+        empty: () => !hasWarningsCol,
+        cell: (row) =>
+          element("td", { class: "warnings" },
+            element("div", { class: "tags-list" },
+              (row.warnings || []).map((code) => element("span", {
+                class: "tag tok-warn",
+                "aria-label": `Warning: ${code}`,
+                text: code,
+              })))),
+      },
+      {
+        title: "tags",
+        thClass: hasTagsOnlyCol ? "tags" : "tags tags-narrow-only",
+        empty: () => !hasChipsCol,
+        cell: (row) =>
+          element("td", { class: hasTagsOnlyCol ? "tags" : "tags tags-narrow-only" },
+            element("div", { class: "tags-list" }, [
+              ...(row.errors || []).map((code) => element("span", {
+                class: "tag tok-err tok-narrow-only",
+                "aria-label": `Error: ${code}`,
+                text: code,
+              })),
+              ...(row.warnings || []).map((code) => element("span", {
+                class: "tag tok-warn tok-narrow-only",
+                "aria-label": `Warning: ${code}`,
+                text: code,
+              })),
+              ...(row.tags || []).map((tag) => element("span", { class: "tag", text: tag })),
+            ])),
       },
       {
         title: "insertedBy",
@@ -1762,12 +1827,20 @@
     ];
     const columns = allColumns.filter((col) => !result.rows.every((row) => col.empty(row)));
     const hasTagsCol = columns.some((col) => col.title === "tags");
-    const nonTagCols = hasTagsCol ? columns.length - 1 : columns.length;
+    const nonTagCols = columns.filter(
+      (col) => col.title !== "errors" && col.title !== "warnings" && col.title !== "tags"
+    ).length;
     const header = element("tr", {},
       columns.map((col) => element("th", { scope: "col", class: col.thClass || null, text: col.title })));
-    const rows = result.rows.map((row) => element("tr", {
-      class: row.tags && row.tags.length > 0 ? "has-tags" : null,
-    }, columns.map((col) => col.cell(row))));
+    const rows = result.rows.map((row) => {
+      const rowHasChips =
+        (row.errors && row.errors.length > 0) ||
+        (row.warnings && row.warnings.length > 0) ||
+        (row.tags && row.tags.length > 0);
+      return element("tr", {
+        class: rowHasChips ? "has-tags" : null,
+      }, columns.map((col) => col.cell(row)));
+    });
 
     const note = result.total > result.rows.length
       ? element("p", { class: "empty-hint", text: `Showing the first ${result.rows.length} of ${result.total} tokens.` })
@@ -1883,7 +1956,7 @@
       },
     }, chevronIcon("right"));
 
-    const parsedTrace = parseTraceText(trace.text, trace.stage);
+    const parsedTrace = buildTraceView(trace);
 
     fill(output, [
       element("div", { class: "trace-controls" },
@@ -1895,6 +1968,69 @@
           element("span", { class: "trace-pos-label", text: parsedTrace.summary || `Position ${trace.position} of ${trace.count}` }))),
       parsedTrace.sectionsNode,
     ]);
+  }
+
+  function buildTraceView(trace) {
+    const stageName = trace.stage;
+    const headerLine = trace.header || (trace.text ? trace.text.split("\n", 1)[0] : "");
+    const summaryMatch = headerLine.match(/at (position \d+.*)$/i);
+    const rawSummary = summaryMatch
+      ? summaryMatch[1].charAt(0).toUpperCase() + summaryMatch[1].slice(1)
+      : headerLine;
+    const summary = rawSummary.replace(/:$/, "");
+
+    if (!trace.sections) {
+      return parseTraceText(trace.text, stageName);
+    }
+
+    const sectionSpecs = [
+      ["Completed", trace.sections.completed || []],
+      ["Advanced", trace.sections.advanced || []],
+      ["Predicted", trace.sections.predicted || []],
+      ["Dropped", trace.sections.dropped || []],
+    ];
+    const children = [];
+    for (const [title, items] of sectionSpecs) {
+      children.push(element("p", { class: "sec" },
+        title,
+        element("span", { text: items.length === 0 ? "none" : plural(items.length, "item") })));
+      for (const item of items) {
+        children.push(formatStructuredTraceItem(item, stageName));
+      }
+    }
+
+    const expected = trace.expected || [];
+    children.push(element("p", { class: "sec" },
+      "Could read next",
+      element("span", { text: expected.length === 0 ? "none" : plural(expected.length, "item") })));
+    for (const exp of expected) {
+      children.push(formatExpectedTraceItem(exp));
+    }
+
+    return {
+      summary,
+      sectionsNode: element("div", { class: "trace-sections" }, children),
+    };
+  }
+
+  function formatStructuredTraceItem(item, stageName) {
+    const fullLine = `${item.lhs} ≔ ${item.rhs}${item.span ? `  ${item.span}` : ""}`;
+    const text = item.refused ? `${fullLine}\n${item.refused}` : fullLine;
+    return formatTraceItem(text, stageName);
+  }
+
+  function formatExpectedTraceItem(exp) {
+    const p = element("p", { class: "item" });
+    const termSpan = element("span", { class: "t" });
+    appendSpaceRuns(termSpan, exp.terminal, { extraClass: "t" });
+    p.appendChild(termSpan);
+    if (exp.rules && exp.rules.length > 0) {
+      p.append(" ");
+      const rulesSpan = element("span", { class: "muted" });
+      appendSpaceRuns(rulesSpan, `(${exp.rules.join(", ")})`, { extraClass: "muted" });
+      p.appendChild(rulesSpan);
+    }
+    return p;
   }
 
   function parseTraceText(rawText, stageName) {
@@ -1912,19 +2048,46 @@
       ["Predicted", []],
       ["Dropped", []],
     ]);
+    const expected = [];
+    let inExpected = false;
 
     let currentBucket = null;
     for (let i = 1; i < lines.length; i++) {
       const line = lines[i];
       if (!line.trim()) continue;
+      if (/^\s*could read next:/i.test(line)) {
+        currentBucket = null;
+        inExpected = true;
+        continue;
+      }
+      if (/^\s*could read nothing next/i.test(line)) {
+        currentBucket = null;
+        inExpected = false;
+        continue;
+      }
       const headerMatch = line.match(/^\s*(Completed|Advanced|Predicted|Dropped)\b/i);
       if (headerMatch) {
         const key = headerMatch[1].charAt(0).toUpperCase() + headerMatch[1].slice(1).toLowerCase();
         currentBucket = buckets.get(key) || null;
+        inExpected = false;
         continue;
       }
       if (!line.startsWith("  ")) {
         currentBucket = null;
+        inExpected = false;
+        continue;
+      }
+      if (inExpected) {
+        const trimmed = line.trim();
+        const parenIdx = trimmed.lastIndexOf(" (");
+        if (parenIdx > 0 && trimmed.endsWith(")")) {
+          expected.push({
+            terminal: trimmed.slice(0, parenIdx),
+            rules: trimmed.slice(parenIdx + 2, -1).split(/,\s*/),
+          });
+        } else if (trimmed) {
+          expected.push({ terminal: trimmed, rules: [] });
+        }
         continue;
       }
       if (currentBucket) {
@@ -1946,6 +2109,12 @@
       for (const itemText of items) {
         children.push(formatTraceItem(itemText, stageName));
       }
+    }
+    children.push(element("p", { class: "sec" },
+      "Could read next",
+      element("span", { text: expected.length === 0 ? "none" : plural(expected.length, "item") })));
+    for (const exp of expected) {
+      children.push(formatExpectedTraceItem(exp));
     }
 
     return {
@@ -1995,8 +2164,8 @@
     }
     for (const extra of extraLines) {
       p.appendChild(document.createElement("br"));
-      const subSpan = element("span", { class: "faint" });
-      appendSpaceRuns(subSpan, extra, { extraClass: "faint" });
+      const subSpan = element("span", { class: "muted" });
+      appendSpaceRuns(subSpan, extra, { extraClass: "muted" });
       p.appendChild(subSpan);
     }
     return p;
@@ -2058,7 +2227,7 @@
         } else if (elisionStages.length > 1) {
           elisionDescEl.textContent = `Default: on for the ${elisionStages.join(", ")} stages`;
         } else {
-          elisionDescEl.textContent = "Default: off for every stage";
+          elisionDescEl.textContent = "Default: off";
         }
       }
     }
@@ -2251,6 +2420,7 @@
     workspace.style.setProperty("--left-grow", String(clamped));
     workspace.style.setProperty("--right-grow", String(100 - clamped));
     splitHandle.setAttribute("aria-valuenow", String(clamped));
+    updateAllCodeBlocksFade();
     if (persist) {
       try {
         localStorage.setItem("gencmu.split", String(clamped));
@@ -2322,6 +2492,10 @@
 
   $("phone-grammar-toggle").addEventListener("click", () => {
     state.phoneGrammarOpen = !state.phoneGrammarOpen;
+    if (state.phoneGrammarOpen && !state.open) {
+      openDocument(pipelinePath(state.pipeline), 0, 1);
+      return;
+    }
     updatePhoneGrammarState();
   });
 
@@ -2518,6 +2692,18 @@
       $("doc-reset").disabled = !edited;
     }
 
+    const openPath = state.open || entry;
+    const openLabel = shortLabel(openPath, entryDir);
+    const openEdited = isEdited(openPath);
+    if ($("doc-more-reset-label")) $("doc-more-reset-label").textContent = `Reset ${openLabel}`;
+    if ($("doc-more-reset")) $("doc-more-reset").disabled = !openEdited;
+    if ($("doc-more-download-label")) $("doc-more-download-label").textContent = `Download ${openLabel}`;
+    if ($("doc-more-download")) $("doc-more-download").disabled = !openPath || client.text(openPath) === undefined;
+    if ($("doc-more-download-edited-label")) {
+      $("doc-more-download-edited-label").textContent = `Download edited (${allEditsCount})`;
+    }
+    if ($("doc-more-download-edited")) $("doc-more-download-edited").disabled = !allEditsCount;
+
     const listed = new Set(documents);
     const elsewhere = [...client.edits.keys()].filter((path) => !listed.has(path));
     const note = $("edited-elsewhere");
@@ -2593,13 +2779,15 @@
     openDocument(null);
   });
 
-  $("doc-reset").addEventListener("click", () => {
-    const path = state.open;
+  function resetOpenDocument() {
+    const path = state.open || pipelinePath(state.pipeline);
     if (!path || bundled[path] === undefined) return;
     client.setDocument(path, bundled[path]);
     openDocument(path, 0, 1);
     schedule(0);
-  });
+  }
+
+  $("doc-reset").addEventListener("click", resetOpenDocument);
 
   function download(path) {
     const blob = new Blob([client.text(path)], { type: "text/markdown;charset=utf-8" });
@@ -2614,9 +2802,25 @@
     setTimeout(() => URL.revokeObjectURL(url), 10000);
   }
 
-  $("doc-download").addEventListener("click", () => state.open && download(state.open));
-  $("download-edited").addEventListener("click", () => {
+  function downloadAllEdited() {
     [...client.edits.keys()].forEach((path, index) => setTimeout(() => download(path), index * 300));
+  }
+
+  $("doc-download").addEventListener("click", () => state.open && download(state.open));
+  $("download-edited").addEventListener("click", downloadAllEdited);
+
+  $("doc-more-reset").addEventListener("click", () => {
+    closeAllMenus();
+    resetOpenDocument();
+  });
+  $("doc-more-download").addEventListener("click", () => {
+    closeAllMenus();
+    const path = state.open || pipelinePath(state.pipeline);
+    if (path) download(path);
+  });
+  $("doc-more-download-edited").addEventListener("click", () => {
+    closeAllMenus();
+    downloadAllEdited();
   });
 
   window.addEventListener("beforeunload", (event) => {

@@ -1349,6 +1349,226 @@ async function main() {
     ) {
       throw new Error(`Round 6 phone tokens table check failed: ${JSON.stringify(phoneTokCheck)}`);
     }
+
+    // Round 9 checks:
+    // 1. Deep nesting (fable 1.2): first word of every line lies inside the pane or its scroll range,
+    //    and right edge fades out while more lies to the right.
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await choose("grammars/lojban/cll/pipeline.md");
+    const deepText = "mi djuno le du'u ".repeat(7) + "do klama";
+    await type(deepText);
+    await answerFor(deepText);
+    for (const viewName of ["tree", "json"]) {
+      await page.locator(`#tab-${viewName}`).click();
+      for (let attempt = 0; attempt < 600; attempt++) {
+        const hasLines = await page.evaluate(() => document.querySelectorAll("#output pre.code-block .wline").length > 20);
+        if (hasLines) break;
+        await sleep(50);
+      }
+      const deepCheck = await page.evaluate(() => {
+        const pre = document.querySelector("#output pre.code-block");
+        if (!pre) return { ok: false, reason: "no pre" };
+        pre.scrollLeft = 0;
+        const preBox = pre.getBoundingClientRect();
+        const style = getComputedStyle(pre);
+        const lines = [...pre.querySelectorAll(".wline")];
+        let outOfRange = 0;
+        let maxLead = 0;
+        for (const line of lines) {
+          const lead = (line.querySelector(".wsp")?.textContent || "").replace(/\n/g, "").length;
+          if (lead > maxLead) maxLead = lead;
+          const firstRun = line.querySelector(".wrun");
+          if (!firstRun) continue;
+          const rBox = firstRun.getBoundingClientRect();
+          const relLeft = rBox.left - preBox.left + pre.scrollLeft;
+          const relRight = rBox.right - preBox.left + pre.scrollLeft;
+          if (relLeft < -1 || relRight > pre.scrollWidth + 2) {
+            outOfRange++;
+          }
+        }
+        const moreAtStart = pre.classList.contains("more");
+        pre.scrollLeft = pre.scrollWidth - pre.clientWidth;
+        pre.dispatchEvent(new Event("scroll"));
+        const moreAtEnd = pre.classList.contains("more");
+        pre.scrollLeft = 0;
+        pre.dispatchEvent(new Event("scroll"));
+        return {
+          ok: true,
+          overflowX: style.overflowX,
+          maxLead,
+          lineCount: lines.length,
+          outOfRange,
+          scrollWidth: pre.scrollWidth,
+          clientWidth: pre.clientWidth,
+          moreAtStart,
+          moreAtEnd,
+        };
+      });
+      if (
+        !deepCheck.ok ||
+        deepCheck.overflowX !== "auto" ||
+        deepCheck.outOfRange !== 0 ||
+        deepCheck.scrollWidth <= deepCheck.clientWidth ||
+        !deepCheck.moreAtStart ||
+        deepCheck.moreAtEnd
+      ) {
+        throw new Error(`Round 9 deep nesting check (${viewName}) failed: ${JSON.stringify(deepCheck)}`);
+      }
+    }
+
+    // 2. Trace 5 sections (fable 1.3): Completed, Advanced, Predicted, Dropped, Could read next
+    await type("mi klama le le");
+    await answerFor("mi klama le le");
+    await page.locator("#tab-trace").click();
+    await page.evaluate(() => {
+      self.playground.state.trace.stage = "syntax";
+      self.playground.state.trace.position = 4;
+      self.playground.schedule(0);
+    });
+    for (let attempt = 0; attempt < 600; attempt++) {
+      const hasSecs = await page.evaluate(() => document.querySelectorAll("#output .trace-sections .sec").length === 5);
+      if (hasSecs) break;
+      await sleep(50);
+    }
+    const trace5Check = await page.evaluate(() => {
+      const secs = [...document.querySelectorAll("#output .trace-sections .sec")].map((s) => ({
+        title: s.childNodes[0]?.textContent?.trim() || "",
+        count: s.querySelector("span")?.textContent?.trim() || "",
+      }));
+      const lastSec = document.querySelectorAll("#output .trace-sections .sec")[4];
+      const firstExpected = lastSec?.nextElementSibling;
+      const hasTermSpan = !!firstExpected?.querySelector(".t");
+      const hasRulesSpan = !!firstExpected?.querySelector(".muted");
+      return {
+        secs,
+        hasTermSpan,
+        hasRulesSpan,
+        firstExpectedText: firstExpected?.textContent || "",
+      };
+    });
+    if (
+      trace5Check.secs.length !== 5 ||
+      trace5Check.secs[4].title !== "Could read next" ||
+      trace5Check.secs[4].count !== "49 items" ||
+      !trace5Check.hasTermSpan ||
+      !trace5Check.hasRulesSpan ||
+      !/\(.+\)$/.test(trace5Check.firstExpectedText)
+    ) {
+      throw new Error(`Round 9 Trace 5th section check failed: ${JSON.stringify(trace5Check)}`);
+    }
+
+    // 3. Token diagnostics (fable 1.7) & Elision-only Default: off wording
+    await choose("grammars/eberban/refgram/pipeline.md");
+    await type("a mi dona pban");
+    await answerFor("a mi dona pban");
+    await page.locator("#tab-tokens").click();
+    await page.evaluate(() => {
+      self.playground.state.tokenStage = "forms";
+      self.playground.schedule(0);
+    });
+    for (let attempt = 0; attempt < 600; attempt++) {
+      const hasErrCol = await page.evaluate(() => !!document.querySelector("#output table.tokens th.errors"));
+      if (hasErrCol) break;
+      await sleep(50);
+    }
+    const tokDiagDesktop = await page.evaluate(() => {
+      const headers = [...document.querySelectorAll("#output table.tokens th")]
+        .filter((th) => getComputedStyle(th).display !== "none")
+        .map((th) => th.textContent.trim());
+      const errChip = document.querySelector("#output table.tokens td.errors .tok-err");
+      const elisionDesc = document.getElementById("elision-only-desc")?.textContent || "";
+      const docMoreDesktopVisible = getComputedStyle(document.getElementById("doc-more-actions")).display !== "none";
+      return {
+        headers,
+        errText: errChip?.textContent || "",
+        errAria: errChip?.getAttribute("aria-label") || "",
+        elisionDesc,
+        docMoreDesktopVisible,
+      };
+    });
+    if (
+      tokDiagDesktop.headers.indexOf("errors") !== tokDiagDesktop.headers.indexOf("source") + 1 ||
+      tokDiagDesktop.headers.indexOf("tags") !== tokDiagDesktop.headers.indexOf("errors") + 1 ||
+      tokDiagDesktop.errText !== "pair-voiceness" ||
+      tokDiagDesktop.errAria !== "Error: pair-voiceness" ||
+      tokDiagDesktop.elisionDesc !== "Default: off" ||
+      tokDiagDesktop.docMoreDesktopVisible
+    ) {
+      throw new Error(`Round 9 desktop token diagnostics / elision wording / doc-more check failed: ${JSON.stringify(tokDiagDesktop)}`);
+    }
+
+    // 4. Phone Token diagnostics (< 520px) and More actions menu (carbon 4.1)
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.evaluate(() => window.dispatchEvent(new Event("resize")));
+    await sleep(100);
+    const phoneRound9 = await page.evaluate(() => {
+      const thErrDisplay = getComputedStyle(document.querySelector("#output table.tokens th.errors")).display;
+      const pbanRow = [...document.querySelectorAll("#output table.tokens tbody tr")].find((tr) =>
+        tr.textContent.includes('"pban"')
+      );
+      const chipsInTagsLine = pbanRow
+        ? [...pbanRow.querySelectorAll("td.tags .tag")]
+            .filter((el) => getComputedStyle(el).display !== "none")
+            .map((el) => ({ text: el.textContent, cls: el.className, aria: el.getAttribute("aria-label") }))
+        : [];
+      return { thErrDisplay, chipsInTagsLine };
+    });
+    if (
+      phoneRound9.thErrDisplay !== "none" ||
+      phoneRound9.chipsInTagsLine.length < 2 ||
+      phoneRound9.chipsInTagsLine[0].text !== "pair-voiceness" ||
+      phoneRound9.chipsInTagsLine[0].aria !== "Error: pair-voiceness"
+    ) {
+      throw new Error(`Round 9 phone token diagnostics check failed: ${JSON.stringify(phoneRound9)}`);
+    }
+
+    await page.evaluate(() => {
+      self.playground.openDocument("grammars/eberban/refgram/pipeline.md", 1, 1);
+      const ed = self.playground.editor;
+      ed.editValue(ed.getValue() + "\n");
+    });
+    await sleep(400);
+    await page.locator("#doc-more-actions").click();
+    const moreMenuCheck = await page.evaluate(() => {
+      const btn = document.getElementById("doc-more-actions");
+      const menu = document.getElementById("doc-more-menu");
+      const btnRect = btn.getBoundingClientRect();
+      const menuRect = menu.getBoundingClientRect();
+      const items = [...menu.querySelectorAll(".doc-more-item")].map((it) => ({
+        text: it.textContent.trim(),
+        disabled: it.disabled,
+        hasSvg: !!it.querySelector("svg"),
+        sep: it.classList.contains("sep"),
+      }));
+      return {
+        hidden: menu.hidden,
+        rightDiff: Math.abs(btnRect.right - menuRect.right),
+        items,
+      };
+    });
+    if (
+      moreMenuCheck.hidden ||
+      moreMenuCheck.rightDiff > 2 ||
+      moreMenuCheck.items.length !== 3 ||
+      moreMenuCheck.items[0].text !== "Reset pipeline" ||
+      moreMenuCheck.items[0].disabled !== false ||
+      moreMenuCheck.items[1].text !== "Download pipeline" ||
+      moreMenuCheck.items[1].disabled !== false ||
+      moreMenuCheck.items[2].text !== "Download edited (1)" ||
+      moreMenuCheck.items[2].disabled !== false ||
+      !moreMenuCheck.items[2].sep ||
+      !moreMenuCheck.items.every((it) => it.hasSvg)
+    ) {
+      throw new Error(`Round 9 phone More actions menu check failed: ${JSON.stringify(moreMenuCheck)}`);
+    }
+    await page.locator("#doc-more-reset").click();
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.evaluate(() => window.dispatchEvent(new Event("resize")));
+    await choose("grammars/lojban/cll/pipeline.md");
+    await type("mi klama le zarci");
+    await answerFor("mi klama le zarci");
+    await page.locator("#tab-brackets").click();
+    await idle("returning to brackets after round 9 checks");
     console.log(`redesigned layout, full editor, and phone checks work in ${browser}`);
 
     // Basic editor variant: served without playground/vendor/, with zero failed requests.

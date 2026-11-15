@@ -596,6 +596,8 @@
             image: token.image,
             span: token.span[0] + "–" + token.span[1],
             source: token.source[0] + "–" + token.source[1],
+            errors: (token.errors || []).map((d) => typeof d === "string" ? d : d.code),
+            warnings: (token.warnings || []).map((d) => typeof d === "string" ? d : d.code),
             tags: token.tags,
             insertedBy: token.insertedBy || "",
             before: gencmu.compactJson(token.before || []),
@@ -648,13 +650,48 @@
         // The tokens around the position, for the page's picker.
         const from = Math.max(0, traced.position - 40);
         const to = Math.min(traced.tokens.length, traced.position + 40);
+        const text = gencmu.formatTrace(traced);
+        const origEvents = traced.events;
+        const origExpected = traced.expected;
+        const sections = {};
+        try {
+          traced.expected = [];
+          for (const kind of ["completed", "advanced", "predicted", "dropped"]) {
+            const events = origEvents.filter((event) =>
+              event.kind === kind &&
+              !(kind === "completed" && event.production.helper && event.production.rhs.length === 0)
+            );
+            sections[kind] = events.map((event) => {
+              traced.events = [event];
+              const itemLines = gencmu.formatTrace(traced).split("\n");
+              const lhs = event.production.helper ? `‹${event.production.owner} part›` : event.production.lhs;
+              const span = event.kind === "dropped" ? "" : `[${event.origin}..${traced.position}]`;
+              const rawLine = itemLines[2] || "";
+              const prefix = `  ${lhs} ≔ `;
+              const suffix = span ? `  ${span}` : "";
+              const rhs = rawLine.slice(prefix.length, suffix ? rawLine.length - suffix.length : rawLine.length);
+              const refused = itemLines.length > 4 ? itemLines.slice(3, -1).map((l) => l.trim()).join("\n") : "";
+              return { lhs, rhs, span, refused };
+            });
+          }
+        } finally {
+          traced.events = origEvents;
+          traced.expected = origExpected;
+        }
+        const expected = origExpected.map((exp) => ({
+          terminal: exp.terminal,
+          rules: exp.rules.slice(),
+        }));
         answer = {
           stage: traced.stage,
           position: traced.position,
           count: traced.tokens.length,
           from,
           tokens: traced.tokens.slice(from, to).map((token) => token.text),
-          text: gencmu.formatTrace(traced),
+          header: text.split("\n", 1)[0] || "",
+          sections,
+          expected,
+          text,
         };
       } catch (error) {
         answer = { stage: traceSpec.stage, position: traceSpec.position, error: String(error.message || error) };
