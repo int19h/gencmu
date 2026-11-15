@@ -15,7 +15,7 @@ from typing import Any, Callable, ContextManager, Iterator
 from unittest import mock
 
 import gencmu
-from gencmu import _dom, _trampoline
+from gencmu import _dom, _trampoline, _validate
 from gencmu._pipeline import read_document
 from gencmu._earley import Caps, Evaluator, Parser, StageContext
 
@@ -293,9 +293,9 @@ def reader_steps() -> list[Watch]:
     stack, and of the check of repeated captures, each with what it reads
     in C. So a capture moved or marked as repeated counts, and so does a
     copy of a stack or a list."""
-    # The check of repeated captures is named as the reader calls it, so
+    # The check of repeated captures is named as the validator calls it, so
     # that a mutant put in its place is the one watched.
-    return [steps(target, weight=reads) for target in (_trampoline.run, _dom.flatten_groups, _dom.duplicate_captures, _dom.DomBuilder.has_unresolved)]
+    return [steps(target, weight=reads) for target in (_trampoline.run, _dom.flatten_groups, _validate.duplicate_captures)]
 
 
 class NotationGrowth(unittest.TestCase):
@@ -379,7 +379,7 @@ class NotationGrowth(unittest.TestCase):
         # every level the square of the depth.
         case = next(case for case in load_json(SHARED / "notation-growth.json") if case["name"] == "repeated-capture-name")
         small, large = self.grows(
-            case, lambda: [made_items(), *reader_steps()], lambda: mutant(_dom, "duplicate_captures", ("part[0][name] = []", "pass"))
+            case, lambda: [made_items(), *reader_steps()], lambda: mutant(_validate, "duplicate_captures", ("part[0][name] = []", "pass"))
         )
         self.assertEqual(large.count, 5 * small + 1)
 
