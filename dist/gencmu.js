@@ -7290,7 +7290,7 @@
           const names = [];
           for (const item of rule.emit.items) {
             if (item.capture) names.push(item.capture);
-            for (const side of ["before", "after"]) if (item[side]) names.push(...item[side]);
+            for (const side of ["before", "after"]) if (item[side]) for (const name of item[side]) names.push(name);
           }
           if (new Set(names).size !== names.length) {
             firstSemanticFault = fault("an emission lists a capture twice", rule.emit, declAt);
