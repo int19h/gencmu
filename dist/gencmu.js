@@ -6594,8 +6594,11 @@
     /** @type {(value: any) => boolean} */
     const target = value => base(value) || object(value) && value.test === "tags" && base(value.expr);
     const positions = new Set();
-    for (const item of [...dom.rules, ...dom.directives, ...dom.constants, ...dom.classifiers, ...dom.implications]) {
+    const declared = [...dom.rules, ...dom.directives, ...dom.constants, ...dom.classifiers, ...dom.implications];
+    for (const item of declared) {
       if (!object(item) || !position(item.at)) return { problem: "a malformed declaration position" };
+    }
+    for (const item of declared) {
       const key = `${item.at[0]}:${item.at[1]}`;
       if (positions.has(key)) return { problem: "two items at one position", at: item.at };
       positions.add(key);
@@ -6779,7 +6782,9 @@
           return null;
         }
         if (kind === "method-shape") {
-          const problem = methodShapeProblem(value.method, value.receiver, value.args, task.recipe);
+          // An unknown method in a recipe atom is a fault of type inspection,
+          // which reports it after the clause's tag terms (engine §9.3).
+          const problem = task.recipe && typeof value.method === "string" && !METHODS.has(value.method) ? null : methodShapeProblem(value.method, value.receiver, value.args, task.recipe);
           if (problem) return report(problem);
           if (task.query && METHODS.has(value.method) && !QUERY_METHODS.has(value.method)) return report("a condition requires a query method");
         } else if (kind === "expr") {
@@ -6848,27 +6853,25 @@
             return report("a malformed expression");
           }
         } else if (kind === "tags") {
+          // A malformed tag term gets its structural fault from its own task.
+          let retained = null;
+          try { retained = firstEngineLiteral(value); } catch { retained = null; }
+          if (retained) return report("a tag clause cannot introduce an engine tag", retained);
           push("term", value, depth, { params: task.params, at: enclosingAt, featureDirectiveAt: task.featureDirectiveAt });
         } else if (kind === "emission") {
           if (fields.length !== 1 || !Array.isArray(value.items) || !value.items.length) return report("a malformed emission");
-          const names = [];
           for (const item of value.items) {
             if (!exact(item, ["capture", "insert", "tags", "value", "image", "before", "after"]) || ("capture" in item) === ("insert" in item) || "capture" in item && typeof item.capture !== "string" || "insert" in item && item.insert !== true) return report("a malformed emission item", item);
             if (typeof item.capture === "string" && item.capture !== "" && !CAPTURE_NAME.test(item.capture)) return fault("a malformed emission item", undefined, declAt);
-            if (item.capture) names.push(item.capture);
             for (const side of ["before", "after"]) if (side in item) {
               if (!item.capture || !Array.isArray(item[side]) || !item[side].length || !item[side].every((/** @type {any} */ name) => typeof name === "string")) return report("a malformed attachment", item);
               if (!item[side].every((/** @type {string} */ name) => CAPTURE_NAME.test(name))) return fault("a malformed attachment", undefined, declAt);
-              for (const name of item[side]) names.push(name);
             }
           }
-          push("emission-duplicates", value, depth, { names, at: enclosingAt, featureDirectiveAt: task.featureDirectiveAt });
           pushReverse(value.items, item => {
             for (const channel of ["image", "value"]) if (item[channel] !== undefined) push("recipe", item[channel], depth, { params: task.params, at: nodePos(item[channel], nodePos(item, enclosingAt)), featureDirectiveAt: task.featureDirectiveAt });
             if (item.tags !== undefined) push("tags", item.tags, depth, { params: task.params, owner: task.owner, at: nodePos(item.tags, nodePos(item, enclosingAt)), featureDirectiveAt: task.featureDirectiveAt });
           });
-        } else if (kind === "emission-duplicates") {
-          if (new Set(task.names).size !== task.names.length) return report("an emission lists a capture twice");
         } else if (kind === "recipe") {
           if (fields.length !== 1 || !Array.isArray(value.concat) || !value.concat.length) return report("a malformed recipe");
           if (task.message) {
@@ -6882,11 +6885,6 @@
           }
           for (const atom of value.concat) {
             if (!object(atom)) return report("a malformed recipe atom", atom);
-            if (!stringAtom(atom) && !atom.param) {
-              if (!object(atom) || !["value", "image", "source-text", "decomposed-source-text", "verbatim-text"].includes(atom.method) || atom.args?.length !== 0) return report("a malformed recipe atom", atom);
-              const receiver = atom.receiver;
-              if (!(typeof receiver?.capture === "string" && Object.keys(receiver).length === 1) && !(["value", "image"].includes(atom.method) && receiver?.method === "emitted" && receiver.args?.length === 0 && typeof receiver.receiver?.capture === "string" && Object.keys(receiver.receiver).length === 1)) return report("a malformed recipe receiver", atom);
-            }
           }
           pushReverse(value.concat, atom => child("term", atom, { recipe: true }));
         } else if (kind === "condition") {
@@ -7242,8 +7240,12 @@
       } else if (declKind === "rule") {
         const rule = decl;
         if (!rule.instance) {
-          if (rule.tags !== undefined && readsOwnTags(rule.tags)) {
-            firstSemanticFault = fault("a constituent's tags cannot be made of its own: $.tags or $.classes", rule.tags?.clauseAt ? { at: rule.tags.clauseAt } : rule.tags, nodePos(rule.tags, declAt));
+          if (rule.tags !== undefined) {
+            const typeFault = tagTermFault(rule.tags);
+            if (typeFault) firstSemanticFault = fault(typeFault.problem, typeFault.at ? { at: typeFault.at } : typeFault.node, enclosingAtIn(rule, typeFault.node, declAt));
+            else if (readsOwnTags(rule.tags)) {
+              firstSemanticFault = fault("a constituent's tags cannot be made of its own: $.tags or $.classes", rule.tags?.clauseAt ? { at: rule.tags.clauseAt } : rule.tags, nodePos(rule.tags, declAt));
+            }
           }
           for (const alternative of rule.alternatives) {
             if (firstSemanticFault) break;
@@ -7262,9 +7264,16 @@
               firstSemanticFault = fault(`the item capture $${repeatedItem.capture} is read again: the name of an item capture stands once in its alternative`, repeatedItem, enclosingAtIn(alternative.expr, repeatedItem, altAt));
               break;
             }
-            if (alternative.tags !== undefined && readsOwnTags(alternative.tags)) {
-              firstSemanticFault = fault("a constituent's tags cannot be made of its own: $.tags or $.classes", alternative.tags?.clauseAt ? { at: alternative.tags.clauseAt } : alternative.tags, nodePos(alternative.tags, altAt));
-              break;
+            if (alternative.tags !== undefined) {
+              const typeFault = tagTermFault(alternative.tags);
+              if (typeFault) {
+                firstSemanticFault = fault(typeFault.problem, typeFault.at ? { at: typeFault.at } : typeFault.node, enclosingAtIn(rule, typeFault.node, declAt));
+                break;
+              }
+              if (readsOwnTags(alternative.tags)) {
+                firstSemanticFault = fault("a constituent's tags cannot be made of its own: $.tags or $.classes", alternative.tags?.clauseAt ? { at: alternative.tags.clauseAt } : alternative.tags, nodePos(alternative.tags, altAt));
+                break;
+              }
             }
           }
         }
@@ -7277,18 +7286,14 @@
             firstSemanticFault = fault(typeFault.problem, typeFault.at ? { at: typeFault.at } : typeFault.node, enclosingAtIn(rule, typeFault.node, declAt));
           }
         }
-        if (!firstSemanticFault && !rule.instance) {
-          const tagClauses = [
-            ...(rule.tags !== undefined ? [{ term: rule.tags, at: nodePos(rule.tags, declAt) }] : []),
-            ...rule.alternatives.flatMap((/** @type {any} */ alt) => alt.tags !== undefined ? [{ term: alt.tags, at: nodePos(alt.tags, nodePos(alt, declAt)) }] : []),
-            ...(rule.emit ? rule.emit.items.flatMap((/** @type {any} */ item) => item.tags !== undefined ? [{ term: item.tags, at: nodePos(item.tags, nodePos(item, nodePos(rule.emit, declAt))) }] : []) : []),
-          ];
-          for (const { term, at: clauseAt } of tagClauses) {
-            const retained = firstEngineLiteral(term);
-            if (retained) {
-              firstSemanticFault = fault("a tag clause cannot introduce an engine tag", retained, clauseAt);
-              break;
-            }
+        if (!firstSemanticFault && !rule.instance && rule.emit) {
+          const names = [];
+          for (const item of rule.emit.items) {
+            if (item.capture) names.push(item.capture);
+            for (const side of ["before", "after"]) if (item[side]) names.push(...item[side]);
+          }
+          if (new Set(names).size !== names.length) {
+            firstSemanticFault = fault("an emission lists a capture twice", rule.emit, declAt);
           }
         }
         if (!firstSemanticFault && !rule.instance) {
@@ -9383,6 +9388,13 @@
     for (const recipe of recipes) {
       if (recipe === undefined) continue;
       for (const atom of recipe.concat) {
+        const recipeAtom = /** @type {any} */ (atom);
+        const stringAtom = isDomObject(atom) && !recipeAtom.grouped && ["string", "const"].some(key => key in recipeAtom);
+        if (isDomObject(atom) && !stringAtom && !recipeAtom.param) {
+          if (!["value", "image", "source-text", "decomposed-source-text", "verbatim-text"].includes(recipeAtom.method) || recipeAtom.args?.length !== 0) { yield { problem: "a malformed recipe atom", node: atom }; continue; }
+          const receiver = recipeAtom.receiver;
+          if (!(typeof receiver?.capture === "string" && Object.keys(receiver).length === 1) && !(["value", "image"].includes(recipeAtom.method) && receiver?.method === "emitted" && receiver.args?.length === 0 && typeof receiver.receiver?.capture === "string" && Object.keys(receiver.receiver).length === 1)) { yield { problem: "a malformed recipe receiver", node: atom }; continue; }
+        }
         const found = termType(atom, constants);
         if ("problem" in found) { yield found; continue; }
         const problem = expectedProblem(found.type, "string");
@@ -10003,6 +10015,13 @@
         if(key==='default') {
           result[key]={...result[key]};
           copyAt(value,result[key]);
+          // A substituted string default carries its position hidden, like a
+          // written one: only const and param terms carry an `at` member.
+          if ("string" in result[key] && Object.prototype.propertyIsEnumerable.call(result[key], "at")) {
+            const written = result[key].at;
+            delete result[key].at;
+            hideAt(result[key], written);
+          }
         }
       }
       if(position==='pattern' && result.test && result.expr?.exact) {
@@ -22689,9 +22708,9 @@
     /** @param {ResultNode} node @returns {import("./types.js").Gate} */
     function readGate(node) {
       const spelled = valueOf(token(node));
-      const found = /^(¬?)(.*?)([?!]?)$/.exec(spelled);
-      const suffix = found?.[3] ?? "";
-      return hideAt({ feature: found ? found[2] : spelled, kind: /** @type {"gate"} */ (suffix === "?" ? "gate" : (suffix || "invalid")), negated: found?.[1] === "¬" }, at(node));
+      const found = /^(¬?)(?!.*--)([A-Za-z][A-Za-z0-9-]*)(\?)$/.exec(spelled);
+      if (!found) fail("invalid feature guard", node);
+      return hideAt({ feature: found[2], kind: /** @type {"gate"} */ ("gate"), negated: found[1] === "¬" }, at(node));
     }
 
     /**
@@ -22818,11 +22837,11 @@
       const second = choices.length >= 2 ? found.indexOf(choices[1]) : found.length;
       if (markers.length === 1 && markers[0] > second) fail("a separator has no chain marker: ... stands after { or after the item", found[markers[0]]);
       const chain = markers.length === 0 ? null : markers[0] < found.indexOf(choices[0]) ? "left" : "right";
-      /** @type {Expr} */
-      const result = { repeat: yield readExpression(choices[0]), at: at(node) };
+      /** @type {Record<string, any>} */
+      const result = { repeat: yield readExpression(choices[0]) };
       if (choices.length >= 2) result.separator = yield readExpression(choices[1]);
       if (chain) result.chain = chain;
-      return result;
+      return /** @type {Expr} */ ({ ...result, at: at(node) });
     }
 
     /**
@@ -22957,6 +22976,16 @@
       return hideAt({ concat }, at(node));
     }
 
+    /** @param {ResultNode[]} tests @param {boolean} allowed */
+    function checkTestOrder(tests, allowed) {
+      const seen = new Set();
+      for (const test of tests) {
+        const kind = ruleOf(test);
+        if (!allowed || seen.has(kind) || (kind === "tag-test" && seen.has("value-test"))) fail("this target or test order is invalid", test);
+        seen.add(kind);
+      }
+    }
+
     /** @param {ResultNode} node @returns {Generator<Step, any, any>} */
     function* readTest(node, pattern = false) {
       if (ruleOf(node) === "tag-test") {
@@ -22965,7 +22994,7 @@
           const operand = only(requirement, "test-operand");
           const inner = knownOf(operand, ATOMS);
           const value = pattern && ruleOf(inner) === "tag" && valueOf(token(inner)) === "_Elided" ? hideAt({ tag: "_Elided" }, at(token(inner))) : yield readTerm(inner);
-          if (ruleOf(inner) === "term") {
+          if (["term", "term-atom"].includes(ruleOf(inner))) {
             hideAt(value, /** @type {any} */ (true), "grouped");
             hideAt(value, at(operand));
           }
@@ -22977,7 +23006,7 @@
       const operand = only(node, "test-operand");
       const inner = knownOf(operand, ATOMS);
       const value = yield readTerm(inner);
-      if (ruleOf(inner) === "term") {
+      if (["term", "term-atom"].includes(ruleOf(inner))) {
         hideAt(value, /** @type {any} */ (true), "grouped");
         hideAt(value, at(operand));
       }
@@ -23354,6 +23383,7 @@
           first.kind === "token" && ["Lowercase-Name", "Emoji-Name"].includes(first.terminal);
         const tests = inner.filter(child => ["tag-test", "value-test"].includes(ruleOf(child)));
         const testsOnly = ["tag-test", "value-test"].includes(ruleOf(first));
+        checkTestOrder(tests, true);
         if (testsOnly) fail("a pattern test requires an atom", first);
         if (["call", "parameter"].includes(ruleOf(first))) {
           let expr = ruleOf(first) === "call" ? yield readCall(first) : readParameter(first);

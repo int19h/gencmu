@@ -1,0 +1,14 @@
+{
+  "description": "Within a rule declaration, a structural engine-tag literal fault in a later alternative precedes a duplicate capture in an earlier alternative and reports at the tag token (engine §9.3).",
+  "grammar": "%rule text\n  | $x:A $x:B\n  | C :: _General_Category_Letter",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 10
+    },
+    "message": "a tag clause cannot introduce an engine tag"
+  }
+}
