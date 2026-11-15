@@ -1,6 +1,5 @@
 //! Private source annotations survive substitution but never enter keys or JSON.
 use super::*;
-use std::collections::BTreeMap;
 pub(crate) fn source_at(n: &Json) -> Option<(usize, usize)> {
     let s = get(n, SOURCE);
     at(s)
@@ -10,33 +9,6 @@ pub(crate) fn source_at(n: &Json) -> Option<(usize, usize)> {
         })
         .or_else(|| at(n))
 }
-fn ranked_at(n: &Json) -> Option<(usize, usize)> {
-    at(&obj([("at", get(get(n, SOURCE), "ranked").clone())]))
-}
-fn record_rank(n: &mut Json, a: (usize, usize)) {
-    let mut s = if get(n, SOURCE).as_object().is_some() {
-        get(n, SOURCE).clone()
-    } else {
-        obj([("at", source_at(n).map_or(Json::Null, position))])
-    };
-    set(&mut s, "ranked", position(a));
-    set(n, SOURCE, s);
-}
-fn expression(n: &Json, path: String, locations: &mut BTreeMap<String, (usize, usize)>) {
-    if let Some(a) = ranked_at(n) {
-        locations.insert(path.clone(), a);
-    }
-    for k in ["seq", "choice", "ranked", "and"] {
-        for (i, v) in list(get(n, k)).iter().enumerate() {
-            expression(v, format!("{path}/{k}/{i}"), locations)
-        }
-    }
-    for k in ["optional", "repeat", "separator", "expr"] {
-        if let Some(v) = n.get(k) {
-            expression(v, format!("{path}/{k}"), locations)
-        }
-    }
-}
 fn channels(channels: &mut dom::Channels, n: &Json) {
     channels.value_at = n.get("value").and_then(source_at);
     channels.image_at = n.get("image").and_then(source_at);
@@ -45,25 +17,25 @@ fn term(t: &mut dom::Term, n: &Json) {
     use dom::{Arg, Term};
     match t {
         Term::Body(body) => restore_defaults(std::sync::Arc::make_mut(body), get(n, "body")),
-        Term::Union(xs) | Term::Intersection(xs) => {
+        Term::Union(xs, ..) | Term::Intersection(xs, ..) => {
             let key = if has(n, "union") { "union" } else { "intersection" };
             for (t, n) in xs.iter_mut().zip(list(get(n, key))) {
                 term(t, n)
             }
         }
-        Term::Difference(a, b) => {
+        Term::Difference(a, b, ..) => {
             let xs = list(get(n, "difference"));
             if xs.len() == 2 {
                 term(a, &xs[0]);
                 term(b, &xs[1])
             }
         }
-        Term::If(c, t) => {
+        Term::If(c, t, ..) => {
             cond(c, get(n, "if"));
             term(t, get(n, "then"))
         }
-        Term::Pattern(pattern) => restore_pattern(pattern, get(n, "pattern")),
-        Term::Call(_, args) => {
+        Term::Pattern(pattern, ..) => restore_pattern(pattern, get(n, "pattern")),
+        Term::Call(_, args, ..) => {
             if let Some(Arg::Term(receiver)) = args.first_mut() {
                 term(receiver, get(n, "receiver"))
             }
@@ -79,7 +51,7 @@ fn term(t: &mut dom::Term, n: &Json) {
 fn cond(c: &mut dom::Cond, n: &Json) {
     use dom::Cond;
     match c {
-        Cond::Forest(t) => term(t, n),
+        Cond::Forest(t, ..) => term(t, n),
         Cond::Boundary(_, receiver, _, location) => {
             let location = std::sync::Arc::make_mut(location);
             location.at = source_at(n);
@@ -91,13 +63,13 @@ fn cond(c: &mut dom::Cond, n: &Json) {
             term(a, get(n, "left"));
             term(b, get(n, "right"))
         }
-        Cond::Initial(r) | Cond::Final(r) => term(r, get(n, "receiver")),
-        Cond::If(a, b) => {
+        Cond::Initial(r, ..) | Cond::Final(r, ..) => term(r, get(n, "receiver")),
+        Cond::If(a, b, ..) => {
             cond(a, get(n, "if"));
             cond(b, get(n, "then"))
         }
-        Cond::Not(c) => cond(c, get(n, "not")),
-        Cond::Any(xs) | Cond::All(xs) => {
+        Cond::Not(c, ..) => cond(c, get(n, "not")),
+        Cond::Any(xs, ..) | Cond::All(xs, ..) => {
             let k = if has(n, "any") { "any" } else { "all" };
             for (c, n) in xs.iter_mut().zip(list(get(n, k))) {
                 cond(c, n)
@@ -109,7 +81,6 @@ fn cond(c: &mut dom::Cond, n: &Json) {
 pub(crate) fn restore_rule(rule: &mut dom::RuleDef, n: &Json) {
     channels(&mut rule.strings, n);
     for (alt, n) in rule.alternatives.iter_mut().zip(list(get(n, "alternatives"))) {
-        expression(get(n, "expr"), String::new(), &mut alt.ranked_locations);
         restore_defaults(&mut alt.expr, get(n, "expr"));
         channels(&mut alt.strings, n);
         if let Some(t) = &mut alt.tags {
@@ -185,14 +156,13 @@ fn annotate_arguments(args: &[dom::source::SourceArgument], n: &mut Json) {
 fn annotate_expr(expr: &dom::Expr, n: &mut Json) {
     use dom::Expr;
     match expr {
-        Expr::Ranked(_, Some(at)) => record_rank(n, *at),
-        Expr::Source(symbol) => annotate_source(symbol, n),
-        Expr::Literal(term) => {
+        Expr::Source(symbol, ..) => annotate_source(symbol, n),
+        Expr::Literal(term, _) => {
             if let Some(n) = slot(n, "literal") {
                 annotate_term(term, n);
             }
         }
-        Expr::ScalarRange(a, b) => {
+        Expr::ScalarRange(a, b, _) => {
             if let Some(Json::Arr(xs)) = slot(n, "range") {
                 if xs.len() == 2 {
                     annotate_term(a, &mut xs[0]);
@@ -200,7 +170,7 @@ fn annotate_expr(expr: &dom::Expr, n: &mut Json) {
                 }
             }
         }
-        Expr::Tested(kind, term, _) if kind != "tags" => {
+        Expr::Tested(kind, term, _, _) if kind != "tags" => {
             if let Some(n) = slot(n, "value") {
                 annotate_term(term, n);
             }
@@ -208,11 +178,11 @@ fn annotate_expr(expr: &dom::Expr, n: &mut Json) {
         _ => (),
     }
     match expr {
-        Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs, _) | Expr::And(xs) => {
+        Expr::Seq(xs, _) | Expr::Choice(xs, _) | Expr::Ranked(xs, _) | Expr::And(xs, _) => {
             let key = match expr {
-                Expr::Seq(_) => "seq",
-                Expr::Choice(_) => "choice",
-                Expr::And(_) => "and",
+                Expr::Seq(_, _) => "seq",
+                Expr::Choice(_, _) => "choice",
+                Expr::And(_, _) => "and",
                 _ => "ranked",
             };
             if let Some(Json::Arr(values)) = slot(n, key) {
@@ -221,10 +191,10 @@ fn annotate_expr(expr: &dom::Expr, n: &mut Json) {
                 }
             }
         }
-        Expr::Optional(inner, _, _)
-        | Expr::Repeat(inner, _, _)
-        | Expr::Capture(_, inner)
-        | Expr::Tested(_, _, inner) => {
+        Expr::Optional(inner, _, _, _)
+        | Expr::Repeat(inner, _, _, _)
+        | Expr::Capture(_, inner, _)
+        | Expr::Tested(_, _, inner, _) => {
             let key = match expr {
                 Expr::Optional(..) => "optional",
                 Expr::Repeat(..) => "repeat",
@@ -233,7 +203,7 @@ fn annotate_expr(expr: &dom::Expr, n: &mut Json) {
             if let Some(n) = slot(n, key) {
                 annotate_expr(inner, n);
             }
-            if let Expr::Repeat(_, Some(separator), _) = expr {
+            if let Expr::Repeat(_, Some(separator), _, _) = expr {
                 if let Some(n) = slot(n, "separator") {
                     annotate_expr(separator, n);
                 }
@@ -359,12 +329,12 @@ fn annotate_term(t: &dom::Term, n: &mut Json) {
             }
         }
         Term::Source(symbol) => annotate_source(symbol, n),
-        Term::Pattern(pattern) => {
+        Term::Pattern(pattern, ..) => {
             if let Some(n) = slot(n, "pattern") {
                 annotate_pattern(pattern, n);
             }
         }
-        Term::If(c, t) => {
+        Term::If(c, t, ..) => {
             if let Some(v) = slot(n, "if") {
                 annotate_condition(c, v)
             }
@@ -372,7 +342,7 @@ fn annotate_term(t: &dom::Term, n: &mut Json) {
                 annotate_term(t, v)
             }
         }
-        Term::Union(xs) | Term::Intersection(xs) => {
+        Term::Union(xs, ..) | Term::Intersection(xs, ..) => {
             let k = if has(n, "union") { "union" } else { "intersection" };
             if let Some(Json::Arr(values)) = slot(n, k) {
                 for (t, n) in xs.iter().zip(values) {
@@ -380,7 +350,7 @@ fn annotate_term(t: &dom::Term, n: &mut Json) {
                 }
             }
         }
-        Term::Difference(a, b) => {
+        Term::Difference(a, b, ..) => {
             if let Some(Json::Arr(xs)) = slot(n, "difference") {
                 if xs.len() == 2 {
                     annotate_term(a, &mut xs[0]);
@@ -388,7 +358,7 @@ fn annotate_term(t: &dom::Term, n: &mut Json) {
                 }
             }
         }
-        Term::Call(name, args) => {
+        Term::Call(name, args, ..) => {
             if name == "concat" {
                 if let Some(Json::Arr(xs)) = slot(n, "concat") {
                     for (a, n) in args.iter().zip(xs) {
@@ -418,7 +388,7 @@ fn annotate_term(t: &dom::Term, n: &mut Json) {
 pub(crate) fn annotate_condition(c: &dom::Cond, n: &mut Json) {
     use dom::Cond;
     match c {
-        Cond::Forest(t) => annotate_term(t, n),
+        Cond::Forest(t, ..) => annotate_term(t, n),
         Cond::SourceQuery(_, args, location) => {
             locate(n, location.at);
             if let Some(dom::Arg::Term(receiver)) = args.first() {
@@ -455,12 +425,12 @@ pub(crate) fn annotate_condition(c: &dom::Cond, n: &mut Json) {
                 annotate_term(b, n)
             }
         }
-        Cond::Initial(r) | Cond::Final(r) => {
+        Cond::Initial(r, ..) | Cond::Final(r, ..) => {
             if let Some(n) = slot(n, "receiver") {
                 annotate_term(r, n)
             }
         }
-        Cond::If(a, b) => {
+        Cond::If(a, b, ..) => {
             if let Some(n) = slot(n, "if") {
                 annotate_condition(a, n)
             }
@@ -468,12 +438,12 @@ pub(crate) fn annotate_condition(c: &dom::Cond, n: &mut Json) {
                 annotate_condition(b, n)
             }
         }
-        Cond::Not(c) => {
+        Cond::Not(c, ..) => {
             if let Some(n) = slot(n, "not") {
                 annotate_condition(c, n)
             }
         }
-        Cond::Any(cs) | Cond::All(cs) => {
+        Cond::Any(cs, ..) | Cond::All(cs, ..) => {
             let k = if has(n, "any") { "any" } else { "all" };
             if let Some(Json::Arr(xs)) = slot(n, k) {
                 for (c, n) in cs.iter().zip(xs) {
@@ -495,7 +465,7 @@ fn annotate_channels(c: &dom::Channels, n: &mut Json) {
 fn restore_defaults(expr: &mut dom::Expr, n: &Json) {
     use dom::Expr;
     match expr {
-        Expr::Optional(inner, _, default) => {
+        Expr::Optional(inner, _, default, _) => {
             if let (Some(default), Some(value)) = (default, n.get("default")) {
                 default.at = source_at(value);
             }
@@ -503,7 +473,7 @@ fn restore_defaults(expr: &mut dom::Expr, n: &Json) {
                 restore_defaults(inner, n);
             }
         }
-        Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs, _) | Expr::And(xs) => {
+        Expr::Seq(xs, _) | Expr::Choice(xs, _) | Expr::Ranked(xs, _) | Expr::And(xs, _) => {
             let key = ["seq", "choice", "ranked", "and"].into_iter().find(|key| has(n, key)).unwrap();
             if let Some(Json::Arr(ns)) = n.get(key) {
                 for (x, n) in xs.iter_mut().zip(ns) {
@@ -511,12 +481,12 @@ fn restore_defaults(expr: &mut dom::Expr, n: &Json) {
                 }
             }
         }
-        Expr::Splice(x) | Expr::Capture(_, x) | Expr::Tested(_, _, x) => {
+        Expr::Splice(x, _) | Expr::Capture(_, x, _) | Expr::Tested(_, _, x, _) => {
             if let Some(n) = n.get("expr") {
                 restore_defaults(x, n);
             }
         }
-        Expr::Repeat(x, separator, _) => {
+        Expr::Repeat(x, separator, _, _) => {
             if let Some(n) = n.get("repeat") {
                 restore_defaults(x, n);
             }
@@ -530,7 +500,7 @@ fn restore_defaults(expr: &mut dom::Expr, n: &Json) {
 fn annotate_defaults(expr: &dom::Expr, n: &mut Json) {
     use dom::Expr;
     match expr {
-        Expr::Optional(inner, _, default) => {
+        Expr::Optional(inner, _, default, _) => {
             if let (Some(default), Some(value)) = (default, slot(n, "default")) {
                 locate(value, default.at);
             }
@@ -538,10 +508,10 @@ fn annotate_defaults(expr: &dom::Expr, n: &mut Json) {
                 annotate_defaults(inner, n);
             }
         }
-        Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs, _) | Expr::And(xs) => {
+        Expr::Seq(xs, _) | Expr::Choice(xs, _) | Expr::Ranked(xs, _) | Expr::And(xs, _) => {
             let key = match expr {
-                Expr::Seq(_) => "seq",
-                Expr::Choice(_) => "choice",
+                Expr::Seq(_, _) => "seq",
+                Expr::Choice(_, _) => "choice",
                 Expr::Ranked(_, _) => "ranked",
                 _ => "and",
             };
@@ -551,12 +521,12 @@ fn annotate_defaults(expr: &dom::Expr, n: &mut Json) {
                 }
             }
         }
-        Expr::Splice(x) | Expr::Capture(_, x) | Expr::Tested(_, _, x) => {
+        Expr::Splice(x, _) | Expr::Capture(_, x, _) | Expr::Tested(_, _, x, _) => {
             if let Some(n) = slot(n, "expr") {
                 annotate_defaults(x, n);
             }
         }
-        Expr::Repeat(x, separator, _) => {
+        Expr::Repeat(x, separator, _, _) => {
             if let Some(n) = slot(n, "repeat") {
                 annotate_defaults(x, n);
             }
@@ -590,11 +560,6 @@ pub(crate) fn annotate_rule(rule: &dom::RuleDef, n: &mut Json) {
             if let Some(t) = &alt.tags {
                 if let Some(n) = slot(n, "tags") {
                     annotate_term(t, n)
-                }
-            }
-            for (path, a) in &alt.ranked_locations {
-                if let Some(n) = slot(n, "expr").and_then(|n| path_slot(n, path)) {
-                    record_rank(n, *a)
                 }
             }
         }
@@ -651,26 +616,6 @@ pub(crate) fn annotate_document(raw: &mut Json, dom: &Dom) {
     }
 }
 
-fn path_slot<'a>(mut n: &'a mut Json, path: &str) -> Option<&'a mut Json> {
-    for key in path.split('/').filter(|s| !s.is_empty()) {
-        n = slot(n, key)?
-    }
-    Some(n)
-}
-
-pub(crate) fn restore_document(dom: &mut Dom, raw: &Json) {
-    for (r, n) in dom.rules.iter_mut().zip(list(get(raw, "rules"))) {
-        restore_rule(r, n)
-    }
-    for (d, n) in dom.directives.iter_mut().zip(list(get(raw, "directives"))) {
-        if let Some(cs) = &mut d.conditions {
-            for (c, n) in cs.iter_mut().zip(list(get(n, "conditions"))) {
-                cond(c, n)
-            }
-        }
-    }
-}
-
 fn restore_pattern(pattern: &mut crate::patterns::Pattern, n: &Json) {
     use crate::patterns::{Children, Pattern};
     fn children(items: &mut Children, n: &Json) {
@@ -722,5 +667,18 @@ fn restore_pattern(pattern: &mut crate::patterns::Pattern, n: &Json) {
         }
         Pattern::Path(_, p) => restore_pattern(p, get(n, "pattern")),
         _ => (),
+    }
+}
+
+pub(crate) fn restore_document(dom: &mut Dom, raw: &Json) {
+    for (r, n) in dom.rules.iter_mut().zip(list(get(raw, "rules"))) {
+        restore_rule(r, n)
+    }
+    for (d, n) in dom.directives.iter_mut().zip(list(get(raw, "directives"))) {
+        if let Some(cs) = &mut d.conditions {
+            for (c, n) in cs.iter_mut().zip(list(get(n, "conditions"))) {
+                cond(c, n)
+            }
+        }
     }
 }

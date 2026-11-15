@@ -7,12 +7,12 @@ pub(crate) fn guards(term: &Term) -> Vec<(&Cond, &Term)> {
     let mut found = Vec::new();
     while let Some(term) = pending.pop() {
         match term {
-            Term::If(condition, value) if !crate::boundary::dom_atoms(condition).is_empty() => {
+            Term::If(condition, value, ..) if !crate::boundary::dom_atoms(condition).is_empty() => {
                 found.push((&**condition, &**value))
             }
-            Term::If(_, value) => pending.push(value),
-            Term::Union(items) | Term::Intersection(items) => pending.extend(items.iter().rev()),
-            Term::Difference(a, b) => pending.extend([&**b, &**a]),
+            Term::If(_, value, ..) => pending.push(value),
+            Term::Union(items, ..) | Term::Intersection(items, ..) => pending.extend(items.iter().rev()),
+            Term::Difference(a, b, ..) => pending.extend([&**b, &**a]),
             _ => {}
         }
     }
@@ -20,19 +20,19 @@ pub(crate) fn guards(term: &Term) -> Vec<(&Cond, &Term)> {
 }
 fn closed(term: &Term) -> bool {
     match term {
-        Term::Tag(_)
-        | Term::EmptySet
+        Term::Tag(..)
+        | Term::EmptySet(..)
         | Term::Const(..)
         | Term::Source(crate::dom::source::SourceSymbol::Parameter(..)) => true,
-        Term::Union(items) | Term::Intersection(items) => items.iter().all(closed),
-        Term::Difference(a, b) => closed(a) && closed(b),
+        Term::Union(items, ..) | Term::Intersection(items, ..) => items.iter().all(closed),
+        Term::Difference(a, b, ..) => closed(a) && closed(b),
         _ => false,
     }
 }
 pub(crate) fn problem(term: &Term) -> Option<(&'static str, &Cond)> {
     for (condition, value) in guards(term) {
-        let atom = if let Cond::Not(atom) = condition { &**atom } else { condition };
-        if !matches!(atom, Cond::Boundary(_, Term::Capture(name), _, _) if name.is_empty()) {
+        let atom = if let Cond::Not(atom, ..) = condition { &**atom } else { condition };
+        if !matches!(atom, Cond::Boundary(_, Term::Capture(name, ..), _, _) if name.is_empty()) {
             return Some(("a tag guard requires one optionally negated neighbour atom on $", atom));
         }
         if !closed(value) {
@@ -44,10 +44,10 @@ pub(crate) fn problem(term: &Term) -> Option<(&'static str, &Cond)> {
 fn literal(term: &Term) -> BTreeSet<String> {
     crate::work::count(crate::work::Work::Visits, 1);
     match term {
-        Term::Tag(name) => BTreeSet::from([name.clone()]),
-        Term::EmptySet => BTreeSet::new(),
-        Term::Union(items) => items.iter().flat_map(literal).collect(),
-        Term::Intersection(items) => {
+        Term::Tag(name, ..) => BTreeSet::from([name.clone()]),
+        Term::EmptySet(..) => BTreeSet::new(),
+        Term::Union(items, ..) => items.iter().flat_map(literal).collect(),
+        Term::Intersection(items, ..) => {
             let mut result = items.first().map(literal).unwrap_or_default();
             for item in items.iter().skip(1) {
                 let right = literal(item);
@@ -55,7 +55,7 @@ fn literal(term: &Term) -> BTreeSet<String> {
             }
             result
         }
-        Term::Difference(a, b) => {
+        Term::Difference(a, b, ..) => {
             let remove = literal(b);
             literal(a).difference(&remove).cloned().collect()
         }
@@ -64,7 +64,7 @@ fn literal(term: &Term) -> BTreeSet<String> {
 }
 pub(crate) type Key = (bool, BTreeSet<String>);
 fn atom(condition: &Cond) -> (&Cond, bool) {
-    if let Cond::Not(inner) = condition {
+    if let Cond::Not(inner, ..) = condition {
         (&**inner, true)
     } else {
         (condition, false)
@@ -91,26 +91,33 @@ pub(crate) fn variants(term: &Term) -> Result<Vec<(Term, Vec<Cond>)>, String> {
     }
     fn replace(term: &Term, variables: &[(Key, Cond)], values: &[bool]) -> Term {
         match term {
-            Term::If(condition, value) if !crate::boundary::dom_atoms(condition).is_empty() => {
+            Term::If(condition, value, ..) if !crate::boundary::dom_atoms(condition).is_empty() => {
                 if literal(value).is_empty() {
-                    return Term::EmptySet;
+                    return Term::EmptySet(crate::dom::Hidden::NONE);
                 }
                 let (condition, negated) = atom(condition);
                 let index = variables.iter().position(|(k, _)| *k == key(condition)).unwrap();
                 if values[index] != negated {
                     (**value).clone()
                 } else {
-                    Term::EmptySet
+                    Term::EmptySet(crate::dom::Hidden::NONE)
                 }
             }
-            Term::If(c, t) => Term::If(c.clone(), Box::new(replace(t, variables, values))),
-            Term::Union(items) => Term::Union(items.iter().map(|t| replace(t, variables, values)).collect()),
-            Term::Intersection(items) => {
-                Term::Intersection(items.iter().map(|t| replace(t, variables, values)).collect())
+            Term::If(c, t, ..) => {
+                Term::If(c.clone(), Box::new(replace(t, variables, values)), crate::dom::Hidden::NONE)
             }
-            Term::Difference(a, b) => {
-                Term::Difference(Box::new(replace(a, variables, values)), Box::new(replace(b, variables, values)))
+            Term::Union(items, ..) => {
+                Term::Union(items.iter().map(|t| replace(t, variables, values)).collect(), crate::dom::Hidden::NONE)
             }
+            Term::Intersection(items, ..) => Term::Intersection(
+                items.iter().map(|t| replace(t, variables, values)).collect(),
+                crate::dom::Hidden::NONE,
+            ),
+            Term::Difference(a, b, ..) => Term::Difference(
+                Box::new(replace(a, variables, values)),
+                Box::new(replace(b, variables, values)),
+                crate::dom::Hidden::NONE,
+            ),
             _ => term.clone(),
         }
     }
@@ -142,7 +149,15 @@ pub(crate) fn variants(term: &Term) -> Result<Vec<(Term, Vec<Cond>)>, String> {
             let conditions = variables
                 .iter()
                 .zip(values.iter())
-                .map(|((_, c), yes)| if *yes { c.clone() } else { Cond::Not(Box::new(c.clone())) })
+                .map(
+                    |((_, c), yes)| {
+                        if *yes {
+                            c.clone()
+                        } else {
+                            Cond::Not(Box::new(c.clone()), crate::dom::Hidden::NONE)
+                        }
+                    },
+                )
                 .collect();
             result.push((replace(term, variables, values), conditions));
         } else {
@@ -171,11 +186,19 @@ mod tests {
 
     #[test]
     fn nested_intersections_visit_each_operand_once() {
-        let pair = || Term::Union(vec![Term::Tag("T".into()), Term::Tag("U".into())]);
+        let pair = || {
+            Term::Union(
+                vec![Term::Tag("T".into(), crate::dom::Hidden::NONE), Term::Tag("U".into(), crate::dom::Hidden::NONE)],
+                crate::dom::Hidden::NONE,
+            )
+        };
         let depth = 24;
         let mut term = pair();
         for _ in 0..depth {
-            term = Term::Intersection(vec![pair(), Term::Union(vec![pair(), term])]);
+            term = Term::Intersection(
+                vec![pair(), Term::Union(vec![pair(), term], crate::dom::Hidden::NONE)],
+                crate::dom::Hidden::NONE,
+            );
         }
         let visits = 8 * depth + 3;
         work::reset();

@@ -72,8 +72,8 @@ fn pinned_public_edits() {
             .alternatives
             .iter()
             .map(|a| match &a.alternative.expr {
-                dom::Expr::Literal(dom::Term::Str(s)) => s.clone(),
-                dom::Expr::Terminal(s) => crate::tags::string_value(s, &g.unicode).unwrap(),
+                dom::Expr::Literal(dom::Term::Str(s, ..), _) => s.clone(),
+                dom::Expr::Terminal(s, _) => crate::tags::string_value(s, &g.unicode).unwrap(),
                 e => panic!("literal expected: {e:?}"),
             })
             .collect();
@@ -135,9 +135,12 @@ fn supplied_dom_closure_and_scope() {
 #[test]
 fn supplied_body_normalizes() {
     let mut d = read("%rule atom(@X) @X\n%rule text atom(\"a\") atom(\"a\")");
-    let dom::Expr::Seq(items) = &mut d.rules[1].alternatives[0].expr else { panic!("a sequence") };
-    let dom::Expr::Source(dom::source::SourceSymbol::Call(call)) = &mut items[1] else { panic!("a call") };
-    call.args[0] = dom::source::SourceArgument::Body(dom::Expr::Literal(dom::Term::Str("a".into())));
+    let dom::Expr::Seq(items, _) = &mut d.rules[1].alternatives[0].expr else { panic!("a sequence") };
+    let dom::Expr::Source(dom::source::SourceSymbol::Call(call), ..) = &mut items[1] else { panic!("a call") };
+    call.args[0] = dom::source::SourceArgument::Body(dom::Expr::Literal(
+        dom::Term::Str("a".into(), crate::dom::Hidden::NONE),
+        crate::dom::ExprAt::from(None),
+    ));
     let x = expand(&[(Arc::from("grammars/test/test.md"), Arc::new(d))], &unicode()).unwrap().unwrap();
     assert_eq!(x.instance_names.len(), 1);
 }
@@ -192,15 +195,19 @@ fn deep_bodies() {
     for supplied in [false, true] {
         let mut d = read("%rule atom(@X) @X\n%rule text atom(\"a\")");
         let mut expr = if supplied {
-            dom::Expr::Literal(dom::Term::Str("a".into()))
+            dom::Expr::Literal(dom::Term::Str("a".into(), crate::dom::Hidden::NONE), crate::dom::ExprAt::from(None))
         } else {
-            dom::Expr::Source(dom::source::SourceSymbol::Parameter("X".into(), (2, 16)))
+            dom::Expr::Source(dom::source::SourceSymbol::Parameter("X".into(), (2, 16)), crate::dom::Hidden::NONE)
         };
         for _ in 0..250 {
-            expr = dom::Expr::Seq(vec![expr, dom::Expr::Empty]);
+            expr = dom::Expr::Seq(
+                vec![expr, dom::Expr::Empty(crate::dom::ExprAt::from(None))],
+                crate::dom::ExprAt::from(None),
+            );
         }
         if supplied {
-            let dom::Expr::Source(dom::source::SourceSymbol::Call(call)) = &mut d.rules[1].alternatives[0].expr else {
+            let dom::Expr::Source(dom::source::SourceSymbol::Call(call), ..) = &mut d.rules[1].alternatives[0].expr
+            else {
                 panic!("a call")
             };
             call.args[0] = dom::source::SourceArgument::Body(expr);
@@ -226,12 +233,12 @@ fn uncalled_source_validation() {
     for (source, message) in [
         ("%rule unused(@X) $x:A $x:@X", "the capture $x is read twice by one production"),
         ("%rule unused(@X) $x:(A @X)", "a capture wraps one symbol"),
-        ("%rule unused(@X) @X %emits $x :: @X, $x", "a repeated emission capture"),
-        ("%rule unused(@X) @X %emits ($y) $x ($y) :: @X", "a repeated emission capture"),
+        ("%rule unused(@X) @X %emits $x :: @X, $x", "an emission lists a capture twice"),
+        ("%rule unused(@X) @X %emits ($y) $x ($y) :: @X", "an emission lists a capture twice"),
         ("%rule unused(@X) @X :: _L ∪ @X", "engine tag"),
         ("%rule unused(@X) @X :: $.tags ∪ @X", "$.tags or $.classes"),
-        ("%rule unused(@X) @X := @X %erased", "erased"),
-        ("%rule unused(@X) [+| @X]", "without | or &"),
+        ("%rule unused(@X) @X := @X %erased", "erasure"),
+        ("%rule unused(@X) [+| @X]", "a malformed optional"),
         (
             "%rule unused(@X) @X %conditions $.without-elision.parse(… text)",
             "suffix parse requires an ordinary span, not a restored span",
@@ -272,20 +279,21 @@ fn pattern_test_operands() {
     assert!(crate::tools::read_grammar_document(&format!("```jbogenbau\n{source}\n```\n"), "").is_ok());
 }
 #[test]
-fn ranked_locations_do_not_change_dom() {
+fn ranked_positions_do_not_change_dom() {
     let d = located("%rule pair(@X,@Y) @X @Y\n%rule text pair(\"a\",\"b\") (\"c\" ≻ \"d\") :: ∅");
     let before = dom::dom_to_json(&d);
     assert_eq!(dom::dom_to_json(&d), before);
     let x = expand(&[(Arc::from("grammars/test/locations.md"), Arc::new(d))], &unicode()).unwrap().unwrap();
     let r = x.documents.iter().flat_map(|(_, d)| &d.rules).find(|r| r.name == "text").unwrap();
-    assert_eq!(r.alternatives[0].ranked_locations["/seq/1"], (3, 31));
+    let dom::Expr::Seq(items, _) = &r.alternatives[0].expr else { panic!("a sequence") };
+    assert_eq!(items[1].at(), Some((3, 31)));
 }
 #[test]
 fn ranked_argument_location() {
     let d = located("%rule choice(@X) @X :: ∅\n%rule text choice((\"a\" ≻ \"b\"))");
     let x = expand(&[(Arc::from("grammars/test/locations.md"), Arc::new(d))], &unicode()).unwrap().unwrap();
     let r = x.documents.iter().flat_map(|(_, d)| &d.rules).find(|r| r.name == "choice((\"a\" ≻ \"b\"))").unwrap();
-    assert_eq!(r.alternatives[0].ranked_locations[""], (3, 24));
+    assert_eq!(r.alternatives[0].expr.at(), Some((3, 24)));
 }
 
 #[test]
@@ -294,7 +302,7 @@ fn cached_location_recovery_preserves_public_source_members() {
     let source = located(text);
     let mut cached = read(text);
     cached.rules[1].name = "cached".into();
-    let dom::Expr::Source(dom::source::SourceSymbol::Call(call)) = &mut cached.rules[1].alternatives[0].expr else {
+    let dom::Expr::Source(dom::source::SourceSymbol::Call(call), ..) = &mut cached.rules[1].alternatives[0].expr else {
         panic!("a source call");
     };
     call.at = (90, 91);
@@ -303,11 +311,14 @@ fn cached_location_recovery_preserves_public_source_members() {
     else {
         panic!("a ranked body");
     };
-    options[0] = dom::Expr::Literal(dom::Term::Const("Cached".into(), (92, 93)));
+    options[0] = dom::Expr::Literal(
+        dom::Term::Const("Cached".into(), (92, 93), crate::dom::Hidden::NONE),
+        crate::dom::ExprAt::from(None),
+    );
     let before = dom::dom_to_json(&cached);
     dom::source::restore_locations(&mut cached, &source);
     assert_eq!(dom::dom_to_json(&cached), before);
-    let dom::Expr::Source(dom::source::SourceSymbol::Call(call)) = &cached.rules[1].alternatives[0].expr else {
+    let dom::Expr::Source(dom::source::SourceSymbol::Call(call), ..) = &cached.rules[1].alternatives[0].expr else {
         panic!("a source call");
     };
     let (dom::source::SourceArgument::Body(dom::Expr::Ranked(_, at))
@@ -315,7 +326,7 @@ fn cached_location_recovery_preserves_public_source_members() {
     else {
         panic!("a ranked body");
     };
-    assert_eq!(*at, Some((3, 18)));
+    assert_eq!(*at, crate::dom::ExprAt::from(Some((3, 18))));
 }
 
 #[test]
@@ -359,11 +370,11 @@ fn deep_source_constructors_report_the_dom_limit() {
         .unwrap();
 }
 #[test]
-fn ordinary_ranked_locations_survive_template_expansion() {
+fn ordinary_ranked_positions_survive_template_expansion() {
     let d = located("%rule unused(@X) @X\n%rule text (\"a\" ≻ \"b\") :: ∅");
     let x = expand(&[(Arc::from("grammars/test/locations.md"), Arc::new(d))], &unicode()).unwrap().unwrap();
     let r = x.documents.iter().flat_map(|(_, d)| &d.rules).find(|r| r.name == "text").unwrap();
-    assert_eq!(r.alternatives[0].ranked_locations[""], (3, 17));
+    assert_eq!(r.alternatives[0].expr.at(), Some((3, 17)));
 }
 
 #[test]

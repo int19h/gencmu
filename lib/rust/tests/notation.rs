@@ -176,10 +176,15 @@ fn an_optional_is_marked_elidable_in_place() {
     let expect = |json: &str| parse_json(json).unwrap();
     assert_eq!(
         expr("%rule text A [+KU 🆓]"),
-        expect(r##"{"seq":[{"ref":"A"},{"optional":{"seq":[{"ref":"KU"},{"ref":"🆓"}]},"elidable":true}]}"##)
+        expect(
+            r##"{"seq":[{"ref":"A","at":[2,12]},{"optional":{"seq":[{"ref":"KU","at":[2,16]},{"ref":"🆓","at":[2,19]}],"at":[2,16]},"elidable":true,"at":[2,14]}],"at":[2,12]}"##
+        )
     );
-    assert_eq!(expr("%rule text [+TOI]"), expect(r#"{"optional":{"ref":"TOI"},"elidable":true}"#));
-    assert_eq!(expr("%rule text [KU]"), expect(r#"{"optional":{"ref":"KU"}}"#));
+    assert_eq!(
+        expr("%rule text [+TOI]"),
+        expect(r#"{"optional":{"ref":"TOI","at":[2,14]},"elidable":true,"at":[2,12]}"#)
+    );
+    assert_eq!(expr("%rule text [KU]"), expect(r#"{"optional":{"ref":"KU","at":[2,13]},"at":[2,12]}"#));
 }
 
 /// Braces read as repeat, with a separator and a chain's direction, and
@@ -195,8 +200,16 @@ fn braces_are_read_and_their_misplaced_forms_refused() {
     let expect = |json: &str| parse_json(json).unwrap();
     let rules = dom.get("rules").unwrap().array();
     let expr = |rule: usize| rules[rule].get("alternatives").unwrap().array()[0].get("expr").unwrap().clone();
-    assert_eq!(expr(1), expect(r#"{"repeat":{"ref":"L"},"separator":{"ref":"M"},"chain":"left"}"#));
-    assert_eq!(expr(2), expect(r#"{"repeat":{"choice":[{"ref":"N"},{"ref":"O"}]},"chain":"right"}"#));
+    assert_eq!(
+        expr(1),
+        expect(r#"{"repeat":{"ref":"L","at":[3,14]},"separator":{"ref":"M","at":[3,18]},"chain":"left","at":[3,9]}"#)
+    );
+    assert_eq!(
+        expr(2),
+        expect(
+            r#"{"repeat":{"choice":[{"ref":"N","at":[4,10]},{"ref":"O","at":[4,14]}],"at":[4,10]},"chain":"right","at":[4,9]}"#
+        )
+    );
     for refused in [
         "%rule text {}",
         "%rule text {A \\}",

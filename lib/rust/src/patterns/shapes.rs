@@ -25,7 +25,9 @@ fn get<'a>(n: &'a Json, key: &str) -> &'a Json {
     }
 }
 fn only(n: &Json, keys: &[&str]) -> bool {
-    n.as_object().is_some_and(|fields| fields.len() == keys.len() && keys.iter().all(|k| has(n, k)))
+    n.as_object().is_some_and(|fields| {
+        fields.iter().filter(|(key, _)| !key.starts_with('\0')).count() == keys.len() && keys.iter().all(|k| has(n, k))
+    })
 }
 fn position(n: &Json) -> bool {
     n.as_array().is_some_and(|a| {

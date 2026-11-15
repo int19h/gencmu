@@ -38,20 +38,22 @@ fn references(expr: &Expr, written: bool) -> Vec<String> {
     while let Some(expr) = pending.pop() {
         work::count(Work::Walked, 1);
         match expr {
-            Expr::Ref(name) => {
+            Expr::Ref(name, _) => {
                 if seen.insert(name.clone()) {
                     refs.push(name.clone());
                 }
             }
-            Expr::Splice(e) | Expr::Optional(e, _, _) | Expr::Capture(_, e) | Expr::Tested(_, _, e) => pending.push(e),
-            Expr::Seq(xs) | Expr::Choice(xs) | Expr::And(xs) | Expr::Ranked(xs, _) => {
+            Expr::Splice(e, _) | Expr::Optional(e, _, _, _) | Expr::Capture(_, e, _) | Expr::Tested(_, _, e, _) => {
+                pending.push(e)
+            }
+            Expr::Seq(xs, _) | Expr::Choice(xs, _) | Expr::And(xs, _) | Expr::Ranked(xs, _) => {
                 if written {
                     pending.extend(xs.iter().rev());
                 } else {
                     pending.extend(xs);
                 }
             }
-            Expr::Repeat(e, s, _) => {
+            Expr::Repeat(e, s, _, _) => {
                 if written {
                     pending.extend(s.as_deref());
                     pending.push(e);
@@ -143,7 +145,7 @@ fn targets(root: Part<'_>, cache: &mut FxMap<(u8, usize), Arc<Targets>>) -> Arc<
         }
         let mut found = Vec::new();
         let mut filter = false;
-        if let Part::Term(Term::Call(method, args)) = part {
+        if let Part::Term(Term::Call(method, args, ..)) = part {
             filter = method == "error-free";
             if method == "parse" {
                 if let Some(Arg::Term(Term::Body(body))) = args.get(1) {
@@ -298,13 +300,19 @@ pub(crate) fn notes(g: &StageGrammar) -> Vec<DiagnosticNote> {
             if !has_guards {
                 continue;
             }
-            let term = Term::Union(alt.alternative.tags.iter().chain(&alt.clauses.tags).cloned().collect());
+            let term = Term::Union(
+                alt.alternative.tags.iter().chain(&alt.clauses.tags).cloned().collect(),
+                crate::dom::Hidden::NONE,
+            );
             let owner = RuleDef {
+                places: Default::default(),
+                name_at: crate::dom::Unseen(None),
                 source: Default::default(),
                 deferred_emission: None,
                 name: rule.name.clone(),
                 op: crate::dom::Op::Define,
                 tags: alt.clauses.tags.clone(),
+                tags_at: Default::default(),
                 strings: alt.clauses.strings.clone(),
                 alternatives: vec![alt.alternative.clone()],
                 emit: alt.clauses.emit.clone(),

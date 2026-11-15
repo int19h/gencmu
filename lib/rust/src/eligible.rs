@@ -1101,15 +1101,53 @@ mod tests {
         (document, dom)
     }
 
+    /// Removes the position of every expression node outside a pattern,
+    /// which a supplied DOM may omit (`docs/output.md`).
+    fn strip_expression_positions(value: &mut crate::json::Json, in_pattern: bool) {
+        use crate::json::Json;
+        const FORMS: [&str; 15] = [
+            "seq",
+            "choice",
+            "ranked",
+            "and",
+            "optional",
+            "repeat",
+            "ref",
+            "literal",
+            "range",
+            "wildcard",
+            "splice",
+            "capture",
+            "test",
+            "empty",
+            "remainder",
+        ];
+        match value {
+            Json::Arr(items) => items.iter_mut().for_each(|item| strip_expression_positions(item, in_pattern)),
+            Json::Obj(fields) => {
+                if !in_pattern && fields.iter().any(|(key, _)| FORMS.contains(&key.as_str())) {
+                    fields.retain(|(key, _)| key != "at");
+                }
+                for (key, value) in fields.iter_mut() {
+                    strip_expression_positions(value, in_pattern || key == "pattern");
+                }
+            }
+            _ => {}
+        }
+    }
+
     /// The eligible witnesses of `begins` as the library finds them and as
     /// the oracle does, for one random grammar and input; `None` when the
     /// round checks nothing.
     fn round(rng: &mut Rng, pipeline_dom: &str, check_dom: bool) -> Option<(Vec<bool>, Vec<bool>, String)> {
         let (document, dom) = grammar(rng);
         if check_dom {
-            // The DOM given to the cache is the one the notation reads.
+            // The DOM given to the cache is the one the notation reads,
+            // apart from the expression positions that it may omit.
             let read = crate::tools::read_grammar_document(&document, "").expect("the document");
-            assert_eq!(crate::json::parse(&read).ok(), crate::json::parse(&dom).ok(), "{dom}\n{read}");
+            let mut read_value = crate::json::parse(&read).expect("the read DOM");
+            strip_expression_positions(&mut read_value, false);
+            assert_eq!(Some(read_value), crate::json::parse(&dom).ok(), "{dom}\n{read}");
         }
         let preparsed = format!(
             r#"{{"format":{},"bootstrap":"{}","unicode":"{}","properties":"{}","documents":{{"grammars/test/main.md":{{"hash":"{}","dom":{dom}}},"grammars/test/p.md":{{"hash":"{}","dom":{pipeline_dom}}}}}}}"#,

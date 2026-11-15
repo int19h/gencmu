@@ -4,34 +4,29 @@
 
 pub(crate) mod partial;
 pub(crate) mod schema;
+pub(crate) mod shape;
 pub(crate) mod source;
 pub(crate) mod writing;
 use source::{SourceHead, SourceSymbol};
 pub(crate) fn dom_problem(dom: &crate::json::Json, unicode: &crate::unicode::Unicode) -> Option<String> {
-    let cleaned = known_dom_members(dom);
-    let dom = cleaned.as_ref().unwrap_or(dom);
-    if let Some(problem) = shape_problem(dom, unicode) {
-        return Some(problem);
-    }
-    let Ok(mut decoded) = decode_nodes(dom) else { return Some("a malformed DOM node".into()) };
-    schema::decoded_problem(dom, &mut decoded)
+    dom_fault(dom, unicode).map(|fault| fault.problem)
 }
 
-fn shape_problem(dom: &Json, unicode: &Unicode) -> Option<String> {
-    let roots = ["rules", "directives", "constants", "classifiers", "implications"];
-    for part in roots.iter().filter_map(|key| dom.get(key)).flat_map(crate::parameters::nodes) {
-        for field in ["ref", "tag", "terminal"] {
-            if let Some(name) = part.get(field).and_then(crate::json::Json::as_str) {
-                if name.starts_with('_')
-                    && !(field == "tag" && name == "_Elided")
-                    && unicode.canonical_tag(name) != Some(name)
-                {
-                    return Some("unknown, unavailable, or noncanonical engine tag".into());
-                }
-            }
-        }
-    }
-    schema::structure_problem(dom, unicode, false)
+/// The first fault of a supplied DOM, in the order of engine §9.3 step 5.
+pub(crate) fn dom_fault(dom: &crate::json::Json, unicode: &crate::unicode::Unicode) -> Option<schema::DomFault> {
+    let cleaned = known_dom_members(dom);
+    let dom = cleaned.as_ref().unwrap_or(dom);
+    schema::validate(dom, unicode, false, None)
+}
+
+/// The first fault of a DOM whose typed form is at hand, as when a reader
+/// has just read it (engine §9.3 step 5).
+pub(crate) fn validate_typed(
+    dom: &crate::json::Json,
+    typed: &mut Dom,
+    unicode: &crate::unicode::Unicode,
+) -> Option<schema::DomFault> {
+    schema::validate(dom, unicode, false, Some(typed))
 }
 
 fn known_dom_members(dom: &Json) -> Option<Json> {
@@ -67,11 +62,10 @@ fn known_dom_members(dom: &Json) -> Option<Json> {
 
 use crate::fxhash::FxSet;
 use crate::json::{write_str, Json};
-use crate::tags::is_name;
 use crate::unicode::Unicode;
 
 /// The DOM format version (`docs/output.md`), part of every cache key.
-pub const DOM_FORMAT: i64 = 49;
+pub const DOM_FORMAT: i64 = 50;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct Dom {
@@ -90,6 +84,8 @@ pub(crate) struct Dom {
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct ClassifierDef {
     pub name: String,
+    /// Where the name stands, when a reader wrote it.
+    pub name_at: Unseen<Option<(usize, usize)>>,
     pub entries: Vec<Entry>,
     pub at: (usize, usize),
 }
@@ -102,6 +98,8 @@ pub(crate) struct Entry {
     pub keys: Vec<Term>,
     pub adds: bool,
     pub class: String,
+    /// Where the class stands, when a reader wrote it.
+    pub class_at: Unseen<Option<(usize, usize)>>,
     pub at: (usize, usize),
 }
 
@@ -131,6 +129,8 @@ pub(crate) fn is_classifier_name(name: &str) -> bool {
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct ConstDef {
     pub name: String,
+    /// Where the name stands, when a reader wrote it.
+    pub name_at: Unseen<Option<(usize, usize)>>,
     pub redefine: bool,
     pub value: Term,
     pub at: (usize, usize),
@@ -159,8 +159,16 @@ pub(crate) struct RuleDef {
     pub source: SourceHead,
     pub deferred_emission: Option<crate::clauses::DefinitionIssue>,
     pub name: String,
+    /// Where the name stands, when a reader wrote it.
+    pub name_at: Unseen<Option<(usize, usize)>>,
     pub op: Op,
     pub tags: Option<Term>,
+    /// Where the header tags clause and its term stand, when a reader
+    /// wrote them.
+    pub tags_at: Unseen<ClauseAt>,
+    /// Where the other parts of the definition stand, when a reader wrote
+    /// them.
+    pub places: Unseen<RulePlaces>,
     pub strings: Channels,
     pub alternatives: Vec<Alternative>,
     pub emit: Option<Vec<EmitItem>>,
@@ -200,37 +208,239 @@ pub(crate) struct Alternative {
     pub gates: Vec<Gate>,
     pub expr: Expr,
     pub tags: Option<Term>,
+    /// Where the alternative tags clause and its term stand, when a reader
+    /// wrote them.
+    pub tags_at: Unseen<ClauseAt>,
     pub strings: Channels,
-    pub ranked_locations: std::collections::BTreeMap<String, (usize, usize)>,
+    /// Where the alternative stands, when a reader wrote it.
+    pub at: Unseen<Option<(usize, usize)>>,
+}
+
+/// A value that a reader knows and a DOM does not hold, which equality
+/// ignores (engine §9.3).
+#[derive(Clone, Copy, Default)]
+pub(crate) struct Unseen<T>(pub T);
+
+impl<T> PartialEq for Unseen<T> {
+    fn eq(&self, _: &Unseen<T>) -> bool {
+        true
+    }
+}
+
+impl<T> std::fmt::Debug for Unseen<T> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("_")
+    }
+}
+
+impl<T> std::ops::Deref for Unseen<T> {
+    type Target = T;
+    fn deref(&self) -> &T {
+        &self.0
+    }
+}
+
+/// Where a tag clause stands, and where its term does.
+#[derive(Clone, Copy, Default)]
+pub(crate) struct ClauseAt {
+    pub clause: Option<(usize, usize)>,
+    pub term: Option<(usize, usize)>,
+}
+
+/// Where the parts of a definition stand, as a reader knows them.
+#[derive(Clone, Default)]
+pub(crate) struct RulePlaces {
+    /// The position of each template parameter of the head.
+    pub param_ats: Vec<(usize, usize)>,
+    /// Whether a binding was written with a head call.
+    pub has_head: bool,
+    /// The emission clause, and each of its items.
+    pub emit_at: Option<(usize, usize)>,
+    pub item_ats: Vec<(usize, usize)>,
+    /// The tag term of each emission item that has one.
+    pub item_tags_ats: Vec<Option<(usize, usize)>>,
+    /// The `%error` and `%warning` clauses.
+    pub error_at: Option<(usize, usize)>,
+    pub warning_at: Option<(usize, usize)>,
+}
+
+/// The position of an expression node, when it is known, which its DOM
+/// holds: a supplied DOM can omit it on any expression node but a call or
+/// a parameter. A reader also knows whether parentheses group the node,
+/// which the DOM does not hold and equality ignores (engine §9.3).
+#[derive(Clone, Copy, Default)]
+pub(crate) struct ExprAt {
+    pub at: Option<(usize, usize)>,
+    pub grouped: bool,
+}
+
+impl From<Option<(usize, usize)>> for ExprAt {
+    fn from(at: Option<(usize, usize)>) -> ExprAt {
+        ExprAt { at, grouped: false }
+    }
+}
+
+impl PartialEq for ExprAt {
+    fn eq(&self, other: &ExprAt) -> bool {
+        self.at == other.at
+    }
+}
+
+impl std::fmt::Debug for ExprAt {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.at.fmt(formatter)
+    }
+}
+
+/// What a reader knows of a term or a condition and a DOM does not hold:
+/// where it stands in its document, and whether parentheses group it
+/// (engine §9.3). Two terms that differ only here are equal.
+/// The position is held in two 32-bit halves, line 0 for none, so that
+/// every term stays small.
+#[derive(Clone, Copy, Default)]
+pub(crate) struct Hidden {
+    line: u32,
+    column: u32,
+    pub grouped: bool,
+}
+
+impl Hidden {
+    pub(crate) const NONE: Hidden = Hidden { line: 0, column: 0, grouped: false };
+
+    pub(crate) fn at(at: (usize, usize)) -> Hidden {
+        let mut hidden = Hidden::NONE;
+        hidden.set(Some(at));
+        hidden
+    }
+
+    /// Where the node stands, when a reader knows it.
+    pub(crate) fn position(&self) -> Option<(usize, usize)> {
+        (self.line > 0).then_some((self.line as usize, self.column as usize))
+    }
+
+    /// Sets where the node stands. A position past what 32 bits hold is
+    /// none.
+    pub(crate) fn set(&mut self, at: Option<(usize, usize)>) {
+        (self.line, self.column) = at
+            .and_then(|(line, column)| Some((u32::try_from(line).ok()?, u32::try_from(column).ok()?)))
+            .unwrap_or((0, 0));
+    }
+}
+
+impl PartialEq for Hidden {
+    fn eq(&self, _: &Hidden) -> bool {
+        true
+    }
+}
+
+impl std::fmt::Debug for Hidden {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("_")
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Expr {
-    Source(SourceSymbol),
-    Seq(Vec<Expr>),
-    Choice(Vec<Expr>),
-    Ranked(Vec<Expr>, Option<(usize, usize)>),
-    And(Vec<Expr>),
+    Source(SourceSymbol, Hidden),
+    Seq(Vec<Expr>, ExprAt),
+    Choice(Vec<Expr>, ExprAt),
+    Ranked(Vec<Expr>, ExprAt),
+    And(Vec<Expr>, ExprAt),
     /// An optional `[x]`, or an elidable optional `[+T x]` (§3.8).
-    Optional(Box<Expr>, Mark, Option<DefaultValue>),
+    Optional(Box<Expr>, Mark, Option<DefaultValue>, ExprAt),
     /// Braces: the item, the separator after `/` if any, and a chain's
     /// direction, from its marker `...` (engine §3.2, §3.3).
-    Repeat(Box<Expr>, Option<Box<Expr>>, Option<Chain>),
-    Splice(Box<Expr>),
-    Ref(String),
-    Terminal(String),
-    Literal(Term),
-    ScalarRange(Term, Term),
+    Repeat(Box<Expr>, Option<Box<Expr>>, Option<Chain>, ExprAt),
+    Splice(Box<Expr>, ExprAt),
+    Ref(String, ExprAt),
+    Terminal(String, ExprAt),
+    Literal(Term, ExprAt),
+    ScalarRange(Term, Term, ExprAt),
     /// A bound range's scalar endpoints, with the start not above the end.
-    Range(char, char),
+    Range(char, char, ExprAt),
     /// The wildcard `_`, which reads any ordinary token.
-    Wildcard,
-    Capture(String, Box<Expr>),
+    Wildcard(ExprAt),
+    Capture(String, Box<Expr>, ExprAt),
     /// A symbol with `=`, `≠`, or signed `tags` requirements (§2, §4).
     /// The closed operand precedes the wrapped symbol in this representation.
-    Tested(String, Term, Box<Expr>),
-    Empty,
-    Remainder,
+    Tested(String, Term, Box<Expr>, ExprAt),
+    Empty(ExprAt),
+    Remainder(ExprAt),
+}
+
+impl Expr {
+    pub(crate) fn at(&self) -> Option<(usize, usize)> {
+        match self {
+            Self::Source(symbol, ..) => Some(symbol.at()),
+            expr => expr.place().and_then(|place| place.at),
+        }
+    }
+
+    /// Whether parentheses group the expression (engine §9.3).
+    pub(crate) fn grouped(&self) -> bool {
+        match self {
+            Self::Source(_, hidden) => hidden.grouped,
+            expr => expr.place().is_some_and(|place| place.grouped),
+        }
+    }
+
+    /// Marks the expression as grouped by parentheses.
+    pub(crate) fn group(&mut self) {
+        match self {
+            Self::Source(_, hidden) => hidden.grouped = true,
+            expr => {
+                if let Some(place) = expr.place_mut() {
+                    place.grouped = true;
+                }
+            }
+        }
+    }
+
+    pub(crate) fn place(&self) -> Option<&ExprAt> {
+        match self {
+            Self::Source(..) => None,
+            Self::Seq(_, at)
+            | Self::Choice(_, at)
+            | Self::Ranked(_, at)
+            | Self::And(_, at)
+            | Self::Optional(_, _, _, at)
+            | Self::Repeat(_, _, _, at)
+            | Self::Splice(_, at)
+            | Self::Ref(_, at)
+            | Self::Terminal(_, at)
+            | Self::Literal(_, at)
+            | Self::ScalarRange(_, _, at)
+            | Self::Range(_, _, at)
+            | Self::Wildcard(at)
+            | Self::Capture(_, _, at)
+            | Self::Tested(_, _, _, at)
+            | Self::Empty(at)
+            | Self::Remainder(at) => Some(at),
+        }
+    }
+
+    pub(crate) fn place_mut(&mut self) -> Option<&mut ExprAt> {
+        match self {
+            Self::Source(..) => None,
+            Self::Seq(_, at)
+            | Self::Choice(_, at)
+            | Self::Ranked(_, at)
+            | Self::And(_, at)
+            | Self::Optional(_, _, _, at)
+            | Self::Repeat(_, _, _, at)
+            | Self::Splice(_, at)
+            | Self::Ref(_, at)
+            | Self::Terminal(_, at)
+            | Self::Literal(_, at)
+            | Self::ScalarRange(_, _, at)
+            | Self::Range(_, _, at)
+            | Self::Wildcard(at)
+            | Self::Capture(_, _, at)
+            | Self::Tested(_, _, _, at)
+            | Self::Empty(at)
+            | Self::Remainder(at) => Some(at),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -261,24 +471,24 @@ pub(crate) enum Chain {
 pub(crate) enum Term {
     Body(std::sync::Arc<Expr>),
     Source(SourceSymbol),
-    Pattern(Box<crate::patterns::Pattern>),
+    Pattern(Box<crate::patterns::Pattern>, Hidden),
     /// A string, decoded.
-    Str(String),
+    Str(String, Hidden),
     /// A tag literal: the set of one tag, in its canonical spelling.
-    Tag(String),
+    Tag(String, Hidden),
     /// The empty set, with no fixed element type.
-    EmptySet,
-    Union(Vec<Term>),
-    Intersection(Vec<Term>),
+    EmptySet(Hidden),
+    Union(Vec<Term>, Hidden),
+    Intersection(Vec<Term>, Hidden),
     /// `a ∖ b`: the members of the first set that are not in the second.
-    Difference(Box<Term>, Box<Term>),
-    Call(String, Vec<Arg>),
-    Capture(String),
+    Difference(Box<Term>, Box<Term>, Hidden),
+    Call(String, Vec<Arg>, Hidden),
+    Capture(String, Hidden),
     /// `A ⟹ t`: `t` where the condition holds, else the empty set.
-    If(Box<Cond>, Box<Term>),
+    If(Box<Cond>, Box<Term>, Hidden),
     /// A reference to a constant, by its name without `$`, and where it
     /// stands. Stitching replaces it with the constant's value (engine §2).
-    Const(String, (usize, usize)),
+    Const(String, (usize, usize), Hidden),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -288,7 +498,7 @@ pub(crate) enum Arg {
     /// The second argument of `classify`, a classifier's name (engine §9).
     Classifier(String),
     /// A positive decimal literal without a machine size limit.
-    Integer(String),
+    Integer(String, Hidden),
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -299,23 +509,23 @@ pub(crate) struct BoundaryLocation {
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Cond {
-    Forest(Term),
-    Truthy(Term),
+    Forest(Term, Hidden),
+    Truthy(Term, Hidden),
     SourceQuery(String, Vec<Arg>, BoundaryLocation),
     Compare(String, Term, Term, Option<(usize, usize)>),
     /// `initial(s)`: whether the span begins where the parse's input does.
-    Initial(Term),
-    Final(Term),
+    Initial(Term, Hidden),
+    Final(Term, Hidden),
     /// A complete-tree neighbor, with its direction and target choice.
     /// Clones share the annotation's identity even without source locations.
     Boundary(bool, Term, Vec<String>, std::sync::Arc<BoundaryLocation>),
-    Not(Box<Cond>),
-    Any(Vec<Cond>),
-    All(Vec<Cond>),
+    Not(Box<Cond>, Hidden),
+    Any(Vec<Cond>, Hidden),
+    All(Vec<Cond>, Hidden),
     /// `$x` standing as a condition: whether the production has the capture.
-    Captured(String),
+    Captured(String, Hidden),
     /// `A ⟹ B`.
-    If(Box<Cond>, Box<Cond>),
+    If(Box<Cond>, Box<Cond>, Hidden),
 }
 
 /// An item of an emission clause. A capture named `""` is `$`, the whole
@@ -418,17 +628,15 @@ fn position(value: &Json) -> R<(usize, usize)> {
 pub(crate) fn dom_from_json(value: &Json, unicode: &Unicode) -> R<Dom> {
     let cleaned = known_dom_members(value);
     let value = cleaned.as_ref().unwrap_or(value);
-    if let Some(problem) = shape_problem(value, unicode) {
-        return Err(problem);
+    // The DOM the validator inspects is the one returned, which keeps
+    // what its definition checks find (engine §9.3).
+    match decode_nodes(value) {
+        Ok(mut dom) => match schema::validate(value, unicode, false, Some(&mut dom)) {
+            Some(fault) => Err(fault.problem),
+            None => Ok(dom),
+        },
+        Err(problem) => Err(schema::validate(value, unicode, false, None).map_or(problem, |fault| fault.problem)),
     }
-    decode_checked(value, unicode)
-}
-pub(crate) fn decode_checked(value: &Json, _unicode: &Unicode) -> R<Dom> {
-    let mut dom = decode_nodes(value)?;
-    if let Some(problem) = schema::decoded_problem(value, &mut dom) {
-        return Err(problem);
-    }
-    Ok(dom)
 }
 
 pub(crate) fn decode_nodes(value: &Json) -> R<Dom> {
@@ -461,6 +669,7 @@ pub(crate) fn decode_nodes(value: &Json) -> R<Dom> {
         .map(|constant| {
             Ok(ConstDef {
                 name: string(constant, "name")?,
+                name_at: crate::dom::Unseen(None),
                 redefine: string(constant, "op")? == "redefine",
                 value: term_from_json(field(constant, "value")?)?,
                 at: position(constant)?,
@@ -472,6 +681,7 @@ pub(crate) fn decode_nodes(value: &Json) -> R<Dom> {
         .map(|classifier| {
             Ok(ClassifierDef {
                 name: string(classifier, "name")?,
+                name_at: crate::dom::Unseen(None),
                 entries: array(classifier, "entries")?
                     .iter()
                     .map(|entry| {
@@ -480,6 +690,7 @@ pub(crate) fn decode_nodes(value: &Json) -> R<Dom> {
                             keys: array(entry, "keys")?.iter().map(term_from_json).collect::<R<Vec<_>>>()?,
                             adds: string(entry, "op")? == "∈",
                             class: string(entry, "class")?,
+                            class_at: crate::dom::Unseen(None),
                             at: position(entry)?,
                         })
                     })
@@ -508,70 +719,17 @@ pub(crate) fn requirements_from_json(value: &Json) -> R<Term> {
         .map(|requirement| {
             let value = term_from_json(field(requirement, "value")?)?;
             Ok(Arg::Term(if is_true(requirement.get("negated")) {
-                Term::Call("forbid".into(), vec![Arg::Term(value)])
+                Term::Call("forbid".into(), vec![Arg::Term(value)], crate::dom::Hidden::NONE)
             } else {
                 value
             }))
         })
         .collect::<R<Vec<_>>>()?;
-    Ok(Term::Call("requirements".into(), items))
+    Ok(Term::Call("requirements".into(), items, crate::dom::Hidden::NONE))
 }
 
 pub(crate) fn is_engine_tag(name: &str) -> bool {
     schema::engine_tag(name)
-}
-
-/// Engine literals retained by the complete tag clause, with occurrence
-/// indexes. A filter removes provenance as well as membership (engine §1).
-pub(crate) fn engine_literals(term: &Term) -> Vec<(String, usize)> {
-    let mut pending = vec![(term, false)];
-    let mut values: Vec<Vec<(String, usize)>> = Vec::new();
-    let mut occurrence = 0;
-    while let Some((term, ready)) = pending.pop() {
-        if !ready {
-            match term {
-                Term::Tag(name) if is_engine_tag(name) => {
-                    values.push(vec![(name.clone(), occurrence)]);
-                    occurrence += 1;
-                }
-                Term::Union(items) | Term::Intersection(items) => {
-                    pending.push((term, true));
-                    pending.extend(items.iter().rev().map(|item| (item, false)));
-                }
-                Term::Difference(left, right) => {
-                    pending.push((term, true));
-                    pending.push((right, false));
-                    pending.push((left, false));
-                }
-                Term::If(_, then) => pending.push((then, false)),
-                _ => values.push(Vec::new()),
-            }
-        } else {
-            match term {
-                Term::Union(items) => {
-                    let parts = values.split_off(values.len() - items.len());
-                    values.push(parts.into_iter().flatten().collect());
-                }
-                Term::Intersection(items) => {
-                    let parts = values.split_off(values.len() - items.len());
-                    let retained = parts
-                        .first()
-                        .into_iter()
-                        .flatten()
-                        .map(|(name, _)| name)
-                        .filter(|name| parts.iter().all(|part| part.iter().any(|(other, _)| other == *name)))
-                        .cloned()
-                        .collect::<FxSet<_>>();
-                    values.push(parts.into_iter().flatten().filter(|(name, _)| retained.contains(name)).collect());
-                }
-                Term::Difference(..) => {
-                    values.pop();
-                }
-                _ => unreachable!(),
-            }
-        }
-    }
-    values.pop().unwrap_or_default()
 }
 
 fn channels_from_json(value: &Json) -> R<Channels> {
@@ -602,7 +760,7 @@ pub(crate) fn steps_from_json(value: &Json) -> R<Vec<Step>> {
         .map(|step| {
             if !step
                 .as_object()
-                .is_some_and(|fields| fields.iter().all(|(key, _)| matches!(key.as_str(), "step" | "pattern")))
+                .is_some_and(|fields| fields.iter().all(|(key, _)| matches!(key.as_str(), "step" | "pattern" | "\0at")))
             {
                 return Err("a malformed ranking step".into());
             }
@@ -614,7 +772,8 @@ pub(crate) fn steps_from_json(value: &Json) -> R<Vec<Step>> {
                         if operand.get("const").is_some() {
                             term_from_json(operand)
                         } else {
-                            crate::patterns::Pattern::from_json(operand).map(|p| Term::Pattern(Box::new(p)))
+                            crate::patterns::Pattern::from_json(operand)
+                                .map(|p| Term::Pattern(Box::new(p), crate::dom::Hidden::NONE))
                         }
                     })
                     .transpose()?,
@@ -632,21 +791,25 @@ pub(crate) fn rule_from_json(value: &Json) -> R<RuleDef> {
         other => return Err(format!("an unknown rule op {other:?}")),
     };
     Ok(RuleDef {
+        places: Default::default(),
         source: SourceHead::from_json(value)?,
         deferred_emission: None,
         name: string(value, "name")?,
+        name_at: crate::dom::Unseen(None),
         op,
         tags: value.get("tags").map(term_from_json).transpose()?,
+        tags_at: Default::default(),
         strings: channels_from_json(value)?,
         alternatives: if value.get("instance").is_some() { &[] } else { array(value, "alternatives")? }
             .iter()
             .map(|alternative| {
                 Ok(Alternative {
+                    at: Default::default(),
                     gates: array(alternative, "gates")?.iter().map(gate_from_json).collect::<R<Vec<_>>>()?,
                     expr: expr_from_json(field(alternative, "expr")?)?,
                     tags: alternative.get("tags").map(term_from_json).transpose()?,
+                    tags_at: Default::default(),
                     strings: channels_from_json(alternative)?,
-                    ranked_locations: Default::default(),
                 })
             })
             .collect::<R<Vec<_>>>()?,
@@ -665,6 +828,14 @@ pub(crate) fn rule_from_json(value: &Json) -> R<RuleDef> {
         erased: is_true(value.get("erased")),
         at: position(value)?,
     })
+}
+
+/// A position, from its JSON pair.
+fn position_value(value: &Json) -> Option<(usize, usize)> {
+    match value.as_array()? {
+        [Json::Int(line), Json::Int(column)] if *line >= 1 && *column >= 1 => Some((*line as usize, *column as usize)),
+        _ => None,
+    }
 }
 
 fn first_key(value: &Json) -> R<&str> {
@@ -710,15 +881,31 @@ fn first_key(value: &Json) -> R<&str> {
         .ok_or_else(|| "an empty JSON object".into())
 }
 
+pub(crate) fn json_at(value: &Json) -> Option<(usize, usize)> {
+    match value.get("at") {
+        Some(Json::Arr(pair)) => match pair.as_slice() {
+            [Json::Int(line), Json::Int(column)] if *line >= 1 && *column >= 1 => {
+                Some((*line as usize, *column as usize))
+            }
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+fn expr_at(value: &Json) -> ExprAt {
+    ExprAt { at: json_at(value), grouped: shape::hidden(value, "grouped") == Some(&Json::Bool(true)) }
+}
+
 fn expr_from_json(value: &Json) -> R<Expr> {
     enum Task<'a> {
         Read(&'a Json),
-        List(&'a str, usize),
-        Tested(String, Term),
-        Optional(Mark, Option<DefaultValue>),
-        Repeat(Option<Chain>, bool),
-        Capture(String),
-        Splice,
+        List(&'a str, usize, ExprAt),
+        Tested(String, Term, ExprAt),
+        Optional(ExprAt, Mark, Option<DefaultValue>),
+        Repeat(Option<Chain>, bool, ExprAt),
+        Capture(String, ExprAt),
+        Splice(ExprAt),
     }
     let mut pending = vec![Task::Read(value)];
     let mut values = Vec::new();
@@ -733,25 +920,26 @@ fn expr_from_json(value: &Json) -> R<Expr> {
                     } else {
                         term_from_json(field(value, "value")?)?
                     };
-                    pending.push(Task::Tested(op, term));
+                    pending.push(Task::Tested(op, term, expr_at(value)));
                     pending.push(Task::Read(field(value, "expr")?));
                     continue;
                 }
                 match first_key(value)? {
                     key @ ("seq" | "choice" | "ranked" | "and") => {
                         let items = array(value, key)?;
-                        pending.push(Task::List(key, items.len()));
+                        pending.push(Task::List(key, items.len(), expr_at(value)));
                         pending.extend(items.iter().rev().map(Task::Read));
                         continue;
                     }
                     "splice" => {
-                        pending.push(Task::Splice);
+                        pending.push(Task::Splice(expr_at(value)));
                         pending.push(Task::Read(field(value, "splice")?));
                         continue;
                     }
                     "optional" => {
                         let mark = if is_true(value.get("elidable")) { Mark::Elidable } else { Mark::Plain };
                         pending.push(Task::Optional(
+                            expr_at(value),
                             mark,
                             value
                                 .get("default")
@@ -774,48 +962,51 @@ fn expr_from_json(value: &Json) -> R<Expr> {
                             Some("right") => Some(Chain::Right),
                             Some(_) => return Err("a bad chain".to_string()),
                         };
-                        pending.push(Task::Repeat(chain, separator.is_some()));
+                        pending.push(Task::Repeat(chain, separator.is_some(), expr_at(value)));
                         pending.push(Task::Read(field(value, "repeat")?));
                         pending.extend(separator.map(Task::Read));
                         continue;
                     }
-                    "ref" => Expr::Ref(string(value, "ref")?),
-                    "literal" => Expr::Literal(term_from_json(field(value, "literal")?)?),
-                    "wildcard" => Expr::Wildcard,
-                    "remainder" => Expr::Remainder,
+                    "ref" => Expr::Ref(string(value, "ref")?, expr_at(value)),
+                    "literal" => Expr::Literal(term_from_json(field(value, "literal")?)?, expr_at(value)),
+                    "wildcard" => Expr::Wildcard(expr_at(value)),
+                    "remainder" => Expr::Remainder(expr_at(value)),
                     "range" => match array(value, "range")? {
-                        [start, end] => Expr::ScalarRange(term_from_json(start)?, term_from_json(end)?),
+                        [start, end] => Expr::ScalarRange(term_from_json(start)?, term_from_json(end)?, expr_at(value)),
                         _ => return Err("a range requires two string terms".into()),
                     },
                     "capture" => {
-                        pending.push(Task::Capture(string(value, "capture")?));
+                        pending.push(Task::Capture(string(value, "capture")?, expr_at(value)));
                         pending.push(Task::Read(field(value, "expr")?));
                         continue;
                     }
-                    "param" | "call" => Expr::Source(SourceSymbol::from_json(value)?),
-                    "empty" => Expr::Empty,
+                    "param" | "call" => Expr::Source(
+                        SourceSymbol::from_json(value)?,
+                        Hidden { grouped: shape::hidden(value, "grouped") == Some(&Json::Bool(true)), ..Hidden::NONE },
+                    ),
+                    "empty" => Expr::Empty(expr_at(value)),
                     other => return Err(format!("an unknown expression {other:?}")),
                 }
             }
-            Task::List(key, count) => {
+            Task::List(key, count, at) => {
                 let items = values.split_off(values.len() - count);
                 match key {
-                    "seq" => Expr::Seq(items),
-                    "choice" => Expr::Choice(items),
-                    "ranked" => Expr::Ranked(items, None),
-                    "and" => Expr::And(items),
+                    "seq" => Expr::Seq(items, at),
+                    "choice" => Expr::Choice(items, at),
+                    "ranked" => Expr::Ranked(items, at),
+                    "and" => Expr::And(items, at),
                     _ => unreachable!(),
                 }
             }
-            Task::Tested(op, term) => Expr::Tested(op, term, Box::new(values.pop().unwrap())),
-            Task::Optional(mark, default) => Expr::Optional(Box::new(values.pop().unwrap()), mark, default),
-            Task::Repeat(chain, separated) => {
+            Task::Tested(op, term, at) => Expr::Tested(op, term, Box::new(values.pop().unwrap()), at),
+            Task::Optional(at, mark, default) => Expr::Optional(Box::new(values.pop().unwrap()), mark, default, at),
+            Task::Repeat(chain, separated, at) => {
                 let item = Box::new(values.pop().unwrap());
                 let separator = separated.then(|| Box::new(values.pop().unwrap()));
-                Expr::Repeat(item, separator, chain)
+                Expr::Repeat(item, separator, chain, at)
             }
-            Task::Splice => Expr::Splice(Box::new(values.pop().unwrap())),
-            Task::Capture(name) => Expr::Capture(name, Box::new(values.pop().unwrap())),
+            Task::Splice(at) => Expr::Splice(Box::new(values.pop().unwrap()), at),
+            Task::Capture(name, at) => Expr::Capture(name, Box::new(values.pop().unwrap()), at),
         };
         values.push(expression);
     }
@@ -948,7 +1139,10 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                         let args = std::iter::once(Arg::Term(receiver))
                             .chain(operands.map(|operand| Arg::Term(operand.term())))
                             .collect();
-                        values.push(ReadValue::Cond(Cond::Forest(Term::Call(name, args))));
+                        values.push(ReadValue::Cond(Cond::Forest(
+                            Term::Call(name, args, crate::dom::Hidden::NONE),
+                            crate::dom::Hidden::NONE,
+                        )));
                         continue;
                     }
                     if array(value, "args")?.iter().any(|arg| arg.get("param").is_some() || arg.get("call").is_some()) {
@@ -957,7 +1151,7 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                             args.push(if arg.get("rule").is_some() {
                                 Arg::Rule(string(arg, "rule")?)
                             } else if arg.get("terminal").is_some() {
-                                Arg::Term(Term::Tag(string(arg, "terminal")?))
+                                Arg::Term(Term::Tag(string(arg, "terminal")?, crate::dom::Hidden::NONE))
                             } else {
                                 Arg::Term(term_from_json(arg)?)
                             });
@@ -966,8 +1160,8 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                         continue;
                     }
                     match (name.as_str(), array(value, "args")?) {
-                        ("starts-input", []) => Cond::Initial(receiver),
-                        ("ends-input", []) => Cond::Final(receiver),
+                        ("starts-input", []) => Cond::Initial(receiver, crate::dom::Hidden::NONE),
+                        ("ends-input", []) => Cond::Final(receiver, crate::dom::Hidden::NONE),
                         ("followed-by" | "preceded-by", args) => Cond::Boundary(
                             name == "followed-by",
                             receiver,
@@ -979,38 +1173,57 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                         _ => return Err("a malformed predicate method".into()),
                     }
                 }
-                "nonempty" => Cond::Truthy(operands.next().unwrap().term()),
-                "not" => Cond::Not(Box::new(operands.next().unwrap().cond())),
-                "any" => Cond::Any(operands.map(ReadValue::cond).collect()),
-                "all" => Cond::All(operands.map(ReadValue::cond).collect()),
-                "captured" => Cond::Captured(string(value, "captured")?),
-                "if" => Cond::If(Box::new(operands.next().unwrap().cond()), Box::new(operands.next().unwrap().cond())),
+                "nonempty" => Cond::Truthy(operands.next().unwrap().term(), crate::dom::Hidden::NONE),
+                "not" => Cond::Not(Box::new(operands.next().unwrap().cond()), crate::dom::Hidden::NONE),
+                "any" => Cond::Any(operands.map(ReadValue::cond).collect(), crate::dom::Hidden::NONE),
+                "all" => Cond::All(operands.map(ReadValue::cond).collect(), crate::dom::Hidden::NONE),
+                "captured" => Cond::Captured(string(value, "captured")?, crate::dom::Hidden::NONE),
+                "if" => Cond::If(
+                    Box::new(operands.next().unwrap().cond()),
+                    Box::new(operands.next().unwrap().cond()),
+                    crate::dom::Hidden::NONE,
+                ),
                 _ => unreachable!(),
             })
         } else {
             ReadValue::Term(match key {
                 "body" => Term::Body(std::sync::Arc::new(expr_from_json(field(value, "body")?)?)),
-                "pattern" => Term::Pattern(Box::new(crate::patterns::Pattern::from_json(field(value, "pattern")?)?)),
-                "string" => Term::Str(string(value, "string")?),
-                "tag" => Term::Tag(string(value, "tag")?),
-                "emptySet" => Term::EmptySet,
-                "capture" => Term::Capture(string(value, "capture")?),
-                "const" => Term::Const(string(value, "const")?, position(value)?),
+                "pattern" => Term::Pattern(
+                    Box::new(crate::patterns::Pattern::from_json(field(value, "pattern")?)?),
+                    crate::dom::Hidden::NONE,
+                ),
+                "string" => Term::Str(string(value, "string")?, crate::dom::Hidden::NONE),
+                "tag" => Term::Tag(string(value, "tag")?, crate::dom::Hidden::NONE),
+                "emptySet" => Term::EmptySet(crate::dom::Hidden::NONE),
+                "capture" => Term::Capture(string(value, "capture")?, crate::dom::Hidden::NONE),
+                "const" => Term::Const(string(value, "const")?, position(value)?, crate::dom::Hidden::NONE),
                 "param" | "call" => Term::Source(SourceSymbol::from_json(value)?),
-                "union" => Term::Union(operands.map(ReadValue::term).collect()),
-                "intersection" => Term::Intersection(operands.map(ReadValue::term).collect()),
+                "union" => Term::Union(operands.map(ReadValue::term).collect(), crate::dom::Hidden::NONE),
+                "intersection" => Term::Intersection(operands.map(ReadValue::term).collect(), crate::dom::Hidden::NONE),
                 "difference" => {
                     let left = operands.next().ok_or("a difference lacks its left operand")?.term();
                     let right = operands.next().ok_or("a difference lacks its right operand")?.term();
-                    Term::Difference(Box::new(left), Box::new(right))
+                    Term::Difference(Box::new(left), Box::new(right), crate::dom::Hidden::NONE)
                 }
-                "if" => Term::If(Box::new(operands.next().unwrap().cond()), Box::new(operands.next().unwrap().term())),
-                "concat" => Term::Call(key.into(), operands.map(|value| Arg::Term(value.term())).collect()),
+                "if" => Term::If(
+                    Box::new(operands.next().unwrap().cond()),
+                    Box::new(operands.next().unwrap().term()),
+                    crate::dom::Hidden::NONE,
+                ),
+                "concat" => Term::Call(
+                    key.into(),
+                    operands.map(|value| Arg::Term(value.term())).collect(),
+                    crate::dom::Hidden::NONE,
+                ),
                 "method" => {
                     let mut args = vec![Arg::Term(operands.next().unwrap().term())];
                     for arg in array(value, "args")? {
                         if let Some(Json::Str(digits)) = arg.get("integer") {
-                            args.push(Arg::Integer(digits.clone()));
+                            args.push(Arg::Integer(digits.clone(), {
+                                let mut hidden = Hidden::NONE;
+                                hidden.set(shape::hidden(arg, "at").and_then(position_value));
+                                hidden
+                            }));
                             continue;
                         }
                         args.push(match (arg.get("rule"), arg.get("classifier")) {
@@ -1019,11 +1232,21 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                             _ => Arg::Term(operands.next().unwrap().term()),
                         });
                     }
-                    Term::Call(string(value, "method")?, args)
+                    Term::Call(string(value, "method")?, args, crate::dom::Hidden::NONE)
                 }
                 _ => unreachable!(),
             })
         };
+        let mut built = built;
+        // A located DOM keeps what a reader knows of each node.
+        let hidden = match &mut built {
+            ReadValue::Term(term) => term.hidden_mut(),
+            ReadValue::Cond(cond) => cond.hidden_mut(),
+        };
+        if let Some(hidden) = hidden {
+            hidden.set(shape::hidden(value, "at").and_then(position_value));
+            hidden.grouped = shape::hidden(value, "grouped") == Some(&Json::Bool(true));
+        }
         values.push(built);
     }
     Ok(values.pop().expect("the root value"))
@@ -1071,10 +1294,6 @@ fn emit_from_json(value: &Json) -> R<Vec<EmitItem>> {
 pub(crate) const DOM_MAX_DEPTH: usize = 256;
 pub(crate) const DOM_MAX_POSITION: i64 = 9007199254740991;
 
-fn is_str(value: Option<&Json>) -> bool {
-    matches!(value, Some(Json::Str(_)))
-}
-
 fn is_true(value: Option<&Json>) -> bool {
     matches!(value, Some(Json::Bool(true)))
 }
@@ -1092,20 +1311,6 @@ pub(crate) fn is_capture_name(name: &str) -> bool {
     chars.next().is_some_and(|c| c.is_ascii_lowercase())
         && chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == '_')
 }
-
-fn is_rule_arg(value: &Json) -> bool {
-    matches!(value.as_object(), Some([(key, Json::Str(_))]) if key == "rule")
-}
-
-/// The second argument of `classify`: a classifier's name, and no other
-/// member (engine §9).
-fn is_classifier_arg(value: &Json) -> bool {
-    matches!(value.as_object(), Some([(key, Json::Str(name))]) if key == "classifier" && is_classifier_name(name))
-}
-
-/// The comparators of a test in a body (engine §2): the two sound tests
-/// and signed tag requirements.
-pub(crate) const TEST_OPS: [&str; 3] = ["=", "≠", "tags"];
 
 /// Whether a test's comparator is a sound test, whose value is a string,
 /// rather than a tag test, whose value is a tag set (engine §2).
@@ -1128,31 +1333,6 @@ pub(crate) fn test_value_type(op: &str) -> Type {
 pub(crate) fn test_type_problem(op: &str, ty: Type) -> Option<String> {
     let expected = test_value_type(op);
     expected_problem(ty, expected).map(|problem| format!("{op} tests {}: {problem}", expected.name()))
-}
-
-fn elidable_head_json(expr: &Json) -> Option<&Json> {
-    let head = match expr.get("seq").and_then(Json::as_array) {
-        Some([head, ..]) => head,
-        _ => expr,
-    };
-    let mut base = if head.get("capture").is_some() { head.get("expr")? } else { head };
-    while base.get("test").and_then(Json::as_str).is_some_and(|op| TEST_OPS.contains(&op)) {
-        base = base.get("expr")?;
-    }
-    match base.get("ref").and_then(Json::as_str) {
-        Some(tag) if base.as_object().is_some_and(|fields| fields.len() == 1) && is_constant_name(tag) => Some(head),
-        _ => None,
-    }
-}
-
-/// A literal empty split delimiter is a document error (engine §9).
-pub(crate) fn literal_call_problem(call: &str, args: &[Arg]) -> Option<&'static str> {
-    match call {
-        "split" if matches!(args.get(1), Some(Arg::Term(Term::Str(text))) if text.is_empty()) => {
-            Some("split has an empty delimiter")
-        }
-        _ => None,
-    }
 }
 
 // ---- writing a DOM as canonical JSON
@@ -1213,6 +1393,7 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
         out.push_str(if constant.redefine { ",\"op\":\"redefine\"" } else { ",\"op\":\"define\"" });
         out.push_str(",\"value\":");
         write_term(&mut out, &constant.value);
+        out.push_str(&hidden_member("nameAt", *constant.name_at));
         out.push_str(&format!(",\"at\":[{},{}]}}", constant.at.0, constant.at.1));
     }
     out.push_str("],\"classifiers\":[");
@@ -1243,9 +1424,12 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
             }
             out.push_str(if entry.adds { "],\"op\":\"∈\",\"class\":" } else { "],\"op\":\"∉\",\"class\":" });
             write_str(&mut out, &entry.class);
+            out.push_str(&hidden_member("classAt", *entry.class_at));
             out.push_str(&format!(",\"at\":[{},{}]}}", entry.at.0, entry.at.1));
         }
-        out.push_str(&format!("],\"at\":[{},{}]}}", classifier.at.0, classifier.at.1));
+        out.push(']');
+        out.push_str(&hidden_member("nameAt", *classifier.name_at));
+        out.push_str(&format!(",\"at\":[{},{}]}}", classifier.at.0, classifier.at.1));
     }
     out.push_str("],\"implications\":[");
     for (index, implication) in dom.implications.iter().enumerate() {
@@ -1274,15 +1458,40 @@ pub(crate) fn write_steps(out: &mut String, steps: &[Step]) {
         write_str(out, &step.step);
         if let Some(pattern) = &step.pattern {
             out.push_str(",\"pattern\":");
-            if let Term::Pattern(p) = pattern {
+            if let Term::Pattern(p, ..) = pattern {
                 p.write(out);
             } else {
                 write_term(out, pattern);
             }
         }
+        out.push_str(&hidden_member("at", step.operand_at));
         out.push('}');
     }
     out.push(']');
+}
+
+/// A member that only a located DOM holds, for the DOM validator (engine
+/// §9.3): its name begins with NUL.
+pub(crate) fn hidden_member(name: &str, at: Option<(usize, usize)>) -> String {
+    match at {
+        Some((line, column)) if writing::is_located() => format!(",\"\\u0000{name}\":[{line},{column}]"),
+        _ => String::new(),
+    }
+}
+
+/// A Boolean member that only a located DOM holds.
+fn hidden_flag(name: &str, value: bool) -> String {
+    if value && writing::is_located() {
+        format!(",\"\\u0000{name}\":true")
+    } else {
+        String::new()
+    }
+}
+
+/// The DOM as JSON with the members that only a reader knows, for the DOM
+/// validator (engine §9.3).
+pub(crate) fn dom_to_located_json(dom: &Dom) -> String {
+    writing::located(|| dom_to_json(dom))
 }
 
 pub(crate) fn write_rule(out: &mut String, rule: &RuleDef) {
@@ -1312,7 +1521,21 @@ pub(crate) fn write_rule(out: &mut String, rule: &RuleDef) {
         write_term(out, tags);
     }
     write_channels(out, &rule.strings);
+    out.push_str(&hidden_member("nameAt", *rule.name_at));
+    if writing::is_located() && !rule.places.param_ats.is_empty() {
+        out.push_str(",\"\\u0000paramAts\":[");
+        for (index, (line, column)) in rule.places.param_ats.iter().enumerate() {
+            if index > 0 {
+                out.push(',');
+            }
+            out.push_str(&format!("[{line},{column}]"));
+        }
+        out.push(']');
+    }
+    out.push_str(&hidden_member("errorAt", rule.places.error_at));
+    out.push_str(&hidden_member("warningAt", rule.places.warning_at));
     if let Some(instance) = &rule.source.instance {
+        out.push_str(&hidden_flag("hasHead", rule.places.has_head));
         out.push_str(",\"instance\":");
         instance.write(out);
         out.push_str(&format!(",\"conditions\":[],\"at\":[{},{}]}}", rule.at.0, rule.at.1));
@@ -1337,6 +1560,7 @@ pub(crate) fn write_rule(out: &mut String, rule: &RuleDef) {
             write_term(out, tags);
         }
         write_channels(out, &alternative.strings);
+        out.push_str(&hidden_member("at", *alternative.at));
         out.push('}');
     }
     out.push(']');
@@ -1346,6 +1570,7 @@ pub(crate) fn write_rule(out: &mut String, rule: &RuleDef) {
             if index > 0 {
                 out.push(',');
             }
+            let item_at = rule.places.item_ats.get(index).copied();
             match item {
                 EmitItem::Capture(name, tags, attachments) => {
                     out.push_str("{\"capture\":");
@@ -1377,9 +1602,12 @@ pub(crate) fn write_rule(out: &mut String, rule: &RuleDef) {
                     write_channels(out, strings);
                 }
             }
+            out.push_str(&hidden_member("at", item_at));
             out.push('}');
         }
-        out.push_str("]}");
+        out.push(']');
+        out.push_str(&hidden_member("at", rule.places.emit_at));
+        out.push('}');
     }
     out.push_str(",\"conditions\":[");
     for (index, cond) in rule.conditions.iter().enumerate() {
@@ -1480,22 +1708,25 @@ impl Type {
 /// reader knows none, and gives every constant the type `Any`.
 pub(crate) type ConstantTypes<'a> = &'a dyn Fn(&str) -> Type;
 
-/// A disagreement of types (engine §10): the problem, and where the first
+/// A disagreement of types (engine §10): the problem, where the first
 /// constant of the smallest construct that holds it stands, if it holds
-/// one. The loader reports the error there (engine §9).
+/// one, and where that construct itself stands, if a reader wrote it. The
+/// loader reports the error at the constant, and the DOM validator at the
+/// construct (engine §9.3).
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Fault {
     pub problem: String,
     pub at: Option<(usize, usize)>,
+    pub node_at: Option<(usize, usize)>,
 }
 
 impl Fault {
-    fn in_term(problem: String, term: &Term) -> Fault {
-        Fault { problem, at: first_constant_in_term(term) }
+    pub(crate) fn in_term(problem: String, term: &Term) -> Fault {
+        Fault { problem, at: first_constant_in_term(term), node_at: term.at() }
     }
 
-    fn in_cond(problem: String, cond: &Cond) -> Fault {
-        Fault { problem, at: first_constant_in_cond(cond) }
+    pub(crate) fn in_cond(problem: String, cond: &Cond) -> Fault {
+        Fault { problem, at: first_constant_in_cond(cond), node_at: cond.at() }
     }
 }
 
@@ -1520,46 +1751,50 @@ fn constants_in<'t>(start: Nested<'t>, out: &mut Vec<(&'t str, (usize, usize))>,
             Nested::Term(term) => match term {
                 Term::Body(body) => stack.push(Nested::Expr(body)),
                 Term::Source(symbol) => stack.push(Nested::Source(symbol)),
-                Term::Pattern(p) => stack.push(Nested::Pattern(p)),
-                Term::Const(name, at) if engine || !name.starts_with('_') => out.push((name, *at)),
+                Term::Pattern(p, ..) => stack.push(Nested::Pattern(p)),
+                Term::Const(name, at, ..) if engine || !name.starts_with('_') => out.push((name, *at)),
                 Term::Const(..) => {}
-                Term::Union(items) | Term::Intersection(items) => stack.extend(items.iter().rev().map(Nested::Term)),
-                Term::Difference(left, right) => stack.extend([Nested::Term(right), Nested::Term(left)]),
-                Term::If(cond, then) => stack.extend([Nested::Term(then), Nested::Cond(cond)]),
-                Term::Call(_, args) => stack.extend(args.iter().rev().filter_map(|arg| match arg {
+                Term::Union(items, ..) | Term::Intersection(items, ..) => {
+                    stack.extend(items.iter().rev().map(Nested::Term))
+                }
+                Term::Difference(left, right, ..) => stack.extend([Nested::Term(right), Nested::Term(left)]),
+                Term::If(cond, then, ..) => stack.extend([Nested::Term(then), Nested::Cond(cond)]),
+                Term::Call(_, args, ..) => stack.extend(args.iter().rev().filter_map(|arg| match arg {
                     Arg::Term(term) => Some(Nested::Term(term)),
                     _ => None,
                 })),
-                Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Capture(_) => {}
+                Term::Str(..) | Term::Tag(..) | Term::EmptySet(..) | Term::Capture(..) => {}
             },
             Nested::Cond(cond) => match cond {
-                Cond::Truthy(term) => stack.push(Nested::Term(term)),
-                Cond::Forest(term) => stack.push(Nested::Term(term)),
+                Cond::Truthy(term, ..) => stack.push(Nested::Term(term)),
+                Cond::Forest(term, ..) => stack.push(Nested::Term(term)),
                 Cond::SourceQuery(_, args, _) => stack.extend(args.iter().rev().filter_map(|arg| match arg {
                     Arg::Term(term) => Some(Nested::Term(term)),
                     _ => None,
                 })),
                 Cond::Compare(_, left, right, _) => stack.extend([Nested::Term(right), Nested::Term(left)]),
-                Cond::Not(inner) => stack.push(Nested::Cond(inner)),
-                Cond::Any(items) | Cond::All(items) => stack.extend(items.iter().rev().map(Nested::Cond)),
-                Cond::If(antecedent, consequent) => stack.extend([Nested::Cond(consequent), Nested::Cond(antecedent)]),
-                Cond::Initial(span) | Cond::Final(span) | Cond::Boundary(_, span, _, _) => {
+                Cond::Not(inner, ..) => stack.push(Nested::Cond(inner)),
+                Cond::Any(items, ..) | Cond::All(items, ..) => stack.extend(items.iter().rev().map(Nested::Cond)),
+                Cond::If(antecedent, consequent, ..) => {
+                    stack.extend([Nested::Cond(consequent), Nested::Cond(antecedent)])
+                }
+                Cond::Initial(span, ..) | Cond::Final(span, ..) | Cond::Boundary(_, span, _, _) => {
                     stack.push(Nested::Term(span))
                 }
-                Cond::Captured(_) => {}
+                Cond::Captured(..) => {}
             },
             Nested::Expr(expr) => match expr {
-                Expr::Source(symbol) => stack.push(Nested::Source(symbol)),
-                Expr::Literal(term) => stack.push(Nested::Term(term)),
-                Expr::ScalarRange(left, right) => stack.extend([Nested::Term(right), Nested::Term(left)]),
-                Expr::Tested(_, value, inner) => stack.extend([Nested::Term(value), Nested::Expr(inner)]),
-                Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
+                Expr::Source(symbol, ..) => stack.push(Nested::Source(symbol)),
+                Expr::Literal(term, _) => stack.push(Nested::Term(term)),
+                Expr::ScalarRange(left, right, _) => stack.extend([Nested::Term(right), Nested::Term(left)]),
+                Expr::Tested(_, value, inner, _) => stack.extend([Nested::Term(value), Nested::Expr(inner)]),
+                Expr::Seq(items, _) | Expr::Choice(items, _) | Expr::Ranked(items, _) | Expr::And(items, _) => {
                     stack.extend(items.iter().rev().map(Nested::Expr))
                 }
-                Expr::Capture(_, inner) | Expr::Splice(inner) | Expr::Optional(inner, _, _) => {
+                Expr::Capture(_, inner, _) | Expr::Splice(inner, _) | Expr::Optional(inner, _, _, _) => {
                     stack.push(Nested::Expr(inner))
                 }
-                Expr::Repeat(item, separator, _) => {
+                Expr::Repeat(item, separator, _, _) => {
                     stack.extend(separator.as_deref().map(Nested::Expr));
                     stack.push(Nested::Expr(item));
                 }
@@ -1639,59 +1874,63 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
         match node {
             Nested::Source(symbol) => stack.extend(source_children(symbol).into_iter().map(|part| (part, below))),
             Nested::Expr(expr) => match expr {
-                Expr::Source(symbol) => stack.push((Nested::Source(symbol), depth)),
-                Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
+                Expr::Source(symbol, ..) => stack.push((Nested::Source(symbol), depth)),
+                Expr::Seq(items, _) | Expr::Choice(items, _) | Expr::Ranked(items, _) | Expr::And(items, _) => {
                     stack.extend(items.iter().map(|item| (Nested::Expr(item), below)))
                 }
-                Expr::Optional(inner, _, default) => {
+                Expr::Optional(inner, _, default, _) => {
                     stack.push((Nested::Expr(inner), below));
                     if let Some(default) = default {
                         stack.push((Nested::Term(&default.term), below));
                     }
                 }
-                Expr::Capture(_, inner) | Expr::Splice(inner) => stack.push((Nested::Expr(inner), below)),
-                Expr::Repeat(item, separator, _) => {
+                Expr::Capture(_, inner, _) | Expr::Splice(inner, _) => stack.push((Nested::Expr(inner), below)),
+                Expr::Repeat(item, separator, _, _) => {
                     stack.push((Nested::Expr(item), below));
                     stack.extend(separator.as_deref().map(|separator| (Nested::Expr(separator), below)));
                 }
-                Expr::Tested(_, value, inner) => {
+                Expr::Tested(_, value, inner, _) => {
                     stack.push((Nested::Term(value), below));
                     stack.push((Nested::Expr(inner), below));
                 }
-                Expr::Literal(term) => stack.push((Nested::Term(term), depth)),
-                Expr::ScalarRange(a, b) => {
+                Expr::Literal(term, _) => stack.push((Nested::Term(term), depth)),
+                Expr::ScalarRange(a, b, _) => {
                     stack.push((Nested::Term(a), depth));
                     stack.push((Nested::Term(b), depth));
                 }
-                Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Wildcard | Expr::Empty | Expr::Remainder => {
-                }
+                Expr::Ref(_, _)
+                | Expr::Terminal(_, _)
+                | Expr::Range(..)
+                | Expr::Wildcard(_)
+                | Expr::Empty(_)
+                | Expr::Remainder(_) => {}
             },
             Nested::Term(term) => match term {
                 // The parse argument wrapper is transparent (engine §9).
                 Term::Body(body) => stack.push((Nested::Expr(body), depth)),
                 Term::Source(symbol) => stack.push((Nested::Source(symbol), depth)),
-                Term::Union(items) | Term::Intersection(items) => {
+                Term::Union(items, ..) | Term::Intersection(items, ..) => {
                     stack.extend(items.iter().map(|item| (Nested::Term(item), below)))
                 }
-                Term::Difference(left, right) => {
+                Term::Difference(left, right, ..) => {
                     stack.push((Nested::Term(left), below));
                     stack.push((Nested::Term(right), below));
                 }
-                Term::If(cond, then) => {
+                Term::If(cond, then, ..) => {
                     stack.push((Nested::Cond(cond), below));
                     stack.push((Nested::Term(then), below));
                 }
                 // A rule or a classifier that a call names is no node of it.
-                Term::Call(name, args) => {
+                Term::Call(name, args, ..) => {
                     // Signed requirement records are metadata, not DOM constructors.
                     let child_depth = if matches!(name.as_str(), "requirements" | "forbid") { depth } else { below };
                     stack.extend(args.iter().filter_map(|arg| match arg {
                         Arg::Term(term) => Some((Nested::Term(term), child_depth)),
-                        Arg::Rule(_) | Arg::Classifier(_) | Arg::Integer(_) => None,
+                        Arg::Rule(_) | Arg::Classifier(_) | Arg::Integer(..) => None,
                     }));
                 }
-                Term::Pattern(pattern) => stack.push((Nested::Pattern(pattern), below)),
-                Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Capture(_) | Term::Const(..) => {}
+                Term::Pattern(pattern, ..) => stack.push((Nested::Pattern(pattern), below)),
+                Term::Str(..) | Term::Tag(..) | Term::EmptySet(..) | Term::Capture(..) | Term::Const(..) => {}
             },
             Nested::Pattern(pattern) => {
                 use crate::patterns::Pattern;
@@ -1740,28 +1979,28 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
             }
             Nested::Cond(cond) => match cond {
                 // The forest term is the condition itself, not a child.
-                Cond::Truthy(term) => stack.push((Nested::Term(term), depth)),
-                Cond::Forest(term) => stack.push((Nested::Term(term), depth)),
+                Cond::Truthy(term, ..) => stack.push((Nested::Term(term), depth)),
+                Cond::Forest(term, ..) => stack.push((Nested::Term(term), depth)),
                 Cond::SourceQuery(_, args, _) => stack.extend(args.iter().filter_map(|arg| match arg {
                     Arg::Term(term) => Some((Nested::Term(term), below)),
                     _ => None,
                 })),
-                Cond::Any(items) | Cond::All(items) => {
+                Cond::Any(items, ..) | Cond::All(items, ..) => {
                     stack.extend(items.iter().map(|item| (Nested::Cond(item), below)))
                 }
-                Cond::Not(inner) => stack.push((Nested::Cond(inner), below)),
-                Cond::If(antecedent, consequent) => {
+                Cond::Not(inner, ..) => stack.push((Nested::Cond(inner), below)),
+                Cond::If(antecedent, consequent, ..) => {
                     stack.push((Nested::Cond(antecedent), below));
                     stack.push((Nested::Cond(consequent), below));
                 }
-                Cond::Initial(span) | Cond::Final(span) | Cond::Boundary(_, span, _, _) => {
+                Cond::Initial(span, ..) | Cond::Final(span, ..) | Cond::Boundary(_, span, _, _) => {
                     stack.push((Nested::Term(span), below))
                 }
                 Cond::Compare(_, left, right, _) => {
                     stack.push((Nested::Term(left), below));
                     stack.push((Nested::Term(right), below));
                 }
-                Cond::Captured(_) => {}
+                Cond::Captured(..) => {}
             },
         }
     }
@@ -1811,34 +2050,34 @@ pub(crate) fn tests_in(expr: &Expr) -> Vec<(&str, &Term, &Expr)> {
     let mut stack = vec![expr];
     while let Some(current) = stack.pop() {
         match current {
-            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
+            Expr::Seq(items, _) | Expr::Choice(items, _) | Expr::Ranked(items, _) | Expr::And(items, _) => {
                 stack.extend(items.iter().rev())
             }
-            Expr::Optional(inner, _, default) => {
+            Expr::Optional(inner, _, default, _) => {
                 if let Some(default) = default {
                     found.push(("=", &default.term, inner.as_ref()));
                 }
                 stack.push(inner);
             }
-            Expr::Capture(_, inner) | Expr::Splice(inner) => stack.push(inner),
+            Expr::Capture(_, inner, _) | Expr::Splice(inner, _) => stack.push(inner),
             // The item before the separator.
-            Expr::Repeat(item, separator, _) => {
+            Expr::Repeat(item, separator, _, _) => {
                 stack.extend(separator.as_deref());
                 stack.push(item);
             }
-            Expr::Tested(op, value, inner) => {
+            Expr::Tested(op, value, inner, _) => {
                 found.push((op.as_str(), value, inner.as_ref()));
                 stack.push(inner);
             }
-            Expr::Source(_)
-            | Expr::Ref(_)
-            | Expr::Terminal(_)
-            | Expr::Literal(_)
+            Expr::Source(..)
+            | Expr::Ref(_, _)
+            | Expr::Terminal(_, _)
+            | Expr::Literal(_, _)
             | Expr::ScalarRange(..)
             | Expr::Range(..)
-            | Expr::Wildcard
-            | Expr::Empty
-            | Expr::Remainder => {}
+            | Expr::Wildcard(_)
+            | Expr::Empty(_)
+            | Expr::Remainder(_) => {}
         }
     }
     found
@@ -1862,27 +2101,27 @@ pub(crate) fn constants_in_rule(rule: &RuleDef) -> Vec<(&str, (usize, usize))> {
         let mut pending = vec![&alternative.expr];
         while let Some(expr) = pending.pop() {
             match expr {
-                Expr::Source(symbol) => constants_in(Nested::Source(symbol), &mut out, true),
-                Expr::Literal(term) => references_in_term(term, &mut out),
-                Expr::ScalarRange(a, b) => {
+                Expr::Source(symbol, ..) => constants_in(Nested::Source(symbol), &mut out, true),
+                Expr::Literal(term, _) => references_in_term(term, &mut out),
+                Expr::ScalarRange(a, b, _) => {
                     references_in_term(a, &mut out);
                     references_in_term(b, &mut out);
                 }
-                Expr::Tested(_, value, inner) => {
+                Expr::Tested(_, value, inner, _) => {
                     references_in_term(value, &mut out);
                     pending.push(inner);
                 }
-                Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs, _) | Expr::And(xs) => {
+                Expr::Seq(xs, _) | Expr::Choice(xs, _) | Expr::Ranked(xs, _) | Expr::And(xs, _) => {
                     pending.extend(xs.iter().rev())
                 }
-                Expr::Capture(_, x) | Expr::Splice(x) => pending.push(x),
-                Expr::Optional(x, _, default) => {
+                Expr::Capture(_, x, _) | Expr::Splice(x, _) => pending.push(x),
+                Expr::Optional(x, _, default, _) => {
                     if let Some(default) = default {
                         references_in_term(&default.term, &mut out);
                     }
                     pending.push(x);
                 }
-                Expr::Repeat(x, s, _) => {
+                Expr::Repeat(x, s, _, _) => {
                     pending.extend(s.as_deref());
                     pending.push(x);
                 }
@@ -2039,17 +2278,6 @@ pub(crate) fn expected_problem(ty: Type, expected: Type) -> Option<String> {
     }
 }
 
-/// The reader's view of constants: each is of any type but a span.
-fn unknown(_: &str) -> Type {
-    Type::Any
-}
-
-/// The type of a term, or why its parts do not agree (engine §10), with
-/// the constants' types as the reader knows them.
-pub(crate) fn term_type(term: &Term) -> Result<Type, String> {
-    term_type_in(term, &unknown).map_err(|fault| fault.problem)
-}
-
 /// The type of a term, or why its parts do not agree, at the smallest
 /// construct that disagrees (engine §10). `constants` gives the type of
 /// each constant.
@@ -2061,20 +2289,20 @@ pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type
     match term {
         Term::Body(body) => crate::query_forms::body_problem(body)
             .map_or(Ok(Type::Body), |problem| Err(Fault::in_term(problem.into(), term))),
-        Term::Pattern(p) => match p.type_fault(constants) {
+        Term::Pattern(p, ..) => match p.type_fault(constants) {
             Some(f) => Err(f),
             None => Ok(Type::Pattern),
         },
-        Term::Str(_) => Ok(Type::String),
-        Term::Tag(_) => Ok(Type::Tags),
-        Term::EmptySet => Ok(Type::Set),
-        Term::Capture(_) => Ok(Type::Span),
-        Term::Const(name, _) => Ok(constants(name)),
+        Term::Str(..) => Ok(Type::String),
+        Term::Tag(..) => Ok(Type::Tags),
+        Term::EmptySet(..) => Ok(Type::Set),
+        Term::Capture(..) => Ok(Type::Span),
+        Term::Const(name, ..) => Ok(constants(name)),
         Term::Source(_) => Ok(Type::Any),
-        Term::Union(items) => joined(&mut items.iter(), "∪"),
-        Term::Intersection(items) => joined(&mut items.iter(), "∩"),
-        Term::Difference(left, right) => joined(&mut [left.as_ref(), right.as_ref()].into_iter(), "∖"),
-        Term::If(cond, then) => {
+        Term::Union(items, ..) => joined(&mut items.iter(), "∪"),
+        Term::Intersection(items, ..) => joined(&mut items.iter(), "∩"),
+        Term::Difference(left, right, ..) => joined(&mut [left.as_ref(), right.as_ref()].into_iter(), "∖"),
+        Term::If(cond, then, ..) => {
             if let Some(fault) = cond_type_fault(cond, constants) {
                 return Err(fault);
             }
@@ -2085,37 +2313,133 @@ pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type
                 Ok(kind)
             }
         }
-        Term::Call(call, args) => {
-            for (index, arg) in args.iter().enumerate() {
-                if let Arg::Term(arg) = arg {
-                    let ty = term_type_in(arg, constants)?;
-                    let expected = match call.as_str() {
-                        "split" | "ngrams" | "classify" | "concat" => Type::String,
-                        "requirements" | "forbid" => Type::Tags,
-                        "parse" if index == 1 => Type::Body,
-                        "error-free" => Type::Forest,
-                        _ if index == 0 => Type::Span,
-                        _ => continue,
-                    };
-                    if call == "concat" && !matches!(ty, Type::String | Type::Any) {
-                        return Err(Fault::in_term("++ requires string operands".into(), term));
-                    }
-                    if call == "tags" && index == 0 && ty == Type::Forest {
-                        // A forest receiver gives its witness tags (§4).
-                    } else if let Some(problem) = expected_problem(ty, expected) {
-                        return Err(if matches!(call.as_str(), "requirements" | "forbid") {
-                            Fault::in_term(problem, arg)
-                        } else {
-                            Fault::in_term("a method has the wrong receiver or arguments".into(), term)
-                        });
-                    }
-                }
+        Term::Call(call, args, ..) if !matches!(call.as_str(), "concat" | "requirements" | "forbid") => {
+            let Some(Arg::Term(receiver)) = args.first() else {
+                return Err(Fault::in_term("a malformed method".into(), term));
+            };
+            let receiver_type = term_type_in(receiver, constants)?;
+            let mut types = Vec::new();
+            for arg in &args[1..] {
+                types.push(match arg {
+                    Arg::Term(Term::Body(_)) => None,
+                    Arg::Term(arg) => Some(term_type_in(arg, constants)?),
+                    _ => None,
+                });
             }
-            if let Some(problem) = literal_call_problem(call, args) {
-                return Err(Fault::in_term(problem.into(), term));
+            let receiver_type =
+                if receiver_type == Type::Any && term_has_source(receiver) { Type::Span } else { receiver_type };
+            if let Some(problem) = method_problem(call, receiver, &args[1..], receiver_type, &types) {
+                return Err(Fault::in_term(problem, term));
             }
             Ok(call_type(call))
         }
+        Term::Call(call, args, ..) => {
+            for arg in args {
+                if let Arg::Term(arg) = arg {
+                    let ty = term_type_in(arg, constants)?;
+                    if call == "concat" && !matches!(ty, Type::String | Type::Any) {
+                        return Err(Fault::in_term("++ requires string operands".into(), term));
+                    }
+                    if call != "concat" {
+                        if let Some(problem) = expected_problem(ty, Type::Tags) {
+                            return Err(Fault::in_term(problem, arg));
+                        }
+                    }
+                }
+            }
+            Ok(call_type(call))
+        }
+    }
+}
+
+/// Whether a term holds a parameter or a call of a template.
+fn term_has_source(term: &Term) -> bool {
+    let mut pending = vec![term];
+    while let Some(term) = pending.pop() {
+        if partial::unresolved_leaf(term) {
+            return true;
+        }
+        match term {
+            Term::Call(_, args, ..) => pending.extend(args.iter().filter_map(|arg| match arg {
+                Arg::Term(term) => Some(term),
+                _ => None,
+            })),
+            Term::Union(items, ..) | Term::Intersection(items, ..) => pending.extend(items),
+            Term::Difference(left, right, ..) => pending.extend([left.as_ref(), right.as_ref()]),
+            Term::If(_, then, ..) => pending.push(then),
+            _ => {}
+        }
+    }
+    false
+}
+
+/// Why a method's receiver and arguments do not fit it, by their types
+/// (engine §10).
+fn method_problem(name: &str, receiver: &Term, args: &[Arg], ty: Type, types: &[Option<Type>]) -> Option<String> {
+    const SIGNATURE: &str = "a method has the wrong receiver or arguments";
+    if !shape::known_method(name) {
+        return Some(format!("unknown method {name}"));
+    }
+    let span = ty == Type::Span;
+    let string = matches!(ty, Type::String | Type::Any | Type::Span);
+    let rule = |index: usize| match args.get(index) {
+        Some(Arg::Rule(_)) => true,
+        Some(Arg::Term(term)) => partial::unresolved_leaf(term),
+        _ => false,
+    };
+    // A parameter or a call stands where a bare capture may (engine §3.6).
+    let bare = matches!(receiver, Term::Capture(..)) || partial::unresolved_leaf(receiver);
+    let problem = |wrong: bool| wrong.then(|| SIGNATURE.to_string());
+    match name {
+        "parse" => {
+            let [Arg::Term(Term::Body(body))] = args else { return Some(SIGNATURE.into()) };
+            if !span {
+                return Some(SIGNATURE.into());
+            }
+            (restored_span(receiver) && crate::query_forms::suffix_body(body))
+                .then(|| "suffix parse requires an ordinary span, not a restored span".into())
+        }
+        "error-free" => problem(ty != Type::Forest || !args.is_empty()),
+        "without-elision" => (!args.is_empty() || !bare)
+            .then(|| "without-elision requires a bare capture: write $x.without-elision.onward".into()),
+        "without-elision-except" => {
+            if !bare {
+                return Some(
+                    "without-elision-except requires a bare capture: write $x.without-elision-except(family).onward"
+                        .into(),
+                );
+            }
+            (args.len() != 1 || !rule(0)).then(|| "without-elision-except requires one rule name".into())
+        }
+        "first-token" | "tokens-after-first" | "last-token" | "onward" | "following-tokens" | "preceding-tokens"
+        | "starts-input" | "ends-input" | "classes" => problem(!span || !args.is_empty()),
+        "followed-by" | "preceded-by" => {
+            if !matches!(receiver, Term::Capture(..)) {
+                return Some(format!("{name} requires a bare capture"));
+            }
+            problem(
+                args.is_empty()
+                    || !args.iter().all(|arg| {
+                        matches!(arg, Arg::Rule(_))
+                            || matches!(arg, Arg::Term(Term::Tag(name, ..)) if is_constant_name(name))
+                    }),
+            )
+        }
+        "tags" => problem(if ty == Type::Forest { !args.is_empty() } else { !span || !args.is_empty() }),
+        "ngrams" => problem(!string || !matches!(args, [Arg::Integer(digits, ..)] if valid_integer(digits))),
+        "split" => {
+            if !string || args.len() != 1 || !matches!(types.first(), Some(Some(Type::String | Type::Span | Type::Any)))
+            {
+                return Some(SIGNATURE.into());
+            }
+            matches!(&args[0], Arg::Term(Term::Str(text, ..)) if text.is_empty())
+                .then(|| "split has an empty delimiter".into())
+        }
+        "classify" => problem(!string || !matches!(args, [Arg::Classifier(_)])),
+        "emitted" => (!args.is_empty() || !matches!(receiver, Term::Capture(..)))
+            .then(|| "emitted requires a bare capture in a recipe".into()),
+        "verbatim-text" => (!span || !args.is_empty()).then(|| "verbatim-text requires a capture in a recipe".into()),
+        _ => problem(!span || !args.is_empty()),
     }
 }
 
@@ -2123,11 +2447,17 @@ pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type
 /// that disagrees, or `None` (engine §10).
 pub(crate) fn cond_type_fault(cond: &Cond, constants: ConstantTypes) -> Option<Fault> {
     match cond {
-        Cond::Truthy(term) => term_type_in(term, constants).err().or_else(|| {
+        Cond::Truthy(term, ..) => term_type_in(term, constants).err().or_else(|| {
             (!matches!(term_type_in(term, constants).ok(), Some(Type::Tags | Type::Strings | Type::Set | Type::Any)))
-                .then(|| Fault::in_term("a condition requires a set, a forest, or a query method".into(), term))
+                .then(|| {
+                    // The fault stands at the condition (engine §10).
+                    let mut fault =
+                        Fault::in_term("a condition requires a set, a forest, or a query method".into(), term);
+                    fault.node_at = cond.at().or(fault.node_at);
+                    fault
+                })
         }),
-        Cond::Forest(term) => term_type_in(term, constants).err().or_else(|| {
+        Cond::Forest(term, ..) => term_type_in(term, constants).err().or_else(|| {
             (term_type_in(term, constants).ok() != Some(Type::Forest))
                 .then(|| Fault::in_term("a condition requires a forest".into(), term))
         }),
@@ -2135,13 +2465,13 @@ pub(crate) fn cond_type_fault(cond: &Cond, constants: ConstantTypes) -> Option<F
             Arg::Term(term) => term_type_in(term, constants).err(),
             _ => None,
         }),
-        Cond::Any(items) | Cond::All(items) => items.iter().find_map(|item| cond_type_fault(item, constants)),
-        Cond::Not(inner) => cond_type_fault(inner, constants),
-        Cond::If(antecedent, consequent) => {
+        Cond::Any(items, ..) | Cond::All(items, ..) => items.iter().find_map(|item| cond_type_fault(item, constants)),
+        Cond::Not(inner, ..) => cond_type_fault(inner, constants),
+        Cond::If(antecedent, consequent, ..) => {
             cond_type_fault(antecedent, constants).or_else(|| cond_type_fault(consequent, constants))
         }
-        Cond::Compare(op, left, right, _) => {
-            if matches!(op.as_str(), "≅" | "≇") && !matches!(left, Term::Capture(_)) {
+        Cond::Compare(op, left, right, compare_at) => {
+            if matches!(op.as_str(), "≅" | "≇") && !matches!(left, Term::Capture(..)) {
                 return Some(Fault::in_cond("a tree comparison requires a bare capture".into(), cond));
             }
             let left_type = match term_type_in(left, constants) {
@@ -2153,13 +2483,13 @@ pub(crate) fn cond_type_fault(cond: &Cond, constants: ConstantTypes) -> Option<F
                 Err(fault) => return Some(fault),
             };
             if matches!(op.as_str(), "≅" | "≇") {
-                if matches!((left, right), (Term::Capture(a), Term::Capture(b)) if a == b) {
+                if matches!((left, right), (Term::Capture(a, ..), Term::Capture(b, ..)) if a == b) {
                     return Some(Fault::in_cond(
                         "a constituent comparison requires two different captures".into(),
                         cond,
                     ));
                 }
-                if right_type == Type::Span && !matches!(right, Term::Capture(_)) {
+                if right_type == Type::Span && !matches!(right, Term::Capture(..)) {
                     return Some(Fault::in_term(
                         "a tree comparison requires a pattern or a bare capture on its right".into(),
                         right,
@@ -2170,116 +2500,206 @@ pub(crate) fn cond_type_fault(cond: &Cond, constants: ConstantTypes) -> Option<F
                 }
                 None
             } else {
-                comparison_problem(op, left_type, right_type).map(|problem| Fault::in_cond(problem, cond))
+                comparison_problem(op, left_type, right_type).map(|problem| Fault {
+                    problem,
+                    at: first_constant_in_cond(cond),
+                    node_at: *compare_at,
+                })
             }
         }
-        Cond::Initial(span) | Cond::Final(span) | Cond::Boundary(_, span, _, _) => {
+        Cond::Initial(span, ..) | Cond::Final(span, ..) | Cond::Boundary(_, span, _, _) => {
             match term_type_in(span, constants) {
                 Err(fault) => Some(fault),
                 Ok(ty) => expected_problem(ty, Type::Span).map(|problem| Fault::in_cond(problem, cond)),
             }
         }
-        Cond::Captured(_) => None,
+        Cond::Captured(..) => None,
     }
 }
 
-fn tag_term_fault(term: &Term, constants: ConstantTypes) -> Option<Fault> {
-    match term_type_in(term, constants) {
-        Err(fault) => Some(fault),
-        Ok(ty) => expected_problem(ty, Type::Tags).map(|problem| Fault::in_term(problem, term)),
-    }
-}
-
-/// Why a rule's terms and conditions do not agree in type, or `None`.
-pub(crate) fn rule_type_problem(rule: &RuleDef) -> Option<String> {
-    rule_type_fault(rule, &unknown).map(|fault| fault.problem)
-}
+/// A tag term of a rule: its clause root, the term, and where the clause
+/// writes the term.
+type TagUse<'a> = (usize, &'a Term, Option<(usize, usize)>);
 
 /// Why a rule's terms and conditions do not agree in type, at the
-/// smallest construct that disagrees, or `None`.
+/// smallest construct that disagrees, or `None` (engine §10). The faults
+/// are found clause by clause, and the first stands before the next fault
+/// whose construct holds a constant: the canonical clause order supplies
+/// the positions that the DOM lacks.
 pub(crate) fn rule_type_fault(rule: &RuleDef, constants: ConstantTypes) -> Option<Fault> {
-    enum Use<'a> {
-        Tags(&'a Term),
-        String(&'a Term),
-        Condition(&'a Cond),
-        Test(&'a str, &'a Term),
+    fn emit_parts(item: &EmitItem) -> (Option<&Term>, &Channels) {
+        match item {
+            EmitItem::Capture(_, tags, attachments) => (tags.as_ref(), &attachments.strings),
+            EmitItem::Insert(tags, strings) => (tags.as_ref(), strings),
+        }
     }
-    fn channels<'a>(channels: &'a Channels, uses: &mut Vec<Use<'a>>) {
-        for recipe in channels.value.iter().chain(&channels.image) {
-            if let Term::Call(name, args) = recipe {
-                if name == "concat" {
-                    uses.extend(args.iter().filter_map(|arg| match arg {
-                        Arg::Term(atom) => Some(Use::String(atom)),
-                        _ => None,
-                    }));
+    // The clause roots in their canonical order: the header's tags, value
+    // and image, each alternative's expression, tags, value and image, the
+    // conditions, the diagnostic, and each emission item's tags, value and
+    // image.
+    let mut roots = 0;
+    let mut root = || {
+        roots += 1;
+        roots - 1
+    };
+    let header = (root(), root(), root());
+    let alternatives: Vec<(usize, usize, usize, usize)> =
+        rule.alternatives.iter().map(|_| (root(), root(), root(), root())).collect();
+    let conditions: Vec<usize> = rule.conditions.iter().map(|_| root()).collect();
+    let diagnostics = (root(), root());
+    let items: Vec<(usize, usize, usize)> = rule.emit.iter().flatten().map(|_| (root(), root(), root())).collect();
+    let mut faults: Vec<(usize, Fault)> = Vec::new();
+    // Recipes: each atom is a string, or a string method of a capture.
+    let mut recipes: Vec<(usize, &Term)> = Vec::new();
+    recipes.extend(rule.strings.value.iter().map(|recipe| (header.1, recipe)));
+    recipes.extend(rule.strings.image.iter().map(|recipe| (header.2, recipe)));
+    recipes.extend(rule.error.iter().map(|recipe| (diagnostics.0, recipe)));
+    recipes.extend(rule.warning.iter().map(|recipe| (diagnostics.1, recipe)));
+    for (alternative, roots) in rule.alternatives.iter().zip(&alternatives) {
+        recipes.extend(alternative.strings.value.iter().map(|recipe| (roots.2, recipe)));
+        recipes.extend(alternative.strings.image.iter().map(|recipe| (roots.3, recipe)));
+    }
+    for (item, roots) in rule.emit.iter().flatten().zip(&items) {
+        let (_, strings) = emit_parts(item);
+        recipes.extend(strings.value.iter().map(|recipe| (roots.1, recipe)));
+        recipes.extend(strings.image.iter().map(|recipe| (roots.2, recipe)));
+    }
+    let typed = |faults: &mut Vec<(usize, Fault)>, index: usize, term: &Term, expected: Type| match term_type_in(
+        term, constants,
+    ) {
+        Err(fault) => faults.push((index, fault)),
+        Ok(ty) => {
+            if let Some(problem) = expected_problem(ty, expected) {
+                faults.push((index, Fault::in_term(problem, term)));
+            }
+        }
+    };
+    for (index, recipe) in recipes {
+        let atoms: Vec<&Term> = match recipe {
+            Term::Call(name, args, ..) if name == "concat" => args
+                .iter()
+                .filter_map(|arg| match arg {
+                    Arg::Term(atom) => Some(atom),
+                    _ => None,
+                })
+                .collect(),
+            recipe => vec![recipe],
+        };
+        for atom in atoms {
+            let call = matches!(atom, Term::Source(SourceSymbol::Call(..)))
+                || matches!(atom, Term::Const(name, ..) if name == partial::UNRESOLVED_CALL);
+            let string = matches!(atom, Term::Str(..) | Term::Const(..)) && !atom.grouped() && !call;
+            if !string && !matches!(atom, Term::Source(SourceSymbol::Parameter(..))) {
+                let Term::Call(name, args, ..) = atom else {
+                    faults.push((index, Fault::in_term("a malformed recipe atom".into(), atom)));
+                    continue;
+                };
+                if !matches!(
+                    name.as_str(),
+                    "value" | "image" | "source-text" | "decomposed-source-text" | "verbatim-text"
+                ) || args.len() != 1
+                {
+                    faults.push((index, Fault::in_term("a malformed recipe atom".into(), atom)));
+                    continue;
+                }
+                let receiver_valid = match &args[0] {
+                    Arg::Term(Term::Capture(..)) => true,
+                    Arg::Term(Term::Call(inner, inner_args, ..)) => {
+                        matches!(name.as_str(), "value" | "image")
+                            && inner == "emitted"
+                            && matches!(&inner_args[..], [Arg::Term(Term::Capture(..))])
+                    }
+                    _ => false,
+                };
+                if !receiver_valid {
+                    faults.push((index, Fault::in_term("a malformed recipe receiver".into(), atom)));
                     continue;
                 }
             }
-            uses.push(Use::String(recipe));
+            typed(&mut faults, index, atom, Type::String);
         }
     }
-    let mut uses = Vec::new();
-    uses.extend(rule.tags.iter().map(Use::Tags));
-    channels(&rule.strings, &mut uses);
-    uses.extend(rule.error.iter().chain(&rule.warning).map(Use::String));
-    for alternative in &rule.alternatives {
+    // Tag terms, each a tag set; the whole term's type stands at the term
+    // as its clause writes it.
+    let mut tags: Vec<TagUse<'_>> = Vec::new();
+    tags.extend(rule.tags.iter().map(|term| (header.0, term, rule.tags_at.term)));
+    for (alternative, roots) in rule.alternatives.iter().zip(&alternatives) {
+        tags.extend(alternative.tags.iter().map(|term| (roots.1, term, alternative.tags_at.term)));
+    }
+    for (position, (item, roots)) in rule.emit.iter().flatten().zip(&items).enumerate() {
+        let (term, _) = emit_parts(item);
+        let term_at = rule.places.item_tags_ats.get(position).copied().flatten();
+        tags.extend(term.map(|term| (roots.0, term, term_at)));
+    }
+    for (index, term, term_at) in tags {
+        match term_type_in(term, constants) {
+            Err(fault) => faults.push((index, fault)),
+            Ok(ty) => {
+                if let Some(problem) = expected_problem(ty, Type::Tags) {
+                    let mut fault = Fault::in_term(problem, term);
+                    fault.node_at = term_at.or(fault.node_at);
+                    faults.push((index, fault));
+                }
+            }
+        }
+    }
+    for (condition, index) in rule.conditions.iter().zip(&conditions) {
+        if let Some(fault) = cond_type_fault(condition, constants) {
+            faults.push((*index, fault));
+        }
+    }
+    // Literal and range operands of the alternatives are strings.
+    for (alternative, roots) in rule.alternatives.iter().zip(&alternatives) {
         let mut pending = vec![&alternative.expr];
         while let Some(expr) = pending.pop() {
             match expr {
-                Expr::Literal(term) => uses.push(Use::String(term)),
-                Expr::ScalarRange(a, b) => uses.extend([Use::String(a), Use::String(b)]),
-                Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
+                Expr::Literal(term, _) => typed(&mut faults, roots.0, term, Type::String),
+                Expr::ScalarRange(a, b, _) => {
+                    typed(&mut faults, roots.0, a, Type::String);
+                    typed(&mut faults, roots.0, b, Type::String);
+                }
+                Expr::Seq(items, _) | Expr::Choice(items, _) | Expr::Ranked(items, _) | Expr::And(items, _) => {
                     pending.extend(items.iter().rev())
                 }
-                Expr::Optional(inner, _, default) => {
-                    pending.push(inner);
-                    if let Some(default) = default {
-                        uses.push(Use::String(&default.term));
-                    }
-                }
-                Expr::Capture(_, inner) | Expr::Splice(inner) | Expr::Tested(_, _, inner) => pending.push(inner),
-                Expr::Repeat(item, separator, _) => {
+                Expr::Optional(inner, _, _, _)
+                | Expr::Capture(_, inner, _)
+                | Expr::Splice(inner, _)
+                | Expr::Tested(_, _, inner, _) => pending.push(inner),
+                Expr::Repeat(item, separator, _, _) => {
                     pending.extend(separator.as_deref());
                     pending.push(item);
                 }
                 _ => {}
             }
         }
-        uses.extend(tests_in(&alternative.expr).into_iter().map(|(op, value, _)| Use::Test(op, value)));
-        uses.extend(alternative.tags.iter().map(Use::Tags));
-        channels(&alternative.strings, &mut uses);
     }
-    uses.extend(rule.conditions.iter().map(Use::Condition));
-    for item in rule.emit.iter().flatten() {
-        let (tags, strings) = match item {
-            EmitItem::Capture(_, tags, attachments) => (tags, &attachments.strings),
-            EmitItem::Insert(tags, strings) => (tags, strings),
-        };
-        uses.extend(tags.iter().map(Use::Tags));
-        channels(strings, &mut uses);
-    }
-    let mut faults = Vec::new();
-    for usage in uses {
-        let fault = match usage {
-            Use::Tags(term) => tag_term_fault(term, constants),
-            Use::Condition(cond) => cond_type_fault(cond, constants),
-            Use::String(term) | Use::Test(_, term) => match term_type_in(term, constants) {
-                Err(fault) => Some(fault),
-                Ok(ty) => {
-                    let problem = match usage {
-                        Use::Test(op, _) => test_type_problem(op, ty),
-                        _ => expected_problem(ty, Type::String),
+    // A test's value is a string for a value test, and each requirement of
+    // a tag test is a tag set (engine §9, §10).
+    for (alternative, roots) in rule.alternatives.iter().zip(&alternatives) {
+        for (op, value, _) in tests_in(&alternative.expr) {
+            if op == "tags" {
+                let Term::Call(_, requirements, ..) = value else { continue };
+                for requirement in requirements {
+                    let Arg::Term(term) = requirement else { continue };
+                    let term = match term {
+                        Term::Call(name, args, ..) if name == "forbid" => match args.first() {
+                            Some(Arg::Term(term)) => term,
+                            _ => continue,
+                        },
+                        term => term,
                     };
-                    problem.map(|problem| Fault::in_term(problem, term))
+                    typed(&mut faults, roots.0, term, Type::Tags);
                 }
-            },
-        };
-        faults.extend(fault);
+            } else {
+                typed(&mut faults, roots.0, value, Type::String);
+            }
+        }
     }
+    faults.sort_by_key(|(index, _)| *index);
     let mut first = None;
     let mut next = (usize::MAX, usize::MAX);
     let mut position = (usize::MAX, usize::MAX, 2);
-    for fault in faults.into_iter().rev() {
+    for (_, fault) in faults.into_iter().rev() {
         if let Some(at) = fault.at {
             next = at;
         }
@@ -2359,7 +2779,7 @@ impl crate::patterns::Pattern {
     fn take_parts(&mut self, stack: &mut Vec<Dropping>) {
         use crate::patterns::Pattern as P;
         let take = |pattern: &mut P| Dropping::Pattern(std::mem::replace(pattern, P::Any));
-        let term = |term: &mut Term| Dropping::Term(std::mem::replace(term, Term::EmptySet));
+        let term = |term: &mut Term| Dropping::Term(std::mem::replace(term, Term::EmptySet(crate::dom::Hidden::NONE)));
         match self {
             P::Source(symbol) => symbol.take_parts(stack),
             P::Literal(value, _) => stack.push(term(value)),
@@ -2428,35 +2848,168 @@ impl Drop for SourceSymbol {
 impl Expr {
     fn take_parts(&mut self, stack: &mut Vec<Dropping>) {
         match self {
-            Self::Source(symbol) => symbol.take_parts(stack),
-            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
+            Self::Source(symbol, ..) => symbol.take_parts(stack),
+            Expr::Seq(items, _) | Expr::Choice(items, _) | Expr::Ranked(items, _) | Expr::And(items, _) => {
                 stack.extend(items.drain(..).map(Dropping::Expr))
             }
-            Expr::Optional(inner, _, default) => {
+            Expr::Optional(inner, _, default, _) => {
                 if let Some(default) = default.take() {
                     stack.push(Dropping::Term(default.term));
                 }
-                stack.push(Dropping::Expr(std::mem::replace(&mut **inner, Expr::Empty)));
+                stack
+                    .push(Dropping::Expr(std::mem::replace(&mut **inner, Expr::Empty(crate::dom::ExprAt::from(None)))));
             }
-            Expr::Capture(_, inner) | Expr::Splice(inner) => {
-                stack.push(Dropping::Expr(std::mem::replace(&mut **inner, Expr::Empty)))
+            Expr::Capture(_, inner, _) | Expr::Splice(inner, _) => {
+                stack.push(Dropping::Expr(std::mem::replace(&mut **inner, Expr::Empty(crate::dom::ExprAt::from(None)))))
             }
-            Expr::Repeat(item, separator, _) => {
-                stack.push(Dropping::Expr(std::mem::replace(&mut **item, Expr::Empty)));
+            Expr::Repeat(item, separator, _, _) => {
+                stack.push(Dropping::Expr(std::mem::replace(&mut **item, Expr::Empty(crate::dom::ExprAt::from(None)))));
                 if let Some(separator) = separator {
-                    stack.push(Dropping::Expr(std::mem::replace(&mut **separator, Expr::Empty)));
+                    stack.push(Dropping::Expr(std::mem::replace(
+                        &mut **separator,
+                        Expr::Empty(crate::dom::ExprAt::from(None)),
+                    )));
                 }
             }
-            Expr::Tested(_, value, symbol) => {
-                stack.push(Dropping::Term(std::mem::replace(value, Term::EmptySet)));
-                stack.push(Dropping::Expr(std::mem::replace(&mut **symbol, Expr::Empty)));
+            Expr::Tested(_, value, symbol, _) => {
+                stack.push(Dropping::Term(std::mem::replace(value, Term::EmptySet(crate::dom::Hidden::NONE))));
+                stack.push(Dropping::Expr(std::mem::replace(
+                    &mut **symbol,
+                    Expr::Empty(crate::dom::ExprAt::from(None)),
+                )));
             }
-            Expr::Literal(value) => stack.push(Dropping::Term(std::mem::replace(value, Term::EmptySet))),
-            Expr::ScalarRange(a, b) => {
-                stack.push(Dropping::Term(std::mem::replace(a, Term::EmptySet)));
-                stack.push(Dropping::Term(std::mem::replace(b, Term::EmptySet)));
+            Expr::Literal(value, _) => {
+                stack.push(Dropping::Term(std::mem::replace(value, Term::EmptySet(crate::dom::Hidden::NONE))))
             }
-            Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Wildcard | Expr::Empty | Expr::Remainder => {}
+            Expr::ScalarRange(a, b, _) => {
+                stack.push(Dropping::Term(std::mem::replace(a, Term::EmptySet(crate::dom::Hidden::NONE))));
+                stack.push(Dropping::Term(std::mem::replace(b, Term::EmptySet(crate::dom::Hidden::NONE))));
+            }
+            Expr::Ref(_, _)
+            | Expr::Terminal(_, _)
+            | Expr::Range(..)
+            | Expr::Wildcard(_)
+            | Expr::Empty(_)
+            | Expr::Remainder(_) => {}
+        }
+    }
+}
+
+impl Term {
+    /// What a reader knows of this term and its DOM does not hold.
+    pub(crate) fn hidden(&self) -> Option<&Hidden> {
+        match self {
+            Term::Str(_, hidden)
+            | Term::Tag(_, hidden)
+            | Term::Union(_, hidden)
+            | Term::Intersection(_, hidden)
+            | Term::Difference(_, _, hidden)
+            | Term::Call(_, _, hidden)
+            | Term::Capture(_, hidden)
+            | Term::If(_, _, hidden)
+            | Term::EmptySet(hidden)
+            | Term::Const(_, _, hidden)
+            | Term::Pattern(_, hidden) => Some(hidden),
+            Term::Body(_) | Term::Source(_) => None,
+        }
+    }
+
+    pub(crate) fn hidden_mut(&mut self) -> Option<&mut Hidden> {
+        match self {
+            Term::Str(_, hidden)
+            | Term::Tag(_, hidden)
+            | Term::Union(_, hidden)
+            | Term::Intersection(_, hidden)
+            | Term::Difference(_, _, hidden)
+            | Term::Call(_, _, hidden)
+            | Term::Capture(_, hidden)
+            | Term::If(_, _, hidden)
+            | Term::EmptySet(hidden)
+            | Term::Const(_, _, hidden)
+            | Term::Pattern(_, hidden) => Some(hidden),
+            Term::Body(_) | Term::Source(_) => None,
+        }
+    }
+
+    /// Where the term stands, when it is known: its own position, which a
+    /// constant reference or a source symbol holds in the DOM and a reader
+    /// knows of every other term.
+    pub(crate) fn at(&self) -> Option<(usize, usize)> {
+        match self {
+            // A reader can place a constant where its parentheses stand.
+            Term::Const(_, at, hidden) => hidden.position().or(Some(*at)),
+            Term::Source(symbol) => Some(symbol.at()),
+            Term::Body(body) => body.at(),
+            term => term.hidden().and_then(|hidden| hidden.position()),
+        }
+    }
+
+    /// Whether parentheses group the term (engine §9.3).
+    pub(crate) fn grouped(&self) -> bool {
+        self.hidden().is_some_and(|hidden| hidden.grouped)
+    }
+
+    /// Gives the term the position `at` unless it has one. A constant
+    /// reference has its own.
+    pub(crate) fn locate(&mut self, at: (usize, usize)) {
+        if matches!(self, Term::Const(..)) {
+            return;
+        }
+        if let Some(hidden) = self.hidden_mut() {
+            if hidden.position().is_none() {
+                hidden.set(Some(at));
+            }
+        }
+    }
+}
+
+impl Cond {
+    pub(crate) fn hidden(&self) -> Option<&Hidden> {
+        match self {
+            Cond::Forest(_, hidden)
+            | Cond::Truthy(_, hidden)
+            | Cond::Initial(_, hidden)
+            | Cond::Final(_, hidden)
+            | Cond::Not(_, hidden)
+            | Cond::Any(_, hidden)
+            | Cond::All(_, hidden)
+            | Cond::Captured(_, hidden)
+            | Cond::If(_, _, hidden) => Some(hidden),
+            Cond::SourceQuery(..) | Cond::Compare(..) | Cond::Boundary(..) => None,
+        }
+    }
+
+    pub(crate) fn hidden_mut(&mut self) -> Option<&mut Hidden> {
+        match self {
+            Cond::Forest(_, hidden)
+            | Cond::Truthy(_, hidden)
+            | Cond::Initial(_, hidden)
+            | Cond::Final(_, hidden)
+            | Cond::Not(_, hidden)
+            | Cond::Any(_, hidden)
+            | Cond::All(_, hidden)
+            | Cond::Captured(_, hidden)
+            | Cond::If(_, _, hidden) => Some(hidden),
+            Cond::SourceQuery(..) | Cond::Compare(..) | Cond::Boundary(..) => None,
+        }
+    }
+
+    /// Where the condition stands, when it is known.
+    pub(crate) fn at(&self) -> Option<(usize, usize)> {
+        match self {
+            Cond::Compare(_, _, _, at) => *at,
+            Cond::SourceQuery(_, _, location) => location.at,
+            Cond::Boundary(_, _, _, location) => location.at,
+            cond => cond.hidden().and_then(|hidden| hidden.position()),
+        }
+    }
+
+    /// Gives the condition the position `at` unless it has one.
+    pub(crate) fn locate(&mut self, at: (usize, usize)) {
+        if let Some(hidden) = self.hidden_mut() {
+            if hidden.position().is_none() {
+                hidden.set(Some(at));
+            }
         }
     }
 }
@@ -2465,32 +3018,35 @@ impl Term {
     fn take_parts(&mut self, stack: &mut Vec<Dropping>) {
         match self {
             Term::Body(body) => {
-                let owned = std::mem::replace(body, std::sync::Arc::new(Expr::Empty));
+                let owned = std::mem::replace(body, std::sync::Arc::new(Expr::Empty(crate::dom::ExprAt::from(None))));
                 if let Ok(expr) = std::sync::Arc::try_unwrap(owned) {
                     stack.push(Dropping::Expr(expr));
                 }
             }
             Self::Source(symbol) => symbol.take_parts(stack),
-            Term::Union(items) | Term::Intersection(items) => stack.extend(items.drain(..).map(Dropping::Term)),
-            Term::Difference(left, right) => {
-                stack.push(Dropping::Term(std::mem::replace(&mut **left, Term::EmptySet)));
-                stack.push(Dropping::Term(std::mem::replace(&mut **right, Term::EmptySet)));
+            Term::Union(items, ..) | Term::Intersection(items, ..) => stack.extend(items.drain(..).map(Dropping::Term)),
+            Term::Difference(left, right, ..) => {
+                stack.push(Dropping::Term(std::mem::replace(&mut **left, Term::EmptySet(crate::dom::Hidden::NONE))));
+                stack.push(Dropping::Term(std::mem::replace(&mut **right, Term::EmptySet(crate::dom::Hidden::NONE))));
             }
-            Term::Call(_, args) => {
+            Term::Call(_, args, ..) => {
                 for arg in args.drain(..) {
                     if let Arg::Term(term) = arg {
                         stack.push(Dropping::Term(term));
                     }
                 }
             }
-            Term::If(cond, then) => {
-                stack.push(Dropping::Cond(std::mem::replace(&mut **cond, Cond::Captured(String::new()))));
-                stack.push(Dropping::Term(std::mem::replace(&mut **then, Term::EmptySet)));
+            Term::If(cond, then, ..) => {
+                stack.push(Dropping::Cond(std::mem::replace(
+                    &mut **cond,
+                    Cond::Captured(String::new(), crate::dom::Hidden::NONE),
+                )));
+                stack.push(Dropping::Term(std::mem::replace(&mut **then, Term::EmptySet(crate::dom::Hidden::NONE))));
             }
-            Term::Pattern(pattern) => {
+            Term::Pattern(pattern, ..) => {
                 stack.push(Dropping::Pattern(std::mem::replace(&mut **pattern, crate::patterns::Pattern::Any)))
             }
-            Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Capture(_) | Term::Const(..) => {}
+            Term::Str(..) | Term::Tag(..) | Term::EmptySet(..) | Term::Capture(..) | Term::Const(..) => {}
         }
     }
 }
@@ -2498,8 +3054,12 @@ impl Term {
 impl Cond {
     fn take_parts(&mut self, stack: &mut Vec<Dropping>) {
         match self {
-            Cond::Truthy(term) => stack.push(Dropping::Term(std::mem::replace(term, Term::EmptySet))),
-            Cond::Forest(term) => stack.push(Dropping::Term(std::mem::replace(term, Term::EmptySet))),
+            Cond::Truthy(term, ..) => {
+                stack.push(Dropping::Term(std::mem::replace(term, Term::EmptySet(crate::dom::Hidden::NONE))))
+            }
+            Cond::Forest(term, ..) => {
+                stack.push(Dropping::Term(std::mem::replace(term, Term::EmptySet(crate::dom::Hidden::NONE))))
+            }
             Cond::SourceQuery(_, args, _) => {
                 stack.extend(args.drain(..).filter_map(|arg| match arg {
                     Arg::Term(term) => Some(Dropping::Term(term)),
@@ -2507,21 +3067,28 @@ impl Cond {
                 }));
             }
             Cond::Compare(_, left, right, _) => {
-                stack.push(Dropping::Term(std::mem::replace(left, Term::EmptySet)));
-                stack.push(Dropping::Term(std::mem::replace(right, Term::EmptySet)));
+                stack.push(Dropping::Term(std::mem::replace(left, Term::EmptySet(crate::dom::Hidden::NONE))));
+                stack.push(Dropping::Term(std::mem::replace(right, Term::EmptySet(crate::dom::Hidden::NONE))));
             }
-            Cond::Initial(span) | Cond::Final(span) | Cond::Boundary(_, span, _, _) => {
-                stack.push(Dropping::Term(std::mem::replace(span, Term::EmptySet)))
+            Cond::Initial(span, ..) | Cond::Final(span, ..) | Cond::Boundary(_, span, _, _) => {
+                stack.push(Dropping::Term(std::mem::replace(span, Term::EmptySet(crate::dom::Hidden::NONE))))
             }
-            Cond::Not(inner) => {
-                stack.push(Dropping::Cond(std::mem::replace(&mut **inner, Cond::Captured(String::new()))))
+            Cond::Not(inner, ..) => stack.push(Dropping::Cond(std::mem::replace(
+                &mut **inner,
+                Cond::Captured(String::new(), crate::dom::Hidden::NONE),
+            ))),
+            Cond::Any(items, ..) | Cond::All(items, ..) => stack.extend(items.drain(..).map(Dropping::Cond)),
+            Cond::If(antecedent, consequent, ..) => {
+                stack.push(Dropping::Cond(std::mem::replace(
+                    &mut **antecedent,
+                    Cond::Captured(String::new(), crate::dom::Hidden::NONE),
+                )));
+                stack.push(Dropping::Cond(std::mem::replace(
+                    &mut **consequent,
+                    Cond::Captured(String::new(), crate::dom::Hidden::NONE),
+                )));
             }
-            Cond::Any(items) | Cond::All(items) => stack.extend(items.drain(..).map(Dropping::Cond)),
-            Cond::If(antecedent, consequent) => {
-                stack.push(Dropping::Cond(std::mem::replace(&mut **antecedent, Cond::Captured(String::new()))));
-                stack.push(Dropping::Cond(std::mem::replace(&mut **consequent, Cond::Captured(String::new()))));
-            }
-            Cond::Captured(_) => {}
+            Cond::Captured(..) => {}
         }
     }
 }
@@ -2567,10 +3134,10 @@ pub(crate) fn ngrams(s: &str, digits: &str) -> Vec<String> {
 pub(crate) fn restored_span(mut term: &Term) -> bool {
     for _ in 0..=256 {
         match term {
-            Term::Call(name, _) if matches!(name.as_str(), "without-elision" | "without-elision-except") => {
+            Term::Call(name, ..) if matches!(name.as_str(), "without-elision" | "without-elision-except") => {
                 return true
             }
-            Term::Call(name, args) if name == "onward" => {
+            Term::Call(name, args, ..) if name == "onward" => {
                 let [Arg::Term(inner)] = &args[..] else { return false };
                 term = inner;
             }

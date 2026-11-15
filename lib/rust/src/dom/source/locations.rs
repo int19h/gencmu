@@ -64,8 +64,8 @@ fn predicate(cond: &Cond) -> Option<(&str, &Term)> {
             let Arg::Term(receiver) = args.first()? else { return None };
             (name.as_str(), receiver)
         }
-        Cond::Initial(receiver) => ("starts-input", receiver),
-        Cond::Final(receiver) => ("ends-input", receiver),
+        Cond::Initial(receiver, ..) => ("starts-input", receiver),
+        Cond::Final(receiver, ..) => ("ends-input", receiver),
         Cond::Boundary(after, receiver, _, _) => (if *after { "followed-by" } else { "preceded-by" }, receiver),
         _ => return None,
     })
@@ -77,8 +77,8 @@ fn predicate_mut(cond: &mut Cond) -> Option<(&str, &mut Term)> {
             let Arg::Term(receiver) = args.first_mut()? else { return None };
             (name.as_str(), receiver)
         }
-        Cond::Initial(receiver) => ("starts-input", receiver),
-        Cond::Final(receiver) => ("ends-input", receiver),
+        Cond::Initial(receiver, ..) => ("starts-input", receiver),
+        Cond::Final(receiver, ..) => ("ends-input", receiver),
         Cond::Boundary(after, receiver, _, _) => (if *after { "followed-by" } else { "preceded-by" }, receiver),
         _ => return None,
     })
@@ -163,57 +163,58 @@ fn restore(mut pending: Vec<Pair<'_>>) {
                     *ta = *fa;
                     pending.extend(to.iter_mut().zip(from).map(|(to, from)| Pair::Expr(to, from)));
                 }
-                (Expr::Seq(to), Expr::Seq(from))
-                | (Expr::Choice(to), Expr::Choice(from))
-                | (Expr::And(to), Expr::And(from)) => {
+                (Expr::Seq(to, _), Expr::Seq(from, _))
+                | (Expr::Choice(to, _), Expr::Choice(from, _))
+                | (Expr::And(to, _), Expr::And(from, _)) => {
                     pending.extend(to.iter_mut().zip(from).map(|(to, from)| Pair::Expr(to, from)));
                 }
-                (Expr::Optional(to, _, td), Expr::Optional(from, _, fd)) => {
+                (Expr::Optional(to, _, td, _), Expr::Optional(from, _, fd, _)) => {
                     pending.push(Pair::Expr(to, from));
                     for (to, from) in td.iter_mut().zip(fd) {
                         to.at = from.at;
                         pending.push(Pair::Term(&mut to.term, &from.term));
                     }
                 }
-                (Expr::Capture(_, to), Expr::Capture(_, from)) => pending.push(Pair::Expr(to, from)),
-                (Expr::Repeat(to, ts, _), Expr::Repeat(from, fs, _)) => {
+                (Expr::Capture(_, to, _), Expr::Capture(_, from, _)) => pending.push(Pair::Expr(to, from)),
+                (Expr::Repeat(to, ts, _, _), Expr::Repeat(from, fs, _, _)) => {
                     pending.push(Pair::Expr(to, from));
                     for (to, from) in ts.iter_mut().zip(fs) {
                         pending.push(Pair::Expr(to, from));
                     }
                 }
-                (Expr::Tested(_, tv, to), Expr::Tested(_, fv, from)) => {
+                (Expr::Tested(_, tv, to, _), Expr::Tested(_, fv, from, _)) => {
                     pending.push(Pair::Term(tv, fv));
                     pending.push(Pair::Expr(to, from));
                 }
-                (Expr::Literal(to), Expr::Literal(from)) => pending.push(Pair::Term(to, from)),
-                (Expr::ScalarRange(ta, tb), Expr::ScalarRange(fa, fb)) => {
+                (Expr::Literal(to, _), Expr::Literal(from, _)) => pending.push(Pair::Term(to, from)),
+                (Expr::ScalarRange(ta, tb, _), Expr::ScalarRange(fa, fb, _)) => {
                     pending.push(Pair::Term(ta, fa));
                     pending.push(Pair::Term(tb, fb));
                 }
-                (Expr::Source(to), Expr::Source(from)) => pending.push(Pair::Symbol(to, from)),
+                (Expr::Source(to, ..), Expr::Source(from, ..)) => pending.push(Pair::Symbol(to, from)),
                 _ => (),
             },
             Pair::Term(to, from) => match (to, from) {
                 (Term::Body(to), Term::Body(from)) => pending.push(Pair::Expr(std::sync::Arc::make_mut(to), from)),
-                (Term::Union(to), Term::Union(from)) | (Term::Intersection(to), Term::Intersection(from)) => {
+                (Term::Union(to, ..), Term::Union(from, ..))
+                | (Term::Intersection(to, ..), Term::Intersection(from, ..)) => {
                     pending.extend(to.iter_mut().zip(from).map(|(to, from)| Pair::Term(to, from)));
                 }
-                (Term::Difference(ta, tb), Term::Difference(fa, fb)) => {
+                (Term::Difference(ta, tb, ..), Term::Difference(fa, fb, ..)) => {
                     pending.push(Pair::Term(ta, fa));
                     pending.push(Pair::Term(tb, fb));
                 }
-                (Term::If(tc, tt), Term::If(fc, ft)) => {
+                (Term::If(tc, tt, ..), Term::If(fc, ft, ..)) => {
                     pending.push(Pair::Cond(tc, fc));
                     pending.push(Pair::Term(tt, ft));
                 }
-                (Term::Call(tn, to), Term::Call(fn_, from)) if tn == fn_ => arguments(to, from, &mut pending),
+                (Term::Call(tn, to, ..), Term::Call(fn_, from, ..)) if tn == fn_ => arguments(to, from, &mut pending),
                 (Term::Source(to), Term::Source(from)) => pending.push(Pair::Symbol(to, from)),
-                (Term::Pattern(to), Term::Pattern(from)) => pending.push(Pair::Pattern(to, from)),
+                (Term::Pattern(to, ..), Term::Pattern(from, ..)) => pending.push(Pair::Pattern(to, from)),
                 _ => (),
             },
             Pair::Cond(to, from) => match (to, from) {
-                (Cond::Forest(to), Cond::Forest(from)) => pending.push(Pair::Term(to, from)),
+                (Cond::Forest(to, ..), Cond::Forest(from, ..)) => pending.push(Pair::Term(to, from)),
                 (Cond::SourceQuery(tn, to, tl), Cond::SourceQuery(fn_, from, fl)) => {
                     if tn == fn_ {
                         *tl = fl.clone();
@@ -243,11 +244,11 @@ fn restore(mut pending: Vec<Pair<'_>>) {
                     pending.push(Pair::Term(ta, fa));
                     pending.push(Pair::Term(tb, fb));
                 }
-                (Cond::Any(to), Cond::Any(from)) | (Cond::All(to), Cond::All(from)) => {
+                (Cond::Any(to, ..), Cond::Any(from, ..)) | (Cond::All(to, ..), Cond::All(from, ..)) => {
                     pending.extend(to.iter_mut().zip(from).map(|(to, from)| Pair::Cond(to, from)));
                 }
-                (Cond::Not(to), Cond::Not(from)) => pending.push(Pair::Cond(to, from)),
-                (Cond::If(ta, tb), Cond::If(fa, fb)) => {
+                (Cond::Not(to, ..), Cond::Not(from, ..)) => pending.push(Pair::Cond(to, from)),
+                (Cond::If(ta, tb, ..), Cond::If(fa, fb, ..)) => {
                     pending.push(Pair::Cond(ta, fa));
                     pending.push(Pair::Cond(tb, fb));
                 }
@@ -277,12 +278,12 @@ fn restore(mut pending: Vec<Pair<'_>>) {
                     SourceArgument::Body(from) | SourceArgument::WrappedBody(from),
                 ) => pending.push(Pair::Expr(to, from)),
                 (
-                    SourceArgument::Body(Expr::Source(to)) | SourceArgument::WrappedBody(Expr::Source(to)),
+                    SourceArgument::Body(Expr::Source(to, ..)) | SourceArgument::WrappedBody(Expr::Source(to, ..)),
                     SourceArgument::Term(Term::Source(from)),
                 )
                 | (
                     SourceArgument::Term(Term::Source(to)),
-                    SourceArgument::Body(Expr::Source(from)) | SourceArgument::WrappedBody(Expr::Source(from)),
+                    SourceArgument::Body(Expr::Source(from, ..)) | SourceArgument::WrappedBody(Expr::Source(from, ..)),
                 ) => pending.push(Pair::Symbol(to, from)),
                 (SourceArgument::Targets(to), SourceArgument::Targets(from)) => {
                     for (to, from) in to.iter_mut().zip(from) {

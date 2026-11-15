@@ -49,6 +49,44 @@ impl<'a> Pieces<'a> {
     }
 }
 
+thread_local! {
+    /// Whether the writer also writes what a reader knows of each node and
+    /// the DOM does not hold, under members whose names begin with NUL, for
+    /// the DOM validator alone (engine §9.3).
+    static LOCATED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Runs `write` with the hidden members written.
+pub(crate) fn located<T>(write: impl FnOnce() -> T) -> T {
+    let before = LOCATED.with(|flag| flag.replace(true));
+    let result = write();
+    LOCATED.with(|flag| flag.set(before));
+    result
+}
+
+pub(crate) fn is_located() -> bool {
+    LOCATED.with(std::cell::Cell::get)
+}
+
+/// The hidden members of a node, when the writer writes them.
+pub(crate) fn hidden_text(at: Option<(usize, usize)>, grouped: bool) -> String {
+    if !is_located() {
+        return String::new();
+    }
+    let mut text = String::new();
+    if let Some((line, column)) = at {
+        text.push_str(&format!(",\"\\u0000at\":[{line},{column}]"));
+    }
+    if grouped {
+        text.push_str(",\"\\u0000grouped\":true");
+    }
+    text
+}
+
+fn hidden_of(hidden: Option<&Hidden>) -> String {
+    hidden.map_or_else(String::new, |hidden| hidden_text(hidden.position(), hidden.grouped))
+}
+
 pub(crate) fn write(out: &mut String, root: Part<'_>) {
     let mut pending = vec![root];
     while let Some(part) = pending.pop() {
@@ -128,7 +166,13 @@ fn emit_call_fields<'a>(out: &mut Pieces<'a>, call: &'a SourceCall) {
     out.push_str(",\"args\":");
     out.parts.push(Part::Arguments(&call.args));
 }
-fn write_list<'a, T>(out: &mut Pieces<'a>, key: &str, items: &'a [T], write: fn(&mut Pieces<'a>, &'a T)) {
+fn write_list_with<'a, T>(
+    out: &mut Pieces<'a>,
+    key: &str,
+    items: &'a [T],
+    write: fn(&mut Pieces<'a>, &'a T),
+    hidden: &str,
+) {
     out.push_str("{\"");
     out.push_str(key);
     out.push_str("\":[");
@@ -138,22 +182,38 @@ fn write_list<'a, T>(out: &mut Pieces<'a>, key: &str, items: &'a [T], write: fn(
         }
         write(out, item);
     }
-    out.push_str("]}");
+    out.push(']');
+    out.push_str(hidden);
+    out.push('}');
+}
+
+fn at_text(at: &Option<(usize, usize)>) -> String {
+    match at {
+        Some((line, column)) => format!(",\"at\":[{line},{column}]"),
+        None => String::new(),
+    }
 }
 
 fn emit_expr<'a>(out: &mut Pieces<'a>, expr: &'a Expr) {
+    let at = at_text(&expr.at()) + &hidden_text(None, expr.grouped());
     match expr {
-        Expr::Splice(inner) => {
+        Expr::Splice(inner, _) => {
             out.push_str("{\"splice\":");
             write_expr(out, inner);
+            out.push_str(&at);
             out.push('}');
         }
-        Expr::Source(symbol) => out.parts.push(Part::Symbol(symbol, true, true)),
-        Expr::Seq(items) => write_list(out, "seq", items, write_expr),
-        Expr::Choice(items) => write_list(out, "choice", items, write_expr),
-        Expr::Ranked(items, _) => write_list(out, "ranked", items, write_expr),
-        Expr::And(items) => write_list(out, "and", items, write_expr),
-        Expr::Optional(inner, mark, default) => {
+        Expr::Source(symbol, hidden) => {
+            out.push('{');
+            out.parts.push(Part::Symbol(symbol, false, true));
+            out.push_str(&hidden_of(Some(hidden)));
+            out.push('}');
+        }
+        Expr::Seq(items, _) => write_expr_list(out, "seq", items, &at),
+        Expr::Choice(items, _) => write_expr_list(out, "choice", items, &at),
+        Expr::Ranked(items, _) => write_expr_list(out, "ranked", items, &at),
+        Expr::And(items, _) => write_expr_list(out, "and", items, &at),
+        Expr::Optional(inner, mark, default, _) => {
             out.push_str("{\"optional\":");
             write_expr(out, inner);
             if *mark == Mark::Elidable {
@@ -162,54 +222,77 @@ fn emit_expr<'a>(out: &mut Pieces<'a>, expr: &'a Expr) {
             if let Some(default) = default {
                 out.push_str(",\"default\":");
                 write_term(out, &default.term);
+                out.push_str(&super::hidden_member("defaultAt", default.at));
             }
+            out.push_str(&at);
             out.push('}');
         }
-        Expr::Repeat(item, separator, chain) => {
+        Expr::Repeat(item, separator, chain, _) => {
             out.push_str("{\"repeat\":");
             write_expr(out, item);
             if let Some(separator) = separator {
                 out.push_str(",\"separator\":");
                 write_expr(out, separator);
             }
-            out.push_str(match chain {
-                None => "}",
-                Some(Chain::Left) => ",\"chain\":\"left\"}",
-                Some(Chain::Right) => ",\"chain\":\"right\"}",
-            });
+            if let Some(chain) = chain {
+                out.push_str(match chain {
+                    Chain::Left => ",\"chain\":\"left\"",
+                    Chain::Right => ",\"chain\":\"right\"",
+                });
+            }
+            out.push_str(&at);
+            out.push('}');
         }
-        Expr::Ref(name) => {
+        Expr::Ref(name, _) => {
             out.push_str("{\"ref\":");
             write_str(out, name);
+            out.push_str(&at);
             out.push('}');
         }
-        Expr::Terminal(name) => {
+        Expr::Terminal(name, _) => {
             out.push_str("{\"terminal\":");
             write_str(out, name);
+            out.push_str(&at);
             out.push('}');
         }
-        Expr::Literal(term) => {
+        Expr::Literal(term, _) => {
             out.push_str("{\"literal\":");
             write_term(out, term);
+            out.push_str(&at);
             out.push('}');
         }
-        Expr::ScalarRange(start, end) => {
+        Expr::ScalarRange(start, end, _) => {
             out.push_str("{\"range\":[");
             write_term(out, start);
             out.push(',');
             write_term(out, end);
-            out.push_str("]}");
+            out.push(']');
+            out.push_str(&at);
+            out.push('}');
         }
-        Expr::Range(start, end) => write_range(out, *start, *end),
-        Expr::Wildcard => out.push_str("{\"wildcard\":true}"),
-        Expr::Capture(name, inner) => {
+        Expr::Range(start, end, _) => {
+            out.push_str("{\"range\":[{\"string\":");
+            write_str(out, &start.to_string());
+            out.push_str("},{\"string\":");
+            write_str(out, &end.to_string());
+            out.push_str("}]");
+            out.push_str(&at);
+            out.push('}');
+        }
+        Expr::Wildcard(_) => {
+            out.push_str("{\"wildcard\":true");
+            out.push_str(&at);
+            out.push('}');
+        }
+        Expr::Capture(name, inner, _) => {
             out.push_str("{\"capture\":");
             write_str(out, name);
             out.push_str(",\"expr\":");
             write_expr(out, inner);
+            out.push_str(&at);
             out.push('}');
         }
-        Expr::Tested(op, value, inner) => {
+        Expr::Tested(op, value, inner, _) => {
             out.push_str("{\"test\":");
             write_str(out, op);
             if op == "tags" {
@@ -221,21 +304,39 @@ fn emit_expr<'a>(out: &mut Pieces<'a>, expr: &'a Expr) {
             }
             out.push_str(",\"expr\":");
             write_expr(out, inner);
+            out.push_str(&at);
             out.push('}');
         }
-        Expr::Empty => out.push_str("{\"empty\":true}"),
-        Expr::Remainder => out.push_str("{\"remainder\":true}"),
+        Expr::Empty(_) => {
+            out.push_str("{\"empty\":true");
+            out.push_str(&at);
+            out.push('}');
+        }
+        Expr::Remainder(_) => {
+            out.push_str("{\"remainder\":true");
+            out.push_str(&at);
+            out.push('}');
+        }
     }
 }
 
-fn write_range(out: &mut Pieces<'_>, start: char, end: char) {
-    out.push_str("{\"range\":[{\"string\":");
-    write_str(out, &start.to_string());
-    out.push_str("},{\"string\":");
-    write_str(out, &end.to_string());
-    out.push_str("}]}");
+fn write_expr_list<'a>(out: &mut Pieces<'a>, key: &str, items: &'a [Expr], at: &str) {
+    out.push_str("{\"");
+    out.push_str(key);
+    out.push_str("\":[");
+    for (index, item) in items.iter().enumerate() {
+        if index > 0 {
+            out.push(',');
+        }
+        write_expr(out, item);
+    }
+    out.push(']');
+    out.push_str(at);
+    out.push('}');
 }
+
 fn emit_term<'a>(out: &mut Pieces<'a>, term: &'a Term) {
+    let hidden = hidden_of(term.hidden());
     match term {
         Term::Body(body) => {
             out.push_str("{\"body\":");
@@ -243,51 +344,64 @@ fn emit_term<'a>(out: &mut Pieces<'a>, term: &'a Term) {
             out.push('}');
         }
         Term::Source(symbol) => out.parts.push(Part::Symbol(symbol, true, true)),
-        Term::Pattern(p) => {
+        Term::Pattern(p, ..) => {
             out.push_str("{\"pattern\":");
             out.parts.push(Part::Pattern(p));
+            out.push_str(&hidden);
             out.push('}');
         }
-        Term::Str(text) => {
+        Term::Str(text, ..) => {
             out.push_str("{\"string\":");
             write_str(out, text);
+            out.push_str(&hidden);
             out.push('}');
         }
-        Term::Tag(tag) => {
+        Term::Tag(tag, ..) => {
             out.push_str("{\"tag\":");
             write_str(out, tag);
+            out.push_str(&hidden);
             out.push('}');
         }
-        Term::EmptySet => out.push_str("{\"emptySet\":true}"),
-        Term::Union(items) => write_list(out, "union", items, write_term),
-        Term::Intersection(items) => write_list(out, "intersection", items, write_term),
-        Term::Difference(left, right) => {
+        Term::EmptySet(..) => {
+            out.push_str("{\"emptySet\":true");
+            out.push_str(&hidden);
+            out.push('}');
+        }
+        Term::Union(items, ..) => write_list_with(out, "union", items, write_term, &hidden),
+        Term::Intersection(items, ..) => write_list_with(out, "intersection", items, write_term, &hidden),
+        Term::Difference(left, right, ..) => {
             out.push_str("{\"difference\":[");
             write_term(out, left);
             out.push(',');
             write_term(out, right);
-            out.push_str("]}");
-        }
-        Term::Capture(name) => {
-            out.push_str("{\"capture\":");
-            write_str(out, name);
+            out.push(']');
+            out.push_str(&hidden);
             out.push('}');
         }
-        Term::Const(name, at) => {
+        Term::Capture(name, ..) => {
+            out.push_str("{\"capture\":");
+            write_str(out, name);
+            out.push_str(&hidden);
+            out.push('}');
+        }
+        Term::Const(name, at, ..) => {
             out.push_str("{\"const\":");
             write_str(out, name);
-            out.push_str(&format!(",\"at\":[{},{}]}}", at.0, at.1));
+            out.push_str(&format!(",\"at\":[{},{}]", at.0, at.1));
+            out.push_str(&hidden);
+            out.push('}');
         }
-        Term::If(cond, then) => {
+        Term::If(cond, then, ..) => {
             out.push_str("{\"if\":");
             write_cond(out, cond);
             out.push_str(",\"then\":");
             write_term(out, then);
+            out.push_str(&hidden);
             out.push('}');
         }
-        Term::Call(name, args) => {
+        Term::Call(name, args, ..) => {
             if matches!(name.as_str(), "concat") {
-                write_list(out, name, args, write_argument);
+                write_list_with(out, name, args, write_argument, &hidden);
             } else {
                 out.push_str("{\"method\":");
                 write_str(out, name);
@@ -300,7 +414,9 @@ fn emit_term<'a>(out: &mut Pieces<'a>, term: &'a Term) {
                     }
                     write_argument(out, arg);
                 }
-                out.push_str("]}");
+                out.push(']');
+                out.push_str(&hidden);
+                out.push('}');
             }
         }
     }
@@ -309,9 +425,10 @@ fn emit_term<'a>(out: &mut Pieces<'a>, term: &'a Term) {
 fn emit_argument<'a>(out: &mut Pieces<'a>, arg: &'a Arg) {
     match arg {
         Arg::Term(term) => write_term(out, term),
-        Arg::Integer(digits) => {
+        Arg::Integer(digits, hidden) => {
             out.push_str("{\"integer\":");
             write_str(out, digits);
+            out.push_str(&hidden_of(Some(hidden)));
             out.push('}');
         }
         Arg::Rule(name) | Arg::Classifier(name) => {
@@ -323,7 +440,7 @@ fn emit_argument<'a>(out: &mut Pieces<'a>, arg: &'a Arg) {
 }
 
 fn emit_requirements<'a>(out: &mut Pieces<'a>, term: &'a Term) {
-    let Term::Call(_, args) = term else { unreachable!("a signed requirement list") };
+    let Term::Call(_, args, ..) = term else { unreachable!("a signed requirement list") };
     out.push('[');
     for (index, arg) in args.iter().enumerate() {
         if index > 0 {
@@ -331,7 +448,7 @@ fn emit_requirements<'a>(out: &mut Pieces<'a>, term: &'a Term) {
         }
         let Arg::Term(term) = arg else { unreachable!() };
         let (negative, value) = match term {
-            Term::Call(name, args) if name == "forbid" => {
+            Term::Call(name, args, ..) if name == "forbid" => {
                 let Arg::Term(value) = &args[0] else { unreachable!() };
                 (true, value)
             }
@@ -345,13 +462,15 @@ fn emit_requirements<'a>(out: &mut Pieces<'a>, term: &'a Term) {
 }
 
 fn emit_cond<'a>(out: &mut Pieces<'a>, cond: &'a Cond) {
+    let hidden = hidden_of(cond.hidden());
     match cond {
-        Cond::Truthy(term) => {
+        Cond::Truthy(term, ..) => {
             out.push_str("{\"nonempty\":");
             write_term(out, term);
+            out.push_str(&hidden);
             out.push('}');
         }
-        Cond::Forest(term) => write_term(out, term),
+        Cond::Forest(term, ..) => write_term(out, term),
         Cond::SourceQuery(name, args, _) => {
             out.push_str("{\"method\":");
             write_str(out, name);
@@ -362,7 +481,7 @@ fn emit_cond<'a>(out: &mut Pieces<'a>, cond: &'a Cond) {
                 if index > 0 {
                     out.push(',');
                 }
-                if let Arg::Term(Term::Tag(tag)) = arg {
+                if let Arg::Term(Term::Tag(tag, ..)) = arg {
                     out.push_str("{\"terminal\":");
                     write_str(out, tag);
                     out.push('}');
@@ -372,17 +491,18 @@ fn emit_cond<'a>(out: &mut Pieces<'a>, cond: &'a Cond) {
             }
             out.push_str("]}");
         }
-        Cond::Compare(op, left, right, _) => {
+        Cond::Compare(op, left, right, at) => {
             out.push_str("{\"op\":");
             write_str(out, op);
             out.push_str(",\"left\":");
             write_term(out, left);
             out.push_str(",\"right\":");
             write_term(out, right);
+            out.push_str(&hidden_text(*at, false));
             out.push('}');
         }
-        Cond::Initial(span) => emit_span_query(out, "starts-input", span),
-        Cond::Final(span) => emit_span_query(out, "ends-input", span),
+        Cond::Initial(span, ..) => emit_span_query(out, "starts-input", span),
+        Cond::Final(span, ..) => emit_span_query(out, "ends-input", span),
         Cond::Boundary(forward, receiver, targets, _) => {
             out.push_str("{\"method\":");
             write_str(out, if *forward { "followed-by" } else { "preceded-by" });
@@ -403,23 +523,26 @@ fn emit_cond<'a>(out: &mut Pieces<'a>, cond: &'a Cond) {
             }
             out.push_str("]}");
         }
-        Cond::Not(inner) => {
+        Cond::Not(inner, ..) => {
             out.push_str("{\"not\":");
             write_cond(out, inner);
+            out.push_str(&hidden);
             out.push('}');
         }
-        Cond::Any(items) => write_list(out, "any", items, write_cond),
-        Cond::All(items) => write_list(out, "all", items, write_cond),
-        Cond::Captured(name) => {
+        Cond::Any(items, ..) => write_list_with(out, "any", items, write_cond, &hidden),
+        Cond::All(items, ..) => write_list_with(out, "all", items, write_cond, &hidden),
+        Cond::Captured(name, ..) => {
             out.push_str("{\"captured\":");
             write_str(out, name);
+            out.push_str(&hidden);
             out.push('}');
         }
-        Cond::If(cond, then) => {
+        Cond::If(cond, then, ..) => {
             out.push_str("{\"if\":");
             write_cond(out, cond);
             out.push_str(",\"then\":");
             write_cond(out, then);
+            out.push_str(&hidden);
             out.push('}');
         }
     }
@@ -446,17 +569,19 @@ fn emit_source_arguments<'a>(out: &mut Pieces<'a>, args: &'a [SourceArgument]) {
                 out.push('}');
             }
             SourceArgument::Body(expr) => match expr {
-                Expr::Ref(name) | Expr::Terminal(name) => {
-                    let rule =
-                        matches!(expr, Expr::Ref(_)) && !name.starts_with(|c: char| c.is_ascii_uppercase() || c == '_');
+                Expr::Ref(name, _) | Expr::Terminal(name, _) => {
+                    let rule = matches!(expr, Expr::Ref(_, _))
+                        && !name.starts_with(|c: char| c.is_ascii_uppercase() || c == '_');
                     out.push_str(if rule { "{\"rule\":" } else { "{\"tag\":" });
                     write_str(out, name);
                     out.push('}');
                 }
-                Expr::Literal(term) => write_term(out, term),
-                Expr::Splice(_) | Expr::Source(_) | Expr::Tested(..) | Expr::ScalarRange(..) | Expr::Wildcard => {
-                    write_expr(out, expr)
-                }
+                Expr::Literal(term, _) => write_term(out, term),
+                Expr::Splice(_, _)
+                | Expr::Source(..)
+                | Expr::Tested(..)
+                | Expr::ScalarRange(..)
+                | Expr::Wildcard(_) => write_expr(out, expr),
                 _ => {
                     out.push_str("{\"body\":");
                     write_expr(out, expr);

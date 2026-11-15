@@ -6,7 +6,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::path::{Component, Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 
-use crate::dom::{dom_from_json, dom_problem, dom_to_json, Dom, DOM_FORMAT};
+use crate::dom::{dom_from_json, dom_to_json, Dom, DOM_FORMAT};
 use crate::error::{Error, ErrorKind, SpliceProblem};
 use crate::grammar::stitch;
 use crate::json::{self, fnv1a64, Json};
@@ -297,12 +297,12 @@ impl Context {
         let mut dom = if let Some(dom) = preparsed.lookup(path, &fnv1a64(text), &self.unicode, names)? {
             dom
         } else {
-            return read_document_named(&self.notation, text, true, names).map_err(|error| error.in_document(path));
+            return read_document_named(&self.notation, text, names).map_err(|error| error.in_document(path));
         };
         if diagnostic {
             #[cfg(test)]
             LOCATION_RECOVERIES.with(|count| count.set(count.get() + 1));
-            if let Ok(source) = read_document_named(&self.notation, text, true, names) {
+            if let Ok(source) = read_document_named(&self.notation, text, names) {
                 crate::ranked::restore_locations(&mut dom, &source);
             }
         }
@@ -313,7 +313,7 @@ impl Context {
 /// Reads a grammar document through the notation pipeline (engine §8, §9).
 pub(crate) fn read_document(notation: &Pipeline, text: &str, path: &str) -> Result<Dom, Error> {
     let names = NamesScope::new(&bundled_names, &notation.unicode, []).in_document(path, &crate::markdown::resolve);
-    read_document_named(notation, text, false, &names).map_err(|error| error.in_document(path))
+    read_document_named(notation, text, &names).map_err(|error| error.in_document(path))
 }
 
 fn bundled_names(path: &str) -> Result<Option<String>, Error> {
@@ -321,7 +321,7 @@ fn bundled_names(path: &str) -> Result<Option<String>, Error> {
     Ok(bundled(path).map(str::to_string))
 }
 
-fn read_document_named(notation: &Pipeline, text: &str, defer: bool, names: &NamesScope<'_>) -> Result<Dom, Error> {
+fn read_document_named(notation: &Pipeline, text: &str, names: &NamesScope<'_>) -> Result<Dom, Error> {
     let grammar = grammar_text(text, &notation.unicode)?;
     let position = |index: usize| grammar.position(index);
     let strings =
@@ -378,24 +378,16 @@ fn read_document_named(notation: &Pipeline, text: &str, defer: bool, names: &Nam
         reading_head: Default::default(),
         unresolved: Default::default(),
         unicode: &notation.unicode,
-        defer_emission: defer,
         feature_context: Default::default(),
         tokens: &stage.input,
         strings: &strings,
-        captures: Default::default(),
-        chain: Default::default(),
-        item: Default::default(),
-        ranked: Default::default(),
-        marked: Default::default(),
-        allowed_marked: Default::default(),
         position: &position,
-        closed_for: Default::default(),
         in_recipe: Default::default(),
         head_defaults: Default::default(),
         default_head: Default::default(),
     };
     let mut dom = reader.document(tree)?;
-    check_read(&dom, &notation.unicode)?;
+    check_read(&mut dom, &notation.unicode)?;
     dom.names_dependencies = names.dependencies.borrow().clone();
     Ok(dom)
 }
@@ -403,103 +395,72 @@ fn read_document_named(notation: &Pipeline, text: &str, defer: bool, names: &Nam
 /// Holds a DOM just read to the rules a preparsed one is held to, the
 /// bound on nesting among them (engine §9), reported at the first item
 /// that breaks one.
-fn check_read(dom: &Dom, unicode: &Unicode) -> Result<(), Error> {
+fn check_read(dom: &mut Dom, unicode: &Unicode) -> Result<(), Error> {
     const TOO_DEEP: &str = "an expression, term or condition is nested more than 256 deep";
-    // The bound on nesting first, on the DOM itself and with an explicit
-    // stack, at the first item in the order of the document that breaks
-    // it: a DOM just read is as deep as its document nests, and the checks
-    // below walk it by recursion.
-    let mut deep: Vec<(usize, usize)> = dom
-        .rules
-        .iter()
-        .filter(|rule| crate::dom::rule_too_deep(rule))
-        .map(|rule| rule.at)
-        .chain(
-            dom.constants
+    // The one DOM validator, on the DOM through its located JSON and on the
+    // typed DOM the reader built (engine §9.3 step 5). A DOM nested past
+    // what its JSON can hold is too deep, at the first item that is.
+    let json = match json::parse(&crate::dom::dom_to_located_json(dom)) {
+        Ok(json) => json,
+        Err(message) if message.contains("nested too deeply") => {
+            let mut deep: Vec<(usize, usize)> = dom
+                .rules
                 .iter()
-                .filter(|constant| crate::dom::term_too_deep(&constant.value))
-                .map(|constant| constant.at),
-        )
-        .chain(
-            dom.implications
-                .iter()
-                .filter(|implication| {
-                    crate::dom::term_too_deep(&implication.antecedent)
-                        || crate::dom::term_too_deep(&implication.consequent)
-                })
-                .map(|implication| implication.at),
-        )
-        .chain(
-            dom.directives
-                .iter()
-                .filter(|directive| directive.conditions.as_deref().is_some_and(crate::dom::conditions_too_deep))
-                .map(|directive| directive.at),
-        )
-        .chain(
-            dom.classifiers
-                .iter()
-                .filter(|classifier| {
-                    classifier.entries.iter().any(|entry| entry.keys.iter().any(crate::dom::term_too_deep))
-                })
-                .map(|classifier| classifier.at),
-        )
-        .collect();
-    deep.sort();
-    if let Some(&(line, column)) = deep.first() {
-        return Err(Error::grammar(TOO_DEEP).at(line, column));
-    }
-    // The problem of a DOM, through its JSON. JSON nested deeper than the
-    // parser follows holds a node below far more than 256 compound nodes.
-    let problem_of = |dom: &Dom| -> Option<String> {
-        match json::parse(&dom_to_json(dom)) {
-            Ok(json) => dom_problem(&json, unicode).map(|problem| {
-                if problem == "nested too deeply" {
-                    TOO_DEEP.to_string()
-                } else {
-                    problem
-                }
-            }),
-            Err(message) if message.contains("nested too deeply") => Some(TOO_DEEP.to_string()),
-            Err(message) => Some(format!("the DOM: {message}")),
+                .filter(|rule| crate::dom::rule_too_deep(rule))
+                .map(|rule| rule.at)
+                .chain(
+                    dom.constants
+                        .iter()
+                        .filter(|constant| crate::dom::term_too_deep(&constant.value))
+                        .map(|constant| constant.at),
+                )
+                .chain(
+                    dom.implications
+                        .iter()
+                        .filter(|implication| {
+                            crate::dom::term_too_deep(&implication.antecedent)
+                                || crate::dom::term_too_deep(&implication.consequent)
+                        })
+                        .map(|implication| implication.at),
+                )
+                .chain(
+                    dom.directives
+                        .iter()
+                        .filter(|directive| {
+                            directive.conditions.as_deref().is_some_and(crate::dom::conditions_too_deep)
+                        })
+                        .map(|directive| directive.at),
+                )
+                .chain(
+                    dom.classifiers
+                        .iter()
+                        .filter(|classifier| {
+                            classifier.entries.iter().any(|entry| entry.keys.iter().any(crate::dom::term_too_deep))
+                        })
+                        .map(|classifier| classifier.at),
+                )
+                .collect();
+            deep.sort();
+            let error = Error::grammar(TOO_DEEP);
+            return Err(match deep.first() {
+                Some(&(line, column)) => error.at(line, column),
+                None => error,
+            });
         }
+        Err(message) => return Err(Error::grammar(format!("the DOM: {message}"))),
     };
-    let Some(problem) = problem_of(dom) else {
-        return Ok(());
-    };
-    // Each declaration alone, including feature directives and
-    // classifiers, in the order of the document.
-    let mut singles: Vec<(Dom, (usize, usize))> = dom
-        .rules
-        .iter()
-        .map(|rule| (Dom { rules: vec![rule.clone()], ..Dom::default() }, rule.at))
-        .chain(
-            dom.constants
-                .iter()
-                .map(|constant| (Dom { constants: vec![constant.clone()], ..Dom::default() }, constant.at)),
-        )
-        .chain(
-            dom.implications
-                .iter()
-                .map(|implication| (Dom { implications: vec![implication.clone()], ..Dom::default() }, implication.at)),
-        )
-        .chain(
-            dom.directives
-                .iter()
-                .map(|directive| (Dom { directives: vec![directive.clone()], ..Dom::default() }, directive.at)),
-        )
-        .chain(
-            dom.classifiers
-                .iter()
-                .map(|classifier| (Dom { classifiers: vec![classifier.clone()], ..Dom::default() }, classifier.at)),
-        )
-        .collect();
-    singles.sort_by_key(|(_, at)| *at);
-    for (single, at) in singles {
-        if let Some(problem) = problem_of(&single) {
-            return Err(grammar_error(problem).at(at.0, at.1));
+    if let Some(fault) = crate::dom::validate_typed(&json, dom, unicode) {
+        let problem = if fault.problem == "nested too deeply" { TOO_DEEP.to_string() } else { fault.problem };
+        let mut error = Error::grammar(problem);
+        if fault.ranked {
+            error = error.coded("ranked-choice-syntax");
         }
+        if let Some((line, column)) = fault.at {
+            error = error.at(line, column);
+        }
+        return Err(error);
     }
-    Err(grammar_error(problem))
+    Ok(())
 }
 
 /// Where a loader finds its documents.
@@ -784,7 +745,7 @@ fn load_mode(
                         let names = NamesScope::new(&read_names, &unicode, inherited)
                             .in_document(path, &resolve)
                             .with_overrides(&names_override);
-                        if let Ok(source) = read_document_named(&notation, text, true, &names) {
+                        if let Ok(source) = read_document_named(&notation, text, &names) {
                             crate::ranked::restore_locations(Arc::make_mut(dom), &source);
                             located = true;
                         }
@@ -1246,10 +1207,11 @@ mod ranked_location_tests {
         for (path, text) in &sources.map {
             let dom = read_document(&bundled.notation, text, "").unwrap();
             let cached = dom_from_json(&json::parse(&dom_to_json(&dom)).unwrap(), &bundled.unicode).unwrap();
-            assert!(cached
-                .rules
-                .iter()
-                .all(|rule| rule.alternatives.iter().all(|alt| alt.ranked_locations.is_empty())));
+            assert!(cached.rules.iter().all(|rule| {
+                rule.alternatives
+                    .iter()
+                    .all(|alt| !crate::ranked::contains_ranked(&alt.expr) || alt.expr.at().is_some())
+            }));
             preparsed.by_path.insert(
                 path.clone(),
                 (
@@ -1302,7 +1264,7 @@ mod notation_cache_tests {
         let mut poisoned = dom_from_json(&json::parse(expected).unwrap(), &base.unicode).unwrap();
         poisoned.rules[0].name = "cache-poison".into();
         let poisoned = dom_to_json(&poisoned);
-        assert_eq!(dom_problem(&json::parse(&poisoned).unwrap(), &base.unicode), None, "{path}");
+        assert_eq!(crate::dom::dom_problem(&json::parse(&poisoned).unwrap(), &base.unicode), None, "{path}");
         let unicode_hash = fnv1a64(super::bundled("data/unicode/unicode.txt").unwrap());
         let document_hash = fnv1a64(text);
         let stale_bootstrap = fnv1a64("another bootstrap");

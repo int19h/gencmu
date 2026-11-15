@@ -69,19 +69,19 @@ pub(crate) fn check(grammar: &StageGrammar) -> Result<(), Error> {
                     .map(|alternative| Site::Expression(&alternative.alternative.expr)),
             ),
             Site::Expression(expression) => match expression {
-                Expr::Empty | Expr::Remainder | Expr::Optional(..) => all = true,
-                Expr::Seq(items) => {
+                Expr::Empty(_) | Expr::Remainder(_) | Expr::Optional(..) => all = true,
+                Expr::Seq(items, _) => {
                     all = true;
                     children.extend(items.iter().map(Site::Expression));
                 }
-                Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
+                Expr::Choice(items, _) | Expr::Ranked(items, _) | Expr::And(items, _) => {
                     children.extend(items.iter().map(Site::Expression))
                 }
-                Expr::Capture(_, inner)
-                | Expr::Tested(_, _, inner)
-                | Expr::Splice(inner)
-                | Expr::Repeat(inner, _, _) => children.push(Site::Expression(inner)),
-                Expr::Ref(name) => {
+                Expr::Capture(_, inner, _)
+                | Expr::Tested(_, _, inner, _)
+                | Expr::Splice(inner, _)
+                | Expr::Repeat(inner, _, _, _) => children.push(Site::Expression(inner)),
+                Expr::Ref(name, _) => {
                     if let Some(rule) = grammar.index.get(name) {
                         children.push(Site::Rule(*rule));
                     }

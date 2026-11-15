@@ -309,17 +309,17 @@ fn atoms_in(start: DomPart<'_>) -> Vec<&crate::dom::Cond> {
         match part {
             DomPart::Condition(c) => match c {
                 Cond::Boundary(..) => found.push(c),
-                Cond::Not(c) => stack.push(DomPart::Condition(c)),
-                Cond::All(cs) | Cond::Any(cs) => stack.extend(cs.iter().rev().map(DomPart::Condition)),
-                Cond::If(a, b) => stack.extend([DomPart::Condition(b), DomPart::Condition(a)]),
+                Cond::Not(c, ..) => stack.push(DomPart::Condition(c)),
+                Cond::All(cs, ..) | Cond::Any(cs, ..) => stack.extend(cs.iter().rev().map(DomPart::Condition)),
+                Cond::If(a, b, ..) => stack.extend([DomPart::Condition(b), DomPart::Condition(a)]),
                 Cond::Compare(_, a, b, _) => stack.extend([DomPart::Term(b), DomPart::Term(a)]),
                 _ => {}
             },
             DomPart::Term(t) => match t {
-                Term::If(c, t) => stack.extend([DomPart::Term(t), DomPart::Condition(c)]),
-                Term::Union(ts) | Term::Intersection(ts) => stack.extend(ts.iter().rev().map(DomPart::Term)),
-                Term::Difference(a, b) => stack.extend([DomPart::Term(b), DomPart::Term(a)]),
-                Term::Call(_, args) => stack.extend(args.iter().rev().filter_map(|a| match a {
+                Term::If(c, t, ..) => stack.extend([DomPart::Term(t), DomPart::Condition(c)]),
+                Term::Union(ts, ..) | Term::Intersection(ts, ..) => stack.extend(ts.iter().rev().map(DomPart::Term)),
+                Term::Difference(a, b, ..) => stack.extend([DomPart::Term(b), DomPart::Term(a)]),
+                Term::Call(_, args, ..) => stack.extend(args.iter().rev().filter_map(|a| match a {
                     Arg::Term(t) => Some(DomPart::Term(t)),
                     _ => None,
                 })),
@@ -522,7 +522,7 @@ pub(crate) fn definition_problem(rule: &crate::dom::RuleDef) -> Option<(String, 
             return problem("a condition item accepts only one boundary atom", atoms[1]);
         }
         if let Some(atom) = atoms.first() {
-            let Cond::Boundary(_, Term::Capture(receiver), _, _) = atom else {
+            let Cond::Boundary(_, Term::Capture(receiver, ..), _, _) = atom else {
                 return problem("a boundary method requires a bare capture", atom);
             };
             if !receiver.is_empty() {
@@ -583,15 +583,15 @@ fn reach(g: &crate::grammar::StageGrammar, roots: Vec<String>) -> (FxSet<String>
         let mut stack: Vec<_> = g.rules[index].alternatives.iter().map(|a| &a.alternative.expr).collect();
         while let Some(e) = stack.pop() {
             match e {
-                Expr::Ref(n) => pending.push(n.clone()),
-                Expr::Terminal(n) => {
+                Expr::Ref(n, _) => pending.push(n.clone()),
+                Expr::Terminal(n, _) => {
                     terminals.insert(n.clone());
                 }
-                Expr::Seq(es) | Expr::Choice(es) | Expr::Ranked(es, _) | Expr::And(es) => stack.extend(es),
-                Expr::Splice(e) | Expr::Capture(_, e) | Expr::Optional(e, _, _) | Expr::Tested(_, _, e) => {
+                Expr::Seq(es, _) | Expr::Choice(es, _) | Expr::Ranked(es, _) | Expr::And(es, _) => stack.extend(es),
+                Expr::Splice(e, _) | Expr::Capture(_, e, _) | Expr::Optional(e, _, _, _) | Expr::Tested(_, _, e, _) => {
                     stack.push(e)
                 }
-                Expr::Repeat(e, s, _) => {
+                Expr::Repeat(e, s, _, _) => {
                     stack.push(e);
                     stack.extend(s.as_deref());
                 }
@@ -627,11 +627,11 @@ pub(crate) fn reachable(g: &crate::grammar::StageGrammar) -> Result<(), crate::e
             while let Some(part) = stack.pop() {
                 match part {
                     Part::C(c) => match c {
-                        Cond::Forest(t) => stack.push(Part::T(t)),
+                        Cond::Forest(t, ..) => stack.push(Part::T(t)),
                         Cond::Boundary(_, _, targets, location) => atoms.push((alt, targets, location)),
-                        Cond::Not(c) => stack.push(Part::C(c)),
-                        Cond::All(cs) | Cond::Any(cs) => stack.extend(cs.iter().map(Part::C)),
-                        Cond::If(a, b) => stack.extend([Part::C(a), Part::C(b)]),
+                        Cond::Not(c, ..) => stack.push(Part::C(c)),
+                        Cond::All(cs, ..) | Cond::Any(cs, ..) => stack.extend(cs.iter().map(Part::C)),
+                        Cond::If(a, b, ..) => stack.extend([Part::C(a), Part::C(b)]),
                         Cond::Compare(_, a, b, _) => stack.extend([Part::T(a), Part::T(b)]),
                         _ => {}
                     },
@@ -642,16 +642,18 @@ pub(crate) fn reachable(g: &crate::grammar::StageGrammar) -> Result<(), crate::e
                             let mut pending = vec![expr.as_ref()];
                             while let Some(e) = pending.pop() {
                                 match e {
-                                    crate::dom::Expr::Ref(n) | crate::dom::Expr::Terminal(n) => roots.push(n.clone()),
-                                    crate::dom::Expr::Seq(es)
-                                    | crate::dom::Expr::Choice(es)
+                                    crate::dom::Expr::Ref(n, _) | crate::dom::Expr::Terminal(n, _) => {
+                                        roots.push(n.clone())
+                                    }
+                                    crate::dom::Expr::Seq(es, _)
+                                    | crate::dom::Expr::Choice(es, _)
                                     | crate::dom::Expr::Ranked(es, _)
-                                    | crate::dom::Expr::And(es) => pending.extend(es.iter()),
-                                    crate::dom::Expr::Splice(e)
-                                    | crate::dom::Expr::Capture(_, e)
-                                    | crate::dom::Expr::Optional(e, _, _)
-                                    | crate::dom::Expr::Tested(_, _, e) => pending.push(e),
-                                    crate::dom::Expr::Repeat(e, s, _) => {
+                                    | crate::dom::Expr::And(es, _) => pending.extend(es.iter()),
+                                    crate::dom::Expr::Splice(e, _)
+                                    | crate::dom::Expr::Capture(_, e, _)
+                                    | crate::dom::Expr::Optional(e, _, _, _)
+                                    | crate::dom::Expr::Tested(_, _, e, _) => pending.push(e),
+                                    crate::dom::Expr::Repeat(e, s, _, _) => {
                                         pending.push(e);
                                         pending.extend(s.as_deref());
                                     }
@@ -659,10 +661,10 @@ pub(crate) fn reachable(g: &crate::grammar::StageGrammar) -> Result<(), crate::e
                                 }
                             }
                         }
-                        Term::If(c, t) => stack.extend([Part::C(c), Part::T(t)]),
-                        Term::Union(ts) | Term::Intersection(ts) => stack.extend(ts.iter().map(Part::T)),
-                        Term::Difference(a, b) => stack.extend([Part::T(a), Part::T(b)]),
-                        Term::Call(_, args) => {
+                        Term::If(c, t, ..) => stack.extend([Part::C(c), Part::T(t)]),
+                        Term::Union(ts, ..) | Term::Intersection(ts, ..) => stack.extend(ts.iter().map(Part::T)),
+                        Term::Difference(a, b, ..) => stack.extend([Part::T(a), Part::T(b)]),
+                        Term::Call(_, args, ..) => {
                             stack.extend(args.iter().filter_map(|arg| {
                                 if let Arg::Term(t) = arg {
                                     Some(Part::T(t))

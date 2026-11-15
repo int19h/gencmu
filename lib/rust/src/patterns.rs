@@ -46,7 +46,10 @@ fn at(j: &Json) -> Result<(usize, usize), String> {
     }
 }
 fn exact(j: &Json, keys: &[&str]) -> bool {
-    j.as_object().is_some_and(|o| o.len() == keys.len() && keys.iter().all(|k| j.get(k).is_some()))
+    j.as_object().is_some_and(|o| {
+        o.iter().filter(|(key, _)| !key.starts_with('\0')).count() == keys.len()
+            && keys.iter().all(|k| j.get(k).is_some())
+    })
 }
 /// Convert patterns and child expressions without a recursive call stack.
 impl Pattern {
@@ -117,7 +120,7 @@ impl Pattern {
                             None => dom::expected_problem(ty, dom::Type::String),
                         };
                         if let Some(problem) = problem {
-                            return Some(dom::Fault { problem, at: dom::first_constant_in_term(term) });
+                            return Some(dom::Fault::in_term(problem, term));
                         }
                     }
                 },
@@ -126,6 +129,7 @@ impl Pattern {
                         return Some(dom::Fault {
                             problem: "a pattern atom requires a string or pattern constant".into(),
                             at: Some(*at),
+                            node_at: Some(*at),
                         });
                     }
                 }
@@ -139,6 +143,7 @@ impl Pattern {
                             return Some(dom::Fault {
                                 problem: "a tested pattern atom requires a string constant".into(),
                                 at: Some(*at),
+                                node_at: Some(*at),
                             });
                         }
                     }
@@ -149,6 +154,7 @@ impl Pattern {
                             return Some(dom::Fault {
                                 problem: "a pattern-valued constant cannot carry node decorations".into(),
                                 at: Some(*at),
+                                node_at: Some(*at),
                             });
                         }
                     }
@@ -245,12 +251,14 @@ impl Pattern {
         Ok(match self {
             Self::Constant(n, a) => constant(n, *a)?,
             Self::Literal(t, a) => {
-                let Term::Tag(ref spelling) = value(t, "literal")? else { unreachable!("a bound literal spelling") };
+                let Term::Tag(ref spelling, ..) = value(t, "literal")? else {
+                    unreachable!("a bound literal spelling")
+                };
                 Self::Terminal(spelling.clone(), *a)
             }
             Self::Range(a, b, at) => {
-                let Term::Tag(ref a) = value(a, "endpoint")? else { unreachable!() };
-                let Term::Tag(ref b) = value(b, "endpoint")? else { unreachable!() };
+                let Term::Tag(ref a, ..) = value(a, "endpoint")? else { unreachable!() };
+                let Term::Tag(ref b, ..) = value(b, "endpoint")? else { unreachable!() };
                 Self::Terminal(format!("{a}..{b}"), *at)
             }
             Self::Wildcard(a) => Self::Terminal("_".into(), *a),
@@ -922,14 +930,14 @@ impl Machine {
     }
 }
 fn leaf_test(op: &str, value: &Term, sound: &str, tags: &[String]) -> bool {
-    if let Term::Str(value) = value {
+    if let Term::Str(value, ..) = value {
         return (sound == value) == (op == "=");
     }
-    let Term::Call(_, requirements) = value else { unreachable!("a signed requirement list") };
+    let Term::Call(_, requirements, ..) = value else { unreachable!("a signed requirement list") };
     requirements.iter().all(|requirement| {
         let Arg::Term(requirement) = requirement else { unreachable!() };
         let (negative, term) = match requirement {
-            Term::Call(name, args) if name == "forbid" => {
+            Term::Call(name, args, ..) if name == "forbid" => {
                 let [Arg::Term(term)] = &args[..] else { unreachable!() };
                 (true, term)
             }
@@ -938,13 +946,13 @@ fn leaf_test(op: &str, value: &Term, sound: &str, tags: &[String]) -> bool {
         let mut pending = vec![term];
         while let Some(term) = pending.pop() {
             match term {
-                Term::Tag(tag) => {
+                Term::Tag(tag, ..) => {
                     if tags.contains(tag) == negative {
                         return false;
                     }
                 }
-                Term::Union(items) => pending.extend(items),
-                Term::EmptySet => {}
+                Term::Union(items, ..) => pending.extend(items),
+                Term::EmptySet(..) => {}
                 _ => unreachable!("a bound tag requirement"),
             }
         }
@@ -1053,7 +1061,7 @@ pub(crate) fn requires_elided(pattern: &Pattern) -> bool {
         Pattern::Union(parts) => parts.iter().all(requires_elided),
         Pattern::Intersection(parts) => parts.iter().any(requires_elided),
         Pattern::Difference(a, _) | Pattern::Node(a, _, _) => requires_elided(a),
-        Pattern::Test(op, Term::Call(_, requirements), inner, _) if op == "tags" => {
+        Pattern::Test(op, Term::Call(_, requirements, ..), inner, _) if op == "tags" => {
             requirements.iter().any(|r| matches!(r,Arg::Term(t) if positive_elided(t))) || requires_elided(inner)
         }
         Pattern::Test(_, _, inner, _) => requires_elided(inner),
@@ -1062,8 +1070,8 @@ pub(crate) fn requires_elided(pattern: &Pattern) -> bool {
 }
 fn positive_elided(term: &Term) -> bool {
     match term {
-        Term::Tag(tag) => tag == "_Elided",
-        Term::Union(parts) => parts.iter().any(positive_elided),
+        Term::Tag(tag, ..) => tag == "_Elided",
+        Term::Union(parts, ..) => parts.iter().any(positive_elided),
         _ => false,
     }
 }

@@ -100,7 +100,7 @@ fn query<'a>(expr: &'a Expr, required: &FxSet<&str>, forbidden: &FxSet<&str>, or
         work::count(Work::Checked, 1);
         let mut out = states();
         match e {
-            Expr::Capture(name, _) => {
+            Expr::Capture(name, _, _) => {
                 if no.contains(name.as_str()) {
                     return out;
                 }
@@ -119,7 +119,7 @@ fn query<'a>(expr: &'a Expr, required: &FxSet<&str>, forbidden: &FxSet<&str>, or
                     mask: 0,
                 });
             }
-            Expr::Choice(items) | Expr::Ranked(items, _) => {
+            Expr::Choice(items, _) | Expr::Ranked(items, _) => {
                 for (i, child) in items.iter().enumerate() {
                     for (state, w) in visit(child, yes, no, order).into_iter().enumerate() {
                         if let Some(mut w) = w {
@@ -129,8 +129,8 @@ fn query<'a>(expr: &'a Expr, required: &FxSet<&str>, forbidden: &FxSet<&str>, or
                     }
                 }
             }
-            Expr::Seq(items) | Expr::And(items) => {
-                let and = matches!(e, Expr::And(_));
+            Expr::Seq(items, _) | Expr::And(items, _) => {
+                let and = matches!(e, Expr::And(_, _));
                 if !and {
                     out[0] = Some(Witness::empty());
                 }
@@ -175,7 +175,7 @@ fn query<'a>(expr: &'a Expr, required: &FxSet<&str>, forbidden: &FxSet<&str>, or
                     out = next;
                 }
             }
-            Expr::Optional(inner, mark, _) if *mark == Mark::Plain || matches!(&**inner, Expr::Capture(..)) => {
+            Expr::Optional(inner, mark, _, _) if *mark == Mark::Plain || matches!(&**inner, Expr::Capture(..)) => {
                 let mut absent = Witness::empty();
                 absent.key = leaf(0);
                 out[0] = Some(absent);
@@ -186,7 +186,7 @@ fn query<'a>(expr: &'a Expr, required: &FxSet<&str>, forbidden: &FxSet<&str>, or
                     }
                 }
             }
-            Expr::Tested(_, _, inner) => return visit(inner, yes, no, order),
+            Expr::Tested(_, _, inner, _) => return visit(inner, yes, no, order),
             _ => out[0] = Some(Witness::empty()),
         }
         out
@@ -207,13 +207,13 @@ fn variable(expr: &Expr) -> bool {
     let mut done: Vec<(bool, bool)> = Vec::new();
     while let Some((e, ready)) = pending.pop() {
         let children: Vec<&Expr> = match e {
-            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
+            Expr::Seq(items, _) | Expr::Choice(items, _) | Expr::Ranked(items, _) | Expr::And(items, _) => {
                 items.iter().collect()
             }
-            Expr::Optional(inner, mark, _) if *mark == Mark::Plain || matches!(&**inner, Expr::Capture(..)) => {
+            Expr::Optional(inner, mark, _, _) if *mark == Mark::Plain || matches!(&**inner, Expr::Capture(..)) => {
                 vec![inner]
             }
-            Expr::Tested(_, _, inner) => vec![inner],
+            Expr::Tested(_, _, inner, _) => vec![inner],
             _ => Vec::new(),
         };
         if !ready {
@@ -225,8 +225,8 @@ fn variable(expr: &Expr) -> bool {
         let has = matches!(e, Expr::Capture(..)) || parts.iter().any(|p| p.0);
         let varies = parts.iter().any(|p| p.1)
             || has
-                && (matches!(e, Expr::Optional(inner, mark, _) if *mark==Mark::Plain || matches!(&**inner,Expr::Capture(..)))
-                    || children.len() > 1 && matches!(e, Expr::Choice(_) | Expr::Ranked(_, _) | Expr::And(_)));
+                && (matches!(e, Expr::Optional(inner, mark, _, _) if *mark==Mark::Plain || matches!(&**inner,Expr::Capture(..)))
+                    || children.len() > 1 && matches!(e, Expr::Choice(_, _) | Expr::Ranked(_, _) | Expr::And(_, _)));
         done.push((has, varies));
     }
     done[0].1
@@ -270,7 +270,7 @@ impl<'a> PartialClause<'a> {
             }
             let children = done.split_off(done.len() - children.len());
             let guard = match part {
-                Part::Cond(Cond::Captured(name)) if !name.is_empty() => {
+                Part::Cond(Cond::Captured(name, ..)) if !name.is_empty() => {
                     let next = guard_ids.len();
                     let index = *guard_ids.entry(name.as_str()).or_insert(next);
                     if index == assigned.len() {
@@ -367,7 +367,7 @@ impl<'a> Queries<'a> {
         } {
             return;
         }
-        if let Part::Term(Term::Union(parts)) = p {
+        if let Part::Term(Term::Union(parts, ..)) = p {
             for part in parts {
                 self.clause(Part::Term(part), carrier);
             }
@@ -451,12 +451,12 @@ fn independent_choices(expr: &Expr) -> Option<Vec<Vec<&str>>> {
     let mut seen = FxSet::default();
     while let Some(expr) = branches.pop() {
         match expr {
-            Expr::Choice(items) | Expr::Ranked(items, _) => {
+            Expr::Choice(items, _) | Expr::Ranked(items, _) => {
                 work::count(Work::Checked, 1);
                 branches.extend(items.iter().rev());
                 continue;
             }
-            Expr::Tested(_, _, inner) => {
+            Expr::Tested(_, _, inner, _) => {
                 work::count(Work::Checked, 1);
                 branches.push(inner);
                 continue;
@@ -469,10 +469,10 @@ fn independent_choices(expr: &Expr) -> Option<Vec<Vec<&str>>> {
         while let Some(e) = pending.pop() {
             work::count(Work::Checked, 1);
             match e {
-                Expr::Capture(name, _) => names.push(name.as_str()),
-                Expr::Seq(items) => pending.extend(items.iter().rev()),
-                Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => pending.push(&items[0]),
-                Expr::Tested(_, _, inner) => pending.push(inner),
+                Expr::Capture(name, _, _) => names.push(name.as_str()),
+                Expr::Seq(items, _) => pending.extend(items.iter().rev()),
+                Expr::Choice(items, _) | Expr::Ranked(items, _) | Expr::And(items, _) => pending.push(&items[0]),
+                Expr::Tested(_, _, inner, _) => pending.push(inner),
                 _ => {}
             }
         }

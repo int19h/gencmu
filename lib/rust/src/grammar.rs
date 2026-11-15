@@ -168,7 +168,7 @@ impl StageGrammar {
                     continue;
                 }
                 for key in &entry.keys {
-                    let Term::Str(key) = key else { unreachable!("a bound classifier key is a string") };
+                    let Term::Str(key, ..) = key else { unreachable!("a bound classifier key is a string") };
                     let classes = table.entry(key.clone()).or_default();
                     // One lookup, where a scan of the key's classes was one
                     // step for each.
@@ -328,7 +328,7 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
                     }
                     if !constants_in_rule(rule).is_empty()
                         || value_parts(ValuePart::Rule(rule))
-                            .any(|part| matches!(part, ValuePart::Pattern(_) | ValuePart::Term(Term::Pattern(_))))
+                            .any(|part| matches!(part, ValuePart::Pattern(_) | ValuePart::Term(Term::Pattern(..))))
                         || arguments_by_site.contains_key(&(run, document.clone(), rule.at))
                     {
                         checks.push((run, rule.at, 0, Check::Rule(document, rule)));
@@ -587,7 +587,7 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
         for alternative in &rule.alternatives {
             let first = checked.insert(Arc::as_ptr(&alternative.clauses));
             let (recognition, expressions) = check_alternative(&grammar, alternative, first)
-                .map_err(|message| located(message, &alternative.document, alternative.at))?;
+                .map_err(|(message, at)| located(message, &alternative.document, at.unwrap_or(alternative.at)))?;
             tree_comparisons |= recognition;
             tree_expressions |= expressions;
         }
@@ -641,7 +641,7 @@ fn close_families(grammar: &StageGrammar) -> Vec<FxSet<u32>> {
     while let Some(part) = pending.pop() {
         match part {
             Part::Term(term) => match term {
-                Term::Call(name, args) => {
+                Term::Call(name, args, ..) => {
                     if let ("without-elision-except", [Arg::Term(_), Arg::Rule(root)]) =
                         (name.as_str(), args.as_slice())
                     {
@@ -652,20 +652,20 @@ fn close_families(grammar: &StageGrammar) -> Vec<FxSet<u32>> {
                         _ => None,
                     }));
                 }
-                Term::Union(items) | Term::Intersection(items) => pending.extend(items.iter().map(Part::Term)),
-                Term::Difference(a, b) => pending.extend([Part::Term(a), Part::Term(b)]),
-                Term::If(c, t) => pending.extend([Part::Cond(c), Part::Term(t)]),
+                Term::Union(items, ..) | Term::Intersection(items, ..) => pending.extend(items.iter().map(Part::Term)),
+                Term::Difference(a, b, ..) => pending.extend([Part::Term(a), Part::Term(b)]),
+                Term::If(c, t, ..) => pending.extend([Part::Cond(c), Part::Term(t)]),
                 _ => {}
             },
             Part::Cond(condition) => match condition {
-                Cond::Truthy(term) => pending.push(Part::Term(term)),
-                Cond::Forest(term) => pending.push(Part::Term(term)),
+                Cond::Truthy(term, ..) => pending.push(Part::Term(term)),
+                Cond::Forest(term, ..) => pending.push(Part::Term(term)),
                 Cond::Compare(_, a, b, _) => pending.extend([Part::Term(a), Part::Term(b)]),
-                Cond::Initial(t) | Cond::Final(t) | Cond::Boundary(_, t, _, _) => pending.push(Part::Term(t)),
-                Cond::Not(c) => pending.push(Part::Cond(c)),
-                Cond::Any(items) | Cond::All(items) => pending.extend(items.iter().map(Part::Cond)),
-                Cond::If(a, b) => pending.extend([Part::Cond(a), Part::Cond(b)]),
-                Cond::Captured(_) => {}
+                Cond::Initial(t, ..) | Cond::Final(t, ..) | Cond::Boundary(_, t, _, _) => pending.push(Part::Term(t)),
+                Cond::Not(c, ..) => pending.push(Part::Cond(c)),
+                Cond::Any(items, ..) | Cond::All(items, ..) => pending.extend(items.iter().map(Part::Cond)),
+                Cond::If(a, b, ..) => pending.extend([Part::Cond(a), Part::Cond(b)]),
+                Cond::Captured(..) => {}
                 Cond::SourceQuery(..) => unreachable!("source predicates expand before grammar checks"),
             },
         }
@@ -675,13 +675,15 @@ fn close_families(grammar: &StageGrammar) -> Vec<FxSet<u32>> {
     }
     fn edges(expr: &Expr, grammar: &StageGrammar, out: &mut Vec<u32>) {
         match expr {
-            Expr::Ref(name) => {
+            Expr::Ref(name, _) => {
                 if let Some(&rule) = grammar.index.get(name) {
                     out.push(rule as u32);
                 }
             }
-            Expr::Capture(_, inner) | Expr::Splice(inner) | Expr::Tested(_, _, inner) => edges(inner, grammar, out),
-            Expr::Choice(branches) => {
+            Expr::Capture(_, inner, _) | Expr::Splice(inner, _) | Expr::Tested(_, _, inner, _) => {
+                edges(inner, grammar, out)
+            }
+            Expr::Choice(branches, _) => {
                 for branch in branches {
                     edges(branch, grammar, out);
                 }
@@ -722,15 +724,20 @@ fn consuming(expr: &Expr, rules: &FxSet<String>) -> bool {
     let mut pending = vec![expr];
     while let Some(expr) = pending.pop() {
         match expr {
-            Expr::Ref(name) if is_terminal_name(name) || rules.contains(name) => return true,
-            Expr::Terminal(_) | Expr::Literal(_) | Expr::ScalarRange(..) | Expr::Range(..) | Expr::Wildcard => {
-                return true
+            Expr::Ref(name, _) if is_terminal_name(name) || rules.contains(name) => return true,
+            Expr::Terminal(_, _)
+            | Expr::Literal(_, _)
+            | Expr::ScalarRange(..)
+            | Expr::Range(..)
+            | Expr::Wildcard(_) => return true,
+            Expr::Seq(items, _) | Expr::Choice(items, _) | Expr::Ranked(items, _) | Expr::And(items, _) => {
+                pending.extend(items)
             }
-            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => pending.extend(items),
-            Expr::Capture(_, inner) | Expr::Splice(inner) | Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => {
-                pending.push(inner)
-            }
-            Expr::Repeat(item, separator, _) => {
+            Expr::Capture(_, inner, _)
+            | Expr::Splice(inner, _)
+            | Expr::Optional(inner, _, _, _)
+            | Expr::Tested(_, _, inner, _) => pending.push(inner),
+            Expr::Repeat(item, separator, _, _) => {
                 pending.push(item);
                 pending.extend(separator.as_deref());
             }
@@ -766,17 +773,17 @@ fn emission_overlap(grammar: &StageGrammar) -> Result<(), Error> {
             let mut pending = vec![&alternative.alternative.expr];
             while let Some(expr) = pending.pop() {
                 match expr {
-                    Expr::Capture(name, inner) => {
+                    Expr::Capture(name, inner, _) => {
                         *captures.entry(name.clone()).or_default() |= consuming(inner, &reads);
                         pending.push(inner);
                     }
-                    Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
+                    Expr::Seq(items, _) | Expr::Choice(items, _) | Expr::Ranked(items, _) | Expr::And(items, _) => {
                         pending.extend(items)
                     }
-                    Expr::Splice(inner) | Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => {
+                    Expr::Splice(inner, _) | Expr::Optional(inner, _, _, _) | Expr::Tested(_, _, inner, _) => {
                         pending.push(inner)
                     }
-                    Expr::Repeat(item, separator, _) => {
+                    Expr::Repeat(item, separator, _, _) => {
                         pending.push(item);
                         pending.extend(separator.as_deref());
                     }
@@ -841,11 +848,12 @@ fn recipe_cycles(alternative: &StitchedAlternative) -> Result<(), Error> {
     let channel = |image: bool| usize::from(image && recipes[1].is_some());
     let dependencies = recipes.map(|recipe| {
         let mut dependencies = Vec::new();
-        let Some((Term::Call(_, atoms), _)) = recipe else { return dependencies };
+        let Some((Term::Call(_, atoms, ..), _)) = recipe else { return dependencies };
         for atom in atoms {
-            if let Arg::Term(Term::Call(method, args)) = atom {
-                if let [Arg::Term(Term::Call(emitted, args))] = &args[..] {
-                    if emitted == "emitted" && matches!(&args[..], [Arg::Term(Term::Capture(name))] if name.is_empty())
+            if let Arg::Term(Term::Call(method, args, ..)) = atom {
+                if let [Arg::Term(Term::Call(emitted, args, ..))] = &args[..] {
+                    if emitted == "emitted"
+                        && matches!(&args[..], [Arg::Term(Term::Capture(name, ..))] if name.is_empty())
                     {
                         dependencies.push(channel(method == "image"));
                     }
@@ -924,12 +932,15 @@ impl Value {
     /// constant whose value is the empty set is the empty set (§3.6).
     fn term(&self) -> Term {
         match self {
-            Value::Pattern(p) => Term::Pattern(Box::new(p.clone())),
-            Value::Str(text) => Term::Str(text.clone()),
+            Value::Pattern(p) => Term::Pattern(Box::new(p.clone()), crate::dom::Hidden::NONE),
+            Value::Str(text) => Term::Str(text.clone(), crate::dom::Hidden::NONE),
             Value::Set(set) => match set.len() {
-                0 => Term::EmptySet,
-                1 => Term::Tag(set.iter().next().expect("one member").clone()),
-                _ => Term::Union(set.iter().map(|member| Term::Tag(member.clone())).collect()),
+                0 => Term::EmptySet(crate::dom::Hidden::NONE),
+                1 => Term::Tag(set.iter().next().expect("one member").clone(), crate::dom::Hidden::NONE),
+                _ => Term::Union(
+                    set.iter().map(|member| Term::Tag(member.clone(), crate::dom::Hidden::NONE)).collect(),
+                    crate::dom::Hidden::NONE,
+                ),
             },
         }
     }
@@ -1190,10 +1201,10 @@ impl Constants<'_> {
         let mut todo = vec![term];
         while let Some(t) = todo.pop() {
             match t {
-                Term::Pattern(_) => return true,
-                Term::Const(n, _) if self.ty(n) == Type::Pattern => return true,
-                Term::Union(xs) | Term::Intersection(xs) => todo.extend(xs),
-                Term::Difference(a, b) => {
+                Term::Pattern(..) => return true,
+                Term::Const(n, ..) if self.ty(n) == Type::Pattern => return true,
+                Term::Union(xs, ..) | Term::Intersection(xs, ..) => todo.extend(xs),
+                Term::Difference(a, b, ..) => {
                     todo.push(a);
                     todo.push(b);
                 }
@@ -1204,21 +1215,25 @@ impl Constants<'_> {
     }
     fn evaluate_test(&self, value: &Term, op: &str, document: &str, at: (usize, usize)) -> Result<Term, Error> {
         if op == "tags" {
-            let Term::Call(name, requirements) = value else { unreachable!("a signed requirement list") };
+            let Term::Call(name, requirements, ..) = value else { unreachable!("a signed requirement list") };
             let mut bound = Vec::new();
             for requirement in requirements {
                 let Arg::Term(requirement) = requirement else { unreachable!() };
                 let (negative, term) = match requirement {
-                    Term::Call(name, args) if name == "forbid" => {
+                    Term::Call(name, args, ..) if name == "forbid" => {
                         let [Arg::Term(term)] = &args[..] else { unreachable!() };
                         (true, term)
                     }
                     term => (false, term),
                 };
                 let term = self.evaluate(term, document, at)?.term();
-                bound.push(Arg::Term(if negative { Term::Call("forbid".into(), vec![Arg::Term(term)]) } else { term }));
+                bound.push(Arg::Term(if negative {
+                    Term::Call("forbid".into(), vec![Arg::Term(term)], crate::dom::Hidden::NONE)
+                } else {
+                    term
+                }));
             }
-            return Ok(Term::Call(name.clone(), bound));
+            return Ok(Term::Call(name.clone(), bound, crate::dom::Hidden::NONE));
         }
         Ok(self.evaluate(value, document, at)?.term())
     }
@@ -1241,8 +1256,8 @@ impl Constants<'_> {
                     0u8,
                     t as *const Term as usize,
                     match t {
-                        Term::Union(_) => 1,
-                        Term::Intersection(_) => 2,
+                        Term::Union(..) => 1,
+                        Term::Intersection(..) => 2,
                         Term::Difference(..) => 3,
                         _ => 0,
                     },
@@ -1260,7 +1275,7 @@ impl Constants<'_> {
                 Part::Children(c) => (2, c as *const Children as usize, 0),
             };
             let constant = match part {
-                Part::Term(Term::Const(name, at)) | Part::Pattern(Pattern::Constant(name, at)) => Some((name, at)),
+                Part::Term(Term::Const(name, at, ..)) | Part::Pattern(Pattern::Constant(name, at)) => Some((name, at)),
                 _ => None,
             };
             if let Some((name, at)) = constant {
@@ -1275,13 +1290,13 @@ impl Constants<'_> {
                     continue;
                 }
             }
-            if matches!(part, Part::Term(Term::EmptySet)) {
+            if matches!(part, Part::Term(Term::EmptySet(..))) {
                 pending.push((Part::Pattern(&empty), depth, parent, reference));
                 continue;
             }
             // Term wrappers, node decorations, and sequence arrays are transparent.
             let transparent = match part {
-                Part::Term(Term::Pattern(pattern)) => Some(Part::Pattern(pattern)),
+                Part::Term(Term::Pattern(pattern, ..)) => Some(Part::Pattern(pattern)),
                 Part::Pattern(Pattern::Node(pattern, _, _)) => Some(Part::Pattern(pattern)),
                 _ => None,
             };
@@ -1310,12 +1325,12 @@ impl Constants<'_> {
             let child_parent = if sequence { parent } else { operation };
             let mut push = |child| pending.push((child, child_depth, child_parent, reference));
             match part {
-                Part::Term(Term::Union(items) | Term::Intersection(items)) => {
+                Part::Term(Term::Union(items, ..) | Term::Intersection(items, ..)) => {
                     for child in items.iter().rev() {
                         push(Part::Term(child));
                     }
                 }
-                Part::Term(Term::Difference(a, b)) => {
+                Part::Term(Term::Difference(a, b, ..)) => {
                     push(Part::Term(b));
                     push(Part::Term(a));
                 }
@@ -1349,7 +1364,7 @@ impl Constants<'_> {
     }
 
     fn evaluate_pattern_value(&self, term: &Term, document: &str, item: (usize, usize)) -> Result<Value, Error> {
-        if let Term::Pattern(root) = term {
+        if let Term::Pattern(root, ..) = term {
             if let Some(fault) = root.type_fault(&|name| self.ty(name)) {
                 return Err(located(fault.problem, document, fault.at.unwrap_or(item)));
             }
@@ -1368,7 +1383,7 @@ impl Constants<'_> {
             self.check_pattern_depth(term, document, item)?;
         }
         let pattern = match term {
-            Term::Pattern(p) => p.map_values(
+            Term::Pattern(p, ..) => p.map_values(
                 &|n, at| match &self.values[n].value {
                     Value::Pattern(p) => Ok(p.clone()),
                     Value::Str(s) => Ok(Pattern::Terminal(crate::tags::string_name(s, self.unicode), at)),
@@ -1394,18 +1409,18 @@ impl Constants<'_> {
                                 first_constant(v).unwrap_or(item),
                             ));
                         }
-                        return Ok(Term::Tag(crate::tags::string_name(&value, self.unicode)));
+                        return Ok(Term::Tag(crate::tags::string_name(&value, self.unicode), crate::dom::Hidden::NONE));
                     }
                     Ok(result.term())
                 },
             )?,
-            Term::Const(n, _) => match &self.values[n].value {
+            Term::Const(n, ..) => match &self.values[n].value {
                 Value::Pattern(p) => p.clone(),
                 _ => unreachable!(),
             },
-            Term::Union(xs) | Term::Intersection(xs) => {
+            Term::Union(xs, ..) | Term::Intersection(xs, ..) => {
                 let ps = xs.iter().map(|x| self.evaluate_pattern(x, document, item)).collect::<Result<Vec<_>, _>>()?;
-                if matches!(term, Term::Union(_)) {
+                if matches!(term, Term::Union(..)) {
                     Pattern::Union(
                         ps.into_iter().flat_map(|p| if let Pattern::Union(xs) = p { xs } else { vec![p] }).collect(),
                     )
@@ -1417,7 +1432,7 @@ impl Constants<'_> {
                     )
                 }
             }
-            Term::Difference(a, b) => Pattern::Difference(
+            Term::Difference(a, b, ..) => Pattern::Difference(
                 Box::new(self.evaluate_pattern(a, document, item)?),
                 Box::new(self.evaluate_pattern(b, document, item)?),
             ),
@@ -1435,7 +1450,7 @@ impl Constants<'_> {
                 }
             }
         }
-        if matches!(term, Term::Pattern(_)) {
+        if matches!(term, Term::Pattern(..)) {
             self.patterns.borrow_mut().push((pattern.clone(), document.to_owned()));
         }
         Ok(Value::Pattern(pattern))
@@ -1445,9 +1460,9 @@ impl Constants<'_> {
         let mut values: Vec<Value> = Vec::new();
         while let Some((term, ready)) = pending.pop() {
             let children: Vec<&Term> = match term {
-                Term::Union(items) | Term::Intersection(items) => items.iter().collect(),
-                Term::Difference(a, b) => vec![a, b],
-                Term::Call(_, args) => {
+                Term::Union(items, ..) | Term::Intersection(items, ..) => items.iter().collect(),
+                Term::Difference(a, b, ..) => vec![a, b],
+                Term::Call(_, args, ..) => {
                     args.iter().filter_map(|arg| if let Arg::Term(term) = arg { Some(term) } else { None }).collect()
                 }
                 _ => Vec::new(),
@@ -1461,17 +1476,17 @@ impl Constants<'_> {
             let value = match term {
                 Term::Source(_) => unreachable!("source symbols expand before constant binding"),
                 Term::Body(_) => return Err(Error::grammar("a parse body cannot be a constant").in_document(document)),
-                Term::Str(text) => Value::Str(text.clone()),
-                Term::Tag(tag) => Value::Set(BTreeSet::from([tag.clone()])),
-                Term::EmptySet => Value::Set(BTreeSet::new()),
-                Term::Const(name, at) => self
+                Term::Str(text, ..) => Value::Str(text.clone()),
+                Term::Tag(tag, ..) => Value::Set(BTreeSet::from([tag.clone()])),
+                Term::EmptySet(..) => Value::Set(BTreeSet::new()),
+                Term::Const(name, at, ..) => self
                     .values
                     .get(name)
                     .ok_or_else(|| located(format!("${name} is not defined in stage {}", self.stage), document, *at))?
                     .value
                     .clone(),
-                Term::Union(_) => Value::Set(operands.flat_map(|value| value.set()).collect()),
-                Term::Intersection(_) => {
+                Term::Union(..) => Value::Set(operands.flat_map(|value| value.set()).collect()),
+                Term::Intersection(..) => {
                     let mut sets = operands.map(Value::set);
                     let mut common = sets.next().unwrap_or_default();
                     for next in sets {
@@ -1485,9 +1500,9 @@ impl Constants<'_> {
                     left.retain(|tag| !right.contains(tag));
                     Value::Set(left)
                 }
-                Term::Call(name, args) => match (name.as_str(), &args[..]) {
+                Term::Call(name, args, ..) => match (name.as_str(), &args[..]) {
                     ("concat", _) => Value::Str(operands.map(Value::string).collect()),
-                    ("ngrams", [_, Arg::Integer(n)]) => {
+                    ("ngrams", [_, Arg::Integer(n, ..)]) => {
                         Value::Set(crate::dom::ngrams(&operands.next().unwrap().string(), n).into_iter().collect())
                     }
                     ("split", [_, Arg::Term(delimiter)]) => {
@@ -1497,7 +1512,7 @@ impl Constants<'_> {
                             return Err(located(
                                 "split has an empty delimiter".into(),
                                 document,
-                                if matches!(delimiter, Term::Call(name, _) if name == "concat") {
+                                if matches!(delimiter, Term::Call(name, ..) if name == "concat") {
                                     item
                                 } else {
                                     first_constant(delimiter).unwrap_or(item)
@@ -1510,8 +1525,8 @@ impl Constants<'_> {
                     }
                     _ => return Err(located("a constant's value is not a closed term".into(), document, item)),
                 },
-                Term::Pattern(_) => unreachable!("pattern values use their own evaluation"),
-                Term::Capture(_) | Term::If(..) => {
+                Term::Pattern(..) => unreachable!("pattern values use their own evaluation"),
+                Term::Capture(..) | Term::If(..) => {
                     return Err(located("a constant's value is not a closed term".into(), document, item))
                 }
             };
@@ -1544,10 +1559,14 @@ impl Constants<'_> {
             }
             let fault = match term_type_in(side, &|name| self.ty(name)) {
                 Err(fault) => Some(fault),
-                Ok(ty) => expected_problem(ty, Type::Tags).map(|problem| Fault { problem, at: first_constant(side) }),
+                Ok(ty) => expected_problem(ty, Type::Tags).map(|problem| Fault {
+                    problem,
+                    at: first_constant(side),
+                    node_at: side.at(),
+                }),
             };
-            if let Some(Fault { problem, at }) = fault {
-                let fault = Fault { problem: format!("a side of an implication is a tag set: {problem}"), at };
+            if let Some(Fault { problem, at, node_at }) = fault {
+                let fault = Fault { problem: format!("a side of an implication is a tag set: {problem}"), at, node_at };
                 return Err(fault_error(fault, document, implication.at));
             }
             sides.push(self.evaluate(side, document, implication.at)?.set());
@@ -1622,8 +1641,11 @@ impl Constants<'_> {
                                 Err(fault) => Some(fault),
                                 Ok(ty) => {
                                     if record.tags {
-                                        expected_problem(ty, Type::Tags)
-                                            .map(|problem| Fault { problem, at: first_constant(term) })
+                                        expected_problem(ty, Type::Tags).map(|problem| Fault {
+                                            problem,
+                                            at: first_constant(term),
+                                            node_at: term.at(),
+                                        })
                                     } else {
                                         None
                                     }
@@ -1725,19 +1747,19 @@ impl Constants<'_> {
                 ValuePart::Pattern(term) => {
                     self.check_pattern_uses(term, document, at)?;
                 }
-                ValuePart::Expr(expr @ Expr::Optional(_, _, Some(_))) => {
+                ValuePart::Expr(expr @ Expr::Optional(_, _, Some(_), _)) => {
                     self.check_body_strings(expr, document, at)?;
                 }
-                ValuePart::Expr(Expr::ScalarRange(a, b)) => {
+                ValuePart::Expr(Expr::ScalarRange(a, b, _)) => {
                     self.check_scalar_uses(a, b, document, at)?;
                 }
-                ValuePart::Term(term @ Term::Pattern(_)) => {
+                ValuePart::Term(term @ Term::Pattern(..)) => {
                     self.check_pattern_uses(term, document, at)?;
                 }
-                ValuePart::Term(Term::Call(name, args)) if name == "split" => {
+                ValuePart::Term(Term::Call(name, args, ..)) if name == "split" => {
                     if let [_, Arg::Term(delimiter)] = &args[..] {
                         if ((computed && closed_string(delimiter))
-                            || matches!(delimiter, Term::Str(_) | Term::Const(..)))
+                            || matches!(delimiter, Term::Str(..) | Term::Const(..)))
                             && self.evaluate(delimiter, document, at)?.string().is_empty()
                         {
                             return Err(located(
@@ -1776,7 +1798,7 @@ impl Constants<'_> {
         let mut pending = vec![root];
         while let Some(term) = pending.pop() {
             match term {
-                Term::Pattern(p) => {
+                Term::Pattern(p, ..) => {
                     for part in p.walk() {
                         match part {
                             crate::patterns::Part::Pattern(Pattern::Range(a, b, position)) => {
@@ -1792,8 +1814,8 @@ impl Constants<'_> {
                         }
                     }
                 }
-                Term::Union(xs) | Term::Intersection(xs) => pending.extend(xs.iter().rev()),
-                Term::Difference(a, b) => pending.extend([b.as_ref(), a.as_ref()]),
+                Term::Union(xs, ..) | Term::Intersection(xs, ..) => pending.extend(xs.iter().rev()),
+                Term::Difference(a, b, ..) => pending.extend([b.as_ref(), a.as_ref()]),
                 Term::Source(symbol) => self.check_value_uses(ValuePart::Source(symbol), document, at, false)?,
                 _ => {
                     self.evaluate_pattern(term, document, at)?;
@@ -1966,13 +1988,13 @@ impl Constants<'_> {
         let mut pending = vec![root];
         while let Some(expr) = pending.pop() {
             match expr {
-                Expr::ScalarRange(a, b) => {
+                Expr::ScalarRange(a, b, _) => {
                     self.scalar_endpoints(a, b, document, at)?;
                 }
-                Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
+                Expr::Seq(items, _) | Expr::Choice(items, _) | Expr::Ranked(items, _) | Expr::And(items, _) => {
                     pending.extend(items.iter().rev())
                 }
-                Expr::Optional(inner, _, default) => {
+                Expr::Optional(inner, _, default, _) => {
                     if let Some(default) = default {
                         if matches!(default.term, Term::Source(_)) {
                             pending.push(inner);
@@ -1986,17 +2008,17 @@ impl Constants<'_> {
                                 default.at.unwrap_or(at),
                             ));
                         };
-                        let head = if let Expr::Seq(xs) = inner.as_ref() { &xs[0] } else { inner.as_ref() };
+                        let head = if let Expr::Seq(xs, _) = inner.as_ref() { &xs[0] } else { inner.as_ref() };
                         let mut base = head;
-                        while let Expr::Tested(_, _, next) = base {
+                        while let Expr::Tested(_, _, next, _) = base {
                             base = next;
                         }
-                        let (Expr::Ref(name) | Expr::Terminal(name)) = base else {
+                        let (Expr::Ref(name, _) | Expr::Terminal(name, _)) = base else {
                             pending.push(inner);
                             continue;
                         };
                         let mut tested = head;
-                        while let Expr::Tested(op, operand, next) = tested {
+                        while let Expr::Tested(op, operand, next, _) = tested {
                             let operand = self.evaluate_test(operand, op, document, at)?;
                             let test = crate::lower::SymbolTest::new(op, &operand, self.unicode);
                             if test.tags.iter().any(|t| t != name)
@@ -2017,8 +2039,10 @@ impl Constants<'_> {
                     }
                     pending.push(inner)
                 }
-                Expr::Capture(_, inner) | Expr::Splice(inner) | Expr::Tested(_, _, inner) => pending.push(inner),
-                Expr::Repeat(item, separator, _) => {
+                Expr::Capture(_, inner, _) | Expr::Splice(inner, _) | Expr::Tested(_, _, inner, _) => {
+                    pending.push(inner)
+                }
+                Expr::Repeat(item, separator, _, _) => {
                     pending.extend(separator.as_deref());
                     pending.push(item);
                 }
@@ -2036,14 +2060,14 @@ impl Constants<'_> {
             for alternative in &mut rule.alternatives {
                 let mut stack = vec![&mut alternative.alternative.expr];
                 while let Some(expr) = stack.pop() {
-                    if matches!(expr, Expr::Optional(_, _, Some(_))) {
+                    if matches!(expr, Expr::Optional(_, _, Some(_), _)) {
                         self.check_body_strings(expr, &alternative.document, alternative.at)?;
                     }
                     match expr {
-                        Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
+                        Expr::Seq(items, _) | Expr::Choice(items, _) | Expr::Ranked(items, _) | Expr::And(items, _) => {
                             stack.extend(items.iter_mut())
                         }
-                        Expr::Optional(inner, _, default) => {
+                        Expr::Optional(inner, _, default, _) => {
                             if let Some(value) = default {
                                 *value = crate::dom::DefaultValue {
                                     term: self.evaluate_test(
@@ -2057,30 +2081,33 @@ impl Constants<'_> {
                             }
                             stack.push(inner);
                         }
-                        Expr::Capture(_, inner) | Expr::Splice(inner) => stack.push(inner),
-                        Expr::Repeat(item, separator, _) => {
+                        Expr::Capture(_, inner, _) | Expr::Splice(inner, _) => stack.push(inner),
+                        Expr::Repeat(item, separator, _, _) => {
                             stack.push(item);
                             stack.extend(separator.as_deref_mut());
                         }
-                        Expr::Tested(op, value, inner) => {
+                        Expr::Tested(op, value, inner, _) => {
                             *value = self.evaluate_test(value, op, &alternative.document, alternative.at)?;
                             stack.push(inner);
                         }
-                        Expr::Literal(value) => {
+                        Expr::Literal(value, _) => {
                             let value = self.evaluate(value, &alternative.document, alternative.at)?.string();
-                            *expr = Expr::Terminal(crate::tags::string_name(&value, self.unicode));
+                            *expr = Expr::Terminal(
+                                crate::tags::string_name(&value, self.unicode),
+                                crate::dom::ExprAt::from(None),
+                            );
                         }
-                        Expr::ScalarRange(left, right) => {
+                        Expr::ScalarRange(left, right, _) => {
                             let (a, b) = self.scalar_endpoints(left, right, &alternative.document, alternative.at)?;
-                            *expr = Expr::Range(a, b);
+                            *expr = Expr::Range(a, b, crate::dom::ExprAt::from(None));
                         }
-                        Expr::Source(_)
-                        | Expr::Ref(_)
-                        | Expr::Terminal(_)
+                        Expr::Source(..)
+                        | Expr::Ref(_, _)
+                        | Expr::Terminal(_, _)
                         | Expr::Range(..)
-                        | Expr::Wildcard
-                        | Expr::Empty
-                        | Expr::Remainder => {}
+                        | Expr::Wildcard(_)
+                        | Expr::Empty(_)
+                        | Expr::Remainder(_) => {}
                     }
                 }
             }
@@ -2119,32 +2146,35 @@ impl Constants<'_> {
             if value_has_source(term) {
                 return;
             }
-            *term = Term::Pattern(Box::new(self.evaluate_pattern(term, "", (0, 0)).expect("checked pattern")));
+            *term = Term::Pattern(
+                Box::new(self.evaluate_pattern(term, "", (0, 0)).expect("checked pattern")),
+                crate::dom::Hidden::NONE,
+            );
             return;
         }
         match term {
             Term::Body(body) => self.substitute_body(Arc::make_mut(body)),
             Term::Source(_) => (),
-            Term::Const(name, _) => *term = self.values[name.as_str()].value.term(),
-            Term::Union(items) | Term::Intersection(items) => {
+            Term::Const(name, ..) => *term = self.values[name.as_str()].value.term(),
+            Term::Union(items, ..) | Term::Intersection(items, ..) => {
                 items.iter_mut().for_each(|item| self.substitute_term(item));
             }
-            Term::Difference(left, right) => {
+            Term::Difference(left, right, ..) => {
                 self.substitute_term(left);
                 self.substitute_term(right);
             }
-            Term::If(cond, then) => {
+            Term::If(cond, then, ..) => {
                 self.substitute_cond(cond);
                 self.substitute_term(then);
             }
-            Term::Call(_, args) => {
+            Term::Call(_, args, ..) => {
                 for arg in args.iter_mut() {
                     if let Arg::Term(term) = arg {
                         self.substitute_term(term);
                     }
                 }
             }
-            Term::Pattern(_) | Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Capture(_) => {}
+            Term::Pattern(..) | Term::Str(..) | Term::Tag(..) | Term::EmptySet(..) | Term::Capture(..) => {}
         }
     }
 
@@ -2153,26 +2183,26 @@ impl Constants<'_> {
         while let Some(expression) = pending.pop() {
             work::count(Work::Stitched, 1);
             match expression {
-                Expr::Literal(term) => self.substitute_term(term),
-                Expr::ScalarRange(left, right) => {
+                Expr::Literal(term, _) => self.substitute_term(term),
+                Expr::ScalarRange(left, right, _) => {
                     self.substitute_term(left);
                     self.substitute_term(right);
                 }
-                Expr::Tested(_, term, inner) => {
+                Expr::Tested(_, term, inner, _) => {
                     self.substitute_term(term);
                     pending.push(inner);
                 }
-                Expr::Optional(inner, _, default) => {
+                Expr::Optional(inner, _, default, _) => {
                     if let Some(default) = default {
                         self.substitute_term(&mut default.term);
                     }
                     pending.push(inner);
                 }
-                Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
+                Expr::Seq(items, _) | Expr::Choice(items, _) | Expr::Ranked(items, _) | Expr::And(items, _) => {
                     pending.extend(items.iter_mut())
                 }
-                Expr::Capture(_, inner) | Expr::Splice(inner) => pending.push(inner),
-                Expr::Repeat(inner, separator, _) => {
+                Expr::Capture(_, inner, _) | Expr::Splice(inner, _) => pending.push(inner),
+                Expr::Repeat(inner, separator, _, _) => {
                     pending.push(inner);
                     pending.extend(separator.as_deref_mut());
                 }
@@ -2184,8 +2214,8 @@ impl Constants<'_> {
     fn substitute_cond(&self, cond: &mut Cond) {
         work::count(Work::Stitched, 1);
         match cond {
-            Cond::Truthy(term) => self.substitute_term(term),
-            Cond::Forest(term) => self.substitute_term(term),
+            Cond::Truthy(term, ..) => self.substitute_term(term),
+            Cond::Forest(term, ..) => self.substitute_term(term),
             Cond::SourceQuery(_, args, _) => {
                 for arg in args {
                     if let Arg::Term(term) = arg {
@@ -2194,24 +2224,26 @@ impl Constants<'_> {
                 }
             }
             Cond::Compare(op, left, right, _) => {
-                if matches!(op.as_str(), "≅" | "≇") && !matches!(right, Term::Capture(_)) {
+                if matches!(op.as_str(), "≅" | "≇") && !matches!(right, Term::Capture(..)) {
                     if value_has_source(right) {
                         return;
                     }
-                    *right =
-                        Term::Pattern(Box::new(self.evaluate_pattern(right, "", (0, 0)).expect("checked pattern")));
+                    *right = Term::Pattern(
+                        Box::new(self.evaluate_pattern(right, "", (0, 0)).expect("checked pattern")),
+                        crate::dom::Hidden::NONE,
+                    );
                     return;
                 }
                 self.substitute_term(left);
                 self.substitute_term(right);
             }
-            Cond::Not(inner) => self.substitute_cond(inner),
-            Cond::Any(items) | Cond::All(items) => items.iter_mut().for_each(|item| self.substitute_cond(item)),
-            Cond::If(antecedent, consequent) => {
+            Cond::Not(inner, ..) => self.substitute_cond(inner),
+            Cond::Any(items, ..) | Cond::All(items, ..) => items.iter_mut().for_each(|item| self.substitute_cond(item)),
+            Cond::If(antecedent, consequent, ..) => {
                 self.substitute_cond(antecedent);
                 self.substitute_cond(consequent);
             }
-            Cond::Initial(_) | Cond::Final(_) | Cond::Boundary(_, _, _, _) | Cond::Captured(_) => {}
+            Cond::Initial(..) | Cond::Final(..) | Cond::Boundary(_, _, _, _) | Cond::Captured(..) => {}
         }
     }
 }
@@ -2235,7 +2267,7 @@ fn value_has_source(term: &Term) -> bool {
         for part in value_parts(ValuePart::Term(root)) {
             match part {
                 ValuePart::Term(Term::Source(_)) | ValuePart::Cond(Cond::SourceQuery(..)) => return true,
-                ValuePart::Term(Term::Pattern(p)) => {
+                ValuePart::Term(Term::Pattern(p, ..)) => {
                     for part in p.walk() {
                         match part {
                             crate::patterns::Part::Pattern(Pattern::Source(_)) => return true,
@@ -2258,8 +2290,8 @@ fn closed_string(term: &Term) -> bool {
     while let Some(term) = pending.pop() {
         match term {
             Term::Source(_) => unreachable!("source symbols expand before grammar checks"),
-            Term::Str(_) | Term::Const(..) => {}
-            Term::Call(name, args) if name == "concat" => {
+            Term::Str(..) | Term::Const(..) => {}
+            Term::Call(name, args, ..) if name == "concat" => {
                 for arg in args {
                     let Arg::Term(term) = arg else { return false };
                     pending.push(term);
@@ -2339,35 +2371,35 @@ impl<'a> Iterator for ValueParts<'a> {
                 value_channels(&mut children, strings);
             }
             ValuePart::Expr(expr) => match expr {
-                Expr::Source(s) => children.push(ValuePart::Source(s)),
-                Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs, _) | Expr::And(xs) => {
+                Expr::Source(s, ..) => children.push(ValuePart::Source(s)),
+                Expr::Seq(xs, _) | Expr::Choice(xs, _) | Expr::Ranked(xs, _) | Expr::And(xs, _) => {
                     children.extend(xs.iter().map(ValuePart::Expr))
                 }
-                Expr::Optional(e, _, default) => {
+                Expr::Optional(e, _, default, _) => {
                     children.push(ValuePart::Expr(e));
                     if let Some(default) = default {
                         children.push(ValuePart::Term(&default.term));
                     }
                 }
-                Expr::Capture(_, e) | Expr::Splice(e) => children.push(ValuePart::Expr(e)),
-                Expr::Repeat(e, separator, _) => {
+                Expr::Capture(_, e, _) | Expr::Splice(e, _) => children.push(ValuePart::Expr(e)),
+                Expr::Repeat(e, separator, _, _) => {
                     children.push(ValuePart::Expr(e));
                     children.extend(separator.iter().map(|e| ValuePart::Expr(e)));
                 }
-                Expr::Tested(_, value, inner) => {
+                Expr::Tested(_, value, inner, _) => {
                     children.push(ValuePart::Expr(inner));
                     children.push(ValuePart::Term(value));
                 }
-                Expr::Literal(value) => children.push(ValuePart::Term(value)),
-                Expr::ScalarRange(a, b) => children.extend([ValuePart::Term(a), ValuePart::Term(b)]),
+                Expr::Literal(value, _) => children.push(ValuePart::Term(value)),
+                Expr::ScalarRange(a, b, _) => children.extend([ValuePart::Term(a), ValuePart::Term(b)]),
                 _ => (),
             },
             ValuePart::Term(term) => match term {
                 Term::Source(s) => children.push(ValuePart::Source(s)),
-                Term::Union(xs) | Term::Intersection(xs) => children.extend(xs.iter().map(ValuePart::Term)),
-                Term::Difference(a, b) => children.extend([ValuePart::Term(a), ValuePart::Term(b)]),
-                Term::If(c, t) => children.extend([ValuePart::Cond(c), ValuePart::Term(t)]),
-                Term::Call(_, args) => children.extend(args.iter().filter_map(|a| {
+                Term::Union(xs, ..) | Term::Intersection(xs, ..) => children.extend(xs.iter().map(ValuePart::Term)),
+                Term::Difference(a, b, ..) => children.extend([ValuePart::Term(a), ValuePart::Term(b)]),
+                Term::If(c, t, ..) => children.extend([ValuePart::Cond(c), ValuePart::Term(t)]),
+                Term::Call(_, args, ..) => children.extend(args.iter().filter_map(|a| {
                     if let Arg::Term(t) = a {
                         Some(ValuePart::Term(t))
                     } else {
@@ -2386,17 +2418,19 @@ impl<'a> Iterator for ValueParts<'a> {
                 })),
                 Cond::Compare(op, a, b, _) => {
                     children.push(ValuePart::Term(a));
-                    children.push(if matches!(op.as_str(), "≅" | "≇") && !matches!(b, Term::Capture(_)) {
+                    children.push(if matches!(op.as_str(), "≅" | "≇") && !matches!(b, Term::Capture(..)) {
                         ValuePart::Pattern(b)
                     } else {
                         ValuePart::Term(b)
                     });
                 }
-                Cond::Truthy(t) => children.push(ValuePart::Term(t)),
-                Cond::All(xs) | Cond::Any(xs) => children.extend(xs.iter().map(ValuePart::Cond)),
-                Cond::If(a, b) => children.extend([ValuePart::Cond(a), ValuePart::Cond(b)]),
-                Cond::Not(c) => children.push(ValuePart::Cond(c)),
-                Cond::Initial(t) | Cond::Final(t) | Cond::Boundary(_, t, _, _) => children.push(ValuePart::Term(t)),
+                Cond::Truthy(t, ..) => children.push(ValuePart::Term(t)),
+                Cond::All(xs, ..) | Cond::Any(xs, ..) => children.extend(xs.iter().map(ValuePart::Cond)),
+                Cond::If(a, b, ..) => children.extend([ValuePart::Cond(a), ValuePart::Cond(b)]),
+                Cond::Not(c, ..) => children.push(ValuePart::Cond(c)),
+                Cond::Initial(t, ..) | Cond::Final(t, ..) | Cond::Boundary(_, t, _, _) => {
+                    children.push(ValuePart::Term(t))
+                }
                 _ => (),
             },
             ValuePart::Pattern(_) => (),
@@ -2408,95 +2442,107 @@ impl<'a> Iterator for ValueParts<'a> {
 
 /// Checks an alternative, and its rule's clauses where `clauses` says that
 /// no alternative before it shared them.
+/// A stitching fault and the position of the node that holds it, when
+/// that node or its nearest enclosing expression has one.
+type LocatedFault = (String, Option<(usize, usize)>);
+
 fn check_alternative(
     grammar: &StageGrammar,
     alternative: &StitchedAlternative,
     clauses: bool,
-) -> Result<(bool, bool), String> {
+) -> Result<(bool, bool), LocatedFault> {
     let mut compared = false;
-    check_expr(grammar, &alternative.alternative.expr)?;
+    let enclosing = Some(alternative.at);
+    check_expr(grammar, &alternative.alternative.expr, enclosing)?;
     for term in alternative.alternative.tags.iter() {
-        check_term(grammar, term, &mut compared)?;
+        check_term(grammar, term, &mut compared, enclosing)?;
     }
     if !clauses {
         return Ok((compared, compared));
     }
     let clauses = &alternative.clauses;
     for term in clauses.tags.iter() {
-        check_term(grammar, term, &mut compared)?;
+        check_term(grammar, term, &mut compared, enclosing)?;
     }
     for cond in &clauses.conditions {
-        check_cond(grammar, cond, &mut compared)?;
+        check_cond(grammar, cond, &mut compared, enclosing)?;
     }
     let recognition = compared;
     for item in clauses.emit.iter().flatten() {
         if let EmitItem::Capture(_, Some(term), ..) | EmitItem::Insert(Some(term), _) = item {
-            check_term(grammar, term, &mut compared)?;
+            check_term(grammar, term, &mut compared, enclosing)?;
         }
     }
     Ok((recognition, compared))
 }
 
-fn check_rule(grammar: &StageGrammar, name: &str) -> Result<(), String> {
+fn check_rule(grammar: &StageGrammar, name: &str, at: Option<(usize, usize)>) -> Result<(), LocatedFault> {
     if grammar.index.contains_key(name) {
         Ok(())
     } else {
-        Err(format!("{name} is not a rule of stage {}", grammar.name))
+        Err((format!("{name} is not a rule of stage {}", grammar.name), at))
     }
 }
 
-fn check_expr(grammar: &StageGrammar, expr: &Expr) -> Result<(), String> {
+fn check_expr(grammar: &StageGrammar, expr: &Expr, enclosing: Option<(usize, usize)>) -> Result<(), LocatedFault> {
+    let enclosing = expr.at().or(enclosing);
     match expr {
-        Expr::Source(_) => unreachable!("source symbols expand before grammar checks"),
-        Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
+        Expr::Source(..) => unreachable!("source symbols expand before grammar checks"),
+        Expr::Seq(items, _) | Expr::Choice(items, _) | Expr::Ranked(items, _) | Expr::And(items, _) => {
             for item in items {
-                check_expr(grammar, item)?;
+                check_expr(grammar, item, enclosing)?;
             }
             Ok(())
         }
-        Expr::Repeat(item, separator, _) => {
-            check_expr(grammar, item)?;
-            separator.as_deref().map_or(Ok(()), |separator| check_expr(grammar, separator))
+        Expr::Repeat(item, separator, _, _) => {
+            check_expr(grammar, item, enclosing)?;
+            separator.as_deref().map_or(Ok(()), |separator| check_expr(grammar, separator, enclosing))
         }
-        Expr::Splice(inner) | Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => check_expr(grammar, inner),
-        Expr::Ref(name) => {
+        Expr::Splice(inner, _) | Expr::Optional(inner, _, _, _) | Expr::Tested(_, _, inner, _) => {
+            check_expr(grammar, inner, enclosing)
+        }
+        Expr::Ref(name, _) => {
             if is_terminal_name(name) {
                 Ok(())
             } else {
-                check_rule(grammar, name)
+                check_rule(grammar, name, enclosing)
             }
         }
-        Expr::Terminal(_)
-        | Expr::Literal(_)
+        Expr::Terminal(_, _)
+        | Expr::Literal(_, _)
         | Expr::ScalarRange(..)
         | Expr::Range(..)
-        | Expr::Wildcard
-        | Expr::Empty
-        | Expr::Remainder => Ok(()),
+        | Expr::Wildcard(_)
+        | Expr::Empty(_)
+        | Expr::Remainder(_) => Ok(()),
         // The reader, or the check of a DOM, has made sure that a capture
         // wraps one symbol (§9).
-        Expr::Capture(_, inner) => check_expr(grammar, inner),
+        Expr::Capture(_, inner, _) => check_expr(grammar, inner, enclosing),
     }
 }
 
 // Admission checks span shapes and method arities before stitching.
 // Only references to rules of this stage remain to be checked.
-fn check_span_references(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
+fn check_span_references(
+    grammar: &StageGrammar,
+    term: &Term,
+    enclosing: Option<(usize, usize)>,
+) -> Result<(), LocatedFault> {
     match term {
-        Term::Capture(_) => Ok(()),
-        Term::Call(_, args) => {
+        Term::Capture(..) => Ok(()),
+        Term::Call(_, args, ..) => {
             for arg in args {
                 match arg {
                     // A parse body in a span method is checked as a term
                     // of its own, so its references name rules (§2).
                     Arg::Term(Term::Body(body)) => {
                         if let Some(problem) = crate::query_forms::body_problem(body) {
-                            return Err(problem.into());
+                            return Err((problem.into(), None));
                         }
-                        check_expr(grammar, body)?;
+                        check_expr(grammar, body, enclosing)?;
                     }
-                    Arg::Term(inner) => check_span_references(grammar, inner)?,
-                    Arg::Rule(rule) => check_rule(grammar, rule)?,
+                    Arg::Term(inner) => check_span_references(grammar, inner, enclosing)?,
+                    Arg::Rule(rule) => check_rule(grammar, rule, enclosing)?,
                     _ => unreachable!("span method arguments were checked before stitching"),
                 }
             }
@@ -2506,74 +2552,80 @@ fn check_span_references(grammar: &StageGrammar, term: &Term) -> Result<(), Stri
     }
 }
 
-fn check_term(grammar: &StageGrammar, term: &Term, compared: &mut bool) -> Result<(), String> {
+fn check_term(
+    grammar: &StageGrammar,
+    term: &Term,
+    compared: &mut bool,
+    enclosing: Option<(usize, usize)>,
+) -> Result<(), LocatedFault> {
+    let plain = |message: String| (message, None);
     match term {
         Term::Body(body) => {
             if let Some(problem) = crate::query_forms::body_problem(body) {
-                return Err(problem.into());
+                return Err(plain(problem.into()));
             }
-            check_expr(grammar, body)
+            check_expr(grammar, body, enclosing)
         }
         Term::Source(_) => unreachable!("source symbols expand before grammar checks"),
         // Stitching has checked every constant (engine §2).
-        Term::Pattern(_) | Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Const(..) => Ok(()),
-        Term::Union(items) | Term::Intersection(items) => {
+        Term::Pattern(..) | Term::Str(..) | Term::Tag(..) | Term::EmptySet(..) | Term::Const(..) => Ok(()),
+        Term::Union(items, ..) | Term::Intersection(items, ..) => {
             for item in items {
-                check_term(grammar, item, compared)?;
+                check_term(grammar, item, compared, enclosing)?;
             }
             Ok(())
         }
-        Term::Difference(left, right) => {
-            check_term(grammar, left, compared)?;
-            check_term(grammar, right, compared)
+        Term::Difference(left, right, ..) => {
+            check_term(grammar, left, compared, enclosing)?;
+            check_term(grammar, right, compared, enclosing)
         }
-        Term::Capture(_) => Ok(()),
-        Term::If(cond, then) => {
-            check_cond(grammar, cond, compared)?;
-            check_term(grammar, then, compared)
+        Term::Capture(..) => Ok(()),
+        Term::If(cond, then, ..) => {
+            check_cond(grammar, cond, compared, enclosing)?;
+            check_term(grammar, then, compared, enclosing)
         }
-        Term::Call(name, args) => match (name.as_str(), &args[..]) {
+        Term::Call(name, args, ..) => match (name.as_str(), &args[..]) {
             ("parse", [Arg::Term(receiver), Arg::Term(Term::Body(body))]) => {
                 if crate::query_forms::suffix_body(body) && crate::dom::restored_span(receiver) {
-                    return Err("suffix parse requires an ordinary span, not a restored span".into());
+                    return Err(plain("suffix parse requires an ordinary span, not a restored span".into()));
                 }
-                check_span_references(grammar, receiver)?;
-                check_term(grammar, &Term::Body(body.clone()), compared)
+                check_span_references(grammar, receiver, enclosing)?;
+                check_term(grammar, &Term::Body(body.clone()), compared, enclosing)
             }
-            ("error-free", [Arg::Term(receiver)]) => check_term(grammar, receiver, compared),
-            ("value" | "image", [Arg::Term(Term::Call(method, args))]) if method == "emitted" => {
-                if let [Arg::Term(Term::Capture(_))] = &args[..] {
+            ("error-free", [Arg::Term(receiver)]) => check_term(grammar, receiver, compared, enclosing),
+            ("value" | "image", [Arg::Term(Term::Call(method, args, ..))]) if method == "emitted" => {
+                if let [Arg::Term(Term::Capture(..))] = &args[..] {
                     Ok(())
                 } else {
-                    Err("emitted requires a bare capture".into())
+                    Err(plain("emitted requires a bare capture".into()))
                 }
             }
             ("value" | "image" | "source-text" | "decomposed-source-text" | "classes" | "tags", [Arg::Term(span)]) => {
-                check_span_references(grammar, span)
+                check_span_references(grammar, span, enclosing)
             }
-            ("ngrams", [Arg::Term(string), Arg::Integer(n)]) if crate::dom::valid_integer(n) => {
-                check_term(grammar, string, compared)
+            ("ngrams", [Arg::Term(string), Arg::Integer(n, ..)]) if crate::dom::valid_integer(n) => {
+                check_term(grammar, string, compared, enclosing)
             }
             ("split", [Arg::Term(string), Arg::Term(delimiter)]) => {
-                check_term(grammar, string, compared)?;
-                check_term(grammar, delimiter, compared)
+                check_term(grammar, string, compared, enclosing)?;
+                check_term(grammar, delimiter, compared, enclosing)
             }
             ("concat", args) => {
                 for arg in args {
                     if let Arg::Term(term) = arg {
-                        check_term(grammar, term, compared)?;
+                        check_term(grammar, term, compared, enclosing)?;
                     }
                 }
                 Ok(())
             }
-            ("verbatim-text" | "emitted", [Arg::Term(span)]) => check_span_references(grammar, span),
+            ("verbatim-text" | "emitted", [Arg::Term(span)]) => check_span_references(grammar, span, enclosing),
             // A classifier that classify names belongs to the stage (§2).
             ("classify", [Arg::Term(string), Arg::Classifier(classifier)]) => {
-                check_term(grammar, string, compared)?;
+                check_term(grammar, string, compared, enclosing)?;
                 if grammar.classifiers.iter().any(|(_, item)| item.name == *classifier) {
                     Ok(())
                 } else {
-                    Err(format!("{classifier} is not a classifier of stage {}", grammar.name))
+                    Err(plain(format!("{classifier} is not a classifier of stage {}", grammar.name)))
                 }
             }
             (
@@ -2586,7 +2638,7 @@ fn check_term(grammar: &StageGrammar, term: &Term, compared: &mut bool) -> Resul
                 | "without-elision"
                 | "without-elision-except",
                 _,
-            ) => check_span_references(grammar, term),
+            ) => check_span_references(grammar, term, enclosing),
             (
                 "value"
                 | "source-text"
@@ -2598,36 +2650,43 @@ fn check_term(grammar: &StageGrammar, term: &Term, compared: &mut bool) -> Resul
                 | "classify"
                 | "starts-input",
                 _,
-            ) => Err(format!("{name}() is called with the wrong arguments")),
-            _ => Err(format!("an unknown function {name}()")),
+            ) => Err(plain(format!("{name}() is called with the wrong arguments"))),
+            _ => Err(plain(format!("an unknown function {name}()"))),
         },
     }
 }
 
-fn check_cond(grammar: &StageGrammar, cond: &Cond, compared: &mut bool) -> Result<(), String> {
+fn check_cond(
+    grammar: &StageGrammar,
+    cond: &Cond,
+    compared: &mut bool,
+    enclosing: Option<(usize, usize)>,
+) -> Result<(), LocatedFault> {
     work::count(Work::Stitched, 1);
     match cond {
-        Cond::Truthy(term) => check_term(grammar, term, compared),
-        Cond::Forest(term) => check_term(grammar, term, compared),
+        Cond::Truthy(term, ..) => check_term(grammar, term, compared, enclosing),
+        Cond::Forest(term, ..) => check_term(grammar, term, compared, enclosing),
         Cond::SourceQuery(..) => unreachable!("source queries expand before grammar checks"),
-        Cond::Compare(op, left, right, _) => {
-            *compared |= matches!(op.as_str(), "≅" | "≇") && matches!(right, Term::Capture(_));
+        Cond::Compare(op, left, right, at) => {
+            *compared |= matches!(op.as_str(), "≅" | "≇") && matches!(right, Term::Capture(..));
             if !matches!(op.as_str(), "=" | "≠" | "∈" | "∉" | "⊆" | "⊈" | "≅" | "≇") {
-                return Err(format!("an unknown comparison {op}"));
+                return Err((format!("an unknown comparison {op}"), None));
             }
-            check_term(grammar, left, compared)?;
-            check_term(grammar, right, compared)
+            let enclosing = (*at).or(enclosing);
+            check_term(grammar, left, compared, enclosing)?;
+            check_term(grammar, right, compared, enclosing)
         }
-        Cond::Initial(span) | Cond::Final(span) | Cond::Boundary(_, span, _, _) => check_span_references(grammar, span),
-        Cond::Not(inner) => check_cond(grammar, inner, compared),
-        Cond::Captured(_) => Ok(()),
-        Cond::If(antecedent, consequent) => {
-            check_cond(grammar, antecedent, compared)?;
-            check_cond(grammar, consequent, compared)
+        Cond::Initial(span, ..) | Cond::Final(span, ..) => check_span_references(grammar, span, enclosing),
+        Cond::Boundary(_, span, _, location) => check_span_references(grammar, span, location.at.or(enclosing)),
+        Cond::Not(inner, ..) => check_cond(grammar, inner, compared, enclosing),
+        Cond::Captured(..) => Ok(()),
+        Cond::If(antecedent, consequent, ..) => {
+            check_cond(grammar, antecedent, compared, enclosing)?;
+            check_cond(grammar, consequent, compared, enclosing)
         }
-        Cond::Any(items) | Cond::All(items) => {
+        Cond::Any(items, ..) | Cond::All(items, ..) => {
             for item in items {
-                check_cond(grammar, item, compared)?;
+                check_cond(grammar, item, compared, enclosing)?;
             }
             Ok(())
         }
@@ -2638,8 +2697,8 @@ fn check_cond(grammar: &StageGrammar, cond: &Cond, compared: &mut bool) -> Resul
 fn input_conditions_problem(conditions: &[Cond]) -> Result<(), String> {
     fn term(value: &Term) -> Result<(), String> {
         match value {
-            Term::Capture(name) if !name.is_empty() => Err("feature conditions can read only $".into()),
-            Term::Call(name, args) => {
+            Term::Capture(name, ..) if !name.is_empty() => Err("feature conditions can read only $".into()),
+            Term::Call(name, args, ..) => {
                 if !matches!(
                     name.as_str(),
                     "tags"
@@ -2665,17 +2724,17 @@ fn input_conditions_problem(conditions: &[Cond]) -> Result<(), String> {
                 }
                 Ok(())
             }
-            Term::Union(items) | Term::Intersection(items) => {
+            Term::Union(items, ..) | Term::Intersection(items, ..) => {
                 for value in items {
                     term(value)?;
                 }
                 Ok(())
             }
-            Term::Difference(left, right) => {
+            Term::Difference(left, right, ..) => {
                 term(left)?;
                 term(right)
             }
-            Term::If(condition, value) => {
+            Term::If(condition, value, ..) => {
                 cond(condition)?;
                 term(value)
             }
@@ -2684,23 +2743,23 @@ fn input_conditions_problem(conditions: &[Cond]) -> Result<(), String> {
     }
     fn cond(value: &Cond) -> Result<(), String> {
         match value {
-            Cond::Truthy(inner) => term(inner),
+            Cond::Truthy(inner, ..) => term(inner),
             Cond::Compare(op, left, right, _) if !matches!(op.as_str(), "≅" | "≇") => {
                 term(left)?;
                 term(right)
             }
-            Cond::Not(inner) => cond(inner),
-            Cond::Any(items) | Cond::All(items) => {
+            Cond::Not(inner, ..) => cond(inner),
+            Cond::Any(items, ..) | Cond::All(items, ..) => {
                 for value in items {
                     cond(value)?;
                 }
                 Ok(())
             }
-            Cond::If(left, right) => {
+            Cond::If(left, right, ..) => {
                 cond(left)?;
                 cond(right)
             }
-            Cond::Captured(name) if name.is_empty() => Ok(()),
+            Cond::Captured(name, ..) if name.is_empty() => Ok(()),
             _ => Err("feature conditions can read only tokens".into()),
         }
     }
@@ -2732,9 +2791,17 @@ mod tests {
             Unicode::parse(crate::loader::bundled("data/unicode/unicode.txt").expect("the table")).expect("the table");
         let dom = |n: usize| {
             let same = || {
-                Cond::Compare("=".into(), Term::Const("k".into(), (1, 1)), Term::Str("a".into()), Default::default())
+                Cond::Compare(
+                    "=".into(),
+                    Term::Const("k".into(), (1, 1), crate::dom::Hidden::NONE),
+                    Term::Str("a".into(), crate::dom::Hidden::NONE),
+                    Default::default(),
+                )
             };
             let rule = RuleDef {
+                places: Default::default(),
+                name_at: crate::dom::Unseen(None),
+                tags_at: Default::default(),
                 template_conditions: Vec::new(),
                 error: None,
                 warning: None,
@@ -2747,11 +2814,12 @@ mod tests {
                 tags: None,
                 alternatives: (0..n)
                     .map(|_| Alternative {
+                        at: Default::default(),
                         strings: Default::default(),
                         gates: Vec::new(),
-                        expr: Expr::Terminal("A".into()),
+                        expr: Expr::Terminal("A".into(), crate::dom::ExprAt::from(None)),
                         tags: None,
-                        ranked_locations: Default::default(),
+                        tags_at: Default::default(),
                     })
                     .collect(),
                 emit: None,
@@ -2770,9 +2838,10 @@ mod tests {
                 rules: vec![rule],
                 directives: vec![directive],
                 constants: vec![ConstDef {
+                    name_at: crate::dom::Unseen(None),
                     name: "k".into(),
                     redefine: false,
-                    value: Term::Str("a".into()),
+                    value: Term::Str("a".into(), crate::dom::Hidden::NONE),
                     at: (1, 1),
                 }],
                 classifiers: Vec::new(),
@@ -2799,8 +2868,9 @@ mod tests {
     fn a_key_of_many_classes_resolves_in_linear_work() {
         let grammar = |n: usize| {
             let entry = |index: usize, adds: bool| Entry {
+                class_at: crate::dom::Unseen(None),
                 gates: Vec::new(),
-                keys: vec![Term::Str("k".into())],
+                keys: vec![Term::Str("k".into(), crate::dom::Hidden::NONE)],
                 adds,
                 class: format!("C{index}"),
                 at: (0, 0),
@@ -2825,7 +2895,10 @@ mod tests {
                 ranked: Arc::new(crate::ranked::RankedGroups::default()),
                 close_families: Arc::default(),
                 changes: Vec::new(),
-                classifiers: vec![(Arc::from("d.md"), ClassifierDef { name: "c".into(), entries, at: (0, 0) })],
+                classifiers: vec![(
+                    Arc::from("d.md"),
+                    ClassifierDef { name: "c".into(), name_at: crate::dom::Unseen(None), entries, at: (0, 0) },
+                )],
                 implications: Arc::from(Vec::new()),
             }
         };

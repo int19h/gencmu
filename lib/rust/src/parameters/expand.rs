@@ -904,8 +904,16 @@ impl Expander<'_> {
             if has(&arg, "body") {
                 return Ok(get(&arg, "body").clone());
             }
+            // An expression made of an argument stands where the
+            // parameter does (engine §9.3).
+            let located = |mut node: Json| {
+                if has(use_, "at") {
+                    set(&mut node, "at", get(use_, "at").clone());
+                }
+                node
+            };
             if has(&arg, "targets") {
-                return Ok(obj([(
+                return Ok(located(obj([(
                     "choice",
                     Json::Arr(
                         list(get(&arg, "targets"))
@@ -913,15 +921,15 @@ impl Expander<'_> {
                             .map(|a| self.convert(a, "expr", event, use_))
                             .collect::<R<_>>()?,
                     ),
-                )]));
+                )])));
             }
             for k in ["rule", "tag", "terminal"] {
                 if has(&arg, k) {
-                    return Ok(obj([("ref", get(&arg, k).clone())]));
+                    return Ok(located(obj([("ref", get(&arg, k).clone())])));
                 }
             }
             if has(&arg, "string") || has(&arg, "const") {
-                return Ok(obj([("literal", arg)]));
+                return Ok(located(obj([("literal", arg)])));
             }
             if ["splice", "call", "test", "range", "wildcard"].iter().any(|k| has(&arg, k)) {
                 return Ok(arg);
@@ -942,7 +950,9 @@ impl Expander<'_> {
                 return Ok(obj([("constant", get(&arg, "const").clone()), ("at", get(use_, "at").clone())]));
             }
             if has(&arg, "test") {
+                // A pattern test has no position of its own.
                 let mut r = arg.clone();
+                remove(&mut r, "at");
                 set(&mut r, "expr", self.convert(&argument(get(&arg, "expr").clone()), "pattern", event, use_)?);
                 return Ok(r);
             }
@@ -1279,7 +1289,7 @@ impl Expander<'_> {
         for rule in &mut d.rules {
             rule.template_conditions = template_conditions.clone();
         }
-        if let Some(problem) = dom::schema::decoded_problem(&checked, &mut d) {
+        if let Some(problem) = dom::schema::decoded_problem(&checked, &mut d, self.uni, true) {
             return Err(failure(problem));
         }
         super::locations::restore_document(&mut d, root);

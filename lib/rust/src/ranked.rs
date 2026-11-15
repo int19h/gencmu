@@ -84,9 +84,9 @@ fn routes(
 ) -> Vec<Route> {
     let visit = |child: &Expr| routes(child, groups, needed, spans, grammar);
     match expr {
-        Expr::Empty | Expr::Remainder => vec![Route::default()],
-        Expr::Seq(items) => items.iter().fold(vec![Route::default()], |left, child| product(left, visit(child))),
-        Expr::Choice(items) => unique(items.iter().flat_map(visit)),
+        Expr::Empty(_) | Expr::Remainder(_) => vec![Route::default()],
+        Expr::Seq(items, _) => items.iter().fold(vec![Route::default()], |left, child| product(left, visit(child))),
+        Expr::Choice(items, _) => unique(items.iter().flat_map(visit)),
         Expr::Ranked(items, _) => {
             let group = groups.expressions[&(expr as *const Expr as usize)];
             let names: Vec<_> = groups.groups[group].names.intersection(needed).collect();
@@ -103,7 +103,7 @@ fn routes(
                 })
             }))
         }
-        Expr::And(items) => {
+        Expr::And(items, _) => {
             struct Selected {
                 mask: usize,
                 order: Vec<usize>,
@@ -134,8 +134,8 @@ fn routes(
             }
             unique(states.into_iter().filter(|state| state.mask != 0).map(|state| state.route))
         }
-        Expr::Optional(inner, _, _) => unique(std::iter::once(Route::default()).chain(visit(inner))),
-        Expr::Repeat(inner, separator, _) => {
+        Expr::Optional(inner, _, _, _) => unique(std::iter::once(Route::default()).chain(visit(inner))),
+        Expr::Repeat(inner, separator, _, _) => {
             let items = visit(inner);
             if let Some(separator) = separator {
                 unique(items.clone().into_iter().chain(product(items, visit(separator))))
@@ -145,7 +145,7 @@ fn routes(
         }
         _ => {
             let mut route = Route { span: spans.atom(expr, grammar), ..Route::default() };
-            if let Expr::Capture(name, _) = expr {
+            if let Expr::Capture(name, _, _) = expr {
                 if needed.contains(name) {
                     route.length = 1;
                     route
@@ -167,30 +167,32 @@ fn capture_reads(start: ReadPart<'_>, out: &mut BTreeSet<String>) {
     while let Some(part) = stack.pop() {
         match part {
             ReadPart::Term(term) => match term {
-                Term::Capture(name) => {
+                Term::Capture(name, ..) => {
                     out.insert(name.clone());
                 }
-                Term::Union(items) | Term::Intersection(items) => stack.extend(items.iter().map(ReadPart::Term)),
-                Term::Difference(a, b) => stack.extend([ReadPart::Term(a), ReadPart::Term(b)]),
-                Term::Call(_, args) => stack.extend(args.iter().filter_map(|arg| match arg {
+                Term::Union(items, ..) | Term::Intersection(items, ..) => {
+                    stack.extend(items.iter().map(ReadPart::Term))
+                }
+                Term::Difference(a, b, ..) => stack.extend([ReadPart::Term(a), ReadPart::Term(b)]),
+                Term::Call(_, args, ..) => stack.extend(args.iter().filter_map(|arg| match arg {
                     Arg::Term(t) => Some(ReadPart::Term(t)),
                     _ => None,
                 })),
-                Term::If(c, t) => stack.extend([ReadPart::Condition(c), ReadPart::Term(t)]),
+                Term::If(c, t, ..) => stack.extend([ReadPart::Condition(c), ReadPart::Term(t)]),
                 _ => {}
             },
             ReadPart::Condition(cond) => match cond {
-                Cond::Truthy(term) => stack.push(ReadPart::Term(term)),
-                Cond::Forest(term) => stack.push(ReadPart::Term(term)),
+                Cond::Truthy(term, ..) => stack.push(ReadPart::Term(term)),
+                Cond::Forest(term, ..) => stack.push(ReadPart::Term(term)),
                 Cond::SourceQuery(..) => unreachable!("source queries expand before grammar checks"),
-                Cond::Captured(name) => {
+                Cond::Captured(name, ..) => {
                     out.insert(name.clone());
                 }
                 Cond::Compare(_, a, b, _) => stack.extend([ReadPart::Term(a), ReadPart::Term(b)]),
-                Cond::Initial(t) | Cond::Final(t) | Cond::Boundary(_, t, _, _) => stack.push(ReadPart::Term(t)),
-                Cond::Not(c) => stack.push(ReadPart::Condition(c)),
-                Cond::All(items) | Cond::Any(items) => stack.extend(items.iter().map(ReadPart::Condition)),
-                Cond::If(a, b) => stack.extend([ReadPart::Condition(a), ReadPart::Condition(b)]),
+                Cond::Initial(t, ..) | Cond::Final(t, ..) | Cond::Boundary(_, t, _, _) => stack.push(ReadPart::Term(t)),
+                Cond::Not(c, ..) => stack.push(ReadPart::Condition(c)),
+                Cond::All(items, ..) | Cond::Any(items, ..) => stack.extend(items.iter().map(ReadPart::Condition)),
+                Cond::If(a, b, ..) => stack.extend([ReadPart::Condition(a), ReadPart::Condition(b)]),
             },
         }
     }
@@ -203,6 +205,35 @@ fn term_reads(term: &Term, out: &mut BTreeSet<String>) {
 pub(crate) fn cond_reads(cond: &Cond, out: &mut BTreeSet<String>) {
     capture_reads(ReadPart::Condition(cond), out);
 }
+/// The position of the expression node at a written path, as `visit`
+/// builds it, or the nearest enclosing node with a position.
+fn expr_at_path(expr: &Expr, path: &str) -> Option<(usize, usize)> {
+    let mut current = expr;
+    let mut enclosing = expr.at();
+    let mut segments = path.split('/').filter(|part| !part.is_empty()).peekable();
+    while let Some(segment) = segments.next() {
+        let next = match (segment, current) {
+            ("seq", Expr::Seq(items, _))
+            | ("choice", Expr::Choice(items, _))
+            | ("ranked", Expr::Ranked(items, _))
+            | ("and", Expr::And(items, _)) => {
+                segments.next().and_then(|index| index.parse::<usize>().ok()).and_then(|index| items.get(index))
+            }
+            ("optional", Expr::Optional(inner, _, _, _)) => Some(&**inner),
+            ("repeat", Expr::Repeat(inner, _, _, _)) => Some(&**inner),
+            ("separator", Expr::Repeat(_, separator, _, _)) => separator.as_deref(),
+            ("expr", Expr::Capture(_, inner, _))
+            | ("expr", Expr::Splice(inner, _))
+            | ("expr", Expr::Tested(_, _, inner, _)) => Some(&**inner),
+            _ => None,
+        };
+        let Some(next) = next else { break };
+        current = next;
+        enclosing = current.at().or(enclosing);
+    }
+    current.at().or(enclosing)
+}
+
 impl RankedGroups {
     pub fn new(grammar: &StageGrammar) -> Self {
         let mut out = Self::default();
@@ -298,10 +329,10 @@ impl RankedGroups {
                             self.written_clause(grammar, group, "conditions", Some(condition_index)),
                         ));
                 }
-                if let Some(Cond::Boundary(false, Term::Capture(_), targets, _)) =
+                if let Some(Cond::Boundary(false, Term::Capture(..), targets, _)) =
                     crate::boundary::dom_atoms(&effective)
                         .into_iter()
-                        .find(|c| matches!(c,Cond::Boundary(false,Term::Capture(n),_,_) if n.is_empty()))
+                        .find(|c| matches!(c,Cond::Boundary(false,Term::Capture(n, ..),_,_) if n.is_empty()))
                 {
                     if prefix.nonempty {
                         let test = format!("$.preceded-by({})", targets.join(" | "));
@@ -396,8 +427,7 @@ impl RankedGroups {
     }
     fn site(&self, grammar: &StageGrammar, source: (usize, usize), path: String, ranked: bool) -> GroupSite {
         let alternative = &grammar.rules[source.0].alternatives[source.1];
-        let at =
-            if ranked { alternative.alternative.ranked_locations.get(&path).copied() } else { Some(alternative.at) };
+        let at = if ranked { expr_at_path(&alternative.alternative.expr, &path) } else { Some(alternative.at) };
         GroupSite {
             document: Some(alternative.document.to_string()),
             at,
@@ -429,7 +459,7 @@ impl RankedGroups {
                 source,
                 path: path.into(),
                 expression: pointer,
-                at: *at,
+                at: at.at,
                 final_position,
                 names: capture_names(expr),
             });
@@ -445,32 +475,32 @@ impl RankedGroups {
             }
         }
         match expr {
-            Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => {
+            Expr::Seq(items, _) | Expr::Choice(items, _) | Expr::And(items, _) => {
                 let key = match expr {
-                    Expr::Seq(_) => "seq",
-                    Expr::Choice(_) => "choice",
+                    Expr::Seq(_, _) => "seq",
+                    Expr::Choice(_, _) => "choice",
                     _ => "and",
                 };
                 for (index, child) in items.iter().enumerate() {
                     self.visit(
                         child,
                         &format!("{path}/{key}/{index}"),
-                        final_position && (matches!(expr, Expr::Choice(_)) || index + 1 == items.len()),
+                        final_position && (matches!(expr, Expr::Choice(_, _)) || index + 1 == items.len()),
                         owner,
                         source,
                     );
                 }
             }
-            Expr::Optional(inner, _, _) => {
+            Expr::Optional(inner, _, _, _) => {
                 self.visit(inner, &format!("{path}/optional"), final_position, owner, source)
             }
-            Expr::Repeat(inner, separator, _) => {
+            Expr::Repeat(inner, separator, _, _) => {
                 self.visit(inner, &format!("{path}/repeat"), false, owner, source);
                 if let Some(separator) = separator {
                     self.visit(separator, &format!("{path}/separator"), false, owner, source);
                 }
             }
-            Expr::Capture(_, inner) | Expr::Splice(inner) | Expr::Tested(_, _, inner) => {
+            Expr::Capture(_, inner, _) | Expr::Splice(inner, _) | Expr::Tested(_, _, inner, _) => {
                 self.visit(inner, &format!("{path}/expr"), final_position, owner, source)
             }
             _ => {}
@@ -606,13 +636,15 @@ pub(crate) fn capture_names(expr: &Expr) -> BTreeSet<String> {
     let mut pending = vec![expr];
     while let Some(expr) = pending.pop() {
         match expr {
-            Expr::Capture(name, child) => {
+            Expr::Capture(name, child, _) => {
                 names.insert(name.clone());
                 pending.push(child);
             }
-            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => pending.extend(items),
-            Expr::Optional(child, _, _) | Expr::Tested(_, _, child) => pending.push(child),
-            Expr::Repeat(child, separator, _) => {
+            Expr::Seq(items, _) | Expr::Choice(items, _) | Expr::Ranked(items, _) | Expr::And(items, _) => {
+                pending.extend(items)
+            }
+            Expr::Optional(child, _, _, _) | Expr::Tested(_, _, child, _) => pending.push(child),
+            Expr::Repeat(child, separator, _, _) => {
                 pending.push(child);
                 if let Some(s) = separator {
                     pending.push(s);
@@ -636,25 +668,25 @@ pub(crate) fn contains_ranked(expr: &Expr) -> bool {
 }
 fn expression_children(expr: &Expr) -> Vec<(&Expr, String)> {
     match expr {
-        Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) | Expr::Ranked(items, _) => {
+        Expr::Seq(items, _) | Expr::Choice(items, _) | Expr::And(items, _) | Expr::Ranked(items, _) => {
             let key = match expr {
-                Expr::Seq(_) => "seq",
-                Expr::Choice(_) => "choice",
-                Expr::And(_) => "and",
+                Expr::Seq(_, _) => "seq",
+                Expr::Choice(_, _) => "choice",
+                Expr::And(_, _) => "and",
                 _ => "ranked",
             };
             items.iter().enumerate().map(|(i, child)| (child, format!("/{key}/{i}"))).collect()
         }
-        Expr::Optional(child, _, _) => vec![(child, "/optional".into())],
-        Expr::Repeat(child, separator, _) => {
+        Expr::Optional(child, _, _, _) => vec![(child, "/optional".into())],
+        Expr::Repeat(child, separator, _, _) => {
             let mut out = vec![(child.as_ref(), "/repeat".into())];
             if let Some(separator) = separator {
                 out.push((separator.as_ref(), "/separator".into()));
             }
             out
         }
-        Expr::Splice(child) => vec![(child, "/splice".into())],
-        Expr::Capture(_, child) | Expr::Tested(_, _, child) => vec![(child, "/expr".into())],
+        Expr::Splice(child, _) => vec![(child, "/splice".into())],
+        Expr::Capture(_, child, _) | Expr::Tested(_, _, child, _) => vec![(child, "/expr".into())],
         _ => vec![],
     }
 }
@@ -762,7 +794,7 @@ impl TagGraph {
             for (alternative, source) in definition.alternatives.iter().enumerate() {
                 let mut memo = FxMap::default();
                 let expr = &source.alternative.expr;
-                let body = if let Expr::Repeat(inner, separator, Some(_)) = expr {
+                let body = if let Expr::Repeat(inner, separator, Some(_), _) = expr {
                     let body = graph.describe(grammar, ranked, (rule, alternative), inner, &mut memo, &mut captured);
                     if let Some(separator) = separator {
                         graph.describe(grammar, ranked, (rule, alternative), separator, &mut memo, &mut captured);
@@ -777,7 +809,7 @@ impl TagGraph {
                     expression: expr as *const Expr as usize,
                     option: None,
                     tagged: !terms.is_empty(),
-                    unsafe_tags: terms.iter().any(|t| !matches!(t, Term::EmptySet)),
+                    unsafe_tags: terms.iter().any(|t| !matches!(t, Term::EmptySet(..))),
                     children: body.children,
                 });
             }
@@ -798,8 +830,8 @@ impl TagGraph {
             return known.clone();
         }
         let result = match expr {
-            Expr::Empty | Expr::Remainder => Unary { zero: true, children: vec![] },
-            Expr::Seq(items) => {
+            Expr::Empty(_) | Expr::Remainder(_) => Unary { zero: true, children: vec![] },
+            Expr::Seq(items, _) => {
                 let parts: Vec<_> =
                     items.iter().map(|child| self.describe(grammar, ranked, source, child, memo, captured)).collect();
                 let blocking = parts.iter().filter(|p| !p.zero).count();
@@ -812,7 +844,7 @@ impl TagGraph {
                         .collect(),
                 }
             }
-            Expr::Choice(items) | Expr::And(items) => {
+            Expr::Choice(items, _) | Expr::And(items, _) => {
                 let mut result = Unary::default();
                 for child in items {
                     let part = self.describe(grammar, ranked, source, child, memo, captured);
@@ -821,7 +853,7 @@ impl TagGraph {
                 }
                 result
             }
-            Expr::Optional(inner, crate::dom::Mark::Plain, _) if common_capture(inner, captured) => {
+            Expr::Optional(inner, crate::dom::Mark::Plain, _, _) if common_capture(inner, captured) => {
                 Unary { zero: false, children: self.describe(grammar, ranked, source, inner, memo, captured).children }
             }
             Expr::Ranked(..) | Expr::Optional(..) | Expr::Repeat(..) => {
@@ -846,8 +878,8 @@ impl TagGraph {
                             route(self, child, Some(option));
                         }
                     }
-                    Expr::Optional(inner, _, _) => route(self, inner, None),
-                    Expr::Repeat(inner, separator, _) => {
+                    Expr::Optional(inner, _, _, _) => route(self, inner, None),
+                    Expr::Repeat(inner, separator, _, _) => {
                         route(self, inner, None);
                         // Recursive repetition only adds a self edge.
                         if let Some(separator) = separator {
@@ -858,10 +890,10 @@ impl TagGraph {
                 }
                 result
             }
-            Expr::Capture(_, inner) | Expr::Splice(inner) | Expr::Tested(_, _, inner) => {
+            Expr::Capture(_, inner, _) | Expr::Splice(inner, _) | Expr::Tested(_, _, inner, _) => {
                 self.describe(grammar, ranked, source, inner, memo, captured)
             }
-            Expr::Ref(name) => Unary { zero: false, children: vec![grammar.index.get(name).copied()] },
+            Expr::Ref(name, _) => Unary { zero: false, children: vec![grammar.index.get(name).copied()] },
             _ => Unary { zero: false, children: vec![None] },
         };
         memo.insert(key, result.clone());
@@ -876,11 +908,13 @@ fn common_capture(expr: &Expr, memo: &mut FxMap<usize, bool>) -> bool {
     let value = match expr {
         Expr::Ranked(..) => false,
         Expr::Capture(..) => true,
-        Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => {
+        Expr::Seq(items, _) | Expr::Choice(items, _) | Expr::And(items, _) => {
             items.iter().any(|child| common_capture(child, memo))
         }
-        Expr::Splice(inner) | Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => common_capture(inner, memo),
-        Expr::Repeat(inner, separator, _) => {
+        Expr::Splice(inner, _) | Expr::Optional(inner, _, _, _) | Expr::Tested(_, _, inner, _) => {
+            common_capture(inner, memo)
+        }
+        Expr::Repeat(inner, separator, _, _) => {
             common_capture(inner, memo) || separator.as_deref().is_some_and(|s| common_capture(s, memo))
         }
         _ => false,
@@ -902,31 +936,35 @@ impl WrittenSpans {
             return id;
         }
         let id = match expr {
-            Expr::Capture(_, inner) | Expr::Splice(inner) | Expr::Tested(_, _, inner) => {
+            Expr::Capture(_, inner, _) | Expr::Splice(inner, _) | Expr::Tested(_, _, inner, _) => {
                 self.expression(inner, grammar)
             }
-            Expr::Ref(name) => grammar.index.get(name).map_or(0, |i| i + 1),
-            Expr::Terminal(_) | Expr::Literal(_) | Expr::ScalarRange(..) | Expr::Range(..) | Expr::Wildcard => 0,
+            Expr::Ref(name, _) => grammar.index.get(name).map_or(0, |i| i + 1),
+            Expr::Terminal(_, _)
+            | Expr::Literal(_, _)
+            | Expr::ScalarRange(..)
+            | Expr::Range(..)
+            | Expr::Wildcard(_) => 0,
             _ => {
                 let id = self.count;
                 self.count += 1;
                 match expr {
-                    Expr::Empty | Expr::Remainder => self.branches.push((id, vec![])),
-                    Expr::Seq(items) => {
+                    Expr::Empty(_) | Expr::Remainder(_) => self.branches.push((id, vec![])),
+                    Expr::Seq(items, _) => {
                         let rhs = items.iter().map(|child| self.expression(child, grammar)).collect();
                         self.branches.push((id, rhs));
                     }
-                    Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
+                    Expr::Choice(items, _) | Expr::Ranked(items, _) | Expr::And(items, _) => {
                         for child in items {
                             let child = self.expression(child, grammar);
                             self.branches.push((id, vec![child]));
                         }
                     }
-                    Expr::Optional(inner, _, _) => {
+                    Expr::Optional(inner, _, _, _) => {
                         let child = self.expression(inner, grammar);
                         self.branches.extend([(id, vec![]), (id, vec![child])]);
                     }
-                    Expr::Repeat(inner, separator, _) => {
+                    Expr::Repeat(inner, separator, _, _) => {
                         let item = self.expression(inner, grammar);
                         self.branches.push((id, vec![item]));
                         if let Some(separator) = separator {
@@ -1008,10 +1046,10 @@ impl SymbolSpans {
         }
     }
     fn atom(&self, mut expr: &Expr, grammar: &StageGrammar) -> Span {
-        while let Expr::Capture(_, inner) | Expr::Splice(inner) | Expr::Tested(_, _, inner) = expr {
+        while let Expr::Capture(_, inner, _) | Expr::Splice(inner, _) | Expr::Tested(_, _, inner, _) = expr {
             expr = inner;
         }
-        if let Expr::Ref(name) = expr {
+        if let Expr::Ref(name, _) = expr {
             if let Some(&id) = grammar.index.get(name) {
                 return Span { productive: self.productive[id], nonempty: self.nonempty[id] };
             }

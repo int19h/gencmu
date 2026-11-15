@@ -4,11 +4,16 @@ use crate::work::{self, Work};
 
 pub(crate) fn expression_children(expression: &Expr) -> Vec<&Expr> {
     match expression {
-        Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => items.iter().collect(),
-        Expr::Optional(inner, _, _) | Expr::Splice(inner) | Expr::Capture(_, inner) | Expr::Tested(_, _, inner) => {
+        Expr::Seq(items, _) | Expr::Choice(items, _) | Expr::Ranked(items, _) | Expr::And(items, _) => {
+            items.iter().collect()
+        }
+        Expr::Optional(inner, _, _, _)
+        | Expr::Splice(inner, _)
+        | Expr::Capture(_, inner, _)
+        | Expr::Tested(_, _, inner, _) => {
             vec![inner]
         }
-        Expr::Repeat(inner, separator, _) => std::iter::once(inner.as_ref()).chain(separator.as_deref()).collect(),
+        Expr::Repeat(inner, separator, _, _) => std::iter::once(inner.as_ref()).chain(separator.as_deref()).collect(),
         _ => Vec::new(),
     }
 }
@@ -16,27 +21,27 @@ pub(crate) fn expression_children(expression: &Expr) -> Vec<&Expr> {
 pub(crate) fn body_problem(body: &Expr) -> Option<&'static str> {
     let marker = "a remainder stands at one outer edge of a parse argument";
     let mut pending = vec![body];
-    if let Expr::Seq(items) = body {
+    if let Expr::Seq(items, _) = body {
         let markers: Vec<_> = items
             .iter()
             .enumerate()
-            .filter_map(|(index, item)| matches!(item, Expr::Remainder).then_some(index))
+            .filter_map(|(index, item)| matches!(item, Expr::Remainder(_)).then_some(index))
             .collect();
         if !markers.is_empty() {
             if markers.len() > 2
                 || markers.iter().any(|&index| index != 0 && index + 1 != items.len())
-                || items.iter().filter(|item| !matches!(item, Expr::Remainder)).count() < 1
+                || items.iter().filter(|item| !matches!(item, Expr::Remainder(_))).count() < 1
             {
                 return Some(marker);
             }
-            pending = items.iter().filter(|item| !matches!(item, Expr::Remainder)).collect();
+            pending = items.iter().filter(|item| !matches!(item, Expr::Remainder(_))).collect();
         }
     }
     while let Some(expression) = pending.pop() {
         work::count(Work::Walked, 1);
         match expression {
             Expr::Capture(..) => return Some("a parse argument cannot declare captures"),
-            Expr::Remainder => return Some(marker),
+            Expr::Remainder(_) => return Some(marker),
             _ => pending.extend(expression_children(expression)),
         }
     }
@@ -49,9 +54,9 @@ pub(crate) fn body_terms(body: &Expr) -> Vec<&Term> {
     while let Some(expression) = pending.pop() {
         work::count(Work::Walked, 1);
         match expression {
-            Expr::Literal(value) | Expr::Tested(_, value, _) => result.push(value),
-            Expr::ScalarRange(left, right) => result.extend([left, right]),
-            Expr::Optional(_, _, Some(default)) => result.push(&default.term),
+            Expr::Literal(value, _) | Expr::Tested(_, value, _, _) => result.push(value),
+            Expr::ScalarRange(left, right, _) => result.extend([left, right]),
+            Expr::Optional(_, _, Some(default), _) => result.push(&default.term),
             _ => {}
         }
         pending.extend(expression_children(expression));
@@ -60,7 +65,7 @@ pub(crate) fn body_terms(body: &Expr) -> Vec<&Term> {
 }
 
 pub(crate) fn suffix_body(body: &Expr) -> bool {
-    matches!(body,Expr::Seq(items) if matches!(items.first(),Some(Expr::Remainder)))
+    matches!(body,Expr::Seq(items, _) if matches!(items.first(),Some(Expr::Remainder(_))))
 }
 
 /// The old and new spellings share a target and therefore a recursion key (§4.3).
@@ -74,30 +79,35 @@ pub(crate) enum Mode {
 
 pub(crate) fn body_mode(body: &Expr) -> Mode {
     match body {
-        Expr::Seq(items)
-            if matches!(items.first(), Some(Expr::Remainder)) && matches!(items.last(), Some(Expr::Remainder)) =>
+        Expr::Seq(items, _)
+            if matches!(items.first(), Some(Expr::Remainder(_)))
+                && matches!(items.last(), Some(Expr::Remainder(_))) =>
         {
             Mode::Part
         }
-        Expr::Seq(items) if matches!(items.first(), Some(Expr::Remainder)) => Mode::Suffix,
-        Expr::Seq(items) if matches!(items.last(), Some(Expr::Remainder)) => Mode::Prefix,
+        Expr::Seq(items, _) if matches!(items.first(), Some(Expr::Remainder(_))) => Mode::Suffix,
+        Expr::Seq(items, _) if matches!(items.last(), Some(Expr::Remainder(_))) => Mode::Prefix,
         _ => Mode::Whole,
     }
 }
 
 pub(crate) fn body_core(body: &Expr) -> (Expr, Mode) {
-    if let Expr::Seq(items) = body {
-        if matches!(items.first(), Some(Expr::Remainder)) || matches!(items.last(), Some(Expr::Remainder)) {
-            let mode =
-                if matches!(items.first(), Some(Expr::Remainder)) && matches!(items.last(), Some(Expr::Remainder)) {
-                    Mode::Part
-                } else if matches!(items.first(), Some(Expr::Remainder)) {
-                    Mode::Suffix
-                } else {
-                    Mode::Prefix
-                };
-            let mut parts: Vec<_> = items.iter().filter(|part| !matches!(part, Expr::Remainder)).cloned().collect();
-            return (if parts.len() == 1 { parts.pop().unwrap() } else { Expr::Seq(parts) }, mode);
+    if let Expr::Seq(items, _) = body {
+        if matches!(items.first(), Some(Expr::Remainder(_))) || matches!(items.last(), Some(Expr::Remainder(_))) {
+            let mode = if matches!(items.first(), Some(Expr::Remainder(_)))
+                && matches!(items.last(), Some(Expr::Remainder(_)))
+            {
+                Mode::Part
+            } else if matches!(items.first(), Some(Expr::Remainder(_))) {
+                Mode::Suffix
+            } else {
+                Mode::Prefix
+            };
+            let mut parts: Vec<_> = items.iter().filter(|part| !matches!(part, Expr::Remainder(_))).cloned().collect();
+            return (
+                if parts.len() == 1 { parts.pop().unwrap() } else { Expr::Seq(parts, crate::dom::ExprAt::from(None)) },
+                mode,
+            );
         }
     }
     (body.clone(), Mode::Whole)
@@ -176,7 +186,7 @@ pub(crate) fn prepare(grammar: &mut crate::grammar::StageGrammar) -> Result<(), 
                     continue;
                 }
                 work::count(Work::Walked, 1);
-                if let Part::Term(Term::Call(name, args)) = part {
+                if let Part::Term(Term::Call(name, args, ..)) = part {
                     if let ("parse", [Arg::Term(_), Arg::Term(Term::Body(body))]) = (name.as_str(), args.as_slice()) {
                         let pointer = Arc::as_ptr(body) as usize;
                         if let std::collections::hash_map::Entry::Vacant(entry) = targets.entry(pointer) {
@@ -185,7 +195,7 @@ pub(crate) fn prepare(grammar: &mut crate::grammar::StageGrammar) -> Result<(), 
                             let target = identities
                                 .entry(key)
                                 .or_insert_with(|| {
-                                    if let Expr::Ref(name) = &core {
+                                    if let Expr::Ref(name, _) = &core {
                                         if !name.starts_with('_') {
                                             return name.clone();
                                         }
@@ -197,17 +207,18 @@ pub(crate) fn prepare(grammar: &mut crate::grammar::StageGrammar) -> Result<(), 
                                         document: alternative.document.clone(),
                                         alternatives: vec![StitchedAlternative {
                                             alternative: Alternative {
+                                                at: Default::default(),
                                                 gates: Vec::new(),
                                                 expr: core,
                                                 tags: None,
                                                 strings: Channels::default(),
-                                                ranked_locations: Default::default(),
+                                                tags_at: Default::default(),
                                             },
                                             written: None,
                                             written_alternative: 0,
                                             text_order: alternative.text_order,
                                             clauses: Arc::new(RuleClauses {
-                                                tags: Some(Term::EmptySet),
+                                                tags: Some(Term::EmptySet(crate::dom::Hidden::NONE)),
                                                 strings: Channels::default(),
                                                 emit: None,
                                                 conditions: Vec::new(),

@@ -15,7 +15,7 @@ fn written_comparisons(root: crate::clauses::Part<'_>) -> Vec<Option<(usize, usi
         if let Part::Cond(crate::dom::Cond::Compare(
             op,
             _,
-            crate::dom::Term::Capture(_) | crate::dom::Term::Source(_),
+            crate::dom::Term::Capture(..) | crate::dom::Term::Source(_),
             at,
         )) = part
         {

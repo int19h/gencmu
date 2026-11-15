@@ -73,30 +73,30 @@ pub(crate) fn notes(g: &StageGrammar) -> (Vec<ErasureReport>, Vec<IdleErasure>) 
             while let Some(node) = nodes.pop() {
                 work::count(Work::Walked, 1);
                 match node {
-                    Expr::Ref(name) if g.index.contains_key(name) => {
+                    Expr::Ref(name, _) if g.index.contains_key(name) => {
                         references.insert(name.clone());
                     }
-                    Expr::Ref(_)
-                    | Expr::Terminal(_)
-                    | Expr::Literal(_)
+                    Expr::Ref(_, _)
+                    | Expr::Terminal(_, _)
+                    | Expr::Literal(_, _)
                     | Expr::Range(..)
                     | Expr::ScalarRange(..)
-                    | Expr::Wildcard => bits |= READ | DIAGNOSTIC,
-                    Expr::Optional(..) | Expr::Repeat(..) | Expr::Choice(_) | Expr::Ranked(..) | Expr::And(_) => {
+                    | Expr::Wildcard(_) => bits |= READ | DIAGNOSTIC,
+                    Expr::Optional(..) | Expr::Repeat(..) | Expr::Choice(_, _) | Expr::Ranked(..) | Expr::And(_, _) => {
                         bits |= CHOICE
                     }
-                    Expr::Capture(name, _) => {
+                    Expr::Capture(name, _, _) => {
                         captures.insert(name.clone());
                     }
                     _ => {}
                 }
                 match node {
-                    Expr::Seq(xs) | Expr::Choice(xs) | Expr::And(xs) | Expr::Ranked(xs, _) => nodes.extend(xs),
+                    Expr::Seq(xs, _) | Expr::Choice(xs, _) | Expr::And(xs, _) | Expr::Ranked(xs, _) => nodes.extend(xs),
                     Expr::Optional(inner, ..)
-                    | Expr::Capture(_, inner)
-                    | Expr::Splice(inner)
-                    | Expr::Tested(_, _, inner) => nodes.push(inner),
-                    Expr::Repeat(inner, separator, _) => {
+                    | Expr::Capture(_, inner, _)
+                    | Expr::Splice(inner, _)
+                    | Expr::Tested(_, _, inner, _) => nodes.push(inner),
+                    Expr::Repeat(inner, separator, _, _) => {
                         nodes.push(inner);
                         nodes.extend(separator.as_deref());
                     }

@@ -58,37 +58,37 @@ pub(super) fn document(dom: &mut Dom) {
         work::count(Work::Walked, 1);
         match part {
             Part::Expr(expr) => match expr {
-                Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs, _) | Expr::And(xs) => {
+                Expr::Seq(xs, _) | Expr::Choice(xs, _) | Expr::Ranked(xs, _) | Expr::And(xs, _) => {
                     stack.extend(xs.iter_mut().map(Part::Expr))
                 }
-                Expr::Optional(inner, _, default) => {
+                Expr::Optional(inner, _, default, _) => {
                     stack.push(Part::Expr(inner));
                     stack.extend(default.iter_mut().map(|d| Part::Term(&mut d.term)));
                 }
-                Expr::Capture(_, inner) | Expr::Splice(inner) => stack.push(Part::Expr(inner)),
-                Expr::Repeat(inner, separator, _) => {
+                Expr::Capture(_, inner, _) | Expr::Splice(inner, _) => stack.push(Part::Expr(inner)),
+                Expr::Repeat(inner, separator, _, _) => {
                     stack.push(Part::Expr(inner));
                     stack.extend(separator.iter_mut().map(|s| Part::Expr(s)));
                 }
-                Expr::Tested(_, value, inner) => stack.extend([Part::Term(value), Part::Expr(inner)]),
-                Expr::Literal(term) => stack.push(Part::Term(term)),
-                Expr::ScalarRange(a, b) => stack.extend([Part::Term(a), Part::Term(b)]),
-                Expr::Source(symbol) => stack.push(Part::Symbol(symbol)),
+                Expr::Tested(_, value, inner, _) => stack.extend([Part::Term(value), Part::Expr(inner)]),
+                Expr::Literal(term, _) => stack.push(Part::Term(term)),
+                Expr::ScalarRange(a, b, _) => stack.extend([Part::Term(a), Part::Term(b)]),
+                Expr::Source(symbol, ..) => stack.push(Part::Symbol(symbol)),
                 _ => (),
             },
             Part::Term(term) => match term {
                 Term::Body(body) => stack.push(Part::Expr(std::sync::Arc::make_mut(body))),
-                Term::Union(xs) => {
-                    fold(xs, |t| if let Term::Union(xs) = t { Some(std::mem::take(xs)) } else { None });
+                Term::Union(xs, ..) => {
+                    fold(xs, |t| if let Term::Union(xs, ..) = t { Some(std::mem::take(xs)) } else { None });
                     stack.extend(xs.iter_mut().map(Part::Term));
                 }
-                Term::Intersection(xs) => stack.extend(xs.iter_mut().map(Part::Term)),
-                Term::Difference(a, b) => stack.extend([Part::Term(a), Part::Term(b)]),
-                Term::If(c, t) => stack.extend([Part::Cond(c), Part::Term(t)]),
-                Term::Call(name, args) => {
+                Term::Intersection(xs, ..) => stack.extend(xs.iter_mut().map(Part::Term)),
+                Term::Difference(a, b, ..) => stack.extend([Part::Term(a), Part::Term(b)]),
+                Term::If(c, t, ..) => stack.extend([Part::Cond(c), Part::Term(t)]),
+                Term::Call(name, args, ..) => {
                     if name == "concat" {
                         fold(args, |arg| match arg {
-                            Arg::Term(Term::Call(name, args)) if name == "concat" => Some(std::mem::take(args)),
+                            Arg::Term(Term::Call(name, args, ..)) if name == "concat" => Some(std::mem::take(args)),
                             _ => None,
                         });
                     }
@@ -101,22 +101,22 @@ pub(super) fn document(dom: &mut Dom) {
                     }));
                 }
                 Term::Source(symbol) => stack.push(Part::Symbol(symbol)),
-                Term::Pattern(pattern) => stack.push(Part::Pattern(pattern)),
+                Term::Pattern(pattern, ..) => stack.push(Part::Pattern(pattern)),
                 _ => (),
             },
             Part::Cond(cond) => match cond {
-                Cond::Truthy(term) => stack.push(Part::Term(term)),
-                Cond::Forest(term) => stack.push(Part::Term(term)),
-                Cond::Any(xs) => {
-                    fold(xs, |c| if let Cond::Any(xs) = c { Some(std::mem::take(xs)) } else { None });
+                Cond::Truthy(term, ..) => stack.push(Part::Term(term)),
+                Cond::Forest(term, ..) => stack.push(Part::Term(term)),
+                Cond::Any(xs, ..) => {
+                    fold(xs, |c| if let Cond::Any(xs, ..) = c { Some(std::mem::take(xs)) } else { None });
                     stack.extend(xs.iter_mut().map(Part::Cond));
                 }
-                Cond::All(xs) => {
-                    fold(xs, |c| if let Cond::All(xs) = c { Some(std::mem::take(xs)) } else { None });
+                Cond::All(xs, ..) => {
+                    fold(xs, |c| if let Cond::All(xs, ..) = c { Some(std::mem::take(xs)) } else { None });
                     stack.extend(xs.iter_mut().map(Part::Cond));
                 }
-                Cond::Not(c) => stack.push(Part::Cond(c)),
-                Cond::If(a, b) => stack.extend([Part::Cond(a), Part::Cond(b)]),
+                Cond::Not(c, ..) => stack.push(Part::Cond(c)),
+                Cond::If(a, b, ..) => stack.extend([Part::Cond(a), Part::Cond(b)]),
                 Cond::Compare(_, a, b, _) => stack.extend([Part::Term(a), Part::Term(b)]),
                 Cond::SourceQuery(_, args, _) => stack.extend(args.iter_mut().filter_map(|arg| {
                     if let Arg::Term(t) = arg {
@@ -125,8 +125,8 @@ pub(super) fn document(dom: &mut Dom) {
                         None
                     }
                 })),
-                Cond::Initial(t) | Cond::Final(t) | Cond::Boundary(_, t, _, _) => stack.push(Part::Term(t)),
-                Cond::Captured(_) => (),
+                Cond::Initial(t, ..) | Cond::Final(t, ..) | Cond::Boundary(_, t, _, _) => stack.push(Part::Term(t)),
+                Cond::Captured(..) => (),
             },
             Part::Symbol(symbol) => {
                 if let SourceSymbol::Call(call) = symbol {

@@ -73,19 +73,26 @@ impl<'a> Reader<'a> {
             let operand = self.one(requirement, "test-operand")?;
             let part = self.inner(operand, ATOMS)?;
             let value = match rule_name(part) {
-                "tag" => Term::Tag(if pattern && self.value(self.token(part)?) == "_Elided" {
-                    "_Elided".into()
-                } else {
-                    self.tag_of(self.token(part)?)?
-                }),
+                "tag" => Term::Tag(
+                    if pattern && self.value(self.token(part)?) == "_Elided" {
+                        "_Elided".into()
+                    } else {
+                        self.tag_of(self.token(part)?)?
+                    },
+                    crate::dom::Hidden::NONE,
+                ),
                 "constant-reference" => self.constant_reference(self.token(part)?)?,
                 "parameter" => Term::Source(self.source_parameter(part)?),
                 _ => return Err(self.error(operand, invalid_operand)),
             };
             let negated = self.tokens_of(requirement).any(|token| self.value(token) == "¬");
-            args.push(Arg::Term(if negated { Term::Call("forbid".into(), vec![Arg::Term(value)]) } else { value }));
+            args.push(Arg::Term(if negated {
+                Term::Call("forbid".into(), vec![Arg::Term(value)], crate::dom::Hidden::NONE)
+            } else {
+                value
+            }));
         }
-        Ok(Term::Call("requirements".into(), args))
+        Ok(Term::Call("requirements".into(), args, crate::dom::Hidden::NONE))
     }
 
     pub(super) fn resume_source_argument(
@@ -118,12 +125,15 @@ impl<'a> Reader<'a> {
                 }
                 "body-argument" | "symbol-argument" => {
                     let primary = self.inner(inner, PRIMARIES)?;
-                    return Ok(Step::Call(Frame::Primary(PrimaryFrame::new(primary, true))));
+                    return Ok(Step::Call(Frame::Primary(PrimaryFrame::new(primary))));
                 }
                 _ => {
                     if let Some(union) = self.rules(inner, "union").next() {
                         if let Some(name) = self.rule_name_in(union) {
-                            return Ok(Step::Done(Val::SourceArgument(SourceArgument::Body(Expr::Ref(name)))));
+                            return Ok(Step::Done(Val::SourceArgument(SourceArgument::Body(Expr::Ref(
+                                name,
+                                crate::dom::ExprAt::from(None),
+                            )))));
                         }
                     }
                     return Ok(Step::Call(Frame::Term(TermFrame::new(inner, true))));

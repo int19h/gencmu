@@ -73,7 +73,7 @@ impl<'a> Strings<'a> {
     }
 
     fn capture(&self, owner: u32, receiver: &Term) -> u32 {
-        let Term::Capture(name) = receiver else { unreachable!("a recipe receiver is a bare capture") };
+        let Term::Capture(name, ..) = receiver else { unreachable!("a recipe receiver is a bare capture") };
         if name.is_empty() {
             return owner;
         }
@@ -164,7 +164,7 @@ impl<'a> Strings<'a> {
     }
 
     fn recipe(tasks: &mut Vec<Task<'a>>, owner: u32, term: &'a Term) {
-        let Term::Call(name, atoms) = term else { unreachable!("a recipe is a concatenation") };
+        let Term::Call(name, atoms, ..) = term else { unreachable!("a recipe is a concatenation") };
         debug_assert_eq!(name, "concat");
         tasks.push(Task::Join(atoms.len()));
         tasks.extend(atoms.iter().rev().map(|atom| {
@@ -248,10 +248,10 @@ impl<'a> Strings<'a> {
                     }
                 }
                 Task::Atom(owner, term) => match term {
-                    Term::Str(value) => values.push(value.clone()),
-                    Term::Call(name, args) => {
+                    Term::Str(value, ..) => values.push(value.clone()),
+                    Term::Call(name, args, ..) => {
                         let [Arg::Term(receiver)] = &args[..] else { unreachable!("a recipe string method") };
-                        if let Term::Call(emitted, args) = receiver {
+                        if let Term::Call(emitted, args, ..) = receiver {
                             debug_assert_eq!(emitted, "emitted");
                             let [Arg::Term(receiver)] = &args[..] else { unreachable!() };
                             let target = self.capture(owner, receiver);
@@ -301,7 +301,7 @@ impl<'a> Strings<'a> {
 
     pub(crate) fn override_string(&mut self, owner: u32, recipe: &'a Term) -> Result<String, EngineError> {
         // A recipe task joins its atoms. This wrapper adds no dependency identity.
-        let Term::Call(_, atoms) = recipe else { unreachable!() };
+        let Term::Call(_, atoms, ..) = recipe else { unreachable!() };
         let mut values = String::new();
         for atom in atoms {
             let Arg::Term(atom) = atom else { unreachable!() };

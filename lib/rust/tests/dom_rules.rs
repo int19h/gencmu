@@ -852,7 +852,7 @@ fn a_refused_bootstrap_test_is_an_error() {
     assert_eq!(refusal(r#"{"test":"=","value":{"string":"b,c"},"expr":{"literal":{"string":"b"}}}"#).as_deref(), None);
     assert_eq!(
         refusal(r#"{"test":"=","value":{"string":"b"},"expr":{"empty":true,"literal":{"string":"b"}}}"#).as_deref(),
-        Some("a malformed test target or order")
+        Some("a malformed literal")
     );
     assert_eq!(
         refusal(r#"{"test":"=","value":{"string":"b"},"expr":{"literal":{"string":"b"}},"empty":true}"#).as_deref(),
@@ -1121,7 +1121,10 @@ fn a_bootstrap_with_a_malformed_constant_is_an_error() {
     };
     // A bootstrap that is read, whose notation then fails on grammars/test/g.md.
     assert_eq!(refusal(&constant("K", "define", r#"{"tag":"Tag-a"}"#, 5)), None);
-    assert_eq!(refusal(&constant("k", "define", r#"{"tag":"Tag-a"}"#, 5)).as_deref(), Some("a malformed constant"));
+    assert_eq!(
+        refusal(&constant("k", "define", r#"{"tag":"Tag-a"}"#, 5)).as_deref(),
+        Some("a constant requires a user name")
+    );
 }
 
 /// A closed string with exactly `depth` concatenation ancestors.
@@ -1314,7 +1317,7 @@ fn a_bootstrap_with_a_malformed_classifier_is_an_error() {
     ];
     let error = gencmu::load_pipeline_sources(sources, "grammars/test/p.md").expect_err("a malformed bootstrap");
     assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
-    assert!(error.message.contains("a string term is required"), "{}", error.message);
+    assert!(error.message.contains("a malformed classifier key"), "{}", error.message);
 }
 
 /// The problem that makes a bootstrap of the one document `dom` an error of
@@ -1369,7 +1372,9 @@ fn a_classifier_name_stands_only_in_classify() {
         split(r#"{"string":"a.b"}"#, classifier),
     ];
     for (index, dom) in refused.iter().enumerate() {
-        let problem = if index == 2 { "a method has the wrong receiver or arguments" } else { "a malformed term" };
+        let problem =
+            ["an argument cannot read or declare captures", "a malformed term", "a malformed classifier argument"]
+                [index];
         assert_refused(&split(r#"{"string":"a.b"}"#, r#"{"string":"."}"#), std::slice::from_ref(dom), problem);
     }
 }
@@ -1474,9 +1479,6 @@ fn a_node_of_two_forms_is_refused() {
         second(&format!(r#"{{"repeat":{b},"extra":true}}"#)),
         second(&format!(r#"{{"repeat":{b},"separator":{c},"extra":false}}"#)),
         second(&format!(r#"{{"repeat":{b},"separator":{{"ref":"x y"}}}}"#)),
-        second(&format!(r#"{{"repeat":{b},"chain":"left"}}"#)),
-        second(&format!(r#"{{"optional":{{"repeat":{b},"separator":{c},"chain":"right"}}}}"#)),
-        second(&format!(r#"{{"repeat":{b},"separator":{{"repeat":{c},"chain":"left"}}}}"#)),
         second(r#"{"ref":"x y"}"#),
         with_mixed(&format!(r#"{{"seq":[{captured},{c}],"choice":[{b},{c}]}}"#), &condition),
         wrapped(r#"{"ref":"'ab'"}"#),
@@ -1496,6 +1498,16 @@ fn a_node_of_two_forms_is_refused() {
         with_mixed_emission(&seq(captured, c), &condition, r#","emit":{"extra":true,"items":[{"capture":"w"}]}"#),
     ];
     assert_refused(&with_mixed(&seq(captured, c), &condition), &refused, "a malformed");
+    let chained = [
+        second(&format!(r#"{{"repeat":{b},"chain":"left"}}"#)),
+        second(&format!(r#"{{"optional":{{"repeat":{b},"separator":{c},"chain":"right"}}}}"#)),
+        second(&format!(r#"{{"repeat":{b},"separator":{{"repeat":{c},"chain":"left"}}}}"#)),
+    ];
+    assert_refused(
+        &with_mixed(&seq(captured, c), &condition),
+        &chained,
+        "a chain is the whole expression of its alternative",
+    );
 }
 
 /// A guard of a rule's alternative has no member but its feature, its kind
@@ -1538,12 +1550,20 @@ fn a_repeat_has_a_separator_and_a_chain_only_where_allowed() {
         r#"{"repeat":{"ref":"A"},"extra":true}"#,
         r#"{"repeat":{"ref":"A"},"chain":"both"}"#,
         r#"{"repeat":{"ref":"A"},"chain":true}"#,
+    ] {
+        assert_eq!(expression_problem(expr).as_deref(), Some("a malformed repetition"), "{expr}");
+    }
+    for expr in [
         r#"{"seq":[{"ref":"A"},{"repeat":{"ref":"B"},"chain":"left"}]}"#,
         r#"{"choice":[{"repeat":{"ref":"B"},"chain":"left"},{"ref":"A"}]}"#,
         r#"{"optional":{"repeat":{"ref":"A"},"chain":"right"}}"#,
         r#"{"repeat":{"repeat":{"ref":"A"},"chain":"left"}}"#,
     ] {
-        assert_eq!(expression_problem(expr).as_deref(), Some("a malformed repeat"), "{expr}");
+        assert_eq!(
+            expression_problem(expr).as_deref(),
+            Some("a chain is the whole expression of its alternative: name it as a rule to use it here"),
+            "{expr}"
+        );
     }
     // A capture inside flat braces, in the item or the separator, is an item
     // capture; one inside a chain is malformed (engine §3.5, §9).
@@ -1551,7 +1571,9 @@ fn a_repeat_has_a_separator_and_a_chain_only_where_allowed() {
     assert_eq!(
         expression_problem(r#"{"repeat":{"ref":"A"},"separator":{"capture":"s","expr":{"ref":"S"}},"chain":"left"}"#)
             .as_deref(),
-        Some("a malformed capture")
+        Some(
+            "a capture cannot stand inside a chain, whose levels are constituents of its rule: a condition on $ serves each level"
+        )
     );
     // The separator counts on from the depth of its repeat.
     let deep = |depth: usize| format!("{}{{\"ref\":\"S\"}}{}", "{\"optional\":".repeat(depth), "}".repeat(depth));
@@ -1611,9 +1633,15 @@ fn an_elidable_optional_and_captures_are_checked_where_they_stand() {
         r#"{"empty":true}"#.to_string(),
     ];
     for head in &heads {
-        assert_eq!(expression_problem(&marked(head, "")).as_deref(), Some("a malformed elidable optional"), "{head}");
+        assert_eq!(expression_problem(&marked(head, "")).as_deref(), Some("a malformed optional"), "{head}");
     }
-    let sealed = Some("a malformed capture");
+    let sealed = Some("a capture cannot stand inside an elidable optional, which elision restores as one unit");
+    let in_chain = Some(
+        "a capture cannot stand inside a chain, whose levels are constituents of its rule: a condition on $ serves each level",
+    );
+    let in_ranked = Some(
+        "an item capture cannot stand inside a ranked group: name the ranked choice as a rule and capture that rule",
+    );
     let capture = r#"{"capture":"x","expr":{"ref":"A"}}"#;
     assert_eq!(expression_problem(&marked(&format!(r#"{{"seq":[{ku},{capture}]}}"#), "")).as_deref(), sealed);
     assert_eq!(
@@ -1621,22 +1649,22 @@ fn an_elidable_optional_and_captures_are_checked_where_they_stand() {
         sealed
     );
     assert_eq!(expression_problem(&format!(r#"{{"repeat":{capture}}}"#)), None);
-    assert_eq!(expression_problem(&format!(r#"{{"repeat":{capture},"chain":"right"}}"#)).as_deref(), sealed);
+    assert_eq!(expression_problem(&format!(r#"{{"repeat":{capture},"chain":"right"}}"#)).as_deref(), in_chain);
     assert_eq!(
         expression_problem(&format!(r#"{{"repeat":{{"optional":{capture}}},"chain":"right"}}"#)).as_deref(),
-        sealed
+        in_chain
     );
     // Flat braces inside a chain hold item captures, and a ranked group
     // between flat braces and a capture holds none.
     assert_eq!(expression_problem(&format!(r#"{{"repeat":{{"repeat":{capture}}},"chain":"left"}}"#)), None);
     assert_eq!(
         expression_problem(&format!(r#"{{"repeat":{{"ranked":[{capture},{{"ref":"B"}}]}}}}"#)).as_deref(),
-        sealed
+        in_ranked
     );
     assert_eq!(
         expression_problem(&format!(r#"{{"repeat":{{"ranked":[{{"optional":{capture}}},{{"ref":"B"}}]}}}}"#))
             .as_deref(),
-        sealed
+        in_ranked
     );
     assert_eq!(expression_problem(&format!(r#"{{"ranked":[{capture},{{"ref":"B"}}]}}"#)), None);
     assert_eq!(
@@ -1649,9 +1677,9 @@ fn an_elidable_optional_and_captures_are_checked_where_they_stand() {
     );
     assert_eq!(
         expression_problem(r#"{"capture":"x","expr":{"optional":{"ref":"A"}}}"#).as_deref(),
-        Some("a malformed capture")
+        Some("a capture wraps one symbol")
     );
-    let twice = Some("a production captures a name twice");
+    let twice = Some("the capture $x is read twice by one production of the alternative");
     for expr in [
         r#"{"seq":[{"capture":"x","expr":{"ref":"A"}},{"capture":"x","expr":{"ref":"B"}}]}"#,
         r#"{"seq":[{"optional":{"capture":"x","expr":{"ref":"A"}}},{"capture":"x","expr":{"ref":"B"}}]}"#,
@@ -1701,7 +1729,7 @@ fn deferred_recipe_precedes_empty_emission() {
 fn template_definition_keeps_its_specific_problem() {
     for params in ["", r#","params":["X"]"#] {
         let raw = format!(
-            r#"{{"format":49,"rules":[{{"name":"pair"{params},"op":"define","alternatives":[{{"gates":[],"expr":{{"ref":"A"}}}}],"tags":{{"method":"tags","receiver":{{"capture":"y"}},"args":[]}},"conditions":[],"at":[2,1]}}],"directives":[],"constants":[],"classifiers":[],"implications":[]}}"#
+            r#"{{"format":{DOM_FORMAT},"rules":[{{"name":"pair"{params},"op":"define","alternatives":[{{"gates":[],"expr":{{"ref":"A"}}}}],"tags":{{"method":"tags","receiver":{{"capture":"y"}},"args":[]}},"conditions":[],"at":[2,1]}}],"directives":[],"constants":[],"classifiers":[],"implications":[]}}"#
         );
         let problem = gencmu::tools::check_dom(&raw).unwrap().unwrap();
         assert!(problem.contains("$y") && problem.contains("pair"), "{problem}");
@@ -1738,7 +1766,8 @@ fn substituted_condition_keeps_its_type_reason() {
 
 #[test]
 fn span_tag_hint_uses_source_spelling() {
-    let raw = r#"{"format":49,"rules":[{"name":"text","op":"define","alternatives":[{"gates":[],"expr":{"capture":"x","expr":{"ref":"A"}}}],"tags":{"union":[{"capture":"x"},{"tag":"B"}]},"conditions":[],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}"#;
-    let problem = gencmu::tools::check_dom(raw).unwrap().unwrap();
+    let raw = r#"{"format":49,"rules":[{"name":"text","op":"define","alternatives":[{"gates":[],"expr":{"capture":"x","expr":{"ref":"A"}}}],"tags":{"union":[{"capture":"x"},{"tag":"B"}]},"conditions":[],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}"#
+        .replace("\"format\":49", &format!("\"format\":{DOM_FORMAT}"));
+    let problem = gencmu::tools::check_dom(&raw).unwrap().unwrap();
     assert!(problem.contains("$x.tags") && !problem.contains("tags($x)"), "{problem}");
 }

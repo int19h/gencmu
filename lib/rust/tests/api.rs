@@ -31,10 +31,59 @@ fn preparsed(rules: &str, dom: &str) -> String {
     )
 }
 
+/// Removes the position of every expression node, which a supplied DOM
+/// may omit, before a comparison with a hand-written DOM.
+fn strip_expression_positions(value: &mut common::Value) {
+    strip_expression_positions_in(value, false)
+}
+
+fn strip_expression_positions_in(value: &mut common::Value, in_pattern: bool) {
+    match value {
+        common::Value::Array(items) => {
+            items.iter_mut().for_each(|item| strip_expression_positions_in(item, in_pattern))
+        }
+        common::Value::Object(fields) => {
+            let expression = !in_pattern
+                && fields.iter().any(|(key, _)| {
+                    matches!(
+                        key.as_str(),
+                        "seq"
+                            | "choice"
+                            | "ranked"
+                            | "and"
+                            | "optional"
+                            | "repeat"
+                            | "ref"
+                            | "literal"
+                            | "range"
+                            | "wildcard"
+                            | "splice"
+                            | "capture"
+                            | "test"
+                            | "empty"
+                            | "remainder"
+                    )
+                });
+            if expression {
+                fields.retain(|(key, _)| key != "at");
+            }
+            for (key, value) in fields.iter_mut() {
+                let in_pattern = in_pattern || key == "pattern";
+                strip_expression_positions_in(value, in_pattern);
+            }
+        }
+        _ => {}
+    }
+}
+
 /// The DOM that the reader gives for the document of `rules`, with the
-/// node `from` in it replaced by `to`.
+/// node `from` in it replaced by `to`. The reader's expression positions
+/// are removed first, as a supplied DOM may omit them.
 fn changed_dom(rules: &str, from: &str, to: &str) -> String {
     let dom = gencmu::tools::read_grammar_document(&grammar(rules), "").expect("a DOM");
+    let mut value = common::parse_json(&dom).expect("a DOM as JSON");
+    strip_expression_positions(&mut value);
+    let dom = value.to_text();
     assert!(dom.contains(from), "{from} is not in {dom}");
     dom.replacen(from, to, 1)
 }

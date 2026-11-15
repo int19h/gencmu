@@ -44,7 +44,7 @@ pub(crate) fn arguments_from_json(value: &Json) -> R<Vec<SourceArgument>> {
                         .collect::<R<Vec<_>>>()?,
                 )
             } else if arg.get("rule").is_some() {
-                SourceArgument::Body(Expr::Ref(string(arg, "rule")?))
+                SourceArgument::Body(Expr::Ref(string(arg, "rule")?, crate::dom::ExprAt::from(None)))
             } else if ["splice", "test", "range", "wildcard"].iter().any(|key| arg.get(key).is_some()) {
                 SourceArgument::Body(expr_from_json(arg)?)
             } else {

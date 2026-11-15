@@ -16,7 +16,7 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
     for recipe in rule.error.iter().chain(&rule.warning) {
         let mut pending = vec![Part::Term(recipe)];
         while let Some(part) = pending.pop() {
-            if matches!(part,Part::Term(Term::Call(name,_)) if name=="emitted") {
+            if matches!(part,Part::Term(Term::Call(name, ..)) if name=="emitted") {
                 return Some("a message cannot read an emitted string".into());
             }
             pending.extend(part.children());
@@ -122,8 +122,8 @@ pub(crate) fn check(
                     continue;
                 }
                 match expr {
-                    Expr::Splice(inner) => {
-                        let Expr::Ref(name) = &**inner else {
+                    Expr::Splice(inner, _) => {
+                        let Expr::Ref(name, _) = &**inner else {
                             return Err(fail("a splice targets a rule"));
                         };
                         if !grammar.index.contains_key(name) {
@@ -131,9 +131,9 @@ pub(crate) fn check(
                         }
                         splices.push((name, alt));
                     }
-                    Expr::Seq(xs) | Expr::Choice(xs) | Expr::And(xs) | Expr::Ranked(xs, _) => body.extend(xs),
-                    Expr::Optional(e, _, _) | Expr::Capture(_, e) | Expr::Tested(_, _, e) => body.push(e),
-                    Expr::Repeat(e, s, _) => {
+                    Expr::Seq(xs, _) | Expr::Choice(xs, _) | Expr::And(xs, _) | Expr::Ranked(xs, _) => body.extend(xs),
+                    Expr::Optional(e, _, _, _) | Expr::Capture(_, e, _) | Expr::Tested(_, _, e, _) => body.push(e),
+                    Expr::Repeat(e, s, _, _) => {
                         body.push(e);
                         body.extend(s.as_deref());
                     }
@@ -167,7 +167,7 @@ pub(crate) fn check(
             continue;
         }
         match part {
-            Part::Term(Term::Pattern(pattern)) => {
+            Part::Term(Term::Pattern(pattern, ..)) => {
                 pattern_names(pattern, &mut prohibited, &erased, source_checks.is_some(), document)?
             }
             Part::Cond(Cond::Boundary(_, _, targets, _)) => prohibited.extend(targets.iter().cloned()),

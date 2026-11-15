@@ -67,20 +67,20 @@ impl<'a> Reduced<'a> {
             |shape| Self(Rc::new(Node { source: Source::Written(part), shape, guard: None, children: Vec::new() }));
         let mut source = Source::Written(part);
         match part {
-            Part::Cond(Cond::Captured(name)) => {
+            Part::Cond(Cond::Captured(name, ..)) => {
                 return match has(name) {
                     Some(true) => constant(Outcome::True),
                     Some(false) => constant(Outcome::False),
                     None => Self(Rc::new(Node { source, shape: Outcome::Uses(None), guard: Some(name), children })),
                 };
             }
-            Part::Cond(Cond::Not(_)) => match children[0].shape() {
+            Part::Cond(Cond::Not(..)) => match children[0].shape() {
                 Outcome::True => return constant(Outcome::False),
                 Outcome::False => return constant(Outcome::True),
                 _ => {}
             },
-            Part::Cond(Cond::All(_) | Cond::Any(_)) => {
-                let all = matches!(part, Part::Cond(Cond::All(_)));
+            Part::Cond(Cond::All(..) | Cond::Any(..)) => {
+                let all = matches!(part, Part::Cond(Cond::All(..)));
                 let (stop, rest) = if all { (Outcome::False, Outcome::True) } else { (Outcome::True, Outcome::False) };
                 if children.iter().any(|child| child.shape() == stop) {
                     return constant(stop);
@@ -92,7 +92,7 @@ impl<'a> Reduced<'a> {
                     _ => {}
                 }
             }
-            Part::Cond(Cond::If(_, _)) => match (children[0].shape(), children[1].shape()) {
+            Part::Cond(Cond::If(..)) => match (children[0].shape(), children[1].shape()) {
                 (Outcome::False, _) | (_, Outcome::True) => return constant(Outcome::True),
                 (Outcome::True, _) => return children.pop().expect("the consequent"),
                 (_, Outcome::False) => {
@@ -101,13 +101,13 @@ impl<'a> Reduced<'a> {
                 }
                 _ => {}
             },
-            Part::Term(Term::If(_, _)) => match (children[0].shape(), children[1].shape()) {
+            Part::Term(Term::If(..)) => match (children[0].shape(), children[1].shape()) {
                 (Outcome::False, _) | (_, Outcome::Empty) => return constant(Outcome::Empty),
                 (Outcome::True, _) => return children.pop().expect("the consequent"),
                 _ => {}
             },
-            Part::Term(Term::EmptySet) => return constant(Outcome::Empty),
-            Part::Term(Term::Union(_)) => {
+            Part::Term(Term::EmptySet(..)) => return constant(Outcome::Empty),
+            Part::Term(Term::Union(..)) => {
                 children.retain(|child| child.shape() != Outcome::Empty);
                 match children.len() {
                     0 => return constant(Outcome::Empty),
@@ -115,12 +115,12 @@ impl<'a> Reduced<'a> {
                     _ => {}
                 }
             }
-            Part::Term(Term::Intersection(_)) => {
+            Part::Term(Term::Intersection(..)) => {
                 if children.iter().any(|child| child.shape() == Outcome::Empty) {
                     return constant(Outcome::Empty);
                 }
             }
-            Part::Term(Term::Difference(_, _)) => {
+            Part::Term(Term::Difference(..)) => {
                 if children[0].shape() == Outcome::Empty {
                     return constant(Outcome::Empty);
                 }
@@ -129,7 +129,7 @@ impl<'a> Reduced<'a> {
                     return children.pop().expect("the first term");
                 }
             }
-            Part::Cond(Cond::Truthy(_)) => {
+            Part::Cond(Cond::Truthy(..)) => {
                 // Test the simplified term, including guards already resolved.
                 if children[0].shape() == Outcome::Empty {
                     return constant(Outcome::False);
@@ -156,7 +156,7 @@ impl<'a> Reduced<'a> {
             }
             let compound = matches!(
                 value.0.source,
-                Source::Written(Part::Term(Term::Union(_) | Term::Intersection(_) | Term::Difference(_, _)))
+                Source::Written(Part::Term(Term::Union(..) | Term::Intersection(..) | Term::Difference(..)))
             );
             if !compound {
                 done.push(match value.0.source {
@@ -173,8 +173,8 @@ impl<'a> Reduced<'a> {
                 for next in parts {
                     let next = next?;
                     match value.0.source {
-                        Source::Written(Part::Term(Term::Union(_))) => out.extend(next),
-                        Source::Written(Part::Term(Term::Intersection(_))) => out.retain(|name| next.contains(name)),
+                        Source::Written(Part::Term(Term::Union(..))) => out.extend(next),
+                        Source::Written(Part::Term(Term::Intersection(..))) => out.retain(|name| next.contains(name)),
                         _ => out.retain(|name| !next.contains(name)),
                     }
                 }
@@ -216,39 +216,41 @@ impl<'a> Reduced<'a> {
         let cond = |i: usize| Box::new(self.0.children[i].open_condition());
         let term = |i: usize| self.0.children[i].term();
         match self.0.source {
-            Source::Not | Source::Written(Part::Cond(Cond::Not(_))) => Cond::Not(cond(0)),
-            Source::Written(Part::Cond(Cond::All(_))) => {
-                Cond::All(self.0.children.iter().map(Self::open_condition).collect())
+            Source::Not | Source::Written(Part::Cond(Cond::Not(..))) => Cond::Not(cond(0), crate::dom::Hidden::NONE),
+            Source::Written(Part::Cond(Cond::All(..))) => {
+                Cond::All(self.0.children.iter().map(Self::open_condition).collect(), crate::dom::Hidden::NONE)
             }
-            Source::Written(Part::Cond(Cond::Any(_))) => {
-                Cond::Any(self.0.children.iter().map(Self::open_condition).collect())
+            Source::Written(Part::Cond(Cond::Any(..))) => {
+                Cond::Any(self.0.children.iter().map(Self::open_condition).collect(), crate::dom::Hidden::NONE)
             }
-            Source::Written(Part::Cond(Cond::If(_, _))) => Cond::If(cond(0), cond(1)),
+            Source::Written(Part::Cond(Cond::If(..))) => Cond::If(cond(0), cond(1), crate::dom::Hidden::NONE),
             Source::Written(Part::Cond(Cond::Compare(op, _, _, at))) => {
                 Cond::Compare(op.clone(), term(0), term(1), *at)
             }
-            Source::Written(Part::Cond(Cond::Truthy(_))) => Cond::Truthy(term(0)),
-            Source::Written(Part::Cond(Cond::Forest(_))) => Cond::Forest(term(0)),
+            Source::Written(Part::Cond(Cond::Truthy(..))) => Cond::Truthy(term(0), crate::dom::Hidden::NONE),
+            Source::Written(Part::Cond(Cond::Forest(..))) => Cond::Forest(term(0), crate::dom::Hidden::NONE),
             Source::Written(Part::Cond(original)) => original.clone(),
             _ => unreachable!("an open condition"),
         }
     }
     pub(super) fn term(&self) -> Term {
         if self.shape() == Outcome::Empty {
-            return Term::EmptySet;
+            return Term::EmptySet(crate::dom::Hidden::NONE);
         }
         let term = |i: usize| Box::new(self.0.children[i].term());
         match self.0.source {
-            Source::Written(Part::Term(Term::If(_, _))) => {
-                Term::If(Box::new(self.0.children[0].open_condition()), term(1))
+            Source::Written(Part::Term(Term::If(..))) => {
+                Term::If(Box::new(self.0.children[0].open_condition()), term(1), crate::dom::Hidden::NONE)
             }
-            Source::Written(Part::Term(Term::Union(_))) => {
-                Term::Union(self.0.children.iter().map(Self::term).collect())
+            Source::Written(Part::Term(Term::Union(..))) => {
+                Term::Union(self.0.children.iter().map(Self::term).collect(), crate::dom::Hidden::NONE)
             }
-            Source::Written(Part::Term(Term::Intersection(_))) => {
-                Term::Intersection(self.0.children.iter().map(Self::term).collect())
+            Source::Written(Part::Term(Term::Intersection(..))) => {
+                Term::Intersection(self.0.children.iter().map(Self::term).collect(), crate::dom::Hidden::NONE)
             }
-            Source::Written(Part::Term(Term::Difference(_, _))) => Term::Difference(term(0), term(1)),
+            Source::Written(Part::Term(Term::Difference(..))) => {
+                Term::Difference(term(0), term(1), crate::dom::Hidden::NONE)
+            }
             Source::Written(Part::Term(original)) => original.clone(),
             _ => unreachable!("a term"),
         }
@@ -261,9 +263,14 @@ mod tests {
 
     #[test]
     fn checks_simplify_deep_open_conditions_before_the_depth_check() {
-        let mut condition = Cond::Compare("=".into(), Term::Capture("c".into()), Term::Str("a".into()), None);
+        let mut condition = Cond::Compare(
+            "=".into(),
+            Term::Capture("c".into(), crate::dom::Hidden::NONE),
+            Term::Str("a".into(), crate::dom::Hidden::NONE),
+            None,
+        );
         for _ in 0..20_000 {
-            condition = Cond::Not(Box::new(condition));
+            condition = Cond::Not(Box::new(condition), crate::dom::Hidden::NONE);
         }
         let result = super::super::Shaped::of(Part::Cond(&condition), &|_| true);
         assert_eq!(result.uses, vec!["c"]);

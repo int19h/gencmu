@@ -470,6 +470,9 @@ mod tests {
                 .collect();
             // Each stage at line 2k + 2, with its rule on the next line.
             let rule = |index: usize| RuleDef {
+                places: Default::default(),
+                name_at: crate::dom::Unseen(None),
+                tags_at: Default::default(),
                 template_conditions: Vec::new(),
                 error: None,
                 warning: None,
@@ -481,11 +484,12 @@ mod tests {
                 op: Op::Define,
                 tags: None,
                 alternatives: vec![Alternative {
+                    at: Default::default(),
                     strings: Default::default(),
                     gates: Vec::new(),
-                    expr: Expr::Empty,
+                    expr: Expr::Empty(crate::dom::ExprAt::from(None)),
                     tags: None,
-                    ranked_locations: Default::default(),
+                    tags_at: Default::default(),
                 }],
                 emit: None,
                 conditions: Vec::new(),

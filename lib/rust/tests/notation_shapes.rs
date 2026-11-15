@@ -12,10 +12,33 @@ fn read(path: &[&str]) -> String {
     std::fs::read_to_string(&path).unwrap_or_else(|error| panic!("{}: {error}", path.display()))
 }
 
+/// `text` with the JSON object that begins with `prefix` replaced by
+/// `replacement`, whatever positions its expression nodes hold.
+fn replace_object(text: &str, prefix: &str, replacement: &str) -> String {
+    let start = text.find(prefix).unwrap_or_else(|| panic!("{prefix} in the bootstrap"));
+    let mut depth = 0;
+    let mut end = start;
+    for (offset, c) in text[start..].char_indices() {
+        match c {
+            '{' | '[' => depth += 1,
+            '}' | ']' => depth -= 1,
+            _ => {}
+        }
+        if depth == 0 {
+            end = start + offset + c.len_utf8();
+            break;
+        }
+    }
+    format!("{}{replacement}{}", &text[..start], &text[end..])
+}
+
+/// A tested primary of a notation without tests is a fault of its shape,
+/// which the reader finds before it reads the primary (engine §9).
 #[test]
-fn a_captured_tested_target_requires_its_primary_before_its_tests() {
-    let bootstrap = read(&["data", "preparsed", "gencmu.json"]).replace(
-        r#"{"seq":[{"ref":"untested-primary"},{"repeat":{"ref":"symbol-test"}}]}"#,
+fn a_captured_tested_target_requires_its_tests() {
+    let bootstrap = replace_object(
+        &read(&["data", "preparsed", "gencmu.json"]),
+        r#"{"seq":[{"ref":"untested-primary""#,
         r#"{"literal":{"string":"+"}}"#,
     );
     let sources = [
@@ -24,13 +47,14 @@ fn a_captured_tested_target_requires_its_primary_before_its_tests() {
         ("data/preparsed/gencmu.json", bootstrap),
     ];
     let error = gencmu::load_pipeline_sources(sources, "p.md").expect_err("the missing primary");
-    assert_eq!(error.message, "the notation's tested-primary has no primary");
+    assert_eq!(error.message, "the notation's tested-primary has no test");
 }
 
 #[test]
 fn a_supplied_ranked_choice_error_has_no_syntax_code() {
-    let bootstrap = read(&["data", "preparsed", "gencmu.json"]).replace(
-        r#"{"seq":[{"ref":"some-of"},{"literal":{"string":"≻"}},{"repeat":{"ref":"some-of"},"separator":{"literal":{"string":"≻"}}}]}"#,
+    let bootstrap = replace_object(
+        &read(&["data", "preparsed", "gencmu.json"]),
+        r#"{"seq":[{"ref":"some-of""#,
         r#"{"literal":{"string":"."}}"#,
     );
     let sources = [

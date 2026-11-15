@@ -42,7 +42,7 @@ pub(crate) fn simplify_term(term: &Term, has: &dyn Fn(&str) -> bool) -> Option<T
 pub(crate) fn has_bare_empty_set(cond: &Cond) -> bool {
     let mut stack = vec![Part::Cond(cond)];
     while let Some(part) = stack.pop() {
-        if matches!(part, Part::Cond(Cond::Truthy(Term::EmptySet))) {
+        if matches!(part, Part::Cond(Cond::Truthy(Term::EmptySet(..), ..))) {
             return true;
         }
         stack.extend(part.children());
@@ -55,7 +55,7 @@ pub(crate) fn has_bare_empty_set(cond: &Cond) -> bool {
 pub(crate) fn term_has_bare_empty_set(term: &Term) -> bool {
     let mut stack = vec![Part::Term(term)];
     while let Some(part) = stack.pop() {
-        if matches!(part, Part::Cond(Cond::Truthy(Term::EmptySet))) {
+        if matches!(part, Part::Cond(Cond::Truthy(Term::EmptySet(..), ..))) {
             return true;
         }
         stack.extend(part.children());
@@ -68,17 +68,17 @@ pub(crate) fn term_has_bare_empty_set(term: &Term) -> bool {
 /// the template writes it.
 pub(crate) fn closed_set_value(term: &Term) -> Option<FxSet<String>> {
     match term {
-        Term::EmptySet => Some(FxSet::default()),
-        Term::Tag(name) => Some([name.clone()].into_iter().collect()),
-        Term::Str(text) => Some([text.clone()].into_iter().collect()),
-        Term::Union(items) => {
+        Term::EmptySet(..) => Some(FxSet::default()),
+        Term::Tag(name, ..) => Some([name.clone()].into_iter().collect()),
+        Term::Str(text, ..) => Some([text.clone()].into_iter().collect()),
+        Term::Union(items, ..) => {
             let mut out = FxSet::default();
             for item in items {
                 out.extend(closed_set_value(item)?);
             }
             Some(out)
         }
-        Term::Intersection(items) => {
+        Term::Intersection(items, ..) => {
             let mut items = items.iter();
             let mut out = closed_set_value(items.next()?)?;
             for item in items {
@@ -87,7 +87,7 @@ pub(crate) fn closed_set_value(term: &Term) -> Option<FxSet<String>> {
             }
             Some(out)
         }
-        Term::Difference(left, right) => {
+        Term::Difference(left, right, ..) => {
             let mut out = closed_set_value(left)?;
             let right = closed_set_value(right)?;
             out.retain(|name| !right.contains(name));
@@ -95,11 +95,11 @@ pub(crate) fn closed_set_value(term: &Term) -> Option<FxSet<String>> {
         }
         // `.split` and `.ngrams` on a closed string are closed (§10).
         // Every other call, `.classify` among them, keeps the term open.
-        Term::Call(name, args) if name == "split" || name == "ngrams" => {
+        Term::Call(name, args, ..) if name == "split" || name == "ngrams" => {
             let [Arg::Term(receiver), rest @ ..] = &args[..] else { return None };
             let receiver = closed_string_value(receiver)?;
             if name == "ngrams" {
-                let [Arg::Integer(digits)] = rest else { return None };
+                let [Arg::Integer(digits, ..)] = rest else { return None };
                 if !crate::dom::valid_integer(digits) {
                     return None;
                 }
@@ -121,8 +121,8 @@ pub(crate) fn closed_set_value(term: &Term) -> Option<FxSet<String>> {
 /// closed string (§10): a string or a concatenation of closed strings.
 fn closed_string_value(term: &Term) -> Option<String> {
     match term {
-        Term::Str(text) => Some(text.clone()),
-        Term::Call(name, args) if name == "concat" => {
+        Term::Str(text, ..) => Some(text.clone()),
+        Term::Call(name, args, ..) if name == "concat" => {
             let mut out = String::new();
             for arg in args {
                 let Arg::Term(part) = arg else { return None };
@@ -136,7 +136,7 @@ fn closed_string_value(term: &Term) -> Option<String> {
 
 /// A term simplified for a production, the empty set written out.
 pub(crate) fn simplify_value(term: &Term, has: &dyn Fn(&str) -> bool) -> Term {
-    simplify_term(term, has).unwrap_or(Term::EmptySet)
+    simplify_term(term, has).unwrap_or(Term::EmptySet(crate::dom::Hidden::NONE))
 }
 
 /// A part of a clause: a term or a condition.
@@ -150,15 +150,15 @@ impl<'a> Part<'a> {
     pub(crate) fn children(self) -> Vec<Part<'a>> {
         match self {
             Part::Term(Term::Body(body)) => crate::query_forms::body_terms(body).into_iter().map(Part::Term).collect(),
-            Part::Cond(Cond::Forest(term)) => vec![Part::Term(term)],
-            Part::Term(Term::Call(_, args)) | Part::Cond(Cond::SourceQuery(_, args, _)) => args
+            Part::Cond(Cond::Forest(term, ..)) => vec![Part::Term(term)],
+            Part::Term(Term::Call(_, args, ..)) | Part::Cond(Cond::SourceQuery(_, args, _)) => args
                 .iter()
                 .filter_map(|arg| match arg {
                     Arg::Term(term) => Some(Part::Term(term)),
                     _ => None,
                 })
                 .collect(),
-            Part::Cond(Cond::Initial(term) | Cond::Final(term) | Cond::Boundary(_, term, _, _)) => {
+            Part::Cond(Cond::Initial(term, ..) | Cond::Final(term, ..) | Cond::Boundary(_, term, _, _)) => {
                 vec![Part::Term(term)]
             }
             _ => self.reducing_children(),
@@ -167,16 +167,18 @@ impl<'a> Part<'a> {
 
     fn reducing_children(self) -> Vec<Part<'a>> {
         match self {
-            Part::Term(Term::If(cond, then)) => vec![Part::Cond(cond), Part::Term(then)],
-            Part::Term(Term::Union(items) | Term::Intersection(items)) => items.iter().map(Part::Term).collect(),
-            Part::Term(Term::Difference(left, right)) => vec![Part::Term(left), Part::Term(right)],
-            Part::Cond(Cond::Not(inner)) => vec![Part::Cond(inner)],
-            Part::Cond(Cond::Any(items) | Cond::All(items)) => items.iter().map(Part::Cond).collect(),
-            Part::Cond(Cond::If(antecedent, consequent)) => {
+            Part::Term(Term::If(cond, then, ..)) => vec![Part::Cond(cond), Part::Term(then)],
+            Part::Term(Term::Union(items, ..) | Term::Intersection(items, ..)) => {
+                items.iter().map(Part::Term).collect()
+            }
+            Part::Term(Term::Difference(left, right, ..)) => vec![Part::Term(left), Part::Term(right)],
+            Part::Cond(Cond::Not(inner, ..)) => vec![Part::Cond(inner)],
+            Part::Cond(Cond::Any(items, ..) | Cond::All(items, ..)) => items.iter().map(Part::Cond).collect(),
+            Part::Cond(Cond::If(antecedent, consequent, ..)) => {
                 vec![Part::Cond(antecedent), Part::Cond(consequent)]
             }
             Part::Cond(Cond::Compare(_, left, right, _)) => vec![Part::Term(left), Part::Term(right)],
-            Part::Cond(Cond::Truthy(term) | Cond::Forest(term)) => vec![Part::Term(term)],
+            Part::Cond(Cond::Truthy(term, ..) | Cond::Forest(term, ..)) => vec![Part::Term(term)],
             _ => Vec::new(),
         }
     }
@@ -195,14 +197,16 @@ fn walk_captures<'a>(start: Part<'a>, values: bool, presences: bool, out: &mut V
                 Term::Body(body) => {
                     stack.extend(crate::query_forms::body_terms(body).into_iter().rev().map(Part::Term))
                 }
-                Term::Capture(name) => {
+                Term::Capture(name, ..) => {
                     if values {
                         out.push(name);
                     }
                 }
-                Term::Union(items) | Term::Intersection(items) => stack.extend(items.iter().rev().map(Part::Term)),
-                Term::Difference(left, right) => stack.extend([Part::Term(right), Part::Term(left)]),
-                Term::Call(_, args) => {
+                Term::Union(items, ..) | Term::Intersection(items, ..) => {
+                    stack.extend(items.iter().rev().map(Part::Term))
+                }
+                Term::Difference(left, right, ..) => stack.extend([Part::Term(right), Part::Term(left)]),
+                Term::Call(_, args, ..) => {
                     if values {
                         stack.extend(args.iter().rev().filter_map(|arg| match arg {
                             Arg::Term(term) => Some(Part::Term(term)),
@@ -210,31 +214,35 @@ fn walk_captures<'a>(start: Part<'a>, values: bool, presences: bool, out: &mut V
                         }));
                     }
                 }
-                Term::If(cond, then) => stack.extend([Part::Term(then), Part::Cond(cond)]),
-                Term::Source(_) | Term::Pattern(_) | Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Const(..) => {
-                }
+                Term::If(cond, then, ..) => stack.extend([Part::Term(then), Part::Cond(cond)]),
+                Term::Source(_)
+                | Term::Pattern(..)
+                | Term::Str(..)
+                | Term::Tag(..)
+                | Term::EmptySet(..)
+                | Term::Const(..) => {}
             },
             Part::Cond(cond) => match cond {
-                Cond::Truthy(term) => stack.push(Part::Term(term)),
-                Cond::Forest(term) => stack.push(Part::Term(term)),
+                Cond::Truthy(term, ..) => stack.push(Part::Term(term)),
+                Cond::Forest(term, ..) => stack.push(Part::Term(term)),
                 Cond::SourceQuery(_, args, _) => stack.extend(args.iter().filter_map(|arg| match arg {
                     Arg::Term(term) => Some(Part::Term(term)),
                     _ => None,
                 })),
-                Cond::Captured(name) => {
+                Cond::Captured(name, ..) => {
                     if presences {
                         out.push(name);
                     }
                 }
                 Cond::Compare(_, left, right, _) => stack.extend([Part::Term(right), Part::Term(left)]),
-                Cond::Initial(span) | Cond::Final(span) | Cond::Boundary(_, span, _, _) => {
+                Cond::Initial(span, ..) | Cond::Final(span, ..) | Cond::Boundary(_, span, _, _) => {
                     if values {
                         stack.push(Part::Term(span));
                     }
                 }
-                Cond::Not(inner) => stack.push(Part::Cond(inner)),
-                Cond::Any(items) | Cond::All(items) => stack.extend(items.iter().rev().map(Part::Cond)),
-                Cond::If(antecedent, consequent) => stack.extend([Part::Cond(consequent), Part::Cond(antecedent)]),
+                Cond::Not(inner, ..) => stack.push(Part::Cond(inner)),
+                Cond::Any(items, ..) | Cond::All(items, ..) => stack.extend(items.iter().rev().map(Part::Cond)),
+                Cond::If(antecedent, consequent, ..) => stack.extend([Part::Cond(consequent), Part::Cond(antecedent)]),
             },
         }
     }
@@ -431,7 +439,7 @@ fn cond_reads_presence(cond: &Cond) -> bool {
 /// The parts of a term as a union, or the term alone.
 fn union_parts(term: &Term) -> &[Term] {
     match term {
-        Term::Union(items) => items,
+        Term::Union(items, ..) => items,
         term => std::slice::from_ref(term),
     }
 }
@@ -443,8 +451,10 @@ fn know_term<'a, T>(term: &'a Term, fixed: &dyn Fn(&'a Term) -> T) -> Known<'a, 
         return Known::Fixed(fixed(term));
     }
     match term {
-        Term::If(cond, then) => match &**cond {
-            Cond::Captured(name) if !name.is_empty() && !term_reads_presence(then) => Known::Guarded(name, fixed(then)),
+        Term::If(cond, then, ..) => match &**cond {
+            Cond::Captured(name, ..) if !name.is_empty() && !term_reads_presence(then) => {
+                Known::Guarded(name, fixed(then))
+            }
             _ => Known::Other,
         },
         _ => Known::Other,
@@ -457,8 +467,8 @@ fn know_cond<'a, T>(cond: &'a Cond, fixed: &dyn Fn(&'a Cond) -> T) -> Known<'a, 
         return Known::Fixed(fixed(cond));
     }
     match cond {
-        Cond::If(antecedent, consequent) => match &**antecedent {
-            Cond::Captured(name) if !name.is_empty() && !cond_reads_presence(consequent) => {
+        Cond::If(antecedent, consequent, ..) => match &**antecedent {
+            Cond::Captured(name, ..) if !name.is_empty() && !cond_reads_presence(consequent) => {
                 Known::Guarded(name, fixed(consequent))
             }
             _ => Known::Other,
@@ -526,7 +536,7 @@ impl<'a> TermSplit<'a> {
         match left.len() {
             0 => None,
             1 => left.pop(),
-            _ => Some(Term::Union(left)),
+            _ => Some(Term::Union(left, crate::dom::Hidden::NONE)),
         }
     }
 }
@@ -560,8 +570,8 @@ impl<'a, T> CondParts<'a, T> {
     fn other(cond: &'a Cond, fixed: &dyn Fn(&'a Cond) -> T) -> Self {
         let know = |part| know_cond(part, fixed);
         match cond {
-            Cond::All(items) => Self::All(Split::new(items, know, |_| false)),
-            Cond::Any(items) => Self::Any(Split::new(items, know, |_| false)),
+            Cond::All(items, ..) => Self::All(Split::new(items, know, |_| false)),
+            Cond::Any(items, ..) => Self::Any(Split::new(items, know, |_| false)),
             cond => Self::Whole(cond),
         }
     }
@@ -634,8 +644,8 @@ impl<'a> CondParts<'a, Simple> {
                     .collect();
                 match left.len() {
                     1 => Simple::Cond(left.pop().expect("one condition")),
-                    _ if all => Simple::Cond(Cond::All(left)),
-                    _ => Simple::Cond(Cond::Any(left)),
+                    _ if all => Simple::Cond(Cond::All(left, crate::dom::Hidden::NONE)),
+                    _ => Simple::Cond(Cond::Any(left, crate::dom::Hidden::NONE)),
                 }
             },
         )
@@ -882,16 +892,16 @@ pub(crate) fn duplicate_captures(expr: &Expr) -> Vec<&Expr> {
         work::count(Work::Walked, 1);
         if !combine {
             match expr {
-                Expr::Capture(name, _) => {
+                Expr::Capture(name, _, _) => {
                     duplicate.push(false);
                     captures.push(expr);
                     done.push((HashMap::from([(name.as_str(), vec![duplicate.len() - 1])]), 1));
                 }
-                Expr::Seq(items) | Expr::And(items) | Expr::Choice(items) | Expr::Ranked(items, _) => {
+                Expr::Seq(items, _) | Expr::And(items, _) | Expr::Choice(items, _) | Expr::Ranked(items, _) => {
                     stack.push((expr, true));
                     stack.extend(items.iter().rev().map(|item| (item, false)));
                 }
-                Expr::Optional(inner, mark, _) if *mark == Mark::Plain || matches!(&**inner, Expr::Capture(..)) => {
+                Expr::Optional(inner, mark, _, _) if *mark == Mark::Plain || matches!(&**inner, Expr::Capture(..)) => {
                     stack.push((expr, true));
                     stack.push((inner, false));
                 }
@@ -906,13 +916,14 @@ pub(crate) fn duplicate_captures(expr: &Expr) -> Vec<&Expr> {
                                 duplicate.push(false);
                                 captures.push(current);
                             }
-                            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
-                                inside.extend(items.iter().rev())
-                            }
-                            Expr::Splice(inner) | Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => {
+                            Expr::Seq(items, _)
+                            | Expr::Choice(items, _)
+                            | Expr::Ranked(items, _)
+                            | Expr::And(items, _) => inside.extend(items.iter().rev()),
+                            Expr::Splice(inner, _) | Expr::Optional(inner, _, _, _) | Expr::Tested(_, _, inner, _) => {
                                 inside.push(inner)
                             }
-                            Expr::Repeat(item, separator, _) => {
+                            Expr::Repeat(item, separator, _, _) => {
                                 inside.extend(separator.as_deref());
                                 inside.push(item);
                             }
@@ -921,25 +932,25 @@ pub(crate) fn duplicate_captures(expr: &Expr) -> Vec<&Expr> {
                     }
                     done.push(empty());
                 }
-                Expr::Splice(_)
-                | Expr::Source(_)
-                | Expr::Ref(_)
-                | Expr::Terminal(_)
-                | Expr::Literal(_)
+                Expr::Splice(_, _)
+                | Expr::Source(..)
+                | Expr::Ref(_, _)
+                | Expr::Terminal(_, _)
+                | Expr::Literal(_, _)
                 | Expr::ScalarRange(..)
                 | Expr::Range(..)
-                | Expr::Wildcard
-                | Expr::Empty
-                | Expr::Remainder => done.push(empty()),
+                | Expr::Wildcard(_)
+                | Expr::Empty(_)
+                | Expr::Remainder(_) => done.push(empty()),
             }
             continue;
         }
         let count = match expr {
-            Expr::Seq(items) | Expr::And(items) | Expr::Choice(items) | Expr::Ranked(items, _) => items.len(),
+            Expr::Seq(items, _) | Expr::And(items, _) | Expr::Choice(items, _) | Expr::Ranked(items, _) => items.len(),
             _ => 1,
         };
         let parts = done.split_off(done.len() - count);
-        let meets = matches!(expr, Expr::Seq(_) | Expr::And(_));
+        let meets = matches!(expr, Expr::Seq(_, _) | Expr::And(_, _));
         let mut parts = parts.into_iter();
         let mut joined = parts.next().unwrap_or_else(empty);
         // A test-only switch looks up and moves the newer part, whatever
@@ -1074,24 +1085,26 @@ impl<'e> CaptureSequences<'e> {
         while let Some(current) = stack.pop() {
             work::count(Work::Walked, 1);
             match current {
-                Expr::Capture(name, _) => self.names.push(name),
-                Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
+                Expr::Capture(name, _, _) => self.names.push(name),
+                Expr::Seq(items, _) | Expr::Choice(items, _) | Expr::Ranked(items, _) | Expr::And(items, _) => {
                     stack.extend(items.iter().rev())
                 }
-                Expr::Splice(inner) | Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => stack.push(inner),
-                Expr::Repeat(item, separator, _) => {
+                Expr::Splice(inner, _) | Expr::Optional(inner, _, _, _) | Expr::Tested(_, _, inner, _) => {
+                    stack.push(inner)
+                }
+                Expr::Repeat(item, separator, _, _) => {
                     stack.extend(separator.as_deref());
                     stack.push(item);
                 }
-                Expr::Ref(_)
-                | Expr::Terminal(_)
-                | Expr::Literal(_)
+                Expr::Ref(_, _)
+                | Expr::Terminal(_, _)
+                | Expr::Literal(_, _)
                 | Expr::ScalarRange(..)
                 | Expr::Range(..)
-                | Expr::Source(_)
-                | Expr::Wildcard
-                | Expr::Empty
-                | Expr::Remainder => {}
+                | Expr::Source(..)
+                | Expr::Wildcard(_)
+                | Expr::Empty(_)
+                | Expr::Remainder(_) => {}
             }
         }
     }
@@ -1107,15 +1120,17 @@ impl<'e> CaptureSequences<'e> {
             work::count(Work::Walked, 1);
             if !combine {
                 match expr {
-                    Expr::Capture(name, _) => {
+                    Expr::Capture(name, _, _) => {
                         self.names.push(name);
                         done.push(vec![vec![self.names.len() - 1]]);
                     }
-                    Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
+                    Expr::Seq(items, _) | Expr::Choice(items, _) | Expr::Ranked(items, _) | Expr::And(items, _) => {
                         stack.push((expr, true));
                         stack.extend(items.iter().rev().map(|item| (item, false)));
                     }
-                    Expr::Optional(inner, mark, _) if *mark == Mark::Plain || matches!(&**inner, Expr::Capture(..)) => {
+                    Expr::Optional(inner, mark, _, _)
+                        if *mark == Mark::Plain || matches!(&**inner, Expr::Capture(..)) =>
+                    {
                         stack.push((expr, true));
                         stack.push((inner, false));
                     }
@@ -1123,22 +1138,22 @@ impl<'e> CaptureSequences<'e> {
                         self.skip(expr);
                         done.push(vec![Vec::new()]);
                     }
-                    Expr::Splice(_)
+                    Expr::Splice(_, _)
                     | Expr::Tested(..)
-                    | Expr::Ref(_)
-                    | Expr::Terminal(_)
-                    | Expr::Literal(_)
+                    | Expr::Ref(_, _)
+                    | Expr::Terminal(_, _)
+                    | Expr::Literal(_, _)
                     | Expr::ScalarRange(..)
                     | Expr::Range(..)
-                    | Expr::Source(_)
-                    | Expr::Wildcard
-                    | Expr::Empty
-                    | Expr::Remainder => done.push(vec![Vec::new()]),
+                    | Expr::Source(..)
+                    | Expr::Wildcard(_)
+                    | Expr::Empty(_)
+                    | Expr::Remainder(_) => done.push(vec![Vec::new()]),
                 }
                 continue;
             }
             let combined = match expr {
-                Expr::Seq(items) => {
+                Expr::Seq(items, _) => {
                     let parts = done.split_off(done.len() - items.len());
                     let mut sequences = vec![Vec::new()];
                     for part in parts {
@@ -1146,12 +1161,12 @@ impl<'e> CaptureSequences<'e> {
                     }
                     sequences
                 }
-                Expr::Choice(items) | Expr::Ranked(items, _) => {
+                Expr::Choice(items, _) | Expr::Ranked(items, _) => {
                     let parts = done.split_off(done.len() - items.len());
                     let all = parts.into_iter().flatten().collect();
                     self.distinct(all)
                 }
-                Expr::And(items) => {
+                Expr::And(items, _) => {
                     let parts = done.split_off(done.len() - items.len());
                     let mut all = Vec::new();
                     for mask in 1u64..(1u64 << parts.len().min(63)) {
@@ -1209,7 +1224,7 @@ fn item_captures_and_braces(expr: &Expr) -> ItemsAndBraces<'_> {
     while let Some((current, place)) = stack.pop() {
         work::count(Work::Walked, 1);
         match current {
-            Expr::Capture(name, inner) => {
+            Expr::Capture(name, inner, _) => {
                 if let Some(place) = place {
                     if !found.iter().any(|(known, _)| known == name) {
                         found.push((name, place));
@@ -1217,7 +1232,7 @@ fn item_captures_and_braces(expr: &Expr) -> ItemsAndBraces<'_> {
                 }
                 stack.push((inner, place));
             }
-            Expr::Repeat(item, separator, chain) => {
+            Expr::Repeat(item, separator, chain, _) => {
                 let inner = if chain.is_none() {
                     let number = order;
                     order += 1;
@@ -1229,19 +1244,21 @@ fn item_captures_and_braces(expr: &Expr) -> ItemsAndBraces<'_> {
                 stack.extend(separator.as_deref().map(|separator| (separator, inner)));
                 stack.push((item, inner));
             }
-            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
+            Expr::Seq(items, _) | Expr::Choice(items, _) | Expr::Ranked(items, _) | Expr::And(items, _) => {
                 stack.extend(items.iter().rev().map(|item| (item, place)));
             }
-            Expr::Splice(inner) | Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => stack.push((inner, place)),
-            Expr::Ref(_)
-            | Expr::Terminal(_)
-            | Expr::Literal(_)
+            Expr::Splice(inner, _) | Expr::Optional(inner, _, _, _) | Expr::Tested(_, _, inner, _) => {
+                stack.push((inner, place))
+            }
+            Expr::Ref(_, _)
+            | Expr::Terminal(_, _)
+            | Expr::Literal(_, _)
             | Expr::ScalarRange(..)
             | Expr::Range(..)
-            | Expr::Source(_)
-            | Expr::Wildcard
-            | Expr::Empty
-            | Expr::Remainder => {}
+            | Expr::Source(..)
+            | Expr::Wildcard(_)
+            | Expr::Empty(_)
+            | Expr::Remainder(_) => {}
         }
     }
     (found, braces)
@@ -1252,49 +1269,6 @@ pub(crate) fn item_capture_names(expr: &Expr) -> Vec<&str> {
     item_captures(expr).into_iter().map(|(name, _)| name).collect()
 }
 
-/// Whether the name of an item capture stands more than once in an
-/// expression, inside its braces or outside them (engine §3.5, §9).
-pub(crate) fn repeats_item_capture(expr: &Expr) -> bool {
-    let items = item_capture_names(expr);
-    if items.is_empty() {
-        return false;
-    }
-    let mut seen: Vec<&str> = Vec::new();
-    let mut stack = vec![expr];
-    while let Some(current) = stack.pop() {
-        work::count(Work::Walked, 1);
-        match current {
-            Expr::Capture(name, inner) => {
-                if items.contains(&name.as_str()) {
-                    if seen.contains(&name.as_str()) {
-                        return true;
-                    }
-                    seen.push(name);
-                }
-                stack.push(inner);
-            }
-            Expr::Repeat(item, separator, _) => {
-                stack.extend(separator.as_deref());
-                stack.push(item);
-            }
-            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
-                stack.extend(items.iter())
-            }
-            Expr::Splice(inner) | Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) => stack.push(inner),
-            Expr::Ref(_)
-            | Expr::Terminal(_)
-            | Expr::Literal(_)
-            | Expr::ScalarRange(..)
-            | Expr::Range(..)
-            | Expr::Source(_)
-            | Expr::Wildcard
-            | Expr::Empty
-            | Expr::Remainder => {}
-        }
-    }
-    false
-}
-
 /// How many pairs of flat braces an expression holds, at any depth.
 fn flat_braces_in(expr: &Expr) -> usize {
     let mut count = 0;
@@ -1302,26 +1276,27 @@ fn flat_braces_in(expr: &Expr) -> usize {
     while let Some(current) = stack.pop() {
         work::count(Work::Walked, 1);
         match current {
-            Expr::Repeat(item, separator, chain) => {
+            Expr::Repeat(item, separator, chain, _) => {
                 count += usize::from(chain.is_none());
                 stack.extend(separator.as_deref());
                 stack.push(item);
             }
-            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
+            Expr::Seq(items, _) | Expr::Choice(items, _) | Expr::Ranked(items, _) | Expr::And(items, _) => {
                 stack.extend(items.iter().rev());
             }
-            Expr::Splice(inner) | Expr::Optional(inner, _, _) | Expr::Tested(_, _, inner) | Expr::Capture(_, inner) => {
-                stack.push(inner)
-            }
-            Expr::Ref(_)
-            | Expr::Terminal(_)
-            | Expr::Literal(_)
+            Expr::Splice(inner, _)
+            | Expr::Optional(inner, _, _, _)
+            | Expr::Tested(_, _, inner, _)
+            | Expr::Capture(_, inner, _) => stack.push(inner),
+            Expr::Ref(_, _)
+            | Expr::Terminal(_, _)
+            | Expr::Literal(_, _)
             | Expr::ScalarRange(..)
             | Expr::Range(..)
-            | Expr::Source(_)
-            | Expr::Wildcard
-            | Expr::Empty
-            | Expr::Remainder => {}
+            | Expr::Source(..)
+            | Expr::Wildcard(_)
+            | Expr::Empty(_)
+            | Expr::Remainder(_) => {}
         }
     }
     count
@@ -1350,22 +1325,22 @@ pub(crate) fn braces_sequences(expr: &Expr) -> Vec<Vec<Read<'_>>> {
         work::count(Work::Walked, 1);
         if !combine {
             match current {
-                Expr::Capture(name, _) => done.push(vec![vec![Read::Cap(name)]]),
-                Expr::Repeat(item, separator, None) => {
+                Expr::Capture(name, _, _) => done.push(vec![vec![Read::Cap(name)]]),
+                Expr::Repeat(item, separator, None, _) => {
                     let number = order;
                     // The braces inside these take their numbers too.
                     order += 1 + flat_braces_in(item) + separator.as_deref().map_or(0, flat_braces_in);
                     done.push(vec![vec![Read::Braces(number)]]);
                 }
-                Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
+                Expr::Seq(items, _) | Expr::Choice(items, _) | Expr::Ranked(items, _) | Expr::And(items, _) => {
                     stack.push((current, true));
                     stack.extend(items.iter().rev().map(|item| (item, false)));
                 }
-                Expr::Optional(inner, mark, _) if *mark == Mark::Plain || matches!(&**inner, Expr::Capture(..)) => {
+                Expr::Optional(inner, mark, _, _) if *mark == Mark::Plain || matches!(&**inner, Expr::Capture(..)) => {
                     stack.push((current, true));
                     stack.push((inner, false));
                 }
-                Expr::Repeat(item, separator, Some(_)) => {
+                Expr::Repeat(item, separator, Some(_), _) => {
                     // A chain is the whole of its alternative, and its
                     // productions are its recursion, `x` and `s x` (§3.3).
                     // It holds no capture, but its item can hold flat
@@ -1379,22 +1354,22 @@ pub(crate) fn braces_sequences(expr: &Expr) -> Vec<Vec<Read<'_>>> {
                     order += flat_braces_in(current);
                     done.push(vec![Vec::new()]);
                 }
-                Expr::Splice(_)
+                Expr::Splice(_, _)
                 | Expr::Tested(..)
-                | Expr::Ref(_)
-                | Expr::Terminal(_)
-                | Expr::Literal(_)
+                | Expr::Ref(_, _)
+                | Expr::Terminal(_, _)
+                | Expr::Literal(_, _)
                 | Expr::ScalarRange(..)
                 | Expr::Range(..)
-                | Expr::Source(_)
-                | Expr::Wildcard
-                | Expr::Empty
-                | Expr::Remainder => done.push(vec![Vec::new()]),
+                | Expr::Source(..)
+                | Expr::Wildcard(_)
+                | Expr::Empty(_)
+                | Expr::Remainder(_) => done.push(vec![Vec::new()]),
             }
             continue;
         }
         let combined = match current {
-            Expr::Seq(items) => {
+            Expr::Seq(items, _) => {
                 let parts = done.split_off(done.len() - items.len());
                 let mut sequences = vec![Vec::new()];
                 for part in parts {
@@ -1402,10 +1377,10 @@ pub(crate) fn braces_sequences(expr: &Expr) -> Vec<Vec<Read<'_>>> {
                 }
                 sequences
             }
-            Expr::Choice(items) | Expr::Ranked(items, _) => {
+            Expr::Choice(items, _) | Expr::Ranked(items, _) => {
                 done.split_off(done.len() - items.len()).into_iter().flatten().collect()
             }
-            Expr::And(items) => {
+            Expr::And(items, _) => {
                 let parts = done.split_off(done.len() - items.len());
                 let mut all = Vec::new();
                 for mask in 1u64..(1u64 << parts.len().min(63)) {
@@ -1419,7 +1394,7 @@ pub(crate) fn braces_sequences(expr: &Expr) -> Vec<Vec<Read<'_>>> {
                 }
                 all
             }
-            Expr::Repeat(_, separator, _) => {
+            Expr::Repeat(_, separator, _, _) => {
                 // A chain: each item, and each separator followed by an item.
                 let separators = separator.is_some().then(|| done.pop().expect("the separator"));
                 let items = done.pop().expect("the item");
@@ -1952,7 +1927,7 @@ fn definition_fault(rule: &RuleDef, defer_issue: &mut impl FnMut(&DefinitionIssu
             && !effective_tags.iter().any(|term| term_waits(term))
         {
             let terms = effective_tags.into_iter().map(|term| simplify_value(term, &has)).collect();
-            if let Err(problem) = crate::guarded_tags::variants(&Term::Union(terms)) {
+            if let Err(problem) = crate::guarded_tags::variants(&Term::Union(terms, crate::dom::Hidden::NONE)) {
                 return immediate(problem);
             }
         }
@@ -2132,17 +2107,23 @@ mod tests {
                     .iter()
                     .map(|name| {
                         Expr::Optional(
-                            Box::new(Expr::Capture(name.clone(), Box::new(Expr::Terminal("A".into())))),
+                            Box::new(Expr::Capture(
+                                name.clone(),
+                                Box::new(Expr::Terminal("A".into(), crate::dom::ExprAt::from(None))),
+                                crate::dom::ExprAt::from(None),
+                            )),
                             Mark::Plain,
                             None,
+                            crate::dom::ExprAt::from(None),
                         )
                     })
                     .collect(),
+                crate::dom::ExprAt::from(None),
             );
-            let guards = names.iter().map(|name| Cond::Captured(name.clone())).collect();
+            let guards = names.iter().map(|name| Cond::Captured(name.clone(), crate::dom::Hidden::NONE)).collect();
             match kind {
-                "any" => rule.conditions = vec![Cond::Any(guards)],
-                "all" => rule.conditions = vec![Cond::All(guards)],
+                "any" => rule.conditions = vec![Cond::Any(guards, crate::dom::Hidden::NONE)],
+                "all" => rule.conditions = vec![Cond::All(guards, crate::dom::Hidden::NONE)],
                 "guarded" => {
                     rule.conditions = vec![Cond::All(
                         names
@@ -2150,16 +2131,22 @@ mod tests {
                             .take(8)
                             .map(|name| {
                                 Cond::If(
-                                    Box::new(Cond::Captured(name.clone())),
+                                    Box::new(Cond::Captured(name.clone(), crate::dom::Hidden::NONE)),
                                     Box::new(Cond::Compare(
                                         "=".into(),
-                                        Term::Call("value".into(), vec![Arg::Term(Term::Capture(name.clone()))]),
-                                        Term::Str("x".into()),
+                                        Term::Call(
+                                            "value".into(),
+                                            vec![Arg::Term(Term::Capture(name.clone(), crate::dom::Hidden::NONE))],
+                                            crate::dom::Hidden::NONE,
+                                        ),
+                                        Term::Str("x".into(), crate::dom::Hidden::NONE),
                                         Default::default(),
                                     )),
+                                    crate::dom::Hidden::NONE,
                                 )
                             })
                             .collect(),
+                        crate::dom::Hidden::NONE,
                     )]
                 }
                 _ => {
@@ -2168,11 +2155,17 @@ mod tests {
                             .iter()
                             .map(|name| {
                                 Term::If(
-                                    Box::new(Cond::Captured(name.clone())),
-                                    Box::new(Term::Call("tags".into(), vec![Arg::Term(Term::Capture(name.clone()))])),
+                                    Box::new(Cond::Captured(name.clone(), crate::dom::Hidden::NONE)),
+                                    Box::new(Term::Call(
+                                        "tags".into(),
+                                        vec![Arg::Term(Term::Capture(name.clone(), crate::dom::Hidden::NONE))],
+                                        crate::dom::Hidden::NONE,
+                                    )),
+                                    crate::dom::Hidden::NONE,
                                 )
                             })
                             .collect(),
+                        crate::dom::Hidden::NONE,
                     ))
                 }
             }
@@ -2216,9 +2209,18 @@ mod tests {
         let choice = |n: usize| {
             let mut rule = many_captures(0);
             rule.alternatives[0].expr = Expr::Choice(
-                (0..n).map(|index| Expr::Capture(format!("c{index}"), Box::new(Expr::Terminal("A".into())))).collect(),
+                (0..n)
+                    .map(|index| {
+                        Expr::Capture(
+                            format!("c{index}"),
+                            Box::new(Expr::Terminal("A".into(), crate::dom::ExprAt::from(None))),
+                            crate::dom::ExprAt::from(None),
+                        )
+                    })
+                    .collect(),
+                crate::dom::ExprAt::from(None),
             );
-            rule.tags = Some(Term::Tag("T".into()));
+            rule.tags = Some(Term::Tag("T".into(), crate::dom::Hidden::NONE));
             rule.emit = None;
             rule
         };
@@ -2240,14 +2242,20 @@ mod tests {
                 (0..n)
                     .map(|index| {
                         Expr::Optional(
-                            Box::new(Expr::Capture(format!("c{index}"), Box::new(Expr::Terminal("A".into())))),
+                            Box::new(Expr::Capture(
+                                format!("c{index}"),
+                                Box::new(Expr::Terminal("A".into(), crate::dom::ExprAt::from(None))),
+                                crate::dom::ExprAt::from(None),
+                            )),
                             crate::dom::Mark::Plain,
                             None,
+                            crate::dom::ExprAt::from(None),
                         )
                     })
                     .collect(),
+                crate::dom::ExprAt::from(None),
             );
-            rule.tags = Some(Term::Tag("T".into()));
+            rule.tags = Some(Term::Tag("T".into(), crate::dom::Hidden::NONE));
             rule.emit = None;
             rule
         };
@@ -2260,8 +2268,18 @@ mod tests {
     /// A sequence of n captures nested to the right, each level a capture
     /// and the rest, in which every name is distinct.
     fn nested_captures(n: usize) -> Expr {
-        (0..n).rev().fold(Expr::Empty, |rest, index| {
-            Expr::Seq(vec![Expr::Capture(format!("c{index}"), Box::new(Expr::Terminal("A".into()))), rest])
+        (0..n).rev().fold(Expr::Empty(crate::dom::ExprAt::from(None)), |rest, index| {
+            Expr::Seq(
+                vec![
+                    Expr::Capture(
+                        format!("c{index}"),
+                        Box::new(Expr::Terminal("A".into(), crate::dom::ExprAt::from(None))),
+                        crate::dom::ExprAt::from(None),
+                    ),
+                    rest,
+                ],
+                crate::dom::ExprAt::from(None),
+            )
         })
     }
 
@@ -2280,8 +2298,19 @@ mod tests {
     /// Braces around a sequence of n captures, whose captures no
     /// production reads but whose indices count.
     fn captures_in_braces(n: usize) -> Expr {
-        let items = (0..n).map(|index| Expr::Capture(format!("c{index}"), Box::new(Expr::Terminal("A".into()))));
-        Expr::Repeat(Box::new(Expr::Seq(items.collect())), None, None)
+        let items = (0..n).map(|index| {
+            Expr::Capture(
+                format!("c{index}"),
+                Box::new(Expr::Terminal("A".into(), crate::dom::ExprAt::from(None))),
+                crate::dom::ExprAt::from(None),
+            )
+        });
+        Expr::Repeat(
+            Box::new(Expr::Seq(items.collect(), crate::dom::ExprAt::from(None))),
+            None,
+            None,
+            crate::dom::ExprAt::from(None),
+        )
     }
 
     /// Duplicate detection walks the captures inside braces. Definition
@@ -2291,7 +2320,7 @@ mod tests {
         let braces = |n| {
             let mut rule = many_captures(0);
             rule.alternatives[0].expr = captures_in_braces(n);
-            rule.tags = Some(Term::Tag("T".into()));
+            rule.tags = Some(Term::Tag("T".into(), crate::dom::Hidden::NONE));
             rule.emit = None;
             rule
         };
@@ -2309,8 +2338,18 @@ mod tests {
     /// a capture and the rest, as the notation growth case
     /// "repeated-capture-name" has it.
     fn nested_repeats(n: usize) -> Expr {
-        (0..n).fold(Expr::Terminal("A".into()), |rest, _| {
-            Expr::Seq(vec![Expr::Capture("x".into(), Box::new(Expr::Terminal("A".into()))), rest])
+        (0..n).fold(Expr::Terminal("A".into(), crate::dom::ExprAt::from(None)), |rest, _| {
+            Expr::Seq(
+                vec![
+                    Expr::Capture(
+                        "x".into(),
+                        Box::new(Expr::Terminal("A".into(), crate::dom::ExprAt::from(None))),
+                        crate::dom::ExprAt::from(None),
+                    ),
+                    rest,
+                ],
+                crate::dom::ExprAt::from(None),
+            )
         })
     }
 
@@ -2331,19 +2370,39 @@ mod tests {
         {
             let names: Vec<String> = (0..n).map(|index| format!("c{index}")).collect();
             let expr = Expr::Seq(
-                names.iter().map(|name| Expr::Capture(name.clone(), Box::new(Expr::Terminal("A".into())))).collect(),
+                names
+                    .iter()
+                    .map(|name| {
+                        Expr::Capture(
+                            name.clone(),
+                            Box::new(Expr::Terminal("A".into(), crate::dom::ExprAt::from(None))),
+                            crate::dom::ExprAt::from(None),
+                        )
+                    })
+                    .collect(),
+                crate::dom::ExprAt::from(None),
             );
             let tags = Term::Union(
                 names
                     .iter()
-                    .map(|name| Term::Call("tags".into(), vec![Arg::Term(Term::Capture(name.clone()))]))
+                    .map(|name| {
+                        Term::Call(
+                            "tags".into(),
+                            vec![Arg::Term(Term::Capture(name.clone(), crate::dom::Hidden::NONE))],
+                            crate::dom::Hidden::NONE,
+                        )
+                    })
                     .collect(),
+                crate::dom::Hidden::NONE,
             );
             let emit = (0..n)
-                .map(|_| EmitItem::Insert(Some(Term::Tag("X".into())), Default::default()))
+                .map(|_| EmitItem::Insert(Some(Term::Tag("X".into(), crate::dom::Hidden::NONE)), Default::default()))
                 .chain(names.iter().map(|name| EmitItem::Capture(name.clone(), None, Attachments::default())))
                 .collect();
             RuleDef {
+                places: Default::default(),
+                name_at: crate::dom::Unseen(None),
+                tags_at: Default::default(),
                 template_conditions: Vec::new(),
                 error: None,
                 warning: None,
@@ -2355,11 +2414,12 @@ mod tests {
                 op: Op::Define,
                 tags: Some(tags),
                 alternatives: vec![Alternative {
+                    at: Default::default(),
                     strings: Default::default(),
                     gates: Vec::new(),
                     expr,
                     tags: None,
-                    ranked_locations: Default::default(),
+                    tags_at: Default::default(),
                 }],
                 emit: Some(emit),
                 conditions: Vec::new(),

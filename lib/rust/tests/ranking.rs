@@ -13,7 +13,7 @@ mod common;
 use std::collections::{BTreeMap, HashMap};
 use std::rc::Rc;
 
-use common::parse_json;
+use common::{parse_json, Value};
 use gencmu::tools::DOM_FORMAT;
 
 /// SplitMix64: small, and good enough to pick grammars.
@@ -967,6 +967,49 @@ fn action_json(grammar: &Grammar, act: &Act) -> String {
     }
 }
 
+/// Removes the position of every expression node, which a supplied
+/// DOM may omit, before a comparison with a generated DOM.
+fn strip_expression_positions(value: &mut Value) {
+    strip_expression_positions_in(value, false)
+}
+
+fn strip_expression_positions_in(value: &mut Value, in_pattern: bool) {
+    match value {
+        Value::Array(items) => items.iter_mut().for_each(|item| strip_expression_positions_in(item, in_pattern)),
+        Value::Object(fields) => {
+            let expression = !in_pattern
+                && fields.iter().any(|(key, _)| {
+                    matches!(
+                        key.as_str(),
+                        "seq"
+                            | "choice"
+                            | "ranked"
+                            | "and"
+                            | "optional"
+                            | "repeat"
+                            | "ref"
+                            | "literal"
+                            | "range"
+                            | "wildcard"
+                            | "splice"
+                            | "capture"
+                            | "test"
+                            | "empty"
+                            | "remainder"
+                    )
+                });
+            if expression {
+                fields.retain(|(key, _)| key != "at");
+            }
+            for (key, value) in fields.iter_mut() {
+                let in_pattern = in_pattern || key == "pattern";
+                strip_expression_positions_in(value, in_pattern);
+            }
+        }
+        _ => {}
+    }
+}
+
 fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool, String> {
     let mut rng = Rng(seed);
     let (source, (tokens, sounds)) = generate(&mut rng);
@@ -1058,9 +1101,12 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
     let document = format!("```jbogenbau\n{text}```\n");
     let dom = grammar_dom(&source);
     if seed % 50 == 0 {
-        // The DOM given to the cache is the one the notation reads.
+        // The DOM given to the cache is the one the notation reads,
+        // without the positions of its expression nodes.
         let read = gencmu::tools::read_grammar_document(&document, "").map_err(|error| format!("read: {error}"))?;
-        if parse_json(&read) != parse_json(&dom) {
+        let mut read_value = parse_json(&read).map_err(|error| format!("read: {error}"))?;
+        strip_expression_positions(&mut read_value);
+        if Ok(read_value) != parse_json(&dom) {
             return Err(format!("seed {seed}: the generated DOM differs from the notation's:\n{dom}\n{read}"));
         }
     }

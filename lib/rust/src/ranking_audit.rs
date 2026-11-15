@@ -49,44 +49,44 @@ fn walk_body(
     let mut pending = vec![expr];
     while let Some(e) = pending.pop() {
         match e {
-            Expr::Ref(n) => {
+            Expr::Ref(n, _) => {
                 if g.index.contains_key(n) {
                     refs.insert(n.clone());
                 } else {
                     terms.insert(n.clone());
                 }
             }
-            Expr::Terminal(t) => {
+            Expr::Terminal(t, _) => {
                 terms.insert(t.clone());
             }
-            Expr::Literal(Term::Str(s)) => {
+            Expr::Literal(Term::Str(s, ..), _) => {
                 terms.insert(crate::tags::string_name(s, &g.unicode));
             }
-            Expr::ScalarRange(Term::Str(a), Term::Str(b)) => {
+            Expr::ScalarRange(Term::Str(a, ..), Term::Str(b, ..), _) => {
                 terms.insert(format!(
                     "{}..{}",
                     crate::tags::string_name(a, &g.unicode),
                     crate::tags::string_name(b, &g.unicode)
                 ));
             }
-            Expr::Range(a, b) => {
+            Expr::Range(a, b, _) => {
                 terms.insert(format!(
                     "{}..{}",
                     crate::tags::string_name(&a.to_string(), &g.unicode),
                     crate::tags::string_name(&b.to_string(), &g.unicode)
                 ));
             }
-            Expr::Wildcard => {
+            Expr::Wildcard(_) => {
                 terms.insert("_".into());
             }
-            Expr::Optional(e, mark, _) => {
+            Expr::Optional(e, mark, _, _) => {
                 if *mark == Mark::Elidable {
                     let mut head = e.as_ref();
                     loop {
                         match head {
-                            Expr::Splice(e) | Expr::Capture(_, e) | Expr::Tested(_, _, e) => head = e,
-                            Expr::Seq(es) => head = &es[0],
-                            Expr::Ref(t) | Expr::Terminal(t) => {
+                            Expr::Splice(e, _) | Expr::Capture(_, e, _) | Expr::Tested(_, _, e, _) => head = e,
+                            Expr::Seq(es, _) => head = &es[0],
+                            Expr::Ref(t, _) | Expr::Terminal(t, _) => {
                                 omitted.insert(t.clone());
                                 break;
                             }
@@ -96,9 +96,9 @@ fn walk_body(
                 }
                 pending.push(e);
             }
-            Expr::Splice(e) | Expr::Capture(_, e) | Expr::Tested(_, _, e) => pending.push(e),
-            Expr::Seq(es) | Expr::Choice(es) | Expr::Ranked(es, _) | Expr::And(es) => pending.extend(es),
-            Expr::Repeat(e, s, _) => {
+            Expr::Splice(e, _) | Expr::Capture(_, e, _) | Expr::Tested(_, _, e, _) => pending.push(e),
+            Expr::Seq(es, _) | Expr::Choice(es, _) | Expr::Ranked(es, _) | Expr::And(es, _) => pending.extend(es),
+            Expr::Repeat(e, s, _, _) => {
                 pending.push(e);
                 pending.extend(s.as_deref());
             }
