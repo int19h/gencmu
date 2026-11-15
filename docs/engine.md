@@ -661,7 +661,7 @@ The loading paths use the following positions. The table names the entry points 
 
 Identify each ranked expression after final stitching and constant binding. Its identity is the final rule, zero-based alternative index, and expression path. Its options retain source order. Every group requires at least two expressions.
 
-Visit rules in expanded order (§2.3), then groups in alternative and expression traversal order. The first offending group determines the error, across capture and tag checks. A ranked node's `at` is the position of its first `≻` token. A supplied DOM can omit `at` on `ranked`, and the group then uses the nearest enclosing node with a position.
+Visit rules in expanded order (§2.3), then groups in alternative and expression traversal order. The first offending group determines the error, across capture and tag checks. A ranked node's `at` is the position of its first `≻` token. A supplied DOM can omit `at` on `ranked`, and the group then uses the nearest enclosing node with a position. A recipe term has only a hidden position (§8). A cached DOM therefore lacks it, and a loader with the source reads the source again for that position.
 
 Within a group, inspect alternative recipes before rule recipes. Within each pair, inspect the value before the image. Run the clause checks once, with the structural facts that their boundary checks require.
 
@@ -2500,6 +2500,12 @@ One validator handles ordinary nodes and source nodes. Calls and parameters reta
 
 The document retains one declaration representation. Cached and source DOMs store `at` directly on every expression node.
 
+The reader also gives some nodes hidden positions, which the DOM format does not hold. Each term other than `const` gets its `at` this way. So do conditions, recipes, emissions, emission items, gates, requirements, ambiguity steps, and compound pattern nodes. The other hidden positions are those of a rule, constant, or classifier name and of template parameters. They also include a classifier entry's class, the `::` of a tag clause, and a diagnostic clause's keyword. The last two are a default's `≝` and a pattern child list.
+
+A cached or supplied DOM lacks the hidden positions. When a later fault needs one, and the loader has the document's source, it reads the source again. It copies the hidden positions onto the cached DOM, and then reports the fault at its own position. Without the source, as for a supplied DOM, the fault stands at the nearest enclosing node with an `at`, at least at the declaration.
+
+The reader also marks a grouped expression, term, or test operand. The DOM has no form for this mark. So the DOM validator reports a fault that depends on it only in a source DOM. Examples are a grouped capture target, a grouped test operand, and a grouped chain.
+
 Each expression node retains its `at` position through template expansion, including nodes inside call arguments.
 
 A tie in either stage of the notation pipeline, `lexical` or `syntax`, is an error of kind `grammar` of loading (§6). The error names the document. It has no line and no column, since an ambiguity has no single position. Its message names the notation stage and says that the grammar text is ambiguous. A library never puts such an error at the start of the document in place of a position.
@@ -3143,7 +3149,7 @@ A document can hold several errors. The reader and DOM validator report one, and
 
    Ordinary escape inspection then visits string and path tokens in source order. It applies the same restricted decoder to every `%names` path, even a misplaced one. It examines each token's original escapes from left to right. The first malformed, nonscalar, or unknown escape fails at its opening `‹`. The step precedes every syntax, conversion, or DOM error. Section 1 defines operand boundaries and preamble order.
 3. Syntax recognition runs next, over the complete token sequence. A syntax error stands at the furthest token reached and precedes every conversion or DOM error. Unknown directives follow this same rule. The handwritten bootstrap reader follows the same lexical, escape, and syntax steps.
-4. Conversion builds the DOM from the syntax tree in source order, following the constructor table above and the part-lookup rules below. It sets `at` on every declaration and expression node. It reports only faults that have no DOM representation. Every other fault waits for the DOM validator of step 5, so the order of step 5 decides it. These are all the conversion faults:
+4. Conversion builds the DOM from the syntax tree in source order, following the constructor table above and the part-lookup rules below. It sets `at` on every declaration and expression node, and the hidden positions and grouping marks of §8. It reports only faults that have no DOM representation. Grouping has no DOM form either, but the DOM validator reports its faults from the mark, in the order of step 5. Every other fault waits for the DOM validator of step 5, so the order of step 5 decides it. These are all the conversion faults:
    - Missing or unexpected notation parts, and invalid token spans. A supplied notation tree can have them, and the bundled syntax cannot.
    - Unparenthesized runs beside `∩` or `∖`, juxtaposition in a recipe, and method argument separators other than those of §10.
    - Repeated or misplaced markers, a default outside an elidable head or on a pattern atom, a second default, and grouped elidable heads.
