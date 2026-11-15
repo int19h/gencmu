@@ -44,13 +44,9 @@ func (b *domBuilder) run(f readFrame) any {
 	}
 }
 
-// exprIn reads an expression; whole says it is the alternative's whole
-// expression, where a chain may stand (engine §9).
-func (b *domBuilder) exprIn(n *Node, whole bool) *domExpr {
-	return b.run(&exprFrame{n: n, whole: whole}).(*domExpr)
-}
-
-func (b *domBuilder) expr(n *Node) *domExpr { return b.exprIn(n, false) }
+// expr reads an expression. Where a chain may stand is a DOM fault,
+// which the validator reports (engine §9.3 step 5).
+func (b *domBuilder) expr(n *Node) *domExpr { return b.run(&exprFrame{n: n}).(*domExpr) }
 
 // termIn reads a term; argument says it is a function's argument, where a
 // span or a rule may stand (§9, §10).
@@ -68,17 +64,18 @@ func (b *domBuilder) implication(n *Node) *domCond {
 // exprFrame reads an expression.
 type exprFrame struct {
 	n       *Node
-	whole   bool
 	started bool
 	// What its value is made of: a list's kind, parts and items; or the
 	// construct it passes on; or the capture, the test or the optional
 	// that wraps what it asked for.
 	spliced             bool
+	grouped             bool
+	leading             bool
+	hasCapture          bool
 	capturedNode        *Node
 	kind                string
 	parts               []*Node
 	items               []*domExpr
-	inWhole             bool
 	pass                bool
 	capture             string
 	marked              bool
@@ -100,26 +97,25 @@ func (f *exprFrame) resume(b *domBuilder, in any) readStep {
 	}
 	switch {
 	case f.spliced:
-		return give(&domExpr{Kind: exSplice, Inner: in.(*domExpr)})
+		return give(&domExpr{Kind: exSplice, Inner: in.(*domExpr), At: b.at(n)})
 	case f.call:
 		call := in.(*domSourceCall)
 		return give(&domExpr{Kind: exCall, Call: call, At: call.At})
 	case f.pass:
+		if f.grouped {
+			if e, ok := in.(*domExpr); ok {
+				e.Grouped = true
+			}
+		}
 		return give(in)
 	case f.kind != "":
 		f.items = append(f.items, in.(*domExpr))
 		return f.next(b)
-	case f.capture != "":
-		e := &domExpr{Kind: exCapture, Name: f.capture, Inner: in.(*domExpr)}
-		if b.captureNodes == nil {
-			b.captureNodes = map[*domExpr]*Node{}
-		}
-		b.captureNodes[e] = n
+	case f.hasCapture:
+		e := &domExpr{Kind: exCapture, Name: f.capture, Inner: in.(*domExpr), At: b.at(n)}
 		return give(e)
 	case f.elide != nil:
 		if f.marked {
-			delete(b.allowedMarked, f.capturedNode)
-			b.marked--
 			f.elide.Default = b.headDefault
 			f.defaultNode = b.defaultNode
 			if b.defaultNode != nil {
@@ -128,21 +124,14 @@ func (f *exprFrame) resume(b *domBuilder, in any) readStep {
 			b.defaultHead, b.headDefault, b.defaultNode = f.previousHead, f.previousDefault, f.previousDefaultNode
 		}
 		f.elide.Inner = in.(*domExpr)
-		if value := f.elide.Default; value != nil && value.Kind == tmString {
-			head := f.elide.Inner
-			if head.Kind == exSeq {
-				head = head.Items[0]
-			}
-			if head.Kind == exCapture {
-				head = head.Inner
-			}
-			for head.Kind == exTest {
-				if head.Op != "tags" && head.Value.Kind == tmString && ((value.Str == head.Value.Str) != (head.Op == "=")) {
-					b.fail(f.defaultNode, "a default fails its head test")
-				}
-				head = head.Inner
-			}
+		if f.leading || f.capturedNode == nil && f.elide.Inner.Kind == exCapture {
+			// A leading | or &, or a capture as the whole content, means
+			// the head does not stand directly after the marker, as a
+			// grouped head does not (engine §3.8).
+			f.elide.Inner.Grouped = true
 		}
+		// Whether a default passes its head's tests is a DOM fault, which
+		// the validator reports (engine §9.3 step 5).
 		return give(f.elide)
 	case f.repeat != nil:
 		if f.repeat.Inner == nil {
@@ -153,7 +142,6 @@ func (f *exprFrame) resume(b *domBuilder, in any) readStep {
 		} else {
 			f.repeat.Sep = in.(*domExpr)
 		}
-		b.braces = b.braces[:len(b.braces)-1]
 		return give(f.repeat)
 	}
 	panic("an expression frame resumed with nothing to do")
@@ -164,21 +152,19 @@ func (f *exprFrame) next(b *domBuilder) readStep {
 	if len(f.items) < len(f.parts) {
 		p := f.parts[len(f.items)]
 		if f.kind == exSeq {
-			return ask(&exprFrame{n: b.knownOf(p, primaryRules), whole: f.inWhole})
+			return ask(&exprFrame{n: b.knownOf(p, primaryRules)})
 		}
-		return ask(&exprFrame{n: p, whole: f.inWhole})
-	}
-	if f.kind == exRanked && len(b.braces) > 0 {
-		b.braces[len(b.braces)-1].ranked--
+		return ask(&exprFrame{n: p})
 	}
 	if len(f.items) == 1 {
 		return give(f.items[0])
 	}
 	expr := &domExpr{Kind: f.kind, Items: f.items, At: b.at(f.n)}
 	if f.kind == exRanked {
+		// A ranked expression takes its at from its first ≻ separator.
 		for _, part := range b.parts(f.n) {
 			if part.Kind == KindToken && b.tokenValue(part) == "≻" {
-				expr.RankedAt = b.at(part)
+				expr.At = b.at(part)
 				break
 			}
 		}
@@ -226,81 +212,52 @@ func (f *exprFrame) start(b *domBuilder) readStep {
 			minimum = 2
 		}
 		f.parts = b.some(n, child, minimum)
-		// Only the one conjunction of an alternative, and its one sequence
-		// of one primary, are its whole expression.
-		f.inWhole = f.whole && f.kind != exChoice && f.kind != exRanked && len(f.parts) == 1
 		// The bound of an & is its own form, so it comes before its items
 		// (engine §9).
-		if f.kind == exAnd && len(f.parts) > maxAnd {
-			b.fail(n, "an & joins at most %d items, since it expands to 2ⁿ−1 sequences", maxAnd)
-		}
-		// An item capture cannot stand inside a ranked group (engine §3.5).
-		if f.kind == exRanked && len(b.braces) > 0 {
-			b.braces[len(b.braces)-1].ranked++
-		}
 		return f.next(b)
 	case "repetition":
 		return f.startRepetition(b)
 	case "rule-reference":
-		return give(&domExpr{Kind: exRef, Name: b.tokenValue(b.token(n))})
+		return give(&domExpr{Kind: exRef, Name: b.tokenValue(b.token(n)), At: b.at(n)})
 	case "tag":
-		return give(&domExpr{Kind: exRef, Name: b.tagOf(b.token(n))})
+		return give(&domExpr{Kind: exRef, Name: b.tagOf(b.token(n)), At: b.at(n)})
 	case "string-terminal":
 		p := b.knownOf(n, []string{"string", "constant-reference"})
-		return give(&domExpr{Kind: exLiteral, Value: b.term(p)})
+		return give(&domExpr{Kind: exLiteral, Value: b.term(p), At: b.at(n)})
 	case "wildcard":
 		b.token(n)
-		return give(&domExpr{Kind: exWildcard})
+		return give(&domExpr{Kind: exWildcard, At: b.at(n)})
 	case "range":
-		return give(&domExpr{Kind: exRange, Ends: b.stringRange(n)})
+		return give(&domExpr{Kind: exRange, Ends: b.stringRange(n), At: b.at(n)})
 	case "tested-primary":
 		return give(b.tested(n))
 	case "capture", "captured-terminator":
-		// Its place, then $, its name and its symbol, each at the capture,
-		// before what it wraps (engine §9).
-		// Inside flat braces it is an item capture, and the innermost
-		// braces decide; an item capture stands in no ranked group
-		// (engine §3.5).
-		if len(b.braces) > 0 {
-			inner := b.braces[len(b.braces)-1]
-			if inner.chain {
-				b.fail(n, "a capture cannot stand inside a chain, whose levels are constituents of its rule: a condition on $ serves each level")
-			}
-			if inner.ranked > 0 {
-				b.fail(n, "an item capture cannot stand inside a ranked group: name the ranked choice as a rule and capture that rule")
-			}
-		}
-		if b.marked > 0 && !b.allowedMarked[n] {
-			b.fail(n, "a capture cannot stand inside an elidable optional, which elision restores as one unit")
-		}
+		// Its name and its symbol, each at the capture, before what it
+		// wraps (engine §9). Where a capture may stand, in a chain, a
+		// ranked group, or an elidable optional, is a DOM fault, which
+		// the validator reports (§9.3 step 5).
 		captureToken := b.token(n)
 		inner := b.only(n, "primary")
-		if b.tokenValue(captureToken) == "$" {
-			b.fail(n, "$ is the whole constituent and wraps nothing")
-		}
+		// Whether the binder is a name, is not $, and wraps one symbol
+		// is a DOM fault, which the validator reports (§9.3 step 5).
 		name := strings.TrimPrefix(b.tokenValue(captureToken), "$")
-		if !captureName.MatchString(name) {
-			b.fail(n, "a capture's name is all lower case")
+		if b.tokenValue(captureToken) == "$" {
+			name = ""
 		}
 		wrapped := b.knownOf(inner, primaryRules)
-		base := wrapped
-		if wrapped.Rule == "tested-primary" {
-			base = b.testBase(wrapped)
-		}
-		if !capturedRules[base.Rule] || base.Rule == "tested-primary" {
-			b.fail(n, "a capture wraps one symbol")
-		}
 		f.capture = name
+		f.hasCapture = true
 		return ask(&exprFrame{n: wrapped})
 	case "group":
 		f.pass = true
+		f.grouped = true
 		return ask(&exprFrame{n: b.only(n, "choice")})
 	case "optional":
 		return f.startOptional(b)
 	case "empty":
-		return give(&domExpr{Kind: exEmpty})
+		return give(&domExpr{Kind: exEmpty, At: b.at(n)})
 	case "constant-reference":
-		return give(&domExpr{Kind: exLiteral, Value: b.term(n)})
+		return give(&domExpr{Kind: exLiteral, Value: b.term(n), At: b.at(n)})
 	}
 	b.fail(n, "unexpected %s in an expression", n.Rule)
 	return readStep{}
@@ -327,10 +284,9 @@ func (f *exprFrame) startOptional(b *domBuilder) readStep {
 		b.fail(markers[1], "an optional has one marker + at most")
 	}
 	if len(markers) == 0 {
-		f.elide = &domExpr{Kind: exOptional}
+		f.elide = &domExpr{Kind: exOptional, At: b.at(n)}
 		return ask(&exprFrame{n: choice})
 	}
-	const form = "an elidable optional begins with a user tag or parameter directly after +, without | or &"
 	hasToken := func(node *Node, text string) bool {
 		for _, p := range b.parts(node) {
 			if p.Kind == KindToken && b.tokenValue(p) == text {
@@ -341,6 +297,7 @@ func (f *exprFrame) startOptional(b *domBuilder) readStep {
 	}
 	conjunctions := b.ofRule(choice, "some-of")
 	leading := hasToken(choice, "|") || (len(conjunctions) == 1 && hasToken(conjunctions[0], "&"))
+	f.leading = leading
 	var head *Node
 	if len(conjunctions) == 1 && !leading {
 		if sequences := b.ofRule(conjunctions[0], "sequence"); len(sequences) == 1 {
@@ -349,24 +306,13 @@ func (f *exprFrame) startOptional(b *domBuilder) readStep {
 			}
 		}
 	}
-	isTerminal := func(symbol *Node) bool {
-		return symbol != nil && (symbol.Rule == "parameter" || (symbol.Rule == "tag" || symbol.Rule == "rule-reference") && isCapital(b.tokenValue(b.token(symbol))))
-	}
-	switch {
-	case head == nil:
-		b.fail(n, form)
-	case head.Rule == "tested-primary":
-		if !isTerminal(b.findTestBase(head)) {
-			b.fail(n, form)
-		}
-	case !isTerminal(head):
-		b.fail(n, form)
-	}
+	// The elidable form itself is a DOM fault, which the validator
+	// reports (engine §9.3 step 5). The reader only records the head,
+	// for a default that stands on it.
 	f.previousHead, f.previousDefault, f.previousDefaultNode = b.defaultHead, b.headDefault, b.defaultNode
 	b.defaultHead, b.headDefault, b.defaultNode = head, nil, nil
-	b.marked++
 	f.marked = true
-	f.elide = &domExpr{Kind: exOptional, Elidable: true}
+	f.elide = &domExpr{Kind: exOptional, Elidable: true, At: b.at(n)}
 	return ask(&exprFrame{n: choice})
 }
 
@@ -403,19 +349,15 @@ func (f *exprFrame) startRepetition(b *domBuilder) readStep {
 	if len(markers) == 1 && markers[0] > second {
 		b.fail(found[markers[0]], "a separator has no chain marker: ... stands after { or after the item")
 	}
-	e := &domExpr{Kind: exRepeat}
+	e := &domExpr{Kind: exRepeat, At: b.at(n)}
 	if len(markers) == 1 {
 		e.Chain = "right"
 		if markers[0] < index(choices[0]) {
 			e.Chain = "left"
 		}
 	}
-	// A chain is the whole expression of its alternative, as the lowering
-	// of its levels needs (engine §3.3, §9).
-	if e.Chain != "" && !f.whole {
-		b.fail(n, "a chain is the whole expression of its alternative: name it as a rule to use it here")
-	}
-	b.braces = append(b.braces, bracesEntry{chain: e.Chain != ""})
+	// Whether a chain is the whole expression of its alternative is a
+	// DOM fault, which the validator reports (engine §9.3 step 5).
 	f.repeat = e
 	f.choices = choices
 	return ask(&exprFrame{n: choices[0]})
@@ -436,7 +378,6 @@ type termFrame struct {
 	parts []*Node
 	ops   []string
 	items []*domTerm
-	types []termType
 }
 
 func (f *termFrame) resume(b *domBuilder, in any) readStep {
@@ -464,58 +405,32 @@ func (f *termFrame) resume(b *domBuilder, in any) readStep {
 			}
 			return ask(&termFrame{n: last})
 		}
+		// The type of the guarded term is a fault of type inspection,
+		// which the validator reports (engine §9.3 step 5).
 		t := in.(*domTerm)
-		// The reader has checked each comparison of a condition, so a
-		// condition's terms agree; the term guarded last must be a tag
-		// set, an error at its guard.
-		ty, problem := b.typeOf(t)
-		if problem == "" {
-			_, problem = joinedType([]termType{ty}, "⟹")
-			if ty == tyPattern {
-				problem = "a guarded term requires a set"
-			}
-		}
-		if problem != "" {
-			b.fail(f.guards[len(f.guards)-1], "%s", problem)
-		}
 		for i := len(f.conds) - 1; i >= 0; i-- {
-			t = &domTerm{Kind: tmIf, Cond: f.conds[i], Items: []*domTerm{t}}
+			t = &domTerm{Kind: tmIf, Cond: f.conds[i], Items: []*domTerm{t}, At: b.at(f.guards[i])}
 		}
 		return give(t)
 	}
 	// A part of a union or an intersection, which is a set of the kind of
 	// the others (§10); the error stands at the node that joins them.
+	// The types of the parts are faults of type inspection, which the
+	// validator reports (engine §9.3 step 5).
 	t := in.(*domTerm)
-	ty, problem := b.typeOf(t)
-	if problem != "" && !b.featureContext {
-		b.fail(n, "%s", problem)
-	}
-	if n.Rule == "concatenation" && ty != tyString && ty != tyAny && !b.featureContext {
-		b.fail(n, "++ requires string operands")
-	}
 	f.items = append(f.items, t)
-	f.types = append(f.types, ty)
 	if len(f.items) < len(f.parts) {
 		return ask(&termFrame{n: f.parts[len(f.items)]})
 	}
 	if n.Rule == "concatenation" {
-		return give(&domTerm{Kind: tmConcat, Items: f.items})
+		return give(&domTerm{Kind: tmConcat, Items: f.items, At: b.at(n)})
 	}
 	// Only a union needs explicit operators (engine §9.3).
 	if n.Rule == "union" && len(f.ops) < len(f.items)-1 {
 		b.lacks(n, "operator")
 	}
-	op := f.ops[0]
-	for _, o := range f.ops {
-		if o == "∖" {
-			op = o
-		}
-	}
-	if _, problem := joinedType(f.types, op); problem != "" && !b.featureContext {
-		b.fail(n, "%s", problem)
-	}
 	if n.Rule == "intersection" {
-		return give(&domTerm{Kind: tmIntersection, Items: f.items})
+		return give(&domTerm{Kind: tmIntersection, Items: f.items, At: b.at(n)})
 	}
 	// Parts joined by ∪ and ∖ group from the left: a run joined by ∪ is
 	// one union, and each ∖ takes what stands before it (§9).
@@ -525,12 +440,12 @@ func (f *termFrame) resume(b *domBuilder, in any) readStep {
 		next := f.items[i+1]
 		switch {
 		case op == "∖":
-			result = &domTerm{Kind: tmDifference, Items: []*domTerm{result, next}}
+			result = &domTerm{Kind: tmDifference, Items: []*domTerm{result, next}, At: b.at(n)}
 			open = false
 		case open:
 			result.Items = append(result.Items, next)
 		default:
-			result = &domTerm{Kind: tmUnion, Items: []*domTerm{result, next}}
+			result = &domTerm{Kind: tmUnion, Items: []*domTerm{result, next}, At: b.at(n)}
 			open = true
 		}
 	}
@@ -557,9 +472,6 @@ func (f *termFrame) start(b *domBuilder) readStep {
 	case "guarded-term":
 		// A ⟹ t: its any-ofs, each guarding the rest, and then its union,
 		// or the term of a notation that writes one after ⟹ (§9, §10).
-		if b.closedFor != "" {
-			b.fail(n, "%s is a closed term, and holds no guarded term", b.closedFor)
-		}
 		f.guards = b.some(n, "any-of", 1)
 		return ask(&anyOfFrame{n: f.guards[0]})
 	case "union":
@@ -602,9 +514,6 @@ func (f *termFrame) start(b *domBuilder) readStep {
 		return give(b.stringTerm(b.token(n)))
 	case "tag":
 		tag := b.tagOf(b.token(n))
-		if b.closedFor != "" && engineTag(tag) {
-			b.fail(n, "an engine tag literal is not legal in a closed value")
-		}
 		return give(&domTerm{Kind: tmTag, Str: tag, At: b.at(n)})
 	case "range":
 		b.fail(n, "a range is a terminal, not a term")
@@ -614,32 +523,25 @@ func (f *termFrame) start(b *domBuilder) readStep {
 		name := b.tokenValue(b.token(n))
 		switch {
 		case isCapital(name):
-			return give(&domTerm{Kind: tmTag, Str: name})
+			return give(&domTerm{Kind: tmTag, Str: name, At: b.at(n)})
 		case f.argument:
-			return give(&domTerm{Kind: tmRule, Str: name})
+			return give(&domTerm{Kind: tmRule, Str: name, At: b.at(n)})
 		}
 		b.fail(n, "%s names a rule, which is not a value", name)
 	case "empty-set":
-		return give(&domTerm{Kind: tmEmptySet})
+		return give(&domTerm{Kind: tmEmptySet, At: b.at(n)})
 	case "constant-reference":
 		return give(b.constantRef(n))
 	case "capture-reference":
 		name := strings.TrimPrefix(b.tokenValue(b.token(n)), "$")
-		if b.closedFor != "" {
-			b.fail(n, "%s is a closed term, and holds no capture", b.closedFor)
-		}
-		return give(&domTerm{Kind: tmCapture, Str: name})
+		return give(&domTerm{Kind: tmCapture, Str: name, At: b.at(n)})
 	case "method-chain":
 		f.pass = true
 		return ask(&methodFrame{n: n})
 	case "pattern-literal":
-		closed := b.closedFor
-		b.closedFor = ""
-		defer func() { b.closedFor = closed }()
+		// The pattern's shape is a DOM fault, which the validator
+		// reports (engine §9.3 step 5).
 		pattern := b.run(&patternFrame{n: b.only(n, "pattern-primary")}).(*domPattern)
-		if problem := sourcePatternProblem(pattern); problem != "" {
-			b.fail(n, "%s", problem)
-		}
 		return give(&domTerm{Kind: tmPattern, Pattern: pattern, At: b.at(n)})
 	}
 	b.fail(n, "unexpected %s in a term", n.Rule)
@@ -673,7 +575,7 @@ func (f *implicationFrame) resume(b *domBuilder, in any) readStep {
 	}
 	result := f.items[len(f.items)-1]
 	for i := len(f.items) - 2; i >= 0; i-- {
-		result = &domCond{Kind: cdIf, Items: []*domCond{f.items[i], result}}
+		result = &domCond{Kind: cdIf, Items: []*domCond{f.items[i], result}, At: b.at(f.anyOfs[i])}
 	}
 	return give(result)
 }
@@ -705,7 +607,7 @@ func (f *anyOfFrame) resume(b *domBuilder, in any) readStep {
 		return ask(&conditionFrame{n: f.conds[len(f.read)]})
 	}
 	if len(f.read) > 1 {
-		f.items = append(f.items, &domCond{Kind: cdAll, Items: f.read})
+		f.items = append(f.items, &domCond{Kind: cdAll, Items: f.read, At: b.at(f.allOfs[len(f.items)])})
 	} else {
 		f.items = append(f.items, f.read[0])
 	}
@@ -717,40 +619,14 @@ func (f *anyOfFrame) resume(b *domBuilder, in any) readStep {
 	if len(f.items) == 1 {
 		return give(f.items[0])
 	}
-	return give(&domCond{Kind: cdAny, Items: f.items})
+	return give(&domCond{Kind: cdAny, Items: f.items, At: b.at(f.n)})
 }
 
-// truthyOperand reads one operand of the set operation at op. A Boolean
-// method as an operand is a fault of the operation (engine §9.3).
-func (b *domBuilder) truthyOperand(op, n *Node) (t *domTerm) {
-	defer func() {
-		if e := recover(); e != nil {
-			if err, ok := e.(*Error); ok && strings.Contains(err.Message, "a query method is a condition, not a term") {
-				b.fail(op, "a query method is a condition, not a term")
-			}
-			panic(e)
-		}
-	}()
+// truthyOperand reads one operand of a set operation. A query method as
+// an operand is a fault of the operation, which the validator reports
+// (engine §9.3 step 5).
+func (b *domBuilder) truthyOperand(op, n *Node) *domTerm {
 	return b.run(&termFrame{n: n}).(*domTerm)
-}
-
-// truthyCheck fails at op when the operands of a set operation in a
-// term-condition do not join (engine §9.3).
-func (b *domBuilder) truthyCheck(op *Node, items []*domTerm, operator string) {
-	if b.featureContext {
-		return
-	}
-	types := make([]termType, len(items))
-	for i, item := range items {
-		ty, problem := b.typeOf(item)
-		if problem != "" {
-			b.fail(op, "%s", problem)
-		}
-		types[i] = ty
-	}
-	if _, problem := joinedType(types, operator); problem != "" {
-		b.fail(op, "%s", problem)
-	}
 }
 
 // truthyTerm reads the set term of a term-condition (§9).
@@ -769,11 +645,10 @@ func (b *domBuilder) truthyTerm(n *Node) *domTerm {
 		for _, item := range b.some(op, "concatenation", 1) {
 			items = append(items, b.truthyOperand(op, item))
 		}
-		b.truthyCheck(op, items, "∩")
 		if len(items) == 1 {
 			return items[0]
 		}
-		return &domTerm{Kind: tmIntersection, Items: items}
+		return &domTerm{Kind: tmIntersection, Items: items, At: b.at(op)}
 	}
 	found := b.some(op, "intersection", 1)
 	var items []*domTerm
@@ -792,24 +667,17 @@ func (b *domBuilder) truthyTerm(n *Node) *domTerm {
 	if len(operators) > len(items)-1 {
 		operators = operators[len(operators)-(len(items)-1):]
 	}
-	joinOperator := "∪"
-	for _, operator := range operators {
-		if operator == "∖" {
-			joinOperator = "∖"
-		}
-	}
-	b.truthyCheck(op, items, joinOperator)
 	result := items[0]
 	open := false
 	for index, operator := range operators {
 		next := items[index+1]
 		if operator == "∖" {
-			result = &domTerm{Kind: tmDifference, Items: []*domTerm{result, next}}
+			result = &domTerm{Kind: tmDifference, Items: []*domTerm{result, next}, At: b.at(op)}
 			open = false
 		} else if open && result.Kind == tmUnion {
 			result.Items = append(result.Items, next)
 		} else {
-			result = &domTerm{Kind: tmUnion, Items: []*domTerm{result, next}}
+			result = &domTerm{Kind: tmUnion, Items: []*domTerm{result, next}, At: b.at(op)}
 			open = true
 		}
 	}
@@ -842,14 +710,14 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 		case "comparison":
 			op := b.operator(b.token(b.only(n, "comparator")))
 			ps := b.some(n, "union", 2)
-			f.compare = &domCond{Kind: cdCompare, Op: op}
+			f.compare = &domCond{Kind: cdCompare, Op: op, At: b.at(n)}
 			f.right = ps[1]
 			return ask(&termFrame{n: ps[0]})
 		case "negation", "method-chain", "condition":
 		case "set-condition":
-			return give(&domCond{Kind: cdTruthy, Left: b.truthyTerm(n)})
+			return give(&domCond{Kind: cdTruthy, Left: b.truthyTerm(n), At: b.at(n)})
 		case "presence":
-			return give(&domCond{Kind: cdCaptured, Capture: strings.TrimPrefix(b.tokenValue(b.token(n)), "$")})
+			return give(&domCond{Kind: cdCaptured, Capture: strings.TrimPrefix(b.tokenValue(b.token(n)), "$"), At: b.at(n)})
 		default:
 			b.fail(n, "unexpected %s in a condition", n.Rule)
 		}
@@ -869,13 +737,8 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 	switch n.Rule {
 	case "tree-comparison":
 		f.compare.Right = in.(*domTerm)
-		if fault := condTypeMemo(f.compare, nil, b.types); fault != nil && !b.featureContext {
-			where := n
-			if fault.node == f.compare.Right {
-				where = b.only(n, "union")
-			}
-			b.fail(where, "%s", fault.problem)
-		}
+		// Whether the two sides fit the comparator is a type fault,
+		// which the validator reports in rule type inspection (§9.3).
 		return give(f.compare)
 	case "comparison":
 		if f.right != nil {
@@ -885,35 +748,30 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 			return ask(&termFrame{n: right})
 		}
 		f.compare.Right = in.(*domTerm)
-		// The two sides fit the comparator (§10).
-		if fault := condTypeMemo(f.compare, nil, b.types); fault != nil && !b.featureContext {
-			b.fail(n, "%s", fault.problem)
-		}
 		return give(f.compare)
 	case "negation":
-		return give(&domCond{Kind: cdNot, Inner: in.(*domCond)})
+		return give(&domCond{Kind: cdNot, Inner: in.(*domCond), At: b.at(n)})
 	}
 	t := in.(*domTerm)
+	// The condition keeps its method term, whose shape the validator
+	// checks (engine §9.3 step 5).
 	if t.Str == "tags" || t.Str == "classes" || t.Str == "split" || t.Str == "ngrams" || t.Str == "classify" {
-		return give(&domCond{Kind: cdTruthy, Left: t})
+		return give(&domCond{Kind: cdTruthy, Left: t, At: t.At})
 	}
 	if t.Str == "parse" || t.Str == "error-free" {
-		return give(&domCond{Kind: cdForest, Left: t})
+		return give(&domCond{Kind: cdForest, Left: t, At: t.At, Method: t})
 	}
 	if t.Str == "ends-input" {
-		return give(&domCond{Kind: cdEnd, Span: t.Items[0]})
+		return give(&domCond{Kind: cdEnd, Span: t.Items[0], At: t.At, Method: t})
 	}
 	if boundaryMethod(t.Str) {
 		b.hasBoundary = true
-		return give(&domCond{Kind: cdBoundary, Op: t.Str, Span: t.Items[0], Targets: t.Items[1:], At: t.At})
+		return give(&domCond{Kind: cdBoundary, Op: t.Str, Span: t.Items[0], Targets: t.Items[1:], At: t.At, Method: t})
 	}
 	if t.Str == "starts-input" {
-		return give(&domCond{Kind: cdInitial, Span: t.Items[0]})
+		return give(&domCond{Kind: cdInitial, Span: t.Items[0], At: t.At, Method: t})
 	}
-	// Every other method term in a condition position was refused
-	// as it was read.
-	b.fail(n, "a %s term is no condition", t.Str)
-	return give(&domCond{Kind: cdForest, Left: t})
+	return give(&domCond{Kind: cdMethod, Left: t, At: t.At, Method: t})
 }
 
 func (b *domBuilder) patternOperand(right *Node) {
@@ -942,23 +800,13 @@ func (f *exprFrame) startCapturedOptional(b *domBuilder, capture *Node) readStep
 	if len(markers) == 0 || b.one(f.n, "choice") != nil {
 		b.fail(f.n, "a captured elidable optional holds only its terminator")
 	}
+	// Whether the head is a terminal is a DOM fault, which the
+	// validator reports (engine §9.3 step 5).
 	head := b.knownOf(b.only(capture, "primary"), primaryRules)
-	base := head
-	if head.Rule == "tested-primary" {
-		base = b.testBase(head)
-	}
-	if base == nil || base.Rule != "parameter" && (base.Rule != "tag" || !isCapital(b.tokenValue(b.token(base)))) {
-		b.fail(f.n, "a captured elidable optional holds only its terminator")
-	}
 	f.previousHead, f.previousDefault, f.previousDefaultNode = b.defaultHead, b.headDefault, b.defaultNode
 	b.defaultHead, b.headDefault, b.defaultNode = head, nil, nil
-	if b.allowedMarked == nil {
-		b.allowedMarked = map[*Node]bool{}
-	}
-	b.allowedMarked[capture] = true
-	b.marked++
 	f.marked = true
 	f.capturedNode = capture
-	f.elide = &domExpr{Kind: exOptional, Elidable: true}
+	f.elide = &domExpr{Kind: exOptional, Elidable: true, At: b.at(f.n)}
 	return ask(&exprFrame{n: capture})
 }

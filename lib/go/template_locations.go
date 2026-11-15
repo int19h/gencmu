@@ -4,7 +4,7 @@ import "fmt"
 
 const templateSourceKey = "\x00source"
 
-type templateSource struct{ at, ranked, defaultAt [2]int }
+type templateSource struct{ at, defaultAt [2]int }
 
 func templateLen(n templateObject) int {
 	size := len(n)
@@ -96,9 +96,6 @@ func templateAnnotateExpr(n templateObject, e *domExpr) {
 	if e.Kind == exCall {
 		annotateSourceCall(n, e.Call)
 	}
-	if e.RankedAt != [2]int{} {
-		n[templateSourceKey].(*templateSource).ranked = e.RankedAt
-	}
 	if e.DefaultAt != [2]int{} {
 		templateLocate(n, [2]int{})
 		n[templateSourceKey].(*templateSource).defaultAt = e.DefaultAt
@@ -155,30 +152,12 @@ func templateNativeRuleSource(raw templateObject, r *domRule) {
 		templateAnnotateTerm(templateObj(n["tags"]), a.Tags)
 		templateAnnotateTerm(templateObj(n["value"]), a.Value)
 		templateAnnotateTerm(templateObj(n["image"]), a.Image)
-		var visit func(templateObject, string)
-		visit = func(n templateObject, path string) {
-			if at := a.rankedLocations[path]; at != [2]int{} {
-				templateLocate(n, [2]int{})
-				n[templateSourceKey].(*templateSource).ranked = at
-			}
-			for _, k := range []string{"seq", "and", "choice", "ranked"} {
-				for index, v := range templateList(n[k]) {
-					visit(templateObj(v), fmt.Sprintf("%s/%s/%d", path, k, index))
-				}
-			}
-			for _, k := range []string{"optional", "repeat", "separator", "expr"} {
-				if v := templateObj(n[k]); v != nil {
-					visit(v, path+"/"+k)
-				}
-			}
-		}
-		visit(templateObj(templateObj(templateList(raw["alternatives"])[i])["expr"]), "")
 	}
 }
 func restoreTemplateRuleLocations(r *domRule, raw templateObject) {
 	var term func(*domTerm, templateObject)
 	var cond func(*domCond, templateObject)
-	var expr func(*domExpr, templateObject, string, map[string][2]int)
+	var expr func(*domExpr, templateObject, string)
 	term = func(t *domTerm, n templateObject) {
 		if t == nil || n == nil {
 			return
@@ -250,27 +229,26 @@ func restoreTemplateRuleLocations(r *domRule, raw templateObject) {
 			cond(c.Items[1], templateObj(n["then"]))
 		}
 	}
-	expr = func(e *domExpr, n templateObject, path string, locations map[string][2]int) {
+	expr = func(e *domExpr, n templateObject, path string) {
 		if e == nil || n == nil {
 			return
 		}
 		if s, ok := n[templateSourceKey].(*templateSource); ok {
 			e.DefaultAt = s.defaultAt
 		}
-		if s, ok := n[templateSourceKey].(*templateSource); ok && s.ranked != [2]int{} {
-			locations[path] = s.ranked
-		}
+		// A ranked expression's position is its own at, which the DOM
+		// now holds, so no side table of ranked positions is kept.
 		for i, v := range templateList(n[e.Kind]) {
 			if i < len(e.Items) {
-				expr(e.Items[i], templateObj(v), fmt.Sprintf("%s/%s/%d", path, e.Kind, i), locations)
+				expr(e.Items[i], templateObj(v), fmt.Sprintf("%s/%s/%d", path, e.Kind, i))
 			}
 		}
 		innerKey := e.Kind
 		if e.Kind == exCapture || e.Kind == exTest {
 			innerKey = "expr"
 		}
-		expr(e.Inner, templateObj(n[innerKey]), path+"/"+innerKey, locations)
-		expr(e.Sep, templateObj(n["separator"]), path+"/separator", locations)
+		expr(e.Inner, templateObj(n[innerKey]), path+"/"+innerKey)
+		expr(e.Sep, templateObj(n["separator"]), path+"/separator")
 		term(e.Default, templateObj(n["default"]))
 		term(e.Value, templateObj(n["value"]))
 		if e.Kind == exLiteral {
@@ -279,8 +257,7 @@ func restoreTemplateRuleLocations(r *domRule, raw templateObject) {
 	}
 	for i, a := range r.Alternatives {
 		n := templateObj(templateList(raw["alternatives"])[i])
-		a.rankedLocations = map[string][2]int{}
-		expr(a.Expr, templateObj(n["expr"]), "", a.rankedLocations)
+		expr(a.Expr, templateObj(n["expr"]), "")
 		term(a.Tags, templateObj(n["tags"]))
 		term(a.Value, templateObj(n["value"]))
 		term(a.Image, templateObj(n["image"]))

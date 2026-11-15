@@ -7,7 +7,7 @@ import (
 )
 
 // domFormat is the version of the grammar DOM (docs/output.md).
-const domFormat = 49
+const domFormat = 50
 
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what data/preparsed/gencmu.json and data/preparsed/FAMILY.json hold.
@@ -28,6 +28,8 @@ type domClassifier struct {
 	Name    string
 	Entries []*domEntry
 	At      [2]int
+	// nameAt is the position of the name, which the DOM does not record.
+	nameAt [2]int
 }
 
 // domEntry holds a classifier entry's gates, exact scalar string keys,
@@ -40,6 +42,8 @@ type domEntry struct {
 	Op       string
 	Class    string
 	At       [2]int
+	// classAt is the position of the class, which the DOM does not record.
+	classAt [2]int
 }
 
 // domImplication is %implies If ⟹ Then (engine §2, §11): two closed terms
@@ -57,9 +61,17 @@ type domConst struct {
 	Op    string
 	Value *domTerm
 	At    [2]int
+	// NameAt is the position of the name, which the DOM does not record.
+	NameAt [2]int
 }
 
 type domRule struct {
+	// nameAt, paramAts and hasHead are what the reader saw of the head,
+	// which the DOM does not record: the name's position, each
+	// parameter's, and whether a binding wrote a head.
+	nameAt           [2]int
+	paramAts         [][2]int
+	hasHead          bool
 	Error, Warning   *domTerm
 	SuppressWarnings []string
 	Params           []string
@@ -82,11 +94,10 @@ type domRule struct {
 }
 
 type domAlt struct {
-	rankedLocations map[string][2]int
-	Gates           []domGate
-	Expr            *domExpr
-	Tags            *domTerm
-	Value, Image    *domTerm
+	Gates        []domGate
+	Expr         *domExpr
+	Tags         *domTerm
+	Value, Image *domTerm
 }
 
 // domGate is a gate, f? or ¬f? (engine §9).
@@ -118,8 +129,11 @@ const (
 )
 
 type domExpr struct {
-	At       [2]int
-	RankedAt [2]int
+	At [2]int
+	// atHidden says that At is the reader's position of a node whose DOM
+	// form writes no at: a parse body's remainder.
+	atHidden bool
+	Grouped  bool // the source wrote this node in parentheses, which no DOM node records
 	Call     *domSourceCall
 	Kind     string
 	Items    []*domExpr // seq, choice, and
@@ -189,6 +203,15 @@ type domTerm struct {
 	Items []*domTerm // union, intersection, difference, call arguments; if: its term
 	Cond  *domCond   // if: its condition
 	At    [2]int     // const: the position of the reference
+	// ClauseAt is the position of the clause that holds this term, for a
+	// tag clause, which the DOM does not record.
+	ClauseAt [2]int
+	// grouped says the source wrote a test operand in parentheses,
+	// which no DOM node records.
+	grouped bool
+	// TagAt is the position of the term as written in a tag clause,
+	// including any parentheses the DOM does not record.
+	TagAt [2]int
 	// value is a constant's final value in its stage, which only a
 	// stitched grammar's copy of the reference holds (engine §2).
 	value   *constValue
@@ -222,6 +245,9 @@ const (
 	cdIf       = "if"
 	cdForest   = "forest"
 	cdTruthy   = "truthy"
+	// cdMethod is a method the reader read as a condition that names
+	// no query method, which only the validator's fault ever sees.
+	cdMethod = "method"
 )
 
 type domCond struct {
@@ -234,17 +260,24 @@ type domCond struct {
 	Capture     string   // The name in a presence test.
 	Inner       *domCond
 	Items       []*domCond
+	// Method is the method term the reader read this condition from,
+	// whose shape the validator checks (engine §9.3 step 5). A decoded
+	// condition has none.
+	Method *domTerm
 }
 
 // domEmit holds the items of a %emits clause. Erasure uses the separate rule field erased.
 type domEmit struct {
 	Items []*domEmitItem
+	At    [2]int // the clause's position, which the DOM does not record
 }
 
 // domEmitItem is a capture, "" for $, or an inserted item, with optional clauses.
 // A named capture, the item's carrier, can name attachment captures before
 // it and after it (engine §11).
 type domEmitItem struct {
+	// At is the item's position, which the DOM does not record.
+	At           [2]int
 	Capture      string
 	IsInsert     bool
 	Tags         *domTerm
@@ -550,8 +583,10 @@ func (e *domExpr) writeJSON(w *jsonWriter) {
 	switch e.Kind {
 	case exParam:
 		writeParameter(w, e.Name, e.At)
+		return
 	case exCall:
 		e.Call.writeJSON(w)
+		return
 	case exSeq, exChoice, exRanked, exAnd:
 		w.raw("{")
 		w.str(e.Kind)
@@ -562,7 +597,7 @@ func (e *domExpr) writeJSON(w *jsonWriter) {
 			}
 			it.writeJSON(w)
 		}
-		w.raw("]}")
+		w.raw("]")
 	case exOptional:
 		w.raw(`{"optional":`)
 		e.Inner.writeJSON(w)
@@ -573,7 +608,6 @@ func (e *domExpr) writeJSON(w *jsonWriter) {
 			w.raw(`,"default":`)
 			e.Default.writeJSON(w)
 		}
-		w.raw("}")
 	case exRepeat:
 		w.raw(`{"repeat":`)
 		e.Inner.writeJSON(w)
@@ -585,29 +619,24 @@ func (e *domExpr) writeJSON(w *jsonWriter) {
 			w.raw(`,"chain":`)
 			w.str(e.Chain)
 		}
-		w.raw("}")
 	case exRef:
 		w.raw("{")
 		w.str("ref")
 		w.raw(":")
 		w.str(e.Name)
-		w.raw("}")
 	case exSplice:
 		w.raw(`{"splice":`)
 		e.Inner.writeJSON(w)
-		w.raw("}")
 	case exCapture:
 		w.raw(`{"capture":`)
 		w.str(e.Name)
 		w.raw(`,"expr":`)
 		e.Inner.writeJSON(w)
-		w.raw("}")
 	case exLiteral:
 		w.raw(`{"literal":`)
 		e.Value.writeJSON(w)
-		w.raw("}")
 	case exWildcard:
-		w.raw(`{"wildcard":true}`)
+		w.raw(`{"wildcard":true`)
 	case exTest:
 		w.raw(`{"test":`)
 		w.str(e.Op)
@@ -620,14 +649,24 @@ func (e *domExpr) writeJSON(w *jsonWriter) {
 		}
 		w.raw(`,"expr":`)
 		e.Inner.writeJSON(w)
-		w.raw("}")
 	case exEmpty:
-		w.raw(`{"empty":true}`)
+		w.raw(`{"empty":true`)
 	case exRemainder:
-		w.raw(`{"remainder":true}`)
+		w.raw(`{"remainder":true`)
 	case exRange:
 		writeStringRange(w, e.Ends)
+		if e.At != [2]int{} {
+			w.raw(`,"at":`)
+			w.pair(e.At)
+		}
+		w.raw("}")
+		return
 	}
+	if e.At != [2]int{} && !e.atHidden {
+		w.raw(`,"at":`)
+		w.pair(e.At)
+	}
+	w.raw("}")
 }
 
 func (t *domTerm) writeJSON(w *jsonWriter) {
@@ -697,6 +736,8 @@ func (c *domCond) writeJSON(w *jsonWriter) {
 		w.raw(`{"nonempty":`)
 		c.Left.writeJSON(w)
 		w.raw("}")
+	case cdMethod:
+		c.Left.writeJSON(w)
 	case cdForest:
 		c.Left.writeJSON(w)
 	case cdCompare:
@@ -1249,6 +1290,21 @@ func (dc *domDecoder) decodeExprNode(raw any, depth int) (*domExpr, error) {
 
 // decodeExprObj reads an expression, raw, whose members o are decoded.
 func (dc *domDecoder) decodeExprObj(raw any, o domObject, depth int) (*domExpr, error) {
+	e, err := dc.decodeExprObjInner(raw, o, depth)
+	if err != nil || e == nil {
+		return e, err
+	}
+	if rawAt, ok := o["at"]; ok {
+		at, err := domPosition(rawAt)
+		if err != nil {
+			return nil, fmt.Errorf("a malformed expression position")
+		}
+		e.At = at
+	}
+	return e, nil
+}
+
+func (dc *domDecoder) decodeExprObjInner(raw any, o domObject, depth int) (*domExpr, error) {
 	// An expression has exactly the members of one form (docs/output.md).
 	if !hasOneForm(o, exprForms) {
 		return nil, fmt.Errorf("a malformed expression")
@@ -1390,9 +1446,9 @@ func (dc *domDecoder) decodeExprObj(raw any, o domObject, depth int) (*domExpr, 
 // member names the form. A rule argument and a classifier argument are
 // forms of a term too.
 var exprForms = [][]string{
-	{exSplice}, {exSeq}, {exChoice}, {exRanked}, {exAnd}, {exOptional, "elidable?", "default?"}, {exRepeat, "separator?", "chain?"}, {exRef}, {exCapture, "expr"},
+	{exSplice, "at?"}, {exSeq, "at?"}, {exChoice, "at?"}, {exRanked, "at?"}, {exAnd, "at?"}, {exOptional, "elidable?", "default?", "at?"}, {exRepeat, "separator?", "chain?", "at?"}, {exRef, "at?"}, {exCapture, "expr", "at?"},
 	{"param", "at"}, {"call", "args", "at"},
-	{exRange}, {exLiteral}, {exWildcard}, {exTest, "value?", "requirements?", "expr"}, {exEmpty}, {exRemainder},
+	{exRange, "at?"}, {exLiteral, "at?"}, {exWildcard, "at?"}, {exTest, "value?", "requirements?", "expr", "at?"}, {exEmpty, "at?"}, {exRemainder, "at?"},
 }
 
 var termForms = [][]string{

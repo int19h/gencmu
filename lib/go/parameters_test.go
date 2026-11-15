@@ -300,7 +300,8 @@ func TestParameterRankedLocations(t *testing.T) {
 	for _, doc := range x.docs {
 		for _, r := range doc.dom.Rules {
 			if r.Name == "text" {
-				at = r.Alternatives[0].rankedLocations["/seq/1"]
+				// The ranked item of the sequence holds its own at.
+				at = r.Alternatives[0].Expr.Items[1].At
 			}
 		}
 	}
@@ -316,7 +317,8 @@ func TestParameterRankedArgumentLocation(t *testing.T) {
 	for _, doc := range x.docs {
 		for _, r := range doc.dom.Rules {
 			if r.Name == `choice(("a" ≻ "b"))` {
-				at = r.Alternatives[0].rankedLocations[""]
+				// The ranked expression holds its own at.
+				at = r.Alternatives[0].Expr.At
 			}
 		}
 	}
@@ -327,12 +329,12 @@ func TestParameterUncalledTemplateValidation(t *testing.T) {
 	for _, c := range []struct{ source, message string }{
 		{`%rule unused(@X) $x:A $x:@X`, "the capture $x is read twice by one production"},
 		{`%rule unused(@X) $x:(A @X)`, "a capture wraps one symbol"},
-		{`%rule unused(@X) @X %emits $x :: @X, $x`, "an emission lists $x twice"},
-		{`%rule unused(@X) @X %emits ($y) $x ($y) :: @X`, "an emission lists $y twice"},
+		{`%rule unused(@X) @X %emits $x :: @X, $x`, "an emission lists a capture twice"},
+		{`%rule unused(@X) @X %emits ($y) $x ($y) :: @X`, "an emission lists a capture twice"},
 		{`%rule unused(@X) @X :: _General_Category_Letter ∪ @X`, "engine tag"},
 		{`%rule unused(@X) @X :: $.tags ∪ @X`, "a constituent's tags cannot be made of its own: $.tags or $.classes"},
-		{`%rule unused(@X) @X := @X %erased`, "erased"},
-		{`%rule unused(@X) [+| @X]`, "without | or &"},
+		{`%rule unused(@X) @X := @X %erased`, "a recipe beside erasure"},
+		{`%rule unused(@X) [+| @X]`, "a malformed optional"},
 	} {
 		t.Run(c.source, func(t *testing.T) {
 			text := c.source + "\n%rule text \"a\""
@@ -549,7 +551,7 @@ func TestTemplatePatternClosedness(t *testing.T) {
 func TestParameterErrorsUseEffectiveNames(t *testing.T) {
 	text := "%rule use(@X) @X :: @X\n%rule text use(\"a\")"
 	_, err := casePipeline(&engineCase{Grammar: &text}, false)
-	if isGuardedCrash(err) || err == nil || !strings.Contains(err.Error(), `rule use("a"):`) || strings.Contains(err.Error(), "instance-") {
+	if isGuardedCrash(err) || err == nil || !strings.Contains(err.Error(), `use("a")`) || strings.Contains(err.Error(), "instance-") {
 		t.Fatalf("effective name missing: %v", err)
 	}
 }

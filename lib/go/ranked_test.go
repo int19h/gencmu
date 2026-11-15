@@ -108,8 +108,8 @@ func TestValidRankedCacheSkipsLocationRecovery(t *testing.T) {
 		}
 		for _, rule := range dom.Rules {
 			for _, alternative := range rule.Alternatives {
-				if len(alternative.rankedLocations) != 0 {
-					t.Fatal("fresh source-location recovery ran")
+				if !rankedExprLocated(alternative.Expr) {
+					t.Fatal("a fresh ranked expression does not hold its at")
 				}
 			}
 		}
@@ -127,12 +127,29 @@ func TestValidRankedCacheSkipsLocationRecovery(t *testing.T) {
 		}
 		for _, rule := range dom.Rules {
 			for _, alternative := range rule.Alternatives {
-				if len(alternative.rankedLocations) != 0 {
-					t.Fatal("source-location recovery ran")
+				if !rankedExprLocated(alternative.Expr) {
+					t.Fatal("a cached ranked expression does not hold its at")
 				}
 			}
 		}
 	}
+}
+
+// rankedExprLocated says whether every ranked expression in e holds
+// its own at, which is its first ≻ separator (docs/output.md).
+func rankedExprLocated(e *domExpr) bool {
+	if e == nil {
+		return true
+	}
+	if e.Kind == exRanked && e.At == [2]int{} {
+		return false
+	}
+	for _, child := range exprChildren(e) {
+		if !rankedExprLocated(child) {
+			return false
+		}
+	}
+	return true
 }
 
 func TestDeferredRecipePrecedesEmptyEmission(t *testing.T) {

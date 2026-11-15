@@ -1,6 +1,9 @@
 package gencmu
 
-import "strings"
+import (
+	"slices"
+	"strings"
+)
 
 func unresolvedTerm(t *domTerm) bool {
 	return t != nil && (t.Kind == tmParam || t.Kind == tmSourceCall)
@@ -13,10 +16,11 @@ func (c *domChecker) ruleName(name string) bool {
 func (c *domChecker) parameter(name string, at [2]int) {
 	c.unresolved = true
 	if !domName.MatchString(name) || !c.parameters[name] || at[0] <= 0 || at[1] <= 0 {
-		c.fail("an undeclared or malformed parameter")
-		if c.problem != nil {
-			c.problem.at = at
+		message := "an undeclared or malformed parameter"
+		if domName.MatchString(name) && at[0] > 0 && at[1] > 0 {
+			message = "undeclared parameter @" + name
 		}
+		c.failAt(at, "%s", message)
 	}
 }
 
@@ -108,33 +112,78 @@ func (c *domChecker) target(t *domTerm, depth int) {
 }
 
 func (c *domChecker) sourceHead(r *domRule) {
-	if (r.Params != nil || r.Args != nil || r.Instance != nil) && !c.ruleName(r.Name) {
-		c.fail("a malformed rule name")
+	nameAt := r.nameAt
+	if nameAt == [2]int{} {
+		nameAt = r.At
 	}
 	if r.Params != nil {
 		c.parameters = map[string]bool{}
 		c.unresolved = true
-		if len(r.Params) == 0 || r.Args != nil || r.Instance != nil {
-			c.fail("malformed template parameters")
-		}
+		valid := len(r.Params) > 0 && r.Args == nil && r.Instance == nil
 		for _, name := range r.Params {
-			if !domName.MatchString(name) || c.parameters[name] {
-				c.fail("malformed template parameters")
+			valid = valid && domName.MatchString(name)
+		}
+		if !valid {
+			c.failAt(r.At, "malformed template parameters")
+			return
+		}
+		for i, name := range r.Params {
+			if c.parameters[name] {
+				var at [2]int
+				if i < len(r.paramAts) {
+					at = r.paramAts[i]
+				}
+				if at == [2]int{} {
+					at = r.At
+				}
+				c.failAt(at, "duplicate parameter @%s", name)
+				return
 			}
 			c.parameters[name] = true
 		}
 	}
-	if r.Args != nil {
-		if r.Op == "define" || r.Instance != nil {
-			c.fail("an instance head requires an edit")
-		}
-		c.sourceCall(&domSourceCall{Name: r.Name, Args: r.Args, At: r.At}, 0)
-	}
 	if r.Instance != nil {
+		if r.hasHead {
+			c.failAt(r.At, "a binding requires a plain rule name")
+			return
+		}
+		if !c.ruleName(r.Name) {
+			c.failAt(nameAt, "a rule name starts with a lowercase letter or uses one eligible emoji")
+			return
+		}
 		if r.Op == "extend" || len(r.Conditions) != 0 || len(r.Alternatives) != 0 ||
 			r.Tags != nil || r.Value != nil || r.Image != nil || r.Error != nil || r.Warning != nil || r.SuppressWarnings != nil || r.Emit != nil || r.Erased {
-			c.fail("a malformed instance binding")
+			c.failAt(nameAt, "a malformed instance binding")
 		}
+		return
+	}
+	if r.Args != nil {
+		if len(r.Args) == 0 {
+			c.failAt(nameAt, "a malformed call")
+			return
+		}
+		for _, a := range r.Args {
+			if a != nil && (termHasUnresolved(a.Term) || exprHasUnresolved(a.Expr) || slices.ContainsFunc(a.Targets, termHasUnresolved) || slices.ContainsFunc(a.Requirements, func(r tagRequirement) bool { return termHasUnresolved(r.Value) })) {
+				c.failAt(nameAt, "a head cannot mix parameters and concrete arguments")
+				return
+			}
+		}
+		if r.Op != "redefine" && r.Op != "extend" {
+			c.failAt(nameAt, "an instance head requires an edit")
+			return
+		}
+	}
+	if !c.ruleName(r.Name) {
+		c.failAt(nameAt, "a rule name starts with a lowercase letter or uses one eligible emoji")
+	}
+}
+
+// sourceHeadCalls checks the call of an instance binding or an edit's
+// head, which come after the rule's header (engine §9.3 step 5).
+func (c *domChecker) sourceHeadCalls(r *domRule) {
+	if r.Instance != nil {
 		c.sourceCall(r.Instance, 0)
+	} else if r.Args != nil {
+		c.sourceCall(&domSourceCall{Name: r.Name, Args: r.Args, At: r.At}, 0)
 	}
 }

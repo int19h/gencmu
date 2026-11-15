@@ -60,69 +60,59 @@ func validateDOM(d *domDoc, uni *unicodeTable) error {
 func checkDOM(d *domDoc, uni *unicodeTable) *domProblem { return checkDOMMode(d, uni, false) }
 func checkDOMMode(d *domDoc, uni *unicodeTable, expanded bool) *domProblem {
 	d.unresolved = false
-	for _, dir := range d.Directives {
-		if dir == nil || !directiveOperandsOK(dir) {
-			return &domProblem{message: "a malformed directive"}
-		}
-		if dir.Conditions != nil {
-			if dir.Name != "features" || len(dir.Conditions) == 0 {
-				return &domProblem{message: "malformed feature conditions", at: dir.At}
-			}
-			checker := &domChecker{uni: uni, label: "%features", deferTypes: true}
-			for _, condition := range dir.Conditions {
-				checker.condition(condition, 0)
-				if checker.problem != nil {
-					checker.problem.at = dir.At
-					return checker.problem
-				}
-			}
-			d.unresolved = d.unresolved || checker.unresolved
+	for _, r := range d.Rules {
+		if r == nil {
+			return &domProblem{message: "a malformed rule"}
 		}
 	}
-	// The order of a document's items is the order of their positions, so
-	// no two items share one (engine §9).
-	positions := map[[2]int]bool{}
+	for _, dir := range d.Directives {
+		if dir == nil {
+			return &domProblem{message: "a malformed directive"}
+		}
+	}
 	for _, k := range d.Constants {
 		if k == nil {
 			return &domProblem{message: "a malformed constant"}
 		}
-		if positions[k.At] {
-			return &domProblem{message: "two items at one position"}
-		}
-		positions[k.At] = true
-	}
-	for _, r := range d.Rules {
-		if r == nil {
-			continue
-		}
-		if positions[r.At] {
-			return &domProblem{message: "two items at one position"}
-		}
-		positions[r.At] = true
-	}
-	for _, dir := range d.Directives {
-		if positions[dir.At] {
-			return &domProblem{message: "two items at one position"}
-		}
-		positions[dir.At] = true
 	}
 	for _, c := range d.Classifiers {
 		if c == nil {
 			return &domProblem{message: "a malformed classifier"}
 		}
-		if positions[c.At] {
-			return &domProblem{message: "two items at one position"}
-		}
-		positions[c.At] = true
 	}
 	for _, m := range d.Implications {
 		if m == nil {
 			return &domProblem{message: "a malformed implication"}
 		}
-		if positions[m.At] {
-			return &domProblem{message: "two items at one position"}
+	}
+	// The order of a document's items is the order of their positions, so
+	// no two items share one (engine §9.3 step 5): rules, directives,
+	// constants, classifiers and implications, in that order.
+	positions := map[[2]int]bool{}
+	var twice *domProblem
+	place := func(at [2]int) {
+		if twice == nil && positions[at] {
+			twice = &domProblem{message: "two items at one position", at: at}
 		}
-		positions[m.At] = true
+		positions[at] = true
+	}
+	for _, r := range d.Rules {
+		place(r.At)
+	}
+	for _, dir := range d.Directives {
+		place(dir.At)
+	}
+	for _, k := range d.Constants {
+		place(k.At)
+	}
+	for _, c := range d.Classifiers {
+		place(c.At)
+	}
+	for _, m := range d.Implications {
+		place(m.At)
+	}
+	if twice != nil {
+		return twice
 	}
 	namesPositions := map[[2]int]bool{}
 	for _, dir := range d.Directives {
@@ -136,74 +126,136 @@ func checkDOMMode(d *domDoc, uni *unicodeTable, expanded bool) *domProblem {
 			firstStatement = at
 		}
 	}
+	var lateNames *domDirective
 	for _, dir := range d.Directives {
-		if dir.Name == "names" && firstStatement != [2]int{} && before(firstStatement, dir.At) {
-			return &domProblem{message: "%names must precede every other statement", at: dir.At}
+		if dir.Name == "names" && firstStatement != [2]int{} && before(firstStatement, dir.At) && (lateNames == nil || before(dir.At, lateNames.At)) {
+			lateNames = dir
 		}
+	}
+	if lateNames != nil {
+		return &domProblem{message: "%names must precede every other statement", at: lateNames.At}
+	}
+	// Each declaration, in the order of its position, gets its structural
+	// checks and then its semantic ones (engine §9.3 step 5). run sets
+	// *semantic before it returns a semantic fault.
+	type inspection struct {
+		at  [2]int
+		run func(semantic *bool) *domProblem
+	}
+	var inspections []inspection
+	var firstDeep *domProblem
+	noteDeep := func(c *domChecker) {
+		if firstDeep == nil && c.deepProblem != nil {
+			firstDeep = c.deepProblem
+		}
+	}
+	for _, dir := range d.Directives {
+		inspections = append(inspections, inspection{dir.At, func(semantic *bool) *domProblem {
+			if p := directiveHeaderProblem(dir); p != "" {
+				return &domProblem{message: p, at: dir.At}
+			}
+			if dir.Conditions == nil {
+				return nil
+			}
+			// Every fault in a feature condition stands at its directive.
+			checker := &domChecker{uni: uni, label: "%features", deferTypes: true, featureAt: dir.At}
+			for _, condition := range dir.Conditions {
+				checker.condition(condition, 0)
+				if checker.problem != nil {
+					return checker.problem
+				}
+			}
+			d.unresolved = d.unresolved || checker.unresolved
+			*semantic = true
+			if checker.argCapture != nil {
+				checker.argCapture.at = dir.At
+				return checker.argCapture
+			}
+			if checker.deepProblem != nil {
+				checker.deepProblem.at = dir.At
+			}
+			noteDeep(checker)
+			return nil
+		}})
 	}
 	// A classifier: its name, and entries of gates, exact string keys, an
 	// operator and a class (engine §2, §9).
 	for _, c := range d.Classifiers {
-		if !classifierName.MatchString(c.Name) || c.Entries == nil {
-			return &domProblem{message: "a malformed classifier"}
-		}
-		for _, e := range c.Entries {
-			if p := entryProblem(e, uni); p != nil {
-				p.message = fmt.Sprintf("classifier %s: %s", c.Name, p.message)
-				p.at = c.At
-				return p
+		inspections = append(inspections, inspection{c.At, func(*bool) *domProblem {
+			if !classifierName.MatchString(c.Name) || c.Entries == nil {
+				at := c.nameAt
+				if at == [2]int{} {
+					at = c.At
+				}
+				if c.Entries != nil {
+					return &domProblem{message: c.Name + " begins with a capital, so it is a tag; a classifier's name begins with a lower-case letter", at: at}
+				}
+				return &domProblem{message: "a malformed classifier", at: at}
 			}
-		}
+			for _, e := range c.Entries {
+				if p := entryProblem(e, uni); p != nil {
+					if p.at == [2]int{} {
+						p.at = c.At
+						if e != nil && e.At != [2]int{} {
+							p.at = e.At
+						}
+					}
+					return p
+				}
+			}
+			return nil
+		}})
 	}
-	type inspection struct {
-		at  [2]int
-		run func() *domProblem
-	}
-	var inspections []inspection
 	for _, r := range d.Rules {
 		if r == nil {
 			return &domProblem{message: "a malformed rule"}
 		}
-		inspections = append(inspections, inspection{r.At, func() *domProblem {
-			if !(isRuleName(r.Name, uni) || expanded && strings.Contains(r.Name, "(") && strings.HasSuffix(r.Name, ")")) || (r.Op != "define" && r.Op != "redefine" && r.Op != "extend") || r.Instance == nil && len(r.Alternatives) == 0 {
-				return &domProblem{message: "a malformed rule"}
-			}
-
-			c := &domChecker{rule: r, label: "rule " + r.Name, uni: uni, expanded: expanded}
+		inspections = append(inspections, inspection{r.At, func(semantic *bool) *domProblem {
+			// The header, then its head call, tags, value, image,
+			// alternatives, conditions, diagnostic and emission, each
+			// with what it holds (engine §9.3 step 5).
+			c := &domChecker{rule: r, label: "rule " + r.Name, uni: uni, expanded: expanded, declAt: r.At}
 			c.sourceHead(r)
+			if c.problem == nil && (r.Op != "define" && r.Op != "redefine" && r.Op != "extend" || r.Instance != nil && r.Op == "extend" || r.Instance == nil && len(r.Alternatives) == 0) {
+				at := r.nameAt
+				if at == [2]int{} {
+					at = r.At
+				}
+				c.failAt(at, "a malformed rule")
+			}
+			if c.problem == nil && r.Instance == nil {
+				if r.Error != nil && r.Warning != nil || r.Params != nil && (r.Error != nil || r.Warning != nil) {
+					c.fail("a definition accepts one diagnostic, and a template accepts none")
+				}
+				if r.SuppressWarnings != nil {
+					if len(r.SuppressWarnings) == 0 {
+						c.fail("a malformed warning suppression")
+					}
+					for _, code := range r.SuppressWarnings {
+						if code == "_" && len(r.SuppressWarnings) != 1 || code != "_" && !nameSyntaxFeature.MatchString(code) {
+							c.fail("a malformed warning suppression")
+						}
+					}
+				}
+			}
+			if c.problem == nil {
+				c.sourceHeadCalls(r)
+			}
 			d.unresolved = d.unresolved || c.unresolved
 			if r.Instance != nil {
 				if c.problem != nil {
 					return c.problem
 				}
+				*semantic = true
+				if c.argCapture != nil {
+					return c.argCapture
+				}
+				noteDeep(c)
 				return nil
 			}
 			c.constituentTags(r.Tags)
 			c.recipe(r.Value)
 			c.recipe(r.Image)
-			if r.Error != nil && r.Warning != nil || r.Params != nil && (r.Error != nil || r.Warning != nil) {
-				c.fail("a template accepts no diagnostic, and a rule accepts only one")
-			}
-			for _, recipe := range []*domTerm{r.Error, r.Warning} {
-				c.recipe(recipe)
-				if recipe != nil && messageReadsEmitted(recipe) {
-					c.fail("a message recipe cannot read .emitted")
-				}
-			}
-			if r.SuppressWarnings != nil {
-				if len(r.SuppressWarnings) == 0 {
-					c.fail("a malformed suppression list")
-				}
-				for _, code := range r.SuppressWarnings {
-					if code == "_" && len(r.SuppressWarnings) != 1 || code != "_" && !nameSyntaxFeature.MatchString(code) {
-						c.fail("a malformed suppression list")
-					}
-				}
-			}
-			c.emission(r.Emit)
-			for _, cond := range r.Conditions {
-				c.condition(cond, 0)
-			}
 			for _, a := range r.Alternatives {
 				if a == nil || a.Gates == nil {
 					c.fail("a malformed alternative")
@@ -224,6 +276,16 @@ func checkDOMMode(d *domDoc, uni *unicodeTable, expanded bool) *domProblem {
 				c.recipe(a.Value)
 				c.recipe(a.Image)
 			}
+			for _, cond := range r.Conditions {
+				c.condition(cond, 0)
+			}
+			for _, recipe := range []*domTerm{r.Error, r.Warning} {
+				if recipe != nil && c.problem == nil && recipe.Kind == tmConcat && len(recipe.Items) > 0 && messageReadsEmitted(recipe) {
+					c.failAt(recipe.ClauseAt, "a message recipe cannot read .emitted")
+				}
+				c.recipe(recipe)
+			}
+			c.emission(r.Emit)
 			if c.problem != nil {
 				return c.problem
 			}
@@ -231,21 +293,38 @@ func checkDOMMode(d *domDoc, uni *unicodeTable, expanded bool) *domProblem {
 			if c.unresolved && !c.ruleName(r.Name) {
 				return &domProblem{message: "a malformed rule name", rule: r}
 			}
-			if r.Erased && (r.Emit != nil || hasStringRecipes(r)) {
-				return &domProblem{message: "an erased rule has an emission or recipe", rule: r}
-			}
+			*semantic = true
 			d.unresolved = d.unresolved || c.unresolved
-			// A capture name stands at most once in each production (engine
-			// §3.5).
+			// The semantic pass of §9.3 step 5, in its order: the header
+			// tag clause, then each alternative's duplicate and repeated
+			// item captures and its tag clause, then rule type
+			// inspection, emission duplicates, boundary atoms, erased
+			// emission, and whole-definition inspection.
+			if p := tagClauseSemantic(r.Tags, r); p != nil {
+				return p
+			}
 			for _, a := range r.Alternatives {
 				if twice := duplicateCaptures(a.Expr); len(twice) > 0 {
-					return &domProblem{message: fmt.Sprintf("rule %s: a capture name used twice in one production", r.Name), rule: r}
+					var first *domExpr
+					for _, capture := range allCaptures(a.Expr) {
+						if !twice[capture] {
+							continue
+						}
+						if first == nil || capture.At != [2]int{} && (first.At == [2]int{} || before(capture.At, first.At)) {
+							first = capture
+						}
+					}
+					return &domProblem{message: fmt.Sprintf("the capture $%s is read twice by one production of the alternative", first.Name), rule: r, at: first.At}
+				}
+				if repeated := repeatedItemCapture(a.Expr); repeated != nil {
+					return &domProblem{message: fmt.Sprintf("the item capture $%s is read again: the name of an item capture stands once in its alternative", repeated.Name), rule: r, at: repeated.At}
+				}
+				if p := tagClauseSemantic(a.Tags, r); p != nil {
+					return p
 				}
 			}
-			for _, a := range r.Alternatives {
-				if repeatsItemCapture(a.Expr) {
-					return &domProblem{message: "the name of an item capture used twice in one alternative", rule: r}
-				}
+			if c.argCapture != nil {
+				return c.argCapture
 			}
 			// The values of its tests, once the nesting is bounded (engine §9).
 			for _, t := range c.tests {
@@ -253,67 +332,113 @@ func checkDOMMode(d *domDoc, uni *unicodeTable, expanded bool) *domProblem {
 					return &domProblem{message: fmt.Sprintf("rule %s: %s", r.Name, f.problem), rule: r}
 				}
 			}
-			// The definition as a whole (engine §9, the end), and the types of
-			// its terms and conditions (engine §10).
-			if !c.unresolved && c.hasBoundary {
-				if _, msg := boundaryRuleProblem(r); msg != "" {
-					return &domProblem{message: msg, rule: r}
-				}
-			}
 			checked := r
 			if c.unresolved {
 				checked = partialSourceRule(r)
-				if f := ruleTypeFault(checked, nil); f != nil {
-					return &domProblem{message: f.problem, rule: r}
+			}
+			if f := ruleTypeFault(checked, nil); f != nil {
+				return &domProblem{message: f.problem, rule: r, at: faultNodeAt(f.node)}
+			}
+			if checked != r {
+				// A partial rule replaces a call recipe atom with an
+				// unresolved constant, so the atom's shape is checked
+				// on the rule as written.
+				for _, recipe := range ruleRecipes(r) {
+					for _, atom := range recipe.Items {
+						if f := recipeAtomFault(atom); f != nil {
+							return &domProblem{message: f.problem, rule: r, at: faultNodeAt(f.node)}
+						}
+					}
 				}
-				if _, msg := boundaryRuleProblem(checked); msg != "" {
-					return &domProblem{message: msg, rule: r}
+			}
+			if r.Emit != nil {
+				listed := map[string]bool{}
+				for _, it := range r.Emit.Items {
+					if it == nil {
+						continue
+					}
+					names := it.attachments()
+					if it.Capture != "" {
+						names = append([]string{it.Capture}, names...)
+					}
+					for _, name := range names {
+						if listed[name] {
+							return &domProblem{message: "an emission lists a capture twice", rule: r, at: r.Emit.At}
+						}
+						listed[name] = true
+					}
 				}
+			}
+			if !c.unresolved && c.hasBoundary {
+				if atom, msg := boundaryRuleProblem(r); msg != "" {
+					return &domProblem{message: msg, rule: r, at: faultNodeAt(atom)}
+				}
+			}
+			if c.unresolved {
+				if atom, msg := boundaryRuleProblem(checked); msg != "" {
+					return &domProblem{message: msg, rule: r, at: faultNodeAt(atom)}
+				}
+			}
+			if r.Erased && (r.Emit != nil || r.Value != nil || r.Image != nil) {
+				return &domProblem{message: "a malformed erased rule", rule: r}
+			}
+			if r.Erased && slices.ContainsFunc(r.Alternatives, func(a *domAlt) bool { return a.Value != nil || a.Image != nil }) {
+				return &domProblem{message: "a recipe beside erasure", rule: r}
 			}
 			result := checkDefinition(checked, true)
 			r.deferredEmission = result.deferred
 			if result.problem != nil {
 				return &domProblem{message: result.problem.message, rule: r}
 			}
-			if !c.unresolved {
-				if msg := ruleTypeProblem(r); msg != "" {
-					return &domProblem{message: fmt.Sprintf("rule %s: %s", r.Name, msg), rule: r}
-				}
-			}
+			noteDeep(c)
 			return nil
 		}})
 	}
 	// A constant's definition: its name, its op, and a value that is a
 	// closed term of a type that a constant can have (engine §2, §10).
 	for _, k := range d.Constants {
-		inspections = append(inspections, inspection{k.At, func() *domProblem {
+		inspections = append(inspections, inspection{k.At, func(semantic *bool) *domProblem {
 			if !constName.MatchString(k.Name) || (k.Op != "define" && k.Op != "redefine") || k.Value == nil {
-				return &domProblem{message: "a malformed constant", constant: k}
+				at := k.NameAt
+				if at == [2]int{} {
+					at = k.At
+				}
+				if !constName.MatchString(k.Name) {
+					return &domProblem{message: "a constant requires a user name", constant: k, at: at}
+				}
+				return &domProblem{message: "a malformed constant", constant: k, at: at}
 			}
 			c := &domChecker{constant: k, label: "constant $" + k.Name, uni: uni}
 			c.term(k.Value, 0, false)
 			if c.problem != nil {
 				return c.problem
 			}
+			*semantic = true
 			d.unresolved = d.unresolved || c.unresolved
-			// The walks below recurse, so they run only once the nesting is
-			// bounded.
-			if hasEngineLiteral(k.Value) {
-				return &domProblem{message: "a constant contains an engine-tag literal", constant: k}
+			if c.argCapture != nil {
+				return c.argCapture
 			}
-			if openPart(k.Value) != nil {
-				return &domProblem{message: fmt.Sprintf("constant $%s: a constant's value is not a closed term", k.Name), constant: k}
+			// Closedness and engine-tag literals in one walk, then the
+			// value's type (engine §9.3 step 5).
+			if p := closedTermFault(k.Value, "a constant's value", k.At); p != nil {
+				p.constant = k
+				return p
 			}
 			if _, f := constantValueType(k.Value, k.Op == "redefine", nil); f != nil {
-				return &domProblem{message: fmt.Sprintf("constant $%s: %s", k.Name, f.problem), constant: k}
+				at := faultNodeAt(f.node)
+				if at == [2]int{} {
+					at = k.Value.At
+				}
+				return &domProblem{message: f.problem, constant: k, at: at}
 			}
+			noteDeep(c)
 			return nil
 		}})
 	}
 	// An implication: two closed terms whose type is a tag set, checked
 	// once the nesting is bounded (engine §2, §9).
 	for _, m := range d.Implications {
-		inspections = append(inspections, inspection{m.At, func() *domProblem {
+		inspections = append(inspections, inspection{m.At, func(semantic *bool) *domProblem {
 			c := &domChecker{implication: m, label: "an implication", uni: uni}
 			for _, side := range []*domTerm{m.If, m.Then} {
 				if side == nil {
@@ -324,15 +449,29 @@ func checkDOMMode(d *domDoc, uni *unicodeTable, expanded bool) *domProblem {
 			if c.problem != nil {
 				return c.problem
 			}
+			*semantic = true
 			d.unresolved = d.unresolved || c.unresolved
+			if c.argCapture != nil {
+				return c.argCapture
+			}
 			for _, side := range []*domTerm{m.If, m.Then} {
-				if hasEngineLiteral(side) {
-					return &domProblem{message: "an implication contains an engine-tag literal", implication: m}
+				sideAt := side.At
+				if sideAt == [2]int{} {
+					sideAt = m.At
 				}
-				if msg := implicationSideProblem(side, nil); msg != "" {
-					return &domProblem{message: "an implication: " + msg, implication: m}
+				if p := closedTermFault(side, "a side of an implication", sideAt); p != nil {
+					p.implication = m
+					return p
+				}
+				if f := implicationSideFault(side, nil); f != nil {
+					at := faultNodeAt(f.node)
+					if at == [2]int{} {
+						at = sideAt
+					}
+					return &domProblem{message: f.problem, implication: m, at: at}
 				}
 			}
+			noteDeep(c)
 			return nil
 		}})
 	}
@@ -340,7 +479,7 @@ func checkDOMMode(d *domDoc, uni *unicodeTable, expanded bool) *domProblem {
 		if dir.Name != "ambiguity-resolution" {
 			continue
 		}
-		inspections = append(inspections, inspection{dir.At, func() *domProblem {
+		inspections = append(inspections, inspection{dir.At, func(semantic *bool) *domProblem {
 			c := &domChecker{uni: uni, label: "%ambiguity-resolution", expanded: expanded}
 			for _, step := range dir.Steps {
 				if step.Pattern != nil {
@@ -352,16 +491,154 @@ func checkDOMMode(d *domDoc, uni *unicodeTable, expanded bool) *domProblem {
 				return c.problem
 			}
 			d.unresolved = d.unresolved || c.unresolved
+			*semantic = true
+			if c.argCapture != nil {
+				return c.argCapture
+			}
+			noteDeep(c)
 			return nil
 		}})
 	}
-	slices.SortFunc(inspections, func(a, b inspection) int { return slices.Compare(a.at[:], b.at[:]) })
+	// The first fault stands, except that a ranked-choice syntax fault
+	// in a later declaration replaces an earlier semantic one. The depth
+	// bound is reported only when no other fault stands (engine §9.3).
+	slices.SortStableFunc(inspections, func(a, b inspection) int { return slices.Compare(a.at[:], b.at[:]) })
+	var firstSemantic *domProblem
 	for _, inspection := range inspections {
-		if problem := inspection.run(); problem != nil {
+		semantic := false
+		problem := inspection.run(&semantic)
+		if problem == nil {
+			continue
+		}
+		if !semantic && problem.code == "ranked-choice-syntax" {
 			return problem
 		}
+		if !semantic && strings.HasSuffix(problem.message, "split has an empty delimiter") {
+			semantic = true
+		}
+		if firstSemantic == nil {
+			if !semantic {
+				return problem
+			}
+			firstSemantic = problem
+		}
 	}
+	if firstSemantic != nil {
+		return firstSemantic
+	}
+	return firstDeep
+}
 
+// closedTermFault is the first part of a constant's value or a side of
+// an implication, in written order, that a closed term cannot hold: a
+// capture, a guarded term, an engine-tag literal, or an input method
+// (engine §9.3 step 5). A pattern's own values are not walked. at is
+// the position of the enclosing node.
+func closedTermFault(t *domTerm, closedFor string, at [2]int) *domProblem {
+	if t == nil {
+		return nil
+	}
+	if t.At != [2]int{} {
+		at = t.At
+	}
+	switch {
+	case t.Kind == tmCapture:
+		return &domProblem{message: closedFor + " is a closed term, and holds no capture", at: at}
+	case t.Kind == tmIf:
+		return &domProblem{message: closedFor + " is a closed term, and holds no guarded term", at: at}
+	case t.Kind == tmTag && strings.HasPrefix(t.Str, "_"):
+		return &domProblem{message: closedFor + " cannot contain an engine-tag literal", at: at}
+	case t.Kind == tmPattern:
+		return nil
+	case t.Kind == tmCall:
+		if t.Str != "split" && t.Str != "ngrams" {
+			if len(t.Items) > 0 {
+				if p := closedTermFault(t.Items[0], closedFor, at); p != nil {
+					return p
+				}
+			}
+			return &domProblem{message: closedFor + " cannot read an input method", at: at}
+		}
+	case t.Kind == tmUnion || t.Kind == tmIntersection || t.Kind == tmDifference || t.Kind == tmConcat:
+	default:
+		return nil
+	}
+	for _, it := range t.Items {
+		if p := closedTermFault(it, closedFor, at); p != nil {
+			return p
+		}
+	}
+	return nil
+}
+
+// tagClauseSemantic is the semantic fault of one tag clause, or nil:
+// its type first, then whether it reads the tags it defines (engine
+// §9.3 step 5).
+func tagClauseSemantic(t *domTerm, r *domRule) *domProblem {
+	if t == nil {
+		return nil
+	}
+	if f := tagTermFault(t, nil); f != nil {
+		at := faultNodeAt(f.node)
+		if at == [2]int{} {
+			at = t.ClauseAt
+		}
+		return &domProblem{message: f.problem, rule: r, at: at}
+	}
+	if readsOwnTags(t) {
+		at := t.ClauseAt
+		if at == [2]int{} {
+			at = t.At
+		}
+		return &domProblem{message: "a constituent's tags cannot be made of its own: $.tags or $.classes", rule: r, at: at}
+	}
+	return nil
+}
+
+// faultNodeAt is the position a type fault's node carries, or the zero
+// position, in which case the declaration's position stands.
+func faultNodeAt(node any) [2]int {
+	switch n := node.(type) {
+	case *domTerm:
+		if n != nil {
+			// A tag clause's term whose own type is not a tag set stands
+			// where it is written, parentheses and all.
+			if n.TagAt != [2]int{} {
+				if _, inner := termTypeIn(n, nil); inner == nil {
+					return n.TagAt
+				}
+			}
+			return n.At
+		}
+	case *domExpr:
+		if n != nil {
+			return n.At
+		}
+	case *domCond:
+		if n != nil {
+			return n.At
+		}
+	}
+	return [2]int{}
+}
+
+// repeatedItemCapture is the later capture, in written order, whose name
+// is an item capture that stands again in its alternative, or nil.
+func repeatedItemCapture(e *domExpr) *domExpr {
+	items := itemCaptures(e)
+	if len(items) == 0 {
+		return nil
+	}
+	seen := map[string]bool{}
+	for _, capture := range allCaptures(e) {
+		if _, item := items[capture.Name]; !item {
+			continue
+		}
+		if seen[capture.Name] {
+			return capture
+		}
+		seen[capture.Name] = true
+	}
 	return nil
 }
 
@@ -376,41 +653,35 @@ var (
 // entryProblem validates classifier gates, keys, operators, and classes.
 // Each key is a string term. Each class starts and ends uppercase.
 func entryProblem(e *domEntry, uni *unicodeTable) *domProblem {
-	if e == nil || e.Gates == nil || (e.Op != "∈" && e.Op != "∉") || (!className.MatchString(e.Class) || !isClass(e.Class)) || len(e.KeyTerms) == 0 {
-		return &domProblem{message: "a malformed entry of a classifier"}
+	if e == nil || e.Gates == nil || (e.Op != "∈" && e.Op != "∉") || len(e.KeyTerms) == 0 {
+		return &domProblem{message: "a malformed classifier entry"}
 	}
 	for _, g := range e.Gates {
-		if g.Kind != FeatureGate {
-			return &domProblem{message: "a malformed entry of a classifier: an entry takes gates only, not a warning"}
-		}
-		if !nameSyntaxFeature.MatchString(g.Feature) {
-			return &domProblem{message: "a malformed entry of a classifier: a gate's feature is a name"}
+		if g.Kind != FeatureGate || !nameSyntaxFeature.MatchString(g.Feature) {
+			return &domProblem{message: "a malformed classifier entry"}
 		}
 	}
 	for _, key := range e.KeyTerms {
 		if !stringTermShape(key) {
-			return &domProblem{message: "a classifier key requires a string term"}
+			return &domProblem{message: "a malformed classifier key", at: key.At}
 		}
-		c := &domChecker{uni: uni}
+	}
+	// The keys' terms, then the class (engine §9.3 step 5).
+	for _, key := range e.KeyTerms {
+		c := &domChecker{uni: uni, at: e.At}
 		c.term(key, 0, false)
 		if c.problem != nil {
 			return c.problem
 		}
 	}
+	if !className.MatchString(e.Class) || !isClass(e.Class) {
+		at := e.classAt
+		if at == [2]int{} {
+			at = e.At
+		}
+		return &domProblem{message: e.Class + " is not a class: a class starts and ends with a capital", at: at}
+	}
 	return nil
-}
-
-// implicationSideProblem is why a side of an implication is not a closed
-// term whose type is a tag set, or "" (engine §2, §9, §10); ct gives each
-// constant's type, where the loader knows it.
-func implicationSideProblem(side *domTerm, ct constTypes) string {
-	if openPart(side) != nil {
-		return "a side of an implication is not a closed term"
-	}
-	if f := implicationSideFault(side, ct); f != nil {
-		return f.problem
-	}
-	return ""
 }
 
 // implicationSideFault is why a side of an implication is not a tag set,
@@ -431,6 +702,35 @@ func implicationSideFault(side *domTerm, ct constTypes) *typeFault {
 // stage selectors take one name, %include one string, %features one or more
 // names and %elision-only none. %ambiguity-resolution has well-formed steps
 // in place of operands.
+// directiveHeaderProblem is why a directive's name, conditions or
+// operands are malformed, in the order of engine §9.3 step 5, or "".
+func directiveHeaderProblem(dir *domDirective) string {
+	switch {
+	case !directiveNames[dir.Name]:
+		return "a malformed directive"
+	case dir.Conditions != nil && dir.Name != "features":
+		return "only %features accepts conditions"
+	case dir.Conditions != nil && len(dir.Conditions) == 0:
+		return "malformed feature conditions"
+	case dir.Name == "ambiguity-resolution":
+		if !directiveOperandsOK(dir) {
+			return "%ambiguity-resolution requires a pattern for each key step and no operand on a final lean"
+		}
+	case directiveOperandsOK(dir):
+	case dir.Args == nil || dir.Steps != nil || dir.Name == "elision-only":
+		return "a malformed directive"
+	case dir.Name == "stage" || dir.Name == "extend-stage" || dir.Name == "redefine-stage":
+		return "%" + dir.Name + " takes one lowercase name"
+	case dir.Name == "features":
+		return "%features takes feature names"
+	default:
+		return "a malformed directive"
+	}
+	return ""
+}
+
+var directiveNames = map[string]bool{"stage": true, "extend-stage": true, "redefine-stage": true, "include": true, "names": true, "features": true, "elision-only": true, "ambiguity-resolution": true}
+
 func directiveOperandsOK(dir *domDirective) bool {
 	if dir.Name == "ambiguity-resolution" {
 		return dir.Args == nil && validSteps(dir.Steps)
@@ -476,6 +776,87 @@ type domChecker struct {
 	uni             *unicodeTable
 	tests           []*domExpr // the tested symbols seen, whose values are checked once the nesting is bounded
 	problem         *domProblem
+	// at is the position of the node being checked, or of the nearest
+	// enclosing node with one, where a fault stands. featureAt is a
+	// %features directive's position, where every fault in its
+	// conditions stands.
+	at, featureAt [2]int
+	// query says the term checked is a condition's method, and
+	// inRecipe that it is an atom of a recipe (engine §9.3 step 5).
+	query, inRecipe bool
+	// setAt is the position of a set condition's operation while its
+	// operands are checked, and nodeSetAt its value at the term being
+	// checked (engine §9.3 step 5).
+	setAt, nodeSetAt [2]int
+	// declAt is the position of the declaration checked.
+	declAt [2]int
+	// argCapture is the first capture read or declared in an argument,
+	// a semantic fault that the semantic pass reports in its order
+	// (engine §9.3 step 5, firstCaptureArgIn).
+	argCapture *domProblem
+	// deepProblem is the first node beyond the depth bound, reported
+	// after all declarations pass their other checks.
+	deepProblem *domProblem
+	// flat says the walk is below the depth bound, where each node is a
+	// task on an explicit stack and batch collects a task's children,
+	// so the native stack stays bounded however deep a DOM nests.
+	flat  bool
+	batch []func()
+}
+
+// checkContext is what a node's check reads of the walk around it.
+type checkContext struct {
+	at, setAt, nodeSetAt                                    [2]int
+	query, inRecipe, parseBody, inArgument, patternArgument bool
+}
+
+func (c *domChecker) context() checkContext {
+	return checkContext{c.at, c.setAt, c.nodeSetAt, c.query, c.inRecipe, c.parseBody, c.inArgument, c.patternArgument}
+}
+
+func (c *domChecker) restore(k checkContext) {
+	c.at, c.setAt, c.nodeSetAt = k.at, k.setAt, k.nodeSetAt
+	c.query, c.inRecipe, c.parseBody, c.inArgument, c.patternArgument = k.query, k.inRecipe, k.parseBody, k.inArgument, k.patternArgument
+}
+
+// visit checks a node now, or, below the depth bound, as a task of the
+// explicit stack, in the context it is reached in. Tasks run in written
+// order, each before the nodes that follow it.
+func (c *domChecker) visit(depth int, check func()) {
+	if c.flat {
+		k := c.context()
+		c.batch = append(c.batch, func() {
+			c.restore(k)
+			check()
+		})
+		return
+	}
+	if depth <= maxDOMDepth {
+		check()
+		return
+	}
+	outer := c.context()
+	c.flat = true
+	stack := []func(){check}
+	for len(stack) > 0 && c.problem == nil {
+		task := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		c.batch = nil
+		task()
+		for i := len(c.batch) - 1; i >= 0; i-- {
+			stack = append(stack, c.batch[i])
+		}
+	}
+	c.batch = nil
+	c.flat = false
+	c.restore(outer)
+}
+
+// noteArgCapture records a capture in an argument for the semantic pass.
+func (c *domChecker) noteArgCapture(at [2]int) {
+	if c.argCapture == nil {
+		c.argCapture = &domProblem{message: "an argument cannot read or declare captures", rule: c.rule, constant: c.constant, implication: c.implication, at: at}
+	}
 }
 
 func literalRangeProblem(ends [2]*domTerm) string {
@@ -494,16 +875,45 @@ func literalRangeProblem(ends [2]*domTerm) string {
 
 func (c *domChecker) fail(format string, args ...any) {
 	if c.problem == nil {
-		c.problem = &domProblem{message: c.label + ": " + fmt.Sprintf(format, args...), rule: c.rule, constant: c.constant, implication: c.implication}
+		at := c.at
+		if c.featureAt != [2]int{} {
+			at = c.featureAt
+		}
+		c.problem = &domProblem{message: fmt.Sprintf(format, args...), rule: c.rule, constant: c.constant, implication: c.implication, at: at}
 	}
 }
 
+// failAt is fail for a fault that stands at a node of its own, at, or
+// at the enclosing node when at is the zero position.
+func (c *domChecker) failAt(at [2]int, format string, args ...any) {
+	if c.problem != nil {
+		return
+	}
+	c.fail(format, args...)
+	if at != [2]int{} && c.featureAt == [2]int{} {
+		c.problem.at = at
+	}
+}
+
+// enter makes at, when it is a position, the position of the faults
+// found until leave restores the one it returns (engine §9.3 step 5:
+// a fault stands at its node, or at the nearest enclosing node with a
+// position).
+func (c *domChecker) enter(at [2]int) [2]int {
+	previous := c.at
+	if at != [2]int{} {
+		c.at = at
+	}
+	return previous
+}
+
+// deep records the first node beyond the depth bound, which is reported
+// only after every declaration passes its other checks (§9.3 step 5).
+// The walk goes on below the bound, so a deeper node still gets its
+// own checks. deep says whether the walk stops: it stops at a fault.
 func (c *domChecker) deep(depth int) bool {
-	if depth > maxDOMDepth {
-		if c.problem == nil {
-			c.problem = &domProblem{message: fmt.Sprintf("%s: an expression, term or condition is nested more than %d deep", c.label, maxDOMDepth), rule: c.rule, constant: c.constant, implication: c.implication, tooDeep: true}
-		}
-		return true
+	if depth > maxDOMDepth && c.deepProblem == nil {
+		c.deepProblem = &domProblem{message: fmt.Sprintf("%s: an expression, term or condition is nested more than %d deep", c.label, maxDOMDepth), rule: c.rule, constant: c.constant, implication: c.implication, tooDeep: true}
 	}
 	return c.problem != nil
 }
@@ -516,6 +926,15 @@ func (c *domChecker) deep(depth int) bool {
 // stands between those braces and the expression, where no item capture
 // stands (engine §3.5, §9).
 func (c *domChecker) expr(e *domExpr, depth int, whole, sealed, chain, item, ranked bool) {
+	c.visit(depth, func() {
+		if e != nil {
+			defer func(previous [2]int) { c.at = previous }(c.enter(e.At))
+		}
+		c.exprChecked(e, depth, whole, sealed, chain, item, ranked)
+	})
+}
+
+func (c *domChecker) exprChecked(e *domExpr, depth int, whole, sealed, chain, item, ranked bool) {
 	if c.deep(depth) {
 		return
 	}
@@ -531,9 +950,16 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed, chain, item, ran
 	case exSeq, exChoice, exRanked, exAnd:
 		// The reader makes each only of two or more, an & of at most 16.
 		if len(e.Items) < 2 || (e.Kind == exAnd && len(e.Items) > maxAnd) {
-			c.fail("a %s of %d items", e.Kind, len(e.Items))
-			if e.Kind == exRanked {
-				c.problem.code = "ranked-choice-syntax"
+			switch {
+			case e.Kind == exRanked:
+				if c.problem == nil {
+					c.fail("ranked-choice-syntax: a ranked expression requires two options")
+					c.problem.code = "ranked-choice-syntax"
+				}
+			case e.Kind == exAnd && len(e.Items) > maxAnd:
+				c.fail("an & joins at most %d items", maxAnd)
+			default:
+				c.fail("a %s of %d items", e.Kind, len(e.Items))
 			}
 			return
 		}
@@ -546,11 +972,29 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed, chain, item, ran
 				c.fail("a malformed default")
 				return
 			}
+			// A string default passes each value test of its head.
+			if e.Default.Kind == tmString && e.Inner != nil {
+				head := e.Inner
+				if head.Kind == exCapture || head.Kind == exSeq && len(head.Items) > 0 {
+					if head.Kind == exCapture {
+						head = head.Inner
+					} else {
+						head = head.Items[0]
+					}
+				}
+				for head != nil && head.Kind == exTest {
+					if head.Op != "tags" && head.Value != nil && head.Value.Kind == tmString && (e.Default.Str == head.Value.Str) != (head.Op == "=") {
+						c.failAt(e.DefaultAt, "a default fails its head test")
+						return
+					}
+					head = head.Inner
+				}
+			}
 			c.term(e.Default, depth+1, false)
 		}
 		// An elidable optional begins with its terminal (engine §3.8, §9).
 		if e.Elidable && elidableHead(e.Inner) == nil {
-			c.fail("a malformed elidable optional")
+			c.fail("a malformed optional")
 			return
 		}
 		c.expr(e.Inner, depth+1, false, sealed || e.Elidable && e.Inner.Kind != exCapture, chain, item, ranked)
@@ -559,8 +1003,8 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed, chain, item, ran
 		// A separator counts on from the depth of its repeat, as the item
 		// does. The innermost braces decide whether a capture inside them
 		// is an item capture (engine §3.5).
-		if e.Chain != "" && !whole {
-			c.fail("a chain that is not the whole expression of its alternative")
+		if e.Chain != "" && (!whole || e.Grouped) {
+			c.fail("a chain is the whole expression of its alternative: name it as a rule to use it here")
 			return
 		}
 		c.expr(e.Inner, depth+1, false, sealed, e.Chain != "", e.Chain == "", false)
@@ -577,61 +1021,77 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed, chain, item, ran
 		// A capture wraps one symbol, and stands anywhere but in braces or
 		// an elidable optional; $, the whole constituent, wraps nothing.
 		if c.inArgument {
-			c.fail("an argument cannot read or declare captures")
+			c.noteArgCapture(e.At)
+		}
+		if chain {
+			c.fail("a capture cannot stand inside a chain, whose levels are constituents of its rule: a condition on $ serves each level")
 			return
 		}
-		if sealed || chain || item && ranked {
-			c.fail("a capture inside a chain or an elidable optional, or an item capture inside a ranked group")
+		if item && ranked {
+			c.fail("an item capture cannot stand inside a ranked group: name the ranked choice as a rule and capture that rule")
+			return
+		}
+		if sealed {
+			c.fail("a capture cannot stand inside an elidable optional, which elision restores as one unit")
 			return
 		}
 		if e.Name == "" {
-			c.fail("$ wraps a symbol")
+			c.fail("$ is the whole constituent and wraps nothing")
 			return
 		}
 		if !captureName.MatchString(e.Name) {
-			c.fail("a capture name is not all lower case")
+			c.fail("a capture's name is all lower case")
 			return
 		}
-		if e.Inner == nil || !isCapturable(e.Inner.Kind) {
-			c.fail("a capture of something other than a reference, a terminal, a range, a property or a tested one of these")
+		base := e.Inner
+		for base != nil && base.Kind == exTest {
+			base = base.Inner
+		}
+		if base == nil || base.Grouped || !isCapturable(base.Kind) {
+			c.fail("a capture wraps one symbol")
 			return
 		}
 		// A capture is a compound node: its symbol lies below it, and is
 		// checked as any expression is.
 		c.expr(e.Inner, depth+1, false, sealed, chain, item, ranked)
 	case exTest:
+		// The test's own form, then the tested symbol, then its operands
+		// (engine §9.3 step 5). A tag test stands on a base symbol, and a
+		// value test also on a tag test of one.
+		if !testOps[e.Op] || e.Op == "tags" && !isTestable(e.Inner) || e.Op != "tags" && !isTestable(e.Inner) && !(e.Inner != nil && !e.Inner.Grouped && e.Inner.Kind == exTest && e.Inner.Op == "tags" && isTestable(e.Inner.Inner)) {
+			c.fail("a malformed test")
+			return
+		}
+		c.expr(e.Inner, depth+1, false, sealed, chain, item, ranked)
+		if c.problem != nil {
+			return
+		}
 		if e.Op == "tags" {
-			if !isTestable(e.Inner) {
-				c.fail("a tag test requires a base symbol")
-			}
-			c.expr(e.Inner, depth+1, false, sealed, chain, item, ranked)
 			for _, r := range e.Requirements {
-				if r.Value == nil || r.Value.Kind != tmTag && r.Value.Kind != tmConst && r.Value.Kind != tmParam {
-					c.fail("a malformed tag requirement")
+				if r.Value == nil || r.Value.grouped || r.Value.Kind != tmTag && r.Value.Kind != tmConst && r.Value.Kind != tmParam {
+					var at [2]int
+					if r.Value != nil {
+						at = r.Value.At
+					}
+					c.failAt(at, "a malformed requirement")
+					return
 				}
+			}
+			for _, r := range e.Requirements {
 				c.term(r.Value, depth+1, false)
 			}
 			return
 		}
-		// A compound node (engine §9) over one symbol; its value counts on
-		// from its depth, and is checked once the nesting is bounded.
-		if !testOps[e.Op] {
-			c.fail("a malformed test")
-			return
-		}
-		if !isTestable(e.Inner) && !(isValueTest(e.Op) && e.Inner != nil && e.Inner.Kind == exTest && e.Inner.Op == "tags" && isTestable(e.Inner.Inner)) {
-			c.fail("a test follows only a reference, a terminal, a range or a property")
-			return
-		}
-		c.expr(e.Inner, depth+1, false, sealed, chain, item, ranked)
-		if e.Value == nil {
-			c.fail("a missing value of a test")
-			return
-		}
 		if !stringTermShape(e.Value) {
-			c.fail("a value test requires a literal or constant string")
+			var at [2]int
+			if e.Value != nil {
+				at = e.Value.At
+			}
+			c.failAt(at, "a malformed value test")
 			return
 		}
+		// A value counts on from the depth of its test, and is checked
+		// once the nesting is bounded.
 		c.term(e.Value, depth+1, false)
 		c.tests = append(c.tests, e)
 	case exLiteral:
@@ -668,19 +1128,28 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed, chain, item, ran
 // elidableHead selects the first sequence item, then unwraps only symbol tests.
 // The base must be one capitalized user-tag reference (engine §9).
 func elidableHead(e *domExpr) *domExpr {
-	if e == nil {
+	if e == nil || e.Grouped {
 		return nil
 	}
 	head := e
 	if e.Kind == exSeq && len(e.Items) > 0 {
 		head = e.Items[0]
 	}
+	if head == nil || head.Grouped {
+		return nil
+	}
 	if head.Kind == exCapture {
 		head = head.Inner
 	}
+	if head == nil || head.Grouped {
+		return nil
+	}
 	base := head
-	for base != nil && base.Kind == exTest && (base.Op == "=" || base.Op == "≠" || base.Op == "tags") {
+	for base != nil && !base.Grouped && base.Kind == exTest && (base.Op == "=" || base.Op == "≠" || base.Op == "tags") {
 		base = base.Inner
+	}
+	if base != nil && base.Grouped {
+		return nil
 	}
 	if base != nil && (base.Kind == exParam || base.Kind == exRef && constName.MatchString(base.Name)) {
 		return head
@@ -910,26 +1379,6 @@ func itemCaptures(e *domExpr) map[string]itemPlace {
 		}
 	}
 	return found
-}
-
-// repeatsItemCapture says whether the name of an item capture stands more
-// than once in an expression, inside its braces or outside them (engine
-// §3.5, §9).
-func repeatsItemCapture(e *domExpr) bool {
-	items := itemCaptures(e)
-	if len(items) == 0 {
-		return false
-	}
-	seen := map[string]bool{}
-	for _, c := range allCaptures(e) {
-		if _, item := items[c.Name]; item {
-			if seen[c.Name] {
-				return true
-			}
-			seen[c.Name] = true
-		}
-	}
-	return false
 }
 
 // bracesName is the pseudo-capture that stands for a pair of flat braces
@@ -1280,7 +1729,7 @@ func isCapturable(kind string) bool {
 // isTestable says whether an expression can carry a test (engine §2): a
 // reference, a terminal, a range or a property.
 func isTestable(e *domExpr) bool {
-	if e == nil {
+	if e == nil || e.Grouped {
 		return false
 	}
 	switch e.Kind {
@@ -1372,6 +1821,25 @@ func isRuleName(name string, uni *unicodeTable) bool {
 // term checks a term; argument says it is a function's argument, where a
 // span may stand. A nil term is an absent, optional one.
 func (c *domChecker) term(t *domTerm, depth int, argument bool) {
+	c.visit(depth, func() { c.termNode(t, depth, argument) })
+}
+
+func (c *domChecker) termNode(t *domTerm, depth int, argument bool) {
+	if t != nil {
+		defer func(previous [2]int) { c.at = previous }(c.enter(t.At))
+	}
+	// A set condition's operation passes its position to its operands
+	// alone, where a query method's fault stands (engine §9.3 step 5).
+	setAt := c.setAt
+	c.nodeSetAt = setAt
+	if t == nil || t.Kind != tmUnion && t.Kind != tmIntersection && t.Kind != tmDifference {
+		c.setAt = [2]int{}
+	}
+	c.termChecked(t, depth, argument)
+	c.setAt = setAt
+}
+
+func (c *domChecker) termChecked(t *domTerm, depth int, argument bool) {
 	if t == nil || c.deep(depth) {
 		return
 	}
@@ -1407,7 +1875,7 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 			c.fail("a malformed capture name")
 		}
 		if c.inArgument {
-			c.fail("an argument cannot read or declare captures")
+			c.noteArgCapture(t.At)
 		}
 	case tmEmptySet:
 	case tmParam:
@@ -1422,81 +1890,103 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 			c.term(part, depth+1, false)
 		}
 	case tmPattern:
-		msg := patternProblem(t.Pattern, depth+1, func(p *domPattern, d int) string {
+		msg, at := patternProblem(t.Pattern, depth+1, func(p *domPattern, d int) (string, [2]int) {
+			none := [2]int{}
 			switch p.Kind {
 			case "param":
 				c.parameter(p.Name, p.At)
-				return ""
+				return "", none
 			case "call":
 				before := c.patternArgument
 				c.patternArgument = true
 				c.sourceCall(p.Call, d)
 				c.patternArgument = before
-				return ""
+				return "", none
 			case "name":
 				if !c.ruleName(p.Name) {
-					return "a malformed pattern rule name"
+					return "a malformed pattern rule name", p.At
 				}
-				return ""
+				return "", none
 			case "literal":
 				if !stringTermShape(p.Value) {
-					return "a pattern literal requires a literal or constant string"
+					return "a malformed pattern literal", p.At
 				}
 				c.term(p.Value, d, false)
-				return ""
+				return "", none
 			case "range":
-				if problem := literalRangeProblem(p.Ends); problem != "" {
-					return problem
-				}
 				for _, end := range p.Ends {
 					if !stringTermShape(end) {
-						return "a pattern range requires literal or constant strings"
+						return "a malformed pattern range", p.At
 					}
+				}
+				if problem := literalRangeProblem(p.Ends); problem != "" {
+					return problem, p.At
+				}
+				for _, end := range p.Ends {
 					c.term(end, d, false)
 				}
-				return ""
+				return "", none
 			case "wildcard":
-				return ""
+				return "", none
 			}
-			c.term(p.Value, d+1, false)
+			// A test: its operands' forms, then the operands (engine
+			// §9.3 step 5).
 			if p.Op == "tags" {
 				for _, r := range p.Requirements {
-					if r.Value == nil || r.Value.Kind != tmTag && r.Value.Kind != tmConst && r.Value.Kind != tmParam {
-						return "a malformed tag requirement"
+					if r.Value == nil || r.Value.grouped || r.Value.Kind != tmTag && r.Value.Kind != tmConst && r.Value.Kind != tmParam {
+						var at [2]int
+						if r.Value != nil {
+							at = r.Value.At
+						}
+						return "a malformed pattern requirement", at
 					}
+				}
+				if !c.expanded && len(p.Items) > 0 && p.Items[0] != nil && (p.Items[0].Kind == "name" || p.Items[0].Kind == "call") {
+					for _, r := range p.Requirements {
+						if !r.Negated && r.Value.Kind == tmTag && r.Value.Str == "_Elided" {
+							return "a rule pattern cannot require _Elided", r.Value.At
+						}
+					}
+				}
+				for _, r := range p.Requirements {
 					if r.Value.Kind != tmTag || r.Value.Str != "_Elided" {
 						c.term(r.Value, d+1, false)
 					}
 				}
-				return ""
+				return "", none
 			}
 			if !stringTermShape(p.Value) {
-				return "a pattern value test requires a literal or constant string"
+				var at [2]int
+				if p.Value != nil {
+					at = p.Value.At
+				}
+				return "a malformed pattern value test", at
 			}
+			c.term(p.Value, d+1, false)
 			if openPart(p.Value) != nil {
-				return "a pattern test requires a closed operand"
+				return "a pattern test requires a closed operand", none
 			}
 			ty, f := termTypeIn(p.Value, nil)
 			if f != nil {
-				return f.problem
+				return f.problem, none
 			}
 			if msg := testTypeProblem(p.Op, ty); msg != "" {
-				return msg
+				return msg, none
 			}
-			return ""
+			return "", none
 		})
 		if msg == "nested too deeply" {
 			c.deep(maxDOMDepth + 1)
 		} else if msg != "" {
-			c.fail("%s", msg)
+			c.failAt(at, "%s", msg)
 		}
 	case tmConst:
 		if !constName.MatchString(t.Str) {
-			c.fail("a malformed constant $%s", t.Str)
+			c.fail("a malformed constant reference")
 		}
 	case tmTag:
 		if !isTag(t.Str, c.uni) {
-			c.fail("a malformed tag %q", t.Str)
+			c.fail("a malformed tag")
 		}
 	case tmUnion, tmIntersection, tmDifference:
 		if len(t.Items) < 2 || (t.Kind == tmDifference && len(t.Items) != 2) {
@@ -1511,95 +2001,257 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 			c.term(it, depth+1, false)
 		}
 	case tmCall:
-		// The reader's signatures (engine §9), with a span where one is due;
-		// Span methods stand only where a span is allowed, and the query
-		// methods never as terms.
-		args := t.Items
-		isRule := func(a *domTerm) bool { return a != nil && (unresolvedTerm(a) || a.Kind == tmRule && c.ruleName(a.Str)) }
-		isClassifier := func(a *domTerm) bool {
-			return a != nil && a.Kind == tmClassifier && classifierName.MatchString(a.Str)
-		}
-		valueOperand := func(a *domTerm) bool {
-			return a != nil && a.Kind != tmRule && a.Kind != tmClassifier && a.Kind != tmInteger && a.Kind != tmTerminal
-		}
-		var ok bool
-		switch t.Str {
-		case "parse":
-			ok = len(args) == 2 && isSpanShape(args[0]) && args[1] != nil && args[1].Kind == tmBody
-			if ok {
-				_, mode, problem := queryBody(args[1].Body)
-				if problem != "" {
-					c.fail("%s", problem)
-					return
-				}
-				if (mode == cdSuffix || mode == cdContains) && restoredTerm(args[0]) {
-					c.fail("suffix parse requires an ordinary span, not a restored span")
-					return
-				}
-			}
-		case "error-free":
-			ok = len(args) == 1 && (forestTerm(args[0]) || unresolvedTerm(args[0]))
-		case "emitted", "verbatim-text":
-			ok = false
-		case "without-elision-except":
-			ok = len(args) == 2 && args[0] != nil && (args[0].Kind == tmCapture || unresolvedTerm(args[0])) && isRule(args[1])
-		case "without-elision":
-			ok = len(args) == 1 && args[0] != nil && (args[0].Kind == tmCapture || unresolvedTerm(args[0]))
-		case "value", "image", "source-text", "decomposed-source-text", "classes", "first-token", "tokens-after-first", "last-token", "onward", "following-tokens", "preceding-tokens":
-			ok = len(args) == 1 && (isSpanShape(args[0]) || (t.Str == "value" || t.Str == "image") && args[0] != nil && args[0].Kind == tmCall && args[0].Str == "emitted")
-		case "tags":
-			ok = len(args) == 1 && (isSpanShape(args[0]) || forestTerm(args[0]) || unresolvedTerm(args[0]))
-		case "ngrams":
-			ok = len(args) == 2 && valueOperand(args[0]) && args[1] != nil && args[1].Kind == tmInteger && validInteger(args[1].Str)
-		case "split":
-			// Its arguments are values, whose types are checked with the
-			// rule's (engine §10).
-			ok = len(args) == 2
-			for _, a := range args {
-				ok = ok && valueOperand(a)
-			}
-		case "classify":
-			// A string, and the name of a classifier (engine §9).
-			ok = len(args) == 2 && valueOperand(args[0]) && isClassifier(args[1])
-		}
-		if !ok {
-			c.fail("a malformed call of %q", t.Str)
-			return
-		}
-		if msg := literalCallProblem(t.Str, args); msg != "" && !c.deferTypes {
-			c.fail("%s", msg)
-			return
-		}
-		for _, a := range args {
-			if a.Kind == tmBody && t.Str == "parse" {
-				previous := c.parseBody
-				c.parseBody = true
-				c.term(a, depth+1, true)
-				c.parseBody = previous
-				continue
-			}
-			if unresolvedTerm(a) {
-				c.term(a, depth+1, true)
-			} else if isRule(a) || isClassifier(a) || a.Kind == tmInteger {
-				c.deep(depth + 1) // a rule's or a classifier's name is a node below the call
-			} else {
-				c.term(a, depth+1, true)
-			}
-		}
+		c.method(t, depth)
 	case tmIf:
 		// A guarded term: a condition, and the term it guards.
-		if t.Cond == nil || len(t.Items) != 1 || t.Items[0] == nil || argument {
+		if t.Cond == nil || len(t.Items) != 1 || t.Items[0] == nil {
 			c.fail("a malformed guarded term")
 			return
 		}
 		c.condition(t.Cond, depth+1)
 		c.term(t.Items[0], depth+1, false)
 	default:
-		c.fail("an unknown term %q", t.Kind)
+		c.fail("a malformed term")
 	}
 }
 
+// method checks a method term in the order of engine §9.3 step 5: its
+// placement, then its inline arguments in reverse, then its receiver,
+// its other arguments, and last its signature.
+func (c *domChecker) method(t *domTerm, depth int) {
+	if len(t.Items) == 0 || t.Items[0] == nil {
+		c.fail("a malformed method")
+		return
+	}
+	receiver, args := t.Items[0], t.Items[1:]
+	if (t.Str == "classify" || t.Str == "ngrams") && slices.ContainsFunc(args, termHasUnresolved) {
+		c.fail("a parameter cannot replace a classifier name or integer argument")
+		return
+	}
+	if !c.query && queryMethods[t.Str] && t.Str != "parse" && t.Str != "error-free" {
+		c.failAt(c.nodeSetAt, "a query method is a condition, not a term")
+		return
+	}
+	query, recipe := c.query, c.inRecipe
+	c.query = false
+	defer func() { c.query, c.inRecipe = query, recipe }()
+	known := knownMethod(t.Str)
+	var terms []*domTerm
+	if known {
+		for i := len(args) - 1; i >= 0; i-- {
+			a := args[i]
+			switch {
+			case a == nil:
+				c.fail("a malformed method")
+				return
+			case a.Kind == tmBody:
+				if t.Str != "parse" || a.Body == nil {
+					c.failAt(a.At, "a malformed parse argument")
+					return
+				}
+				if _, _, problem := queryBody(a.Body); problem != "" {
+					c.failAt(a.Body.At, "%s", problem)
+					return
+				}
+				if capture := queryCapture(a.Body); capture != nil {
+					c.failAt(capture.At, "a parse argument cannot declare captures")
+					return
+				}
+			case a.Kind == tmRule:
+				if t.Str != "without-elision-except" && !boundaryMethod(t.Str) || !c.ruleName(a.Str) {
+					c.fail("a malformed rule argument")
+					return
+				}
+			case a.Kind == tmTerminal:
+				if !boundaryMethod(t.Str) || !isCapital(a.Str) || strings.Contains(a.Str, "--") {
+					c.fail("a malformed boundary target")
+					return
+				}
+			case a.Kind == tmInteger:
+				if t.Str != "ngrams" {
+					c.failAt(a.At, "a malformed integer argument")
+					return
+				}
+				if !validInteger(a.Str) {
+					c.failAt(a.At, "an integer argument is positive and has no leading zeros")
+					return
+				}
+			case a.Kind == tmClassifier:
+				if t.Str != "classify" || !classifierName.MatchString(a.Str) {
+					c.fail("a malformed classifier argument")
+					return
+				}
+			default:
+				terms = append(terms, a)
+			}
+		}
+	}
+	// Only the receiver of a recipe atom is in the recipe.
+	c.term(receiver, depth+1, true)
+	c.inRecipe = false
+	for i := len(terms) - 1; i >= 0; i-- {
+		c.term(terms[i], depth+1, true)
+	}
+	for _, a := range args {
+		switch {
+		case a.Kind == tmBody && known:
+			previous := c.parseBody
+			c.parseBody = true
+			c.term(a, depth+1, true)
+			c.parseBody = previous
+		case a.Kind == tmRule || a.Kind == tmClassifier || a.Kind == tmInteger || a.Kind == tmTerminal:
+			c.deep(depth + 1) // a name or an integer is a node below the call
+		}
+	}
+	if c.problem != nil {
+		return
+	}
+	// A closed term's input method is a fault of its semantic pass.
+	if (c.constant != nil || c.implication != nil) && known && t.Str != "split" && t.Str != "ngrams" {
+		return
+	}
+	// An unknown method in a recipe atom is a fault of rule type
+	// inspection (engine §9.3 step 5).
+	if recipe && !known {
+		return
+	}
+	if problem := methodShapeProblem(t.Str, receiver, args, recipe); problem != "" {
+		c.fail("%s", problem)
+		return
+	}
+	if query && known && !queryMethods[t.Str] {
+		c.fail("a condition requires a query method")
+	}
+}
+
+// queryMethods are the methods that make a condition (engine §10).
+var queryMethods = map[string]bool{"starts-input": true, "ends-input": true, "parse": true, "error-free": true, "followed-by": true, "preceded-by": true}
+
+// spanMethods are the methods whose result is a span (engine §10).
+var spanMethods = map[string]bool{"first-token": true, "tokens-after-first": true, "last-token": true, "onward": true, "following-tokens": true, "preceding-tokens": true, "without-elision": true, "without-elision-except": true}
+
+const methodSignatureProblem = "a method has the wrong receiver or arguments"
+
+// methodShapeProblem is why a method's receiver and arguments do not fit
+// its structural signature, or "". It reads no operand types (engine
+// §9.3 step 5, §10).
+func methodShapeProblem(name string, receiver *domTerm, args []*domTerm, recipe bool) string {
+	if !knownMethod(name) {
+		return "unknown method " + name
+	}
+	bare := receiver.Kind == tmCapture || unresolvedTerm(receiver)
+	span := bare || receiver.Kind == tmCall && spanMethods[receiver.Str]
+	is := func(a *domTerm, kind string) bool { return a != nil && a.Kind == kind }
+	rule := func(a *domTerm) bool { return is(a, tmRule) || unresolvedTerm(a) }
+	term := func(a *domTerm) bool {
+		return a != nil && a.Kind != tmRule && a.Kind != tmClassifier && a.Kind != tmTerminal && a.Kind != tmInteger
+	}
+	unresolved := termHasUnresolved(receiver) || slices.ContainsFunc(args, termHasUnresolved)
+	forest := receiver.Kind == tmCall && (receiver.Str == "parse" || receiver.Str == "error-free")
+	var valid bool
+	switch name {
+	case "parse":
+		if len(args) != 1 || !is(args[0], tmBody) || args[0].Body == nil {
+			return methodSignatureProblem
+		}
+		if _, mode, _ := queryBody(args[0].Body); restoredTerm(receiver) && (mode == cdSuffix || mode == cdContains) {
+			return "suffix parse requires an ordinary span, not a restored span"
+		}
+		valid = span
+	case "error-free":
+		valid = forest && len(args) == 0
+	case "ngrams":
+		valid = len(args) == 1 && is(args[0], tmInteger) && validInteger(args[0].Str)
+	case "split":
+		valid = len(args) == 1 && term(args[0]) && !(unresolved && is(args[0], tmString) && args[0].Str == "")
+	case "classify":
+		valid = len(args) == 1 && is(args[0], tmClassifier)
+	case "tags":
+		valid = (span || forest) && len(args) == 0
+	case "followed-by", "preceded-by":
+		valid = bare && len(args) > 0
+		for _, a := range args {
+			valid = valid && (rule(a) || is(a, tmTerminal))
+		}
+	case "without-elision-except":
+		if !unresolved {
+			if !bare {
+				return "without-elision-except requires a bare capture: write $x.without-elision-except(family).onward"
+			}
+			if len(args) != 1 || !rule(args[0]) {
+				return "without-elision-except requires one rule name"
+			}
+		}
+		valid = bare && len(args) == 1 && rule(args[0])
+	case "without-elision":
+		if !unresolved && (!bare || len(args) != 0) {
+			return "without-elision requires a bare capture: write $x.without-elision.onward"
+		}
+		valid = bare && len(args) == 0
+	case "verbatim-text", "emitted":
+		valid = recipe && bare && len(args) == 0
+	default:
+		valid = len(args) == 0 && (span || receiver.Kind == tmCall && receiver.Str == "emitted" && (name == "value" || name == "image"))
+	}
+	if !valid {
+		return methodSignatureProblem
+	}
+	return ""
+}
+
+// termHasUnresolved says whether a parameter or a template call stands
+// anywhere in t.
+func termHasUnresolved(t *domTerm) bool {
+	if t == nil {
+		return false
+	}
+	if unresolvedTerm(t) {
+		return true
+	}
+	if t.Kind == tmBody && t.Body != nil && exprHasUnresolved(t.Body) {
+		return true
+	}
+	if t.Cond != nil && condHasUnresolved(t.Cond) {
+		return true
+	}
+	return slices.ContainsFunc(t.Items, termHasUnresolved)
+}
+
+func exprHasUnresolved(e *domExpr) bool {
+	if e == nil {
+		return false
+	}
+	if e.Kind == exParam || e.Kind == exCall {
+		return true
+	}
+	if termHasUnresolved(e.Value) || termHasUnresolved(e.Default) || termHasUnresolved(e.Ends[0]) || termHasUnresolved(e.Ends[1]) {
+		return true
+	}
+	for _, r := range e.Requirements {
+		if termHasUnresolved(r.Value) {
+			return true
+		}
+	}
+	return slices.ContainsFunc(exprChildren(e), exprHasUnresolved)
+}
+
+func condHasUnresolved(d *domCond) bool {
+	if d == nil {
+		return false
+	}
+	return termHasUnresolved(d.Left) || termHasUnresolved(d.Right) || termHasUnresolved(d.Span) || slices.ContainsFunc(d.Targets, termHasUnresolved) || condHasUnresolved(d.Inner) || slices.ContainsFunc(d.Items, condHasUnresolved)
+}
+
 func (c *domChecker) condition(d *domCond, depth int) {
+	c.visit(depth, func() {
+		if d != nil {
+			defer func(previous [2]int) { c.at = previous }(c.enter(d.At))
+		}
+		c.conditionChecked(d, depth)
+	})
+}
+
+func (c *domChecker) conditionChecked(d *domCond, depth int) {
 	if c.deep(depth) {
 		return
 	}
@@ -1607,9 +2259,30 @@ func (c *domChecker) condition(d *domCond, depth int) {
 		c.fail("a missing condition")
 		return
 	}
+	// A condition the reader read from a method is checked as that
+	// method first, in a condition's place (engine §9.3 step 5).
+	if d.Method != nil {
+		query := c.query
+		c.query = true
+		c.term(d.Method, depth, false)
+		c.query = query
+		if c.problem != nil {
+			return
+		}
+	}
 	switch d.Kind {
+	case cdMethod:
+		c.fail("a condition requires a query method")
 	case cdTruthy:
+		setAt := c.setAt
+		if d.Left != nil && (d.Left.Kind == tmUnion || d.Left.Kind == tmIntersection || d.Left.Kind == tmDifference) {
+			c.setAt = d.Left.At
+			if c.setAt == [2]int{} {
+				c.setAt = c.at
+			}
+		}
 		c.term(d.Left, depth, false)
+		c.setAt = setAt
 	case cdForest:
 		if !forestTerm(d.Left) {
 			c.fail("a condition requires a forest")
@@ -1687,7 +2360,7 @@ func (c *domChecker) condition(d *domCond, depth int) {
 		}
 	case cdCaptured:
 		if c.inArgument {
-			c.fail("an argument cannot read or declare captures")
+			c.noteArgCapture(d.At)
 		}
 		// A presence test, of a capture or of $.
 		if d.Capture != "" && !captureName.MatchString(d.Capture) {
@@ -1698,17 +2371,49 @@ func (c *domChecker) condition(d *domCond, depth int) {
 	}
 }
 
-// constituentTags checks a rule's or an alternative's tag term, which
-// cannot read the tags it defines (§9). Its shape is checked first, so
-// that readsOwnTags walks only a well-formed term.
+// constituentTags checks a rule's or an alternative's tag term in the
+// structural pass: its shape first, then the engine-tag literal that a
+// tag clause cannot introduce (engine §9.3 step 5). A malformed tag
+// term keeps its own structural fault. The type and own-tag checks are
+// semantic, and run in the semantic pass.
 func (c *domChecker) constituentTags(t *domTerm) {
+	if t == nil || c.problem != nil {
+		return
+	}
+	// The engine-tag literal comes first, and a malformed term keeps
+	// its own structural fault (engine §9.3 step 5).
+	if engineLiteralIn(t) {
+		previous := c.enter(t.At)
+		c.failAt(firstEngineLiteralAt(t), "a tag clause cannot introduce an engine tag")
+		c.at = previous
+		return
+	}
 	c.term(t, 0, false)
-	if len(literalEngineTags(t)) > 0 {
-		c.fail("a tag clause introduces an engine tag")
+}
+
+// engineLiteralIn says whether a tag term holds an engine-tag literal. A
+// term too malformed to walk holds none.
+func engineLiteralIn(t *domTerm) (found bool) {
+	defer func() {
+		if recover() != nil {
+			found = false
+		}
+	}()
+	return len(literalEngineTags(t)) > 0
+}
+
+// firstEngineLiteralAt is the position of the first engine-tag literal
+// in a tag term, in written order, or the zero position.
+func firstEngineLiteralAt(t *domTerm) [2]int {
+	var first [2]int
+	for _, occurrences := range literalEngineTags(t) {
+		for _, at := range occurrences {
+			if first == [2]int{} || before(at, first) {
+				first = at
+			}
+		}
 	}
-	if t != nil && c.problem == nil && readsOwnTags(t) {
-		c.fail("a constituent's tags made of its own")
-	}
+	return first
 }
 
 // readsOwnTags says whether a term reads the tags of $, the constituent
@@ -1768,48 +2473,42 @@ func readsOwnTags(t *domTerm) bool {
 // emission validates item clauses and named capture ownership (§11).
 // Only named carriers accept attachments. Each named capture appears once.
 func (c *domChecker) emission(e *domEmit) {
-	if e == nil {
+	if e == nil || c.problem != nil {
 		return
 	}
-	listed := map[string]bool{}
+	if len(e.Items) == 0 {
+		c.fail("a malformed emission")
+		return
+	}
+	// Each item's form first, then each item's tags, value and image
+	// (engine §9.3 step 5).
 	for _, it := range e.Items {
 		if it == nil {
-			c.fail("a missing emission item")
+			c.fail("a malformed emission item")
 			return
 		}
-		switch {
-		case it.IsInsert:
-		case it.Capture == "":
-		default:
-			// A capture stands once in an emission, as an item or as an
-			// attachment, and an attachment is a named capture (engine §9).
-			for _, name := range it.attachments() {
-				if !captureName.MatchString(name) {
-					c.fail("a malformed attachment %q", name)
-					return
-				}
-			}
-			for _, name := range it.captures() {
-				if listed[name] {
-					c.fail("$%s is listed twice in an emission", name)
-					return
-				}
-				listed[name] = true
-			}
-		}
-		// Only a named capture carries attachments (engine §9).
-		if (it.IsInsert || it.Capture == "") && len(it.Before)+len(it.After) > 0 {
-			c.fail("attachments on an item that is not a named capture")
+		if !it.IsInsert && it.Capture != "" && !captureName.MatchString(it.Capture) {
+			c.failAt(c.declAt, "a malformed emission item")
 			return
 		}
-		if len(literalEngineTags(it.Tags)) > 0 {
-			c.fail("an item tag clause introduces an engine tag")
+		if len(it.Before)+len(it.After) > 0 && (it.IsInsert || it.Capture == "") {
+			c.failAt(it.At, "a malformed attachment")
+			return
 		}
-		c.term(it.Tags, 0, false)
+		for _, name := range it.attachments() {
+			if !captureName.MatchString(name) {
+				c.failAt(c.declAt, "a malformed attachment")
+				return
+			}
+		}
+	}
+	for _, it := range e.Items {
+		previous := c.enter(it.At)
+		c.constituentTags(it.Tags)
 		c.recipe(it.Value)
 		c.recipe(it.Image)
+		c.at = previous
 	}
-
 }
 
 // ---- Types (engine §10)
@@ -2211,6 +2910,9 @@ func termTypeOnce(t *domTerm, ct constTypes, memo *typeMemo) (termType, *typeFau
 				return 0, &typeFault{"error-free requires a forest", t}
 			}
 		}
+		if problem := literalCallProblem(t.Str, t.Items); problem != "" {
+			return 0, &typeFault{problem, t}
+		}
 		return callType(t.Str), nil
 	}
 	return 0, &typeFault{"a malformed term", t}
@@ -2300,6 +3002,30 @@ func condTypeOnce(c *domCond, ct constTypes, memo *typeMemo) *typeFault {
 	return nil
 }
 
+// recipeAtomFault is why a recipe atom is not a string term or one of
+// the recipe string methods on a bare capture, or nil (engine §9.3).
+func recipeAtomFault(atom *domTerm) *typeFault {
+	if stringTermShape(atom) {
+		return nil
+	}
+	if atom == nil || atom.Kind != tmCall || len(atom.Items) != 1 {
+		return &typeFault{"a malformed recipe atom", atom}
+	}
+	switch atom.Str {
+	case "value", "image", "source-text", "decomposed-source-text", "verbatim-text":
+	default:
+		return &typeFault{"a malformed recipe atom", atom}
+	}
+	receiver := atom.Items[0]
+	if receiver != nil && receiver.Kind == tmCapture {
+		return nil
+	}
+	if receiver != nil && receiver.Kind == tmCall && receiver.Str == "emitted" && len(receiver.Items) == 1 && receiver.Items[0] != nil && receiver.Items[0].Kind == tmCapture && (atom.Str == "value" || atom.Str == "image") {
+		return nil
+	}
+	return &typeFault{"a malformed recipe receiver", atom}
+}
+
 func tagTermFault(t *domTerm, ct constTypes) *typeFault {
 	ty, f := termTypeIn(t, ct)
 	if f != nil {
@@ -2309,15 +3035,6 @@ func tagTermFault(t *domTerm, ct constTypes) *typeFault {
 		return &typeFault{problem, t}
 	}
 	return nil
-}
-
-// ruleTypeProblem is why a rule's terms and conditions do not agree in
-// type, or "".
-func ruleTypeProblem(r *domRule) string {
-	if f := ruleTypeFault(r, nil); f != nil {
-		return f.problem
-	}
-	return ""
 }
 
 // ruleTypeFault is why a rule's terms and conditions do not agree in type,
@@ -2339,6 +3056,10 @@ func ruleTypeFault(r *domRule, ct constTypes) *typeFault {
 	}
 	for _, recipe := range ruleRecipes(r) {
 		for _, atom := range recipe.Items {
+			if f := recipeAtomFault(atom); f != nil {
+				keep(f)
+				continue
+			}
 			stringUse(atom)
 		}
 	}
@@ -2682,21 +3403,4 @@ func inputConditionsProblem(conditions []*domCond) string {
 		}
 	}
 	return ""
-}
-
-// hasEngineLiteral finds engine-tag literals outside pattern literals.
-func hasEngineLiteral(root *domTerm) bool {
-	found := false
-	walkClause(clausePart{t: root}, func(p clausePart) bool {
-		if p.t != nil {
-			if p.t.Kind == tmPattern {
-				return false
-			}
-			if p.t.Kind == tmTag && engineTag(p.t.Str) {
-				found = true
-			}
-		}
-		return !found
-	})
-	return found
 }

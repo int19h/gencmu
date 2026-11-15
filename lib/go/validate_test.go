@@ -620,12 +620,12 @@ func TestBootstrapMisplacedClassifier(t *testing.T) {
 	if err := bootstrapError(t, "rules", rule(`{"op":"∈","left":{"string":"a"},"right":{"method":"split","receiver":{"string":"a.b"},"args":[{"string":"."}]}}`)); err != nil {
 		t.Fatalf("a well-formed rule: %v", err)
 	}
-	for _, condition := range []string{
-		`{"op":"⊆","left":{"method":"tag","receiver":{"classifier":"lex"},"args":[]},"right":{"tag":"a"}}`,
-		`{"op":"∈","left":{"string":"a"},"right":{"method":"split","receiver":{"classifier":"lex"},"args":[{"string":"."}]}}`,
-		`{"op":"∈","left":{"string":"a"},"right":{"method":"split","receiver":{"string":"a.b"},"args":[{"classifier":"lex"}]}}`,
+	for _, c := range []struct{ condition, problem string }{
+		{`{"op":"⊆","left":{"method":"tag","receiver":{"classifier":"lex"},"args":[]},"right":{"tag":"a"}}`, "a malformed term"},
+		{`{"op":"∈","left":{"string":"a"},"right":{"method":"split","receiver":{"classifier":"lex"},"args":[{"string":"."}]}}`, "a malformed term"},
+		{`{"op":"∈","left":{"string":"a"},"right":{"method":"split","receiver":{"string":"a.b"},"args":[{"classifier":"lex"}]}}`, "a malformed classifier argument"},
 	} {
-		assertGrammarError(t, bootstrapError(t, "rules", rule(condition)), "a malformed call")
+		assertGrammarError(t, bootstrapError(t, "rules", rule(c.condition)), c.problem)
 	}
 }
 
@@ -635,7 +635,7 @@ func TestBootstrapMisplacedClassifier(t *testing.T) {
 func TestDeepConstant(t *testing.T) {
 	t.Parallel()
 	loadBundled()
-	deep := strings.Repeat(`{"union":[`, 2000) + `{"tag":"a"}` + strings.Repeat(`,{"tag":"B"}]}`, 2000)
+	deep := strings.Repeat(`{"union":[`, 2000) + `{"tag":"A"}` + strings.Repeat(`,{"tag":"B"}]}`, 2000)
 	k := `{"name":"K","op":"define","value":` + deep + `,"at":[9999,1]}`
 	src := oneStage("%ambiguity-resolution greedy\n%rule text \"a\" \"b\"")
 	src = map[string]string{"grammars/test/p.md": src["p.md"], "grammars/test/g.md": src["g.md"]}
@@ -765,7 +765,7 @@ func TestGuardFeatureName(t *testing.T) {
 		return names
 	}
 	for _, c := range []struct{ kind, where, problem string }{
-		{"gate", "classifier", "a gate's feature is a name"},
+		{"gate", "classifier", "a malformed classifier entry"},
 		{"gate", "rule", "a guard's feature is a name"},
 	} {
 		guard := func(feature string) string {

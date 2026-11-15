@@ -18,7 +18,7 @@ func (b *domBuilder) tagRun(n *Node) *domTerm {
 			}
 		}
 	}
-	t := &domTerm{Kind: tmUnion}
+	t := &domTerm{Kind: tmUnion, At: b.at(n)}
 	kind := "tag"
 	if n.Rule == "string-run" {
 		kind = "string"
@@ -54,10 +54,9 @@ func (b *domBuilder) patternAtom(n, first *Node) *domPattern {
 		}
 	}
 	p := &domPattern{At: b.at(first)}
+	// A malformed rule name is a DOM fault, which the validator reports
+	// (engine §9.3 step 5).
 	if named {
-		if !b.uni.isEmojiName(name) && !classifierName.MatchString(name) {
-			b.fail(first, "a malformed pattern rule name")
-		}
 		p.Kind, p.Name = "name", name
 	}
 	if !named {
@@ -95,29 +94,15 @@ func (b *domBuilder) patternAtom(n, first *Node) *domPattern {
 	if p.Kind == "literal" && p.Value.Kind == tmConst {
 		p.Kind, p.Name, p.Value = "constant", p.Value.Str, nil
 	}
-	if p.Kind == "name" && !b.uni.isEmojiName(p.Name) && !classifierName.MatchString(p.Name) {
-		b.fail(first, "a malformed pattern rule name")
-	}
 	for _, test := range tests {
 		next := &domPattern{Kind: "test", Items: []*domPattern{p}}
 		if test.Rule == "tag-test" {
 			next.Op = "tags"
 			next.Requirements = b.patternRequirements(test)
-			if named || first.Rule == "call" {
-				for _, requirement := range next.Requirements {
-					if !requirement.Negated && requirement.Value.Kind == tmTag && requirement.Value.Str == "_Elided" {
-						panic(grammarError(b.doc, requirement.Value.At, "a rule pattern cannot require _Elided"))
-					}
-				}
-			}
 		} else {
 			next.Op = b.operator(b.token(b.only(test, "value-comparator")))
 			operand := b.only(test, "test-operand")
-			part := b.knownOf(operand, atomRules)
-			if part.Rule != "string" && part.Rule != "constant-reference" && part.Rule != "parameter" {
-				b.fail(operand, "a pattern value test requires a string")
-			}
-			next.Value = b.term(part)
+			next.Value = b.testOperand(operand)
 		}
 		p = next
 	}
@@ -132,32 +117,28 @@ func (c *domChecker) recipe(t *domTerm) {
 		c.fail("a malformed recipe")
 		return
 	}
+	// Each atom is checked as a term. Whether it is a string or a
+	// recipe method is a fault of rule type inspection, which reports
+	// it in clause order after the clause's tag terms (engine §9.3).
 	for _, atom := range t.Items {
-		if stringTermShape(atom) {
-			c.term(atom, 1, false)
-			continue
+		if atom == nil {
+			c.fail("a malformed recipe atom")
+			return
 		}
-		if atom == nil || atom.Kind != tmCall || len(atom.Items) != 1 {
-			c.fail("invalid recipe atom")
-			continue
-		}
-		r := atom.Items[0]
-		if r.Kind == tmCapture && (atom.Str == "value" || atom.Str == "image" || atom.Str == "source-text" || atom.Str == "decomposed-source-text" || atom.Str == "verbatim-text") {
-			continue
-		}
-		if r.Kind == tmCall && r.Str == "emitted" && len(r.Items) == 1 && r.Items[0].Kind == tmCapture && (atom.Str == "value" || atom.Str == "image") {
-			continue
-		}
-		c.fail("invalid recipe method")
 	}
+	previous := c.inRecipe
+	c.inRecipe = true
+	for _, atom := range t.Items {
+		c.term(atom, 1, false)
+	}
+	c.inRecipe = previous
 }
 
 func (b *domBuilder) constantRef(n *Node) *domTerm {
 	token := b.token(n)
 	name := strings.TrimPrefix(b.tokenValue(token), "$")
-	if !constName.MatchString(name) {
-		b.fail(token, "a user constant begins with a capital")
-	}
+	// A malformed name is a DOM fault, which the validator reports
+	// (engine §9.3 step 5).
 	return &domTerm{Kind: tmConst, Str: name, At: b.at(token)}
 }
 
@@ -170,7 +151,7 @@ func (b *domBuilder) stringTerm(n *Node) *domTerm {
 	if err != nil {
 		panic(err)
 	}
-	return &domTerm{Kind: tmString, Str: value}
+	return &domTerm{Kind: tmString, Str: value, At: b.at(token)}
 }
 
 func (b *domBuilder) stringRange(n *Node) [2]*domTerm {
@@ -186,24 +167,10 @@ func (b *domBuilder) stringRange(n *Node) [2]*domTerm {
 	if len(ends) < 2 {
 		b.lacks(n, "two string operands")
 	}
-	r := [2]*domTerm{ends[0], ends[1]}
-	var scalars [2]rune
-	known := true
-	for i, end := range r {
-		if end.Kind != tmString {
-			known = false
-			continue
-		}
-		cs := []rune(end.Str)
-		if len(cs) != 1 {
-			b.fail(n, "a range endpoint is one scalar")
-		}
-		scalars[i] = cs[0]
-	}
-	if known && scalars[0] > scalars[1] {
-		b.fail(n, "a range starts above its end")
-	}
-	return r
+	// Whether an endpoint is one scalar, and whether the range starts
+	// above its end, is a DOM fault, which the validator reports at
+	// the range (engine §9.3 step 5).
+	return [2]*domTerm{ends[0], ends[1]}
 }
 
 func (b *domBuilder) findTestBase(n *Node) *Node {
@@ -239,21 +206,9 @@ func (b *domBuilder) tested(n *Node) *domExpr {
 		b.lacks(n, "test")
 	}
 	base := b.testBase(n)
-	valid := capturedRules[base.Rule] && base.Rule != "tested-primary"
-	seenTags, seenValue := false, false
-	for _, test := range tests {
-		if test.Rule == "default-value" {
-			continue
-		}
-		if !valid || test.Rule == "tag-test" && (seenTags || seenValue) || test.Rule == "value-test" && seenValue {
-			b.fail(test, "invalid test target or order")
-		}
-		if test.Rule == "tag-test" {
-			seenTags = true
-		} else {
-			seenValue = true
-		}
-	}
+	// Whether the target can carry a test, and whether the tests are
+	// in their order, is a DOM fault, which the validator reports at
+	// the test (engine §9.3 step 5).
 	expr := b.expr(base)
 	for _, test := range tests {
 		if test.Rule == "default-value" {
@@ -271,36 +226,39 @@ func (b *domBuilder) tested(n *Node) *domExpr {
 			b.headDefault, b.defaultNode = b.term(part), test
 			continue
 		}
-		e := &domExpr{Kind: exTest, Inner: expr}
+		e := &domExpr{Kind: exTest, Inner: expr, At: b.at(test)}
 		if test.Rule == "tag-test" {
 			e.Op = "tags"
 			e.Requirements = b.requirements(test)
 		} else {
 			e.Op = b.operator(b.token(b.only(test, "value-comparator")))
-			operand := b.only(test, "test-operand")
-			part := b.knownOf(operand, atomRules)
-			if part.Rule != "string" && part.Rule != "constant-reference" && part.Rule != "parameter" {
-				b.fail(operand, "a value test requires a string or string constant")
-			}
-			e.Value = b.term(part)
+			// Whether the operand is a string is a DOM fault, which the
+			// validator reports after the tested symbol (§9.3 step 5).
+			e.Value = b.testOperand(b.only(test, "test-operand"))
 		}
 		expr = e
 	}
 	return expr
 }
 
+// testOperand reads the operand of a test. A grouped operand is marked,
+// and stands at its parenthesis, as no DOM node records.
+func (b *domBuilder) testOperand(operand *Node) *domTerm {
+	part := b.knownOf(operand, atomRules)
+	value := b.term(part)
+	if value != nil && (part.Rule == "term" || part.Rule == "term-atom") {
+		value.grouped = true
+		value.At = b.at(operand)
+	}
+	return value
+}
+
 func (b *domBuilder) requirements(n *Node) []tagRequirement {
 	out := []tagRequirement{}
 	for _, p := range b.ofRule(n, "tag-requirement") {
-		operand := b.only(p, "test-operand")
-		part := b.knownOf(operand, atomRules)
-		if part.Rule != "tag" && part.Rule != "constant-reference" && part.Rule != "rule-or-classifier-name" && part.Rule != "parameter" {
-			b.fail(operand, "a tag requirement requires a tag or tag-set constant")
-		}
-		if part.Rule == "rule-or-classifier-name" && !isCapital(b.tokenValue(b.token(part))) {
-			b.fail(operand, "a tag requirement requires a tag")
-		}
-		r := tagRequirement{Value: b.term(part)}
+		// Whether the operand is a tag, a tag-set constant or a
+		// parameter is a DOM fault, which the validator reports (§9.3).
+		r := tagRequirement{Value: b.testOperand(b.only(p, "test-operand"))}
 		for _, token := range b.parts(p) {
 			if token.Kind == KindToken && b.tokenValue(token) == "¬" {
 				r.Negated = true
@@ -349,17 +307,8 @@ func (b *domBuilder) recipe(n *Node) *domTerm {
 			if t.Kind == tmUnion {
 				b.fail(atom, "juxtaposed recipe strings require ++, use ++ between string atoms")
 			}
-			valid := stringTermShape(t) || t.Kind == tmParam || t.Kind == tmSourceCall
-			if t.Kind == tmCall && len(t.Items) == 1 {
-				receiver := t.Items[0]
-				valid = receiver.Kind == tmCapture && (t.Str == "value" || t.Str == "image" || t.Str == "source-text" || t.Str == "decomposed-source-text" || t.Str == "verbatim-text")
-				if receiver.Kind == tmCall && receiver.Str == "emitted" && len(receiver.Items) == 1 && receiver.Items[0].Kind == tmCapture {
-					valid = t.Str == "value" || t.Str == "image"
-				}
-			}
-			if !valid {
-				b.fail(atom, "a recipe requires a string or capture string method")
-			}
+			// Whether the atom is a string or a capture string method is
+			// a fault of rule type inspection in the validator (§9.3).
 			r.Items = append(r.Items, t)
 		}
 	}
@@ -375,7 +324,6 @@ type methodFrame struct {
 	selectors     []*Node
 	index         int
 	receiver      *domTerm
-	dependent     bool
 	args          []*domTerm
 	arguments     []*Node
 }
@@ -384,37 +332,28 @@ func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 	if !f.started {
 		f.started = true
 		receiver := b.only(b.only(f.n, "method-receiver"), "plain-term-atom")
-		f.dependent = b.sourceSyntaxUnresolved(receiver)
 		return ask(&termFrame{n: receiver, argument: true})
 	}
 	if f.readingBody {
 		f.readingBody = false
 		body := in.(*domExpr)
-		if queryCapture(body) != nil {
-			binder := b.firstOfRule(f.parseArgument, "capture")
-			if binder == nil {
-				binder = f.parseArgument
-			}
-			b.fail(binder, "a parse argument cannot declare captures")
-		}
 		{
 			var sequence []*domExpr
 			for _, part := range b.parts(f.parseArgument) {
 				if part.Kind == KindToken && b.tokenValue(part) == "…" {
-					sequence = append(sequence, &domExpr{Kind: exRemainder})
+					sequence = append(sequence, &domExpr{Kind: exRemainder, At: b.at(part), atHidden: true})
 				} else if part.Rule == "choice" {
 					sequence = append(sequence, body)
 				}
 			}
 			if len(sequence) > 1 {
-				body = &domExpr{Kind: exSeq, Items: sequence}
+				body = &domExpr{Kind: exSeq, Items: sequence, At: b.at(f.parseArgument)}
 			} else if len(sequence) == 1 && sequence[0].Kind == exRemainder {
-				body = &domExpr{Kind: exSeq, Items: []*domExpr{{Kind: exRemainder}, body}}
+				body = &domExpr{Kind: exSeq, Items: []*domExpr{sequence[0], body}, At: b.at(f.parseArgument)}
 			}
 		}
-		if _, _, problem := queryBody(body); problem != "" {
-			b.fail(f.parseArgument, "%s", problem)
-		}
+		// The body's form and captures are DOM faults, which the
+		// validator reports (engine §9.3 step 5).
 		f.args = []*domTerm{{Kind: tmBody, Body: body}}
 	} else if f.receiver == nil {
 		f.receiver = in.(*domTerm)
@@ -436,16 +375,11 @@ func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 		}
 		arguments := b.one(selector, "method-arguments")
 		if f.arguments == nil {
-			if !knownMethod(name) {
-				b.fail(f.n, "unknown method %s", name)
-			}
-			if b.closedFor != "" && name != "split" && name != "ngrams" {
-				b.fail(f.n, "%s cannot read an input method", b.closedFor)
-			}
+			// An unknown method is a fault of the validator, after the
+			// receiver (engine §9.3 step 5).
 			f.arguments = []*Node{}
 			if parsed != nil {
 				f.parseArgument = b.only(parsed, "parse-argument")
-				f.dependent = f.dependent || b.sourceSyntaxUnresolved(f.parseArgument)
 				f.readingBody = true
 				return ask(&exprFrame{n: b.only(f.parseArgument, "choice")})
 			}
@@ -456,11 +390,10 @@ func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 		if len(f.args) < len(f.arguments) {
 			arg := f.arguments[len(f.args)]
 			if integer := b.one(arg, "integer"); integer != nil {
+				// Whether the integer is positive with no leading zero is a
+				// DOM fault, which the validator reports (§9.3 step 5).
 				digits := b.tokenValue(b.token(integer))
-				if !validInteger(digits) {
-					b.fail(integer, "an integer argument is positive and has no leading zeros")
-				}
-				f.args = append(f.args, &domTerm{Kind: tmInteger, Str: digits})
+				f.args = append(f.args, &domTerm{Kind: tmInteger, Str: digits, At: b.at(integer)})
 				continue
 			}
 			return ask(&termFrame{n: b.only(arg, "term"), argument: true})
@@ -475,33 +408,20 @@ func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 					b.fail(arguments, "invalid method argument separator")
 				}
 			}
+			// An argument keeps its own position, and a rule name or
+			// one without stands at its argument (engine §9.3).
 			for i, a := range f.args {
-				a.At = b.at(f.arguments[i])
+				if a.At == [2]int{} || a.Kind == tmRule {
+					a.At = b.at(f.arguments[i])
+				}
 			}
 		}
-		argumentUnresolved := arguments != nil && b.sourceSyntaxUnresolved(arguments)
-		if (name == "classify" || name == "ngrams") && argumentUnresolved {
-			b.fail(f.n, "a parameter cannot replace a classifier name or integer argument")
-		}
-		f.dependent = f.dependent || argumentUnresolved
-		f.receiver = b.finishMethod(f.n, name, f.receiver, f.args, f.dependent)
+		// Where the method stands, and whether a parameter replaces a
+		// classifier name or an integer, are DOM faults, which the
+		// validator reports (engine §9.3 step 5).
+		f.receiver = b.finishMethod(f.n, name, f.receiver, f.args)
 		f.index++
 		if f.index == len(f.selectors) {
-			isPredicate := name == "starts-input" || name == "ends-input" || boundaryMethod(name) || name == "parse" || name == "error-free"
-			if f.inCondition && (name == "tags" || name == "classes" || name == "split" || name == "ngrams" || name == "classify") {
-				isPredicate = true
-			}
-			if isPredicate != f.inCondition {
-				if isPredicate && name != "parse" && name != "error-free" {
-					b.fail(f.n, "a query method is a condition, not a term")
-				}
-				// parse and error-free are forests. They stand as terms,
-				// and the type check faults them where a forest cannot
-				// stand (engine §9.3).
-				if !isPredicate {
-					b.fail(f.n, "a condition requires a query method")
-				}
-			}
 			return give(f.receiver)
 		}
 		f.args, f.arguments = nil, nil
@@ -537,119 +457,23 @@ var sourceMethods = map[string]sourceMethodKind{
 
 func knownMethod(name string) bool { return sourceMethods[name] != 0 }
 
-func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args []*domTerm, dependent bool) *domTerm {
-	fail := func() {
-		if b.featureContext || dependent {
-			b.fail(n, "a method has the wrong receiver or arguments")
-		}
-		if name == "without-elision" {
-			b.fail(n, "without-elision requires a bare capture: write $x.without-elision.onward")
-		}
-		if name == "without-elision-except" {
-			if receiver.Kind != tmCapture {
-				b.fail(n, "without-elision-except requires a bare capture: write $x.without-elision-except(family).onward")
-			}
-			b.fail(n, "without-elision-except requires one rule name")
-		}
-		b.fail(n, "a method has the wrong receiver or arguments")
+// finishMethod builds a method term. A boundary method's capitalized
+// tags are terminals, and classify's one lowercase name is a classifier.
+// Whether the receiver and arguments fit the method is a DOM fault,
+// which the validator reports (engine §9.3 step 5).
+func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args []*domTerm) *domTerm {
+	if name == "classify" && len(args) == 1 && args[0].Kind == tmRule && classifierName.MatchString(args[0].Str) {
+		args[0] = &domTerm{Kind: tmClassifier, Str: args[0].Str, At: args[0].At}
 	}
-	unknown := func(t *domTerm) bool { return t.Kind == tmParam || t.Kind == tmSourceCall }
-	span := b.featureContext || isSpanTerm(receiver)
-	valid := false
-	switch sourceMethods[name] {
-	case methodParse:
-		valid = span && len(args) == 1 && args[0].Kind == tmBody
-		if valid {
-			_, mode, problem := queryBody(args[0].Body)
-			if problem != "" {
-				b.fail(n, "%s", problem)
-			}
-			if (mode == cdSuffix || mode == cdContains) && restoredTerm(receiver) {
-				b.fail(n, "suffix parse requires an ordinary span, not a restored span")
-			}
-		}
-	case methodErrorFree:
-		valid = len(args) == 0 && (forestTerm(receiver) || unknown(receiver))
-	case methodSpan:
-		valid = len(args) == 0 && span
-		if receiver.Kind == tmCall && receiver.Str == "emitted" {
-			valid = len(args) == 0 && (name == "value" || name == "image")
-		}
-	case methodRestored:
-		if receiver.Kind != tmCapture && !unknown(receiver) && !b.featureContext {
-			fail()
-		}
-		valid = name == "without-elision" && len(args) == 0 || name == "without-elision-except" && len(args) == 1 && (args[0].Kind == tmRule || unknown(args[0]))
-	case methodRecipe:
-		valid = b.inRecipe && len(args) == 0 && receiver.Kind == tmCapture
-	case methodTags:
-		valid = (span || forestTerm(receiver)) && len(args) == 0
-	case methodBoundary:
-		valid = (b.featureContext || receiver.Kind == tmCapture || unknown(receiver)) && len(args) > 0
+	if boundaryMethod(name) {
 		for _, a := range args {
-			if a.Kind == tmTag && isCapital(a.Str) {
+			if a.Kind == tmTag && !strings.HasPrefix(a.Str, "_") {
 				a.Kind = tmTerminal
 			}
-			valid = valid && (a.Kind == tmRule || a.Kind == tmTerminal || unknown(a)) && !engineTag(a.Str)
 		}
-	case methodNgrams:
-		valid = len(args) == 1 && (b.featureContext || b.isStringTerm(receiver)) && args[0].Kind == tmInteger && validInteger(args[0].Str)
-	case methodSplit:
-		valid = len(args) == 1 && (b.featureContext || b.isStringTerm(receiver) && b.isStringTerm(args[0]))
-	case methodClassify:
-		valid = len(args) == 1 && (b.featureContext || b.isStringTerm(receiver)) && (unknown(args[0]) || args[0].Kind == tmRule && classifierName.MatchString(args[0].Str))
-		if valid && !unknown(args[0]) {
-			args[0] = &domTerm{Kind: tmClassifier, Str: args[0].Str}
-		}
-	}
-	if !valid {
-		fail()
 	}
 	items := append([]*domTerm{receiver}, args...)
-	if msg := literalCallProblem(name, items); msg != "" && !b.featureContext {
-		b.fail(n, "%s", msg)
-	}
 	return &domTerm{Kind: tmCall, Str: name, Items: items, At: b.at(n)}
-}
-
-func (b *domBuilder) sourceSyntaxUnresolved(n *Node) bool {
-	if b.unresolvedNodes == nil {
-		b.unresolvedNodes = make(map[*Node]bool)
-	}
-	type visit struct {
-		node     *Node
-		complete bool
-	}
-	pending := []visit{{n, false}}
-	for len(pending) > 0 {
-		part := pending[len(pending)-1]
-		pending = pending[:len(pending)-1]
-		if _, ok := b.unresolvedNodes[part.node]; ok {
-			continue
-		}
-		if part.complete {
-			dependent := false
-			for _, child := range b.parts(part.node) {
-				dependent = dependent || b.unresolvedNodes[child]
-			}
-			b.unresolvedNodes[part.node] = dependent
-			continue
-		}
-		if w := work.Load(); w != nil {
-			w.readerSteps.add("reader steps")
-		}
-		if part.node.Rule == "parameter" || part.node.Rule == "call" {
-			b.unresolvedNodes[part.node] = true
-			continue
-		}
-		pending = append(pending, visit{part.node, true})
-		for _, child := range b.parts(part.node) {
-			if _, ok := b.unresolvedNodes[child]; !ok {
-				pending = append(pending, visit{child, false})
-			}
-		}
-	}
-	return b.unresolvedNodes[n]
 }
 
 func (b *domBuilder) patternRequirements(n *Node) []tagRequirement {
@@ -657,14 +481,11 @@ func (b *domBuilder) patternRequirements(n *Node) []tagRequirement {
 	for _, p := range b.ofRule(n, "tag-requirement") {
 		operand := b.only(p, "test-operand")
 		part := b.knownOf(operand, atomRules)
-		if part.Rule != "tag" && part.Rule != "constant-reference" && part.Rule != "rule-or-classifier-name" && part.Rule != "parameter" {
-			b.fail(operand, "a tag requirement requires a tag or tag-set constant")
-		}
 		var value *domTerm
-		if b.tokenValue(b.token(part)) == "_Elided" {
-			value = &domTerm{Kind: tmTag, Str: "_Elided", At: b.at(part)}
+		if part.Rule == "tag" && b.tokenValue(b.token(part)) == "_Elided" {
+			value = &domTerm{Kind: tmTag, Str: "_Elided", At: b.at(b.token(part))}
 		} else {
-			value = b.term(part)
+			value = b.testOperand(operand)
 		}
 		requirement := tagRequirement{Value: value}
 		for _, token := range b.parts(p) {

@@ -3,7 +3,6 @@ package gencmu
 import (
 	"encoding/json"
 	"fmt"
-	"sort"
 	"strings"
 )
 
@@ -165,7 +164,7 @@ func (nr *notationReader) readMode(text, docPath string, deferEmission bool, sel
 			}
 		}
 	}
-	b := &domBuilder{deferEmission: deferEmission, strings: strings, toks: toks, gt: gt, doc: docPath, uni: nr.uni, types: newTypeMemo()}
+	b := &domBuilder{deferEmission: deferEmission, strings: strings, toks: toks, gt: gt, doc: docPath, uni: nr.uni}
 	defer func() {
 		if x := recover(); x != nil {
 			if e, ok := x.(*Error); ok {
@@ -176,13 +175,10 @@ func (nr *notationReader) readMode(text, docPath string, deferEmission bool, sel
 		}
 	}()
 	dom = b.document(out.tree)
-	// What the notation's grammar cannot state and the walk does not see:
-	// nesting deeper than 256 (§9), reported at the first declaration
-	// that nests too deeply, including feature directives and classifiers.
+	// The validator reports nesting deeper than 256 (§9) after every
+	// declaration passes its other checks, at the first declaration
+	// in position order that nests too deeply.
 	if p := checkDOM(dom, nr.uni); p != nil {
-		if p.tooDeep {
-			p = firstTooDeep(dom, nr.uni, p)
-		}
 		e := &Error{Kind: ErrorGrammar, Document: docPath, Message: p.message, Code: p.code}
 		if p.at != [2]int{} {
 			e.Line, e.Column = p.at[0], p.at[1]
@@ -199,84 +195,20 @@ func (nr *notationReader) readMode(text, docPath string, deferEmission bool, sel
 	return dom, nil
 }
 
-// firstTooDeep is the nesting problem of the first item of a document, in
-// the order of its positions, that nests too deeply alone; found, when no
-// item does alone.
-func firstTooDeep(dom *domDoc, uni *unicodeTable, found *domProblem) *domProblem {
-	type item struct {
-		at    [2]int
-		alone *domDoc
-	}
-	var items []item
-	for _, r := range dom.Rules {
-		items = append(items, item{r.At, &domDoc{Rules: []*domRule{r}}})
-	}
-	for _, k := range dom.Constants {
-		items = append(items, item{k.At, &domDoc{Constants: []*domConst{k}}})
-	}
-	for _, dir := range dom.Directives {
-		items = append(items, item{dir.At, &domDoc{Directives: []*domDirective{dir}}})
-	}
-	for _, c := range dom.Classifiers {
-		items = append(items, item{c.At, &domDoc{Classifiers: []*domClassifier{c}}})
-	}
-	for _, m := range dom.Implications {
-		items = append(items, item{m.At, &domDoc{Implications: []*domImplication{m}}})
-	}
-	sort.SliceStable(items, func(i, j int) bool {
-		a, b := items[i].at, items[j].at
-		return a[0] < b[0] || (a[0] == b[0] && a[1] < b[1])
-	})
-	for _, it := range items {
-		if p := checkDOM(it.alone, uni); p != nil && p.tooDeep {
-			p.at = it.at
-			return p
-		}
-	}
-	return found
-}
-
-// bracesEntry is one pair of braces the reader is inside: whether it is
-// a chain, and how many ranked groups below it the reader is inside.
-type bracesEntry struct {
-	chain  bool
-	ranked int
-}
-
 type domBuilder struct {
-	allowedMarked   map[*Node]bool
-	parameters      map[string]bool
-	partsCache      map[*Node][]*Node
-	unresolvedNodes map[*Node]bool
-	readingHead     bool
-	unresolved      bool
-	strings         *documentStrings
-	hasBoundary     bool
-	deferEmission   bool
-	featureContext  bool
-	// captureNodes holds the notation node of each capture of the
-	// alternative being read, where an error about it is reported.
-	captureNodes map[*domExpr]*Node
-	// braces holds the braces the reader is inside, innermost last: a
-	// chain holds no capture, and flat braces no capture inside a ranked
-	// group. marked counts the elidable optionals, where no capture stands
-	// either (engine §3.5).
-	braces []bracesEntry
-	marked int
-	toks   []Token
-	gt     *grammarText
-	doc    string
-	uni    *unicodeTable // configured Unicode data for input and diagnostics
-	// closedFor is what the reader is reading as a closed term, a
-	// constant's value or a test's operand, or "" (§9, §10).
-	closedFor   string
-	inRecipe    bool
-	defaultHead *Node
-	headDefault *domTerm
-	defaultNode *Node
-	// types keeps the types found of the terms and conditions read, each
-	// found once (§10).
-	types *typeMemo
+	partsCache    map[*Node][]*Node
+	unresolved    bool
+	strings       *documentStrings
+	hasBoundary   bool
+	deferEmission bool
+	toks          []Token
+	gt            *grammarText
+	doc           string
+	uni           *unicodeTable // configured Unicode data for input and diagnostics
+	inRecipe      bool
+	defaultHead   *Node
+	headDefault   *domTerm
+	defaultNode   *Node
 }
 
 // The rules of the notation's syntax grammar that the reader knows (engine
@@ -513,14 +445,10 @@ func (b *domBuilder) operator(n *Node) string { return canonicalOperator(b.token
 
 func (b *domBuilder) document(root *Node) *domDoc {
 	d := &domDoc{Rules: []*domRule{}, Directives: []*domDirective{}, Constants: []*domConst{}, Classifiers: []*domClassifier{}, Implications: []*domImplication{}}
-	statementSeen := false
+	// Whether %names precedes every other statement is a DOM fault,
+	// which the validator reports (engine §9.3 step 5).
 	for _, c := range b.parts(root) {
 		b.unresolved = false
-		names := c.Rule == "directive" && b.tokenValue(b.token(c)) == "%names"
-		if names && statementSeen {
-			b.fail(c, "%%names must precede every other statement")
-		}
-		statementSeen = statementSeen || !names
 		if c.Kind != KindRule {
 			continue
 		}
@@ -595,32 +523,18 @@ func (b *domBuilder) document(root *Node) *domDoc {
 			if problem := operandProblem(dir.Name, kinds); problem != "" {
 				b.fail(keyword, "%s", problem)
 			}
-			if !directiveOperandsOK(dir) {
-				switch dir.Name {
-				case "stage", "extend-stage", "redefine-stage":
-					b.fail(keyword, "%%%s takes one lowercase name", dir.Name)
-				case "features":
-					b.fail(keyword, "%%features takes feature names")
-				case "ambiguity-resolution":
-					b.fail(keyword, "%%ambiguity-resolution takes a ranking name and optionally elision-only")
-				default:
-					b.fail(keyword, "invalid directive operands")
-				}
-			}
+			// Whether its operands and conditions fit the directive is a
+			// DOM fault, which the validator reports (engine §9.3 step 5).
 			if clause := b.one(c, "conditions-clause"); clause != nil {
-				if dir.Name != "features" {
-					b.fail(keyword, "only %%features accepts conditions")
-				}
 				dir.Conditions = b.featureConditions(keyword, clause)
 			}
 
 			item.Directives = append(item.Directives, dir)
 		}
 		// Normalize each declaration once before building its partial view.
+		// Whole-definition and boundary checks are the DOM validator's,
+		// in its semantic pass (engine §9.3 step 5).
 		flattenGroups(item)
-		for _, rule := range item.Rules {
-			b.checkRule(rule)
-		}
 		d.Rules = append(d.Rules, item.Rules...)
 		d.Directives = append(d.Directives, item.Directives...)
 		d.Constants = append(d.Constants, item.Constants...)
@@ -662,16 +576,10 @@ func (b *domBuilder) constant(n *Node) *domConst {
 	if b.tokenValue(definer) == "%redefine-const" {
 		k.Op = "redefine"
 	}
-	if !constName.MatchString(k.Name) {
-		b.fail(reference, "a constant requires a user name")
-	}
-	valueNode := b.only(n, "term")
-	b.closedFor = "a constant's value"
-	k.Value = b.term(valueNode)
-	b.closedFor = ""
-	if _, f := constantValueType(k.Value, k.Op == "redefine", nil); f != nil {
-		b.fail(valueNode, "%s", f.problem)
-	}
+	k.NameAt = b.at(reference)
+	// The name, closedness and the value's type are DOM faults, which
+	// the validator reports (engine §9.3 step 5).
+	k.Value = b.term(b.only(n, "term"))
 	return k
 }
 
@@ -681,9 +589,9 @@ func (b *domBuilder) classifier(n *Node) *domClassifier {
 	c := &domClassifier{Entries: []*domEntry{}, At: b.at(n)}
 	nameNode := b.only(n, "classifier-name")
 	c.Name = b.tokenValue(b.token(nameNode))
-	if !classifierName.MatchString(c.Name) {
-		b.fail(nameNode, "%s begins with a capital, so it is a tag; a classifier's name begins with a lower-case letter", c.Name)
-	}
+	// The name and each class are DOM faults, which the validator
+	// reports (engine §9.3 step 5).
+	c.nameAt = b.at(nameNode)
 	for _, p := range b.ofRule(n, "classifier-entry") {
 		c.Entries = append(c.Entries, b.entry(p))
 	}
@@ -709,9 +617,7 @@ func (b *domBuilder) entry(n *Node) *domEntry {
 	classNode := b.only(n, "classifier-class")
 	written := b.tokenValue(b.token(classNode))
 	e.Class = written
-	if !className.MatchString(e.Class) || !isClass(e.Class) {
-		b.fail(classNode, "%s is not a class: a class starts and ends with a capital", written)
-	}
+	e.classAt = b.at(classNode)
 	return e
 }
 
@@ -721,11 +627,13 @@ func (b *domBuilder) implicationDeclaration(n *Node) *domImplication {
 	m := &domImplication{At: b.at(n)}
 	var sides []*domTerm
 	for _, p := range b.some(n, "union", 2)[:2] {
-		b.closedFor = "a side of an implication"
+		// Closedness and the tag-set type are DOM faults, which the
+		// validator reports (engine §9.3 step 5).
+		// A side stands where it is written, parentheses and all,
+		// unless the DOM records its position.
 		t := b.term(p)
-		b.closedFor = ""
-		if f := implicationSideFault(t, nil); f != nil {
-			b.fail(p, "%s", f.problem)
+		if t != nil && t.Kind != tmConst && t.Kind != tmParam {
+			t.At = b.at(p)
 		}
 		sides = append(sides, t)
 	}
@@ -735,9 +643,6 @@ func (b *domBuilder) implicationDeclaration(n *Node) *domImplication {
 
 func (b *domBuilder) rule(n *Node) *domRule {
 	b.hasBoundary = false
-	previous := b.parameters
-	b.parameters = map[string]bool{}
-	defer func() { b.parameters = previous }()
 	// The definer, the name, the alternatives and the clauses; the syntax
 	// allows at most one of each clause, in order.
 	definer := b.token(b.only(n, "rule-keyword"))
@@ -750,21 +655,21 @@ func (b *domBuilder) rule(n *Node) *domRule {
 	default:
 		r.Op = "define"
 	}
+	// The name, the parameters and the head's arguments are checked by
+	// the validator, which reports them at the positions kept here
+	// (engine §9.3 step 5).
 	if name := b.one(n, "rule-name"); name != nil {
 		r.Name = b.tokenValue(b.token(name))
-		if !classifierName.MatchString(r.Name) && !b.uni.isEmojiName(r.Name) {
-			b.fail(name, "a rule name starts with a lowercase letter or uses one eligible emoji")
-		}
+		r.nameAt = b.at(name)
 	} else {
 		heads := b.ofRule(n, "call")
 		if len(heads) == 0 {
 			b.only(n, "rule-name")
 		}
 		head := heads[0]
-		b.readingHead = true
 		call := b.run(&sourceCallFrame{n: head}).(*domSourceCall)
-		b.readingHead = false
 		r.Name = call.Name
+		r.nameAt = b.at(b.token(head))
 		allParameters := true
 		for _, arg := range call.Args {
 			allParameters = allParameters && arg.Term != nil && arg.Term.Kind == tmParam
@@ -772,35 +677,17 @@ func (b *domBuilder) rule(n *Node) *domRule {
 		if allParameters {
 			r.Params = []string{}
 			for _, arg := range call.Args {
-				if b.parameters[arg.Term.Str] {
-					panic(grammarError(b.doc, arg.Term.At, "duplicate parameter @%s", arg.Term.Str))
-				}
-				b.parameters[arg.Term.Str] = true
 				r.Params = append(r.Params, arg.Term.Str)
+				r.paramAts = append(r.paramAts, arg.Term.At)
 			}
 		} else {
-			pending := []*Node{head}
-			for len(pending) > 0 {
-				part := pending[len(pending)-1]
-				pending = pending[:len(pending)-1]
-				if part.Rule == "parameter" {
-					b.fail(head, "a head cannot mix parameters and concrete arguments")
-				}
-				pending = append(pending, b.parts(part)...)
-			}
-			if r.Op == "define" {
-				b.fail(head, "an instance head requires an edit")
-			}
 			r.Args = call.Args
-		}
-		if !classifierName.MatchString(r.Name) && !b.uni.isEmojiName(r.Name) {
-			b.fail(b.token(head), "a rule name starts with a lowercase letter or uses one eligible emoji")
 		}
 	}
 	for _, p := range b.parts(n) {
 		if p.Kind == KindToken && b.tokenValue(p) == "=" {
 			if r.Params != nil || r.Args != nil {
-				b.fail(n, "a binding requires a plain rule name")
+				r.Params, r.Args, r.paramAts, r.hasHead = nil, nil, nil, true
 			}
 			r.Instance = b.run(&sourceCallFrame{n: b.only(n, "call")}).(*domSourceCall)
 			return r
@@ -840,10 +727,10 @@ func (b *domBuilder) rule(n *Node) *domRule {
 		target **domTerm
 	}{{"error", &r.Error}, {"warning", &r.Warning}} {
 		if clause := b.one(n, field.name+"-clause"); clause != nil {
+			// Whether it reads .emitted is a DOM fault, which the
+			// validator reports at the clause (engine §9.3 step 5).
 			recipe := b.recipe(b.only(clause, "recipe"))
-			if messageReadsEmitted(recipe) {
-				b.fail(clause, "a message recipe cannot read .emitted")
-			}
+			recipe.ClauseAt = b.at(clause)
 			*field.target = recipe
 		}
 	}
@@ -860,32 +747,6 @@ func (b *domBuilder) rule(n *Node) *domRule {
 	}
 	r.Erased = b.one(n, "erased-clause") != nil
 	return r
-}
-
-func (b *domBuilder) checkRule(r *domRule) {
-	if r.Instance != nil {
-		return
-	}
-	checked := r
-	if b.unresolved {
-		checked = partialSourceRule(r)
-	}
-	if b.hasBoundary {
-		if atom, msg := boundaryRuleProblem(checked); msg != "" {
-			at := atom.At
-			if at == [2]int{} {
-				// Compound conditions have no atom position. Report the definition.
-				at = r.At
-			}
-			panic(grammarError(b.doc, at, "%s", msg))
-		}
-	}
-	// The definition as a whole (§9), reported at the rule.
-	result := checkDefinition(checked, b.deferEmission)
-	if result.problem != nil {
-		panic(grammarError(b.doc, r.At, "%s", result.problem.message))
-	}
-	r.deferredEmission = result.deferred
 }
 
 // gate validates the complete token before the constructor reads later parts (§9.3).
@@ -907,48 +768,17 @@ func (b *domBuilder) gate(n *Node) domGate {
 
 func (b *domBuilder) alternative(n *Node) *domAlt {
 	a := &domAlt{Gates: []domGate{}}
-	b.captureNodes = map[*domExpr]*Node{}
 	for _, p := range b.ofRule(n, "feature-gate") {
 		a.Gates = append(a.Gates, b.gate(p))
 	}
 	if n.Rule == "ranked-body" {
 		a.Expr = b.expr(b.only(n, "ranked-choice"))
 	} else {
-		a.Expr = b.exprIn(b.only(n, "some-of"), true)
+		a.Expr = b.expr(b.only(n, "some-of"))
 	}
-	// A name stands at most once in each production, gates aside: the
-	// error stands at the second capture that such a production reads, the
-	// first in the text where there are several (engine §3.5, §9).
-	if twice := duplicateCaptures(a.Expr); len(twice) > 0 {
-		var first *Node
-		for c := range twice {
-			node := b.captureNodes[c]
-			if first == nil || before(b.at(node), b.at(first)) {
-				first = node
-			}
-		}
-		b.fail(first, "the capture %s is read twice by one production of the alternative", b.tokenValue(b.token(first)))
-	}
-	// The name of an item capture stands nowhere else in the alternative
-	// (engine §3.5, §9): the error stands at the later capture in the text.
-	if items := itemCaptures(a.Expr); len(items) > 0 {
-		seen := map[string]*Node{}
-		for _, c := range allCaptures(a.Expr) {
-			at := b.captureNodes[c]
-			earlier, ok := seen[c.Name]
-			if ok {
-				if _, item := items[c.Name]; item {
-					later := at
-					if before(b.at(at), b.at(earlier)) {
-						later = earlier
-					}
-					b.fail(later, "the item capture %s is read again: the name of an item capture stands once in its alternative", b.tokenValue(b.token(later)))
-				}
-				continue
-			}
-			seen[c.Name] = at
-		}
-	}
+	// Duplicate and repeated item captures are semantic faults, which
+	// the DOM validator reports in its semantic pass (engine §9.3
+	// step 5), at the capture's own at.
 	if p := b.one(n, "alternative-tags"); p != nil {
 		a.Tags = b.constituentTags(p)
 	}
@@ -956,34 +786,24 @@ func (b *domBuilder) alternative(n *Node) *domAlt {
 	return a
 }
 
-// constituentTags reads a rule's or an alternative's tag term, which cannot
-// be made of the tags it defines: $.tags or $.classes (§9).
+// constituentTags reads a rule's or an alternative's tag term. Whether
+// it can be made of the tags it defines, holds an engine-tag literal,
+// or has the tag-set type is a DOM fault, which the validator reports
+// (engine §9.3 step 5).
 func (b *domBuilder) constituentTags(n *Node) *domTerm {
 	t := b.tagTerm(b.only(n, "term"))
-	if readsOwnTags(t) {
-		b.fail(n, "a constituent's tags cannot be made of its own: $.tags or $.classes")
+	if t != nil {
+		t.ClauseAt = b.at(n)
 	}
 	return t
 }
 
 // tagTerm reads a whole term that must be a tag set: a constituent's or an
-// item's tags (§10). The error stands at the term.
+// item's tags (§10).
 func (b *domBuilder) tagTerm(n *Node) *domTerm {
 	t := b.term(n)
-	var retained *[2]int
-	for _, occurrences := range literalEngineTags(t) {
-		for _, at := range occurrences {
-			at := at
-			if retained == nil || before(at, *retained) {
-				retained = &at
-			}
-		}
-	}
-	if retained != nil {
-		panic(grammarError(b.doc, *retained, "a tag clause introduces an engine tag"))
-	}
-	if f := tagTermFault(t, nil); f != nil {
-		b.fail(n, "%s", f.problem)
+	if t != nil {
+		t.TagAt = b.at(n)
 	}
 	return t
 }
@@ -1030,9 +850,8 @@ func (b *domBuilder) tagOf(n *Node) string {
 		}
 		return canonical
 	}
-	if !isTag(name, b.uni) {
-		b.fail(n, "%s is not a tag identifier", name)
-	}
+	// Whether it is a tag identifier is a DOM fault, which the validator
+	// reports (engine §9.3 step 5).
 	return name
 }
 
@@ -1040,42 +859,20 @@ func isSpanTerm(t *domTerm) bool {
 	return t.Kind == tmCapture || t.Kind == tmParam || t.Kind == tmSourceCall || (t.Kind == tmCall && isSpanFunction(t.Str))
 }
 
-// isStringTerm says whether a term, not a rule, is a string (§10). A
-// constant's type is known only when the loader stitches the stage.
-func (b *domBuilder) isStringTerm(t *domTerm) bool {
-	if t.Kind == tmRule {
-		return false
-	}
-	ty, problem := b.typeOf(t)
-	return problem == "" && (ty == tyString || ty == tyAny || ty == tySpan)
-}
-
-// typeOf is a term's type, or why its parts do not agree, through the
-// reader's memo.
-func (b *domBuilder) typeOf(t *domTerm) (termType, string) {
-	if b.featureContext {
-		return tyAny, ""
-	}
-	ty, f := termTypeMemo(t, nil, b.types)
-	if f != nil {
-		return 0, f.problem
-	}
-	return ty, ""
-}
-
 func (b *domBuilder) emission(n *Node) *domEmit {
-	e := &domEmit{Items: []*domEmitItem{}}
+	e := &domEmit{Items: []*domEmitItem{}, At: b.at(n)}
 	items := b.ofRule(n, "emit-item")
 	if len(items) == 0 {
-		it := &domEmitItem{}
+		it := &domEmitItem{At: b.at(n)}
 		if tags := b.one(n, "emit-tags"); tags != nil {
 			it.Tags = b.tagTerm(b.only(tags, "term"))
+			it.Tags.ClauseAt = b.at(tags)
 		}
 		it.Value, it.Image = b.recipes(n)
 		e.Items = append(e.Items, it)
 	}
 	for _, item := range items {
-		it := &domEmitItem{}
+		it := &domEmitItem{At: b.at(item)}
 		target := b.only(item, "emit-target")
 		first := b.symbolPart(target)
 		if first.Kind != KindToken {
@@ -1100,27 +897,18 @@ func (b *domBuilder) emission(n *Node) *domEmit {
 				}
 			}
 		}
-		if len(it.Before)+len(it.After) > 0 && (it.IsInsert || it.Capture == "") {
-			b.fail(item, "only a named capture carries attachments")
-		}
+		// Only a named capture carries attachments, a DOM fault, which
+		// the validator reports (engine §9.3 step 5).
 		if tags := b.one(item, "emit-tags"); tags != nil {
 			it.Tags = b.tagTerm(b.only(tags, "term"))
+			it.Tags.ClauseAt = b.at(tags)
 		}
 		it.Value, it.Image = b.recipes(item)
 		e.Items = append(e.Items, it)
 	}
-	listed := map[string]bool{}
-	for _, it := range e.Items {
-		if it.IsInsert || it.Capture == "" {
-			continue
-		}
-		for _, name := range it.captures() {
-			if listed[name] {
-				b.fail(n, "an emission lists $%s twice", name)
-			}
-			listed[name] = true
-		}
-	}
+	// Whether a capture stands twice in the emission is a semantic
+	// fault, which the DOM validator reports after rule type
+	// inspection (engine §9.3 step 5).
 	return e
 }
 
@@ -1186,9 +974,7 @@ func operandProblem(name string, kinds []string) string {
 
 // Feature-condition diagnostics identify the directive that owns them.
 func (b *domBuilder) featureConditions(keyword, clause *Node) (conditions []*domCond) {
-	b.featureContext = true
 	defer func() {
-		b.featureContext = false
 		if failure := recover(); failure != nil {
 			if err, ok := failure.(*Error); ok {
 				at := b.at(keyword)

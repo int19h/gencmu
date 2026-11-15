@@ -117,21 +117,6 @@ func TestRangeEmissionTargetReportsContentError(t *testing.T) {
 	}
 }
 
-func TestConstantNamePrecedesRequiredValue(t *testing.T) {
-	b := &domBuilder{doc: "g.md", gt: &grammarText{pos: [][2]int{{1, 1}}}, toks: []Token{{Value: "%const"}, {Value: "$bad"}}}
-	definer := &Node{Kind: KindRule, Rule: "constant-keyword", Children: []*Node{{Kind: KindToken, Token: 0}}}
-	reference := &Node{Kind: KindRule, Rule: "constant-name", Children: []*Node{{Kind: KindToken, Token: 1}}}
-	node := &Node{Kind: KindRule, Rule: "constant-definition", Children: []*Node{definer, reference}}
-	defer func() {
-		problem, ok := recover().(*Error)
-		if !ok || !strings.Contains(problem.Error(), "a constant requires a user name") {
-			t.Fatalf("expected the invalid name before the missing term, got %v", problem)
-		}
-	}()
-	b.constant(node)
-	t.Fatal("the invalid name was accepted")
-}
-
 func TestSuppliedIntersectionsNeedNoOperatorTokens(t *testing.T) {
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
@@ -146,7 +131,7 @@ func TestSuppliedIntersectionsNeedNoOperatorTokens(t *testing.T) {
 			tokens[i] = Token{Value: "A"}
 			parts[i] = node("concatenation", node("term-atom", node("tag", &Node{Kind: KindToken, Token: i})))
 		}
-		b := &domBuilder{doc: "g.md", uni: bundled.uni, gt: &grammarText{pos: [][2]int{{1, 1}}}, types: newTypeMemo(), toks: tokens}
+		b := &domBuilder{doc: "g.md", uni: bundled.uni, gt: &grammarText{pos: [][2]int{{1, 1}}}, toks: tokens}
 		term := b.term(node("union", node("intersection", parts...)))
 		if term.Kind != tmIntersection || len(term.Items) != count {
 			t.Fatalf("%d operands: got %v", count, term)
@@ -184,7 +169,7 @@ func TestMalformedSuppliedConstructorsGiveDocumentErrors(t *testing.T) {
 					t.Fatalf("expected a document error, got %v", problem)
 				}
 			}()
-			b := &domBuilder{doc: "g.md", uni: bundled.uni, gt: &grammarText{pos: [][2]int{{1, 1}}}, types: newTypeMemo(), toks: []Token{{Value: "%rule"}, {Value: "r"}, {Value: "="}, {Value: "A"}, {Value: "B"}}}
+			b := &domBuilder{doc: "g.md", uni: bundled.uni, gt: &grammarText{pos: [][2]int{{1, 1}}}, toks: []Token{{Value: "%rule"}, {Value: "r"}, {Value: "="}, {Value: "A"}, {Value: "B"}}}
 			item.read(b)
 			t.Fatal("the malformed constructor was accepted")
 		})
@@ -405,6 +390,21 @@ func TestBundledCacheSameStages(t *testing.T) {
 // sameValue is reflect.DeepEqual for values with no cycles, but a nil slice
 // or map equals an empty one: a decoded DOM leaves an empty list nil where
 // the reader makes it empty.
+// readerOnlyFields are what the reader keeps of the source for the
+// validator's positions and checks, which the DOM does not record.
+var readerOnlyFields = map[reflect.Type]map[string]bool{
+	reflect.TypeOf(domExpr{}):       {"atHidden": true, "Grouped": true},
+	reflect.TypeOf(domTerm{}):       {"ClauseAt": true, "TagAt": true, "grouped": true},
+	reflect.TypeOf(domCond{}):       {"Method": true},
+	reflect.TypeOf(domEmit{}):       {"At": true},
+	reflect.TypeOf(domEmitItem{}):   {"At": true},
+	reflect.TypeOf(domConst{}):      {"NameAt": true},
+	reflect.TypeOf(domRule{}):       {"nameAt": true, "paramAts": true, "hasHead": true},
+	reflect.TypeOf(domClassifier{}): {"nameAt": true},
+	reflect.TypeOf(domEntry{}):      {"classAt": true},
+	reflect.TypeOf(domPattern{}):    {"listAt": true},
+}
+
 func sameValue(a, b reflect.Value) bool {
 	if a.Kind() != b.Kind() {
 		return false
@@ -421,8 +421,8 @@ func sameValue(a, b reflect.Value) bool {
 		kind := a.Type()
 		for i := 0; i < a.NumField(); i++ {
 			field := kind.Field(i).Name
-			if kind == reflect.TypeOf(domAlt{}) && field == "rankedLocations" ||
-				kind == reflect.TypeOf(domExpr{}) && (field == "DefaultAt" || field == "RankedAt" || field == "At" && a.FieldByName("Kind").String() != exParam) ||
+			if readerOnlyFields[kind][field] ||
+				kind == reflect.TypeOf(domExpr{}) && (field == "DefaultAt" || field == "At" && a.FieldByName("Kind").String() != exParam) ||
 				kind == reflect.TypeOf(domCond{}) && field == "At" ||
 				kind == reflect.TypeOf(domTerm{}) && field == "At" && a.FieldByName("Kind").String() != tmConst && a.FieldByName("Kind").String() != tmParam {
 				continue

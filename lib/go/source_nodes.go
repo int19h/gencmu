@@ -220,8 +220,8 @@ func restoreSourceLocations(to, from *domDoc) {
 			}
 			if a.Kind != exParam {
 				a.At = b.At
+				a.atHidden = b.atHidden
 			}
-			a.RankedAt = b.RankedAt
 			exprs(a.Items, b.Items)
 			requirements(a.Requirements, b.Requirements)
 			pending = append(pending, pair{a.Inner, b.Inner}, pair{a.Sep, b.Sep}, pair{a.Value, b.Value}, pair{a.Call, b.Call}, pair{a.Ends[0], b.Ends[0]}, pair{a.Ends[1], b.Ends[1]})

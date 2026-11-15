@@ -79,7 +79,7 @@ func writeStringRange(w *jsonWriter, ends [2]*domTerm) {
 	ends[0].writeJSON(w)
 	w.raw(",")
 	ends[1].writeJSON(w)
-	w.raw("]}")
+	w.raw("]")
 }
 
 func writeRequirements(w *jsonWriter, requirements []tagRequirement) {
@@ -149,7 +149,7 @@ func isClass(name string) bool {
 }
 
 func stringTermShape(t *domTerm) bool {
-	return t != nil && (t.Kind == tmString || t.Kind == tmConst || t.Kind == tmParam)
+	return t != nil && !t.grouped && (t.Kind == tmString || t.Kind == tmConst || t.Kind == tmParam)
 }
 
 func hasRecipes(r *domRule) bool {

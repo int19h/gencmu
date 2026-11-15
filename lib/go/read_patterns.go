@@ -88,9 +88,9 @@ func (f *patternFrame) resume(b *domBuilder, in any) readStep {
 			}
 			f.parts = nil
 			if children := b.one(n, "child-list"); children != nil {
-				if f.atom.Kind != "name" && f.atom.Kind != "any" && f.atom.Kind != "param" && f.atom.Kind != "call" {
-					b.fail(children, "a child list requires a rule test")
-				}
+				// Whether the atom can hold children is a DOM fault, which
+				// the validator reports at the list (engine §9.3 step 5).
+				f.atom.listAt = b.at(children)
 				f.parts = []*Node{children}
 			}
 		}

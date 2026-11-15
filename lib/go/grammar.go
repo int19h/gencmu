@@ -553,30 +553,42 @@ type checkedClauses struct {
 // checkAlt checks what the notation's grammar cannot state: every rule named
 // is defined.
 func (g *stageGrammar) checkAlt(a *sAlt, checked *checkedClauses) *Error {
-	fail := func(format string, args ...any) *Error { return grammarError(a.doc, a.at, format, args...) }
-	var walk func(e *domExpr) *Error
-	walk = func(e *domExpr) *Error {
+	failAt := func(at [2]int, format string, args ...any) *Error {
+		if at == [2]int{} {
+			at = a.at
+		}
+		return grammarError(a.doc, at, format, args...)
+	}
+	// located says a reference in an expression stands at its own at,
+	// with the nearest enclosing expression that has one as its
+	// fallback. A rule named as a term, as a family or a classifier
+	// is, is a stitching error at its definition instead.
+	var walk func(e *domExpr, enclosing [2]int, located bool) *Error
+	walk = func(e *domExpr, enclosing [2]int, located bool) *Error {
 		if e == nil {
 			return nil
+		}
+		if located && e.At != [2]int{} {
+			enclosing = e.At
 		}
 		if e.Default != nil {
 			g.defaults = append(g.defaults, defaultUse{e, a})
 		}
 		if e.Kind == exRef && !isTerminalName(e.Name) && g.byName[e.Name] == nil {
-			return fail("%s is not a rule of stage %s", e.Name, g.name)
+			return failAt(enclosing, "%s is not a rule of stage %s", e.Name, g.name)
 		}
 		for _, it := range e.Items {
-			if err := walk(it); err != nil {
+			if err := walk(it, enclosing, located); err != nil {
 				return err
 			}
 		}
 		// A tested symbol refers to what its symbol does.
-		if err := walk(e.Inner); err != nil {
+		if err := walk(e.Inner, enclosing, located); err != nil {
 			return err
 		}
-		return walk(e.Sep)
+		return walk(e.Sep, enclosing, located)
 	}
-	if err := walk(a.alt.Expr); err != nil {
+	if err := walk(a.alt.Expr, a.at, true); err != nil {
 		return err
 	}
 	var checkTerm func(t *domTerm) *Error
@@ -595,18 +607,18 @@ func (g *stageGrammar) checkAlt(a *sAlt, checked *checkedClauses) *Error {
 			g.families[t.Items[1].Str] = nil
 		}
 		if t.Kind == tmRule && g.byName[t.Str] == nil {
-			return fail("%s is not a rule of stage %s", t.Str, g.name)
+			return failAt(a.at, "%s is not a rule of stage %s", t.Str, g.name)
 		}
 		// A parse body in a term names its rules here, in written
 		// order, as a shorthand target did (§2).
 		if t.Kind == tmBody && t.Body != nil {
-			if err := walk(t.Body); err != nil {
+			if err := walk(t.Body, a.at, true); err != nil {
 				return err
 			}
 		}
 		// A classifier that classify names belongs to the stage (§2).
 		if t.Kind == tmClassifier && !g.classifierSet.names[t.Str] {
-			return fail("%s is not a classifier of stage %s", t.Str, g.name)
+			return failAt(a.at, "%s is not a classifier of stage %s", t.Str, g.name)
 		}
 		if t.Cond != nil {
 			if err := checkCond(t.Cond); err != nil {
@@ -643,7 +655,7 @@ func (g *stageGrammar) checkAlt(a *sAlt, checked *checkedClauses) *Error {
 			}
 			for _, t := range c.queryTargets() {
 				if t.Kind == tmRule && g.byName[t.Str] == nil {
-					return fail("%s is not a rule of stage %s", t.Str, g.name)
+					return failAt(a.at, "%s is not a rule of stage %s", t.Str, g.name)
 				}
 			}
 			return nil

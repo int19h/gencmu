@@ -183,7 +183,7 @@ func queryBody(body *domExpr) (*domExpr, string, string) {
 			return body, cdWhole, "a remainder stands at one outer edge of a parse argument"
 		}
 	}
-	core := &domExpr{Kind: exSeq, Items: parts}
+	core := &domExpr{Kind: exSeq, Items: parts, At: body.At}
 	if len(parts) == 1 {
 		core = parts[0]
 	}

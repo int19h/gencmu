@@ -849,6 +849,8 @@ func (x *templateExpander) convert(arg templateObject, position string, e *templ
 		}
 		if arg["test"] != nil {
 			r := templateCopy(arg)
+			// A pattern test node carries no at of its own. Its atom does.
+			delete(r, "at")
 			r["expr"] = x.convert(templateArgument(templateObj(arg["expr"])), "pattern", e, use)
 			return r
 		}

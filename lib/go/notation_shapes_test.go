@@ -293,18 +293,6 @@ func TestSuppliedNodePositionsUseTokenBoundaries(t *testing.T) {
 	}
 }
 
-func TestRootTokensPrecedeNamesDeclarations(t *testing.T) {
-	b := &domBuilder{doc: "g.md", gt: &grammarText{pos: [][2]int{{1, 1}}}, toks: []Token{{Value: "ignored"}, {Value: "%names"}}}
-	root := &Node{Kind: KindRule, Rule: "text", Children: []*Node{{Kind: KindToken, Token: 0}, {Kind: KindRule, Rule: "directive", Children: []*Node{{Kind: KindToken, Token: 1}}}}}
-	defer func() {
-		problem, ok := recover().(*Error)
-		if !ok || !strings.Contains(problem.Error(), "%names must precede every other statement") {
-			t.Fatalf("expected the names-order error, got %v", problem)
-		}
-	}()
-	b.document(root)
-}
-
 func TestRunnersRejectGuardedLoadErrors(t *testing.T) {
 	crash := func() (err error) {
 		defer guard(ErrorGrammar, &err)

@@ -508,9 +508,8 @@ func (r *rankedGroups) fail(g *stageGrammar, group *rankedGroup, code, message s
 	site := r.sourceSites[group.source]
 	site.Path = group.path
 	site.At = nil
-	if at := group.expr.RankedAt; at != [2]int{} {
-		site.At = &at
-	} else if at, known := group.source.alt.rankedLocations[group.path]; known {
+	// A ranked expression's at is its first ≻ separator (docs/output.md).
+	if at := group.expr.At; at != [2]int{} {
 		site.At = &at
 	}
 	at := [2]int{}

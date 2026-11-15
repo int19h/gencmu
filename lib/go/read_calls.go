@@ -5,9 +5,8 @@ import "strings"
 func (b *domBuilder) parameter(n *Node) *domTerm {
 	b.unresolved = true
 	name := strings.TrimPrefix(b.tokenValue(b.token(n)), "@")
-	if !b.readingHead && !b.parameters[name] {
-		b.fail(n, "undeclared parameter @%s", name)
-	}
+	// An undeclared parameter is a DOM fault, which the validator
+	// reports (engine §9.3 step 5).
 	return &domTerm{Kind: tmParam, Str: name, At: b.at(n)}
 }
 
@@ -48,7 +47,7 @@ func (f *sourceArgumentFrame) resume(b *domBuilder, in any) readStep {
 			f.value = &domArgument{Targets: []*domTerm{}}
 			f.targets = b.ruleParts(f.part)
 		case "body-argument", "symbol-argument":
-			return ask(&exprFrame{n: b.knownOf(f.part, primaryRules), whole: true})
+			return ask(&exprFrame{n: b.knownOf(f.part, primaryRules)})
 		default:
 			return ask(&termFrame{n: f.part, argument: true})
 		}

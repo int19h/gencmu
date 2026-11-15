@@ -20,6 +20,9 @@ type domPattern struct {
 	Ends         [2]*domTerm
 	Exact        bool
 	Attached     []*domPattern
+	// listAt is the position of a child list the reader read, which the
+	// DOM does not record.
+	listAt [2]int
 }
 
 // checkPatternDepth follows substitutions before copying or compiling them.
@@ -148,67 +151,84 @@ func walkPattern(p *domPattern, visit func(*domPattern)) {
 		}
 	}
 }
-func patternProblem(root *domPattern, depth int, check func(*domPattern, int) string) string {
+
+// patternProblem walks a pattern in written order and gives its first
+// fault, with the position where it stands, or the zero position for
+// the pattern's own (engine §9.3 step 5).
+func patternProblem(root *domPattern, depth int, check func(*domPattern, int) (string, [2]int)) (string, [2]int) {
 	type entry struct {
-		p     *domPattern
-		depth int
-		item  bool
+		p        *domPattern
+		depth    int
+		item     bool
+		repeated bool
 	}
-	stack := []entry{{root, depth, false}}
+	stack := []entry{{root, depth, false, false}}
 	for len(stack) > 0 {
 		e := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
 		p := e.p
 		if p == nil {
-			return "a malformed pattern"
+			return "a malformed pattern", [2]int{}
 		}
 		if e.item && p.Kind == "sequence" {
-			for _, v := range p.Items {
-				stack = append(stack, entry{v, e.depth, true})
+			for i := len(p.Items) - 1; i >= 0; i-- {
+				stack = append(stack, entry{p.Items[i], e.depth, true, e.repeated})
 			}
 			continue
 		}
 		if e.depth > maxDOMDepth {
-			return "nested too deeply"
+			return "nested too deeply", [2]int{}
 		}
-		push := func(v *domPattern, item bool) { stack = append(stack, entry{v, e.depth + 1, item}) }
+		push := func(v *domPattern, item, repeated bool) {
+			stack = append(stack, entry{v, e.depth + 1, item, repeated})
+		}
 		if e.item {
 			switch p.Kind {
 			case "node":
-				push(p.Items[0], false)
-			case "choice", "optional", "repeat":
-				for _, v := range p.Items {
-					push(v, true)
+				push(p.Items[0], false, false)
+			case "choice", "optional":
+				for i := len(p.Items) - 1; i >= 0; i-- {
+					push(p.Items[i], true, e.repeated)
+				}
+			case "repeat":
+				for i := len(p.Items) - 1; i >= 0; i-- {
+					push(p.Items[i], true, true)
 				}
 			case "siblings":
+				if e.repeated {
+					return "a sibling ellipsis cannot be a repeat item or separator", [2]int{}
+				}
 			default:
-				return "a malformed pattern item"
+				return "a malformed pattern item", p.At
 			}
 			continue
 		}
+		if p.listAt != [2]int{} && p.Kind != "name" && p.Kind != "any" && p.Kind != "param" && p.Kind != "call" {
+			return "a child list requires a rule test", p.listAt
+		}
 		if check != nil && (p.Kind == "param" || p.Kind == "call" || p.Kind == "name" || p.Kind == "literal" || p.Kind == "range" || p.Kind == "wildcard" || p.Kind == "test") {
-			if problem := check(p, e.depth); problem != "" {
-				return problem
+			if problem, at := check(p, e.depth); problem != "" {
+				return problem, at
 			}
+		}
+		for i := len(p.Attached) - 1; i >= 0; i-- {
+			push(p.Attached[i], true, false)
 		}
 		switch p.Kind {
 		case "path", "test":
 			if len(p.Items) > 0 {
-				push(p.Items[0], false)
+				push(p.Items[0], false, false)
 			}
 		case tmUnion, tmIntersection, tmDifference:
-			for _, v := range p.Items {
-				push(v, false)
+			for i := len(p.Items) - 1; i >= 0; i-- {
+				push(p.Items[i], false, false)
 			}
 		case "param", "call", "name", "terminal", "constant", "literal", "range", "wildcard", "any":
 		default:
-			return "a malformed pattern"
-		}
-		for _, v := range p.Attached {
-			push(v, true)
+			return "a malformed pattern", p.At
 		}
 	}
-	return ""
+	return "", [2]int{}
 }
 func (w *jsonWriter) pattern(p *domPattern) { writeLayeredPattern(w, p) }
 func patternKey(p *domPattern) string {
