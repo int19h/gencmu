@@ -2504,7 +2504,7 @@ The reader also gives some nodes hidden positions, which the DOM format does not
 
 A cached or supplied DOM lacks the hidden positions. When a later fault needs one, and the loader has the document's source, it reads the source again. It copies the hidden positions onto the cached DOM, and then reports the fault at its own position. Without the source, as for a supplied DOM, the fault stands at the nearest enclosing node with an `at`, at least at the declaration.
 
-The reader also marks a grouped expression, term, or test operand. The DOM has no form for this mark. So the DOM validator reports a fault that depends on it only in a source DOM. Examples are a grouped capture target, a grouped test operand, and a grouped chain.
+The reader also marks a grouped expression, term, or test operand. The DOM has no form for this mark. So the DOM validator reports a fault that depends on it only in a source DOM. Examples are a grouped capture target, a grouped test operand, a grouped chain, and a grouped elidable head.
 
 Each expression node retains its `at` position through template expansion, including nodes inside call arguments.
 
@@ -3152,7 +3152,7 @@ A document can hold several errors. The reader and DOM validator report one, and
 4. Conversion builds the DOM from the syntax tree in source order, following the constructor table above and the part-lookup rules below. It sets `at` on every declaration and expression node, and the hidden positions and grouping marks of §8. It reports only faults that have no DOM representation. Grouping has no DOM form either, but the DOM validator reports its faults from the mark, in the order of step 5. Every other fault waits for the DOM validator of step 5, so the order of step 5 decides it. These are all the conversion faults:
    - Missing or unexpected notation parts, and invalid token spans. A supplied notation tree can have them, and the bundled syntax cannot.
    - Unparenthesized runs beside `∩` or `∖`, juxtaposition in a recipe, and method argument separators other than those of §10.
-   - Repeated or misplaced markers, a default outside an elidable head or on a pattern atom, a second default, and grouped elidable heads.
+   - Repeated or misplaced markers, a default outside an elidable head or on a pattern atom, and a second default.
    - A recipe atom with grouping, empty arguments, or a leading set operator, which the DOM drops.
    - The spelling of a feature guard, and the kinds of directive operands. The DOM keeps a guard's name and each operand as a string.
    - A range or a rule name in a term position, a bare rule name on the right of `≅` or `≇`, and a pattern test without an atom.
