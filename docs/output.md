@@ -364,7 +364,7 @@ An expression has exactly one of these forms:
 {"param":"Left","at":[line,column]}
 ```
 
-An expression has no member but those of its one form, including template forms above. Every expression node carries `at:[line,column]` as its last member in canonical output. A supplied DOM can omit `at` on an expression node other than `call` or `param`. A fault at an expression node without `at` is reported at the nearest enclosing node with a position, at least at the rule.
+An expression has no member but those of its one form, including template forms above. Every expression node carries `at:[line,column]` as its last member in canonical output. A `ranked` expression takes its `at` from its first `≻` separator, and every other expression node takes its `at` from its first token. A supplied DOM can omit `at` on an expression node other than `call` or `param`. A fault at an expression node without `at` is reported at the nearest enclosing node with a position, at least at the rule.
 
 `seq`, `choice`, `ranked`, and `and` require at least two children. `and` accepts at most 16.
 
