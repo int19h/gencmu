@@ -607,14 +607,25 @@
       }
     }
 
-    const leftOverflows = leftEl
-      ? (leftEl.offsetWidth > clientW ||
-        leftEl.scrollWidth > clientW ||
-        (workspace ? workspace.scrollWidth > clientW : false))
+    // The left side's minimum is set only by #stage-flow. Every other
+    // block of the left side is a size container, so measuring .left at
+    // min-content in the desktop styles gives that minimum.
+    let leftMin = 0;
+    if (leftEl) {
+      const prevFlex = leftEl.style.flex;
+      const prevWidth = leftEl.style.width;
+      leftEl.style.flex = "none";
+      leftEl.style.width = "min-content";
+      leftMin = leftEl.getBoundingClientRect().width;
+      leftEl.style.flex = prevFlex;
+      leftEl.style.width = prevWidth;
+    }
+    const leftTooNarrow = leftEl
+      ? clientW < leftMin + (state.grammarHidden ? 36 : 0)
       : false;
 
     let topBarOverflows = false;
-    if (!leftOverflows) {
+    {
       const phaseDisplay = phaseEl ? phaseEl.style.display : "";
       if (phaseEl) phaseEl.style.display = "none";
 
@@ -635,7 +646,7 @@
       if (phaseEl) phaseEl.style.display = phaseDisplay;
     }
 
-    if (leftOverflows || topBarOverflows) {
+    if (leftTooNarrow || topBarOverflows) {
       delete topbar.dataset.overflow;
       app.classList.add("phone");
       if (!wasPhone) {

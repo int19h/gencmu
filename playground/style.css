@@ -61,6 +61,10 @@
   }
 }
 
+html {
+  scrollbar-gutter: stable;
+}
+
 html,
 body {
   margin: 0;
@@ -953,6 +957,7 @@ textarea:focus-visible,
   align-items: center;
   gap: 10px;
   min-height: 28px;
+  contain: inline-size;
 }
 
 .badge {
@@ -1082,6 +1087,7 @@ button.stage:hover {
 }
 
 .vfeats {
+  contain: inline-size;
   margin: 0;
   display: flex;
   flex-wrap: wrap;
@@ -1110,6 +1116,10 @@ button.stage:hover {
 
 #diagnostics:empty {
   display: none;
+}
+
+#diagnostics .box {
+  contain: inline-size;
 }
 
 .explain-divider {
