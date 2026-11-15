@@ -1715,51 +1715,110 @@ async function main() {
       throw new Error(`no-doc pane did not stay side by side at 900px: ${JSON.stringify(noDocAt900)}`);
     }
 
-    // At 820px (where the no-document list is at its minimum), path names wrap only at '/', with <wbr> in place.
-    await page.setViewportSize({ width: 820, height: 900 });
-    const noDocAt820 = await page.evaluate(() => {
-      window.dispatchEvent(new Event("resize"));
-      const work = document.getElementById("workspace");
-      const leftRect = document.querySelector(".left").getBoundingClientRect();
-      const grammarRect = document.getElementById("grammar-pane").getBoundingClientRect();
-      const list = document.getElementById("documents-list-view");
-      const row = list.querySelector('.drow[data-doc="grammars/lojban/common/consonant-tables.md"]');
-      const mono = row ? row.querySelector(".mono") : null;
-      const wbrs = mono ? [...mono.querySelectorAll("wbr")] : [];
-      const segs = mono ? [...mono.querySelectorAll(".s")] : [];
-      const segRects = segs.map((s) => ({
-        text: s.textContent,
-        lineCount: s.getClientRects().length,
-        top: Math.round(s.getBoundingClientRect().top),
-        bottom: Math.round(s.getBoundingClientRect().bottom),
-      }));
-      const allSegsSingleLine = [...list.querySelectorAll(".drow .mono .s")].every(
-        (s) => s.getClientRects().length === 1
-      );
-      const totalWbrs = list.querySelectorAll(".drow .mono wbr").length;
-      return {
-        stacked: work.classList.contains("no-doc-stacked"),
-        sameRow: Math.abs(leftRect.top - grammarRect.top) <= 1,
-        wbrCount: wbrs.length,
-        totalWbrs,
-        segRects,
-        wrappedBetweenSlashSegments:
-          segRects.length === 2 &&
-          segRects[0].text === "common/" &&
-          segRects[1].text === "consonant-tables" &&
-          segRects[1].top >= segRects[0].bottom - 2,
-        allSegsSingleLine,
-      };
-    });
+    // Narrow step by step from 900px until the grammar pane reaches its minimum width while the panes still share a row.
+    const measureNoDocAt = async (width) => {
+      await page.setViewportSize({ width, height: 900 });
+      return page.evaluate((vw) => {
+        window.dispatchEvent(new Event("resize"));
+        const work = document.getElementById("workspace");
+        const workRect = work.getBoundingClientRect();
+        const leftRect = document.querySelector(".left").getBoundingClientRect();
+        const grammarRect = document.getElementById("grammar-pane").getBoundingClientRect();
+        const list = document.getElementById("documents-list-view");
+        const row = list.querySelector('.drow[data-doc="grammars/lojban/common/consonant-tables.md"]');
+        const mono = row ? row.querySelector(".mono") : null;
+        const wbrs = mono ? [...mono.querySelectorAll("wbr")] : [];
+        const segs = mono ? [...mono.querySelectorAll(".s")] : [];
+        const segRects = segs.map((s) => ({
+          text: s.textContent,
+          lineCount: s.getClientRects().length,
+          top: Math.round(s.getBoundingClientRect().top),
+          bottom: Math.round(s.getBoundingClientRect().bottom),
+        }));
+        const allSegsSingleLine = [...list.querySelectorAll(".drow .mono .s")].every(
+          (s) => s.getClientRects().length === 1
+        );
+        const totalWbrs = list.querySelectorAll(".drow .mono wbr").length;
+        return {
+          vw,
+          stacked: work.classList.contains("no-doc-stacked"),
+          sameRow: Math.abs(leftRect.top - grammarRect.top) <= 1,
+          belowLeft: grammarRect.top >= leftRect.bottom - 1,
+          leftFull: Math.abs(leftRect.width - workRect.width) <= 1,
+          grammarFull: Math.abs(grammarRect.width - workRect.width) <= 1,
+          leftW: Math.round(leftRect.width),
+          grammarW: Math.round(grammarRect.width),
+          workW: Math.round(workRect.width),
+          wbrCount: wbrs.length,
+          totalWbrs,
+          segRects,
+          wrappedBetweenSlashSegments:
+            segRects.length === 2 &&
+            segRects[0].text === "common/" &&
+            segRects[1].text === "consonant-tables" &&
+            segRects[1].top >= segRects[0].bottom - 2,
+          allSegsSingleLine,
+        };
+      }, width);
+    };
+
+    const measuredWidths = [];
+    let noDocAtMin = null;
+    let noDocFirstStacked = null;
+    for (let w = 900; w >= 600; w -= 10) {
+      const m = await measureNoDocAt(w);
+      measuredWidths.push({
+        vw: m.vw,
+        stacked: m.stacked,
+        sameRow: m.sameRow,
+        leftW: m.leftW,
+        grammarW: m.grammarW,
+      });
+      if (!m.stacked && m.sameRow) {
+        noDocAtMin = m;
+      } else if (noDocAtMin) {
+        noDocFirstStacked = m;
+        for (let fine = w + 9; fine > w; fine--) {
+          const fm = await measureNoDocAt(fine);
+          measuredWidths.push({
+            vw: fm.vw,
+            stacked: fm.stacked,
+            sameRow: fm.sameRow,
+            leftW: fm.leftW,
+            grammarW: fm.grammarW,
+          });
+          if (!fm.stacked && fm.sameRow) {
+            noDocAtMin = fm;
+          } else {
+            noDocFirstStacked = fm;
+            break;
+          }
+        }
+        break;
+      }
+    }
     if (
-      noDocAt820.stacked ||
-      !noDocAt820.sameRow ||
-      noDocAt820.wbrCount !== 1 ||
-      noDocAt820.totalWbrs !== 3 ||
-      !noDocAt820.wrappedBetweenSlashSegments ||
-      !noDocAt820.allSegsSingleLine
+      !noDocAtMin ||
+      !noDocFirstStacked ||
+      noDocAtMin.grammarW >= noDocAt900.grammarW ||
+      !noDocFirstStacked.stacked ||
+      !noDocFirstStacked.belowLeft ||
+      !noDocFirstStacked.leftFull ||
+      !noDocFirstStacked.grammarFull
     ) {
-      throw new Error(`no-doc minimum width slash wrap check failed at 820px: ${JSON.stringify(noDocAt820)}`);
+      throw new Error(
+        `no-doc minimum width search failed to find side-by-side minimum before stacking: ${JSON.stringify({ noDocAtMin, noDocFirstStacked, measuredWidths })}`
+      );
+    }
+    if (
+      noDocAtMin.stacked ||
+      !noDocAtMin.sameRow ||
+      noDocAtMin.wbrCount !== 1 ||
+      noDocAtMin.totalWbrs !== 3 ||
+      !noDocAtMin.wrappedBetweenSlashSegments ||
+      !noDocAtMin.allSegsSingleLine
+    ) {
+      throw new Error(`no-doc minimum width slash wrap check failed at ${noDocAtMin.vw}px: ${JSON.stringify(noDocAtMin)}`);
     }
 
     await page.setViewportSize({ width: 680, height: 900 });
@@ -1943,18 +2002,33 @@ async function main() {
     await idle("after resetting grammar edit in collapsed strip check");
 
     // Transitions 900 -> 390 -> 1440 px, without and with an edited document, and closing the last document at phone width.
-    await page.setViewportSize({ width: 900, height: 900 });
+    const transitionDesktopWidth = Math.max(900, noDocAtMin.vw + 20);
+    await page.setViewportSize({ width: transitionDesktopWidth, height: 900 });
     const step900NoEdit = await page.evaluate(() => {
       window.dispatchEvent(new Event("resize"));
       const app = document.getElementById("app");
       const work = document.getElementById("workspace");
+      const leftRect = document.querySelector(".left").getBoundingClientRect();
+      const grammarRect = document.getElementById("grammar-pane").getBoundingClientRect();
       return {
         phone: app.classList.contains("phone"),
         noDoc: work.classList.contains("no-doc"),
         stacked: work.classList.contains("no-doc-stacked"),
         hidden: work.classList.contains("grammar-hidden"),
+        sameRow: Math.abs(leftRect.top - grammarRect.top) <= 1,
       };
     });
+    if (
+      step900NoEdit.phone ||
+      !step900NoEdit.noDoc ||
+      step900NoEdit.stacked ||
+      step900NoEdit.hidden ||
+      !step900NoEdit.sameRow
+    ) {
+      throw new Error(
+        `900px step before 390 -> 1440 transition (no edit) is not side by side: ${JSON.stringify(step900NoEdit)}`
+      );
+    }
     await page.setViewportSize({ width: 390, height: 844 });
     const step390NoEdit = await page.evaluate(() => {
       window.dispatchEvent(new Event("resize"));
@@ -1976,20 +2050,18 @@ async function main() {
       window.dispatchEvent(new Event("resize"));
       const app = document.getElementById("app");
       const work = document.getElementById("workspace");
-      const grammar = document.getElementById("grammar-pane").getBoundingClientRect();
+      const leftRect = document.querySelector(".left").getBoundingClientRect();
+      const grammarRect = document.getElementById("grammar-pane").getBoundingClientRect();
       return {
         phone: app.classList.contains("phone"),
         noDoc: work.classList.contains("no-doc"),
         stacked: work.classList.contains("no-doc-stacked"),
         hidden: work.classList.contains("grammar-hidden"),
-        grammarW: Math.round(grammar.width),
+        sameRow: Math.abs(leftRect.top - grammarRect.top) <= 1,
+        grammarW: Math.round(grammarRect.width),
       };
     });
     if (
-      step900NoEdit.phone ||
-      !step900NoEdit.noDoc ||
-      step900NoEdit.stacked ||
-      step900NoEdit.hidden ||
       !step390NoEdit.phone ||
       !step390NoEdit.noDoc ||
       !step390NoEdit.stacked ||
@@ -2000,6 +2072,7 @@ async function main() {
       !step1440NoEdit.noDoc ||
       step1440NoEdit.stacked ||
       step1440NoEdit.hidden ||
+      !step1440NoEdit.sameRow ||
       Math.abs(step1440NoEdit.grammarW - noDocAt1440.grammarW) > 1
     ) {
       throw new Error(
@@ -2007,7 +2080,7 @@ async function main() {
       );
     }
 
-    await page.setViewportSize({ width: 900, height: 900 });
+    await page.setViewportSize({ width: transitionDesktopWidth, height: 900 });
     const step900Edited = await page.evaluate(() => {
       window.dispatchEvent(new Event("resize"));
       self.playground.openDocument("grammars/lojban/cll/syntax.md", 1, 1);
@@ -2016,17 +2089,35 @@ async function main() {
       document.getElementById("hide-grammar").click();
       const app = document.getElementById("app");
       const work = document.getElementById("workspace");
-      const grammar = document.getElementById("grammar-pane").getBoundingClientRect();
+      const workRect = work.getBoundingClientRect();
+      const leftRect = document.querySelector(".left").getBoundingClientRect();
+      const grammarRect = document.getElementById("grammar-pane").getBoundingClientRect();
       const dot = document.getElementById("show-grammar-dot");
       return {
         phone: app.classList.contains("phone"),
         noDoc: work.classList.contains("no-doc"),
         stacked: work.classList.contains("no-doc-stacked"),
         hidden: work.classList.contains("grammar-hidden"),
-        grammarW: Math.round(grammar.width),
+        sameRow: Math.abs(leftRect.top - grammarRect.top) <= 1,
+        rightEdge: Math.abs(grammarRect.right - workRect.right) <= 1,
+        grammarW: Math.round(grammarRect.width),
         dotHidden: dot.hidden,
       };
     });
+    if (
+      step900Edited.phone ||
+      step900Edited.noDoc ||
+      step900Edited.stacked ||
+      !step900Edited.hidden ||
+      !step900Edited.sameRow ||
+      !step900Edited.rightEdge ||
+      step900Edited.grammarW !== 36 ||
+      step900Edited.dotHidden
+    ) {
+      throw new Error(
+        `900px step before 390 -> 1440 transition (edited + strip) is not side by side: ${JSON.stringify(step900Edited)}`
+      );
+    }
     await page.setViewportSize({ width: 390, height: 844 });
     const step390Edited = await page.evaluate(() => {
       window.dispatchEvent(new Event("resize"));
@@ -2067,12 +2158,6 @@ async function main() {
       };
     });
     if (
-      step900Edited.phone ||
-      step900Edited.noDoc ||
-      step900Edited.stacked ||
-      !step900Edited.hidden ||
-      step900Edited.grammarW !== 36 ||
-      step900Edited.dotHidden ||
       !step390Edited.phone ||
       step390Edited.noDoc ||
       step390Edited.stacked ||
