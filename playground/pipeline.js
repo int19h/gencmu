@@ -29,10 +29,17 @@
   function setErrorClass(cls) {
     errorClass = cls;
   }
+  function makeGrammarError(message, where) {
+    const Err = errorClass || (root.gencmu && root.gencmu.GencmuError);
+    if (Err) return new Err("grammar", message, where);
+    const error = new Error(message);
+    error.kind = "grammar";
+    error.where = where;
+    return error;
+  }
   function resolvePath(from, relative) {
     if (relative.startsWith("/")) {
-      const Err = errorClass || (root.gencmu && root.gencmu.GencmuError) || Error;
-      throw new Err("grammar", "a path target must be relative", { document: from });
+      throw makeGrammarError("a path target must be relative", { document: from });
     }
     const absolute = from.startsWith("/");
     const parts = [];
@@ -152,7 +159,7 @@
       catch (error) {
         if (error.kind !== "grammar") throw error;
         const where = {document, ...(at ? {line:at[0], column:at[1]} : {})};
-        errors.push(new root.gencmu.GencmuError("grammar", error.message, where));
+        errors.push(makeGrammarError(error.message, where));
         return undefined;
       }
     };

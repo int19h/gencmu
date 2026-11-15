@@ -478,7 +478,6 @@
           owner: owners.get(warning) || null,
           excerpt: lines && warning.source ? excerptAt(lines, warning.source).excerpt : null,
         })),
-        warningsText: gencmu.explainWarnings(result),
         stages: result.stages.map((stage) => ({
           name: stage.name,
           verdict: stage.verdict,
@@ -586,8 +585,10 @@
               tie.firstCanonical = canonicalText(readings[0]);
               tie.secondCanonical = canonicalText(readings[1]);
             }
+            output = { format: "canonical", text: "" };
+          } else {
+            output = { format: "canonical", text: gencmu.prettyJson(gencmu.resultJson(result)) };
           }
-          output = { format: "canonical", text: gencmu.prettyJson(gencmu.resultJson(result)) };
           break;
         }
         case "tokens": {

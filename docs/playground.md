@@ -20,7 +20,7 @@ The Options menu controls features, the elision check, and the last stage to run
 
 Type or paste text in the box at the top left. When you pause after typing or change an option, a parse runs. While the worker is busy, a newer change replaces the pending run.
 
-The verdict card below the text reports the outcome, the parse time, the stage chain, and the enabled features. Click a completed stage chip to open the Tokens view for that stage. A failed stage chip opens the Tokens view of the stage before it, which holds the tokens that it read. A chip for a stage that did not run is not a button. The Share button copies a link with the text, pipeline, options, view, toggles, Tokens stage, and Trace stage and position.
+The verdict card below the text reports the outcome, the parse time, the stage chain, and the enabled features. Click a completed stage chip to open the Tokens view for that stage. A failed stage chip opens the Tokens view of the stage before it, which holds the tokens that it read. If the first stage fails, its chip opens its own empty Tokens view. A chip for a stage that did not run is not a button. The Share button copies a link with the text, pipeline, options, view, toggles, Tokens stage, and Trace stage and position.
 
 When a stage rejects the text, the card shows the failure position and the terminals expected by each rule. Click a rule name to open that rule in the grammar editor. Click Trace here to inspect the Earley recognizer at that position.
 

@@ -700,7 +700,7 @@ async function main() {
       console.log(`example works in ${browser}: ${check.id}`);
     }
 
-    // Round 8 example state transitions:
+    // Example state transitions:
     // 1. A Trace example's position label is at the rejection after another example (digits-in-cll -> repeated-le).
     await choose("grammars/lojban/cll/pipeline.md");
     await idle("lojban/cll before example state transitions");
@@ -1240,8 +1240,8 @@ async function main() {
       await idle("resetting full editor grammar error");
     }
 
-    // Round 5 & Round 6 checks: wrapped lines and .wrun in Tree/JSON/Audit/Trace,
-    // examples menu width (380-520px) on desktop, Tokens tags row below 520px, and measured top-bar steps.
+    // Wrapped lines and .wrun in Tree/JSON/Audit/Trace,
+    // examples menu width (380-520px) on desktop, Tokens tags second-line layout, and measured top-bar steps.
     await page.locator("#tab-tree").click();
     await idle("tree view for wrapped line check");
     const wrappedTreeCheck = await run(() => {
@@ -1276,7 +1276,7 @@ async function main() {
       wrappedTreeCheck.leadingSepCount !== 0 ||
       !/^Library \d+\.\d+\.\d+$/.test(wrappedTreeCheck.versionPhone)
     ) {
-      throw new Error(`Round 5/6 wrapped line or phone version check failed: ${JSON.stringify(wrappedTreeCheck)}`);
+      throw new Error(`wrapped line or phone version check failed: ${JSON.stringify(wrappedTreeCheck)}`);
     }
 
     await choose("grammars/lojban/experimental/pipeline.md");
@@ -1300,7 +1300,7 @@ async function main() {
       expMenuCheck.wrappedCount !== 0 ||
       expMenuCheck.alignItems !== "flex-start"
     ) {
-      throw new Error(`Round 6 experimental examples menu check failed: ${JSON.stringify(expMenuCheck)}`);
+      throw new Error(`experimental examples menu width check failed: ${JSON.stringify(expMenuCheck)}`);
     }
     await page.keyboard.press("Escape");
 
@@ -1363,11 +1363,11 @@ async function main() {
       phoneTokCheck.tagsTop < phoneTokCheck.textBottom - 2 ||
       phoneTokCheck.wrapScrollW > phoneTokCheck.wrapClientW
     ) {
-      throw new Error(`Round 6 phone tokens table check failed: ${JSON.stringify(phoneTokCheck)}`);
+      throw new Error(`phone tokens table tags layout check failed: ${JSON.stringify(phoneTokCheck)}`);
     }
 
-    // Round 9 checks:
-    // 1. Deep nesting (fable 1.2): first word of every line lies inside the pane or its scroll range,
+    // Deep nesting, Trace 5th section, Token diagnostics, and phone More actions menu:
+    // 1. Deep nesting: first word of every line lies inside the pane or its scroll range,
     //    and right edge fades out while more lies to the right.
     await page.setViewportSize({ width: 1440, height: 900 });
     await choose("grammars/lojban/cll/pipeline.md");
@@ -1428,11 +1428,11 @@ async function main() {
         !deepCheck.moreAtStart ||
         deepCheck.moreAtEnd
       ) {
-        throw new Error(`Round 9 deep nesting check (${viewName}) failed: ${JSON.stringify(deepCheck)}`);
+        throw new Error(`deep nesting check (${viewName}) failed: ${JSON.stringify(deepCheck)}`);
       }
     }
 
-    // 2. Trace 5 sections (fable 1.3): Completed, Advanced, Predicted, Dropped, Could read next
+    // 2. Trace 5 sections: Completed, Advanced, Predicted, Dropped, Could read next
     await type("mi klama le le");
     await answerFor("mi klama le le");
     await page.locator("#tab-trace").click();
@@ -1470,10 +1470,10 @@ async function main() {
       !trace5Check.hasRulesSpan ||
       !/\(.+\)$/.test(trace5Check.firstExpectedText)
     ) {
-      throw new Error(`Round 9 Trace 5th section check failed: ${JSON.stringify(trace5Check)}`);
+      throw new Error(`Trace 5th section check failed: ${JSON.stringify(trace5Check)}`);
     }
 
-    // 3. Token diagnostics (fable 1.7, round 11) & Elision-only Default: off wording
+    // 3. Token diagnostics & Elision-only Default: off wording
     await choose("grammars/eberban/refgram/pipeline.md");
     await type("a mi dona pban");
     await answerFor("a mi dona pban");
@@ -1526,14 +1526,14 @@ async function main() {
       tokDiagDesktop.elisionDesc !== "Default: off" ||
       tokDiagDesktop.docMoreDesktopVisible
     ) {
-      throw new Error(`Round 9/11 desktop token diagnostics / elision wording / doc-more check failed: ${JSON.stringify(tokDiagDesktop)}`);
+      throw new Error(`desktop token diagnostics, elision wording, or doc-more check failed: ${JSON.stringify(tokDiagDesktop)}`);
     }
 
-    // 4. Phone Token diagnostics (390px) and More actions menu (carbon 4.1)
+    // 4. Phone Token diagnostics (390px) and More actions menu
     await page.setViewportSize({ width: 390, height: 844 });
     await page.evaluate(() => window.dispatchEvent(new Event("resize")));
     await sleep(100);
-    const phoneRound9 = await page.evaluate(() => {
+    const phoneTokDiag = await page.evaluate(() => {
       const headers = [...document.querySelectorAll("#output table.tokens th")].map((th) => th.textContent.trim());
       const pbanRow = [...document.querySelectorAll("#output table.tokens tbody tr")].find((tr) =>
         tr.textContent.includes('"pban"')
@@ -1559,14 +1559,14 @@ async function main() {
       };
     });
     if (
-      phoneRound9.headers.join(",") !== "#,text,value,image,span,source" ||
-      Math.abs(phoneRound9.tagsLeft - phoneRound9.textLeft) > 1 ||
-      phoneRound9.tagsTop < phoneRound9.textBottom - 2 ||
-      phoneRound9.chipsInTagsLine.length < 2 ||
-      phoneRound9.chipsInTagsLine[0].text !== "pair-voiceness" ||
-      phoneRound9.chipsInTagsLine[0].aria !== "Error: pair-voiceness"
+      phoneTokDiag.headers.join(",") !== "#,text,value,image,span,source" ||
+      Math.abs(phoneTokDiag.tagsLeft - phoneTokDiag.textLeft) > 1 ||
+      phoneTokDiag.tagsTop < phoneTokDiag.textBottom - 2 ||
+      phoneTokDiag.chipsInTagsLine.length < 2 ||
+      phoneTokDiag.chipsInTagsLine[0].text !== "pair-voiceness" ||
+      phoneTokDiag.chipsInTagsLine[0].aria !== "Error: pair-voiceness"
     ) {
-      throw new Error(`Round 9/11 phone token diagnostics check failed: ${JSON.stringify(phoneRound9)}`);
+      throw new Error(`phone token diagnostics check failed: ${JSON.stringify(phoneTokDiag)}`);
     }
 
     await page.evaluate(() => {
@@ -1606,9 +1606,13 @@ async function main() {
       !moreMenuCheck.items[2].sep ||
       !moreMenuCheck.items.every((it) => it.hasSvg)
     ) {
-      throw new Error(`Round 9 phone More actions menu check failed: ${JSON.stringify(moreMenuCheck)}`);
+      throw new Error(`phone More actions menu check failed: ${JSON.stringify(moreMenuCheck)}`);
     }
     await page.locator("#doc-more-reset").click();
+    const activeAfterDocMoreReset = await page.evaluate(() => document.activeElement?.id || "");
+    if (activeAfterDocMoreReset !== "doc-more-actions") {
+      throw new Error(`More actions Reset did not return focus to #doc-more-actions: ${activeAfterDocMoreReset}`);
+    }
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.evaluate(() => window.dispatchEvent(new Event("resize")));
     await choose("grammars/lojban/cll/pipeline.md");
@@ -1619,7 +1623,7 @@ async function main() {
       return chips[chips.length - 1]?.getAttribute("title") || "";
     });
     if (failedChipTitle !== "Show tokens from indicators, read by syntax") {
-      throw new Error(`Round 10 failed stage chip tooltip check failed: ${failedChipTitle}`);
+      throw new Error(`failed stage chip tooltip check failed: ${failedChipTitle}`);
     }
 
     if ((await page.locator(".cm-content").count()) > 0) {
@@ -1633,7 +1637,7 @@ async function main() {
       await page.keyboard.press("Control+z");
       const latAfterNavUndoLen = await page.evaluate(() => self.playground.editor.getValue().length);
       if (latAfterNavUndoLen !== latOrigLen) {
-        throw new Error(`Round 10 same-document navigation lost undo history: ${latAfterNavUndoLen} !== ${latOrigLen}`);
+        throw new Error(`same-document navigation lost undo history: ${latAfterNavUndoLen} !== ${latOrigLen}`);
       }
       await page.evaluate(() => self.playground.openDocument(null));
     }
@@ -1641,7 +1645,7 @@ async function main() {
     await type("mi klama le zarci");
     await answerFor("mi klama le zarci");
     await page.locator("#tab-brackets").click();
-    await idle("returning to brackets after round 9 checks");
+    await idle("returning to brackets after layout and editor checks");
     console.log(`redesigned layout, full editor, and phone checks work in ${browser}`);
 
     // Basic editor variant: served without playground/vendor/, with zero failed requests.

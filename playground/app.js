@@ -623,11 +623,16 @@
       app.classList.add("phone");
       if (!wasPhone) {
         wasPhone = true;
-        updatePhoneGrammarState();
+        if (state.phoneGrammarOpen && !state.open) {
+          openDocument(pipelinePath(state.pipeline), 0, 1);
+        } else {
+          updatePhoneGrammarState();
+        }
       }
       updatePhoneTabsFade();
     } else if (wasPhone) {
       wasPhone = false;
+      closeMenu("doc-more-actions", "doc-more-menu");
     }
   }
 
@@ -660,6 +665,11 @@
     updatePhoneTabsFade();
     updateAllCodeBlocksFade();
   });
+  if (typeof ResizeObserver !== "undefined" && $("output-card")) {
+    new ResizeObserver(() => {
+      updateAllCodeBlocksFade();
+    }).observe($("output-card"));
+  }
 
   // ---- Popover menus -------------------------------------------------------
 
@@ -671,20 +681,23 @@
     { button: "doc-more-actions", menu: "doc-more-menu" },
   ];
 
+  function closeMenu(buttonId, menuId) {
+    const btnEl = $(buttonId);
+    const menuEl = $(menuId);
+    if (btnEl) {
+      btnEl.setAttribute("aria-expanded", "false");
+      btnEl.classList.remove("open");
+    }
+    if (menuEl) menuEl.hidden = true;
+    if (menuId === "examples-menu" && $("phone-examples-button")) {
+      $("phone-examples-button").classList.remove("open");
+    }
+  }
+
   function closeAllMenus(exceptMenuId = null) {
     for (const { button, menu } of MENUS) {
       if (menu === exceptMenuId) continue;
-      const btnEl = $(button);
-      const menuEl = $(menu);
-      if (btnEl) {
-        btnEl.setAttribute("aria-expanded", "false");
-        btnEl.classList.remove("open");
-      }
-      if (menuEl) menuEl.hidden = true;
-    }
-    const phoneEx = $("phone-examples-button");
-    if (phoneEx && exceptMenuId !== "examples-menu") {
-      phoneEx.classList.remove("open");
+      closeMenu(button, menu);
     }
   }
 
@@ -984,13 +997,20 @@
             : err && err.stage === stage.name && err.kind === "rejected"
               ? "rejected"
               : report.error;
-        const tokenStageName = index > 0 ? stageList[index - 1].name : stage.name;
+        const hasOwnTokens = report.output !== null && report.output !== undefined;
+        const tokenStageName = hasOwnTokens
+          ? stage.name
+          : index > 0
+            ? stageList[index - 1].name
+            : stage.name;
         chips.push(element("button", {
           type: "button",
           class: `stage ${isAmbig ? "tie" : "bad"}`,
-          title: index > 0
-            ? `Show tokens from ${tokenStageName}, read by ${stage.name}`
-            : `Show tokens for ${stage.name}`,
+          title: hasOwnTokens
+            ? `Show tokens handed on by ${stage.name}`
+            : index > 0
+              ? `Show tokens from ${tokenStageName}, read by ${stage.name}`
+              : `Show tokens for ${stage.name}`,
           onclick: () => {
             state.tokenStage = tokenStageName;
             selectTab("tokens", true);
@@ -1964,16 +1984,13 @@
       ? summaryMatch[1].charAt(0).toUpperCase() + summaryMatch[1].slice(1)
       : headerLine;
     const summary = rawSummary.replace(/:$/, "");
-
-    if (!trace.sections) {
-      return parseTraceText(trace.text, stageName);
-    }
+    const sections = trace.sections || {};
 
     const sectionSpecs = [
-      ["Completed", trace.sections.completed || []],
-      ["Advanced", trace.sections.advanced || []],
-      ["Predicted", trace.sections.predicted || []],
-      ["Dropped", trace.sections.dropped || []],
+      ["Completed", sections.completed || []],
+      ["Advanced", sections.advanced || []],
+      ["Predicted", sections.predicted || []],
+      ["Dropped", sections.dropped || []],
     ];
     const children = [];
     for (const [title, items] of sectionSpecs) {
@@ -2017,96 +2034,6 @@
       p.appendChild(rulesSpan);
     }
     return p;
-  }
-
-  function parseTraceText(rawText, stageName) {
-    const lines = (rawText || "").split("\n");
-    const summaryLine = lines[0] || "";
-    const summaryMatch = summaryLine.match(/at (position \d+.*)$/i);
-    const rawSummary = summaryMatch
-      ? summaryMatch[1].charAt(0).toUpperCase() + summaryMatch[1].slice(1)
-      : summaryLine;
-    const summary = rawSummary.replace(/:$/, "");
-
-    const buckets = new Map([
-      ["Completed", []],
-      ["Advanced", []],
-      ["Predicted", []],
-      ["Dropped", []],
-    ]);
-    const expected = [];
-    let inExpected = false;
-
-    let currentBucket = null;
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i];
-      if (!line.trim()) continue;
-      if (/^\s*could read next:/i.test(line)) {
-        currentBucket = null;
-        inExpected = true;
-        continue;
-      }
-      if (/^\s*could read nothing next/i.test(line)) {
-        currentBucket = null;
-        inExpected = false;
-        continue;
-      }
-      const headerMatch = line.match(/^\s*(Completed|Advanced|Predicted|Dropped)\b/i);
-      if (headerMatch) {
-        const key = headerMatch[1].charAt(0).toUpperCase() + headerMatch[1].slice(1).toLowerCase();
-        currentBucket = buckets.get(key) || null;
-        inExpected = false;
-        continue;
-      }
-      if (!line.startsWith("  ")) {
-        currentBucket = null;
-        inExpected = false;
-        continue;
-      }
-      if (inExpected) {
-        const trimmed = line.trim();
-        const parenIdx = trimmed.lastIndexOf(" (");
-        if (parenIdx > 0 && trimmed.endsWith(")")) {
-          expected.push({
-            terminal: trimmed.slice(0, parenIdx),
-            rules: trimmed.slice(parenIdx + 2, -1).split(/,\s*/),
-          });
-        } else if (trimmed) {
-          expected.push({ terminal: trimmed, rules: [] });
-        }
-        continue;
-      }
-      if (currentBucket) {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed === "none") continue;
-        if (line.startsWith("      ") && currentBucket.length > 0) {
-          currentBucket[currentBucket.length - 1] += "\n" + trimmed;
-        } else {
-          currentBucket.push(trimmed);
-        }
-      }
-    }
-
-    const children = [];
-    for (const [title, items] of buckets) {
-      children.push(element("p", { class: "sec" },
-        title,
-        element("span", { text: items.length === 0 ? "none" : plural(items.length, "item") })));
-      for (const itemText of items) {
-        children.push(formatTraceItem(itemText, stageName));
-      }
-    }
-    children.push(element("p", { class: "sec" },
-      "Could read next",
-      element("span", { text: expected.length === 0 ? "none" : plural(expected.length, "item") })));
-    for (const exp of expected) {
-      children.push(formatExpectedTraceItem(exp));
-    }
-
-    return {
-      summary,
-      sectionsNode: element("div", { class: "trace-sections" }, children),
-    };
   }
 
   function formatTraceItem(itemText, stageName) {
@@ -2463,11 +2390,13 @@
   $("hide-grammar").addEventListener("click", () => {
     state.grammarHidden = true;
     $("workspace").classList.add("grammar-hidden");
+    updateAllCodeBlocksFade();
   });
 
   $("show-grammar").addEventListener("click", () => {
     state.grammarHidden = false;
     $("workspace").classList.remove("grammar-hidden");
+    updateAllCodeBlocksFade();
   });
 
   function updatePhoneGrammarState() {
@@ -2644,6 +2573,7 @@
         optgroupChildren.push(element("option", {
           value: path,
           selected: isCurrent,
+          disabled: missing,
           text: `${label}${edited ? " (edited)" : ""}`,
         }));
       }
@@ -2651,6 +2581,22 @@
       railNodes.push(element("div", { class: "doc-group" }, groupNodes));
       fullNodes.push(element("div", { class: "doc-group-full" }, fullGroupNodes));
       selectNodes.push(element("optgroup", { label: grp.label }, optgroupChildren));
+    }
+
+    if (state.open && !documents.includes(state.open)) {
+      const label = shortLabel(state.open, entryDir);
+      const edited = isEdited(state.open);
+      const missing = client.text(state.open) === undefined;
+      selectNodes.push(
+        element("optgroup", { label: "Outside this pipeline" }, [
+          element("option", {
+            value: state.open,
+            selected: true,
+            disabled: missing,
+            text: `${label}${edited ? " (edited)" : ""}`,
+          }),
+        ])
+      );
     }
 
     fill($("documents"), railNodes);
@@ -2731,6 +2677,11 @@
   }
 
   function openDocument(path, line = 0, column = 1, forceReset = false) {
+    if (!path && $("app").classList.contains("phone") && state.phoneGrammarOpen) {
+      path = pipelinePath(state.pipeline);
+      line = 0;
+      column = 1;
+    }
     if (!path) {
       state.open = null;
       editor.setLabel("Grammar document");
@@ -2805,15 +2756,18 @@
   $("doc-more-reset").addEventListener("click", () => {
     closeAllMenus();
     resetOpenDocument();
+    $("doc-more-actions").focus();
   });
   $("doc-more-download").addEventListener("click", () => {
     closeAllMenus();
     const path = state.open || pipelinePath(state.pipeline);
     if (path) download(path);
+    $("doc-more-actions").focus();
   });
   $("doc-more-download-edited").addEventListener("click", () => {
     closeAllMenus();
     downloadAllEdited();
+    $("doc-more-actions").focus();
   });
 
   window.addEventListener("beforeunload", (event) => {
@@ -2930,8 +2884,12 @@
         role: "menuitem",
         "data-example-id": example.id,
         onclick: () => {
+          const focusBtn = $("app").classList.contains("phone")
+            ? $("phone-examples-button")
+            : $("examples-button");
           closeAllMenus();
           applyExample(example);
+          if (focusBtn) focusBtn.focus();
         },
       };
       if (idx === matching.length - 1 && otherCount > 0) {
@@ -3122,6 +3080,7 @@
             pipeline.value = name;
             pipeline.dispatchEvent(new Event("change"));
           }
+          $("pipeline-button").focus();
         },
       },
       element("span", { class: "mono", text: name }),
@@ -3171,6 +3130,14 @@
       }
       activeExample = null;
       showExampleNote(null);
+      const nextDocs = pipelineOf(pipelinePath(state.pipeline)).documents;
+      if (state.open && !nextDocs.includes(state.open)) {
+        if ($("app").classList.contains("phone")) {
+          openDocument(pipelinePath(state.pipeline), 0, 1);
+        } else {
+          openDocument(null);
+        }
+      }
       renderExamplesMenu();
       renderOptions();
       renderDocuments();
