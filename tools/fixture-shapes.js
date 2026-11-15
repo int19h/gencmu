@@ -170,7 +170,7 @@ export const fixtureShapes = {
   "dom-depth-source.json": { shape: caseList(object({ description: string, head: string, prefix: string, leaf: string, suffix: string, tail: string, atLimit: natural })) },
   "dom-depth.json": { shape: caseList(object({ description: string, dom: any, leaf: any, wrapper: any, atLimit: natural })) },
   "dom-malformed.json": { shape: caseList(object({ description: string, malformed: boolean }, {
-    dom: any, rule: any, directive: any, unicode: string, code: string, message: string,
+    dom: any, rule: any, directive: any, unicode: string, code: string, message: string, at: { tuple: [positive, positive] },
   }, [exactly("dom", "rule", "directive")])) },
   "growth.json": { shape: caseList(object({ description: string, pipeline: string, text: string, link: string, small: positive, large: positive, most: positive }, {}, [
     (v) => v.large > v.small ? [] : ["large must exceed small"],

@@ -359,12 +359,12 @@ An expression has exactly one of these forms:
 {"capture":"x","expr":CAPTURETARGET,"at":[line,column]}
 {"test":"=","value":STRINGTERM,"expr":TESTTARGET,"at":[line,column]}
 {"test":"tags","requirements":[REQUIREMENT...],"expr":BASETARGET,"at":[line,column]}
-{"empty":true,"at":[line,column]}             {"remainder":true,"at":[line,column]}
+{"empty":true,"at":[line,column]}             {"remainder":true}
 {"call":"pair","args":[ARG,ARG...],"at":[line,column]}
 {"param":"Left","at":[line,column]}
 ```
 
-An expression has no member but those of its one form, including template forms above. Every expression node carries `at:[line,column]` as its last member in canonical output. A `ranked` expression takes its `at` from its first `≻` separator, and every other expression node takes its `at` from its first token. A supplied DOM can omit `at` on an expression node other than `call` or `param`. A fault at an expression node without `at` is reported at the nearest enclosing node with a position, at least at the rule.
+An expression has no member but those of its one form, including template forms above. Every expression node other than `remainder` carries `at:[line,column]` as its last member in canonical output. A `ranked` expression takes its `at` from its first `≻` separator. A `test` takes its `at` from its comparator or its `<` token. Every other expression node takes its `at` from its first token. A supplied DOM can omit `at` on an expression node other than `call` or `param`. A fault at an expression node without `at` is reported at the nearest enclosing node with a position, at least at the rule.
 
 `seq`, `choice`, `ranked`, and `and` require at least two children. `and` accepts at most 16.
 
@@ -475,14 +475,14 @@ Classifier arguments use `{"classifier":"lexicon"}`. Rule arguments are also leg
 
 String arguments are terms. A classifier name starts with a lowercase letter, so `🆓` cannot name a classifier.
 
-`.parse` takes exactly one `{"body":EXPR}` argument. Its receiver is a capture or span, including a restored span except in suffix or part mode. The body contains no capture at any depth, but referenced rules retain their own captures. The body is never a `repeat` with a `chain`. It can add the leaf `{"remainder":true,"at":[line,column]}` at the first edge, at the last edge, or at both edges of its outer `seq`.
+`.parse` takes exactly one `{"body":EXPR}` argument. Its receiver is a capture or span, including a restored span except in suffix or part mode. The body contains no capture at any depth, but referenced rules retain their own captures. The body is never a `repeat` with a `chain`. It can add the leaf `{"remainder":true}` at the first edge, at the last edge, or at both edges of its outer `seq`.
 
-That leaf has no other members beyond `remainder` and optional `at`, and is legal nowhere else. It cannot be the complete body. Without it, the query uses whole mode.
+That leaf has no other members beyond `remainder` and optional `at`, and is legal nowhere else. Canonical output writes it without `at`. It cannot be the complete body. Without it, the query uses whole mode.
 
 For example, `$i.onward.parse(@Open …).error-free` in a template uses this unresolved term:
 
 ```json
-{"method":"error-free","receiver":{"method":"parse","receiver":{"method":"onward","receiver":{"capture":"i"},"args":[]},"args":[{"body":{"seq":[{"param":"Open","at":[2,20]},{"remainder":true,"at":[2,26]}],"at":[2,20]}}]},"args":[]}
+{"method":"error-free","receiver":{"method":"parse","receiver":{"method":"onward","receiver":{"capture":"i"},"args":[]},"args":[{"body":{"seq":[{"param":"Open","at":[2,20]},{"remainder":true}],"at":[2,20]}}]},"args":[]}
 ```
 
 A first remainder selects suffix mode, and a last remainder selects prefix mode. A remainder at both edges selects part mode. Each remainder is unread and excluded from the witness. `.error-free` takes no arguments, accepts a forest receiver, and returns a forest.
@@ -504,7 +504,7 @@ For example, `$m.without-elision.parse(sumti)` uses this condition DOM:
 `$s.without-elision-except(math).onward.parse(quantifier …)` uses this condition DOM:
 
 ```json
-{"method":"parse","receiver":{"method":"onward","receiver":{"method":"without-elision-except","receiver":{"capture":"s"},"args":[{"rule":"math"}]},"args":[]},"args":[{"body":{"seq":[{"ref":"quantifier","at":[1,42]},{"remainder":true,"at":[1,53]}],"at":[1,42]}}]}
+{"method":"parse","receiver":{"method":"onward","receiver":{"method":"without-elision-except","receiver":{"capture":"s"},"args":[{"rule":"math"}]},"args":[]},"args":[{"body":{"seq":[{"ref":"quantifier","at":[1,46]},{"remainder":true}],"at":[1,46]}}]}
 ```
 
 The extended prefix uses `$m.without-elision.onward.parse(sumti …)`. Its receiver nests an `onward` method around the restored span. Query conditions use the same method schema as terms.
@@ -732,7 +732,7 @@ A ranked expression is `{"ranked":[EXPR,EXPR...],"at":[line,column]}`. Its array
 For example, `mex MOI 🆓 ≻ SE 🆓 tanru-unit-1` produces this expression:
 
 ```json
-{"ranked":[{"seq":[{"ref":"mex","at":[1,1]},{"ref":"MOI","at":[1,5]},{"ref":"🆓","at":[1,9]}],"at":[1,1]},{"seq":[{"ref":"SE","at":[1,14]},{"ref":"🆓","at":[1,17]},{"ref":"tanru-unit-1","at":[1,20]}],"at":[1,14]}],"at":[1,12]}
+{"ranked":[{"seq":[{"ref":"mex","at":[1,1]},{"ref":"MOI","at":[1,5]},{"ref":"🆓","at":[1,9]}],"at":[1,1]},{"seq":[{"ref":"SE","at":[1,13]},{"ref":"🆓","at":[1,16]},{"ref":"tanru-unit-1","at":[1,18]}],"at":[1,13]}],"at":[1,11]}
 ```
 
 Neighbor-guarded tag terms use the ordinary `if` term and boundary-method condition shapes. Their guard is one optionally negated atom on `$`, with a literal tag-set consequent. The DOM stores the written term, never the concrete variants of engine §3.7.

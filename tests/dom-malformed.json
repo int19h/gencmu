@@ -18540,7 +18540,7 @@
     "message": "= joins two sets"
   },
   {
-    "description": "Positioned type faults retain earliest-constant priority.",
+    "description": "Rule type inspection reports the first condition in array order, whatever the positions of its constants (engine §9.3).",
     "rule": {
       "name": "text",
       "op": "define",
@@ -18612,7 +18612,7 @@
       ]
     },
     "malformed": true,
-    "message": "∪ joins"
+    "message": "= cannot compare pattern values"
   },
   {
     "description": "Nested conditions retain the earlier pattern type fault.",
@@ -24729,5 +24729,326 @@
     },
     "malformed": true,
     "message": "a malformed rule argument"
+  },
+  {
+    "description": "Duplicate captures are found in written order, so a DOM without positions names the first second capture (engine §9.3).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "gates": [],
+          "expr": {
+            "seq": [
+              {
+                "capture": "x",
+                "expr": {
+                  "ref": "A"
+                }
+              },
+              {
+                "capture": "x",
+                "expr": {
+                  "ref": "B"
+                }
+              },
+              {
+                "choice": [
+                  {
+                    "seq": [
+                      {
+                        "capture": "q",
+                        "expr": {
+                          "ref": "Q"
+                        }
+                      },
+                      {
+                        "capture": "q",
+                        "expr": {
+                          "ref": "R"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "ref": "C"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true,
+    "message": "the capture $x is read twice"
+  },
+  {
+    "description": "Duplicate captures in a plain optional follow the written order too (engine §9.3).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "gates": [],
+          "expr": {
+            "seq": [
+              {
+                "capture": "x",
+                "expr": {
+                  "ref": "A"
+                }
+              },
+              {
+                "capture": "x",
+                "expr": {
+                  "ref": "B"
+                }
+              },
+              {
+                "optional": {
+                  "seq": [
+                    {
+                      "capture": "q",
+                      "expr": {
+                        "ref": "Q"
+                      }
+                    },
+                    {
+                      "capture": "q",
+                      "expr": {
+                        "ref": "R"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true,
+    "message": "the capture $x is read twice"
+  },
+  {
+    "description": "Rule type inspection takes conditions in array order, whatever the positions of their constants (engine §9.3).",
+    "dom": {
+      "format": 50,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "alternatives": [
+            {
+              "gates": [],
+              "expr": {
+                "ref": "A"
+              }
+            }
+          ],
+          "conditions": [
+            {
+              "op": "=",
+              "left": {
+                "concat": [
+                  {
+                    "const": "A",
+                    "at": [
+                      9,
+                      9
+                    ]
+                  },
+                  {
+                    "tag": "X"
+                  }
+                ]
+              },
+              "right": {
+                "string": "s"
+              }
+            },
+            {
+              "nonempty": {
+                "union": [
+                  {
+                    "string": "s"
+                  },
+                  {
+                    "union": [
+                      {
+                        "tag": "X"
+                      },
+                      {
+                        "const": "A",
+                        "at": [
+                          5,
+                          5
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "at": [
+            4,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [
+        {
+          "name": "A",
+          "op": "define",
+          "value": {
+            "string": "a"
+          },
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    },
+    "malformed": true,
+    "message": "++ requires string operands"
+  },
+  {
+    "description": "Call arguments are checked for captures in canonical member order, so the alternatives come before the conditions in any JSON order (engine §9.3).",
+    "dom": {
+      "format": 50,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "conditions": [
+            {
+              "method": "parse",
+              "receiver": {
+                "capture": "s"
+              },
+              "args": [
+                {
+                  "body": {
+                    "call": "t",
+                    "args": [
+                      {
+                        "method": "value",
+                        "receiver": {
+                          "capture": "s"
+                        },
+                        "args": []
+                      }
+                    ],
+                    "at": [
+                      1,
+                      60
+                    ]
+                  }
+                }
+              ]
+            }
+          ],
+          "alternatives": [
+            {
+              "gates": [],
+              "expr": {
+                "seq": [
+                  {
+                    "capture": "s",
+                    "expr": {
+                      "ref": "A",
+                      "at": [
+                        1,
+                        15
+                      ]
+                    },
+                    "at": [
+                      1,
+                      12
+                    ]
+                  },
+                  {
+                    "call": "t",
+                    "args": [
+                      {
+                        "method": "tags",
+                        "receiver": {
+                          "capture": "s"
+                        },
+                        "args": []
+                      }
+                    ],
+                    "at": [
+                      1,
+                      20
+                    ]
+                  }
+                ],
+                "at": [
+                  1,
+                  12
+                ]
+              }
+            }
+          ],
+          "at": [
+            1,
+            1
+          ]
+        },
+        {
+          "name": "t",
+          "op": "define",
+          "params": [
+            "P"
+          ],
+          "alternatives": [
+            {
+              "gates": [],
+              "expr": {
+                "literal": {
+                  "string": "a"
+                },
+                "at": [
+                  2,
+                  12
+                ]
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "malformed": true,
+    "message": "an argument cannot read or declare captures",
+    "at": [
+      1,
+      20
+    ]
   }
 ]

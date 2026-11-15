@@ -16,7 +16,6 @@ import type { Token } from "./tokens.js";
  * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName?(name:string):boolean, canonicalTag(name:string):string|null}} unicode
  *   the configured category table for diagnostic strings
  * @param {(token:Token, path:boolean)=>string} decodeString
- * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
  * @returns {GrammarDom}
  */
 export declare function treeToDom(tree: ResultNode, tokens: Token[], positionOf: (token: Token) => Position, path: string, unicode: {
@@ -24,7 +23,7 @@ export declare function treeToDom(tree: ResultNode, tokens: Token[], positionOf:
     changesInDocument?(code: number): boolean;
     isEmojiName?(name: string): boolean;
     canonicalTag(name: string): string | null;
-}, decodeString: (token: Token, path: boolean) => string, deferEmission?: boolean): GrammarDom;
+}, decodeString: (token: Token, path: boolean) => string): GrammarDom;
 export type OperandKind = "name" | "class" | "string" | "tag";
 /**
  * A directive's operand: a bare name, lower case or with a capital, a

@@ -663,7 +663,7 @@ Each declaration creates a version, an immutable definition of one constant. The
 
 A constant stands wherever its type is required. A string constant can be a terminal or range endpoint in a body. A tag-set constant belongs in terms and tag tests. A pattern constant belongs in patterns. A never-defined constant is an error, including in a replaced definition.
 
-The loader gives the constants their values when it stitches each stage. So a document that several pipelines include takes the values of each pipeline. The loader reports a constant error at its reference or incorrect definition. The reader reports an engine-tag literal outside a pattern at that literal.
+The loader gives the constants their values when it stitches each stage. So a document that several pipelines include takes the values of each pipeline. The loader reports a constant error at its reference or incorrect definition. The DOM validator reports an engine-tag literal outside a pattern at that literal.
 
 ### String literals and escapes
 
