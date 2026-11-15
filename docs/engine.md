@@ -2500,11 +2500,11 @@ One validator handles ordinary nodes and source nodes. Calls and parameters reta
 
 The document retains one declaration representation. Cached and source DOMs store `at` directly on every expression node.
 
-The reader also gives some nodes hidden positions, which the DOM format does not hold. Each term other than `const` gets its `at` this way. So do conditions, recipes, emissions, emission items, gates, requirements, ambiguity steps, and compound pattern nodes. The other hidden positions are those of a rule, constant, or classifier name and of template parameters. They also include a classifier entry's class, the `::` of a tag clause, and a diagnostic clause's keyword. The last two are a default's `≝` and a pattern child list.
+The reader also gives some nodes hidden positions, which the DOM format does not hold. Each term other than `const` gets its `at` this way. So do alternatives, conditions, recipes, emissions, emission items, gates, requirements, and ambiguity steps. So do compound pattern nodes and the items of a child list. Arguments that are not terms get one too, such as rule, target, integer, classifier, and `body` arguments. A parse body's `remainder` leaf gets one as well. The other hidden positions are those of a rule, constant, or classifier name and of template parameters. They also include a classifier entry's class and a diagnostic clause's keyword. A tag clause has two: its `::`, and the start of its term, which can be an opening parenthesis. The last two are a default's `≝` and a pattern child list.
 
 A cached or supplied DOM lacks the hidden positions. When a later fault needs one, and the loader has the document's source, it reads the source again. It copies the hidden positions onto the cached DOM, and then reports the fault at its own position. Without the source, as for a supplied DOM, the fault stands at the nearest enclosing node with an `at`, at least at the declaration.
 
-The reader also marks a grouped expression, term, or test operand. The DOM has no form for this mark. So the DOM validator reports a fault that depends on it only in a source DOM. Examples are a grouped capture target, a grouped test operand, a grouped chain, and a grouped elidable head.
+The reader also sets two hidden marks. It marks a grouped expression, term, or test operand. It also marks an instance binding whose name has a head. The DOM has no form for either mark. So the DOM validator reports a fault that depends on one only in a source DOM. Examples of the grouping mark are a grouped capture target, a grouped test operand, a grouped chain, and a grouped elidable head. The head mark gives `a binding requires a plain rule name`.
 
 Each expression node retains its `at` position through template expansion, including nodes inside call arguments.
 
@@ -2910,7 +2910,7 @@ Pattern productions use the grouping and binding rules of `docs/notation.md`. `#
 
 Pattern-valued constant atoms accept no tests. A rule atom accepts one tag test followed by one value test, with either absent.
 
-An attached list requires a rule-name test, template family, exact call, or parameter that becomes one of these. A terminal, `_`, tested atom, or string-valued constant in that position is a document error. If substitution reveals the error, the reader reports it at the parameter use. Otherwise, it reports the error at `⁅`. Bare lists remain valid without a name test. Their children retain their own searches and exact prefixes.
+An attached list requires a rule-name test, template family, exact call, or parameter that becomes one of these. A terminal, `_`, tested atom, or string-valued constant in that position is a document error. If substitution reveals the error, the DOM validator reports it at the parameter use. Otherwise, it reports the error at `⁅`. Bare lists remain valid without a name test. Their children retain their own searches and exact prefixes.
 
 Each generated `assert` line states one recognition condition from the bundled grammar. The assertions use jbogenbau condition syntax and the captures named in the productions. Every assertion must hold under the condition applicability rules of §3.6. They consume no tokens and use original source positions before layout disappears.
 
@@ -3551,14 +3551,14 @@ A DOM is malformed in each of these cases, whether it is read, cached or in the 
 - An expression has only `ranked`, whose value is not an array of at least two expressions. Report `ranked-choice-syntax`.
 - An expression combines `ranked` with another member, or contains a malformed option. Report an ordinary malformed-DOM error.
 - Its `chain` is neither `left` nor `right`, or its chain repeat does not occupy the complete alternative expression.
-- It has an `optional` with an `elidable` member whose value is not `true`. It has an elidable `optional` whose expression the reader refuses (above).
-- It has a capture that the reader refuses. That is one that wraps anything but a symbol, or one that wraps a `repeat`. A capture directly in a chain's item or separator is invalid. Flat braces inside a chain can hold item captures. An elidable `optional` permits only its sole-terminator capture. A ranked group cannot separate an item capture from its braces.
+- It has an `optional` with an `elidable` member whose value is not `true`. It has an elidable `optional` whose expression the DOM validator refuses (above).
+- It has a capture that the DOM validator refuses. That is one that wraps anything but a symbol, or one that wraps a `repeat`. A capture directly in a chain's item or separator is invalid. Flat braces inside a chain can hold item captures. An elidable `optional` permits only its sole-terminator capture. A ranked group cannot separate an item capture from its braces.
 
   A capture inside flat braces is an item capture and is valid (§3.5). The reader also refuses a name that some expansion of an alternative holds twice. It also refuses a name that is not all lower case.
 - It has an emission with a member other than `items`, or an erased definition with a string recipe or emission. Diagnostic recipes remain legal on erased definitions.
 - It has an alternative gate whose feature is not a feature name as §9.1 defines it. Or the gate has members beyond its feature, kind, and negation state.
 - It has a directive whose name is not `ambiguity-resolution`, `elision-only`, `stage`, `extend-stage`, `redefine-stage`, `include`, `names` or `features`.
-- It has a `stage`, `extend-stage`, `redefine-stage`, `include`, `names`, `features` or `elision-only` directive whose operands the reader refuses. Or it has an `ambiguity-resolution` directive whose `steps` the reader refuses, or that has `args`.
+- It has a `stage`, `extend-stage`, `redefine-stage`, `include`, `names`, `features` or `elision-only` directive whose operands the DOM validator refuses. Or it has an `ambiguity-resolution` directive whose `steps` the DOM validator refuses, or that has `args`.
 - It has an unsupported test position or comparator, an ill-typed string operand, or an invalid signed requirement. A value test can wrap a tag test. Repeated test kinds and reversed nesting are malformed. All scalar string values remain legal.
 - It has a tag or tag-terminal `ref` outside the identifier rules of §1, or a tag clause with nonempty `lit` (§1).
 - Its range does not contain two string terms resolving to ordered single-scalar endpoints.
@@ -3567,7 +3567,7 @@ A DOM is malformed in each of these cases, whether it is read, cached or in the 
 - Its constant value is not closed, or it holds an engine-tag literal outside a pattern literal.
 - Its method name, receiver, or arguments violate the method signature.
 - It has a term or a condition whose types do not agree (§10).
-- It has a classifier whose name does not begin with `a` to `z`. Its entry has an invalid gate kind or feature name (§9.1). It has an entry with no key, or with a key that the reader refuses. It has an entry whose operator is not `∈` or `∉`. Its class must start and end with uppercase ASCII letters and never start with `_`.
+- It has a classifier whose name does not begin with `a` to `z`. Its entry has an invalid gate kind or feature name (§9.1). It has an entry with no key, or with a key that the DOM validator refuses. It has an entry whose operator is not `∈` or `∉`. Its class must start and end with uppercase ASCII letters and never start with `_`.
 - It has an implication whose sides are not closed tag-set terms, or either side names an engine tag.
 - Its `.classify` argument is not a classifier name, or a classifier name appears in another argument position.
 
@@ -3622,7 +3622,7 @@ Lowering marks an edge where the child can cover the complete span of the parent
 - If one production of a rule, a choice or a helper is nullable, that rule, choice or helper is nullable.
 - Parentheses keep the nullability of their contents.
 - An optional and an elidable optional are nullable.
-- A repetition is not nullable, because the reader refuses braces whose item can match no tokens.
+- A repetition is not nullable, because the loader refuses braces whose item can match no tokens.
 
 Each mark belongs to one production. Where every other symbol of the production is nullable, the edge to the child is marked. Helper productions are nodes of the computation. By the braces rule none of them is cyclic over one span, so the named rules on a cycle report it.
 
