@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%rule a ($x:\"‹U+005C›\" \"{\" _L \"}\") %conditions $x.source-text = (\"a\" ++ \"‹U+005C›\" ++ \"b\")\n\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 51,
       "rules": [
         {
           "name": "a",
@@ -18,22 +18,46 @@
                     "expr": {
                       "literal": {
                         "string": "\\"
-                      }
-                    }
+                      },
+                      "at": [
+                        2,
+                        13
+                      ]
+                    },
+                    "at": [
+                      2,
+                      10
+                    ]
                   },
                   {
                     "literal": {
                       "string": "{"
-                    }
+                    },
+                    "at": [
+                      2,
+                      24
+                    ]
                   },
                   {
-                    "ref": "_General_Category_Letter"
+                    "ref": "_General_Category_Letter",
+                    "at": [
+                      2,
+                      28
+                    ]
                   },
                   {
                     "literal": {
                       "string": "}"
-                    }
+                    },
+                    "at": [
+                      2,
+                      31
+                    ]
                   }
+                ],
+                "at": [
+                  2,
+                  10
                 ]
               }
             }

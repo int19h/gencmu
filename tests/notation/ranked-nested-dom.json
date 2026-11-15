@@ -3,32 +3,64 @@
   "document": "```jbogenbau\n%rule text (a ≻ (b ≻ c))\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 51,
       "rules": [
         {
+          "name": "text",
+          "op": "define",
           "alternatives": [
             {
+              "gates": [],
               "expr": {
                 "ranked": [
                   {
-                    "ref": "a"
+                    "ref": "a",
+                    "at": [
+                      2,
+                      13
+                    ]
                   },
                   {
                     "ranked": [
                       {
-                        "ref": "b"
+                        "ref": "b",
+                        "at": [
+                          2,
+                          18
+                        ]
                       },
                       {
-                        "ref": "c"
+                        "ref": "c",
+                        "at": [
+                          2,
+                          22
+                        ]
                       }
+                    ],
+                    "at": [
+                      2,
+                      20
                     ]
                   }
+                ],
+                "at": [
+                  2,
+                  15
                 ]
               }
             }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
           ]
         }
-      ]
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
     }
   }
 }

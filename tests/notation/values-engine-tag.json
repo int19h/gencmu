@@ -2,7 +2,7 @@
   "document": "```jbogenbau\n%rule r _Cs\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 51,
       "rules": [
         {
           "name": "r",
@@ -11,7 +11,11 @@
             {
               "gates": [],
               "expr": {
-                "ref": "_General_Category_Surrogate"
+                "ref": "_General_Category_Surrogate",
+                "at": [
+                  2,
+                  9
+                ]
               }
             }
           ],

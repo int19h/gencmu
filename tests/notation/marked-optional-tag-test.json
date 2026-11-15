@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%rule a [+KU<X>]\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 51,
       "rules": [
         {
           "name": "a",
@@ -23,10 +23,22 @@
                     }
                   ],
                   "expr": {
-                    "ref": "KU"
-                  }
+                    "ref": "KU",
+                    "at": [
+                      2,
+                      11
+                    ]
+                  },
+                  "at": [
+                    2,
+                    13
+                  ]
                 },
-                "elidable": true
+                "elidable": true,
+                "at": [
+                  2,
+                  9
+                ]
               }
             }
           ],

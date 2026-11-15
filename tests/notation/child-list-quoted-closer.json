@@ -3,11 +3,36 @@
   "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #choose(#⁅ \"⁆\" a ⁆, \"b\")\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 51,
       "rules": [
         {
+          "name": "probe",
+          "params": [
+            "X",
+            "P",
+            "Q",
+            "Value",
+            "High"
+          ],
+          "op": "define",
+          "alternatives": [
+            {
+              "gates": [],
+              "expr": {
+                "ref": "A",
+                "at": [
+                  2,
+                  40
+                ]
+              }
+            }
+          ],
           "conditions": [
             {
+              "op": "≅",
+              "left": {
+                "capture": ""
+              },
               "right": {
                 "pattern": {
                   "call": "choose",
@@ -20,12 +45,20 @@
                             "child": {
                               "literal": {
                                 "string": "⁆"
-                              }
+                              },
+                              "at": [
+                                3,
+                                28
+                              ]
                             }
                           },
                           {
                             "child": {
-                              "name": "a"
+                              "name": "a",
+                              "at": [
+                                3,
+                                32
+                              ]
                             }
                           }
                         ]
@@ -34,13 +67,25 @@
                     {
                       "string": "b"
                     }
+                  ],
+                  "at": [
+                    3,
+                    18
                   ]
                 }
               }
             }
+          ],
+          "at": [
+            2,
+            1
           ]
         }
-      ]
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
     }
   }
 }

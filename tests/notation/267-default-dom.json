@@ -3,24 +3,44 @@
   "document": "```jbogenbau\n%rule text [+JI ≝ \"jie\"]\n```",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 51,
       "rules": [
         {
+          "name": "text",
+          "op": "define",
           "alternatives": [
             {
+              "gates": [],
               "expr": {
                 "optional": {
-                  "ref": "JI"
+                  "ref": "JI",
+                  "at": [
+                    2,
+                    14
+                  ]
                 },
                 "elidable": true,
                 "default": {
                   "string": "jie"
-                }
+                },
+                "at": [
+                  2,
+                  12
+                ]
               }
             }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
           ]
         }
-      ]
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
     }
   },
   "cacheMisses": true

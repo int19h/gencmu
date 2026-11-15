@@ -38,18 +38,8 @@ export type ProjectedPath = {
 /** @typedef {{id:number, site:GroupSite, expr:any, source:any, final:boolean, parent:string, helper:string, captures:Set<string>}} RankedGroup */
 /** @typedef {{productive:boolean,nonempty:boolean}} Span */
 /** @typedef {{length:number,span:Span,captures:Map<string,{owner:RankedGroup|null,at:number}>,ends:Map<RankedGroup,{start:Span,at:number,option:number}>,bindings:Map<string,RankedGroup>}} ProjectedPath */
-/** @type {WeakMap<object,[number,number]>} */
-export declare const rankedLocations: WeakMap<object, [number, number]>;
-/** @type {WeakMap<object,object>} */
-export declare const writtenOrigins: WeakMap<object, object>;
 /** @type {WeakMap<GencmuError,object>} */
 export declare const rankedFailures: WeakMap<GencmuError, object>;
-/** @param {object} source @param {object} target */
-export declare function copyRankedLocation(source: object, target: object): void;
-/** @param {import("./types.js").GrammarDom} dom @param {{text:string}[]} tokens @param {(token:any)=>[number,number]} positionOf */
-export declare function restoreRankedLocations(dom: import("./types.js").GrammarDom, tokens: {
-    text: string;
-}[], positionOf: (token: any) => [number, number]): void;
 /** @param {{text:string}[]} tokens @param {number} at */
 export declare function rankedSyntaxFailure(tokens: {
     text: string;

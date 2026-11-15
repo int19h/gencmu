@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%classifier lex \n%rule text $w:W :: (\"mi\".classify(lex) ∪ $w.value.classify(lex) ∪ $w.parse(text).tags) %conditions $w.parse(text)\n\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 51,
       "rules": [
         {
           "name": "text",
@@ -14,8 +14,16 @@
               "expr": {
                 "capture": "w",
                 "expr": {
-                  "ref": "W"
-                }
+                  "ref": "W",
+                  "at": [
+                    3,
+                    15
+                  ]
+                },
+                "at": [
+                  3,
+                  12
+                ]
               },
               "tags": {
                 "union": [
@@ -55,7 +63,11 @@
                       "args": [
                         {
                           "body": {
-                            "ref": "text"
+                            "ref": "text",
+                            "at": [
+                              3,
+                              76
+                            ]
                           }
                         }
                       ]
@@ -75,7 +87,11 @@
               "args": [
                 {
                   "body": {
-                    "ref": "text"
+                    "ref": "text",
+                    "at": [
+                      3,
+                      109
+                    ]
                   }
                 }
               ]

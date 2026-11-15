@@ -7,7 +7,32 @@ export declare const LEANS: Set<string>;
 export declare function validSteps(steps: unknown): boolean;
 export declare const CAPTURE_NAME: RegExp;
 export declare const DOM_MAX_DEPTH = 256;
-export declare const DOM_FORMAT = 49;
+export declare const DOM_FORMAT = 50;
+/** @type {WeakMap<object, object>} */
+export declare const writtenOrigins: WeakMap<object, object>;
+/**
+ * Attach a non-enumerable source position to a DOM node whose JSON schema has
+ * no `at` member.
+ * @template {object} T
+ * @param {T} node
+ * @param {import("./types.js").Position | undefined} at
+ * @param {string} [field]
+ * @returns {T}
+ */
+export declare function hideAt<T extends object>(node: T, at: import("./types.js").Position | undefined, field?: string): T;
+/**
+ * Copy source position properties and written origin from `source` to `target`.
+ * @param {any} source
+ * @param {any} target
+ */
+export declare function copyAt(source: any, target: any): any;
+/**
+ * Copy source positions from a freshly read DOM onto an existing cached DOM
+ * of the same structure.
+ * @param {any} target
+ * @param {any} source
+ */
+export declare function copyDomLocations(target: any, source: any): void;
 export declare const CONSTANT_NAME: RegExp;
 export declare const CLASSIFIER_NAME: RegExp;
 export declare const TEST_OPS: Set<string>;
@@ -26,6 +51,24 @@ export declare function isSoundTest(op: string): boolean;
  */
 export declare function rangeProblem(range: unknown): string | null;
 /**
+ * Why a value is not a grammar DOM, with the source position of the fault, or
+ * null when it is one.
+ * @param {unknown} dom
+ * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName(name:string):boolean, canonicalTag(name:string):string|null}} unicode
+ * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
+ * @returns {{problem: string, at?: import("./types.js").Position, code?: string} | null}
+ */
+export declare function domFault(dom: unknown, unicode: {
+    isMark(code: number): boolean;
+    changesInDocument?(code: number): boolean;
+    isEmojiName(name: string): boolean;
+    canonicalTag(name: string): string | null;
+}, deferEmission?: boolean): {
+    problem: string;
+    at?: import("./types.js").Position;
+    code?: string;
+} | null;
+/**
  * Why a value is not a grammar DOM, or null when it is one.
  * The loader's Unicode table supplies engine-tag and emoji-name identities.
  * @param {unknown} dom
@@ -39,6 +82,20 @@ export declare function domProblem(dom: unknown, unicode: {
     isEmojiName(name: string): boolean;
     canonicalTag(name: string): string | null;
 }, deferEmission?: boolean): string | null;
+/**
+ * @param {unknown} dom
+ * @param {Parameters<typeof domProblem>[1]} unicode
+ * @param {boolean} deferEmission
+ * @param {boolean} expanded
+ * @param {any[]} [templateConditions] per condition of the one rule, its
+ *   form as its template writes it, where it held a parameter (§3.6)
+ * @returns {{problem: string, at?: import("./types.js").Position, code?: string} | null}
+ */
+export declare function inspectDom(dom: unknown, unicode: Parameters<typeof domProblem>[1], deferEmission: boolean, expanded: boolean, templateConditions?: any[]): {
+    problem: string;
+    at?: import("./types.js").Position;
+    code?: string;
+} | null;
 /** @param {any} term @returns {Set<string>} */
 export declare function engineLiterals(term: any): Set<string>;
 /**
@@ -353,10 +410,11 @@ export declare function expectedProblem(type: TermType, expected: "string" | "ta
 export type TypeFault = {
     problem: string;
     node: any;
+    at?: import("./types.js").Position;
 };
 /**
  * A disagreement of types, and the smallest construct that holds it.
- * @typedef {{problem: string, node: any}} TypeFault
+ * @typedef {{problem: string, node: any, at?: import("./types.js").Position}} TypeFault
  */
 /**
  * The type of a term, or why its parts do not agree (engine §10), with the

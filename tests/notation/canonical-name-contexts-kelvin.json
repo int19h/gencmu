@@ -3,11 +3,18 @@
   "document": "```jbogenbau\n%features K fK\n%stage sK\n%extend-stage sK\n%redefine-stage sK\n%const $K \"K\"\n%redefine-const $K $K\n%classifier cK\n fK? \"K\" \"K\" ∈ K\n%implies K Q ⟹ K Q\n%rule rK K<K> :: K %warning \"K\"\n%extend-rule rK ¬fK? K\n%redefine-rule rK fK? K\n```",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 51,
       "rules": [
         {
           "name": "rK",
           "op": "define",
+          "warning": {
+            "concat": [
+              {
+                "string": "K"
+              }
+            ]
+          },
           "alternatives": [
             {
               "gates": [],
@@ -22,8 +29,16 @@
                   }
                 ],
                 "expr": {
-                  "ref": "K"
-                }
+                  "ref": "K",
+                  "at": [
+                    11,
+                    10
+                  ]
+                },
+                "at": [
+                  11,
+                  11
+                ]
               },
               "tags": {
                 "tag": "K"
@@ -34,14 +49,7 @@
           "at": [
             11,
             1
-          ],
-          "warning": {
-            "concat": [
-              {
-                "string": "K"
-              }
-            ]
-          }
+          ]
         },
         {
           "name": "rK",
@@ -56,7 +64,11 @@
                 }
               ],
               "expr": {
-                "ref": "K"
+                "ref": "K",
+                "at": [
+                  12,
+                  22
+                ]
               }
             }
           ],
@@ -79,7 +91,11 @@
                 }
               ],
               "expr": {
-                "ref": "K"
+                "ref": "K",
+                "at": [
+                  13,
+                  23
+                ]
               }
             }
           ],

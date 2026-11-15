@@ -2,7 +2,7 @@
   "document": "```jbogenbau\n%rule r A %emits ε :: ∅ := \"x\"\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 51,
       "rules": [
         {
           "name": "r",
@@ -11,11 +11,14 @@
             {
               "gates": [],
               "expr": {
-                "ref": "A"
+                "ref": "A",
+                "at": [
+                  2,
+                  9
+                ]
               }
             }
           ],
-          "conditions": [],
           "emit": {
             "items": [
               {
@@ -33,6 +36,7 @@
               }
             ]
           },
+          "conditions": [],
           "at": [
             2,
             1

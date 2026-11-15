@@ -2,7 +2,7 @@
   "document": "```jbogenbau\n%rule r \"A,B\"\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 51,
       "rules": [
         {
           "name": "r",
@@ -13,7 +13,11 @@
               "expr": {
                 "literal": {
                   "string": "A,B"
-                }
+                },
+                "at": [
+                  2,
+                  9
+                ]
               }
             }
           ],

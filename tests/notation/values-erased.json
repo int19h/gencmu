@@ -2,7 +2,7 @@
   "document": "```jbogenbau\n%rule r A %erased\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 51,
       "rules": [
         {
           "name": "r",
@@ -11,7 +11,11 @@
             {
               "gates": [],
               "expr": {
-                "ref": "A"
+                "ref": "A",
+                "at": [
+                  2,
+                  9
+                ]
               }
             }
           ],

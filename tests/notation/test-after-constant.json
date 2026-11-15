@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%rule a B $A = \"a\"\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 51,
       "rules": [
         {
           "name": "a",
@@ -14,7 +14,11 @@
               "expr": {
                 "seq": [
                   {
-                    "ref": "B"
+                    "ref": "B",
+                    "at": [
+                      2,
+                      9
+                    ]
                   },
                   {
                     "test": "=",
@@ -28,9 +32,21 @@
                           2,
                           11
                         ]
-                      }
-                    }
+                      },
+                      "at": [
+                        2,
+                        11
+                      ]
+                    },
+                    "at": [
+                      2,
+                      14
+                    ]
                   }
+                ],
+                "at": [
+                  2,
+                  9
                 ]
               }
             }

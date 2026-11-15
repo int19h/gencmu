@@ -91,6 +91,14 @@ export declare class Loader {
      * @returns {GrammarDom}
      */
     readDocument(markdown: string, path: string, deferEmission?: boolean, inherited?: string[]): GrammarDom;
+    /**
+     * @param {string} markdown
+     * @param {string} path
+     * @param {boolean} [deferEmission]
+     * @param {string[]} [inherited]
+     * @returns {GrammarDom}
+     */
+    readFreshDom(markdown: string, path: string, deferEmission?: boolean, inherited?: string[]): GrammarDom;
     /** @param {Record<string,string> | undefined} dependencies @param {string[]} extras @param {Record<string,string> | null} [registry] @returns {boolean} */
     namesMatch(dependencies: Record<string, string> | undefined, extras: string[], registry?: Record<string, string> | null): boolean;
     /**

@@ -1,15 +1,28 @@
-/** Source positions of pattern operands and tag requirements. */
-export declare const patternLocations: WeakMap<object, any>;
-/** @param {any} source @param {any} target */
-export declare function copyPatternLocation(source: any, target: any): void;
 /**
  * @param {any} root
- * @param {{name?:(name:string)=>boolean, terminal?:(name:string)=>boolean, test?:(test:any)=>string|null, depth?:number, deferDepth?:boolean}} [inspect]
+ * @param {{name?:(name:string)=>boolean, terminal?:(name:string)=>boolean, range?:(range:any)=>string|null, test?:(test:any)=>string|null, depth?:number, deferDepth?:boolean}} [inspect]
+ * @returns {{problem:string, node:any}|null}
+ */
+export declare function layeredPatternFault(root: any, inspect?: {
+    name?: (name: string) => boolean;
+    terminal?: (name: string) => boolean;
+    range?: (range: any) => string | null;
+    test?: (test: any) => string | null;
+    depth?: number;
+    deferDepth?: boolean;
+}): {
+    problem: string;
+    node: any;
+} | null;
+/**
+ * @param {any} root
+ * @param {{name?:(name:string)=>boolean, terminal?:(name:string)=>boolean, range?:(range:any)=>string|null, test?:(test:any)=>string|null, depth?:number, deferDepth?:boolean}} [inspect]
  * @returns {string|null}
  */
 export declare function layeredPatternProblem(root: any, inspect?: {
     name?: (name: string) => boolean;
     terminal?: (name: string) => boolean;
+    range?: (range: any) => string | null;
     test?: (test: any) => string | null;
     depth?: number;
     deferDepth?: boolean;

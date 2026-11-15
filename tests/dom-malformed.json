@@ -16651,7 +16651,7 @@
   {
     "description": "A DOM envelope refuses unknown members.",
     "dom": {
-      "format": 49,
+      "format": 50,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -16664,7 +16664,7 @@
   {
     "description": "An empty complete DOM envelope is valid.",
     "dom": {
-      "format": 49,
+      "format": 50,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -16781,7 +16781,7 @@
   {
     "description": "Unsafe coordinates do not produce a duplicate-position problem.",
     "dom": {
-      "format": 49,
+      "format": 50,
       "rules": [
         {
           "name": "text",
@@ -16945,7 +16945,7 @@
   {
     "description": "An earlier malformed directive precedes excessive rule depth.",
     "dom": {
-      "format": 49,
+      "format": 50,
       "rules": [
         {
           "name": "text",
@@ -17850,7 +17850,7 @@
   {
     "description": "Ranked argument shape errors precede engine tags in constants.",
     "dom": {
-      "format": 49,
+      "format": 50,
       "rules": [],
       "directives": [],
       "constants": [
@@ -17897,7 +17897,7 @@
   {
     "description": "Ranked argument shape errors precede engine tags in implications.",
     "dom": {
-      "format": 49,
+      "format": 50,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -18075,7 +18075,7 @@
   {
     "description": "Well-shaped constants still refuse engine-tag literals.",
     "dom": {
-      "format": 49,
+      "format": 50,
       "rules": [],
       "directives": [],
       "constants": [
@@ -18099,7 +18099,7 @@
   {
     "description": "Well-shaped implications still refuse engine-tag literals.",
     "dom": {
-      "format": 49,
+      "format": 50,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -19046,7 +19046,7 @@
   {
     "description": "Ranked argument shape errors precede a non-closed constant term.",
     "dom": {
-      "format": 49,
+      "format": 50,
       "rules": [],
       "directives": [],
       "constants": [
@@ -19091,7 +19091,7 @@
   {
     "description": "A well-shaped constant still refuses a non-closed term.",
     "dom": {
-      "format": 49,
+      "format": 50,
       "rules": [],
       "directives": [],
       "constants": [
@@ -19131,7 +19131,7 @@
   {
     "description": "Ranked argument shape errors precede a non-closed implication term.",
     "dom": {
-      "format": 49,
+      "format": 50,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -19177,7 +19177,7 @@
   {
     "description": "A well-shaped implication still refuses a non-closed term.",
     "dom": {
-      "format": 49,
+      "format": 50,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -19648,7 +19648,7 @@
   {
     "description": "An implication checks then-side closedness before its capture type.",
     "dom": {
-      "format": 49,
+      "format": 50,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -19674,7 +19674,7 @@
   {
     "description": "An implication checks if-side closedness before its capture type.",
     "dom": {
-      "format": 49,
+      "format": 50,
       "rules": [],
       "directives": [],
       "constants": [],
@@ -19700,7 +19700,7 @@
   {
     "description": "An earlier rule type fault precedes a later constant closedness fault.",
     "dom": {
-      "format": 49,
+      "format": 50,
       "rules": [
         {
           "name": "extra",
@@ -19746,7 +19746,7 @@
   {
     "description": "An earlier constant closedness fault precedes a later rule type fault.",
     "dom": {
-      "format": 49,
+      "format": 50,
       "rules": [
         {
           "name": "extra",
@@ -19792,7 +19792,7 @@
   {
     "description": "An earlier rule type fault precedes a later implication closedness fault.",
     "dom": {
-      "format": 49,
+      "format": 50,
       "rules": [
         {
           "name": "extra",
@@ -19839,7 +19839,7 @@
   {
     "description": "An earlier implication closedness fault precedes a later rule type fault.",
     "dom": {
-      "format": 49,
+      "format": 50,
       "rules": [
         {
           "name": "extra",
@@ -19886,7 +19886,7 @@
   {
     "description": "An earlier rule type fault precedes a later split delimiter fault in a supplied lexical DOM.",
     "dom": {
-      "format": 49,
+      "format": 50,
       "rules": [
         {
           "name": "text",
@@ -22757,7 +22757,7 @@
   {
     "description": "An earlier split delimiter fault precedes a later rule type fault.",
     "dom": {
-      "format": 49,
+      "format": 50,
       "rules": [
         {
           "name": "extra",
@@ -22811,7 +22811,7 @@
   {
     "description": "An earlier rule type fault precedes a split delimiter fault in a later rule.",
     "dom": {
-      "format": 49,
+      "format": 50,
       "rules": [
         {
           "name": "extra",
@@ -22880,7 +22880,7 @@
   {
     "description": "An earlier rule type fault precedes a split delimiter fault in a later implication.",
     "dom": {
-      "format": 49,
+      "format": 50,
       "rules": [
         {
           "name": "extra",
@@ -22935,7 +22935,7 @@
   {
     "description": "A later ranked shape error precedes an earlier split delimiter fault.",
     "dom": {
-      "format": 49,
+      "format": 50,
       "rules": [
         {
           "name": "later",
@@ -24322,6 +24322,58 @@
           "x": 1
         }
       ],
+      "at": [
+        3,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Expression: a supplied DOM expression node may omit at",
+    "rule": {
+      "name": "use",
+      "op": "define",
+      "alternatives": [
+        {
+          "gates": [],
+          "expr": {
+            "optional": {
+              "ref": "A"
+            },
+            "at": [
+              3,
+              10
+            ]
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        3,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "Expression: an expression node with a zero line in at is malformed",
+    "rule": {
+      "name": "use",
+      "op": "define",
+      "alternatives": [
+        {
+          "gates": [],
+          "expr": {
+            "ref": "A",
+            "at": [
+              0,
+              1
+            ]
+          }
+        }
+      ],
+      "conditions": [],
       "at": [
         3,
         1

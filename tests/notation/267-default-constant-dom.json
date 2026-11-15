@@ -3,14 +3,21 @@
   "document": "```jbogenbau\n%const $END \"jie\"\n%rule text [+JI ≝ $END]\n```",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 51,
       "rules": [
         {
+          "name": "text",
+          "op": "define",
           "alternatives": [
             {
+              "gates": [],
               "expr": {
                 "optional": {
-                  "ref": "JI"
+                  "ref": "JI",
+                  "at": [
+                    3,
+                    14
+                  ]
                 },
                 "elidable": true,
                 "default": {
@@ -19,12 +26,37 @@
                     3,
                     19
                   ]
-                }
+                },
+                "at": [
+                  3,
+                  12
+                ]
               }
             }
+          ],
+          "conditions": [],
+          "at": [
+            3,
+            1
           ]
         }
-      ]
+      ],
+      "directives": [],
+      "constants": [
+        {
+          "name": "END",
+          "op": "define",
+          "value": {
+            "string": "jie"
+          },
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
     }
   },
   "cacheMisses": true

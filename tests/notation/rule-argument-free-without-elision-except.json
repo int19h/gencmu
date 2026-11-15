@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%rule text $x:A %conditions $x.without-elision-except(🆓).parse(rival)\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 51,
       "rules": [
         {
           "name": "text",
@@ -14,8 +14,16 @@
               "expr": {
                 "capture": "x",
                 "expr": {
-                  "ref": "A"
-                }
+                  "ref": "A",
+                  "at": [
+                    2,
+                    15
+                  ]
+                },
+                "at": [
+                  2,
+                  12
+                ]
               }
             }
           ],
@@ -36,7 +44,11 @@
               "args": [
                 {
                   "body": {
-                    "ref": "rival"
+                    "ref": "rival",
+                    "at": [
+                      2,
+                      64
+                    ]
                   }
                 }
               ]

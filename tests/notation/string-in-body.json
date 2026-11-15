@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%rule a \"KOhA\"\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 51,
       "rules": [
         {
           "name": "a",
@@ -14,7 +14,11 @@
               "expr": {
                 "literal": {
                   "string": "KOhA"
-                }
+                },
+                "at": [
+                  2,
+                  9
+                ]
               }
             }
           ],

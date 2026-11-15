@@ -2,20 +2,11 @@
   "document": "```jbogenbau\n%rule r :- $.emitted.image | A %emits\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 51,
       "rules": [
         {
           "name": "r",
           "op": "define",
-          "alternatives": [
-            {
-              "gates": [],
-              "expr": {
-                "ref": "A"
-              }
-            }
-          ],
-          "conditions": [],
           "image": {
             "concat": [
               {
@@ -31,6 +22,18 @@
               }
             ]
           },
+          "alternatives": [
+            {
+              "gates": [],
+              "expr": {
+                "ref": "A",
+                "at": [
+                  2,
+                  30
+                ]
+              }
+            }
+          ],
           "emit": {
             "items": [
               {
@@ -38,6 +41,7 @@
               }
             ]
           },
+          "conditions": [],
           "at": [
             2,
             1

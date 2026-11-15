@@ -3,9 +3,30 @@
   "document": "```jbogenbau\n%rule a $x:A\n%conditions $x.followed-by(b | C | 🆓)\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 51,
       "rules": [
         {
+          "name": "a",
+          "op": "define",
+          "alternatives": [
+            {
+              "gates": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "ref": "A",
+                  "at": [
+                    2,
+                    12
+                  ]
+                },
+                "at": [
+                  2,
+                  9
+                ]
+              }
+            }
+          ],
           "conditions": [
             {
               "method": "followed-by",
@@ -24,9 +45,17 @@
                 }
               ]
             }
+          ],
+          "at": [
+            2,
+            1
           ]
         }
-      ]
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
     }
   }
 }

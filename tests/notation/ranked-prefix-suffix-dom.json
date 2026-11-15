@@ -3,35 +3,71 @@
   "document": "```jbogenbau\n%rule text (Q (a ≻ b) Z)\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 51,
       "rules": [
         {
+          "name": "text",
+          "op": "define",
           "alternatives": [
             {
+              "gates": [],
               "expr": {
                 "seq": [
                   {
-                    "ref": "Q"
+                    "ref": "Q",
+                    "at": [
+                      2,
+                      13
+                    ]
                   },
                   {
                     "ranked": [
                       {
-                        "ref": "a"
+                        "ref": "a",
+                        "at": [
+                          2,
+                          16
+                        ]
                       },
                       {
-                        "ref": "b"
+                        "ref": "b",
+                        "at": [
+                          2,
+                          20
+                        ]
                       }
+                    ],
+                    "at": [
+                      2,
+                      18
                     ]
                   },
                   {
-                    "ref": "Z"
+                    "ref": "Z",
+                    "at": [
+                      2,
+                      23
+                    ]
                   }
+                ],
+                "at": [
+                  2,
+                  13
                 ]
               }
             }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
           ]
         }
-      ]
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
     }
   }
 }

@@ -3,11 +3,36 @@
   "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #⁅ a⁅b⁆ ⁆\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 51,
       "rules": [
         {
+          "name": "probe",
+          "params": [
+            "X",
+            "P",
+            "Q",
+            "Value",
+            "High"
+          ],
+          "op": "define",
+          "alternatives": [
+            {
+              "gates": [],
+              "expr": {
+                "ref": "A",
+                "at": [
+                  2,
+                  40
+                ]
+              }
+            }
+          ],
           "conditions": [
             {
+              "op": "≅",
+              "left": {
+                "capture": ""
+              },
               "right": {
                 "pattern": {
                   "any": true,
@@ -18,9 +43,17 @@
                         "children": [
                           {
                             "child": {
-                              "name": "b"
+                              "name": "b",
+                              "at": [
+                                3,
+                                22
+                              ]
                             }
                           }
+                        ],
+                        "at": [
+                          3,
+                          20
                         ]
                       }
                     }
@@ -28,9 +61,17 @@
                 }
               }
             }
+          ],
+          "at": [
+            2,
+            1
           ]
         }
-      ]
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
     }
   }
 }

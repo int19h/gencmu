@@ -476,6 +476,19 @@
   // Body queries (engine §3.10 and §4): the outer remainder is not a symbol.
 
 
+  /** @param {unknown} value @returns {boolean} */
+  function position(value) {
+    return Array.isArray(value) && value.length === 2
+      && Number.isInteger(value[0]) && value[0] >= 1
+      && Number.isInteger(value[1]) && value[1] >= 1;
+  }
+
+  /** @param {any} object @param {string[]} allowed @returns {boolean} */
+  function hasOnlyKeys(object, allowed) {
+    const keys = Object.keys(object);
+    return keys.every(key => allowed.includes(key)) && (!("at" in object) || position(object.at));
+  }
+
   /** @param {any} body @returns {{body:any, mode:string, problem?:string}} */
   function queryBody(body) {
     const sequence = body?.seq;
@@ -486,12 +499,12 @@
     }
     if (markers.length) {
       const edges = markers.every(index => index === 0 || index === sequence.length - 1);
-      if (Object.keys(body).length !== 1 || markers.length > 2 || !edges || parts.length < 1 ||
-          markers.some(index => Object.keys(sequence[index]).length !== 1 || sequence[index].remainder !== true)) {
+      if (!hasOnlyKeys(body, ["seq", "at"]) || markers.length > 2 || !edges || parts.length < 1 ||
+          markers.some(index => !hasOnlyKeys(sequence[index], ["remainder", "at"]) || sequence[index].remainder !== true)) {
         return {body,mode:"whole",problem:"a remainder stands at one outer edge of a parse argument"};
       }
       const mode = markers.length === 2 ? "part" : markers[0] === 0 ? "suffix" : "prefix";
-      return {body:parts.length === 1 ? parts[0] : {seq:parts},mode};
+      return {body:parts.length === 1 ? parts[0] : ("at" in body ? {seq:parts, at:body.at} : {seq:parts}),mode};
     }
     return {body,mode:"whole"};
   }
@@ -608,7 +621,7 @@
   function neighbourGuardProblem(term) {
     for (const {node,atom} of neighbourGuards(term)) {
       if (!BOUNDARY_METHODS.has(atom.method) || atom.receiver?.capture!=='' || Object.keys(atom.receiver).length!==1) {
-        return {problem:'a tag guard requires one optionally negated neighbour atom on $',node:atom};
+        return {problem:'a tag guard requires one optionally negated neighbour atom on $',node:atom.method ? atom : null};
       }
       if (literalTags(node.then)===null && !literalTagShape(node.then)) {
         return {problem:'a neighbour tag guard requires a literal tag set',node:atom};
@@ -678,14 +691,6 @@
 
 
 
-  /** @type {WeakMap<object, any>} */
-  const boundaryLocations = new WeakMap();
-  /** Preserve positions when constants or patterns copy a clause.
-   * @param {object} from @param {object} to */
-  function copyBoundaryLocation(from,to) {
-    const location = boundaryLocations.get(from);
-    if (location) boundaryLocations.set(to,location);
-  }
   /** @param {any} rule @returns {{problem:string,node:any}|null} */
   function boundaryProblem(rule) {
     const allowed = new Set();
@@ -718,7 +723,7 @@
       const part = pending.pop();
       if (!part || typeof part !== "object") continue;
       if (BOUNDARY_METHODS.has(part.method) && !allowed.has(part)) return {problem:"a boundary atom stands only in conditions or guarded tag terms",node:part};
-      for (const child of Object.values(part)) if (child && typeof child === "object") pending.push(child);
+      for (const child of Object.values(part).reverse()) if (child && typeof child === "object") pending.push(child);
     }
     return null;
   }
@@ -945,23 +950,7 @@
   }
   /** @param {any} dom */
   function needsTreeLocations(dom) {
-    return writtenTreeComparisons(dom).some(node=>(typeof node.right?.capture==='string' || node.right?.param) && !boundaryLocations.has(node));
-  }
-  /** Recover positions through the same reader as an uncached document.
-   * @param {any} dom @param {any} source */
-  function restoreBoundaryLocations(dom,source) {
-    const compared=writtenTreeComparisons(dom), originalsCompared=writtenTreeComparisons(source);
-    if(compared.length===originalsCompared.length)compared.forEach((/** @type {any} */ node,/** @type {number} */ index)=>copyBoundaryLocation(originalsCompared[index],node));
-    const collect = (/** @type {any} */ document) => document.rules.flatMap((/** @type {any} */ rule) => boundaryAtoms([
-      rule.conditions,rule.tags,...(rule.alternatives ?? []).map((/** @type {any} */ alt)=>alt.tags),rule.emit,
-    ]));
-    const atoms = collect(dom), originals = collect(source);
-    if (atoms.length !== originals.length) return;
-    atoms.forEach((/** @type {any} */ atom,/** @type {number} */ index) => {
-      const original = originals[index];
-      copyBoundaryLocation(original,atom);
-      atom.args.forEach((/** @type {any} */ argument,/** @type {number} */ target) => copyBoundaryLocation(original.args[target],argument));
-    });
+    return writtenTreeComparisons(dom).some(node=>(typeof node.right?.capture==='string' || node.right?.param) && !node.at);
   }
 
   /** @type {WeakMap<object,Set<string>>} */
@@ -4214,7 +4203,6 @@
   // Exact structural observations for compared occurrences (engine §4.1).
 
 
-
   /** @param {any} root @returns {any[]} */
   function constituentComparisons(root) {
     const result=[], pending=[root], seen=new Set();
@@ -4461,12 +4449,12 @@
         for(const comparison of constituentComparisons(root)) {
           const number=nextOrder++;
           order.set(comparison,number);
-          const key=JSON.stringify([alternatives[0].document,boundaryLocations.get(comparison)?.at,comparison]);
+          const key=JSON.stringify([alternatives[0].document,comparison.at,comparison]);
           if(!hints.has(key))hints.set(key,number);
         }
       }
     }
-    const ordinal=(/** @type {any} */ site)=>order.get(site.comparison)??hints.get(JSON.stringify([(site.production.logicalSource??site.production.source)?.document,boundaryLocations.get(site.comparison)?.at,site.comparison]))??nextOrder;
+    const ordinal=(/** @type {any} */ site)=>order.get(site.comparison)??hints.get(JSON.stringify([(site.production.logicalSource??site.production.source)?.document,site.comparison.at,site.comparison]))??nextOrder;
     sites.sort((a,b)=>ordinal(a)-ordinal(b)||a.production.id-b.production.id);
     for(const {comparison,production,bindings,prefix} of sites) {
         const roots=[];
@@ -4542,199 +4530,6 @@
     return table(root).get(root).identity;
   }
 
-  // ---- pattern-shapes.js
-  /** Source positions of pattern operands and tag requirements. */
-  const patternLocations = new WeakMap();
-  /** @param {any} source @param {any} target */
-  function copyPatternLocation(source,target) {
-    const position=patternLocations.get(source);
-    if(position) patternLocations.set(target,position);
-  }
-
-  // Layered pattern constructors (docs/output.md, "Pattern values").
-  // This walk keeps pattern and item positions distinct before substitution.
-
-  /**
-   * @param {any} root
-   * @param {{name?:(name:string)=>boolean, terminal?:(name:string)=>boolean, test?:(test:any)=>string|null, depth?:number, deferDepth?:boolean}} [inspect]
-   * @returns {string|null}
-   */
-  function layeredPatternProblem(root, inspect = {}) {
-    return inspectPattern(root, inspect, false);
-  }
-
-  /**
-   * @internal
-   * @param {any} root
-   * @param {Parameters<typeof layeredPatternProblem>[1]} [inspect]
-   * @returns {string|null}
-   */
-  function sourcePatternProblem(root, inspect = {}) {
-    return inspectPattern(root, inspect, true);
-  }
-
-  /**
-   * @param {any} root
-   * @param {NonNullable<Parameters<typeof layeredPatternProblem>[1]>} inspect
-   * @param {boolean} deferGroups
-   * @returns {string|null}
-   */
-  function inspectPattern(root, inspect, deferGroups) {
-    const stack = [{node:root,item:false,repeated:false,depth:inspect.depth ?? 0,inner:false}];
-    const object = (/** @type {any} */ n) => n && typeof n === 'object' && !Array.isArray(n);
-    const position = (/** @type {any} */ n) => Array.isArray(n) && n.length === 2 && n.every((/** @type {any} */ x) => Number.isSafeInteger(x) && x > 0);
-    const stringTerm = (/** @type {any} */ n) => object(n) && (
-      Object.keys(n).length === 1 && typeof n.string === 'string' && [...n.string].every(c => c.codePointAt(0) < 0xd800 || c.codePointAt(0) > 0xdfff)
-      || Object.keys(n).length === 2 && position(n.at) && (typeof n.const === 'string' && /^[A-Z][A-Za-z0-9_-]*$/.test(n.const) || typeof n.param === 'string' && /^[A-Za-z][A-Za-z0-9_-]*$/.test(n.param))
-    );
-    const requirementTerm = (/** @type {any} */ n) => stringTerm(n) && !('string' in n) || object(n) && Object.keys(n).length === 1 && typeof n.tag === 'string' && (inspect.terminal ? inspect.terminal(n.tag) : /^[A-Z][A-Za-z0-9_-]*$/.test(n.tag) || n.tag.startsWith('_'));
-    const ruleName = (/** @type {any} */ name) => typeof name === 'string' && (inspect.name ? inspect.name(name) : /^[a-z][A-Za-z0-9_-]*$/.test(name) || [...name].length === 1 && (name.codePointAt(0) ?? 0) > 127);
-    const terminalAtom = (/** @type {any} */ n) => object(n) && ['terminal','literal','range','wildcard','constant','param'].some(k => k in n) && !('exact' in n || 'children' in n);
-    while (stack.length) {
-      const {node:n,item,repeated,depth,inner} = /** @type {any} */ (stack.pop());
-      if (!inspect.deferDepth && depth > 256) return 'nested too deeply';
-      if (!object(n)) return 'a malformed pattern';
-      const keys = Object.keys(n);
-      const exact = (/** @type {string[]} */ fields) => keys.length === fields.length && fields.every(k => k in n);
-      const push = (/** @type {any} */ node, isItem = false, inRepeat = repeated, isInner = false) => stack.push({node,item:isItem,repeated:inRepeat,depth:depth+1,inner:isInner});
-      const items = (/** @type {any} */ array, inRepeat = repeated, empty = false) => {
-        if (!Array.isArray(array) || !empty && !array.length) return false;
-        for (const node of array) push(node,true,inRepeat);
-        return true;
-      };
-      if (item) {
-        if (deferGroups && exact(['sequence'])) {
-          if (!items(n.sequence)) return 'a malformed pattern sequence';
-        } else if (exact(['child'])) push(n.child,false,false);
-        else if (exact(['siblings'])) {
-          if (n.siblings !== true) return 'a malformed sibling ellipsis';
-          if (repeated) return 'a sibling ellipsis cannot be a repeat item or separator';
-        } else if (exact(['optional'])) {
-          if (!items(n.optional)) return 'a malformed pattern optional';
-        } else if (exact(['repeat']) || exact(['repeat','separator'])) {
-          if (!items(n.repeat,true) || 'separator' in n && !items(n.separator,true)) return 'a malformed pattern repeat';
-        } else if (exact(['choice'])) {
-          if (!Array.isArray(n.choice) || n.choice.length < 2) return 'a malformed pattern choice';
-          for (const arm of n.choice) {
-            if (!items(arm) || !deferGroups && arm.length === 1 && object(arm[0]) && 'choice' in arm[0]) return 'a malformed pattern choice';
-          }
-        } else return 'a malformed pattern child item';
-        continue;
-      }
-      const compound = ['union','intersection','difference'].find(k => k in n);
-      if (compound) {
-        const operands = n[compound];
-        if (!exact([compound]) || !Array.isArray(operands) || operands.length < 2 || compound === 'difference' && operands.length !== 2) return 'a malformed pattern';
-        if (!deferGroups && compound !== 'difference' && operands.some((/** @type {any} */ x) => object(x) && compound in x)) return 'a nested pattern set must be flat';
-        for (const node of operands) push(node,false,false);
-        continue;
-      }
-      if ('path' in n) {
-        if (!exact(['path','pattern']) || !['descendant','first','last'].includes(n.path)) return 'a malformed pattern path';
-        push(n.pattern,false,false);
-        continue;
-      }
-      const form = ['name','call','param','terminal','literal','range','wildcard','constant','test','any'].filter(k => k in n);
-      if (form.length !== 1) return 'a malformed pattern node test';
-      const key = form[0];
-      if ('exact' in n && (n.exact !== true || inner)) return 'a malformed exact pattern prefix';
-      if ('children' in n && (inner || !['name','call','param','any'].includes(key))) return 'a child list requires a rule test';
-      let fields = [key, ...('exact' in n ? ['exact'] : []), ...('children' in n ? ['children'] : [])];
-      if (key === 'test') {
-        if (n.test === 'tags') {
-          fields.push('requirements', 'expr');
-          const ruleAtom = object(n.expr) && ['name','call'].some(k => k in n.expr) && !('exact' in n.expr || 'children' in n.expr);
-          if (!(terminalAtom(n.expr) || ruleAtom) || !Array.isArray(n.requirements)) return 'a pattern tag test requires a node atom';
-          for (const requirement of n.requirements) {
-            if (!object(requirement) || Object.keys(requirement).length !== 2 || !('value' in requirement) || typeof requirement.negated !== 'boolean' || !requirementTerm(requirement.value)) return 'a malformed pattern requirement';
-          }
-        } else {
-          fields.push('value','expr');
-          if (!['=','≠'].includes(n.test) || !(terminalAtom(n.expr) || object(n.expr) && ['name','call'].some(k => k in n.expr) || object(n.expr) && n.expr.test === 'tags' && !('exact' in n.expr || 'children' in n.expr) && (terminalAtom(n.expr.expr) || object(n.expr.expr) && ['name','call'].some(k => k in n.expr.expr)))) return 'a pattern value test requires a node atom';
-          if (!stringTerm(n.value)) return 'a malformed pattern value test';
-        }
-        const problem = inspect.test?.(n);
-        if (problem) return problem;
-        if ("expr" in n) push(n.expr,false,false,true);
-      } else if (key === 'any') {
-        if (n.any !== true || !('children' in n)) return 'a malformed bare child list';
-      } else {
-        fields.push('at');
-        if (!position(n.at)) return 'a malformed pattern position';
-        if (key === 'call') {
-          fields.push('args');
-          if (!ruleName(n.call) || !Array.isArray(n.args) || !n.args.length || n.args.some((/** @type {any} */ x) => !object(x))) return 'a malformed pattern call';
-        } else if (key === 'name') {
-          if (!ruleName(n.name)) return 'a malformed pattern rule name';
-        } else if (key === 'param' || key === 'constant') {
-          if (typeof n[key] !== 'string' || !(key === 'param' ? /^[A-Za-z][A-Za-z0-9_-]*$/ : /^[A-Z][A-Za-z0-9_-]*$/).test(n[key])) return 'a malformed pattern reference';
-        } else if (key === 'terminal') {
-          if (n.terminal === '_Elided') return '_Elided stands only in a pattern tag test';
-          if (typeof n.terminal !== 'string' || !(inspect.terminal ? inspect.terminal(n.terminal) : /^[A-Z][A-Za-z0-9_-]*$/.test(n.terminal) || n.terminal.startsWith('_'))) return 'a malformed pattern terminal';
-        } else if (key === 'wildcard') {
-          if (n.wildcard !== true) return 'a malformed pattern wildcard';
-        } else if (key === 'literal') {
-          if (!stringTerm(n.literal) || !('string' in n.literal)) return 'a malformed pattern literal';
-        } else if (key === 'range') {
-          if (!Array.isArray(n.range) || n.range.length !== 2 || n.range.some((/** @type {any} */ x) => !stringTerm(x))) return 'a malformed pattern range';
-        }
-      }
-      if (!exact(fields)) return 'a malformed pattern node test';
-      if ('children' in n && !items(n.children,false,true)) return 'a malformed pattern child list';
-    }
-    return null;
-  }
-
-  /**
-   * @param {any} root
-   * @param {(term:any)=>string} term
-   * @param {boolean} [literal]
-   * @returns {string}
-   */
-  function layeredPatternText(root, term, literal = true) {
-    const atom = (/** @type {any} */ n) => !['union','intersection','difference','path'].some(k => k in n);
-    const set = (/** @type {any} */ n) => ['union','intersection','difference'].some(k => k in n);
-    /** @type {(items:any[])=>string} */
-    const items = array => array.map(n => {
-      let text;
-      if (n.child) text = pattern(n.child);
-      else if (n.siblings) return '⋯';
-      else if (n.optional) return '['+items(n.optional)+']';
-      else if (n.repeat) return '{'+items(n.repeat)+(n.separator?' / '+items(n.separator):'')+'}';
-      else text = n.choice.map(items).join(' | ');
-      return array.length > 1 && (n.choice || n.child && set(n.child)) ? '('+text+')' : text;
-    }).join(' ');
-    const children = (/** @type {any[]} */ array) => array.length ? '⁅ '+items(array)+' ⁆' : '⁅⁆';
-    /** @type {(n:any)=>string} */
-    const pattern = n => {
-      if (n.path) {
-        const operand = atom(n.pattern) ? pattern(n.pattern) : '('+pattern(n.pattern)+')';
-        return n.path === 'first' ? operand+' ⋰' : (n.path === 'last' ? '⋱ ' : '⋮ ')+operand;
-      }
-      if (set(n)) {
-        const key = n.union ? 'union' : n.intersection ? 'intersection' : 'difference';
-        return n[key].map((/** @type {any} */ x,/** @type {number} */ i) => {
-          const grouped = key === 'intersection' && (x.union || x.difference)
-            || key === 'difference' && i === 1 && (x.union || x.difference)
-            || key === 'union' && i > 0 && x.difference;
-          const text = pattern(x);
-          return grouped ? '('+text+')' : text;
-        }).join(key === 'union' ? ' ∪ ' : key === 'intersection' ? ' ∩ ' : ' ∖ ');
-      }
-      let text;
-      if (n.test) text = (n.any ? '' : pattern(n.expr))+(n.test === 'tags' ? term({requirements:n.requirements}) : n.test+term(n.value));
-      else if (n.any) text = '';
-      else if (n.literal) text = term(n.literal);
-      else if (n.range) text = n.range.map(term).join('..');
-      else if (n.wildcard) text = '_';
-      else if (n.constant) text = '$'+n.constant;
-      else text = term(n);
-      return (n.exact ? '·' : '')+text+('children' in n ? children(n.children) : '');
-    };
-    const text = pattern(root);
-    return literal ? '#'+(atom(root) ? text : '('+text+')') : text;
-  }
-
   // ---- trampoline.js
   // Runs mutually recursive readers and walks without the call stack, so a
   // document's nesting cannot exhaust it (engine §9).
@@ -4798,7 +4593,6 @@
   }
 
   // ---- patterns.js
-
   // Finite observations of structural trees (engine §4.1). A helper carries
   // a sequence monoid: its relations concatenate without retaining trees.
 
@@ -4902,6 +4696,8 @@
    * @returns {any}
    */
   function resolvePattern(root, constant, value, unicode) {
+    /** @param {any} src @param {any} dst */
+    const keepAt = (src, dst) => { if (src?.at && !("at" in dst)) Object.defineProperty(dst, "at", { value: src.at, configurable: true, writable: true }); };
     /** @param {any} atom @param {string} message @returns {never} */
     const fault=(atom,message)=>{throw new GencmuError('grammar',message,{line:atom.at?.[0],column:atom.at?.[1]});};
     /** @param {any} node @returns {Generator<any,any,any>} */
@@ -4933,18 +4729,18 @@
         if (node.test === 'tags' && result.expr?.name) for(let i=0;i<result.requirements.length;i++) {
           const requirement=result.requirements[i];
           if (!requirement.negated && requirement.value.set.has('_Elided')) {
-            const at=patternLocations.get(node.requirements[i].value) ?? result.expr.at;
+            const at=node.requirements[i].value.at ?? result.expr.at;
             throw new GencmuError('grammar','a rule pattern cannot require _Elided',{line:at?.[0],column:at?.[1]});
           }
         }
-        copyPatternLocation(node,result);
+        keepAt(node,result);
         return result;
       }
       for(const key of ['union','intersection','difference','choice','pattern','children','child','optional','repeat','separator']) {
         if(node[key]) result[key]=yield resolve(node[key]);
       }
       for(const key of ['union','intersection']) if(result[key]) result[key]=result[key].flatMap((/** @type {any} */ part)=>part[key]??[part]);
-      copyPatternLocation(node,result);
+      keepAt(node,result);
       return result;
     }
     return run(resolve(root));
@@ -5440,7 +5236,11 @@
 
   /** @param {any} expr @returns {any} */
   function argumentOfExpression(expr) {
-    if(expr.ref) return /^[A-Z_]/.test(expr.ref)?{tag:expr.ref}:{rule:expr.ref};
+    if(expr.ref) {
+      const node = /^[A-Z_]/.test(expr.ref)?{tag:expr.ref}:{rule:expr.ref};
+      if (expr.at) Object.defineProperty(node, "at", {value: expr.at, configurable: true, writable: true});
+      return node;
+    }
     if(expr.literal) return expr.literal;
     if(expr.param || expr.call || expr.splice || expr.test || expr.range || expr.wildcard) return expr;
     return {body:expr};
@@ -5557,10 +5357,19 @@
     else if (name === "classify") valid = args.length === 1 && named(args[0], "classifier");
     else if (name === "tags") valid = (span || ["parse","error-free"].includes(receiver.method)) && args.length === 0;
     else if (name === "followed-by" || name === "preceded-by") valid = bare && args.length > 0 && args.every(arg => rule(arg) || named(arg, "terminal"));
-    else if (name === "without-elision-except") valid = bare && args.length === 1 && rule(args[0]);
-    else if (name === "without-elision") valid = bare && args.length === 0;
-    else if (name === "verbatim-text") valid = recipe && bare && args.length === 0;
-    else if (name === "emitted") valid = bare && args.length === 0;
+    else if (name === "without-elision-except") {
+      if (!hasUnresolved([receiver, args])) {
+        if (!bare) return "without-elision-except requires a bare capture: write $x.without-elision-except(family).onward";
+        if (args.length !== 1 || !rule(args[0])) return "without-elision-except requires one rule name";
+      }
+      valid = bare && args.length === 1 && rule(args[0]);
+    } else if (name === "without-elision") {
+      if (!hasUnresolved([receiver, args]) && (!bare || args.length !== 0)) {
+        return "without-elision requires a bare capture: write $x.without-elision.onward";
+      }
+      valid = bare && args.length === 0;
+    } else if (name === "verbatim-text") valid = recipe && bare && args.length === 0;
+    else if (name === "emitted") valid = recipe && bare && args.length === 0;
     else valid = args.length === 0 && (span || receiver.method === "emitted" && (name === "value" || name === "image"));
     return valid ? null : METHOD_SIGNATURE_PROBLEM;
   }
@@ -6288,6 +6097,221 @@
     }
   }
 
+  // ---- pattern-shapes.js
+  // Layered pattern constructors (docs/output.md, "Pattern values").
+  // This walk keeps pattern and item positions distinct before substitution.
+
+  /**
+   * @param {any} root
+   * @param {{name?:(name:string)=>boolean, terminal?:(name:string)=>boolean, range?:(range:any)=>string|null, test?:(test:any)=>string|null, depth?:number, deferDepth?:boolean}} [inspect]
+   * @returns {{problem:string, node:any}|null}
+   */
+  function layeredPatternFault(root, inspect = {}) {
+    return inspectPattern(root, inspect, false);
+  }
+
+  /**
+   * @param {any} root
+   * @param {{name?:(name:string)=>boolean, terminal?:(name:string)=>boolean, range?:(range:any)=>string|null, test?:(test:any)=>string|null, depth?:number, deferDepth?:boolean}} [inspect]
+   * @returns {string|null}
+   */
+  function layeredPatternProblem(root, inspect = {}) {
+    return inspectPattern(root, inspect, false)?.problem ?? null;
+  }
+
+  /**
+   * @internal
+   * @param {any} root
+   * @param {Parameters<typeof layeredPatternProblem>[1]} [inspect]
+   * @returns {string|null}
+   */
+  function sourcePatternProblem(root, inspect = {}) {
+    return inspectPattern(root, inspect, true)?.problem ?? null;
+  }
+
+  /**
+   * @param {any} root
+   * @param {NonNullable<Parameters<typeof layeredPatternProblem>[1]>} inspect
+   * @param {boolean} deferGroups
+   * @returns {{problem:string, node:any}|null}
+   */
+  function inspectPattern(root, inspect, deferGroups) {
+    const stack = [{node:root,item:false,repeated:false,depth:inspect.depth ?? 0,inner:false}];
+    const object = (/** @type {any} */ n) => n && typeof n === 'object' && !Array.isArray(n);
+    const position = (/** @type {any} */ n) => Array.isArray(n) && n.length === 2 && n.every((/** @type {any} */ x) => Number.isSafeInteger(x) && x > 0);
+    const stringTerm = (/** @type {any} */ n) => object(n) && !n.grouped && (
+      Object.keys(n).length === 1 && typeof n.string === 'string' && [...n.string].every(c => c.codePointAt(0) < 0xd800 || c.codePointAt(0) > 0xdfff)
+      || Object.keys(n).length === 2 && position(n.at) && (typeof n.const === 'string' && /^[A-Z][A-Za-z0-9_-]*$/.test(n.const) || typeof n.param === 'string' && /^[A-Za-z][A-Za-z0-9_-]*$/.test(n.param))
+    );
+    const requirementTerm = (/** @type {any} */ n) => !n?.grouped && (stringTerm(n) && !('string' in n) || object(n) && Object.keys(n).length === 1 && typeof n.tag === 'string' && (inspect.terminal ? inspect.terminal(n.tag) : /^[A-Z][A-Za-z0-9_-]*$/.test(n.tag) || n.tag.startsWith('_')));
+    const ruleName = (/** @type {any} */ name) => typeof name === 'string' && (inspect.name ? inspect.name(name) : /^[a-z][A-Za-z0-9_-]*$/.test(name) || [...name].length === 1 && (name.codePointAt(0) ?? 0) > 127);
+    const terminalAtom = (/** @type {any} */ n) => object(n) && ['terminal','literal','range','wildcard','constant','param'].some(k => k in n) && !('exact' in n || 'children' in n);
+    while (stack.length) {
+      const {node:n,item,repeated,depth,inner} = /** @type {any} */ (stack.pop());
+      if (!inspect.deferDepth && depth > 256) return {problem:'nested too deeply',node:root};
+      if (!object(n)) return {problem:'a malformed pattern',node:n};
+      const err = (/** @type {string} */ problem, /** @type {any} */ target = n) => ({problem, node:target});
+      const keys = Object.keys(n);
+      const exact = (/** @type {string[]} */ fields) => keys.length === fields.length && fields.every(k => k in n);
+      const push = (/** @type {any} */ node, isItem = false, inRepeat = repeated, isInner = false) => stack.push({node,item:isItem,repeated:inRepeat,depth:depth+1,inner:isInner});
+      const items = (/** @type {any} */ array, inRepeat = repeated, empty = false) => {
+        if (!Array.isArray(array) || !empty && !array.length) return false;
+        for (let i = array.length - 1; i >= 0; i--) push(array[i],true,inRepeat);
+        return true;
+      };
+      if (item) {
+        if (deferGroups && exact(['sequence'])) {
+          if (!items(n.sequence)) return err('a malformed pattern sequence');
+        } else if (exact(['child'])) push(n.child,false,false);
+        else if (exact(['siblings'])) {
+          if (n.siblings !== true) return err('a malformed sibling ellipsis');
+          if (repeated) return err('a sibling ellipsis cannot be a repeat item or separator', null);
+        } else if (exact(['optional'])) {
+          if (!items(n.optional)) return err('a malformed pattern optional');
+        } else if (exact(['repeat']) || exact(['repeat','separator'])) {
+          if ('separator' in n && !items(n.separator,true) || !items(n.repeat,true)) return err('a malformed pattern repeat');
+        } else if (exact(['choice'])) {
+          if (!Array.isArray(n.choice) || n.choice.length < 2) return err('a malformed pattern choice');
+          for (let i = n.choice.length - 1; i >= 0; i--) {
+            const arm = n.choice[i];
+            if (!items(arm) || !deferGroups && arm.length === 1 && object(arm[0]) && 'choice' in arm[0]) return err('a malformed pattern choice', arm?.[0] ?? n);
+          }
+        } else return err('a malformed pattern child item');
+        continue;
+      }
+      const compound = ['union','intersection','difference'].find(k => k in n);
+      if (compound) {
+        const operands = n[compound];
+        if (!exact([compound]) || !Array.isArray(operands) || operands.length < 2 || compound === 'difference' && operands.length !== 2) return err('a malformed pattern');
+        if (!deferGroups && compound !== 'difference' && operands.some((/** @type {any} */ x) => object(x) && compound in x)) return err('a nested pattern set must be flat');
+        for (let i = operands.length - 1; i >= 0; i--) push(operands[i],false,false);
+        continue;
+      }
+      if ('path' in n) {
+        if (!exact(['path','pattern']) || !['descendant','first','last'].includes(n.path)) return err('a malformed pattern path');
+        push(n.pattern,false,false);
+        continue;
+      }
+      const form = ['name','call','param','terminal','literal','range','wildcard','constant','test','any'].filter(k => k in n);
+      if (form.length !== 1) return err('a malformed pattern node test');
+      const key = form[0];
+      if ('exact' in n && (n.exact !== true || inner)) return err('a malformed exact pattern prefix');
+      if ('children' in n && (inner || !['name','call','param','any'].includes(key))) return err('a child list requires a rule test', n.listAt ? {at: n.listAt} : n);
+      let fields = [key, ...('exact' in n ? ['exact'] : []), ...('children' in n ? ['children'] : [])];
+      if (key === 'test') {
+        if (n.test === 'tags') {
+          fields.push('requirements', 'expr');
+          const ruleAtom = object(n.expr) && ['name','call'].some(k => k in n.expr) && !('exact' in n.expr || 'children' in n.expr);
+          if (!(terminalAtom(n.expr) || ruleAtom) || !Array.isArray(n.requirements)) return err('a pattern tag test requires a node atom');
+        } else {
+          fields.push('value','expr');
+          if (!['=','≠'].includes(n.test) || !(terminalAtom(n.expr) || object(n.expr) && ['name','call'].some(k => k in n.expr) || object(n.expr) && n.expr.test === 'tags' && !('exact' in n.expr || 'children' in n.expr) && (terminalAtom(n.expr.expr) || object(n.expr.expr) && ['name','call'].some(k => k in n.expr.expr)))) return err('a pattern value test requires a node atom');
+        }
+        if (!exact(fields)) return err('a malformed pattern node test');
+        const problem = inspect.test?.(n);
+        if (problem) return err(problem);
+      } else if (key === 'any') {
+        if (n.any !== true || !('children' in n)) return err('a malformed bare child list');
+      } else {
+        fields.push('at');
+        if (!position(n.at)) return err('a malformed pattern position');
+        if (key === 'call') {
+          fields.push('args');
+          if (!ruleName(n.call) || !Array.isArray(n.args) || !n.args.length || n.args.some((/** @type {any} */ x) => !object(x))) return err('a malformed pattern call');
+        } else if (key === 'name') {
+          if (!ruleName(n.name)) return err('a malformed pattern rule name');
+        } else if (key === 'param' || key === 'constant') {
+          if (typeof n[key] !== 'string' || !(key === 'param' ? /^[A-Za-z][A-Za-z0-9_-]*$/ : /^[A-Z][A-Za-z0-9_-]*$/).test(n[key])) return err('a malformed pattern reference');
+        } else if (key === 'terminal') {
+          if (n.terminal === '_Elided') return err('_Elided stands only in a pattern tag test');
+          if (typeof n.terminal !== 'string' || !(inspect.terminal ? inspect.terminal(n.terminal) : /^[A-Z][A-Za-z0-9_-]*$/.test(n.terminal) || n.terminal.startsWith('_'))) return err('a malformed pattern terminal');
+        } else if (key === 'wildcard') {
+          if (n.wildcard !== true) return err('a malformed pattern wildcard');
+        } else if (key === 'literal') {
+          if (!stringTerm(n.literal) || !('string' in n.literal)) return err('a malformed pattern literal');
+        } else if (key === 'range') {
+          if (!Array.isArray(n.range) || n.range.length !== 2 || n.range.some((/** @type {any} */ x) => !stringTerm(x))) return err('a malformed pattern range');
+          const problem = inspect.range?.(n.range);
+          if (problem) return err(problem);
+        }
+      }
+      if (!exact(fields)) return err('a malformed pattern node test');
+      if ('children' in n && !items(n.children,false,true)) return err('a malformed pattern child list');
+      if (key === 'test') {
+        // Check n.expr BEFORE test operands so base atom faults precede test operand faults.
+        if (n.test === 'tags') {
+          for (const requirement of n.requirements) {
+            if (!object(requirement) || Object.keys(requirement).length !== 2 || !('value' in requirement) || typeof requirement.negated !== 'boolean' || !requirementTerm(requirement.value)) {
+              if (object(n.expr)) {
+                const baseFault = inspectPattern(n.expr, {...inspect, depth:depth+1}, deferGroups);
+                if (baseFault) return baseFault;
+              }
+              return err('a malformed pattern requirement', requirement?.value ?? requirement ?? n);
+            }
+          }
+        } else if (!stringTerm(n.value)) {
+          if (object(n.expr)) {
+            const baseFault = inspectPattern(n.expr, {...inspect, depth:depth+1}, deferGroups);
+            if (baseFault) return baseFault;
+          }
+          return err('a malformed pattern value test', n.value ?? n);
+        }
+        if ("expr" in n) push(n.expr,false,false,true);
+      }
+    }
+    return null;
+  }
+
+  /**
+   * @param {any} root
+   * @param {(term:any)=>string} term
+   * @param {boolean} [literal]
+   * @returns {string}
+   */
+  function layeredPatternText(root, term, literal = true) {
+    const atom = (/** @type {any} */ n) => !['union','intersection','difference','path'].some(k => k in n);
+    const set = (/** @type {any} */ n) => ['union','intersection','difference'].some(k => k in n);
+    /** @type {(items:any[])=>string} */
+    const items = array => array.map(n => {
+      let text;
+      if (n.child) text = pattern(n.child);
+      else if (n.siblings) return '⋯';
+      else if (n.optional) return '['+items(n.optional)+']';
+      else if (n.repeat) return '{'+items(n.repeat)+(n.separator?' / '+items(n.separator):'')+'}';
+      else text = n.choice.map(items).join(' | ');
+      return array.length > 1 && (n.choice || n.child && set(n.child)) ? '('+text+')' : text;
+    }).join(' ');
+    const children = (/** @type {any[]} */ array) => array.length ? '⁅ '+items(array)+' ⁆' : '⁅⁆';
+    /** @type {(n:any)=>string} */
+    const pattern = n => {
+      if (n.path) {
+        const operand = atom(n.pattern) ? pattern(n.pattern) : '('+pattern(n.pattern)+')';
+        return n.path === 'first' ? operand+' ⋰' : (n.path === 'last' ? '⋱ ' : '⋮ ')+operand;
+      }
+      if (set(n)) {
+        const key = n.union ? 'union' : n.intersection ? 'intersection' : 'difference';
+        return n[key].map((/** @type {any} */ x,/** @type {number} */ i) => {
+          const grouped = key === 'intersection' && (x.union || x.difference)
+            || key === 'difference' && i === 1 && (x.union || x.difference)
+            || key === 'union' && i > 0 && x.difference;
+          const text = pattern(x);
+          return grouped ? '('+text+')' : text;
+        }).join(key === 'union' ? ' ∪ ' : key === 'intersection' ? ' ∩ ' : ' ∖ ');
+      }
+      let text;
+      if (n.test) text = (n.any ? '' : pattern(n.expr))+(n.test === 'tags' ? term({requirements:n.requirements}) : n.test+term(n.value));
+      else if (n.any) text = '';
+      else if (n.literal) text = term(n.literal);
+      else if (n.range) text = n.range.map(term).join('..');
+      else if (n.wildcard) text = '_';
+      else if (n.constant) text = '$'+n.constant;
+      else text = term(n);
+      return (n.exact ? '·' : '')+text+('children' in n ? children(n.children) : '');
+    };
+    const text = pattern(root);
+    return literal ? '#'+(atom(root) ? text : '('+text+')') : text;
+  }
+
   // ---- dom.js
 
 
@@ -6330,7 +6354,68 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 49;
+  const DOM_FORMAT = 50;
+
+  /** @type {WeakMap<object, object>} */
+  const writtenOrigins = new WeakMap();
+
+  /**
+   * Attach a non-enumerable source position to a DOM node whose JSON schema has
+   * no `at` member.
+   * @template {object} T
+   * @param {T} node
+   * @param {import("./types.js").Position | undefined} at
+   * @param {string} [field]
+   * @returns {T}
+   */
+  function hideAt(node, at, field = "at") {
+    if (node && typeof node === "object" && at) {
+      Object.defineProperty(node, field, { value: at, configurable: true, writable: true });
+    }
+    return node;
+  }
+
+  /**
+   * Copy source position properties and written origin from `source` to `target`.
+   * @param {any} source
+   * @param {any} target
+   */
+  function copyAt(source, target) {
+    if (!source || typeof source !== "object" || !target || typeof target !== "object") return target;
+    for (const field of ["at", "nameAt", "classAt", "clauseAt", "tagTermAt", "listAt", "defaultAt", "grouped", "paramAts", "hasHead"]) {
+      if (source[field] && !(field in target)) {
+        if (Object.prototype.propertyIsEnumerable.call(source, field)) target[field] = source[field];
+        else hideAt(target, source[field], field);
+      }
+    }
+    writtenOrigins.set(target, writtenOrigins.get(source) ?? source);
+    return target;
+  }
+
+  /**
+   * Copy source positions from a freshly read DOM onto an existing cached DOM
+   * of the same structure.
+   * @param {any} target
+   * @param {any} source
+   */
+  function copyDomLocations(target, source) {
+    /** @type {[any, any][]} */
+    const pending = [[target, source]];
+    const seen = new Set();
+    while (pending.length) {
+      const [dst, src] = /** @type {[any, any]} */ (pending.pop());
+      if (!dst || typeof dst !== "object" || !src || typeof src !== "object" || seen.has(dst)) continue;
+      seen.add(dst);
+      copyAt(src, dst);
+      if (Array.isArray(dst) && Array.isArray(src)) {
+        for (let i = Math.min(dst.length, src.length) - 1; i >= 0; i--) pending.push([dst[i], src[i]]);
+        continue;
+      }
+      for (const key of Object.keys(dst)) {
+        if (key in src) pending.push([dst[key], src[key]]);
+      }
+    }
+  }
   // A constant's name, without its `$`, begins with a capital (engine §2).
   const CONSTANT_NAME = /^(?!.*--)[A-Z][A-Za-z0-9_-]*$/;
   // A classifier name starts with a lowercase letter. A class name starts
@@ -6409,6 +6494,18 @@
   }
 
   /**
+   * Why a value is not a grammar DOM, with the source position of the fault, or
+   * null when it is one.
+   * @param {unknown} dom
+   * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName(name:string):boolean, canonicalTag(name:string):string|null}} unicode
+   * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
+   * @returns {{problem: string, at?: import("./types.js").Position, code?: string} | null}
+   */
+  function domFault(dom, unicode, deferEmission = true) {
+    return inspectDom(dom, unicode, deferEmission, false);
+  }
+
+  /**
    * Why a value is not a grammar DOM, or null when it is one.
    * The loader's Unicode table supplies engine-tag and emoji-name identities.
    * @param {unknown} dom
@@ -6417,7 +6514,7 @@
    * @returns {string | null}
    */
   function domProblem(dom, unicode, deferEmission = true) {
-    return inspectDom(dom, unicode, deferEmission, false);
+    return domFault(dom, unicode, deferEmission)?.problem ?? null;
   }
 
   /**
@@ -6425,10 +6522,23 @@
    * @param {unknown} dom
    * @param {Parameters<typeof domProblem>[1]} unicode
    * @param {boolean} [deferEmission]
+   * @param {any[]} [templateConditions]
+   * @returns {{problem: string, at?: import("./types.js").Position, code?: string} | null}
+   */
+  function expandedDomFault(dom, unicode, deferEmission = true, templateConditions = undefined) {
+    return inspectDom(dom, unicode, deferEmission, true, templateConditions);
+  }
+
+  /**
+   * @internal
+   * @param {unknown} dom
+   * @param {Parameters<typeof domProblem>[1]} unicode
+   * @param {boolean} [deferEmission]
+   * @param {any[]} [templateConditions]
    * @returns {string|null}
    */
   function expandedDomProblem(dom, unicode, deferEmission = true, templateConditions = undefined) {
-    return inspectDom(dom, unicode, deferEmission, true, templateConditions);
+    return expandedDomFault(dom, unicode, deferEmission, templateConditions)?.problem ?? null;
   }
 
   /**
@@ -6438,361 +6548,794 @@
    * @param {boolean} expanded
    * @param {any[]} [templateConditions] per condition of the one rule, its
    *   form as its template writes it, where it held a parameter (§3.6)
-   * @returns {string|null}
+   * @returns {{problem: string, at?: import("./types.js").Position, code?: string} | null}
    */
   function inspectDom(dom, unicode, deferEmission, expanded, templateConditions = undefined) {
     /** @type {(value: unknown) => value is Record<string, any>} */
     const object = isDomObject;
-    if (!object(dom) || !Object.keys(dom).every(key => ["format", "rules", "directives", "constants", "classifiers", "implications"].includes(key)) || dom.format !== DOM_FORMAT || !["rules", "directives", "constants", "classifiers", "implications"].every(key => Array.isArray(dom[key]))) return `not a DOM of format ${DOM_FORMAT}`;
+    if (!object(dom) || !Object.keys(dom).every(key => ["format", "rules", "directives", "constants", "classifiers", "implications"].includes(key)) || dom.format !== DOM_FORMAT || !["rules", "directives", "constants", "classifiers", "implications"].every(key => Array.isArray(dom[key]))) return { problem: `not a DOM of format ${DOM_FORMAT}` };
     /** @type {(value: any) => boolean} */
     const position = value => isDomPosition(value) && value.every((/** @type {number} */ n) => n >= 1);
     /** @type {(value: any, fields: string[]) => boolean} */
     const exact = (value, fields) => object(value) && Object.keys(value).every(key => fields.includes(key));
+    /** @type {(value: any, fields: string[]) => boolean} */
+    const exprExact = (value, fields) => exact(value, [...fields, "at"]) && (!("at" in value) || position(value.at));
+    /** @type {(value: any, key: string) => boolean} */
+    const exprSingle = (value, key) => exprExact(value, [key]) && key in value;
     /** @type {(value: any) => boolean} */
-    const stringAtom = value => object(value) && ["string", "const"].some(key => key in value);
+    const stringAtom = value => object(value) && !value.grouped && ["string", "const"].some(key => key in value);
     /** @type {(value: any) => boolean} */
-    const stringTerm = value => stringAtom(value) || object(value) && "param" in value;
+    const stringTerm = value => !value?.grouped && (stringAtom(value) || object(value) && "param" in value);
     /** @type {(value: any) => boolean} */
     const tag = value => typeof value === "string" && (/^(?!.*--)[A-Z][A-Za-z0-9_-]*$/.test(value) || (value.startsWith("_") && value !== "_" && unicode.canonicalTag(value) === value));
     /** @type {(value: any) => boolean} */
     const constant = value => typeof value === "string" && CONSTANT_NAME.test(value);
     /** @type {(values: any) => boolean} */
     const gates = values => Array.isArray(values) && values.every((/** @type {any} */ gate) => exact(gate, ["feature", "kind", "negated"]) && Object.keys(gate).length === 3 && typeof gate.feature === "string" && FEATURE_NAME.test(gate.feature) && typeof gate.negated === "boolean" && gate.kind === "gate");
+    /** @type {(value: any, fallback: import("./types.js").Position | undefined) => import("./types.js").Position | undefined} */
+    const nodePos = (value, fallback) => (object(value) && position(value.at) ? value.at : fallback);
+    /** @type {(problem: string, value?: any, fallback?: import("./types.js").Position, code?: string) => {problem: string, at?: import("./types.js").Position, code?: string}} */
+    const fault = (problem, value = undefined, fallback = undefined, code = undefined) => {
+      const at = nodePos(value, fallback);
+      return { problem, ...(at ? { at } : {}), ...(code ? { code } : {}) };
+    };
     /** @type {any[]} */
     const pending = [];
-    const tagClauses = new Map();
     let activeParams = new Set();
     /** @type {(kind: string, value: any, depth?: number, context?: any) => void} */
-    const push = (kind, value, depth = 0, context = {}) => pending.push({ kind, value, depth, params:activeParams, ...context });
+    const push = (kind, value, depth = 0, context = {}) => pending.push({ kind, value, depth, params: activeParams, ...context });
+    /** @type {(items: any[], fn: (item: any, index: number) => void) => void} */
+    const pushReverse = (items, fn) => {
+      for (let index = items.length - 1; index >= 0; index--) fn(items[index], index);
+    };
     const ruleName = (/** @type {string} */ name) => typeof name === "string" && (CLASSIFIER_NAME.test(name) || unicode.isEmojiName(name) || expanded && name.includes("(") && name.endsWith(")"));
-    const positions = new Set();
-    for (const item of [...dom.rules, ...dom.directives, ...dom.constants, ...dom.classifiers, ...dom.implications]) {
-      if (!object(item) || !position(item.at)) return "a malformed declaration position";
-      const key = `${item.at[0]}:${item.at[1]}`;
-      if (positions.has(key)) return "two items at one position";
-      positions.add(key);
-    }
-    for (const directive of dom.directives) {
-      const { name, args } = directive;
-      if ("conditions" in directive) {
-        if (name !== "features" || !Array.isArray(directive.conditions) || !directive.conditions.length) return "malformed feature conditions";
-        for (const condition of directive.conditions) push("condition", condition);
-      }
-      if (!DIRECTIVE_NAMES.has(name)) return "a malformed directive";
-      if (name === "ambiguity-resolution") {
-        if ("args" in directive || !validSteps(directive.steps)) return "a malformed directive";
-        for (const step of directive.steps) if ("pattern" in step) {
-          if (Object.hasOwn(step.pattern,"const")) push("term",step.pattern);
-          else push("pattern",step.pattern);
-        }
-        continue;
-      }
-      if (!Array.isArray(args) || args.some(arg => typeof arg !== "string")) return "a malformed directive";
-      if (name === "elision-only" && args.length !== 0) return "a malformed directive";
-      if (["stage", "extend-stage", "redefine-stage"].includes(name) && !(args.length === 1 && CLASSIFIER_NAME.test(args[0]))) return "a malformed directive";
-      if ((name === "include" || name === "names") && args.length !== 1 || name === "features" && !(args.length > 0 && args.every(arg => FEATURE_NAME.test(arg)))) return "a malformed directive";
-    }
-    const firstStatement = [...dom.rules,...dom.constants,...dom.classifiers,...dom.implications,...dom.directives.filter((/** @type {any} */ d) => d.name !== "names")].map(item => item.at).sort((a,b) => a[0]-b[0] || a[1]-b[1])[0];
-    if (firstStatement && dom.directives.some((/** @type {any} */ d) => d.name === "names" && (d.at[0] > firstStatement[0] || d.at[0] === firstStatement[0] && d.at[1] > firstStatement[1]))) return "%names must precede every other statement";
-    for (const definition of dom.constants) {
-      if (!exact(definition, ["name", "op", "value", "at"]) || !CONSTANT_NAME.test(definition.name) || !["define", "redefine"].includes(definition.op)) return "a malformed constant";
-      push("term", definition.value);
-    }
-    for (const classifier of dom.classifiers) {
-      if (!exact(classifier, ["name", "entries", "at"]) || !(typeof classifier.name === "string" && CLASSIFIER_NAME.test(classifier.name)) || !Array.isArray(classifier.entries)) return "a malformed classifier";
-      for (const entry of classifier.entries) {
-        if (!exact(entry, ["gates", "keys", "op", "class", "at"]) || !position(entry.at) || !gates(entry.gates) || entry.gates.some((/** @type {any} */ gate) => gate.kind !== "gate") || !CLASS_NAME.test(entry.class) || !["∈", "∉"].includes(entry.op) || !Array.isArray(entry.keys) || !entry.keys.length) return "a malformed classifier entry";
-        for (const key of entry.keys) { if (!stringTerm(key)) return "a malformed classifier key"; push("term", key); }
-      }
-    }
-    for (const implication of dom.implications) {
-      if (!exact(implication, ["if", "then", "at"])) return "a malformed implication";
-      push("term", implication.if); push("term", implication.then);
-    }
-    for (const rule of dom.rules) {
-      activeParams = new Set(Array.isArray(rule.params) ? rule.params : []);
-      if ("params" in rule && (!Array.isArray(rule.params) || !rule.params.length || rule.params.some((/** @type {any} */ p) => typeof p !== "string" || !/^(?!.*--)[A-Za-z][A-Za-z0-9_-]*$/.test(p)) || activeParams.size !== rule.params.length || "args" in rule)) return "malformed template parameters";
-      if (rule.instance) {
-        if (!exact(rule,["name","op","instance","conditions","at"]) || !ruleName(rule.name) || !["define","redefine"].includes(rule.op) || !Array.isArray(rule.conditions) || rule.conditions.length) return "a malformed instance binding";
-        push("call",rule.instance);
-        continue;
-      }
-      if ("args" in rule) {
-        if (!["redefine","extend"].includes(rule.op)) return "an instance head requires an edit";
-        push("call",{call:rule.name,args:rule.args,at:rule.at});
-      }
-      if (!exact(rule, ["name", "params", "args", "op",  "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "error", "warning", "suppressWarnings", "at"]) || !(typeof rule.name === "string" && ruleName(rule.name)) || !["define", "redefine", "extend"].includes(rule.op) || !Array.isArray(rule.alternatives) || !rule.alternatives.length || !Array.isArray(rule.conditions)) return "a malformed rule";
-      if ("erased" in rule && (rule.erased !== true || rule.emit || rule.value || rule.image)) return "a malformed erased rule";
-      if (rule.error !== undefined && rule.warning !== undefined || rule.params && (rule.error !== undefined || rule.warning !== undefined)) return "a definition accepts one diagnostic, and a template accepts none";
-      if (rule.suppressWarnings !== undefined && (!Array.isArray(rule.suppressWarnings) || !rule.suppressWarnings.length || !(rule.suppressWarnings.length === 1 && rule.suppressWarnings[0] === "_") && !rule.suppressWarnings.every((/** @type {any} */ code) => typeof code === "string" && FEATURE_NAME.test(code)))) return "a malformed warning suppression";
-      for (const kind of ["error","warning"]) if (rule[kind] !== undefined) {
-        if (capturesMentioned(rule[kind]).some(name => typeof name !== "string")) return "a malformed message recipe";
-        const nodes=[rule[kind]];
-        while(nodes.length) { const n=nodes.pop(); if(n?.method === "emitted") return "a message recipe cannot read .emitted"; for(const child of clauseChildren(n)) nodes.push(child); }
-        push("recipe",rule[kind]);
-      }
-      if (rule.tags !== undefined) push("tags", rule.tags, 0, { constituent: true, owner: rule });
-      if (rule.value !== undefined) push("recipe", rule.value);
-      if (rule.image !== undefined) push("recipe", rule.image);
-      if (rule.emit !== undefined) push("emission", rule.emit, 0, { owner: rule });
-      for (const condition of rule.conditions) push("condition", condition, 0, {});
-      for (const alternative of rule.alternatives) {
-        if (!exact(alternative, ["gates", "expr", "tags", "value", "image"]) || !gates(alternative.gates)) return "a malformed alternative";
-        push("expr", alternative.expr, 0, { whole: true });
-        if (alternative.tags !== undefined) push("tags", alternative.tags, 0, { constituent: true, owner: rule });
-        for (const channel of ["value", "image"]) if (alternative[channel] !== undefined) { if (rule.erased) return "a recipe beside erasure"; push("recipe", alternative[channel]); }
-      }
-    }
     /** @type {(value: any) => boolean} */
-    const base = value => object(value) && ("param" in value || "call" in value || "splice" in value || (typeof value.ref === "string") || "literal" in value || "range" in value || value.wildcard === true);
+    const base = value => object(value) && !value.grouped && ("param" in value || "call" in value || "splice" in value || (typeof value.ref === "string") || "literal" in value || "range" in value || value.wildcard === true);
     /** @type {(value: any) => boolean} */
     const target = value => base(value) || object(value) && value.test === "tags" && base(value.expr);
-    for (let task = pending.pop(); task; task = pending.pop()) {
-      if (hooks.work) countWork(hooks.work, "walkSteps");
-      const { kind, value, depth } = task;
-      activeParams=task.params;
-      if (depth > DOM_MAX_DEPTH) return "nested too deeply";
-      if (!object(value)) return `a malformed ${kind}`;
-      /** @type {(kind: string, value: any, context?: any) => void} */
-      const child = (kind, value, context = {}) => push(kind, value, depth + 1, {params:task.params,...context});
-      const fields = Object.keys(value);
-      if (kind === "pattern") {
-        const problem = layeredPatternProblem(value, {depth, name:name=>ruleName(name) && !tag(name), terminal:name=>name === "_Elided" || tag(name)});
-        if (problem) return problem;
-        push("pattern-part",value,depth,{params:task.params});
-        continue;
-      }
-      if (kind === "pattern-part") {
-        if (value.param && !task.params.has(value.param)) return "an undeclared parameter";
-        if (value.call) {
-          const nodes=[value.args];
-          while(nodes.length) {
-            const node=nodes.pop();
-            if(!node || typeof node!=="object") continue;
-            if(node.rule && tag(node.rule)) return "a pattern argument rule reads back as a tag";
-            for(const operand of Object.values(node)) if(operand && typeof operand==="object") nodes.push(operand);
-          }
-          for (const arg of value.args) child("arg",arg);
+    const positions = new Set();
+    for (const item of [...dom.rules, ...dom.directives, ...dom.constants, ...dom.classifiers, ...dom.implications]) {
+      if (!object(item) || !position(item.at)) return { problem: "a malformed declaration position" };
+      const key = `${item.at[0]}:${item.at[1]}`;
+      if (positions.has(key)) return { problem: "two items at one position", at: item.at };
+      positions.add(key);
+    }
+    const firstStatement = [...dom.rules,...dom.constants,...dom.classifiers,...dom.implications,...dom.directives.filter((/** @type {any} */ d) => d.name !== "names")].map(item => item.at).sort((a,b) => a[0]-b[0] || a[1]-b[1])[0];
+    const lateNames = firstStatement && dom.directives.filter((/** @type {any} */ d) => d.name === "names" && (d.at[0] > firstStatement[0] || d.at[0] === firstStatement[0] && d.at[1] > firstStatement[1])).sort((/** @type {any} */ a, /** @type {any} */ b) => a.at[0]-b.at[0] || a.at[1]-b.at[1])[0];
+    if (lateNames) return { problem: "%names must precede every other statement", at: lateNames.at };
+
+    /** @type {import("./types.js").Position | null} */
+    let firstDeepAt = null;
+    /** @type {{problem: string, at?: import("./types.js").Position, code?: string} | null} */
+    let firstSemanticFault = null;
+
+    /**
+     * @param {import("./types.js").Position} declAt
+     * @returns {{problem: string, at?: import("./types.js").Position, code?: string} | null}
+     */
+    const runShapeTasks = (declAt) => {
+      /** @type {{problem: string, at?: import("./types.js").Position, code?: string} | null} */
+      let firstShapeFault = null;
+      for (let task = pending.pop(); task; task = pending.pop()) {
+        const found = runOneShapeTask(task, declAt);
+        if (found) {
+          if (found.code === "ranked-choice-syntax") return found;
+          firstShapeFault ??= found;
         }
-        if (value.literal) push("term",value.literal,depth,{params:task.params});
-        if (value.range) {
-          const problem = rangeProblem(value.range); if (problem) return problem;
-          for (const endpoint of value.range) push("term",endpoint,depth,{params:task.params});
+      }
+      return firstShapeFault;
+    };
+
+    /**
+     * @param {any} task
+     * @param {import("./types.js").Position} declAt
+     * @returns {{problem: string, at?: import("./types.js").Position, code?: string} | null}
+     */
+    const runOneShapeTask = (task, declAt) => {
+        if (hooks.work) countWork(hooks.work, "walkSteps");
+        const { kind, value, depth } = task;
+        const enclosingAt = task.featureDirectiveAt ?? nodePos(value, task.at ?? declAt);
+        const report = (/** @type {string} */ problem, /** @type {any} */ targetNode = value, /** @type {string | undefined} */ code = undefined) =>
+          fault(problem, task.featureDirectiveAt ? undefined : targetNode, enclosingAt, code);
+        activeParams = task.params;
+        if (depth > DOM_MAX_DEPTH) {
+          firstDeepAt ??= declAt;
         }
-        if (value.test === "tags") for (const requirement of value.requirements) child("term",requirement.value,{patternTag:true});
-        else if (value.test) child("term",value.value);
-        if (value.expr) child("pattern-part",value.expr);
-        if (value.path) child("pattern-part",value.pattern);
-        for (const key of ["union","intersection","difference"]) if (value[key]) for (const operand of value[key]) child("pattern-part",operand);
-        if (value.children) for (const item of value.children) child("pattern-item",item);
-        continue;
-      }
-      if (kind === "pattern-item") {
-        if (value.child) child("pattern-part",value.child);
-        for (const key of ["optional","repeat","separator"]) if (value[key]) for (const item of value[key]) child("pattern-item",item);
-        if (value.choice) for (const arm of value.choice) for (const item of arm) child("pattern-item",item);
-        continue;
-      }
-      // Unresolved leaves still obey the category of their position.
-      if ("param" in value) {
-        if (!["expr", "arg", "term", "tags", "target", "pattern", "pattern-part"].includes(kind)) return `a malformed ${kind}`;
-        if (!exact(value,["param","at"]) || !position(value.at) || typeof value.param !== "string" || !task.params.has(value.param)) return "an undeclared or malformed parameter";
-        continue;
-      }
-      if ("call" in value || kind === "call") {
-        if (!["expr", "arg", "term", "tags", "target", "pattern", "pattern-part", "call"].includes(kind)) return `a malformed ${kind}`;
-        if (!exact(value,["call","args","at"]) || !ruleName(value.call) || !position(value.at) || !Array.isArray(value.args) || !value.args.length) return "a malformed call";
-        for (const arg of value.args) child("arg",arg);
-        continue;
-      }
-      if (kind === "arg") {
-        if (argumentReadsCapture(value)) return "an argument cannot read or declare captures";
-        if ("capture" in value || "classifier" in value || "integer" in value) return "an argument cannot read or declare captures";
-        if ("body" in value) {
-          if (!exact(value,["body"])) return "a malformed body argument";
-          push("expr",value.body,depth,{params:task.params,whole:true});
-        } else if ("targets" in value) {
-          if (!exact(value,["targets"]) || !Array.isArray(value.targets) || value.targets.length<2) return "a malformed target choice";
-          for (const target of value.targets) push("target",target,depth,{params:task.params});
-        } else if ("requirements" in value && !value.test) {
-          if (!exact(value,["requirements"]) || !Array.isArray(value.requirements)) return "a malformed requirement list";
-          for (const entry of value.requirements) {
-            if (!exact(entry,["negated","value"]) || typeof entry.negated !== "boolean" || !(entry.value?.tag || entry.value?.const || entry.value?.param)) return "a malformed requirement";
-            push("term",entry.value,depth,{params:task.params});
+        if (!object(value)) return report(`a malformed ${kind}`);
+        /** @type {(kind: string, value: any, context?: any) => void} */
+        const child = (kind, childValue, context = {}) => push(kind, childValue, depth + 1, {
+          params: task.params,
+          at: enclosingAt,
+          closed: task.closed,
+          featureDirectiveAt: task.featureDirectiveAt,
+          ...context,
+        });
+        const fields = Object.keys(value);
+        if (kind === "classifier-entry") {
+          const badGate = Array.isArray(value.gates) ? value.gates.find((/** @type {any} */ g) => !exact(g, ["feature", "kind", "negated"]) || Object.keys(g).length !== 3 || typeof g.feature !== "string" || !FEATURE_NAME.test(g.feature) || typeof g.negated !== "boolean" || g.kind !== "gate") : undefined;
+          if (!exact(value, ["gates", "keys", "op", "class", "at"]) || !position(value.at) || !Array.isArray(value.gates) || badGate || !["∈", "∉"].includes(value.op) || typeof value.class !== "string" || !Array.isArray(value.keys) || !value.keys.length) {
+            return report("a malformed classifier entry", badGate ?? value);
           }
-        } else if (value.rule) {
-          if (!exact(value,["rule"]) || !ruleName(value.rule)) return "a malformed nominal rule argument";
-        } else if (value.splice || value.test || value.range || value.wildcard) push("expr",value,depth,{params:task.params});
-        else push("term",value,depth,{params:task.params});
-        continue;
-      }
-      if (kind === "target") {
-        if (!(exact(value,["rule"]) && ruleName(value.rule) || exact(value,["terminal"]) && /^(?!.*--)[A-Z][A-Za-z0-9_-]*$/.test(value.terminal))) return "a malformed query target";
-        continue;
-      }
-      if (kind === "method-shape") {
-        const problem = methodShapeProblem(value.method, value.receiver, value.args, task.recipe);
-        if (problem) return problem;
-      } else if (kind === "expr") {
-        if ("splice" in value) {
-          if (!exact(value,["splice"]) || !object(value.splice) || !(typeof value.splice.ref === "string" && ruleName(value.splice.ref) || value.splice.call)) return "a malformed splice";
-          child("expr",value.splice,{sealed:task.sealed,chain:task.chain,item:task.item,ranked:task.ranked});
-        } else if (value.test) {
-          if (!TEST_OPS.has(value.test) || !exact(value, value.test === "tags" ? ["test", "requirements", "expr"] : ["test", "value", "expr"]) || !(value.test === "tags" ? base(value.expr) : target(value.expr))) return "a malformed test";
-          child("expr", value.expr, { sealed: task.sealed, chain: task.chain, item: task.item, ranked: task.ranked });
-          if (value.test === "tags") {
-            if (!Array.isArray(value.requirements)) return "a malformed tag test";
-            for (const requirement of value.requirements) {
-              if (!exact(requirement, ["negated", "value"]) || typeof requirement.negated !== "boolean" || !object(requirement.value) || !("tag" in requirement.value || "const" in requirement.value || "param" in requirement.value)) return "a malformed requirement";
-              child("term", requirement.value);
+          for (const key of value.keys) {
+            if (!stringTerm(key)) return report("a malformed classifier key", key);
+          }
+          push("classifier-class", value, depth, { params: task.params, at: value.classAt ?? value.at });
+          pushReverse(value.keys, key => push("term", key, depth, { params: task.params, at: nodePos(key, value.at) }));
+          return null;
+        }
+        if (kind === "classifier-class") {
+          if (!CLASS_NAME.test(value.class)) return report(`${value.class} is not a class: a class starts and ends with a capital`, value.classAt ? { at: value.classAt } : value);
+          return null;
+        }
+        if (kind === "alternative") {
+          const badGate = Array.isArray(value.gates) ? value.gates.find((/** @type {any} */ g) => !exact(g, ["feature", "kind", "negated"]) || Object.keys(g).length !== 3 || typeof g.feature !== "string" || !FEATURE_NAME.test(g.feature) || typeof g.negated !== "boolean" || g.kind !== "gate") : undefined;
+          if (!exact(value, ["gates", "expr", "tags", "value", "image"]) || !("expr" in value) || !Array.isArray(value.gates) || badGate) {
+            return report("a malformed alternative", badGate ?? value);
+          }
+          for (const channel of ["image", "value"]) if (value[channel] !== undefined) push("recipe", value[channel], depth, { params: task.params, at: nodePos(value[channel], enclosingAt), featureDirectiveAt: task.featureDirectiveAt });
+          if (value.tags !== undefined) push("tags", value.tags, depth, { params: task.params, constituent: true, owner: task.owner, at: nodePos(value.tags, enclosingAt), featureDirectiveAt: task.featureDirectiveAt });
+          push("expr", value.expr, depth, { params: task.params, whole: true, at: nodePos(value.expr, enclosingAt), featureDirectiveAt: task.featureDirectiveAt });
+          return null;
+        }
+        if (kind === "pattern") {
+          const pFault = layeredPatternFault(value, { depth, deferDepth: true, name: name => ruleName(name) && !tag(name), terminal: name => name === "_Elided" || tag(name), range: rangeProblem });
+          if (pFault) return report(pFault.problem, pFault.node ?? (task.at ? { at: task.at } : value));
+          if (layeredPatternProblem(value, { depth, name: name => ruleName(name) && !tag(name), terminal: name => name === "_Elided" || tag(name), range: rangeProblem }) === "nested too deeply") {
+            firstDeepAt ??= declAt;
+          }
+          push("pattern-part", value, depth, { params: task.params, at: enclosingAt, featureDirectiveAt: task.featureDirectiveAt });
+          return null;
+        }
+        if (kind === "pattern-part") {
+          if (value.param && !task.params.has(value.param)) return report(`undeclared parameter @${value.param}`);
+          if (value.call) {
+            const nodes = [value.args];
+            while (nodes.length) {
+              const node = nodes.pop();
+              if (!node || typeof node !== "object") continue;
+              if (node.rule && tag(node.rule)) return report("a pattern argument rule reads back as a tag", node);
+              const vals = Object.values(node);
+              for (let i = vals.length - 1; i >= 0; i--) if (vals[i] && typeof vals[i] === "object") nodes.push(vals[i]);
             }
-          } else { if (!stringTerm(value.value)) return "a malformed value test"; child("term", value.value); }
-        } else if ("capture" in value) {
-          if (!exact(value, ["capture", "expr"]) || !(typeof value.capture === "string" && CAPTURE_NAME.test(value.capture)) || task.sealed && !task.capturedTerminator || task.chain || task.item && task.ranked || !(target(value.expr) || ["=", "≠"].includes(value.expr?.test) && target(value.expr.expr))) return "a malformed capture";
-          child("expr", value.expr, { sealed: task.sealed, chain: task.chain, item: task.item, ranked: task.ranked });
-        } else if (["seq", "choice", "ranked", "and"].some(key => key in value)) {
-          if (fields.length !== 1) return "a malformed expression";
-          const key = fields[0];
-          if (!Array.isArray(value[key]) || value[key].length < 2 || key === "and" && value[key].length > 16) return key === "ranked" ? "ranked-choice-syntax: a ranked expression requires two options" : "a malformed expression";
-          for (const item of value[key]) child("expr", item, { sealed: task.sealed, chain: task.chain, item: task.item, ranked: task.ranked || key === "ranked" });
-        } else if ("optional" in value) {
-          if (!exact(value, ["optional", "elidable", "default"]) || "elidable" in value && (value.elidable !== true || !elidableHead(value.optional))) return "a malformed optional";
-          if ("default" in value) {
-            if (value.elidable !== true || !stringTerm(value.default)) return "a malformed default";
-            child("term", value.default);
+            pushReverse(value.args, arg => child("arg", arg, { closed: undefined }));
           }
-          child("expr", value.optional, { sealed: task.sealed || value.elidable, capturedTerminator:!task.sealed && value.elidable && typeof value.optional?.capture === "string", chain: task.chain, item: task.item, ranked: task.ranked });
-        } else if ("repeat" in value) {
-          if (!exact(value, ["repeat", "separator", "chain"]) || "chain" in value && (!task.whole || !["left", "right"].includes(value.chain))) return "a malformed repetition";
-          // A chain holds no capture, and the braces of a flat list hold item
-          // captures, also inside a chain, but not inside a ranked group
-          // (engine §3.5). An elidable optional seals everything inside it.
-          const inside = { sealed: task.sealed, chain: "chain" in value, item: !("chain" in value), ranked: false };
-          child("expr", value.repeat, inside);
-          if ("separator" in value) child("expr", value.separator, inside);
-        } else if ("literal" in value) { if (fields.length !== 1 || !stringTerm(value.literal)) return "a malformed literal"; push("term", value.literal, depth); }
-        else if ("range" in value) {
-          if (fields.length !== 1 || !Array.isArray(value.range) || value.range.length !== 2 || !value.range.every(stringTerm)) return "a malformed range";
-          for (const end of value.range) push("term", end, depth);
-          const problem = rangeProblem(value.range); if (problem) return problem;
-        } else if ("ref" in value) { if (fields.length !== 1 || !(ruleName(value.ref) || tag(value.ref))) return "a malformed reference"; }
-        else if (!(fields.length === 1 && (value.empty === true || value.wildcard === true))) return "a malformed expression";
-      } else if (kind === "tags") {
-        if (!tagClauses.has(task.owner)) tagClauses.set(task.owner, []);
-        tagClauses.get(task.owner).push({value, constituent: task.constituent});
-        push("term", value, depth);
-      } else if (kind === "emission") {
-        if (fields.length !== 1 || !Array.isArray(value.items) || !value.items.length) return "a malformed emission";
-        const names = [];
-        for (const item of value.items) {
-          if (!exact(item, ["capture", "insert", "tags", "value", "image", "before", "after"]) || ("capture" in item) === ("insert" in item) || "capture" in item && typeof item.capture !== "string" || "insert" in item && item.insert !== true || typeof item.capture === "string" && item.capture !== "" && !CAPTURE_NAME.test(item.capture)) return "a malformed emission item";
-          if (item.capture) names.push(item.capture);
-          for (const side of ["before", "after"]) if (side in item) {
-            if (!item.capture || !Array.isArray(item[side]) || !item[side].length || !item[side].every(name => typeof name === "string" && CAPTURE_NAME.test(name))) return "a malformed attachment";
-            for (const name of item[side]) names.push(name);
+          if (value.children) pushReverse(value.children, item => child("pattern-item", item, { closed: undefined }));
+          for (const key of ["union", "intersection", "difference"]) if (value[key]) pushReverse(value[key], operand => child("pattern-part", operand, { closed: undefined }));
+          if (value.path) child("pattern-part", value.pattern, { closed: undefined });
+          if (value.test === "tags") {
+            if (!expanded && object(value.expr) && ["name", "call"].some(k => k in value.expr)) {
+              for (const requirement of value.requirements) {
+                if (!requirement.negated && requirement.value?.tag === "_Elided") {
+                  return report("a rule pattern cannot require _Elided", requirement.value);
+                }
+              }
+            }
+            pushReverse(value.requirements, requirement => child("term", requirement.value, { patternTag: true, closed: undefined }));
           }
-          if (item.tags !== undefined) push("tags", item.tags, depth, { owner: task.owner });
-          for (const channel of ["value", "image"]) if (item[channel] !== undefined) push("recipe", item[channel], depth);
+          else if (value.test) child("term", value.value, { closed: undefined });
+          if (value.expr) child("pattern-part", value.expr, { closed: undefined });
+          if (value.range) {
+            const problem = rangeProblem(value.range);
+            if (problem) return report(problem);
+            pushReverse(value.range, endpoint => push("term", endpoint, depth, { params: task.params, at: enclosingAt, featureDirectiveAt: task.featureDirectiveAt }));
+          }
+          if (value.literal) push("term", value.literal, depth, { params: task.params, at: enclosingAt, featureDirectiveAt: task.featureDirectiveAt });
+          return null;
         }
-        if (new Set(names).size !== names.length) return "an emission lists a capture twice";
-      } else if (kind === "recipe") {
-        if (fields.length !== 1 || !Array.isArray(value.concat) || !value.concat.length) return "a malformed recipe";
-        for (const atom of value.concat) {
-          if (!object(atom)) return "a malformed recipe atom";
-          if (!stringAtom(atom) && !atom.param) {
-            if (!object(atom) || !["value", "image", "source-text", "decomposed-source-text", "verbatim-text"].includes(atom.method) || atom.args?.length !== 0) return "a malformed recipe atom";
-            const receiver = atom.receiver;
-            if (!(typeof receiver?.capture === "string" && Object.keys(receiver).length === 1) && !(["value", "image"].includes(atom.method) && receiver?.method === "emitted" && receiver.args?.length === 0 && typeof receiver.receiver?.capture === "string" && Object.keys(receiver.receiver).length === 1)) return "a malformed recipe receiver";
-          }
-          child("term", atom, { recipe: true });
+        if (kind === "pattern-item") {
+          if (value.choice) pushReverse(value.choice, arm => pushReverse(arm, item => child("pattern-item", item, { closed: undefined })));
+          for (const key of ["separator", "repeat", "optional"]) if (value[key]) pushReverse(value[key], item => child("pattern-item", item, { closed: undefined }));
+          if (value.child) child("pattern-part", value.child, { closed: undefined });
+          return null;
         }
-      } else if (kind === "condition") {
-        if (!hasOneForm(value, [["method", "receiver", "args"], ["op", "left", "right"], ["not"], ["any"], ["all"], ["captured"], ["if", "then"], ["nonempty"]])) return "a malformed condition";
-        if ("method" in value) { if (!QUERY_METHODS.has(value.method)) return "a malformed query"; push("term", value, depth, { query: true }); }
-        else if ("nonempty" in value) push("term", value.nonempty, depth + 1, {});
-        else if (value.op) {
-          if (!DOM_COMPARATORS.has(value.op) || ["≅", "≇"].includes(value.op) && !(typeof value.left?.capture === "string" && Object.keys(value.left).length === 1)) return "a malformed comparison";
-          child("term", value.left); child("term", value.right);
-        } else if ("captured" in value) { if (typeof value.captured !== "string" || value.captured !== "" && !CAPTURE_NAME.test(value.captured)) return "a malformed presence"; }
-        else if (value.not) child("condition", value.not);
-        else if (value.if) { child("condition", value.if); child("condition", value.then); }
-        else {
-          const values = value.any ?? value.all;
-          if (!Array.isArray(values) || values.length < 2) return "a malformed connective";
-          for (const condition of values) child("condition", condition);
+        // Unresolved leaves still obey the category of their position.
+        if ("param" in value) {
+          if (!["expr", "arg", "term", "tags", "target", "pattern", "pattern-part"].includes(kind)) return report(`a malformed ${kind}`);
+          if (!exact(value, ["param", "at"]) || !position(value.at) || typeof value.param !== "string" || !task.params.has(value.param)) {
+            return report(typeof value.param === "string" && exact(value, ["param", "at"]) && position(value.at) ? `undeclared parameter @${value.param}` : "an undeclared or malformed parameter");
+          }
+          return null;
+        }
+        if ("call" in value || kind === "call") {
+          if (!["expr", "arg", "term", "tags", "target", "pattern", "pattern-part", "call"].includes(kind)) return report(`a malformed ${kind}`);
+          if (!exact(value, ["call", "args", "at"]) || !ruleName(value.call) || !position(value.at) || !Array.isArray(value.args) || !value.args.length) return report("a malformed call");
+          pushReverse(value.args, arg => child("arg", arg, { closed: undefined }));
+          return null;
+        }
+        if (kind === "arg") {
+          if ("classifier" in value || "integer" in value) return report("an argument cannot read or declare captures");
+          if ("body" in value) {
+            if (!exact(value, ["body"])) return report("a malformed body argument");
+            push("expr", value.body, depth, { params: task.params, whole: true, at: enclosingAt, featureDirectiveAt: task.featureDirectiveAt });
+          } else if ("targets" in value) {
+            if (!exact(value, ["targets"]) || !Array.isArray(value.targets) || value.targets.length < 2) return report("a malformed target choice");
+            pushReverse(value.targets, t => push("target", t, depth, { params: task.params, at: enclosingAt, featureDirectiveAt: task.featureDirectiveAt }));
+          } else if ("requirements" in value && !value.test) {
+            if (!exact(value, ["requirements"]) || !Array.isArray(value.requirements)) return report("a malformed requirement list");
+            for (const entry of value.requirements) {
+              if (!exact(entry, ["negated", "value"]) || typeof entry.negated !== "boolean" || !object(entry.value) || entry.value.grouped || !(entry.value.tag || entry.value.const || entry.value.param)) return report("a malformed requirement", entry.value ?? entry);
+            }
+            pushReverse(value.requirements, entry => push("term", entry.value, depth, { params: task.params, at: enclosingAt, featureDirectiveAt: task.featureDirectiveAt }));
+          } else if (value.rule) {
+            if (!exact(value, ["rule"]) || !ruleName(value.rule)) return report("a malformed nominal rule argument");
+          } else if (value.splice || value.test || value.range || value.wildcard) push("expr", value, depth, { params: task.params, at: enclosingAt, featureDirectiveAt: task.featureDirectiveAt });
+          else push("term", value, depth, { params: task.params, at: enclosingAt, featureDirectiveAt: task.featureDirectiveAt });
+          return null;
+        }
+        if (kind === "target") {
+          if (!(exact(value, ["rule"]) && ruleName(value.rule) || exact(value, ["terminal"]) && /^(?!.*--)[A-Z][A-Za-z0-9_-]*$/.test(value.terminal))) return report("a malformed query target");
+          return null;
+        }
+        if (kind === "test-operands") {
+          if (value.test === "tags") {
+            for (const requirement of value.requirements) {
+              if (!exact(requirement, ["negated", "value"]) || typeof requirement.negated !== "boolean" || !object(requirement.value) || requirement.value.grouped || !("tag" in requirement.value || "const" in requirement.value || "param" in requirement.value)) return report("a malformed requirement", requirement.value ?? requirement);
+            }
+            pushReverse(value.requirements, requirement => child("term", requirement.value));
+          } else {
+            if (!stringTerm(value.value)) return report("a malformed value test", value.value);
+            child("term", value.value);
+          }
+          return null;
+        }
+        if (kind === "method-shape") {
+          const problem = methodShapeProblem(value.method, value.receiver, value.args, task.recipe);
+          if (problem) return report(problem);
+          if (task.query && METHODS.has(value.method) && !QUERY_METHODS.has(value.method)) return report("a condition requires a query method");
+        } else if (kind === "expr") {
+          if ("splice" in value) {
+            if (!exprSingle(value, "splice") || !object(value.splice) || !(typeof value.splice.ref === "string" && ruleName(value.splice.ref) || value.splice.call)) return report("a malformed splice");
+            child("expr", value.splice, { sealed: task.sealed, chain: task.chain, item: task.item, ranked: task.ranked });
+          } else if (value.test) {
+            if (!TEST_OPS.has(value.test) || !exprExact(value, value.test === "tags" ? ["test", "requirements", "expr"] : ["test", "value", "expr"]) || !(value.test === "tags" ? "requirements" in value : "value" in value) || !("expr" in value) || !(value.test === "tags" ? base(value.expr) : target(value.expr))) return report("a malformed test");
+            if (value.test === "tags" && !Array.isArray(value.requirements)) return report("a malformed tag test");
+            push("test-operands", value, depth, { params: task.params, at: enclosingAt, closed: task.closed, featureDirectiveAt: task.featureDirectiveAt });
+            child("expr", value.expr, { sealed: task.sealed, chain: task.chain, item: task.item, ranked: task.ranked });
+          } else if ("capture" in value) {
+            if (!exprExact(value, ["capture", "expr"]) || !("expr" in value) || typeof value.capture !== "string" || !object(value.expr)) return report("a malformed capture");
+            if (task.chain) return report("a capture cannot stand inside a chain, whose levels are constituents of its rule: a condition on $ serves each level");
+            if (task.item && task.ranked) return report("an item capture cannot stand inside a ranked group: name the ranked choice as a rule and capture that rule");
+            if (task.sealed && !task.capturedTerminator) return report("a capture cannot stand inside an elidable optional, which elision restores as one unit");
+            if (value.capture === "") return report("$ is the whole constituent and wraps nothing");
+            if (!CAPTURE_NAME.test(value.capture)) return report("a capture's name is all lower case");
+            let inner = value.expr;
+            while (object(inner) && !inner.grouped && typeof inner.test === "string") inner = inner.expr;
+            if (!base(inner)) return report("a capture wraps one symbol");
+            child("expr", value.expr, { sealed: task.sealed, chain: task.chain, item: task.item, ranked: task.ranked });
+          } else if (["seq", "choice", "ranked", "and"].some(key => key in value)) {
+            const nonAt = fields.filter(k => k !== "at");
+            if (nonAt.length !== 1 || !exprExact(value, nonAt)) return report("a malformed expression");
+            const key = nonAt[0];
+            if (!Array.isArray(value[key]) || value[key].length < 2 || key === "and" && value[key].length > 16) {
+              return key === "ranked"
+                ? report("ranked-choice-syntax: a ranked expression requires two options", value, "ranked-choice-syntax")
+                : report(key === "and" && Array.isArray(value[key]) && value[key].length > 16 ? "an & joins at most 16 items" : "a malformed expression");
+            }
+            pushReverse(value[key], item => child("expr", item, { sealed: task.sealed, chain: task.chain, item: task.item, ranked: task.ranked || key === "ranked" }));
+          } else if ("optional" in value) {
+            if (!exprExact(value, ["optional", "elidable", "default"]) || !("optional" in value) || !object(value.optional) || "elidable" in value && (value.elidable !== true || !elidableHead(value.optional))) return report("a malformed optional");
+            if ("default" in value) {
+              if (value.elidable !== true || !stringTerm(value.default)) return report("a malformed default", value.default);
+              if ("string" in value.default) {
+                let head = "capture" in value.optional ? value.optional.expr : "seq" in value.optional ? value.optional.seq[0] : value.optional;
+                while (object(head) && "test" in head) {
+                  if (head.test !== "tags" && object(head.value) && "string" in head.value && (value.default.string === head.value.string) !== (head.test === "=")) {
+                    return report("a default fails its head test", value.default.defaultAt ? { at: value.default.defaultAt } : value.default);
+                  }
+                  head = head.expr;
+                }
+              }
+              child("term", value.default);
+            }
+            child("expr", value.optional, { sealed: task.sealed || value.elidable, capturedTerminator: !task.sealed && value.elidable && typeof value.optional?.capture === "string", chain: task.chain, item: task.item, ranked: task.ranked });
+          } else if ("repeat" in value) {
+            if (!exprExact(value, ["repeat", "separator", "chain"]) || "chain" in value && !["left", "right"].includes(value.chain)) return report("a malformed repetition");
+            if ("chain" in value && (!task.whole || value.grouped)) return report("a chain is the whole expression of its alternative: name it as a rule to use it here");
+            const inside = { sealed: task.sealed, chain: "chain" in value, item: !("chain" in value), ranked: false };
+            if ("separator" in value) child("expr", value.separator, inside);
+            child("expr", value.repeat, inside);
+          } else if ("literal" in value) {
+            if (!exprSingle(value, "literal") || !stringTerm(value.literal)) return report("a malformed literal");
+            push("term", value.literal, depth, { params: task.params, at: enclosingAt, featureDirectiveAt: task.featureDirectiveAt });
+          } else if ("range" in value) {
+            if (!exprSingle(value, "range") || !Array.isArray(value.range) || value.range.length !== 2 || !value.range.every(stringTerm)) return report("a malformed range");
+            const problem = rangeProblem(value.range);
+            if (problem) return report(problem);
+            pushReverse(value.range, end => push("term", end, depth, { params: task.params, at: enclosingAt, featureDirectiveAt: task.featureDirectiveAt }));
+          } else if ("ref" in value) {
+            if (!exprSingle(value, "ref") || !(ruleName(value.ref) || tag(value.ref))) return report("a malformed reference");
+          } else if (!((exprSingle(value, "empty") && value.empty === true) || (exprSingle(value, "wildcard") && value.wildcard === true))) {
+            return report("a malformed expression");
+          }
+        } else if (kind === "tags") {
+          push("term", value, depth, { params: task.params, at: enclosingAt, featureDirectiveAt: task.featureDirectiveAt });
+        } else if (kind === "emission") {
+          if (fields.length !== 1 || !Array.isArray(value.items) || !value.items.length) return report("a malformed emission");
+          const names = [];
+          for (const item of value.items) {
+            if (!exact(item, ["capture", "insert", "tags", "value", "image", "before", "after"]) || ("capture" in item) === ("insert" in item) || "capture" in item && typeof item.capture !== "string" || "insert" in item && item.insert !== true) return report("a malformed emission item", item);
+            if (typeof item.capture === "string" && item.capture !== "" && !CAPTURE_NAME.test(item.capture)) return fault("a malformed emission item", undefined, declAt);
+            if (item.capture) names.push(item.capture);
+            for (const side of ["before", "after"]) if (side in item) {
+              if (!item.capture || !Array.isArray(item[side]) || !item[side].length || !item[side].every((/** @type {any} */ name) => typeof name === "string")) return report("a malformed attachment", item);
+              if (!item[side].every((/** @type {string} */ name) => CAPTURE_NAME.test(name))) return fault("a malformed attachment", undefined, declAt);
+              for (const name of item[side]) names.push(name);
+            }
+          }
+          push("emission-duplicates", value, depth, { names, at: enclosingAt, featureDirectiveAt: task.featureDirectiveAt });
+          pushReverse(value.items, item => {
+            for (const channel of ["image", "value"]) if (item[channel] !== undefined) push("recipe", item[channel], depth, { params: task.params, at: nodePos(item[channel], nodePos(item, enclosingAt)), featureDirectiveAt: task.featureDirectiveAt });
+            if (item.tags !== undefined) push("tags", item.tags, depth, { params: task.params, owner: task.owner, at: nodePos(item.tags, nodePos(item, enclosingAt)), featureDirectiveAt: task.featureDirectiveAt });
+          });
+        } else if (kind === "emission-duplicates") {
+          if (new Set(task.names).size !== task.names.length) return report("an emission lists a capture twice");
+        } else if (kind === "recipe") {
+          if (fields.length !== 1 || !Array.isArray(value.concat) || !value.concat.length) return report("a malformed recipe");
+          if (task.message) {
+            if (capturesMentioned(value).some(name => typeof name !== "string")) return report("a malformed message recipe");
+            const nodes = [value];
+            while (nodes.length) {
+              const n = nodes.pop();
+              if (n?.method === "emitted") return report("a message recipe cannot read .emitted", value.clauseAt ? { at: value.clauseAt } : value);
+              for (const c of clauseChildren(n)) nodes.push(/** @type {any} */ (c));
+            }
+          }
+          for (const atom of value.concat) {
+            if (!object(atom)) return report("a malformed recipe atom", atom);
+            if (!stringAtom(atom) && !atom.param) {
+              if (!object(atom) || !["value", "image", "source-text", "decomposed-source-text", "verbatim-text"].includes(atom.method) || atom.args?.length !== 0) return report("a malformed recipe atom", atom);
+              const receiver = atom.receiver;
+              if (!(typeof receiver?.capture === "string" && Object.keys(receiver).length === 1) && !(["value", "image"].includes(atom.method) && receiver?.method === "emitted" && receiver.args?.length === 0 && typeof receiver.receiver?.capture === "string" && Object.keys(receiver.receiver).length === 1)) return report("a malformed recipe receiver", atom);
+            }
+          }
+          pushReverse(value.concat, atom => child("term", atom, { recipe: true }));
+        } else if (kind === "condition") {
+          if (!hasOneForm(value, [["method", "receiver", "args"], ["op", "left", "right"], ["not"], ["any"], ["all"], ["captured"], ["if", "then"], ["nonempty"]])) return report("a malformed condition");
+          if ("method" in value) {
+            if (typeof value.method !== "string") return report("a condition requires a query method");
+            push("term", value, depth, { params: task.params, query: true, at: enclosingAt, featureDirectiveAt: task.featureDirectiveAt });
+          } else if ("nonempty" in value) {
+            const setConditionAt = object(value.nonempty) && ("union" in value.nonempty || "intersection" in value.nonempty || "difference" in value.nonempty) ? nodePos(value.nonempty, enclosingAt) : undefined;
+            push("term", value.nonempty, depth + 1, { params: task.params, setConditionAt, at: enclosingAt, featureDirectiveAt: task.featureDirectiveAt });
+          } else if (value.op) {
+            if (!DOM_COMPARATORS.has(value.op) || ["≅", "≇"].includes(value.op) && !(typeof value.left?.capture === "string" && Object.keys(value.left).length === 1)) return report("a malformed comparison");
+            child("term", value.right);
+            child("term", value.left);
+          } else if ("captured" in value) {
+            if (typeof value.captured !== "string" || value.captured !== "" && !CAPTURE_NAME.test(value.captured)) return report("a malformed presence");
+          } else if (value.not) {
+            child("condition", value.not);
+          } else if (value.if) {
+            child("condition", value.then);
+            child("condition", value.if);
+          } else {
+            const values = value.any ?? value.all;
+            if (!Array.isArray(values) || values.length < 2) return report("a malformed connective");
+            pushReverse(values, condition => child("condition", condition));
+          }
+        } else {
+          if (!hasOneForm(value, [["string"], ["concat"], ["tag"], ["const", "at"], ["emptySet"], ["capture"], ["method", "receiver", "args"], ["union"], ["intersection"], ["difference"], ["if", "then"], ["pattern"]])) return report("a malformed term");
+          if ("string" in value) {
+            if (typeof value.string !== "string" || /[\uD800-\uDFFF]/u.test(value.string)) return report("a malformed scalar string");
+          } else if (value.tag) {
+            if (!(task.patternTag && value.tag === "_Elided") && !tag(value.tag)) return report("a malformed tag");
+          } else if (value.const) {
+            if (!constant(value.const) || !position(value.at)) return report("a malformed constant reference");
+          } else if ("emptySet" in value) {
+            if (value.emptySet !== true) return report("a malformed empty set");
+          } else if ("capture" in value) {
+            if (typeof value.capture !== "string" || value.capture !== "" && !CAPTURE_NAME.test(value.capture)) return report("a malformed capture reference");
+          } else if ("method" in value) {
+            if (["classify", "ngrams"].includes(value.method) && Array.isArray(value.args) && value.args.some(hasUnresolved)) return report("a parameter cannot replace a classifier name or integer argument");
+            if (!Array.isArray(value.args) || !object(value.receiver) || (!task.query && QUERY_METHODS.has(value.method) && !["parse", "error-free"].includes(value.method))) {
+              return report(!task.query && Array.isArray(value.args) && object(value.receiver) && QUERY_METHODS.has(value.method) ? "a query method is a condition, not a term" : "a malformed method", task.setConditionAt ? { at: task.setConditionAt } : value);
+            }
+            // Check receiver and args before method-shape so nested ranked choices
+            // and argument errors inside them take priority in pre-order.
+            if (!task.closed || ["split", "ngrams"].includes(value.method) || !METHODS.has(value.method)) {
+              push("method-shape", value, depth, { params: task.params, recipe: task.recipe, query: task.query, at: enclosingAt, featureDirectiveAt: task.featureDirectiveAt });
+            }
+            if (typeof value.method === "string" && METHODS.has(value.method)) {
+              for (let index = value.args.length - 1; index >= 0; index--) {
+                const arg = value.args[index];
+                if (object(arg) && "body" in arg) {
+                  if (value.method !== "parse" || !exact(arg, ["body"])) return report("a malformed parse argument", arg);
+                  const parsed = queryBody(arg.body);
+                  if (parsed.problem) return report(parsed.problem, arg.body);
+                  const cap = queryCapture(parsed.body);
+                  if (cap) return report("a parse argument cannot declare captures", cap);
+                  push("expr", parsed.body, depth + (Array.isArray(arg.body.seq) && !Array.isArray(parsed.body.seq) ? 2 : 1), { params: task.params, at: nodePos(parsed.body, enclosingAt), featureDirectiveAt: task.featureDirectiveAt });
+                } else if (object(arg) && typeof arg.rule === "string") {
+                  if (Object.keys(arg).length !== 1 || !["without-elision-except", "followed-by", "preceded-by"].includes(value.method) || !ruleName(arg.rule)) return report("a malformed rule argument", value);
+                } else if (object(arg) && typeof arg.terminal === "string") {
+                  if (Object.keys(arg).length !== 1 || !TARGET_METHODS.has(value.method) || !/^(?!.*--)[A-Z][A-Za-z0-9_-]*$/.test(arg.terminal)) return report("a malformed boundary target", value);
+                } else if (object(arg) && "integer" in arg) {
+                  if (Object.keys(arg).length !== 1 || value.method !== "ngrams" || typeof arg.integer !== "string") return report("a malformed integer argument", arg);
+                  if (!/^[1-9][0-9]*$/.test(arg.integer)) return report("an integer argument is positive and has no leading zeros", arg);
+                } else if (object(arg) && typeof arg.classifier === "string") {
+                  if (Object.keys(arg).length !== 1 || value.method !== "classify" || !CLASSIFIER_NAME.test(arg.classifier)) return report("a malformed classifier argument", value);
+                } else {
+                  child("term", arg);
+                }
+              }
+            }
+            child("term", value.receiver, { recipe: task.recipe });
+          } else if (value.concat) {
+            if (!Array.isArray(value.concat) || value.concat.length < 2) return report("a malformed concatenation");
+            pushReverse(value.concat, segment => child("term", segment));
+          } else if (value.pattern) {
+            child("pattern", value.pattern, { closed: undefined });
+          } else if (value.if) {
+            child("term", value.then);
+            child("condition", value.if);
+          } else {
+            const items = value.union ?? value.intersection ?? value.difference;
+            if (!Array.isArray(items) || items.length < 2 || value.difference && items.length !== 2) return report("a malformed set operation");
+            pushReverse(items, item => child("term", item, { setConditionAt: task.setConditionAt }));
+          }
+        }
+      return null;
+    };
+
+    /**
+     * Single pre-order closedness and engine-tag literal check on a constant or
+     * implication term.
+     * @param {any} root
+     * @param {string} closedFor
+     * @param {import("./types.js").Position | undefined} fallback
+     * @returns {{problem: string, at?: import("./types.js").Position} | null}
+     */
+    const closedTermFault = (root, closedFor, fallback) => {
+      const stack = [{ node: root, at: nodePos(root, fallback) }];
+      while (stack.length) {
+        if (hooks.work) countWork(hooks.work, "walkSteps");
+        const { node, at: parentAt } = /** @type {{node: any, at: any}} */ (stack.pop());
+        if (!object(node)) continue;
+        const curAt = nodePos(node, parentAt);
+        if ("capture" in node) return fault(`${closedFor} is a closed term, and holds no capture`, node, curAt);
+        if ("if" in node) return fault(`${closedFor} is a closed term, and holds no guarded term`, node, curAt);
+        if (typeof node.tag === "string" && node.tag.startsWith("_")) return fault(`${closedFor} cannot contain an engine-tag literal`, node, curAt);
+        if (node.pattern) continue;
+        if (typeof node.method === "string") {
+          if (!["split", "ngrams"].includes(node.method)) {
+            const recvFault = closedTermFault(node.receiver, closedFor, curAt);
+            if (recvFault) return recvFault;
+            return fault(`${closedFor} cannot read an input method`, node, curAt);
+          }
+          for (let i = node.args.length - 1; i >= 0; i--) stack.push({ node: node.args[i], at: curAt });
+          stack.push({ node: node.receiver, at: curAt });
+          continue;
+        }
+        const key = ["union", "intersection", "difference", "concat"].find(name => Array.isArray(node[name]));
+        if (key) {
+          const items = node[key];
+          for (let i = items.length - 1; i >= 0; i--) stack.push({ node: items[i], at: curAt });
+        }
+      }
+      return null;
+    };
+
+    /**
+     * @param {any} root
+     * @param {import("./types.js").Position | undefined} fallback
+     * @returns {{problem: string, at?: import("./types.js").Position} | null}
+     */
+    const firstCaptureArgIn = (root, fallback) => {
+      const stack = [{ node: root, at: nodePos(root, fallback) }];
+      while (stack.length) {
+        if (hooks.work) countWork(hooks.work, "walkSteps");
+        const { node, at: parentAt } = /** @type {{node: any, at: any}} */ (stack.pop());
+        if (!node || typeof node !== "object") continue;
+        if (Array.isArray(node)) {
+          for (let i = node.length - 1; i >= 0; i--) stack.push({ node: node[i], at: parentAt });
+          continue;
+        }
+        const curAt = nodePos(node, parentAt);
+        if (Array.isArray(node.args) && ("call" in node || "alternatives" in node)) {
+          for (const arg of node.args) {
+            if (argumentReadsCapture(arg)) return fault("an argument cannot read or declare captures", arg, curAt);
+          }
+        }
+        const keys = Object.keys(node);
+        for (let i = keys.length - 1; i >= 0; i--) {
+          const key = keys[i];
+          if (key === "at") continue;
+          stack.push({ node: node[key], at: curAt });
+        }
+      }
+      return null;
+    };
+
+    /**
+     * @param {any} root
+     * @param {any} target
+     * @param {import("./types.js").Position | undefined} fallback
+     * @returns {import("./types.js").Position | undefined}
+     */
+    const enclosingAtIn = (root, target, fallback) => {
+      if (nodePos(target, undefined)) return nodePos(target, fallback);
+      const stack = [{ node: root, at: nodePos(root, fallback) }];
+      const seen = new Set();
+      while (stack.length) {
+        const { node, at } = /** @type {{node: any, at: any}} */ (stack.pop());
+        if (!node || typeof node !== "object" || seen.has(node)) continue;
+        seen.add(node);
+        const curAt = nodePos(node, at);
+        if (node === target) return curAt;
+        if (Array.isArray(node)) {
+          for (let i = node.length - 1; i >= 0; i--) stack.push({ node: node[i], at: curAt });
+          continue;
+        }
+        const keys = Object.keys(node);
+        for (let i = keys.length - 1; i >= 0; i--) {
+          if (keys[i] !== "at") stack.push({ node: node[keys[i]], at: curAt });
+        }
+      }
+      return nodePos(target, fallback);
+    };
+
+    const allDeclarations = [
+      ...dom.directives.map((/** @type {any} */ value) => ({ declKind: "directive", value })),
+      ...dom.constants.map((/** @type {any} */ value) => ({ declKind: "constant", value })),
+      ...dom.classifiers.map((/** @type {any} */ value) => ({ declKind: "classifier", value })),
+      ...dom.implications.map((/** @type {any} */ value) => ({ declKind: "implication", value })),
+      ...dom.rules.map((/** @type {any} */ value) => ({ declKind: "rule", value })),
+    ].sort((a, b) => a.value.at[0] - b.value.at[0] || a.value.at[1] - b.value.at[1]);
+
+    for (const { declKind, value: decl } of allDeclarations) {
+      pending.length = 0;
+      activeParams = new Set();
+      const declAt = decl.at;
+      /** @type {{problem: string, at?: import("./types.js").Position, code?: string} | null} */
+      let headerFault = null;
+
+      if (declKind === "directive") {
+        const { name, args } = decl;
+        if (!DIRECTIVE_NAMES.has(name)) {
+          headerFault = fault("a malformed directive", decl, declAt);
+        } else if ("conditions" in decl && (name !== "features" || !Array.isArray(decl.conditions) || !decl.conditions.length)) {
+          headerFault = fault(name !== "features" ? "only %features accepts conditions" : "malformed feature conditions", decl, declAt);
+        } else if (name === "ambiguity-resolution") {
+          if ("args" in decl || !validSteps(decl.steps)) {
+            headerFault = fault("%ambiguity-resolution requires a pattern for each key step and no operand on a final lean", decl, declAt);
+          } else {
+            pushReverse(decl.steps, step => {
+              if ("pattern" in step) {
+                if (Object.hasOwn(step.pattern, "const")) push("term", step.pattern, 0, { at: step.at ?? declAt });
+                else push("pattern", step.pattern, 0, { at: step.at ?? nodePos(step.pattern, declAt) });
+              }
+            });
+          }
+        } else if (!Array.isArray(args) || args.some((/** @type {any} */ arg) => typeof arg !== "string")) {
+          headerFault = fault("a malformed directive", decl, declAt);
+        } else if (name === "elision-only" && args.length !== 0) {
+          headerFault = fault("a malformed directive", decl, declAt);
+        } else if (["stage", "extend-stage", "redefine-stage"].includes(name) && !(args.length === 1 && CLASSIFIER_NAME.test(args[0]))) {
+          headerFault = fault(`%${name} takes one lowercase name`, decl, declAt);
+        } else if ((name === "include" || name === "names") && args.length !== 1 || name === "features" && !(args.length > 0 && args.every((/** @type {any} */ arg) => FEATURE_NAME.test(arg)))) {
+          headerFault = fault(name === "features" ? "%features takes feature names" : "a malformed directive", decl, declAt);
+        } else if ("conditions" in decl) {
+          pushReverse(decl.conditions, condition => push("condition", condition, 0, { at: declAt, featureDirectiveAt: declAt }));
+        }
+      } else if (declKind === "constant") {
+        if (!exact(decl, ["name", "op", "value", "at"]) || !CONSTANT_NAME.test(decl.name) || !["define", "redefine"].includes(decl.op)) {
+          headerFault = fault(typeof decl.name === "string" && !CONSTANT_NAME.test(decl.name) ? "a constant requires a user name" : "a malformed constant", undefined, decl.nameAt ?? declAt);
+        } else {
+          push("term", decl.value, 0, { at: nodePos(decl.value, declAt), closed: "constant" });
+        }
+      } else if (declKind === "classifier") {
+        if (!exact(decl, ["name", "entries", "at"]) || !(typeof decl.name === "string" && CLASSIFIER_NAME.test(decl.name)) || !Array.isArray(decl.entries)) {
+          headerFault = fault(typeof decl.name === "string" && !CLASSIFIER_NAME.test(decl.name) ? `${decl.name} begins with a capital, so it is a tag; a classifier's name begins with a lower-case letter` : "a malformed classifier", undefined, decl.nameAt ?? declAt);
+        } else {
+          pushReverse(decl.entries, entry => push("classifier-entry", entry, 0, { at: position(entry?.at) ? entry.at : declAt }));
+        }
+      } else if (declKind === "implication") {
+        if (!exact(decl, ["if", "then", "at"])) {
+          headerFault = fault("a malformed implication", decl, declAt);
+        } else {
+          push("term", decl.then, 0, { at: nodePos(decl.then, declAt), closed: "implication" });
+          push("term", decl.if, 0, { at: nodePos(decl.if, declAt), closed: "implication" });
         }
       } else {
-        if (!hasOneForm(value, [["string"], ["concat"], ["tag"], ["const", "at"], ["emptySet"], ["capture"], ["method", "receiver", "args"], ["union"], ["intersection"], ["difference"], ["if", "then"], ["pattern"]])) return "a malformed term";
-        if ("string" in value) { if (typeof value.string !== "string" || /[\uD800-\uDFFF]/u.test(value.string)) return "a malformed scalar string"; }
-        else if (value.tag) { if (!(task.patternTag && value.tag === "_Elided") && !tag(value.tag)) return "a malformed tag"; }
-        else if (value.const) { if (!constant(value.const) || !position(value.at)) return "a malformed constant reference"; }
-        else if ("emptySet" in value) { if (value.emptySet !== true) return "a malformed empty set"; }
-        else if ("capture" in value) { if (typeof value.capture !== "string" || value.capture !== "" && !CAPTURE_NAME.test(value.capture)) return "a malformed capture reference"; }
-        else if ("method" in value) {
-          if (["classify","ngrams"].includes(value.method) && Array.isArray(value.args) && value.args.some(hasUnresolved)) return "a parameter cannot replace a classifier name or integer argument";
-          if (!Array.isArray(value.args) || !object(value.receiver) || (!task.recipe && (value.method === "verbatim-text" || value.method === "emitted")) || (!task.query && QUERY_METHODS.has(value.method) && !["parse","error-free"].includes(value.method))) return "a malformed method";
-          push("method-shape", value, depth, { recipe: task.recipe });
-          child("term", value.receiver, { recipe: task.recipe });
-          for (const arg of value.args) {
-            if (object(arg) && "body" in arg) {
-              if (value.method !== "parse" || !exact(arg,["body"])) return "a malformed parse argument";
-              const parsed = queryBody(arg.body);
-              if (parsed.problem) return parsed.problem;
-              if (queryCapture(parsed.body)) return "a parse argument cannot declare captures";
-              // A stripped outer sequence charges one level, however many
-              // remainder leaves it held (engine §9).
-              push("expr",parsed.body,depth + (Array.isArray(arg.body.seq) && !Array.isArray(parsed.body.seq) ? 2 : 1),{params:task.params});
-            } else if (object(arg) && typeof arg.rule === "string") { if (Object.keys(arg).length !== 1 || !["without-elision-except", "followed-by", "preceded-by"].includes(value.method) || !ruleName(arg.rule)) return "a malformed rule argument"; }
-            else if (object(arg) && typeof arg.terminal === "string") { if (Object.keys(arg).length !== 1 || !TARGET_METHODS.has(value.method) || !/^(?!.*--)[A-Z][A-Za-z0-9_-]*$/.test(arg.terminal)) return "a malformed boundary target"; }
-            else if (object(arg) && "integer" in arg) { if (Object.keys(arg).length !== 1 || value.method !== "ngrams" || typeof arg.integer !== "string" || !/^[1-9][0-9]*$/.test(arg.integer)) return "a malformed integer argument"; }
-            else if (object(arg) && typeof arg.classifier === "string") { if (Object.keys(arg).length !== 1 || value.method !== "classify" || !CLASSIFIER_NAME.test(arg.classifier)) return "a malformed classifier argument"; }
-            else child("term", arg);
+        const rule = decl;
+        activeParams = new Set(Array.isArray(rule.params) ? rule.params : []);
+        if ("params" in rule && (!Array.isArray(rule.params) || !rule.params.length || rule.params.some((/** @type {any} */ p) => typeof p !== "string" || !/^(?!.*--)[A-Za-z][A-Za-z0-9_-]*$/.test(p)) || activeParams.size !== rule.params.length || "args" in rule)) {
+          const validNames = Array.isArray(rule.params) && rule.params.length > 0 && !("args" in rule) && rule.params.every((/** @type {any} */ p) => typeof p === "string" && /^(?!.*--)[A-Za-z][A-Za-z0-9_-]*$/.test(p));
+          const dupIdx = validNames ? rule.params.findIndex((/** @type {string} */ p, /** @type {number} */ i) => rule.params.indexOf(p) < i) : -1;
+          headerFault = dupIdx >= 0
+            ? fault(`duplicate parameter @${rule.params[dupIdx]}`, undefined, rule.paramAts?.[dupIdx] ?? declAt)
+            : fault("malformed template parameters", rule, declAt);
+        } else if (rule.instance) {
+          if (rule.hasHead) {
+            headerFault = fault("a binding requires a plain rule name", rule, declAt);
+          } else if (!exact(rule, ["name", "op", "instance", "conditions", "at"]) || !ruleName(rule.name) || !["define", "redefine"].includes(rule.op) || !Array.isArray(rule.conditions) || rule.conditions.length) {
+            headerFault = fault(typeof rule.name === "string" && !ruleName(rule.name) ? "a rule name starts with a lowercase letter or uses one eligible emoji" : "a malformed instance binding", undefined, rule.nameAt ?? declAt);
+          } else {
+            push("call", rule.instance, 0, { at: nodePos(rule.instance, declAt) });
           }
-        } else if (value.concat) {
-          if (!Array.isArray(value.concat) || value.concat.length < 2) return "a malformed concatenation";
-          for (const segment of value.concat) child("term", segment, {});
-        } else if (value.pattern) child("pattern", value.pattern);
-        else if (value.if) { child("condition", value.if); child("term", value.then); }
-        else {
-          const items = value.union ?? value.intersection ?? value.difference;
-          if (!Array.isArray(items) || items.length < 2 || value.difference && items.length !== 2) return "a malformed set operation";
-          for (const item of items) child("term", item, {});
+        } else {
+          if ("args" in rule) {
+            if (!Array.isArray(rule.args) || !rule.args.length) {
+              headerFault = fault("a malformed call", undefined, rule.nameAt ?? declAt);
+            } else {
+              const stack = [...rule.args];
+              while (stack.length) {
+                const part = stack.pop();
+                if (!part || typeof part !== "object") continue;
+                if ("param" in part) {
+                  headerFault = fault("a head cannot mix parameters and concrete arguments", undefined, rule.nameAt ?? declAt);
+                  break;
+                }
+                for (const child of Object.values(part)) if (child && typeof child === "object") stack.push(child);
+              }
+              if (!headerFault && !["redefine", "extend"].includes(rule.op)) {
+                headerFault = fault("an instance head requires an edit", undefined, rule.nameAt ?? declAt);
+              }
+            }
+          }
+          if (!headerFault && (!exact(rule, ["name", "params", "args", "op", "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "error", "warning", "suppressWarnings", "at"]) || !(typeof rule.name === "string" && ruleName(rule.name)) || !["define", "redefine", "extend"].includes(rule.op) || !Array.isArray(rule.alternatives) || !rule.alternatives.length || !Array.isArray(rule.conditions))) {
+            headerFault = fault(typeof rule.name === "string" && !ruleName(rule.name) ? "a rule name starts with a lowercase letter or uses one eligible emoji" : "a malformed rule", undefined, rule.nameAt ?? declAt);
+          }
+          if (!headerFault && "erased" in rule && rule.erased !== true) {
+            headerFault = fault("a malformed erased rule", rule, declAt);
+          }
+          if (!headerFault && (rule.error !== undefined && rule.warning !== undefined || rule.params && (rule.error !== undefined || rule.warning !== undefined))) {
+            headerFault = fault("a definition accepts one diagnostic, and a template accepts none", rule, declAt);
+          }
+          if (!headerFault && rule.suppressWarnings !== undefined && (!Array.isArray(rule.suppressWarnings) || !rule.suppressWarnings.length || !(rule.suppressWarnings.length === 1 && rule.suppressWarnings[0] === "_") && !rule.suppressWarnings.every((/** @type {any} */ code) => typeof code === "string" && FEATURE_NAME.test(code)))) {
+            headerFault = fault("a malformed warning suppression", rule, declAt);
+          }
+          if (!headerFault) {
+            // Push in reverse of rule inspection order so LIFO pops in written order:
+            // 1. args (head), 2. tags, 3. value, 4. image, 5. alternatives,
+            // 6. conditions, 7. error/warning, 8. emit.
+            if (rule.emit !== undefined) push("emission", rule.emit, 0, { owner: rule, at: nodePos(rule.emit, declAt) });
+            for (const kind of ["warning", "error"]) if (rule[kind] !== undefined) push("recipe", rule[kind], 0, { message: true, at: nodePos(rule[kind], declAt) });
+            pushReverse(rule.conditions, condition => push("condition", condition, 0, { at: nodePos(condition, declAt) }));
+            pushReverse(rule.alternatives, alternative => push("alternative", alternative, 0, { owner: rule, at: nodePos(alternative, declAt) }));
+            if (rule.image !== undefined) push("recipe", rule.image, 0, { at: nodePos(rule.image, declAt) });
+            if (rule.value !== undefined) push("recipe", rule.value, 0, { at: nodePos(rule.value, declAt) });
+            if (rule.tags !== undefined) push("tags", rule.tags, 0, { constituent: true, owner: rule, at: nodePos(rule.tags, declAt) });
+            if ("args" in rule) push("call", { call: rule.name, args: rule.args, at: rule.nameAt ?? rule.at }, 0, { at: rule.nameAt ?? declAt });
+          }
+        }
+      }
+
+      const shapeFault = headerFault ?? runShapeTasks(declAt);
+      if (shapeFault) {
+        if (shapeFault.code === "ranked-choice-syntax") return shapeFault;
+        if (shapeFault.problem === "split has an empty delimiter") {
+          firstSemanticFault ??= shapeFault;
+          continue;
+        }
+        if (firstSemanticFault === null) return shapeFault;
+        continue;
+      }
+      if (firstSemanticFault !== null) continue;
+
+      if (declKind === "directive") {
+        firstSemanticFault = firstCaptureArgIn(decl, declAt);
+      } else if (declKind === "constant") {
+        firstSemanticFault = firstCaptureArgIn(decl, declAt);
+        if (!firstSemanticFault) {
+          const closedFault = closedTermFault(decl.value, "a constant's value", declAt);
+          if (closedFault) {
+            firstSemanticFault = closedFault;
+          } else {
+            const found = constantValueType(decl.value, decl.op === "redefine");
+            if ("problem" in found) firstSemanticFault = fault(found.problem, found.node, nodePos(decl.value, declAt));
+          }
+        }
+      } else if (declKind === "implication") {
+        firstSemanticFault = firstCaptureArgIn(decl, declAt);
+        if (!firstSemanticFault) {
+          for (const side of [decl.if, decl.then]) {
+            const sideAt = nodePos(side, declAt);
+            const closedFault = closedTermFault(side, "a side of an implication", sideAt);
+            if (closedFault) { firstSemanticFault = closedFault; break; }
+            const found = termType(side);
+            if ("problem" in found) { firstSemanticFault = fault(`a side of an implication is a tag set: ${found.problem}`, found.node, sideAt); break; }
+            const problem = expectedProblem(found.type, "tags");
+            if (problem) { firstSemanticFault = fault(`a side of an implication is a tag set: ${problem}`, side, sideAt); break; }
+          }
+        }
+      } else if (declKind === "rule") {
+        const rule = decl;
+        if (!rule.instance) {
+          if (rule.tags !== undefined && readsOwnTags(rule.tags)) {
+            firstSemanticFault = fault("a constituent's tags cannot be made of its own: $.tags or $.classes", rule.tags?.clauseAt ? { at: rule.tags.clauseAt } : rule.tags, nodePos(rule.tags, declAt));
+          }
+          for (const alternative of rule.alternatives) {
+            if (firstSemanticFault) break;
+            const altAt = nodePos(alternative, declAt);
+            const twice = duplicateCaptures(alternative.expr);
+            if (twice.length > 0) {
+              const first = /** @type {any} */ (twice.reduce((a, b) => {
+                const pa = /** @type {any} */ (a).at, pb = /** @type {any} */ (b).at;
+                return pa && pb && (pb[0] < pa[0] || pb[0] === pa[0] && pb[1] < pa[1]) ? b : a;
+              }));
+              firstSemanticFault = fault(`the capture $${first.capture} is read twice by one production of the alternative`, first, enclosingAtIn(alternative.expr, first, altAt));
+              break;
+            }
+            const repeatedItem = repeatsItemCapture(alternative.expr);
+            if (repeatedItem) {
+              firstSemanticFault = fault(`the item capture $${repeatedItem.capture} is read again: the name of an item capture stands once in its alternative`, repeatedItem, enclosingAtIn(alternative.expr, repeatedItem, altAt));
+              break;
+            }
+            if (alternative.tags !== undefined && readsOwnTags(alternative.tags)) {
+              firstSemanticFault = fault("a constituent's tags cannot be made of its own: $.tags or $.classes", alternative.tags?.clauseAt ? { at: alternative.tags.clauseAt } : alternative.tags, nodePos(alternative.tags, altAt));
+              break;
+            }
+          }
+        }
+        if (!firstSemanticFault) {
+          firstSemanticFault = firstCaptureArgIn(rule, declAt);
+        }
+        if (!firstSemanticFault && !rule.instance) {
+          const typeFault = ruleTypeFault(rule);
+          if (typeFault) {
+            firstSemanticFault = fault(typeFault.problem, typeFault.at ? { at: typeFault.at } : typeFault.node, enclosingAtIn(rule, typeFault.node, declAt));
+          }
+        }
+        if (!firstSemanticFault && !rule.instance) {
+          const tagClauses = [
+            ...(rule.tags !== undefined ? [{ term: rule.tags, at: nodePos(rule.tags, declAt) }] : []),
+            ...rule.alternatives.flatMap((/** @type {any} */ alt) => alt.tags !== undefined ? [{ term: alt.tags, at: nodePos(alt.tags, nodePos(alt, declAt)) }] : []),
+            ...(rule.emit ? rule.emit.items.flatMap((/** @type {any} */ item) => item.tags !== undefined ? [{ term: item.tags, at: nodePos(item.tags, nodePos(item, nodePos(rule.emit, declAt))) }] : []) : []),
+          ];
+          for (const { term, at: clauseAt } of tagClauses) {
+            const retained = firstEngineLiteral(term);
+            if (retained) {
+              firstSemanticFault = fault("a tag clause cannot introduce an engine tag", retained, clauseAt);
+              break;
+            }
+          }
+        }
+        if (!firstSemanticFault && !rule.instance) {
+          const bFault = boundaryProblem(rule);
+          if (bFault) {
+            firstSemanticFault = fault(bFault.problem, bFault.node, enclosingAtIn(rule, bFault.node, declAt));
+          } else if (rule.erased && (rule.emit || rule.value || rule.image)) {
+            firstSemanticFault = fault("a malformed erased rule", rule, declAt);
+          } else if (rule.erased && rule.alternatives.some((/** @type {any} */ a) => a.value !== undefined || a.image !== undefined)) {
+            firstSemanticFault = fault("a recipe beside erasure", rule, declAt);
+          } else {
+            const defProblem = definitionProblem(rule, deferEmission, dom.rules.length === 1 ? templateConditions : undefined);
+            if (defProblem) firstSemanticFault = fault(defProblem, rule, declAt);
+          }
         }
       }
     }
-    // Each declaration retains its local semantic phases after shape inspection.
-    const declarations = [];
-    for (const rule of dom.rules) declarations.push({kind:"rule", value:rule});
-    for (const constant of dom.constants) declarations.push({kind:"constant", value:constant});
-    for (const implication of dom.implications) declarations.push({kind:"implication", value:implication});
-    declarations.sort((a,b) => a.value.at[0]-b.value.at[0] || a.value.at[1]-b.value.at[1]);
-    for (const {kind, value} of declarations) {
-      if (kind === "rule") {
-        const rule = value;
-        for (const {value, constituent} of tagClauses.get(rule) ?? []) {
-          if (constituent && readsOwnTags(value)) return "a constituent reads its own tags";
-          if (engineLiterals(value).size) return "a tag clause introduces an engine tag";
-        }
-        if (rule.instance) continue;
-        if (rule.alternatives.some((/** @type {any} */ alternative) => duplicateCaptures(alternative.expr).length || repeatsItemCapture(alternative.expr))) return "a duplicate capture";
-        const problem = boundaryProblem(rule)?.problem || definitionProblem(rule, deferEmission, dom.rules.length === 1 ? templateConditions : undefined) || ruleTypeProblem(rule); if (problem) return problem;
-      } else if (kind === "constant") {
-        if (openPart(value.value)) return "a constant is not closed";
-        if (hasEngineLiteral(value.value)) return "a constant contains an engine-tag literal";
-        const problem = valueTypeProblem(value.value, value.op === "redefine"); if (problem) return problem;
-      } else for (const side of [value.if, value.then]) {
-        if (openPart(side)) return "an implication is not closed";
-        if (hasEngineLiteral(side)) return "an implication contains an engine-tag literal";
-        const found = termType(side); if ("problem" in found) return found.problem;
-        const problem = expectedProblem(found.type, "tags"); if (problem) return problem;
-      }
-    }
+
+    if (firstSemanticFault) return firstSemanticFault;
+    if (firstDeepAt) return { problem: "nested too deeply", at: firstDeepAt };
     return null;
   }
 
   /** @param {any} term @returns {Set<string>} */
   function engineLiterals(term) {
     return run(literalNames(term));
+  }
+
+  /** @param {any} term @returns {any} */
+  function firstEngineLiteral(term) {
+    const retained = run(literalTerms(term));
+    return retained[0] ?? null;
+  }
+
+  /** @param {any} term @returns {Generator<Step, any[], any>} */
+  function* literalTerms(term) {
+    if (!term || typeof term !== "object") return [];
+    if (typeof term.tag === "string" && term.tag.startsWith("_")) return [term];
+    if (term.if) return yield literalTerms(term.then);
+    if (term.difference) return yield literalTerms(term.difference[0]);
+    const values = term.union ?? term.intersection;
+    if (!values) return [];
+    const parts = [];
+    for (const value of values) parts.push(yield literalTerms(value));
+    if (term.union) return parts.flat();
+    const names = parts.map(list => new Set(list.map((/** @type {any} */ value) => value.tag)));
+    return parts.flat().filter(value => names.every(set => set.has(value.tag)));
   }
 
   /** @param {any} term @returns {Generator<Step, Set<string>, any>} */
@@ -6808,19 +7351,6 @@
     for (const operand of operands) sets.push(yield literalNames(operand));
     if (term.union) return new Set(sets.flatMap(set => [...set]));
     return new Set([...sets[0]].filter(name => sets.every(set => set.has(name))));
-  }
-
-  /** @param {any} term @returns {boolean} */
-  function hasEngineLiteral(term) {
-    const pending = [term];
-    while (pending.length) {
-      const value = pending.pop();
-      if (!value || typeof value !== "object") continue;
-      if (typeof value.tag === "string" && value.tag.startsWith("_")) return true;
-      if (value.pattern) continue;
-      for (const child of clauseChildren(value)) if (child && typeof child === "object") pending.push(child);
-    }
-    return false;
   }
 
 
@@ -7533,26 +8063,28 @@
   }
 
   /**
-   * Whether the name of an item capture stands more than once in an
-   * expression, inside its braces or outside them (engine §3.5, §9).
+   * The later capture node when the name of an item capture stands more than
+   * once in an expression, inside its braces or outside them (engine §3.5, §9),
+   * or null.
    * @param {any} expr
-   * @returns {boolean}
+   * @returns {any}
    */
   function repeatsItemCapture(expr) {
     const items = itemCaptures(expr);
-    if (items.size === 0) return false;
+    if (items.size === 0) return null;
     /** @type {Set<string>} */
     const seen = new Set();
     const stack = [expr];
     for (let node = stack.pop(); node !== undefined; node = stack.pop()) {
       if (!isDomObject(node)) continue;
       if (typeof node.capture === "string" && items.has(node.capture)) {
-        if (seen.has(node.capture)) return true;
+        if (seen.has(node.capture)) return node;
         seen.add(node.capture);
       }
-      for (const child of expressionChildren(/** @type {any} */ (node))) stack.push(child);
+      const children = expressionChildren(/** @type {any} */ (node));
+      for (let index = children.length - 1; index >= 0; index--) stack.push(children[index]);
     }
-    return false;
+    return null;
   }
 
   /**
@@ -7977,14 +8509,15 @@
    * @returns {any}
    */
   function elidableHead(expr) {
-    const head = isDomObject(expr) && typeof expr.capture === "string" ? expr.expr : isDomObject(expr) && Array.isArray(expr.seq) ? expr.seq[0] : expr;
-    if (!isDomObject(head)) return null;
+    if (!isDomObject(expr) || expr.grouped) return null;
+    const head = typeof expr.capture === "string" ? expr.expr : Array.isArray(expr.seq) ? expr.seq[0] : expr;
+    if (!isDomObject(head) || head.grouped) return null;
     /** @type {(node: any) => boolean} */
-    const isTerminal = (node) => isDomObject(node) && (typeof node.param === "string" || Object.keys(node).length === 1 && typeof node.ref === "string" && /^(?!.*--)[A-Z][A-Za-z0-9_-]*$/.test(node.ref));
+    const isTerminal = (node) => isDomObject(node) && !node.grouped && (typeof node.param === "string" || Object.keys(node).every(k => k === "ref" || k === "at") && typeof node.ref === "string" && /^(?!.*--)[A-Z][A-Za-z0-9_-]*$/.test(node.ref));
     if (isTerminal(head)) return head;
     /** @type {any} */
     let base = head;
-    while (isDomObject(base) && typeof base.test === "string" && TEST_OPS.has(base.test)) base = base.expr;
+    while (isDomObject(base) && !base.grouped && typeof base.test === "string" && TEST_OPS.has(base.test)) base = base.expr;
     if (isTerminal(base)) return head;
     return null;
   }
@@ -8559,7 +9092,7 @@
 
   /**
    * A disagreement of types, and the smallest construct that holds it.
-   * @typedef {{problem: string, node: any}} TypeFault
+   * @typedef {{problem: string, node: any, at?: import("./types.js").Position}} TypeFault
    */
 
   /**
@@ -8796,7 +9329,7 @@
     const found = termType(term, constants);
     if ("problem" in found) return found;
     const problem = expectedProblem(found.type, "tags");
-    return problem ? { problem, node: term } : null;
+    return problem ? { problem, node: term, ...(term?.tagTermAt ? { at: term.tagTermAt } : {}) } : null;
   }
 
   /**
@@ -8812,7 +9345,7 @@
     // The canonical clause order supplies positions absent from the DOM.
     const roots = [rule.tags, rule.value, rule.image,
       ...rule.alternatives.flatMap((/** @type {any} */ alt) => [alt.expr, alt.tags, alt.value, alt.image]),
-      ...rule.conditions,
+      ...rule.conditions, rule.error, rule.warning,
       ...(rule.emit?.items ?? []).flatMap((/** @type {any} */ item) => [item.tags, item.value, item.image])];
     const order = new Map();
     roots.forEach((root, index) => {
@@ -9038,6 +9571,740 @@
     return null;
   }
 
+  // ---- templates.js
+  // Load-time template expansion (engine §2.3). Source DOMs stay unresolved.
+
+
+
+
+
+
+
+
+  /** @param {any} node @returns {string[]} */
+  function orderedKeys(node) {
+    const order = ['if', 'then', 'op', 'left', 'right', 'not', 'any', 'all', 'body', 'targets', 'requirements', 'negated', 'value', 'pattern', 'child', 'children', 'expr', 'repeat', 'separator', 'optional', 'seq', 'choice', 'ranked', 'and', 'union', 'intersection', 'difference', 'concat', 'items', 'tags', 'image', 'before', 'after'];
+    return [...order.filter(key=>Object.hasOwn(node,key)), ...Object.keys(node).filter(key=>key!=='at' && !order.includes(key)).sort()];
+  }
+
+
+  /** @param {any} value @param {Set<string>} [patterns] @returns {any} */
+  function normalizeTemplateArgument(value, patterns = new Set()) {
+    return normalizeArgument(value,copyAt,patterns);
+  }
+
+  /** @param {any} test @returns {any} */
+  function distributeFamilyTest(test) {
+    for(const key of ['union','intersection','difference']) if(test.expr?.[key]) {
+      const result={ [key]:test.expr[key].map((/** @type {any} */ part)=>distributeFamilyTest({...test,expr:part})) };
+      copyAt(test,result);
+      return result;
+    }
+    return test;
+  }
+
+  /** @param {any} value @returns {any} */
+  function templateIdentity(value) {
+    if(Array.isArray(value)) return value.map(templateIdentity);
+    if(!value || typeof value!=="object") return value;
+    return Object.fromEntries(Object.keys(value).filter((/** @type {any} */ k)=>k!=="at").sort().map((/** @type {any} */ k)=>[k,templateIdentity(value[k])]));
+  }
+
+  /** @param {any} root @returns {any[]} */
+  function templateNodes(root) {
+    const found=[],pending=[root];
+    while(pending.length) {
+      const n=pending.pop();
+      if(!n || typeof n!=="object") continue;
+      if(!Array.isArray(n)) found.push(n);
+      const children=(Array.isArray(n) ? n : sourceKeys(n).filter(k=>k!=="at").map(k=>n[k])).filter(v=>v && typeof v==="object");
+      for(let i=children.length-1;i>=0;i--) pending.push(children[i]);
+    }
+    return found;
+  }
+
+  /** @param {any} value @param {any} unicode @returns {string} */
+  function templateQuoted(value,unicode) { return stringName(value,unicode); }
+
+  /** @param {any} n @param {any} unicode @returns {string} */
+  function canonicalArgument(n,unicode) {
+    const print=(/** @type {any} */ x)=>canonicalArgument(x,unicode);
+    if(n.set instanceof Set) return [...n.set].sort().join(' ') || '∅';
+    if(n.call) return `${n.call}(${n.args.map(print).join(", ")})`;
+    if(n.param) return '@'+n.param;
+    if(n.integer || n.classifier) return n.integer??n.classifier;
+    if(n.rule || n.tag || n.terminal || n.ref || n.name) return n.rule??n.tag??n.terminal??n.ref??n.name;
+    if(n.const || n.constant) return '$'+(n.const??n.constant);
+    if('string' in n) return templateQuoted(n.string,unicode);
+    if(n.literal) return print(n.literal);
+    if(n.range) return n.range.map(print).join('..');
+    if(n.wildcard) return '_';
+    if(n.empty) return 'ε';
+    if(n.remainder) return '…';
+    if(n.emptySet) return '∅';
+    if(n.requirements && !n.test) return '<'+n.requirements.flatMap((/** @type {any} */ x)=>x.value.set instanceof Set ? [...x.value.set].sort().map(tag=>(x.negated?'¬':'')+tag) : [(x.negated?'¬':'')+print(x.value)]).join(' ')+'>';
+    if(n.targets) return n.targets.map(print).join(' | ');
+    if(n.body) {
+      const body=templateBodyText(n.body,unicode);
+      return n.body.empty || n.body.optional || n.body.repeat ? body : '('+body+')';
+    }
+    if(n.test) return print(n.expr)+(n.test==='tags'?print({requirements:n.requirements}):n.test+print(n.value));
+    if(n.pattern) return layeredPatternText(n.pattern,x=>canonicalArgument(x,unicode));
+    if(n.concat || n.union || n.intersection || n.difference) {
+      const key=/** @type {string} */ (['concat','union','intersection','difference'].find((/** @type {any} */ k)=>n[k]));
+      const values=n[key];
+      if(key==='union' && (values.every((/** @type {any} */ x)=>x.tag) || values.every((/** @type {any} */ x)=>'string' in x))) return values.map(print).join(' ');
+      const op={concat:' ++ ',union:' ∪ ',intersection:' ∩ ',difference:' ∖ '}[key];
+      return values.map((/** @type {any} */ x,/** @type {number} */ i)=>templateTermGroup(x,key,i)?'('+print(x)+')':print(x)).join(op);
+    }
+    if(n.method === 'parse') return print(n.receiver)+'.parse('+templateBodyText(n.args[0].body,unicode)+')';
+    if(n.method) {
+      const receiver=print(n.receiver);
+      const grouped=templateTermGroup(n.receiver,'method',0);
+      return (grouped?'('+receiver+')':receiver)+'.'+n.method+(n.args.length?'('+n.args.map(print).join(['followed-by','preceded-by'].includes(n.method)?' | ':', ')+')':'');
+    }
+    if(n.capture!==undefined) return '$'+n.capture;
+    if(n.if) return (templateBooleanGroup(n.if,'if')?'('+print(n.if)+')':print(n.if))+' ⟹ '+print(n.then);
+    if(n.op) return [n.left,n.right].map(x=>x.if?'('+print(x)+')':print(x)).join(' '+n.op+' ');
+    if(n.not) return '¬'+(templateBooleanGroup(n.not,'not')?'('+print(n.not)+')':print(n.not));
+    if(n.any || n.all) {
+      const key=n.any?'any':'all';
+      return n[key].map((/** @type {any} */ x)=>templateBooleanGroup(x,key)?'('+print(x)+')':print(x)).join(n.any?' ∨ ':' ∧ ');
+    }
+    if(n.splice) return "*"+print(n.splice);
+    if(n.captured!==undefined) return '$'+n.captured;
+    throw new Error('unprintable argument '+JSON.stringify(n));
+  }
+
+  /** @param {any} n @param {string} parent @param {number} index @returns {boolean} */
+  function templateTermGroup(n,parent,index) {
+    if(n.if) return true;
+    const key=['concat','union','intersection','difference'].find(k=>k in n);
+    if(!key) return false;
+    const run=key==='union' && (n.union.every((/** @type {any} */ x)=>x.tag) || n.union.every((/** @type {any} */ x)=>'string' in x));
+    if(run) return parent==='intersection' || parent==='difference';
+    /** @type {Record<string,number>} */
+    const priority={union:1,difference:1,intersection:2,concat:3,method:4};
+    return priority[key]<priority[parent] || (priority[key]===priority[parent] && (parent==='intersection' || index>0 && (parent==='union' || parent==='difference')));
+  }
+
+  /** @param {any} n @param {string} parent @returns {boolean} */
+  function templateBooleanGroup(n,parent) {
+    const key=['if','any','all','not'].find(k=>k in n);
+    if(!key) return false;
+    /** @type {Record<string,number>} */
+    const priority={if:1,any:2,all:3,not:4};
+    return priority[key]<priority[parent] || priority[key]===priority[parent] && parent!=='not';
+  }
+
+  /** @param {any} n @param {any} unicode @param {string} [parent] @returns {string} */
+  function templateBodyText(n,unicode,parent='') {
+    const key=['seq','and','choice','ranked'].find((/** @type {any} */ k)=>n[k]);
+    if(key) {
+      /** @type {Record<string,number>} */
+      const priority={seq:3,and:2,choice:1,ranked:1};
+      const text=n[key].map((/** @type {any} */ x)=>templateBodyText(x,unicode,key)).join({seq:' ',and:' & ',choice:' | ',ranked:' ≻ '}[key]);
+      return parent && priority[key]<=priority[parent]?'('+text+')':text;
+    }
+    if(n.optional) {
+      const parts = n.optional.seq ?? [n.optional];
+      const head = templateBodyText(parts[0],unicode) + (n.default === undefined ? '' : ' ≝ ' + canonicalArgument(n.default,unicode));
+      return '['+(n.elidable?'+':'')+[head,...parts.slice(1).map((/** @type {any} */ part)=>templateBodyText(part,unicode))].join(' ')+']';
+    }
+    if(n.repeat) return '{'+(n.chain==='left'?'... ':'')+templateBodyText(n.repeat,unicode)+(n.chain==='right'?' ...':'')+(n.separator?' / '+templateBodyText(n.separator,unicode):'')+'}';
+    return canonicalArgument(n,unicode);
+  }
+
+  /**
+   * Whether a clause as written mentions a parameter (engine §3.6).
+   * @param {any} node
+   * @returns {boolean}
+   */
+  function mentionsParameter(node) {
+    const pending = [node];
+    while (pending.length) {
+      const current = pending.pop();
+      if (!current || typeof current !== "object") continue;
+      if (Array.isArray(current)) { for (let index = current.length - 1; index >= 0; index--) pending.push(current[index]); continue; }
+      if (typeof current.param === "string") return true;
+      for (const key of Object.keys(current)) if (key !== "at") pending.push(current[key]);
+    }
+    return false;
+  }
+
+  /** @param {any[]} documents @param {any} unicode @returns {any} */
+  function expandTemplates(documents,unicode) {
+    if(!documents.some((/** @type {any} */ d)=>hasUnresolved(d.dom))) return {documents,order:null,templates:[],instances:[]};
+    /** @type {{names:string[],name:string,where:{document:string,line:number|undefined,column:number|undefined}}[]} */
+    const erasureChecks=[];
+    const patterns=patternConstantNames(documents.flatMap(d=>d.dom.constants));
+    const normalize=(/** @type {any} */ value)=>normalizeTemplateArgument(value,patterns);
+    const templates=new Map(), names=new Map(), instances=new Map();
+    /** @type {string[]} */ const slots=[];
+    /** @type {any[]} */ const events=[];
+    /** @type {any[]} */ const queue=[];
+    /** @type {any[]} */ const extraEvents=[];
+    /** @type {any[]} */ const sourceEvents=[];
+    /** @type {(event:any,node:any,message:string)=>never} */
+    const fail=(event,node,message)=>{
+      const at=node?.at??event.rule.at;
+      const context=event.origin ? `, in ${event.instance} called at ${event.origin.document}:${event.origin.at[0]}:${event.origin.at[1]}` : '';
+      throw new GencmuError('grammar',`${event.path}:${at[0]}:${at[1]}: ${message}${context}`,{document:event.path,line:at[0],column:at[1],...(message.startsWith('unbounded-instantiation:')?{code:'unbounded-instantiation'}:{})});
+    };
+    let serial=0;
+    for(const [inspectionRun, document] of documents.entries()) {
+      const declarations=['rules','constants','directives','classifiers','implications'].flatMap(kind=>document.dom[kind].map((/** @type {any} */ rule)=>({kind,rule}))).sort((a,b)=>a.rule.at[0]-b.rule.at[0]||a.rule.at[1]-b.rule.at[1]);
+      for(const {kind,rule} of declarations) {
+      const event={path:document.path,rule,index:serial++,inspectionRun,kind:['rules','directives','constants','classifiers','implications'].indexOf(kind)};
+      sourceEvents.push(event);
+      if(kind!=='rules') {extraEvents.push(event);continue;}
+      events.push(event);
+      if(rule.params) {
+        const previous=templates.get(rule.name);
+        if(rule.op==='define') {
+          if(previous || names.has(rule.name)) fail(event,rule,`duplicate template ${rule.name}`);
+          templates.set(rule.name,{name:rule.name,arity:rule.params.length,events:[event],at:rule.at,path:event.path});
+        } else {
+          if(!previous || previous.arity!==rule.params.length) fail(event,rule,`template ${rule.name} requires an earlier declaration with the same arity`);
+          previous.events.push(event);
+        }
+      } else if(!rule.args) {
+        if(templates.has(rule.name)) fail(event,rule,'a template and an ordinary rule cannot share a name');
+        const previous=names.get(rule.name);
+        if(rule.op==='define') {
+          if(previous) fail(event,rule,`duplicate rule ${rule.name}`);
+          names.set(rule.name,{events:[event],binding:null});slots.push(rule.name);
+        } else {
+          if(!previous) fail(event,rule,`${rule.name} requires an earlier definition`);
+          previous.events.push(event);
+        }
+      }
+    }
+    }
+    // Inspect every definition, including discarded and uncalled definitions.
+    const edges=new Map();
+    for(const template of templates.values()) for(let i=0;i<template.arity;i++) edges.set(template.name+':'+i,[]);
+    for(const event of sourceEvents) {
+      const {rule}=event,params=rule.params??[];
+      for(const n of templateNodes(rule)) {
+        if(n.param && !params.includes(n.param)) fail(event,n,`undeclared parameter @${n.param}`);
+        if(!n.call) continue;
+        const target=templates.get(n.call);
+        if(!target) fail(event,n,`unknown template ${n.call}`);
+        if(n.args.length!==target.arity) fail(event,n,`template ${n.call} expects ${target.arity} arguments`);
+        n.args.forEach((/** @type {any} */ arg,/** @type {number} */ i)=>{
+          let normalized;
+          for(const part of templateNodes(arg)) {
+            if(part.capture!==undefined || part.captured!==undefined) fail(event,part,'an argument cannot read or declare captures');
+            if(part.param && params.includes(part.param)) edges.get(rule.name+':'+params.indexOf(part.param))?.push({to:n.call+':'+i,growing:(normalized??=normalize(arg)).param!==part.param,event,node:n,argument:arg});
+          }
+        });
+      }
+    }
+    // Every growing edge must lack a return path. Unchanged cycles are finite.
+    for(const [from,list] of edges) for(const edge of list) if(edge.growing) {
+      const pending=[{to:edge.to,previous:/** @type {any} */ (null)}],seen=new Set();
+      while(pending.length) {
+        const state=pending.pop();
+        if(!state) break;
+        if(state.to===from) {
+          const steps=[];
+          for(let step=state.previous;step;step=step.previous) steps.push(step);
+          steps.reverse();
+          const cycle=[{from,edge},...steps];
+          const trail=cycle.map(({from,edge})=>`${from} → ${edge.to} at ${edge.event.path}:${edge.node.at[0]}:${edge.node.at[1]}`).join(' then ');
+          fail(edge.event,edge.node,`unbounded-instantiation: ${trail}, growing argument ${canonicalArgument(edge.argument,unicode)}`);
+        }
+        if(seen.has(state.to)) continue;
+        seen.add(state.to);
+        for(const next of edges.get(state.to)??[]) pending.push({to:next.to,previous:{from:state.to,edge:next,previous:state.previous}});
+      }
+    }
+    /** @type {(call:any,event:any,discover?:boolean)=>any} */
+    const intern=(call,event,discover=false)=>{
+      const signature=templates.get(call.call);
+      if(!signature || !Array.isArray(call.args) || signature.arity!==call.args.length) fail(event,call,'an instance call requires the declared arity');
+      const args=call.args.map(normalize);
+      const normalized={call:call.call,args,at:call.at};
+      const key=JSON.stringify(templateIdentity(normalized));
+      if(!instances.has(key)) {
+        const item={key,call:normalized,canonical:canonicalArgument(normalized,unicode),name:null,origin:{document:event.path,at:call.at},locals:[],definitions:[]};
+        instances.set(key,item);
+      }
+      const instance=instances.get(key);
+      if(discover && !instance.discovered) {
+        instance.discovered=true;instance.origin={document:event.path,at:call.at};queue.push(instance);
+      }
+      return instance;
+    };
+    /** @type {(root:any,event:any,record?:typeof intern)=>void} */
+    const discover=(root,event,record=intern)=>{
+      /** @type {(n:any)=>void} */
+    const visit=(/** @type {any} */ n)=>{
+        if(!n || typeof n!=='object') return;
+        if(Array.isArray(n)) { n.forEach(visit); return; }
+        if(n.alternatives) {
+          n.alternatives.forEach((/** @type {any} */ alternative,/** @type {number} */ index)=>{
+            visit(alternative.expr);visit(alternative.tags);visit(alternative.value);visit(alternative.image);
+            if(index===0) {
+              visit(n.tags);visit(n.value);visit(n.image);visit(n.conditions);visit(n.error);visit(n.warning);visit(n.emit);
+            }
+          });
+          return;
+        }
+        const children=n.method?[n.receiver,n.args]:n.call?[n.args]:orderedKeys(n).map(key=>n[key]);
+        for(const value of children) {
+          if(Array.isArray(value)) value.forEach(visit);else if(value && typeof value==='object') visit(value);
+        }
+        if(n.call && !templateNodes(n.args).some((/** @type {any} */ x)=>x.param)) record(n,event,true);
+        if(n.call && n.children) visit(n.children);
+      };
+      visit(root);
+    };
+    // Resolve public-name edits at their written position, before final bindings.
+    const current=new Map(),ordinary=new Map();
+    for(const event of events) {
+      const {rule}=event;
+      if(rule.params) continue;
+      if(rule.args) {
+        const template=templates.get(rule.name);
+        if(!template || template.events[0].index>=event.index) fail(event,rule,'an instance edit requires an earlier template');
+        const instance=intern({call:rule.name,args:rule.args,at:rule.at},event);instance.locals.push(event);
+        continue;
+      }
+      if(rule.instance) {
+        const instance=intern(rule.instance,event),old=current.get(rule.name);
+        if(instance.name && instance.name!==rule.name) fail(event,rule,'an instance has at most one public name');
+        if(old===instance) fail(event,rule,'repeating an instance binding is invalid');
+        if(old) {old.name=null;old.binding=null;}
+        instance.name=rule.name;instance.binding={document:event.path,line:rule.at[0],column:rule.at[1]};current.set(rule.name,instance);ordinary.delete(rule.name);
+      } else if(current.has(rule.name)) current.get(rule.name).locals.push(event);
+      else {
+        const list=ordinary.get(rule.name)??[];list.push(event);ordinary.set(rule.name,list);
+      }
+    }
+    /** @type {(list:any[])=>any[]} */
+    const retained=(/** @type {any} */ list)=>{
+      let start=0;
+      list.forEach((/** @type {any} */ event,/** @type {number} */ i)=>{if(event.rule.op!=='extend') start=i;});
+      return list.slice(start);
+    };
+    const extraIndexes=new Set(extraEvents.map(event=>event.index));
+    const retainedIndexes=new Set();
+    /** @param {any[][]} histories */
+    const rememberRetained=(...histories)=>{
+      let first=0;
+      for(const history of histories) for(const event of history) if(event.rule.op!=='extend') first=Math.max(first,event.index);
+      for(const history of histories) for(const event of history) if(event.index>=first) retainedIndexes.add(event.index);
+    };
+    for(const template of templates.values()) rememberRetained(template.events);
+    for(const history of ordinary.values()) rememberRetained(history);
+    for(const instance of instances.values()) rememberRetained(templates.get(instance.call.call).events,instance.locals);
+    // Complete the source pass before processing expanded definitions.
+    for(const event of sourceEvents) {
+      const rule=event.rule;
+      if(extraIndexes.has(event.index)) {discover(rule,event);continue;}
+      if(rule.instance) {discover(rule.instance,event);continue;}
+      if(rule.args) discover({call:rule.name,args:rule.args,at:rule.at},event);
+      if(retainedIndexes.has(event.index)) {
+        const body={...rule};delete body.args;
+        discover(body,event);
+      }
+    }
+    /** @type {(arg:any,position:string,event:any,use:any)=>any} */
+    const convert=(arg,position,event,use)=>{
+      arg=normalize(arg);
+      if(position==='arg') return arg;
+      if(position==='expr') {
+        if(arg.body) return arg.body;
+        if(arg.targets) return {choice:arg.targets.map((/** @type {any} */ x)=>convert(x,'expr',event,use)),...(use.at?{at:use.at}:{})};
+        if(arg.rule || arg.tag || arg.terminal) return {ref:arg.rule??arg.tag??arg.terminal,...(use.at?{at:use.at}:{})};
+        if('string' in arg || arg.const) return {literal:arg,...(use.at?{at:use.at}:{})};
+        if(arg.call || arg.splice || arg.test || arg.range || arg.wildcard) return arg;
+      } else if(position==='pattern') {
+        if(arg.rule) return {name:arg.rule,at:use.at};
+        if(arg.tag || arg.terminal) return {terminal:arg.tag??arg.terminal,at:use.at};
+        if(arg.pattern) return arg.pattern;
+        if('string' in arg) return {literal:arg,at:use.at};
+        if(arg.const) return {constant:arg.const,at:use.at};
+        if(arg.test) {const {at:_at,...rest}=arg; return {...rest,expr:convert(argumentOfExpression(arg.expr),'pattern',event,use)};}
+        if(arg.range || arg.wildcard || arg.call) return {...arg,at:use.at};
+      } else if(position==='target') {
+        if(arg.tag) return {terminal:arg.tag};
+        if(arg.rule || arg.terminal || arg.call) return arg;
+      } else if(position==='term' && !arg.body && !arg.targets && !arg.requirements && !arg.rule && !arg.call && !arg.splice && !arg.test && !arg.range && !arg.wildcard) return arg;
+      fail(event,use,`argument ${canonicalArgument(arg,unicode)} is invalid at @${use.param} in ${position} position`);
+    };
+    /** @type {(root:any,env:Map<string,any>,event:any,position?:string)=>any} */
+    const substitute=(root,env,event,position='term')=>{
+      if(!root || typeof root!=='object') return root;
+      if(Array.isArray(root)) return root.map((/** @type {any} */ x)=>substitute(x,env,event,position));
+      if(root.param) {
+        const converted=convert(env.get(root.param),position,event,root);
+        if(position!=='pattern' || !root.exact && !('children' in root)) return converted;
+        if(['union','intersection','difference','path'].some(key=>key in converted)) fail(event,root,'a compound pattern cannot carry node decorations');
+        const result={...converted};
+        if(root.exact) {
+          if(converted.exact) fail(event,root,'an exact prefix conflicts with an argument prefix');
+          result.exact=true;
+        }
+        if('children' in root) {
+          if(!('name' in converted || 'call' in converted) || 'children' in converted) fail(event,root,'an attached list requires a rule test without children');
+          result.children=substitute(root.children,env,event,'pattern-item');
+        }
+        return result;
+      }
+      /** @type {Record<string,any>} */
+    const result={};
+      for(const key of sourceKeys(root)) {
+        const value=root[key];
+        if(key==='at') {result.at=value;continue;}
+        if(key==='args' && root.call) {result.args=value.map((/** @type {any} */ x)=>substitute(x,env,event,'arg'));continue;}
+        if(key==='args' && root.method) {
+          result.args=[];
+          for(const arg of value) {
+            const replacement=arg.param?env.get(arg.param):null;
+            const query=['followed-by','preceded-by'].includes(root.method);
+            const target=query || ['tags','without-elision-except'].includes(root.method);
+            if(query && replacement?.targets) {
+              for(const target of replacement.targets) result.args.push(convert(target,'target',event,arg));
+            }
+            else if(root.method==='parse') result.args.push({body:substitute(arg.body,env,event,'expr')});
+            else result.args.push(substitute(arg,env,event,target?'target':'term'));
+          }
+          continue;
+        }
+        if(key==='requirements') {
+          result.requirements=[];
+          for(const requirement of value) {
+            const replacement=requirement.value.param?env.get(requirement.value.param):null;
+            if(replacement && Object.keys(replacement).length===1 && 'requirements' in replacement) {
+              if(requirement.negated) fail(event,requirement.value,'a requirement list cannot replace a negated requirement');
+              for(const entry of replacement.requirements) result.requirements.push(entry);
+            } else result.requirements.push({...requirement,value:substitute(requirement.value,env,event,'term')});
+          }
+          continue;
+        }
+        if(key==='optional' && root.elidable) {
+          let head=value.seq?value.seq[0]:value;
+          while(head.test || head.capture) head=head.expr;
+          if(head.param) {
+            const arg=normalize(env.get(head.param));
+            if(!arg.tag || !/^[A-Z]/.test(arg.tag) || Object.keys(arg).length!==1) fail(event,head,'an elidable parameter head requires one bare user tag');
+          }
+        }
+        let next=position;
+        if(['alternatives','conditions','error','warning','emit','tags','value','image','default','requirements','range','literal','concat','union','intersection','difference','left','right','receiver','if','then','not','all','any'].includes(key) && !(position==='pattern' && ['union','intersection','difference'].includes(key))) next='term';
+        if(['seq','choice','ranked','and','optional','repeat','separator','splice'].includes(key) && position!=='pattern') next='expr';
+        if(key==='expr') next=position==='pattern'?'pattern':'expr';
+        if(key==='pattern' || key==='child') next='pattern';
+        if(key==='children' || position==='pattern-item' && ['choice','optional','repeat','separator','splice'].includes(key)) next='pattern-item';
+        result[key]=substitute(value,env,event,next);
+        if(key==='default') {
+          result[key]={...result[key]};
+          copyAt(value,result[key]);
+        }
+      }
+      if(position==='pattern' && result.test && result.expr?.exact) {
+        if(result.exact) {let use=root.expr;while(use.expr) use=use.expr;fail(event,use,'an exact prefix conflicts with an argument prefix');}
+        result.exact=true;
+        const {exact,...expr}=result.expr;
+        result.expr=expr;
+      }
+      if(result.concat) result.concat=result.concat.flatMap((/** @type {any} */ x)=>x.concat??[x]);
+      if(result.union) result.union=result.union.flatMap((/** @type {any} */ x)=>x.union??[x]);
+      if((position==='pattern' || patternTerm(result,patterns)) && result.intersection) result.intersection=result.intersection.flatMap((/** @type {any} */ x)=>x.intersection??[x]);
+      copyAt(root,result);
+      return result;
+    };
+    // ARG preserves its category while parameters nested in another call bind.
+    // Calls in expanded definitions stay structural until the complete queue exists.
+    for(let cursor=0;cursor<queue.length;cursor++) {
+      const instance=queue[cursor],template=templates.get(instance.call.call);
+      const applicable=[...template.events,...instance.locals].sort((a,b)=>a.index-b.index);
+      for(const event of applicable) {
+        const env=new Map((event.rule.params??[]).map((/** @type {string} */ name,/** @type {number} */ i)=>[name,instance.call.args[i]]));
+        const body={...event.rule};delete body.params;delete body.args;delete body.instance;
+        body.name=instance.name??instance.canonical;
+        const templateConditions=(body.conditions??[]).map((/** @type {any} */ condition)=>mentionsParameter(condition)?condition:undefined);
+        const expanded=substitute(body,env,{...event,origin:instance.origin,instance:instance.canonical});
+        const problem=expandedDomProblem({format:documents[0].dom.format,rules:[expanded],directives:[],constants:[],classifiers:[],implications:[]},unicode,true,templateConditions);
+        if(problem) fail({...event,origin:instance.origin,instance:instance.canonical},expanded,`rule ${expanded.name}: ${problem}`);
+        instance.definitions.push({...event,origin:instance.origin,instance:instance.canonical,rule:expanded,templateConditions});
+      }
+      for(const event of retained(instance.definitions)) discover(event.rule,event);
+    }
+    const validationKeys=new Set(instances.keys());
+    /** @type {any[]} */
+    const validationQueue=[];
+    /** @type {typeof intern} */
+    const validateCall=(call,event)=>{
+      const normalized={call:call.call,args:normalize(call.args),at:call.at};
+      const key=JSON.stringify(templateIdentity(normalized));
+      if(!validationKeys.has(key)) {
+        validationKeys.add(key);
+        validationQueue.push({call:normalized,origin:{document:event.path,at:call.at}});
+      }
+    };
+    for(const event of events) if(!event.rule.params && !event.rule.args && !event.rule.instance) discover(event.rule,event,validateCall);
+    for(const instance of queue) for(const event of instance.definitions) discover(event.rule,event,validateCall);
+    /** @type {any[]} */
+    const validationDefinitions=[];
+    for(let cursor=0;cursor<validationQueue.length;cursor++) {
+      const {call,origin}=validationQueue[cursor],name=canonicalArgument(call,unicode);
+      for(const event of templates.get(call.call).events) {
+        const env=new Map(event.rule.params.map((/** @type {string} */ parameter,/** @type {number} */ i)=>[parameter,call.args[i]]));
+        const body={...event.rule,name};delete body.params;
+        const context={...event,origin,instance:name};
+        const templateConditions=(body.conditions??[]).map((/** @type {any} */ condition)=>mentionsParameter(condition)?condition:undefined);
+        const expanded=substitute(body,env,context);
+        const problem=expandedDomProblem({format:documents[0].dom.format,rules:[expanded],directives:[],constants:[],classifiers:[],implications:[]},unicode,true,templateConditions);
+        if(problem) fail(context,expanded,`rule ${expanded.name}: ${problem}`);
+        const definition={...context,rule:expanded,templateConditions};
+        validationDefinitions.push(definition);
+        discover(expanded,definition,validateCall);
+      }
+    }
+    /** @type {(instance:any)=>string} */
+    const effective=(/** @type {any} */ instance)=>instance.name??instance.canonical;
+    /** @type {(root:any,event:any,position?:string)=>any} */
+    const rewrite=(root,event,position='term')=>{
+      if(!root || typeof root!=='object') return root;
+      if(Array.isArray(root)) return root.map((/** @type {any} */ x)=>rewrite(x,event,position));
+      /** @param {string[]} names @param {string} name */
+      const erasedCheck=(names,name)=> {
+        if(position==='pattern' && root.children && !(root.children.length===1 && root.children[0].siblings)) {
+          const at=root.at ?? event.rule.at;
+          erasureChecks.push({names,name,where:{document:event.path,line:at?.[0],column:at?.[1]}});
+        }
+      };
+      if(root.name && !templates.has(root.name)) erasedCheck([root.name],root.name);
+      if(root.call) {
+        const instance=instances.get(JSON.stringify(templateIdentity(normalize({call:root.call,args:root.args,at:root.at}))));
+        const name=instance?effective(instance):canonicalArgument(root,unicode);
+        erasedCheck([name],name);
+        return position==='pattern'?{name,...(root.exact?{exact:true}:{}),...(root.children?{children:rewrite(root.children,event,'pattern-item')}:{ }),at:root.at}:position==='expr'?{ref:name,...(root.at?{at:root.at}:{})}:copyAt(root,hideAt({rule:name},root.at));
+      }
+      if(position==='pattern' && root.name && templates.has(root.name)) {
+        const instances=queue.filter((/** @type {any} */ x)=>x.call.call===root.name);
+        erasedCheck(instances.map(effective),root.name);
+        const children=root.children ? rewrite(root.children,event,'pattern-item') : undefined;
+        const members=instances.map((/** @type {any} */ x)=>({...root,name:effective(x),...(children?{children}: {})}));
+        return members.length===1?members[0]:members.length?{union:members}:{difference:[{name:'text',at:root.at,...(root.exact?{exact:true}:{})},{name:'text',at:root.at,...(root.exact?{exact:true}:{})}]};
+      }
+      if(root.ref && templates.has(root.ref) || root.rule && templates.has(root.rule)) fail(event,root,'a bare template reference must name one instance');
+      /** @type {Record<string,any>} */
+    const result={};
+      for(const [key,value] of Object.entries(root)) {
+        let next=position;
+        if(['alternatives','conditions','error','warning','emit','tags','value','image','default','left','right','receiver','range','literal','args'].includes(key)) next='term';
+        if(['seq','choice','ranked','and','optional','repeat','separator','expr','splice','body'].includes(key) && position!=='pattern') next='expr';
+        if(key==='pattern' || key==='child') next='pattern';
+        if(key==='children' || position==='pattern-item' && ['choice','optional','repeat','separator','splice'].includes(key)) next='pattern-item';
+        result[key]=key==='at'?value:rewrite(value,event,next);
+      }
+      copyAt(root,result);
+      if(position==='pattern' && result.test) return distributeFamilyTest(result);
+      if(position==='pattern') for(const key of ['union','intersection']) if(result[key]) result[key]=result[key].flatMap((/** @type {any} */ part)=>part[key]??[part]);
+      return result;
+    };
+    /** @type {any[]} */
+    const argumentsToCheck=[];
+    /** @param {any} argument @param {any} event */
+    const inspectArgument=(argument,event)=>{
+      const parts=templateNodes(argument),references=parts.filter(n=>n.const || n.constant);
+      if(!references.length) return;
+      const owner={path:event.path,kind:event.kind??0,origin:event.origin,instance:event.instance,inspectionRun:rewrittenDefinitions.get(event)?.inspectionRun??event.inspectionRun,at:event.rule.at,position:references[0].at};
+      const add=(/** @type {any} */ term,tags=false)=>argumentsToCheck.push({...owner,term:rewrite(term,event),tags});
+      const arg=normalize(argument);
+      if(arg.body || arg.splice || arg.test || arg.range || arg.wildcard) {
+        const rule={...(parts.some(n=>n.param)?{params:event.rule.params}:{}),name:extraIndexes.has(event.index)?'text':event.rule.name,op:'define',conditions:[],alternatives:[{gates:[],expr:rewrite(arg.body??arg,event,'expr')}],at:event.rule.at};
+        argumentsToCheck.push({...owner,rule,fragment:true});
+      } else if(arg.requirements) {
+        for(const requirement of arg.requirements) add(requirement.value,true);
+      } else if(!arg.call && !arg.rule && !arg.targets) add(arg);
+    };
+    /** @param {any} event */
+    const inspectArguments=event=>{
+      for(const node of templateNodes(event.rule)) if(node.call || node.name && node.args && node.op) {
+        for(const argument of node.args) inspectArgument(argument,event);
+      }
+    };
+    const validation=[],rewrittenDefinitions=new Map();
+    let nextInspectionRun=documents.length;
+    /** @param {any} event @param {any} [rule] */
+    const rewriteDefinition=(event,rule=event.rule)=>{
+      const rewritten={...event,rule:rewrite(rule,event),inspectionRun:event.origin ? nextInspectionRun++ : event.inspectionRun};
+      validation.push(rewritten);
+      rewrittenDefinitions.set(event,rewritten);
+    };
+    for(const event of events) {
+      if(event.rule.params) {rewrite(event.rule,event);validation.push(event);}
+      else if(!event.rule.args && !event.rule.instance) rewriteDefinition(event);
+    }
+    for(const instance of queue) for(const event of instance.definitions) rewriteDefinition(event,{...event.rule,name:effective(instance)});
+    for(const event of validationDefinitions) rewriteDefinition(event);
+    for(const event of sourceEvents) inspectArguments(event);
+    for(const instance of queue) for(const event of instance.definitions) inspectArguments(event);
+    for(const event of validationDefinitions) inspectArguments(event);
+    for(const event of [...validation,...argumentsToCheck.filter(argument=>argument.rule)]) {
+      if(event.rule.params) continue;
+      const problem=expandedDomProblem({format:documents[0].dom.format,rules:[event.rule],directives:[],constants:[],classifiers:[],implications:[]},unicode,true,event.templateConditions);
+      if(problem) fail(event,event.rule,problem);
+    }
+    const output=[];
+    for(const list of ordinary.values()) for(const event of list) output.push(rewrittenDefinitions.get(event));
+    for(const instance of queue) for(const event of instance.definitions) output.push(rewrittenDefinitions.get(event));
+    const expandedDocs=documents.map((/** @type {any} */ d,inspectionRun)=>({...d,inspectionRun,dom:{...d.dom,rules:[],...Object.fromEntries(['constants','directives','classifiers','implications'].map(key=>[key,d.dom[key].map((/** @type {any} */ item)=>rewrite(item,{path:d.path,rule:item}))]))}}));
+    for(const event of output) expandedDocs.push({path:event.path,inspectionRun:event.inspectionRun,dom:{format:documents[0].dom.format,rules:[event.rule],directives:[],constants:[],classifiers:[],implications:[]}});
+    const parameterRules=output.filter((/** @type {any} */ event)=>event.templateConditions).map((/** @type {any} */ event)=>({path:event.path,inspectionRun:event.inspectionRun,at:event.rule.at,name:event.rule.name,templateConditions:event.templateConditions}));
+    return {documents:expandedDocs,validation,argumentsToCheck,erasureChecks,parameterRules,order:[...slots.filter((/** @type {any} */ n)=>current.has(n)||ordinary.has(n)),...queue.filter((/** @type {any} */ x)=>!x.name).map(effective)],templates:[...templates.values()],instances:queue};
+  }
+
+  /** @param {any} grammar @returns {{templates:any[],instances:any[]}} */
+  function templateAudit(grammar) {
+    const position=(/** @type {any} */ event)=>({document:event.path,line:event.rule.at[0],column:event.rule.at[1]});
+    const positions=new Map([...grammar.rules.keys()].map((name,index)=>[name,index]));
+    const templatesByName=new Map(grammar.templates.map((/** @type {any} */ template)=>[template.name,template]));
+    const ordered=grammar.instances.slice().sort((/** @type {any} */ a,/** @type {any} */ b)=>(positions.get(a.name??a.canonical)??-1)-(positions.get(b.name??b.canonical)??-1));
+    const usedTemplates=new Set(ordered.map((/** @type {any} */ instance)=>instance.call.call));
+    const byName=new Map(ordered.filter((/** @type {any} */ item)=>item.name).map((/** @type {any} */ item)=>[item.name,item]));
+    const aliases=(/** @type {any} */ a,/** @type {any} */ b)=>{
+      /** @type {(a:any,b:any)=>boolean} */
+      const same=(a,b)=>{
+        const an=a?.rule??a?.ref??a?.name,bn=b?.rule??b?.ref??b?.name;
+        const expand=(/** @type {any} */ node,/** @type {any} */ instance)=>({...instance.call,...Object.fromEntries(Object.entries(node).filter(([key])=>!['rule','ref','name'].includes(key)))});
+        if(an && byName.has(an) && b?.call) {
+          if(byName.get(an).key!==JSON.stringify(templateIdentity(normalizeArgument({call:b.call,args:b.args})))) return false;
+          a=expand(a,byName.get(an));
+        }
+        if(bn && byName.has(bn) && a?.call) {
+          if(byName.get(bn).key!==JSON.stringify(templateIdentity(normalizeArgument({call:a.call,args:a.args})))) return false;
+          b=expand(b,byName.get(bn));
+        }
+        if(Array.isArray(a)||Array.isArray(b)) return Array.isArray(a)&&Array.isArray(b)&&a.length===b.length&&a.every((x,i)=>same(x,b[i]));
+        if(!a||!b||typeof a!=='object'||typeof b!=='object') return a===b;
+        const ka=Object.keys(a).filter(k=>k!=='at'),kb=Object.keys(b).filter(k=>k!=='at');
+        return ka.length===kb.length&&ka.every(k=>kb.includes(k)&&same(a[k],b[k]));
+      };
+      return same(a,b);
+    };
+    return {
+      templates:grammar.templates.map((/** @type {any} */ template)=>{
+        const used=new Set();
+        let first=0;
+        template.events.forEach((/** @type {any} */ event,/** @type {number} */ i)=>{if(event.rule.op!=='extend') first=i;});
+        for(const event of template.events.slice(first)) for(const node of templateNodes(event.rule)) if(node.param) used.add(event.rule.params.indexOf(node.param));
+        return {template:template.name,parameters:template.events[0].rule.params.slice(),document:template.path,line:template.at[0],column:template.at[1],notes:[
+          ...template.events[0].rule.params.flatMap((/** @type {string} */ parameter,/** @type {number} */ i)=>used.has(i)?[]:[{kind:'unused-parameter',parameter}]),
+          ...(usedTemplates.has(template.name)?[]:[{kind:'uncalled-template'}])
+        ]};
+      }),
+      instances:ordered.map((/** @type {any} */ instance)=>{
+        const eventIndexes=new Set(templatesByName.get(instance.call.call).events.map((/** @type {any} */ e)=>e.index));
+        const events=instance.definitions.map((/** @type {any} */ event)=>{
+          return {scope:eventIndexes.has(event.index)?'template':'instance',op:event.rule.op,...position(event)};
+        });
+        const twins=ordered.filter((/** @type {any} */ other)=>other!==instance&&other.call.call===instance.call.call&&aliases(other.call.args,instance.call.args)).map((/** @type {any} */ other)=>other.name??other.canonical);
+        return {template:instance.call.call,arguments:templateIdentity(instance.call.args),name:instance.name??instance.canonical,binding:instance.binding??null,firstCall:{document:instance.origin.document,line:instance.origin.at[0],column:instance.origin.at[1]},events,notes:twins.length?[{kind:'argument-alias-twin',instances:twins}]:[]};
+      })
+    };
+  }
+
+  // ---- logical.js
+  // Logical helper boundaries beside physical capture expansions (engine §3.2).
+  /** @import { GrammarSymbol } from "./types.js" */
+  /** @typedef {{from:number,to:number,symbol?:GrammarSymbol,children?:LogicalSymbol[],written?:object}} LogicalSymbol */
+  /** @type {WeakMap<object,LogicalSymbol[]>} */
+  const structures = new WeakMap();
+
+  /** @param {{symbol:GrammarSymbol}[]} sequence @returns {LogicalSymbol[]} */
+  function logicalOf(sequence) {
+    let logical = structures.get(sequence);
+    if (!logical) structures.set(sequence, logical = sequence.map((item,index) => ({from:index,to:index+1,symbol:item.symbol})));
+    return logical;
+  }
+
+  /** @param {LogicalSymbol} node @param {number} offset @returns {LogicalSymbol} */
+  function shifted(node,offset) {
+    return {...node,from:node.from+offset,to:node.to+offset,
+      ...(node.children ? {children:node.children.map(child => shifted(child,offset))} : {})};
+  }
+
+  /** @param {object} sequence @param {LogicalSymbol[]} left @param {LogicalSymbol[]} right @param {number} offset @param {boolean} [owned] */
+  function joinedLogical(sequence,left,right,offset,owned=false) {
+    const suffix = right.map(node => shifted(node,offset));
+    const logical = owned ? left : [...left];
+    for (const node of suffix) logical.push(node);
+    structures.set(sequence,logical);
+  }
+
+  /** @param {{symbol:GrammarSymbol}[]} sequence @param {object} written */
+  function optionalLogical(sequence,written) {
+    const children = logicalOf(sequence);
+    structures.set(sequence,[{from:0,to:sequence.length,children,written}]);
+  }
+
+  /** @param {LogicalSymbol[]} logical @returns {number|null} */
+  function inheritedIndex(logical) {
+    let children = logical;
+    while (children.length === 1) {
+      const node = children[0];
+      if (node.symbol) return node.from;
+      children = node.children ?? [];
+    }
+    return null;
+  }
+
+  // ---- recipes.js
+  // Recipe selection and loading checks (engine §11.3).
+
+
+  /** @import { Recipe } from "./types.js" */
+  /** @type {WeakMap<GencmuError,{document:string, recipe:Recipe}>} */
+  const recipeFailures = new WeakMap();
+
+  /**
+   * @param {Recipe|undefined} value
+   * @param {Recipe|undefined} image
+   * @param {string} document
+   */
+  function validateRecipeCycles(value,image,document) {
+    const selected = {value, image:image ?? value};
+    const impliedImage = image === undefined && value !== undefined;
+    /** @type {("value"|"image")[]} */
+    const path = [];
+    const done = new Set();
+    /** @param {"value"|"image"} channel */
+    const visit = channel => {
+      if (channel === "image" && impliedImage) channel = "value";
+      if (done.has(channel)) return;
+      const recipe = selected[channel];
+      if (!recipe) { done.add(channel); return; }
+      path.push(channel);
+      for (const atom of recipe.concat) {
+        if (!("method" in atom) || !["value","image"].includes(atom.method)) continue;
+        const receiver = atom.receiver;
+        if (!("method" in receiver) || receiver.method !== "emitted" || !("capture" in receiver.receiver) || receiver.receiver.capture !== "") continue;
+        const next = /** @type {"value"|"image"} */ (atom.method === "image" && impliedImage ? "value" : atom.method);
+        if (path.includes(next)) {
+          const at = /** @type {any} */ (recipe).at;
+          const location = at ? `${document}:${at[0]}:${at[1]}: ` : `${document}: `;
+          const error = new GencmuError("grammar", `${location}recipe dependency cycle: ${[...path,next].join(" → ")}`, {
+            document, ...(at ? {line:at[0],column:at[1]} : {}),
+          });
+          recipeFailures.set(error,{document,recipe});
+          throw error;
+        }
+        visit(next);
+      }
+      path.pop();
+      done.add(channel);
+    };
+    visit("value");
+    visit("image");
+  }
+
   // ---- ranked.js
 
 
@@ -9051,56 +10318,8 @@
   /** @typedef {{productive:boolean,nonempty:boolean}} Span */
   /** @typedef {{length:number,span:Span,captures:Map<string,{owner:RankedGroup|null,at:number}>,ends:Map<RankedGroup,{start:Span,at:number,option:number}>,bindings:Map<string,RankedGroup>}} ProjectedPath */
 
-  // Source locations stay outside the document DOM.
-  /** @type {WeakMap<object,[number,number]>} */
-  const rankedLocations = new WeakMap();
-  /** @type {WeakMap<object,object>} */
-  const writtenOrigins = new WeakMap();
   /** @type {WeakMap<GencmuError,object>} */
   const rankedFailures = new WeakMap();
-
-  /** @param {object} source @param {object} target */
-  function copyRankedLocation(source,target) {
-    const at = rankedLocations.get(source);
-    if (at) rankedLocations.set(target,at);
-    writtenOrigins.set(target,writtenOrigins.get(source) ?? source);
-  }
-
-  /** @param {import("./types.js").GrammarDom} dom @param {{text:string}[]} tokens @param {(token:any)=>[number,number]} positionOf */
-  function restoreRankedLocations(dom,tokens,positionOf) {
-    const separators = tokens.filter(token => token.text === "≻");
-    /** @type {{expr:object,at:[number,number]}[]} */
-    const locations = [];
-    let index = 0;
-    const roots=dom.rules.flatMap(rule=>[
-      ...(rule.args??[]),rule.instance,rule.tags,rule.value,rule.image,
-      ...(rule.alternatives??[]).flatMap(alternative=>[alternative.expr,alternative.tags,alternative.value,alternative.image]),
-      rule.conditions,rule.emit,
-    ]).filter(Boolean);
-    for (const root of roots) {
-      /** @type {{expr:any,action:number}[]} */
-      const pending = [{expr:root,action:0}];
-      while (pending.length) {
-        const item = pending.pop();
-        if (!item) break;
-        const {expr,action} = item;
-        if (action === 1) {
-          if (index < separators.length) locations.push({expr,at:positionOf(separators[index])});
-        } else if (action === 2) index++;
-        else if ("ranked" in expr) {
-          for (let option = expr.ranked.length - 1; option > 0; option--) {
-            pending.push({expr:expr.ranked[option],action:0},{expr,action:2});
-          }
-          pending.push({expr,action:1},{expr:expr.ranked[0],action:0});
-        } else {
-          const children=Array.isArray(expr)?expr.slice():Object.entries(expr).filter(([key])=>key!=="at").map(([,value])=>value);
-          for (const child of children.reverse()) if(child && typeof child==="object") pending.push({expr:child,action:0});
-        }
-      }
-    }
-    // A caller can supply a DOM unrelated to the source, with no locations.
-    if (index === separators.length) for (const {expr,at} of locations) rankedLocations.set(expr,at);
-  }
 
   /** @param {{text:string}[]} tokens @param {number} at */
   function rankedSyntaxFailure(tokens,at) {
@@ -9140,7 +10359,7 @@
         const visit = (expr, path, final, owner) => {
           this.paths.set(expr, path);
           if (expr.ranked) {
-            const site = { document: source.document, ...(rankedLocations.has(expr) ? {at:rankedLocations.get(expr)} : {}), rule:rule.name, alternative, path };
+            const site = { document: source.document, ...(expr.at ? {at:expr.at} : {}), rule:rule.name, alternative, path };
             const group = {id:this.groups.length, site, expr, source, final, parent:rule.name, captures:rankedDeclaredCaptures(expr), helper:`${rule.name}·ranked${this.groups.length}`};
             this.groups.push(group);
             this.byExpression.set(expr, group);
@@ -9544,787 +10763,6 @@
     return {productive:new Set([...named].filter(([,id])=>productive.has(id)).map(([name])=>name)),nonempty:new Set([...named].filter(([,id])=>nonempty.has(id)).map(([name])=>name))};
   }
 
-  // ---- recipes.js
-  // Recipe selection and loading checks (engine §11.3).
-
-
-  /** @import { Recipe, Position, GrammarDom } from "./types.js" */
-  /** @type {WeakMap<object,Position>} */
-  const recipeLocations = new WeakMap();
-  /** @type {WeakMap<GencmuError,{document:string, recipe:Recipe}>} */
-  const recipeFailures = new WeakMap();
-
-  /** @param {object} source @param {object} target */
-  function copyRecipeLocation(source,target) {
-    const at = recipeLocations.get(source);
-    if (at) recipeLocations.set(target,at);
-  }
-
-  /** @param {GrammarDom} dom @param {{text:string}[]} tokens @param {(token:any)=>Position} positionOf */
-  function restoreRecipeLocations(dom,tokens,positionOf) {
-    const starts = tokens.flatMap((token,index) => [":=",":-"].includes(token.text) ? [tokens[index+1]] : []);
-    /** @type {Recipe[]} */
-    const recipes = [];
-    for (const rule of dom.rules) {
-      for (const recipe of [rule.value,rule.image]) if (recipe) recipes.push(recipe);
-      for (const alternative of rule.alternatives??[]) for (const recipe of [alternative.value,alternative.image]) if (recipe) recipes.push(recipe);
-      for (const item of rule.emit?.items ?? []) for (const recipe of [item.value,item.image]) if (recipe) recipes.push(recipe);
-    }
-    if (starts.length === recipes.length) recipes.forEach((recipe,index) => recipeLocations.set(recipe,positionOf(starts[index])));
-    const markers = tokens.filter(token=>token.text === "≝");
-    const defaults = [];
-    const pending = dom.rules.flatMap(rule => rule.alternatives?.map(alternative=>alternative.expr) ?? []).reverse();
-    while (pending.length) {
-      const node = /** @type {any} */ (pending.pop());
-      if (!node || typeof node !== "object") continue;
-      if (node.default !== undefined) defaults.push(node.default);
-      const children = [node.expr,node.optional,node.repeat,node.separator,...node.seq ?? [],...node.choice ?? [],...node.and ?? [],...node.ranked ?? []].filter(Boolean);
-      for (const child of children.reverse()) pending.push(child);
-    }
-    if (markers.length === defaults.length) defaults.forEach((value,index)=>recipeLocations.set(value,positionOf(markers[index])));
-
-  }
-
-  /**
-   * @param {Recipe|undefined} value
-   * @param {Recipe|undefined} image
-   * @param {string} document
-   */
-  function validateRecipeCycles(value,image,document) {
-    const selected = {value, image:image ?? value};
-    const impliedImage = image === undefined && value !== undefined;
-    /** @type {("value"|"image")[]} */
-    const path = [];
-    const done = new Set();
-    /** @param {"value"|"image"} channel */
-    const visit = channel => {
-      if (channel === "image" && impliedImage) channel = "value";
-      if (done.has(channel)) return;
-      const recipe = selected[channel];
-      if (!recipe) { done.add(channel); return; }
-      path.push(channel);
-      for (const atom of recipe.concat) {
-        if (!("method" in atom) || !["value","image"].includes(atom.method)) continue;
-        const receiver = atom.receiver;
-        if (!("method" in receiver) || receiver.method !== "emitted" || !("capture" in receiver.receiver) || receiver.receiver.capture !== "") continue;
-        const next = /** @type {"value"|"image"} */ (atom.method === "image" && impliedImage ? "value" : atom.method);
-        if (path.includes(next)) {
-          const at = recipeLocations.get(recipe);
-          const location = at ? `${document}:${at[0]}:${at[1]}: ` : `${document}: `;
-          const error = new GencmuError("grammar", `${location}recipe dependency cycle: ${[...path,next].join(" → ")}`, {
-            document, ...(at ? {line:at[0],column:at[1]} : {}),
-          });
-          recipeFailures.set(error,{document,recipe});
-          throw error;
-        }
-        visit(next);
-      }
-      path.pop();
-      done.add(channel);
-    };
-    visit("value");
-    visit("image");
-  }
-
-  // ---- templates.js
-  // Load-time template expansion (engine §2.3). Source DOMs stay unresolved.
-
-
-
-
-
-
-
-
-
-
-
-  /** @param {any} node @returns {string[]} */
-  function orderedKeys(node) {
-    const order = ['if', 'then', 'op', 'left', 'right', 'not', 'any', 'all', 'body', 'targets', 'requirements', 'negated', 'value', 'pattern', 'child', 'children', 'expr', 'repeat', 'separator', 'optional', 'seq', 'choice', 'ranked', 'and', 'union', 'intersection', 'difference', 'concat', 'items', 'tags', 'image', 'before', 'after'];
-    return [...order.filter(key=>Object.hasOwn(node,key)), ...Object.keys(node).filter(key=>key!=='at' && !order.includes(key)).sort()];
-  }
-
-
-  /** @param {any} value @param {Set<string>} [patterns] @returns {any} */
-  function normalizeTemplateArgument(value, patterns = new Set()) {
-    return normalizeArgument(value,(source,target)=>{
-      copyRankedLocation(source,target);
-      copyRecipeLocation(source,target);
-      copyBoundaryLocation(source,target);
-      copyPatternLocation(source,target);
-    },patterns);
-  }
-
-  /** @param {any} test @returns {any} */
-  function distributeFamilyTest(test) {
-    for(const key of ['union','intersection','difference']) if(test.expr?.[key]) {
-      const result={ [key]:test.expr[key].map((/** @type {any} */ part)=>distributeFamilyTest({...test,expr:part})) };
-      copyPatternLocation(test,result);
-      return result;
-    }
-    return test;
-  }
-
-  /** @param {any} value @returns {any} */
-  function templateIdentity(value) {
-    if(Array.isArray(value)) return value.map(templateIdentity);
-    if(!value || typeof value!=="object") return value;
-    return Object.fromEntries(Object.keys(value).filter((/** @type {any} */ k)=>k!=="at").sort().map((/** @type {any} */ k)=>[k,templateIdentity(value[k])]));
-  }
-
-  /** @param {any} root @returns {any[]} */
-  function templateNodes(root) {
-    const found=[],pending=[root];
-    while(pending.length) {
-      const n=pending.pop();
-      if(!n || typeof n!=="object") continue;
-      if(!Array.isArray(n)) found.push(n);
-      const children=(Array.isArray(n) ? n : sourceKeys(n).filter(k=>k!=="at").map(k=>n[k])).filter(v=>v && typeof v==="object");
-      for(let i=children.length-1;i>=0;i--) pending.push(children[i]);
-    }
-    return found;
-  }
-
-  /** @param {any} value @param {any} unicode @returns {string} */
-  function templateQuoted(value,unicode) { return stringName(value,unicode); }
-
-  /** @param {any} n @param {any} unicode @returns {string} */
-  function canonicalArgument(n,unicode) {
-    const print=(/** @type {any} */ x)=>canonicalArgument(x,unicode);
-    if(n.set instanceof Set) return [...n.set].sort().join(' ') || '∅';
-    if(n.call) return `${n.call}(${n.args.map(print).join(", ")})`;
-    if(n.param) return '@'+n.param;
-    if(n.integer || n.classifier) return n.integer??n.classifier;
-    if(n.rule || n.tag || n.terminal || n.ref || n.name) return n.rule??n.tag??n.terminal??n.ref??n.name;
-    if(n.const || n.constant) return '$'+(n.const??n.constant);
-    if('string' in n) return templateQuoted(n.string,unicode);
-    if(n.literal) return print(n.literal);
-    if(n.range) return n.range.map(print).join('..');
-    if(n.wildcard) return '_';
-    if(n.empty) return 'ε';
-    if(n.remainder) return '…';
-    if(n.emptySet) return '∅';
-    if(n.requirements && !n.test) return '<'+n.requirements.flatMap((/** @type {any} */ x)=>x.value.set instanceof Set ? [...x.value.set].sort().map(tag=>(x.negated?'¬':'')+tag) : [(x.negated?'¬':'')+print(x.value)]).join(' ')+'>';
-    if(n.targets) return n.targets.map(print).join(' | ');
-    if(n.body) {
-      const body=templateBodyText(n.body,unicode);
-      return n.body.empty || n.body.optional || n.body.repeat ? body : '('+body+')';
-    }
-    if(n.test) return print(n.expr)+(n.test==='tags'?print({requirements:n.requirements}):n.test+print(n.value));
-    if(n.pattern) return layeredPatternText(n.pattern,x=>canonicalArgument(x,unicode));
-    if(n.concat || n.union || n.intersection || n.difference) {
-      const key=/** @type {string} */ (['concat','union','intersection','difference'].find((/** @type {any} */ k)=>n[k]));
-      const values=n[key];
-      if(key==='union' && (values.every((/** @type {any} */ x)=>x.tag) || values.every((/** @type {any} */ x)=>'string' in x))) return values.map(print).join(' ');
-      const op={concat:' ++ ',union:' ∪ ',intersection:' ∩ ',difference:' ∖ '}[key];
-      return values.map((/** @type {any} */ x,/** @type {number} */ i)=>templateTermGroup(x,key,i)?'('+print(x)+')':print(x)).join(op);
-    }
-    if(n.method === 'parse') return print(n.receiver)+'.parse('+templateBodyText(n.args[0].body,unicode)+')';
-    if(n.method) {
-      const receiver=print(n.receiver);
-      const grouped=templateTermGroup(n.receiver,'method',0);
-      return (grouped?'('+receiver+')':receiver)+'.'+n.method+(n.args.length?'('+n.args.map(print).join(['followed-by','preceded-by'].includes(n.method)?' | ':', ')+')':'');
-    }
-    if(n.capture!==undefined) return '$'+n.capture;
-    if(n.if) return (templateBooleanGroup(n.if,'if')?'('+print(n.if)+')':print(n.if))+' ⟹ '+print(n.then);
-    if(n.op) return [n.left,n.right].map(x=>x.if?'('+print(x)+')':print(x)).join(' '+n.op+' ');
-    if(n.not) return '¬'+(templateBooleanGroup(n.not,'not')?'('+print(n.not)+')':print(n.not));
-    if(n.any || n.all) {
-      const key=n.any?'any':'all';
-      return n[key].map((/** @type {any} */ x)=>templateBooleanGroup(x,key)?'('+print(x)+')':print(x)).join(n.any?' ∨ ':' ∧ ');
-    }
-    if(n.splice) return "*"+print(n.splice);
-    if(n.captured!==undefined) return '$'+n.captured;
-    throw new Error('unprintable argument '+JSON.stringify(n));
-  }
-
-  /** @param {any} n @param {string} parent @param {number} index @returns {boolean} */
-  function templateTermGroup(n,parent,index) {
-    if(n.if) return true;
-    const key=['concat','union','intersection','difference'].find(k=>k in n);
-    if(!key) return false;
-    const run=key==='union' && (n.union.every((/** @type {any} */ x)=>x.tag) || n.union.every((/** @type {any} */ x)=>'string' in x));
-    if(run) return parent==='intersection' || parent==='difference';
-    /** @type {Record<string,number>} */
-    const priority={union:1,difference:1,intersection:2,concat:3,method:4};
-    return priority[key]<priority[parent] || (priority[key]===priority[parent] && (parent==='intersection' || index>0 && (parent==='union' || parent==='difference')));
-  }
-
-  /** @param {any} n @param {string} parent @returns {boolean} */
-  function templateBooleanGroup(n,parent) {
-    const key=['if','any','all','not'].find(k=>k in n);
-    if(!key) return false;
-    /** @type {Record<string,number>} */
-    const priority={if:1,any:2,all:3,not:4};
-    return priority[key]<priority[parent] || priority[key]===priority[parent] && parent!=='not';
-  }
-
-  /** @param {any} n @param {any} unicode @param {string} [parent] @returns {string} */
-  function templateBodyText(n,unicode,parent='') {
-    const key=['seq','and','choice','ranked'].find((/** @type {any} */ k)=>n[k]);
-    if(key) {
-      /** @type {Record<string,number>} */
-      const priority={seq:3,and:2,choice:1,ranked:1};
-      const text=n[key].map((/** @type {any} */ x)=>templateBodyText(x,unicode,key)).join({seq:' ',and:' & ',choice:' | ',ranked:' ≻ '}[key]);
-      return parent && priority[key]<=priority[parent]?'('+text+')':text;
-    }
-    if(n.optional) {
-      const parts = n.optional.seq ?? [n.optional];
-      const head = templateBodyText(parts[0],unicode) + (n.default === undefined ? '' : ' ≝ ' + canonicalArgument(n.default,unicode));
-      return '['+(n.elidable?'+':'')+[head,...parts.slice(1).map((/** @type {any} */ part)=>templateBodyText(part,unicode))].join(' ')+']';
-    }
-    if(n.repeat) return '{'+(n.chain==='left'?'... ':'')+templateBodyText(n.repeat,unicode)+(n.chain==='right'?' ...':'')+(n.separator?' / '+templateBodyText(n.separator,unicode):'')+'}';
-    return canonicalArgument(n,unicode);
-  }
-
-  /**
-   * Whether a clause as written mentions a parameter (engine §3.6).
-   * @param {any} node
-   * @returns {boolean}
-   */
-  function mentionsParameter(node) {
-    const pending = [node];
-    while (pending.length) {
-      const current = pending.pop();
-      if (!current || typeof current !== "object") continue;
-      if (Array.isArray(current)) { for (let index = current.length - 1; index >= 0; index--) pending.push(current[index]); continue; }
-      if (typeof current.param === "string") return true;
-      for (const key of Object.keys(current)) if (key !== "at") pending.push(current[key]);
-    }
-    return false;
-  }
-
-  /** @param {any[]} documents @param {any} unicode @returns {any} */
-  function expandTemplates(documents,unicode) {
-    if(!documents.some((/** @type {any} */ d)=>hasUnresolved(d.dom))) return {documents,order:null,templates:[],instances:[]};
-    /** @type {{names:string[],name:string,where:{document:string,line:number|undefined,column:number|undefined}}[]} */
-    const erasureChecks=[];
-    const patterns=patternConstantNames(documents.flatMap(d=>d.dom.constants));
-    const normalize=(/** @type {any} */ value)=>normalizeTemplateArgument(value,patterns);
-    const templates=new Map(), names=new Map(), instances=new Map();
-    /** @type {string[]} */ const slots=[];
-    /** @type {any[]} */ const events=[];
-    /** @type {any[]} */ const queue=[];
-    /** @type {any[]} */ const extraEvents=[];
-    /** @type {any[]} */ const sourceEvents=[];
-    /** @type {(event:any,node:any,message:string)=>never} */
-    const fail=(event,node,message)=>{
-      const at=node?.at??event.rule.at;
-      const context=event.origin ? `, in ${event.instance} called at ${event.origin.document}:${event.origin.at[0]}:${event.origin.at[1]}` : '';
-      throw new GencmuError('grammar',`${event.path}:${at[0]}:${at[1]}: ${message}${context}`,{document:event.path,line:at[0],column:at[1],...(message.startsWith('unbounded-instantiation:')?{code:'unbounded-instantiation'}:{})});
-    };
-    let serial=0;
-    for(const [inspectionRun, document] of documents.entries()) {
-      const declarations=['rules','constants','directives','classifiers','implications'].flatMap(kind=>document.dom[kind].map((/** @type {any} */ rule)=>({kind,rule}))).sort((a,b)=>a.rule.at[0]-b.rule.at[0]||a.rule.at[1]-b.rule.at[1]);
-      for(const {kind,rule} of declarations) {
-      const event={path:document.path,rule,index:serial++,inspectionRun,kind:['rules','directives','constants','classifiers','implications'].indexOf(kind)};
-      sourceEvents.push(event);
-      if(kind!=='rules') {extraEvents.push(event);continue;}
-      events.push(event);
-      if(rule.params) {
-        const previous=templates.get(rule.name);
-        if(rule.op==='define') {
-          if(previous || names.has(rule.name)) fail(event,rule,`duplicate template ${rule.name}`);
-          templates.set(rule.name,{name:rule.name,arity:rule.params.length,events:[event],at:rule.at,path:event.path});
-        } else {
-          if(!previous || previous.arity!==rule.params.length) fail(event,rule,`template ${rule.name} requires an earlier declaration with the same arity`);
-          previous.events.push(event);
-        }
-      } else if(!rule.args) {
-        if(templates.has(rule.name)) fail(event,rule,'a template and an ordinary rule cannot share a name');
-        const previous=names.get(rule.name);
-        if(rule.op==='define') {
-          if(previous) fail(event,rule,`duplicate rule ${rule.name}`);
-          names.set(rule.name,{events:[event],binding:null});slots.push(rule.name);
-        } else {
-          if(!previous) fail(event,rule,`${rule.name} requires an earlier definition`);
-          previous.events.push(event);
-        }
-      }
-    }
-    }
-    // Inspect every definition, including discarded and uncalled definitions.
-    const edges=new Map();
-    for(const template of templates.values()) for(let i=0;i<template.arity;i++) edges.set(template.name+':'+i,[]);
-    for(const event of sourceEvents) {
-      const {rule}=event,params=rule.params??[];
-      for(const n of templateNodes(rule)) {
-        if(n.param && !params.includes(n.param)) fail(event,n,`undeclared parameter @${n.param}`);
-        if(!n.call) continue;
-        const target=templates.get(n.call);
-        if(!target) fail(event,n,`unknown template ${n.call}`);
-        if(n.args.length!==target.arity) fail(event,n,`template ${n.call} expects ${target.arity} arguments`);
-        n.args.forEach((/** @type {any} */ arg,/** @type {number} */ i)=>{
-          let normalized;
-          for(const part of templateNodes(arg)) {
-            if(part.capture!==undefined || part.captured!==undefined) fail(event,part,'an argument cannot read or declare captures');
-            if(part.param && params.includes(part.param)) edges.get(rule.name+':'+params.indexOf(part.param))?.push({to:n.call+':'+i,growing:(normalized??=normalize(arg)).param!==part.param,event,node:n,argument:arg});
-          }
-        });
-      }
-    }
-    // Every growing edge must lack a return path. Unchanged cycles are finite.
-    for(const [from,list] of edges) for(const edge of list) if(edge.growing) {
-      const pending=[{to:edge.to,previous:/** @type {any} */ (null)}],seen=new Set();
-      while(pending.length) {
-        const state=pending.pop();
-        if(!state) break;
-        if(state.to===from) {
-          const steps=[];
-          for(let step=state.previous;step;step=step.previous) steps.push(step);
-          steps.reverse();
-          const cycle=[{from,edge},...steps];
-          const trail=cycle.map(({from,edge})=>`${from} → ${edge.to} at ${edge.event.path}:${edge.node.at[0]}:${edge.node.at[1]}`).join(' then ');
-          fail(edge.event,edge.node,`unbounded-instantiation: ${trail}, growing argument ${canonicalArgument(edge.argument,unicode)}`);
-        }
-        if(seen.has(state.to)) continue;
-        seen.add(state.to);
-        for(const next of edges.get(state.to)??[]) pending.push({to:next.to,previous:{from:state.to,edge:next,previous:state.previous}});
-      }
-    }
-    /** @type {(call:any,event:any,discover?:boolean)=>any} */
-    const intern=(call,event,discover=false)=>{
-      const signature=templates.get(call.call);
-      if(!signature || !Array.isArray(call.args) || signature.arity!==call.args.length) fail(event,call,'an instance call requires the declared arity');
-      const args=call.args.map(normalize);
-      const normalized={call:call.call,args,at:call.at};
-      const key=JSON.stringify(templateIdentity(normalized));
-      if(!instances.has(key)) {
-        const item={key,call:normalized,canonical:canonicalArgument(normalized,unicode),name:null,origin:{document:event.path,at:call.at},locals:[],definitions:[]};
-        instances.set(key,item);
-      }
-      const instance=instances.get(key);
-      if(discover && !instance.discovered) {
-        instance.discovered=true;instance.origin={document:event.path,at:call.at};queue.push(instance);
-      }
-      return instance;
-    };
-    /** @type {(root:any,event:any,record?:typeof intern)=>void} */
-    const discover=(root,event,record=intern)=>{
-      /** @type {(n:any)=>void} */
-    const visit=(/** @type {any} */ n)=>{
-        if(!n || typeof n!=='object') return;
-        if(Array.isArray(n)) { n.forEach(visit); return; }
-        if(n.alternatives) {
-          n.alternatives.forEach((/** @type {any} */ alternative,/** @type {number} */ index)=>{
-            visit(alternative.expr);visit(alternative.tags);visit(alternative.value);visit(alternative.image);
-            if(index===0) {
-              visit(n.tags);visit(n.value);visit(n.image);visit(n.conditions);visit(n.error);visit(n.warning);visit(n.emit);
-            }
-          });
-          return;
-        }
-        const children=n.method?[n.receiver,n.args]:n.call?[n.args]:orderedKeys(n).map(key=>n[key]);
-        for(const value of children) {
-          if(Array.isArray(value)) value.forEach(visit);else if(value && typeof value==='object') visit(value);
-        }
-        if(n.call && !templateNodes(n.args).some((/** @type {any} */ x)=>x.param)) record(n,event,true);
-        if(n.call && n.children) visit(n.children);
-      };
-      visit(root);
-    };
-    // Resolve public-name edits at their written position, before final bindings.
-    const current=new Map(),ordinary=new Map();
-    for(const event of events) {
-      const {rule}=event;
-      if(rule.params) continue;
-      if(rule.args) {
-        const template=templates.get(rule.name);
-        if(!template || template.events[0].index>=event.index) fail(event,rule,'an instance edit requires an earlier template');
-        const instance=intern({call:rule.name,args:rule.args,at:rule.at},event);instance.locals.push(event);
-        continue;
-      }
-      if(rule.instance) {
-        const instance=intern(rule.instance,event),old=current.get(rule.name);
-        if(instance.name && instance.name!==rule.name) fail(event,rule,'an instance has at most one public name');
-        if(old===instance) fail(event,rule,'repeating an instance binding is invalid');
-        if(old) {old.name=null;old.binding=null;}
-        instance.name=rule.name;instance.binding={document:event.path,line:rule.at[0],column:rule.at[1]};current.set(rule.name,instance);ordinary.delete(rule.name);
-      } else if(current.has(rule.name)) current.get(rule.name).locals.push(event);
-      else {
-        const list=ordinary.get(rule.name)??[];list.push(event);ordinary.set(rule.name,list);
-      }
-    }
-    /** @type {(list:any[])=>any[]} */
-    const retained=(/** @type {any} */ list)=>{
-      let start=0;
-      list.forEach((/** @type {any} */ event,/** @type {number} */ i)=>{if(event.rule.op!=='extend') start=i;});
-      return list.slice(start);
-    };
-    const extraIndexes=new Set(extraEvents.map(event=>event.index));
-    const retainedIndexes=new Set();
-    /** @param {any[][]} histories */
-    const rememberRetained=(...histories)=>{
-      let first=0;
-      for(const history of histories) for(const event of history) if(event.rule.op!=='extend') first=Math.max(first,event.index);
-      for(const history of histories) for(const event of history) if(event.index>=first) retainedIndexes.add(event.index);
-    };
-    for(const template of templates.values()) rememberRetained(template.events);
-    for(const history of ordinary.values()) rememberRetained(history);
-    for(const instance of instances.values()) rememberRetained(templates.get(instance.call.call).events,instance.locals);
-    // Complete the source pass before processing expanded definitions.
-    for(const event of sourceEvents) {
-      const rule=event.rule;
-      if(extraIndexes.has(event.index)) {discover(rule,event);continue;}
-      if(rule.instance) {discover(rule.instance,event);continue;}
-      if(rule.args) discover({call:rule.name,args:rule.args,at:rule.at},event);
-      if(retainedIndexes.has(event.index)) {
-        const body={...rule};delete body.args;
-        discover(body,event);
-      }
-    }
-    /** @type {(arg:any,position:string,event:any,use:any)=>any} */
-    const convert=(arg,position,event,use)=>{
-      arg=normalize(arg);
-      if(position==='arg') return arg;
-      if(position==='expr') {
-        if(arg.body) return arg.body;
-        if(arg.targets) return {choice:arg.targets.map((/** @type {any} */ x)=>convert(x,'expr',event,use))};
-        if(arg.rule || arg.tag || arg.terminal) return {ref:arg.rule??arg.tag??arg.terminal};
-        if('string' in arg || arg.const) return {literal:arg};
-        if(arg.call || arg.splice || arg.test || arg.range || arg.wildcard) return arg;
-      } else if(position==='pattern') {
-        if(arg.rule) return {name:arg.rule,at:use.at};
-        if(arg.tag || arg.terminal) return {terminal:arg.tag??arg.terminal,at:use.at};
-        if(arg.pattern) return arg.pattern;
-        if('string' in arg) return {literal:arg,at:use.at};
-        if(arg.const) return {constant:arg.const,at:use.at};
-        if(arg.test) return {...arg,expr:convert(argumentOfExpression(arg.expr),'pattern',event,use)};
-        if(arg.range || arg.wildcard || arg.call) return {...arg,at:use.at};
-      } else if(position==='target') {
-        if(arg.tag) return {terminal:arg.tag};
-        if(arg.rule || arg.terminal || arg.call) return arg;
-      } else if(position==='term' && !arg.body && !arg.targets && !arg.requirements && !arg.rule && !arg.call && !arg.splice && !arg.test && !arg.range && !arg.wildcard) return arg;
-      fail(event,use,`argument ${canonicalArgument(arg,unicode)} is invalid at @${use.param} in ${position} position`);
-    };
-    /** @type {(root:any,env:Map<string,any>,event:any,position?:string)=>any} */
-    const substitute=(root,env,event,position='term')=>{
-      if(!root || typeof root!=='object') return root;
-      if(Array.isArray(root)) return root.map((/** @type {any} */ x)=>substitute(x,env,event,position));
-      if(root.param) {
-        const converted=convert(env.get(root.param),position,event,root);
-        if(position!=='pattern' || !root.exact && !('children' in root)) return converted;
-        if(['union','intersection','difference','path'].some(key=>key in converted)) fail(event,root,'a compound pattern cannot carry node decorations');
-        const result={...converted};
-        if(root.exact) {
-          if(converted.exact) fail(event,root,'an exact prefix conflicts with an argument prefix');
-          result.exact=true;
-        }
-        if('children' in root) {
-          if(!('name' in converted || 'call' in converted) || 'children' in converted) fail(event,root,'an attached list requires a rule test without children');
-          result.children=substitute(root.children,env,event,'pattern-item');
-        }
-        return result;
-      }
-      /** @type {Record<string,any>} */
-    const result={};
-      for(const key of sourceKeys(root)) {
-        const value=root[key];
-        if(key==='at') {result.at=value;continue;}
-        if(key==='args' && root.call) {result.args=value.map((/** @type {any} */ x)=>substitute(x,env,event,'arg'));continue;}
-        if(key==='args' && root.method) {
-          result.args=[];
-          for(const arg of value) {
-            const replacement=arg.param?env.get(arg.param):null;
-            const query=['followed-by','preceded-by'].includes(root.method);
-            const target=query || ['tags','without-elision-except'].includes(root.method);
-            if(query && replacement?.targets) {
-              for(const target of replacement.targets) result.args.push(convert(target,'target',event,arg));
-            }
-            else if(root.method==='parse') result.args.push({body:substitute(arg.body,env,event,'expr')});
-            else result.args.push(substitute(arg,env,event,target?'target':'term'));
-          }
-          continue;
-        }
-        if(key==='requirements') {
-          result.requirements=[];
-          for(const requirement of value) {
-            const replacement=requirement.value.param?env.get(requirement.value.param):null;
-            if(replacement && Object.keys(replacement).length===1 && 'requirements' in replacement) {
-              if(requirement.negated) fail(event,requirement.value,'a requirement list cannot replace a negated requirement');
-              for(const entry of replacement.requirements) result.requirements.push(entry);
-            } else result.requirements.push({...requirement,value:substitute(requirement.value,env,event,'term')});
-          }
-          continue;
-        }
-        if(key==='optional' && root.elidable) {
-          let head=value.seq?value.seq[0]:value;
-          while(head.test || head.capture) head=head.expr;
-          if(head.param) {
-            const arg=normalize(env.get(head.param));
-            if(!arg.tag || !/^[A-Z]/.test(arg.tag) || Object.keys(arg).length!==1) fail(event,head,'an elidable parameter head requires one bare user tag');
-          }
-        }
-        let next=position;
-        if(['alternatives','conditions','error','warning','emit','tags','value','image','default','requirements','range','literal','concat','union','intersection','difference','left','right','receiver','if','then','not','all','any'].includes(key) && !(position==='pattern' && ['union','intersection','difference'].includes(key))) next='term';
-        if(['seq','choice','ranked','and','optional','repeat','separator','splice'].includes(key) && position!=='pattern') next='expr';
-        if(key==='expr') next=position==='pattern'?'pattern':'expr';
-        if(key==='pattern' || key==='child') next='pattern';
-        if(key==='children' || position==='pattern-item' && ['choice','optional','repeat','separator','splice'].includes(key)) next='pattern-item';
-        result[key]=substitute(value,env,event,next);
-        if(key==='default') {
-          result[key]={...result[key]};
-          copyRecipeLocation(value,result[key]);
-        }
-      }
-      if(position==='pattern' && result.test && result.expr?.exact) {
-        if(result.exact) {let use=root.expr;while(use.expr) use=use.expr;fail(event,use,'an exact prefix conflicts with an argument prefix');}
-        result.exact=true;
-        const {exact,...expr}=result.expr;
-        result.expr=expr;
-      }
-      if(result.concat) result.concat=result.concat.flatMap((/** @type {any} */ x)=>x.concat??[x]);
-      if(result.union) result.union=result.union.flatMap((/** @type {any} */ x)=>x.union??[x]);
-      if((position==='pattern' || patternTerm(result,patterns)) && result.intersection) result.intersection=result.intersection.flatMap((/** @type {any} */ x)=>x.intersection??[x]);
-      copyRankedLocation(root,result);
-      copyRecipeLocation(root,result);
-      copyBoundaryLocation(root,result);
-      copyPatternLocation(root,result);
-      return result;
-    };
-    // ARG preserves its category while parameters nested in another call bind.
-    // Calls in expanded definitions stay structural until the complete queue exists.
-    for(let cursor=0;cursor<queue.length;cursor++) {
-      const instance=queue[cursor],template=templates.get(instance.call.call);
-      const applicable=[...template.events,...instance.locals].sort((a,b)=>a.index-b.index);
-      for(const event of applicable) {
-        const env=new Map((event.rule.params??[]).map((/** @type {string} */ name,/** @type {number} */ i)=>[name,instance.call.args[i]]));
-        const body={...event.rule};delete body.params;delete body.args;delete body.instance;
-        body.name=instance.name??instance.canonical;
-        const templateConditions=(body.conditions??[]).map((/** @type {any} */ condition)=>mentionsParameter(condition)?condition:undefined);
-        const expanded=substitute(body,env,{...event,origin:instance.origin,instance:instance.canonical});
-        const problem=expandedDomProblem({format:documents[0].dom.format,rules:[expanded],directives:[],constants:[],classifiers:[],implications:[]},unicode,true,templateConditions);
-        if(problem) fail({...event,origin:instance.origin,instance:instance.canonical},expanded,`rule ${expanded.name}: ${problem}`);
-        instance.definitions.push({...event,origin:instance.origin,instance:instance.canonical,rule:expanded,templateConditions});
-      }
-      for(const event of retained(instance.definitions)) discover(event.rule,event);
-    }
-    const validationKeys=new Set(instances.keys());
-    /** @type {any[]} */
-    const validationQueue=[];
-    /** @type {typeof intern} */
-    const validateCall=(call,event)=>{
-      const normalized={call:call.call,args:normalize(call.args),at:call.at};
-      const key=JSON.stringify(templateIdentity(normalized));
-      if(!validationKeys.has(key)) {
-        validationKeys.add(key);
-        validationQueue.push({call:normalized,origin:{document:event.path,at:call.at}});
-      }
-    };
-    for(const event of events) if(!event.rule.params && !event.rule.args && !event.rule.instance) discover(event.rule,event,validateCall);
-    for(const instance of queue) for(const event of instance.definitions) discover(event.rule,event,validateCall);
-    /** @type {any[]} */
-    const validationDefinitions=[];
-    for(let cursor=0;cursor<validationQueue.length;cursor++) {
-      const {call,origin}=validationQueue[cursor],name=canonicalArgument(call,unicode);
-      for(const event of templates.get(call.call).events) {
-        const env=new Map(event.rule.params.map((/** @type {string} */ parameter,/** @type {number} */ i)=>[parameter,call.args[i]]));
-        const body={...event.rule,name};delete body.params;
-        const context={...event,origin,instance:name};
-        const templateConditions=(body.conditions??[]).map((/** @type {any} */ condition)=>mentionsParameter(condition)?condition:undefined);
-        const expanded=substitute(body,env,context);
-        const problem=expandedDomProblem({format:documents[0].dom.format,rules:[expanded],directives:[],constants:[],classifiers:[],implications:[]},unicode,true,templateConditions);
-        if(problem) fail(context,expanded,`rule ${expanded.name}: ${problem}`);
-        const definition={...context,rule:expanded,templateConditions};
-        validationDefinitions.push(definition);
-        discover(expanded,definition,validateCall);
-      }
-    }
-    /** @type {(instance:any)=>string} */
-    const effective=(/** @type {any} */ instance)=>instance.name??instance.canonical;
-    /** @type {(root:any,event:any,position?:string)=>any} */
-    const rewrite=(root,event,position='term')=>{
-      if(!root || typeof root!=='object') return root;
-      if(Array.isArray(root)) return root.map((/** @type {any} */ x)=>rewrite(x,event,position));
-      /** @param {string[]} names @param {string} name */
-      const erasedCheck=(names,name)=> {
-        if(position==='pattern' && root.children && !(root.children.length===1 && root.children[0].siblings)) {
-          const at=patternLocations.get(root) ?? root.at ?? event.rule.at;
-          erasureChecks.push({names,name,where:{document:event.path,line:at?.[0],column:at?.[1]}});
-        }
-      };
-      if(root.name && !templates.has(root.name)) erasedCheck([root.name],root.name);
-      if(root.call) {
-        const instance=instances.get(JSON.stringify(templateIdentity(normalize({call:root.call,args:root.args,at:root.at}))));
-        const name=instance?effective(instance):canonicalArgument(root,unicode);
-        erasedCheck([name],name);
-        return position==='pattern'?{name,...(root.exact?{exact:true}:{}),...(root.children?{children:rewrite(root.children,event,'pattern-item')}:{ }),at:root.at}:position==='expr'?{ref:name}:{rule:name};
-      }
-      if(position==='pattern' && root.name && templates.has(root.name)) {
-        const instances=queue.filter((/** @type {any} */ x)=>x.call.call===root.name);
-        erasedCheck(instances.map(effective),root.name);
-        const children=root.children ? rewrite(root.children,event,'pattern-item') : undefined;
-        const members=instances.map((/** @type {any} */ x)=>({...root,name:effective(x),...(children?{children}: {})}));
-        return members.length===1?members[0]:members.length?{union:members}:{difference:[{name:'text',at:root.at,...(root.exact?{exact:true}:{})},{name:'text',at:root.at,...(root.exact?{exact:true}:{})}]};
-      }
-      if(root.ref && templates.has(root.ref) || root.rule && templates.has(root.rule)) fail(event,root,'a bare template reference must name one instance');
-      /** @type {Record<string,any>} */
-    const result={};
-      for(const [key,value] of Object.entries(root)) {
-        let next=position;
-        if(['alternatives','conditions','error','warning','emit','tags','value','image','default','left','right','receiver','range','literal','args'].includes(key)) next='term';
-        if(['seq','choice','ranked','and','optional','repeat','separator','expr','splice','body'].includes(key) && position!=='pattern') next='expr';
-        if(key==='pattern' || key==='child') next='pattern';
-        if(key==='children' || position==='pattern-item' && ['choice','optional','repeat','separator','splice'].includes(key)) next='pattern-item';
-        result[key]=key==='at'?value:rewrite(value,event,next);
-      }
-      copyRankedLocation(root,result);
-      copyRecipeLocation(root,result);
-      copyBoundaryLocation(root,result);
-      copyPatternLocation(root,result);
-      if(position==='pattern' && result.test) return distributeFamilyTest(result);
-      if(position==='pattern') for(const key of ['union','intersection']) if(result[key]) result[key]=result[key].flatMap((/** @type {any} */ part)=>part[key]??[part]);
-      return result;
-    };
-    /** @type {any[]} */
-    const argumentsToCheck=[];
-    /** @param {any} argument @param {any} event */
-    const inspectArgument=(argument,event)=>{
-      const parts=templateNodes(argument),references=parts.filter(n=>n.const || n.constant);
-      if(!references.length) return;
-      const owner={path:event.path,kind:event.kind??0,origin:event.origin,instance:event.instance,inspectionRun:rewrittenDefinitions.get(event)?.inspectionRun??event.inspectionRun,at:event.rule.at,position:references[0].at};
-      const add=(/** @type {any} */ term,tags=false)=>argumentsToCheck.push({...owner,term:rewrite(term,event),tags});
-      const arg=normalize(argument);
-      if(arg.body || arg.splice || arg.test || arg.range || arg.wildcard) {
-        const rule={...(parts.some(n=>n.param)?{params:event.rule.params}:{}),name:extraIndexes.has(event.index)?'text':event.rule.name,op:'define',conditions:[],alternatives:[{gates:[],expr:rewrite(arg.body??arg,event,'expr')}],at:event.rule.at};
-        argumentsToCheck.push({...owner,rule,fragment:true});
-      } else if(arg.requirements) {
-        for(const requirement of arg.requirements) add(requirement.value,true);
-      } else if(!arg.call && !arg.rule && !arg.targets) add(arg);
-    };
-    /** @param {any} event */
-    const inspectArguments=event=>{
-      for(const node of templateNodes(event.rule)) if(node.call || node.name && node.args && node.op) {
-        for(const argument of node.args) inspectArgument(argument,event);
-      }
-    };
-    const validation=[],rewrittenDefinitions=new Map();
-    let nextInspectionRun=documents.length;
-    /** @param {any} event @param {any} [rule] */
-    const rewriteDefinition=(event,rule=event.rule)=>{
-      const rewritten={...event,rule:rewrite(rule,event),inspectionRun:event.origin ? nextInspectionRun++ : event.inspectionRun};
-      validation.push(rewritten);
-      rewrittenDefinitions.set(event,rewritten);
-    };
-    for(const event of events) {
-      if(event.rule.params) {rewrite(event.rule,event);validation.push(event);}
-      else if(!event.rule.args && !event.rule.instance) rewriteDefinition(event);
-    }
-    for(const instance of queue) for(const event of instance.definitions) rewriteDefinition(event,{...event.rule,name:effective(instance)});
-    for(const event of validationDefinitions) rewriteDefinition(event);
-    for(const event of sourceEvents) inspectArguments(event);
-    for(const instance of queue) for(const event of instance.definitions) inspectArguments(event);
-    for(const event of validationDefinitions) inspectArguments(event);
-    for(const event of [...validation,...argumentsToCheck.filter(argument=>argument.rule)]) {
-      if(event.rule.params) continue;
-      const problem=expandedDomProblem({format:documents[0].dom.format,rules:[event.rule],directives:[],constants:[],classifiers:[],implications:[]},unicode,true,event.templateConditions);
-      if(problem) fail(event,event.rule,problem);
-    }
-    const output=[];
-    for(const list of ordinary.values()) for(const event of list) output.push(rewrittenDefinitions.get(event));
-    for(const instance of queue) for(const event of instance.definitions) output.push(rewrittenDefinitions.get(event));
-    const expandedDocs=documents.map((/** @type {any} */ d,inspectionRun)=>({...d,inspectionRun,dom:{...d.dom,rules:[],...Object.fromEntries(['constants','directives','classifiers','implications'].map(key=>[key,d.dom[key].map((/** @type {any} */ item)=>rewrite(item,{path:d.path,rule:item}))]))}}));
-    for(const event of output) expandedDocs.push({path:event.path,inspectionRun:event.inspectionRun,dom:{format:documents[0].dom.format,rules:[event.rule],directives:[],constants:[],classifiers:[],implications:[]}});
-    const parameterRules=output.filter((/** @type {any} */ event)=>event.templateConditions).map((/** @type {any} */ event)=>({path:event.path,inspectionRun:event.inspectionRun,at:event.rule.at,name:event.rule.name,templateConditions:event.templateConditions}));
-    return {documents:expandedDocs,validation,argumentsToCheck,erasureChecks,parameterRules,order:[...slots.filter((/** @type {any} */ n)=>current.has(n)||ordinary.has(n)),...queue.filter((/** @type {any} */ x)=>!x.name).map(effective)],templates:[...templates.values()],instances:queue};
-  }
-
-  /** @param {any} grammar @returns {{templates:any[],instances:any[]}} */
-  function templateAudit(grammar) {
-    const position=(/** @type {any} */ event)=>({document:event.path,line:event.rule.at[0],column:event.rule.at[1]});
-    const positions=new Map([...grammar.rules.keys()].map((name,index)=>[name,index]));
-    const templatesByName=new Map(grammar.templates.map((/** @type {any} */ template)=>[template.name,template]));
-    const ordered=grammar.instances.slice().sort((/** @type {any} */ a,/** @type {any} */ b)=>(positions.get(a.name??a.canonical)??-1)-(positions.get(b.name??b.canonical)??-1));
-    const usedTemplates=new Set(ordered.map((/** @type {any} */ instance)=>instance.call.call));
-    const byName=new Map(ordered.filter((/** @type {any} */ item)=>item.name).map((/** @type {any} */ item)=>[item.name,item]));
-    const aliases=(/** @type {any} */ a,/** @type {any} */ b)=>{
-      /** @type {(a:any,b:any)=>boolean} */
-      const same=(a,b)=>{
-        const an=a?.rule??a?.ref??a?.name,bn=b?.rule??b?.ref??b?.name;
-        const expand=(/** @type {any} */ node,/** @type {any} */ instance)=>({...instance.call,...Object.fromEntries(Object.entries(node).filter(([key])=>!['rule','ref','name'].includes(key)))});
-        if(an && byName.has(an) && b?.call) {
-          if(byName.get(an).key!==JSON.stringify(templateIdentity(normalizeArgument({call:b.call,args:b.args})))) return false;
-          a=expand(a,byName.get(an));
-        }
-        if(bn && byName.has(bn) && a?.call) {
-          if(byName.get(bn).key!==JSON.stringify(templateIdentity(normalizeArgument({call:a.call,args:a.args})))) return false;
-          b=expand(b,byName.get(bn));
-        }
-        if(Array.isArray(a)||Array.isArray(b)) return Array.isArray(a)&&Array.isArray(b)&&a.length===b.length&&a.every((x,i)=>same(x,b[i]));
-        if(!a||!b||typeof a!=='object'||typeof b!=='object') return a===b;
-        const ka=Object.keys(a).filter(k=>k!=='at'),kb=Object.keys(b).filter(k=>k!=='at');
-        return ka.length===kb.length&&ka.every(k=>kb.includes(k)&&same(a[k],b[k]));
-      };
-      return same(a,b);
-    };
-    return {
-      templates:grammar.templates.map((/** @type {any} */ template)=>{
-        const used=new Set();
-        let first=0;
-        template.events.forEach((/** @type {any} */ event,/** @type {number} */ i)=>{if(event.rule.op!=='extend') first=i;});
-        for(const event of template.events.slice(first)) for(const node of templateNodes(event.rule)) if(node.param) used.add(event.rule.params.indexOf(node.param));
-        return {template:template.name,parameters:template.events[0].rule.params.slice(),document:template.path,line:template.at[0],column:template.at[1],notes:[
-          ...template.events[0].rule.params.flatMap((/** @type {string} */ parameter,/** @type {number} */ i)=>used.has(i)?[]:[{kind:'unused-parameter',parameter}]),
-          ...(usedTemplates.has(template.name)?[]:[{kind:'uncalled-template'}])
-        ]};
-      }),
-      instances:ordered.map((/** @type {any} */ instance)=>{
-        const eventIndexes=new Set(templatesByName.get(instance.call.call).events.map((/** @type {any} */ e)=>e.index));
-        const events=instance.definitions.map((/** @type {any} */ event)=>{
-          return {scope:eventIndexes.has(event.index)?'template':'instance',op:event.rule.op,...position(event)};
-        });
-        const twins=ordered.filter((/** @type {any} */ other)=>other!==instance&&other.call.call===instance.call.call&&aliases(other.call.args,instance.call.args)).map((/** @type {any} */ other)=>other.name??other.canonical);
-        return {template:instance.call.call,arguments:templateIdentity(instance.call.args),name:instance.name??instance.canonical,binding:instance.binding??null,firstCall:{document:instance.origin.document,line:instance.origin.at[0],column:instance.origin.at[1]},events,notes:twins.length?[{kind:'argument-alias-twin',instances:twins}]:[]};
-      })
-    };
-  }
-
-  // ---- logical.js
-  // Logical helper boundaries beside physical capture expansions (engine §3.2).
-  /** @import { GrammarSymbol } from "./types.js" */
-  /** @typedef {{from:number,to:number,symbol?:GrammarSymbol,children?:LogicalSymbol[],written?:object}} LogicalSymbol */
-  /** @type {WeakMap<object,LogicalSymbol[]>} */
-  const structures = new WeakMap();
-
-  /** @param {{symbol:GrammarSymbol}[]} sequence @returns {LogicalSymbol[]} */
-  function logicalOf(sequence) {
-    let logical = structures.get(sequence);
-    if (!logical) structures.set(sequence, logical = sequence.map((item,index) => ({from:index,to:index+1,symbol:item.symbol})));
-    return logical;
-  }
-
-  /** @param {LogicalSymbol} node @param {number} offset @returns {LogicalSymbol} */
-  function shifted(node,offset) {
-    return {...node,from:node.from+offset,to:node.to+offset,
-      ...(node.children ? {children:node.children.map(child => shifted(child,offset))} : {})};
-  }
-
-  /** @param {object} sequence @param {LogicalSymbol[]} left @param {LogicalSymbol[]} right @param {number} offset @param {boolean} [owned] */
-  function joinedLogical(sequence,left,right,offset,owned=false) {
-    const suffix = right.map(node => shifted(node,offset));
-    const logical = owned ? left : [...left];
-    for (const node of suffix) logical.push(node);
-    structures.set(sequence,logical);
-  }
-
-  /** @param {{symbol:GrammarSymbol}[]} sequence @param {object} written */
-  function optionalLogical(sequence,written) {
-    const children = logicalOf(sequence);
-    structures.set(sequence,[{from:0,to:sequence.length,children,written}]);
-  }
-
-  /** @param {LogicalSymbol[]} logical @returns {number|null} */
-  function inheritedIndex(logical) {
-    let children = logical;
-    while (children.length === 1) {
-      const node = children[0];
-      if (node.symbol) return node.from;
-      children = node.children ?? [];
-    }
-    return null;
-  }
-
   // ---- ranked-frame.js
 
 
@@ -10627,7 +11065,6 @@
 
 
 
-
   // A stage's grammar: its documents stitched together (engine §2) and
   // lowered to productions for one set of features (engine §3).
 
@@ -10885,8 +11322,7 @@
         this.boundaries = boundaryReachability(this);
         for (const {atom,alternative} of this.boundaries.atoms) for (const target of atom.args) {
           if (!(target.rule ? this.boundaries.all.rules.has(target.rule) : this.boundaries.all.terminals.has(target.terminal))) {
-            const location = boundaryLocations.get(target);
-            const at = location?.at;
+            const at = target.at;
             const error = new GencmuError("grammar",`boundary target ${target.rule ?? target.terminal} is unreachable`,
               {document:alternative.document,...(at ? {line:at[0],column:at[1]} : {})});
             boundaryDocumentErrors.set(error,{document:alternative.document,node:target});
@@ -10902,7 +11338,7 @@
         this.ranked = new RankedGroups(new Map([...this.rules,...this.queryRules]));
         if (this.defaultValues.length) {
           const defaults = new Lowering(this,new Set());
-          for (const [rule,alternative,node] of this.defaultValues) defaults.elidedTerminal(node.optional,{rule,alternative,pending:[]},node.default);
+          for (const [rule,alternative,node] of this.defaultValues) defaults.elidedTerminal(node.optional,{rule,alternative,pending:[]},node.default,node.at);
         }
         if (this.ranked.groups.length) this.ranked.validate();
         // Slot emission checks inspect written carriers before absent ones disappear.
@@ -11011,12 +11447,12 @@
               const steps = /** @type {import("./types.js").RankingStep[]} */ (directive.steps);
               const last = steps[steps.length - 1];
               const lean = last.step === "greedy" || last.step === "lazy" ? last.step : "none";
-              const keySteps = /** @type {import("./types.js").KeyStep[]} */ ((lean === "none" ? steps : steps.slice(0, -1)).map(step=>({...step})));
+              const keySteps = /** @type {import("./types.js").KeyStep[]} */ ((lean === "none" ? steps : steps.slice(0, -1)).map(step=>copyAt(step, {...step})));
               this.resolution = {steps:keySteps, lean, elisionOnly:false};
               this.validationItems.push({run:inspectionRun,at:directive.at,kind:1,check:()=>{
                 for (const step of keySteps) {
                   const source=/** @type {any} */ (step.pattern);
-                  const location=patternLocations.get(source) ?? source.at ?? directive.at;
+                  const location=/** @type {any} */ (step).at ?? source.at ?? directive.at;
                   const resolved=this.evaluateClosed(path,source.const?source:{pattern:source},location,undefined,'pattern');
                   if (!("pattern" in resolved)) throw this.documentError(path,location,"a ranking step requires a pattern");
                   const pattern=resolved.pattern;
@@ -11360,9 +11796,7 @@
         if (Array.isArray(source)) return source.map(copy);
         if (!source || typeof source !== "object" || source instanceof Set) return source;
         const result = Object.fromEntries(Object.entries(source).map(([key,value]) => [key,copy(value)]));
-        copyRankedLocation(source,result);
-        copyRecipeLocation(source,result);
-        copyBoundaryLocation(source,result);
+        copyAt(source,result);
         return result;
       };
       return copy(node);
@@ -11609,19 +12043,19 @@
 
     checkReferences() {
       // A rule named anywhere must be defined: in a body, and in a clause as the
-      // rule of matches, begins or tags (engine §2). The error stands at the
-      // definition that wrote the alternative.
-      /** @type {(name: string, rule: StitchedRule, alternative: StitchedAlternative) => void} */
-      const check = (name, rule, alternative) => {
+      // rule of matches, begins or tags (engine §2).
+      /** @type {(name: string, rule: StitchedRule, alternative: StitchedAlternative, at?: ErrorLocation) => void} */
+      const check = (name, rule, alternative, at = alternative.at) => {
         if (!this.rules.has(name)) {
-          throw new GencmuError("grammar", `${name} is not a rule of stage ${this.stageName}`, alternative.at);
+          throw new GencmuError("grammar", `${name} is not a rule of stage ${this.stageName}`, at);
         }
       };
-      /** @type {(expr: Expr, rule: StitchedRule, alternative: StitchedAlternative) => void} */
-      const visit = (expr, rule, alternative) => {
+      /** @type {(expr: Expr, rule: StitchedRule, alternative: StitchedAlternative, enclosingAt?: ErrorLocation) => void} */
+      const visit = (expr, rule, alternative, enclosingAt = alternative.at) => {
+        const curAt = expr.at ? { ...alternative.at, line: expr.at[0], column: expr.at[1] } : enclosingAt;
         if ("default" in expr) this.defaultValues.push([rule,alternative,expr]);
-        if ("ref" in expr && !isTerminalName(expr.ref)) check(expr.ref, rule, alternative);
-        for (const child of expressionChildren(expr)) visit(child, rule, alternative);
+        if ("ref" in expr && !isTerminalName(expr.ref)) check(expr.ref, rule, alternative, curAt);
+        for (const child of expressionChildren(expr)) visit(child, rule, alternative, curAt);
       };
       // The stage's classifiers by name, rather than a scan of them for each
       // classifier a clause names.
@@ -11668,7 +12102,7 @@
         if (pattern?.name) {
           if(collect)prohibited.add(pattern.name);
           if(!this.erasureChecks && erased.has(pattern.name) && pattern.children && !(pattern.children.length===1 && pattern.children[0].siblings)) {
-            const at=patternLocations.get(pattern) ?? pattern.at;
+            const at=pattern.at;
             throw new GencmuError("grammar",`a pattern of erased rule ${pattern.name} permits only the child list ⁅ ⋯ ⁆`,{...where,...(at ? {line:at[0],column:at[1]} : {})});
           }
         }
@@ -11692,7 +12126,7 @@
         while(pending.length) {
           const node=pending.pop();
           if (!node || typeof node!=="object" || node instanceof Set) continue;
-          if (node.splice) splices.push({name:node.splice.ref,alternative});
+          if (node.splice) splices.push({name:node.splice.ref,alternative,at:node.at ?? node.splice.at});
           if (node.pattern) names(node.pattern,alternative.at);
           if (BOUNDARY_METHODS.has(node.method)) for (const target of node.args) if(target.rule) prohibited.add(target.rule);
           for(const child of Object.values(node)) if(child && typeof child==="object") pending.push(child);
@@ -11702,7 +12136,7 @@
         for (const code of alternative.clauses.suppressWarnings ?? []) if(code!=="_" && !warnings.has(code)) throw new GencmuError("grammar",`suppression code ${code} is not a warning of stage ${this.stageName}`,alternative.at);
       }
       delete this.erasureChecks;
-      for (const {name,alternative} of splices) if (prohibited.has(name)) throw new GencmuError("grammar",`a splice of ${name} conflicts with a pattern or neighbour target`,alternative.at);
+      for (const {name,alternative,at} of splices) if (prohibited.has(name)) throw new GencmuError("grammar",`a splice of ${name} conflicts with a pattern or neighbour target`,at ? {...alternative.at,line:at[0],column:at[1]} : alternative.at);
     }
 
     /**
@@ -11908,16 +12342,13 @@
     if (typeof record.const === "string") {
       /** @type {ConstantTerm} */
       const reference = { const: record.const, at: /** @type {[number, number]} */ (record.at), value: /** @type {StageConstant} */ (constants.get(record.const)).value };
-      copyRankedLocation(record,reference);
-      copyRecipeLocation(record,reference);
+      copyAt(record,reference);
       return reference;
     }
     /** @type {Record<string, unknown>} */
     const copy = {};
     for (const [key, value] of Object.entries(record)) copy[key] = resolveNode(value, constants);
-    copyRankedLocation(record,copy);
-    copyRecipeLocation(record,copy);
-    copyBoundaryLocation(record,copy);
+    copyAt(record,copy);
     return copy;
   }
 
@@ -12058,7 +12489,7 @@
         const cycle=treeIdentityCycle(this);
         if(cycle) {
           const source=cycle.production.logicalSource ?? cycle.production.source;
-          const location=boundaryLocations.get(cycle.comparison)?.at;
+          const location=cycle.comparison.at;
           const at={...source.at,...(location ? {line:location[0],column:location[1]} : {})};
           const error = loweringError(at,`tree comparison demands a cycle ${cycle.cycle.join(" → ")} that can repeat a demanded rule over one span`);
           if (!location) boundaryDocumentErrors.set(error,{document:source.document,node:cycle.comparison});
@@ -12468,7 +12899,7 @@
       if ("optional" in expr) {
         const inner = expr.optional;
         if (expr.elidable && "capture" in inner) {
-          const elided=this.elidedTerminal(inner.expr,where,expr.default);
+          const elided=this.elidedTerminal(inner.expr,where,expr.default,expr.at);
           this.helperExpression=expr;
           const name=this.helper(where,context=>[[],...this.expand(inner,context)],elided);
           return [
@@ -12496,7 +12927,7 @@
         // Any other optional is a helper, and a marked one is elidable, with
         // the terminal that its marker names
         // (engine §3.8).
-        const elided = expr.elidable === true ? this.elidedTerminal(inner, where, expr.default) : null;
+        const elided = expr.elidable === true ? this.elidedTerminal(inner, where, expr.default, expr.at) : null;
         this.helperExpression = expr;
         const name = this.helper(where, (context) => [/** @type {SequenceItem[]} */ ([]), ...this.expand(inner, context)], elided);
         return [[{ symbol: { name, terminal: false } }]];
@@ -12587,22 +13018,23 @@
      * @param {Expr} expr
      * @param {Where} where
      * @param {import("./types.js").Term} [defaultValue]
+     * @param {[number, number]} [optionalAt]
      * @returns {{terminal: string, test: SymbolTest | null, value?:string}}
      */
-    elidedTerminal(expr, where, defaultValue) {
+    elidedTerminal(expr, where, defaultValue, optionalAt) {
       const first = "capture" in expr ? expr.expr : "seq" in expr ? expr.seq[0] : expr;
       const tested = "test" in first ? first : null;
       const name = tagName(tested ? tested.expr : first);
       if (name === undefined) throw loweringError(where.alternative.at, `an elidable optional in ${where.rule.name} does not begin with its terminator`);
       const test = tested ? this.grammar.symbolTest(tested, where.rule.document, where.rule.at) : null;
-      const resolved = defaultValue === undefined ? undefined : this.grammar.evaluateClosed(where.rule.document, defaultValue, recipeLocations.get(defaultValue) ?? [0,0]);
+      const resolved = defaultValue === undefined ? undefined : this.grammar.evaluateClosed(where.rule.document, defaultValue, /** @type {any} */ (defaultValue).at ?? optionalAt ?? [0,0]);
       if (resolved !== undefined && !("string" in resolved)) throw loweringError(where.rule.at, "a default requires one string");
       const value = resolved && "string" in resolved ? resolved.string : test?.op === "=" ? test.value : undefined;
       if (defaultValue !== undefined) {
         /** @type {(t:SymbolTest|null)=>boolean} */
         const holds = (t) => !t || (!t.inner || holds(t.inner)) && (t.op === "tags" ? [...t.positive ?? []].every(tag => tag === name) && !t.negative?.has(name) : (value === t.value) === (t.op === "="));
         if (!holds(test)) {
-          const at = recipeLocations.get(defaultValue);
+          const at = /** @type {any} */ (defaultValue).defaultAt ?? /** @type {any} */ (defaultValue).at ?? optionalAt;
           throw new GencmuError("grammar", "a default fails its head test", {document:where.rule.document,...(at ? {line:at[0],column:at[1]} : {})});
         }
       }
@@ -21884,13 +22316,7 @@
 
   // ---- reader.js
 
-
-
-
   // From the notation's syntax tree to a grammar DOM (engine §9).
-
-
-
 
 
 
@@ -21919,32 +22345,7 @@
    * @returns {GrammarDom}
    */
   function treeToDom(tree, tokens, positionOf, path, unicode, decodeString, deferEmission = false) {
-    /** @type {WeakMap<object, boolean>} */
-    const unresolvedTerms = new WeakMap();
-    const allowedMarkedCaptures = new WeakSet();
-    /** @param {any} root @returns {boolean} */
-    function hasUnresolved(root) {
-      if (!root || typeof root !== "object") return false;
-      /** @type {[any, boolean][]} */
-      const pending = [[root, false]];
-      while (pending.length) {
-        const [node, complete] = /** @type {[any, boolean]} */ (pending.pop());
-        if (unresolvedTerms.has(node)) continue;
-        const children = Object.values(node).filter(value => value && typeof value === "object");
-        if (complete) {
-          unresolvedTerms.set(node, children.some(child => unresolvedTerms.get(child)));
-        } else {
-          if (hooks.work) countWork(hooks.work, "walkSteps");
-          if (node.param || node.call || node.params || node.instance || node.args && node.name && node.op) {
-            unresolvedTerms.set(node, true);
-            continue;
-          }
-          pending.push([node, true]);
-          for (const child of children) if (!unresolvedTerms.has(child)) pending.push([child, false]);
-        }
-      }
-      return unresolvedTerms.get(root) === true;
-    }
+    void deferEmission;
     /** @type {(node: ResultNode) => Position} */
     const at = (node) => {
       const index = firstToken(node);
@@ -22071,37 +22472,13 @@
     const classifiers = [];
     /** @type {DomImplication[]} */
     const implications = [];
-    // What the reader is reading as a closed term, a constant's value or a
-    // test's operand, or null (engine §9, §10).
-    /** @type {string | null} */
-    let closedFor = null;
-    // The notation node of each capture of the alternative being read, where
-    // an error about it is reported.
-    /** @type {Map<object, ResultNode>} */
-    let captureNodes = new Map();
-    // The braces and elidable optionals the reader is inside. A chain and an
-    // elidable optional hold no capture, and flat braces hold item captures,
-    // outside a ranked group (engine §3.5, §9).
-    /** @type {{chain: boolean, ranked: number}[]} the braces around the construct being read, innermost last, with the ranked groups open inside each */
-    const braces = [];
-    let marked = 0;
     let recipeContext = false;
     /** @type {RuleNode|undefined} */
     let defaultHead;
     /** @type {Term|undefined} */
     let headDefault;
-    let featureContext = false;
-    let readingHead=false;
-    /** @type {Set<string>} */
-    let parameterScope=new Set();
-    const tagSources = new Map();
-    let statementSeen = false;
     for (const item of parts(tree)) {
-      parameterScope = new Set();
       if (item.kind === "rule" && !ITEMS.has(item.rule)) fail(`the notation gives a ${item.rule} where an item stands`, item);
-      const namesDirective = ruleOf(item) === "directive" && valueOf(token(item)) === "%names";
-      if (namesDirective && statementSeen) fail("%names must precede every other statement", item);
-      if (!namesDirective) statementSeen = true;
       if (ruleOf(item) === "ranking-directive") {
         const nodes = some(item, "ranking-step");
         const steps = [];
@@ -22113,7 +22490,7 @@
           }
           if (operand) {
             const value = run(readTerm(operand));
-            steps.push({step:name, pattern:"pattern" in value ? value.pattern : value});
+            steps.push(hideAt({step:name, pattern:"pattern" in value ? value.pattern : value}, at(operand)));
           } else steps.push({step:name});
         }
         directives.push(/** @type {import("./types.js").DomDirective} */ ({ name: "ambiguity-resolution", steps, at: at(item) }));
@@ -22127,27 +22504,8 @@
             const part = /** @type {import("./types.js").TokenNode} */ (token(child));
             return decodeString(tokens[part.token], true);
           });
-        if (["stage", "extend-stage", "redefine-stage"].includes(name) && !CLASSIFIER_NAME.test(args[0])) {
-          fail(`%${name} takes one lowercase name`, item);
-        }
-        if (name === "features" && args.some(arg => !/^[A-Za-z][A-Za-z0-9-]*$/.test(arg))) {
-          fail("%features takes feature names", item);
-        }
         const clause = one(item, "conditions-clause");
-        if (clause && name !== "features") fail("only %features accepts conditions", item);
-        let conditions;
-        featureContext = name === "features";
-        try {
-          conditions = clause ? some(clause, "condition").map(condition => run(readImplication(condition))) : undefined;
-        } catch (error) {
-          if (!featureContext || !(error instanceof GencmuError)) throw error;
-          const [line,column] = at(item);
-          const prefix = [error.where.document, error.where.line, error.where.column].filter(part => part !== undefined).join(":") + ": ";
-          const message = error.message.startsWith(prefix) ? error.message.slice(prefix.length) : error.message;
-          throw new GencmuError("grammar",message,{document:path,line,column});
-        } finally {
-          featureContext = false;
-        }
+        const conditions = clause ? some(clause, "condition").map(condition => run(readImplication(condition))) : undefined;
         directives.push({
           name,
           args,
@@ -22177,8 +22535,7 @@
     function readClassifier(node) {
       const nameNode = only(node, "classifier-name");
       const name = valueOf(token(nameNode));
-      if (!CLASSIFIER_NAME.test(name)) fail(`${name} begins with a capital, so it is a tag; a classifier's name begins with a lower-case letter`, nameNode);
-      return { name, entries: ofRule(node, "classifier-entry").map(readEntry), at: at(node) };
+      return hideAt({ name, entries: ofRule(node, "classifier-entry").map(readEntry), at: at(node) }, at(nameNode), "nameAt");
     }
 
     /**
@@ -22188,20 +22545,12 @@
      * @returns {DomEntry}
      */
     function readEntry(node) {
-      const gates = ofRule(node, "feature-gate").map((gate) => {
-        const read = readGate(gate);
-        return read;
-      });
-      const keys = some(node, "classifier-key").map((keyNode) => {
-        const key = run(readTerm(knownOf(keyNode, new Set(["string", "constant-reference"]))));
-
-        return key;
-      });
+      const gates = ofRule(node, "feature-gate").map(readGate);
+      const keys = some(node, "classifier-key").map((keyNode) => run(readTerm(knownOf(keyNode, new Set(["string", "constant-reference"])))));
       const op = /** @type {"∈" | "∉"} */ (operator(token(only(node, "classifier-operator"))));
       const classNode = only(node, "classifier-class");
       const name = valueOf(token(classNode));
-      if (!/^[A-Z](?:[A-Za-z0-9_-]*[A-Z])?$/.test(name)) fail(`${name} is not a class: a class starts and ends with a capital`, classNode);
-      return { gates, keys, op, class: name, at: at(node) };
+      return hideAt({ gates, keys, op, class: name, at: at(node) }, at(classNode), "classAt");
     }
 
     /**
@@ -22214,12 +22563,8 @@
       /** @type {Term[]} */
       const sides = [];
       for (const side of some(node, "union", 2).slice(0, 2)) {
-        closedFor = "a side of an implication";
-        const term = /** @type {Term} */ (yield readTerm(side));
-        closedFor = null;
-        const found = termType(term);
-        const problem = "problem" in found ? found.problem : expectedProblem(found.type, "tags");
-        if (problem) fail(`a side of an implication is a tag set: ${problem}`, side);
+        const term = yield readTerm(side);
+        if (term && typeof term === "object" && !Object.prototype.propertyIsEnumerable.call(term, "at")) hideAt(term, at(side));
         sides.push(term);
       }
       return { if: sides[0], then: sides[1], at: at(node) };
@@ -22233,16 +22578,12 @@
      */
     function* readConstant(node) {
       const keyword = valueOf(token(only(node, "constant-keyword")));
-      const name = valueOf(token(only(node, "constant-name"))).slice(1);
-      if (!/^(?!.*--)[A-Z][A-Za-z0-9_-]*$/.test(name)) fail("a constant requires a user name", only(node, "constant-name"));
+      const nameNode = only(node, "constant-name");
+      const name = valueOf(token(nameNode)).slice(1);
       const valueNode = only(node, "term");
-      closedFor = "a constant's value";
       const value = /** @type {Term} */ (yield readTerm(valueNode));
-      closedFor = null;
       const op = keyword === "%redefine-const" ? "redefine" : "define";
-      const found = constantValueType(value, op === "redefine");
-      if ("problem" in found) fail(found.problem, valueNode);
-      return { name, op, value, at: at(node) };
+      return hideAt({ name, op, value, at: at(node) }, at(nameNode), "nameAt");
     }
 
     /**
@@ -22251,37 +22592,24 @@
      */
     function* readRule(node) {
       const keyword = valueOf(token(only(node, "rule-keyword")));
-      parameterScope=new Set();
-      readingHead=true;
-      const headCall = one(node,"rule-name") ? undefined : one(node, "call");
+      const headCall = one(node, "rule-name") ? undefined : one(node, "call");
       const head = headCall ? yield readCall(headCall) : null;
-      readingHead=false;
-      if (head && headCall) {
-        if (head.args.every((/** @type {any} */ arg) => arg.param)) {
-          for (let index = 0; index < head.args.length; index++) {
-            const name = head.args[index].param;
-            if (parameterScope.has(name)) failAt(`duplicate parameter @${name}`, head.args[index].at);
-            parameterScope.add(name);
-          }
-        } else {
-          /** @type {ResultNode[]} */
-          const pending = [headCall];
-          while (pending.length) {
-            const part = /** @type {ResultNode} */ (pending.pop());
-            if (ruleOf(part) === "parameter") fail("a head cannot mix parameters and concrete arguments", headCall);
-            for (const child of parts(part)) pending.push(child);
-          }
-          if (keyword === "%rule") fail("an instance head requires an edit", headCall);
-        }
-      }
       const nameToken = headCall ? token(headCall) : token(only(node, "rule-name"));
+      const allParams = head && head.args.every((/** @type {any} */ arg) => arg.param);
       /** @type {any} */
-      const rule = { name: head ? head.call : valueOf(nameToken), ...(head ? head.args.every((/** @type {any} */ arg) => arg.param) ? {params:head.args.map((/** @type {any} */ arg) => arg.param)} : {args:head.args} : {}), op: keyword === "%extend-rule" ? "extend" : keyword === "%redefine-rule" ? "redefine" : "define" };
-      if (!unicode.isEmojiName?.(rule.name || "") && !/^(?!.*--)[a-z][A-Za-z0-9_-]*$/.test(rule.name || "")) fail("a rule name starts with a lowercase letter or uses one eligible emoji", nameToken);
+      const rule = {
+        name: head ? head.call : valueOf(nameToken),
+        ...(head ? (allParams ? { params: head.args.map((/** @type {any} */ arg) => arg.param) } : { args: head.args }) : {}),
+        op: keyword === "%extend-rule" ? "extend" : keyword === "%redefine-rule" ? "redefine" : "define",
+      };
+      hideAt(rule, at(nameToken), "nameAt");
+      if (allParams) hideAt(rule, head.args.map((/** @type {any} */ arg) => arg.at), "paramAts");
       if (parts(node).some(child => tokenValue(child) === "=")) {
-        if (head) fail("a binding requires a plain rule name", node);
-        const instance = yield readCall(only(node,"call"));
-        return {...rule, instance, conditions:[], at:at(node)};
+        const instance = yield readCall(only(node, "call"));
+        const bound = { ...rule, instance, conditions: [], at: at(node) };
+        hideAt(bound, at(nameToken), "nameAt");
+        if (head) hideAt(bound, /** @type {any} */ (true), "hasHead");
+        return bound;
       }
       const tagsClause = one(node, "header-tags");
       const tags = tagsClause ? /** @type {Term} */ (yield readConstituentTags(tagsClause)) : undefined;
@@ -22303,14 +22631,14 @@
         const diagnostic = one(node, `${kind}-clause`);
         if (diagnostic) {
           const recipe = yield readRecipe(only(diagnostic, "recipe"));
-          if (recipe.concat.some((/** @type {any} */ atom) => atom.receiver?.method === "emitted")) fail("a message recipe cannot read .emitted", diagnostic);
+          hideAt(recipe, at(diagnostic), "clauseAt");
           rule[kind] = recipe;
         }
       }
       const suppression = one(node, "suppress-warnings-clause");
       if (suppression) {
         rule.suppressWarnings = parts(suppression).some(child => tokenValue(child) === "_") ? ["_"]
-          : some(suppression,"suppression-code").map(code => valueOf(token(code)));
+          : some(suppression, "suppression-code").map(code => valueOf(token(code)));
       }
       const emits = one(node, "emits-clause");
       const emit = emits ? /** @type {Emission} */ (yield readEmission(emits)) : undefined;
@@ -22322,52 +22650,48 @@
       if (one(node, "erased-clause")) rule.erased = true;
       rule.at = at(node);
       flattenGroups(rule);
-      const boundaryFault = boundaryProblem(rule);
-      if (boundaryFault) fail(boundaryFault.problem, boundaryLocations.get(boundaryFault.node)?.tree ?? node);
-      const problem = definitionProblem(rule, deferEmission);
-      if (problem) fail(problem, node);
       return /** @type {DomRule} */ (rule);
     }
 
     /** @param {ResultNode} node @returns {any} */
     function readParameter(node) {
-      const param=valueOf(token(node)).slice(1);
-      if(!readingHead && !parameterScope.has(param)) fail(`undeclared parameter @${param}`,node);
-      return {param,at:at(node)};
+      const param = valueOf(token(node)).slice(1);
+      return { param, at: at(node) };
     }
 
     /** @param {ResultNode} node @returns {Generator<Step, any, any>} */
     function* readCall(node) {
       const name = valueOf(token(node));
       const args = [];
-      for (const argument of some(node,"call-argument")) {
-        const part = knownOf(argument,new Set(["requirement-argument","target-argument","body-argument","symbol-argument","term"]));
+      for (const argument of some(node, "call-argument")) {
+        const part = knownOf(argument, new Set(["requirement-argument", "target-argument", "body-argument", "symbol-argument", "term"]));
         let value;
         if (ruleOf(part) === "requirement-argument") {
-          value = {requirements:(yield readTest({...part,rule:"tag-test"})).requirements};
+          value = { requirements: (yield readTest({ ...part, rule: "tag-test" })).requirements };
         } else if (ruleOf(part) === "target-argument") {
           const targets = [];
           for (const target of parts(part).filter(child => child.kind === "rule")) {
-            if (ruleOf(target) === "rule-reference") targets.push({rule:valueOf(token(target))});
-            else if (ruleOf(target) === "tag") targets.push({terminal:tagOf(token(target))});
+            if (ruleOf(target) === "rule-reference") targets.push(hideAt({ rule: valueOf(token(target)) }, at(target)));
+            else if (ruleOf(target) === "tag") targets.push(hideAt({ terminal: tagOf(token(target)) }, at(target)));
             else targets.push(ruleOf(target) === "call" ? yield readCall(target) : readParameter(target));
           }
-          value={targets};
-        } else if (["body-argument","symbol-argument"].includes(ruleOf(part))) {
-          const expr=yield readPrimary(knownOf(part,PRIMARIES),true);
-          value=argumentOfExpression(expr);
-        } else value=yield readTerm(part,true);
+          value = { targets };
+        } else if (["body-argument", "symbol-argument"].includes(ruleOf(part))) {
+          const expr = yield readPrimary(knownOf(part, PRIMARIES), true);
+          value = argumentOfExpression(expr);
+        } else value = yield readTerm(part, true);
+        if (value && typeof value === "object" && !value.at) hideAt(value, at(argument));
         args.push(value);
       }
-      return {call:name,args,at:at(node)};
+      return { call: name, args, at: at(node) };
     }
 
     /** @param {ResultNode} node @returns {import("./types.js").Gate} */
     function readGate(node) {
       const spelled = valueOf(token(node));
-      const found = /^(¬?)(?!.*--)([A-Za-z][A-Za-z0-9-]*)(\?)$/.exec(spelled);
-      if (!found) fail("invalid feature guard", node);
-      return { feature: found[2], kind: "gate", negated: found[1] === "¬" };
+      const found = /^(¬?)(.*?)([?!]?)$/.exec(spelled);
+      const suffix = found?.[3] ?? "";
+      return hideAt({ feature: found ? found[2] : spelled, kind: /** @type {"gate"} */ (suffix === "?" ? "gate" : (suffix || "invalid")), negated: found?.[1] === "¬" }, at(node));
     }
 
     /**
@@ -22376,35 +22700,12 @@
      */
     function* readAlternative(node) {
       const gates = ofRule(node, "feature-gate").map(readGate);
-      captureNodes = new Map();
       /** @type {DomAlternative} */
       const alternative = { gates, expr: /** @type {Expr} */ (yield readExpression(only(node, ruleOf(node) === "ranked-body" ? "ranked-choice" : "some-of"), true)) };
-      // A name stands at most once in each production, gates aside: the
-      // error stands at the second capture that such a production reads,
-      // the first in the text where there are several (engine §3.5, §9).
-      const twice = duplicateCaptures(alternative.expr).map((capture) => /** @type {ResultNode} */ (captureNodes.get(capture)));
-      if (twice.length > 0) {
-        const first = twice.reduce((a, b) => (firstToken(b) < firstToken(a) ? b : a));
-        fail(`the capture $${valueOf(token(first)).slice(1)} is read twice by one production of the alternative`, first);
-      }
-      // The name of an item capture stands nowhere else in the alternative
-      // (engine §3.5, §9): the error stands at the later capture in the text.
-      const items = itemCaptures(alternative.expr);
-      if (items.size > 0) {
-        /** @type {Map<string, ResultNode>} */
-        const seen = new Map();
-        for (const capture of allCaptures(alternative.expr)) {
-          const name = capture.capture;
-          const at = /** @type {ResultNode} */ (captureNodes.get(capture));
-          const earlier = seen.get(name);
-          if (earlier && items.has(name)) fail(`the item capture $${name} is read again: the name of an item capture stands once in its alternative`, firstToken(earlier) < firstToken(at) ? at : earlier);
-          if (!earlier) seen.set(name, at);
-        }
-      }
       const tags = one(node, "alternative-tags");
       if (tags) alternative.tags = yield readConstituentTags(tags);
       Object.assign(alternative, yield readChannels(node));
-      return alternative;
+      return hideAt(alternative, at(node));
     }
 
     /**
@@ -22422,37 +22723,29 @@
           /** @type {Expr[]} */
           const items = [];
           for (const item of found) items.push(yield readExpression(item));
-          return items.length === 1 ? items[0] : { choice: items };
+          return items.length === 1 ? items[0] : { choice: items, at: at(node) };
         }
         case "ranked-choice": {
           const found = some(node, "some-of", 2);
           /** @type {Expr[]} */
           const items = [];
-          const enclosing = braces[braces.length - 1];
-          if (enclosing) enclosing.ranked++;
           for (const item of found) items.push(yield readExpression(item));
-          if (enclosing) enclosing.ranked--;
-          const expr = {ranked:items};
           const separator = parts(node).find(child => child.kind === "token" && valueOf(child) === "≻");
-          if (separator) rankedLocations.set(expr,at(separator));
-          return expr;
+          return { ranked: items, at: at(separator ?? node) };
         }
         case "some-of": {
           const found = some(node, "sequence");
-          // A & of n items expands to 2ⁿ−1 sequences (engine §3.2). The
-          // bound is the &'s own form, so it comes before its items (§9).
-          if (found.length > 16) fail("an & joins at most 16 items", node);
           /** @type {Expr[]} */
           const items = [];
           for (const item of found) items.push(yield readExpression(item, whole && found.length === 1));
-          return items.length === 1 ? items[0] : { and: items };
+          return items.length === 1 ? items[0] : { and: items, at: at(node) };
         }
         case "sequence": {
           const found = some(node, "primary");
           /** @type {Expr[]} */
           const items = [];
           for (const item of found) items.push(yield readPrimary(knownOf(item, PRIMARIES), whole && found.length === 1));
-          return items.length === 1 ? items[0] : { seq: items };
+          return items.length === 1 ? items[0] : { seq: items, at: at(node) };
         }
         default:
           return fail(`unexpected ${ruleOf(node)}`, node);
@@ -22461,98 +22754,51 @@
 
     /**
      * An optional, and with a marker `+` among its parts an elidable
-     * one (engine §3.8, §9). Its form is checked on the tree, where a group
-     * is still a node: one sequence, whose first primary is the terminal
-     * itself, with or without symbol tests.
+     * one (engine §3.8, §9).
      * @param {RuleNode} node
      * @returns {Generator<Step, Expr, any>}
      */
     function* readOptional(node) {
-      const captured = one(node,"captured-terminator");
-      if (captured) return yield readCapturedOptional(node,captured);
+      const captured = one(node, "captured-terminator");
+      if (captured) return yield readCapturedOptional(node, captured);
       // Its required part first, then its markers (engine §9).
       const choice = only(node, "choice");
       const found = parts(node);
       const markers = found.filter((child) => tokenValue(child) === "+");
       if (markers.length >= 2) fail("an optional has one marker + at most", markers[1]);
-      if (markers.length === 0) return { optional: yield readExpression(choice) };
-      const form = "an elidable optional begins with a user tag or parameter directly after +, without | or &";
-      // One conjunction of one sequence, with no leading | or & either: the
-      // terminator stands directly after the marker (engine §9).
+      if (markers.length === 0) return { optional: yield readExpression(choice), at: at(node) };
       const conjunctions = ofRule(choice, "some-of");
       const leading = parts(choice).some((child) => tokenValue(child) === "|") ||
         (conjunctions.length === 1 && parts(conjunctions[0]).some((child) => tokenValue(child) === "&"));
       const sequences = conjunctions.length === 1 && !leading ? ofRule(conjunctions[0], "sequence") : [];
       const primary = sequences.length === 1 ? ofRule(sequences[0], "primary")[0] : undefined;
       const head = primary ? knownOf(primary, PRIMARIES) : undefined;
-      /** @type {(symbol: RuleNode) => boolean} */
-      const isTerminal = (symbol) => ruleOf(symbol) === "parameter" || ["tag", "rule-reference"].includes(ruleOf(symbol)) && /^[A-Z]/.test(valueOf(token(symbol)));
-      if (!head) fail(form, node);
-      const symbol = /** @type {RuleNode} */ (head);
-      if (ruleOf(symbol) === "tested-primary") {
-        const base = testBase(symbol);
-        if (!base || !isTerminal(/** @type {RuleNode} */ (base))) fail(form, node);
-
-      } else if (!isTerminal(symbol)) {
-        fail(form, node);
-      }
       const previousHead = defaultHead;
       const previousDefault = headDefault;
-      defaultHead = symbol;
+      defaultHead = head;
       headDefault = undefined;
-      marked++;
       const expr = /** @type {Expr} */ (yield readExpression(choice));
-      marked--;
-      const selectedDefault = /** @type {Term|undefined} */ (headDefault);
-      if (selectedDefault && "string" in selectedDefault) {
-        let head = "seq" in expr ? expr.seq[0] : expr;
-        while ("test" in head) {
-          if (head.test !== "tags" && "string" in head.value && (selectedDefault.string === head.value.string) !== (head.test === "=")) {
-            const position = recipeLocations.get(selectedDefault);
-            throw new GencmuError("grammar", "a default fails its head test", {document:path,line:position?.[0],column:position?.[1]});
-          }
-          head = head.expr;
-        }
-      }
-      const result = { optional: expr, elidable: /** @type {true} */ (true), ...(headDefault === undefined ? {} : {default:headDefault}) };
+      if (leading || "capture" in expr) hideAt(expr, /** @type {any} */ (true), "grouped");
+      const result = { optional: expr, elidable: /** @type {true} */ (true), ...(headDefault === undefined ? {} : { default: headDefault }), at: at(node) };
       defaultHead = previousHead;
       headDefault = previousDefault;
       return result;
     }
 
     /** @param {ResultNode} optional @param {ResultNode} node @returns {Generator<Step,Expr,any>} */
-    function* readCapturedOptional(optional,node) {
-      const markers=[...parts(optional),...parts(node)].filter(child=>tokenValue(child)==="+").sort((a,b)=>firstToken(a)-firstToken(b));
-      if (markers.length>1) fail("an optional has one marker + at most",markers[1]);
-      if (!markers.length || one(optional,"choice")) fail("a captured elidable optional holds only its terminator",optional);
-      const primary = only(node,"primary");
-      const head = knownOf(primary,PRIMARIES);
-      const base = ruleOf(head) === "tested-primary" ? testBase(head) : head;
-      if (!base || !(ruleOf(base) === "parameter" || ruleOf(base) === "tag" && /^[A-Z]/.test(valueOf(token(base))))) {
-        fail("a captured elidable optional holds only its terminator",optional);
-      }
-      const previousHead=defaultHead, previousDefault=headDefault;
-      defaultHead=head;
-      headDefault=undefined;
-      allowedMarkedCaptures.add(node);
-      marked++;
-      const expr=yield readPrimary(node);
-      marked--;
-      allowedMarkedCaptures.delete(node);
-      const selectedDefault = /** @type {Term|undefined} */ (headDefault);
-      if (selectedDefault && "string" in selectedDefault) {
-        let tested="capture" in expr?expr.expr:expr;
-        while("test" in tested) {
-          if (tested.test!=="tags" && "string" in tested.value && (selectedDefault.string===tested.value.string)!==(tested.test==="=")) {
-            const position=recipeLocations.get(selectedDefault);
-            throw new GencmuError("grammar","a default fails its head test",{document:path,line:position?.[0],column:position?.[1]});
-          }
-          tested=tested.expr;
-        }
-      }
-      const result={optional:expr,elidable:/** @type {true} */ (true),...(headDefault===undefined?{}:{default:headDefault})};
-      defaultHead=previousHead;
-      headDefault=previousDefault;
+    function* readCapturedOptional(optional, node) {
+      const markers = [...parts(optional), ...parts(node)].filter(child => tokenValue(child) === "+").sort((a, b) => firstToken(a) - firstToken(b));
+      if (markers.length > 1) fail("an optional has one marker + at most", markers[1]);
+      if (!markers.length || one(optional, "choice")) fail("a captured elidable optional holds only its terminator", optional);
+      const primary = only(node, "primary");
+      const head = knownOf(primary, PRIMARIES);
+      const previousHead = defaultHead, previousDefault = headDefault;
+      defaultHead = head;
+      headDefault = undefined;
+      const expr = yield readPrimary(node);
+      const result = { optional: expr, elidable: /** @type {true} */ (true), ...(headDefault === undefined ? {} : { default: headDefault }), at: at(optional) };
+      defaultHead = previousHead;
+      headDefault = previousDefault;
       return result;
     }
 
@@ -22560,11 +22806,9 @@
      * Braces: the item, its separator if a `/` has one, and a chain's
      * direction from its marker, a `...` among the parts (engine §9).
      * @param {RuleNode} node
-     * @param {boolean} whole whether the braces are their alternative's whole
-     *   expression
      * @returns {Generator<Step, Expr, any>}
      */
-    function* readRepetition(node, whole) {
+    function* readRepetition(node) {
       const found = parts(node);
       const choices = some(node, "choice");
       const markers = found.flatMap((child, index) => (tokenValue(child) === "..." ? [index] : []));
@@ -22574,14 +22818,9 @@
       const second = choices.length >= 2 ? found.indexOf(choices[1]) : found.length;
       if (markers.length === 1 && markers[0] > second) fail("a separator has no chain marker: ... stands after { or after the item", found[markers[0]]);
       const chain = markers.length === 0 ? null : markers[0] < found.indexOf(choices[0]) ? "left" : "right";
-      // A chain is the whole expression of its alternative, as the lowering
-      // of its levels needs (engine §3.3, §9).
-      if (chain && !whole) fail("a chain is the whole expression of its alternative: name it as a rule to use it here", node);
-      braces.push({ chain: chain !== null, ranked: 0 });
       /** @type {Expr} */
-      const result = { repeat: yield readExpression(choices[0]) };
+      const result = { repeat: yield readExpression(choices[0]), at: at(node) };
       if (choices.length >= 2) result.separator = yield readExpression(choices[1]);
-      braces.pop();
       if (chain) result.chain = chain;
       return result;
     }
@@ -22592,24 +22831,24 @@
      * @returns {Generator<Step, Expr, any>}
      */
     function* readPrimary(node, whole = false) {
+      void whole;
       switch (ruleOf(node)) {
         case "splice": {
-          const target=knownOf(node,new Set(["rule-reference","call"]));
-          return {splice:yield readPrimary(target)};
+          const target = knownOf(node, new Set(["rule-reference", "call"]));
+          return { splice: /** @type {any} */ (yield readPrimary(target)), at: at(node) };
         }
         case "call": return yield readCall(node);
         case "parameter": return readParameter(node);
-        case "rule-reference": return { ref: valueOf(token(node)) };
-        case "tag": return { ref: tagOf(token(node)) };
-        case "string-terminal": return { literal: yield readTerm(knownOf(node, new Set(["string", "constant-reference"]))) };
-        case "constant-reference": return { literal: yield readTerm(node) };
-        case "wildcard": token(node); return { wildcard: true };
-        case "range": return { range: yield readRange(node) };
+        case "rule-reference": return { ref: valueOf(token(node)), at: at(node) };
+        case "tag": return { ref: tagOf(token(node)), at: at(node) };
+        case "string-terminal": return { literal: yield readTerm(knownOf(node, new Set(["string", "constant-reference"]))), at: at(node) };
+        case "constant-reference": return { literal: /** @type {any} */ (yield readTerm(node)), at: at(node) };
+        case "wildcard": token(node); return { wildcard: true, at: at(node) };
+        case "range": return { range: yield readRange(node), at: at(node) };
         case "tested-primary": {
           const tests = parts(node).filter(child => ["tag-test", "value-test", "default-value"].includes(ruleOf(child)));
           if (!tests.length) lacks(node, "test");
           const symbol = testBase(node) || lacks(node, "primary");
-          checkTestOrder(tests.filter(test => ruleOf(test) !== "default-value"), ["constant-reference", "rule-reference", "call", "splice", "parameter", "tag", "string-terminal", "range", "wildcard"].includes(ruleOf(symbol)));
           // Convert the base before test operands (engine §9.3).
           let expr = yield readPrimary(symbol);
           for (const test of tests) {
@@ -22620,34 +22859,24 @@
               const inner = knownOf(operand, ATOMS);
               if (!["string", "constant-reference", "parameter"].includes(ruleOf(inner))) fail("a default requires one string", operand);
               headDefault = yield readTerm(inner);
-              recipeLocations.set(/** @type {Term} */ (headDefault), at(test));
-            } else expr = { ...(yield readTest(test)), expr };
+              hideAt(/** @type {Term} */ (headDefault), at(test), "defaultAt");
+            } else expr = { ...(yield readTest(test)), expr, at: at(test) };
           }
           return expr;
         }
         case "capture":
         case "captured-terminator": {
-          const innermost = braces[braces.length - 1];
-          if (innermost?.chain) fail("a capture cannot stand inside a chain, whose levels are constituents of its rule: a condition on $ serves each level", node);
-          if (innermost && innermost.ranked > 0) fail("an item capture cannot stand inside a ranked group: name the ranked choice as a rule and capture that rule", node);
-          if (marked > 0 && !allowedMarkedCaptures.has(node)) fail("a capture cannot stand inside an elidable optional, which elision restores as one unit", node);
           const captureToken = token(node);
           const inner = only(node, "primary");
-          if (valueOf(captureToken) === "$") fail("$ is the whole constituent and wraps nothing", node);
-          if (!CAPTURE_NAME.test(valueOf(captureToken).slice(1))) fail("a capture's name is all lower case", node);
           const wrapped = knownOf(inner, PRIMARIES);
-          const base = ruleOf(wrapped) === "tested-primary" ? testBase(wrapped) || lacks(wrapped, "primary") : wrapped;
-          if (!["constant-reference", "rule-reference", "call", "splice", "parameter", "tag", "string-terminal", "range", "wildcard"].includes(ruleOf(base))) fail("a capture wraps one symbol", node);
           const name = valueOf(captureToken).slice(1);
           const expr = /** @type {Expr} */ (yield readPrimary(wrapped));
-          const capture = { capture: name, expr };
-          captureNodes.set(capture, node);
-          return capture;
+          return { capture: name, expr, at: at(node) };
         }
-        case "group": return yield readExpression(only(node, "choice"));
+        case "group": return hideAt(yield readExpression(only(node, "choice")), /** @type {any} */ (true), "grouped");
         case "optional": return yield readOptional(/** @type {RuleNode} */ (node));
-        case "repetition": return yield readRepetition(/** @type {RuleNode} */ (node), whole);
-        case "empty": return { empty: true };
+        case "repetition": return yield readRepetition(/** @type {RuleNode} */ (node));
+        case "empty": return { empty: true, at: at(node) };
         default: return fail(`unexpected ${ruleOf(node)}`, node);
       }
     }
@@ -22664,7 +22893,8 @@
         const tags = one(node, "emit-tags");
         if (tags) item.tags = yield readTagTerm(only(tags, "term"));
         Object.assign(item, yield readChannels(node));
-        return { items: [item] };
+        hideAt(item, at(node));
+        return hideAt({ items: [item] }, at(node));
       }
       const items = [];
       for (const itemNode of itemNodes) {
@@ -22676,17 +22906,14 @@
         const item = written === "ε" ? { insert: true } : { capture: written.slice(1) };
         const before = ofRule(itemNode, "attachment-before").flatMap(readAttachment);
         const after = ofRule(itemNode, "attachment-after").flatMap(readAttachment);
-        if ((before.length || after.length) && !item.capture) fail("only a named capture carries attachments", itemNode);
         const tags = one(itemNode, "emit-tags");
         if (tags) item.tags = yield readTagTerm(only(tags, "term"));
         Object.assign(item, yield readChannels(itemNode));
         if (before.length) item.before = before;
         if (after.length) item.after = after;
-        items.push(item);
+        items.push(hideAt(item, at(itemNode)));
       }
-      const named = items.flatMap(item => [item.capture, ...(item.before || []), ...(item.after || [])].filter(name => name));
-      if (new Set(named).size !== named.length) fail("%emits lists a capture twice", node);
-      return { items };
+      return hideAt({ items }, at(node));
     }
 
     /** @param {RuleNode} node @returns {string[]} */
@@ -22723,28 +22950,11 @@
         const items = "concat" in term ? term.concat : [term];
         if (items.some((/** @type {Term} */ item) => "union" in item)) fail("juxtaposed recipe strings require ++. Use ++ between string atoms", atom);
         for (const item of items) {
-          if ("method" in item) {
-            const receiver = item.receiver;
-            const input = ["value", "image", "source-text", "decomposed-source-text", "verbatim-text"].includes(item.method) && receiver.capture !== undefined;
-            const emitted = ["value", "image"].includes(item.method) && receiver.method === "emitted" && receiver.receiver.capture !== undefined;
-            if (!input && !emitted) fail("a recipe requires a bare capture string method", atom);
-          } else if (!("string" in item || "const" in item || "param" in item)) fail("a recipe requires a string or captured string method", atom);
+          if (!item.at) hideAt(item, at(atom));
           concat.push(item);
         }
       }
-      const recipe = { concat };
-      recipeLocations.set(recipe,at(node));
-      return recipe;
-    }
-
-    /** @param {ResultNode[]} tests @param {boolean} allowed */
-    function checkTestOrder(tests, allowed) {
-      const seen = new Set();
-      for (const test of tests) {
-        const kind = ruleOf(test);
-        if (!allowed || seen.has(kind) || (kind === "tag-test" && seen.has("value-test"))) fail("this target or test order is invalid", test);
-        seen.add(kind);
-      }
+      return hideAt({ concat }, at(node));
     }
 
     /** @param {ResultNode} node @returns {Generator<Step, any, any>} */
@@ -22754,66 +22964,43 @@
         for (const requirement of ofRule(node, "tag-requirement")) {
           const operand = only(requirement, "test-operand");
           const inner = knownOf(operand, ATOMS);
-          if (!["tag", "constant-reference", "parameter"].includes(ruleOf(inner))) fail("a tag requirement is a tag or tag-set constant", operand);
-          const value = pattern && ruleOf(inner) === "tag" && valueOf(token(inner)) === "_Elided" ? {tag:"_Elided"} : yield readTerm(inner);
-          const type = termType(value);
-          const problem = "problem" in type ? type.problem : expectedProblem(type.type, "tags");
-          if (problem) fail(problem, operand);
-          if (pattern) patternLocations.set(value,at(token(inner)));
-          requirements.push({ negated: parts(requirement).some(child => tokenValue(child) === "¬"), value });
+          const value = pattern && ruleOf(inner) === "tag" && valueOf(token(inner)) === "_Elided" ? hideAt({ tag: "_Elided" }, at(token(inner))) : yield readTerm(inner);
+          if (ruleOf(inner) === "term") {
+            hideAt(value, /** @type {any} */ (true), "grouped");
+            hideAt(value, at(operand));
+          }
+          requirements.push(hideAt({ negated: parts(requirement).some(child => tokenValue(child) === "¬"), value }, at(operand)));
         }
         return { test: "tags", requirements };
       }
       const comparator = operator(token(only(node, "value-comparator")));
       const operand = only(node, "test-operand");
       const inner = knownOf(operand, ATOMS);
-      if (!["string", "constant-reference", "parameter"].includes(ruleOf(inner))) fail("a value test requires a string literal or string constant", operand);
-      return { test: comparator, value: yield readTerm(inner) };
+      const value = yield readTerm(inner);
+      if (ruleOf(inner) === "term") {
+        hideAt(value, /** @type {any} */ (true), "grouped");
+        hideAt(value, at(operand));
+      }
+      return { test: comparator, value };
     }
 
     /**
-     * A constituent's tag term, which cannot read the tags it defines:
-     * `$.tags` or `$.classes` (engine §9).
+     * A constituent's tag term (engine §9).
      * @param {ResultNode} node
      * @returns {Generator<Step, Term, any>}
      */
     function* readConstituentTags(node) {
       const term = /** @type {Term} */ (yield readTagTerm(only(node, "term")));
-      if (readsOwnTags(term)) fail("a constituent's tags cannot be made of its own: $.tags or $.classes", node);
-      return term;
+      return hideAt(term, at(node), "clauseAt");
     }
 
     /**
-     * A whole term that must be a tag set: a constituent's or an item's tags
-     * (engine §10). The error stands at the term.
      * @param {ResultNode} node
      * @returns {Generator<Step, Term, any>}
      */
     function* readTagTerm(node) {
       const term = /** @type {Term} */ (yield readTerm(node));
-      const found = termType(term);
-      const problem = "problem" in found ? found.problem : expectedProblem(found.type, "tags");
-      if (problem) fail(problem, node);
-      const retained = yield literalTerms(term);
-      if (retained.length) {
-        const first = retained.map((/** @type {object} */ value) => tagSources.get(value)).filter(Boolean).sort((/** @type {ResultNode} */ a, /** @type {ResultNode} */ b) => firstToken(a) - firstToken(b))[0];
-        fail("a tag clause cannot introduce an engine tag", first || node);
-      }
-      return term;
-    }
-
-    /** @param {any} term @returns {Generator<Step, any[], any>} */
-    function* literalTerms(term) {
-      if (term.tag?.startsWith("_")) return [term];
-      if (term.if) return yield literalTerms(term.then);
-      if (term.difference) return yield literalTerms(term.difference[0]);
-      const values = term.union ?? term.intersection;
-      if (!values) return [];
-      const parts = [];
-      for (const value of values) parts.push(yield literalTerms(value));
-      if (term.union) return parts.flat();
-      const names = parts.map(values => new Set(values.map((/** @type {any} */ value) => value.tag)));
-      return parts.flat().filter(value => names.every(set => set.has(value.tag)));
+      return hideAt(term, at(node), "tagTermAt");
     }
 
     /**
@@ -22830,7 +23017,10 @@
       const consequent = one(node, "condition");
       if (consequent) items.push(yield readImplication(consequent));
       let result = /** @type {Condition} */ (items.pop());
-      while (items.length > 0) result = { if: /** @type {Condition} */ (items.pop()), then: result };
+      while (items.length > 0) {
+        const left = /** @type {Condition} */ (items.pop());
+        result = hideAt({ if: left, then: result }, /** @type {any} */ (left).at ?? at(node));
+      }
       return result;
     }
 
@@ -22841,19 +23031,15 @@
      * @returns {Generator<Step, Condition, any>}
      */
     function* readAnyOf(node) {
-      // Parentheses make no node, so a group of the same connective as the
-      // one around it is part of it: (a ∧ b) ∧ c is a ∧ b ∧ c (engine §9).
-      // The reader joins such groups once the rule is read (flattenGroups),
-      // in one walk, since joining them here would copy a list at each depth.
       /** @type {Condition[]} */
       const items = [];
       for (const allNode of some(node, "all-of")) {
         /** @type {Condition[]} */
         const all = [];
         for (const conditionNode of some(allNode, "condition-primary")) all.push(yield readCondition(conditionNode));
-        items.push(all.length === 1 ? all[0] : { all });
+        items.push(all.length === 1 ? all[0] : hideAt({ all }, at(allNode)));
       }
-      return items.length === 1 ? items[0] : { any: items };
+      return items.length === 1 ? items[0] : hideAt({ any: items }, at(node));
     }
 
     /**
@@ -22866,63 +23052,40 @@
         case "condition":
           return yield readImplication(inner);
         case "presence":
-          return { captured: valueOf(token(inner)).slice(1) };
+          return hideAt({ captured: valueOf(token(inner)).slice(1) }, at(inner));
         case "tree-comparison": {
-          const left = {capture:valueOf(token(only(inner,"capture-reference"))).slice(1)};
-          const op = /** @type {Comparator} */ (operator(token(only(inner,"tree-comparator"))));
-          const rightNode = only(inner,"union");
-          const leaf = firstOfRule(rightNode,"rule-or-classifier-name") ?? firstOfRule(rightNode,"tag");
+          const left = hideAt({ capture: valueOf(token(only(inner, "capture-reference"))).slice(1) }, at(only(inner, "capture-reference")));
+          const op = /** @type {Comparator} */ (operator(token(only(inner, "tree-comparator"))));
+          const rightNode = only(inner, "union");
+          const leaf = firstOfRule(rightNode, "rule-or-classifier-name") ?? firstOfRule(rightNode, "tag");
           // A bare name gets this error before capital-initial tag typing.
-          if (leaf && tokens.slice(rightNode.span[0],rightNode.span[1]).length === 1) {
+          if (leaf && tokens.slice(rightNode.span[0], rightNode.span[1]).length === 1) {
             const name = valueOf(token(leaf));
-            fail(`tree comparison requires a pattern; write #${name}, not ${name}`,leaf);
+            fail(`tree comparison requires a pattern; write #${name}, not ${name}`, leaf);
           }
           const right = /** @type {Term} */ (yield readTerm(rightNode));
-          const found = termType(right);
-          const problem = typeof /** @type {any} */ (right).capture === "string" ? left.capture === /** @type {any} */ (right).capture ? "a tree comparison cannot compare a capture with itself" : null : "problem" in found ? found.problem : expectedProblem(found.type,"pattern");
-          if (problem && !featureContext) fail(problem,typeof /** @type {any} */ (right).capture === "string" ? inner : rightNode);
-          const comparison={op,left,right};
-          boundaryLocations.set(comparison,{tree:inner,at:at(inner)});
-          return comparison;
+          return hideAt({ op, left, right }, at(inner));
         }
         case "comparison": {
           const op = /** @type {Comparator} */ (operator(token(only(inner, "comparator"))));
           const [left, right] = some(inner, "union", 2);
-          const condition = { op, left: /** @type {Term} */ (yield readTerm(left)), right: /** @type {Term} */ (yield readTerm(right)) };
-          // The two sides fit the comparator (engine §10).
-          const leftType = termType(condition.left);
-          const rightType = termType(condition.right);
-          const problem = "problem" in leftType ? leftType.problem : "problem" in rightType ? rightType.problem
-            : comparisonProblem(op, leftType.type, rightType.type);
-          if (problem && !featureContext) fail(problem, inner);
-          return condition;
+          return hideAt({ op, left: /** @type {Term} */ (yield readTerm(left)), right: /** @type {Term} */ (yield readTerm(right)) }, at(inner));
         }
         case "negation":
-          return { not: yield readCondition(only(inner, "condition-primary")) };
+          return hideAt({ not: yield readCondition(only(inner, "condition-primary")) }, at(inner));
         case "set-condition": {
           const operation = knownOf(inner, new Set(["union-operation", "intersection-operation", "set-atom"]));
           if (ruleOf(operation) === "set-atom") {
             const atom = parts(operation).find((child) => child.kind === "rule");
             if (!atom) return fail("a set atom", operation);
-            return /** @type {Condition} */ (/** @type {unknown} */ ({ nonempty: yield readTerm(atom) }));
+            return /** @type {Condition} */ (/** @type {unknown} */ (hideAt({ nonempty: yield readTerm(atom) }, at(inner))));
           }
           if (ruleOf(operation) === "intersection-operation") {
             /** @type {Term[]} */
             const items = [];
-            try {
-              for (const item of some(operation, "concatenation")) items.push(yield readTerm(item));
-            } catch (error) {
-              // A Boolean method as an operand is a fault of the operation.
-              if (error instanceof GencmuError && error.message.includes("a query method is a condition, not a term")) fail("a query method is a condition, not a term", operation);
-              throw error;
-            }
-            const joined = joinedType(items.map((item) => {
-              const type = termType(item);
-              return "problem" in type ? (featureContext ? "any" : fail(type.problem, operation)) : type.type;
-            }), "∩");
-            if ("problem" in joined && !featureContext) fail(joined.problem, operation);
-            if (items.length === 1) return /** @type {Condition} */ (/** @type {unknown} */ ({ nonempty: items[0] }));
-            return /** @type {Condition} */ (/** @type {unknown} */ ({ nonempty: { intersection: items } }));
+            for (const item of some(operation, "concatenation")) items.push(yield readTerm(item));
+            if (items.length === 1) return /** @type {Condition} */ (/** @type {unknown} */ (hideAt({ nonempty: items[0] }, at(inner))));
+            return /** @type {Condition} */ (/** @type {unknown} */ (hideAt({ nonempty: hideAt({ intersection: items }, at(operation)) }, at(inner))));
           }
           const found = some(operation, "intersection");
           const operators = parts(operation).flatMap((child) => {
@@ -22933,41 +23096,29 @@
           operators.splice(0, Math.max(0, operators.length - found.length + 1));
           /** @type {Term[]} */
           const items = [];
-          try {
-            for (const item of found) items.push(yield readTerm(item));
-          } catch (error) {
-            // A Boolean method as an operand is a fault of the operation.
-            if (error instanceof GencmuError && error.message.includes("a query method is a condition, not a term")) fail("a query method is a condition, not a term", operation);
-            throw error;
-          }
-          const joined = joinedType(items.map((item) => {
-            const type = termType(item);
-            return "problem" in type ? (featureContext ? "any" : fail(type.problem, operation)) : type.type;
-          }), operators.includes("∖") ? "∖" : "∪");
-          if ("problem" in joined && !featureContext) fail(joined.problem, operation);
+          for (const item of found) items.push(yield readTerm(item));
           /** @type {Term} */
           let result = items[0];
           let open = false;
           operators.forEach((operator, index) => {
             const next = items[index + 1];
             if (operator === "∖") {
-              result = { difference: [result, next] };
+              result = hideAt({ difference: [result, next] }, at(operation));
               open = false;
             } else if (open && "union" in result) {
               result.union.push(next);
             } else {
-              result = { union: [result, next] };
+              result = hideAt({ union: [result, next] }, at(operation));
               open = true;
             }
           });
-          return /** @type {Condition} */ (/** @type {unknown} */ ({ nonempty: result }));
+          return /** @type {Condition} */ (/** @type {unknown} */ (hideAt({ nonempty: result }, at(inner))));
         }
         case "method-chain": {
           const method = yield readMethod(inner);
-          if (!QUERY_METHODS.has(method.method) && !["tags", "classes", "split", "ngrams", "classify"].includes(method.method)) fail("a condition requires a query method", inner);
           // A set-valued method in a Boolean position tests that its set is
           // not empty, through the wrapper of engine §9.2.
-          if (["tags", "classes", "split", "ngrams", "classify"].includes(method.method)) return /** @type {Condition} */ (/** @type {unknown} */ ({ nonempty: method }));
+          if (["tags", "classes", "split", "ngrams", "classify"].includes(method.method)) return /** @type {Condition} */ (/** @type {unknown} */ (hideAt({ nonempty: method }, at(inner))));
           return method;
         }
         default:
@@ -22984,12 +23135,6 @@
     function* readTerm(node, argument = false) {
       if (ruleOf(node) === "term") return yield readTerm(knownOf(node, TERMS), argument);
       if (ruleOf(node) === "guarded-term") {
-        if (closedFor) fail(`${closedFor} is a closed term, and holds no guarded term`, node);
-        // Its any-ofs, each guarding the rest, and then its union, or the
-        // term of a notation that writes one after `⟹` (engine §9). The
-        // reader has checked each comparison of a condition, so a condition's
-        // terms agree; the term guarded last must be a tag set, an error at
-        // its guard.
         const guards = some(node, "any-of");
         /** @type {Condition[]} */
         const conditions = [];
@@ -22997,11 +23142,7 @@
         const last = one(node, "union") || only(node, "term");
         /** @type {Term} */
         let guarded = yield readTerm(last);
-        const found = termType(guarded);
-        const joined = "problem" in found ? found : joinedType([found.type], "⟹");
-        const problem = "problem" in joined ? joined.problem : joined.type === "pattern" ? "a guarded term requires a set" : null;
-        if (problem && !featureContext) fail(problem, guards[guards.length - 1]);
-        for (let index = conditions.length - 1; index >= 0; index--) guarded = { if: conditions[index], then: guarded };
+        for (let index = conditions.length - 1; index >= 0; index--) guarded = hideAt({ if: conditions[index], then: guarded }, at(guards[index]));
         return guarded;
       }
       if (ruleOf(node) === "union") {
@@ -23020,23 +23161,18 @@
         const items = [];
         for (const item of found) items.push(yield readTerm(item));
         if (operators.length < found.length - 1) lacks(node, "operator");
-        const joined = joinedType(items.map((item) => {
-          const type = termType(item);
-          return "problem" in type ? (featureContext ? "any" : fail(type.problem, node)) : type.type;
-        }), operators.includes("∖") ? "∖" : "∪");
-        if ("problem" in joined && !featureContext) fail(joined.problem, node);
         /** @type {Term} */
         let result = items[0];
         let open = false;
         operators.forEach((operator, index) => {
           const next = items[index + 1];
           if (operator === "∖") {
-            result = { difference: [result, next] };
+            result = hideAt({ difference: [result, next] }, at(node));
             open = false;
           } else if (open && "union" in result) {
             result.union.push(next);
           } else {
-            result = { union: [result, next] };
+            result = hideAt({ union: [result, next] }, at(node));
             open = true;
           }
         });
@@ -23046,16 +23182,10 @@
         const nodes = some(node, "term-atom");
         const items = [];
         for (const part of nodes) {
-          const term = yield readTerm(part, argument && nodes.length === 1);
-          if (nodes.length > 1) {
-            const found = termType(term);
-            const problem = "problem" in found ? found.problem : !["string", "any"].includes(found.type) ? "++ requires string operands" : null;
-            if (problem && !featureContext) fail(problem, node);
-          }
-          items.push(term);
+          items.push(yield readTerm(part, argument && nodes.length === 1));
         }
         if (nodes.length === 1) return items[0];
-        return {concat: items};
+        return hideAt({ concat: items }, at(node));
       }
       if (ruleOf(node) === "intersection") {
         const found = some(node, "concatenation");
@@ -23063,43 +23193,23 @@
         const items = [];
         for (const item of found) items.push(yield readTerm(item, argument && found.length === 1));
         if (items.length === 1) return items[0];
-        const joined = joinedType(items.map((item) => {
-          const type = termType(item);
-          return "problem" in type ? (featureContext ? "any" : fail(type.problem, node)) : type.type;
-        }), "∩");
-        if ("problem" in joined && !featureContext) fail(joined.problem, node);
-        return { intersection: items };
+        return hideAt({ intersection: items }, at(node));
       }
       if (ruleOf(node) === "term-atom" || ruleOf(node) === "plain-term-atom" || ruleOf(node) === "test-operand") {
         const inner = knownOf(node, ATOMS);
-        if (ruleOf(inner) === "method-chain") {
-          const method = yield readMethod(inner);
-          if (QUERY_METHODS.has(method.method) && !["parse","error-free"].includes(method.method)) fail("a query method is a condition, not a term", inner);
-          return method;
-        }
+        if (ruleOf(inner) === "method-chain") return yield readMethod(inner);
         return yield readTerm(inner, argument);
       }
       switch (ruleOf(node)) {
         case "call": return yield readCall(node);
         case "parameter": return readParameter(node);
         case "pattern-literal": {
-          const before = closedFor;
-          closedFor = null;
           const pattern = yield readLayeredPattern(only(node, "pattern-primary"));
-          patternLocations.set(pattern,at(node));
-          closedFor = before;
-          const problem = sourcePatternProblem(pattern, {deferDepth:true, name:name => CLASSIFIER_NAME.test(name) || !!unicode.isEmojiName?.(name)});
-          if (problem) fail(problem,node);
-          return {pattern};
+          if (!pattern.at) hideAt(pattern, at(node));
+          return hideAt({ pattern }, at(node));
         }
-        case "string": return decode(token(node));
-        case "tag": {
-          const tag = tagOf(token(node));
-          if (closedFor && tag.startsWith("_")) fail(`${closedFor} cannot contain an engine-tag literal`, node);
-          const term = { tag };
-          tagSources.set(term, node);
-          return term;
-        }
+        case "string": return hideAt(decode(token(node)), at(node));
+        case "tag": return hideAt({ tag: tagOf(token(node)) }, at(node));
         case "string-run":
         case "tag-run": {
           if (recipeContext && ruleOf(node) === "string-run") fail("juxtaposed recipe strings require ++. Use ++ between string atoms", node);
@@ -23108,29 +23218,26 @@
           if (["∩", "∖"].includes(tokens[start - 1]?.value) || ["∩", "∖"].includes(tokens[end]?.value)) fail(`a ${ruleOf(node) === "string-run" ? "string" : "tag"} run beside intersection or difference requires parentheses`, node);
           const union = [];
           for (const tag of some(node, ruleOf(node) === "string-run" ? "string" : "tag", 2)) union.push(yield readTerm(tag));
-          return { union };
+          return hideAt({ union }, at(node));
         }
         case "range": return fail("a range is a terminal, not a term", node);
         case "rule-or-classifier-name": {
           // A bare name is a tag literal if it begins with a capital, and
           // otherwise a rule, which only a function's argument names.
           const name = valueOf(token(node));
-          if (isCapital(name)) return { tag: name };
-          if (argument) return /** @type {Term} */ (/** @type {unknown} */ ({ rule: name }));
+          if (isCapital(name)) return hideAt({ tag: name }, at(node));
+          if (argument) return /** @type {Term} */ (/** @type {unknown} */ (hideAt({ rule: name }, at(node))));
           return fail(`${name} names a rule, which is not a value`, node);
         }
-        case "empty-set": return { emptySet: true };
+        case "empty-set": return hideAt({ emptySet: true }, at(node));
         case "method-chain": return yield readMethod(node);
         case "constant-reference": {
           const name = valueOf(token(node)).slice(1);
-          if (!/^(?!.*--)[A-Z][A-Za-z0-9_-]*$/.test(name)) fail("a user constant begins with a capital", node);
           return { const: name, at: at(node) };
         }
         case "capture-reference": {
           const capture = valueOf(token(node)).slice(1);
-          if (closedFor) fail(`${closedFor} is a closed term, and holds no capture`, node);
-
-          return { capture };
+          return hideAt({ capture }, at(node));
         }
         default: return fail(`unexpected ${ruleOf(node)}`, node);
       }
@@ -23140,153 +23247,145 @@
     /** @param {any[]} items @param {ResultNode} node @returns {any} */
     function childPredicate(items, node) {
       while (items.length === 1 && items[0].sequence) items = items[0].sequence;
-      if (items.length !== 1 || !('child' in items[0])) fail("a pattern path or set requires one whole pattern",node);
+      if (items.length !== 1 || !('child' in items[0])) fail("a pattern path or set requires one whole pattern", node);
       return items[0].child;
     }
     /** @param {ResultNode} node @returns {Generator<Step, any, any>} */
     function* readLayeredPattern(node) {
-      const kind=ruleOf(node);
+      const kind = ruleOf(node);
       if (kind === 'pattern-primary') {
-        return yield readLayeredPattern(knownOf(node,new Set(['pattern-node','bare-child-list','pattern-union'])));
+        return yield readLayeredPattern(knownOf(node, new Set(['pattern-node', 'bare-child-list', 'pattern-union'])));
       }
       if (kind === 'pattern-node' || kind === 'bare-child-list') {
-        const atom = kind === 'pattern-node' ? (yield readPattern(only(node,'pattern-atom'))).node : {any:true};
-        const list=one(node,'child-list');
-        if (list && !['name','call','param','any'].some(key => key in atom)) fail('a child list requires a rule test',list);
-        const {at:position,...fields}=atom;
-        const exact=parts(node).some(part => tokenValue(part) === '·');
-        return {...fields,...(exact ? {exact:true} : {}),...(list ? {children:yield readLayeredPattern(list)} : {}),...(position ? {at:position} : {})};
+        const atom = kind === 'pattern-node' ? (yield readPattern(only(node, 'pattern-atom'))).node : { any: true };
+        const list = one(node, 'child-list');
+        const hasEnumerableAt = Object.prototype.propertyIsEnumerable.call(atom, 'at');
+        const { at: position, ...fields } = atom;
+        const exact = parts(node).some(part => tokenValue(part) === '·');
+        const built = { ...fields, ...(exact ? { exact: true } : {}), ...(list ? { children: yield readLayeredPattern(list) } : {}), ...(hasEnumerableAt && position ? { at: position } : {}) };
+        if (!hasEnumerableAt) hideAt(built, position ?? at(node));
+        if (list) hideAt(built, at(list), 'listAt');
+        return built;
       }
       if (kind === 'pattern-union' || kind === 'pattern-intersection' || kind === 'child-set-operation' || kind === 'child-intersection') {
         /** @type {ResultNode[]} */
         let operands;
-        if (kind === 'pattern-union') operands=some(node,'pattern-intersection');
-        else if (kind === 'pattern-intersection') operands=some(node,'pattern-path');
-        else if (kind === 'child-intersection') operands=some(node,'child-path');
-        else operands=parts(node).filter(part => ['child-intersection','child-path'].includes(ruleOf(part)));
-        if (!operands.length) return lacks(node,'pattern operands');
-        const values=[];
+        if (kind === 'pattern-union') operands = some(node, 'pattern-intersection');
+        else if (kind === 'pattern-intersection') operands = some(node, 'pattern-path');
+        else if (kind === 'child-intersection') operands = some(node, 'child-path');
+        else operands = parts(node).filter(part => ['child-intersection', 'child-path'].includes(ruleOf(part)));
+        if (!operands.length) return lacks(node, 'pattern operands');
+        const values = [];
         for (const operand of operands) {
-          const value=yield readLayeredPattern(operand);
-          values.push(ruleOf(operand) === 'child-path' ? childPredicate(value,operand) : value);
+          const value = yield readLayeredPattern(operand);
+          values.push(ruleOf(operand) === 'child-path' ? childPredicate(value, operand) : value);
         }
-        const operators=parts(node).filter(part => part.kind === 'token').map(valueOf).filter(op => op === '∪' || op === '∖' || kind !== 'pattern-union' && op === '∩');
-        if (['pattern-union','child-set-operation'].includes(kind)) {
-          if (operators.length < Math.max(kind === 'child-set-operation' ? 1 : 0, values.length-1)) return lacks(node,'operator');
+        const operators = parts(node).filter(part => part.kind === 'token').map(valueOf).filter(op => op === '∪' || op === '∖' || kind !== 'pattern-union' && op === '∩');
+        if (['pattern-union', 'child-set-operation'].includes(kind)) {
+          if (operators.length < Math.max(kind === 'child-set-operation' ? 1 : 0, values.length - 1)) return lacks(node, 'operator');
         }
-        let result=values[0];
-        for (let index=1;index<values.length;index++) {
-          const key=kind.endsWith('intersection') || operators[index-1] === '∩' ? 'intersection' : operators[index-1] === '∖' ? 'difference' : 'union';
-          result = {[key]:[result,values[index]]};
+        let result = values[0];
+        for (let index = 1; index < values.length; index++) {
+          const key = kind.endsWith('intersection') || operators[index - 1] === '∩' ? 'intersection' : operators[index - 1] === '∖' ? 'difference' : 'union';
+          result = hideAt({ [key]: [result, values[index]] }, at(node));
         }
         return result;
       }
       if (kind === 'pattern-path' || kind === 'child-path') {
-        const primary=only(node,kind === 'pattern-path' ? 'pattern-primary' : 'child-primary');
-        const value=yield readLayeredPattern(primary);
-        const axis=parts(node).find(part => part.kind === 'token');
+        const primary = only(node, kind === 'pattern-path' ? 'pattern-primary' : 'child-primary');
+        const value = yield readLayeredPattern(primary);
+        const axis = parts(node).find(part => part.kind === 'token');
         if (!axis) return value;
-        const op=valueOf(axis);
-        if (!['⋮','⋱','⋰'].includes(op)) fail('a malformed pattern path',axis);
-        const pattern=kind === 'child-path' ? childPredicate(value,primary) : value;
-        const result={path:op === '⋮' ? 'descendant' : op === '⋱' ? 'last' : 'first',pattern};
-        return kind === 'child-path' ? [{child:result}] : result;
+        const op = valueOf(axis);
+        if (!['⋮', '⋱', '⋰'].includes(op)) fail('a malformed pattern path', axis);
+        const pattern = kind === 'child-path' ? childPredicate(value, primary) : value;
+        const result = hideAt({ path: op === '⋮' ? 'descendant' : op === '⋱' ? 'last' : 'first', pattern }, at(node));
+        return kind === 'child-path' ? [hideAt({ child: result }, at(node))] : result;
       }
       if (kind === 'child-list') {
-        const choice=one(node,'child-choice');
+        const choice = one(node, 'child-choice');
         return choice ? yield readLayeredPattern(choice) : [];
       }
       if (kind === 'child-choice') {
-        const arms=[];
-        for (const alternative of some(node,'child-alternative')) {
-          const items=yield readLayeredPattern(alternative);
+        const arms = [];
+        for (const alternative of some(node, 'child-alternative')) {
+          const items = yield readLayeredPattern(alternative);
           arms.push(items);
         }
-        return arms.length === 1 ? arms[0] : [{choice:arms}];
+        return arms.length === 1 ? arms[0] : [hideAt({ choice: arms }, at(node))];
       }
       if (kind === 'child-alternative') {
-        const sequence=one(node,'child-sequence');
-        return sequence ? yield readLayeredPattern(sequence) : [{child:yield readLayeredPattern(only(node,'child-set-operation'))}];
+        const sequence = one(node, 'child-sequence');
+        return sequence ? yield readLayeredPattern(sequence) : [hideAt({ child: yield readLayeredPattern(only(node, 'child-set-operation')) }, at(node))];
       }
       if (kind === 'child-sequence') {
-        const result=[];
-        for (const item of some(node,'child-item')) result.push({sequence:yield readLayeredPattern(item)});
-        return [{sequence:result}];
+        const result = [];
+        for (const item of some(node, 'child-item')) result.push({ sequence: yield readLayeredPattern(item) });
+        return [{ sequence: result }];
       }
       if (kind === 'child-item') {
-        const child=parts(node)[0];
-        if (!child) return lacks(node,'child item');
-        return tokenValue(child) === '⋯' ? [{siblings:true}] : yield readLayeredPattern(child);
+        const child = parts(node)[0];
+        if (!child) return lacks(node, 'child item');
+        return tokenValue(child) === '⋯' ? [hideAt({ siblings: true }, at(node))] : yield readLayeredPattern(child);
       }
       if (kind === 'child-primary') {
-        const choice=one(node,'child-choice');
-        return choice ? yield readLayeredPattern(choice) : [{child:yield readLayeredPattern(knownOf(node,new Set(['pattern-node','bare-child-list'])))}];
+        const choice = one(node, 'child-choice');
+        return choice ? yield readLayeredPattern(choice) : [hideAt({ child: yield readLayeredPattern(knownOf(node, new Set(['pattern-node', 'bare-child-list']))) }, at(node))];
       }
-      if (kind === 'child-optional') return [{optional:yield readLayeredPattern(only(node,'child-choice'))}];
+      if (kind === 'child-optional') return [hideAt({ optional: yield readLayeredPattern(only(node, 'child-choice')) }, at(node))];
       if (kind === 'child-repetition') {
-        const choices=some(node,'child-choice');
-        const repeat=yield readLayeredPattern(choices[0]);
-        return [{repeat,...(choices.length >= 2 ? {separator:yield readLayeredPattern(choices[1])} : {})}];
+        const choices = some(node, 'child-choice');
+        const repeat = yield readLayeredPattern(choices[0]);
+        return [hideAt({ repeat, ...(choices.length >= 2 ? { separator: yield readLayeredPattern(choices[1]) } : {}) }, at(node))];
       }
-      return fail(`unexpected ${kind} in layered pattern`,node);
+      return fail(`unexpected ${kind} in layered pattern`, node);
     }
 
     /** @param {ResultNode} node @returns {Generator<Step, any, any>} */
     function* readPattern(node) {
-      const kind=ruleOf(node);
+      const kind = ruleOf(node);
       if (kind === "pattern-atom") {
         const inner = parts(node);
-        const defaultNode = inner.find(child=>ruleOf(child)==="default-value");
-        if (defaultNode) fail("a default stands only on an elidable optional head",defaultNode);
+        const defaultNode = inner.find(child => ruleOf(child) === "default-value");
+        if (defaultNode) fail("a default stands only on an elidable optional head", defaultNode);
         const first = inner[0];
         if (!first) return lacks(node, "pattern atom");
         const named = ["rule-or-classifier-name", "rule-reference"].includes(ruleOf(first)) ||
           first.kind === "token" && ["Lowercase-Name", "Emoji-Name"].includes(first.terminal);
         const tests = inner.filter(child => ["tag-test", "value-test"].includes(ruleOf(child)));
         const testsOnly = ["tag-test", "value-test"].includes(ruleOf(first));
-        checkTestOrder(tests, true);
-        if (named || ruleOf(first) === "call") for (const test of tests) if (ruleOf(test) === "tag-test") {
-          for (const requirement of ofRule(test,"tag-requirement")) {
-            const inner = knownOf(only(requirement,"test-operand"),ATOMS);
-            if (ruleOf(inner) === "tag" && valueOf(token(inner)) === "_Elided" && !parts(requirement).some(child=>tokenValue(child) === "¬")) fail("a rule pattern cannot require _Elided",token(inner));
-          }
-        }
         if (testsOnly) fail("a pattern test requires an atom", first);
         if (["call", "parameter"].includes(ruleOf(first))) {
           let expr = ruleOf(first) === "call" ? yield readCall(first) : readParameter(first);
-          for (const test of tests) expr = {...(yield readTest(test, true)),expr};
-          return {node:expr};
+          for (const test of tests) expr = hideAt({ ...(yield readTest(test, true)), expr }, at(test));
+          return { node: expr };
         }
         if (named) {
           const nameToken = first.kind === "token" ? first : token(first);
           const name = valueOf(nameToken);
-          if (!CLASSIFIER_NAME.test(name) && !unicode.isEmojiName?.(name)) fail("a malformed pattern rule name", nameToken);
           let expr = { name, at: at(nameToken) };
-          for (const test of tests) expr = {...(yield readTest(test, true)), expr};
-          return {node:expr};
+          for (const test of tests) expr = hideAt({ ...(yield readTest(test, true)), expr }, at(test));
+          return { node: expr };
         }
         let expr;
         if (first.kind === "token") {
           const name = valueOf(first);
           if (isCapital(name) || name.startsWith("_")) expr = { terminal: tagOf(first), at: at(first) };
-          else {
-            if (!CLASSIFIER_NAME.test(name) && !unicode.isEmojiName?.(name)) fail("a malformed pattern rule name", first);
-            expr = { name, at: at(first) };
-          }
+          else expr = { name, at: at(first) };
         } else if (ruleOf(first) === "tag") expr = { terminal: tagOf(token(first)), at: at(first) };
         else if (ruleOf(first) === "string") expr = { literal: decode(token(first)), at: at(first) };
         else if (ruleOf(first) === "string-terminal") expr = { literal: yield readTerm(knownOf(first, new Set(["string", "constant-reference"]))), at: at(first) };
         else if (ruleOf(first) === "range") expr = { range: yield readRange(first), at: at(first) };
-        else if (ruleOf(first) === "wildcard") {token(first);expr = { wildcard: true, at: at(first) };}
+        else if (ruleOf(first) === "wildcard") { token(first); expr = { wildcard: true, at: at(first) }; }
         else if (ruleOf(first) === "constant-reference") {
           const value = yield readTerm(first);
           expr = { constant: value.const, at: at(first) };
         } else return lacks(node, "pattern atom");
-        if(expr.literal?.const) {expr.constant=expr.literal.const;delete expr.literal;}
-        for (const test of tests) expr = { ...(yield readTest(test, true)), expr };
+        if (expr.literal?.const) { expr.constant = expr.literal.const; delete expr.literal; }
+        for (const test of tests) expr = hideAt({ ...(yield readTest(test, true)), expr }, at(test));
         return { node: expr };
       }
-      return fail(`unexpected ${kind} in pattern`,node);
+      return fail(`unexpected ${kind} in pattern`, node);
     }
 
     /**
@@ -23298,73 +23397,43 @@
       for (const selector of some(node, "method-selector")) {
         const parsed = one(selector, "parse-selector");
         const name = parsed ? "parse" : valueOf(token(only(selector, "method-name")));
-        if(!METHODS.has(name)) fail(`unknown method ${name}`,node);
-        if (closedFor && !["split", "ngrams"].includes(name)) fail(`${closedFor} cannot read an input method`, node);
         /** @type {any[]} */
         const args = [];
         const argumentsNode = one(selector, "method-arguments");
         if (parsed) {
-          const argument = only(parsed,"parse-argument");
-          let body = yield readExpression(only(argument,"choice"));
-          const capture = queryCapture(body);
-          if (capture) fail("a parse argument cannot declare captures",descendant(argument,"capture") ?? argument);
+          const argument = only(parsed, "parse-argument");
+          let body = yield readExpression(only(argument, "choice"));
           const markers = parts(argument).filter(child => child.kind === "token" && valueOf(child) === "…");
-          if (markers.length > 2) fail("a remainder stands at one outer edge of a parse argument",markers[2]);
           if (markers.length) {
             const sequence = [];
             for (const child of parts(argument)) {
-              if (child.kind === "token" && valueOf(child) === "…") sequence.push({remainder:true});
+              if (child.kind === "token" && valueOf(child) === "…") sequence.push(hideAt({ remainder: true }, at(child)));
               else if (ruleOf(child) === "choice") sequence.push(body);
             }
             if (!sequence.some(part => part === body)) sequence.push(body);
-            body = {seq:sequence};
+            body = { seq: sequence, at: at(argument) };
           }
-          const bodyProblem = queryBody(body).problem;
-          if (bodyProblem) fail(bodyProblem,argument);
-          args.push({body});
+          args.push(hideAt({ body }, at(argument)));
         }
         if (argumentsNode) for (const argument of some(argumentsNode, "method-argument")) {
           const integer = one(argument, "integer");
           if (integer) {
             const digits = valueOf(token(integer));
-            if (!/^[1-9][0-9]*$/.test(digits)) fail("an integer argument is positive and has no leading zeros", integer);
-            args.push({integer:digits});
-          } else args.push(yield readTerm(only(argument, "term"), true));
+            args.push(hideAt({ integer: digits }, at(integer)));
+          } else {
+            const term = yield readTerm(only(argument, "term"), true);
+            args.push(term && typeof term === "object" && term.at && !term.rule ? term : hideAt(term, at(argument)));
+          }
         }
         if (argumentsNode) {
           const separators = parts(argumentsNode).filter(child => child.kind === "token").map(valueOf);
           if (separators.some(separator => separator !== (TARGET_METHODS.has(name) ? "|" : ","))) fail("invalid method argument separator", argumentsNode);
         }
-        if (["classify","ngrams"].includes(name) && args.some(arg => hasUnresolved(arg))) fail("a parameter cannot replace a classifier name or integer argument",node);
-        if (name === "classify" && args.length === 1 && args[0].rule && CLASSIFIER_NAME.test(args[0].rule)) args[0] = { classifier: args[0].rule };
+        if (name === "classify" && args.length === 1 && args[0].rule && CLASSIFIER_NAME.test(args[0].rule)) args[0] = hideAt({ classifier: args[0].rule }, args[0].at);
         if (TARGET_METHODS.has(name)) {
-          for (let index = 0; index < args.length; index++) if (args[index].tag && !args[index].tag.startsWith("_")) args[index] = {terminal:args[index].tag};
+          for (let index = 0; index < args.length; index++) if (args[index].tag && !args[index].tag.startsWith("_")) args[index] = hideAt({ terminal: args[index].tag }, args[index].at);
         }
-        if (name === "emitted" && !recipeContext) fail("a method has the wrong receiver or arguments", node);
-        if (featureContext || hasUnresolved(receiver) || args.some(hasUnresolved)) {
-          const problem = methodShapeProblem(name, receiver, args, recipeContext);
-          if (problem) fail(problem, node);
-        }
-        const found = featureContext || hasUnresolved(receiver) ? {type:"any"} : termType(receiver);
-        if ("problem" in found) fail(found.problem, node);
-        const types = [];
-        for (const arg of args) {
-          if (arg.body || arg.rule || arg.classifier || arg.terminal || arg.integer || arg.call || arg.param) types.push("name");
-          else {
-            const type = featureContext ? {type:"any"} : termType(arg);
-            if ("problem" in type) fail(type.problem, node);
-            types.push(type.type);
-          }
-        }
-        const problem = methodProblem(name, receiver, args, found.type, types, recipeContext);
-        if (problem && !featureContext && !args.some(hasUnresolved) && !hasUnresolved(receiver)) {
-          const specific = problem === "split has an empty delimiter" || problem.startsWith("suffix parse requires") || problem.startsWith("without-elision");
-          fail(specific ? problem : "a method has the wrong receiver or arguments", node);
-        }
-        if (closedFor && found.type === "span") fail(`${closedFor} cannot read an input method`, node);
-        receiver = { method: name, receiver, args };
-        boundaryLocations.set(receiver, {tree:node,at:at(node)});
-        if (argumentsNode) ofRule(argumentsNode,"method-argument").forEach((argument,index) => boundaryLocations.set(args[index],{tree:argument,at:at(argument)}));
+        receiver = hideAt({ method: name, receiver, args }, at(node));
       }
       return receiver;
     }
@@ -23380,10 +23449,9 @@
       const name = valueOf(tokenNode);
       if (name.startsWith("_")) {
         const canonical = unicode.canonicalTag(name);
-        if (!canonical) fail("an unknown or unavailable engine tag", tokenNode);
+        if (!canonical) fail(`unknown engine tag ${name}; every _ tag is a Unicode property`, tokenNode);
         return canonical;
       }
-      if (!name.startsWith("_") && !/^(?!.*--)[A-Z][A-Za-z0-9_-]*$/.test(name)) fail("a user tag begins with a capital", tokenNode);
       return name;
     }
 
@@ -23393,9 +23461,6 @@
       if (found.length < 2) lacks(node, "two string operands");
       const range = [];
       for (const end of found.slice(0, 2)) range.push(yield readTerm(end));
-      const scalars = range.map(term => typeof term.string === "string" ? term.string : null);
-      if (scalars.some(value => value !== null && [...value].length !== 1)) fail("a range endpoint is one scalar", node);
-      if (scalars.every(value => value !== null) && scalars[0].codePointAt(0) > scalars[1].codePointAt(0)) fail("a range starts above its end", node);
       return range;
     }
 
@@ -23427,7 +23492,7 @@
       while (pending.length) {
         if (hooks.work) countWork(hooks.work, "walkSteps");
         const item = pending.pop();
-        if (item.sequence) for (let index = item.sequence.length - 1; index >= 0; index--) pending.push(item.sequence[index]);
+        if (Array.isArray(item.sequence) && item.sequence.length) for (let index = item.sequence.length - 1; index >= 0; index--) pending.push(item.sequence[index]);
         else joined.push(item);
       }
       return joined;
@@ -23498,8 +23563,6 @@
    * @typedef {"name" | "class" | "string" | "tag"} OperandKind
    */
 
-
-
   /**
    * What is wrong with a directive's operands, or null (engine §9).
    * @param {string} name
@@ -23517,23 +23580,6 @@
 
   // What a primary, a condition, a term and a term atom hold: the one rule
   // among their parts is one of these (engine §9).
-  /**
-   * The captures of an expression in the order written, braces included.
-   * @param {Expr} expr
-   * @returns {{capture: string, expr: Expr}[]}
-   */
-  function allCaptures(expr) {
-    /** @type {{capture: string, expr: Expr}[]} */
-    const found = [];
-    /** @type {(node: Expr) => void} */
-    const walk = (node) => {
-      if ("capture" in node) found.push(/** @type {{capture: string, expr: Expr}} */ (node));
-      for (const child of expressionChildren(node)) walk(child);
-    };
-    walk(expr);
-    return found;
-  }
-
   const PRIMARIES = new Set(["captured-terminator","splice", "constant-reference", "call", "parameter", "rule-reference", "tag", "string-terminal", "wildcard", "range", "tested-primary", "capture", "group", "optional", "repetition", "empty"]);
   const CONDITIONS = new Set(["tree-comparison", "comparison", "method-chain", "negation", "presence", "condition", "set-condition"]);
   const TERMS = new Set(["union", "guarded-term"]);
@@ -24558,6 +24604,17 @@
      * @returns {GrammarDom}
      */
     readDocument(markdown, path, deferEmission = false, inherited = []) {
+      return this.readFreshDom(markdown, path, deferEmission, inherited);
+    }
+
+    /**
+     * @param {string} markdown
+     * @param {string} path
+     * @param {boolean} [deferEmission]
+     * @param {string[]} [inherited]
+     * @returns {GrammarDom}
+     */
+    readFreshDom(markdown, path, deferEmission = false, inherited = []) {
       if (loneSurrogate(markdown) !== null) throw new GencmuError("usage", `${path}: the document contains a lone surrogate`, { document: path });
       const { text, positions } = extractGrammarText(markdown, path, this.unicode);
       const names = new NamesScope(key => this.needNames(key), this.unicode, inherited);
@@ -24628,7 +24685,7 @@
               const record = [...documents.values()].find(record=>record.path===document.path && document.dom.rules.some(rule=>record.dom.rules.includes(rule)));
               if (!record) continue;
               try {
-                restoreBoundaryLocations(record.dom,this.readDocument(record.text,record.path,true,record.inherited));
+                copyDomLocations(record.dom,this.readFreshDom(record.text,record.path,true,record.inherited));
                 located = true;
               } catch (failure) {
                 if (!(failure instanceof GencmuError)) throw failure;
@@ -24662,17 +24719,7 @@
         const read = origin && [...documents.values()].find(record => record.path === document && containsDomNode(record.dom,origin));
         if (!read) throw error;
         const {text,inherited,dom} = read;
-        if (boundary) restoreBoundaryLocations(dom,this.readDocument(text,document,true,inherited));
-        else {
-          const {text:body,positions} = extractGrammarText(text,document,this.unicode);
-          const lexical = this.notation.parse(body,{features:new Set(),until:"lexical"});
-          if (lexical.ok) {
-            const tokens = /** @type {Token[]} */ (lexical.stages[0].output);
-            const positionOf = (/** @type {Token} */ token) => /** @type {[number,number]} */ (positions[token.source[0]] ?? [1,1]);
-            restoreRankedLocations(dom,tokens,positionOf);
-            restoreRecipeLocations(dom,tokens,positionOf);
-          }
-        }
+        copyDomLocations(dom,this.readFreshDom(text,document,true,inherited));
         // Rebuild from the same written DOMs to retain every diagnostic field.
         return build();
       }
@@ -25029,39 +25076,16 @@
     // A document read here is held to the rules of a preparsed DOM
     // (engine §9). A bootstrap that is not the notation's can give a DOM
     // that breaks them.
-    const problem = domProblem(dom, unicode, deferEmission);
-    if (problem === null) return dom;
+    const fault = domFault(dom, unicode, deferEmission);
+    if (fault === null) return dom;
+    const { problem, at, code } = fault;
     if (problem === "nested too deeply") {
-      // Reported at the first declaration that holds it, including feature
-      // declarations, in the order of the document.
-      const item = itemsAlone(dom).find((candidate) => domProblem(candidate.alone, unicode, deferEmission) === "nested too deeply");
-      const [line, column] = item ? item.at : [1, 1];
+      const [line, column] = at ?? [1, 1];
       throw new GencmuError("grammar", `${path}:${line}:${column}: an expression, term or condition is nested more than ${DOM_MAX_DEPTH} deep`, { document: path, line, column });
     }
-    // Any other problem is reported at the first item that has it alone,
-    // in the order of the document, or else at the document.
-    const item = itemsAlone(dom).map((candidate) => ({ at: candidate.at, problem: domProblem(candidate.alone, unicode, deferEmission) }))
-      .find((candidate) => candidate.problem !== null);
-    if (!item) throw new GencmuError("grammar", `${path}: ${problem}`, { document: path, ...(problem.startsWith("ranked-choice-syntax:") ? {code:"ranked-choice-syntax"} : {}) });
-    const [line, column] = item.at;
-    throw new GencmuError("grammar", `${path}:${line}:${column}: ${item.problem}`, { document: path, line, column, ...(item.problem?.startsWith("ranked-choice-syntax:") ? {code:"ranked-choice-syntax"} : {}) });
-  }
-
-  /**
-   * Each declaration alone in a DOM of its own, including directives and
-   * classifiers, in the order of the document.
-   * @param {GrammarDom} dom
-   * @returns {{at: [number, number], alone: GrammarDom}[]}
-   */
-  function itemsAlone(dom) {
-    const none = { rules: [], directives: [], constants: [], classifiers: [], implications: [] };
-    return [
-      ...dom.rules.map((rule) => ({ at: rule.at, alone: { ...dom, ...none, rules: [rule] } })),
-      ...dom.constants.map((constant) => ({ at: constant.at, alone: { ...dom, ...none, constants: [constant] } })),
-      ...dom.directives.map((directive) => ({ at: directive.at, alone: { ...dom, ...none, directives: [directive] } })),
-      ...dom.classifiers.map((classifier) => ({ at: classifier.at, alone: { ...dom, ...none, classifiers: [classifier] } })),
-      ...dom.implications.map((implication) => ({ at: implication.at, alone: { ...dom, ...none, implications: [implication] } })),
-    ].sort((a, b) => a.at[0] - b.at[0] || a.at[1] - b.at[1]);
+    if (!at) throw new GencmuError("grammar", `${path}: ${problem}`, { document: path, ...(code ? { code } : {}) });
+    const [line, column] = at;
+    throw new GencmuError("grammar", `${path}:${line}:${column}: ${problem}`, { document: path, line, column, ...(code ? { code } : {}) });
   }
 
   /**
@@ -25640,8 +25664,8 @@
   /** @typedef {{rule:string} | {terminal:string} | TemplateCall | Parameter} QueryTarget */
   /**
    * One argument before template expansion.
-   * @typedef {Term | {rule:string} | TemplateCall | Parameter | {range:[Term,Term]}
-   *   | {wildcard:true} | Splice | TestedSymbol | {body:Expr} | {targets:QueryTarget[]}
+   * @typedef {Term | {rule:string} | TemplateCall | Parameter | {range:[Term,Term], at?:Position}
+   *   | {wildcard:true, at?:Position} | Splice | TestedSymbol | {body:Expr} | {targets:QueryTarget[]}
    *   | {requirements:Requirement[]}} TemplateArgument
    */
 
@@ -25661,15 +25685,15 @@
   /** @typedef {PatternItem[]} PatternChildren */
   /** @typedef {{child:Pattern} | {siblings:true} | {optional:PatternChildren} | {repeat:PatternChildren,separator?:PatternChildren} | {choice:PatternChildren[]}} PatternItem */
 
-  /** @typedef {{splice:{ref:string}|TemplateCall}} Splice */
+  /** @typedef {{splice:{ref:string, at?:Position}|TemplateCall, at?:Position}} Splice */
 
   /**
    * A rule body expression.
-   * @typedef {{choice: Expr[]} | {ranked: Expr[]} | {and: Expr[]} | {seq: Expr[]}
-   *   | {repeat: Expr, separator?: Expr, chain?: "left" | "right"}
-   *   | {optional: Expr, elidable?: true, default?: Term} | {capture: string, expr: Expr} | Splice | {ref: string}
-   *   | {range: [Term, Term]} | {literal: Term} | {wildcard: true}
-   *   | {test: "="|"≠", value: Term, expr: TestedSymbol} | {test: "tags", requirements: Requirement[], expr: TestedSymbol} | {empty: true} | TemplateCall | Parameter} Expr
+   * @typedef {{choice: Expr[], at?: Position} | {ranked: Expr[], at?: Position} | {and: Expr[], at?: Position} | {seq: Expr[], at?: Position}
+   *   | {repeat: Expr, separator?: Expr, chain?: "left" | "right", at?: Position}
+   *   | {optional: Expr, elidable?: true, default?: Term, at?: Position} | {capture: string, expr: Expr, at?: Position} | Splice | {ref: string, at?: Position}
+   *   | {range: [Term, Term], at?: Position} | {literal: Term, at?: Position} | {wildcard: true, at?: Position}
+   *   | {test: "="|"≠", value: Term, expr: TestedSymbol, at?: Position} | {test: "tags", requirements: Requirement[], expr: TestedSymbol, at?: Position} | {empty: true, at?: Position} | TemplateCall | Parameter} Expr
    */
 
   /**
@@ -25679,7 +25703,7 @@
 
   /**
    * What a test follows: a reference, a terminal, a range or a property.
-   * @typedef {TemplateCall | Parameter | Splice | {ref: string} | {range: [Term, Term]} | {literal: Term} | {wildcard: true} | {test: "tags", requirements: Requirement[], expr: TestedSymbol}} TestedSymbol
+   * @typedef {TemplateCall | Parameter | Splice | {ref: string, at?: Position} | {range: [Term, Term], at?: Position} | {literal: Term, at?: Position} | {wildcard: true, at?: Position} | {test: "tags", requirements: Requirement[], expr: TestedSymbol, at?: Position}} TestedSymbol
    */
 
   /**
@@ -25730,7 +25754,7 @@
   /**
    * A function's argument: a term, the name of a rule, or the name of a
    * classifier.
-   * @typedef {Term | {body: Expr | {seq: (Expr | {remainder:true})[]}} | {rule: string} | {terminal:string} | {classifier: string} | {integer: string}} Argument
+   * @typedef {Term | {body: Expr | {seq: (Expr | {remainder:true, at?:Position})[], at?:Position}} | {rule: string} | {terminal:string} | {classifier: string} | {integer: string}} Argument
    */
 
   // ---- The engine ---------------------------------------------------------

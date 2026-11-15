@@ -1,0 +1,14 @@
+{
+  "description": "Within a rule declaration, a structural expression fault in a later alternative precedes a duplicate capture in an earlier alternative and reports at the expression token (engine §9.3).",
+  "grammar": "%rule text\n  | $x:A $x:B\n  | C {D ...}\n%conditions $z = \"a\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 7
+    },
+    "message": "a chain is the whole expression of its alternative: name it as a rule to use it here"
+  }
+}

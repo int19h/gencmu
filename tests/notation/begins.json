@@ -3,7 +3,7 @@
   "document": "# A document\n\n```jbogenbau\n%rule g $a:A %conditions $a.following-tokens.parse(g …), ¬$a.tokens-after-first.onward.parse(g …)\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 51,
       "rules": [
         {
           "name": "g",
@@ -14,8 +14,16 @@
               "expr": {
                 "capture": "a",
                 "expr": {
-                  "ref": "A"
-                }
+                  "ref": "A",
+                  "at": [
+                    4,
+                    12
+                  ]
+                },
+                "at": [
+                  4,
+                  9
+                ]
               }
             }
           ],
@@ -34,11 +42,19 @@
                   "body": {
                     "seq": [
                       {
-                        "ref": "g"
+                        "ref": "g",
+                        "at": [
+                          4,
+                          52
+                        ]
                       },
                       {
                         "remainder": true
                       }
+                    ],
+                    "at": [
+                      4,
+                      52
                     ]
                   }
                 }
@@ -63,11 +79,19 @@
                     "body": {
                       "seq": [
                         {
-                          "ref": "g"
+                          "ref": "g",
+                          "at": [
+                            4,
+                            94
+                          ]
                         },
                         {
                           "remainder": true
                         }
+                      ],
+                      "at": [
+                        4,
+                        94
                       ]
                     }
                   }

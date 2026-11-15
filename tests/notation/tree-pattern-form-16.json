@@ -3,9 +3,13 @@
   "document": "```jbogenbau\n%const $P #(A ∪ B ∩ C ∖ D)\n```\n",
   "expect": {
     "dom": {
+      "format": 51,
+      "rules": [],
+      "directives": [],
       "constants": [
         {
           "name": "P",
+          "op": "define",
           "value": {
             "pattern": {
               "difference": [
@@ -47,10 +51,15 @@
                 }
               ]
             }
-          }
+          },
+          "at": [
+            2,
+            1
+          ]
         }
       ],
-      "format": 49
+      "classifiers": [],
+      "implications": []
     }
   }
 }

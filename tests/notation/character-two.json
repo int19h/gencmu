@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%rule a \"ab\"\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 51,
       "rules": [
         {
           "name": "a",
@@ -14,7 +14,11 @@
               "expr": {
                 "literal": {
                   "string": "ab"
-                }
+                },
+                "at": [
+                  2,
+                  9
+                ]
               }
             }
           ],

@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%rule text $l:LE= \"la\"\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 51,
       "rules": [
         {
           "name": "text",
@@ -19,9 +19,21 @@
                     "string": "la"
                   },
                   "expr": {
-                    "ref": "LE"
-                  }
-                }
+                    "ref": "LE",
+                    "at": [
+                      2,
+                      15
+                    ]
+                  },
+                  "at": [
+                    2,
+                    17
+                  ]
+                },
+                "at": [
+                  2,
+                  12
+                ]
               }
             }
           ],

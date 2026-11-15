@@ -4,10 +4,23 @@
   "cacheMisses": true,
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 51,
       "rules": [
         {
           "name": "text",
+          "op": "define",
+          "alternatives": [
+            {
+              "gates": [],
+              "expr": {
+                "ref": "A",
+                "at": [
+                  3,
+                  12
+                ]
+              }
+            }
+          ],
           "conditions": [
             {
               "method": "error-free",
@@ -21,16 +34,41 @@
                     "body": {
                       "literal": {
                         "string": "a"
-                      }
+                      },
+                      "at": [
+                        4,
+                        21
+                      ]
                     }
                   }
                 ]
               },
               "args": []
             }
+          ],
+          "at": [
+            3,
+            1
           ]
         }
-      ]
+      ],
+      "directives": [
+        {
+          "name": "ambiguity-resolution",
+          "steps": [
+            {
+              "step": "greedy"
+            }
+          ],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
     }
   }
 }

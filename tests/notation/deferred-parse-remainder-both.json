@@ -3,10 +3,23 @@
   "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n%conditions $.parse(… A …)\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 51,
       "rules": [
         {
           "name": "text",
+          "op": "define",
+          "alternatives": [
+            {
+              "gates": [],
+              "expr": {
+                "ref": "A",
+                "at": [
+                  3,
+                  12
+                ]
+              }
+            }
+          ],
           "conditions": [
             {
               "method": "parse",
@@ -21,19 +34,48 @@
                         "remainder": true
                       },
                       {
-                        "ref": "A"
+                        "ref": "A",
+                        "at": [
+                          4,
+                          23
+                        ]
                       },
                       {
                         "remainder": true
                       }
+                    ],
+                    "at": [
+                      4,
+                      21
                     ]
                   }
                 }
               ]
             }
+          ],
+          "at": [
+            3,
+            1
           ]
         }
-      ]
+      ],
+      "directives": [
+        {
+          "name": "ambiguity-resolution",
+          "steps": [
+            {
+              "step": "greedy"
+            }
+          ],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
     }
   }
 }

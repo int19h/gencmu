@@ -3,18 +3,160 @@
   "document": "```jbogenbau\n%rule text $x:🆓<A>=\"a\" 😀\n%conditions $x.parse(🆓), $x ≅ #🆓\n%rule 🆓 \"a\"\n%rule 😀 \"b\"\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 51,
       "rules": [
         {
-          "name": "text"
+          "name": "text",
+          "op": "define",
+          "alternatives": [
+            {
+              "gates": [],
+              "expr": {
+                "seq": [
+                  {
+                    "capture": "x",
+                    "expr": {
+                      "test": "=",
+                      "value": {
+                        "string": "a"
+                      },
+                      "expr": {
+                        "test": "tags",
+                        "requirements": [
+                          {
+                            "negated": false,
+                            "value": {
+                              "tag": "A"
+                            }
+                          }
+                        ],
+                        "expr": {
+                          "ref": "🆓",
+                          "at": [
+                            2,
+                            15
+                          ]
+                        },
+                        "at": [
+                          2,
+                          16
+                        ]
+                      },
+                      "at": [
+                        2,
+                        19
+                      ]
+                    },
+                    "at": [
+                      2,
+                      12
+                    ]
+                  },
+                  {
+                    "ref": "😀",
+                    "at": [
+                      2,
+                      24
+                    ]
+                  }
+                ],
+                "at": [
+                  2,
+                  12
+                ]
+              }
+            }
+          ],
+          "conditions": [
+            {
+              "method": "parse",
+              "receiver": {
+                "capture": "x"
+              },
+              "args": [
+                {
+                  "body": {
+                    "ref": "🆓",
+                    "at": [
+                      3,
+                      22
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "op": "≅",
+              "left": {
+                "capture": "x"
+              },
+              "right": {
+                "pattern": {
+                  "name": "🆓",
+                  "at": [
+                    3,
+                    32
+                  ]
+                }
+              }
+            }
+          ],
+          "at": [
+            2,
+            1
+          ]
         },
         {
-          "name": "🆓"
+          "name": "🆓",
+          "op": "define",
+          "alternatives": [
+            {
+              "gates": [],
+              "expr": {
+                "literal": {
+                  "string": "a"
+                },
+                "at": [
+                  4,
+                  9
+                ]
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            4,
+            1
+          ]
         },
         {
-          "name": "😀"
+          "name": "😀",
+          "op": "define",
+          "alternatives": [
+            {
+              "gates": [],
+              "expr": {
+                "literal": {
+                  "string": "b"
+                },
+                "at": [
+                  5,
+                  9
+                ]
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            5,
+            1
+          ]
         }
-      ]
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
     }
   },
   "cacheMisses": true

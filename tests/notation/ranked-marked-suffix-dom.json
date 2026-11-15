@@ -3,35 +3,71 @@
   "document": "```jbogenbau\n%rule text [+T (a ≻ b)]\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 51,
       "rules": [
         {
+          "name": "text",
+          "op": "define",
           "alternatives": [
             {
+              "gates": [],
               "expr": {
                 "optional": {
                   "seq": [
                     {
-                      "ref": "T"
+                      "ref": "T",
+                      "at": [
+                        2,
+                        14
+                      ]
                     },
                     {
                       "ranked": [
                         {
-                          "ref": "a"
+                          "ref": "a",
+                          "at": [
+                            2,
+                            17
+                          ]
                         },
                         {
-                          "ref": "b"
+                          "ref": "b",
+                          "at": [
+                            2,
+                            21
+                          ]
                         }
+                      ],
+                      "at": [
+                        2,
+                        19
                       ]
                     }
+                  ],
+                  "at": [
+                    2,
+                    14
                   ]
                 },
-                "elidable": true
+                "elidable": true,
+                "at": [
+                  2,
+                  12
+                ]
               }
             }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
           ]
         }
-      ]
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
     }
   }
 }

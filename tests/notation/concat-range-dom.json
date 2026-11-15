@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%const $LOW \"\" ++ \"a\"\n%const $HIGH \"\" ++ \"z\"\n%rule text $LOW..$HIGH\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 51,
       "rules": [
         {
           "name": "text",
@@ -27,6 +27,10 @@
                       18
                     ]
                   }
+                ],
+                "at": [
+                  4,
+                  12
                 ]
               }
             }

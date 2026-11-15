@@ -1,9 +1,4 @@
 export { BOUNDARY_METHODS, boundaryAtoms } from "./clause-walk.js";
-/** @type {WeakMap<object, any>} */
-export declare const boundaryLocations: WeakMap<object, any>;
-/** Preserve positions when constants or patterns copy a clause.
- * @param {object} from @param {object} to */
-export declare function copyBoundaryLocation(from: object, to: object): void;
 /** @param {any} rule @returns {{problem:string,node:any}|null} */
 export declare function boundaryProblem(rule: any): {
     problem: string;
@@ -102,8 +97,5 @@ export declare const boundaryDocumentErrors: WeakMap<object, {
 }>;
 /** @param {any} dom */
 export declare function needsTreeLocations(dom: any): boolean;
-/** Recover positions through the same reader as an uncached document.
- * @param {any} dom @param {any} source */
-export declare function restoreBoundaryLocations(dom: any, source: any): void;
 /** @param {any[]} productions */
 export declare function emissionTargets(productions: any[]): Set<string>;

@@ -2,20 +2,11 @@
   "document": "```jbogenbau\n%rule r := \"v\" :- \"i\" | A\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 51,
       "rules": [
         {
           "name": "r",
           "op": "define",
-          "alternatives": [
-            {
-              "gates": [],
-              "expr": {
-                "ref": "A"
-              }
-            }
-          ],
-          "conditions": [],
           "value": {
             "concat": [
               {
@@ -30,6 +21,19 @@
               }
             ]
           },
+          "alternatives": [
+            {
+              "gates": [],
+              "expr": {
+                "ref": "A",
+                "at": [
+                  2,
+                  25
+                ]
+              }
+            }
+          ],
+          "conditions": [],
           "at": [
             2,
             1

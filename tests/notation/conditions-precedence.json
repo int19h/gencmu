@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%rule a ($x:A $y:B) %conditions (P ⊆ $x.tags ∨ (Q ⊆ $y.tags ∧ R ⊆ $x.tags))\n%rule b ($x:A $y:B) %conditions ((P ⊆ $x.tags ∨ Q ⊆ $y.tags) ∧ ¬((R ⊆ $x.tags ∧ $y.parse(a))))\n%rule c $x:A %conditions (P ⊆ $x.tags ⟹ (Q ⊆ $x.tags ⟹ R ⊆ $x.tags))\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 51,
       "rules": [
         {
           "name": "a",
@@ -16,15 +16,35 @@
                   {
                     "capture": "x",
                     "expr": {
-                      "ref": "A"
-                    }
+                      "ref": "A",
+                      "at": [
+                        2,
+                        13
+                      ]
+                    },
+                    "at": [
+                      2,
+                      10
+                    ]
                   },
                   {
                     "capture": "y",
                     "expr": {
-                      "ref": "B"
-                    }
+                      "ref": "B",
+                      "at": [
+                        2,
+                        18
+                      ]
+                    },
+                    "at": [
+                      2,
+                      15
+                    ]
                   }
+                ],
+                "at": [
+                  2,
+                  10
                 ]
               }
             }
@@ -94,15 +114,35 @@
                   {
                     "capture": "x",
                     "expr": {
-                      "ref": "A"
-                    }
+                      "ref": "A",
+                      "at": [
+                        3,
+                        13
+                      ]
+                    },
+                    "at": [
+                      3,
+                      10
+                    ]
                   },
                   {
                     "capture": "y",
                     "expr": {
-                      "ref": "B"
-                    }
+                      "ref": "B",
+                      "at": [
+                        3,
+                        18
+                      ]
+                    },
+                    "at": [
+                      3,
+                      15
+                    ]
                   }
+                ],
+                "at": [
+                  3,
+                  10
                 ]
               }
             }
@@ -164,7 +204,11 @@
                         "args": [
                           {
                             "body": {
-                              "ref": "a"
+                              "ref": "a",
+                              "at": [
+                                3,
+                                90
+                              ]
                             }
                           }
                         ]
@@ -189,8 +233,16 @@
               "expr": {
                 "capture": "x",
                 "expr": {
-                  "ref": "A"
-                }
+                  "ref": "A",
+                  "at": [
+                    4,
+                    12
+                  ]
+                },
+                "at": [
+                  4,
+                  9
+                ]
               }
             }
           ],

@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%rule a $x:B %conditions $x.without-elision.onward.onward.parse(r …)\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 51,
       "rules": [
         {
           "name": "a",
@@ -14,8 +14,16 @@
               "expr": {
                 "capture": "x",
                 "expr": {
-                  "ref": "B"
-                }
+                  "ref": "B",
+                  "at": [
+                    2,
+                    12
+                  ]
+                },
+                "at": [
+                  2,
+                  9
+                ]
               }
             }
           ],
@@ -42,11 +50,19 @@
                   "body": {
                     "seq": [
                       {
-                        "ref": "r"
+                        "ref": "r",
+                        "at": [
+                          2,
+                          65
+                        ]
                       },
                       {
                         "remainder": true
                       }
+                    ],
+                    "at": [
+                      2,
+                      65
                     ]
                   }
                 }

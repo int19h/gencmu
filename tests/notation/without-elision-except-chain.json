@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%rule a $s:B %conditions $s.without-elision-except(math).onward.parse(quantifier …)\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 51,
       "rules": [
         {
           "name": "a",
@@ -14,8 +14,16 @@
               "expr": {
                 "capture": "s",
                 "expr": {
-                  "ref": "B"
-                }
+                  "ref": "B",
+                  "at": [
+                    2,
+                    12
+                  ]
+                },
+                "at": [
+                  2,
+                  9
+                ]
               }
             }
           ],
@@ -42,11 +50,19 @@
                   "body": {
                     "seq": [
                       {
-                        "ref": "quantifier"
+                        "ref": "quantifier",
+                        "at": [
+                          2,
+                          71
+                        ]
                       },
                       {
                         "remainder": true
                       }
+                    ],
+                    "at": [
+                      2,
+                      71
                     ]
                   }
                 }

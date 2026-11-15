@@ -3,13 +3,97 @@
   "document": "```jbogenbau\n%rule text A\n               \n%extend-rule text B\n%redefine-rule text C\n               \n%redefine-rule text D\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 51,
       "rules": [
-        {},
-        {},
-        {},
-        {}
-      ]
+        {
+          "name": "text",
+          "op": "define",
+          "alternatives": [
+            {
+              "gates": [],
+              "expr": {
+                "ref": "A",
+                "at": [
+                  2,
+                  12
+                ]
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        },
+        {
+          "name": "text",
+          "op": "extend",
+          "alternatives": [
+            {
+              "gates": [],
+              "expr": {
+                "ref": "B",
+                "at": [
+                  4,
+                  19
+                ]
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            4,
+            1
+          ]
+        },
+        {
+          "name": "text",
+          "op": "redefine",
+          "alternatives": [
+            {
+              "gates": [],
+              "expr": {
+                "ref": "C",
+                "at": [
+                  5,
+                  21
+                ]
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            5,
+            1
+          ]
+        },
+        {
+          "name": "text",
+          "op": "redefine",
+          "alternatives": [
+            {
+              "gates": [],
+              "expr": {
+                "ref": "D",
+                "at": [
+                  7,
+                  21
+                ]
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            7,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
     }
   }
 }

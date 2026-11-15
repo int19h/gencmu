@@ -350,7 +350,7 @@ function domQueryPatternProblems(value){
           if(!node||typeof node!=='object')continue;
           if(has(node,'capture')&&has(node,'expr'))problems.push('a query body has no capture binder');
           if(has(node,'remainder')){
-            if(!outer||node.remainder!==true||Object.keys(node).length!==1)problems.push('a remainder requires an outer query edge');
+            if(!outer||node.remainder!==true||Object.keys(node).some(key=>key!=='remainder'&&key!=='at'))problems.push('a remainder requires an outer query edge');
             remainders++;
           }else for(const child of Object.values(node))if(child&&typeof child==='object')for(const part of Array.isArray(child)?child:[child])work.push({node:part,outer:false});
         }

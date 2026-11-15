@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%rule text \"e\" \"‹U+0301›\"\n```",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 51,
       "rules": [
         {
           "name": "text",
@@ -16,13 +16,25 @@
                   {
                     "literal": {
                       "string": "e"
-                    }
+                    },
+                    "at": [
+                      2,
+                      12
+                    ]
                   },
                   {
                     "literal": {
                       "string": "́"
-                    }
+                    },
+                    "at": [
+                      2,
+                      16
+                    ]
                   }
+                ],
+                "at": [
+                  2,
+                  12
                 ]
               }
             }

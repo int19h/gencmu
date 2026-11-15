@@ -3,7 +3,7 @@
   "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule g ($a:A $b:B) %conditions ($a.value = \"x\" ∨ $a.value ∈ $b.value.split(\".\")), ¬$b.parse(r) %emits $a, ε :: Sound-0027-s := \"'\", $b :: W\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 51,
       "rules": [
         {
           "name": "g",
@@ -16,15 +16,35 @@
                   {
                     "capture": "a",
                     "expr": {
-                      "ref": "A"
-                    }
+                      "ref": "A",
+                      "at": [
+                        6,
+                        13
+                      ]
+                    },
+                    "at": [
+                      6,
+                      10
+                    ]
                   },
                   {
                     "capture": "b",
                     "expr": {
-                      "ref": "B"
-                    }
+                      "ref": "B",
+                      "at": [
+                        6,
+                        18
+                      ]
+                    },
+                    "at": [
+                      6,
+                      15
+                    ]
                   }
+                ],
+                "at": [
+                  6,
+                  10
                 ]
               }
             }
@@ -107,7 +127,11 @@
                 "args": [
                   {
                     "body": {
-                      "ref": "r"
+                      "ref": "r",
+                      "at": [
+                        6,
+                        94
+                      ]
                     }
                   }
                 ]

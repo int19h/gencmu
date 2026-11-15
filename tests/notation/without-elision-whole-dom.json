@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%rule a B %conditions $.without-elision.parse(r)\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 51,
       "rules": [
         {
           "name": "a",
@@ -12,7 +12,11 @@
             {
               "gates": [],
               "expr": {
-                "ref": "B"
+                "ref": "B",
+                "at": [
+                  2,
+                  9
+                ]
               }
             }
           ],
@@ -29,7 +33,11 @@
               "args": [
                 {
                   "body": {
-                    "ref": "r"
+                    "ref": "r",
+                    "at": [
+                      2,
+                      47
+                    ]
                   }
                 }
               ]

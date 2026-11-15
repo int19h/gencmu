@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%rule text :: T := \"value\" :- \"image\"\n  | f? a ≻ b :: U\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 51,
       "rules": [
         {
           "name": "text",
@@ -37,11 +37,23 @@
               "expr": {
                 "ranked": [
                   {
-                    "ref": "a"
+                    "ref": "a",
+                    "at": [
+                      3,
+                      8
+                    ]
                   },
                   {
-                    "ref": "b"
+                    "ref": "b",
+                    "at": [
+                      3,
+                      12
+                    ]
                   }
+                ],
+                "at": [
+                  3,
+                  10
                 ]
               },
               "tags": {

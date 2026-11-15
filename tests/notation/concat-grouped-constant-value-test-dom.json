@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%const $JOIN-1 (\"a\" ++ $B)\n%rule text A=$JOIN-1\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 51,
       "rules": [
         {
           "name": "text",
@@ -21,8 +21,16 @@
                   ]
                 },
                 "expr": {
-                  "ref": "A"
-                }
+                  "ref": "A",
+                  "at": [
+                    3,
+                    12
+                  ]
+                },
+                "at": [
+                  3,
+                  13
+                ]
               }
             }
           ],

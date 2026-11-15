@@ -414,8 +414,10 @@ export type TemplateArgument = Term | {
     rule: string;
 } | TemplateCall | Parameter | {
     range: [Term, Term];
+    at?: Position;
 } | {
     wildcard: true;
+    at?: Position;
 } | Splice | TestedSymbol | {
     body: Expr;
 } | {
@@ -495,59 +497,80 @@ export type PatternItem = {
 export type Splice = {
     splice: {
         ref: string;
+        at?: Position;
     } | TemplateCall;
+    at?: Position;
 };
 export type Expr = {
     choice: Expr[];
+    at?: Position;
 } | {
     ranked: Expr[];
+    at?: Position;
 } | {
     and: Expr[];
+    at?: Position;
 } | {
     seq: Expr[];
+    at?: Position;
 } | {
     repeat: Expr;
     separator?: Expr;
     chain?: "left" | "right";
+    at?: Position;
 } | {
     optional: Expr;
     elidable?: true;
     default?: Term;
+    at?: Position;
 } | {
     capture: string;
     expr: Expr;
+    at?: Position;
 } | Splice | {
     ref: string;
+    at?: Position;
 } | {
     range: [Term, Term];
+    at?: Position;
 } | {
     literal: Term;
+    at?: Position;
 } | {
     wildcard: true;
+    at?: Position;
 } | {
     test: "=" | "≠";
     value: Term;
     expr: TestedSymbol;
+    at?: Position;
 } | {
     test: "tags";
     requirements: Requirement[];
     expr: TestedSymbol;
+    at?: Position;
 } | {
     empty: true;
+    at?: Position;
 } | TemplateCall | Parameter;
 export type TestOp = "tags" | "=" | "≠";
 export type TestedSymbol = TemplateCall | Parameter | Splice | {
     ref: string;
+    at?: Position;
 } | {
     range: [Term, Term];
+    at?: Position;
 } | {
     literal: Term;
+    at?: Position;
 } | {
     wildcard: true;
+    at?: Position;
 } | {
     test: "tags";
     requirements: Requirement[];
     expr: TestedSymbol;
+    at?: Position;
 };
 export type Emission = {
     items: EmitItem[];
@@ -619,7 +642,9 @@ export type Argument = Term | {
     body: Expr | {
         seq: (Expr | {
             remainder: true;
+            at?: Position;
         })[];
+        at?: Position;
     };
 } | {
     rule: string;
@@ -1314,8 +1339,8 @@ export type ParseContext = import("./earley.js").ParseContext;
 /** @typedef {{rule:string} | {terminal:string} | TemplateCall | Parameter} QueryTarget */
 /**
  * One argument before template expansion.
- * @typedef {Term | {rule:string} | TemplateCall | Parameter | {range:[Term,Term]}
- *   | {wildcard:true} | Splice | TestedSymbol | {body:Expr} | {targets:QueryTarget[]}
+ * @typedef {Term | {rule:string} | TemplateCall | Parameter | {range:[Term,Term], at?:Position}
+ *   | {wildcard:true, at?:Position} | Splice | TestedSymbol | {body:Expr} | {targets:QueryTarget[]}
  *   | {requirements:Requirement[]}} TemplateArgument
  */
 /**
@@ -1333,14 +1358,14 @@ export type ParseContext = import("./earley.js").ParseContext;
 /** @typedef {PatternAtom | PatternRuleAtom | {test:"tags",requirements:Requirement[],expr:PatternAtom | PatternRuleAtom}} PatternTestTarget */
 /** @typedef {PatternItem[]} PatternChildren */
 /** @typedef {{child:Pattern} | {siblings:true} | {optional:PatternChildren} | {repeat:PatternChildren,separator?:PatternChildren} | {choice:PatternChildren[]}} PatternItem */
-/** @typedef {{splice:{ref:string}|TemplateCall}} Splice */
+/** @typedef {{splice:{ref:string, at?:Position}|TemplateCall, at?:Position}} Splice */
 /**
  * A rule body expression.
- * @typedef {{choice: Expr[]} | {ranked: Expr[]} | {and: Expr[]} | {seq: Expr[]}
- *   | {repeat: Expr, separator?: Expr, chain?: "left" | "right"}
- *   | {optional: Expr, elidable?: true, default?: Term} | {capture: string, expr: Expr} | Splice | {ref: string}
- *   | {range: [Term, Term]} | {literal: Term} | {wildcard: true}
- *   | {test: "="|"≠", value: Term, expr: TestedSymbol} | {test: "tags", requirements: Requirement[], expr: TestedSymbol} | {empty: true} | TemplateCall | Parameter} Expr
+ * @typedef {{choice: Expr[], at?: Position} | {ranked: Expr[], at?: Position} | {and: Expr[], at?: Position} | {seq: Expr[], at?: Position}
+ *   | {repeat: Expr, separator?: Expr, chain?: "left" | "right", at?: Position}
+ *   | {optional: Expr, elidable?: true, default?: Term, at?: Position} | {capture: string, expr: Expr, at?: Position} | Splice | {ref: string, at?: Position}
+ *   | {range: [Term, Term], at?: Position} | {literal: Term, at?: Position} | {wildcard: true, at?: Position}
+ *   | {test: "="|"≠", value: Term, expr: TestedSymbol, at?: Position} | {test: "tags", requirements: Requirement[], expr: TestedSymbol, at?: Position} | {empty: true, at?: Position} | TemplateCall | Parameter} Expr
  */
 /**
  * The comparator of a test in a body (engine §2).
@@ -1348,7 +1373,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  */
 /**
  * What a test follows: a reference, a terminal, a range or a property.
- * @typedef {TemplateCall | Parameter | Splice | {ref: string} | {range: [Term, Term]} | {literal: Term} | {wildcard: true} | {test: "tags", requirements: Requirement[], expr: TestedSymbol}} TestedSymbol
+ * @typedef {TemplateCall | Parameter | Splice | {ref: string, at?: Position} | {range: [Term, Term], at?: Position} | {literal: Term, at?: Position} | {wildcard: true, at?: Position} | {test: "tags", requirements: Requirement[], expr: TestedSymbol, at?: Position}} TestedSymbol
  */
 /**
  * An emission clause.
@@ -1392,7 +1417,7 @@ export type ParseContext = import("./earley.js").ParseContext;
 /**
  * A function's argument: a term, the name of a rule, or the name of a
  * classifier.
- * @typedef {Term | {body: Expr | {seq: (Expr | {remainder:true})[]}} | {rule: string} | {terminal:string} | {classifier: string} | {integer: string}} Argument
+ * @typedef {Term | {body: Expr | {seq: (Expr | {remainder:true, at?:Position})[], at?:Position}} | {rule: string} | {terminal:string} | {classifier: string} | {integer: string}} Argument
  */
 /**
  * @typedef {object} GrammarSymbol

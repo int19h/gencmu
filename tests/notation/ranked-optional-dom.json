@@ -3,27 +3,55 @@
   "document": "```jbogenbau\n%rule text [(a ≻ b)]\n```\n",
   "expect": {
     "dom": {
-      "format": 49,
+      "format": 51,
       "rules": [
         {
+          "name": "text",
+          "op": "define",
           "alternatives": [
             {
+              "gates": [],
               "expr": {
                 "optional": {
                   "ranked": [
                     {
-                      "ref": "a"
+                      "ref": "a",
+                      "at": [
+                        2,
+                        14
+                      ]
                     },
                     {
-                      "ref": "b"
+                      "ref": "b",
+                      "at": [
+                        2,
+                        18
+                      ]
                     }
+                  ],
+                  "at": [
+                    2,
+                    16
                   ]
-                }
+                },
+                "at": [
+                  2,
+                  12
+                ]
               }
             }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
           ]
         }
-      ]
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
     }
   }
 }
