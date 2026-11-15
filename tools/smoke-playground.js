@@ -1370,6 +1370,39 @@ async function main() {
       throw new Error(`phone tokens table tags layout check failed: ${JSON.stringify(phoneTokCheck)}`);
     }
 
+    // Every view fits the phone width that remains after the stable
+    // gutter, at 390px and at 320px. The token table must fit its
+    // wrapper too. Its columns used to keep their max-content width,
+    // which overflowed the wrapper at 320px and on wider fonts.
+    for (const narrowWidth of [390, 320]) {
+      await page.setViewportSize({ width: narrowWidth, height: 844 });
+      for (const viewName of ["brackets", "tree", "json", "tokens", "trace", "audit"]) {
+        await page.locator(`#tab-${viewName}`).click();
+        await idle(`${viewName} view at ${narrowWidth}px`);
+        const fit = await run(() => {
+          const out = document.getElementById("output");
+          const wrap = document.querySelector("#output .table-wrap");
+          return {
+            phone: document.getElementById("app").classList.contains("phone"),
+            docSW: document.documentElement.scrollWidth,
+            clientW: document.documentElement.clientWidth,
+            outSW: out.scrollWidth,
+            outCW: out.clientWidth,
+            wrapSW: wrap ? wrap.scrollWidth : null,
+            wrapCW: wrap ? wrap.clientWidth : null,
+          };
+        });
+        if (
+          !fit.phone ||
+          fit.docSW > fit.clientW ||
+          fit.outSW > fit.outCW + 1 ||
+          (fit.wrapSW !== null && fit.wrapSW > fit.wrapCW)
+        ) {
+          throw new Error(`${viewName} view does not fit at ${narrowWidth}px: ${JSON.stringify(fit)}`);
+        }
+      }
+    }
+
     // Deep nesting, Trace 5th section, Token diagnostics, and phone More actions menu:
     // 1. Deep nesting: first word of every line lies inside the pane or its scroll range,
     //    and right edge fades out while more lies to the right.

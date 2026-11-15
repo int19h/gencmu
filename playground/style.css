@@ -1515,6 +1515,22 @@ table.tokens .tag.tok-warn {
   color: var(--warn);
 }
 
+/* On the phone the token columns shrink to fit the card, and long
+   values wrap instead of making the table wider than the card. */
+.app.phone table.tokens {
+  grid-template-columns: max-content repeat(calc(var(--non-tag-cols, 6) - 1), minmax(0, 1fr));
+}
+
+.app.phone table.tokens th,
+.app.phone table.tokens td {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.app.phone table.tokens td.num {
+  overflow-wrap: normal;
+}
+
 /* Trace view */
 .trace-controls {
   display: flex;
