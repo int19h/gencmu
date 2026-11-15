@@ -2493,6 +2493,7 @@ async function main() {
 
     const thresholds = {};
     for (const view of ["brackets", "tree"]) {
+      heightScrollByState.clear();
       await page.setViewportSize({ width: 1440, height: 900 });
       await page.locator(`#tab-${view}`).click();
       await idle(`${view} before threshold sweeps`);
@@ -2581,6 +2582,63 @@ async function main() {
         `no-document threshold is not the left minimum plus the list minimum: ${JSON.stringify({ thresholds, expectedNoDocStack, leftMin: leftMeasure.min, listMin: noDocMeasure.min, reserve })}`
       );
     }
+
+    // At page start, the first fill of the stage row must already give
+    // the phone layout in a narrow window, before any result arrives.
+    const initPage = await instance.newPage();
+    await initPage.setViewportSize({ width: 390, height: 844 });
+    await initPage.addInitScript(() => {
+      window.__firstStageFill = null;
+      const install = () => {
+        const stageFlow = document.getElementById("stage-flow");
+        if (!stageFlow) return false;
+        const record = () => {
+          if (window.__firstStageFill || stageFlow.children.length === 0) return;
+          window.__firstStageFill = {
+            status: document.getElementById("status").dataset.state,
+            chips: stageFlow.children.length,
+            phone: document.getElementById("app").classList.contains("phone"),
+            sideways:
+              document.documentElement.scrollWidth >
+              document.documentElement.clientWidth,
+          };
+        };
+        new MutationObserver(record).observe(stageFlow, { childList: true });
+        record();
+        return true;
+      };
+      if (!install()) {
+        const watcher = new MutationObserver(() => {
+          if (install()) watcher.disconnect();
+        });
+        watcher.observe(document, { childList: true, subtree: true });
+      }
+    });
+    await initPage.goto(target + "#text=mi%20klama&pipeline=lojban%2Fcll&view=brackets");
+    await initPage.waitForFunction(() => window.__firstStageFill, null, { timeout: 60000 });
+    const firstStageFill = await initPage.evaluate(() => window.__firstStageFill);
+    await initPage.close();
+    if (!firstStageFill || !firstStageFill.phone || firstStageFill.sideways) {
+      throw new Error(`first stage fill did not give the phone layout at 390px: ${JSON.stringify(firstStageFill)}`);
+    }
+
+    // A change of the text size alone fires no resize, but it changes the
+    // minimums. Larger stage text just above the phone threshold must give
+    // the phone layout, and the normal text must give it back.
+    await page.setViewportSize({ width: thresholds.brackets.phoneNoDoc + 20, height: 900 });
+    await page.waitForFunction(() => !document.getElementById("app").classList.contains("phone"), null, { timeout: 5000 });
+    await run(() => {
+      const style = document.createElement("style");
+      style.id = "smoke-text-size";
+      style.textContent = ".stage b, .stage span, .text-probe { font-size: 20px !important; }";
+      document.head.append(style);
+    });
+    await page.waitForFunction(() => document.getElementById("app").classList.contains("phone"), null, { timeout: 5000 })
+      .catch(() => { throw new Error("larger text did not give the phone layout without a resize"); });
+    await run(() => document.getElementById("smoke-text-size").remove());
+    await page.waitForFunction(() => !document.getElementById("app").classList.contains("phone"), null, { timeout: 5000 })
+      .catch(() => { throw new Error("normal text did not give the desktop layout back without a resize"); });
+    await page.setViewportSize({ width: 1440, height: 900 });
 
     console.log(`redesigned layout, full editor, and phone checks work in ${browser}`);
 

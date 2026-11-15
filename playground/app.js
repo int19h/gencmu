@@ -591,6 +591,7 @@
   let cachedListMin = null;
   let leftMinDirty = true;
   let listMinDirty = true;
+  let lastDevicePixelRatio = window.devicePixelRatio;
 
   function minContentWidth(element, clearMaxWidth = false) {
     const prevFlex = element.style.flex;
@@ -604,6 +605,14 @@
     element.style.width = prevWidth;
     element.style.maxWidth = prevMaxWidth;
     return width;
+  }
+
+  // Every fill of the stage row goes through here, so the stored left
+  // minimum is always marked stale and the layout is decided again.
+  function fillStageRow(chips) {
+    leftMinDirty = true;
+    fill($("stage-flow"), chips);
+    updateTopBarOverflow();
   }
 
   function updateTopBarOverflow() {
@@ -624,9 +633,7 @@
     // The work width is the width inside the root element. In Chromium
     // documentElement.clientWidth does not subtract the stable gutter,
     // so the workspace width is the fixed one to compare against.
-    const workW = workspace
-      ? workspace.clientWidth
-      : document.documentElement.clientWidth || window.innerWidth;
+    const workW = workspace.clientWidth;
 
     // The left side's minimum is set only by #stage-flow. Every other
     // block of the left side is a size container, so measuring .left at
@@ -715,6 +722,13 @@
 
   $("view-tabs").addEventListener("scroll", updatePhoneTabsFade, { passive: true });
   window.addEventListener("resize", () => {
+    // Browser zoom fires a resize and changes the device pixel ratio.
+    // Zoom can change the minimums, so this resize marks them stale.
+    if (window.devicePixelRatio !== lastDevicePixelRatio) {
+      lastDevicePixelRatio = window.devicePixelRatio;
+      leftMinDirty = true;
+      listMinDirty = true;
+    }
     updateTopBarOverflow();
     updatePhoneTabsFade();
     updateAllCodeBlocksFade();
@@ -725,6 +739,24 @@
       listMinDirty = true;
       updateTopBarOverflow();
     });
+  }
+  // A change of the text size alone fires no event. Text-only zoom and a
+  // minimum font size are examples. A hidden line of text in the stage
+  // font changes its width when the text size changes, and an observer
+  // then marks the minimums stale. The first report only sets the width.
+  if (typeof ResizeObserver !== "undefined") {
+    const textProbe = element("span", { class: "text-probe", "aria-hidden": "true", text: "klama → not run" });
+    document.body.append(textProbe);
+    let textProbeWidth = null;
+    new ResizeObserver(() => {
+      const width = textProbe.getBoundingClientRect().width;
+      if (textProbeWidth !== null && width !== textProbeWidth) {
+        leftMinDirty = true;
+        listMinDirty = true;
+        updateTopBarOverflow();
+      }
+      textProbeWidth = width;
+    }).observe(textProbe);
   }
   if (typeof ResizeObserver !== "undefined" && $("output-card")) {
     new ResizeObserver(() => {
@@ -904,8 +936,7 @@
         element("span", { class: "sr-only", text: " " }),
         element("span", { text: "not run" })));
     });
-    leftMinDirty = true;
-    fill($("stage-flow"), chips);
+    fillStageRow(chips);
     $("features-used").hidden = true;
 
     const optsDesc = [
@@ -1017,7 +1048,6 @@
       $("timing").title = "Parse time";
     }
 
-    const stageFlow = $("stage-flow");
     const chips = [];
     const reports = message.parse ? message.parse.stages : [];
     const stageList = info
@@ -1113,9 +1143,7 @@
           : null));
       }
     });
-    leftMinDirty = true;
-    fill(stageFlow, chips);
-    updateTopBarOverflow();
+    fillStageRow(chips);
 
     const used = message.parse && !message.loadError ? message.parse.features : [];
     const featsEl = $("features-used");
@@ -3238,7 +3266,7 @@
         element("span", { class: "sr-only", text: " " }),
         element("span", { text: "not run" })));
     });
-    fill($("stage-flow"), initialChips);
+    fillStageRow(initialChips);
     $("verdict-top").hidden = true;
     $("copy-link").hidden = true;
     $("output").replaceChildren();
