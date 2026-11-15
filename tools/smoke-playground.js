@@ -2621,10 +2621,18 @@ async function main() {
     if (!firstStageFill || !firstStageFill.phone || firstStageFill.sideways) {
       throw new Error(`first stage fill did not give the phone layout at 390px: ${JSON.stringify(firstStageFill)}`);
     }
+    // A status that is not ready shows that the record is from the first
+    // fill, before any result arrives.
+    if (firstStageFill.status === "ready") {
+      throw new Error(`first stage fill was recorded after the page became ready: ${JSON.stringify(firstStageFill)}`);
+    }
 
     // A change of the text size alone fires no resize, but it changes the
     // minimums. Larger stage text just above the phone threshold must give
     // the phone layout, and the normal text must give it back.
+    // A real change of the text size also changes the hidden text probe.
+    // The test style must therefore cover .text-probe too, or the page
+    // sees no change.
     await page.setViewportSize({ width: thresholds.brackets.phoneNoDoc + 20, height: 900 });
     await page.waitForFunction(() => !document.getElementById("app").classList.contains("phone"), null, { timeout: 5000 });
     await run(() => {
