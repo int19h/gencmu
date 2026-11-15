@@ -733,13 +733,6 @@
     updatePhoneTabsFade();
     updateAllCodeBlocksFade();
   });
-  if (document.fonts && document.fonts.addEventListener) {
-    document.fonts.addEventListener("loadingdone", () => {
-      leftMinDirty = true;
-      listMinDirty = true;
-      updateTopBarOverflow();
-    });
-  }
   // A change of the text size alone fires no event. Text-only zoom and a
   // minimum font size are examples. A hidden line of text in the stage
   // font changes its width when the text size changes, and an observer
@@ -3272,7 +3265,6 @@
     $("output").replaceChildren();
     updateTabToolbar(false);
   }
-  updateTopBarOverflow();
   self.playground = {
     state,
     infos,

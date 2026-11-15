@@ -92,7 +92,9 @@ a:hover {
 }
 
 /* A hidden line of text in the stage font. The page observes its width
-   to see a change of the text size. */
+   to see a change of the text size. The smallest stage text is 12 px,
+   and 12 px is the smallest size that sets a minimum. Thus a minimum
+   font size that changes a minimum also changes the probe. */
 .text-probe {
   position: absolute;
   top: 0;
