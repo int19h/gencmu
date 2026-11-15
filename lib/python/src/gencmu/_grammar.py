@@ -73,7 +73,6 @@ class Alternative:
     rule_image: Any
     document: str
     at: tuple[int, int]
-    ranked_locations: dict = field(default_factory=dict, repr=False, compare=False)
     index: int = field(default=0, repr=False, compare=False)
     error: Any = None
     warning: Any = None
@@ -842,7 +841,6 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
     """Stitch a stage's documents, in order, into one grammar. ``unicode``
     controls canonical terminal spellings in diagnostics."""
     from ._templates import expand_templates
-    from ._ranked import expression_locations
     documents, template_order, _, validation, arguments_to_check, document_runs, erasure_checks, parameter_rules = expand_templates(documents, unicode)
     held_flags = {(entry[0], entry[1], tuple(entry[2])): entry[3] for entry in parameter_rules}
     rules: dict[str, Rule] = {}
@@ -893,7 +891,6 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                         rule_image=rule.get("image"),
                         document=path,
                         at=at,
-                        ranked_locations=getattr(rule,"ranked_locations",{}).get(alternative_index,{}),
                         index=alternative_index,
                         error=rule.get("error"), warning=rule.get("warning"),
                         suppress_warnings=tuple(rule.get("suppressWarnings", ())),
@@ -901,9 +898,6 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                     )
                     for alternative_index,alt in enumerate(rule.get("alternatives", []))
                 ]
-                if template_order is not None:
-                    for alternative in alternatives:
-                        alternative.ranked_locations = {**alternative.ranked_locations, **expression_locations(alternative.expr)}
                 written_alternatives.extend(alternatives)
                 previous = rules.get(name)
                 op = rule.get("op")
@@ -937,7 +931,8 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                 elif name == "ambiguity-resolution":
                     if resolutions:
                         raise _error("has a second %ambiguity-resolution", path, at, stage)
-                    directive = {**directive, "steps": [dict(step) for step in directive["steps"]]}
+                    from ._boundary import Located
+                    directive = {**directive, "steps": [Located(step) for step in directive["steps"]]}
                     resolutions.append((directive["steps"], path, at))
                     checks.append((inspection_run, at, path, "ranking", directive))
                 elif name == "elision-only":
@@ -1000,7 +995,7 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                 operand = step["pattern"]
                 term = operand if "const" in operand else {"pattern": operand}
                 value = run(constants._closed(path, term, item["at"], "pattern"))
-                position = getattr(operand, "at", None) or operand.get("at", item["at"])
+                position = getattr(step, "at", None) or operand.get("at") or getattr(operand, "at", None) or item["at"]
                 if not isinstance(value, dict) or "pattern" not in value:
                     raise _error("a ranking step requires a pattern", path, position, stage)
                 pattern = value["pattern"]
@@ -1083,17 +1078,22 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
 
     for rule in rules.values():
         for alt in rule.alternatives:
-            stack: list[Any] = list(reversed([alt.expr, alt.tags, unchecked(alt.rule_tags), unchecked(alt.conditions), unchecked(alt.emit)]))
+            stack: list[Any] = [(value, alt.at) for value in reversed([alt.expr, alt.tags, unchecked(alt.rule_tags), unchecked(alt.conditions), unchecked(alt.emit)])]
             while stack:
-                value = stack.pop()
+                value, inherited_at = stack.pop()
                 if isinstance(value, dict):
+                    # A reference in an expression stands at its nearest
+                    # expression with a position. A rule or classifier that
+                    # a clause names stands at its alternative (engine §2).
+                    own_at = value.get("at")
+                    current_at = tuple(own_at) if isinstance(own_at, (list, tuple)) and len(own_at) == 2 else inherited_at
                     if value.get("method") == "without-elision-except":
                         family = value["args"][0]["rule"]
                         if family not in family_names:
                             family_names.append(family)
                     ref = value.get("ref")
                     if isinstance(ref, str) and not is_terminal_name(ref) and ref not in rules:
-                        raise _error(f"{ref} is not a rule of stage {stage}", alt.document, alt.at, stage)
+                        raise _error(f"{ref} is not a rule of stage {stage}", alt.document, current_at, stage)
                     if isinstance(value.get("rule"), str) and value["rule"] not in rules:
                         raise _error(f"{value['rule']} is not a rule of stage {stage}", alt.document, alt.at, stage)
                     # A classifier that classify names belongs to the stage
@@ -1109,15 +1109,15 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                     if "method" in value:
                         # DOM object order does not change the written
                         # order: the receiver precedes every argument.
-                        stack.extend(reversed([value["receiver"], *value["args"]]))
+                        stack.extend((child, current_at) for child in reversed([value["receiver"], *value["args"]]))
                     elif "if" in value:
-                        stack.extend((value["then"], value["if"]))
+                        stack.extend(((value["then"], current_at), (value["if"], current_at)))
                     elif "op" in value and "left" in value and "right" in value:
-                        stack.extend((value["right"], value["left"]))
+                        stack.extend(((value["right"], current_at), (value["left"], current_at)))
                     else:
-                        stack.extend(reversed(list(value.values())))
+                        stack.extend((child, current_at) for child in reversed(list(value.values())))
                 elif isinstance(value, list):
-                    stack.extend(reversed(value))
+                    stack.extend((child, inherited_at) for child in reversed(value))
     from ._template_nodes import nodes
     erased = {rule.name for rule in rules.values() if all(alt.erased for alt in rule.alternatives)}
     def erased_pattern(root, path, at):
@@ -1152,16 +1152,16 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
                     pending.extend(node)
                     continue
                 if "splice" in node:
-                    splices.append((node["splice"]["ref"], alt))
+                    splices.append((node["splice"]["ref"], alt, node.get("at") or node["splice"].get("at")))
                 if "pattern" in node:
                     erased_pattern(node["pattern"], alt.document, alt.at)
                     prohibited.update(part["name"] for part in nodes(node["pattern"]) if isinstance(part.get("name"), str))
                 if node.get("method") in ("followed-by", "preceded-by"):
                     prohibited.update(arg["rule"] for arg in node["args"] if "rule" in arg)
                 pending.extend(node.values())
-    for target, alt in splices:
+    for target, alt, at in splices:
         if target in prohibited:
-            raise _error(f"a splice of {target} conflicts with a pattern or neighbour target", alt.document, alt.at, stage)
+            raise _error(f"a splice of {target} conflicts with a pattern or neighbour target", alt.document, at or alt.at, stage)
     from ._families import members
     grammar = Grammar(
         stage,

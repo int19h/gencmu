@@ -92,10 +92,7 @@ class Ranked(unittest.TestCase):
         found = _resources()
         reader = _reader(found.bootstrap, found.unicode, found.properties)
         dom = reader.read(texts["grammars/test/g.md"], "grammars/test/g.md", True)
-        with (
-            patch.object(NotationReader, "located", side_effect=AssertionError("source-location recovery ran")),
-            patch("gencmu._ranked.restore_locations", side_effect=AssertionError("source-location recovery ran")),
-        ):
+        with patch.object(NotationReader, "located", side_effect=AssertionError("source-location recovery ran")):
             load_pipeline_sources(texts, "grammars/test/p.md", use_cache=False)
             with require_preparsed_cache(reader, texts):
                 for _ in range(2):

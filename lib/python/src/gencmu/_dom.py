@@ -5,35 +5,19 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from ._clauses import attachment_order, check_definition, duplicate_captures, item_captures
+from ._boundary import hide
 from ._errors import GencmuError
 from ._markdown import GrammarText
 from ._model import Node, Token
-from ._strings import USER_NAME, lit_occurrences, literal_string
 from ._trampoline import Walk, run
-from ._pattern_shapes import layered_pattern_problem
 from ._template_nodes import argument_of_expression
-from ._types import (
-    _METHODS,
-    _PREDICATES,
-    comparison_problem,
-    method_shape_problem,
-    method_type,
-    Memo as TypeMemo,
-    constant_value_type,
-    expected_problem,
-    joined_type,
-    tag_term_problem,
-    term_type,
-)
 from ._validate import (
-    CAPTURE_NAME,
     CLASSIFIER_NAME,
     FORMAT,
+    KEY_STEPS,
+    LEANS,
     Marks,
-    range_problem,
-    term_reads_own_tags,
-    valid_steps,
+    node_at,
 )
 
 Dom = dict[str, Any]
@@ -60,14 +44,6 @@ def _is_capital(name: str) -> bool:
     return "A" <= name[:1] <= "Z"
 
 
-class DefaultOptional(dict):
-    """Keep the default marker position outside canonical DOM members."""
-
-    def __init__(self, value, at):
-        super().__init__(value)
-        self.default_at = self.at = at
-
-
 class DomBuilder:
     """Reads the DOM off a document tree, rule by rule of the §9 table."""
 
@@ -79,34 +55,14 @@ class DomBuilder:
         self.document = document
         # The configured categories control canonical terminal spellings.
         self.unicode = unicode
-        # What the reader is reading as a closed term, a constant's value or
-        # a test's operand, or None (engine §9, §10).
-        self.closed_for: str | None = None
-        # The notation node of each capture of the alternative being read,
-        # by the identity of its DOM; the braces around the construct being
-        # read, innermost last, each as whether it is a chain and how many
-        # ranked groups are open inside it, since a chain and a ranked group
-        # inside flat braces hold no capture; and how many elidable optionals
-        # the reader is inside, where no capture stands either (engine §3.5,
-        # §9).
-        self.capture_nodes: dict[int, Node] = {}
-        self.unresolved_terms: dict[int, tuple[Any, bool]] = {}
         self.parts_cache: dict[int, tuple[Node, list[Node]]] = {}
-        self.braces: list[list[Any]] = []
-        self.marked = 0
-        self.allowed_marked = set()
-        # The types found of the terms and conditions read, each found once
-        # (engine §10).
-        self.types: TypeMemo = {}
+        # Whether the reader is inside a recipe, where juxtaposed strings
+        # need ++, and the head of the elidable optional being read, with
+        # its default and the default's node (engine §3.8, §9).
         self.recipe_context = False
         self.default_head = None
         self.head_default = None
         self.default_node = None
-        self.feature_context = False
-        self.engine_nodes = {}
-        self.boundary_nodes = {}
-        self.reading_head = False
-        self.parameter_scope = set()
 
     # -- positions and errors
 
@@ -209,15 +165,9 @@ class DomBuilder:
         constants: list[Dom] = []
         classifiers: list[Dom] = []
         implications: list[Dom] = []
-        statement_seen = False
         for kid in self.kids(root):
-            self.parameter_scope = set()
             if kid.kind == "rule" and kid.rule not in _ITEMS:
                 raise self.fail(kid, f"the notation gives a {kid.rule} where an item stands")
-            names = kid.rule == "directive" and self.token_value(self.token(kid)) == "%names"
-            if names and statement_seen:
-                raise self.fail(kid, "%names must precede every other statement")
-            statement_seen = statement_seen or not names
             if kid.kind == "rule" and kid.rule == "rule":
                 rules.append(self.rule(kid))
             elif kid.kind == "rule" and kid.rule == "ranking-directive":
@@ -241,73 +191,47 @@ class DomBuilder:
         flatten_groups(dom)
         return dom
 
+    def at(self, node: Node) -> list[int]:
+        return list(self.position(node))
+
     def classifier(self, node: Node) -> Dom:
-        """A ``%classifier`` item: its name, which begins with a lower-case
-        letter, and its entries (engine §2, §9)."""
+        """A ``%classifier`` item: its name and its entries (engine §2,
+        §9). The validator checks the name."""
         name_node = self.only(node, "classifier-name")
         name = self.token_value(self.token(name_node))
-        if not CLASSIFIER_NAME.fullmatch(name):
-            raise self.fail(name_node, f"{name} begins with a capital, so it is a tag; a classifier's name begins with a lower-case letter")
         entries = [self.entry(entry) for entry in self.rules(node, "classifier-entry")]
-        return {"name": name, "entries": entries, "at": list(self.position(node))}
+        return hide({"name": name, "entries": entries, "at": self.at(node)}, self.at(name_node), "name_at")
 
     def entry(self, node: Node) -> Dom:
-        """An entry of a classifier: gates, exact keys, ``∈`` or ``∉``,
-        and a class (engine §2, §9)."""
-        gates: list[Dom] = []
-        keys: list[Dom] = []
-        for gate in self.rules(node, "feature-gate"):
-            value = self.gate(gate)
-            if value["kind"] != "gate":
-                raise self.fail(gate, "an entry of a classifier takes gates only, not a warning")
-            gates.append(value)
-        for key_node in self.some(node, "classifier-key"):
-            keys.append(self.value(self.known_of(key_node, frozenset(("string", "constant-reference")))))
+        """An entry of a classifier: gates, keys, ``∈`` or ``∉``, and a
+        class (engine §2, §9)."""
+        gates = [self.gate(gate) for gate in self.rules(node, "feature-gate")]
+        keys = [self.value(self.known_of(key_node, frozenset(("string", "constant-reference")))) for key_node in self.some(node, "classifier-key")]
         op = self.operator(self.token(self.only(node, "classifier-operator")))
         class_node = self.only(node, "classifier-class")
         name = self.token_value(self.token(class_node))
-        if USER_NAME.fullmatch(name) is None or not "A" <= name[-1] <= "Z":
-            raise self.fail(class_node, f"{name} is not a class: a class starts and ends with an uppercase ASCII letter")
-        return {"gates": gates, "keys": keys, "op": op, "class": name, "at": list(self.position(node))}
+        return hide({"gates": gates, "keys": keys, "op": op, "class": name, "at": self.at(node)}, self.at(class_node), "class_at")
 
     def implication(self, node: Node) -> Dom:
-        """An implication, ``%implies A ⟹ B``: two closed terms whose type is
-        a tag set (engine §2, §9)."""
+        """An implication, ``%implies A ⟹ B``: two terms that the validator
+        holds to closed tag sets (engine §2, §9)."""
         sides: list[Dom] = []
         for side in self.some(node, "union", 2)[:2]:
-            self.closed_for = "a side of an implication"
-            try:
-                term = self.value(side)
-            finally:
-                self.closed_for = None
-            kind, problem = term_type(term, memo=self.types)
-            if problem is None:
-                problem = expected_problem(kind, "tags")  # type: ignore[arg-type]
-            if problem is not None:
-                raise self.fail(side, f"a side of an implication is a tag set: {problem}")
+            term = self.value(side)
+            if isinstance(term, dict) and "at" not in term:
+                term = hide(term, self.at(side))
             sides.append(term)
-        return {"if": sides[0], "then": sides[1], "at": list(self.position(node))}
+        return {"if": sides[0], "then": sides[1], "at": self.at(node)}
 
     def constant(self, node: Node) -> Dom:
-        """A constant's definition: its name without ``$``, and its value, a
-        closed term of a type that a constant can have (engine §2, §9,
-        §10)."""
+        """A constant's definition: its name without ``$``, and its value
+        (engine §2, §9, §10)."""
         keyword = self.token_value(self.token(self.only(node, "constant-keyword")))
         name_node = self.only(node, "constant-name")
         name = self.token_value(self.token(name_node))[1:]
-        if USER_NAME.fullmatch(name) is None:
-            raise self.fail(name_node, "a constant declaration requires a user name")
-        value_node = self.only(node, "term")
-        self.closed_for = "a constant's value"
-        try:
-            value = self.value(value_node)
-        finally:
-            self.closed_for = None
+        value = self.value(self.only(node, "term"))
         op = "redefine" if keyword == "%redefine-const" else "define"
-        _, fault = constant_value_type(value, op == "redefine", memo=self.types)
-        if fault is not None:
-            raise self.fail(value_node, fault[0])
-        return {"name": name, "op": op, "value": value, "at": list(self.position(node))}
+        return hide({"name": name, "op": op, "value": value, "at": self.at(node)}, self.at(name_node), "name_at")
 
     def directive(self, node: Node) -> Dom:
         name = self.token_value(self.token(node))[1:]
@@ -317,22 +241,10 @@ class DomBuilder:
             raise self.fail(node, problem)
         args = [self.token_value(self.token(kid)) if kid.rule == "directive-identifier" else
                 self.decode_string(self.tokens[self.token(kid).token], True) for kid in operands]
-        if name in ("stage", "extend-stage", "redefine-stage") and not CLASSIFIER_NAME.fullmatch(args[0]):
-            raise self.fail(node, f"%{name} takes one lowercase name")
-        if name == "features" and any(re.fullmatch(r"(?!.*--)[A-Za-z][A-Za-z0-9-]*", arg) is None for arg in args):
-            raise self.fail(node, "%features takes feature names")
-        directive = {"name": name, "args": args, "at": list(self.position(node))}
+        directive = {"name": name, "args": args, "at": self.at(node)}
         clause = self.one(node, "conditions-clause")
         if clause is not None:
-            if name != "features":
-                raise self.fail(node, "only %features accepts conditions")
-            self.feature_context = True
-            try:
-                directive["conditions"] = [run(self._condition(item)) for item in self.some(clause, "condition")]
-            except GencmuError as error:
-                raise self.fail(node, error.message) from error
-            finally:
-                self.feature_context = False
+            directive["conditions"] = [run(self._condition(item)) for item in self.some(clause, "condition")]
         return directive
 
     def ranking_directive(self, node: Node) -> Dom:
@@ -341,15 +253,14 @@ class DomBuilder:
         for step_node in nodes:
             name = self.token_value(self.token(step_node))
             operand = next((kid for kid in self.kids(step_node) if kid.rule in ("pattern-literal", "constant-reference")), None)
-            key = name in ("leftmost-longest", "fewest", "most", "late", "early")
-            if operand is not None and not key or operand is None and (name not in ("greedy", "lazy") or step_node is not nodes[-1]):
+            if operand is not None and name not in KEY_STEPS or operand is None and (name not in LEANS or step_node is not nodes[-1]):
                 raise self.fail(node, "%ambiguity-resolution requires a pattern for each key step and no operand on a final lean")
             if operand is None:
                 steps.append({"step": name})
             else:
                 value = run(self._term(operand))
-                steps.append({"step": name, "pattern": value.get("pattern", value)})
-        return {"name": "ambiguity-resolution", "steps": steps, "at": list(self.position(node))}
+                steps.append(hide({"step": name, "pattern": value.get("pattern", value)}, self.at(operand)))
+        return {"name": "ambiguity-resolution", "steps": steps, "at": self.at(node)}
 
     def operand_kind(self, node: Node) -> str:
         """The kind of a directive's operand: ``name`` or ``class`` for a
@@ -363,95 +274,32 @@ class DomBuilder:
 
     def gate(self, node: Node) -> Dom:
         text = self.token_value(self.token(node))
-        match = re.fullmatch(r"(?!.*--)(¬?)([A-Za-z][A-Za-z0-9-]*)(\?)", text)
+        match = re.fullmatch(r"(¬?)(?!.*--)([A-Za-z][A-Za-z0-9-]*)(\?)", text)
         if match is None:
-            raise self.fail(node, "invalid guard")
-        return {"feature": match[2], "kind": "gate", "negated": bool(match[1])}
-
-    def clauses(self, node: Node, tag_name: str, own: bool = False) -> Dom:
-        result = {}
-        tags = self.one(node, tag_name)
-        if tags is not None:
-            result["tags"] = self.own_tags(tags) if own else self.tag_term(self.only(tags, "term"))
-        for channel in ("value", "image"):
-            clause = self.one(node, channel + "-clause")
-            if clause is not None:
-                result[channel] = self.recipe(self.only(clause, "recipe"))
-        return result
-
-    def recipe(self, node: Node) -> Dom:
-        atoms = []
-        for atom in self.some(node, "recipe-term"):
-            if any(type(index) is not int for index in atom.span) or not 0 <= atom.span[0] <= atom.span[1] <= len(self.tokens):
-                raise self.lacks(atom, "valid token span")
-            if atoms:
-                raise self.fail(atom, "juxtaposed recipe strings require ++, use ++ between string atoms")
-            if any(t.value in ("(", ")") for t in self.tokens[atom.span[0]:atom.span[1]]):
-                raise self.fail(atom, "a recipe atom accepts no grouping or arguments")
-            if any(t.value in ("∪", "∩", "∖", "⟹") for t in self.tokens[atom.span[0]:atom.span[1]]):
-                raise self.fail(atom, "a recipe atom accepts no set operator")
-            before = self.recipe_context
-            self.recipe_context = True
-            try:
-                value = self.value(self.only(atom, "term"))
-            finally:
-                self.recipe_context = before
-            values = value.get("concat", [value])
-            if any("union" in part for part in values):
-                raise self.fail(atom, "juxtaposed recipe strings require ++, use ++ between string atoms")
-            for value in values:
-                if "method" in value:
-                    receiver = value["receiver"]
-                    emitted = receiver.get("method") == "emitted" and receiver.get("args") == [] and set(receiver.get("receiver", {})) == {"capture"}
-                    if value["args"] or not (value["method"] in ("value", "image", "source-text", "decomposed-source-text", "verbatim-text") and set(receiver) == {"capture"}
-                        or value["method"] in ("value", "image") and emitted):
-                        raise self.fail(atom, "invalid recipe method chain")
-                elif "string" not in value and "const" not in value and "param" not in value:
-                    raise self.fail(atom, "a recipe atom requires a string")
-                atoms.append(value)
-        from ._recipes import Recipe
-        return Recipe(atoms, self.position(node))
+            raise self.fail(node, "invalid feature guard")
+        return hide({"feature": match[2], "kind": "gate", "negated": bool(match[1])}, self.at(node))
 
     def rule(self, node: Node) -> Dom:
-        """A definition: its keyword, its name, its alternatives and its
-        clauses, checked as a whole once it is read (engine §9)."""
+        """A definition: its keyword, its name or head, its alternatives and
+        its clauses (engine §9). The validator checks them."""
         op = _DEFINERS.get(self.token_value(self.token(self.only(node, "rule-keyword"))), "define")
-        self.parameter_scope = set()
-        self.reading_head = True
         name_node = self.one(node, "rule-name")
         head_node = self.one(node, "call") if name_node is None else None
         if head_node is None and name_node is None:
             raise self.lacks(node, "rule-name")
         head = run(self._call(head_node)) if head_node is not None else None
-        self.reading_head = False
+        name_token = self.token(head_node if head_node is not None else name_node)
+        name = head["call"] if head else self.token_value(name_token)
+        all_params = head is not None and all("param" in arg for arg in head["args"])
         head_fields = {}
         if head:
-            if all('param' in arg for arg in head['args']):
-                head_fields['params'] = [arg['param'] for arg in head['args']]
-                for argument in head['args']:
-                    name = argument['param']
-                    if name in self.parameter_scope:
-                        line, column = argument['at']
-                        raise GencmuError(f"duplicate parameter @{name}", document=self.document, line=line, column=column)
-                    self.parameter_scope.add(name)
-            else:
-                pending = [head_node]
-                while pending:
-                    part = pending.pop()
-                    if part.rule == "parameter":
-                        raise self.fail(head_node, "a head cannot mix parameters and concrete arguments")
-                    pending.extend(self.kids(part))
-                if op == "define":
-                    raise self.fail(head_node, "an instance head requires an edit")
-                head_fields['args'] = head['args']
-        name_token = self.token(head_node if head_node is not None else name_node)
-        name = head['call'] if head else self.token_value(name_token)
-        if not self.unicode.is_emoji_name(name) and CLASSIFIER_NAME.fullmatch(name) is None:
-            raise self.fail(name_token, "a rule name starts with a lowercase letter or uses one eligible emoji")
-        if any(self._token_value(kid) == '=' for kid in self.kids(node)):
+            head_fields = {"params": [arg["param"] for arg in head["args"]]} if all_params else {"args": head["args"]}
+        if any(self._token_value(kid) == "=" for kid in self.kids(node)):
+            instance = run(self._call(self.only(node, "call")))
+            bound = hide({"name": name, **head_fields, "op": op, "instance": instance, "conditions": [], "at": self.at(node)}, self.at(name_token), "name_at")
             if head:
-                raise self.fail(node, 'a binding requires a plain rule name')
-            return dict(name=name, op=op, instance=run(self._call(self.only(node, 'call'))), conditions=[], at=list(self.position(node)))
+                bound.has_head = True
+            return bound
         header = self.clauses(node, "header-tags", True)
         body = self.one(node, "body") or self.only(node, "headed-body")
         ranked = self.one(body, "ranked-body")
@@ -465,32 +313,23 @@ class DomBuilder:
         for kind in ("error", "warning"):
             diagnostic = self.one(node, kind + "-clause")
             if diagnostic is not None:
-                recipe = self.recipe(self.only(diagnostic, "recipe"))
-                if any(atom.get("receiver", {}).get("method") == "emitted" for atom in recipe["concat"]):
-                    raise self.fail(diagnostic, "a message recipe cannot read .emitted")
-                dom[kind] = recipe
+                dom[kind] = hide(self.recipe(self.only(diagnostic, "recipe")), self.at(diagnostic), "clause_at")
         suppression = self.one(node, "suppress-warnings-clause")
         if suppression is not None:
             dom["suppressWarnings"] = ["_"] if any(self._token_value(child) == "_" for child in self.kids(suppression)) else [self.token_value(self.token(code)) for code in self.some(suppression, "suppression-code")]
         dom["conditions"] = conditions
         if self.one(node, "erased-clause") is not None:
             dom["erased"] = True
-        dom["at"] = list(self.position(node))
+        dom["at"] = self.at(node)
+        dom = hide(dom, self.at(name_token), "name_at")
+        if all_params:
+            dom.param_ats = [arg["at"] for arg in head["args"]]
         flatten_groups(dom)
-        from ._boundary import problem as boundary_problem
-        boundary = boundary_problem(dom)
-        if boundary is not None:
-            raise self.fail(self.boundary_nodes.get(id(boundary[1]), node), boundary[0])
-        result = check_definition(dom, self.defer_emission)
-        if result.problem is not None:
-            raise self.fail(node, result.problem.message)
         return dom
 
     def parameter(self, node):
         param = self.token_value(self.token(node))[1:]
-        if not self.reading_head and param not in self.parameter_scope:
-            raise self.fail(node, 'undeclared parameter @' + param)
-        return dict(param=param, at=list(self.position(node)))
+        return dict(param=param, at=self.at(node))
 
     def _call(self, node):
         name = self.token_value(self.token(node))
@@ -498,14 +337,14 @@ class DomBuilder:
         for argument in self.some(node, 'call-argument'):
             part = self.known_of(argument, frozenset(('requirement-argument', 'target-argument', 'body-argument', 'symbol-argument', 'term')))
             if part.rule == 'requirement-argument':
-                value = dict(requirements=(yield self._wrap_tests({}, [part]))['requirements'])
+                value = dict(requirements=(yield self._read_test(part))['requirements'])
             elif part.rule == 'target-argument':
                 targets = []
                 for target in (k for k in self.kids(part) if k.kind == 'rule'):
                     if target.rule == 'rule-reference':
-                        targets.append(dict(rule=self.token_value(self.token(target))))
+                        targets.append(hide(dict(rule=self.token_value(self.token(target))), self.at(target)))
                     elif target.rule == 'tag':
-                        targets.append(dict(terminal=self.tag_of(self.token(target))))
+                        targets.append(hide(dict(terminal=self.tag_of(self.token(target))), self.at(target)))
                     else:
                         targets.append((yield self._call(target)) if target.rule == 'call' else self.parameter(target))
                 value = dict(targets=targets)
@@ -514,68 +353,65 @@ class DomBuilder:
                 value = argument_of_expression(expr)
             else:
                 value = yield self._term(part, True)
+            if isinstance(value, dict) and node_at(value) is None:
+                value = hide(value, self.at(argument))
             args.append(value)
-        return dict(call=name, args=args, at=list(self.position(node)))
+        return dict(call=name, args=args, at=self.at(node))
 
     # -- expressions
 
     def alternative(self, node: Node) -> Dom:
-        gates: list[Dom] = []
-        self.capture_nodes = {}
-        self.braces = []
-        self.marked = 0
-        self.allowed_marked = set()
         gates = [self.gate(gate) for gate in self.rules(node, "feature-gate")]
         expr = run(self._expr(self.only(node, "ranked-choice" if node.rule == "ranked-body" else "some-of"), True))
-        # A name stands at most once in each production, gates aside: the
-        # error stands at the second capture that such a production reads,
-        # the first in the text where there are several (engine §3.5, §9).
-        twice = [self.capture_nodes[id(capture)] for capture in duplicate_captures(expr)]
-        if twice:
-            first = min(twice, key=lambda capture: self.first_token(capture) or 0)
-            name = self.token_value(self.token(first))[1:]
-            raise self.fail(first, f"the capture ${name} is read twice by one production of the alternative")
-        # The name of an item capture stands nowhere else in the alternative
-        # (engine §3.5, §9): the error stands at the later capture in the
-        # text.
-        items = item_captures(expr)
-        if items:
-            seen: dict[str, Node] = {}
-            for capture in all_captures(expr):
-                name = capture["capture"]
-                at = self.capture_nodes[id(capture)]
-                earlier = seen.get(name)
-                if earlier is not None and name in items:
-                    later = at if (self.first_token(earlier) or 0) < (self.first_token(at) or 0) else earlier
-                    raise self.fail(later, f"the item capture ${name} is read again: the name of an item capture stands once in its alternative")
-                if earlier is None:
-                    seen[name] = at
-        return {"gates": gates, "expr": expr, **self.clauses(node, "alternative-tags", True)}
+        return hide({"gates": gates, "expr": expr, **self.clauses(node, "alternative-tags", True)}, self.at(node))
 
-    def own_tags(self, node: Node) -> Dom:
-        """A rule's or an alternative's tag term, which may not read the tags
-        it defines (engine §9)."""
-        tags = self.tag_term(self.only(node, "term"))
-        if term_reads_own_tags(tags):
-            raise self.fail(node, "a constituent's tags cannot be made of its own: $.tags or $.classes")
-        return tags
+    def clauses(self, node: Node, tag_name: str, own: bool = False) -> Dom:
+        result = {}
+        tags = self.one(node, tag_name)
+        if tags is not None:
+            term = self.tag_term(self.only(tags, "term"))
+            result["tags"] = hide(term, self.at(tags), "clause_at") if own else term
+        for channel in ("value", "image"):
+            clause = self.one(node, channel + "-clause")
+            if clause is not None:
+                result[channel] = self.recipe(self.only(clause, "recipe"))
+        return result
+
+    def recipe(self, node: Node) -> Dom:
+        atoms = []
+        for atom in self.some(node, "recipe-term"):
+            if any(type(index) is not int for index in atom.span) or not 0 <= atom.span[0] <= atom.span[1] <= len(self.tokens):
+                raise self.lacks(atom, "valid token span")
+            if atoms:
+                raise self.fail(atom, "juxtaposed recipe strings require ++. Use ++ between string atoms")
+            if any(t.value in ("(", ")") for t in self.tokens[atom.span[0]:atom.span[1]]):
+                raise self.fail(atom, "a recipe atom has no grouping or arguments")
+            if any(t.value in ("∪", "∩", "∖", "⟹") for t in self.tokens[atom.span[0]:atom.span[1]]):
+                raise self.fail(atom, "a recipe atom has no set operator")
+            before = self.recipe_context
+            self.recipe_context = True
+            try:
+                value = self.value(self.only(atom, "term"))
+            finally:
+                self.recipe_context = before
+            values = value.get("concat", [value])
+            if any("union" in part for part in values):
+                raise self.fail(atom, "juxtaposed recipe strings require ++. Use ++ between string atoms")
+            for value in values:
+                if node_at(value) is None:
+                    value = hide(value, self.at(atom))
+                atoms.append(value)
+        from ._recipes import Recipe
+        return Recipe(atoms, self.position(node))
 
     def tag_term(self, node: Node) -> Dom:
         """A whole term that must be a tag set: a constituent's or an item's
-        tags (engine §10). The error stands at the term."""
-        term = self.value(node)
-        problem = tag_term_problem(term, memo=self.types)
-        if problem is not None:
-            raise self.fail(node, problem)
-        retained = lit_occurrences(term)
-        if retained:
-            found = [self.engine_nodes[id(t)] for t in retained if id(t) in self.engine_nodes]
-            raise self.fail(min(found, key=lambda n: self.first_token(n) or 0) if found else node, "a tag clause cannot introduce engine tags")
-        return term
+        tags (engine §10). The validator checks its type."""
+        return hide(self.value(node), self.at(node), "tag_term_at")
 
     def _expr(self, node: Node, whole: bool = False) -> Walk:
-        """An expression; ``whole`` says it is its alternative's whole
-        expression, where a chain may stand (engine §9)."""
+        """An expression or a primary. The validator checks its shape and
+        places (engine §9.3)."""
         rule = node.rule
         if rule == 'parameter':
             return self.parameter(node)
@@ -585,51 +421,45 @@ class DomBuilder:
             ranked = self.one(node, "ranked-choice")
             if ranked is not None:
                 return (yield self._expr(ranked))
-        if rule in ("choice", "ranked-choice", "some-of", "sequence"):
-            part = {"choice": "some-of", "ranked-choice": "some-of", "some-of": "sequence", "sequence": "primary"}[rule]
-            parts = self.some(node, part, 2 if rule == "ranked-choice" else 1)
-            if rule == "some-of" and len(parts) > 16:
-                raise self.fail(node, "& joins at most 16 items, since it expands to 2ⁿ−1 sequences")
-            # A choice's conjunction is never the whole expression, nor is
-            # an item of a sequence or of & of several.
-            nested = whole and rule not in ("choice", "ranked-choice") and len(parts) == 1
-            items: list[Dom] = []
-            enclosing = self.braces[-1] if rule == "ranked-choice" and self.braces else None
-            if enclosing is not None:
-                enclosing[1] += 1
-            for p in parts:
-                items.append((yield self._expr(self.known_of(p, _PRIMARIES) if rule == "sequence" else p, nested)))
-            if enclosing is not None:
-                enclosing[1] -= 1
-            if len(items) == 1:
-                return items[0]
-            key = {"choice": "choice", "ranked-choice": "ranked", "some-of": "and", "sequence": "seq"}[rule]
-            return {key: items}
+            items = []
+            for item in self.some(node, "some-of"):
+                items.append((yield self._expr(item)))
+            return items[0] if len(items) == 1 else {"choice": items, "at": self.at(node)}
+        if rule == "ranked-choice":
+            items = []
+            for item in self.some(node, "some-of", 2):
+                items.append((yield self._expr(item)))
+            separator = next((kid for kid in self.kids(node) if kid.kind == "token" and self.token_value(kid) == "≻"), None)
+            return {"ranked": items, "at": self.at(separator if separator is not None else node)}
+        if rule in ("some-of", "sequence"):
+            found = self.some(node, "sequence" if rule == "some-of" else "primary")
+            items = []
+            for item in found:
+                items.append((yield self._expr(self.known_of(item, _PRIMARIES) if rule == "sequence" else item, whole and len(found) == 1)))
+            return items[0] if len(items) == 1 else {"and" if rule == "some-of" else "seq": items, "at": self.at(node)}
         if rule == "splice":
             target = self.known_of(node, frozenset(("rule-reference", "call")))
-            marker = self.token(node)
-            if self.tokens[marker.token].source[1] != self.tokens[self.first_token(target)].source[0]:
-                raise self.fail(node, "a splice marker stands directly before its target")
-            return {"splice": (yield self._expr(target))}
+            return {"splice": (yield self._expr(target)), "at": self.at(node)}
         if rule == "rule-reference":
-            return {"ref": self.token_value(self.token(node))}
+            return {"ref": self.token_value(self.token(node)), "at": self.at(node)}
         if rule == "tag":
-            return {"ref": self.tag_of(self.token(node))}
+            return {"ref": self.tag_of(self.token(node)), "at": self.at(node)}
         if rule == "string-terminal":
             value = self.known_of(node, frozenset(("string", "constant-reference")))
-            return {"literal": (yield self._term(value))}
+            return {"literal": (yield self._term(value)), "at": self.at(node)}
+        if rule == "constant-reference":
+            return {"literal": (yield self._term(node)), "at": self.at(node)}
         if rule == "wildcard":
             self.token(node)
-            return {"wildcard": True}
+            return {"wildcard": True, "at": self.at(node)}
         if rule == "range":
-            return {"range": (yield self._range(node))}
+            return {"range": (yield self._range(node)), "at": self.at(node)}
         if rule == "tested-primary":
             tests = [kid for kid in self.kids(node) if kid.rule in ("tag-test", "value-test", "default-value")]
             if not tests:
-                raise self.lacks(node, "tag-test or value-test")
-            symbol = self.test_base(node)
-            self.test_order([test for test in tests if test.rule != "default-value"], symbol.rule in _SYMBOLS)
-            expr = yield self._expr(symbol)
+                raise self.lacks(node, "test")
+            # The base is converted before the test operands (engine §9.3).
+            expr = yield self._expr(self.test_base(node))
             for test in tests:
                 if test.rule == "default-value":
                     if node is not self.default_head:
@@ -640,75 +470,43 @@ class DomBuilder:
                     inner = self.known_of(operand, _ATOMS)
                     if inner.rule not in ("string", "constant-reference", "parameter"):
                         raise self.fail(operand, "a default requires one string")
-                    self.head_default = self.value(inner)
+                    self.head_default = hide((yield self._term(inner)), self.at(test), "default_at")
                     self.default_node = test
                 else:
-                    expr = yield self._wrap_tests(expr, [test])
+                    expr = {**(yield self._read_test(test)), "expr": expr, "at": self.at(test)}
             return expr
         if rule in ("capture", "captured-terminator"):
-            # Its place, its name and its symbol, in that order, before what
-            # it wraps (engine §9).
-            innermost = self.braces[-1] if self.braces else None
-            if innermost is not None and innermost[0]:
-                raise self.fail(node, "a capture cannot stand inside a chain, whose levels are constituents of its rule: a condition on $ serves each level")
-            if innermost is not None and innermost[1] > 0:
-                raise self.fail(node, "an item capture cannot stand inside a ranked group: name the ranked choice as a rule and capture that rule")
-            if self.marked and id(node) not in self.allowed_marked:
-                raise self.fail(node, "a capture cannot stand inside an elidable optional, which elision restores as one unit")
             name = self.token_value(self.token(node))[1:]
-            wrapped = self.only(node, "primary")
-            if not name:
-                raise self.fail(node, "$ is the whole constituent and wraps nothing")
-            if not CAPTURE_NAME.fullmatch(name):
-                raise self.fail(node, "a capture's name is all lower case")
-            inner = self.known_of(wrapped, _PRIMARIES)
-            base = inner
-            if base.rule == "tested-primary":
-                base = self.test_base(base)
-            if base.rule not in _SYMBOLS:
-                raise self.fail(node, "a capture wraps one symbol")
-            capture = {"capture": name, "expr": (yield self._expr(inner))}
-            self.capture_nodes[id(capture)] = node
-            return capture
-        if rule == "constant-reference":
-            return {"literal": (yield self._term(node))}
+            inner = self.known_of(self.only(node, "primary"), _PRIMARIES)
+            return {"capture": name, "expr": (yield self._expr(inner)), "at": self.at(node)}
         if rule == "group":
-            return (yield self._expr(self.only(node, "choice")))
+            return hide((yield self._expr(self.only(node, "choice"))), True, "grouped")
         if rule == "optional":
             return (yield self._optional(node))
         if rule == "repetition":
-            return (yield self._repetition(node, whole))
+            return (yield self._repetition(node))
         if rule == "empty":
-            return {"empty": True}
-        raise self.fail(node, f"unexpected {rule} in an expression")
+            return {"empty": True, "at": self.at(node)}
+        raise self.fail(node, f"unexpected {rule}")
+
+    def _with_default(self, result: Dom) -> Dom:
+        """An elidable optional with its head's default, if the head has one."""
+        if self.head_default is None:
+            return result
+        result = {**{key: value for key, value in result.items() if key != "at"}, "default": self.head_default, "at": result["at"]}
+        return hide(result, self.at(self.default_node), "default_at")
 
     def _captured_optional(self, optional, node):
-        markers = [kid for part in (optional, node) for kid in self.kids(part) if self._token_value(kid) == "+"]
+        markers = sorted((kid for part in (optional, node) for kid in self.kids(part) if self._token_value(kid) == "+"), key=lambda kid: self.first_token(kid) or 0)
         if len(markers) > 1:
             raise self.fail(markers[1], "an optional has one marker + at most")
         if not markers or self.one(optional, "choice") is not None:
             raise self.fail(optional, "a captured elidable optional holds only its terminator")
         head = self.known_of(self.only(node, "primary"), _PRIMARIES)
-        base = self.test_base(head) if head.rule == "tested-primary" else head
-        if base.rule != "parameter" and not (base.rule == "tag" and self.token_value(self.token(base))[:1].isupper()):
-            raise self.fail(optional, "a captured elidable optional holds only its terminator")
         previous = self.default_head, self.head_default, self.default_node
         self.default_head, self.head_default, self.default_node = head, None, None
-        self.allowed_marked.add(id(node))
-        self.marked += 1
         expr = yield self._expr(node)
-        self.marked -= 1
-        self.allowed_marked.remove(id(node))
-        result = {"optional": expr, "elidable": True}
-        if self.head_default is not None:
-            result["default"] = self.head_default
-            result = DefaultOptional(result, self.position(self.default_node))
-            tested = expr["expr"]
-            while "test" in tested:
-                if tested["test"] != "tags" and "string" in tested["value"] and "string" in self.head_default:
-                    if (self.head_default["string"] == tested["value"]["string"]) != (tested["test"] == "="):
-                        raise self.fail(self.default_node, "a default fails its head test")
-                tested = tested["expr"]
+        result = self._with_default({"optional": expr, "elidable": True, "at": self.at(optional)})
         self.default_head, self.head_default, self.default_node = previous
         return result
 
@@ -717,66 +515,39 @@ class DomBuilder:
 
     def _optional(self, node: Node) -> Walk:
         """An optional, and with a marker ``+`` among its parts an
-        elidable one (engine §3.8, §9). Its form is checked on the tree,
-        where a group is still a node: one sequence, whose first primary is
-        the terminal itself, with or without symbol tests."""
-        # Its choice is looked up before its markers are counted (engine §9).
+        elidable one (engine §3.8, §9). The validator checks the form of an
+        elidable one. A choice or conjunction directly after the marker is
+        marked as a group, which is not its head."""
         captured = self.one(node, "captured-terminator")
         if captured is not None:
             return (yield self._captured_optional(node, captured))
+        # Its required part first, then its markers (engine §9).
         choice = self.only(node, "choice")
         markers = [kid for kid in self.kids(node) if self._token_value(kid) == "+"]
         if len(markers) >= 2:
             raise self.fail(markers[1], "an optional has one marker + at most")
         if not markers:
-            return {"optional": (yield self._expr(choice))}
-        form = "an elidable optional begins with a user tag or parameter directly after +, without | or &"
-        # One conjunction of one sequence, with no leading | or & either:
-        # the terminator stands directly after the marker (engine §9).
+            return {"optional": (yield self._expr(choice)), "at": self.at(node)}
         conjunctions = self.rules(choice, "some-of")
         leading = any(self._token_value(kid) == "|" for kid in self.kids(choice)) or (
             len(conjunctions) == 1 and any(self._token_value(kid) == "&" for kid in self.kids(conjunctions[0]))
         )
         sequences = self.rules(conjunctions[0], "sequence") if len(conjunctions) == 1 and not leading else []
         primaries = self.rules(sequences[0], "primary") if len(sequences) == 1 else []
-        if not primaries:
-            raise self.fail(node, form)
-        head = self.known_of(primaries[0], _PRIMARIES)
-
-        def is_terminal(symbol: Node) -> bool:
-            return symbol.rule == 'parameter' or symbol.rule in ("tag", "rule-reference") and USER_NAME.fullmatch(self.token_value(self.token(symbol))) is not None
-
-        if head.rule == "tested-primary":
-            base = self.find_test_base(head)
-            if base is None or not is_terminal(base):
-                raise self.fail(node, form)
-
-        elif not is_terminal(head):
-            raise self.fail(node, form)
-        previous_head, previous_default, previous_node = self.default_head, self.head_default, self.default_node
-        self.default_head, self.head_default = head, None
-        self.marked += 1
+        head = self.known_of(primaries[0], _PRIMARIES) if primaries else None
+        previous = self.default_head, self.head_default, self.default_node
+        self.default_head, self.head_default, self.default_node = head, None, None
         expr = yield self._expr(choice)
-        self.marked -= 1
-        result = {"optional": expr, "elidable": True}
-        if self.head_default is not None:
-            result["default"] = self.head_default
-            result = DefaultOptional(result, self.position(self.default_node))
-            tested = expr["seq"][0] if "seq" in expr else expr
-            while "test" in tested:
-                if tested["test"] != "tags" and "string" in tested["value"] and "string" in self.head_default:
-                    if (self.head_default["string"] == tested["value"]["string"]) != (tested["test"] == "="):
-                        raise self.fail(self.default_node, "a default fails its head test")
-                tested = tested["expr"]
-        self.default_head, self.head_default, self.default_node = previous_head, previous_default, previous_node
+        if leading or isinstance(expr, dict) and "capture" in expr:
+            expr = hide(expr, True, "grouped")
+        result = self._with_default({"optional": expr, "elidable": True, "at": self.at(node)})
+        self.default_head, self.head_default, self.default_node = previous
         return result
 
-    def _repetition(self, node: Node, whole: bool) -> Walk:
+    def _repetition(self, node: Node) -> Walk:
         """Braces: the item, its separator if a `/` has one, and a
         chain's direction from its marker, a ``...`` among the parts
         (engine §9)."""
-        # Its choices are looked up before its markers are counted (engine
-        # §9).
         kids = self.kids(node)
         choices = self.some(node, "choice")
         markers = [index for index, kid in enumerate(kids) if self._token_value(kid) == "..."]
@@ -789,17 +560,12 @@ class DomBuilder:
         if markers and markers[0] > second:
             raise self.fail(kids[markers[0]], "a separator has no chain marker: ... stands after { or after the item")
         chain = None if not markers else "left" if markers[0] < place[id(choices[0])] else "right"
-        # A chain is the whole expression of its alternative, as the
-        # lowering of its levels needs (engine §3.3, §9).
-        if chain is not None and not whole:
-            raise self.fail(node, "a chain is the whole expression of its alternative: name it as a rule to use it here")
-        self.braces.append([chain is not None, 0])
         result: Dom = {"repeat": (yield self._expr(choices[0]))}
         if len(choices) >= 2:
             result["separator"] = yield self._expr(choices[1])
-        self.braces.pop()
         if chain is not None:
             result["chain"] = chain
+        result["at"] = self.at(node)
         return result
 
     def _first_of_rule(self, node: Node, name: str) -> Node | None:
@@ -821,10 +587,8 @@ class DomBuilder:
         if name.startswith("_"):
             canonical = self.unicode.canonical_tag(name)
             if canonical is None:
-                raise self.fail(token, "unknown or unavailable engine tag")
+                raise self.fail(token, f"unknown engine tag {name}; every _ tag is a Unicode property")
             return canonical
-        if not USER_NAME.fullmatch(name):
-            raise self.fail(token, "invalid tag name")
         return name
 
     def _range(self, node: Node) -> Walk:
@@ -834,9 +598,6 @@ class DomBuilder:
         ends = []
         for end in parts[:2]:
             ends.append((yield self._term(end)))
-        problem = range_problem(ends)
-        if problem:
-            raise self.fail(node, problem)
         return ends
 
     def find_test_base(self, node: Node) -> Node | None:
@@ -855,111 +616,75 @@ class DomBuilder:
         seen = set()
         for test in tests:
             if not valid or test.rule in seen or test.rule == "tag-test" and "value-test" in seen:
-                raise self.fail(test, "invalid test target or test order")
+                raise self.fail(test, "this target or test order is invalid")
             seen.add(test.rule)
 
-    def _wrap_tests(self, expr: Dom, tests: list[Node], pattern: bool = False) -> Walk:
-        for test in tests:
-            if test.rule in ("tag-test", "requirement-argument"):
-                requirements = []
-                for requirement in self.rules(test, "tag-requirement"):
-                    negated = any(self._token_value(kid) == "¬" for kid in self.kids(requirement))
-                    operand = self.only(requirement, "test-operand")
-                    base = self.known_of(operand, _ATOMS)
-                    if base.rule not in ("tag", "rule-or-classifier-name", "constant-reference", "parameter"):
-                        raise self.fail(operand, "a tag test requires a tag or tag-set constant")
-                    if pattern and base.rule == "tag" and self.token_value(self.token(base)) == "_Elided":
-                        from ._boundary import Located
-                        value = Located({"tag": "_Elided"}, self.position(self.token(base)))
-                    else:
-                        value = yield self._term(base)
-                    if "tag" not in value and "const" not in value and "param" not in value:
-                        raise self.fail(operand, "a tag test requires a tag or tag-set constant")
-                    problem = expected_problem(term_type(value, memo=self.types)[0], "tags")
-                    if problem:
-                        raise self.fail(operand, problem)
-                    requirements.append({"negated": negated, "value": value})
-                expr = {"test": "tags", "requirements": requirements, **({"any": True} if pattern and expr == {"any": True} else {"expr": expr})}
-            else:
-                op = self.operator(self.token(self.only(test, "value-comparator")))
-                operand = self.only(test, "test-operand")
-                base = self.known_of(operand, _ATOMS)
-                if base.rule not in ("string", "constant-reference", "parameter"):
-                    raise self.fail(operand, "a value test requires a string or string constant")
-                expr = {"test": op, "value": (yield self._term(base)), "expr": expr}
-        return expr
+    def _read_test(self, test: Node, pattern: bool = False) -> Walk:
+        """A test without its base: a tag test's requirements, or a value
+        test's comparator and value. A parenthesized operand is a group,
+        at its opening parenthesis."""
+        def grouped(value, inner, operand):
+            if inner.rule in ("term", "term-atom"):
+                value = hide(value, True, "grouped")
+                value = hide(value, self.at(operand))
+            return value
+
+        if test.rule in ("tag-test", "requirement-argument"):
+            requirements = []
+            for requirement in self.rules(test, "tag-requirement"):
+                operand = self.only(requirement, "test-operand")
+                inner = self.known_of(operand, _ATOMS)
+                if pattern and inner.rule == "tag" and self.token_value(self.token(inner)) == "_Elided":
+                    value = hide({"tag": "_Elided"}, self.at(self.token(inner)))
+                else:
+                    value = yield self._term(inner)
+                negated = any(self._token_value(kid) == "¬" for kid in self.kids(requirement))
+                requirements.append(hide({"negated": negated, "value": grouped(value, inner, operand)}, self.at(operand)))
+            return {"test": "tags", "requirements": requirements}
+        op = self.operator(self.token(self.only(test, "value-comparator")))
+        operand = self.only(test, "test-operand")
+        inner = self.known_of(operand, _ATOMS)
+        value = yield self._term(inner)
+        return {"test": op, "value": grouped(value, inner, operand)}
 
     def emission(self, node: Node) -> Dom:
+        item_nodes = self.rules(node, "emit-item")
+        if not item_nodes:
+            item = hide({"capture": "", **self.clauses(node, "emit-tags")}, self.at(node))
+            return hide({"items": [item]}, self.at(node))
         items = []
-        for item in self.rules(node, "emit-item"):
-            target = self.only(item, "emit-target")
+        for item_node in item_nodes:
+            target = self.only(item_node, "emit-target")
             token = self.symbol_part(target)
-            if token.kind != "token":
-                raise self.fail(target, "an emission target requires a capture or ε")
-            text = self.token_value(token)
-            if text == "ε":
-                entry = {"insert": True}
-            elif text.startswith("$"):
-                entry = {"capture": text[1:]}
-            else:
-                raise self.fail(target, "an emission target requires a capture or ε")
-            before = [name for part in self.rules(item, "attachment-before") for name in self.attachments(part)]
-            after = [name for part in self.rules(item, "attachment-after") for name in self.attachments(part)]
-            if (before or after) and not entry.get("capture"):
-                raise self.fail(item, "attachments require a named carrier")
-            entry.update(self.clauses(item, "emit-tags"))
+            text = self.token_value(token) if token.kind == "token" else ""
+            if text != "ε" and not text.startswith("$"):
+                raise self.fail(target, "an emission target is a capture or ε")
+            entry = {"insert": True} if text == "ε" else {"capture": text[1:]}
+            before = [name for part in self.rules(item_node, "attachment-before") for name in self.attachments(part)]
+            after = [name for part in self.rules(item_node, "attachment-after") for name in self.attachments(part)]
+            entry.update(self.clauses(item_node, "emit-tags"))
             if before:
                 entry["before"] = before
             if after:
                 entry["after"] = after
-            items.append(entry)
-        if not items:
-            items.append({"capture": "", **self.clauses(node, "emit-tags")})
-        named = [name for item in items if "capture" in item for name in attachment_order(item) if name]
-        if len(named) != len(set(named)):
-            raise self.fail(node, "an emission lists a capture twice")
-        return {"items": items}
+            items.append(hide(entry, self.at(item_node)))
+        return hide({"items": items}, self.at(node))
 
     def attachments(self, node: Node) -> list[str]:
         names = []
         for part in self.some(node, "capture-reference"):
             name = self.token_value(self.token(part))[1:]
             if not name:
-                raise self.fail(node, "an attachment requires a named capture")
+                raise self.fail(node, "an attachment holds a named capture, not $")
             names.append(name)
         return names
 
     # -- conditions
 
-    def _truthy_operand(self, operation: Node, item: Node) -> Walk:
-        """One operand of a set operation in a term-condition. A Boolean
-        method as an operand is a fault of the operation (engine §9.3)."""
-        try:
-            term = yield self._term(item)
-        except GencmuError as error:
-            if "a query method is a condition, not a term" in error.message:
-                raise self.fail(operation, "a query method is a condition, not a term") from None
-            raise
-        return term
-
-    def _truthy_check(self, operation: Node, items: list, operator: str) -> None:
-        """Fail at the operation when its operands do not join (§9.3)."""
-        if self.feature_context:
-            return
-        types = []
-        for item in items:
-            kind, problem = term_type(item, memo=self.types)
-            if problem is not None:
-                raise self.fail(operation, problem)
-            types.append(kind)
-        _, problem = joined_type(types, operator)  # type: ignore[arg-type]
-        if problem is not None:
-            raise self.fail(operation, problem)
-
     def _condition(self, node: Node) -> Walk:
         """A condition: ``⟹`` groups to the right, and a group of the same
-        connective, ``∧`` or ``∨``, is folded into the one around it, since
-        parentheses make no node (engine §9)."""
+        connective, ``∧`` or ``∨``, is folded into the one around it once
+        the rule is read, since parentheses make no node (engine §9)."""
         if node.rule == "condition":
             # Its any-ofs in order, and after them the implication of a
             # notation that writes one after ⟹, grouped to the right (engine
@@ -972,311 +697,178 @@ class DomBuilder:
                 items.append((yield self._condition(consequent)))
             result = items.pop()
             while items:
-                result = {"if": items.pop(), "then": result}
+                left = items.pop()
+                result = hide({"if": left, "then": result}, node_at(left) or self.at(node))
             return result
-        if node.rule == "condition-primary":
-            return (yield self._condition(self.known_of(node, _CONDITIONS)))
-        if node.rule in ("any-of", "all-of"):
-            key = "any" if node.rule == "any-of" else "all"
-            parts: list[Dom] = []
-            for kid in self.some(node, "all-of" if node.rule == "any-of" else "condition-primary"):
-                if kid.kind == "rule":
-                    # Parentheses make no node: a group of the same
-                    # connective is folded into this one (engine §9), once
-                    # the rule is read (flatten_groups), in one walk, since
-                    # folding here would copy a list at each depth.
+        if node.rule == "any-of":
+            items = []
+            for all_node in self.some(node, "all-of"):
+                parts = []
+                for kid in self.some(all_node, "condition-primary"):
                     parts.append((yield self._condition(kid)))
-            return parts[0] if len(parts) == 1 else {key: parts}
-        return (yield self._simple_condition(node))
+                items.append(parts[0] if len(parts) == 1 else hide({"all": parts}, self.at(all_node)))
+            return items[0] if len(items) == 1 else hide({"any": items}, self.at(node))
+        if node.rule == "condition-primary":
+            return (yield self._simple_condition(self.known_of(node, _CONDITIONS)))
+        raise self.fail(node, f"unexpected {node.rule}")
 
-    def _simple_condition(self, node: Node) -> Walk:
-        if node.rule == "tree-comparison":
-            left = {"capture":self.token_value(self.token(self.only(node, "capture-reference")))[1:]}
-            op = self.operator(self.token(self.only(node, "tree-comparator")))
-            operand = self.only(node, "union")
+    def _simple_condition(self, inner: Node) -> Walk:
+        if inner.rule == "condition":
+            return (yield self._condition(inner))
+        if inner.rule == "presence":
+            return hide({"captured": self.token_value(self.token(inner))[1:]}, self.at(inner))
+        if inner.rule == "tree-comparison":
+            reference = self.only(inner, "capture-reference")
+            left = hide({"capture": self.token_value(self.token(reference))[1:]}, self.at(reference))
+            op = self.operator(self.token(self.only(inner, "tree-comparator")))
+            operand = self.only(inner, "union")
             name = self._first_of_rule(operand, "rule-or-classifier-name") or self._first_of_rule(operand, "tag")
+            # A bare name gets this error before the typing of a tag.
             if name is not None and operand.span[1] - operand.span[0] == 1:
                 text = self.token_value(self.token(name))
                 raise self.fail(name, f"tree comparison requires a pattern; write #{text}, not {text}")
             right = yield self._term(operand)
-            kind, problem = term_type(right, memo=self.types)
-            if "capture" in right:
-                problem = "a tree comparison cannot compare a capture with itself" if left == right else None
-            elif problem is None:
-                problem = comparison_problem(op, "capture", kind)
-            if problem is not None and not self.feature_context:
-                raise self.fail(node if "capture" in right else operand, problem)
-            from ._boundary import Located
-            return Located({"op":op, "left":left, "right":right}, self.position(node))
-        if node.rule == "comparison":
-            op = self.operator(self.token(self.only(node, "comparator")))
-            terms = self.some(node, "union", 2)
+            return hide({"op": op, "left": left, "right": right}, self.at(inner))
+        if inner.rule == "comparison":
+            op = self.operator(self.token(self.only(inner, "comparator")))
+            terms = self.some(inner, "union", 2)
             left = yield self._term(terms[0])
             right = yield self._term(terms[1])
-            # The two sides fit the comparator (engine §10).
-            left_type, problem = term_type(left, memo=self.types)
-            if problem is None:
-                right_type, problem = term_type(right, memo=self.types)
-                if problem is None:
-                    problem = comparison_problem(op, left_type, right_type)  # type: ignore[arg-type]
-            if problem is not None and not self.feature_context:
-                raise self.fail(node, problem)
-            return {"op": op, "left": left, "right": right}
-        if node.rule == "set-condition":
-            operation = self.known_of(node, frozenset(("union-operation", "intersection-operation", "set-atom")))
+            return hide({"op": op, "left": left, "right": right}, self.at(inner))
+        if inner.rule == "negation":
+            return hide({"not": (yield self._condition(self.only(inner, "condition-primary")))}, self.at(inner))
+        if inner.rule == "set-condition":
+            operation = self.known_of(inner, frozenset(("union-operation", "intersection-operation", "set-atom")))
             if operation.rule == "set-atom":
-                atom = next(kid for kid in self.kids(operation) if kid.kind == "rule")
-                term = yield self._term(atom)
-            elif operation.rule == "intersection-operation":
+                atom = next((kid for kid in self.kids(operation) if kid.kind == "rule"), None)
+                if atom is None:
+                    raise self.fail(operation, "a set atom")
+                return hide({"nonempty": (yield self._term(atom))}, self.at(inner))
+            if operation.rule == "intersection-operation":
                 items = []
                 for item in self.some(operation, "concatenation"):
-                    items.append((yield self._truthy_operand(operation, item)))
-                self._truthy_check(operation, items, "∩")
-                term = items[0] if len(items) == 1 else {"intersection": items}
-            else:
-                found = self.some(operation, "intersection")
-                operators = [self.token_value(kid) for kid in self.kids(operation) if kid.kind == "token" and self.token_value(kid) in ("∪", "∖")]
-                # A leading ∪ is a separator, not an operator.
-                operators = operators[max(0, len(operators) - len(found) + 1):]
-                items = []
-                for item in found:
-                    items.append((yield self._truthy_operand(operation, item)))
-                self._truthy_check(operation, items, "∖" if "∖" in operators else "∪")
-                term = items[0]
-                open_union = False
-                for index, operator in enumerate(operators):
-                    following = items[index + 1]
-                    if operator == "∖":
-                        term = {"difference": [term, following]}
-                        open_union = False
-                    elif open_union and "union" in term:
-                        term["union"].append(following)
-                    else:
-                        term = {"union": [term, following]}
-                        open_union = True
-            return {"nonempty": term}
-        if node.rule == "negation":
-            return {"not": (yield self._condition(self.only(node, "condition-primary")))}
-        if node.rule == "presence":
-            return {"captured": self.token_value(self.token(node))[1:]}
-        if node.rule == "method-chain":
-            method = yield self._method(node)
-            if method.get("method") not in _PREDICATES and method.get("method") not in ("tags", "classes", "split", "ngrams", "classify"):
-                raise self.fail(node, "a condition requires a query method")
+                    items.append((yield self._term(item)))
+                term = items[0] if len(items) == 1 else hide({"intersection": items}, self.at(operation))
+                return hide({"nonempty": term}, self.at(inner))
+            found = self.some(operation, "intersection")
+            operators = [self.token_value(kid) for kid in self.kids(operation) if kid.kind == "token" and self.token_value(kid) in ("∪", "∖")]
+            # A leading ∪ is a separator, not an operator.
+            operators = operators[max(0, len(operators) - len(found) + 1):]
+            items = []
+            for item in found:
+                items.append((yield self._term(item)))
+            term = items[0]
+            open_union = False
+            for index, operator in enumerate(operators):
+                following = items[index + 1]
+                if operator == "∖":
+                    term = hide({"difference": [term, following]}, self.at(operation))
+                    open_union = False
+                elif open_union and "union" in term:
+                    term["union"].append(following)
+                else:
+                    term = hide({"union": [term, following]}, self.at(operation))
+                    open_union = True
+            return hide({"nonempty": term}, self.at(inner))
+        if inner.rule == "method-chain":
+            method = yield self._method(inner)
             # A set-valued method in a Boolean position tests that its set
             # is not empty, through the wrapper of engine §9.2.
             if method.get("method") in ("tags", "classes", "split", "ngrams", "classify"):
-                return {"nonempty": method}
+                return hide({"nonempty": method}, self.at(inner))
             return method
-        raise self.fail(node, f"unexpected {node.rule} in a condition")
+        raise self.fail(inner, f"unexpected {inner.rule}")
 
     # -- terms
 
     def value(self, node: Node) -> Dom:
         return run(self._term(node))  # type: ignore[no-any-return]
 
-    def has_unresolved(self, root: Any) -> bool:
-        if not isinstance(root, (dict, list)):
-            return False
-        pending = [(root, False)]
-        while pending:
-            node, complete = pending.pop()
-            key = id(node)
-            if key in self.unresolved_terms:
-                continue
-            values = node.values() if isinstance(node, dict) else node
-            children = [value for value in values if isinstance(value, (dict, list))]
-            if complete:
-                self.unresolved_terms[key] = (node, any(self.unresolved_terms[id(child)][1] for child in children))
-            elif isinstance(node, dict) and (
-                node.get("param") or node.get("call") or node.get("params") or node.get("instance")
-                or "args" in node and node.get("name") and node.get("op")
-            ):
-                self.unresolved_terms[key] = (node, True)
-            else:
-                pending.append((node, True))
-                pending.extend((child, False) for child in children if id(child) not in self.unresolved_terms)
-        return self.unresolved_terms[id(root)][1]
-
     def _method(self, node: Node) -> Walk:
-        receiver = yield self._term(self.only(self.only(node, "method-receiver"), "plain-term-atom"))
+        receiver = yield self._term(self.only(self.only(node, "method-receiver"), "plain-term-atom"), True)
         for selector in self.some(node, "method-selector"):
             parsed = self.one(selector, "parse-selector")
             name = "parse" if parsed is not None else self.token_value(self.token(self.only(selector, "method-name")))
-            if name not in _METHODS:
-                raise self.fail(node, 'unknown method ' + name)
-            if self.closed_for and name not in ("split", "ngrams"):
-                raise self.fail(node, f"{self.closed_for} cannot read an input method")
             arguments = self.one(selector, "method-arguments")
             args = []
             if parsed is not None:
-                from ._query_forms import query_body, query_capture
-                from . import _testing
                 argument = self.only(parsed, "parse-argument")
                 body = yield self._expr(self.only(argument, "choice"))
-                if query_capture(body):
-                    pending = [argument]
-                    binder = argument
-                    while pending:
-                        _testing.count("walkSteps")
-                        child = pending.pop()
-                        if child.kind != "rule":
-                            continue
-                        if child.rule == "capture":
-                            binder = child
-                            break
-                        pending.extend(reversed(child.children))
-                    raise self.fail(binder, "a parse argument cannot declare captures")
                 markers = [child for child in self.kids(argument) if child.kind == "token" and self.token_value(child) == "…"]
-                if len(markers) > 2:
-                    raise self.fail(markers[2], "a remainder stands at one outer edge of a parse argument")
                 if markers:
                     sequence: list[Dom] = []
                     for child in self.kids(argument):
                         if child.kind == "token" and self.token_value(child) == "…":
-                            sequence.append({"remainder": True})
+                            sequence.append(hide({"remainder": True}, self.at(child)))
                         elif child.rule == "choice":
                             sequence.append(body)
                     if not any(part is body for part in sequence):
                         sequence.append(body)
-                    body = {"seq": sequence}
-                problem = query_body(body)[2]
-                if problem:
-                    raise self.fail(argument, problem)
-                args.append({"body": body})
-            argument_nodes = self.some(arguments, "method-argument") if arguments else []
-            for part in argument_nodes:
+                    body = {"seq": sequence, "at": self.at(argument)}
+                args.append(hide({"body": body}, self.at(argument)))
+            for part in self.some(arguments, "method-argument") if arguments is not None else []:
                 integer = self.one(part, "integer")
                 if integer is not None:
-                    digits = self.token_value(self.token(integer))
-                    if re.fullmatch(r"[1-9][0-9]*", digits) is None:
-                        raise self.fail(integer, "an integer argument is positive and has no leading zeros")
-                    arg = {"integer": digits}
+                    args.append(hide({"integer": self.token_value(self.token(integer))}, self.at(integer)))
                 else:
-                    arg = yield self._term(self.only(part, "term"), True)
-                if name in ("followed-by", "preceded-by") and "tag" in arg and not arg["tag"].startswith("_"):
-                    arg = {"terminal": arg["tag"]}
-                from ._boundary import Located
-                arg = Located(arg, self.position(part))
-                args.append(arg)
+                    term = yield self._term(self.only(part, "term"), True)
+                    args.append(term if node_at(term) is not None and "rule" not in term else hide(term, self.at(part)))
             if arguments is not None:
                 separators = [self.token_value(child) for child in self.kids(arguments) if child.kind == "token"]
                 if any(separator != ("|" if name in ("followed-by", "preceded-by") else ",") for separator in separators):
                     raise self.fail(arguments, "invalid method argument separator")
-            if name in ('classify', 'ngrams') and self.has_unresolved(args):
-                raise self.fail(node, 'a parameter cannot replace a classifier name or integer argument')
-            if name == "classify" and len(args) == 1 and "rule" in args[0]:
-                if CLASSIFIER_NAME.fullmatch(args[0]["rule"]) is None:
-                    raise self.fail(node, "a method has the wrong receiver or arguments")
-                from ._boundary import Located
-                args[0] = Located({"classifier": args[0]["rule"]}, self.position(argument_nodes[0]))
-            if not self.recipe_context and name in ("verbatim-text", "emitted"):
-                raise self.fail(node, "a method has the wrong receiver or arguments")
-            dependent = self.has_unresolved(receiver) or self.has_unresolved(args)
-            if self.feature_context or dependent:
-                problem = method_shape_problem(name, receiver, args, self.recipe_context)
-                if problem:
-                    raise self.fail(node, problem)
-            kind, problem = term_type(receiver, memo=self.types)
-            if problem is None:
-                _, problem = method_type(name, kind, args, set(receiver) == {"capture"}, self.recipe_context)
-            if name in ("without-elision", "without-elision-except") and set(receiver) != {"capture"}:
-                problem = "without-elision requires a bare capture: write $x.without-elision.onward" if name == "without-elision" else "without-elision-except requires a bare capture: write $x.without-elision-except(family).onward"
-            if problem is not None and not self.feature_context and not dependent:
-                if not (problem.startswith('without-elision') or problem.startswith(('ends requires', 'suffix parse requires')) or problem == 'split has an empty delimiter'):
-                    if name == 'without-elision':
-                        problem = 'without-elision requires a bare capture: write $x.without-elision.onward'
-                    elif name == 'without-elision-except':
-                        problem = 'without-elision-except requires one rule name'
-                    else:
-                        problem = 'a method has the wrong receiver or arguments'
-                raise self.fail(node, problem)
-            if not self.feature_context and name == "split" and literal_string(args[0]) == "":
-                raise self.fail(node, "split has an empty delimiter")
-            from ._boundary import Located
-            receiver = Located({"method": name, "receiver": receiver, "args": args}, self.position(node))
-            self.boundary_nodes[id(receiver)] = node
-            kind, problem = term_type(receiver, memo=self.types)
-            if problem and not self.feature_context:
-                specific = problem.startswith(("without-elision", "ends requires", "suffix parse requires")) or problem == "split has an empty delimiter"
-                raise self.fail(node, problem if specific else "a method has the wrong receiver or arguments")
+            if name == "classify" and len(args) == 1 and isinstance(args[0].get("rule"), str) and CLASSIFIER_NAME.fullmatch(args[0]["rule"]):
+                args[0] = hide({"classifier": args[0]["rule"]}, node_at(args[0]))
+            if name in ("followed-by", "preceded-by"):
+                for index, arg in enumerate(args):
+                    if isinstance(arg.get("tag"), str) and not arg["tag"].startswith("_"):
+                        args[index] = hide({"terminal": arg["tag"]}, node_at(arg))
+            receiver = hide({"method": name, "receiver": receiver, "args": args}, self.at(node))
         return receiver
-
-    def _joined(self, node: Node, items: list[Dom], operator: str) -> None:
-        """Sets joined by an operator are of one kind (engine §10); the
-        error stands at the construct that joins them."""
-        if self.feature_context:
-            return
-        types = []
-        for item in items:
-            kind, problem = term_type(item, memo=self.types)
-            if problem is not None:
-                raise self.fail(node, problem)
-            types.append(kind)
-        _, problem = joined_type(types, operator)  # type: ignore[arg-type]
-        if problem is not None:
-            raise self.fail(node, problem)
 
     def _pattern_atom(self, node: Node) -> Walk:
         kids = self.kids(node)
+        for kid in kids:
+            if kid.rule == "default-value":
+                raise self.fail(kid, "a default stands only on an elidable optional head")
         if not kids:
             raise self.lacks(node, "pattern atom")
         first = kids[0]
         named = first.rule in ("rule-or-classifier-name", "rule-reference") or first.kind == "token" and first.terminal in ("Lowercase-Name", "Emoji-Name")
-        for kid in kids:
-            if kid.rule == "default-value": raise self.fail(kid,"a default stands only on an elidable optional head")
         tests = [kid for kid in kids if kid.rule in ("tag-test", "value-test")]
-        valid = first.rule in ("tag", "string-terminal", "string", "range", "wildcard", "constant-reference")
-        if first.kind == "token":
-            name = self.token_value(first)
-            valid = USER_NAME.fullmatch(name) is not None or name.startswith("_")
-        if named:
-            valid = False
-        # Inspect all tests before converting their operands.
         self.test_order(tests, True)
-        tests_only = first.rule in ("tag-test", "value-test")
-        if tests_only:
+        if first.rule in ("tag-test", "value-test"):
             raise self.fail(first, "a pattern test requires an atom")
-        if named or first.rule == "call":
-            for test in tests:
-                if test.rule != "tag-test":
-                    continue
-                for requirement in self.some(test, "tag-requirement"):
-                    operand = self.only(requirement, "test-operand")
-                    part = self.known_of(operand, _ATOMS)
-                    if part.rule == "tag" and self.token_value(self.token(part)) == "_Elided" and not any(self._token_value(kid) == "¬" for kid in self.kids(requirement)):
-                        raise self.fail(self.token(part), "a rule pattern cannot require _Elided")
         if first.rule in ("call", "parameter"):
             expr = (yield self._call(first)) if first.rule == "call" else self.parameter(first)
-            return {"node": (yield self._wrap_tests(expr, tests, True))}
-        if named:
+        elif named:
             name_token = first if first.kind == "token" else self.token(first)
-            name = self.token_value(name_token)
-            if not self.unicode.is_emoji_name(name) and CLASSIFIER_NAME.fullmatch(name) is None:
-                raise self.fail(name_token, "a malformed pattern rule name")
-            return {"node": (yield self._wrap_tests({"name": name, "at": list(self.position(name_token))}, tests, True))}
-        token = first if first.kind == "token" else None if first.rule in ("string-terminal", "range") else self.token(first)
-        name = self.token_value(token) if token is not None else ""
-        at = list(self.position(first))
-        if first.rule == "constant-reference":
-            value = yield self._term(first)
-            pattern = {"constant": value["const"], "at": at}
-        elif first.rule in ("string-terminal", "string"):
-            value = yield self._term(first if first.rule == "string" else self.known_of(first, frozenset(("string", "constant-reference"))))
-            pattern = {"literal": value, "at": at}
-        elif first.rule == "range":
-            pattern = {"range": (yield self._range(first)), "at": at}
-        elif first.rule == "wildcard" or name == "_":
-            pattern = {"wildcard": True, "at": at}
-        elif first.rule == "tag" or USER_NAME.fullmatch(name) or name.startswith("_"):
-            pattern = {"terminal": self.tag_of(token), "at": at}
+            expr = {"name": self.token_value(name_token), "at": self.at(name_token)}
         else:
-            if not self.unicode.is_emoji_name(name) and CLASSIFIER_NAME.fullmatch(name) is None:
-                raise self.fail(first, "a malformed pattern rule name")
-            pattern = {"name": name, "at": at}
-        if isinstance(pattern.get('literal'), dict) and 'const' in pattern['literal']:
-            pattern = {**{key: value for key, value in pattern.items() if key != 'literal'}, 'constant': pattern['literal']['const']}
-        return {"node": (yield self._wrap_tests(pattern, tests, True))}
+            at = self.at(first)
+            if first.kind == "token":
+                name = self.token_value(first)
+                expr = {"terminal": self.tag_of(first), "at": at} if _is_capital(name) or name.startswith("_") else {"name": name, "at": at}
+            elif first.rule == "tag":
+                expr = {"terminal": self.tag_of(self.token(first)), "at": at}
+            elif first.rule == "string":
+                expr = {"literal": self.decode(self.token(first)), "at": at}
+            elif first.rule == "string-terminal":
+                expr = {"literal": (yield self._term(self.known_of(first, frozenset(("string", "constant-reference"))))), "at": at}
+            elif first.rule == "range":
+                expr = {"range": (yield self._range(first)), "at": at}
+            elif first.rule == "wildcard":
+                self.token(first)
+                expr = {"wildcard": True, "at": at}
+            elif first.rule == "constant-reference":
+                expr = {"constant": (yield self._term(first))["const"], "at": at}
+            else:
+                raise self.lacks(node, "pattern atom")
+            if isinstance(expr.get("literal"), dict) and "const" in expr["literal"]:
+                expr = {"constant": expr["literal"]["const"], "at": at}
+        for test in tests:
+            expr = hide({**(yield self._read_test(test, True)), "expr": expr}, self.at(test))
+        return {"node": expr}
 
     def _child_predicate(self, items: list[Dom], node: Node) -> Dom:
         while len(items) == 1 and "sequence" in items[0]:
@@ -1292,15 +884,18 @@ class DomBuilder:
         if kind in ("pattern-node", "bare-child-list"):
             atom = (yield self._pattern_atom(self.only(node, "pattern-atom")))["node"] if kind == "pattern-node" else {"any": True}
             children = self.one(node, "child-list")
-            if children is not None and not any(key in atom for key in ("name", "call", "param", "any")):
-                raise self.fail(children, "a child list requires a rule test")
+            written_at = atom.get("at")
             result = {key: value for key, value in atom.items() if key != "at"}
             if any(part.kind == "token" and self.token_value(part) == "·" for part in self.kids(node)):
                 result["exact"] = True
             if children is not None:
                 result["children"] = yield self._layered_pattern(children)
-            if "at" in atom:
-                result["at"] = atom["at"]
+            if written_at is not None:
+                result["at"] = written_at
+            else:
+                result = hide(result, node_at(atom) or self.at(node))
+            if children is not None:
+                result = hide(result, self.at(children), "list_at")
             return result
         if kind in ("pattern-union", "pattern-intersection", "child-set-operation", "child-intersection"):
             if kind == "pattern-union":
@@ -1326,7 +921,7 @@ class DomBuilder:
             for index, value in enumerate(values[1:]):
                 operator = operators[index] if index < len(operators) else None
                 key = "intersection" if kind.endswith("intersection") or operator == "∩" else "difference" if operator == "∖" else "union"
-                result = {key: [result, value]}
+                result = hide({key: [result, value]}, self.at(node))
             return result
         if kind in ("pattern-path", "child-path"):
             primary = self.only(node, "pattern-primary" if kind == "pattern-path" else "child-primary")
@@ -1339,20 +934,21 @@ class DomBuilder:
                 raise self.fail(axis, "a malformed pattern path")
             pattern = self._child_predicate(value, primary) if kind == "child-path" else value
             path = "descendant" if op == "⋮" else "last" if op == "⋱" else "first"
-            result = {"path": path, "pattern": pattern}
-            return [{"child": result}] if kind == "child-path" else result
+            result = hide({"path": path, "pattern": pattern}, self.at(node))
+            return [hide({"child": result}, self.at(node))] if kind == "child-path" else result
         if kind == "child-list":
             choice = self.one(node, "child-choice")
             return (yield self._layered_pattern(choice)) if choice is not None else []
         if kind == "child-choice":
             arms = []
             for alternative in self.some(node, "child-alternative"):
-                items = yield self._layered_pattern(alternative)
-                arms.append(items)
-            return arms[0] if len(arms) == 1 else [{"choice": arms}]
+                arms.append((yield self._layered_pattern(alternative)))
+            return arms[0] if len(arms) == 1 else [hide({"choice": arms}, self.at(node))]
         if kind == "child-alternative":
             sequence = self.one(node, "child-sequence")
-            return (yield self._layered_pattern(sequence)) if sequence is not None else [{"child": (yield self._layered_pattern(self.only(node, "child-set-operation")))}]
+            if sequence is not None:
+                return (yield self._layered_pattern(sequence))
+            return [hide({"child": (yield self._layered_pattern(self.only(node, "child-set-operation")))}, self.at(node))]
         if kind == "child-sequence":
             result = []
             for item in self.some(node, "child-item"):
@@ -1363,18 +959,22 @@ class DomBuilder:
             if not parts:
                 raise self.lacks(node, "child item")
             child = parts[0]
-            return [{"siblings": True}] if child.kind == "token" and self.token_value(child) == "⋯" else (yield self._layered_pattern(child))
+            if child.kind == "token" and self.token_value(child) == "⋯":
+                return [hide({"siblings": True}, self.at(node))]
+            return (yield self._layered_pattern(child))
         if kind == "child-primary":
             choice = self.one(node, "child-choice")
-            return (yield self._layered_pattern(choice)) if choice is not None else [{"child": (yield self._layered_pattern(self.known_of(node, frozenset(("pattern-node", "bare-child-list")))))}]
+            if choice is not None:
+                return (yield self._layered_pattern(choice))
+            return [hide({"child": (yield self._layered_pattern(self.known_of(node, frozenset(("pattern-node", "bare-child-list")))))}, self.at(node))]
         if kind == "child-optional":
-            return [{"optional": (yield self._layered_pattern(self.only(node, "child-choice")))}]
+            return [hide({"optional": (yield self._layered_pattern(self.only(node, "child-choice")))}, self.at(node))]
         if kind == "child-repetition":
             choices = self.some(node, "child-choice")
             result = {"repeat": (yield self._layered_pattern(choices[0]))}
             if len(choices) >= 2:
                 result["separator"] = yield self._layered_pattern(choices[1])
-            return [result]
+            return [hide(result, self.at(node))]
         raise self.fail(node, f"unexpected {kind} in layered pattern")
 
     def tag_run_placement(self, node: Node) -> None:
@@ -1389,148 +989,106 @@ class DomBuilder:
 
     def _term(self, node: Node, argument: bool = False) -> Walk:
         """A term; ``argument`` says it is a function's argument, where a
-        span or a rule may stand."""
+        span or a rule may stand. The validator checks its type and its
+        place (engine §9.3)."""
         rule = node.rule
-        if rule == 'parameter':
-            return self.parameter(node)
-        if rule == 'call':
-            return (yield self._call(node))
-        if rule == "pattern-literal":
-            closed = self.closed_for
-            self.closed_for = None
-            try:
-                from ._boundary import Located
-                pattern = Located((yield self._layered_pattern(self.only(node, "pattern-primary"))), self.position(node))
-                problem = layered_pattern_problem(pattern, defer_depth=True, defer_groups=True, name=lambda name: CLASSIFIER_NAME.fullmatch(name) is not None or self.unicode.is_emoji_name(name))
-                if problem is not None:
-                    raise self.fail(node, problem)
-            finally:
-                self.closed_for = closed
-            return {"pattern": pattern}
-        if rule in ("test-operand", "term-atom", "plain-term-atom"):
-            # A test's operand is one term, as a term-atom reads it.
-            return (yield self._term(self.known_of(node, _ATOMS), argument))
         if rule == "term":
             return (yield self._term(self.known_of(node, _TERMS), argument))
         if rule == "guarded-term":
-            if self.closed_for:
-                raise self.fail(node, f"{self.closed_for} is a closed term, and holds no guarded term")
-            # Its any-ofs, each guarding the rest, and then its union, or the
-            # term of a notation that writes one after ⟹ (engine §9). The
-            # reader has checked each comparison of a condition, so a
-            # condition's terms agree; the term guarded last must be a tag
-            # set, an error at its guard.
             guards = self.some(node, "any-of")
             conditions: list[Dom] = []
             for guard in guards:
                 conditions.append((yield self._condition(guard)))
-            last = self.one(node, "union") or self.only(node, "term")
-            guarded = yield self._term(last)
-            kind, problem = term_type(guarded, memo=self.types)
-            if problem is None:
-                _, problem = joined_type([kind], "⟹")
-                if kind == "pattern":
-                    problem = "a guarded term requires a set"
-            if problem is not None and not self.feature_context:
-                raise self.fail(guards[-1], problem)
-            for condition in reversed(conditions):
-                guarded = {"if": condition, "then": guarded}
+            guarded = yield self._term(self.one(node, "union") or self.only(node, "term"))
+            for condition, guard in reversed(list(zip(conditions, guards))):
+                guarded = hide({"if": condition, "then": guarded}, self.at(guard))
             return guarded
         if rule == "union":
             # Parts joined by ∪ and ∖ group from the left: a run joined by ∪
             # is one union, and each ∖ takes what stands before it (engine
             # §9). A leading ∪ is a separator, not an operator.
-            kids = self.kids(node)
             parts = self.some(node, "intersection")
             if len(parts) == 1:
                 return (yield self._term(parts[0], argument))
-            operators = [self.token_value(kid) for kid in kids if kid.kind == "token" and self.token_value(kid) in ("∪", "∖")]
-            operators = operators[len(operators) - (len(parts) - 1) :]
+            operators = [self.token_value(kid) for kid in self.kids(node) if kid.kind == "token" and self.token_value(kid) in ("∪", "∖")]
+            operators = operators[max(0, len(operators) - len(parts) + 1):]
             items: list[Dom] = []
             for part in parts:
                 items.append((yield self._term(part)))
             if len(operators) < len(parts) - 1:
                 raise self.lacks(node, "operator")
-            self._joined(node, items, "∖" if "∖" in operators else "∪")
             result = items[0]
             open_union = False
             for operator, following in zip(operators, items[1:]):
                 if operator == "∖":
-                    result = {"difference": [result, following]}
+                    result = hide({"difference": [result, following]}, self.at(node))
                     open_union = False
-                elif open_union:
+                elif open_union and "union" in result:
                     result["union"].append(following)
                 else:
-                    # Keep child unions shared until the completed DOM's
-                    # single flattening walk. Copying a growing child here
-                    # costs nested parentheses their depth times their size.
-                    result = {"union": [result, following]}
+                    # Child unions stay shared until the single flattening
+                    # walk of the completed DOM.
+                    result = hide({"union": [result, following]}, self.at(node))
                     open_union = True
             return result
         if rule == "concatenation":
             nodes = self.some(node, "term-atom")
             items = []
             for part in nodes:
-                value = yield self._term(part, argument and len(nodes) == 1)
-                if len(nodes) > 1:
-                    kind, problem = term_type(value, memo=self.types)
-                    if not self.feature_context and (problem or kind not in ("string", "any")):
-                        raise self.fail(node, problem or "++ requires string operands")
-                items.append(value)
-            if len(nodes) == 1:
-                return items[0]
-            return {"concat": items}
+                items.append((yield self._term(part, argument and len(nodes) == 1)))
+            return items[0] if len(nodes) == 1 else hide({"concat": items}, self.at(node))
         if rule == "intersection":
             parts = self.some(node, "concatenation")
-            if len(parts) == 1:
-                return (yield self._term(parts[0], argument))
             items = []
             for part in parts:
-                items.append((yield self._term(part)))
-            self._joined(node, items, "∩")
-            return {"intersection": items}
+                items.append((yield self._term(part, argument and len(parts) == 1)))
+            return items[0] if len(items) == 1 else hide({"intersection": items}, self.at(node))
+        if rule in ("term-atom", "plain-term-atom", "test-operand"):
+            inner = self.known_of(node, _ATOMS)
+            if inner.rule == "method-chain":
+                return (yield self._method(inner))
+            return (yield self._term(inner, argument))
+        if rule == "call":
+            return (yield self._call(node))
+        if rule == "parameter":
+            return self.parameter(node)
+        if rule == "pattern-literal":
+            pattern = yield self._layered_pattern(self.only(node, "pattern-primary"))
+            if node_at(pattern) is None:
+                pattern = hide(pattern, self.at(node))
+            return hide({"pattern": pattern}, self.at(node))
         if rule == "string":
-            return self.decode(self.token(node))
-        if rule in ("tag", "rule-or-classifier-name"):
-            name = self.token_value(self.token(node))
-            if USER_NAME.fullmatch(name) or name.startswith("_"):
-                value = {"tag": self.tag_of(self.token(node))}
-                if name.startswith("_"):
-                    if self.closed_for:
-                        raise self.fail(node, "a closed declaration cannot contain an engine-tag literal")
-                    self.engine_nodes[id(value)] = node
-                return value
-            if rule == "rule-or-classifier-name" and argument:
-                return {"rule": name}
-            raise self.fail(node, "a rule name is legal only as a rule or classifier argument")
-        if rule == "range":
-            raise self.fail(node, "a range is a terminal, not a term")
-        if rule in ("tag-run", "string-run"):
+            return hide(self.decode(self.token(node)), self.at(node))
+        if rule == "tag":
+            return hide({"tag": self.tag_of(self.token(node))}, self.at(node))
+        if rule in ("string-run", "tag-run"):
             if self.recipe_context and rule == "string-run":
-                raise self.fail(node, "juxtaposed recipe strings require ++, use ++ between string atoms")
+                raise self.fail(node, "juxtaposed recipe strings require ++. Use ++ between string atoms")
             self.tag_run_placement(node)
             items = []
             for tag in self.some(node, "string" if rule == "string-run" else "tag", 2):
                 items.append((yield self._term(tag)))
-            return {"union": items}
+            return hide({"union": items}, self.at(node))
+        if rule == "range":
+            raise self.fail(node, "a range is a terminal, not a term")
+        if rule == "rule-or-classifier-name":
+            # A bare name is a tag literal if it begins with a capital, and
+            # otherwise a rule, which only a function's argument names.
+            name = self.token_value(self.token(node))
+            if _is_capital(name):
+                return hide({"tag": name}, self.at(node))
+            if argument:
+                return hide({"rule": name}, self.at(node))
+            raise self.fail(node, f"{name} names a rule, which is not a value")
         if rule == "empty-set":
-            return {"emptySet": True}
-        if rule == "capture-reference":
-            capture = self.token_value(self.token(node))[1:]
-            if self.closed_for:
-                raise self.fail(node, f"{self.closed_for} is a closed term, and holds no capture")
-            return {"capture": capture}
-        if rule == "constant-reference":
-            name = self.token_value(self.token(node))[1:]
-            if USER_NAME.fullmatch(name) is None:
-                raise self.fail(node, "a constant requires a user name")
-            return {"const": name, "at": list(self.position(node))}
+            return hide({"emptySet": True}, self.at(node))
         if rule == "method-chain":
-            result = yield self._method(node)
-            if term_type(result, memo=self.types)[0] == "predicate":
-                raise self.fail(node, "a query method is a condition, not a term")
-            return result
-        raise self.fail(node, f"unexpected {rule} in a term")
+            return (yield self._method(node))
+        if rule == "constant-reference":
+            return {"const": self.token_value(self.token(node))[1:], "at": self.at(node)}
+        if rule == "capture-reference":
+            return hide({"capture": self.token_value(self.token(node))[1:]}, self.at(node))
+        raise self.fail(node, f"unexpected {rule}")
 
 
 def flatten_groups(root: Any) -> None:
@@ -1608,22 +1166,3 @@ def operand_problem(name: str, kinds: list[str]) -> str | None:
     if name == "elision-only":
         return None if not kinds else "%elision-only takes no operand"
     return None if names else f"%{name} takes names only"
-
-
-def all_captures(expr: Dom) -> list[Dom]:
-    """The captures of an expression in the order written, braces
-    included."""
-    found: list[Dom] = []
-    stack: list[Any] = [expr]
-    while stack:
-        node = stack.pop()
-        if not isinstance(node, dict):
-            continue
-        if isinstance(node.get("capture"), str) and "expr" in node:
-            found.append(node)
-        children = [node[key] for key in ("optional", "repeat", "separator", "expr") if key in node]
-        for key in ("seq", "choice", "ranked", "and"):
-            if isinstance(node.get(key), list):
-                children = node[key]
-        stack.extend(reversed(children))
-    return found

@@ -14,7 +14,7 @@ from typing import AbstractSet, Any, Union
 from copy import copy
 
 from ._trampoline import Walk, run
-from ._clause_walk import clause_children
+from ._clause_walk import clause_children, expression_children
 
 Dom = dict[str, Any]
 
@@ -318,12 +318,13 @@ def item_captures(expr: Any) -> dict[str, ItemCapture]:
     return found
 
 
-def repeats_item_capture(expr: Any) -> bool:
-    """Whether the name of an item capture stands more than once in an
-    expression, inside its braces or outside them (engine §3.5, §9)."""
+def repeated_item_capture(expr: Any) -> Any:
+    """The later capture node where the name of an item capture stands more
+    than once in an expression, inside its braces or outside them (engine
+    §3.5, §9), or None."""
     items = item_captures(expr)
     if not items:
-        return False
+        return None
     seen: set[str] = set()
     stack: list[Any] = [expr]
     while stack:
@@ -331,12 +332,12 @@ def repeats_item_capture(expr: Any) -> bool:
         if not isinstance(node, dict):
             continue
         name = node.get("capture")
-        if isinstance(name, str) and "expr" in node and name in items:
+        if isinstance(name, str) and name in items:
             if name in seen:
-                return True
+                return node
             seen.add(name)
-        stack.extend(_expression_children(node))
-    return False
+        stack.extend(reversed(expression_children(node)))
+    return None
 
 
 def braces_sequences(expr: Any) -> list[list[Any]]:

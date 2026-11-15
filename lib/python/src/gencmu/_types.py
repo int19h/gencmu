@@ -73,8 +73,10 @@ _METHODS = _SPAN_SHAPES | _STRING_METHODS | _PREDICATES | {"tags", "classes", "s
 
 def method_shape_problem(name: Any, receiver: Any, args: Any, recipe: bool = False) -> str | None:
     """Read structural signatures without operand types or stage bindings."""
-    if not isinstance(name, str) or name not in _METHODS:
+    if not isinstance(name, str):
         return "unknown method name"
+    if name not in _METHODS:
+        return f"unknown method {name}"
     if not isinstance(receiver, dict) or not isinstance(args, list):
         return "a malformed method"
     from ._template_nodes import has_unresolved
@@ -115,12 +117,20 @@ def method_shape_problem(name: Any, receiver: Any, args: Any, recipe: bool = Fal
     elif name == "without-elision":
         valid = bare and not args
     elif name == "emitted":
-        valid = bare and not args
+        valid = recipe and bare and not args
     elif name == "verbatim-text":
         valid = recipe and bare and not args
     else:
         valid = not args and (span or receiver_method == "emitted" and name in ("value", "image"))
-    return None if valid else "a method has the wrong receiver or arguments"
+    if valid:
+        return None
+    if name == "without-elision-except" and not has_unresolved([receiver, args]):
+        if not bare:
+            return "without-elision-except requires a bare capture: write $x.without-elision-except(family).onward"
+        return "without-elision-except requires one rule name"
+    if name == "without-elision" and not has_unresolved([receiver, args]):
+        return "without-elision requires a bare capture: write $x.without-elision.onward"
+    return "a method has the wrong receiver or arguments"
 
 
 def method_type(name: str, receiver: TermType, args: list[Any], bare: bool = False, recipe: bool = False) -> Found:
@@ -390,6 +400,8 @@ def _term_typing_once(term: Any, constants: ConstantTypes, memo: Memo) -> Walk:
             problem = expected_problem(argument, "string")
             if problem:
                 return None, ("a method has the wrong receiver or arguments", term)
+            if isinstance(term["args"][0], dict) and term["args"][0].get("string") == "":
+                return None, ("split has an empty delimiter", term)
         return result, None
     if "param" in term or "call" in term:
         return "any", None
@@ -471,13 +483,18 @@ def tag_term_fault(term: Any, constants: ConstantTypes = _unknown_constants, mem
     if fault is not None:
         return fault
     problem = expected_problem(kind, "tags")  # type: ignore[arg-type]
-    return (problem, term) if problem is not None else None
+    if problem is None:
+        return None
+    found = TypeFault((problem, term))
+    found.at = getattr(term, "tag_term_at", None)
+    return found
 
 
-def tag_term_problem(term: Any, memo: Optional[Memo] = None) -> str | None:
-    """Why a term that must be a tag set is not one, or None."""
-    fault = tag_term_fault(term, memo=memo)
-    return fault[0] if fault is not None else None
+class TypeFault(tuple):
+    """A type fault ``(problem, node)``. ``at`` is the position of the
+    clause at fault where the construct has none of its own."""
+
+    at: Any = None
 
 
 def rule_type_fault(rule: Any, constants: ConstantTypes = _unknown_constants) -> Optional[Fault]:
@@ -547,6 +564,31 @@ def _rule_type_faults(rule: Any, constants: ConstantTypes = _unknown_constants) 
                 problem = test_type_problem(test["test"], kind)
                 if problem is not None:
                     yield problem, value
+    recipes = [rule.get("value"), rule.get("image"), rule.get("error"), rule.get("warning")]
+    for alternative in rule["alternatives"]:
+        recipes.extend(alternative.get(key) for key in ("value", "image"))
+    if "emit" in rule:
+        for item in rule["emit"]["items"]:
+            recipes.extend(item.get(key) for key in ("value", "image"))
+    for recipe in recipes:
+        if not isinstance(recipe, dict) or not isinstance(recipe.get("concat"), list):
+            continue
+        for atom in recipe["concat"]:
+            if not isinstance(atom, dict) or any(key in atom for key in ("string", "const")) or "param" in atom:
+                continue
+            if atom.get("method") not in ("value", "image", "source-text", "decomposed-source-text", "verbatim-text") or atom.get("args") != []:
+                yield ("a malformed recipe atom", atom)
+                continue
+            receiver = atom.get("receiver")
+            if not (isinstance(receiver, dict) and set(receiver) == {"capture"}) and not (
+                atom["method"] in ("value", "image")
+                and isinstance(receiver, dict)
+                and receiver.get("method") == "emitted"
+                and receiver.get("args") == []
+                and isinstance(receiver.get("receiver"), dict)
+                and set(receiver["receiver"]) == {"capture"}
+            ):
+                yield ("a malformed recipe receiver", atom)
     # The reader knows the shape of string terminals and recipe atoms.
     # Binding supplies the types of their user constants, including those
     # in definitions that a later declaration replaces.
@@ -595,13 +637,6 @@ def tests_in(expr: Any) -> list[dict[str, Any]]:
     return found
 
 
-def rule_type_problem(rule: Any) -> str | None:
-    """Why a well-formed rule's terms and conditions do not agree in type,
-    or None."""
-    fault = rule_type_fault(rule)
-    return fault[0] if fault is not None else None
-
-
 def constant_value_type(
     value: Any, redefine: bool, constants: ConstantTypes = _unknown_constants, memo: Optional[Memo] = None
 ) -> FoundFault:
@@ -617,12 +652,6 @@ def constant_value_type(
     if kind == "set" and not redefine:
         return None, ("the kind of the set that the constant holds is not given", value)
     return kind, None
-
-
-def constant_value_problem(value: Any, redefine: bool) -> str | None:
-    """Why a constant's value cannot be one, or None."""
-    _, fault = constant_value_type(value, redefine)
-    return fault[0] if fault is not None else None
 
 
 def open_part(term: Any) -> Any:

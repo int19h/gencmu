@@ -50,7 +50,7 @@ class Parameters(unittest.TestCase):
             self.assertNotIn('instance-', message)
         with self.assertRaises(GencmuError) as caught:
             grammar_of('%const $A "a"\n%rule atom(@X) @X\n%rule holder(@Y) @Y\n%rule text holder(($A atom))')
-        self.assertEqual((caught.exception.line, caught.exception.column), (5, 1))
+        self.assertEqual((caught.exception.line, caught.exception.column), (6, 23))
         self.assertIn('in holder(($A atom)) called at main.md:6:12', caught.exception.message)
 
     def test_rule_order_and_rebinding(self):
@@ -161,31 +161,35 @@ class Parameters(unittest.TestCase):
             self.assertEqual(bool(loader.preparsed), valid)
             self.assertTrue(load_pipeline_sources(supplied, 'grammars/test/p.md').parse('a').ok)
 
-    def test_ranked_location_recovery_preserves_arrays(self):
+    def test_ranked_nodes_carry_their_separator_position(self):
         from gencmu._pipeline import _resources, _reader
-        from gencmu._model import Token
-        from gencmu._ranked import restore_locations
         from gencmu._template_nodes import nodes
         found = _resources()
         reader = _reader(found.bootstrap, found.unicode, found.properties)
         dom = reader.read('```jbogenbau\n%rule pair(@X,@Y) @X @Y\n%rule text pair("a","b") ("c" ≻ "d") :: ∅\n```', 'locations.md')
+        ranked = [node for node in nodes(dom) if isinstance(node, dict) and 'ranked' in node]
+        self.assertEqual([node['at'] for node in ranked], [[3, 31]])
+
+    def test_location_recovery_keeps_argument_and_body_arrays_unchanged(self):
+        from gencmu._boundary import copy_dom_locations
+        from gencmu._pipeline import _resources, _reader
+        found = _resources()
+        reader = _reader(found.bootstrap, found.unicode, found.properties)
+        source = '```jbogenbau\n%rule pair(@X,@Y) @X @Y\n%rule text pair("a","b") ("c" ≻ "d") :: ∅\n```'
+        dom = reader.read(source, 'locations.md')
         before = deepcopy(dom)
-        located = restore_locations(dom, [Token(text='≻', tags=set(), span=(0, 1), value='≻', source=(0, 1))], lambda _: (3, 42))
-        self.assertTrue(same_json(dom, before))
+        located = copy_dom_locations(dom, reader.read(source, 'locations.md'))
         self.assertTrue(same_json(located, before))
-        self.assertEqual([n.ranked_at for n in nodes(located) if hasattr(n, 'ranked_at')], [(3, 42)])
 
     def test_ranked_body_argument_keeps_its_location_after_substitution(self):
         from gencmu._pipeline import _resources, _reader
-        from gencmu._model import Token
-        from gencmu._ranked import restore_locations, expression_locations
         found = _resources()
         reader = _reader(found.bootstrap, found.unicode, found.properties)
         dom = reader.read('```jbogenbau\n%rule choice(@X) @X :: ∅\n%rule text choice(("a" ≻ "b"))\n```', 'locations.md')
-        located = restore_locations(dom, [Token(text='≻', tags=set(), span=(0, 1), value='≻', source=(0, 1))], lambda _: (3, 29))
-        expanded = expand_templates([('locations.md', located)], reader.unicode)
+        expanded = expand_templates([('locations.md', dom)], reader.unicode)
         definition = next(dom['rules'][0] for _, dom in expanded[0] if dom['rules'] and dom['rules'][0]['name'].startswith('choice('))
-        self.assertEqual(expression_locations(definition['alternatives'][0]['expr']), {'': (3, 29)})
+        expr = definition['alternatives'][0]['expr']
+        self.assertEqual(expr['at'], [3, 24])
 
 
 def case_test(case):
@@ -201,13 +205,13 @@ for index, case in enumerate(CASES):
 class NestedArgumentAliases(unittest.TestCase):
     def test_pattern_constant_fault_comes_from_pattern_schema(self):
         unicode = grammar_of('%rule text "a"').unicode
-        for operand in ({'capture': 'x'}, None):
-            test = {'test': '=', 'expr': {'terminal': 'A'}}
+        for operand, expected in (({'capture': 'x'}, 'a malformed pattern value test'), (None, 'a malformed pattern node test')):
+            test = {'test': '=', 'expr': {'terminal': 'A', 'at': [1, 5]}}
             if operand is not None:
                 test['value'] = operand
-            dom = {'format': 49, 'rules': [], 'directives': [], 'classifiers': [], 'implications': [],
+            dom = {'format': 50, 'rules': [], 'directives': [], 'classifiers': [], 'implications': [],
                    'constants': [{'name': 'P', 'op': 'define', 'value': {'pattern': test}, 'at': [1, 1]}]}
-            self.assertEqual(dom_problem(dom, unicode), 'a malformed pattern value test')
+            self.assertEqual(dom_problem(dom, unicode), expected)
 
 class ParameterStructure(unittest.TestCase):
     def test_argument_comparisons_distinguish_booleans_from_numbers(self):

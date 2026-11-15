@@ -81,7 +81,7 @@ class RankedAdmission(RankedFacts):
                     group_info = next(g for g in self.forest.lowered.grammar.ranked.groups if g.id == group[0])
                     child = self.forest.edges[key[1]][index][2]
                     self.stats['boundary_splits'].append({
-                        'group': self.forest.lowered.grammar.ranked.site(group_info.source, group_info.path, True),
+                        'group': self.forest.lowered.grammar.ranked.site(group_info.source, group_info.path, group_info),
                         'entry': group,
                         'start': self.forest.origin[child],
                         'end': self.forest.end[child],

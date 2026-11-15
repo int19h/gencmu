@@ -52,7 +52,11 @@ def has_unresolved(root):
 def argument_of_expression(expr):
     if "ref" in expr:
         name = expr["ref"]
-        return {"tag" if name[:1].isupper() or name.startswith("_") else "rule": name}
+        node = {"tag" if name[:1].isupper() or name.startswith("_") else "rule": name}
+        if "at" in expr:
+            from ._boundary import Located
+            return Located(node, expr["at"])
+        return node
     if "literal" in expr:
         return expr["literal"]
     if any(k in expr for k in ("param", "call", "test", "range", "wildcard", "splice")):

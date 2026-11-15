@@ -1,4 +1,12 @@
 """Exact tree identities for compared occurrences (engine §4.1)."""
+
+
+def _position_key(node):
+    """A node's position, held outside its members, as a key."""
+    at = getattr(node, "at", None)
+    return tuple(at) if isinstance(at, list) else at
+
+
 def children(node):
     if isinstance(node, (list, tuple)): return node
     if isinstance(node, dict) and "pattern" not in node: return list(node.values())
@@ -245,11 +253,11 @@ def check_cycles(lowered, structural, erased=()):
             for root in (alternatives[0].rule_tags, *(alt.tags for alt in alternatives), alternatives[0].conditions):
                 for comparison in comparisons(root):
                     order[id(comparison)] = next_order
-                    hints.setdefault((document, getattr(comparison, "at", None), json.dumps(comparison, sort_keys=True)), next_order)
+                    hints.setdefault((document, _position_key(comparison), json.dumps(comparison, sort_keys=True)), next_order)
                     next_order += 1
     def ordinal(site):
         comparison, p, _, _ = site
-        return order.get(id(comparison), hints.get((p.source.document, getattr(comparison, "at", None), json.dumps(comparison, sort_keys=True)), next_order)), p.id
+        return order.get(id(comparison), hints.get((p.source.document, _position_key(comparison), json.dumps(comparison, sort_keys=True)), next_order)), p.id
     sites.sort(key=ordinal)
     for comparison, p, bindings, prefix in sites:
         roots = []

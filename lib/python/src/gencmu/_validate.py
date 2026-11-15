@@ -2,17 +2,16 @@
 
 from __future__ import annotations
 
-from ._template_nodes import has_unresolved, nodes
-from ._types import _METHODS
-
 import re
 from typing import Any, Protocol
 
-from ._clauses import check_definition, duplicate_captures, repeats_item_capture
-from ._patterns import walk_pattern
-from ._pattern_shapes import layered_pattern_problem, MAX_POSITION
-from ._strings import ENGINE_TAGS, USER_NAME, is_constant, literal_string, lit
-from ._types import condition_type_fault, tag_term_fault, term_type_fault, select_type_fault, constant_value_problem, open_part, rule_type_problem, rule_type_roots, condition_type_problem, method_shape_problem
+from ._clause_walk import clause_children
+from ._clauses import check_definition, duplicate_captures, repeated_item_capture
+from ._pattern_shapes import layered_pattern_fault, layered_pattern_problem, MAX_POSITION
+from ._strings import USER_NAME
+from ._template_nodes import has_unresolved
+from ._trampoline import run
+from ._types import _METHODS, condition_type_problem, method_shape_problem, rule_type_fault, tag_term_fault, term_type_fault
 
 
 class Marks(Protocol):
@@ -22,7 +21,7 @@ class Marks(Protocol):
     def changes_in_document(self, code: int) -> bool: ...
 
 
-FORMAT = 49
+FORMAT = 50
 MAX_DEPTH = 256
 TOO_DEEP = "nested too deeply"
 CONSTANT_NAME = USER_NAME
@@ -52,101 +51,110 @@ def valid_steps(steps: Any) -> bool:
 
 
 def _is_position(value: Any) -> bool:
-    return isinstance(value, list) and len(value) == 2 and all(type(x) is int and 1 <= x <= MAX_POSITION for x in value)
+    return isinstance(value, (list, tuple)) and len(value) == 2 and all(type(x) is int and 1 <= x <= MAX_POSITION for x in value)
 
 
-def _items(value: Any, least: int = 1, most: float = float("inf")) -> bool:
-    return isinstance(value, list) and least <= len(value) <= most
+def _object(value: Any) -> bool:
+    return isinstance(value, dict)
 
 
-def _tag(value: Any) -> bool:
-    return isinstance(value, str) and (USER_NAME.fullmatch(value) is not None or value in ENGINE_TAGS)
+def _exact(value: Any, fields: tuple[str, ...] | list[str]) -> bool:
+    return isinstance(value, dict) and all(key in fields for key in value)
 
 
-def _ref(value: Any) -> bool:
-    return isinstance(value, str) and (len(value) == 1 or _NAME.fullmatch(value) is not None or value in ENGINE_TAGS)
+def _grouped(value: Any) -> bool:
+    return getattr(value, "grouped", False) is True
 
 
-def _capture(value: Any, whole: bool = True) -> bool:
-    return isinstance(value, str) and (whole and value == "" or CAPTURE_NAME.fullmatch(value) is not None)
+def node_at(value: Any, fallback: Any = None) -> Any:
+    """A node's position, written or held outside its members, or
+    ``fallback``."""
+    if isinstance(value, dict):
+        at = value.get("at")
+        if _is_position(at):
+            return list(at)
+        at = getattr(value, "at", None)
+        if _is_position(at):
+            return list(at)
+    return fallback
 
 
-def _gate(value: Any, gate: bool = False) -> bool:
-    return (
-        isinstance(value, dict)
-        and set(value) == {"feature", "kind", "negated"}
-        and isinstance(value["feature"], str)
-        and _FEATURE.fullmatch(value["feature"]) is not None
-        and type(value["negated"]) is bool
-        and value["kind"] == "gate"
-    )
+class At(dict):
+    """A stand-in that holds only a source position, outside its members."""
+
+    def __init__(self, at: Any):
+        super().__init__()
+        self.at = list(at) if at is not None else None
 
 
-def _base(expr: Any, rule_name=_ref) -> bool:
-    return (
-        isinstance(expr, dict)
-        and ("param" in expr or "call" in expr or len(expr) == 1)
-        and (
-            "param" in expr or "call" in expr or "splice" in expr or "ref" in expr
-            and (_ref(expr["ref"]) or rule_name(expr["ref"]))
-            or "literal" in expr
-            or "range" in expr
-            or expr.get("wildcard") is True
-        )
-    )
-
-
-def _target(expr: Any, rule_name=_ref) -> bool:
-    if _base(expr, rule_name):
-        return True
-    if not isinstance(expr, dict):
+def _has_one_form(value: dict, forms: list[list[str]]) -> bool:
+    """Whether a node has exactly the members of one of its forms."""
+    form = next((members for members in forms if members[0] in value), None)
+    if form is None:
         return False
-    if expr.get("test") == "tags":
-        return set(expr) == {"test", "requirements", "expr"} and _base(expr["expr"], rule_name)
-    if expr.get("test") in ("=", "≠"):
-        inner = expr.get("expr")
-        return set(expr) == {"test", "value", "expr"} and (
-            _base(inner, rule_name) or isinstance(inner, dict) and inner.get("test") == "tags" and _target(inner, rule_name)
-        )
-    return False
+    return all(member in value for member in form) and all(key in form for key in value)
 
 
 def elidable_head(expr: Any) -> Any:
-    head = expr["seq"][0] if isinstance(expr, dict) and _items(expr.get("seq")) else expr
-    if isinstance(head, dict) and "capture" in head:
-        head = head["expr"]
+    """The head of an elidable optional, or None when it has no terminator
+    head (engine §3.8, §9)."""
+    if not isinstance(expr, dict) or _grouped(expr):
+        return None
+    head = expr.get("expr") if isinstance(expr.get("capture"), str) else expr["seq"][0] if isinstance(expr.get("seq"), list) and expr["seq"] else expr
+    if not isinstance(head, dict) or _grouped(head):
+        return None
+
+    def terminal(node):
+        return isinstance(node, dict) and not _grouped(node) and (
+            isinstance(node.get("param"), str)
+            or all(key in ("ref", "at") for key in node) and isinstance(node.get("ref"), str) and USER_NAME.fullmatch(node["ref"]) is not None)
+
+    if terminal(head):
+        return head
     base = head
-    while isinstance(base, dict) and base.get("test") in TEST_OPS:
+    while isinstance(base, dict) and not _grouped(base) and isinstance(base.get("test"), str) and base["test"] in TEST_OPS:
         base = base.get("expr")
-    if isinstance(base, dict) and "param" in base:
-        return head
-    if isinstance(base, dict) and set(base) == {"ref"} and isinstance(base["ref"], str) and USER_NAME.fullmatch(base["ref"]):
-        return head
-    return None
+    return head if terminal(base) else None
 
 
-def term_reads_own_tags(root: Any) -> bool:
-    pending = [root]
-    while pending:
-        node = pending.pop()
-        if isinstance(node, list):
-            pending.extend(node)
-        elif isinstance(node, dict):
-            if node.get("method") in ("tags", "classes") and not node["args"] and node["receiver"] == {"capture": ""}:
+def term_reads_own_tags(node: Any) -> bool:
+    """Whether a term, or a condition inside one, reads the tags of ``$``:
+    ``$.tags`` or ``$.classes``. Anything malformed reads nothing."""
+    from ._patterns import reads_node_tags
+    stack = [node]
+    while stack:
+        current = stack.pop()
+        if not isinstance(current, dict):
+            continue
+        if isinstance(current.get("method"), str):
+            args = current.get("args")
+            receiver = current.get("receiver")
+            if current["method"] in ("tags", "classes") and isinstance(args, list) and not args and isinstance(receiver, dict) and receiver.get("capture") == "":
                 return True
-            if node.get("op") in ("≅", "≇"):
-                from ._patterns import reads_node_tags
-                if node["left"] == {"capture": ""} and "pattern" in node["right"] and reads_node_tags(node["right"]["pattern"]):
-                    return True
-            else:
-                pending.extend(node.values())
+            if current["method"] == "tags" or current["method"] in _QUERY_METHODS:
+                continue
+            stack.append(receiver)
+            stack.extend(args if isinstance(args, list) else [])
+            continue
+        if current.get("op") in ("≅", "≇"):
+            left, right = current.get("left"), current.get("right")
+            if isinstance(left, dict) and left.get("capture") == "" and isinstance(right, dict) and right.get("pattern") and reads_node_tags(right["pattern"]):
+                return True
+            continue
+        key = next((name for name in ("union", "intersection", "difference", "concat", "any", "all") if isinstance(current.get(name), list)), None)
+        if key is not None:
+            stack.extend(current[key])
+        else:
+            stack.extend(current.get(name) for name in ("left", "right", "not", "if", "then"))
     return False
 
 
 def range_problem(ends: Any) -> str | None:
-    if not _items(ends, 2, 2):
-        return "a range requires two string terms"
-    values = [literal_string(end) for end in ends]
+    """What is wrong with a range (engine §1, §9), or None: visible
+    endpoints each hold one scalar, and the start is not above the end."""
+    if not isinstance(ends, list) or len(ends) != 2:
+        return "a malformed range"
+    values = [end["string"] if isinstance(end, dict) and isinstance(end.get("string"), str) else None for end in ends]
     if any(value is not None and len(value) != 1 for value in values):
         return "a range endpoint is one scalar"
     if all(value is not None for value in values) and values[0] > values[1]:
@@ -154,17 +162,31 @@ def range_problem(ends: Any) -> str | None:
     return None
 
 
-def _contains_engine(root: Any) -> bool:
-    pending = [root]
-    while pending:
-        node = pending.pop()
-        if isinstance(node, list):
-            pending.extend(node)
-        elif isinstance(node, dict) and "pattern" not in node:
-            if node.get("tag") in ENGINE_TAGS:
-                return True
-            pending.extend(node.values())
-    return False
+def first_engine_literal(term: Any) -> Any:
+    """The first engine-tag literal that a tag term retains, or None."""
+    return (run(_literal_terms(term)) or [None])[0]
+
+
+def _literal_terms(term: Any) -> Any:
+    if not isinstance(term, dict):
+        return []
+    if isinstance(term.get("tag"), str) and term["tag"].startswith("_"):
+        return [term]
+    if term.get("if"):
+        return (yield _literal_terms(term.get("then")))
+    if term.get("difference"):
+        return (yield _literal_terms(term["difference"][0]))
+    values = term.get("union") or term.get("intersection")
+    if not values:
+        return []
+    parts = []
+    for value in values:
+        parts.append((yield _literal_terms(value)))
+    flat = [value for part in parts for value in part]
+    if term.get("union"):
+        return flat
+    names = [{value["tag"] for value in part} for part in parts]
+    return [value for value in flat if all(value["tag"] in found for found in names)]
 
 
 def known_dom_members(dom):
@@ -176,633 +198,933 @@ def known_dom_members(dom):
     return dom
 
 
-def dom_problem(dom: Any, unicode: Marks, defer_emission: bool = True, expanded: bool = False, held: Any = None) -> str | None:
+def dom_fault(dom: Any, unicode: Marks, defer_emission: bool = True, expanded: bool = False, held: Any = None):
+    """The first DOM fault as ``(problem, at, code)``, or None. ``at`` is the
+    position of the fault, or None for the document."""
     try:
-        dom = known_dom_members(dom)
-        problem = _dom_problem(dom, unicode, defer_emission, expanded, held)
-        if problem is not None:
-            return problem
-        pending = [dom[key] for key in ("rules", "directives", "constants", "classifiers", "implications")]
-        while pending:
-            node = pending.pop()
-            if isinstance(node, list):
-                pending.extend(node)
-            elif isinstance(node, dict):
-                for key, value in node.items():
-                    if key in ("ref", "tag", "terminal") and isinstance(value, str) and value.startswith("_") and (value != "_Elided" or key != "tag") and unicode.canonical_tag(value) != value:
-                        return "unknown, unavailable, or noncanonical engine tag"
-                    pending.append(value)
-        return None
-    except (KeyError, IndexError, TypeError, ValueError):
+        return _inspect(known_dom_members(dom), unicode, defer_emission, expanded, held)
+    except (KeyError, IndexError, TypeError, ValueError, AttributeError):
         # External JSON can violate a child schema before type selection.
-        return "a malformed DOM"
+        return ("a malformed DOM", None, None)
 
 
-def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expanded: bool = False, held: Any = None) -> str | None:
-    def rule_name(name):
-        return isinstance(name, str) and (CLASSIFIER_NAME.fullmatch(name) is not None or unicode.is_emoji_name(name)
-                                         or expanded and "(" in name and name.endswith(")"))
+def dom_problem(dom: Any, unicode: Marks, defer_emission: bool = True, expanded: bool = False, held: Any = None) -> str | None:
+    """Why a value is not a grammar DOM, or None."""
+    fault = dom_fault(dom, unicode, defer_emission, expanded, held)
+    return None if fault is None else fault[0]
+
+
+_QUERY_METHODS = frozenset(("starts-input", "ends-input", "parse", "error-free", "followed-by", "preceded-by"))
+_TARGET_METHODS = frozenset(("followed-by", "preceded-by"))
+_COMPARATORS = frozenset(("=", "≠", "∈", "∉", "⊆", "⊈", "≅", "≇"))
+_CLASS_NAME = re.compile(r"(?!.*--)[A-Z](?:[A-Za-z0-9_-]*[A-Z])?")
+_TAG_NAME = re.compile(r"(?!.*--)[A-Z][A-Za-z0-9_-]*")
+_PARAM_NAME = re.compile(r"(?!.*--)[A-Za-z][A-Za-z0-9_-]*")
+_INTEGER = re.compile(r"[1-9][0-9]*")
+_TERM_FORMS = [["string"], ["concat"], ["tag"], ["const", "at"], ["emptySet"], ["capture"], ["method", "receiver", "args"],
+               ["union"], ["intersection"], ["difference"], ["if", "then"], ["pattern"]]
+_CONDITION_FORMS = [["method", "receiver", "args"], ["op", "left", "right"], ["not"], ["any"], ["all"], ["captured"], ["if", "then"], ["nonempty"]]
+_RULE_FIELDS = ("name", "params", "args", "op", "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "error", "warning", "suppressWarnings", "at")
+_RECIPE_METHODS = ("value", "image", "source-text", "decomposed-source-text", "verbatim-text")
+
+
+def _reads_capture(root: Any) -> bool:
+    pending = [root]
+    while pending:
+        node = pending.pop()
+        if isinstance(node, list):
+            pending.extend(node)
+        elif isinstance(node, dict):
+            if "capture" in node or "captured" in node:
+                return True
+            pending.extend(node.values())
+    return False
+
+
+class _Task:
+    """One queued construct of the DOM walk, with the context it inherits."""
+
+    __slots__ = ("kind", "value", "depth", "params", "at", "closed", "feature_at", "whole", "sealed", "chain", "item",
+                 "ranked", "captured_terminator", "recipe", "query", "message", "owner", "pattern_tag", "set_condition_at")
+
+    def __init__(self, kind, value, depth, params, **context):
+        self.kind = kind
+        self.value = value
+        self.depth = depth
+        self.params = params
+        self.at = None
+        self.closed = None
+        self.feature_at = None
+        self.whole = False
+        self.sealed = False
+        self.chain = False
+        self.item = False
+        self.ranked = False
+        self.captured_terminator = False
+        self.recipe = False
+        self.query = False
+        self.message = False
+        self.owner = None
+        self.pattern_tag = False
+        self.set_condition_at = None
+        for key, value in context.items():
+            setattr(self, key, value)
+
+
+def _inspect(dom: Any, unicode: Marks, defer_emission: bool, expanded: bool, held: Any = None):
+    """One DOM validator, in the order of engine §9.3 step 5. Returns
+    ``(problem, at, code)`` or None."""
+    from ._boundary import problem as boundary_problem
+    from ._query_forms import query_body, query_capture
+    from ._types import constant_value_type, expected_problem
 
     arrays = ("rules", "directives", "constants", "classifiers", "implications")
     if (
         not isinstance(dom, dict)
-        or set(dom) != {"format", *arrays}
+        or not all(key in ("format", *arrays) for key in dom)
         or type(dom.get("format")) is not int
         or dom["format"] != FORMAT
-        or any(not isinstance(dom.get(k), list) for k in arrays)
+        or any(not isinstance(dom.get(key), list) for key in arrays)
     ):
-        return f"not a DOM of format {FORMAT}"
+        return (f"not a DOM of format {FORMAT}", None, None)
+
+    def string_atom(value):
+        return isinstance(value, dict) and not _grouped(value) and ("string" in value or "const" in value)
+
+    def string_term(value):
+        return not _grouped(value) and (string_atom(value) or isinstance(value, dict) and "param" in value)
+
+    def tag(value):
+        return isinstance(value, str) and (_TAG_NAME.fullmatch(value) is not None or value.startswith("_") and value != "_" and unicode.canonical_tag(value) == value)
+
+    def rule_name(name):
+        return isinstance(name, str) and (CLASSIFIER_NAME.fullmatch(name) is not None or unicode.is_emoji_name(name)
+                                         or expanded and "(" in name and name.endswith(")"))
+
+    def gate(value):
+        return (_exact(value, ("feature", "kind", "negated")) and len(value) == 3 and isinstance(value.get("feature"), str)
+                and _FEATURE.fullmatch(value["feature"]) is not None and type(value.get("negated")) is bool and value.get("kind") == "gate")
+
+    def base(value):
+        return isinstance(value, dict) and not _grouped(value) and (
+            "param" in value or "call" in value or "splice" in value or isinstance(value.get("ref"), str)
+            or "literal" in value or "range" in value or value.get("wildcard") is True)
+
+    def target(value):
+        return base(value) or isinstance(value, dict) and value.get("test") == "tags" and base(value.get("expr"))
+
+    def expr_exact(value, fields):
+        return _exact(value, (*fields, "at")) and ("at" not in value or _is_position(value["at"]))
+
+    def expr_single(value, key):
+        return expr_exact(value, (key,)) and key in value
+
+    def fault(problem, value=None, fallback=None, code=None):
+        return (problem, node_at(value, fallback), code)
+
+    declared = [item for key in arrays for item in dom[key]]
+    for item in declared:
+        if not isinstance(item, dict) or not _is_position(item.get("at")):
+            return ("a malformed declaration position", None, None)
     positions = set()
-    for key in arrays:
-        for item in dom[key]:
-            if not isinstance(item, dict) or not _is_position(item.get("at")):
-                return "a malformed declaration position"
-            at = tuple(item["at"])
-            if at in positions:
-                return "two items at one position"
-            positions.add(at)
-    for key in ('directives', 'constants', 'classifiers', 'implications'):
-        if any('param' in node for item in dom[key] for node in nodes(item)):
-            return 'an undeclared or malformed parameter'
-    pending = []
-    tag_clauses = []
-    for d in dom["directives"]:
-        if "conditions" in d:
-            if d.get("name") != "features" or not isinstance(d["conditions"], list) or not d["conditions"]:
-                return "malformed feature conditions"
-            pending.extend(("condition", condition, 0, False, False) for condition in d["conditions"])
-        name, args = d.get("name"), d.get("args")
-        if name == "ambiguity-resolution":
-            if set(d) != {"name", "steps", "at"} or not valid_steps(d.get("steps")):
-                return "a malformed directive"
-            for step in d["steps"]:
-                if "pattern" not in step:
-                    continue
-                operand = step["pattern"]
-                if "const" in operand:
-                    pending.append(("term", operand, 0, False, False))
-                else:
-                    problem = layered_pattern_problem(operand, name=rule_name, terminal=lambda name: name == "_Elided" or _tag(name))
-                    if problem:
-                        return problem
-                    pending.append(("pattern-part", operand, 0, False, False))
-            continue
-        if name not in _DIRECTIVES or not isinstance(args, list) or any(not isinstance(x, str) for x in args):
-            return "a malformed directive"
-        if name in ("stage", "extend-stage", "redefine-stage"):
-            valid = len(args) == 1 and CLASSIFIER_NAME.fullmatch(args[0]) is not None
-        elif name in ("include", "names"):
-            valid = len(args) == 1
-        elif name == "features":
-            valid = bool(args) and all(_FEATURE.fullmatch(x) for x in args)
-        else:
-            valid = args == []
-        if not valid:
-            return "a directive has invalid operands"
-    ordered = sorted(((item, key) for key in ("rules", "directives", "constants", "classifiers", "implications") for item in dom[key]), key=lambda pair: pair[0]["at"])
-    seen_statement = False
-    for item, kind in ordered:
-        names = kind == "directives" and item.get("name") == "names"
-        if names and seen_statement:
-            return "%names must precede every other statement"
-        seen_statement = seen_statement or not names
-    for c in dom["constants"]:
-        if (
-            set(c) != {"name", "op", "value", "at"}
-            or not isinstance(c["name"], str)
-            or not CONSTANT_NAME.fullmatch(c["name"])
-            or c["op"] not in ("define", "redefine")
-        ):
-            return "a malformed constant"
-        pending.append(("term", c["value"], 0, False, False))
-    for c in dom["classifiers"]:
-        if (
-            set(c) != {"name", "entries", "at"}
-            or not isinstance(c["name"], str)
-            or not CLASSIFIER_NAME.fullmatch(c["name"])
-            or not isinstance(c["entries"], list)
-        ):
-            return "a malformed classifier"
-        for e in c["entries"]:
-            if (
-                not isinstance(e, dict)
-                or set(e) != {"gates", "keys", "op", "class", "at"}
-                or not _is_position(e["at"])
-                or not isinstance(e["gates"], list)
-                or not all(_gate(g, True) for g in e["gates"])
-                or not _items(e["keys"])
-                or e["op"] not in ("∈", "∉")
-                or not isinstance(e["class"], str)
-                or not USER_NAME.fullmatch(e["class"])
-                or not "A" <= e["class"][-1] <= "Z"
-            ):
-                return "a malformed classifier entry"
-            pending.extend(("string", x, 0, False, False) for x in e["keys"])
-    for i in dom["implications"]:
-        if set(i) != {"if", "then", "at"}:
-            return "a malformed implication"
-        for term in (i["if"], i["then"]):
-            pending.append(("tags", term, 0, False, False))
-    type_roots = [task[1] for task in pending]
-    for r in dom["rules"]:
-        params = r.get('params', [])
-        if 'params' in r and (not isinstance(params, list) or not params or any(not isinstance(p, str) or re.fullmatch(r'(?!.*--)[A-Za-z][A-Za-z0-9_-]*', p) is None for p in params) or len(set(params)) != len(params) or 'args' in r):
-            return 'malformed template parameters'
-        for node in nodes(r):
-            if 'param' in node and (not {'param', 'at'} <= set(node) or not set(node) <= {'param', 'at', 'exact', 'children'} or not _is_position(node['at']) or node['param'] not in params):
-                return 'an undeclared or malformed parameter'
-        if 'instance' in r:
-            if set(r) != {'name', 'op', 'instance', 'conditions', 'at'} or not isinstance(r['name'], str) or not rule_name(r['name']) or r['op'] not in ('define', 'redefine') or r['conditions'] != []:
-                return 'a malformed instance binding'
-            pending.append(('call', r['instance'], 0, False, False))
-            type_roots.append(r['instance'])
-            continue
-        if 'args' in r:
-            if r['op'] not in ('extend', 'redefine'):
-                return 'an instance head requires an edit'
-            pending.append(('call', dict(call=r['name'], args=r['args'], at=r['at']), 0, False, False))
-            type_roots.append(pending[-1][1])
-        if (
-            not set(r) <= {"name", "params", "args", "op", "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "error", "warning", "suppressWarnings", "at"}
-            or not isinstance(r.get("name"), str)
-            or not rule_name(r["name"])
-            or r.get("op") not in ("define", "redefine", "extend")
-            or not _items(r.get("alternatives"))
-            or not isinstance(r.get("conditions"), list)
-            or "erased" in r
-            and (r["erased"] is not True or any(k in r for k in ("emit", "value", "image")))
-        ):
-            return "a malformed rule"
-        if "error" in r and "warning" in r or "params" in r and ("error" in r or "warning" in r):
-            return "a template cannot carry diagnostics, and a rule has at most one diagnostic"
-        if "suppressWarnings" in r:
-            codes = r["suppressWarnings"]
-            if not _items(codes) or any(not isinstance(code, str) or code != "_" and _FEATURE.fullmatch(code) is None for code in codes) or "_" in codes and codes != ["_"]:
-                return "a malformed suppression list"
-        for diagnostic in ("error", "warning"):
-            if diagnostic in r and any(node.get("method") == "emitted" for node in nodes(r[diagnostic])):
-                return "a message recipe cannot read .emitted"
-        for channel in ("value", "image", "error", "warning"):
-            if channel in r:
-                pending.append(("recipe", r[channel], 0, False, False))
-        if "tags" in r:
-            tag_clauses.append((r, r["tags"], True))
-            pending.append(("tags", r["tags"], 0, False, False))
-        if "emit" in r:
-            emit = r["emit"]
-            if not isinstance(emit, dict) or set(emit) != {"items"} or not _items(emit["items"]):
-                return "a malformed emission"
-            names = []
-            for item in emit["items"]:
-                if not isinstance(item, dict) or not set(item) <= {"capture", "insert", "tags", "value", "image", "before", "after"}:
-                    return "a malformed emission item"
-                if "insert" in item:
-                    if item["insert"] is not True or "capture" in item or "before" in item or "after" in item:
-                        return "a malformed insertion"
-                elif not _capture(item.get("capture")):
-                    return "a malformed carrier"
-                elif item["capture"]:
-                    names.append(item["capture"])
+    for item in declared:
+        at = tuple(item["at"])
+        if at in positions:
+            return ("two items at one position", list(item["at"]), None)
+        positions.add(at)
+    statements = [item["at"] for key in ("rules", "constants", "classifiers", "implications") for item in dom[key]]
+    statements += [d["at"] for d in dom["directives"] if d.get("name") != "names"]
+    if statements:
+        first = min(tuple(at) for at in statements)
+        late = sorted((tuple(d["at"]) for d in dom["directives"] if d.get("name") == "names" and tuple(d["at"]) > first))
+        if late:
+            return ("%names must precede every other statement", list(late[0]), None)
+
+    first_deep = None
+    first_semantic = None
+    pending: list[_Task] = []
+    active = [frozenset()]
+
+    def push(kind, value, depth=0, **context):
+        context.setdefault("params", active[0])
+        params = context.pop("params")
+        pending.append(_Task(kind, value, depth, params, **context))
+
+    def run_shape_tasks(decl_at):
+        first_shape = None
+        while pending:
+            found = run_one(pending.pop(), decl_at)
+            if found is not None:
+                if found[2] == "ranked-choice-syntax":
+                    return found
+                if first_shape is None:
+                    first_shape = found
+        return first_shape
+
+    def run_one(task, decl_at):
+        nonlocal first_deep
+        kind, value, depth = task.kind, task.value, task.depth
+        enclosing = task.feature_at or node_at(value, task.at or decl_at)
+
+        def report(problem, target_node=value, code=None):
+            return fault(problem, None if task.feature_at else target_node, enclosing, code)
+
+        active[0] = task.params
+        if depth > MAX_DEPTH and first_deep is None:
+            first_deep = decl_at
+        if not isinstance(value, dict):
+            return report(f"a malformed {kind}")
+
+        def child(child_kind, child_value, **context):
+            base_context = dict(params=task.params, at=enclosing, closed=task.closed, feature_at=task.feature_at)
+            base_context.update(context)
+            push(child_kind, child_value, depth + 1, **base_context)
+
+        def same(child_kind, child_value, at=None, **context):
+            push(child_kind, child_value, depth, params=task.params, at=enclosing if at is None else at, feature_at=task.feature_at, **context)
+
+        if kind == "classifier-entry":
+            bad_gate = next((g for g in value.get("gates") if not gate(g)), None) if isinstance(value.get("gates"), list) else None
+            if (not _exact(value, ("gates", "keys", "op", "class", "at")) or not _is_position(value.get("at")) or not isinstance(value.get("gates"), list)
+                    or bad_gate is not None or value.get("op") not in ("∈", "∉") or not isinstance(value.get("class"), str)
+                    or not isinstance(value.get("keys"), list) or not value["keys"]):
+                return report("a malformed classifier entry", bad_gate if bad_gate is not None else value)
+            for key in value["keys"]:
+                if not string_term(key):
+                    return report("a malformed classifier key", key)
+            class_at = getattr(value, "class_at", None)
+            push("classifier-class", value, depth, params=task.params, at=list(class_at) if class_at else value["at"])
+            for key in reversed(value["keys"]):
+                push("term", key, depth, params=task.params, at=node_at(key, value["at"]))
+            return None
+        if kind == "classifier-class":
+            if _CLASS_NAME.fullmatch(value["class"]) is None:
+                class_at = getattr(value, "class_at", None)
+                return report(f"{value['class']} is not a class: a class starts and ends with a capital", At(class_at) if class_at else value)
+            return None
+        if kind == "alternative":
+            bad_gate = next((g for g in value.get("gates") if not gate(g)), None) if isinstance(value.get("gates"), list) else None
+            if not _exact(value, ("gates", "expr", "tags", "value", "image")) or "expr" not in value or not isinstance(value.get("gates"), list) or bad_gate is not None:
+                return report("a malformed alternative", bad_gate if bad_gate is not None else value)
+            for channel in ("image", "value"):
+                if channel in value:
+                    push("recipe", value[channel], depth, params=task.params, at=node_at(value[channel], enclosing), feature_at=task.feature_at)
+            if "tags" in value:
+                push("tags", value["tags"], depth, params=task.params, owner=task.owner, at=node_at(value["tags"], enclosing), feature_at=task.feature_at)
+            push("expr", value["expr"], depth, params=task.params, whole=True, at=node_at(value["expr"], enclosing), feature_at=task.feature_at)
+            return None
+        if kind == "pattern":
+            inspect = dict(name=lambda name: rule_name(name) and not tag(name), terminal=lambda name: name == "_Elided" or tag(name), range_check=range_problem)
+            found = layered_pattern_fault(value, depth=depth, defer_depth=True, **inspect)
+            if found is not None:
+                return report(found[0], found[1] if found[1] is not None else At(task.at) if task.at else value)
+            if layered_pattern_problem(value, depth=depth, **inspect) == TOO_DEEP and first_deep is None:
+                first_deep = decl_at
+            same("pattern-part", value)
+            return None
+        if kind == "pattern-part":
+            if value.get("param") and value["param"] not in task.params:
+                return report(f"undeclared parameter @{value['param']}")
+            if value.get("call"):
+                stack = [value.get("args")]
+                while stack:
+                    node = stack.pop()
+                    if isinstance(node, list):
+                        stack.extend(reversed(node))
+                    elif isinstance(node, dict):
+                        if node.get("rule") and tag(node["rule"]):
+                            return report("a pattern argument rule reads back as a tag", node)
+                        stack.extend(reversed(list(node.values())))
+                for arg in reversed(value["args"]):
+                    child("arg", arg, closed=None)
+            if value.get("children"):
+                for item in reversed(value["children"]):
+                    child("pattern-item", item, closed=None)
+            for key in ("union", "intersection", "difference"):
+                if value.get(key):
+                    for operand in reversed(value[key]):
+                        child("pattern-part", operand, closed=None)
+            if value.get("path"):
+                child("pattern-part", value["pattern"], closed=None)
+            if value.get("test") == "tags":
+                if not expanded and isinstance(value.get("expr"), dict) and ("name" in value["expr"] or "call" in value["expr"]):
+                    for requirement in value["requirements"]:
+                        if not requirement.get("negated") and isinstance(requirement.get("value"), dict) and requirement["value"].get("tag") == "_Elided":
+                            return report("a rule pattern cannot require _Elided", requirement["value"])
+                for requirement in reversed(value["requirements"]):
+                    child("term", requirement["value"], pattern_tag=True, closed=None)
+            elif value.get("test"):
+                child("term", value["value"], closed=None)
+            if value.get("expr"):
+                child("pattern-part", value["expr"], closed=None)
+            if value.get("range"):
+                problem = range_problem(value["range"])
+                if problem:
+                    return report(problem)
+                for end in reversed(value["range"]):
+                    same("term", end)
+            if value.get("literal"):
+                same("term", value["literal"])
+            return None
+        if kind == "pattern-item":
+            if value.get("choice"):
+                for arm in reversed(value["choice"]):
+                    for item in reversed(arm):
+                        child("pattern-item", item, closed=None)
+            for key in ("separator", "repeat", "optional"):
+                if value.get(key):
+                    for item in reversed(value[key]):
+                        child("pattern-item", item, closed=None)
+            if value.get("child"):
+                child("pattern-part", value["child"], closed=None)
+            return None
+        # Unresolved leaves still obey the category of their position.
+        if "param" in value:
+            if kind not in ("expr", "arg", "term", "tags", "target", "pattern", "pattern-part"):
+                return report(f"a malformed {kind}")
+            if not _exact(value, ("param", "at")) or not _is_position(value.get("at")) or not isinstance(value["param"], str) or value["param"] not in task.params:
+                well_formed = isinstance(value["param"], str) and _exact(value, ("param", "at")) and _is_position(value.get("at"))
+                return report(f"undeclared parameter @{value['param']}" if well_formed else "an undeclared or malformed parameter")
+            return None
+        if "call" in value or kind == "call":
+            if kind not in ("expr", "arg", "term", "tags", "target", "pattern", "pattern-part", "call"):
+                return report(f"a malformed {kind}")
+            if not _exact(value, ("call", "args", "at")) or not rule_name(value.get("call")) or not _is_position(value.get("at")) or not isinstance(value.get("args"), list) or not value["args"]:
+                return report("a malformed call")
+            for arg in reversed(value["args"]):
+                child("arg", arg, closed=None)
+            return None
+        if kind == "arg":
+            if "classifier" in value or "integer" in value:
+                return report("an argument cannot read or declare captures")
+            if "body" in value:
+                if not _exact(value, ("body",)):
+                    return report("a malformed body argument")
+                same("expr", value["body"], whole=True)
+            elif "targets" in value:
+                if not _exact(value, ("targets",)) or not isinstance(value["targets"], list) or len(value["targets"]) < 2:
+                    return report("a malformed target choice")
+                for choice in reversed(value["targets"]):
+                    same("target", choice)
+            elif "requirements" in value and not value.get("test"):
+                if not _exact(value, ("requirements",)) or not isinstance(value["requirements"], list):
+                    return report("a malformed requirement list")
+                for entry in value["requirements"]:
+                    entry_value = entry.get("value") if isinstance(entry, dict) else None
+                    if (not _exact(entry, ("negated", "value")) or type(entry.get("negated")) is not bool or not isinstance(entry_value, dict)
+                            or _grouped(entry_value) or not (entry_value.get("tag") or entry_value.get("const") or entry_value.get("param"))):
+                        return report("a malformed requirement", entry_value if entry_value is not None else entry)
+                for entry in reversed(value["requirements"]):
+                    same("term", entry["value"])
+            elif value.get("rule"):
+                if not _exact(value, ("rule",)) or not rule_name(value["rule"]):
+                    return report("a malformed nominal rule argument")
+            elif value.get("splice") or value.get("test") or value.get("range") or value.get("wildcard"):
+                same("expr", value)
+            else:
+                same("term", value)
+            return None
+        if kind == "target":
+            if not (_exact(value, ("rule",)) and rule_name(value.get("rule")) or _exact(value, ("terminal",)) and isinstance(value.get("terminal"), str) and _TAG_NAME.fullmatch(value["terminal"])):
+                return report("a malformed query target")
+            return None
+        if kind == "test-operands":
+            if value.get("test") == "tags":
+                for requirement in value["requirements"]:
+                    requirement_value = requirement.get("value") if isinstance(requirement, dict) else None
+                    if (not _exact(requirement, ("negated", "value")) or type(requirement.get("negated")) is not bool or not isinstance(requirement_value, dict)
+                            or _grouped(requirement_value) or not ("tag" in requirement_value or "const" in requirement_value or "param" in requirement_value)):
+                        return report("a malformed requirement", requirement_value if requirement_value is not None else requirement)
+                for requirement in reversed(value["requirements"]):
+                    child("term", requirement["value"])
+            else:
+                if not string_term(value.get("value")):
+                    return report("a malformed value test", value.get("value"))
+                child("term", value["value"])
+            return None
+        if kind == "method-shape":
+            # An unknown method in a recipe atom is a fault of type
+            # inspection, which reports it after the clause's tag terms
+            # (engine §9.3).
+            unknown = isinstance(value.get("method"), str) and value["method"] not in _METHODS
+            problem = None if task.recipe and unknown else method_shape_problem(value.get("method"), value.get("receiver"), value.get("args"), task.recipe)
+            if problem:
+                return report(problem)
+            if task.query and value.get("method") in _METHODS and value["method"] not in _QUERY_METHODS:
+                return report("a condition requires a query method")
+            return None
+        if kind == "expr":
+            inside = dict(sealed=task.sealed, chain=task.chain, item=task.item, ranked=task.ranked)
+            if "splice" in value:
+                spliced = value["splice"]
+                if not expr_single(value, "splice") or not isinstance(spliced, dict) or not (isinstance(spliced.get("ref"), str) and rule_name(spliced["ref"]) or spliced.get("call")):
+                    return report("a malformed splice")
+                child("expr", spliced, **inside)
+            elif value.get("test"):
+                fields = ("test", "requirements", "expr") if value["test"] == "tags" else ("test", "value", "expr")
+                if (value["test"] not in TEST_OPS or not expr_exact(value, fields) or not ("requirements" in value if value["test"] == "tags" else "value" in value)
+                        or "expr" not in value or not (base(value["expr"]) if value["test"] == "tags" else target(value["expr"]))):
+                    return report("a malformed test")
+                if value["test"] == "tags" and not isinstance(value["requirements"], list):
+                    return report("a malformed tag test")
+                push("test-operands", value, depth, params=task.params, at=enclosing, closed=task.closed, feature_at=task.feature_at)
+                child("expr", value["expr"], **inside)
+            elif "capture" in value:
+                if not expr_exact(value, ("capture", "expr")) or "expr" not in value or not isinstance(value["capture"], str) or not isinstance(value["expr"], dict):
+                    return report("a malformed capture")
+                if task.chain:
+                    return report("a capture cannot stand inside a chain, whose levels are constituents of its rule: a condition on $ serves each level")
+                if task.item and task.ranked:
+                    return report("an item capture cannot stand inside a ranked group: name the ranked choice as a rule and capture that rule")
+                if task.sealed and not task.captured_terminator:
+                    return report("a capture cannot stand inside an elidable optional, which elision restores as one unit")
+                if value["capture"] == "":
+                    return report("$ is the whole constituent and wraps nothing")
+                if CAPTURE_NAME.fullmatch(value["capture"]) is None:
+                    return report("a capture's name is all lower case")
+                inner = value["expr"]
+                while isinstance(inner, dict) and not _grouped(inner) and isinstance(inner.get("test"), str):
+                    inner = inner.get("expr")
+                if not base(inner):
+                    return report("a capture wraps one symbol")
+                child("expr", value["expr"], **inside)
+            elif any(key in value for key in ("seq", "choice", "ranked", "and")):
+                own = [key for key in value if key != "at"]
+                if len(own) != 1 or not expr_exact(value, own):
+                    return report("a malformed expression")
+                key = own[0]
+                items = value[key]
+                if not isinstance(items, list) or len(items) < 2 or key == "and" and len(items) > 16:
+                    if key == "ranked":
+                        return report("ranked-choice-syntax: a ranked expression requires two options", value, "ranked-choice-syntax")
+                    return report("an & joins at most 16 items" if key == "and" and isinstance(items, list) and len(items) > 16 else "a malformed expression")
+                for item in reversed(items):
+                    child("expr", item, **{**inside, "ranked": task.ranked or key == "ranked"})
+            elif "optional" in value:
+                optional = value["optional"]
+                if (not expr_exact(value, ("optional", "elidable", "default")) or not isinstance(optional, dict)
+                        or "elidable" in value and (value["elidable"] is not True or elidable_head(optional) is None)):
+                    return report("a malformed optional")
+                if "default" in value:
+                    default = value["default"]
+                    if value.get("elidable") is not True or not string_term(default):
+                        return report("a malformed default", default)
+                    if "string" in default:
+                        head = optional.get("expr") if "capture" in optional else optional["seq"][0] if "seq" in optional else optional
+                        while isinstance(head, dict) and "test" in head:
+                            if (head["test"] != "tags" and isinstance(head.get("value"), dict) and "string" in head["value"]
+                                    and (default["string"] == head["value"]["string"]) != (head["test"] == "=")):
+                                default_at = getattr(default, "default_at", None)
+                                return report("a default fails its head test", At(default_at) if default_at else default)
+                            head = head.get("expr")
+                    child("term", default)
+                elidable = value.get("elidable") is True
+                child("expr", optional, sealed=task.sealed or elidable,
+                      captured_terminator=not task.sealed and elidable and isinstance(optional.get("capture"), str),
+                      chain=task.chain, item=task.item, ranked=task.ranked)
+            elif "repeat" in value:
+                if not expr_exact(value, ("repeat", "separator", "chain")) or "chain" in value and value["chain"] not in ("left", "right"):
+                    return report("a malformed repetition")
+                if "chain" in value and (not task.whole or _grouped(value)):
+                    return report("a chain is the whole expression of its alternative: name it as a rule to use it here")
+                braces = dict(sealed=task.sealed, chain="chain" in value, item="chain" not in value, ranked=False)
+                if "separator" in value:
+                    child("expr", value["separator"], **braces)
+                child("expr", value["repeat"], **braces)
+            elif "literal" in value:
+                if not expr_single(value, "literal") or not string_term(value["literal"]):
+                    return report("a malformed literal")
+                same("term", value["literal"])
+            elif "range" in value:
+                ends = value["range"]
+                if not expr_single(value, "range") or not isinstance(ends, list) or len(ends) != 2 or not all(string_term(end) for end in ends):
+                    return report("a malformed range")
+                problem = range_problem(ends)
+                if problem:
+                    return report(problem)
+                for end in reversed(ends):
+                    same("term", end)
+            elif "ref" in value:
+                if not expr_single(value, "ref") or not (rule_name(value["ref"]) or tag(value["ref"])):
+                    return report("a malformed reference")
+            elif not (expr_single(value, "empty") and value["empty"] is True or expr_single(value, "wildcard") and value["wildcard"] is True):
+                return report("a malformed expression")
+            return None
+        if kind == "tags":
+            # A malformed tag term gets its structural fault from its own task.
+            try:
+                retained = first_engine_literal(value)
+            except (KeyError, IndexError, TypeError, ValueError, AttributeError):
+                retained = None
+            if retained is not None:
+                return report("a tag clause cannot introduce an engine tag", retained)
+            same("term", value)
+            return None
+        if kind == "emission":
+            items = value.get("items")
+            if len(value) != 1 or not isinstance(items, list) or not items:
+                return report("a malformed emission")
+            for item in items:
+                if (not _exact(item, ("capture", "insert", "tags", "value", "image", "before", "after")) or ("capture" in item) == ("insert" in item)
+                        or "capture" in item and not isinstance(item["capture"], str) or "insert" in item and item["insert"] is not True):
+                    return report("a malformed emission item", item)
+                if isinstance(item.get("capture"), str) and item["capture"] != "" and CAPTURE_NAME.fullmatch(item["capture"]) is None:
+                    return fault("a malformed emission item", None, decl_at)
                 for side in ("before", "after"):
                     if side in item:
-                        if not item.get("capture") or not _items(item[side]) or any(not _capture(x, False) for x in item[side]):
-                            return "a malformed attachment"
-                        names.extend(item[side])
-                if "tags" in item:
-                    tag_clauses.append((r, item["tags"], False))
-                    pending.append(("tags", item["tags"], 0, False, False))
-                for channel in ("value", "image"):
+                        names = item[side]
+                        if not item.get("capture") or not isinstance(names, list) or not names or not all(isinstance(name, str) for name in names):
+                            return report("a malformed attachment", item)
+                        if not all(CAPTURE_NAME.fullmatch(name) for name in names):
+                            return fault("a malformed attachment", None, decl_at)
+            for item in reversed(items):
+                item_at = node_at(item, enclosing)
+                for channel in ("image", "value"):
                     if channel in item:
-                        pending.append(("recipe", item[channel], 0, False, False))
-            if len(set(names)) != len(names):
-                return "an emission lists a capture twice"
-        pending.extend(("condition", c, 0, False, False) for c in r["conditions"])
-        for a in r["alternatives"]:
-            if (
-                not isinstance(a, dict)
-                or not set(a) <= {"gates", "expr", "tags", "value", "image"}
-                or not isinstance(a.get("gates"), list)
-                or not all(_gate(g) for g in a["gates"])
-            ):
-                return "a malformed alternative"
-            pending.append(("expr", a.get("expr"), 0, True, 0))
-            if "tags" in a:
-                tag_clauses.append((r, a["tags"], True))
-                pending.append(("tags", a["tags"], 0, False, False))
-            for channel in ("value", "image"):
-                if channel in a:
-                    if "erased" in r:
-                        return "an erased rule has a recipe"
-                    pending.append(("recipe", a[channel], 0, False, False))
-        type_roots.extend(rule_type_roots(r))
-    # Feature types depend on the surviving selected stage.
-    deferred = set()
-    feature_nodes = [condition for directive in dom["directives"] for condition in directive.get("conditions", [])]
-    while feature_nodes:
-        node = feature_nodes.pop()
-        if isinstance(node, dict) and id(node) not in deferred:
-            deferred.add(id(node))
-            feature_nodes.extend(node.values())
-        elif isinstance(node, list):
-            feature_nodes.extend(node)
-    # Shape inspection collects type faults for each declaration.
-    type_faults = []
-    problem = _walk(pending, unicode, deferred, rule_name, type_roots, type_faults)
-    if problem:
-        return problem
-    # Fault ownership keeps each declaration's semantic phases together.
-    faults_by_owner = {}
-    if type_faults:
-        owners = {id(part): id(item) for item, _ in ordered for part in nodes(item)}
-        for fault in type_faults:
-            faults_by_owner.setdefault(owners[id(fault[1])], []).append(fault)
-    tags_by_owner = {}
-    for owner, term, constituent in tag_clauses:
-        tags_by_owner.setdefault(id(owner), []).append((term, constituent))
-    for item, kind in ordered:
-        if kind == "constants":
-            if open_part(item["value"]) is not None or _contains_engine(item["value"]):
-                return "a constant requires a closed term without engine-tag literals"
-        elif kind == "implications":
-            if any(open_part(term) is not None or _contains_engine(term) for term in (item["if"], item["then"])):
-                return "an implication requires closed terms without engine-tag literals"
-        fault = select_type_fault(faults_by_owner.get(id(item), []))
-        if fault is not None:
-            return fault[0]
-        for term, constituent in tags_by_owner.get(id(item), []):
-            if constituent and (term_reads_own_tags(term) or lit(term)):
-                return "a constituent tag clause introduces engine tags or reads its own tags"
-            if not constituent and lit(term):
-                return "an emission tag clause introduces engine tags"
-        if kind == "rules":
-            r = item
-            if "instance" in r:
-                continue
-            for a in r["alternatives"]:
-                if duplicate_captures(a["expr"]) or repeats_item_capture(a["expr"]):
-                    return "a capture name used twice in one production"
-            from ._boundary import problem as boundary_problem
-            boundary = boundary_problem(r)
-            if boundary:
-                return boundary[0]
-            # A bare empty set on the condition side of a guarded term in
-            # a tag clause is an error (engine §10).
-            from ._clauses import guarded_clause_bare_empty_set
-            if guarded_clause_bare_empty_set(r):
-                return f"a condition of {r['name']} is the empty set"
-            issue = check_definition(r, defer_emission, held if len(dom["rules"]) == 1 else None).problem
-            if issue:
-                return issue.message
-            problem = rule_type_problem(r)
-            if problem:
-                return problem
-        elif kind == "constants":
-            problem = constant_value_problem(item["value"], item["op"] == "redefine")
-            if problem:
-                return problem
-    return None
-
-
-def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: list, type_faults: list) -> str | None:
-    types = {}
-    root_order = {}
-    root_nodes = {id(task[1]) for task in pending}
-    decided = set()
-
-    def keep_type(fault, node):
-        if fault is None:
-            return
-        if not root_order:
-            for index, root in enumerate(roots):
-                for part in nodes(root):
-                    root_order.setdefault(id(part), index)
-        order = root_order[id(node)]
-        if order not in decided:
-            type_faults.append(fault)
-            if id(node) in root_nodes:
-                decided.add(order)
-
-    while pending:
-        # For an expression, ``sealed`` says where no capture stands (engine
-        # §3.5): bit 1 inside an elidable optional, at any depth, bit 2
-        # where the innermost braces around it are a chain, and bits 4 and
-        # 8 inside flat braces and inside a ranked group, which hold no
-        # capture together.
-        kind, node, depth, whole, sealed = pending.pop()
-        if depth > MAX_DEPTH:
-            return TOO_DEEP
-        if not isinstance(node, dict):
-            return f"a malformed {kind}"
-        below = depth + 1
-        keys = set(node)
-        if kind == 'pattern-part':
-            if 'call' in node:
-                for part in nodes(node['args']):
-                    if 'rule' in part and _tag(part['rule']):
-                        return 'a pattern argument rule reads back as a tag'
-                pending.extend(('arg', arg, below, False, False) for arg in node['args'])
-            if 'literal' in node:
-                pending.append(('string', node['literal'], depth, False, False))
-            if 'range' in node:
-                problem = range_problem(node['range'])
-                if problem:
-                    return problem
-                pending.extend(('string', end, depth, False, False) for end in node['range'])
-            if node.get('test') == 'tags':
-                pending.extend(('term', r['value'], below, False, False) for r in node['requirements'] if r['value'] != {'tag': '_Elided'})
-            elif 'test' in node:
-                pending.append(('string', node['value'], below, False, False))
-            if 'expr' in node:
-                pending.append(('pattern-part', node['expr'], below, False, False))
-            if 'path' in node:
-                pending.append(('pattern-part', node['pattern'], below, False, False))
-            for key in ('union', 'intersection', 'difference'):
-                pending.extend(('pattern-part', part, below, False, False) for part in node.get(key, []))
-            pending.extend(('pattern-item', item, below, False, False) for item in node.get('children', []))
-            continue
-        if kind == 'pattern-item':
-            if 'child' in node:
-                pending.append(('pattern-part', node['child'], below, False, False))
-            for key in ('optional', 'repeat', 'separator'):
-                pending.extend(('pattern-item', item, below, False, False) for item in node.get(key, []))
-            for arm in node.get('choice', []):
-                pending.extend(('pattern-item', item, below, False, False) for item in arm)
-            continue
-        # Unresolved leaves still obey the category of their position.
-        if 'param' in node:
-            if kind not in ('expr', 'arg', 'term', 'tags', 'string', 'target'):
-                return f'a malformed {kind}'
-            if keys != {'param', 'at'} or not isinstance(node['param'], str) or re.fullmatch(r'(?!.*--)[A-Za-z][A-Za-z0-9_-]*', node['param']) is None or not _is_position(node['at']):
-                return 'an undeclared or malformed parameter'
-            continue
-        if 'call' in node or kind == 'call':
-            if kind not in ('expr', 'arg', 'term', 'tags', 'target', 'call'):
-                return f'a malformed {kind}'
-            if keys != {'call', 'args', 'at'} or not isinstance(node['call'], str) or not rule_name(node['call']) or not _is_position(node['at']) or not _items(node['args']):
-                return 'a malformed call'
-            pending.extend(('arg', arg, below, False, False) for arg in node['args'])
-            continue
-        if kind == 'arg':
-            if any('capture' in n or 'captured' in n for n in nodes(node)) or keys & {'classifier', 'integer'}:
-                return 'an argument cannot read or declare captures'
-            if 'body' in node:
-                if keys != {'body'}:
-                    return 'a malformed body argument'
-                pending.append(('expr', node['body'], depth, True, False))
-            elif 'targets' in node:
-                if keys != {'targets'} or not _items(node['targets'], 2):
-                    return 'a malformed target choice'
-                pending.extend(('target', v, depth, False, False) for v in node['targets'])
-            elif 'requirements' in node and 'test' not in node:
-                if keys != {'requirements'} or not isinstance(node['requirements'], list):
-                    return 'a malformed requirement list'
-                for entry in node['requirements']:
-                    if not isinstance(entry, dict) or set(entry) != {'negated', 'value'} or type(entry['negated']) is not bool or not isinstance(entry['value'], dict) or not any(k in entry['value'] for k in ('tag', 'const', 'param')):
-                        return 'a malformed requirement'
-                    pending.append(('term', entry['value'], depth, False, False))
-            elif 'rule' in node:
-                if keys != {'rule'} or not isinstance(node['rule'], str) or not rule_name(node['rule']):
-                    return 'a malformed nominal rule argument'
-            else:
-                pending.append(('expr' if keys & {'test', 'range', 'wildcard', 'splice'} else 'term', node, depth, False, False))
-            continue
-        if kind == 'target':
-            if not (keys == {'rule'} and isinstance(node['rule'], str) and rule_name(node['rule']) or keys == {'terminal'} and _tag(node['terminal']) and not node['terminal'].startswith('_')):
-                return 'a malformed query target'
-            continue
-        if kind == "expr":
-            if any(k in node for k in ("seq", "choice", "ranked", "and")):
-                key = next(k for k in ("seq", "choice", "ranked", "and") if k in node)
-                if keys != {key}:
-                    return "a malformed expression"
-                if not _items(node[key], 2, 16 if key == "and" else float("inf")):
-                    return "ranked-choice-syntax: malformed ranked choice" if key == "ranked" else "a malformed expression"
-                pending.extend(("expr", x, below, False, sealed | (8 if key == "ranked" else 0)) for x in node[key])
-            elif "optional" in node:
-                if (
-                    not keys <= {"optional", "elidable", "default"}
-                    or "elidable" in node
-                    and (node["elidable"] is not True or elidable_head(node["optional"]) is None)
-                ):
-                    return "a malformed optional"
-                if "default" in node:
-                    if node.get("elidable") is not True:
-                        return "a default requires an elidable optional"
-                    pending.append(("string", node["default"], below, False, False))
-                pending.append(("expr", node["optional"], below, False, sealed | (1 if "elidable" in node and "capture" not in node["optional"] else 0)))
-            elif "repeat" in node:
-                if (
-                    not keys <= {"repeat", "separator", "chain"}
-                    or "chain" in node
-                    and (not whole or node["chain"] not in ("left", "right"))
-                ):
-                    return "a malformed repetition"
-                # A chain holds no capture, and flat braces hold item
-                # captures, also inside a chain, but not inside a ranked
-                # group (engine §3.5).
-                inside = (sealed & 1) | (2 if "chain" in node else 4)
-                pending.append(("expr", node["repeat"], below, False, inside))
-                if "separator" in node:
-                    pending.append(("expr", node["separator"], below, False, inside))
-            elif "splice" in node:
-                target = node["splice"]
-                if keys != {"splice"} or not isinstance(target, dict) or not (set(target) == {"ref"} and rule_name(target["ref"]) or "call" in target):
-                    return "a splice requires a rule or instance"
-                pending.append(("expr", target, below, False, sealed))
-            elif "capture" in node:
-                if keys != {"capture", "expr"} or sealed & 3 or sealed & 12 == 12 or not _capture(node["capture"], False) or not _target(node["expr"], rule_name):
-                    return "a malformed capture"
-                pending.append(("expr", node["expr"], below, False, sealed))
-            elif "test" in node:
-                if not _target(node, rule_name):
-                    return "a malformed test"
-                pending.append(("expr", node["expr"], below, False, sealed))
-                if node["test"] == "tags":
-                    if not isinstance(node["requirements"], list):
-                        return "a malformed tag test"
-                    for r in node["requirements"]:
-                        if not isinstance(r, dict) or set(r) != {"negated", "value"} or type(r["negated"]) is not bool:
-                            return "a malformed requirement"
-                        value = r["value"]
-                        if not isinstance(value, dict) or not (set(value) == {"tag"} or set(value) == {"const", "at"} or set(value) == {"param", "at"}):
-                            return "a tag test requires tags or constants"
-                        pending.append(("tags", value, below, False, False))
-                else:
-                    pending.append(("string", node["value"], below, False, False))
-            # Literal and range wrappers add no compound ancestor.
-            elif "range" in node:
-                if keys != {"range"} or not _items(node["range"], 2, 2):
-                    return "a malformed range"
-                problem = range_problem(node["range"])
-                if problem:
-                    return problem
-                pending.extend(("string", x, depth, False, False) for x in node["range"])
-            elif "literal" in node:
-                if keys != {"literal"}:
-                    return "a malformed literal"
-                pending.append(("string", node["literal"], depth, False, False))
-            elif not (
-                keys == {"ref"}
-                and isinstance(node["ref"], str)
-                and (_NAME.fullmatch(node["ref"]) or node["ref"] in ENGINE_TAGS or rule_name(node["ref"]))
-                or keys == {"wildcard"}
-                and node["wildcard"] is True
-                or keys == {"empty"}
-                and node["empty"] is True
-            ):
-                return "a malformed expression"
-            continue
+                        push("recipe", item[channel], depth, params=task.params, at=node_at(item[channel], item_at), feature_at=task.feature_at)
+                if "tags" in item:
+                    push("tags", item["tags"], depth, params=task.params, owner=task.owner, at=node_at(item["tags"], item_at), feature_at=task.feature_at)
+            return None
         if kind == "recipe":
-            if keys != {"concat"} or not _items(node["concat"]):
-                return "a malformed recipe"
-            for atom in node["concat"]:
-                if isinstance(atom, dict) and "method" in atom:
-                    receiver = atom.get("receiver")
-                    valid = atom.get("args") == [] and (
-                        atom["method"] in ("value", "image", "source-text", "decomposed-source-text", "verbatim-text")
-                        and isinstance(receiver, dict)
-                        and set(receiver) == {"capture"}
-                        or atom["method"] in ("value", "image")
-                        and isinstance(receiver, dict)
-                        and set(receiver) == {"method", "receiver", "args"}
-                        and receiver["method"] == "emitted"
-                        and receiver["args"] == []
-                        and isinstance(receiver["receiver"], dict)
-                        and set(receiver["receiver"]) == {"capture"}
-                    )
-                    if not valid:
-                        return "a recipe requires one of its seven captured string methods"
-                    pending.append(("recipe-method", atom, below, False, False))
-                else:
-                    pending.append(("string", atom, below, False, False))
-            continue
+            atoms = value.get("concat")
+            if len(value) != 1 or not isinstance(atoms, list) or not atoms:
+                return report("a malformed recipe")
+            if task.message:
+                stack = [value]
+                while stack:
+                    node = stack.pop()
+                    if isinstance(node, dict) and node.get("method") == "emitted":
+                        clause_at = getattr(value, "clause_at", None)
+                        return report("a message recipe cannot read .emitted", At(clause_at) if clause_at else value)
+                    stack.extend(clause_children(node))
+            for atom in atoms:
+                if not isinstance(atom, dict):
+                    return report("a malformed recipe atom", atom)
+            for atom in reversed(atoms):
+                child("term", atom, recipe=True)
+            return None
         if kind == "condition":
-            if "op" in node:
-                if keys != {"op", "left", "right"} or node["op"] not in ("=", "≠", "∈", "∉", "⊆", "⊈", "≅", "≇"):
-                    return "a malformed comparison"
-                if node["op"] in ("≅", "≇") and not (isinstance(node["left"], dict) and set(node["left"]) == {"capture"}):
-                    return "a tree comparison requires a bare capture"
-                pending.extend(("term", node[k], below, False, False) for k in ("left", "right"))
-            elif "any" in node or "all" in node:
-                key = "any" if "any" in node else "all"
-                if keys != {key} or not _items(node[key], 2):
-                    return "a malformed condition"
-                pending.extend(("condition", x, below, False, False) for x in node[key])
-            elif "not" in node:
-                if keys != {"not"}:
-                    return "a malformed condition"
-                pending.append(("condition", node["not"], below, False, False))
-            elif "if" in node:
-                if keys != {"if", "then"}:
-                    return "a malformed condition"
-                pending.extend(("condition", node[k], below, False, False) for k in ("if", "then"))
-            elif "nonempty" in node:
-                if keys != {"nonempty"}:
-                    return "a malformed condition"
-                pending.append(("term", node["nonempty"], below, False, False))
-            elif not (
-                keys == {"captured"}
-                and _capture(node["captured"])
-                or keys == {"method", "receiver", "args"}
-                and node["method"] in ("starts-input", "ends-input", "parse", "error-free", "followed-by", "preceded-by")
-            ):
-                return "a malformed condition"
-            keep_type(None if id(node) in deferred else condition_type_fault(node, memo=types), node)
-            if "method" not in node:
+            if not _has_one_form(value, _CONDITION_FORMS):
+                return report("a malformed condition")
+            if "method" in value:
+                if not isinstance(value["method"], str):
+                    return report("a condition requires a query method")
+                same("term", value, query=True, closed=None)
+            elif "nonempty" in value:
+                operand = value["nonempty"]
+                set_at = node_at(operand, enclosing) if isinstance(operand, dict) and any(key in operand for key in ("union", "intersection", "difference")) else None
+                push("term", operand, depth + 1, params=task.params, set_condition_at=set_at, at=enclosing, feature_at=task.feature_at)
+            elif value.get("op"):
+                left = value.get("left")
+                if value["op"] not in _COMPARATORS or value["op"] in ("≅", "≇") and not (isinstance(left, dict) and isinstance(left.get("capture"), str) and len(left) == 1):
+                    return report("a malformed comparison")
+                child("term", value["right"])
+                child("term", value["left"])
+            elif "captured" in value:
+                if not isinstance(value["captured"], str) or value["captured"] != "" and CAPTURE_NAME.fullmatch(value["captured"]) is None:
+                    return report("a malformed presence")
+            elif value.get("not"):
+                child("condition", value["not"])
+            elif value.get("if"):
+                child("condition", value["then"])
+                child("condition", value["if"])
+            else:
+                values = value.get("any") if "any" in value else value.get("all")
+                if not isinstance(values, list) or len(values) < 2:
+                    return report("a malformed connective")
+                for condition in reversed(values):
+                    child("condition", condition)
+            return None
+        # A term, in every other position.
+        if not _has_one_form(value, _TERM_FORMS):
+            return report("a malformed term")
+        if "string" in value:
+            if not isinstance(value["string"], str) or any(0xD800 <= ord(c) <= 0xDFFF for c in value["string"]):
+                return report("a malformed scalar string")
+        elif value.get("tag"):
+            if not (task.pattern_tag and value["tag"] == "_Elided") and not tag(value["tag"]):
+                return report("a malformed tag")
+        elif value.get("const"):
+            if not isinstance(value["const"], str) or CONSTANT_NAME.fullmatch(value["const"]) is None or not _is_position(value.get("at")):
+                return report("a malformed constant reference")
+        elif "emptySet" in value:
+            if value["emptySet"] is not True:
+                return report("a malformed empty set")
+        elif "capture" in value:
+            if not isinstance(value["capture"], str) or value["capture"] != "" and CAPTURE_NAME.fullmatch(value["capture"]) is None:
+                return report("a malformed capture reference")
+        elif "method" in value:
+            method, args, receiver = value["method"], value["args"], value["receiver"]
+            if method in ("classify", "ngrams") and isinstance(args, list) and any(has_unresolved(arg) for arg in args):
+                return report("a parameter cannot replace a classifier name or integer argument")
+            if not isinstance(args, list) or not isinstance(receiver, dict) or not task.query and method in _QUERY_METHODS and method not in ("parse", "error-free"):
+                wrong_place = not task.query and isinstance(args, list) and isinstance(receiver, dict) and method in _QUERY_METHODS
+                return report("a query method is a condition, not a term" if wrong_place else "a malformed method",
+                              At(task.set_condition_at) if task.set_condition_at else value)
+            # The receiver and arguments come before the signature, so that
+            # faults inside them come first in written order.
+            if not task.closed or method in ("split", "ngrams") or method not in _METHODS:
+                same("method-shape", value, recipe=task.recipe, query=task.query)
+            if isinstance(method, str) and method in _METHODS:
+                for arg in reversed(args):
+                    if isinstance(arg, dict) and "body" in arg:
+                        if method != "parse" or not _exact(arg, ("body",)):
+                            return report("a malformed parse argument", arg)
+                        body, _, problem = query_body(arg["body"])
+                        if problem:
+                            return report(problem, arg["body"])
+                        captured = query_capture(body)
+                        if captured:
+                            return report("a parse argument cannot declare captures", captured)
+                        stripped = isinstance(arg["body"].get("seq"), list) and not (isinstance(body, dict) and isinstance(body.get("seq"), list))
+                        push("expr", body, depth + (2 if stripped else 1), params=task.params, at=node_at(body, enclosing), feature_at=task.feature_at)
+                    elif isinstance(arg, dict) and isinstance(arg.get("rule"), str):
+                        if len(arg) != 1 or method not in ("without-elision-except", "followed-by", "preceded-by") or not rule_name(arg["rule"]):
+                            return report("a malformed rule argument", value)
+                    elif isinstance(arg, dict) and isinstance(arg.get("terminal"), str):
+                        if len(arg) != 1 or method not in _TARGET_METHODS or _TAG_NAME.fullmatch(arg["terminal"]) is None:
+                            return report("a malformed boundary target", value)
+                    elif isinstance(arg, dict) and "integer" in arg:
+                        if len(arg) != 1 or method != "ngrams" or not isinstance(arg["integer"], str):
+                            return report("a malformed integer argument", arg)
+                        if _INTEGER.fullmatch(arg["integer"]) is None:
+                            return report("an integer argument is positive and has no leading zeros", arg)
+                    elif isinstance(arg, dict) and isinstance(arg.get("classifier"), str):
+                        if len(arg) != 1 or method != "classify" or CLASSIFIER_NAME.fullmatch(arg["classifier"]) is None:
+                            return report("a malformed classifier argument", value)
+                    else:
+                        child("term", arg)
+            child("term", receiver, recipe=task.recipe)
+        elif value.get("concat"):
+            if not isinstance(value["concat"], list) or len(value["concat"]) < 2:
+                return report("a malformed concatenation")
+            for segment in reversed(value["concat"]):
+                child("term", segment)
+        elif value.get("pattern"):
+            child("pattern", value["pattern"], closed=None)
+        elif value.get("if"):
+            child("term", value["then"])
+            child("condition", value["if"])
+        else:
+            items = value.get("union") or value.get("intersection") or value.get("difference")
+            if not isinstance(items, list) or len(items) < 2 or value.get("difference") and len(items) != 2:
+                return report("a malformed set operation")
+            for item in reversed(items):
+                child("term", item, set_condition_at=task.set_condition_at)
+        return None
+
+    def closed_term_fault(root, closed_for, fallback):
+        stack = [(root, node_at(root, fallback))]
+        while stack:
+            node, parent_at = stack.pop()
+            if not isinstance(node, dict):
                 continue
-        elif kind == "tags":
-            keep_type(None if id(node) in deferred else tag_term_fault(node, memo=types), node)
-        if "method" in node:
-            if keys != {"method", "receiver", "args"} or not isinstance(node["method"], str) or not isinstance(node["args"], list):
-                return "a malformed method"
-            recipe = kind == "recipe-method"
-            if node['method'] not in _METHODS:
-                return 'unknown method name'
-            if node['method'] in ('classify', 'ngrams') and has_unresolved(node['args']):
-                return 'a parameter cannot replace a classifier name or integer argument'
-            problem = method_shape_problem(node["method"], node.get("receiver"), node["args"], recipe)
-            if problem:
-                return problem
-            if kind != "condition" and node["method"] in ("starts-input", "ends-input", "followed-by", "preceded-by"):
-                return "a predicate method cannot supply a value"
-            if not recipe and (
-                node["method"] in ("verbatim-text", "emitted")
-            ):
-                return "a recipe-only method outside a recipe"
-            keep_type(None if id(node) in deferred else term_type_fault(node, memo=types)[1], node)
-            if kind == "string":
-                return "a string operand requires a literal or constant"
-            if id(node) not in deferred and node["method"] == "split" and literal_string(node["args"][0]) == "":
-                keep_type(("split has an empty delimiter", node), node)
-            pending.append(("recipe-method" if recipe else "term", node["receiver"], below, False, False))
-            for arg in node["args"]:
-                if isinstance(arg, dict) and "body" in arg:
-                    from ._query_forms import query_body, query_capture
-                    if node["method"] != "parse" or set(arg) != {"body"}:
-                        return "a malformed parse argument"
-                    body, mode, problem = query_body(arg["body"])
-                    if problem:
-                        return problem
-                    if query_capture(body):
-                        return "a parse argument cannot declare captures"
-                    # A stripped outer sequence charges one level, however
-                    # many remainder leaves it held (engine §9).
-                    stripped = isinstance(arg["body"], dict) and "seq" in arg["body"] and not (isinstance(body, dict) and "seq" in body)
-                    depth = below + (1 if stripped else 0)
-                    pending.append(("expr", body, depth, False, True))
-                elif isinstance(arg, dict) and set(arg) in ({"rule"}, {"classifier"}, {"terminal"}, {"integer"}):
-                    key = next(iter(arg))
-                    if key == "integer":
-                        if node["method"] != "ngrams" or not isinstance(arg[key], str) or re.fullmatch(r"[1-9][0-9]*", arg[key]) is None:
-                            return "a malformed integer argument"
-                        continue
-                    if not isinstance(arg[key], str) or not (key == "rule" and rule_name(arg[key]) or key == "terminal" and USER_NAME.fullmatch(arg[key]) and arg[key][:1].isupper() and node["method"] in ("followed-by", "preceded-by") or key != "terminal" and CLASSIFIER_NAME.fullmatch(arg[key])):
-                        return "a malformed method name argument"
+            here = node_at(node, parent_at)
+            if "capture" in node:
+                return fault(f"{closed_for} is a closed term, and holds no capture", node, here)
+            if "if" in node:
+                return fault(f"{closed_for} is a closed term, and holds no guarded term", node, here)
+            if isinstance(node.get("tag"), str) and node["tag"].startswith("_"):
+                return fault(f"{closed_for} cannot contain an engine-tag literal", node, here)
+            if node.get("pattern"):
+                continue
+            if isinstance(node.get("method"), str):
+                if node["method"] not in ("split", "ngrams"):
+                    inner = closed_term_fault(node.get("receiver"), closed_for, here)
+                    if inner is not None:
+                        return inner
+                    return fault(f"{closed_for} cannot read an input method", node, here)
+                stack.extend((arg, here) for arg in reversed(node["args"]))
+                stack.append((node.get("receiver"), here))
+                continue
+            key = next((name for name in ("union", "intersection", "difference", "concat") if isinstance(node.get(name), list)), None)
+            if key is not None:
+                stack.extend((item, here) for item in reversed(node[key]))
+        return None
+
+    def first_capture_arg(root, fallback):
+        stack = [(root, node_at(root, fallback))]
+        while stack:
+            node, parent_at = stack.pop()
+            if isinstance(node, list):
+                stack.extend((item, parent_at) for item in reversed(node))
+                continue
+            if not isinstance(node, dict):
+                continue
+            here = node_at(node, parent_at)
+            if isinstance(node.get("args"), list) and ("call" in node or "alternatives" in node):
+                for arg in node["args"]:
+                    if _reads_capture(arg):
+                        return fault("an argument cannot read or declare captures", arg, here)
+            stack.extend((value, here) for key, value in reversed(list(node.items())) if key != "at")
+        return None
+
+    def enclosing_at(root, target_node, fallback):
+        own = node_at(target_node)
+        if own is not None:
+            return own
+        stack = [(root, node_at(root, fallback))]
+        seen = set()
+        while stack:
+            node, at = stack.pop()
+            if not isinstance(node, (dict, list)) or id(node) in seen:
+                continue
+            seen.add(id(node))
+            here = node_at(node, at)
+            if node is target_node:
+                return here
+            if isinstance(node, list):
+                stack.extend((item, here) for item in reversed(node))
+            else:
+                stack.extend((value, here) for key, value in reversed(list(node.items())) if key != "at")
+        return fallback
+
+    def type_fault_at(found, root, decl_at):
+        """A type fault at its own position, or its construct's."""
+        at = getattr(found, "at", None)
+        return fault(found[0], At(at) if at else found[1], enclosing_at(root, found[1], decl_at))
+
+    declarations = sorted(
+        [("directive", d) for d in dom["directives"]] + [("constant", c) for c in dom["constants"]]
+        + [("classifier", c) for c in dom["classifiers"]] + [("implication", i) for i in dom["implications"]]
+        + [("rule", r) for r in dom["rules"]],
+        key=lambda pair: tuple(pair[1]["at"]))
+
+    for decl_kind, decl in declarations:
+        pending.clear()
+        active[0] = frozenset()
+        decl_at = decl["at"]
+        header = None
+        name_at = getattr(decl, "name_at", None)
+        named_at = list(name_at) if name_at else decl_at
+        if decl_kind == "directive":
+            name, args = decl.get("name"), decl.get("args")
+            if name not in _DIRECTIVES:
+                header = fault("a malformed directive", decl, decl_at)
+            elif "conditions" in decl and (name != "features" or not isinstance(decl["conditions"], list) or not decl["conditions"]):
+                header = fault("only %features accepts conditions" if name != "features" else "malformed feature conditions", decl, decl_at)
+            elif name == "ambiguity-resolution":
+                if "args" in decl or not valid_steps(decl.get("steps")):
+                    header = fault("%ambiguity-resolution requires a pattern for each key step and no operand on a final lean", decl, decl_at)
                 else:
-                    pending.append(("term", arg, below, False, False))
-        elif "concat" in node:
-            if kind == "string":
-                return "a string operand requires a literal or constant"
-            if keys != {"concat"} or not _items(node["concat"], 2):
-                return "a malformed concatenation"
-            pending.extend(("term", x, below, False, False) for x in node["concat"])
-        elif "string" in node:
-            if keys != {"string"} or not isinstance(node["string"], str) or any(0xD800 <= ord(c) <= 0xDFFF for c in node["string"]):
-                return "a malformed scalar string"
-        elif "const" in node:
-            if keys != {"const", "at"} or not is_constant(node["const"]) or not _is_position(node["at"]):
-                return "a malformed constant reference"
-        elif kind == "string":
-            return "a string operand requires a literal or constant"
-        elif "tag" in node:
-            if keys != {"tag"} or not _tag(node["tag"]):
-                return "a malformed tag"
-        elif "capture" in node:
-            if keys != {"capture"} or not _capture(node["capture"]):
-                return "a malformed capture reference"
-        elif "pattern" in node:
-            if keys != {"pattern"}:
-                return "a malformed pattern term"
-            problem = layered_pattern_problem(node['pattern'], depth=below,
-                name=lambda name: rule_name(name) and not _tag(name),
-                terminal=lambda name: name == "_Elided" or _tag(name))
-            if problem:
-                return problem
-            pending.append(('pattern-part', node['pattern'], below, False, False))
-        elif any(k in node for k in ("union", "intersection", "difference")):
-            key = next(k for k in ("union", "intersection", "difference") if k in node)
-            if keys != {key} or not _items(node[key], 2, 2 if key == "difference" else float("inf")):
-                return "a malformed set expression"
-            keep_type(None if id(node) in deferred else term_type_fault(node, memo=types)[1], node)
-            pending.extend(("term", x, below, False, False) for x in node[key])
-        elif "if" in node:
-            if keys != {"if", "then"}:
-                return "a malformed guarded term"
-            pending.append(("condition", node["if"], below, False, False))
-            pending.append(("term", node["then"], below, False, False))
-        elif not (keys == {"emptySet"} and node["emptySet"] is True):
-            return "a malformed term"
-    type_faults.sort(key=lambda fault: root_order[id(fault[1])])
+                    for step in reversed(decl["steps"]):
+                        if "pattern" in step:
+                            step_at = node_at(step)
+                            if "const" in step["pattern"]:
+                                push("term", step["pattern"], 0, at=step_at or decl_at)
+                            else:
+                                push("pattern", step["pattern"], 0, at=step_at or node_at(step["pattern"], decl_at))
+            elif not isinstance(args, list) or any(not isinstance(arg, str) for arg in args):
+                header = fault("a malformed directive", decl, decl_at)
+            elif name == "elision-only" and args:
+                header = fault("a malformed directive", decl, decl_at)
+            elif name in ("stage", "extend-stage", "redefine-stage") and not (len(args) == 1 and CLASSIFIER_NAME.fullmatch(args[0])):
+                header = fault(f"%{name} takes one lowercase name", decl, decl_at)
+            elif name in ("include", "names") and len(args) != 1 or name == "features" and not (args and all(_FEATURE.fullmatch(arg) for arg in args)):
+                header = fault("%features takes feature names" if name == "features" else "a malformed directive", decl, decl_at)
+            elif "conditions" in decl:
+                for condition in reversed(decl["conditions"]):
+                    push("condition", condition, 0, at=decl_at, feature_at=decl_at)
+        elif decl_kind == "constant":
+            if not _exact(decl, ("name", "op", "value", "at")) or not isinstance(decl.get("name"), str) or CONSTANT_NAME.fullmatch(decl["name"]) is None or decl.get("op") not in ("define", "redefine"):
+                header = fault("a constant requires a user name" if isinstance(decl.get("name"), str) and CONSTANT_NAME.fullmatch(decl["name"]) is None else "a malformed constant", None, named_at)
+            else:
+                push("term", decl["value"], 0, at=node_at(decl["value"], decl_at), closed="constant")
+        elif decl_kind == "classifier":
+            if not _exact(decl, ("name", "entries", "at")) or not (isinstance(decl.get("name"), str) and CLASSIFIER_NAME.fullmatch(decl["name"])) or not isinstance(decl.get("entries"), list):
+                bad_name = isinstance(decl.get("name"), str) and CLASSIFIER_NAME.fullmatch(decl["name"]) is None
+                header = fault(f"{decl['name']} begins with a capital, so it is a tag; a classifier's name begins with a lower-case letter" if bad_name else "a malformed classifier", None, named_at)
+            else:
+                for entry in reversed(decl["entries"]):
+                    push("classifier-entry", entry, 0, at=entry["at"] if isinstance(entry, dict) and _is_position(entry.get("at")) else decl_at)
+        elif decl_kind == "implication":
+            if not _exact(decl, ("if", "then", "at")):
+                header = fault("a malformed implication", decl, decl_at)
+            else:
+                push("term", decl.get("then"), 0, at=node_at(decl.get("then"), decl_at), closed="implication")
+                push("term", decl.get("if"), 0, at=node_at(decl.get("if"), decl_at), closed="implication")
+        else:
+            rule = decl
+            params = rule.get("params")
+            active[0] = frozenset(params) if isinstance(params, list) and all(isinstance(p, str) for p in params) else frozenset()
+            if "params" in rule and (not isinstance(params, list) or not params or any(not isinstance(p, str) or _PARAM_NAME.fullmatch(p) is None for p in params)
+                                     or len(set(params)) != len(params) or "args" in rule):
+                valid_names = isinstance(params, list) and params and "args" not in rule and all(isinstance(p, str) and _PARAM_NAME.fullmatch(p) for p in params)
+                duplicate = next((index for index, p in enumerate(params) if params.index(p) < index), -1) if valid_names else -1
+                if duplicate >= 0:
+                    param_ats = getattr(rule, "param_ats", None)
+                    header = fault(f"duplicate parameter @{params[duplicate]}", None, list(param_ats[duplicate]) if param_ats else decl_at)
+                else:
+                    header = fault("malformed template parameters", rule, decl_at)
+            elif rule.get("instance"):
+                if getattr(rule, "has_head", False):
+                    header = fault("a binding requires a plain rule name", rule, decl_at)
+                elif (not _exact(rule, ("name", "op", "instance", "conditions", "at")) or not rule_name(rule.get("name")) or rule.get("op") not in ("define", "redefine")
+                      or not isinstance(rule.get("conditions"), list) or rule["conditions"]):
+                    bad_name = isinstance(rule.get("name"), str) and not rule_name(rule["name"])
+                    header = fault("a rule name starts with a lowercase letter or uses one eligible emoji" if bad_name else "a malformed instance binding", None, named_at)
+                else:
+                    push("call", rule["instance"], 0, at=node_at(rule["instance"], decl_at))
+            else:
+                if "args" in rule:
+                    if not isinstance(rule["args"], list) or not rule["args"]:
+                        header = fault("a malformed call", None, named_at)
+                    else:
+                        stack = list(rule["args"])
+                        while stack:
+                            part = stack.pop()
+                            if isinstance(part, list):
+                                stack.extend(part)
+                            elif isinstance(part, dict):
+                                if "param" in part:
+                                    header = fault("a head cannot mix parameters and concrete arguments", None, named_at)
+                                    break
+                                stack.extend(part.values())
+                        if header is None and rule.get("op") not in ("redefine", "extend"):
+                            header = fault("an instance head requires an edit", None, named_at)
+                if header is None and (not _exact(rule, _RULE_FIELDS) or not (isinstance(rule.get("name"), str) and rule_name(rule["name"])) or rule.get("op") not in ("define", "redefine", "extend")
+                                       or not isinstance(rule.get("alternatives"), list) or not rule["alternatives"] or not isinstance(rule.get("conditions"), list)):
+                    bad_name = isinstance(rule.get("name"), str) and not rule_name(rule["name"])
+                    header = fault("a rule name starts with a lowercase letter or uses one eligible emoji" if bad_name else "a malformed rule", None, named_at)
+                if header is None and "erased" in rule and rule["erased"] is not True:
+                    header = fault("a malformed erased rule", rule, decl_at)
+                if header is None and ("error" in rule and "warning" in rule or params and ("error" in rule or "warning" in rule)):
+                    header = fault("a definition accepts one diagnostic, and a template accepts none", rule, decl_at)
+                codes = rule.get("suppressWarnings")
+                if header is None and codes is not None and (not isinstance(codes, list) or not codes
+                                                             or not (codes == ["_"]) and not all(isinstance(code, str) and _FEATURE.fullmatch(code) for code in codes)):
+                    header = fault("a malformed warning suppression", rule, decl_at)
+                if header is None:
+                    # Pushed in reverse of the order of inspection: the head,
+                    # tags, value, image, alternatives, conditions, the
+                    # diagnostic and the emission.
+                    if "emit" in rule:
+                        push("emission", rule["emit"], 0, owner=rule, at=node_at(rule["emit"], decl_at))
+                    for channel in ("warning", "error"):
+                        if channel in rule:
+                            push("recipe", rule[channel], 0, message=True, at=node_at(rule[channel], decl_at))
+                    for condition in reversed(rule["conditions"]):
+                        push("condition", condition, 0, at=node_at(condition, decl_at))
+                    for alternative in reversed(rule["alternatives"]):
+                        push("alternative", alternative, 0, owner=rule, at=node_at(alternative, decl_at))
+                    for channel in ("image", "value"):
+                        if channel in rule:
+                            push("recipe", rule[channel], 0, at=node_at(rule[channel], decl_at))
+                    if "tags" in rule:
+                        push("tags", rule["tags"], 0, owner=rule, at=node_at(rule["tags"], decl_at))
+                    if "args" in rule:
+                        push("call", {"call": rule["name"], "args": rule["args"], "at": named_at}, 0, at=named_at)
+
+        shape = header if header is not None else run_shape_tasks(decl_at)
+        if shape is not None:
+            if shape[2] == "ranked-choice-syntax":
+                return shape
+            if shape[0] == "split has an empty delimiter":
+                if first_semantic is None:
+                    first_semantic = shape
+                continue
+            if first_semantic is None:
+                return shape
+            continue
+        if first_semantic is not None:
+            continue
+
+        if decl_kind == "directive":
+            first_semantic = first_capture_arg(decl, decl_at)
+        elif decl_kind == "constant":
+            first_semantic = first_capture_arg(decl, decl_at) or closed_term_fault(decl["value"], "a constant's value", decl_at)
+            if first_semantic is None:
+                _, found = constant_value_type(decl["value"], decl["op"] == "redefine")
+                if found is not None:
+                    first_semantic = fault(found[0], found[1], node_at(decl["value"], decl_at))
+        elif decl_kind == "implication":
+            first_semantic = first_capture_arg(decl, decl_at)
+            if first_semantic is None:
+                for side in (decl["if"], decl["then"]):
+                    side_at = node_at(side, decl_at)
+                    first_semantic = closed_term_fault(side, "a side of an implication", side_at)
+                    if first_semantic is not None:
+                        break
+                    kind_found, found = term_type_fault(side)
+                    if found is not None:
+                        first_semantic = fault(f"a side of an implication is a tag set: {found[0]}", found[1], side_at)
+                        break
+                    problem = expected_problem(kind_found, "tags")
+                    if problem:
+                        first_semantic = fault(f"a side of an implication is a tag set: {problem}", side, side_at)
+                        break
+        elif decl_kind == "rule":
+            rule = decl
+            if not rule.get("instance"):
+                if "tags" in rule:
+                    found = tag_term_fault(rule["tags"])
+                    if found is not None:
+                        first_semantic = type_fault_at(found, rule, decl_at)
+                    elif term_reads_own_tags(rule["tags"]):
+                        clause_at = getattr(rule["tags"], "clause_at", None)
+                        first_semantic = fault("a constituent's tags cannot be made of its own: $.tags or $.classes",
+                                               At(clause_at) if clause_at else rule["tags"], node_at(rule["tags"], decl_at))
+                for alternative in rule["alternatives"]:
+                    if first_semantic is not None:
+                        break
+                    alternative_at = node_at(alternative, decl_at)
+                    twice = duplicate_captures(alternative["expr"])
+                    if twice:
+                        first = twice[0]
+                        for other in twice[1:]:
+                            a, b = node_at(first), node_at(other)
+                            if a and b and tuple(b) < tuple(a):
+                                first = other
+                        first_semantic = fault(f"the capture ${first['capture']} is read twice by one production of the alternative", first,
+                                               enclosing_at(alternative["expr"], first, alternative_at))
+                        break
+                    repeated = repeated_item_capture(alternative["expr"])
+                    if repeated is not None:
+                        first_semantic = fault(f"the item capture ${repeated['capture']} is read again: the name of an item capture stands once in its alternative",
+                                               repeated, enclosing_at(alternative["expr"], repeated, alternative_at))
+                        break
+                    if "tags" in alternative:
+                        found = tag_term_fault(alternative["tags"])
+                        if found is not None:
+                            first_semantic = type_fault_at(found, rule, decl_at)
+                            break
+                        if term_reads_own_tags(alternative["tags"]):
+                            clause_at = getattr(alternative["tags"], "clause_at", None)
+                            first_semantic = fault("a constituent's tags cannot be made of its own: $.tags or $.classes",
+                                                   At(clause_at) if clause_at else alternative["tags"], node_at(alternative["tags"], alternative_at))
+                            break
+            if first_semantic is None:
+                first_semantic = first_capture_arg(rule, decl_at)
+            if first_semantic is None and not rule.get("instance"):
+                found = rule_type_fault(rule)
+                if found is not None:
+                    first_semantic = type_fault_at(found, rule, decl_at)
+            if first_semantic is None and not rule.get("instance") and rule.get("emit"):
+                names = []
+                for item in rule["emit"]["items"]:
+                    if item.get("capture"):
+                        names.append(item["capture"])
+                    for side in ("before", "after"):
+                        names.extend(item.get(side) or [])
+                if len(set(names)) != len(names):
+                    first_semantic = fault("an emission lists a capture twice", rule["emit"], decl_at)
+            if first_semantic is None and not rule.get("instance"):
+                found = boundary_problem(rule)
+                if found is not None:
+                    first_semantic = fault(found[0], found[1], enclosing_at(rule, found[1], decl_at))
+                elif rule.get("erased") and (rule.get("emit") or rule.get("value") or rule.get("image")):
+                    first_semantic = fault("a malformed erased rule", rule, decl_at)
+                elif rule.get("erased") and any("value" in a or "image" in a for a in rule["alternatives"]):
+                    first_semantic = fault("a recipe beside erasure", rule, decl_at)
+                else:
+                    issue = check_definition(rule, defer_emission, held if len(dom["rules"]) == 1 else None).problem
+                    if issue:
+                        first_semantic = fault(issue.message, rule, decl_at)
+
+    if first_semantic is not None:
+        return first_semantic
+    if first_deep is not None:
+        return (TOO_DEEP, list(first_deep), None)
     return None
 
 

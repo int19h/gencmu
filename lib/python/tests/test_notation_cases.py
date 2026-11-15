@@ -46,7 +46,7 @@ class NotationCases(unittest.TestCase):
                         self.check_case(Path("coordinates.json"))
 
     def test_range_emission_target_reports_a_content_error(self) -> None:
-        with self.assertRaisesRegex(gencmu.GencmuError, "an emission target requires a capture or ε"):
+        with self.assertRaisesRegex(gencmu.GencmuError, "an emission target is a capture or ε"):
             read_document('```jbogenbau\n%rule r A %emits "a".."z"\n```\n', "grammar.md")
 
     def test_canonical_dom_member_order(self) -> None:

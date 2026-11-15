@@ -140,7 +140,7 @@ class Values(unittest.TestCase):
                     self.assertIsNone(value)
                     self.assertIsNotNone(error)
                     self.assertEqual(error.kind, "grammar")
-                    self.assertIn("cannot introduce engine tags", error.message)
+                    self.assertIn("cannot introduce an engine tag", error.message)
                     offset = list(re.finditer("_General_Category_Uppercase_Letter", term))[retained].start()
                     self.assertEqual((error.line, error.column), (3 + prefix.count("\n"), len(prefix.rsplit("\n", 1)[-1]) + offset + 1))
 

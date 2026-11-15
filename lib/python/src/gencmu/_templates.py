@@ -405,12 +405,14 @@ def expand_templates(documents, unicode):
         if position == 'expr':
             if 'body' in arg:
                 return arg['body']
+            # A converted expression stands at its parameter.
+            at = {'at': use['at']} if use.get('at') else {}
             if 'targets' in arg:
-                return dict(choice=[convert(x, 'expr', event, use) for x in arg['targets']])
+                return dict(choice=[convert(x, 'expr', event, use) for x in arg['targets']], **at)
             if any(k in arg for k in ('rule', 'tag', 'terminal')):
-                return dict(ref=arg.get('rule', arg.get('tag', arg.get('terminal'))))
+                return dict(ref=arg.get('rule', arg.get('tag', arg.get('terminal'))), **at)
             if 'string' in arg or 'const' in arg:
-                return dict(literal=arg)
+                return dict(literal=arg, **at)
             if any(k in arg for k in ('call', 'test', 'range', 'wildcard', 'splice')):
                 return arg
         elif position == 'pattern':
@@ -425,7 +427,7 @@ def expand_templates(documents, unicode):
             if 'const' in arg:
                 return dict(constant=arg['const'], at=use['at'])
             if 'test' in arg:
-                return {**arg, 'expr': convert(argument_of_expression(arg['expr']), 'pattern', event, use)}
+                return {**{key: value for key, value in arg.items() if key != 'at'}, 'expr': convert(argument_of_expression(arg['expr']), 'pattern', event, use)}
             if any(k in arg for k in ('range', 'wildcard', 'call')):
                 return {**arg, 'at': use['at']}
         elif position == 'target':
@@ -608,7 +610,10 @@ def expand_templates(documents, unicode):
                 if 'children' in root:
                     result['children'] = yield rewrite_walk(root['children'], event, 'pattern-item')
                 return result
-            return {'ref' if position == 'expr' else 'rule': name}
+            if position == 'expr':
+                return {'ref': name, **({'at': root['at']} if root.get('at') else {})}
+            from ._boundary import hide
+            return hide({'rule': name}, root.get('at'))
 
         if position == 'pattern' and root.get('name') in templates:
             erased_check([effective(i) for i in queue if i['call']['call'] == root['name']], root['name'])

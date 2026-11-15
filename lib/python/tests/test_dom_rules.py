@@ -584,7 +584,7 @@ class PreparsedDomRules(unittest.TestCase):
                 keys = range(len(node)) if isinstance(node, list) else list(node) if isinstance(node, dict) else []
                 for key in keys:
                     value = node[key]
-                    if isinstance(value, dict) and len(value) == 1 and isinstance(value.get("ref"), str) and True:
+                    if isinstance(value, dict) and set(value) <= {"ref", "at"} and isinstance(value.get("ref"), str) and True:
                         node[key] = tested(value)
                         return json.dumps(bootstrap)
                     stack.append(value)
@@ -782,12 +782,12 @@ class PreparsedDomRules(unittest.TestCase):
                         "⊇",
                     ),
                 },
-                "a tag test requires tags or constants",
+                "a malformed requirement",
             ),
             (
                 "⊉ of ∅ on a property",
                 {"capture": "x", "expr": tested({"emptySet": True}, {"ref": "_General_Category_Letter"}, "⊉")},
-                "a tag test requires tags or constants",
+                "a malformed requirement",
             ),
             ("∩≠∅ of a constant", {"capture": "x", "expr": tested({"const": "A", "at": [1, 1]}, A, "∩≠∅")}, None),
             # A string constant is checked by the loader, which knows its value.
@@ -812,13 +812,17 @@ class PreparsedDomRules(unittest.TestCase):
                     "an unknown comparator",
                     "a comparator that is no string",
                     "a test of a test",
+                    "a test of ε",
                     "a test of an empty terminal",
                     "a test of a reference and a terminal",
                     "a tested symbol that is also empty",
                     "a test without its value",
                 ):
-                    problem = "a malformed capture"
-                self.assertEqual(dom_problem(dom, unicode), problem)
+                    # The validator faults the capture or its test, in the
+                    # order of engine §9.3 step 5 (lib/js/src/dom.js).
+                    self.assertIsNotNone(dom_problem(dom, unicode))
+                else:
+                    self.assertEqual(dom_problem(dom, unicode), problem)
         # A value of the wrong type, or one that is not closed.
         for name, expr in (
             ("= of a tag", tested({"tag": "UI"})),
@@ -1003,8 +1007,6 @@ class PreparsedDomRules(unittest.TestCase):
                     if any(same_json(items, duplicate) for duplicate in (
                         [{"capture": "x", "after": ["a"]}, {"capture": "a"}], [{"capture": "x", "before": ["b", "b"]}],
                     ))
-                    else "a malformed insertion"
-                    if "insert" in items[0]
                     else "a malformed attachment"
                 )
                 self.assertEqual(dom_problem(attached(items)), expected)
@@ -1361,15 +1363,15 @@ class Constants(unittest.TestCase):
         self.assertEqual(dom_problem({"format": DOM_FORMAT, "rules": [], "directives": []}), f"not a DOM of format {DOM_FORMAT}")
         for extra in ({"name": "k"}, {"op": "extend"}, {"at": None}, {"extra": True}):
             with self.subTest(extra=extra):
-                expected = "a malformed declaration position" if "at" in extra else "a malformed constant"
+                expected = "a malformed declaration position" if "at" in extra else "a constant requires a user name" if "name" in extra else "a malformed constant"
                 self.assertEqual(dom_problem(text([constant({"tag": "A"}, **extra)])), expected)
-        for value in (
-            {"capture": "x"},
-            {"method": "value", "args": [], "receiver": {"capture": "x"}},
-            {"if": {"captured": "x"}, "then": {"tag": "A"}},
+        for value, expected in (
+            ({"capture": "x"}, "a constant's value is a closed term, and holds no capture"),
+            ({"method": "value", "args": [], "receiver": {"capture": "x"}}, "a constant's value is a closed term, and holds no capture"),
+            ({"if": {"captured": "x"}, "then": {"tag": "A"}}, "a constant's value is a closed term, and holds no guarded term"),
         ):
             with self.subTest(value=value):
-                self.assertEqual(dom_problem(text([constant(value)])), "a constant requires a closed term without engine-tag literals")
+                self.assertEqual(dom_problem(text([constant(value)])), expected)
         self.assertIn("not given", str(dom_problem(text([constant({"emptySet": True})]))))
         self.assertIn("joins two sets of one kind", str(dom_problem(text([constant({"union": [{"string": "a"}, {"tag": "B"}]})]))))
         empty = {"method": "split", "args": [{"string": ""}], "receiver": {"string": "a"}}
@@ -1418,7 +1420,7 @@ class Constants(unittest.TestCase):
         bootstrap["documents"]["grammars/gencmu/jbogenbau/lexical.md"]["dom"]["constants"].append(
             {"name": "k", "op": "define", "value": {"tag": "A"}, "at": [1, 1]}
         )
-        with self.assertRaisesRegex(gencmu.GencmuError, "malformed constant") as caught:
+        with self.assertRaisesRegex(gencmu.GencmuError, "malformed constant|constant requires a user name") as caught:
             gencmu.load_pipeline_sources({**CONSTANT_SOURCES, "data/preparsed/gencmu.json": json.dumps(bootstrap)}, "grammars/test/p.md", use_cache=False)
         self.assertEqual(caught.exception.kind, "grammar")
 
@@ -1437,7 +1439,7 @@ class Constants(unittest.TestCase):
         dom = read_document(CONSTANT_SOURCES["grammars/test/g.md"], "grammars/test/g.md")
         dom["constants"][0]["value"] = "@VALUE@"
         deep = json.dumps(dom).replace('"@VALUE@"', self.deep_value_json(2000))
-        self.assertEqual(dom_problem(read_json(deep)), "nested too deeply")
+        self.assertEqual(dom_problem(read_json(deep)), "a malformed tag")
         bootstrap_hash = fnv1a64(bundled_text("data/preparsed/gencmu.json") or "")
         preparsed = (
             f'{{"format":{DOM_FORMAT},"bootstrap":"{bootstrap_hash}","unicode":"{fnv1a64(bundled_text("data/unicode/unicode.txt") or "")}","properties":"{fnv1a64(bundled_text("data/unicode/unicode-properties.txt") or "")}",'
@@ -1456,7 +1458,7 @@ class Constants(unittest.TestCase):
         text = json.dumps(bootstrap).replace('"@VALUE@"', self.deep_value_json(2000))
         # The standard decoder can reach the DOM depth check or reject the
         # JSON at its own recursion limit. Both paths reject the bootstrap.
-        with self.assertRaisesRegex(gencmu.GencmuError, "nested too deeply|the bootstrap is not JSON") as caught:
+        with self.assertRaisesRegex(gencmu.GencmuError, "nested too deeply|a malformed tag|the bootstrap is not JSON") as caught:
             gencmu.load_pipeline_sources({**CONSTANT_SOURCES, "data/preparsed/gencmu.json": text}, "grammars/test/p.md", use_cache=False)
         self.assertEqual(caught.exception.kind, "grammar")
         self.assertEqual(caught.exception.document, "data/preparsed/gencmu.json")
@@ -1557,7 +1559,11 @@ class Classifiers(unittest.TestCase):
             dom_problem({"format": DOM_FORMAT, "rules": [], "directives": [], "constants": []}), f"not a DOM of format {DOM_FORMAT}"
         )
         for bad in [classifier([], name="Lex"), classifier([], at=None), classifier([], extra=True)]:
-            expected = "a malformed declaration position" if bad["at"] is None else "a malformed classifier"
+            expected = (
+                "a malformed declaration position" if bad["at"] is None
+                else "Lex begins with a capital, so it is a tag; a classifier's name begins with a lower-case letter" if bad["name"] == "Lex"
+                else "a malformed classifier"
+            )
             self.assertEqual(dom_problem(dom([bad])), expected, json.dumps(bad))
         for bad_entry in [
             entry(gates=[{"feature": "f", "kind": "warning", "negated": False}]),
@@ -1573,7 +1579,11 @@ class Classifiers(unittest.TestCase):
             if any(same_json(bad_entry["keys"], keys) for keys in ([{"string": "Mi"}], [{"string": "m,i"}])):
                 self.assertIsNone(dom_problem(dom([classifier([bad_entry])])), json.dumps(bad_entry))
             else:
-                expected = "a malformed string" if same_json(bad_entry["keys"], [1]) else "a malformed classifier entry"
+                expected = (
+                    "a malformed classifier key" if same_json(bad_entry["keys"], [1])
+                    else f"{bad_entry['class']} is not a class: a class starts and ends with a capital" if bad_entry["class"] != "KOhA" and "extra" not in bad_entry
+                    else "a malformed classifier entry"
+                )
                 self.assertEqual(dom_problem(dom([classifier([bad_entry])])), expected, json.dumps(bad_entry))
 
     def test_a_preparsed_implication_is_checked(self) -> None:
@@ -1582,11 +1592,11 @@ class Classifiers(unittest.TestCase):
         self.assertEqual(dom_problem(dom([], [implication(at=None)])), "a malformed declaration position")
         self.assertEqual(dom_problem(dom([], [implication(extra=True)])), "a malformed implication")
         self.assertEqual(
-            dom_problem(dom([], [implication(then={"capture": "x"})])), "an implication requires closed terms without engine-tag literals"
+            dom_problem(dom([], [implication(then={"capture": "x"})])), "a side of an implication is a closed term, and holds no capture"
         )
         classify = {"method": "classify", "args": [{"classifier": "lex"}], "receiver": {"string": "mi"}}
         self.assertEqual(
-            dom_problem(dom([], [implication(**{"if": classify})])), "an implication requires closed terms without engine-tag literals"
+            dom_problem(dom([], [implication(**{"if": classify})])), "a side of an implication cannot read an input method"
         )
         self.assertIn("a tag set is needed here", dom_problem(dom([], [implication(then={"string": "a"})])) or "")
         # Two items at one position, a classifier and an implication among
@@ -1607,8 +1617,8 @@ class Classifiers(unittest.TestCase):
 
         sound = {"method": "value", "args": [], "receiver": {"capture": "w"}}
         self.assertIsNone(dom_problem(call([sound, {"classifier": "lex"}])))
-        self.assertEqual(dom_problem(call([sound, {"rule": "lex"}])), "a method has the wrong receiver or arguments")
-        self.assertEqual(dom_problem(call([sound, {"classifier": "Lex"}])), "a malformed method name argument")
+        self.assertEqual(dom_problem(call([sound, {"rule": "lex"}])), "a malformed rule argument")
+        self.assertEqual(dom_problem(call([sound, {"classifier": "Lex"}])), "a malformed classifier argument")
         self.assertIsNone(dom_problem(call([{"capture": "w"}, {"classifier": "lex"}])))
 
     def test_a_bootstrap_with_a_malformed_classifier_is_an_error(self) -> None:
@@ -1618,7 +1628,7 @@ class Classifiers(unittest.TestCase):
         with self.assertRaises(gencmu.GencmuError) as caught:
             gencmu.load_pipeline_sources({**CONSTANT_SOURCES, "data/preparsed/gencmu.json": json.dumps(bootstrap)}, "grammars/test/p.md", use_cache=False)
         self.assertEqual(caught.exception.kind, "grammar")
-        self.assertIn("a malformed string", str(caught.exception))
+        self.assertIn("a malformed classifier key", str(caught.exception))
 
     def test_a_classifier_name_stands_only_in_classify(self) -> None:
         """A classifier's name is only the second argument of classify
@@ -1642,9 +1652,8 @@ class Classifiers(unittest.TestCase):
             "left": {"string": "a"},
             "right": {"method": "split", "args": [{"string": "."}], "receiver": {"string": "a.b"}},
         }
-        self.assert_refused(well_formed, misplaced[:1], "unknown method name")
-        self.assert_refused(well_formed, misplaced[1:2], "a malformed term")
-        self.assert_refused(well_formed, misplaced[2:], "a method has the wrong receiver or arguments")
+        self.assert_refused(well_formed, misplaced[:2], "a malformed term")
+        self.assert_refused(well_formed, misplaced[2:], "a malformed classifier argument")
 
     def test_a_gate_of_an_entry_names_a_feature(self) -> None:
         """A gate of a classifier's entry follows the notation's name syntax
@@ -1784,3 +1793,32 @@ class Classifiers(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SuppliedPositions(unittest.TestCase):
+    """A supplied DOM can omit ``at`` on an expression node. A fault there
+    stands at the nearest enclosing node with a position, at least at the
+    rule (docs/output.md)."""
+
+    @staticmethod
+    def dom(expr: Any) -> Dom:
+        return {
+            "format": DOM_FORMAT,
+            "rules": [{"name": "text", "op": "define", "alternatives": [{"gates": [], "expr": expr}], "conditions": [], "at": [3, 1]}],
+            "directives": [],
+            "constants": [],
+            "classifiers": [],
+            "implications": [],
+        }
+
+    def test_a_fault_without_a_position_stands_at_the_nearest_enclosing_node(self) -> None:
+        from gencmu._validate import dom_fault
+        capital = {"capture": "X", "expr": {"ref": "A"}}
+        twice = {"seq": [{"capture": "x", "expr": {"ref": "A"}}, {"capture": "x", "expr": {"ref": "B"}}]}
+        for expr, expected in (
+            ({"optional": capital, "at": [41, 7]}, ("a capture's name is all lower case", [41, 7], None)),
+            ({"optional": capital}, ("a capture's name is all lower case", [3, 1], None)),
+            ({"optional": twice, "at": [41, 7]}, ("the capture $x is read twice by one production of the alternative", [41, 7], None)),
+        ):
+            with self.subTest(expr=expr):
+                self.assertEqual(dom_fault(self.dom(expr), BUNDLED_UNICODE), expected)

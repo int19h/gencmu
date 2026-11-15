@@ -219,24 +219,27 @@ class RankedGroups:
         route.span = (self.spans[0][name], self.spans[1][name]) if name in self.rules else (True, True)
         return [route]
 
-    def site(self, source, path='', group=False):
+    def site(self, source, path='', group=None):
+        """The site of an alternative's expression. A ranked group stands at
+        its own position, and has none where its DOM node has none."""
         site = dict(self.source_sites[id(source)])
         site['path'] = path
-        if group:
+        if group is not None:
             site.pop('at', None)
-            if path in source.ranked_locations:
-                site['at'] = list(source.ranked_locations[path])
+            at = group.expr.get('at') if isinstance(group.expr, dict) else None
+            if isinstance(at, (list, tuple)) and len(at) == 2:
+                site['at'] = list(at)
         return {key: site[key] for key in ('document', 'at', 'rule', 'alternative', 'path') if key in site}
 
     def fail(self, group, code, message, **fields):
-        site = self.site(group.source, group.path, True)
+        site = self.site(group.source, group.path, group)
         at = site.get('at', (None, None))
         if 'expression' in fields:
             fields['expression'] = written(fields['expression'])
         raise GencmuError(f'{code}: {message}', document=group.source.document, line=at[0], column=at[1], code=code, group=site, **fields)
 
     def tag_failure(self, graph, group, helper, unsafe):
-        queue, seen = [(helper, [self.site(group.source, group.path, True)], None)], {helper}
+        queue, seen = [(helper, [self.site(group.source, group.path, group)], None)], {helper}
         for node, steps, option in queue:
             for route in graph.nodes[node].routes:
                 selected = option if option is not None else route.option
@@ -441,98 +444,6 @@ def written(value):
     if isinstance(value, (tuple, list)):
         return [written(child) for child in value]
     return value
-
-
-class LocatedRule(dict):
-    def __init__(self, rule):
-        super().__init__(rule)
-        self.ranked_locations = {}
-
-
-def has_ranked(dom):
-    from ._template_nodes import nodes
-    return any('ranked' in node for node in nodes(dom))
-
-
-class LocatedExpression(dict):
-    pass
-
-
-def expression_locations(expr):
-    locations, pending = {}, [(expr, '')]
-    while pending:
-        node, path = pending.pop()
-        if hasattr(node, 'ranked_at'):
-            locations[path] = node.ranked_at
-        pending.extend((child, path + component) for child, component in children(node))
-    return locations
-
-
-def restore_template_locations(dom, tokens, position):
-    from ._template_nodes import map_nodes
-    result = map_nodes(dom, lambda node: LocatedExpression(node) if isinstance(node, dict) and 'ranked' in node else node)
-    separators = [position(token.source[0]) for token in tokens if token.value == '≻']
-    roots = []
-    for rule in result['rules']:
-        roots.extend(rule.get('args', []))
-        roots.extend(rule.get(k) for k in ('instance', 'tags', 'value', 'image'))
-        for alt in rule.get('alternatives', []):
-            roots.extend(alt.get(k) for k in ('expr', 'tags', 'value', 'image'))
-        roots.extend(rule.get(k) for k in ('conditions', 'emit'))
-    index, locations = 0, []
-    pending = [(root, 0) for root in reversed(roots)]
-    while pending:
-        node, action = pending.pop()
-        if action == 1:
-            if index < len(separators):
-                locations.append((node, separators[index]))
-        elif action == 2:
-            index += 1
-        elif isinstance(node, dict) and 'ranked' in node:
-            for option in range(len(node['ranked']) - 1, 0, -1):
-                pending.extend(((node['ranked'][option], 0), (None, 2)))
-            pending.extend(((node, 1), (node['ranked'][0], 0)))
-        elif isinstance(node, (dict, list)):
-            values = [v for k, v in node.items() if k != 'at'] if isinstance(node, dict) else node
-            pending.extend((child, 0) for child in reversed(values))
-    if index == len(separators):
-        for node, at in locations:
-            node.ranked_at = at
-    return result
-
-
-def restore_locations(dom, tokens, position):
-    if not has_ranked(dom):
-        return dom
-    from ._template_nodes import has_unresolved
-    if has_unresolved(dom):
-        return restore_template_locations(dom, tokens, position)
-    separators = [position(token.source[0]) for token in tokens if token.value == '≻']
-    index = 0
-    copy = dict(dom)
-    copy['rules'] = [LocatedRule(rule) for rule in dom['rules']]
-    for rule in copy['rules']:
-        for alternative, alt in enumerate(rule['alternatives']):
-            locations = {}
-            pending = [(alt['expr'], '', 0)]
-            while pending:
-                expr, path, action = pending.pop()
-                if action == 1:
-                    if index < len(separators):
-                        locations[path] = separators[index]
-                elif action == 2:
-                    index += 1
-                elif 'ranked' in expr:
-                    for option in range(len(expr['ranked']) - 1, 0, -1):
-                        pending.extend(((expr['ranked'][option], path + f'/ranked/{option}', 0), (None, '', 2)))
-                    pending.extend(((None, path, 1), (expr['ranked'][0], path + '/ranked/0', 0)))
-                else:
-                    pending.extend((child, path + component, 0) for child, component in reversed(children(expr)))
-            rule.ranked_locations[alternative] = locations
-    if index != len(separators):
-        for rule in copy['rules']:
-            rule.ranked_locations.clear()
-    return copy
 
 
 def syntax_failure(tokens, at):

@@ -19,6 +19,10 @@ def atoms(value):
 
 
 def problem(rule):
+    """The first misplaced or malformed boundary atom of a rule, as
+    ``(problem, node)``, or None (engine §9.3)."""
+    from ._clause_walk import clause_children
+    from ._guarded_tags import guards, problem as tag_problem
     allowed = set()
     for condition in rule['conditions']:
         found = atoms(condition)
@@ -28,23 +32,34 @@ def problem(rule):
             continue
         atom = found[0]
         allowed.add(id(atom))
-        name = atom['receiver'].get('capture')
-        if name:
-            from ._clauses import captures_in
-            if captures_in(condition) - {name}:
-                return 'a boundary condition with a captured receiver reads only that capture', atom
-    from ._guarded_tags import guards, problem as tag_problem
+        receiver = atom['receiver'].get('capture')
+        if isinstance(receiver, str) and receiver != '':
+            pending = [condition]
+            while pending:
+                part = pending.pop()
+                capture = part.get('capture', part.get('captured')) if isinstance(part, dict) else None
+                if isinstance(capture, str) and capture != receiver:
+                    return 'a boundary condition with a captured receiver reads only that capture', atom
+                pending.extend(clause_children(part))
     for term in [rule.get("tags"), *(a.get("tags") for a in rule["alternatives"])]:
         fault = tag_problem(term)
         if fault:
             return fault
         for guard in guards(term):
             allowed.update(id(atom) for atom in atoms(guard["if"]))
-    for atom in atoms(rule.get('emit')):
-        allowed.add(id(atom))
-    for atom in atoms(rule):
-        if id(atom) not in allowed:
-            return 'a boundary atom stands only in conditions or emission tags', atom
+    for item in (rule.get('emit') or {}).get('items', []):
+        for atom in atoms(item.get('tags')):
+            allowed.add(id(atom))
+    # Bodies, tests and recipes are forbidden places too.
+    pending = [rule]
+    while pending:
+        part = pending.pop()
+        if isinstance(part, list):
+            pending.extend(reversed(part))
+        elif isinstance(part, dict):
+            if part.get('method') in METHODS and id(part) not in allowed:
+                return 'a boundary atom stands only in conditions or guarded tag terms', part
+            pending.extend(reversed(list(part.values())))
     return None
 
 
@@ -263,10 +278,57 @@ class Annotations:
 
 
 class Located(dict):
-    """Reader positions stay outside the serializable DOM."""
-    def __init__(self, value, at):
+    """Reader positions stay outside the serializable DOM. A copy keeps the
+    positions that its value holds outside its members."""
+    def __init__(self, value, at=None):
         super().__init__(value)
-        self.at = at
+        held = getattr(value, "__dict__", None)
+        if held:
+            self.__dict__.update(held)
+        if at is not None:
+            self.at = at
+
+
+def copy_dom_locations(target, source):
+    """``target`` with the positions that ``source``, a DOM of the same
+    structure, holds outside its members. A plain dict of ``target`` that
+    takes a position becomes a ``Located`` copy in its place."""
+    holder = [target]
+    stack = [(holder, 0, source)]
+    seen = set()
+    while stack:
+        container, key, original = stack.pop()
+        node = container[key]
+        if id(node) in seen or not isinstance(node, (dict, list)) or type(original) is not type(node) and not (isinstance(node, dict) and isinstance(original, dict)):
+            continue
+        seen.add(id(node))
+        if isinstance(node, list):
+            stack.extend((node, index, original[index]) for index in range(min(len(node), len(original))))
+            continue
+        held = {field: value for field, value in getattr(original, "__dict__", {}).items() if not hasattr(node, field)}
+        if held:
+            if type(node) is dict:
+                node = Located(node)
+                container[key] = node
+            node.__dict__.update(held)
+        stack.extend((node, name, original[name]) for name in list(node) if name in original)
+    return holder[0]
+
+
+def hide(value, at, field="at"):
+    """A DOM node with a source position held outside its members, as
+    ``field``. A plain dict becomes a ``Located`` copy, and any other node
+    takes the position in place."""
+    if not isinstance(value, dict) or at is None:
+        return value
+    if field == "at" and "at" in value:
+        # A written position takes the new one, as the reader's own does.
+        value["at"] = list(at) if isinstance(at, tuple) else at
+        return value
+    if type(value) is dict:
+        value = Located(value)
+    setattr(value, field, tuple(at) if isinstance(at, list) else at)
+    return value
 
 
 def condition_items(rule):

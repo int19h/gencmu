@@ -25,7 +25,7 @@ from ._diagnostic_flow import DiagnosticLists, join_diagnostics, input_diagnosti
 from ._source_lines import SourceLines
 from ._tags import is_tag
 from ._unicode import UnicodeTable
-from ._validate import CLASSIFIER_NAME, FORMAT, MAX_DEPTH, TOO_DEEP, dom_problem, known_dom_members
+from ._validate import CLASSIFIER_NAME, FORMAT, MAX_DEPTH, TOO_DEEP, dom_fault, dom_problem, known_dom_members
 from ._names import NO_NAMES, NamesDom, NamesScope, selected_names, names_registry
 from ._string_escapes import DocumentStrings
 
@@ -231,30 +231,10 @@ class NotationReader:
         return lowered
 
     def located(self, dom, text, path, names=None):
-        from ._ranked import has_ranked, restore_locations
-        from ._tree_identities import comparisons, restore_locations as restore_tree_locations
-        if any(not hasattr(node, "at") for node in comparisons(dom["rules"], constituents_only=False)):
-            restore_tree_locations(dom, self.read(text, path, True, names))
-        from ._boundary import atoms, Located
-        found = atoms([rule for rule in dom['rules']])
-        if any(not hasattr(arg, 'at') for atom in found for arg in atom['args']):
-            fresh = self.read(text, path, True, names)
-            originals = atoms(fresh['rules'])
-            if len(found) == len(originals):
-                for atom, original in zip(found, originals):
-                    atom['args'] = [Located(arg, where.at) for arg, where in zip(atom['args'], original['args'])]
-        if not has_ranked(dom) or all(hasattr(rule, 'ranked_locations') for rule in dom['rules']):
-            return dom
-        grammar_text = jbogenbau_text(text, self.unicode)
-        tokens = character_tokens(grammar_text.text, self.unicode)
-        name, lowered = self.stages[0]
-        features = _notation_features(lowered.grammar, tokens, grammar_text.text, self.unicode, self.bootstrap_features)
-        if features:
-            lowered = lower(lowered.grammar, features)
-        outcome = StageRunner(name, lowered, tokens, grammar_text.text, self.unicode).run(lowered.grammar.elision_only)
-        if outcome.error is None and outcome.output is not None:
-            return restore_locations(dom, outcome.output, grammar_text.position)
-        return dom
+        """A cached DOM with the source positions that a fresh read of its
+        document holds outside the DOM's members."""
+        from ._boundary import copy_dom_locations
+        return copy_dom_locations(dom, self.read(text, path, True, names))
 
     def read(self, text: str, path: str, defer_emission: bool = False, names=None) -> Dom:
         """The DOM of a grammar document (engine §8, §9)."""
@@ -315,38 +295,22 @@ class NotationReader:
         # A document read here is held to the rules of a preparsed DOM
         # (engine §9). A bootstrap that is not the notation's can give a DOM
         # that breaks them.
-        problem = dom_problem(dom, self.unicode, defer_emission)
-        if problem is None:
+        fault = dom_fault(dom, self.unicode, defer_emission)
+        if fault is None:
             return NamesDom(dom, names.dependencies) if names.dependencies is not None else dom
-        # Each declaration alone, including feature directives and
-        # classifiers, in the order of the document.
-        items = (
-            [("rules", rule) for rule in dom["rules"]]
-            + [("directives", directive) for directive in dom["directives"]]
-            + [("classifiers", classifier) for classifier in dom["classifiers"]]
-            + [("constants", constant) for constant in dom["constants"]]
-            + [("implications", implication) for implication in dom["implications"]]
-        )
-        items.sort(key=lambda item: (item[1]["at"][0], item[1]["at"][1]))
-        empty = {"rules": [], "directives": [], "constants": [], "classifiers": [], "implications": []}
-        alone = [(item["at"], dom_problem({**dom, **empty, key: [item]}, self.unicode)) for key, item in items]
+        problem, at, code = fault
         if problem == TOO_DEEP:
-            # The bound on nesting, reported at the first item too deep, or
-            # else at the start.
-            line, column = next((at for at, found in alone if found == TOO_DEEP), (1, 1))
+            line, column = at if at is not None else (1, 1)
             raise GencmuError(
                 f"an expression, term or condition is nested more than {MAX_DEPTH} deep",
                 document=path,
                 line=line,
                 column=column,
             )
-        # Any other problem, at the first item that has it alone, or else at
-        # the document.
-        found_at = next(((at, found) for at, found in alone if found is not None), None)
-        if found_at is None:
-            raise GencmuError(problem, document=path, code="ranked-choice-syntax" if problem.startswith("ranked-choice-syntax:") else None)
-        (line, column), found = found_at
-        raise GencmuError(found, document=path, line=line, column=column, code="ranked-choice-syntax" if found.startswith("ranked-choice-syntax:") else None)
+        if at is None:
+            raise GencmuError(problem, document=path, code=code)
+        line, column = at
+        raise GencmuError(problem, document=path, line=line, column=column, code=code)
 
 
 def _reader(bootstrap: str, unicode_text: str, properties: str | None = None) -> NotationReader:
