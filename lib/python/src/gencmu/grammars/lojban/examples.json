@@ -1,0 +1,548 @@
+[
+  {
+    "id": "a-sentence",
+    "title": "A sentence",
+    "text": "mi klama le zarci",
+    "pipelines": [
+      "lojban/cll",
+      "lojban/bpfk",
+      "lojban/experimental",
+      "lojban/zantufa"
+    ],
+    "expect": "accepted",
+    "gloss": "I go to the market.",
+    "hint": "The stages turn letters into words, then build the sentence."
+  },
+  {
+    "id": "elided-terminators",
+    "title": "A text with elided terminators",
+    "text": "lo jbopre cu cusku lu mi klama lo zarci .i do pu tavla mi li'u",
+    "pipelines": [
+      "lojban/cll",
+      "lojban/bpfk",
+      "lojban/experimental",
+      "lojban/zantufa"
+    ],
+    "expect": "accepted",
+    "showElided": true,
+    "gloss": "A Lojbanist says: \"I go to the market. You talked to me.\"",
+    "hint": "Angle brackets such as ⟨ku⟩ and ⟨vau⟩ show terminators that the text omits. Turn off Elided to hide them."
+  },
+  {
+    "id": "late-elision",
+    "title": "An elided terminator comes as late as possible",
+    "text": "mi tavla lo nanmu poi klama lo zarci",
+    "pipelines": [
+      "lojban/cll",
+      "lojban/bpfk",
+      "lojban/experimental",
+      "lojban/zantufa"
+    ],
+    "expect": "accepted",
+    "showElided": true,
+    "gloss": "I talk to a man who goes to the market.",
+    "hint": "The clause after poi runs to the end of the text. Write ku'o after klama to end the clause there. To see a tie, remove the late step from this directive.",
+    "open": {
+      "document": "grammars/lojban/cll/pipeline.md",
+      "anchor": "leftmost-longest #·simple-tense-modal"
+    },
+    "byPipeline": {
+      "lojban/bpfk": {
+        "open": {
+          "document": "grammars/lojban/bpfk/pipeline.md",
+          "anchor": "leftmost-longest #·simple-tense-modal"
+        }
+      },
+      "lojban/experimental": {
+        "open": {
+          "document": "grammars/lojban/experimental/syntax.md",
+          "anchor": "fewest #(·gi-stag-connective ∪ ·bridi-tail-connective), late #·_<_Elided>"
+        }
+      },
+      "lojban/zantufa": {
+        "open": {
+          "document": "grammars/lojban/zantufa/syntax.md",
+          "anchor": "fewest #·term-link, late #·_<_Elided>"
+        }
+      }
+    }
+  },
+  {
+    "id": "repeated-le",
+    "title": "An unfinished description",
+    "text": "mi klama le le",
+    "pipelines": [
+      "lojban/cll",
+      "lojban/bpfk",
+      "lojban/experimental",
+      "lojban/zantufa"
+    ],
+    "expect": "rejected",
+    "stage": "syntax",
+    "view": "trace",
+    "gloss": "The text has no complete meaning. It reads \"I go to the the\" and stops.",
+    "hint": "The second le starts an inner description, and the text ends before its predicate. The Trace tab shows the parser's progress at the end."
+  },
+  {
+    "id": "si-erasure",
+    "title": "Erasing a quoted word with si",
+    "text": "zo mlatu si zo gerku cu gismu",
+    "pipelines": [
+      "lojban/cll",
+      "lojban/bpfk",
+      "lojban/experimental",
+      "lojban/zantufa"
+    ],
+    "expect": "accepted",
+    "gloss": "The word \"gerku\" is a root word. The erased words quote the word \"mlatu\".",
+    "hint": "A zo quote is one word unit, so si erases zo mlatu as a whole. Open the Tokens tab to compare the stages.",
+    "open": {
+      "document": "grammars/lojban/common/stream.md",
+      "rule": "si-erasure"
+    }
+  },
+  {
+    "id": "quote-an-eraser",
+    "title": "Quote an eraser with zo",
+    "text": "zo si cu cmavo",
+    "pipelines": [
+      "lojban/cll",
+      "lojban/bpfk",
+      "lojban/experimental",
+      "lojban/zantufa"
+    ],
+    "expect": "accepted",
+    "gloss": "The word \"si\" is a particle.",
+    "hint": "Here zo quotes si, so it erases nothing."
+  },
+  {
+    "id": "clause-erasure-sa",
+    "title": "Replacing a phrase with sa",
+    "text": "mi citka lo badna sa lo plise",
+    "pipelines": [
+      "lojban/cll",
+      "lojban/bpfk",
+      "lojban/experimental"
+    ],
+    "expect": "accepted",
+    "gloss": "I eat an apple. The erased words say \"a banana\".",
+    "hint": "The word sa erases back to the nearest earlier word of the next word's class, here lo.",
+    "open": {
+      "document": "grammars/lojban/common/stream.md",
+      "rule": "sa-erasure"
+    }
+  },
+  {
+    "id": "su-open-quote",
+    "title": "su erases back to an open quote",
+    "text": "do cusku lu mi klama su mi stali",
+    "pipelines": [
+      "lojban/cll",
+      "lojban/bpfk",
+      "lojban/experimental",
+      "lojban/zantufa"
+    ],
+    "expect": "accepted",
+    "features": {
+      "su-boundary": true
+    },
+    "showElided": true,
+    "gloss": "You say: \"I stay.\" The erased words say \"I go\".",
+    "hint": "su erases the words back to lu, and lu stays. To erase lu too, turn off the feature su-boundary.",
+    "open": {
+      "document": "grammars/lojban/common/stream.md",
+      "rule": "su-survivor"
+    }
+  },
+  {
+    "id": "su-whole-text",
+    "title": "su erases past an open quote (su-boundary off)",
+    "text": "do cusku lu mi klama su mi stali",
+    "pipelines": [
+      "lojban/cll",
+      "lojban/bpfk",
+      "lojban/experimental",
+      "lojban/zantufa"
+    ],
+    "expect": "accepted",
+    "features": {
+      "su-boundary": false
+    },
+    "showElided": true,
+    "gloss": "I stay. The erased words say \"You say: I go\".",
+    "hint": "The feature su-boundary is off here, so su erases all the words before it. lojban/zantufa has this feature off by default.",
+    "open": {
+      "document": "grammars/lojban/common/stream.md",
+      "rule": "su-survivor"
+    }
+  },
+  {
+    "id": "sa-su-feature-conflict",
+    "title": "Disabling sa-su on an sa text",
+    "text": "mi citka lo badna sa lo plise",
+    "pipelines": [
+      "lojban/cll",
+      "lojban/bpfk",
+      "lojban/experimental"
+    ],
+    "expect": "feature-conflict",
+    "stage": "words",
+    "features": {
+      "sa-su": false
+    },
+    "gloss": "Intended: I eat an apple. The run stops because the example turns sa-su off.",
+    "hint": "The words stage turns sa-su on whenever the input has sa or su. Forcing sa-su off in Options produces a feature conflict.",
+    "open": {
+      "document": "grammars/lojban/common/stream.md",
+      "anchor": "%features sa-su"
+    }
+  },
+  {
+    "id": "lohu-quote",
+    "title": "lo'u quotes words that make no sentence",
+    "text": "lo'u mi klama le le le'u na te gerna la lojban",
+    "pipelines": [
+      "lojban/cll",
+      "lojban/bpfk",
+      "lojban/experimental",
+      "lojban/zantufa"
+    ],
+    "expect": "accepted",
+    "gloss": "The words \"mi klama le le\" are not grammatical text in Lojban.",
+    "hint": "The words between lo'u and le'u must be Lojban words, but they need no grammar. The quote is one unit.",
+    "open": {
+      "document": "grammars/lojban/common/stream.md",
+      "rule": "lohu-quote"
+    }
+  },
+  {
+    "id": "zoi-quote",
+    "title": "zoi quotes text that is not Lojban",
+    "text": "mi cusku zoi gy. Hello, world! .gy",
+    "pipelines": [
+      "lojban/cll",
+      "lojban/bpfk",
+      "lojban/experimental",
+      "lojban/zantufa"
+    ],
+    "expect": "accepted",
+    "gloss": "I say \"Hello, world!\".",
+    "hint": "The word after zoi is the delimiter. The quote ends where that word comes again.",
+    "open": {
+      "document": "grammars/lojban/common/stream.md",
+      "rule": "zoi-quote"
+    }
+  },
+  {
+    "id": "quotes-and-compounds",
+    "title": "Letter words with bu and compounds with zei",
+    "text": ".alfa. bu sinxa zoi gy. α .gy. pe lo cmaci zei ciste",
+    "pipelines": [
+      "lojban/cll",
+      "lojban/bpfk",
+      "lojban/experimental"
+    ],
+    "expect": "accepted",
+    "view": "tokens",
+    "gloss": "The letter alpha is a symbol for \"α\" of a mathematical system.",
+    "hint": "The words stage forms one BY token from .alfa. bu, one ZOI token from zoi, and one BRIVLA from zei.",
+    "open": {
+      "document": "grammars/lojban/common/stream.md",
+      "rule": "zei-compound"
+    }
+  },
+  {
+    "id": "cyrillic",
+    "title": "Lojban written in Cyrillic",
+    "text": "ми клама ле зарши",
+    "pipelines": [
+      "lojban/cll",
+      "lojban/bpfk",
+      "lojban/experimental",
+      "lojban/zantufa"
+    ],
+    "expect": "accepted",
+    "gloss": "I go to the market.",
+    "hint": "The phonemes stage maps Cyrillic letters to Lojban sounds, so syntax reads mi klama le zarci. With cll-cyrillic off, lojban/cll reads no Cyrillic.",
+    "open": {
+      "document": "grammars/lojban/cll/cyrillic.md",
+      "rule": "cll-cyrillic-consonant"
+    },
+    "byPipeline": {
+      "lojban/bpfk": {
+        "open": {
+          "document": "grammars/lojban/common/cyrillic.md",
+          "rule": "cyrillic-consonant"
+        },
+        "hint": "The phonemes stage maps Cyrillic letters to Lojban sounds, so syntax reads mi klama le zarci. The text шои до reads as co'i do, and as coi do with cll-cyrillic on."
+      },
+      "lojban/experimental": {
+        "open": {
+          "document": "grammars/lojban/experimental/cyrillic.md",
+          "rule": "cyrillic-consonant"
+        },
+        "hint": "The phonemes stage maps Cyrillic letters to Lojban sounds, so syntax reads mi klama le zarci. The text шои до reads as co'i do, and as coi do with cll-cyrillic on."
+      },
+      "lojban/zantufa": {
+        "open": {
+          "document": "grammars/lojban/common/cyrillic.md",
+          "rule": "cyrillic-consonant"
+        },
+        "hint": "The phonemes stage maps Cyrillic letters to Lojban sounds, so syntax reads mi klama le zarci. The text шои до reads as co'i do, and as coi do with cll-cyrillic on."
+      }
+    }
+  },
+  {
+    "id": "attitude",
+    "title": "Attach a feeling to a sentence",
+    "text": ".ui mi viska do",
+    "pipelines": [
+      "lojban/cll",
+      "lojban/bpfk",
+      "lojban/experimental",
+      "lojban/zantufa"
+    ],
+    "expect": "accepted",
+    "gloss": "I am happy that I see you.",
+    "hint": "The initial ui expresses the speaker's feeling."
+  },
+  {
+    "id": "digits",
+    "title": "Write a number with a digit",
+    "text": "mi ponse 2 gerku",
+    "pipelines": [
+      "lojban/bpfk",
+      "lojban/experimental",
+      "lojban/zantufa"
+    ],
+    "expect": "accepted",
+    "gloss": "I own two dogs.",
+    "hint": "The phonemes stage reads 2 as re. Compare this with the CLL pipeline."
+  },
+  {
+    "id": "digits-in-cll",
+    "title": "CLL requires a spelled number",
+    "text": "mi ponse 2 gerku",
+    "pipelines": [
+      "lojban/cll"
+    ],
+    "expect": "rejected",
+    "stage": "words",
+    "gloss": "Intended: I own two dogs.",
+    "hint": "CLL treats 2 as foreign text. Replace it with re to say \"I own two dogs.\""
+  },
+  {
+    "id": "bpfk-extended-rafsi",
+    "title": "An extended rafsi on a borrowing",
+    "text": "lo cidja cu spageti'ykukte",
+    "pipelines": [
+      "lojban/bpfk",
+      "lojban/experimental",
+      "lojban/zantufa"
+    ],
+    "expect": "accepted",
+    "gloss": "The food is spaghetti-delicious. The compound joins the words for spaghetti and for delicious.",
+    "hint": "Extended rafsi rules join the borrowing spageti to kukte with 'y as one compound word. Switch to lojban/cll to see CLL 1.1 reject this form.",
+    "open": {
+      "document": "grammars/lojban/bpfk/morphology.md",
+      "rule": "extended-rafsi"
+    },
+    "byPipeline": {
+      "lojban/experimental": {
+        "open": {
+          "document": "grammars/lojban/experimental/morphology.md",
+          "rule": "extended-rafsi"
+        }
+      }
+    }
+  },
+  {
+    "id": "extended-rafsi-in-cll",
+    "title": "CLL has no extended rafsi",
+    "text": "lo cidja cu spageti'ykukte",
+    "pipelines": [
+      "lojban/cll"
+    ],
+    "expect": "rejected",
+    "stage": "words",
+    "gloss": "Intended: The food is spaghetti-delicious.",
+    "hint": "CLL 1.1 has no extended rafsi, so the words stage cannot read this compound. Write spageti zei kukte to join the two words."
+  },
+  {
+    "id": "earliest-longest-tense",
+    "title": "The earliest, longest tense wins",
+    "text": "mi viska pu va ca gi do gi la djan",
+    "pipelines": [
+      "lojban/cll",
+      "lojban/bpfk"
+    ],
+    "expect": "accepted",
+    "gloss": "Earlier and some distance away, I saw you at the same time as John.",
+    "hint": "The stage prefers the earliest and longest simple-tense-modal group, so pu va wins. Remove the leftmost-longest step from the pipeline directive to see a tie.",
+    "open": {
+      "document": "grammars/lojban/cll/pipeline.md",
+      "anchor": "leftmost-longest #·simple-tense-modal"
+    },
+    "byPipeline": {
+      "lojban/bpfk": {
+        "open": {
+          "document": "grammars/lojban/bpfk/pipeline.md",
+          "anchor": "leftmost-longest #·simple-tense-modal"
+        }
+      }
+    }
+  },
+  {
+    "id": "ranked-choice-connective",
+    "title": "A ranked choice in connectives",
+    "text": "lo kosta cu blabi joi ke xekri blanu ke'e",
+    "pipelines": [
+      "lojban/cll",
+      "lojban/bpfk",
+      "lojban/experimental"
+    ],
+    "expect": "accepted",
+    "gloss": "The coat is white mixed with dark blue.",
+    "hint": "The ranked choice ≻ gives ke to the joi connective rather than the right tanru unit. Replace ≻ with | in afterthought-connection to see a tie.",
+    "open": {
+      "document": "grammars/lojban/cll/syntax.md",
+      "anchor": "%rule afterthought-connection(@Group, @Unit)"
+    },
+    "byPipeline": {
+      "lojban/experimental": {
+        "open": {
+          "document": "grammars/lojban/experimental/syntax.md",
+          "anchor": "%redefine-rule afterthought-connection(@Group, @Unit)"
+        }
+      }
+    }
+  },
+  {
+    "id": "cmevla-as-selbri",
+    "title": "A name word used as a predicate",
+    "text": "lo mlatu pe mi cu .feliks.",
+    "pipelines": [
+      "lojban/experimental",
+      "lojban/zantufa"
+    ],
+    "expect": "accepted",
+    "gloss": "My cat is Felix.",
+    "hint": "With cbm on, a cmevla can act directly as a predicate. Set cbm to Off in Options to reject .feliks. after cu.",
+    "open": {
+      "document": "grammars/lojban/experimental/syntax.md",
+      "anchor": "cbm? CMEVLA"
+    },
+    "byPipeline": {
+      "lojban/zantufa": {
+        "open": {
+          "document": "grammars/lojban/zantufa/syntax.md",
+          "rule": "tanru-unit-1"
+        },
+        "hint": "Zantufa always allows a cmevla as a predicate. Switch to lojban/experimental to toggle this form with the cbm feature."
+      }
+    }
+  },
+  {
+    "id": "name-feature-off",
+    "title": "Turn the name feature off",
+    "text": "lo mlatu pe mi cu .feliks.",
+    "pipelines": [
+      "lojban/experimental"
+    ],
+    "expect": "rejected",
+    "stage": "syntax",
+    "features": {
+      "cbm": false
+    },
+    "gloss": "Intended: My cat is Felix.",
+    "hint": "The same name cannot act as a predicate with cbm off. Turn cbm on to accept this experimental form.",
+    "open": {
+      "document": "grammars/lojban/experimental/syntax.md",
+      "anchor": "cbm? CMEVLA"
+    }
+  },
+  {
+    "id": "cgv-name-warning",
+    "title": "A consonant-glide name and its warning",
+    "text": "la .tokios. cu barda tcadu",
+    "pipelines": [
+      "lojban/experimental"
+    ],
+    "expect": "accepted",
+    "gloss": "Tokyo is a big city.",
+    "warnings": [
+      "experimental-cgv"
+    ],
+    "hint": "Experimental accepts the consonant-glide onset kio in .tokios. with a warning. Switch to lojban/bpfk to reject it, or to lojban/cll to accept it without warning.",
+    "open": {
+      "document": "grammars/lojban/experimental/stream.md",
+      "rule": "experimental-cgv"
+    }
+  },
+  {
+    "id": "backtracking-past-la",
+    "title": "Closing a name phrase before a predicate",
+    "text": "mi klama lo zarci sei la .alis. cusku",
+    "pipelines": [
+      "lojban/experimental",
+      "lojban/zantufa"
+    ],
+    "expect": "accepted",
+    "showElided": true,
+    "gloss": "I go to the market, Alice says.",
+    "hint": "Unlike a PEG parser, gencmu does not commit greedily to la .alis. cusku as one description, so cusku remains the sei predicate.",
+    "open": {
+      "document": "grammars/lojban/experimental/pipeline.md",
+      "anchor": "### Ordered choice"
+    },
+    "byPipeline": {
+      "lojban/zantufa": {
+        "open": {
+          "document": "grammars/lojban/zantufa/pipeline.md",
+          "anchor": "Outside those reservations"
+        }
+      }
+    }
+  },
+  {
+    "id": "me-prefers-sumti",
+    "title": "A condition on me arguments",
+    "text": "lo vi karda cu me by",
+    "pipelines": [
+      "lojban/experimental",
+      "lojban/zantufa"
+    ],
+    "expect": "accepted",
+    "view": "tree",
+    "gloss": "This card is among B. Here B names a group of cards.",
+    "hint": "Let B name a group of cards. This card belongs to that group. The condition prefers the argument reading of by. Remove the %conditions clause from me-unit to see a tie.",
+    "open": {
+      "document": "grammars/lojban/experimental/syntax.md",
+      "rule": "me-unit"
+    },
+    "byPipeline": {
+      "lojban/zantufa": {
+        "hint": "Let B name a group of cards. This card belongs to that group. The condition prefers the argument reading of by. Remove the line ¬$m.without-elision.parse(sumti), from tanru-unit-1 to see a tie.",
+        "open": {
+          "document": "grammars/lojban/zantufa/syntax.md",
+          "rule": "tanru-unit-1"
+        }
+      }
+    }
+  },
+  {
+    "id": "kihei-discourse-frames",
+    "title": "Discourse frames with ki'ei",
+    "text": "ki'ei pu zu ku .i lo nolraitru cu xabju lo galtu dinju .i ro prenu cu tirna ko'a ki'ei ca ku .i lo dinju cu spofu",
+    "pipelines": [
+      "lojban/examples/kihei"
+    ],
+    "expect": "accepted",
+    "gloss": "Long ago: the king lived in a high building, and everyone heard him. Now: the building is broken. The text does not say who \"him\" is. The gloss reads him as the king.",
+    "hint": "The first frame puts two sentences in the distant past. The second frame returns to the present. This example pipeline includes lojban/cll and adds ki'ei frames in one short document. Switch to lojban/cll to see plain CLL reject ki'ei.",
+    "open": {
+      "document": "grammars/lojban/examples/kihei/pipeline.md",
+      "rule": "frame-group"
+    }
+  }
+]

@@ -129,6 +129,21 @@
       phase("loading", path);
       try {
         const pipeline = loader.pipeline(path);
+        const ruleLocations = {};
+        for (const stage of pipeline.stages) {
+          const byRule = {};
+          for (const [ruleName, rule] of stage.grammar.rules) {
+            if (rule.at && !byRule[ruleName]) {
+              byRule[ruleName] = {
+                document: rule.at.document,
+                line: rule.at.line,
+                column: rule.at.column || 1,
+                stage: stage.name,
+              };
+            }
+          }
+          ruleLocations[stage.name] = byRule;
+        }
         entry = {
           pipeline,
           info: {
@@ -141,6 +156,7 @@
             // Each feature a switch can change: its name, whether it is a
             // gate or a warning, and whether the pipeline turns it on.
             features: pipeline.features.map((feature) => ({ name: feature.name, kind: feature.kind, default: feature.default })),
+            ruleLocations,
           },
         };
       } catch (error) {
@@ -163,18 +179,305 @@
         elisionOnly: request.elisionOnly,
       });
       const ms = now() - started;
-      last = { key, result, ms, summary: summarize(result), renders: new Map(), traces: new Map() };
+      last = { key, result, ms, summary: summarize(result, entry.pipeline), renders: new Map(), traces: new Map() };
       return last;
     }
 
-    function summarize(result) {
+    function lineIndex(text) {
+      const characters = [...text];
+      const breaks = [];
+      for (let index = 0; index < characters.length; index++) {
+        const character = characters[index];
+        if (character === "\n" || (character === "\r" && characters[index + 1] !== "\n")) breaks.push(index);
+      }
+      return { characters, breaks };
+    }
+
+    function positionAt({ breaks }, offset) {
+      let low = 0;
+      let high = breaks.length;
+      while (low < high) {
+        const middle = (low + high) >> 1;
+        if (breaks[middle] < offset) low = middle + 1;
+        else high = middle;
+      }
+      const lineStart = low === 0 ? 0 : breaks[low - 1] + 1;
+      return { line: low + 1, column: offset - lineStart + 1, lineStart };
+    }
+
+    function excerptAt({ characters, breaks }, source) {
+      const { line, column, lineStart } = positionAt({ characters, breaks }, source[0]);
+      let lineEnd = lineStart;
+      while (lineEnd < characters.length && characters[lineEnd] !== "\n" && characters[lineEnd] !== "\r") {
+        lineEnd++;
+      }
+      const shown = characters.slice(lineStart, lineEnd).join("").replace(/\t/g, " ");
+      const width = Math.max(1, Math.min(source[1], lineEnd) - source[0]);
+      const gutter = `${line} | `;
+      const excerpt = `${gutter}${shown}\n${" ".repeat(gutter.length - 2)}| ${" ".repeat(column - 1)}${"^".repeat(width)}`;
+      return { line, column, excerpt };
+    }
+
+    function attachmentDiagnosticOwners(result) {
+      const owners = new Map();
+      for (const stage of result.stages ?? []) {
+        const pending = (stage.output ?? []).map((token, index) => ({ token, path: `token ${index}`, attached: false }));
+        while (pending.length) {
+          const { token, path, attached } = pending.pop();
+          if (attached) {
+            for (const diagnostic of [...(token.errors ?? []), ...(token.warnings ?? [])]) {
+              owners.set(diagnostic, `Display owner: ${path} in the ${stage.name} stage.`);
+            }
+          }
+          for (const side of ["before", "after"]) {
+            const list = token[side] || [];
+            for (let index = list.length - 1; index >= 0; index--) {
+              pending.push({ token: list[index], path: `${side} attachment ${index} of ${path}`, attached: true });
+            }
+          }
+        }
+      }
+      return owners;
+    }
+
+    function withAttachments(rootToken, make) {
+      const made = make(rootToken);
+      const stack = [{ token: rootToken, fill: made.fill }];
+      for (let task = stack.pop(); task !== undefined; task = stack.pop()) {
+        const values = [[], []];
+        [task.token.before || [], task.token.after || []].forEach((list, side) => {
+          for (const attachment of list) {
+            const inner = make(attachment);
+            values[side].push(inner.value);
+            stack.push({ token: attachment, fill: inner.fill });
+          }
+        });
+        task.fill(values[0], values[1]);
+      }
+      return made.value;
+    }
+
+    function foldTree(rootNode, leaf, rule) {
+      const stack = [];
+      let value;
+      let pending = rootNode;
+      for (;;) {
+        if (pending !== null) {
+          if (pending.kind === "rule") {
+            stack.push({ node: pending, next: 0, values: [] });
+            pending = null;
+          } else {
+            value = leaf(pending);
+            pending = null;
+            if (stack.length === 0) return value;
+            stack[stack.length - 1].values.push(value);
+          }
+          continue;
+        }
+        const frame = stack[stack.length - 1];
+        if (frame.next < frame.node.children.length) {
+          pending = frame.node.children[frame.next++];
+          continue;
+        }
+        stack.pop();
+        value = rule(frame.node, frame.values);
+        if (stack.length === 0) return value;
+        stack[stack.length - 1].values.push(value);
+      }
+    }
+
+    function nodeBracketSpans(rootNode, tokens, options = {}) {
+      if (!rootNode) return [];
+      const tokenFlat = (token) => withAttachments(token, (current) => {
+        if ((!current.before || current.before.length === 0) && (!current.after || current.after.length === 0)) {
+          return { value: { leaf: current.image, kind: "" }, fill: () => {} };
+        }
+        const group = [];
+        return {
+          value: { group },
+          fill: (before, after) => {
+            for (const flat of before) group.push(flat);
+            group.push({ leaf: current.image, kind: "" });
+            for (const flat of after) group.push(flat);
+          },
+        };
+      });
+      const flat = foldTree(
+        rootNode,
+        (leaf) => (leaf.kind === "token"
+          ? (leaf.token >= 0 && leaf.token < tokens.length ? tokenFlat(tokens[leaf.token]) : { leaf: "", kind: "" })
+          : options.showElided
+            ? { leaf: `⟨${leaf.terminal.replace(/[A-Z]/g, (char) => char.toLowerCase())}⟩`, kind: "el" }
+            : null),
+        (_rule, values) => {
+          const children = values.filter((child) => child !== null);
+          if (children.length === 0) return null;
+          if (children.length === 1) return children[0];
+          return { group: children };
+        }
+      );
+      if (!flat) return [];
+      const spans = [];
+      const pushSpan = (kind, text) => {
+        if (!text) return;
+        if (kind === "" && spans.length > 0 && spans[spans.length - 1][0] === "") {
+          spans[spans.length - 1][1] += text;
+        } else {
+          spans.push([kind, text]);
+        }
+      };
+      const stack = [{ node: flat, depth: 0, next: -1 }];
+      while (stack.length > 0) {
+        const frame = stack[stack.length - 1];
+        const node = frame.node;
+        if ("leaf" in node) {
+          pushSpan(node.kind, node.leaf);
+          stack.pop();
+          continue;
+        }
+        const [open, close] = [["(", ")"], ["[", "]"], ["{", "}"]][frame.depth % 3];
+        const cls = ["b1", "b2", "b3"][frame.depth % 3];
+        if (frame.next < 0) {
+          pushSpan(cls, open);
+          frame.next = 0;
+        }
+        if (frame.next < node.group.length) {
+          if (frame.next > 0) pushSpan("", " ");
+          stack.push({ node: node.group[frame.next++], depth: frame.depth + 1, next: -1 });
+          continue;
+        }
+        pushSpan(cls, close);
+        stack.pop();
+      }
+      return spans;
+    }
+
+    function summarize(result, pipeline) {
       const error = result.error;
+      const hasDiagnostics = (error && (error.source || (error.errors && error.errors.length > 0))) ||
+        (result.warnings && result.warnings.length > 0);
+      const lines = hasDiagnostics ? lineIndex(result.text) : null;
+      const owners = ((error && error.errors && error.errors.length > 0) || (result.warnings && result.warnings.length > 0))
+        ? attachmentDiagnosticOwners(result)
+        : new Map();
+      let errorDetails = null;
+      if (error) {
+        const stageName = error.stage || null;
+        const stageReport = stageName ? result.stages.find((s) => s.name === stageName) : null;
+        const stageObj = pipeline && stageName ? pipeline.stages.find((s) => s.name === stageName) : null;
+        const rulesMap = stageObj && stageObj.grammar ? stageObj.grammar.rules : null;
+
+        let found = null;
+        const tokIdx = error.token === undefined ? null : error.token;
+        if (tokIdx !== null && stageReport && Array.isArray(stageReport.input)) {
+          if (tokIdx < stageReport.input.length) {
+            const tok = stageReport.input[tokIdx];
+            found = {
+              text: tok.text,
+              value: tok.value || "",
+              image: tok.image || "",
+              tags: tok.tags ? [...tok.tags] : [],
+              span: tok.span ? [tok.span[0], tok.span[1]] : null,
+              source: tok.source ? [tok.source[0], tok.source[1]] : null,
+            };
+          } else {
+            found = { endOfInput: true, count: stageReport.input.length };
+          }
+        }
+
+        let expectedByRule = null;
+        if (error.expected) {
+          const byRule = new Map();
+          for (const exp of error.expected) {
+            for (const rName of exp.rules || []) {
+              let list = byRule.get(rName);
+              if (!list) {
+                list = [];
+                byRule.set(rName, list);
+              }
+              list.push(exp.terminal);
+            }
+          }
+          expectedByRule = [...byRule.entries()].map(([rule, terminals]) => {
+            const rInfo = rulesMap ? rulesMap.get(rule) : null;
+            return {
+              rule,
+              terminals,
+              at: rInfo && rInfo.at ? { document: rInfo.at.document, line: rInfo.at.line, column: rInfo.at.column || 1 } : null,
+            };
+          });
+        }
+
+        let boundary = null;
+        if (error.boundary) {
+          const rInfo = rulesMap && error.boundary.rule ? rulesMap.get(error.boundary.rule) : null;
+          boundary = {
+            rule: error.boundary.rule,
+            condition: error.boundary.condition,
+            at: error.boundary.at,
+            location: rInfo && rInfo.at ? { document: rInfo.at.document, line: rInfo.at.line, column: rInfo.at.column || 1 } : null,
+          };
+        }
+
+        const errors = (error.errors || []).map((diagnostic) => ({
+          stage: diagnostic.stage,
+          rule: diagnostic.rule,
+          code: diagnostic.code,
+          message: diagnostic.message,
+          owner: owners.get(diagnostic) || null,
+          excerpt: lines && diagnostic.source ? excerptAt(lines, diagnostic.source).excerpt : null,
+          rejection: diagnostic.rejection
+            ? {
+                token: diagnostic.rejection.token,
+                line: diagnostic.rejection.line,
+                column: diagnostic.rejection.column,
+                excerpt: lines && diagnostic.rejection.source ? excerptAt(lines, diagnostic.rejection.source).excerpt : null,
+                expected: (diagnostic.rejection.expected || []).map((exp) => ({
+                  terminal: exp.terminal,
+                  rules: [...(exp.rules || [])],
+                })),
+              }
+            : null,
+        }));
+
+        errorDetails = {
+          kind: error.kind,
+          feature: error.feature || null,
+          reason: error.reason || null,
+          stage: stageName,
+          token: tokIdx,
+          source: error.source ? [error.source[0], error.source[1]] : null,
+          excerpt: lines && error.source ? excerptAt(lines, error.source).excerpt : null,
+          line: error.line || null,
+          column: error.column || null,
+          document: error.document || null,
+          message: error.message,
+          found,
+          expectedByRule,
+          boundary,
+          errors,
+        };
+      }
+      const explanation = gencmu.explainError(result);
+      if (errorDetails && errorDetails.expectedByRule) {
+        errorDetails.expectedByRule.sort((a, b) => {
+          const af = a.rule === "free" ? 1 : 0;
+          const bf = b.rule === "free" ? 1 : 0;
+          return af - bf || b.terminals.length - a.terminals.length || (a.rule < b.rule ? -1 : 1);
+        });
+      }
       return {
         ok: result.ok,
         text: result.text,
         features: result.features || [],
-        warnings: (result.warnings || []).map((warning) => ({ stage: warning.stage, code: warning.code, rule: warning.rule, span:warning.span,source:warning.source,message:warning.message })),
-        warningsText: gencmu.explainWarnings(result),
+        warnings: (result.warnings || []).map((warning) => ({
+          stage: warning.stage,
+          rule: warning.rule,
+          code: warning.code,
+          message: warning.message,
+          owner: owners.get(warning) || null,
+          excerpt: lines && warning.source ? excerptAt(lines, warning.source).excerpt : null,
+        })),
         stages: result.stages.map((stage) => ({
           name: stage.name,
           verdict: stage.verdict,
@@ -182,36 +485,65 @@
           input: stage.input ? stage.input.length : 0,
           output: stage.output ? stage.output.length : null,
         })),
-        error: error ? {
-          kind: error.kind, feature: error.feature || null, reason: error.reason || null, stage: error.stage || null, token: error.token === undefined ? null : error.token,
-          line: error.line || null, column: error.column || null, message: error.message,
-          ...(error.errors ? {errors:error.errors.map(diagnostic=>({...diagnostic,span:[...diagnostic.span],source:[...diagnostic.source]}))} : {}),
-        } : null,
-        explanation: gencmu.explainError(result),
-        ties: result.stages.filter((stage) => stage.verdict === "tie").map((stage) => tieView(result, stage)),
+        error: errorDetails,
+        explanation,
+        ties: result.stages.filter((stage) => stage.verdict === "tie" || (stage.error && stage.error.kind === "ambiguous")).map((stage) => tieView(result, stage)),
       };
     }
 
     // A tie as the page shows it: explainTies's account of where the two
-    // readings first differ, then both readings, as brackets and as trees,
+    // readings first differ, then both readings, as brackets, trees, and JSON,
     // for the page to lay side by side. The readings are in the stage's
     // error.
     function tieView(result, stage) {
       const tokens = stage.input || [];
-      const text = gencmu.explainTies({ text: result.text, stages: [stage] });
-      const cut = text.indexOf("\n  first: ");
-      const end = text.lastIndexOf("\n");
+      const reason = (stage.error && stage.error.reason) || "tie";
+      const text = reason === "tie"
+        ? gencmu.explainTies({ text: result.text, stages: [stage] })
+        : gencmu.explainError({ ...result, error: { ...stage.error, errors: [] } });
+      const cut = reason === "tie" ? text.indexOf("\n  first: ") : -1;
+      const end = reason === "tie" ? text.lastIndexOf("\n") : -1;
+      let firstDiff = "";
+      let secondDiff = "";
+      if (cut >= 0 && end > cut) {
+        const mid = text.slice(cut + 1, end);
+        for (const line of mid.split("\n")) {
+          const m1 = /^\s*first:\s+(.*)$/.exec(line);
+          if (m1) firstDiff = m1[1];
+          const m2 = /^\s*second:\s+(.*)$/.exec(line);
+          if (m2) secondDiff = m2[1];
+        }
+      }
       const readings = (stage.error && stage.error.readings) || [];
-      const brackets = (node) => node ? gencmu.nodeBrackets(node, tokens, { showElided: true }) : "";
+      const brackets = (node, showElided) => node ? gencmu.nodeBrackets(node, tokens, { showElided }) : "";
+      const spansOf = (node, showElided) => node ? nodeBracketSpans(node, tokens, { showElided }) : [];
       const tree = (node) => node ? gencmu.nodeTree(node, tokens, result.text) : "";
+      const jsonText = (node) => {
+        if (!node) return "";
+        const val = gencmu.displayValue({ ...result, stages: [stage], tree: node, error: null });
+        return val === null ? "" : gencmu.prettyJson(val);
+      };
       return {
         stage: stage.name,
+        reason,
         summary: cut < 0 ? text : text.slice(0, cut),
+        firstDiff,
+        secondDiff,
         advice: end < 0 ? "" : text.slice(end + 1),
-        first: brackets(readings[0]),
-        second: brackets(readings[1]),
+        first: brackets(readings[0], true),
+        second: brackets(readings[1], true),
+        firstPlain: brackets(readings[0], false),
+        secondPlain: brackets(readings[1], false),
+        firstSpans: spansOf(readings[0], true),
+        secondSpans: spansOf(readings[1], true),
+        firstPlainSpans: spansOf(readings[0], false),
+        secondPlainSpans: spansOf(readings[1], false),
         firstTree: tree(readings[0]),
         secondTree: tree(readings[1]),
+        firstJson: jsonText(readings[0]),
+        secondJson: jsonText(readings[1]),
+        firstCanonical: null,
+        secondCanonical: null,
       };
     }
 
@@ -238,9 +570,27 @@
           output = { format: "json", tree: !!result.tree, text: value === null ? "" : gencmu.prettyJson(value) };
           break;
         }
-        case "canonical":
-          output = { format: "canonical", text: view.pretty ? gencmu.prettyJson(gencmu.resultJson(result)) : gencmu.toJson(result) };
+        case "canonical": {
+          if (parsed.summary.ties && parsed.summary.ties.length > 0) {
+            for (const tie of parsed.summary.ties) {
+              if (tie.firstCanonical !== null) continue;
+              const stage = result.stages.find((s) => s.name === tie.stage);
+              const readings = (stage && stage.error && stage.error.readings) || [];
+              const canonicalText = (node) =>
+                node
+                  ? gencmu.prettyJson(
+                      gencmu.resultJson({ ...result, stages: [], tree: node, error: null, warnings: [] }).tree
+                    )
+                  : "";
+              tie.firstCanonical = canonicalText(readings[0]);
+              tie.secondCanonical = canonicalText(readings[1]);
+            }
+            output = { format: "canonical", text: "" };
+          } else {
+            output = { format: "canonical", text: gencmu.prettyJson(gencmu.resultJson(result)) };
+          }
           break;
+        }
         case "tokens": {
           const stages = result.stages.map((stage) => ({ name: stage.name, verdict: stage.verdict, count: stage.output ? stage.output.length : null }));
           const stage = result.stages.find((each) => each.name === view.stage) ||
@@ -257,6 +607,8 @@
             image: token.image,
             span: token.span[0] + "–" + token.span[1],
             source: token.source[0] + "–" + token.source[1],
+            errors: (token.errors || []).map((d) => typeof d === "string" ? d : d.code),
+            warnings: (token.warnings || []).map((d) => typeof d === "string" ? d : d.code),
             tags: token.tags,
             insertedBy: token.insertedBy || "",
             before: gencmu.compactJson(token.before || []),
@@ -268,34 +620,92 @@
           };
           break;
         }
-        default:
-          output = { format: "brackets", tree: !!result.tree, text: gencmu.toBrackets(result, { showElided: !!view.showElided }) };
+        default: {
+          const finalTokens = result.stages.at(-1)?.input || [];
+          const spans = result.tree ? nodeBracketSpans(result.tree, finalTokens, { showElided: !!view.showElided }) : [];
+          output = {
+            format: "brackets",
+            tree: !!result.tree,
+            text: gencmu.toBrackets(result, { showElided: !!view.showElided }),
+            spans,
+          };
+        }
       }
       parsed.renders.set(key, output);
       return output;
     }
 
     function runTrace(entry, parsed, request) {
-      const key = JSON.stringify(request.trace);
+      let traceSpec = request.trace;
+      if (traceSpec.toRejection) {
+        const err = parsed.summary && parsed.summary.error;
+        const stages = entry.pipeline.stages;
+        const stage = (err && err.stage && stages.some((s) => s.name === err.stage))
+          ? err.stage
+          : (traceSpec.stage || stages[stages.length - 1].name);
+        const position = (err && err.token !== null && err.token !== undefined)
+          ? err.token
+          : (traceSpec.position || 0);
+        traceSpec = { stage, position };
+      }
+      const key = JSON.stringify(traceSpec);
       const cached = parsed.traces.get(key);
       if (cached) return cached;
       phase("tracing");
       let answer;
       try {
         const traced = gencmu.trace(entry.pipeline, request.text, {
-          stage: request.trace.stage, position: request.trace.position,
+          stage: traceSpec.stage, position: traceSpec.position,
           features: request.features, withoutFeatures: request.withoutFeatures, elisionOnly: request.elisionOnly,
         });
         // The tokens around the position, for the page's picker.
         const from = Math.max(0, traced.position - 40);
         const to = Math.min(traced.tokens.length, traced.position + 40);
+        const text = gencmu.formatTrace(traced);
+        const origEvents = traced.events;
+        const origExpected = traced.expected;
+        const sections = {};
+        try {
+          traced.expected = [];
+          for (const kind of ["completed", "advanced", "predicted", "dropped"]) {
+            const events = origEvents.filter((event) =>
+              event.kind === kind &&
+              !(kind === "completed" && event.production.helper && event.production.rhs.length === 0)
+            );
+            sections[kind] = events.map((event) => {
+              traced.events = [event];
+              const itemLines = gencmu.formatTrace(traced).split("\n");
+              const lhs = event.production.helper ? `‹${event.production.owner} part›` : event.production.lhs;
+              const span = event.kind === "dropped" ? "" : `[${event.origin}..${traced.position}]`;
+              const rawLine = itemLines[2] || "";
+              const prefix = `  ${lhs} ≔ `;
+              const suffix = span ? `  ${span}` : "";
+              const rhs = rawLine.slice(prefix.length, suffix ? rawLine.length - suffix.length : rawLine.length);
+              const refused = itemLines.length > 4 ? itemLines.slice(3, -1).map((l) => l.trim()).join("\n") : "";
+              return { lhs, rhs, span, refused };
+            });
+          }
+        } finally {
+          traced.events = origEvents;
+          traced.expected = origExpected;
+        }
+        const expected = origExpected.map((exp) => ({
+          terminal: exp.terminal,
+          rules: exp.rules.slice(),
+        }));
         answer = {
-          stage: traced.stage, position: traced.position, count: traced.tokens.length,
-          from, tokens: traced.tokens.slice(from, to).map((token) => token.text),
-          text: gencmu.formatTrace(traced),
+          stage: traced.stage,
+          position: traced.position,
+          count: traced.tokens.length,
+          from,
+          tokens: traced.tokens.slice(from, to).map((token) => token.text),
+          header: text.split("\n", 1)[0] || "",
+          sections,
+          expected,
+          text,
         };
       } catch (error) {
-        answer = { stage: request.trace.stage, position: request.trace.position, error: String(error.message || error) };
+        answer = { stage: traceSpec.stage, position: traceSpec.position, error: String(error.message || error) };
       }
       parsed.traces.set(key, answer);
       return answer;
@@ -304,8 +714,8 @@
     // One run: load the pipeline, parse the text, render what the page shows.
     //
     // request: { pipeline: full pipeline name, text, features: string[], withoutFeatures: string[], until,
-    //   elisionOnly: null | boolean, view: { format, showElided, pretty,
-    //   stage }, trace: null | { stage: string | null, position }, audit: boolean }
+    //   elisionOnly: null | boolean, view: { format, showElided,
+    //   stage }, trace: null | { stage: string | null, position, toRejection?: boolean }, audit: boolean }
     //
     // A trace whose stage is null gets no trace but traceNeedsStages: true,
     // once the text is parsed. Only that answer tells the page to ask again.
@@ -317,9 +727,28 @@
       const entry = loadPipeline(request.pipeline);
       const answer = { kind: "result", id, text: request.text, pipeline: request.pipeline, info: entry.info || null, loadError: entry.error || null };
       if (request.locateRule) {
-        const stage = entry.pipeline?.stages.find((stage) => stage.name === request.locateRule.stage);
-        const rule = stage?.grammar.rules.get(request.locateRule.name);
-        answer.ruleLocation = rule ? rule.at : null;
+        let found = null;
+        const doc = request.locateRule.document || null;
+        const name = request.locateRule.name;
+        for (const stage of entry.pipeline?.stages || []) {
+          const rule = stage.grammar.rules.get(name);
+          if (!rule) continue;
+          if (doc) {
+            const alt = rule.alternatives.find((a) => a.document === doc);
+            if (alt && alt.at) {
+              found = alt.at;
+              break;
+            }
+            if (rule.at && rule.at.document === doc) {
+              found = rule.at;
+              break;
+            }
+          }
+          if (!found && rule.at) {
+            found = rule.at;
+          }
+        }
+        answer.ruleLocation = found;
       }
       if (entry.error) return Object.assign(answer, { ms: now() - started });
       let parsed;
@@ -333,7 +762,7 @@
       answer.output = render(parsed, request.view);
       // A trace asked for before the page knew the pipeline's stages names
       // none. This answer names them, and says that the page can ask again.
-      if (request.trace && request.trace.stage === null) answer.traceNeedsStages = true;
+      if (request.trace && request.trace.stage === null && !request.trace.toRejection) answer.traceNeedsStages = true;
       else if (request.trace) answer.trace = runTrace(entry, parsed, request);
       if (request.audit) {
         if (entry.audit === undefined) entry.audit = gencmu.formatAudit(gencmu.audit(entry.pipeline));

@@ -274,7 +274,7 @@ Use example filenames that do not clash with your own files. The commands below 
 
    Open `http://localhost:8000/index.html` in a browser.
 
-   The page fetches the Unicode properties file at startup. It fetches names data when a grammar needs it.
+   The page fetches the Unicode properties file at startup. When a grammar needs names data, the page fetches it.
 
    Under `lojban/examples`, select `lojban/examples/kihei` in the Pipeline menu.
 
@@ -290,7 +290,7 @@ Use example filenames that do not clash with your own files. The commands below 
 
    If you want to keep an edit, click Download. Save the downloaded content to its corresponding file in your checkout.
 
-   The browser names that download `lojban--examples--kihei--pipeline.md`. Browser edits disappear when you reload the page.
+   The browser names that download `lojban--examples--kihei--pipeline.md`. When you reload the page, browser edits disappear.
 
    The playground has no file upload or command that loads an arbitrary local pipeline. You cannot load a local `pipeline.md` directly into the shipped page.
 
@@ -384,7 +384,7 @@ Use example filenames that do not clash with your own files. The commands below 
    node tools/sync.js --check
    ````
 
-   `sync.js` copies `grammars/` and `data/` into the libraries. It regenerates preparsed data, browser resources, and rule diagrams. `--check` fails when generated files or document conventions differ.
+   `sync.js` copies `grammars/` and `data/` into the libraries. It regenerates preparsed data, browser resources, and rule diagrams. When generated files or document conventions differ, `--check` fails.
 
    Run the document tests in `lib/js`:
 
@@ -478,7 +478,7 @@ The following child emits `x` alone. Its parent emits `ab` over input `ab`:
 %emits
 ```
 
-Put the recipe on the child definition when the parent must also receive it:
+When the parent must also receive the recipe, put it on the child definition:
 
 ```jbogenbau
 %rule text
@@ -560,6 +560,60 @@ A warning changes no accepted reading or chosen tree. Callers enable or disable 
 For invalid constructs, use `%error` only for messages that add information or state the default rejection more briefly. The engine prefers least source blame, then fewest sourceless errors, then most total errors, before grammar ranking. Earlier stages emit and continue despite chosen errors. A reported result keeps the chosen tree, verdict, and reporting-stage output.
 
 Use `--` for comments inside grammar blocks. A comment ends at LF, CRLF, CR, or the file end. A string retains literal `--`. The notation has no block comment form.
+
+## Playground examples
+
+Each grammar family can define playground examples in `grammars/FAMILY/examples.json`. A family without examples has no `examples.json` file.
+
+The file holds a JSON array of example objects in menu order. The playground shows only the examples whose `pipelines` array names the active pipeline.
+
+| Field | Required | Meaning | Overridable |
+| --- | --- | --- | --- |
+| `id` | yes | Lowercase ASCII letters, digits, and single internal hyphens. Unique across all example files. | no |
+| `title` | yes | The menu label, in simple English, with no final period. | no |
+| `text` | yes | The nonempty input text to parse. It can contain `\n`. | no |
+| `pipelines` | yes | A nonempty array of family pipeline names without repeats. When the active pipeline is not in the list, the page switches to the first entry. | no |
+| `expect` | yes | The expected outcome from the outcome table below. | no |
+| `stage` | no | The stage that a non-accepted outcome names. When `expect` is `accepted`, `stage` is forbidden. | no |
+| `features` | no | An object that maps feature names to `true` or `false`. | yes, merged |
+| `elisionOnly` | no | `true` or `false`. Absent uses the grammar default. | yes |
+| `view` | no | One of `brackets`, `tree`, `json`, `tokens`, `trace`, or `audit`. Absent defaults to `brackets`. | yes |
+| `showElided` | no | `true` or `false` for the Brackets toggle. Absent defaults to `false`. | yes |
+| `gloss` | no | An English rendering of `text`, in simple English. | no |
+| `warnings` | no | A nonempty array of distinct warning codes. | yes |
+| `hint` | no | The body text of the example note, in simple English. | yes |
+| `open` | no | The document and target to open in the grammar pane. | yes |
+| `byPipeline` | no | An object that maps a pipeline in `pipelines` to per-pipeline overrides. | not applicable |
+
+### Expected outcomes
+
+`expect` takes one of seven values:
+
+| `expect` | Matching parse result | Menu pill |
+| --- | --- | --- |
+| `accepted` | `ok` is true | `accepted`, or `accepted` with the warning icon |
+| `rejected` | error kind `rejected` | `rejected` |
+| `reported` | error kind `reported` | `reported` |
+| `tie` | error kind `ambiguous` with reason `tie` | `tie` |
+| `elision-only` | error kind `ambiguous` with reason `elision-only` | `elision-only` |
+| `feature-conflict` | error kind `feature-conflict` | `feature conflict` |
+| `grammar` | error kind `grammar`, including a pipeline load error | `grammar error` |
+
+When `stage` is present, the error stage must equal `stage`. For every outcome, the distinct warning codes must match `warnings`. When `warnings` is absent, the run must produce no warnings.
+
+### Per-pipeline overrides and targets
+
+Each key of `byPipeline` must appear in `pipelines`. An override object can contain `features`, `warnings`, `elisionOnly`, `view`, `showElided`, `hint`, and `open`.
+
+`features` merges with the top-level `features` map, and the pipeline entry wins. Any other override field replaces the top-level field for that pipeline, and `null` clears it.
+
+Every top-level feature must exist in every pipeline in `pipelines`. Every feature or warning code in an override must exist in that pipeline, and merged features must not disable an expected warning.
+
+`open` is an object with `document` and either `rule` or `anchor`, never both. `document` is a repository path such as `grammars/lojban/cll/syntax.md` that belongs to the target pipeline.
+
+`rule` names a rule defined in `document`. `anchor` is a literal string that occurs once in `document`.
+
+`node tools/sync.js` bundles the example files into `dist/grammars.js` and copies them to the library packages. `node tools/sync.js --check` checks the format and runs every example on every listed pipeline.
 
 ## Common mistakes
 

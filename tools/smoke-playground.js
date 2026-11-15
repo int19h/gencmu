@@ -84,6 +84,8 @@ async function main() {
         if (url.origin === origin && (url.protocol === protocol || url.protocol === "blob:") && !/\.md\/?$/i.test(pathname)) continue;
         const prefix = "/int19h/gencmu/blob/main/";
         const file = path.join(repository, pathname.slice(prefix.length));
+        if (url.href === "https://github.com/int19h/gencmu") continue;
+        if (url.origin === "https://github.com" && !url.username && !url.password && url.pathname === "/int19h/gencmu/issues/new") continue;
         if (url.origin === "https://github.com" && !url.username && !url.password && url.pathname.startsWith(prefix) &&
             repositoryFiles.has(pathname.slice(prefix.length)) && fs.existsSync(file) && fs.statSync(file).isFile()) continue;
         throw new Error(`invalid playground link: ${href}`);
@@ -106,7 +108,7 @@ async function main() {
       const result = document.getElementById("result");
       if (status.dataset.state === "error") return { error: status.textContent };
       if (status.dataset.state !== "ready" || result.dataset.for !== text || result.hasAttribute("aria-busy")) return null;
-      const output = document.querySelector("#output pre");
+      const output = document.querySelector("#output pre.result-text");
       const explanation = document.getElementById("explanation");
       return { output: output ? output.textContent : "", explanation: explanation ? explanation.textContent : "",
                verdict: document.querySelector("#summary .badge").textContent };
@@ -118,7 +120,7 @@ async function main() {
       if (status.dataset.state === "error") return { error: status.textContent };
       if (status.dataset.state !== "ready" || document.getElementById("result").hasAttribute("aria-busy")) return null;
       if (selector && !document.querySelector(selector)) return null;
-      const output = document.querySelector("#output pre");
+      const output = document.querySelector("#output pre") || document.getElementById("output");
       return { boxes: [...document.querySelectorAll("#diagnostics .box")].map((box) => box.textContent), output: output ? output.textContent : null };
     }, selector || null);
     // A change marks the shown result stale at once, before any answer: the
@@ -135,16 +137,30 @@ async function main() {
       }, { id, value, event });
       if (left) throw new Error(`right after ${what} the old result was still shown as current: ${JSON.stringify(left)}`);
     };
+    const editGrammar = async (what, value) => {
+      const left = await run((value) => {
+        self.playground.editor.editValue(value);
+        const status = document.getElementById("status").dataset.state;
+        const busy = document.getElementById("result").getAttribute("aria-busy");
+        return busy === "true" && status !== "ready" ? null : { status, busy };
+      }, value);
+      if (left) throw new Error(`right after ${what} the old result was still shown as current: ${JSON.stringify(left)}`);
+    };
     const type = (text) => change("typing", "input", text, "input");
     const choose = (path) => change("choosing a pipeline", "pipeline", path.replace(/^grammars\//, "").replace(/\/pipeline\.md$/, ""), "change");
-    const tokenTable = () => run(() => ({
-      header: [...document.querySelectorAll("#output table.tokens th")].map((cell) => cell.textContent),
-      rows: [...document.querySelectorAll("#output table.tokens tbody tr")].map((row) =>
-        [...row.querySelectorAll("td")].map((cell, index) => index === 6 ?
-          [...cell.querySelectorAll(".tag")].map((tag) => tag.textContent) :
-          index >= 8 ? JSON.parse(cell.textContent) : cell.textContent)),
-    }));
-    const tokenHeader = ["#", "text", "value", "image", "span", "source", "tags", "insertedBy", "before", "after"];
+    const tokenTable = () => run(() => {
+      const header = [...document.querySelectorAll("#output table.tokens th")].map((cell) => cell.textContent);
+      return {
+        header,
+        rows: [...document.querySelectorAll("#output table.tokens tbody tr")].map((row) =>
+          [...row.querySelectorAll("td")].map((cell, index) => {
+            if (cell.classList.contains("tags")) return [...cell.querySelectorAll(".tag")].map((tag) => tag.textContent);
+            const col = header[index];
+            if (col === "before" || col === "after") return JSON.parse(cell.textContent);
+            return cell.textContent;
+          })),
+      };
+    });
 
     await page.goto(target);
     // The status is "loading" and then "busy" until the first answer, which
@@ -217,12 +233,13 @@ async function main() {
         send(id, request);
       };
     });
-    if (!/^library \d+\.\d+\.\d+/.test(version)) throw new Error(`the worker did not report the library's version: ${version}`);
+    if (!/^Library \d+\.\d+\.\d+/.test(version)) throw new Error(`the worker did not report the library's version: ${version}`);
 
-    // The word "gencmu" in the heading links to the repository.
+    // The brand title shows "gencmu" and the help menu links to the repository.
     const heading = await run(() => {
-      const link = document.querySelector("h1 a");
-      return link ? { text: link.textContent, href: link.getAttribute("href") } : null;
+      const title = document.querySelector("#brand-title .g");
+      const link = document.querySelector('#help-menu a[href="https://github.com/int19h/gencmu/blob/main/README.md"]');
+      return title && link ? { text: title.textContent, href: link.getAttribute("href") } : null;
     });
     if (!heading || heading.text !== "gencmu" || heading.href !== "https://github.com/int19h/gencmu/blob/main/README.md") {
       throw new Error(`the heading does not link gencmu to the repository: ${JSON.stringify(heading)}`);
@@ -375,118 +392,382 @@ async function main() {
       if (found.length) throw new Error(`the page showed an answer for an earlier state as current: ${JSON.stringify(found[0])}`);
     };
 
-    // Every preset runs through the real selector and parser worker.
+    // Examples menu, choosing an example, the note, and the footer.
+    const checkExamplesMenuFor = async (pipelinePathStr, expectedHeading, expectedCount, expectedFooter) => {
+      await choose(pipelinePathStr);
+      await idle(`pipeline ${expectedHeading}`);
+      const menuState = await run(() => {
+        const menu = document.getElementById("examples-menu");
+        const heading = menu.querySelector(".mgroup")?.textContent || "";
+        const items = [...menu.querySelectorAll(".exitem")].map((btn) => {
+          const pill = btn.querySelector(".ex-pill");
+          return {
+            id: btn.dataset.exampleId,
+            title: btn.querySelector(".ex-top b")?.textContent || "",
+            pillText: pill?.textContent || "",
+            pillAria: pill?.getAttribute("aria-label") || null,
+            pillTitle: pill?.getAttribute("title") || null,
+            isJoined: pill?.classList.contains("pill-joined") || false,
+            hasWarnIcon: !!pill?.querySelector(".part-warn svg"),
+            code: btn.querySelector("code")?.textContent || "",
+          };
+        });
+        const foot = menu.querySelector(".ex-foot")?.textContent || null;
+        return { heading, items, foot };
+      });
+      if (menuState.heading !== expectedHeading) {
+        throw new Error(`unexpected examples heading: ${JSON.stringify(menuState.heading)} !== ${JSON.stringify(expectedHeading)}`);
+      }
+      if (menuState.items.length !== expectedCount) {
+        throw new Error(`unexpected examples count for ${expectedHeading}: ${menuState.items.length} !== ${expectedCount}`);
+      }
+      if (menuState.foot !== expectedFooter) {
+        throw new Error(`unexpected examples footer for ${expectedHeading}: ${JSON.stringify(menuState.foot)} !== ${JSON.stringify(expectedFooter)}`);
+      }
+      return menuState;
+    };
+
+    const cllMenu = await checkExamplesMenuFor(
+      "grammars/lojban/cll/pipeline.md",
+      "Examples for lojban/cll",
+      19,
+      "Other pipelines have 23 more examples."
+    );
+    const conflictItem = cllMenu.items.find((it) => it.id === "sa-su-feature-conflict");
+    if (!conflictItem || conflictItem.pillText !== "feature conflict") {
+      throw new Error(`sa-su-feature-conflict pill mismatch: ${JSON.stringify(conflictItem)}`);
+    }
+
+    const expMenu = await checkExamplesMenuFor(
+      "grammars/lojban/experimental/pipeline.md",
+      "Examples for lojban/experimental",
+      23,
+      "Other pipelines have 19 more examples."
+    );
+    const cgvItem = expMenu.items.find((it) => it.id === "cgv-name-warning");
+    if (
+      !cgvItem ||
+      !cgvItem.isJoined ||
+      !cgvItem.hasWarnIcon ||
+      cgvItem.pillText !== "accepted" ||
+      cgvItem.pillAria !== "accepted, with warnings: experimental-cgv" ||
+      cgvItem.pillTitle !== "accepted, with warnings: experimental-cgv"
+    ) {
+      throw new Error(`cgv-name-warning pill is not the joined two-part warning pill: ${JSON.stringify(cgvItem)}`);
+    }
+
+    const ebMenu = await checkExamplesMenuFor(
+      "grammars/eberban/refgram/pipeline.md",
+      "Examples for eberban/refgram",
+      15,
+      "Other pipelines have 27 more examples."
+    );
+    const hyphenItem = ebMenu.items.find((it) => it.id === "hyphen-warning");
+    if (
+      !hyphenItem ||
+      !hyphenItem.isJoined ||
+      !hyphenItem.hasWarnIcon ||
+      hyphenItem.pillText !== "accepted" ||
+      hyphenItem.pillAria !== "accepted, with warnings: hyphen-misplaced" ||
+      hyphenItem.pillTitle !== "accepted, with warnings: hyphen-misplaced"
+    ) {
+      throw new Error(`hyphen-warning pill is not the joined two-part warning pill: ${JSON.stringify(hyphenItem)}`);
+    }
+
+    await choose("grammars/lojban/cll/pipeline.md");
+    await idle("returning to lojban/cll before example checks");
+
+    const selectExampleById = async (id) => {
+      await run((exId) => {
+        const ex = self.playground.examples.find((item) => item.id === exId);
+        if (!ex) throw new Error(`missing example id ${exId}`);
+        self.playground.applyExample(ex);
+      }, id);
+    };
+
+    // Check a-sentence: gloss + hint without open, note stays across listed pipeline switch and hides on unlisted pipeline switch.
+    await selectExampleById("a-sentence");
+    const sentenceAns = await answerFor("mi klama le zarci");
+    if (sentenceAns.error || sentenceAns.output.trim() !== "(mi [klama {le zarci}])") {
+      throw new Error(`a-sentence failed: ${JSON.stringify(sentenceAns)}`);
+    }
+    const sentenceNote = await run(() => ({
+      hidden: document.getElementById("example-hint").hidden,
+      title: document.getElementById("example-hint-title").textContent,
+      gloss: document.getElementById("example-hint-gloss").textContent,
+      glossHidden: document.getElementById("example-hint-gloss").hidden,
+      text: document.getElementById("example-hint-text").textContent,
+      textHidden: document.getElementById("example-hint-text").hidden,
+      ruleHidden: document.getElementById("example-hint-rule").hidden,
+    }));
+    if (
+      sentenceNote.hidden ||
+      sentenceNote.title !== "A sentence" ||
+      sentenceNote.gloss !== "I go to the market." ||
+      sentenceNote.glossHidden ||
+      sentenceNote.textHidden ||
+      !sentenceNote.text.includes("stages turn letters into words") ||
+      !sentenceNote.ruleHidden
+    ) {
+      throw new Error(`a-sentence note mismatch: ${JSON.stringify(sentenceNote)}`);
+    }
+    await choose("grammars/lojban/experimental/pipeline.md");
+    await answerFor("mi klama le zarci");
+    if (await run(() => document.getElementById("example-hint").hidden)) {
+      throw new Error("switching to a pipeline listed by the example hid the example note");
+    }
+    await choose("grammars/eberban/refgram/pipeline.md");
+    await answerFor("mi klama le zarci");
+    if (!(await run(() => document.getElementById("example-hint").hidden))) {
+      throw new Error("switching to a pipeline not listed by the example did not hide the example note");
+    }
+    await choose("grammars/lojban/cll/pipeline.md");
+    await answerFor("mi klama le zarci");
+
     const exampleChecks = [
-      { label: "A sentence", output: /^\(mi \[klama \{le zarci\}\]\)$/ },
-      { label: "A text with omitted endings", output: /tavla/, elided: true },
-      { label: "A repeated le is rejected", rejected: true },
-      { label: "sa erases the earlier words", output: /^do$/, summary: /sa-su/, conditionalFeature: "sa-su" },
-      { label: "Lojban written in Cyrillic", output: /^\(mi \[klama \{le zarci\}\]\)$/ },
-      { label: "BPFK accepts an omitted ending", output: /gi'e nai/, elided: true },
-      { label: "A whole MOI expression wins (Zantufa)", output: /^\(mi \[\{\(se su'i\) \(pa re\)\} moi\]\)$/,
-        document: "grammars/lojban/zantufa/syntax.md", rule: "%rule tanru-unit-1", summary: /syntax resolved/,
-        edit: ["(mex MOI 🆓\n     ≻ SE 🆓 $w:tanru-unit-1\n     ≻ NAhE 🆓 $v:tanru-unit-1)", "(mex MOI 🆓\n     | SE 🆓 $w:tanru-unit-1\n     | NAhE 🆓 $v:tanru-unit-1)"], tie: true },
-      { label: "A whole MOI expression wins (experimental)", output: /^\(mi \[\{\(se ga\) pa gi re\} moi\]\)$/,
-        document: "grammars/lojban/experimental/syntax.md", rule: "%redefine-rule tanru-unit-2", summary: /syntax unique/,
-        edit: ["(NAhE 🆓 tanru-unit-2 ≻ mex MOI 🆓 ≻ SE 🆓 tanru-unit-2)", "(NAhE 🆓 tanru-unit-2 | mex MOI 🆓 | SE 🆓 tanru-unit-2)"], tie: true },
-      { label: "ME prefers an argument (experimental)", output: /me-unit\n\s+ME "me"\n\s+sumti/,
-        document: "grammars/lojban/experimental/syntax.md", rule: "%rule me-unit",
-        edit: ["%conditions\n  ¬$m.without-elision.parse(sumti)", ""], tie: true },
-      { label: "ME accepts a number (experimental)", output: /me-unit\n\s+ME "me"\n\s+mex[\s\S]*number-part · pa/,
-        document: "grammars/lojban/experimental/syntax.md", rule: "%rule me-unit" },
-      { label: "The earliest, longest tense wins (CLL)", output: /^\(mi \[viska \{\(pu va\) \(\[ca gi\] do gi \[la djan\]\)\}\]\)$/,
-        document: "grammars/lojban/cll/pipeline.md", rule: "%ambiguity-resolution", summary: /syntax resolved/,
-        edit: ["leftmost-longest #·simple-tense-modal, ", ""], tie: true },
-      { label: "A rule with preferred options (notation)", output: /choice › ranked-choice/,
-        inputEdit: ["≻", "|"], editedOutput: /choice\n/, absent: /ranked-choice/ },
-      { label: "A rule with tree tests (notation)", output: /tree-comparison/,
-        // Stage-zero images use NFD, including the negated comparator.
-        parts: [/tree-comparator · ≅$/m, /tree-comparator · \u2245\u0338$/m, /child-item · ⋯/, /"⋮" "⋮"/, /"⋰" "⋰"/, /"⋱" "⋱"/] },
+      {
+        id: "elided-terminators",
+        pipeline: "lojban/cll",
+        output: /⟨ku⟩[\s\S]*tavla/,
+        elidedChecked: true,
+      },
+      {
+        id: "repeated-le",
+        pipeline: "lojban/cll",
+        rejected: true,
+        tab: "trace",
+      },
+      {
+        id: "clause-erasure-sa",
+        pipeline: "lojban/cll",
+        output: /^\(mi \[citka \{lo plise\}\]\)$/,
+        summary: /sa-su/,
+        conditionalFeature: "sa-su",
+        document: "grammars/lojban/common/stream.md",
+        rule: "%rule sa-erasure",
+        linkLabel: "Open common/stream.md at sa-erasure",
+      },
+      {
+        id: "cyrillic",
+        pipeline: "lojban/cll",
+        output: /^\(mi \[klama \{le zarci\}\]\)$/,
+        document: "grammars/lojban/cll/cyrillic.md",
+        rule: "%rule cll-cyrillic-consonant :: Consonant",
+        linkLabel: "Open cyrillic.md at cll-cyrillic-consonant",
+      },
+      {
+        id: "earliest-longest-tense",
+        pipeline: "lojban/cll",
+        output: /^\(mi \[viska \{\(pu va\) \(\[ca gi\] do gi \[la djan\]\)\}\]\)$/,
+        document: "grammars/lojban/cll/pipeline.md",
+        rule: "  leftmost-longest #·simple-tense-modal, late #·_<_Elided>",
+        linkLabel: "Open pipeline.md at leftmost-longest #·simple-tense-modal",
+        summary: /syntax\s*resolved/,
+        edit: ["leftmost-longest #·simple-tense-modal, ", ""],
+        tie: true,
+      },
+      {
+        id: "ranked-choice-connective",
+        pipeline: "lojban/cll",
+        output: /^\(\[lo kosta\] cu \[blabi joi ke \{xekri blanu\} ke'e\]\)$/,
+        document: "grammars/lojban/cll/syntax.md",
+        rule: "%rule afterthought-connection(@Group, @Unit)",
+        linkLabel: "Open syntax.md at %rule afterthought-connection(@Group, @Unit)",
+      },
+      {
+        id: "cgv-name-warning",
+        pipeline: "lojban/experimental",
+        output: /^\(\[\{la tokios\} cu\] \[barda tcadu\]\)$/,
+        verdict: /^Accepted, 1 warning$/,
+        document: "grammars/lojban/experimental/stream.md",
+        rule: "%rule experimental-cgv",
+        linkLabel: "Open stream.md at experimental-cgv",
+      },
+      {
+        id: "me-prefers-sumti",
+        pipeline: "lojban/experimental",
+        tab: "tree",
+        output: /me-unit\n\s+ME "me"\n\s+sumti/,
+        document: "grammars/lojban/experimental/syntax.md",
+        rule: "%rule me-unit",
+        linkLabel: "Open syntax.md at me-unit",
+        edit: ["%conditions\n  ¬$m.without-elision.parse(sumti)", ""],
+        tie: true,
+      },
+      {
+        id: "right-grouped-chain",
+        pipeline: "eberban/refgram",
+        output: /^\(a \[mi \{dona \(tcu mian\)\}\]\)$/,
+        document: "grammars/eberban/refgram/syntax.md",
+        rule: "%rule chain",
+        linkLabel: "Open syntax.md at chain",
+      },
+      {
+        id: "hyphen-warning",
+        pipeline: "eberban/refgram",
+        verdict: /^Accepted, 1 warning$/,
+        document: "grammars/eberban/refgram/morphology.md",
+        rule: "%rule hyphen-misplaced",
+        linkLabel: "Open morphology.md at hyphen-misplaced",
+      },
     ];
-    const presets = await run(() => [...document.querySelectorAll("#examples option")]
-      .filter((option) => option.value !== "").map((option) => ({ value: option.value, label: option.textContent })));
-    if (presets.length !== exampleChecks.length) throw new Error("every example needs a browser assertion");
+
     for (const check of exampleChecks) {
-      const preset = presets.find((preset) => preset.label === check.label);
-      if (!preset) throw new Error(`missing example ${check.label}`);
-      await page.locator("#examples").selectOption(preset.value);
+      await choose(`grammars/${check.pipeline}/pipeline.md`);
+      await idle(`pipeline ${check.pipeline}`);
+      await page.locator(`#examples-menu button[data-example-id="${check.id}"]`).evaluate((btn) => btn.click());
       const text = await page.locator("#input").inputValue();
       const answer = await answerFor(text);
       await assertLinks();
-      if (answer.error) throw new Error(`${check.label}: ${answer.error}`);
-      if (check.rejected ? !/rejected by the syntax stage/.test(answer.verdict) : !/^accepted/.test(answer.verdict)) {
-        throw new Error(`${check.label}: unexpected verdict ${JSON.stringify(answer)}`);
+      if (answer.error) throw new Error(`${check.id}: ${answer.error}`);
+      if (check.verdict) {
+        if (!check.verdict.test(answer.verdict)) {
+          throw new Error(`${check.id}: unexpected verdict ${JSON.stringify(answer)}`);
+        }
+      } else if (check.rejected ? !/Rejected by syntax/.test(answer.verdict) : !/^Accepted/.test(answer.verdict)) {
+        throw new Error(`${check.id}: unexpected verdict ${JSON.stringify(answer)}`);
       }
-      if (check.output && !check.output.test(answer.output.trim())) throw new Error(`${check.label}: unexpected output ${answer.output}`);
-      for (const part of check.parts || []) {
-        if (!part.test(answer.output)) throw new Error(`${check.label}: missing ${part} in ${answer.output}`);
+      if (check.elidedChecked !== undefined) {
+        const isChecked = await page.locator("#show-elided").isChecked();
+        if (isChecked !== check.elidedChecked) {
+          throw new Error(`${check.id}: expected #show-elided=${check.elidedChecked}, got ${isChecked}`);
+        }
+      }
+      if (check.tab) {
+        const activeTab = await run(() => document.querySelector('#view-tabs .tab[aria-selected="true"]')?.dataset.view);
+        if (activeTab !== check.tab) {
+          throw new Error(`${check.id}: expected tab ${check.tab}, got ${activeTab}`);
+        }
+      }
+      if (check.output && !check.output.test(answer.output.trim())) {
+        throw new Error(`${check.id}: unexpected output ${answer.output}`);
       }
       const summary = await page.locator("#summary").textContent();
-      if (check.summary && !check.summary.test(summary)) throw new Error(`${check.label}: unexpected summary ${summary}`);
+      if (check.summary && !check.summary.test(summary)) {
+        throw new Error(`${check.id}: unexpected summary ${summary}`);
+      }
       if (check.conditionalFeature) {
-        const control = page.locator(`#features select[data-feature="${check.conditionalFeature}"]`);
-        if (await control.inputValue() !== "grammar") throw new Error("a conditional feature does not follow its grammar initially");
-        await control.selectOption("off");
+        await page.locator("#options-button").click();
+        const group = page.locator(`#features [role="radiogroup"][aria-label="${check.conditionalFeature}"]`);
+        if ((await group.locator('button[data-value="grammar"]').getAttribute("aria-checked")) !== "true") {
+          throw new Error("a conditional feature does not follow its grammar initially");
+        }
+        await group.locator('button[data-value="off"]').click();
         const disabled = await answerFor(text);
-        if (!/required feature sa-su is disabled/.test(disabled.verdict) || !/words.*requires disabled feature sa-su/.test(disabled.explanation)) {
+        if (
+          !/required feature sa-su is disabled/.test(disabled.verdict) ||
+          !/words.*requires disabled feature sa-su/.test(disabled.explanation)
+        ) {
           throw new Error(`the disabled required feature was not reported: ${JSON.stringify(disabled)}`);
         }
-        await control.selectOption("on");
+        await group.locator('button[data-value="on"]').click();
         const enabled = await answerFor(text);
-        if (!/^accepted/.test(enabled.verdict)) throw new Error("a caller-enabled feature did not parse");
-        await control.selectOption("grammar");
+        if (!/^Accepted/.test(enabled.verdict)) throw new Error("a caller-enabled feature did not parse");
+        await group.locator('button[data-value="grammar"]').click();
         const restored = await answerFor(text);
-        if (!/^accepted/.test(restored.verdict)) throw new Error("the grammar did not restore its conditional feature");
-      }
-      if (check.elided) {
-        await page.locator("#show-elided").check();
-        const elided = await answerFor(text);
-        if (!/⟨[^⟩]+⟩/.test(elided.output)) throw new Error(`${check.label}: no omitted terminator`);
-        await page.locator("#show-elided").uncheck();
-        await answerFor(text);
+        if (!/^Accepted/.test(restored.verdict)) throw new Error("the grammar did not restore its conditional feature");
+        await page.locator("#options-button").click();
       }
       if (check.document) {
         const opened = await run(() => {
-          const editor = document.getElementById("doc-text");
-          return { path: document.getElementById("doc-path").textContent,
-            line: editor.value.slice(editor.selectionStart).split("\n")[0] };
+          const cur = self.playground.editor.getCursor();
+          return {
+            path: document.getElementById("doc-path").textContent,
+            line: cur.lineText,
+            linkText: document.getElementById("example-hint-rule").textContent,
+          };
         });
         if (opened.path !== check.document || opened.line !== check.rule) {
-          throw new Error(`${check.label}: the editor did not open the relevant rule: ${JSON.stringify(opened)}`);
+          throw new Error(`${check.id}: the editor did not open the relevant rule: ${JSON.stringify(opened)}`);
+        }
+        if (check.linkLabel && opened.linkText !== check.linkLabel) {
+          throw new Error(`${check.id}: unexpected note link label: ${JSON.stringify(opened.linkText)} !== ${JSON.stringify(check.linkLabel)}`);
         }
       }
       if (check.edit) {
-        const editor = page.locator("#doc-text");
-        const source = await editor.inputValue();
-        if (!source.includes(check.edit[0])) throw new Error(`${check.label}: the suggested edit is absent`);
-        await change("editing a grammar", "doc-text", source.replaceAll(check.edit[0], check.edit[1]), "input");
+        const source = await run(() => self.playground.editor.getValue());
+        if (!source.includes(check.edit[0])) throw new Error(`${check.id}: the suggested edit is absent`);
+        await editGrammar("editing a grammar", source.replaceAll(check.edit[0], check.edit[1]));
         const edited = await answerFor(text);
-        if (edited.error || (check.tie ? !/a tie in the syntax stage/.test(edited.verdict)
-          : !/^accepted/.test(edited.verdict) || !check.editedOutput.test(edited.output))) {
-          throw new Error(`${check.label}: the edit did not show its claimed effect: ${JSON.stringify(edited)}`);
-        }
-        if (check.document === "grammars/lojban/cll/pipeline.md") {
-          await page.locator("#examples").selectOption(preset.value);
-          await answerFor(text);
-          const line = await run(() => {
-            const editor = document.getElementById("doc-text");
-            return editor.value.slice(editor.selectionStart).split("\n")[0];
-          });
-          if (line !== check.rule) throw new Error("a changed step prevented navigation to the directive");
+        if (edited.error || (check.tie && !/Tie in syntax/.test(edited.verdict))) {
+          throw new Error(`${check.id}: the edit did not show its claimed effect: ${JSON.stringify(edited)}`);
         }
         await page.locator("#doc-reset").click();
         const reset = await answerFor(text);
-        if (!check.output.test(reset.output.trim())) throw new Error(`${check.label}: reset did not restore the result`);
-      }
-      if (check.inputEdit) {
-        await type(text.replaceAll(check.inputEdit[0], check.inputEdit[1]));
-        const edited = await answerFor(await page.locator("#input").inputValue());
-        if (edited.error || !/^accepted/.test(edited.verdict) || !check.editedOutput.test(edited.output) || check.absent.test(edited.output)) {
-          throw new Error(`${check.label}: the text edit did not show ordinary alternatives: ${JSON.stringify(edited)}`);
-        }
+        if (!check.output.test(reset.output.trim())) throw new Error(`${check.id}: reset did not restore the result`);
       }
       await assertLinks();
-      console.log(`example works in ${browser}: ${check.label}`);
+      console.log(`example works in ${browser}: ${check.id}`);
+    }
+
+    // Example state transitions:
+    // 1. A Trace example's position label is at the rejection after another example (digits-in-cll -> repeated-le).
+    await choose("grammars/lojban/cll/pipeline.md");
+    await idle("lojban/cll before example state transitions");
+    await selectExampleById("digits-in-cll");
+    await answerFor("mi ponse 2 gerku");
+    await selectExampleById("repeated-le");
+    await answerFor("mi klama le le");
+    const traceAfterExample = await run(() => ({
+      stage: document.querySelector('.trace-stage-segs button[aria-checked="true"]')?.textContent || "",
+      label: document.querySelector(".trace-pos-label")?.textContent || "",
+    }));
+    if (traceAfterExample.stage !== "syntax" || traceAfterExample.label !== 'Position 4, after "le" and before the end') {
+      throw new Error(`Trace example did not open at its rejection position after another example: ${JSON.stringify(traceAfterExample)}`);
+    }
+
+    // 2. A Tokens example shows the last stage after selecting phonemes.
+    await page.locator('#view-tabs [role="tab"][data-view="tokens"]').click();
+    await idle("tokens view before selecting phonemes", "#token-stage-segs button");
+    await page.locator("#token-stage-segs button").filter({ hasText: /^phonemes \(/ }).click();
+    await idle("phonemes token stage selected");
+    await selectExampleById("quotes-and-compounds");
+    await answerFor(".alfa. bu sinxa zoi gy. α .gy. pe lo cmaci zei ciste");
+    const tokenStageAfterExample = await run(() =>
+      document.querySelector('#token-stage-segs button[aria-checked="true"]')?.textContent || ""
+    );
+    if (!/^words \(/.test(tokenStageAfterExample)) {
+      throw new Error(`Tokens example did not reset token stage to the default stage after phonemes: ${JSON.stringify(tokenStageAfterExample)}`);
+    }
+
+    // 3. A rule example keeps its cursor line after another example, and editing text does not snap the cursor back.
+    await selectExampleById("clause-erasure-sa");
+    await answerFor("mi citka lo badna sa lo plise");
+    await selectExampleById("cyrillic");
+    await answerFor("ми клама ле зарши");
+    const ruleLineAfterExample = await run(() => ({
+      path: document.getElementById("doc-path").textContent,
+      line: self.playground.editor.getCursor().lineText,
+    }));
+    if (
+      ruleLineAfterExample.path !== "grammars/lojban/cll/cyrillic.md" ||
+      ruleLineAfterExample.line !== "%rule cll-cyrillic-consonant :: Consonant"
+    ) {
+      throw new Error(`rule example did not keep its cursor line after another example: ${JSON.stringify(ruleLineAfterExample)}`);
+    }
+    await run(() => self.playground.editor.goTo(1, 1));
+    await type("mi klama");
+    await answerFor("mi klama");
+    const lineAfterTyping = await run(() => self.playground.editor.getCursor().line);
+    if (lineAfterTyping !== 1) {
+      throw new Error(`typing after a rule example snapped the editor cursor away from line 1: ${lineAfterTyping}`);
+    }
+
+    // 4. A rejection that also carries %error diagnostics shows both boxes (eberban/refgram pair-voiceness).
+    await choose("grammars/eberban/refgram/pipeline.md");
+    await idle("eberban/refgram for rejection with %error");
+    const eberbanRej = "a mi pban bure di 3 ji meon";
+    await type(eberbanRej);
+    await answerFor(eberbanRej);
+    const eberbanBoxes = await run(() =>
+      [...document.querySelectorAll("#diagnostics .box")].map((b) => b.textContent)
+    );
+    if (
+      eberbanBoxes.length < 2 ||
+      !eberbanBoxes.some((b) => b.includes("The syntax stage cannot read the text")) ||
+      !eberbanBoxes.some((b) => b.includes("pair-voiceness"))
+    ) {
+      throw new Error(`rejection with %error did not show both boxes: ${JSON.stringify(eberbanBoxes)}`);
     }
 
     // Format 15 separates original text, normalized values and images.
@@ -496,8 +777,8 @@ async function main() {
     await type(tokenText);
     await answerFor(tokenText);
     await page.locator("#tab-tokens").click();
-    await idle("the token stage selector", "#token-stages button");
-    await page.locator("#token-stages button").filter({hasText: /^indicators \(/}).click();
+    await idle("the token stage selector", "#token-stage-segs button");
+    await page.locator("#token-stage-segs button").filter({hasText: /^indicators \(/}).click();
     await idle("the indicators token table", "#output table.tokens");
     const miTags = ["Cmavo", "Continued", "Final-Stress", "Initial-Stress", "KOhA", "Onset", "Run-Final", "Run-Initial", "Word"];
     const klamaTags = ["BRIVLA", "Continued", "Gismu", "Initial-Stress", "Onset", "Run-Final", "Run-Initial", "Stress-Guard", "Word"];
@@ -507,10 +788,13 @@ async function main() {
       tags: ["Cmavo", "Continued", "Indicator", "Run-Final", "Run-Initial", "UI", "Word"], source: [9, 11],
       after: [{text: "nai", value: "nai", image: "nai",
         tags: ["Cmavo", "Continued", "NAI", "Onset", "Run-Final", "Run-Initial", "Word"], source: [12, 15]}]}];
-    assert.deepEqual(await tokenTable(), {header: tokenHeader, rows: [
-      ["0", '"m,I"', '"mi"', '"mI"', "1–2", "5–8", miTags, "", beforeTokens, afterTokens],
-      ["1", '"klAma"', '"klama"', '"klAma"', "4–5", "16–21", klamaTags, "", [], []],
-    ]}, "the token table must show format 15 fields and recursive attachments");
+    assert.deepEqual(await tokenTable(), {
+      header: ["#", "text", "value", "image", "span", "source", "before", "after"],
+      rows: [
+        ["0", '"m,I"', '"mi"', '"mI"', "1–2", "5–8", beforeTokens, afterTokens, miTags],
+        ["1", '"klAma"', '"klama"', '"klAma"', "4–5", "16–21", [], [], klamaTags],
+      ],
+    }, "the token table must show format 15 fields, omit empty columns, and show recursive attachments");
     await page.locator("#tab-tree").click();
     const imageTree = await idle("the tree with images");
     assert.match(imageTree.output, /KOhA "mI"\n\s+◂ BAhE "ba'e"\n\s+▸ UI "ui"\n\s+▸ NAI "nai"/);
@@ -528,19 +812,21 @@ async function main() {
       before: [{classes: ["BAhE"], image: "ba'e"}],
       after: [{classes: ["UI"], image: "ui", after: [{classes: ["NAI"], image: "nai"}]}]},
       "display JSON must render images and nested attachments");
-    await page.locator("#tab-canonical").click();
+    await page.locator("#show-canonical").check();
     const canonical = JSON.parse((await idle("the canonical JSON with values and images")).output);
     assert.equal(canonical.format, 17);
     const indicator = canonical.stages.find((stage) => stage.name === "indicators").output[0];
     assert.deepEqual(indicator, {text: "m,I", value: "mi", image: "mI", tags: miTags,
       span: [1, 2], source: [5, 8], before: beforeTokens, after: afterTokens});
+    await page.locator("#show-canonical").uncheck();
     await page.locator("#tab-brackets").click();
     await idle("the brackets after the token assertions");
     console.log(`format 15 token and tree views work in ${browser}`);
     // Rule navigation uses the reader's exact definitions and active documents.
-    const navigationPreset = presets.find((preset) => preset.label === "A whole MOI expression wins (Zantufa)");
-    const navigationText = "mi se su'i pa re moi";
-    const navigationOutput = "(mi [{(se su'i) (pa re)} moi])";
+    await choose("grammars/lojban/zantufa/pipeline.md");
+    await idle("switching to lojban/zantufa for rule navigation");
+    const navigationText = "lo mlatu pe mi cu .feliks.";
+    const navigationOutput = "([lo {mlatu (pe mi)}] cu feliks)";
     const setNavigationCase = (kind) => run((kind) => {
       const client = self.playground.client;
       const syntax = self.gencmuGrammars["grammars/lojban/zantufa/syntax.md"];
@@ -562,16 +848,16 @@ async function main() {
     }, kind);
     for (const kind of ["prefix", "renamed", "moved", "reset"]) {
       await setNavigationCase(kind);
-      await page.locator("#examples").selectOption(navigationPreset.value);
+      await selectExampleById("cmevla-as-selbri");
       const answer = await answerFor(navigationText);
       if (answer.error || answer.output.trim() !== navigationOutput) {
         throw new Error(`${kind} rule navigation changed the preset result: ${JSON.stringify(answer)}`);
       }
       const opened = await run(() => {
-        const editor = document.getElementById("doc-text");
+        const cur = self.playground.editor.getCursor();
         const hint = document.getElementById("example-hint");
-        return { path: document.getElementById("doc-path").textContent, offset: editor.selectionStart,
-          line: editor.value.slice(editor.selectionStart).split("\n")[0], hint: hint.hidden ? "" : hint.textContent };
+        return { path: document.getElementById("doc-path").textContent, offset: cur.offset,
+          line: cur.lineText, hint: hint.hidden ? "" : hint.textContent };
       });
       if (kind === "renamed") {
         if (!opened.hint.includes("Cannot find rule tanru-unit-1 in the active grammar.") || opened.offset !== 0) {
@@ -600,7 +886,7 @@ async function main() {
     await type(rejected);
     const explained = await answerFor(rejected);
     if (explained.error) throw new Error(`the playground failed: ${explained.error}`);
-    if (!/rejected/.test(explained.verdict) || !/The syntax stage cannot read the text/.test(explained.explanation) ||
+    if (!/Rejected by syntax/.test(explained.verdict) || !/The syntax stage cannot read the text/.test(explained.explanation) ||
         !/\^/.test(explained.explanation) || !/sumti-6: .*LE/.test(explained.explanation)) {
       throw new Error(`${rejected} was not explained as a rejection: ${JSON.stringify(explained)}`);
     }
@@ -610,8 +896,7 @@ async function main() {
       names: [...group.children].map((option) => option.value),
     })));
     assert.deepEqual(pipelineGroups, [
-      { label: "lojban", names: ["lojban/cll", "lojban/bpfk", "lojban/experimental", "lojban/zantufa"] },
-      { label: "lojban/examples", names: ["lojban/examples/kihei"] },
+      { label: "lojban", names: ["lojban/cll", "lojban/bpfk", "lojban/experimental", "lojban/zantufa", "lojban/examples/kihei"] },
       { label: "eberban", names: ["eberban/refgram"] },
       { label: "gencmu", names: ["gencmu/jbogenbau"] },
     ]);
@@ -645,15 +930,14 @@ async function main() {
     await errorLink.click();
     const openedDiscarded = await run(() => document.getElementById("doc-path").textContent);
     if (openedDiscarded !== discarded) throw new Error(`discarded source did not open: ${openedDiscarded}`);
-    await page.locator("#doc-text").fill("```jbogenbau\n%rule old \"x\"\n```\n");
-    await page.locator("#doc-text").dispatchEvent("input");
+    await editGrammar("repairing discarded source", "```jbogenbau\n%rule old \"x\"\n```\n");
     const repaired = await answerFor("b");
     if (repaired.error || repaired.output.trim() !== "b") throw new Error(`stage patch failed: ${JSON.stringify(repaired)}`);
     const groups = await run(() => [...document.querySelectorAll(".doc-group")].map(group => ({
       name: group.querySelector(".doc-stage").textContent, text: group.textContent,
     })));
-    if (!groups.some(group => group.name === "a" && group.text.includes("lojban/zantufa/syntax")) ||
-        groups.some(group => group.name === "a" && group.text.includes("lojban/common/latin"))) {
+    if (!groups.some(group => group.name === "a" && group.text.includes("syntax")) ||
+        groups.some(group => group.name === "a" && group.text.includes("common/latin"))) {
       throw new Error(`wrong stage contributions: ${JSON.stringify(groups)}`);
     }
     await run(paths => paths.forEach(path => self.playground.client.setDocument(path, self.gencmuGrammars[path])),
@@ -672,8 +956,8 @@ async function main() {
     await type(tied);
     const tie = await answerFor(tied);
     if (tie.error) throw new Error(`the playground failed: ${tie.error}`);
-    if (!/a tie in the syntax stage/.test(tie.verdict) || !/The syntax stage is ambiguous/.test(tie.explanation) ||
-        !/first/.test(tie.explanation) || !/second/.test(tie.explanation) || tie.output !== "") {
+    if (!/Tie in syntax/.test(tie.verdict) || !/The syntax stage is ambiguous/.test(tie.explanation) ||
+        !/first/i.test(tie.explanation) || !/second/i.test(tie.explanation) || tie.output !== "") {
       throw new Error(`${tied} was not shown as a tie: ${JSON.stringify(tie)}`);
     }
     await run((path) => self.playground.client.setDocument(path, self.gencmuGrammars[path]), tiedPipeline);
@@ -696,17 +980,18 @@ async function main() {
     await stale();
 
     // An empty text has a tree whose brackets are empty (docs/output.md).
-    // The page shows that rendering, with its Copy button, and does not say
-    // that there is no tree. It says only that the rendering is empty.
+    // When there is no output to copy, the page hides Elided and Copy and
+    // shows "The text is empty." as .empty-out without saying there is no tree.
     const emptyRendering = async (what) => {
       const answer = await answerFor("");
       if (answer.error) throw new Error(`the playground failed: ${answer.error}`);
       const empty = await run(() => ({
         pre: document.querySelector("#output pre.result-text") ? document.querySelector("#output pre.result-text").textContent : null,
-        copy: !!document.querySelector("#output .copy-row button"),
+        copy: !document.getElementById("copy-output")?.hidden,
+        elided: !document.getElementById("elided-toggle")?.hidden,
         text: document.getElementById("output").textContent,
       }));
-      if (empty.pre !== "" || !empty.copy || /No tree|no tokens/.test(empty.text) || !/The bracket rendering is empty/.test(empty.text)) {
+      if (empty.pre !== null || empty.copy || empty.elided || /No tree|no tokens/.test(empty.text) || empty.text.trim() !== "The text is empty.") {
         throw new Error(`the empty bracket rendering of ${what} was not shown as one: ${JSON.stringify(empty)}`);
       }
     };
@@ -727,9 +1012,10 @@ async function main() {
     if (shownFor !== "lojban/zantufa") throw new Error(`the empty image was checked under ${shownFor}, not the edited pipeline`);
     await page.locator("#tab-tokens").click();
     await idle("the inserted token table", "#output table.tokens");
-    assert.deepEqual(await tokenTable(), {header: tokenHeader,
-      rows: [["0", '""', '""', '""', "0–0", "0–0", ["X"], "text", [], []]]},
-      "the token table must keep empty values and images and show insertedBy");
+    assert.deepEqual(await tokenTable(), {
+      header: ["#", "text", "value", "image", "span", "source", "insertedBy"],
+      rows: [["0", '""', '""', '""', "0–0", "0–0", "text", ["X"]]],
+    }, "the token table must keep empty values and images, show insertedBy, and omit empty columns");
     await page.locator("#tab-brackets").click();
     await idle("the empty brackets after the inserted token assertion");
     await run((path) => self.playground.client.setDocument(path, self.gencmuGrammars[path]), imageless);
@@ -741,13 +1027,12 @@ async function main() {
     // while for a long one such as the CLL word shapes; a pipeline that does
     // not use it should not wait for that.
     await run(() => {
-      [...document.querySelectorAll("button.doc")].find((button) => button.textContent === "lojban/cll/shapes").click();
-      const editor = document.getElementById("doc-text");
-      editor.value = editor.value.replace("%rule", "%rule ");
-      editor.dispatchEvent(new Event("input"));
+      [...document.querySelectorAll("button.doc")].find((button) => button.dataset.doc === "grammars/lojban/cll/shapes.md").click();
+      const ed = self.playground.editor;
+      ed.editValue(ed.getValue().replace("%rule", "%rule "));
     });
     await until("the edited word shapes to be read", () =>
-      document.getElementById("status").textContent.includes("Reading grammars/lojban/cll/shapes.md") ? true : null);
+      document.getElementById("status").textContent.includes("Reading shapes.md") ? true : null);
     await choose("grammars/lojban/experimental/pipeline.md");
     const other = await until("an answer under the experimental pipeline", () => {
       const status = document.getElementById("status");
@@ -772,8 +1057,8 @@ async function main() {
       return line ? { text: line.textContent, codes: [...line.querySelectorAll("code")].map((code) => code.textContent) } : null;
     });
     const escaped = (name) => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const named = features && features.codes.map((name) => `${escaped(name)}`).join(", ");
-    if (!features || !features.codes.length || !new RegExp(`^Features: ${named}$`).test(features.text)) {
+    const named = features && features.codes.map((name) => `${escaped(name)}`).join("");
+    if (!features || !features.codes.length || !new RegExp(`^Enabled features${named}$`).test(features.text)) {
       throw new Error(`the features used were not listed by name: ${JSON.stringify(features)}`);
     }
     await stale();
@@ -800,7 +1085,7 @@ async function main() {
     if (afterFailure.error) throw new Error(`a failure for another run ended the current one: ${afterFailure.error}`);
     if (!afterFailure.output.includes("klama")) throw new Error(`no brackets after a stale failure: ${JSON.stringify(afterFailure)}`);
     const boxes = await run(() => [...document.querySelectorAll("#diagnostics .box")].map((box) => box.textContent));
-    if (boxes.some((box) => /went wrong/.test(box))) throw new Error(`a failure for another run was shown: ${JSON.stringify(boxes)}`);
+    if (boxes.some((box) => /went wrong|The parser stopped/.test(box))) throw new Error(`a failure for another run was shown: ${JSON.stringify(boxes)}`);
 
     // A failure outside any run, here of a worker told to start with no
     // documents, stops that worker. The page says so, and the next change
@@ -810,7 +1095,7 @@ async function main() {
       const status = document.getElementById("status");
       return status.dataset.state === "error" ? { text: document.getElementById("diagnostics").textContent, worker: !!self.playground.client.worker } : null;
     });
-    if (!/The parser worker stopped/.test(broken.text) || broken.worker) {
+    if (!/The parser stopped/.test(broken.text) || broken.worker) {
       throw new Error(`a failure outside a run did not stop the worker: ${JSON.stringify(broken)}`);
     }
     await type(last);
@@ -849,6 +1134,651 @@ async function main() {
     const traced = await idle("a trace from a link", "#trace-picker .gap");
     await assertLinks();
     if (traced.error || !traced.output) throw new Error(`a link to the Trace tab gave no trace: ${JSON.stringify(traced)}`);
+
+    // The redesigned layout controls work: popover menus, split handle, hide
+    // and show grammar, basic editor interface, and phone layout at 390 and 320.
+    const layoutChecks = await run(() => {
+      const helpBtn = document.getElementById("help-button");
+      const helpMenu = document.getElementById("help-menu");
+      helpBtn.click();
+      const helpOpen = !helpMenu.hidden && helpBtn.getAttribute("aria-expanded") === "true";
+      const hasPlaygroundDoc = [...helpMenu.querySelectorAll("a")].some((a) => (a.getAttribute("href") || "").endsWith("docs/playground.md"));
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      const helpClosed = helpMenu.hidden && helpBtn.getAttribute("aria-expanded") === "false";
+
+      const split = document.getElementById("split-handle");
+      split.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", shiftKey: true }));
+      const movedSplit = split.getAttribute("aria-valuenow");
+      split.dispatchEvent(new KeyboardEvent("keydown", { key: "Home" }));
+      const resetSplit = split.getAttribute("aria-valuenow");
+
+      document.getElementById("hide-grammar").click();
+      const hidden = document.getElementById("workspace").classList.contains("grammar-hidden");
+      document.getElementById("show-grammar").click();
+      const shownAgain = !document.getElementById("workspace").classList.contains("grammar-hidden");
+
+      const ed = self.playground.editor;
+      const expectedVariant = self.gencmuEditor === "basic" ? "basic" : "full";
+      const expectedCap = expectedVariant === "full";
+      const hasEditorApi =
+        ed &&
+        ed.variant === expectedVariant &&
+        ed.capabilities?.syntaxColors === expectedCap &&
+        ed.capabilities?.wrappedLineNumbers === expectedCap &&
+        ed.capabilities?.marginMarks === expectedCap &&
+        typeof ed.getValue === "function" &&
+        typeof ed.setValue === "function" &&
+        typeof ed.goTo === "function" &&
+        typeof ed.markError === "function" &&
+        typeof ed.clearMarks === "function" &&
+        typeof ed.focus === "function";
+
+      return { helpOpen, hasPlaygroundDoc, helpClosed, movedSplit, resetSplit, hidden, shownAgain, hasEditorApi, expectedVariant };
+    });
+    if (
+      !layoutChecks.helpOpen ||
+      !layoutChecks.hasPlaygroundDoc ||
+      !layoutChecks.helpClosed ||
+      layoutChecks.movedSplit !== "45" ||
+      layoutChecks.resetSplit !== "35" ||
+      !layoutChecks.hidden ||
+      !layoutChecks.shownAgain ||
+      !layoutChecks.hasEditorApi
+    ) {
+      throw new Error(`the redesigned layout checks failed: ${JSON.stringify(layoutChecks)}`);
+    }
+
+    // Full editor checks: syntax colors, error marks in the gutter, and Go to line:column.
+    if (layoutChecks.expectedVariant === "full") {
+      await run(() => {
+        self.playground.openDocument("grammars/lojban/cll/syntax.md", 345, 1);
+      });
+      const fullTokens = await run(() => {
+        const content = document.querySelector("#editor-body .cm-content");
+        return {
+          label: content ? content.getAttribute("aria-label") : null,
+          hasK: !!document.querySelector("#editor-body .cm-content .k"),
+          hasD: !!document.querySelector("#editor-body .cm-content .d"),
+          hasT: !!document.querySelector("#editor-body .cm-content .t"),
+          hasP: !!document.querySelector("#editor-body .cm-content .p"),
+        };
+      });
+      if (fullTokens.label !== "syntax.md" || !fullTokens.hasK || !fullTokens.hasD || !fullTokens.hasT || !fullTokens.hasP) {
+        throw new Error(`full editor syntax colors or label missing: ${JSON.stringify(fullTokens)}`);
+      }
+      const syntaxSource = await run(() => self.playground.editor.getValue());
+      await editGrammar("introducing a grammar error in full editor", syntaxSource.replace("sumti-tail [+KU", "sumti-tali [+KU"));
+      await idle("the grammar error in full editor", "#doc-error-bar:not([hidden])");
+      await run(() => self.playground.editor.goTo(350, 21));
+      const fullErrorMarks = await run(() => {
+        const gutterErr = document.querySelector("#editor-body .cm-errorLineGutter .cm-errorLineNumber");
+        const lineErr = document.querySelector("#editor-body .cm-errorLine");
+        const srText = document.getElementById("editor-error-sr")?.textContent || "";
+        const jumpBtn = document.getElementById("doc-error-jump");
+        return {
+          gutterAria: gutterErr ? gutterErr.getAttribute("aria-label") : null,
+          hasLineErr: !!lineErr,
+          srText,
+          jumpText: jumpBtn ? jumpBtn.textContent : null,
+        };
+      });
+      if (
+        !fullErrorMarks.gutterAria ||
+        !/, error$/.test(fullErrorMarks.gutterAria) ||
+        !fullErrorMarks.hasLineErr ||
+        !/^Line \d+, error:/.test(fullErrorMarks.srText) ||
+        !/^Go to \d+:\d+$/.test(fullErrorMarks.jumpText || "")
+      ) {
+        throw new Error(`full editor error marks missing: ${JSON.stringify(fullErrorMarks)}`);
+      }
+      await page.locator("#doc-error-jump").click();
+      const jumpedLine = await run(() => self.playground.editor.getCursor().lineText);
+      if (jumpedLine !== "%rule sumti-6") {
+        throw new Error(`full editor Go to line:column did not move to %rule sumti-6: ${jumpedLine}`);
+      }
+      await page.locator("#doc-reset").click();
+      await idle("resetting full editor grammar error");
+    }
+
+    // Wrapped lines and .wrun in Tree/JSON/Audit/Trace,
+    // examples menu width (380-520px) on desktop, Tokens tags second-line layout, and measured top-bar steps.
+    await page.locator("#tab-tree").click();
+    await idle("tree view for wrapped line check");
+    const wrappedTreeCheck = await run(() => {
+      const pre = document.querySelector("#output pre.result-text.code-block");
+      const wlines = pre ? [...pre.querySelectorAll(".wline")] : [];
+      const wruns = pre ? [...pre.querySelectorAll(".wrun")] : [];
+      const brokenHyphens = wruns.filter((r) => {
+        const lh = parseFloat(getComputedStyle(r).lineHeight) || 20;
+        return (r.textContent || "").includes("-") && r.getBoundingClientRect().height > lh * 1.5;
+      });
+      const leadingSep = wruns.filter((r) => /^[›·]/.test((r.textContent || "").trim()));
+      return {
+        hasRawText: !!(pre && !pre.hasAttribute("data-raw-text") && typeof self.playground.getCopyOutputText() === "string" && self.playground.getCopyOutputText().length > 0),
+        rawMatchesText: !!(pre && self.playground.getCopyOutputText() === pre.textContent),
+        textIndent: wlines[0] ? wlines[0].style.textIndent : null,
+        pad0: wlines[0] ? wlines[0].style.paddingLeft : null,
+        pad1: wlines[1] ? wlines[1].style.paddingLeft : null,
+        wrunCount: wruns.length,
+        brokenHyphenCount: brokenHyphens.length,
+        leadingSepCount: leadingSep.length,
+        versionPhone: document.getElementById("version-phone")?.textContent || "",
+      };
+    });
+    if (
+      !wrappedTreeCheck.hasRawText ||
+      !wrappedTreeCheck.rawMatchesText ||
+      wrappedTreeCheck.textIndent !== "-4ch" ||
+      wrappedTreeCheck.pad0 !== "calc(4ch)" ||
+      wrappedTreeCheck.pad1 !== "calc(6ch)" ||
+      wrappedTreeCheck.wrunCount === 0 ||
+      wrappedTreeCheck.brokenHyphenCount !== 0 ||
+      wrappedTreeCheck.leadingSepCount !== 0 ||
+      !/^Library \d+\.\d+\.\d+$/.test(wrappedTreeCheck.versionPhone)
+    ) {
+      throw new Error(`wrapped line or phone version check failed: ${JSON.stringify(wrappedTreeCheck)}`);
+    }
+
+    await choose("grammars/lojban/experimental/pipeline.md");
+    await idle("lojban/experimental for examples menu width check");
+    await page.locator("#examples-button").click();
+    const expMenuCheck = await run(() => {
+      const menu = document.getElementById("examples-menu");
+      const rect = menu.getBoundingClientRect();
+      const items = [...menu.querySelectorAll(".exitem")];
+      const wrapped = items.filter((btn) => btn.querySelector(".ex-top b").getClientRects().length > 1);
+      const alignItems = items[0] ? getComputedStyle(items[0].querySelector(".ex-top")).alignItems : null;
+      return {
+        width: Math.round(rect.width),
+        wrappedCount: wrapped.length,
+        alignItems,
+      };
+    });
+    if (
+      expMenuCheck.width < 380 ||
+      expMenuCheck.width > 520 ||
+      expMenuCheck.wrappedCount !== 0 ||
+      expMenuCheck.alignItems !== "flex-start"
+    ) {
+      throw new Error(`experimental examples menu width check failed: ${JSON.stringify(expMenuCheck)}`);
+    }
+    await page.keyboard.press("Escape");
+
+    await choose("grammars/lojban/cll/pipeline.md");
+    await idle("returning to lojban/cll before width checks");
+    await page.locator("#tab-brackets").click();
+    await idle("returning to brackets before width checks");
+
+    for (const [w, expectedPhone, expectedStep] of [
+      [1440, false, ""],
+      [760, false, "1"],
+      [600, false, "2"],
+      [560, true, ""],
+      [390, true, ""],
+      [320, true, ""],
+    ]) {
+      await page.setViewportSize({ width: w, height: 844 });
+      const m = await run(() => {
+        window.dispatchEvent(new Event("resize"));
+        const app = document.getElementById("app");
+        const topbar = document.getElementById("topbar");
+        return {
+          phone: app.classList.contains("phone"),
+          step: topbar.getAttribute("data-overflow") || "",
+          scrollW: document.documentElement.scrollWidth,
+          winW: window.innerWidth,
+        };
+      });
+      if (m.phone !== expectedPhone || m.step !== expectedStep || m.scrollW > m.winW) {
+        throw new Error(`width check failed at ${w}px: ${JSON.stringify({ m, expectedPhone, expectedStep })}`);
+      }
+    }
+
+    // At 390px phone viewport, check Tokens table tags second-line layout.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.locator("#tab-tokens").click();
+    await idle("tokens view at 390px");
+    const phoneTokCheck = await run(() => {
+      const wrap = document.querySelector("#output .table-wrap");
+      const table = document.querySelector("#output table.tokens");
+      const thTags = table ? table.querySelector("th.tags") : null;
+      const row = table ? table.querySelector("tbody tr.has-tags") : null;
+      const tdText = row ? row.querySelectorAll("td")[1] : null;
+      const tdTags = row ? row.querySelector("td.tags") : null;
+      const rText = tdText ? tdText.getBoundingClientRect() : null;
+      const rTags = tdTags ? tdTags.getBoundingClientRect() : null;
+      return {
+        hasThTags: !!thTags,
+        textLeft: rText ? Math.round(rText.left) : null,
+        tagsLeft: rTags ? Math.round(rTags.left) : null,
+        textBottom: rText ? Math.round(rText.bottom) : null,
+        tagsTop: rTags ? Math.round(rTags.top) : null,
+        wrapClientW: wrap ? wrap.clientWidth : 0,
+        wrapScrollW: wrap ? wrap.scrollWidth : 1,
+      };
+    });
+    if (
+      phoneTokCheck.hasThTags ||
+      Math.abs(phoneTokCheck.tagsLeft - phoneTokCheck.textLeft) > 1 ||
+      phoneTokCheck.tagsTop < phoneTokCheck.textBottom - 2 ||
+      phoneTokCheck.wrapScrollW > phoneTokCheck.wrapClientW
+    ) {
+      throw new Error(`phone tokens table tags layout check failed: ${JSON.stringify(phoneTokCheck)}`);
+    }
+
+    // Deep nesting, Trace 5th section, Token diagnostics, and phone More actions menu:
+    // 1. Deep nesting: first word of every line lies inside the pane or its scroll range,
+    //    and right edge fades out while more lies to the right.
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await choose("grammars/lojban/cll/pipeline.md");
+    const deepText = "mi djuno le du'u ".repeat(7) + "do klama";
+    await type(deepText);
+    await answerFor(deepText);
+    for (const viewName of ["tree", "json"]) {
+      await page.locator(`#tab-${viewName}`).click();
+      for (let attempt = 0; attempt < 600; attempt++) {
+        const hasLines = await page.evaluate(() => document.querySelectorAll("#output pre.code-block .wline").length > 20);
+        if (hasLines) break;
+        await sleep(50);
+      }
+      const deepCheck = await page.evaluate(() => {
+        const pre = document.querySelector("#output pre.code-block");
+        if (!pre) return { ok: false, reason: "no pre" };
+        pre.scrollLeft = 0;
+        const preBox = pre.getBoundingClientRect();
+        const style = getComputedStyle(pre);
+        const lines = [...pre.querySelectorAll(".wline")];
+        let outOfRange = 0;
+        let maxLead = 0;
+        for (const line of lines) {
+          const lead = (line.querySelector(".wsp")?.textContent || "").replace(/\n/g, "").length;
+          if (lead > maxLead) maxLead = lead;
+          const firstRun = line.querySelector(".wrun");
+          if (!firstRun) continue;
+          const rBox = firstRun.getBoundingClientRect();
+          const relLeft = rBox.left - preBox.left + pre.scrollLeft;
+          const relRight = rBox.right - preBox.left + pre.scrollLeft;
+          if (relLeft < -1 || relRight > pre.scrollWidth + 2) {
+            outOfRange++;
+          }
+        }
+        const moreAtStart = pre.classList.contains("more");
+        pre.scrollLeft = pre.scrollWidth - pre.clientWidth;
+        pre.dispatchEvent(new Event("scroll"));
+        const moreAtEnd = pre.classList.contains("more");
+        pre.scrollLeft = 0;
+        pre.dispatchEvent(new Event("scroll"));
+        return {
+          ok: true,
+          overflowX: style.overflowX,
+          maxLead,
+          lineCount: lines.length,
+          outOfRange,
+          scrollWidth: pre.scrollWidth,
+          clientWidth: pre.clientWidth,
+          moreAtStart,
+          moreAtEnd,
+        };
+      });
+      if (
+        !deepCheck.ok ||
+        deepCheck.overflowX !== "auto" ||
+        deepCheck.outOfRange !== 0 ||
+        deepCheck.scrollWidth <= deepCheck.clientWidth ||
+        !deepCheck.moreAtStart ||
+        deepCheck.moreAtEnd
+      ) {
+        throw new Error(`deep nesting check (${viewName}) failed: ${JSON.stringify(deepCheck)}`);
+      }
+    }
+
+    // 2. Trace 5 sections: Completed, Advanced, Predicted, Dropped, Could read next
+    await type("mi klama le le");
+    await answerFor("mi klama le le");
+    await page.locator("#tab-trace").click();
+    await page.evaluate(() => {
+      self.playground.state.trace.stage = "syntax";
+      self.playground.state.trace.position = 4;
+      self.playground.schedule(0);
+    });
+    for (let attempt = 0; attempt < 600; attempt++) {
+      const hasSecs = await page.evaluate(() => document.querySelectorAll("#output .trace-sections .sec").length === 5);
+      if (hasSecs) break;
+      await sleep(50);
+    }
+    const trace5Check = await page.evaluate(() => {
+      const secs = [...document.querySelectorAll("#output .trace-sections .sec")].map((s) => ({
+        title: s.childNodes[0]?.textContent?.trim() || "",
+        count: s.querySelector("span")?.textContent?.trim() || "",
+      }));
+      const lastSec = document.querySelectorAll("#output .trace-sections .sec")[4];
+      const firstExpected = lastSec?.nextElementSibling;
+      const hasTermSpan = !!firstExpected?.querySelector(".t");
+      const hasRulesSpan = !!firstExpected?.querySelector(".muted");
+      return {
+        secs,
+        hasTermSpan,
+        hasRulesSpan,
+        firstExpectedText: firstExpected?.textContent || "",
+      };
+    });
+    if (
+      trace5Check.secs.length !== 5 ||
+      trace5Check.secs[4].title !== "Could read next" ||
+      trace5Check.secs[4].count !== "49 items" ||
+      !trace5Check.hasTermSpan ||
+      !trace5Check.hasRulesSpan ||
+      !/\(.+\)$/.test(trace5Check.firstExpectedText)
+    ) {
+      throw new Error(`Trace 5th section check failed: ${JSON.stringify(trace5Check)}`);
+    }
+
+    // 3. Token diagnostics & Elision-only Default: off wording
+    await choose("grammars/eberban/refgram/pipeline.md");
+    await type("a mi dona pban");
+    await answerFor("a mi dona pban");
+    await page.locator("#tab-tokens").click();
+    await page.evaluate(() => {
+      self.playground.state.tokenStage = "forms";
+      self.playground.schedule(0);
+    });
+    for (let attempt = 0; attempt < 600; attempt++) {
+      const hasErrChip = await page.evaluate(() => !!document.querySelector("#output table.tokens td.tags .tok-err"));
+      if (hasErrChip) break;
+      await sleep(50);
+    }
+    const tokDiagDesktop = await page.evaluate(() => {
+      const headers = [...document.querySelectorAll("#output table.tokens th")].map((th) => th.textContent.trim());
+      const pbanRow = [...document.querySelectorAll("#output table.tokens tbody tr")].find((tr) =>
+        tr.textContent.includes('"pban"')
+      );
+      const tdText = pbanRow ? pbanRow.querySelectorAll("td")[1] : null;
+      const tdTags = pbanRow ? pbanRow.querySelector("td.tags") : null;
+      const rText = tdText ? tdText.getBoundingClientRect() : null;
+      const rTags = tdTags ? tdTags.getBoundingClientRect() : null;
+      const chipsInTagsLine = pbanRow
+        ? [...pbanRow.querySelectorAll("td.tags .tag")].map((el) => ({
+            text: el.textContent,
+            cls: el.className,
+            aria: el.getAttribute("aria-label"),
+          }))
+        : [];
+      const elisionDesc = document.getElementById("elision-only-desc")?.textContent || "";
+      const docMoreDesktopVisible = getComputedStyle(document.getElementById("doc-more-actions")).display !== "none";
+      return {
+        headers,
+        textLeft: rText ? Math.round(rText.left) : null,
+        tagsLeft: rTags ? Math.round(rTags.left) : null,
+        textBottom: rText ? Math.round(rText.bottom) : null,
+        tagsTop: rTags ? Math.round(rTags.top) : null,
+        chipsInTagsLine,
+        elisionDesc,
+        docMoreDesktopVisible,
+      };
+    });
+    if (
+      tokDiagDesktop.headers.join(",") !== "#,text,value,image,span,source" ||
+      Math.abs(tokDiagDesktop.tagsLeft - tokDiagDesktop.textLeft) > 1 ||
+      tokDiagDesktop.tagsTop < tokDiagDesktop.textBottom - 2 ||
+      tokDiagDesktop.chipsInTagsLine.length < 2 ||
+      tokDiagDesktop.chipsInTagsLine[0].text !== "pair-voiceness" ||
+      tokDiagDesktop.chipsInTagsLine[0].aria !== "Error: pair-voiceness" ||
+      tokDiagDesktop.elisionDesc !== "Default: off" ||
+      tokDiagDesktop.docMoreDesktopVisible
+    ) {
+      throw new Error(`desktop token diagnostics, elision wording, or doc-more check failed: ${JSON.stringify(tokDiagDesktop)}`);
+    }
+
+    // 4. Phone Token diagnostics (390px) and More actions menu
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.evaluate(() => window.dispatchEvent(new Event("resize")));
+    await sleep(100);
+    const phoneTokDiag = await page.evaluate(() => {
+      const headers = [...document.querySelectorAll("#output table.tokens th")].map((th) => th.textContent.trim());
+      const pbanRow = [...document.querySelectorAll("#output table.tokens tbody tr")].find((tr) =>
+        tr.textContent.includes('"pban"')
+      );
+      const tdText = pbanRow ? pbanRow.querySelectorAll("td")[1] : null;
+      const tdTags = pbanRow ? pbanRow.querySelector("td.tags") : null;
+      const rText = tdText ? tdText.getBoundingClientRect() : null;
+      const rTags = tdTags ? tdTags.getBoundingClientRect() : null;
+      const chipsInTagsLine = pbanRow
+        ? [...pbanRow.querySelectorAll("td.tags .tag")].map((el) => ({
+            text: el.textContent,
+            cls: el.className,
+            aria: el.getAttribute("aria-label"),
+          }))
+        : [];
+      return {
+        headers,
+        textLeft: rText ? Math.round(rText.left) : null,
+        tagsLeft: rTags ? Math.round(rTags.left) : null,
+        textBottom: rText ? Math.round(rText.bottom) : null,
+        tagsTop: rTags ? Math.round(rTags.top) : null,
+        chipsInTagsLine,
+      };
+    });
+    if (
+      phoneTokDiag.headers.join(",") !== "#,text,value,image,span,source" ||
+      Math.abs(phoneTokDiag.tagsLeft - phoneTokDiag.textLeft) > 1 ||
+      phoneTokDiag.tagsTop < phoneTokDiag.textBottom - 2 ||
+      phoneTokDiag.chipsInTagsLine.length < 2 ||
+      phoneTokDiag.chipsInTagsLine[0].text !== "pair-voiceness" ||
+      phoneTokDiag.chipsInTagsLine[0].aria !== "Error: pair-voiceness"
+    ) {
+      throw new Error(`phone token diagnostics check failed: ${JSON.stringify(phoneTokDiag)}`);
+    }
+
+    await page.evaluate(() => {
+      self.playground.openDocument("grammars/eberban/refgram/pipeline.md", 1, 1);
+      const ed = self.playground.editor;
+      ed.editValue(ed.getValue() + "\n");
+    });
+    await sleep(400);
+    await page.locator("#doc-more-actions").click();
+    const moreMenuCheck = await page.evaluate(() => {
+      const btn = document.getElementById("doc-more-actions");
+      const menu = document.getElementById("doc-more-menu");
+      const btnRect = btn.getBoundingClientRect();
+      const menuRect = menu.getBoundingClientRect();
+      const items = [...menu.querySelectorAll(".doc-more-item")].map((it) => ({
+        text: it.textContent.trim(),
+        disabled: it.disabled,
+        hasSvg: !!it.querySelector("svg"),
+        sep: it.classList.contains("sep"),
+      }));
+      return {
+        hidden: menu.hidden,
+        rightDiff: Math.abs(btnRect.right - menuRect.right),
+        items,
+      };
+    });
+    if (
+      moreMenuCheck.hidden ||
+      moreMenuCheck.rightDiff > 2 ||
+      moreMenuCheck.items.length !== 3 ||
+      moreMenuCheck.items[0].text !== "Reset pipeline" ||
+      moreMenuCheck.items[0].disabled !== false ||
+      moreMenuCheck.items[1].text !== "Download pipeline" ||
+      moreMenuCheck.items[1].disabled !== false ||
+      moreMenuCheck.items[2].text !== "Download edited (1)" ||
+      moreMenuCheck.items[2].disabled !== false ||
+      !moreMenuCheck.items[2].sep ||
+      !moreMenuCheck.items.every((it) => it.hasSvg)
+    ) {
+      throw new Error(`phone More actions menu check failed: ${JSON.stringify(moreMenuCheck)}`);
+    }
+    await page.locator("#doc-more-reset").click();
+    const activeAfterDocMoreReset = await page.evaluate(() => document.activeElement?.id || "");
+    if (activeAfterDocMoreReset !== "doc-more-actions") {
+      throw new Error(`More actions Reset did not return focus to #doc-more-actions: ${activeAfterDocMoreReset}`);
+    }
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.evaluate(() => window.dispatchEvent(new Event("resize")));
+    await choose("grammars/lojban/cll/pipeline.md");
+    await type("mi klama le le");
+    await answerFor("mi klama le le");
+    const failedChipTitle = await page.evaluate(() => {
+      const chips = [...document.querySelectorAll("#stage-flow .stage")];
+      return chips[chips.length - 1]?.getAttribute("title") || "";
+    });
+    if (failedChipTitle !== "Show tokens from indicators, read by syntax") {
+      throw new Error(`failed stage chip tooltip check failed: ${failedChipTitle}`);
+    }
+
+    if ((await page.locator(".cm-content").count()) > 0) {
+      await page.evaluate(() => self.playground.openDocument("grammars/lojban/cll/latin.md", 1, 1));
+      const latOrigLen = await page.evaluate(() => self.playground.editor.getValue().length);
+      await page.locator(".cm-content").focus();
+      await page.keyboard.press("Control+Home");
+      await page.keyboard.type("X");
+      await page.evaluate(() => self.playground.openDocument("grammars/lojban/cll/latin.md", 5, 1));
+      await page.locator(".cm-content").focus();
+      await page.keyboard.press("Control+z");
+      const latAfterNavUndoLen = await page.evaluate(() => self.playground.editor.getValue().length);
+      if (latAfterNavUndoLen !== latOrigLen) {
+        throw new Error(`same-document navigation lost undo history: ${latAfterNavUndoLen} !== ${latOrigLen}`);
+      }
+      await page.evaluate(() => self.playground.openDocument(null));
+    }
+
+    await type("mi klama le zarci");
+    await answerFor("mi klama le zarci");
+    await page.locator("#tab-brackets").click();
+    await idle("returning to brackets after layout and editor checks");
+    console.log(`redesigned layout, full editor, and phone checks work in ${browser}`);
+
+    // Basic editor variant: served without playground/vendor/, with zero failed requests.
+    const basicPage = await instance.newPage();
+    const basicFailedRequests = [];
+    basicPage.on("requestfailed", (req) => {
+      basicFailedRequests.push(`${req.method()} ${req.url()} (${req.failure()?.errorText || "failed"})`);
+    });
+    basicPage.on("response", (res) => {
+      if (res.status() >= 400) {
+        basicFailedRequests.push(`${res.request().method()} ${res.url()} (HTTP ${res.status()})`);
+      }
+    });
+    if (fs.existsSync(path.join(repository, "playground/vendor/codemirror.js"))) {
+      const basicGrammarsBody = fs
+        .readFileSync(path.join(repository, "dist/grammars.js"), "utf8")
+        .replace('root.gencmuEditor = "full";', 'root.gencmuEditor = "basic";');
+      await basicPage.route("**/dist/grammars.js", (route) =>
+        route.fulfill({ status: 200, contentType: "text/javascript", body: basicGrammarsBody })
+      );
+      await basicPage.route("**/playground/vendor/**", (route) => route.fulfill({ status: 404, body: "missing" }));
+      await basicPage.route("**/playground/editor-full.js", (route) => route.fulfill({ status: 404, body: "missing" }));
+    } else if (fs.existsSync(path.join(repository, "playground/editor-full.js"))) {
+      throw new Error("basic build still ships playground/editor-full.js");
+    }
+    await basicPage.goto(target);
+    const basicStarted = await (async () => {
+      for (let attempt = 0; attempt < 600; attempt++) {
+        const val = await basicPage.evaluate(() => {
+          const status = document.getElementById("status");
+          return status && ["ready", "error"].includes(status.dataset.state)
+            ? { state: status.dataset.state, variant: self.playground?.editor?.variant, caps: self.playground?.editor?.capabilities }
+            : null;
+        });
+        if (val !== null) return val;
+        await sleep(100);
+      }
+      throw new Error("timed out waiting for basic editor variant to start");
+    })();
+    if (
+      basicStarted.state !== "ready" ||
+      basicStarted.variant !== "basic" ||
+      basicStarted.caps?.syntaxColors !== false ||
+      basicStarted.caps?.wrappedLineNumbers !== false ||
+      basicStarted.caps?.marginMarks !== false
+    ) {
+      throw new Error(`basic editor variant did not initialize as expected: ${JSON.stringify(basicStarted)}`);
+    }
+    await basicPage.evaluate(() => {
+      const btn = document.querySelector('#examples-menu button[data-example-id="clause-erasure-sa"]');
+      if (!btn) throw new Error("missing clause-erasure-sa in basic editor examples menu");
+      btn.click();
+    });
+    for (let attempt = 0; attempt < 600; attempt++) {
+      const exLoaded = await basicPage.evaluate(() => {
+        const status = document.getElementById("status");
+        const result = document.getElementById("result");
+        return status.dataset.state === "ready" &&
+          !result.hasAttribute("aria-busy") &&
+          result.dataset.for.includes("badna")
+          ? true
+          : null;
+      });
+      if (exLoaded) break;
+      await sleep(100);
+    }
+    const basicOpened = await basicPage.evaluate(() => {
+      const ta = document.getElementById("doc-text");
+      const cur = self.playground.editor.getCursor();
+      const menuHead = document.querySelector("#examples-menu .mgroup")?.textContent || "";
+      const menuFoot = document.querySelector("#examples-menu .ex-foot")?.textContent || "";
+      const noteLink = document.getElementById("example-hint-rule")?.textContent || "";
+      return {
+        hasTextarea: ta instanceof HTMLTextAreaElement,
+        hasCm: !!document.querySelector("#editor-body .cm-editor"),
+        label: ta ? ta.getAttribute("aria-label") : null,
+        lineText: cur.lineText,
+        menuHead,
+        menuFoot,
+        noteLink,
+      };
+    });
+    if (
+      !basicOpened.hasTextarea ||
+      basicOpened.hasCm ||
+      basicOpened.label !== "stream.md" ||
+      basicOpened.lineText !== "%rule sa-erasure" ||
+      basicOpened.menuHead !== "Examples for lojban/cll" ||
+      basicOpened.menuFoot !== "Other pipelines have 23 more examples." ||
+      basicOpened.noteLink !== "Open common/stream.md at sa-erasure"
+    ) {
+      throw new Error(`basic editor did not open stream.md on %rule sa-erasure via example: ${JSON.stringify(basicOpened)}`);
+    }
+    await basicPage.evaluate(() => {
+      self.playground.openDocument("grammars/lojban/cll/syntax.md", 345, 1);
+    });
+    await basicPage.evaluate(() => {
+      const ed = self.playground.editor;
+      ed.editValue(ed.getValue().replace("sumti-tail [+KU", "sumti-tali [+KU"));
+      ed.goTo(1, 1);
+    });
+    for (let attempt = 0; attempt < 600; attempt++) {
+      const readyErr = await basicPage.evaluate(() => {
+        const status = document.getElementById("status");
+        const bar = document.getElementById("doc-error-bar");
+        return status.dataset.state === "ready" && bar && !bar.hidden ? true : null;
+      });
+      if (readyErr) break;
+      await sleep(100);
+    }
+    await basicPage.locator("#doc-error-jump").click();
+    const basicJumped = await basicPage.evaluate(() => ({
+      lineText: self.playground.editor.getCursor().lineText,
+      srText: document.getElementById("editor-error-sr")?.textContent || "",
+    }));
+    if (basicJumped.lineText !== "%rule sumti-6" || !/^Line \d+, error:/.test(basicJumped.srText)) {
+      throw new Error(`basic editor Go to line:column or sr text failed: ${JSON.stringify(basicJumped)}`);
+    }
+    await basicPage.locator("#doc-reset").click();
+    for (let attempt = 0; attempt < 600; attempt++) {
+      const restored = await basicPage.evaluate(() => {
+        const status = document.getElementById("status");
+        const bar = document.getElementById("doc-error-bar");
+        const badge = document.querySelector("#summary .badge");
+        return status.dataset.state === "ready" && bar?.hidden && badge?.textContent === "Accepted" ? true : null;
+      });
+      if (restored) break;
+      await sleep(100);
+    }
+    if (basicFailedRequests.length > 0) {
+      throw new Error(`basic editor variant had failed network requests: ${basicFailedRequests.join("; ")}`);
+    }
+    console.log(`basic editor variant works in ${browser}`);
     console.log(`playground works in ${browser} at ${target}, ${version}`);
   } finally {
     await instance.close();

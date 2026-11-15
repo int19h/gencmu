@@ -25,8 +25,22 @@
 
   // This synchronous classic script follows the module resolver's rule.
   // Keep this rule in step with lib/js/src/markdown.js, engine §13.
+  let errorClass = null;
+  function setErrorClass(cls) {
+    errorClass = cls;
+  }
+  function makeGrammarError(message, where) {
+    const Err = errorClass || (root.gencmu && root.gencmu.GencmuError);
+    if (Err) return new Err("grammar", message, where);
+    const error = new Error(message);
+    error.kind = "grammar";
+    error.where = where;
+    return error;
+  }
   function resolvePath(from, relative) {
-    if (relative.startsWith("/")) throw new root.gencmu.GencmuError("grammar", "a path target must be relative", {document:from});
+    if (relative.startsWith("/")) {
+      throw makeGrammarError("a path target must be relative", { document: from });
+    }
     const absolute = from.startsWith("/");
     const parts = [];
     for (const part of [...from.split("/").slice(0, -1), ...relative.split("/")]) {
@@ -145,7 +159,7 @@
       catch (error) {
         if (error.kind !== "grammar") throw error;
         const where = {document, ...(at ? {line:at[0], column:at[1]} : {})};
-        errors.push(new root.gencmu.GencmuError("grammar", error.message, where));
+        errors.push(makeGrammarError(error.message, where));
         return undefined;
       }
     };
@@ -288,5 +302,41 @@
     return found;
   }
 
-  root.gencmuPipeline = { pipelineStages, resolvePath, documentMentions, hooks };
-})(typeof self !== "undefined" ? self : this);
+  function isPlainObject(value) {
+    return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+  }
+
+  function mergeExampleForPipeline(example, pipelineName) {
+    const override =
+      isPlainObject(example.byPipeline) && isPlainObject(example.byPipeline[pipelineName])
+        ? example.byPipeline[pipelineName]
+        : {};
+
+    let features = {};
+    if (isPlainObject(example.features)) {
+      features = { ...example.features };
+    }
+    if (isPlainObject(override.features)) {
+      features = { ...features, ...override.features };
+    }
+
+    const pick = (field, fallback) => {
+      if (field in override) {
+        return override[field] === null ? fallback : override[field];
+      }
+      return example[field] !== undefined ? example[field] : fallback;
+    };
+
+    return {
+      features,
+      warnings: pick("warnings", null),
+      elisionOnly: pick("elisionOnly", undefined),
+      view: pick("view", "brackets"),
+      showElided: pick("showElided", false),
+      hint: pick("hint", null),
+      open: pick("open", null),
+    };
+  }
+
+  root.gencmuPipeline = { pipelineStages, resolvePath, documentMentions, mergeExampleForPipeline, setErrorClass, hooks };
+})(typeof self !== "undefined" ? self : globalThis);
