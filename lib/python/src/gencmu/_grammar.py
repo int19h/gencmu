@@ -756,7 +756,8 @@ class _Constants:
                 for key, value in node.items():
                     values[key] = yield resolve(value)
                 copy = node if all(values[key] is value for key, value in node.items()) else values
-                if copy is not node and hasattr(node, "at") and ("concat" in node or "default" in node):
+                # A copy keeps the positions held outside the node's members.
+                if copy is not node and getattr(node, "__dict__", None):
                     copy = shallow_copy(node)
                     copy.update(values)
             copies[id(node)] = copy

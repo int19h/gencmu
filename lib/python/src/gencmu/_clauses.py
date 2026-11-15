@@ -605,35 +605,6 @@ def _condition(dom: Dom, present: AbstractSet[str], absent: AbstractSet[str] | N
     return dom, None
 
 
-def guarded_clause_bare_empty_set(rule: Dom) -> bool:
-    """Whether a bare empty set stands on the condition side of a guarded
-    term in a tag clause of a rule (engine §10). DOM admission runs this
-    once per rule, where check_definition can run several times."""
-    clauses: list[Any] = [rule.get("tags"), rule.get("value"), rule.get("image"), rule.get("error"), rule.get("warning")]
-    clauses.extend(alternative.get(channel) for alternative in rule["alternatives"] for channel in ("tags", "value", "image"))
-    emit = rule.get("emit")
-    if emit is not None:
-        for item in emit["items"]:
-            clauses.extend([item.get("tags"), item.get("value"), item.get("image")])
-    return any(clause is not None and _guarded_bare_empty_set(clause) for clause in clauses)
-
-
-def _guarded_bare_empty_set(term: Any) -> bool:
-    """Whether a bare empty set stands on the condition side of a guarded
-    term anywhere in a tag clause (engine §10). Only a guarded term holds
-    a condition there, so other subtrees cannot hold the wrapper."""
-    pending = [term]
-    while pending:
-        node = pending.pop()
-        if isinstance(node, dict):
-            if "if" in node and has_bare_empty_set(node["if"]):
-                return True
-            pending.extend(value for key, value in node.items() if key != "at")
-        elif isinstance(node, list):
-            pending.extend(node)
-    return False
-
-
 def has_bare_empty_set(condition: Any) -> bool:
     """Whether a bare empty set stands as the term of a set-as-condition
     anywhere in a condition (engine §10)."""
@@ -1488,6 +1459,12 @@ def _definition_issues(rule: Dom, held: Any = None):
     for names, present in distinct.values():
         for name in names:
             capturing.setdefault(name, []).append(present)
+    # A bare empty set in a Boolean position has no kind, so it is an
+    # error wherever it stands: in a condition, or in the guard of a
+    # guarded term in a clause (engine §10).
+    for _, clause, _ in clauses:
+        if has_bare_empty_set(clause):
+            yield DefinitionIssue("independent", f"a condition of {rule['name']} is the empty set")
     for condition_index, condition in enumerate(rule["conditions"]):
         if has_bare_empty_set(condition):
             yield DefinitionIssue("independent", f"a condition of {rule['name']} is the empty set")
