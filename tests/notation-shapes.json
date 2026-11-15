@@ -1814,7 +1814,7 @@
       }
     },
     {
-      "description": "A method converts its receiver before requiring selectors.",
+      "description": "A method that lacks its selectors is a conversion fault, so it precedes an unknown engine tag in its receiver, which the DOM validator reports.",
       "find": "{\"name\":\"method-chain\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"method-receiver\",\"at\":[*]},{\"repeat\":{\"ref\":\"method-selector\",\"at\":[*]},\"at\":[*]}],\"at\":[*]}}],\"conditions\":[],\"at\":[*]}",
       "replace": "{\"name\":\"method-chain\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\".\"}},{\"ref\":\"method-receiver\"}]}}],\"conditions\":[],\"at\":[*]}",
       "document": "```jbogenbau\n%const $X . _Nope\n```\n",
@@ -1823,7 +1823,7 @@
       "where": {
         "document": "g.md",
         "line": 2,
-        "column": 13
+        "column": 11
       }
     },
     {
@@ -2039,7 +2039,7 @@
       }
     },
     {
-      "description": "A pattern operand error precedes a missing union operator.",
+      "description": "A missing union operator is a conversion fault, so it precedes an unknown engine tag in an operand, which the DOM validator reports.",
       "find": "{\"name\":\"pattern-union\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"repeat\":{\"ref\":\"pattern-intersection\",\"at\":[*]},\"separator\":{\"choice\":[{\"literal\":{\"string\":\"∪\"},\"at\":[*]},{\"literal\":{\"string\":\"∖\"},\"at\":[*]}],\"at\":[*]},\"at\":[*]}}],\"conditions\":[],\"at\":[*]}",
       "replace": "{\"name\":\"pattern-union\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"pattern-intersection\"},{\"ref\":\"pattern-intersection\"}]}}],\"conditions\":[],\"at\":[*]}",
       "document": "```jbogenbau\n%const $P #(a _Nope)\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
@@ -2048,11 +2048,11 @@
       "where": {
         "document": "g.md",
         "line": 2,
-        "column": 15
+        "column": 13
       }
     },
     {
-      "description": "A child operand error precedes a missing set operator.",
+      "description": "A missing set operator is a conversion fault, so it precedes an unknown engine tag in a child operand, which the DOM validator reports.",
       "find": "{\"name\":\"child-alternative\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"ref\":\"child-sequence\",\"at\":[*]}},{\"gates\":[],\"expr\":{\"ref\":\"child-set-operation\",\"at\":[*]}}],\"conditions\":[],\"at\":[*]},{\"name\":\"child-sequence\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"repeat\":{\"ref\":\"child-item\",\"at\":[*]},\"at\":[*]}}],\"conditions\":[],\"at\":[*]},{\"name\":\"child-set-operation\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"child-intersection\",\"at\":[*]},{\"choice\":[{\"literal\":{\"string\":\"∪\"},\"at\":[*]},{\"literal\":{\"string\":\"∖\"},\"at\":[*]}],\"at\":[*]},{\"repeat\":{\"ref\":\"child-intersection\",\"at\":[*]},\"separator\":{\"choice\":[{\"literal\":{\"string\":\"∪\"},\"at\":[*]},{\"literal\":{\"string\":\"∖\"},\"at\":[*]}],\"at\":[*]},\"at\":[*]}],\"at\":[*]}},{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"child-path\",\"at\":[*]},{\"literal\":{\"string\":\"∩\"},\"at\":[*]},{\"repeat\":{\"ref\":\"child-path\",\"at\":[*]},\"separator\":{\"literal\":{\"string\":\"∩\"},\"at\":[*]},\"at\":[*]}],\"at\":[*]}}],\"conditions\":[],\"at\":[*]}",
       "replace": "{\"name\":\"child-alternative\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"ref\":\"child-set-operation\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"child-sequence\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"repeat\":{\"ref\":\"child-item\"}}}],\"conditions\":[],\"at\":[*]},{\"name\":\"child-set-operation\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"child-intersection\"},{\"ref\":\"child-intersection\"}]}}],\"conditions\":[],\"at\":[*]}",
       "document": "```jbogenbau\n%const $P #⁅ a _Nope ⁆\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
@@ -2061,7 +2061,7 @@
       "where": {
         "document": "g.md",
         "line": 2,
-        "column": 16
+        "column": 14
       }
     },
     {

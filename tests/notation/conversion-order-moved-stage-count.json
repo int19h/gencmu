@@ -1,0 +1,10 @@
+{
+  "description": "A chain in a parse body, a DOM fault, precedes a %stage with two operands in a later declaration, which the DOM validator also reports (engine §9.3).",
+  "document": "```jbogenbau\n%rule a $y:A %conditions $y.parse({ ... \"a\" / \"b\" })\n%stage a b\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 35
+    }
+  }
+}

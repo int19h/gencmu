@@ -1,0 +1,10 @@
+{
+  "description": "A range in a term position is a conversion fault with no DOM form, so it precedes a DOM fault in an earlier declaration (engine §9.3).",
+  "document": "```jbogenbau\n%rule a $y:A %conditions $y.parse({ ... \"a\" / \"b\" })\n%rule b :: \"a\"..\"b\" | A\n```\n",
+  "expect": {
+    "error": {
+      "line": 3,
+      "column": 12
+    }
+  }
+}

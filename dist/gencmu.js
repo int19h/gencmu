@@ -6568,6 +6568,8 @@
     const stringTerm = value => !value?.grouped && (stringAtom(value) || object(value) && "param" in value);
     /** @type {(value: any) => boolean} */
     const tag = value => typeof value === "string" && (/^(?!.*--)[A-Z][A-Za-z0-9_-]*$/.test(value) || (value.startsWith("_") && value !== "_" && unicode.canonicalTag(value) === value));
+    /** @type {(value: any) => string | null} */
+    const unknownEngineTag = value => typeof value === "string" && value.startsWith("_") && value !== "_" && !unicode.canonicalTag(value) ? `unknown engine tag ${value}; every _ tag is a Unicode property` : null;
     /** @type {(value: any) => boolean} */
     const constant = value => typeof value === "string" && CONSTANT_NAME.test(value);
     /** @type {(values: any) => boolean} */
@@ -6680,7 +6682,12 @@
         }
         if (kind === "pattern") {
           const pFault = layeredPatternFault(value, { depth, deferDepth: true, name: name => ruleName(name) && !tag(name), terminal: name => name === "_Elided" || tag(name), range: rangeProblem });
-          if (pFault) return report(pFault.problem, pFault.node ?? (task.at ? { at: task.at } : value));
+          if (pFault) {
+            // An unknown engine tag gets its own message, as in a term.
+            const node = /** @type {any} */ (pFault.node);
+            const unknown = ["a malformed pattern terminal", "a malformed pattern requirement"].includes(pFault.problem) ? unknownEngineTag(node?.terminal ?? node?.tag) : null;
+            return report(unknown ?? pFault.problem, pFault.node ?? (task.at ? { at: task.at } : value));
+          }
           if (layeredPatternProblem(value, { depth, name: name => ruleName(name) && !tag(name), terminal: name => name === "_Elided" || tag(name), range: rangeProblem }) === "nested too deeply") {
             firstDeepAt ??= declAt;
           }
@@ -6816,7 +6823,8 @@
           } else if ("optional" in value) {
             if (!exprExact(value, ["optional", "elidable", "default"]) || !("optional" in value) || !object(value.optional) || "elidable" in value && (value.elidable !== true || !elidableHead(value.optional))) return report("a malformed optional");
             if ("default" in value) {
-              if (value.elidable !== true || !stringTerm(value.default)) return report("a malformed default", value.default);
+              if (value.elidable !== true) return report("a malformed default", value.default);
+              if (!stringTerm(value.default)) return report("a default requires one string", value.default);
               if ("string" in value.default) {
                 let head = "capture" in value.optional ? value.optional.expr : "seq" in value.optional ? value.optional.seq[0] : value.optional;
                 while (object(head) && "test" in head) {
@@ -6844,7 +6852,7 @@
             if (problem) return report(problem);
             pushReverse(value.range, end => push("term", end, depth, { params: task.params, at: enclosingAt, featureDirectiveAt: task.featureDirectiveAt }));
           } else if ("ref" in value) {
-            if (!exprSingle(value, "ref") || !(ruleName(value.ref) || tag(value.ref))) return report("a malformed reference");
+            if (!exprSingle(value, "ref") || !(ruleName(value.ref) || tag(value.ref))) return report(unknownEngineTag(value.ref) ?? "a malformed reference");
           } else if (!((exprSingle(value, "empty") && value.empty === true) || (exprSingle(value, "wildcard") && value.wildcard === true))) {
             return report("a malformed expression");
           }
@@ -6870,6 +6878,7 @@
             if (typeof item.capture === "string" && item.capture !== "" && !CAPTURE_NAME.test(item.capture)) return fault("a malformed emission item", undefined, declAt);
             for (const side of ["before", "after"]) if (side in item) {
               if (!item.capture || !Array.isArray(item[side]) || !item[side].length || !item[side].every((/** @type {any} */ name) => typeof name === "string")) return report("a malformed attachment", item);
+              if (item[side].includes("")) return report("an attachment holds a named capture, not $", item);
               if (!item[side].every((/** @type {string} */ name) => CAPTURE_NAME.test(name))) return fault("a malformed attachment", undefined, declAt);
             }
           }
@@ -6890,6 +6899,7 @@
           }
           for (const atom of value.concat) {
             if (!object(atom)) return report("a malformed recipe atom", atom);
+            if (["union", "intersection", "difference", "if"].some(key => key in atom)) return report("a recipe atom has no set operator", atom);
             if (!stringAtom(atom) && !atom.param) {
               if (!["value", "image", "source-text", "decomposed-source-text", "verbatim-text"].includes(atom.method) || atom.args?.length !== 0) return report("a malformed recipe atom", atom);
               const receiver = atom.receiver;
@@ -6926,7 +6936,7 @@
           if ("string" in value) {
             if (typeof value.string !== "string" || /[\uD800-\uDFFF]/u.test(value.string)) return report("a malformed scalar string");
           } else if (value.tag) {
-            if (!(task.patternTag && value.tag === "_Elided") && !tag(value.tag)) return report("a malformed tag");
+            if (!(task.patternTag && value.tag === "_Elided") && !tag(value.tag)) return report(unknownEngineTag(value.tag) ?? "a malformed tag");
           } else if (value.const) {
             if (!constant(value.const) || !position(value.at)) return report("a malformed constant reference");
           } else if ("emptySet" in value) {
@@ -7125,11 +7135,11 @@
         } else if (!Array.isArray(args) || args.some((/** @type {any} */ arg) => typeof arg !== "string")) {
           headerFault = fault("a malformed directive", decl, declAt);
         } else if (name === "elision-only" && args.length !== 0) {
-          headerFault = fault("a malformed directive", decl, declAt);
+          headerFault = fault("%elision-only takes no operand", decl, declAt);
         } else if (["stage", "extend-stage", "redefine-stage"].includes(name) && !(args.length === 1 && CLASSIFIER_NAME.test(args[0]))) {
           headerFault = fault(`%${name} takes one lowercase name`, decl, declAt);
         } else if ((name === "include" || name === "names") && args.length !== 1 || name === "features" && !(args.length > 0 && args.every((/** @type {any} */ arg) => FEATURE_NAME.test(arg)))) {
-          headerFault = fault(name === "features" ? "%features takes feature names" : "a malformed directive", decl, declAt);
+          headerFault = fault(name === "features" ? "%features takes feature names" : `%${name} takes one string`, decl, declAt);
         } else if ("conditions" in decl) {
           pushReverse(decl.conditions, condition => push("condition", condition, 0, { at: declAt, featureDirectiveAt: declAt }));
         }
@@ -9295,6 +9305,10 @@
       if ("problem" in left) return left;
       const right = /** @type {{type: TermType} | TypeFault} */ (yield typing(condition.right, constants));
       if ("problem" in right) return right;
+      if ((condition.op === "≅" || condition.op === "≇") && isDomObject(condition.right) && typeof condition.right.tag === "string" && Object.keys(condition.right).length === 1) {
+        const name = condition.right.tag;
+        return { problem: `tree comparison requires a pattern; write #${name}, not ${name}`, node: condition.right };
+      }
       if ((condition.op === "≅" || condition.op === "≇") && typeof condition.right.capture === "string") {
         return condition.left.capture === condition.right.capture ? {problem:"a tree comparison cannot compare a capture with itself",node:condition} : null;
       }
@@ -22488,9 +22502,6 @@
         for (const step of nodes) {
           const name = valueOf(token(step));
           const operand = parts(step).find(child => ["pattern-literal", "constant-reference"].includes(ruleOf(child)));
-          if (operand ? !KEY_STEPS.has(name) : !LEANS.has(name) || step !== nodes.at(-1)) {
-            fail("%ambiguity-resolution requires a pattern for each key step and no operand on a final lean", item);
-          }
           if (operand) {
             const value = run(readTerm(operand));
             steps.push(hideAt({step:name, pattern:"pattern" in value ? value.pattern : value}, at(operand)));
@@ -22692,7 +22703,9 @@
     /** @param {ResultNode} node @returns {import("./types.js").Gate} */
     function readGate(node) {
       const spelled = valueOf(token(node));
-      const found = /^(¬?)(?!.*--)([A-Za-z][A-Za-z0-9-]*)(\?)$/.exec(spelled);
+      // The spelling of a guard has no DOM form. The DOM validator checks
+      // its feature name.
+      const found = /^(¬?)([^¬?]+)(\?)$/.exec(spelled);
       if (!found) fail("invalid feature guard", node);
       return hideAt({ feature: found[2], kind: /** @type {"gate"} */ ("gate"), negated: found[1] === "¬" }, at(node));
     }
@@ -22860,7 +22873,6 @@
               if (headDefault !== undefined) fail("an elidable head has one default at most", test);
               const operand = only(test, "test-operand");
               const inner = knownOf(operand, ATOMS);
-              if (!["string", "constant-reference", "parameter"].includes(ruleOf(inner))) fail("a default requires one string", operand);
               headDefault = yield readTerm(inner);
               hideAt(/** @type {Term} */ (headDefault), at(test), "defaultAt");
             } else expr = { ...(yield readTest(test)), expr, at: at(test) };
@@ -22923,7 +22935,6 @@
     function readAttachment(node) {
       return some(node, "capture-reference").map(child => {
         const name = valueOf(token(child)).slice(1);
-        if (!name) fail("an attachment holds a named capture, not $", node);
         return name;
       });
     }
@@ -22945,29 +22956,27 @@
       for (const atom of some(node, "recipe-term")) {
         if (!Number.isSafeInteger(atom.span[0]) || !Number.isSafeInteger(atom.span[1]) || atom.span[0] < 0 || atom.span[1] < atom.span[0] || atom.span[1] > tokens.length) lacks(atom, "valid token span");
         if (concat.length) fail("juxtaposed recipe strings require ++. Use ++ between string atoms", atom);
-        if (tokens.slice(atom.span[0], atom.span[1]).some(token => ["(", ")"].includes(token.value))) fail("a recipe atom has no grouping or arguments", atom);
-        if (tokens.slice(atom.span[0], atom.span[1]).some(token => ["∪", "∩", "∖", "⟹"].includes(token.value))) fail("a recipe atom has no set operator", atom);
+        // Grouping and empty arguments have no DOM form. Arguments that a
+        // method holds do, and the DOM validator rejects them.
+        const atomTokens = tokens.slice(atom.span[0], atom.span[1]);
+        const grouping = atomTokens.some((token, index) => token.value === "(" && !(index >= 2 && atomTokens[index - 2].value === "." && atomTokens[index + 1]?.value !== ")"));
+        if (grouping) fail("a recipe atom has no grouping or arguments", atom);
         recipeContext = true;
         const term = yield readTerm(only(atom, "term"));
         recipeContext = false;
         const items = "concat" in term ? term.concat : [term];
-        if (items.some((/** @type {Term} */ item) => "union" in item)) fail("juxtaposed recipe strings require ++. Use ++ between string atoms", atom);
+        const operators = tokens.slice(atom.span[0], atom.span[1]).some(token => ["∪", "∩", "∖", "⟹"].includes(token.value));
+        const setTerms = items.some((/** @type {any} */ item) => ["union", "intersection", "difference", "if"].some(key => key in item));
+        // A set operator that builds a set term has a DOM form, and the DOM
+        // validator rejects it. A leading operator builds nothing.
+        if (operators && !setTerms) fail("a recipe atom has no set operator", atom);
+        if (!operators && items.some((/** @type {Term} */ item) => "union" in item)) fail("juxtaposed recipe strings require ++. Use ++ between string atoms", atom);
         for (const item of items) {
           if (!item.at) hideAt(item, at(atom));
           concat.push(item);
         }
       }
       return hideAt({ concat }, at(node));
-    }
-
-    /** @param {ResultNode[]} tests @param {boolean} allowed */
-    function checkTestOrder(tests, allowed) {
-      const seen = new Set();
-      for (const test of tests) {
-        const kind = ruleOf(test);
-        if (!allowed || seen.has(kind) || (kind === "tag-test" && seen.has("value-test"))) fail("this target or test order is invalid", test);
-        seen.add(kind);
-      }
     }
 
     /** @param {ResultNode} node @returns {Generator<Step, any, any>} */
@@ -23072,7 +23081,9 @@
           const rightNode = only(inner, "union");
           const leaf = firstOfRule(rightNode, "rule-or-classifier-name") ?? firstOfRule(rightNode, "tag");
           // A bare name gets this error before capital-initial tag typing.
-          if (leaf && tokens.slice(rightNode.span[0], rightNode.span[1]).length === 1) {
+          // A bare rule name has no DOM form as a term. A bare tag does, and
+          // type inspection gives it the same advice.
+          if (leaf && ruleOf(leaf) === "rule-or-classifier-name" && !isCapital(valueOf(token(leaf))) && tokens.slice(rightNode.span[0], rightNode.span[1]).length === 1) {
             const name = valueOf(token(leaf));
             fail(`tree comparison requires a pattern; write #${name}, not ${name}`, leaf);
           }
@@ -23367,7 +23378,6 @@
           first.kind === "token" && ["Lowercase-Name", "Emoji-Name"].includes(first.terminal);
         const tests = inner.filter(child => ["tag-test", "value-test"].includes(ruleOf(child)));
         const testsOnly = ["tag-test", "value-test"].includes(ruleOf(first));
-        checkTestOrder(tests, true);
         if (testsOnly) fail("a pattern test requires an atom", first);
         if (["call", "parameter"].includes(ruleOf(first))) {
           let expr = ruleOf(first) === "call" ? yield readCall(first) : readParameter(first);
@@ -23462,9 +23472,9 @@
     function tagOf(tokenNode) {
       const name = valueOf(tokenNode);
       if (name.startsWith("_")) {
-        const canonical = unicode.canonicalTag(name);
-        if (!canonical) fail(`unknown engine tag ${name}; every _ tag is a Unicode property`, tokenNode);
-        return canonical;
+        // An unknown engine tag keeps its spelling, and the DOM validator
+        // rejects it.
+        return unicode.canonicalTag(name) ?? name;
       }
       return name;
     }
@@ -23584,11 +23594,13 @@
    * @returns {string | null}
    */
   function operandProblem(name, kinds) {
+    // Only the kinds of the operands: the DOM keeps every operand as a
+    // string, so it cannot show a kind. The DOM validator checks the count.
     const names = kinds.every((kind) => kind === "name" || kind === "class");
-    if (["stage", "extend-stage", "redefine-stage"].includes(name)) return kinds.length === 1 && names ? null : `%${name} takes one name`;
-    if (name === "include" || name === "names") return kinds.length === 1 && kinds[0] === "string" ? null : `%${name} takes one string`;
-    if (name === "features") return kinds.length > 0 && names ? null : "%features takes one or more names";
-    if (name === "elision-only") return kinds.length === 0 ? null : "%elision-only takes no operand";
+    if (["stage", "extend-stage", "redefine-stage"].includes(name)) return names ? null : `%${name} takes one name`;
+    if (name === "include" || name === "names") return kinds.every(kind => kind === "string") ? null : `%${name} takes one string`;
+    if (name === "features") return names ? null : "%features takes one or more names";
+    if (name === "elision-only") return null;
     return names ? null : `%${name} takes names only`;
   }
 

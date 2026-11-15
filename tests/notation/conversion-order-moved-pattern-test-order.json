@@ -1,0 +1,10 @@
+{
+  "description": "A chain in a parse body, a DOM fault, precedes a pattern atom whose tests stand in the wrong order in a later declaration, which the DOM validator also reports (engine §9.3).",
+  "document": "```jbogenbau\n%rule a $y:A %conditions $y.parse({ ... \"a\" / \"b\" })\n%rule b $c:A %conditions $c ≅ #A=\"x\"<B>\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 35
+    }
+  }
+}

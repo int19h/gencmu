@@ -2838,7 +2838,7 @@ Names, capture references, method names, engine-tag tokens, strings, resource pa
 
 Thus `%include "a.md" "b$c.md"` reports the wrong count at `%include`. With no operand or a wrong operand type, it also reports at `%include`.
 
-Recognition accepts a constant token as a capture binder before `:`. The reader rejects its capitalized or engine name at that binder. This is a reader error, so an earlier reader error wins after syntax recognition succeeds.
+Recognition accepts a constant token as a capture binder before `:`. The DOM validator rejects its capitalized or engine name at that binder. So the order of §9.3 step 5 decides between it and other faults after syntax recognition succeeds.
 
 Recognition admits captures of groups, optionals, repeats, empty expressions, and captures, including `$` as a binder. It admits captures inside chains and marked optionals. It admits invalid marked-optional contents and chains inside other expressions. Section 9.3 rejects these forms at the capture, optional, or repetition that it specifies.
 
@@ -2848,7 +2848,7 @@ Recipe recognition admits terms beyond the closed recipe language. Each `recipe-
 
 Directive recognition reads each name as its own operand. It admits methods, references, grouped terms, patterns, ranges, resource paths, emoji names, and `_`. It admits no bare tag run as one operand or method receiver. A grouped term can still be a receiver.
 
-A resource path is not a method receiver. Directive recognition does not constrain operand counts or types. The reader reports every wrong operand at the directive. Thus `%stage $X` fails at `%stage`, column 1.
+A resource path is not a method receiver. Directive recognition does not constrain operand counts or types. Conversion rejects a wrong operand kind, and the DOM validator rejects a wrong count, each at the directive. Thus `%stage $X` fails at `%stage`, column 1.
 
 Classifier entries accept gates only. A diagnostic clause on an entry fails syntax recognition.
 
@@ -2996,7 +2996,7 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `string-terminal` | One `string` or `constant-reference` | Body: `literal` of the unresolved string term, with `at`. |
 | `wildcard` | One `_` token | `wildcard:true` with `at` |
 | `range` | Two string operands in order | `range` of unresolved STRINGTERMs, with `at` |
-| `tested-primary` | Tag tests if present, value tests if present, then `primary` or the first base constructor other than `tested-primary` | Require at least one test. Check the target and written test order. Wrap the base with tags first, then value, each with its test's `at`. |
+| `tested-primary` | Tag tests if present, value tests if present, then `primary` or the first base constructor other than `tested-primary` | Require at least one test. Wrap the base with tags first, then value, each with its test's `at`. The DOM validator checks the target and the test order. |
 | `tag-test` | Zero or more `tag-requirement` parts | Ordered requirements, including an empty array |
 | `tag-requirement` | Optional `¬` token, then one operand | Require a tag, tag-set constant, or parameter. Produce `negated` and unresolved `value`. |
 | `value-test` | `value-comparator`, then `test-operand` | Comparator and string operand |
@@ -3143,7 +3143,17 @@ A document can hold several errors. The reader and DOM validator report one, and
 
    Ordinary escape inspection then visits string and path tokens in source order. It applies the same restricted decoder to every `%names` path, even a misplaced one. It examines each token's original escapes from left to right. The first malformed, nonscalar, or unknown escape fails at its opening `‹`. The step precedes every syntax, conversion, or DOM error. Section 1 defines operand boundaries and preamble order.
 3. Syntax recognition runs next, over the complete token sequence. A syntax error stands at the furthest token reached and precedes every conversion or DOM error. Unknown directives follow this same rule. The handwritten bootstrap reader follows the same lexical, escape, and syntax steps.
-4. Conversion builds the DOM from the syntax tree in source order, following the constructor table above and the part-lookup rules below. It sets `at` on every declaration and expression node. It reports only faults that have no DOM representation. Those faults are missing notation parts, invalid token spans, unparenthesized runs beside `∩` or `∖`, and juxtaposition in a recipe. They also include repeated or misplaced markers, grouped elidable heads, and non-call method receivers with selectors. The first conversion fault in traversal order decides, before DOM validation runs.
+4. Conversion builds the DOM from the syntax tree in source order, following the constructor table above and the part-lookup rules below. It sets `at` on every declaration and expression node. It reports only faults that have no DOM representation. Every other fault waits for the DOM validator of step 5, so the order of step 5 decides it. These are all the conversion faults:
+   - Missing or unexpected notation parts, and invalid token spans. A supplied notation tree can have them, and the bundled syntax cannot.
+   - Unparenthesized runs beside `∩` or `∖`, juxtaposition in a recipe, and method argument separators other than those of §10.
+   - Repeated or misplaced markers, a default outside an elidable head or on a pattern atom, a second default, and grouped elidable heads.
+   - A recipe atom with grouping, empty arguments, or a leading set operator, which the DOM drops.
+   - The spelling of a feature guard, and the kinds of directive operands. The DOM keeps a guard's name and each operand as a string.
+   - A range or a rule name in a term position, a bare rule name on the right of `≅` or `≇`, and a pattern test without an atom.
+   - A pattern path or set over more than one whole pattern, and an emission target that is neither a capture nor `ε`.
+   - Non-call method receivers with selectors.
+
+   The first conversion fault in traversal order decides, before DOM validation runs.
 5. One DOM validator then inspects the completed or supplied DOM and reports the first fault in this traversal order:
    - Envelope and declaration positions: require `format` `50` and arrays `rules`, `directives`, `constants`, `classifiers`, and `implications` with no other root members. Next check in that array order that every item is an object with a valid `at` coordinate (`[line, column]`). Also check that no two items share a coordinate, and that every `%names` directive precedes every other declaration by `at`.
    - Declaration pass: inspect declarations in ascending `at` order across `directives`, `constants`, `classifiers`, `implications`, and `rules`. For each declaration, run its structural shape pass first, and if that passes, run its semantic pass. The first fault ends the inspection. A `ranked-choice-syntax` fault has no priority over an earlier fault:
@@ -3172,7 +3182,7 @@ A document can hold several errors. The reader and DOM validator report one, and
 
 These steps make every library report the same token for every combination of errors.
 
-The following complete document reports a capture error at line 2, column 9. The syntax stage recognizes the grouped target, and the reader rejects it at `$x`.
+The following complete document reports a capture error at line 2, column 9. The syntax stage recognizes the grouped target, and the DOM validator rejects it at `$x`.
 
 ````markdown
 ```jbogenbau
@@ -3180,7 +3190,7 @@ The following complete document reports a capture error at line 2, column 9. The
 ```
 ````
 
-With an incomplete second rule, its syntax error precedes the first rule's capture error. The reader reports the furthest position that syntax recognition reaches, rather than line 2, column 9.
+With an incomplete second rule, its syntax error precedes the first rule's capture error. The loader reports the furthest position that syntax recognition reaches, rather than line 2, column 9.
 
 ````markdown
 ```jbogenbau
@@ -3189,7 +3199,7 @@ With an incomplete second rule, its syntax error precedes the first rule's captu
 ```
 ````
 
-The following complete document reports an invalid test target at line 2, column 12. The syntax stage recognizes the tested optional, and the reader rejects it at `=`.
+The following complete document reports an invalid test target at line 2, column 12. The syntax stage recognizes the tested optional, and the DOM validator rejects it at `=`.
 
 ````markdown
 ```jbogenbau
@@ -3210,8 +3220,8 @@ A tree from a bootstrap of another notation can also lack a part that a construc
   If the rule has an `=` token, require a plain head and then read the right-hand `call`. Return that named instance binding without reading header clauses or looking up a body.
 
   Otherwise, read header tags, value, and image clauses, in that order. Next, look up `body`. If `body` is absent, require `headed-body`. Read its alternatives. Trailing conditions, diagnostic, suppression, and emission or erasure come last, in that order.
-- A `tested-primary`: require at least one test, then look up tag and value tests in that order. Retain all tests in written order, including repeated kinds. Next look up its `primary`. Check the target and test order before reading the symbol, then read requirements and operands. A missing required part is reported when its lookup occurs.
-- A `capture`: the restrictions on its place, including the sole-terminator exception of §3.8, then its token and its `primary`. Then come the checks of `$` and of the name. Last come the one known part of the primary, the base-symbol check, and that symbol. For a tested target, inspect only its base primary. The `tested-primary` constructor checks its tests.
+- A `tested-primary`: require at least one test, then look up tag and value tests in that order. Retain all tests in written order, including repeated kinds. Next look up its `primary`. Read the symbol, then the requirements and operands. A missing required part is reported when its lookup occurs. The DOM validator checks the target and the test order.
+- A `capture`: its token, its `primary`, and the one known part of that primary, then that symbol. The DOM validator checks its place, including the sole-terminator exception of §3.8, `$`, its name, and its base symbol.
 
   If a tested target lacks its primary, report `the notation's tested-primary has no primary` before inspecting its tests.
 - An `optional`: first select its route without requiring a child. A direct `captured-terminator` part selects the captured route. Otherwise, select the ordinary route.
@@ -3226,7 +3236,7 @@ A directive rejects a forbidden operand kind before converting its contents. Thi
 
 Inline `++` in body terminals, value tests, pattern terminals, range endpoints, or classifier keys fails syntax recognition at `++`. A grouped classifier key fails syntax recognition at its opening parenthesis. These syntax errors are document errors of kind `grammar`.
 
-The grammar does not state the restrictions below. Each of these is an error of the document. The reader reports it at the first token of the offending construct, unless the item names another place.
+The grammar does not state the restrictions below. Each of these is an error of the document. The loader reports it at the first token of the offending construct, unless the item names another place.
 
 The groups below follow the validation order of step 5. Their section order adds no diagnostic priority.
 
@@ -3310,7 +3320,7 @@ Parentheses after the `rule-keyword` fail the syntax stage at `(`, column 6 in `
 
   `parse` takes one body constituent, with an optional remainder mark at each outer edge. A capture anywhere in that argument is a document error at its binder. A called rule's own captures remain legal. The DOM permits a `remainder:true` leaf only at an outer sequence edge in this argument, at most one at each edge. A standalone, nested, middle, or repeated remainder is a document error at the mark. A parse with an initial remainder on a restored view is a document error at `parse`.
 
-  A method's receiver and arguments must meet §10's signature after method selection. The reader reports a wrong receiver or arity at the method. A classifier or rule name is legal only in its corresponding argument position. A string constant can resolve a string argument after stitching.
+  A method's receiver and arguments must meet §10's signature after method selection. The DOM validator reports a wrong receiver or arity at the method. A classifier or rule name is legal only in its corresponding argument position. A string constant can resolve a string argument after stitching.
 - A `split` whose delimiter is the string literal `""` is an error, reported at the call.
 - A `.verbatim-text` or `.emitted` read outside a recipe is a document error. A recipe accepts only the seven string methods and string atoms of §11.
 - A comparison of a capture or `$` with itself is an error at the comparison. The forms are `$x ≅ $x`, `$x ≇ $x`, `$ ≅ $` and `$ ≇ $`. The loader tests the resolved capture terms. The error stands where the left term and the right term are the same term, and the empty name of `$` is such a term.
@@ -3319,7 +3329,7 @@ Parentheses after the `rule-keyword` fail the syntax stage at `(`, column 6 in `
 
   Two terminal captures can both have the empty projection in the check of §7. So those comparisons stay legal, and a false answer is a sound outcome there.
 - The right operand of `≅` or `≇` must have pattern type or constituent type after constants and template arguments resolve (§10). A term of any other type is a type error at the term, as in other typed positions. A string, a string set, a tag set, a span and a guarded term are such terms.
-- A term or condition with incompatible types is an error (§10). Examples include `"a" ∈ $x.tags`, `$x.value = A`, and the untyped `∅ = ∅`. The reader reports the smallest construct whose parts disagree. This construct is a union with differences, intersection, concatenation, guarded term, method, or comparison. A concatenation error stands at its first operand. Otherwise, the error stands at the whole tag term or constant value.
+- A term or condition with incompatible types is an error (§10). Examples include `"a" ∈ $x.tags`, `$x.value = A`, and the untyped `∅ = ∅`. The DOM validator reports the smallest construct whose parts disagree. This construct is a union with differences, intersection, concatenation, guarded term, method, or comparison. A concatenation error stands at its first operand. Otherwise, the error stands at the whole tag term or constant value.
 
   The reader does not know the type of a constant, so it lets a constant stand for a value of any type but a span. After the loader stitches the stage, it makes sure again that the types agree (§2). It reports an error there at the first constant of the smallest construct whose parts disagree.
 
@@ -3405,7 +3415,7 @@ Parentheses after the `rule-keyword` fail the syntax stage at `(`, column 6 in `
 
   Pattern names, terminals, constants, wildcards, and parameters without children are leaves. Child `siblings` is a leaf. A `concat` term adds depth under the term rule.
 
-  Parentheses make no DOM node and add no depth. Thus 256 optional wrappers around a reference or a plain string literal are allowed, and 257 are not. The reader reports the first offending declaration in document order. That declaration is a rule, constant, classifier, implication, or `%features` directive.
+  Parentheses make no DOM node and add no depth. Thus 256 optional wrappers around a reference or a plain string literal are allowed, and 257 are not. The DOM validator reports the first offending declaration in document order. That declaration is a rule, constant, classifier, implication, or `%features` directive.
 
   Resolved pattern values also meet the bound of 256. For this bound, each pattern-valued term has one term wrapper around its normalized pattern. Constant references add no level and contribute their bound patterns. Aliases retain the same depth. Adjacent unions flatten, as do adjacent intersections, before this count. When `∅` supplies a pattern, its normalized form is the difference of two unrestricted child lists.
 
@@ -3429,7 +3439,7 @@ A template's parameters have scope only within that declaration. Each top-level 
 
 Constant binding, applicable type inspection, and bound-value inspection include every template definition, even when no call uses it. A value that depends on a parameter waits for substitution. Independent operands still receive inspection. Pattern calls and parameters retain inspection of their attached children, after any call arguments. This inspection creates no instance and no audit entry.
 
-A fault that the known operands already decide is immediate, even beside an unresolved operand. The reader reports it at its construct. Only a fault that depends on the unresolved operand waits for substitution.
+A fault that the known operands already decide is immediate, even beside an unresolved operand. The DOM validator reports it at its construct. Only a fault that depends on the unresolved operand waits for substitution.
 
 Definition errors retain their specific reason, including capture names, in every validation path. Type faults discovered after argument substitution retain their specific reason too. A call argument that reads or declares a capture reports "an argument cannot read or declare captures". When a diagnostic names a method, it uses the method's source spelling. A tag-set diagnostic directs the author to `$x.tags`.
 
@@ -3455,7 +3465,7 @@ Retain the first structural witness for each partial assignment. A compatible ne
 
 Simplification returns the next unresolved guard during the same walk. It reuses reductions for parts without presence tests. It does not copy unchanged clause parts.
 
-Each of the following is an error of the document too, and the reader reports it at the definition:
+Each of the following is an error of the document too, and the DOM validator reports it at the definition:
 
 - A capture that no alternative of the definition captures is an error, in any clause, `$x` presence tests included.
 - A condition that applies (§3.6) to no production of the definition, whatever features are enabled, is an error.
