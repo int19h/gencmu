@@ -6349,14 +6349,19 @@
   }
   // The members of DOM nodes in canonical output order (docs/output.md). A
   // walk that must not depend on the member order of a supplied JSON object
-  // visits members in this order. A test and an alternative have their own.
-  const MEMBER_ORDER = ["name", "params", "method", "receiver", "args", "call", "param", "op", "left", "right",
-    "instance", "feature", "kind", "negated", "gates", "keys", "class", "entries", "steps", "step", "pattern",
-    "capture", "insert", "tags", "value", "image", "alternatives", "emit", "items", "before", "after", "conditions",
-    "error", "warning", "suppressWarnings", "erased", "if", "then", "not", "any", "all", "nonempty", "captured",
+  // visits members in this order. It is one flat list for every node kind,
+  // since no two members of one node conflict in it, except in a test and
+  // an alternative, which have their own lists. A member that the list does
+  // not name sorts last, in the order of the JSON object. The list names
+  // every DOM member, so that rule matters only for unknown members.
+  const MEMBER_ORDER = ["name", "params", "method", "receiver", "args", "call", "param", "op", "error", "warning",
+    "suppressWarnings", "left", "right", "instance", "feature", "kind", "negated", "gates", "keys", "class", "entries",
+    "steps", "step", "pattern", "capture", "insert", "tags", "value", "image", "alternatives", "emit", "items",
+    "before", "after", "conditions", "erased", "if", "then", "not", "any", "all", "nonempty", "captured",
     "seq", "choice", "ranked", "and", "optional", "elidable", "default", "repeat", "separator", "chain", "ref",
     "literal", "wildcard", "range", "splice", "expr", "body", "targets", "requirements", "string", "concat",
-    "tag", "const", "emptySet", "union", "intersection", "difference", "at"];
+    "tag", "const", "emptySet", "union", "intersection", "difference", "terminal", "constant", "exact", "children",
+    "path", "child", "siblings", "remainder", "integer", "classifier", "rule", "at"];
   const TEST_ORDER = ["test", "value", "requirements", "expr", "at"];
   const ALTERNATIVE_ORDER = ["gates", "expr", "tags", "value", "image"];
   /** @param {any} node @returns {string[]} */
@@ -6665,13 +6670,16 @@
         at: enclosingAt,
         closed: task.closed,
         featureDirectiveAt: task.featureDirectiveAt,
+        queryBody: task.queryBody,
         ...context,
       });
       const fields = Object.keys(value);
       if (kind === "classifier-entry") {
-        const badGate = Array.isArray(value.gates) ? value.gates.find((/** @type {any} */ g) => !exact(g, ["feature", "kind", "negated"]) || Object.keys(g).length !== 3 || typeof g.feature !== "string" || !FEATURE_NAME.test(g.feature) || typeof g.negated !== "boolean" || g.kind !== "gate") : undefined;
-        if (!exact(value, ["gates", "keys", "op", "class", "at"]) || !position(value.at) || !Array.isArray(value.gates) || badGate || !["∈", "∉"].includes(value.op) || typeof value.class !== "string" || !Array.isArray(value.keys) || !value.keys.length) {
-          return report("a malformed classifier entry", badGate ?? value);
+        const badIndex = Array.isArray(value.gates) ? value.gates.findIndex((/** @type {any} */ g) => !exact(g, ["feature", "kind", "negated"]) || Object.keys(g).length !== 3 || typeof g.feature !== "string" || !FEATURE_NAME.test(g.feature) || typeof g.negated !== "boolean" || g.kind !== "gate") : -1;
+        // findIndex, since a bad gate can itself be null or another falsy value.
+        const badGate = badIndex >= 0 ? value.gates[badIndex] : undefined;
+        if (!exact(value, ["gates", "keys", "op", "class", "at"]) || !position(value.at) || !Array.isArray(value.gates) || badIndex >= 0 || !["∈", "∉"].includes(value.op) || typeof value.class !== "string" || !Array.isArray(value.keys) || !value.keys.length) {
+          return report("a malformed classifier entry", object(badGate) ? badGate : value);
         }
         for (const key of value.keys) {
           if (!stringTerm(key)) return report("a malformed classifier key", key);
@@ -6685,9 +6693,11 @@
         return null;
       }
       if (kind === "alternative") {
-        const badGate = Array.isArray(value.gates) ? value.gates.find((/** @type {any} */ g) => !exact(g, ["feature", "kind", "negated"]) || Object.keys(g).length !== 3 || typeof g.feature !== "string" || !FEATURE_NAME.test(g.feature) || typeof g.negated !== "boolean" || g.kind !== "gate") : undefined;
-        if (!exact(value, ["gates", "expr", "tags", "value", "image"]) || !("expr" in value) || !Array.isArray(value.gates) || badGate) {
-          return report("a malformed alternative", badGate ?? value);
+        const badIndex = Array.isArray(value.gates) ? value.gates.findIndex((/** @type {any} */ g) => !exact(g, ["feature", "kind", "negated"]) || Object.keys(g).length !== 3 || typeof g.feature !== "string" || !FEATURE_NAME.test(g.feature) || typeof g.negated !== "boolean" || g.kind !== "gate") : -1;
+        // findIndex, since a bad gate can itself be null or another falsy value.
+        const badGate = badIndex >= 0 ? value.gates[badIndex] : undefined;
+        if (!exact(value, ["gates", "expr", "tags", "value", "image"]) || !("expr" in value) || !Array.isArray(value.gates) || badIndex >= 0) {
+          return report("a malformed alternative", object(badGate) ? badGate : value);
         }
         for (const channel of ["image", "value"]) if (value[channel] !== undefined) push("recipe", value[channel], depth, { params: task.params, at: nodePos(value[channel], enclosingAt), featureDirectiveAt: task.featureDirectiveAt });
         if (value.tags !== undefined) push("tags", value.tags, depth, { params: task.params, constituent: true, owner: task.owner, at: nodePos(value.tags, enclosingAt), featureDirectiveAt: task.featureDirectiveAt });
@@ -6775,7 +6785,7 @@
         } else if ("requirements" in value && !value.test) {
           if (!exact(value, ["requirements"]) || !Array.isArray(value.requirements)) return report("a malformed requirement list");
           for (const entry of value.requirements) {
-            if (!exact(entry, ["negated", "value"]) || typeof entry.negated !== "boolean" || !object(entry.value) || entry.value.grouped || !(entry.value.tag || entry.value.const || entry.value.param)) return report("a malformed requirement", entry.value ?? entry);
+            if (!exact(entry, ["negated", "value"]) || typeof entry.negated !== "boolean" || !object(entry.value) || entry.value.grouped || !(entry.value.tag || entry.value.const || entry.value.param)) return report("a malformed requirement", entry?.value ?? entry);
           }
           pushReverse(value.requirements, entry => push("term", entry.value, depth, { params: task.params, at: enclosingAt, featureDirectiveAt: task.featureDirectiveAt }));
         } else if (value.rule) {
@@ -6791,7 +6801,7 @@
       if (kind === "test-operands") {
         if (value.test === "tags") {
           for (const requirement of value.requirements) {
-            if (!exact(requirement, ["negated", "value"]) || typeof requirement.negated !== "boolean" || !object(requirement.value) || requirement.value.grouped || !("tag" in requirement.value || "const" in requirement.value || "param" in requirement.value)) return report("a malformed requirement", requirement.value ?? requirement);
+            if (!exact(requirement, ["negated", "value"]) || typeof requirement.negated !== "boolean" || !object(requirement.value) || requirement.value.grouped || !("tag" in requirement.value || "const" in requirement.value || "param" in requirement.value)) return report("a malformed requirement", requirement?.value ?? requirement);
           }
           pushReverse(value.requirements, requirement => child("term", requirement.value));
         } else {
@@ -6815,6 +6825,7 @@
           child("expr", value.expr, { sealed: task.sealed, chain: task.chain, item: task.item, ranked: task.ranked });
         } else if ("capture" in value) {
           if (!exprExact(value, ["capture", "expr"]) || !("expr" in value) || typeof value.capture !== "string" || !object(value.expr)) return report("a malformed capture");
+          if (task.queryBody) return report("a parse argument cannot declare captures");
           if (task.chain) return report("a capture cannot stand inside a chain, whose levels are constituents of its rule: a condition on $ serves each level");
           if (task.item && task.ranked) return report("an item capture cannot stand inside a ranked group: name the ranked choice as a rule and capture that rule");
           if (task.sealed && !task.capturedTerminator) return report("a capture cannot stand inside an elidable optional, which elision restores as one unit");
@@ -6899,15 +6910,6 @@
         });
       } else if (kind === "recipe") {
         if (fields.length !== 1 || !Array.isArray(value.concat) || !value.concat.length) return report("a malformed recipe");
-        if (task.message) {
-          if (capturesMentioned(value).some(name => typeof name !== "string")) return report("a malformed message recipe");
-          const nodes = [value];
-          while (nodes.length) {
-            const n = nodes.pop();
-            if (n?.method === "emitted") return report("a message recipe cannot read .emitted", value.clauseAt ? { at: value.clauseAt } : value);
-            for (const c of clauseChildren(n)) nodes.push(/** @type {any} */ (c));
-          }
-        }
         for (const atom of value.concat) {
           if (!object(atom)) return report("a malformed recipe atom", atom);
           if (["union", "intersection", "difference", "if"].some(key => key in atom)) return report("a recipe atom has no set operator", atom);
@@ -6915,6 +6917,9 @@
             if (!["value", "image", "source-text", "decomposed-source-text", "verbatim-text"].includes(atom.method) || atom.args?.length !== 0) return report("a malformed recipe atom", atom);
             const receiver = atom.receiver;
             if (!(typeof receiver?.capture === "string" && Object.keys(receiver).length === 1) && !(["value", "image"].includes(atom.method) && receiver?.method === "emitted" && receiver.args?.length === 0 && typeof receiver.receiver?.capture === "string" && Object.keys(receiver.receiver).length === 1)) return report("a malformed recipe receiver", atom);
+            // A message reads no .emitted. The atom's shape is known here, so
+            // its receiver is the only place where .emitted can stand.
+            if (task.message && receiver.method === "emitted") return report("a message recipe cannot read .emitted", value.clauseAt ? { at: value.clauseAt } : value);
           }
         }
         pushReverse(value.concat, atom => child("term", atom, { recipe: true }));
@@ -6976,12 +6981,12 @@
           const visits = [];
           for (const arg of value.args) {
             if (object(arg) && "body" in arg) {
-              if (value.method !== "parse" || !exact(arg, ["body"])) return report("a malformed parse argument", arg);
+              if (value.method !== "parse" || !exact(arg, ["body"]) || !object(arg.body)) return report("a malformed parse argument", arg);
               const parsed = queryBody(arg.body);
               if (parsed.problem) return report(parsed.problem, arg.body);
-              const cap = queryCapture(parsed.body);
-              if (cap) return report("a parse argument cannot declare captures", cap);
-              visits.push(() => push("expr", parsed.body, depth + (Array.isArray(arg.body.seq) && !Array.isArray(parsed.body.seq) ? 2 : 1), { params: task.params, at: nodePos(parsed.body, enclosingAt), featureDirectiveAt: task.featureDirectiveAt }));
+              // The body's walk rejects a capture where it meets one, after
+              // the capture's own shape (engine §9.3).
+              visits.push(() => push("expr", parsed.body, depth + (Array.isArray(arg.body.seq) && !Array.isArray(parsed.body?.seq) ? 2 : 1), { params: task.params, at: nodePos(parsed.body, enclosingAt), featureDirectiveAt: task.featureDirectiveAt, queryBody: true }));
             } else if (object(arg) && typeof arg.rule === "string") {
               if (Object.keys(arg).length !== 1 || !["without-elision-except", "followed-by", "preceded-by"].includes(value.method) || !ruleName(arg.rule)) return report("a malformed rule argument", value);
             } else if (object(arg) && typeof arg.terminal === "string") {
@@ -9147,17 +9152,22 @@
    * @type {WeakMap<ConstantTypes, WeakMap<object, any>>}
    */
   const typesFound = new WeakMap();
+  // Conditions keep their own memo. One object can stand as a condition and
+  // as a term, and the result for one kind is no result for the other.
+  /** @type {WeakMap<ConstantTypes, WeakMap<object, any>>} */
+  const conditionTypesFound = new WeakMap();
 
   /**
    * The memo of types for one way of typing constants.
    * @param {ConstantTypes} constants
+   * @param {WeakMap<ConstantTypes, WeakMap<object, any>>} [table]
    * @returns {WeakMap<object, any>}
    */
-  function typesFor(constants) {
-    let found = typesFound.get(constants);
+  function typesFor(constants, table = typesFound) {
+    let found = table.get(constants);
     if (!found) {
       found = new WeakMap();
-      typesFound.set(constants, found);
+      table.set(constants, found);
     }
     return found;
   }
@@ -9292,7 +9302,7 @@
    * @returns {Generator<Step, TypeFault | null, any>}
    */
   function* conditionTyping(condition, constants) {
-    const memo = typesFor(constants);
+    const memo = typesFor(constants, conditionTypesFound);
     if (memo.has(condition)) return memo.get(condition);
     const found = yield conditionTypingOnce(condition, constants);
     memo.set(condition, found);

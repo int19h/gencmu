@@ -262,9 +262,9 @@ The cache identity follows engine §8.
 A rule has this form, in canonical member order:
 
 ```text
-{"name":"unit","op":"define","tags":TERM,"value":RECIPE,"image":RECIPE,
- "alternatives":[ALT...],"emit":EMIT,"conditions":[COND...],
- "error":MESSAGE,"warning":MESSAGE,"suppressWarnings":[CODE...],"erased":true,"at":[line,column]}
+{"name":"unit","op":"define","error":MESSAGE,"warning":MESSAGE,"suppressWarnings":[CODE...],
+ "tags":TERM,"value":RECIPE,"image":RECIPE,"alternatives":[ALT...],"emit":EMIT,
+ "conditions":[COND...],"erased":true,"at":[line,column]}
 ```
 
 `op` is `define`, `redefine`, or `extend`. `tags`, `value`, `image`, `emit`, `error`, `warning`, `suppressWarnings`, and `erased` are optional. `conditions` is an array, including an empty array.

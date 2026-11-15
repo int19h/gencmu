@@ -599,7 +599,7 @@ Constant type propagation revisits dependent declarations in ascending declarati
 
 A constant belongs to its stage, as a rule does. A document in several stages or pipelines takes the values of each. The DOM of a document holds its definitions and its references to constants, never their values (§8).
 
-Each error of a constant is an error of the document. Reader errors follow §9.3, including engine-tag literals outside patterns. The loader reports a second `%const`, a `%redefine-const` of nothing and a change of type at the constant's definition.
+Each error of a constant is an error of the document. Its DOM faults follow §9.3, including engine-tag literals outside patterns. The loader reports a second `%const`, a `%redefine-const` of nothing and a change of type at the constant's definition.
 
 The loader reports an empty joined split delimiter in a constant value at the `%const` or `%redefine-const` definition. This document error has kind `grammar`. The loader reports errors from the two deferred capture checks of §9 at the rule's definition. It reports every other error that it finds at the reference to the constant.
 
@@ -1094,7 +1094,7 @@ A tested symbol expands to that one symbol, which carries the test. It adds no h
 
 ### 3.3 Chains
 
-A chain is an alternative whose whole expression is `{... x / s}`, a left chain, or `{x ... / s}`, a right chain. Either can leave out `/ s`. The reader makes sure that a chain is the whole expression of its alternative (§9). A chain must also be the only alternative of its rule left after §3.1. Another alternative beside it is an error of the grammar.
+A chain is an alternative whose whole expression is `{... x / s}`, a left chain, or `{x ... / s}`, a right chain. Either can leave out `/ s`. The DOM validator makes sure that a chain is the whole expression of its alternative (§9). A chain must also be the only alternative of its rule left after §3.1. Another alternative beside it is an error of the grammar.
 
 Lowering turns the chain into recursion on the rule itself, with no helper for the braces. `{... x / s}` becomes `r → x | r s x`, and `{x ... / s}` becomes `r → x | x s r`. Without a separator, `s` is left out of these productions. Lowering expands `x` and `s` in place, as in §3.2.
 
@@ -3134,9 +3134,9 @@ The full ranked alternative is `{"gates":[{"feature":"f","kind":"gate","negated"
 
 An Integer token contains one or more ASCII decimal digits. It is legal only as a method argument whose signature accepts an integer. The DOM validator requires positive digits without leading zeros. It reports zero or leading zeros at the Integer token. A negative argument fails lexical recognition at its minus sign.
 
-Reader method signature errors stand at the method receiver, including wrong target kinds, receiver kinds, arities, and noninteger arguments. A wrong argument separator stands at the first argument. Empty arguments, grouped choices, grouped integers, and fractions follow the syntax-error rule below. That rule also locates mixed runs and adjacent constants without an operator.
+Method signature errors of the DOM validator stand at the method receiver, including wrong target kinds, receiver kinds, arities, and noninteger arguments. A wrong argument separator stands at the first argument. Empty arguments, grouped choices, grouped integers, and fractions follow the syntax-error rule below. That rule also locates mixed runs and adjacent constants without an operator.
 
-Reader set type errors stand at the set expression or comparison that requires incompatible kinds. A guarded consequent error stands at its guard. Errors that binding reveals follow the stitching locations below. Unresolved query rule names are stitching errors at their definition. A recursive query gives a parse-time grammar error without a document location (§4).
+Set type errors of the DOM validator stand at the set expression or comparison that requires incompatible kinds. A guarded consequent error stands at its guard. Errors that binding reveals follow the stitching locations below. Unresolved query rule names are stitching errors at their definition. A recursive query gives a parse-time grammar error without a document location (§4).
 
 The lexical stage reads the longest punctuation token. `...` is one chain marker, never `..` followed by `.`. A range joins two scalar string endpoints with `..`. `.` selects a method. Header clauses use `::`, `:=`, and `:-`, while `:` binds a capture. Both readers follow the lexical forms above.
 
@@ -3171,12 +3171,12 @@ A document can hold several errors. The reader and DOM validator report one, and
    - Queued child constructs run in pre-order, checking each construct's own shape before visiting its children in written order:
      - An expression node checks its `at` field if present (requiring `at` on `call` and `param`) and its form keys before its children. If a supplied expression node omits `at`, any fault on that node uses the nearest enclosing node with a position, at least the declaration.
      - A `test` checks its comparator, fields, and base target and test-nesting order. It then queues `expr`, and after it `requirements` or `value`. So a fault in the base precedes a fault in a test operand.
-     - A `capture` checks its own fields first. Next it checks its placement. It cannot stand in a chain, or as an item capture in a ranked group. It cannot stand in an elidable optional unless it captures the sole terminator. Then it rejects `$`, which wraps nothing, and checks its binder name. Last it checks its base target and queues `expr`.
+     - A `capture` checks its own fields first. In a parse body it is then a fault, since a parse argument declares no capture. Next it checks its placement. It cannot stand in a chain, or as an item capture in a ranked group. It cannot stand in an elidable optional unless it captures the sole terminator. Then it rejects `$`, which wraps nothing, and checks its binder name. Last it checks its base target and queues `expr`.
      - An `optional` checks its fields, `elidable` head form, and `default` operand before queuing `optional` and `default`.
      - A `seq`, `choice`, `ranked`, or `and` checks its array length (`>= 2`, and `<= 16` for `and`). It then queues its elements in array order.
      - A `repeat` checks its fields and chain placement before queuing `repeat` and `separator`.
      - A `range` checks its endpoint pair and literal scalar order before queuing its two endpoints.
-     - A term, recipe, condition, or pattern checks its own node shape before queuing its operands in written order. A recipe's own shape includes the form of every atom, so a malformed later atom precedes a fault inside an earlier one. A `method` checks first that its name is known. Next it checks that its receiver is an object and its arguments an array, and that a query method stands only as a condition. Then it rejects a parameter in place of the classifier or integer argument of `.classify` or `.ngrams`. Next it checks each argument that is not a term, in written order. Those are a parse body with its mode and its lack of captures, a rule, a boundary target, an integer, and a classifier. It then visits its receiver, and then its term arguments and parse bodies in written order. Last it checks its complete method signature. A method in a condition position checks there too that it is a query method. In a constant's value or an implication's side, only `split` and `ngrams` get the signature check. Every other method there reads input, so the semantic closedness check reports it with a clearer message.
+     - A term, recipe, condition, or pattern checks its own node shape before queuing its operands in written order. A recipe's own shape includes the form of every atom, so a malformed later atom precedes a fault inside an earlier one. In a message, the form check of an atom also rejects `.emitted`. A `method` checks first that its name is known. Next it checks that its receiver is an object and its arguments an array, and that a query method stands only as a condition. Then it rejects a parameter in place of the classifier or integer argument of `.classify` or `.ngrams`. Next it checks each argument that is not a term, in written order. Those are a parse body with its mode, a rule, a boundary target, an integer, and a classifier. It then visits its receiver, and then its term arguments and parse bodies in written order. Last it checks its complete method signature. In a condition position, that last check also requires a query method. In a constant's value or an implication's side, only `split` and `ngrams` get the signature check. Every other method there reads input, so the semantic closedness check reports it with a clearer message.
      - A tag clause checks for own-tag reads and then for engine-tag literals. These checks run after every structural check of the clause's term, because both checks need a term of valid shape.
    - Semantic pass: when a declaration passes its structural shape pass, report its first semantic fault in this order:
      - For a `directive`, `constant`, or `implication`: check call arguments for capture reads or declarations (`firstCaptureArgIn`) first. A `constant` next walks `value` once in pre-order (`closedTermFault`). The walk reports the first capture, guarded term, input method, or engine-tag literal. An input method reports after the walk of its receiver. The constant then checks its type (`constantValueType`). An `implication` runs that walk and its `tags` type check on `if`, and then both on `then`.
@@ -3363,7 +3363,7 @@ Parentheses after the `rule-keyword` fail the syntax stage at `(`, column 6 in `
 
 #### Clauses and emission
 
-- The reader applies `lit` to rule-header, alternative, and emission-item tag clauses (§1). Nonempty `lit` is an error at the first retained engine-tag literal.
+- The DOM validator applies `lit` to rule-header, alternative, and emission-item tag clauses (§1). Nonempty `lit` is an error at the first retained engine-tag literal.
 - A whole `$` carrier conflicts with a captured carrier or attachment capture that can consume input. Multiple `$` items require a structurally always-empty constituent under the overlap analysis below. Inserted items do not overlap carrier input. The loader reports an overlap error at the emitting definition after stitching, as the analysis below specifies.
 - An inserted `ε` item can carry tags, value, and image clauses. Its defaults are empty, and empty output tag sets are legal.
 - A bare name is not an inserted item. Use `ε` with explicit tag and string clauses.
@@ -3452,7 +3452,7 @@ Definition errors retain their specific reason, including capture names, in ever
 
 #### Definition checks
 
-Once the reader reads an ordinary definition (§2), it makes sure that the whole definition meets its requirements. These checks are about the productions of the definition's alternatives, the expansions of §3.2 with the captures of §3.5. Gates do not matter here, so every alternative counts. Two expansions of one alternative that read the same captures in the same order are one case for these checks. So the reader can decide them over the distinct sequences of captures that the expansions read, without listing the expansions.
+When the DOM validator checks an ordinary definition (§2), it makes sure that the whole definition meets its requirements. These checks are about the productions of the definition's alternatives, the expansions of §3.2 with the captures of §3.5. Gates do not matter here, so every alternative counts. Two expansions of one alternative that read the same captures in the same order are one case for these checks. So the DOM validator can decide them over the distinct sequences of captures that the expansions read, without listing the expansions.
 
 Definition analysis visits productions in expansion order after capture-name and condition-applicability analysis. For each production, it inspects rule tags, alternative tags, selected string recipes, diagnostic recipe, empty emission, stray attachments, capture order, then emission items. Selected recipes use value before image. Each item contributes its value recipe, image recipe, then tags. Insertion anchors follow all productions.
 
@@ -3490,7 +3490,7 @@ Each violation is a document error at the atom, at the name, or at the second at
 - A tag term that uses (§3.6) a capture that a production it serves lacks is an error. An alternative's own tags serve the productions of that alternative, and the rule-level `::` clause serves every production of the definition. An emission item's tags serve every production in which the item is not dropped.
 - A selected or diagnostic recipe that uses a capture that a production it serves lacks is an error. An alternative recipe serves that alternative's productions. A rule-level recipe serves each production where no alternative recipe overrides it on that channel. An item recipe serves each production where its item remains.
 - A value or image recipe beside `%erased` is a document error. Diagnostic recipes remain legal there. A retained parent item over an erased capture can supply strings while its counted parts remain empty.
-- In an emission, captures written in an order other than the one in which some production reads them are an error. The written order runs item after item. Within an item, it runs through the before-attachments, the carrier and the after-attachments. For each production, the reader makes sure that the captures that the production has stand in the written order of the emission. So `%emits ($a) $c, $b` is an error when a production reads `$a`, `$b` and `$c` in that order.
+- In an emission, captures written in an order other than the one in which some production reads them are an error. The written order runs item after item. Within an item, it runs through the before-attachments, the carrier and the after-attachments. For each production, the DOM validator makes sure that the captures that the production has stand in the written order of the emission. So `%emits ($a) $c, $b` is an error when a production reads `$a`, `$b` and `$c` in that order.
 
   The check is well defined per production, because a production holds each name at most once (§3.5). So each name of the emission stands for at most one part of the production. Those parts have one order, the order in which the production reads them. A name that stands in several branches is the part of whichever branch the production took. So `($a:A $b:B | $b:B $a:A)` with `%emits $a, $b` is an error, because the second production reads `$b` first.
 
@@ -3582,7 +3582,7 @@ String decoding preserves dollar signs literally. `++` joins string operands in 
 
 A scalar range endpoint decodes as a string term and must resolve to exactly one scalar. The DOM retains the string term. An equal literal and constant resolve to one terminal identity. A reversed scalar range is a document error.
 
-Reader errors retain their construct positions. After constant binding, a wide endpoint error uses that endpoint's first constant reference, otherwise the definition. A reversed range error uses the first constant reference in the left endpoint. Without one, it uses the first constant reference in the right endpoint, otherwise the definition.
+DOM validator errors retain their construct positions. After constant binding, a wide endpoint error uses that endpoint's first constant reference, otherwise the definition. A reversed range error uses the first constant reference in the left endpoint. Without one, it uses the first constant reference in the right endpoint, otherwise the definition.
 
 Supplied-DOM inspection retains the same two range reasons, including when a malformed bootstrap reports them. The schema inspects literal endpoint values. Rule type inspection checks endpoint types, and binding inspects values that become known later.
 

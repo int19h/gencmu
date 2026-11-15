@@ -25050,5 +25050,352 @@
       1,
       20
     ]
+  },
+  {
+    "description": "A null requirement of a tag test is malformed, and the check reads nothing from it (engine §9.3).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "gates": [],
+          "expr": {
+            "test": "tags",
+            "requirements": [
+              null
+            ],
+            "expr": {
+              "ref": "A"
+            }
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true,
+    "message": "a malformed requirement"
+  },
+  {
+    "description": "A null entry of a requirement-list argument is malformed, and the check reads nothing from it (engine §9.3).",
+    "dom": {
+      "format": 50,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "alternatives": [
+            {
+              "gates": [],
+              "expr": {
+                "call": "t",
+                "args": [
+                  {
+                    "requirements": [
+                      null
+                    ]
+                  }
+                ],
+                "at": [
+                  1,
+                  9
+                ]
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            1,
+            1
+          ]
+        },
+        {
+          "name": "t",
+          "op": "define",
+          "params": [
+            "P"
+          ],
+          "alternatives": [
+            {
+              "gates": [],
+              "expr": {
+                "ref": "A"
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "malformed": true,
+    "message": "a malformed requirement"
+  },
+  {
+    "description": "A null gate of an alternative is malformed (engine §9.3).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "gates": [
+            null
+          ],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true,
+    "message": "a malformed alternative"
+  },
+  {
+    "description": "A null gate of a classifier entry is malformed (engine §9.3).",
+    "dom": {
+      "format": 50,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "alternatives": [
+            {
+              "gates": [],
+              "expr": {
+                "ref": "A"
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [
+        {
+          "name": "lex",
+          "entries": [
+            {
+              "gates": [
+                null
+              ],
+              "keys": [
+                {
+                  "string": "a"
+                }
+              ],
+              "op": "∈",
+              "class": "KOhA",
+              "at": [
+                2,
+                3
+              ]
+            }
+          ],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "implications": []
+    },
+    "malformed": true,
+    "message": "a malformed classifier entry"
+  },
+  {
+    "description": "A message atom that is a method without receiver or arguments is malformed before any walk of the message (engine §9.3).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "gates": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ],
+      "error": {
+        "concat": [
+          {
+            "method": "tags"
+          }
+        ]
+      }
+    },
+    "malformed": true,
+    "message": "a malformed recipe atom"
+  },
+  {
+    "description": "A message atom without its arguments is malformed before any walk of the message (engine §9.3).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "gates": [],
+          "expr": {
+            "capture": "x",
+            "expr": {
+              "ref": "A"
+            }
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ],
+      "error": {
+        "concat": [
+          {
+            "method": "source-text",
+            "receiver": {
+              "capture": "x"
+            }
+          }
+        ]
+      }
+    },
+    "malformed": true,
+    "message": "a malformed recipe atom"
+  },
+  {
+    "description": "A message atom with a malformed set operation is reported, and nothing walks it first (engine §9.3).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "gates": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ],
+      "warning": {
+        "concat": [
+          {
+            "difference": {}
+          }
+        ]
+      }
+    },
+    "malformed": true,
+    "message": "a recipe atom has no set operator"
+  },
+  {
+    "description": "A null parse body is a malformed parse argument (engine §9.3).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "gates": [],
+          "expr": {
+            "capture": "x",
+            "expr": {
+              "ref": "A"
+            }
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "method": "parse",
+          "receiver": {
+            "capture": "x"
+          },
+          "args": [
+            {
+              "body": null
+            }
+          ]
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true,
+    "message": "a malformed parse argument"
+  },
+  {
+    "description": "A parse body whose choice is null is malformed, and no capture search walks it first (engine §9.3).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "gates": [],
+          "expr": {
+            "capture": "x",
+            "expr": {
+              "ref": "A"
+            }
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "method": "parse",
+          "receiver": {
+            "capture": "x"
+          },
+          "args": [
+            {
+              "body": {
+                "seq": [
+                  {
+                    "choice": null
+                  },
+                  {
+                    "remainder": true
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true,
+    "message": "a malformed expression"
   }
 ]
