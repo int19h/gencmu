@@ -53,7 +53,11 @@ async function main() {
   const engines = { chromium: playwright.chromium, chrome: playwright.chromium, firefox: playwright.firefox };
   const engine = engines[browser];
   if (!engine) throw new Error(`unknown browser ${browser}`);
-  const instance = await engine.launch({ headless: true });
+  const instance = await engine.launch(
+    browser === "firefox"
+      ? { headless: true }
+      : { headless: true, ignoreDefaultArgs: ["--hide-scrollbars"] }
+  );
   let server;
   try {
     if (!target) {
@@ -1309,11 +1313,32 @@ async function main() {
     await page.locator("#tab-brackets").click();
     await idle("returning to brackets before width checks");
 
+    // One in-page helper measures an element at min-content. The
+    // threshold checks below use it too.
+    const widthBase = await run(() => {
+      self.smokeMinContentWidth = (el, clearMaxWidth = false) => {
+        const flex = el.style.flex;
+        const width = el.style.width;
+        const maxWidth = el.style.maxWidth;
+        el.style.flex = "none";
+        el.style.width = "min-content";
+        if (clearMaxWidth) el.style.maxWidth = "none";
+        const value = el.getBoundingClientRect().width;
+        el.style.flex = flex;
+        el.style.width = width;
+        el.style.maxWidth = maxWidth;
+        return value;
+      };
+      const leftMin = self.smokeMinContentWidth(document.querySelector(".left"));
+      const reserve = window.innerWidth - document.getElementById("workspace").getBoundingClientRect().width;
+      return { phoneThreshold: Math.ceil(leftMin + reserve) };
+    });
+
     for (const [w, expectedPhone, expectedStep] of [
       [1440, false, ""],
       [760, false, "1"],
-      [600, false, "2"],
-      [560, true, ""],
+      [widthBase.phoneThreshold + 40, false, "2"],
+      [widthBase.phoneThreshold - 20, true, ""],
       [390, true, ""],
       [320, true, ""],
     ]) {
@@ -1355,15 +1380,83 @@ async function main() {
         tagsTop: rTags ? Math.round(rTags.top) : null,
         wrapClientW: wrap ? wrap.clientWidth : 0,
         wrapScrollW: wrap ? wrap.scrollWidth : 1,
+        wrapOverflowX: wrap ? getComputedStyle(wrap).overflowX : null,
+        lastCellReachable: (() => {
+          if (!wrap || !table) return false;
+          const cells = table.querySelectorAll("tbody tr:last-child td");
+          const last = cells[cells.length - 1];
+          if (!last) return false;
+          const before = wrap.scrollLeft;
+          wrap.scrollLeft = wrap.scrollWidth;
+          const reachable = last.getBoundingClientRect().right <= wrap.getBoundingClientRect().right + 1.5;
+          wrap.scrollLeft = before;
+          return reachable;
+        })(),
       };
     });
     if (
       phoneTokCheck.hasThTags ||
       Math.abs(phoneTokCheck.tagsLeft - phoneTokCheck.textLeft) > 1 ||
       phoneTokCheck.tagsTop < phoneTokCheck.textBottom - 2 ||
-      phoneTokCheck.wrapScrollW > phoneTokCheck.wrapClientW
+      phoneTokCheck.wrapOverflowX !== "auto" ||
+      !phoneTokCheck.lastCellReachable
     ) {
       throw new Error(`phone tokens table tags layout check failed: ${JSON.stringify(phoneTokCheck)}`);
+    }
+    const phonePageFit = await run(() => ({
+      docSW: document.documentElement.scrollWidth,
+      clientW: document.documentElement.clientWidth,
+      outSW: document.getElementById("output").scrollWidth,
+      outCW: document.getElementById("output").clientWidth,
+    }));
+    if (phonePageFit.docSW > phonePageFit.clientW || phonePageFit.outSW > phonePageFit.outCW + 1) {
+      throw new Error(`phone tokens page or output card does not fit at 390px: ${JSON.stringify(phonePageFit)}`);
+    }
+
+    // The page and the output card fit the phone width at 390px and
+    // at 320px, in every view. A table wider than its card scrolls
+    // inside the card, and its last cell stays reachable.
+    for (const narrowWidth of [390, 320]) {
+      await page.setViewportSize({ width: narrowWidth, height: 844 });
+      for (const viewName of ["brackets", "tree", "json", "tokens", "trace", "audit"]) {
+        await page.locator(`#tab-${viewName}`).click();
+        await idle(`${viewName} view at ${narrowWidth}px`);
+        const fit = await run(() => {
+          const out = document.getElementById("output");
+          const wrap = document.querySelector("#output .table-wrap");
+          let wrapOverflowX = null;
+          let lastCellReachable = null;
+          if (wrap) {
+            wrapOverflowX = getComputedStyle(wrap).overflowX;
+            const table = wrap.querySelector("table.tokens");
+            const cells = table ? table.querySelectorAll("tbody tr:last-child td") : [];
+            const last = cells[cells.length - 1];
+            if (last) {
+              const before = wrap.scrollLeft;
+              wrap.scrollLeft = wrap.scrollWidth;
+              lastCellReachable = last.getBoundingClientRect().right <= wrap.getBoundingClientRect().right + 1.5;
+              wrap.scrollLeft = before;
+            }
+          }
+          return {
+            phone: document.getElementById("app").classList.contains("phone"),
+            docSW: document.documentElement.scrollWidth,
+            clientW: document.documentElement.clientWidth,
+            outSW: out.scrollWidth,
+            outCW: out.clientWidth,
+            wrapOverflowX,
+            lastCellReachable,
+          };
+        });
+        if (
+          !fit.phone ||
+          fit.docSW > fit.clientW ||
+          fit.outSW > fit.outCW + 1 ||
+          (fit.wrapOverflowX !== null && (fit.wrapOverflowX !== "auto" || !fit.lastCellReachable))
+        ) {
+          throw new Error(`${viewName} view does not fit at ${narrowWidth}px: ${JSON.stringify(fit)}`);
+        }
+      }
     }
 
     // Deep nesting, Trace 5th section, Token diagnostics, and phone More actions menu:
@@ -2230,6 +2323,322 @@ async function main() {
       );
     }
     await idle("after 900 -> 390 -> 1440 and phone close checks");
+
+    // ---- Fixed-width layout thresholds -----------------------------------
+    // With visible scrollbars, in a short window, the stacking and phone
+    // thresholds are the same in a short view (Brackets) and a long view
+    // (Tree), in both resize directions, with no flip. One page is resized
+    // in place, 1px at a time, across each measured threshold.
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const thresholdText = "lo jbopre cu cusku lu mi klama lo zarci .i do pu tavla mi li'u";
+    await type(thresholdText);
+    await answerFor(thresholdText);
+    await page.locator("#tab-brackets").click();
+    await idle("brackets before threshold sweeps");
+
+    const stageOnly = await run(() => {
+      const left = document.querySelector(".left");
+      const measureLeftMin = () => self.smokeMinContentWidth(left);
+      const stageFlow = document.getElementById("stage-flow");
+      const stageMin = self.smokeMinContentWidth(stageFlow);
+      const baseline = measureLeftMin();
+      const diagnostics = document.getElementById("diagnostics");
+      const syntheticBox = document.createElement("div");
+      syntheticBox.className = "box";
+      diagnostics.append(syntheticBox);
+      const targets = [
+        ["text card", document.querySelector(".tcard")],
+        ["verdict top row", document.getElementById("verdict-top")],
+        ["feature line", document.getElementById("features-used")],
+        ["diagnostics box", syntheticBox],
+        ["output card", document.getElementById("output-card")],
+      ];
+      const deltas = {};
+      for (const [name, el] of targets) {
+        const probe = document.createElement("div");
+        probe.style.cssText = "width:1200px;min-width:1200px;height:1px;";
+        el.append(probe);
+        deltas[name] = measureLeftMin() - baseline;
+        probe.remove();
+      }
+      const stageProbe = document.createElement("div");
+      stageProbe.style.cssText = "width:1200px;min-width:1200px;height:1px;flex:none;";
+      stageFlow.append(stageProbe);
+      const stageDelta = measureLeftMin() - baseline;
+      stageProbe.remove();
+      syntheticBox.remove();
+      return {
+        gutter: getComputedStyle(document.documentElement).scrollbarGutter,
+        baseline,
+        stageMin,
+        deltas,
+        stageDelta,
+      };
+    });
+    if (
+      stageOnly.gutter !== "stable" ||
+      Math.abs(stageOnly.baseline - (stageOnly.stageMin + 50)) > 1.5 ||
+      Object.values(stageOnly.deltas).some((delta) => Math.abs(delta) > 1) ||
+      stageOnly.stageDelta < 500
+    ) {
+      throw new Error(`stage-flow is not the only block that sets the left minimum: ${JSON.stringify(stageOnly)}`);
+    }
+
+    const measureMin = (selector, clearMaxWidth = false) =>
+      run(
+        ({ selector, clearMaxWidth }) => {
+          const value = self.smokeMinContentWidth(document.querySelector(selector), clearMaxWidth);
+          const work = document.getElementById("workspace");
+          return { min: value, reserve: window.innerWidth - work.getBoundingClientRect().width };
+        },
+        { selector, clearMaxWidth }
+      );
+    // The page is in the no-document state here.
+    const noDocMeasure = await measureMin("#grammar-pane", true);
+    const leftMeasure = await measureMin(".left");
+    await run(() => self.playground.openDocument("grammars/lojban/cll/syntax.md", 1, 1));
+    const editorMeasure = await measureMin("#grammar-pane");
+    const reserve = leftMeasure.reserve;
+    const phoneCenter = Math.round(leftMeasure.min + reserve);
+    const foldedCenter = phoneCenter + 36;
+    const stackOpenCenter = Math.round(leftMeasure.min + editorMeasure.min + reserve);
+    const stackNoDocCenter = Math.round(leftMeasure.min + noDocMeasure.min + reserve);
+    console.log(
+      `thresholds measured: leftMin=${leftMeasure.min.toFixed(1)} editorMin=${editorMeasure.min.toFixed(1)} ` +
+        `listMin=${noDocMeasure.min.toFixed(1)} reserve=${reserve} phone~${phoneCenter} folded~${foldedCenter} ` +
+        `stackOpen~${stackOpenCenter} stackNoDoc~${stackNoDocCenter}`
+    );
+
+    const probeWidth = async (width, height) => {
+      await page.setViewportSize({ width, height });
+      return run(() => {
+        window.dispatchEvent(new Event("resize"));
+        const leftRect = document.querySelector(".left").getBoundingClientRect();
+        const grammarRect = document.getElementById("grammar-pane").getBoundingClientRect();
+        const work = document.getElementById("workspace");
+        return {
+          phone: document.getElementById("app").classList.contains("phone"),
+          stackedGeom: grammarRect.top >= leftRect.bottom - 1,
+          noDocStacked: work.classList.contains("no-doc-stacked"),
+          grammarHidden: work.classList.contains("grammar-hidden"),
+          noDoc: work.classList.contains("no-doc"),
+          grammarW: Math.round(grammarRect.width),
+          sameRow: Math.abs(leftRect.top - grammarRect.top) <= 1,
+          scrolls: document.documentElement.scrollHeight > document.documentElement.clientHeight,
+        };
+      });
+    };
+    // Sweeps [center-22, center+22] down then up. Returns the first width
+    // in the upper state in the up direction, and checks exactly one
+    // transition each way with no flip back.
+    const sweepThreshold = async (label, center, key, height) => {
+      const lo = center - 22;
+      const hi = center + 22;
+      const down = [];
+      const up = [];
+      for (let w = hi; w >= lo; w--) down.push({ w, ...(await probeWidth(w, height)) });
+      for (let w = lo; w <= hi; w++) up.push({ w, ...(await probeWidth(w, height)) });
+      const transitions = (seq) => {
+        const found = [];
+        for (let i = 1; i < seq.length; i++) if (seq[i][key] !== seq[i - 1][key]) found.push(seq[i].w);
+        return found;
+      };
+      const downT = transitions(down);
+      const upT = transitions(up);
+      const downFirstLower = down.find((entry) => entry[key]);
+      const upFirstUpper = up.find((entry) => !entry[key]);
+      if (
+        downT.length !== 1 ||
+        upT.length !== 1 ||
+        !downFirstLower ||
+        !upFirstUpper ||
+        upFirstUpper.w !== downFirstLower.w + 1
+      ) {
+        throw new Error(
+          `threshold sweep failed for ${label}: ${JSON.stringify({ center, key, downT, upT, downFirstLower, upFirstUpper })}`
+        );
+      }
+      if (key === "phone") {
+        const above = [...down, ...up].filter((entry) => entry.w >= upFirstUpper.w);
+        if (above.some((entry) => entry.phone)) {
+          throw new Error(`phone layout above the phone threshold in ${label}: ${JSON.stringify(above)}`);
+        }
+      }
+      return { threshold: upFirstUpper.w, down, up };
+    };
+
+    // At a fixed width, changing only the height must not change the
+    // layout, even when the page goes from fitting to scrolling and back.
+    const heightScrollByState = new Map();
+    const sweepHeights = async (label, stateName, width, key, expected) => {
+      const heights = [2600, 1800, 1200, 800, 400, 240, 400, 800, 1200, 1800, 2600];
+      if (!heightScrollByState.has(stateName)) heightScrollByState.set(stateName, new Set());
+      const seen = [];
+      for (const height of heights) {
+        const entry = await probeWidth(width, height);
+        heightScrollByState.get(stateName).add(entry.scrolls);
+        seen.push({ height, value: entry[key], scrolls: entry.scrolls });
+        if (entry[key] !== expected) {
+          throw new Error(`layout changed with height alone for ${label}: ${JSON.stringify({ width, seen })}`);
+        }
+      }
+      return seen;
+    };
+    const assertHeightScrollCovered = (stateName) => {
+      const states = heightScrollByState.get(stateName) || new Set();
+      if (!states.has(true) || !states.has(false)) {
+        throw new Error(`${stateName} height sweeps did not cover both fitting and scrolling: ${JSON.stringify([...states])}`);
+      }
+    };
+
+    const thresholds = {};
+    for (const view of ["brackets", "tree"]) {
+      heightScrollByState.clear();
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await page.locator(`#tab-${view}`).click();
+      await idle(`${view} before threshold sweeps`);
+      if (view === "tree") {
+        const treeState = await probeWidth(1440, 900);
+        if (!treeState.scrolls) throw new Error(`tree view does not scroll in a short window: ${JSON.stringify(treeState)}`);
+      }
+      // Open document.
+      await run(() => {
+        if (document.getElementById("workspace").classList.contains("grammar-hidden")) {
+          document.getElementById("show-grammar").click();
+        }
+        self.playground.openDocument("grammars/lojban/cll/syntax.md", 1, 1);
+      });
+      const openStack = await sweepThreshold(`${view} open stacking`, stackOpenCenter, "stackedGeom", 900);
+      if (openStack.down.some((entry) => entry.phone) || openStack.up.some((entry) => entry.phone)) {
+        throw new Error(`${view} open stacking range entered the phone layout`);
+      }
+      const openPhone = await sweepThreshold(`${view} open phone`, phoneCenter, "phone", 900);
+      await sweepHeights(`${view} open below stacking`, "open", openStack.threshold - 2, "stackedGeom", true);
+      await sweepHeights(`${view} open above stacking`, "open", openStack.threshold + 2, "stackedGeom", false);
+      await sweepHeights(`${view} open below phone`, "open", openPhone.threshold - 2, "phone", true);
+      await sweepHeights(`${view} open above phone`, "open", openPhone.threshold + 2, "phone", false);
+      assertHeightScrollCovered("open");
+      // Folded grammar pane.
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await run(() => {
+        if (!document.getElementById("workspace").classList.contains("grammar-hidden")) {
+          document.getElementById("hide-grammar").click();
+        }
+      });
+      const foldedPhone = await sweepThreshold(`${view} folded phone`, foldedCenter, "phone", 900);
+      await sweepHeights(`${view} folded below phone`, "folded", foldedPhone.threshold - 2, "phone", true);
+      await sweepHeights(`${view} folded above phone`, "folded", foldedPhone.threshold + 2, "phone", false);
+      assertHeightScrollCovered("folded");
+      const foldedDesktop = foldedPhone.up[foldedPhone.up.length - 1];
+      if (!foldedDesktop.grammarHidden || foldedDesktop.grammarW !== 36 || !foldedDesktop.sameRow) {
+        throw new Error(`${view} folded pane is not a 36px strip above the phone threshold: ${JSON.stringify(foldedDesktop)}`);
+      }
+      // No document open.
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await run(() => {
+        if (document.getElementById("workspace").classList.contains("grammar-hidden")) {
+          document.getElementById("show-grammar").click();
+        }
+        self.playground.openDocument(null);
+      });
+      const noDocStack = await sweepThreshold(`${view} no-doc stacking`, stackNoDocCenter, "noDocStacked", 900);
+      if (noDocStack.down.some((entry) => entry.phone) || noDocStack.up.some((entry) => entry.phone)) {
+        throw new Error(`${view} no-doc stacking range entered the phone layout`);
+      }
+      const noDocPhone = await sweepThreshold(`${view} no-doc phone`, phoneCenter, "phone", 900);
+      await sweepHeights(`${view} no-doc below stacking`, "no-doc", noDocStack.threshold - 2, "noDocStacked", true);
+      await sweepHeights(`${view} no-doc above stacking`, "no-doc", noDocStack.threshold + 2, "noDocStacked", false);
+      await sweepHeights(`${view} no-doc below phone`, "no-doc", noDocPhone.threshold - 2, "phone", true);
+      await sweepHeights(`${view} no-doc above phone`, "no-doc", noDocPhone.threshold + 2, "phone", false);
+      assertHeightScrollCovered("no-doc");
+      thresholds[view] = {
+        stackOpen: openStack.threshold,
+        phoneOpen: openPhone.threshold,
+        phoneFolded: foldedPhone.threshold,
+        stackNoDoc: noDocStack.threshold,
+        phoneNoDoc: noDocPhone.threshold,
+      };
+      console.log(`thresholds ${view}: ${JSON.stringify(thresholds[view])}`);
+    }
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await run(() => window.dispatchEvent(new Event("resize")));
+    if (
+      thresholds.brackets.stackOpen !== thresholds.tree.stackOpen ||
+      thresholds.brackets.phoneOpen !== thresholds.tree.phoneOpen ||
+      thresholds.brackets.phoneFolded !== thresholds.tree.phoneFolded ||
+      thresholds.brackets.stackNoDoc !== thresholds.tree.stackNoDoc ||
+      thresholds.brackets.phoneNoDoc !== thresholds.tree.phoneNoDoc ||
+      thresholds.brackets.phoneFolded !== thresholds.brackets.phoneOpen + 36 ||
+      thresholds.brackets.phoneNoDoc !== thresholds.brackets.phoneOpen
+    ) {
+      throw new Error(`thresholds differ between views or states: ${JSON.stringify(thresholds)}`);
+    }
+    const expectedNoDocStack = leftMeasure.min + noDocMeasure.min + reserve;
+    if (
+      Math.abs(thresholds.brackets.stackNoDoc - expectedNoDocStack) > 2 ||
+      Math.abs(thresholds.tree.stackNoDoc - expectedNoDocStack) > 2
+    ) {
+      throw new Error(
+        `no-document threshold is not the left minimum plus the list minimum: ${JSON.stringify({ thresholds, expectedNoDocStack, leftMin: leftMeasure.min, listMin: noDocMeasure.min, reserve })}`
+      );
+    }
+
+    // At page start, the first fill of the stage row must already give
+    // the phone layout in a narrow window, before any result arrives.
+    const initPage = await instance.newPage();
+    await initPage.setViewportSize({ width: 390, height: 844 });
+    await initPage.addInitScript(() => {
+      window.__firstStageFill = null;
+      const install = () => {
+        const stageFlow = document.getElementById("stage-flow");
+        if (!stageFlow) return false;
+        const record = () => {
+          if (window.__firstStageFill || stageFlow.children.length === 0) return;
+          window.__firstStageFill = {
+            status: document.getElementById("status").dataset.state,
+            chips: stageFlow.children.length,
+            phone: document.getElementById("app").classList.contains("phone"),
+            sideways:
+              document.documentElement.scrollWidth >
+              document.documentElement.clientWidth,
+          };
+        };
+        new MutationObserver(record).observe(stageFlow, { childList: true });
+        record();
+        return true;
+      };
+      if (!install()) {
+        const watcher = new MutationObserver(() => {
+          if (install()) watcher.disconnect();
+        });
+        watcher.observe(document, { childList: true, subtree: true });
+      }
+    });
+    await initPage.goto(target + "#text=mi%20klama&pipeline=lojban%2Fcll&view=brackets");
+    await initPage.waitForFunction(() => window.__firstStageFill, null, { timeout: 60000 });
+    const firstStageFill = await initPage.evaluate(() => window.__firstStageFill);
+    await initPage.close();
+    if (!firstStageFill || !firstStageFill.phone || firstStageFill.sideways) {
+      throw new Error(`first stage fill did not give the phone layout at 390px: ${JSON.stringify(firstStageFill)}`);
+    }
+
+    // A change of the text size alone fires no resize, but it changes the
+    // minimums. Larger stage text just above the phone threshold must give
+    // the phone layout, and the normal text must give it back.
+    await page.setViewportSize({ width: thresholds.brackets.phoneNoDoc + 20, height: 900 });
+    await page.waitForFunction(() => !document.getElementById("app").classList.contains("phone"), null, { timeout: 5000 });
+    await run(() => {
+      const style = document.createElement("style");
+      style.id = "smoke-text-size";
+      style.textContent = ".stage b, .stage span, .text-probe { font-size: 20px !important; }";
+      document.head.append(style);
+    });
+    await page.waitForFunction(() => document.getElementById("app").classList.contains("phone"), null, { timeout: 5000 })
+      .catch(() => { throw new Error("larger text did not give the phone layout without a resize"); });
+    await run(() => document.getElementById("smoke-text-size").remove());
+    await page.waitForFunction(() => !document.getElementById("app").classList.contains("phone"), null, { timeout: 5000 })
+      .catch(() => { throw new Error("normal text did not give the desktop layout back without a resize"); });
+    await page.setViewportSize({ width: 1440, height: 900 });
 
     console.log(`redesigned layout, full editor, and phone checks work in ${browser}`);
 
