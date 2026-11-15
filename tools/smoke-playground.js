@@ -2388,11 +2388,35 @@ async function main() {
           `threshold sweep failed for ${label}: ${JSON.stringify({ center, key, downT, upT, downFirstLower, upFirstUpper })}`
         );
       }
+      if (key === "phone") {
+        const above = [...down, ...up].filter((entry) => entry.w >= upFirstUpper.w);
+        if (above.some((entry) => entry.phone)) {
+          throw new Error(`phone layout above the phone threshold in ${label}: ${JSON.stringify(above)}`);
+        }
+      }
       return { threshold: upFirstUpper.w, down, up };
+    };
+
+    // At a fixed width, changing only the height must not change the
+    // layout, even when the page goes from fitting to scrolling and back.
+    const heightScrollStates = new Set();
+    const sweepHeights = async (label, width, key, expected) => {
+      const heights = [2600, 1800, 1200, 800, 400, 800, 1200, 1800, 2600];
+      const seen = [];
+      for (const height of heights) {
+        const entry = await probeWidth(width, height);
+        heightScrollStates.add(entry.scrolls);
+        seen.push({ height, value: entry[key], scrolls: entry.scrolls });
+        if (entry[key] !== expected) {
+          throw new Error(`layout changed with height alone for ${label}: ${JSON.stringify({ width, seen })}`);
+        }
+      }
+      return seen;
     };
 
     const thresholds = {};
     for (const view of ["brackets", "tree"]) {
+      heightScrollStates.clear();
       await page.setViewportSize({ width: 1440, height: 900 });
       await page.locator(`#tab-${view}`).click();
       await idle(`${view} before threshold sweeps`);
@@ -2412,6 +2436,10 @@ async function main() {
         throw new Error(`${view} open stacking range entered the phone layout`);
       }
       const openPhone = await sweepThreshold(`${view} open phone`, phoneCenter, "phone", 900);
+      await sweepHeights(`${view} open below stacking`, openStack.threshold - 2, "stackedGeom", true);
+      await sweepHeights(`${view} open above stacking`, openStack.threshold + 2, "stackedGeom", false);
+      await sweepHeights(`${view} open below phone`, openPhone.threshold - 2, "phone", true);
+      await sweepHeights(`${view} open above phone`, openPhone.threshold + 2, "phone", false);
       // Folded grammar pane.
       await page.setViewportSize({ width: 1440, height: 900 });
       await run(() => {
@@ -2420,6 +2448,8 @@ async function main() {
         }
       });
       const foldedPhone = await sweepThreshold(`${view} folded phone`, foldedCenter, "phone", 900);
+      await sweepHeights(`${view} folded below phone`, foldedPhone.threshold - 2, "phone", true);
+      await sweepHeights(`${view} folded above phone`, foldedPhone.threshold + 2, "phone", false);
       const foldedDesktop = foldedPhone.up[foldedPhone.up.length - 1];
       if (!foldedDesktop.grammarHidden || foldedDesktop.grammarW !== 36 || !foldedDesktop.sameRow) {
         throw new Error(`${view} folded pane is not a 36px strip above the phone threshold: ${JSON.stringify(foldedDesktop)}`);
@@ -2437,6 +2467,13 @@ async function main() {
         throw new Error(`${view} no-doc stacking range entered the phone layout`);
       }
       const noDocPhone = await sweepThreshold(`${view} no-doc phone`, phoneCenter, "phone", 900);
+      await sweepHeights(`${view} no-doc below stacking`, noDocStack.threshold - 2, "noDocStacked", true);
+      await sweepHeights(`${view} no-doc above stacking`, noDocStack.threshold + 2, "noDocStacked", false);
+      await sweepHeights(`${view} no-doc below phone`, noDocPhone.threshold - 2, "phone", true);
+      await sweepHeights(`${view} no-doc above phone`, noDocPhone.threshold + 2, "phone", false);
+      if (!heightScrollStates.has(true) || !heightScrollStates.has(false)) {
+        throw new Error(`${view} height sweeps did not cover both fitting and scrolling: ${JSON.stringify([...heightScrollStates])}`);
+      }
       thresholds[view] = {
         stackOpen: openStack.threshold,
         phoneOpen: openPhone.threshold,
@@ -2459,6 +2496,83 @@ async function main() {
     ) {
       throw new Error(`thresholds differ between views or states: ${JSON.stringify(thresholds)}`);
     }
+    const expectedNoDocStack = leftMeasure.min + noDocMeasure.min + reserve;
+    if (
+      Math.abs(thresholds.brackets.stackNoDoc - expectedNoDocStack) > 2 ||
+      Math.abs(thresholds.tree.stackNoDoc - expectedNoDocStack) > 2
+    ) {
+      throw new Error(
+        `no-document threshold is not the left minimum plus the list minimum: ${JSON.stringify({ thresholds, expectedNoDocStack, leftMin: leftMeasure.min, listMin: noDocMeasure.min, reserve })}`
+      );
+    }
+
+    // Fractional widths: the viewport API takes whole pixels, so the page
+    // runs in an iframe whose width changes in quarter-pixel steps. Sub-pixel
+    // flex widths must not put the page in the phone layout above the
+    // phone threshold (the 1716 against 1715 case).
+    const fracPage = await instance.newPage();
+    await fracPage.setViewportSize({ width: 1400, height: 900 });
+    await fracPage.goto(target);
+    await fracPage.evaluate(() => {
+      const frame = document.createElement("iframe");
+      frame.id = "smoke-frac-frame";
+      frame.src = location.href;
+      frame.style.cssText = "width:800px;height:800px;border:0;";
+      document.body.append(frame);
+    });
+    const fracFrame = fracPage.frameLocator("#smoke-frac-frame");
+    for (let attempt = 0; attempt < 600; attempt++) {
+      const ready = await fracFrame.locator("html").evaluate(() => {
+        const status = document.getElementById("status");
+        return status && status.dataset.state === "ready";
+      }).catch(() => false);
+      if (ready) break;
+      await sleep(100);
+    }
+    await fracFrame.locator("html").evaluate(() => {
+      self.playground.openDocument("grammars/lojban/cll/syntax.md", 1, 1);
+    });
+    await sleep(500);
+    const fracCenter = thresholds.brackets.phoneOpen;
+    const fracProbe = async (width) => {
+      await fracPage.evaluate((width) => {
+        document.getElementById("smoke-frac-frame").style.width = `${width}px`;
+      }, width);
+      return fracFrame.locator("html").evaluate(() => {
+        window.dispatchEvent(new Event("resize"));
+        return {
+          phone: document.getElementById("app").classList.contains("phone"),
+          clientW: document.documentElement.clientWidth,
+          workScrollW: document.getElementById("workspace").scrollWidth,
+        };
+      });
+    };
+    const fracDown = [];
+    const fracUp = [];
+    for (let w = fracCenter + 3; w >= fracCenter - 3; w -= 0.25) fracDown.push({ w, ...(await fracProbe(w)) });
+    for (let w = fracCenter - 3; w <= fracCenter + 3; w += 0.25) fracUp.push({ w, ...(await fracProbe(w)) });
+    const fracTransitions = (seq) => {
+      const found = [];
+      for (let i = 1; i < seq.length; i++) if (seq[i].phone !== seq[i - 1].phone) found.push(seq[i].w);
+      return found;
+    };
+    const fracDownT = fracTransitions(fracDown);
+    const fracUpT = fracTransitions(fracUp);
+    const fracFirstNonPhoneUp = fracUp.find((entry) => !entry.phone);
+    if (
+      fracDownT.length !== 1 ||
+      fracUpT.length !== 1 ||
+      !fracFirstNonPhoneUp ||
+      fracUp.some((entry) => entry.w >= fracFirstNonPhoneUp.w && entry.phone) ||
+      Math.abs(fracFirstNonPhoneUp.w - fracCenter) > 3.5
+    ) {
+      throw new Error(
+        `fractional width phone sweep failed: ${JSON.stringify({ fracCenter, fracDownT, fracUpT, fracFirstNonPhoneUp })}`
+      );
+    }
+    console.log(`fractional phone threshold: first non-phone frame width ${fracFirstNonPhoneUp.w} (integer threshold ${fracCenter})`);
+    await fracPage.close();
+    await page.setViewportSize({ width: 1440, height: 900 });
 
     console.log(`redesigned layout, full editor, and phone checks work in ${browser}`);
 

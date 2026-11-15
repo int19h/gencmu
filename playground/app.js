@@ -600,12 +600,6 @@
     }
 
     const clientW = document.documentElement.clientWidth || window.innerWidth;
-    if (workspace && !state.open && !state.grammarHidden && leftEl && grammarEl) {
-      const workW = workspace.clientWidth || clientW;
-      if (leftEl.offsetWidth + grammarEl.offsetWidth > workW) {
-        workspace.classList.add("no-doc-stacked");
-      }
-    }
 
     // The left side's minimum is set only by #stage-flow. Every other
     // block of the left side is a size container, so measuring .left at
@@ -619,6 +613,26 @@
       leftMin = leftEl.getBoundingClientRect().width;
       leftEl.style.flex = prevFlex;
       leftEl.style.width = prevWidth;
+    }
+
+    // With no document open, stack when the two minimums do not fit.
+    // The rendered widths do not give this. The grammar pane renders
+    // wider than the list's minimum when the list has room.
+    if (workspace && !state.open && !state.grammarHidden && leftEl && grammarEl) {
+      const prevFlex = grammarEl.style.flex;
+      const prevWidth = grammarEl.style.width;
+      const prevMaxWidth = grammarEl.style.maxWidth;
+      grammarEl.style.flex = "none";
+      grammarEl.style.width = "min-content";
+      grammarEl.style.maxWidth = "none";
+      const listMin = grammarEl.getBoundingClientRect().width;
+      grammarEl.style.flex = prevFlex;
+      grammarEl.style.width = prevWidth;
+      grammarEl.style.maxWidth = prevMaxWidth;
+      const workW = workspace.clientWidth || clientW;
+      if (leftMin + listMin > workW) {
+        workspace.classList.add("no-doc-stacked");
+      }
     }
     const leftTooNarrow = leftEl
       ? clientW < leftMin + (state.grammarHidden ? 36 : 0)
