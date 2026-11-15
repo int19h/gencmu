@@ -249,9 +249,9 @@ The authoritative constructor contract is [engine §9.3](engine.md#93-conversion
 
 A grammar DOM (document object model) is the parsed form of a grammar document (engine §8, §9). A library makes it when it reads the document. The per-family preparsed files hold this data, including the entries that bootstrap the notation reader.
 
-Its envelope is `{"format":49,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. All five declaration arrays are present, including empty arrays. The envelope has no other members. Every declared item has `at:[line,column]`, counted from 1. Both coordinates must be integers from 1 to 9007199254740991 (2^53 − 1). This bound applies to every DOM source position.
+Its envelope is `{"format":50,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. All five declaration arrays are present, including empty arrays. The envelope has no other members. Every declared item has `at:[line,column]`, counted from 1. Both coordinates must be integers from 1 to 9007199254740991 (2^53 − 1). This bound applies to every DOM source position.
 
-`format` is the version of the DOM, 49. A library refuses a bootstrap of another version and treats an optional cached DOM of another version as a cache miss. A format match alone never excuses invalid schema data.
+`format` is the version of the DOM, 50. A library refuses a bootstrap of another version and treats an optional cached DOM of another version as a cache miss. A format match alone never excuses invalid schema data.
 
 An optional member is absent only when its key is absent. A present `null` does not replace an omitted member. Every present member must satisfy its stated form, including exclusive targets and optional clauses.
 
@@ -317,7 +317,7 @@ TESTED-SYMBOL
 
 Common atoms retain their term forms. A parenthesized single symbol becomes its common ARG atom, including a tested symbol or parameter. Other parenthesized bodies, optionals, and repetitions use `body`.
 
-A tested-symbol argument retains its ordinary expression schema. Bare `ε` uses `body:{"empty":true}`. The body wrapper preserves the argument category and adds no runtime node.
+A tested-symbol argument retains its ordinary expression schema. Bare `ε` uses `body:{"empty":true,"at":[line,column]}`. The body wrapper preserves the argument category and adds no runtime node.
 
 A parenthesized single parameter has no `body` wrapper. Other nesting follows the reader's ordinary DOM construction.
 
@@ -348,42 +348,42 @@ Alternatives have no members beyond `gates`, `expr`, `tags`, `value`, and `image
 An expression has exactly one of these forms:
 
 ```text
-{"seq":[EXPR,EXPR...]}       {"choice":[EXPR,EXPR...]}
-{"ranked":[EXPR,EXPR...]}    {"and":[EXPR,EXPR...]}
-{"optional":EXPR}           {"optional":EXPR,"elidable":true}
-{"repeat":EXPR,"separator":EXPR,"chain":"left"}
-{"ref":"sumti"}            {"ref":"KOhA"}            {"ref":"_General_Category_Uppercase_Letter"}
-{"literal":STRINGTERM}      {"wildcard":true}
-{"range":[STRINGTERM,STRINGTERM]}
-{"splice":SPLICETARGET}
-{"capture":"x","expr":CAPTURETARGET}
-{"test":"=","value":STRINGTERM,"expr":TESTTARGET}
-{"test":"tags","requirements":[REQUIREMENT...],"expr":BASETARGET}
-{"empty":true}             {"remainder":true}
+{"seq":[EXPR,EXPR...],"at":[line,column]}       {"choice":[EXPR,EXPR...],"at":[line,column]}
+{"ranked":[EXPR,EXPR...],"at":[line,column]}    {"and":[EXPR,EXPR...],"at":[line,column]}
+{"optional":EXPR,"at":[line,column]}           {"optional":EXPR,"elidable":true,"at":[line,column]}
+{"repeat":EXPR,"separator":EXPR,"chain":"left","at":[line,column]}
+{"ref":"sumti","at":[line,column]}            {"ref":"KOhA","at":[line,column]}            {"ref":"_General_Category_Uppercase_Letter","at":[line,column]}
+{"literal":STRINGTERM,"at":[line,column]}      {"wildcard":true,"at":[line,column]}
+{"range":[STRINGTERM,STRINGTERM],"at":[line,column]}
+{"splice":SPLICETARGET,"at":[line,column]}
+{"capture":"x","expr":CAPTURETARGET,"at":[line,column]}
+{"test":"=","value":STRINGTERM,"expr":TESTTARGET,"at":[line,column]}
+{"test":"tags","requirements":[REQUIREMENT...],"expr":BASETARGET,"at":[line,column]}
+{"empty":true,"at":[line,column]}             {"remainder":true,"at":[line,column]}
 {"call":"pair","args":[ARG,ARG...],"at":[line,column]}
 {"param":"Left","at":[line,column]}
 ```
 
-An expression has no member but those of its one form, including template forms above.
+An expression has no member but those of its one form, including template forms above. Every expression node carries `at:[line,column]` as its last member in canonical output. A supplied DOM can omit `at` on an expression node other than `call` or `param`. A fault at an expression node without `at` is reported at the nearest enclosing node with a position, at least at the rule.
 
 `seq`, `choice`, `ranked`, and `and` require at least two children. `and` accepts at most 16.
 
-`repeat` is braces (engine §3, §9). Its value is the item, and its `separator` is present only where the braces have `/`. Its `chain` is present only for a chain: `left` for `{... x / s}` and `right` for `{x ... / s}`. So `{x}` is `{"repeat":X}`, `{x / s}` is `{"repeat":X,"separator":S}`, and `[{x}]` is `{"optional":{"repeat":X}}`. A `repeat` with a `chain` is the whole `expr` of its alternative, and never part of another expression. A `repeat` with a `chain` is never the `body` of a query. A list counts one or more items, and an optional list is an `optional`.
+`repeat` is braces (engine §3, §9). Its value is the item, and its `separator` is present only where the braces have `/`. Its `chain` is present only for a chain: `left` for `{... x / s}` and `right` for `{x ... / s}`. So `{x}` is `{"repeat":X,"at":[line,column]}`, `{x / s}` is `{"repeat":X,"separator":S,"at":[line,column]}`, and `[{x}]` is `{"optional":{"repeat":X,"at":[line,column]},"at":[line,column]}`. A `repeat` with a `chain` is the whole `expr` of its alternative, and never part of another expression. A `repeat` with a `chain` is never the `body` of a query. A list counts one or more items, and an optional list is an `optional`.
 
 SPLICETARGET is one rule `ref` or `call`, including an emoji rule. It cannot be a terminal, parameter, test, group, or nested splice. Outer tests can wrap a splice, and a capture can bind that tested occurrence.
 
 A `ref` stores a rule or tag name, including `🆓` or an engine tag. `literal` stores an unresolved string term. A range stores two string terms that resolve to single scalar endpoints. `wildcard` is exactly `true`.
 
-An `optional` with `"elidable":true` is an elidable optional (engine §3.8). `[+KU 🆓]` is `{"optional":{"seq":[{"ref":"KU"},{"ref":"🆓"}]},"elidable":true}`. A plain optional has no `elidable` member. An elidable optional whose head carries `≝` has a `default` member after `elidable`.
+An `optional` with `"elidable":true` is an elidable optional (engine §3.8). `[+KU 🆓]` is `{"optional":{"seq":[{"ref":"KU","at":[1,3]},{"ref":"🆓","at":[1,6]}],"at":[1,3]},"elidable":true,"at":[1,1]}`. A plain optional has no `elidable` member. An elidable optional whose head carries `≝` has a `default` member after `elidable`, before `at`.
 
-Its value has the form of a value test's operand. So `[+JI ≝ "jie"]` is `{"optional":{"ref":"JI"},"elidable":true,"default":{"string":"jie"}}`. A plain optional has no `default` member.
+Its value has the form of a value test's operand. So `[+JI ≝ "jie"]` is `{"optional":{"ref":"JI","at":[1,3]},"elidable":true,"default":{"string":"jie"},"at":[1,1]}`. A plain optional has no `default` member.
 
 `BASETARGET` is a `ref`, `call`, `splice`, `literal`, `wildcard`, or `range`. Before expansion, it also accepts a declared `param` node. `TESTTARGET` is a BASETARGET, or its tag-tested form under a value test. `CAPTURETARGET` is a BASETARGET or its legal tested form.
 
 Before expansion, `$x:@X` can have this capture expression:
 
 ```json
-{"capture":"x","expr":{"param":"X","at":[1,16]}}
+{"capture":"x","expr":{"param":"X","at":[1,16]},"at":[1,13]}
 ```
 
 A query parameter uses the same unresolved node in its body:
@@ -405,7 +405,7 @@ The requirement array can be empty. An empty constant also resolves to no requir
 For example, `_<Stressed>≠"y"` converts to this nested expression:
 
 ```json
-{"test":"≠","value":{"string":"y"},"expr":{"test":"tags","requirements":[{"negated":false,"value":{"tag":"Stressed"}}],"expr":{"wildcard":true}}}
+{"test":"≠","value":{"string":"y"},"expr":{"test":"tags","requirements":[{"negated":false,"value":{"tag":"Stressed"}}],"expr":{"wildcard":true,"at":[1,1]},"at":[1,2]},"at":[1,12]}
 ```
 
 The pattern value `#A<B>=""` converts as follows. Its leaf uses `terminal` and records its source position. Both tests observe that same leaf.
@@ -417,7 +417,7 @@ The pattern value `#A<B>=""` converts as follows. Its leaf uses `terminal` and r
 A capture of `🆓` converts like any rule capture:
 
 ```json
-{"capture":"f","expr":{"ref":"🆓"}}
+{"capture":"f","expr":{"ref":"🆓","at":[1,4]},"at":[1,1]}
 ```
 
 The first symbol of an elidable optional is a user-tag `ref`, optionally tested. Its tests can combine a value test and signed tag requirements. Before expansion, it can instead be a declared `param`, with the written head tests. Its content is that symbol, a sequence starting with it, or a capture wrapping only that symbol.
@@ -425,7 +425,7 @@ The first symbol of an elidable optional is a user-tag `ref`, optionally tested.
 `[$j:+JI="jie"]` has this DOM:
 
 ```json
-{"optional":{"capture":"j","expr":{"test":"=","value":{"string":"jie"},"expr":{"ref":"JI"}}},"elidable":true}
+{"optional":{"capture":"j","expr":{"test":"=","value":{"string":"jie"},"expr":{"ref":"JI","at":[1,6]},"at":[1,8]},"at":[1,2]},"elidable":true,"at":[1,1]}
 ```
 
 A `default` belongs to the optional, after `elidable`, including for a captured terminator. No capture can wrap the optional itself.
@@ -475,14 +475,14 @@ Classifier arguments use `{"classifier":"lexicon"}`. Rule arguments are also leg
 
 String arguments are terms. A classifier name starts with a lowercase letter, so `🆓` cannot name a classifier.
 
-`.parse` takes exactly one `{"body":EXPR}` argument. Its receiver is a capture or span, including a restored span except in suffix or part mode. The body contains no capture at any depth, but referenced rules retain their own captures. The body is never a `repeat` with a `chain`. It can add the leaf `{"remainder":true}` at the first edge, at the last edge, or at both edges of its outer `seq`.
+`.parse` takes exactly one `{"body":EXPR}` argument. Its receiver is a capture or span, including a restored span except in suffix or part mode. The body contains no capture at any depth, but referenced rules retain their own captures. The body is never a `repeat` with a `chain`. It can add the leaf `{"remainder":true,"at":[line,column]}` at the first edge, at the last edge, or at both edges of its outer `seq`.
 
-That leaf has no other members and is legal nowhere else. It cannot be the complete body. Without it, the query uses whole mode.
+That leaf has no other members beyond `remainder` and optional `at`, and is legal nowhere else. It cannot be the complete body. Without it, the query uses whole mode.
 
 For example, `$i.onward.parse(@Open …).error-free` in a template uses this unresolved term:
 
 ```json
-{"method":"error-free","receiver":{"method":"parse","receiver":{"method":"onward","receiver":{"capture":"i"},"args":[]},"args":[{"body":{"seq":[{"param":"Open","at":[2,20]},{"remainder":true}]}}]},"args":[]}
+{"method":"error-free","receiver":{"method":"parse","receiver":{"method":"onward","receiver":{"capture":"i"},"args":[]},"args":[{"body":{"seq":[{"param":"Open","at":[2,20]},{"remainder":true,"at":[2,26]}],"at":[2,20]}}]},"args":[]}
 ```
 
 A first remainder selects suffix mode, and a last remainder selects prefix mode. A remainder at both edges selects part mode. Each remainder is unread and excluded from the witness. `.error-free` takes no arguments, accepts a forest receiver, and returns a forest.
@@ -498,13 +498,13 @@ A bare `parse` result or its filtered result can stand as a condition. A forest 
 For example, `$m.without-elision.parse(sumti)` uses this condition DOM:
 
 ```json
-{"method":"parse","receiver":{"method":"without-elision","receiver":{"capture":"m"},"args":[]},"args":[{"body":{"ref":"sumti"}}]}
+{"method":"parse","receiver":{"method":"without-elision","receiver":{"capture":"m"},"args":[]},"args":[{"body":{"ref":"sumti","at":[1,26]}}]}
 ```
 
 `$s.without-elision-except(math).onward.parse(quantifier …)` uses this condition DOM:
 
 ```json
-{"method":"parse","receiver":{"method":"onward","receiver":{"method":"without-elision-except","receiver":{"capture":"s"},"args":[{"rule":"math"}]},"args":[]},"args":[{"body":{"seq":[{"ref":"quantifier"},{"remainder":true}]}}]}
+{"method":"parse","receiver":{"method":"onward","receiver":{"method":"without-elision-except","receiver":{"capture":"s"},"args":[{"rule":"math"}]},"args":[]},"args":[{"body":{"seq":[{"ref":"quantifier","at":[1,42]},{"remainder":true,"at":[1,53]}],"at":[1,42]}}]}
 ```
 
 The extended prefix uses `$m.without-elision.onward.parse(sumti …)`. Its receiver nests an `onward` method around the restored span. Query conditions use the same method schema as terms.
@@ -727,12 +727,12 @@ Elided tree nodes with a default value expose it as `value`, including an explic
 
 ### Ranked expressions
 
-A ranked expression is `{"ranked":[EXPR,EXPR...]}`. Its array has at least two ordinary expressions and preserves source order. A nested ranked expression retains its own boundary. Ordinary alternatives within one option use `choice`.
+A ranked expression is `{"ranked":[EXPR,EXPR...],"at":[line,column]}`. Its array has at least two ordinary expressions and preserves source order. Its `at` is the line and column of its first `≻` token. A nested ranked expression retains its own boundary. Ordinary alternatives within one option use `choice`.
 
 For example, `mex MOI 🆓 ≻ SE 🆓 tanru-unit-1` produces this expression:
 
 ```json
-{"ranked":[{"seq":[{"ref":"mex"},{"ref":"MOI"},{"ref":"🆓"}]},{"seq":[{"ref":"SE"},{"ref":"🆓"},{"ref":"tanru-unit-1"}]}]}
+{"ranked":[{"seq":[{"ref":"mex","at":[1,1]},{"ref":"MOI","at":[1,5]},{"ref":"🆓","at":[1,9]}],"at":[1,1]},{"seq":[{"ref":"SE","at":[1,14]},{"ref":"🆓","at":[1,17]},{"ref":"tanru-unit-1","at":[1,20]}],"at":[1,14]}],"at":[1,12]}
 ```
 
 Neighbor-guarded tag terms use the ordinary `if` term and boundary-method condition shapes. Their guard is one optionally negated atom on `$`, with a literal tag-set consequent. The DOM stores the written term, never the concrete variants of engine §3.7.
@@ -743,7 +743,7 @@ The DOM holds no lowered helper, admission key, [seal](notation.md#the-structura
 
 The names dependency of a cached document is a resource map. If source conversion loads no names data, the entry omits `names`.
 
-`data/preparsed/FAMILY.json` holds the DOMs of all grammar documents under `grammars/FAMILY/`. `tools/sync.js` generates each file and copies it into every package. Its shape is `{"format":49,"bootstrap":HASH,"unicode":HASH,"properties":HASH_OR_NULL,"bundledNames":{RESOURCE:HASH},"documents":{PATH:{"hash":HASH,"names":{RESOURCE:HASH},"dom":DOM}}}`. `PATH` is relative to the package root, including the `grammars/` prefix. Each `HASH` is the FNV-1a hash of engine §8. `unicode` hashes the text of `data/unicode/unicode.txt`.
+`data/preparsed/FAMILY.json` holds the DOMs of all grammar documents under `grammars/FAMILY/`. `tools/sync.js` generates each file and copies it into every package. Its shape is `{"format":50,"bootstrap":HASH,"unicode":HASH,"properties":HASH_OR_NULL,"bundledNames":{RESOURCE:HASH},"documents":{PATH:{"hash":HASH,"names":{RESOURCE:HASH},"dom":DOM}}}`. `PATH` is relative to the package root, including the `grammars/` prefix. Each `HASH` is the FNV-1a hash of engine §8. `unicode` hashes the text of `data/unicode/unicode.txt`.
 
 The required `gencmu.json` omits the `bootstrap` header member. The hash of its complete text supplies that fingerprint for every other family. The notation reader uses its required entries without checking their source text hashes. Ordinary cache lookups still compare all other applicable identity members. Each document key selects its own family's preparsed file (engine §8), besides the required `gencmu.json`. Missing or malformed optional files give cache misses.
 

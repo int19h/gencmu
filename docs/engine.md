@@ -661,9 +661,7 @@ The loading paths use the following positions. The table names the entry points 
 
 Identify each ranked expression after final stitching and constant binding. Its identity is the final rule, zero-based alternative index, and expression path. Its options retain source order. Every group requires at least two expressions.
 
-Visit rules in expanded order (§2.3), then groups in alternative and expression traversal order. The first offending group determines the error, across capture and tag checks. Source locations remain separate from the document DOM. The group location is its first `≻` token when source exists. Recovery retains boundary-atom, ranked-group, and recipe coordinates together. A known source location needs no recovery pass.
-
-A definition's position does not replace a missing `recipe-term` position. A matching cache recovers that term's position from the source.
+Visit rules in expanded order (§2.3), then groups in alternative and expression traversal order. The first offending group determines the error, across capture and tag checks. A ranked node's `at` is the position of its first `≻` token. A supplied DOM can omit `at` on `ranked`, and the group then uses the nearest enclosing node with a position.
 
 Within a group, inspect alternative recipes before rule recipes. Within each pair, inspect the value before the image. Run the clause checks once, with the structural facts that their boundary checks require.
 
@@ -2500,9 +2498,9 @@ Decoding retains every declaration and its children as typed nodes, including de
 
 One validator handles ordinary nodes and source nodes. Calls and parameters retain their scopes, argument categories, and local shape restrictions before expansion.
 
-The document retains one declaration representation. Cached diagnostic recovery reads the source once. It copies private positions between typed nodes and preserves every public cached member.
+The document retains one declaration representation. Cached and source DOMs store `at` directly on every expression node.
 
-Each ranked-choice node retains the position of its first `≻`. Expansion carries that position with the node, including nodes inside call arguments.
+Each expression node retains its `at` position through template expansion, including nodes inside call arguments.
 
 A tie in either stage of the notation pipeline, `lexical` or `syntax`, is an error of kind `grammar` of loading (§6). The error names the document. It has no line and no column, since an ambiguity has no single position. Its message names the notation stage and says that the grammar text is ambiguous. A library never puts such an error at the start of the document in place of a position.
 
@@ -2926,11 +2924,9 @@ A pattern argument is one term that the pattern grammar consumes. The argument r
 
 ### 9.3 Conversion and validation
 
-The reader completes argument-independent definition and boundary checks before reading the next declaration. Internal projections impose no additional nesting limit or earlier depth error. Supplied-DOM validation applies the same boundary rules to projected template definitions.
+The source reader builds the DOM, sets `at` on every expression node, and reports only syntax and conversion errors. One DOM validator then checks source, cached, and supplied DOMs in the validation order of step 5 below. Internal projections impose no additional nesting limit or earlier depth error. Supplied-DOM validation applies the same boundary rules to projected template definitions.
 
-Within one declaration, structural shape errors precede type errors. Closed-term restrictions, empty literal split delimiters, own-tag reads, and engine-tag introduction also follow structural shape inspection. Pattern shape errors retain their specific reason. DOM conversion reuses one parsed JSON tree and never reparses a subtree at each ancestor. Decoding applies no early depth bound before the declaration checks.
-
-Semantic faults belong to their declarations. Closedness precedes type selection only within that declaration. Across declarations, the earliest erroneous declaration in source order wins. Empty literal split delimiters are inspected within their owning declaration's semantic phase. Every declaration's structural shape must pass before these delimiter faults are selected.
+DOM conversion reuses one parsed JSON tree and never reparses a subtree at each ancestor. Pattern shape errors retain their specific reason.
 
 A known non-string operand fails concatenation even if it contains a parameter. This local failure uses the concatenation's position.
 
@@ -2946,7 +2942,7 @@ A call reads its name token before looking up its arguments. A method converts i
 
 A reader refuses an invalid token span before using that span to select tokens. It reports this document error at the affected constructor.
 
-Each declaration's `at` records its first token's line and column, counted from 1. A constant reference instead records its own token position. Token forms follow §9.1. Semantic types and arities follow §10 and `docs/output.md`.
+Each declaration's and expression node's `at` records its first token's line and column, counted from 1. A `ranked` node records its first `≻` token, and a `test` wrapper records its comparator or `<` token. A constant reference records its own token position. Token forms follow §9.1. Semantic types and arities follow §10 and `docs/output.md`.
 
 A position uses the first token in the whole subtree, ignoring elided nodes. Without a token, it uses the node's start boundary or the input end. Flattening drops elided nodes. Every other root part counts as a statement before `%names`, even when conversion ignores that part.
 
@@ -2989,29 +2985,29 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `alternative` | `feature-gate` parts, `some-of`, then `alternative-tags`, `value-clause`, and `image-clause` | `gates`, `expr`, and optional channel or tag members |
 | `ranked-body` | `feature-gate` parts, `ranked-choice`, then `alternative-tags`, `value-clause`, and `image-clause` | One ALT. Gates and clauses apply to the entire ranked expression. |
 | `feature-gate` | One gate token from §9.1 | `feature`, `kind:"gate"`, `negated`. Reject every other kind or invalid feature name. |
-| `ranked-choice` | At least two `some-of` parts | Ordered `ranked` array |
-| `choice` | One `ranked-choice`, or one or more `some-of` parts | Ranked expression, ordinary `choice`, or sole child |
-| `some-of` | One or more `sequence` parts | `and`, or sole sequence |
-| `sequence` | One or more `primary` parts | `seq`, or sole primary |
-| `primary` | One symbol constructor, `call`, `splice`, `parameter`, `capture`, `tested-primary`, `group`, `optional`, `repetition`, or `empty` | That expression. A constant symbol becomes `literal` of its unresolved term. |
-| `rule-reference` | One name token: a rule name, or a tag name in a supplied tree | `ref`, including `🆓` |
-| `splice` | One `rule-reference` or `call`, adjacent to `*` | `splice` of that rule reference or call |
-| `tag` | One user or engine tag token | Body: `ref`. Term: singleton `tag`. Pattern: `terminal` with source position. |
-| `string-terminal` | One `string` or `constant-reference` | Body: `literal` of the unresolved string term. |
-| `wildcard` | One `_` token | `wildcard:true` |
-| `range` | Two string operands in order | `range` of unresolved STRINGTERMs |
-| `tested-primary` | Tag tests if present, value tests if present, then `primary` or the first base constructor other than `tested-primary` | Require at least one test. Check the target and written test order. Wrap the base with tags first, then value. |
+| `ranked-choice` | At least two `some-of` parts | Ordered `ranked` array and `at` of the first `≻` token |
+| `choice` | One `ranked-choice`, or one or more `some-of` parts | Ranked expression, ordinary `choice` with `at`, or sole child |
+| `some-of` | One or more `sequence` parts | `and` with `at`, or sole sequence |
+| `sequence` | One or more `primary` parts | `seq` with `at`, or sole primary |
+| `primary` | One symbol constructor, `call`, `splice`, `parameter`, `capture`, `tested-primary`, `group`, `optional`, `repetition`, or `empty` | That expression. A constant symbol becomes `literal` of its unresolved term, with `at`. |
+| `rule-reference` | One name token: a rule name, or a tag name in a supplied tree | `ref` with `at`, including `🆓` |
+| `splice` | One `rule-reference` or `call`, adjacent to `*` | `splice` of that rule reference or call, with `at` |
+| `tag` | One user or engine tag token | Body: `ref` with `at`. Term: singleton `tag`. Pattern: `terminal` with source position. |
+| `string-terminal` | One `string` or `constant-reference` | Body: `literal` of the unresolved string term, with `at`. |
+| `wildcard` | One `_` token | `wildcard:true` with `at` |
+| `range` | Two string operands in order | `range` of unresolved STRINGTERMs, with `at` |
+| `tested-primary` | Tag tests if present, value tests if present, then `primary` or the first base constructor other than `tested-primary` | Require at least one test. Check the target and written test order. Wrap the base with tags first, then value, each with its test's `at`. |
 | `tag-test` | Zero or more `tag-requirement` parts | Ordered requirements, including an empty array |
 | `tag-requirement` | Optional `¬` token, then one operand | Require a tag, tag-set constant, or parameter. Produce `negated` and unresolved `value`. |
 | `value-test` | `value-comparator`, then `test-operand` | Comparator and string operand |
 | `default-value` | `≝` token, then `test-operand` | The default value of the elidable optional whose head carries it |
 | `value-comparator` | One `=` or `≠` token | Precomposed value comparator from the token value |
 | `test-operand` | One recognized operand | Require a string literal, string constant, or declared parameter for a value test. Produce unresolved STRINGTERM. |
-| `capture` or `captured-terminator` | Binder token, `+` on the captured route, then `primary` | `capture` name without `$`, then `expr`. The base accepts every rule reference or call, including emoji rules. |
+| `capture` or `captured-terminator` | Binder token, `+` on the captured route, then `primary` | `capture` name without `$`, `expr`, and `at`. The base accepts every rule reference or call, including emoji rules. |
 | `group` | One `choice` | Child expression |
-| `optional` | Select the route first. Require `captured-terminator` for the captured route, or `choice` for the ordinary route, then inspect markers and form. | `optional`, with `elidable:true` for a valid marker. The captured route reads the marker inside its sole capture. |
-| `repetition` | `choice` parts, then markers. Read the first two `choice` parts. | First is `repeat`, second is `separator`. Marker before the item means left chain, after it means right chain. |
-| `empty` | One `ε` token | `empty:true` |
+| `optional` | Select the route first. Require `captured-terminator` for the captured route, or `choice` for the ordinary route, then inspect markers and form. | `optional` with `at`, and `elidable:true` for a valid marker. The captured route reads the marker inside its sole capture. |
+| `repetition` | `choice` parts, then markers. Read the first two `choice` parts. | First is `repeat`, second is `separator`, with `at`. Marker before the item means left chain, after it means right chain. |
+| `empty` | One `ε` token | `empty:true` with `at` |
 | `header-tags`, `alternative-tags`, `emit-tags` | One `term` | Owner's `tags` |
 | `value-clause` | One `recipe` | Owner's `value` |
 | `image-clause` | One `recipe` | Owner's `image` |
@@ -3031,7 +3027,7 @@ Conversion errors from supplied notation trees carry no `ranked-choice-syntax` c
 | `method-receiver` | One `plain-term-atom` | Initial receiver, retaining its actual type |
 | `method-selector` | `parse-selector`, or `method-name` followed by optional `method-arguments` | Convert the selected route, then inspect its signature. |
 | `parse-selector` | One `parse-argument` | The enclosing `method-chain` supplies the receiver and folds this selector into a method named `parse`, with one body argument. |
-| `parse-argument` | One `choice`, with an optional `…` token at each outer edge | Convert the expression and retain each remainder as an outer `remainder:true` leaf in its sequence. Reject captures at their binders. |
+| `parse-argument` | One `choice`, with an optional `…` token at each outer edge | Convert the expression and retain each remainder as an outer `remainder:true` leaf with `at` in its sequence. Reject captures at their binders. |
 | `method-name` | One method-name token | Exact method identifier |
 | `method-arguments` | One or more `method-argument` parts | Ordered argument array. Absent arguments gives `args:[]`. |
 | `method-argument` | One `term` or `integer` | Convert the complete immediate term, including its guard. Only a complete bare name can become a rule or classifier argument. |
@@ -3093,7 +3089,7 @@ A named constructor from another pattern layer cannot supply a required operand.
 
 An explicit `primary` wrapper supplies a tested node's base. Without that wrapper, the base is the first primary constructor other than `tested-primary`. The reader ignores nested tested parts during that fallback search.
 
-A supplied ranked choice without a `≻` token retains its ranked operands without a separator position. Each wildcard pattern requires its token. An attachment requires a named capture, even after stray tokens.
+A supplied ranked choice without a `≻` token uses the `ranked-choice` node's position for `at`. Each wildcard pattern requires its token. An attachment requires a named capture, even after stray tokens.
 
 For a string token, the reader removes its quotes and decodes every escape. Literal runs retain their decomposed token values. Escape results remain exact, and the result is always `string`. Resource paths use the original literal runs with the same escape decoding. Neither form receives further normalization.
 
@@ -3115,7 +3111,7 @@ The following compact examples show the additional conversions. Positions illust
 
 | Source form | Converted form |
 | --- | --- |
-| `"‹U+0061›"` | `{"literal":{"string":"a"}}` |
+| `"‹U+0061›"` | `{"literal":{"string":"a"},"at":[1,1]}` |
 | `#"‹U+0061›"` | `{"pattern":{"literal":{"string":"a"},"at":[1,2]}}` |
 | `#$S` | `{"pattern":{"constant":"S","at":[1,2]}}` |
 | `#$S="x"` | `{"pattern":{"test":"=","value":{"string":"x"},"expr":{"constant":"S","at":[1,2]}}}` |
@@ -3128,7 +3124,7 @@ The following compact examples show the additional conversions. Positions illust
 | `%emits ($b) $w ($a) :- "i"` | `{"items":[{"capture":"w","image":{"concat":[{"string":"i"}]},"before":["b"],"after":["a"]}]}` |
 | `%rule r f? A ≻ B :: ∅` | ALT has gate `f`, ranked refs `A`,`B`, and `tags:{"emptySet":true}`. |
 
-The full ranked alternative is `{"gates":[{"feature":"f","kind":"gate","negated":false}],"expr":{"ranked":[{"ref":"A"},{"ref":"B"}]},"tags":{"emptySet":true}}`. Its common clause belongs to the whole alternative and never to an individual option.
+The full ranked alternative is `{"gates":[{"feature":"f","kind":"gate","negated":false}],"expr":{"ranked":[{"ref":"A","at":[1,12]},{"ref":"B","at":[1,16]}],"at":[1,14]},"tags":{"emptySet":true}}`. Its common clause belongs to the whole alternative and never to an individual option.
 
 An Integer token contains one or more ASCII decimal digits. It is legal only as a method argument whose signature accepts an integer. The reader requires positive digits without leading zeros. It reports zero or leading zeros at the Integer token. A negative argument fails lexical recognition at its minus sign.
 
@@ -3140,37 +3136,42 @@ The lexical stage reads the longest punctuation token. `...` is one chain marker
 
 `+` is the elision marker, and `++` is the string concatenation operator. Braces and `/` delimit repetition. Inside a string, braces and slash are literal characters. Strings accept single-guillemet escapes, and backslashes are ordinary string characters. Outside strings and comments, a bare backslash in grammar text is an error. A line comment can contain `-- see C:\temp`.
 
-A document can hold several errors. The reader reports one, and every reader chooses the same one, in this order:
+A document can hold several errors. The reader and DOM validator report one, and every library chooses the same one, in this order:
 
 1. Lexical recognition runs first. A lexical error stands at the furthest character that the lexical stage reaches. No preamble, escape, or syntax inspection occurs after that failure.
 2. After successful lexing, the names preamble pass of §1 inspects only the longest leading run of `%names` directives. Operand count and kind errors fail first at the directive. Within each valid path operand, malformed, nonscalar, and forbidden name escapes fail at `‹`, from left to right. These preamble errors precede all other errors in this step.
 
-   Ordinary escape inspection then visits string and path tokens in source order. It applies the same restricted decoder to every `%names` path, even a misplaced one. It examines each token's original escapes from left to right. The first malformed, nonscalar, or unknown escape fails at its opening `‹`. The step precedes every syntax or reader error. Section 1 defines operand boundaries and preamble order.
+   Ordinary escape inspection then visits string and path tokens in source order. It applies the same restricted decoder to every `%names` path, even a misplaced one. It examines each token's original escapes from left to right. The first malformed, nonscalar, or unknown escape fails at its opening `‹`. The step precedes every syntax, conversion, or DOM error. Section 1 defines operand boundaries and preamble order.
+3. Syntax recognition runs next, over the complete token sequence. A syntax error stands at the furthest token reached and precedes every conversion or DOM error. Unknown directives follow this same rule. The handwritten bootstrap reader follows the same lexical, escape, and syntax steps.
+4. Conversion builds the DOM from the syntax tree in source order, following the constructor table above and the part-lookup rules below. It sets `at` on every declaration and expression node. It reports only faults that have no DOM representation. Those faults are missing notation parts, invalid token spans, unparenthesized runs beside `∩` or `∖`, and juxtaposition in a recipe. They also include repeated or misplaced markers, grouped elidable heads, and non-call method receivers with selectors. The first conversion fault in traversal order decides, before DOM validation runs.
+5. One DOM validator then inspects the completed or supplied DOM and reports the first fault in this traversal order:
+   - Envelope and declaration positions: require `format` `50` and arrays `rules`, `directives`, `constants`, `classifiers`, and `implications` with no other root members. Next check in that array order that every item is an object with a valid `at` coordinate (`[line, column]`). Also check that no two items share a coordinate.
+   - Structural shape pass: inspect declarations in category order (`directives`, `constants`, `classifiers`, `implications`, `rules`), and in array order within each category. Check each declaration's own header fields and queue its child expressions, terms, recipes, and conditions in written order:
+     - For `directives`: check any `%features` condition list for nonemptiness and queue its conditions. Then check `name`, `steps` (queuing each step's pattern or constant term), or `args`. After all directives pass their local header checks, verify that every `%names` directive precedes every other declaration by `at`.
+     - For `constants`: check `name`, `op`, `value`, and fields, and queue `value`.
+     - For `classifiers`: check `name`, `entries`, and fields. Then check each entry's `gates`, `keys`, `op`, `class`, and fields in array order, queuing each key term.
+     - For `implications`: check `if`, `then`, and fields, and queue `if` then `then`.
+     - For `rules`: check `params` if present, then handle `instance` bindings by checking fields and queuing the `instance` call. Otherwise check `args` edit heads, requiring `redefine` or `extend` and queuing the head call. Next check rule fields, `erased`, diagnostic count and template restriction, and `suppressWarnings`. For `error` or `warning`, check capture references and `.emitted` before queuing the recipe. Then queue header `tags`, `value`, and `image`. For `emit`, check items, targets, attachments, and erased restrictions in array order, queuing each item's `tags`, `value`, and `image`. Next queue `conditions` in array order. Last, visit `alternatives` in array order and check each alternative's fields and `gates`. Queue its `expr`, `tags`, `value` (after checking `erased`), and `image` (after checking `erased`).
+   - Queued child constructs run in pre-order, checking each construct's own shape before visiting its children in written order:
+     - An expression node checks its `at` field if present (requiring `at` on `call` and `param`) and its form keys before its children. If a supplied expression node omits `at`, any fault on that node uses the nearest enclosing node with a position, at least the declaration.
+     - A `test` checks its comparator, fields, and base target and test-nesting order before queuing `expr` and then `requirements` or `value`.
+     - A `capture` checks its binder name and its placement in a chain, elidable optional, or ranked item. It checks its base target before queuing `expr`.
+     - An `optional` checks its fields, `elidable` head form, and `default` operand before queuing `default` and `optional`.
+     - A `seq`, `choice`, `ranked`, or `and` checks its array length (`>= 2`, and `<= 16` for `and`). It then queues its elements in array order.
+     - A `repeat` checks its fields and chain placement before queuing `repeat` and `separator`.
+     - A `range` checks its endpoint pair and literal scalar order before queuing its two endpoints.
+     - A term, recipe, condition, or pattern checks its own node shape before queuing its operands in written order. A `method` checks that its name is known and that its receiver and argument list have valid basic shapes. It also rejects a parameter receiver on `.classify` or `.ngrams`. It then visits its receiver and arguments before checking its complete method signature.
+   - Semantic pass: this pass runs after the entire DOM passes structural shape inspection. Inspect declarations in ascending `at` order across rules, constants, implications, and `%features` directives with conditions:
+     - For a `rule`: check header `tags` for own-tag reads (`readsOwnTags`) and engine-tag literals (`lit`). Next, for each alternative in array order, check its `expr` for duplicate captures and repeated item captures in second-capture order. Also check that alternative's `tags` for own-tag reads and engine-tag literals. Then check each emission item's `tags` in array order for engine-tag literals. After those checks, run rule type inspection (`ruleTypeFault`), boundary-atom inspection (`boundaryProblem`), and whole-definition inspection (`definitionProblem`) in that order.
+     - Rule type inspection visits header `tags`, `value`, and `image` first. It next visits each alternative's `expr` (tests, literals, ranges, and calls in pre-order), `tags`, `value`, and `image`. It then visits `conditions`, `error` or `warning`, and `emit.items` (`tags`, `value`, then `image`) in array order. Within a term or condition, operand checks precede the enclosing operator's compatibility check, and empty `split` delimiters are checked after a method's operands.
+     - Boundary-atom inspection visits `conditions` in array order, header `tags`, each alternative's `tags` in array order, and each emission item's `tags` in array order.
+     - For a `constant`: check that `value` is closed (`openPart`), has no engine-tag literal outside a pattern (`hasEngineLiteral`), and is well-typed (`constantValueType`), in that order.
+     - For an `implication`: inspect `if` and then `then` for closedness, engine-tag literals, and `tags` type, in that order.
+     - For a `%features` directive with `conditions`: check that each condition in array order uses only feature queries (`inputConditionsProblem`).
+   - Depth bound: during the structural shape pass, record each declaration that contains a node at depth greater than 256. Do not halt earlier shape or semantic checks. After every declaration passes the semantic pass, report the earliest declaration in `at` order that exceeded depth 256. Parentheses make no DOM node and add no depth.
+6. A stage's documents are read and validated in the order in which its pipeline includes them (§13), and the first document with an error decides. Every document is validated before the loader stitches the stage. Except for the deferred checks below, a document validation error in any document comes before an error of stitching (§2). Errors of stitching come before the errors of lowering, which a parse finds (§3).
 
-3. Syntax recognition runs next, over the complete token sequence. A syntax error stands at the furthest token reached and precedes every reader error. Unknown directives follow this same rule. The handwritten bootstrap reader follows the same lexical, escape, and syntax steps.
-4. Within a rule, the reader reads the `rule-keyword`, name, and header tag, value, and image clauses before the body. At each construct in an alternative's expression, the reader makes sure that its form meets the rules. It examines constructs in text order, each form before its contents. So it reports the first error of the first construct in the text that has one, with these steps for each construct:
-   - A tested primary: first the target and test order, at the first test that is not allowed there. A repeated kind or a tag test after a value test is an error at that later test. These checks precede the primary's contents and all test operands. So `{$c:B}="b"` and `[+KU $x:A]="a"` are errors at the test.
-   - A capture: first a capture directly in a chain's item or separator, then a forbidden capture inside an elidable optional, then `$` that wraps something. Then come a name that is not all lower case and a capture that wraps anything but one symbol. Each stands at the capture, before what it wraps.
-   - An optional: first two markers, at the second. Then an elidable optional that is not of the form below, at its `[`. Last, what it holds through the ordinary symbol-test rules. So `[+KU | $x:A]` is an error at the `[`, and `[+KU≠"ku" $x:A]` at the `$x`.
-   - An `&`: more than 16 items, at the `&` construct, that is, at its first item. This comes before any of its items, because the bound belongs to the `&` itself. So an `&` of 17 items is an error at its first item, whatever error a later item holds.
-   - Braces: first two markers, at the second, or a marker after the separator, at that marker. Then a chain that is not the whole expression of its alternative, at its `{`. Last, the item and the separator. So `A {$c:B ... / S}` is an error at the `{`, although its marker follows the capture.
-5. After the whole alternative expression, the reader detects repeated capture names before that alternative's clauses. The rule below defines this test.
-6. Each alternative supplies gates, an expression, then tag, value, and image clauses. Header clauses already precede these under step 4. Conditions follow the complete body, then the diagnostic message, suppression, and emission or erasure. Whole-definition errors follow all local construct errors.
-
-   Convert a clause's local parts before checking its completed form. Convert all emission items before checking repeated capture references.
-
-   Each clause has its own errors. Examples are tags made of the constituent's own tags and a comparison whose sides do not fit. Such an error stands at the clause, or at the part of it that is wrong. These errors come in the order of the text. DOM type inspection visits condition items in written order, after their structural shapes pass.
-
-   The checks of the whole definition below come last, and they stand at the definition.
-7. The bound on nesting is 256 compound nodes. After the reader reads every item without an error, the loader makes sure that the whole DOM meets this bound. So every other error of reading comes before it, in any item. That includes an error inside the deep part, and one in a later item. Among items that exceed the depth bound, the loader reports the first under the depth rule of §9.3.
-
-   A reader has no other bound on nesting. Parentheses can nest without limit, since they make no node. A reader reads a document of any depth to this check.
-8. The reader examines a document's items in their written order. The first item with an error decides, whatever kind of item it is.
-9. A stage's documents are read in the order in which its pipeline includes them (§13), and the first document with an error of reading decides. Every document is read before the loader stitches the stage. Except for the deferred checks below, an error of reading in any document comes before an error of stitching (§2). Errors of stitching come before the errors of lowering, which a parse finds (§3).
-
-Within one constant definition or implication, the reader reports the error whose position comes first in the text, whichever check finds it.
-
-These steps make every reader report the same token for every combination of errors.
+These steps make every library report the same token for every combination of errors.
 
 The following complete document reports a capture error at line 2, column 9. The syntax stage recognizes the grouped target, and the reader rejects it at `$x`.
 
@@ -3228,7 +3229,7 @@ Inline `++` in body terminals, value tests, pattern terminals, range endpoints, 
 
 The grammar does not state the restrictions below. Each of these is an error of the document. The reader reports it at the first token of the offending construct, unless the item names another place.
 
-The groups below follow the construct order of step 4. Their order adds no diagnostic priority.
+The groups below follow the validation order of step 5. Their section order adds no diagnostic priority.
 
 #### Rule headers
 
@@ -3323,7 +3324,7 @@ Parentheses after the `rule-keyword` fail the syntax stage at `(`, column 6 in `
 
   The reader does not know the type of a constant, so it lets a constant stand for a value of any type but a span. After the loader stitches the stage, it makes sure again that the types agree (§2). It reports an error there at the first constant of the smallest construct whose parts disagree.
 
-  A fault that names no constant sorts at its own construct's position. A DOM without that coordinate uses written clause order between positioned faults. The semantic order follows header tags, value, and image, then each alternative's expression, tags, value, and image. Conditions follow the alternatives, then the diagnostic message, suppression, and emission items. A structural work queue does not define this order.
+  Before constant binding, rule type inspection follows the clause traversal order of step 5. After constant binding, a fault that names no constant uses its construct's position, or step 5's clause order when unpositioned.
 
   Among faults that name constants, the earliest constant position wins. This order includes all clauses, alternatives, body operands, and symbol tests. Retained call arguments follow the same order, including arguments that substitution does not use.
 
@@ -3336,8 +3337,8 @@ Parentheses after the `rule-keyword` fail the syntax stage at `(`, column 6 in `
 
 - A constant declaration requires a capitalized constant name. A string in that position is a document error.
 - A constant's value that is not a closed term (§10) is an error, reported at the first part that is not closed. Captures, `$`, guarded terms, and input methods such as `.value`, `.source-text`, `.tags`, `.classes`, or `.classify` are errors there.
-- An engine-tag literal in a constant's value, outside a pattern literal, is an error at that literal. Reject it during conversion, before reading the next part.
-- An engine tag on either side of `%implies` is an error at that tag. Reject it during conversion, before reading the next part.
+- An engine-tag literal in a constant's value, outside a pattern literal, is an error at that literal, inspected in step 5.
+- An engine tag on either side of `%implies` is an error at that tag, inspected in step 5.
 - A side of an implication that is not a closed term is an error, reported in the same way. A side whose type is not a tag set is an error too, reported at the side.
 - A classifier's name that does not begin with `a` to `z` is an error, reported at the name. `.classify` cannot name it, since a bare name with a capital is a tag.
 - A classifier entry takes gates only. A supplied warning-kind gate is malformed at that gate.
