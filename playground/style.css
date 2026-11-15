@@ -570,20 +570,24 @@ textarea:focus-visible,
 
 .ex-pill.pill-joined {
   display: inline-flex;
-  align-items: center;
+  align-items: stretch;
   padding: 0;
   overflow: hidden;
   border-radius: 999px;
 }
 
 .ex-pill.pill-joined .part-ok {
+  display: inline-flex;
+  align-items: center;
   padding: 1px 7px 1px 8px;
   background: var(--good-bg);
   color: var(--good);
 }
 
 .ex-pill.pill-joined .part-warn {
-  padding: 1px 8px 1px 7px;
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px 1px 6px;
   background: var(--warn-bg);
   color: var(--warn);
 }
@@ -1238,61 +1242,6 @@ button.stage:hover {
   .cl {
     display: none;
   }
-
-  table.tokens.has-tags-col {
-    display: grid;
-    grid-template-columns: max-content repeat(calc(var(--non-tag-cols, 6) - 1), minmax(max-content, 1fr));
-  }
-
-  table.tokens.has-tags-col thead,
-  table.tokens.has-tags-col tbody {
-    display: contents;
-  }
-
-  table.tokens.has-tags-col tr {
-    display: grid;
-    grid-column: 1 / -1;
-    grid-template-columns: subgrid;
-    border-bottom: 1px solid var(--soft);
-  }
-
-  table.tokens.has-tags-col th,
-  table.tokens.has-tags-col td {
-    border-bottom: 0;
-  }
-
-  table.tokens.has-tags-col th.errors,
-  table.tokens.has-tags-col td.errors,
-  table.tokens.has-tags-col th.warnings,
-  table.tokens.has-tags-col td.warnings,
-  table.tokens.has-tags-col th.tags {
-    display: none;
-  }
-
-  table.tokens.has-tags-col tr.has-tags td:not(.tags) {
-    padding-bottom: 2px;
-  }
-
-  table.tokens.has-tags-col tr.has-tags td.tags,
-  table.tokens.has-tags-col tr.has-tags td.tags.tags-narrow-only {
-    display: block;
-    grid-column: 2 / -1;
-    order: 10;
-    padding-top: 2px;
-    padding-bottom: 8px;
-  }
-
-  table.tokens.has-tags-col tr:not(.has-tags) td.tags {
-    display: none;
-  }
-
-  table.tokens.has-tags-col td.tags .tok-narrow-only {
-    display: inline-block;
-  }
-
-  table.tokens.has-tags-col td.tags .tags-list {
-    contain: inline-size;
-  }
 }
 
 #output {
@@ -1425,15 +1374,27 @@ button.stage:hover {
 }
 
 table.tokens {
+  display: grid;
+  grid-template-columns: max-content repeat(calc(var(--non-tag-cols, 6) - 1), minmax(max-content, 1fr));
   width: 100%;
-  border-collapse: collapse;
   font: 12.5px/1.45 var(--mono);
+}
+
+table.tokens thead,
+table.tokens tbody {
+  display: contents;
+}
+
+table.tokens tr {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  border-bottom: 1px solid var(--soft);
 }
 
 table.tokens th,
 table.tokens td {
   padding: 6px 10px;
-  border-bottom: 1px solid var(--soft);
   text-align: left;
   vertical-align: top;
 }
@@ -1451,10 +1412,21 @@ table.tokens td.num {
   white-space: nowrap;
 }
 
+table.tokens tr.has-tags td:not(.tags) {
+  padding-bottom: 2px;
+}
+
+table.tokens td.tags {
+  grid-column: 2 / -1;
+  padding-top: 2px;
+  padding-bottom: 8px;
+}
+
 table.tokens .tags-list {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
+  contain: inline-size;
 }
 
 table.tokens .tag {
@@ -1474,11 +1446,6 @@ table.tokens .tag.tok-err {
 table.tokens .tag.tok-warn {
   background: var(--warn-bg);
   color: var(--warn);
-}
-
-table.tokens .tok-narrow-only,
-table.tokens .tags-narrow-only {
-  display: none;
 }
 
 /* Trace view */

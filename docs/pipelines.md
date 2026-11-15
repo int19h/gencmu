@@ -591,7 +591,7 @@ The file holds a JSON array of example objects in menu order. The playground sho
 
 | `expect` | Matching parse result | Menu pill |
 | --- | --- | --- |
-| `accepted` | `ok` is true | `accepted`, or `accepted` with a warning count |
+| `accepted` | `ok` is true | `accepted`, or `accepted` with the warning icon |
 | `rejected` | error kind `rejected` | `rejected` |
 | `reported` | error kind `reported` | `reported` |
 | `tie` | error kind `ambiguous` with reason `tie` | `tie` |

@@ -154,8 +154,8 @@ async function main() {
         header,
         rows: [...document.querySelectorAll("#output table.tokens tbody tr")].map((row) =>
           [...row.querySelectorAll("td")].map((cell, index) => {
+            if (cell.classList.contains("tags")) return [...cell.querySelectorAll(".tag")].map((tag) => tag.textContent);
             const col = header[index];
-            if (col === "tags") return [...cell.querySelectorAll(".tag")].map((tag) => tag.textContent);
             if (col === "before" || col === "after") return JSON.parse(cell.textContent);
             return cell.textContent;
           })),
@@ -406,7 +406,9 @@ async function main() {
             title: btn.querySelector(".ex-top b")?.textContent || "",
             pillText: pill?.textContent || "",
             pillAria: pill?.getAttribute("aria-label") || null,
+            pillTitle: pill?.getAttribute("title") || null,
             isJoined: pill?.classList.contains("pill-joined") || false,
+            hasWarnIcon: !!pill?.querySelector(".part-warn svg"),
             code: btn.querySelector("code")?.textContent || "",
           };
         });
@@ -443,7 +445,14 @@ async function main() {
       "Other pipelines have 19 more examples."
     );
     const cgvItem = expMenu.items.find((it) => it.id === "cgv-name-warning");
-    if (!cgvItem || !cgvItem.isJoined || cgvItem.pillAria !== "accepted, 1 warning") {
+    if (
+      !cgvItem ||
+      !cgvItem.isJoined ||
+      !cgvItem.hasWarnIcon ||
+      cgvItem.pillText !== "accepted" ||
+      cgvItem.pillAria !== "accepted, with warnings: experimental-cgv" ||
+      cgvItem.pillTitle !== "accepted, with warnings: experimental-cgv"
+    ) {
       throw new Error(`cgv-name-warning pill is not the joined two-part warning pill: ${JSON.stringify(cgvItem)}`);
     }
 
@@ -454,7 +463,14 @@ async function main() {
       "Other pipelines have 27 more examples."
     );
     const hyphenItem = ebMenu.items.find((it) => it.id === "hyphen-warning");
-    if (!hyphenItem || !hyphenItem.isJoined || hyphenItem.pillAria !== "accepted, 1 warning") {
+    if (
+      !hyphenItem ||
+      !hyphenItem.isJoined ||
+      !hyphenItem.hasWarnIcon ||
+      hyphenItem.pillText !== "accepted" ||
+      hyphenItem.pillAria !== "accepted, with warnings: hyphen-misplaced" ||
+      hyphenItem.pillTitle !== "accepted, with warnings: hyphen-misplaced"
+    ) {
       throw new Error(`hyphen-warning pill is not the joined two-part warning pill: ${JSON.stringify(hyphenItem)}`);
     }
 
@@ -773,10 +789,10 @@ async function main() {
       after: [{text: "nai", value: "nai", image: "nai",
         tags: ["Cmavo", "Continued", "NAI", "Onset", "Run-Final", "Run-Initial", "Word"], source: [12, 15]}]}];
     assert.deepEqual(await tokenTable(), {
-      header: ["#", "text", "value", "image", "span", "source", "tags", "before", "after"],
+      header: ["#", "text", "value", "image", "span", "source", "before", "after"],
       rows: [
-        ["0", '"m,I"', '"mi"', '"mI"', "1–2", "5–8", miTags, beforeTokens, afterTokens],
-        ["1", '"klAma"', '"klama"', '"klAma"', "4–5", "16–21", klamaTags, [], []],
+        ["0", '"m,I"', '"mi"', '"mI"', "1–2", "5–8", beforeTokens, afterTokens, miTags],
+        ["1", '"klAma"', '"klama"', '"klAma"', "4–5", "16–21", [], [], klamaTags],
       ],
     }, "the token table must show format 15 fields, omit empty columns, and show recursive attachments");
     await page.locator("#tab-tree").click();
@@ -997,8 +1013,8 @@ async function main() {
     await page.locator("#tab-tokens").click();
     await idle("the inserted token table", "#output table.tokens");
     assert.deepEqual(await tokenTable(), {
-      header: ["#", "text", "value", "image", "span", "source", "tags", "insertedBy"],
-      rows: [["0", '""', '""', '""', "0–0", "0–0", ["X"], "text"]],
+      header: ["#", "text", "value", "image", "span", "source", "insertedBy"],
+      rows: [["0", '""', '""', '""', "0–0", "0–0", "text", ["X"]]],
     }, "the token table must keep empty values and images, show insertedBy, and omit empty columns");
     await page.locator("#tab-brackets").click();
     await idle("the empty brackets after the inserted token assertion");
@@ -1332,7 +1348,7 @@ async function main() {
       const rText = tdText ? tdText.getBoundingClientRect() : null;
       const rTags = tdTags ? tdTags.getBoundingClientRect() : null;
       return {
-        thTagsDisplay: thTags ? getComputedStyle(thTags).display : null,
+        hasThTags: !!thTags,
         textLeft: rText ? Math.round(rText.left) : null,
         tagsLeft: rTags ? Math.round(rTags.left) : null,
         textBottom: rText ? Math.round(rText.bottom) : null,
@@ -1342,7 +1358,7 @@ async function main() {
       };
     });
     if (
-      phoneTokCheck.thTagsDisplay !== "none" ||
+      phoneTokCheck.hasThTags ||
       Math.abs(phoneTokCheck.tagsLeft - phoneTokCheck.textLeft) > 1 ||
       phoneTokCheck.tagsTop < phoneTokCheck.textBottom - 2 ||
       phoneTokCheck.wrapScrollW > phoneTokCheck.wrapClientW
@@ -1457,7 +1473,7 @@ async function main() {
       throw new Error(`Round 9 Trace 5th section check failed: ${JSON.stringify(trace5Check)}`);
     }
 
-    // 3. Token diagnostics (fable 1.7) & Elision-only Default: off wording
+    // 3. Token diagnostics (fable 1.7, round 11) & Elision-only Default: off wording
     await choose("grammars/eberban/refgram/pipeline.md");
     await type("a mi dona pban");
     await answerFor("a mi dona pban");
@@ -1467,59 +1483,90 @@ async function main() {
       self.playground.schedule(0);
     });
     for (let attempt = 0; attempt < 600; attempt++) {
-      const hasErrCol = await page.evaluate(() => !!document.querySelector("#output table.tokens th.errors"));
-      if (hasErrCol) break;
+      const hasErrChip = await page.evaluate(() => !!document.querySelector("#output table.tokens td.tags .tok-err"));
+      if (hasErrChip) break;
       await sleep(50);
     }
     const tokDiagDesktop = await page.evaluate(() => {
-      const headers = [...document.querySelectorAll("#output table.tokens th")]
-        .filter((th) => getComputedStyle(th).display !== "none")
-        .map((th) => th.textContent.trim());
-      const errChip = document.querySelector("#output table.tokens td.errors .tok-err");
+      const headers = [...document.querySelectorAll("#output table.tokens th")].map((th) => th.textContent.trim());
+      const pbanRow = [...document.querySelectorAll("#output table.tokens tbody tr")].find((tr) =>
+        tr.textContent.includes('"pban"')
+      );
+      const tdText = pbanRow ? pbanRow.querySelectorAll("td")[1] : null;
+      const tdTags = pbanRow ? pbanRow.querySelector("td.tags") : null;
+      const rText = tdText ? tdText.getBoundingClientRect() : null;
+      const rTags = tdTags ? tdTags.getBoundingClientRect() : null;
+      const chipsInTagsLine = pbanRow
+        ? [...pbanRow.querySelectorAll("td.tags .tag")].map((el) => ({
+            text: el.textContent,
+            cls: el.className,
+            aria: el.getAttribute("aria-label"),
+          }))
+        : [];
       const elisionDesc = document.getElementById("elision-only-desc")?.textContent || "";
       const docMoreDesktopVisible = getComputedStyle(document.getElementById("doc-more-actions")).display !== "none";
       return {
         headers,
-        errText: errChip?.textContent || "",
-        errAria: errChip?.getAttribute("aria-label") || "",
+        textLeft: rText ? Math.round(rText.left) : null,
+        tagsLeft: rTags ? Math.round(rTags.left) : null,
+        textBottom: rText ? Math.round(rText.bottom) : null,
+        tagsTop: rTags ? Math.round(rTags.top) : null,
+        chipsInTagsLine,
         elisionDesc,
         docMoreDesktopVisible,
       };
     });
     if (
-      tokDiagDesktop.headers.indexOf("errors") !== tokDiagDesktop.headers.indexOf("source") + 1 ||
-      tokDiagDesktop.headers.indexOf("tags") !== tokDiagDesktop.headers.indexOf("errors") + 1 ||
-      tokDiagDesktop.errText !== "pair-voiceness" ||
-      tokDiagDesktop.errAria !== "Error: pair-voiceness" ||
+      tokDiagDesktop.headers.join(",") !== "#,text,value,image,span,source" ||
+      Math.abs(tokDiagDesktop.tagsLeft - tokDiagDesktop.textLeft) > 1 ||
+      tokDiagDesktop.tagsTop < tokDiagDesktop.textBottom - 2 ||
+      tokDiagDesktop.chipsInTagsLine.length < 2 ||
+      tokDiagDesktop.chipsInTagsLine[0].text !== "pair-voiceness" ||
+      tokDiagDesktop.chipsInTagsLine[0].aria !== "Error: pair-voiceness" ||
       tokDiagDesktop.elisionDesc !== "Default: off" ||
       tokDiagDesktop.docMoreDesktopVisible
     ) {
-      throw new Error(`Round 9 desktop token diagnostics / elision wording / doc-more check failed: ${JSON.stringify(tokDiagDesktop)}`);
+      throw new Error(`Round 9/11 desktop token diagnostics / elision wording / doc-more check failed: ${JSON.stringify(tokDiagDesktop)}`);
     }
 
-    // 4. Phone Token diagnostics (< 520px) and More actions menu (carbon 4.1)
+    // 4. Phone Token diagnostics (390px) and More actions menu (carbon 4.1)
     await page.setViewportSize({ width: 390, height: 844 });
     await page.evaluate(() => window.dispatchEvent(new Event("resize")));
     await sleep(100);
     const phoneRound9 = await page.evaluate(() => {
-      const thErrDisplay = getComputedStyle(document.querySelector("#output table.tokens th.errors")).display;
+      const headers = [...document.querySelectorAll("#output table.tokens th")].map((th) => th.textContent.trim());
       const pbanRow = [...document.querySelectorAll("#output table.tokens tbody tr")].find((tr) =>
         tr.textContent.includes('"pban"')
       );
+      const tdText = pbanRow ? pbanRow.querySelectorAll("td")[1] : null;
+      const tdTags = pbanRow ? pbanRow.querySelector("td.tags") : null;
+      const rText = tdText ? tdText.getBoundingClientRect() : null;
+      const rTags = tdTags ? tdTags.getBoundingClientRect() : null;
       const chipsInTagsLine = pbanRow
-        ? [...pbanRow.querySelectorAll("td.tags .tag")]
-            .filter((el) => getComputedStyle(el).display !== "none")
-            .map((el) => ({ text: el.textContent, cls: el.className, aria: el.getAttribute("aria-label") }))
+        ? [...pbanRow.querySelectorAll("td.tags .tag")].map((el) => ({
+            text: el.textContent,
+            cls: el.className,
+            aria: el.getAttribute("aria-label"),
+          }))
         : [];
-      return { thErrDisplay, chipsInTagsLine };
+      return {
+        headers,
+        textLeft: rText ? Math.round(rText.left) : null,
+        tagsLeft: rTags ? Math.round(rTags.left) : null,
+        textBottom: rText ? Math.round(rText.bottom) : null,
+        tagsTop: rTags ? Math.round(rTags.top) : null,
+        chipsInTagsLine,
+      };
     });
     if (
-      phoneRound9.thErrDisplay !== "none" ||
+      phoneRound9.headers.join(",") !== "#,text,value,image,span,source" ||
+      Math.abs(phoneRound9.tagsLeft - phoneRound9.textLeft) > 1 ||
+      phoneRound9.tagsTop < phoneRound9.textBottom - 2 ||
       phoneRound9.chipsInTagsLine.length < 2 ||
       phoneRound9.chipsInTagsLine[0].text !== "pair-voiceness" ||
       phoneRound9.chipsInTagsLine[0].aria !== "Error: pair-voiceness"
     ) {
-      throw new Error(`Round 9 phone token diagnostics check failed: ${JSON.stringify(phoneRound9)}`);
+      throw new Error(`Round 9/11 phone token diagnostics check failed: ${JSON.stringify(phoneRound9)}`);
     }
 
     await page.evaluate(() => {

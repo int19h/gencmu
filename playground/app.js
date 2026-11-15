@@ -1755,11 +1755,6 @@
       return;
     }
 
-    const hasErrorsCol = !result.rows.every((row) => !row.errors || row.errors.length === 0);
-    const hasWarningsCol = !result.rows.every((row) => !row.warnings || row.warnings.length === 0);
-    const hasTagsOnlyCol = !result.rows.every((row) => !row.tags || row.tags.length === 0);
-    const hasChipsCol = hasErrorsCol || hasWarningsCol || hasTagsOnlyCol;
-
     const allColumns = [
       {
         title: "#",
@@ -1792,52 +1787,6 @@
         cell: (row) => element("td", { class: "num", text: row.source }),
       },
       {
-        title: "errors",
-        thClass: "errors",
-        empty: () => !hasErrorsCol,
-        cell: (row) =>
-          element("td", { class: "errors" },
-            element("div", { class: "tags-list" },
-              (row.errors || []).map((code) => element("span", {
-                class: "tag tok-err",
-                "aria-label": `Error: ${code}`,
-                text: code,
-              })))),
-      },
-      {
-        title: "warnings",
-        thClass: "warnings",
-        empty: () => !hasWarningsCol,
-        cell: (row) =>
-          element("td", { class: "warnings" },
-            element("div", { class: "tags-list" },
-              (row.warnings || []).map((code) => element("span", {
-                class: "tag tok-warn",
-                "aria-label": `Warning: ${code}`,
-                text: code,
-              })))),
-      },
-      {
-        title: "tags",
-        thClass: hasTagsOnlyCol ? "tags" : "tags tags-narrow-only",
-        empty: () => !hasChipsCol,
-        cell: (row) =>
-          element("td", { class: hasTagsOnlyCol ? "tags" : "tags tags-narrow-only" },
-            element("div", { class: "tags-list" }, [
-              ...(row.errors || []).map((code) => element("span", {
-                class: "tag tok-err tok-narrow-only",
-                "aria-label": `Error: ${code}`,
-                text: code,
-              })),
-              ...(row.warnings || []).map((code) => element("span", {
-                class: "tag tok-warn tok-narrow-only",
-                "aria-label": `Warning: ${code}`,
-                text: code,
-              })),
-              ...(row.tags || []).map((tag) => element("span", { class: "tag", text: tag })),
-            ])),
-      },
-      {
         title: "insertedBy",
         empty: (row) => !row.insertedBy,
         cell: (row) => element("td", {}, element("code", { text: row.insertedBy })),
@@ -1854,20 +1803,29 @@
       },
     ];
     const columns = allColumns.filter((col) => !result.rows.every((row) => col.empty(row)));
-    const hasTagsCol = columns.some((col) => col.title === "tags");
-    const nonTagCols = columns.filter(
-      (col) => col.title !== "errors" && col.title !== "warnings" && col.title !== "tags"
-    ).length;
     const header = element("tr", {},
-      columns.map((col) => element("th", { scope: "col", class: col.thClass || null, text: col.title })));
+      columns.map((col) => element("th", { scope: "col", text: col.title })));
     const rows = result.rows.map((row) => {
-      const rowHasChips =
-        (row.errors && row.errors.length > 0) ||
-        (row.warnings && row.warnings.length > 0) ||
-        (row.tags && row.tags.length > 0);
+      const chips = [
+        ...(row.errors || []).map((code) => element("span", {
+          class: "tag tok-err",
+          "aria-label": `Error: ${code}`,
+          text: code,
+        })),
+        ...(row.warnings || []).map((code) => element("span", {
+          class: "tag tok-warn",
+          "aria-label": `Warning: ${code}`,
+          text: code,
+        })),
+        ...(row.tags || []).map((tag) => element("span", { class: "tag", text: tag })),
+      ];
+      const cells = columns.map((col) => col.cell(row));
+      if (chips.length > 0) {
+        cells.push(element("td", { class: "tags" }, element("div", { class: "tags-list" }, chips)));
+      }
       return element("tr", {
-        class: rowHasChips ? "has-tags" : null,
-      }, columns.map((col) => col.cell(row)));
+        class: chips.length > 0 ? "has-tags" : null,
+      }, cells);
     });
 
     const note = result.total > result.rows.length
@@ -1878,8 +1836,8 @@
       topBar,
       element("div", { class: "table-wrap" },
         element("table", {
-          class: hasTagsCol ? "tokens has-tags-col" : "tokens",
-          style: hasTagsCol ? `--non-tag-cols: ${nonTagCols}` : null,
+          class: "tokens",
+          style: `--non-tag-cols: ${columns.length}`,
         },
           element("thead", {}, header),
           element("tbody", {}, rows))),
@@ -2922,16 +2880,16 @@
 
   function makeExampleOutcomePill(example, pipelineName) {
     const merged = mergeExampleForPipeline(example, pipelineName);
-    const warnCount = Array.isArray(merged.warnings) ? merged.warnings.length : 0;
-    if (example.expect === "accepted" && warnCount > 0) {
-      const warnLabel = warnCount === 1 ? "1 warning" : `${warnCount} warnings`;
+    const warnings = Array.isArray(merged.warnings) ? merged.warnings : [];
+    if (example.expect === "accepted" && warnings.length > 0) {
+      const label = `accepted, with warnings: ${warnings.join(", ")}`;
       return element("span", {
         class: "ex-pill pill-joined",
-        "aria-label": `accepted, ${warnLabel}`,
+        "aria-label": label,
+        title: label,
       },
       element("span", { class: "part-ok", text: "accepted" }),
-      element("span", { class: "sr-only", text: ", " }),
-      element("span", { class: "part-warn", text: warnLabel }));
+      element("span", { class: "part-warn" }, warnIcon(12)));
     }
     const table = {
       accepted: { label: "accepted", cls: "ok" },
