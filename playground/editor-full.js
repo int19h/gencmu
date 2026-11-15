@@ -479,6 +479,7 @@ export function createFullEditor(container, options = {}) {
     },
     setLabel(label) {
       const text = String(label || "Grammar document");
+      if (container.getAttribute("aria-label") === text) return;
       container.setAttribute("aria-label", text);
       view.dispatch({
         effects: labelCompartment.reconfigure(

@@ -25,8 +25,15 @@
 
   // This synchronous classic script follows the module resolver's rule.
   // Keep this rule in step with lib/js/src/markdown.js, engine §13.
+  let errorClass = null;
+  function setErrorClass(cls) {
+    errorClass = cls;
+  }
   function resolvePath(from, relative) {
-    if (relative.startsWith("/")) throw new root.gencmu.GencmuError("grammar", "a path target must be relative", {document:from});
+    if (relative.startsWith("/")) {
+      const Err = errorClass || (root.gencmu && root.gencmu.GencmuError) || Error;
+      throw new Err("grammar", "a path target must be relative", { document: from });
+    }
     const absolute = from.startsWith("/");
     const parts = [];
     for (const part of [...from.split("/").slice(0, -1), ...relative.split("/")]) {
@@ -324,5 +331,5 @@
     };
   }
 
-  root.gencmuPipeline = { pipelineStages, resolvePath, documentMentions, mergeExampleForPipeline, hooks };
+  root.gencmuPipeline = { pipelineStages, resolvePath, documentMentions, mergeExampleForPipeline, setErrorClass, hooks };
 })(typeof self !== "undefined" ? self : globalThis);

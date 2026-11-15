@@ -5,8 +5,8 @@ import { GencmuError, Loader } from "../lib/js/src/node.js";
 import { splicePipeline } from "../lib/js/src/splice.js";
 import "../playground/pipeline.js";
 
-globalThis.gencmu ??= { GencmuError };
-const { mergeExampleForPipeline, pipelineStages } = globalThis.gencmuPipeline;
+const { mergeExampleForPipeline, pipelineStages, setErrorClass } = globalThis.gencmuPipeline;
+setErrorClass(GencmuError);
 export { mergeExampleForPipeline };
 
 const TOP_FIELDS = new Set([
@@ -320,9 +320,6 @@ export function checkExampleEntries(file, family, parsed, context, options = {})
     }
 
     const checkWarningsArray = (wArr, whereLabel) => {
-      if (entry.expect !== "accepted") {
-        report(`${whereLabel} is only allowed when expect is "accepted"`);
-      }
       if (!Array.isArray(wArr) || wArr.length === 0) {
         report(`${whereLabel} must be a non-empty array`);
         return;
@@ -404,14 +401,8 @@ export function checkExampleEntries(file, family, parsed, context, options = {})
           if ("features" in override) {
             checkFeaturesObject(override.features, targetP, `byPipeline["${p}"].features`);
           }
-          if ("warnings" in override) {
-            if (override.warnings === null) {
-              if (entry.expect !== "accepted") {
-                report(`byPipeline["${p}"].warnings is only allowed when expect is "accepted"`);
-              }
-            } else {
-              checkWarningsArray(override.warnings, `byPipeline["${p}"].warnings`);
-            }
+          if ("warnings" in override && override.warnings !== null) {
+            checkWarningsArray(override.warnings, `byPipeline["${p}"].warnings`);
           }
           if (override.elisionOnly !== undefined && override.elisionOnly !== null && typeof override.elisionOnly !== "boolean") {
             report(`byPipeline["${p}"].elisionOnly must be a boolean or null`);
@@ -434,6 +425,13 @@ export function checkExampleEntries(file, family, parsed, context, options = {})
 
     for (const p of validPipelines) {
       const pInfo = context.getPipelineInfo(p);
+      if (!runExamples && pInfo.loadError) {
+        const isGrammarLoadError =
+          pInfo.loadError.name === "GencmuError" && pInfo.loadError.kind === "grammar";
+        if (!(entry.expect === "grammar" && isGrammarLoadError)) {
+          report(`pipeline "${p}" failed to load: ${pInfo.loadError.message || pInfo.loadError}`);
+        }
+      }
       const merged = mergeExampleForPipeline(entry, p);
 
       if (pInfo.pipeline && Array.isArray(merged.warnings)) {

@@ -20,7 +20,7 @@ The Options menu controls features, the elision check, and the last stage to run
 
 Type or paste text in the box at the top left. When you pause after typing or change an option, a parse runs. While the worker is busy, a newer change replaces the pending run.
 
-The verdict card below the text reports the outcome, the parse time, the stage chain, and the enabled features. Click a stage chip in the chain to open the Tokens view for that stage. Click Share to copy a link with the text, pipeline, options, view, Elided and Canonical toggles, Tokens stage, and Trace stage and position.
+The verdict card below the text reports the outcome, the parse time, the stage chain, and the enabled features. Click a completed stage chip to open the Tokens view for that stage. A failed stage chip opens the Tokens view of the stage before it, which holds the tokens that it read. A chip for a stage that did not run is not a button. The Share button copies a link with the text, pipeline, options, view, toggles, Tokens stage, and Trace stage and position.
 
 When a stage rejects the text, the card shows the failure position and the terminals expected by each rule. Click a rule name to open that rule in the grammar editor. Click Trace here to inspect the Earley recognizer at that position.
 
@@ -28,12 +28,12 @@ When a stage ties between two readings, the card shows where the two readings fi
 
 ## Output views
 
-- The Brackets view shows nested groups cycling `( )`, `[ ]`, and `{ }`, with single-child rules collapsed. Turn on Elided to show omitted terminators in angle brackets, such as `⟨ku⟩` and `⟨vau⟩`.
+- The Brackets view shows nested groups cycling `( )`, `[ ]`, and `{ }`, with single-child rules collapsed. Elided starts on and shows omitted terminators in angle brackets, such as `⟨ku⟩` and `⟨vau⟩`.
 - The Tree view shows one node per line. Single-child rule chains join with `›`, and one-line leaves follow `·`.
 - The JSON view shows the display JSON projection by default, with hollow rules left out. Turn on Canonical to see the canonical JSON from [`docs/output.md`](output.md).
-- The Tokens view lists the tokens that a stage emitted, with their text, value, image, spans, errors, warnings, tags, and attachments.
+- The Tokens view lists the tokens that a stage emitted. Its columns are `#`, `text`, `value`, `image`, `span`, `source`, `errors`, `warnings`, `tags`, `insertedBy`, `before`, and `after`.
 - The Trace view shows what one stage's Earley recognizer did at one position between its input tokens. It lists the completed, advanced, predicted, and dropped items there, and what the stage could read next.
-- The Audit view reports static checks on the pipeline's grammars for each stage. It lists unreachable rules, overridden or extended rules, inert `%erased` clauses, and gated classifier entries. It also prints templates, instances, ranking steps, counted rules, boundary notes, and erasures.
+- The Audit view reports static checks on the pipeline's grammars for each stage. It lists unreachable rules, replaced or extended rules, stage changes, inert `%erased` clauses, and gated classifier entries. It also prints templates, instances, ranking steps, counted rules, boundary notes, diagnostic notes, elidable families, and erasures.
 
 ## Grammar pane
 

@@ -220,6 +220,7 @@
     const raw = location.hash.slice(1);
     if (!raw) return;
     const params = new URLSearchParams(raw);
+    let needsRepair = false;
     if (params.has("text")) state.text = params.get("text");
     const pipeline = params.get("pipeline");
     if (pipeline && pipelineNames.includes(pipeline)) state.pipeline = pipeline;
@@ -236,12 +237,21 @@
     }
     if (params.get("canonical") === "1") state.canonical = true;
     if (params.get("elided") === "0") state.showElided = false;
-    if (params.get("tokens")) state.tokenStage = params.get("tokens");
+    const tokParam = params.get("tokens");
+    if (tokParam) {
+      const stages = pipelineOf(pipelinePath(state.pipeline)).stages;
+      if (stages.some((s) => s.name === tokParam)) {
+        state.tokenStage = tokParam;
+      } else {
+        needsRepair = true;
+      }
+    }
     if (params.get("stage")) state.trace.stage = params.get("stage");
     if (params.has("pos")) {
       const pos = Number(params.get("pos"));
       if (Number.isInteger(pos) && pos >= 0) state.trace.position = pos;
     }
+    if (needsRepair) flushFragment();
   }
 
   function buildFragment() {
@@ -974,12 +984,15 @@
             : err && err.stage === stage.name && err.kind === "rejected"
               ? "rejected"
               : report.error;
+        const tokenStageName = index > 0 ? stageList[index - 1].name : stage.name;
         chips.push(element("button", {
           type: "button",
           class: `stage ${isAmbig ? "tie" : "bad"}`,
-          title: `Show tokens for ${stage.name}`,
+          title: index > 0
+            ? `Show tokens from ${tokenStageName}, read by ${stage.name}`
+            : `Show tokens for ${stage.name}`,
           onclick: () => {
-            state.tokenStage = index > 0 ? stageList[index - 1].name : stage.name;
+            state.tokenStage = tokenStageName;
             selectTab("tokens", true);
           },
         },
@@ -1035,13 +1048,6 @@
     }
   }
 
-  function findCaretLineIndex(lines, fromIndex = 1) {
-    for (let i = fromIndex; i < lines.length; i++) {
-      if (/^\s*[|│]\s*\^+\s*$/.test(lines[i])) return i;
-    }
-    return -1;
-  }
-
   function renderReportedErrorBox(err) {
     const bodyChildren = [];
     const ruleBtn = err.rule
@@ -1061,7 +1067,7 @@
       bodyChildren.push(element("p", { style: "margin:0;font-size:13.5px", text: err.message }));
     }
     if (err.owner) {
-      bodyChildren.push(element("p", { style: "margin:0;font-size:13px;color:var(--muted-text)", text: err.owner }));
+      bodyChildren.push(element("p", { style: "margin:0;font-size:13px;color:var(--muted)", text: err.owner }));
     }
     if (err.excerpt) {
       const [srcLine, caretLine] = err.excerpt.split("\n");
@@ -1167,57 +1173,36 @@
       }
     }
 
-    if (parse && parse.warnings && parse.warnings.length) {
-      let warnBlocks;
-      if (parse.warnings.every((w) => w && typeof w.excerpt === "string")) {
-        warnBlocks = parse.warnings.map((w) => {
-          const ruleBtn = w.rule
-            ? element("button", {
-                type: "button",
-                class: "link",
-                text: w.rule,
-                onclick: () => jumpToRuleName(w.rule, w.stage),
-              })
-            : null;
-          const items = [
-            ruleBtn
-              ? element("p", { style: "margin:0;font-size:13.5px" },
-                  `Warning ${w.code} in the ${w.stage} stage, rule `,
-                  ruleBtn,
-                  `: ${w.message}`)
-              : element("p", { style: "margin:0;font-size:13.5px", text: `Warning ${w.code} in the ${w.stage} stage, rule ${w.rule}: ${w.message}` }),
-          ];
-          if (w.owner) {
-            items.push(element("p", { style: "margin:0;font-size:13px;color:var(--muted-text)", text: w.owner }));
-          }
+    if (parse && Array.isArray(parse.warnings) && parse.warnings.length) {
+      const warnBlocks = parse.warnings.map((w) => {
+        const ruleBtn = w.rule
+          ? element("button", {
+              type: "button",
+              class: "link",
+              text: w.rule,
+              onclick: () => jumpToRuleName(w.rule, w.stage),
+            })
+          : null;
+        const items = [
+          ruleBtn
+            ? element("p", { style: "margin:0;font-size:13.5px" },
+                `Warning ${w.code} in the ${w.stage} stage, rule `,
+                ruleBtn,
+                `: ${w.message}`)
+            : element("p", { style: "margin:0;font-size:13.5px", text: `Warning ${w.code} in the ${w.stage} stage, rule ${w.rule}: ${w.message}` }),
+        ];
+        if (w.owner) {
+          items.push(element("p", { style: "margin:0;font-size:13px;color:var(--muted)", text: w.owner }));
+        }
+        if (typeof w.excerpt === "string" && w.excerpt) {
           const [srcLine, caretLine] = w.excerpt.split("\n");
           const ex = formatExcerptNode(srcLine || "", caretLine || "", "var(--warn)");
           ex.style.background = "var(--surface)";
           ex.style.border = "1px solid var(--warn-line)";
           items.push(ex);
-          return element("div", { style: "display:flex;flex-direction:column;gap:8px" }, items);
-        });
-      } else {
-        warnBlocks = (parse.warningsText || "").split(/\n\n+/).map((block) => {
-          const wLines = block.split("\n");
-          const caretIdx = findCaretLineIndex(wLines, 2);
-          if (caretIdx >= 2) {
-            const ex = formatExcerptNode(wLines[caretIdx - 1], wLines[caretIdx], "var(--warn)");
-            ex.style.background = "var(--surface)";
-            ex.style.border = "1px solid var(--warn-line)";
-            const headerNodes = wLines.slice(0, caretIdx - 1).map((line, idx) =>
-              element("p", {
-                style: idx === 0 ? "margin:0;font-size:13.5px" : "margin:0;font-size:13px;color:var(--muted-text)",
-                text: line,
-              })
-            );
-            return element("div", { style: "display:flex;flex-direction:column;gap:8px" },
-              headerNodes,
-              ex);
-          }
-          return element("pre", { class: "alert-pre", text: block });
-        });
-      }
+        }
+        return element("div", { style: "display:flex;flex-direction:column;gap:8px" }, items);
+      });
       boxes.push(element("div", { class: "alert-box warn box" },
         element("div", { style: "display:flex;align-items:center;gap:8px;color:var(--warn)" },
           warnIcon(18),
@@ -1286,16 +1271,9 @@
     }
     children.push(element("p", { class: "explain-lead" }, leadParts));
 
-    let caretIdx = -1;
     if (typeof error.excerpt === "string" && error.excerpt) {
       const [srcLine, caretLine] = error.excerpt.split("\n");
       children.push(formatExcerptNode(srcLine || "", caretLine || "", "var(--bad)"));
-      caretIdx = findCaretLineIndex(lines, 2);
-    } else {
-      caretIdx = findCaretLineIndex(lines, 2);
-      if (caretIdx >= 2) {
-        children.push(formatExcerptNode(lines[caretIdx - 1], lines[caretIdx], "var(--bad)"));
-      }
     }
 
     const byRule = error.expectedByRule || [];
@@ -1327,10 +1305,7 @@
       }
       children.push(element("dl", { class: "exp expected-summary" }, dlItems));
     } else {
-      const afterExcerpt = caretIdx >= 0 ? caretIdx + 1 : 1;
-      if (lines.length > afterExcerpt && lines[afterExcerpt] === "Nothing could have continued there.") {
-        children.push(element("p", { class: "explain-sub", text: lines[afterExcerpt] }));
-      }
+      children.push(element("p", { class: "explain-sub", text: "Nothing could have continued there." }));
     }
 
     if (error.boundary) {
@@ -1387,6 +1362,13 @@
     return element("div", { class: "explain-divider box" }, children);
   }
 
+  function findCaretLineIndex(lines, fromIndex = 1) {
+    for (let i = fromIndex; i < lines.length; i++) {
+      if (/^\s*[|│]\s*\^+\s*$/.test(lines[i])) return i;
+    }
+    return -1;
+  }
+
   function renderTieBox(tie) {
     if (tie.reason && tie.reason !== "tie") {
       return element("div", { class: "explain-divider box" },
@@ -1433,20 +1415,8 @@
 
   function jumpToRuleName(ruleName, stageName) {
     const info = infos.get(state.pipeline);
-    if (!info || !info.ruleLocations) return;
-    let loc = null;
-    if (stageName && info.ruleLocations[stageName] && info.ruleLocations[stageName][ruleName]) {
-      loc = info.ruleLocations[stageName][ruleName];
-    } else if (info.ruleLocations[ruleName] && info.ruleLocations[ruleName].document) {
-      loc = info.ruleLocations[ruleName];
-    } else {
-      for (const stageObj of Object.values(info.ruleLocations)) {
-        if (stageObj && typeof stageObj === "object" && stageObj[ruleName] && stageObj[ruleName].document) {
-          loc = stageObj[ruleName];
-          break;
-        }
-      }
-    }
+    if (!info || !info.ruleLocations || !stageName) return;
+    const loc = info.ruleLocations[stageName] && info.ruleLocations[stageName][ruleName];
     if (loc && loc.document) {
       openDocument(loc.document, loc.line || 1, loc.column || 1);
     }
@@ -1470,26 +1440,7 @@
       }
       return frag;
     }
-    const re = /(\(|\)|\[|\]|\{|\}|⟨[^⟩]*⟩)/g;
-    let lastIndex = 0;
-    let match;
-    while ((match = re.exec(text)) !== null) {
-      if (match.index > lastIndex) {
-        frag.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
-      }
-      const token = match[0];
-      const span = document.createElement("span");
-      if (token === "(" || token === ")") span.className = "b1";
-      else if (token === "[" || token === "]") span.className = "b2";
-      else if (token === "{" || token === "}") span.className = "b3";
-      else span.className = "el";
-      span.textContent = token;
-      frag.appendChild(span);
-      lastIndex = re.lastIndex;
-    }
-    if (lastIndex < text.length) {
-      frag.appendChild(document.createTextNode(text.slice(lastIndex)));
-    }
+    if (text) frag.appendChild(document.createTextNode(text));
     return frag;
   }
 
@@ -1526,7 +1477,6 @@
   function renderWrappedLines(rawText, { className = "result-text code-block", linkify = false, mode = "code", tabindex = null } = {}) {
     const pre = element("pre", { class: className });
     if (tabindex !== null) pre.tabIndex = tabindex;
-    pre.dataset.rawText = rawText || "";
     const lines = (rawText || "").split("\n");
     const nodes = lines.map((line, idx) => {
       const m = /^( *)/.exec(line);
@@ -1551,21 +1501,62 @@
     return pre;
   }
 
+  let copyOutputText = "";
   const CANONICAL_LINES = 3000;
-  function sliceLines(rawText, maxLines) {
+  const CANONICAL_WORDS = 6000;
+  function sliceCanonical(rawText, maxLines = CANONICAL_LINES, maxWords = CANONICAL_WORDS) {
     const text = rawText || "";
-    let total = 1;
+    const len = text.length;
+    let totalLines = 1;
+    let totalWords = 0;
+    let shownLines = 0;
+    let shownWords = 0;
     let cutIndex = -1;
-    let pos = 0;
-    while ((pos = text.indexOf("\n", pos)) !== -1) {
-      if (total === maxLines) cutIndex = pos;
-      total++;
-      pos++;
+    let cappedBy = null;
+    let inWord = false;
+
+    for (let i = 0; i < len; i++) {
+      const code = text.charCodeAt(i);
+      if (code === 10) {
+        inWord = false;
+        if (cutIndex < 0 && totalLines === maxLines) {
+          cutIndex = i;
+          cappedBy = "lines";
+          shownLines = maxLines;
+          shownWords = totalWords;
+        }
+        totalLines++;
+      } else if (code === 32) {
+        inWord = false;
+      } else if (!inWord) {
+        if (cutIndex < 0 && totalWords === maxWords) {
+          cutIndex = i;
+          while (cutIndex > 0 && text.charCodeAt(cutIndex - 1) === 32) cutIndex--;
+          cappedBy = "words";
+          shownLines = totalLines;
+          shownWords = maxWords;
+        }
+        inWord = true;
+        totalWords++;
+      }
     }
+
+    const capped = cutIndex >= 0;
+    const noteText = !capped
+      ? ""
+      : cappedBy === "lines"
+        ? `Showing the first ${shownLines} of ${totalLines} lines. Copy copies the whole text.`
+        : `Showing the first ${shownWords} of ${totalWords} words. Copy copies the whole text.`;
+
     return {
-      shownText: cutIndex >= 0 ? text.slice(0, cutIndex) : text,
-      totalLines: total,
-      capped: cutIndex >= 0,
+      shownText: capped ? text.slice(0, cutIndex) : text,
+      totalLines,
+      totalWords,
+      shownLines: capped ? shownLines : totalLines,
+      shownWords: capped ? shownWords : totalWords,
+      capped,
+      cappedBy,
+      noteText,
     };
   }
 
@@ -1583,6 +1574,7 @@
     const empty = (text) => element("p", { class: "empty-out", text });
 
     if (message.loadError || message.parseError) {
+      copyOutputText = "";
       updateTabToolbar(false);
       output.replaceChildren(empty("No result."));
       return;
@@ -1590,9 +1582,11 @@
 
     if (state.tab === "audit") {
       if (message.audit === undefined || message.audit === null) {
+        copyOutputText = "";
         updateTabToolbar(false);
         output.replaceChildren();
       } else {
+        copyOutputText = message.audit;
         updateTabToolbar(true);
         output.replaceChildren(renderWrappedLines(message.audit, { className: "result-text code-block", linkify: true, tabindex: 0 }));
         updateAllCodeBlocksFade();
@@ -1601,6 +1595,7 @@
     }
 
     if (state.tab === "trace") {
+      copyOutputText = "";
       updateTabToolbar(false);
       renderTrace(message.trace);
       updateAllCodeBlocksFade();
@@ -1608,6 +1603,7 @@
     }
 
     if (state.tab === "tokens") {
+      copyOutputText = "";
       updateTabToolbar(false);
       if (message.output && message.output.format === "tokens") {
         renderTokens(message.output);
@@ -1620,35 +1616,61 @@
     const parse = message.parse;
     if (parse && parse.error && parse.error.kind === "ambiguous" && parse.ties && parse.ties.length) {
       const tie = parse.ties[0];
-      updateTabToolbar(true);
       if (state.tab === "brackets") {
-        const firstText = state.showElided ? tie.first : (tie.firstPlain ?? tie.first);
-        const secondText = state.showElided ? tie.second : (tie.secondPlain ?? tie.second);
+        const firstText = (state.showElided ? tie.first : (tie.firstPlain ?? tie.first)) || "";
+        const secondText = (state.showElided ? tie.second : (tie.secondPlain ?? tie.second)) || "";
         const firstSpans = state.showElided ? tie.firstSpans : (tie.firstPlainSpans ?? tie.firstSpans);
         const secondSpans = state.showElided ? tie.secondSpans : (tie.secondPlainSpans ?? tie.secondSpans);
+        copyOutputText = [firstText, secondText].join("\n\n");
+        updateTabToolbar(true);
         fill(output, [
           element("p", { class: "rlabel", text: "First reading" }),
-          element("pre", { class: "reading" }, formatColoredBrackets(firstText || "", firstSpans)),
+          element("pre", { class: "reading" }, formatColoredBrackets(firstText, firstSpans)),
           element("p", { class: "rlabel", text: "Second reading" }),
-          element("pre", { class: "reading" }, formatColoredBrackets(secondText || "", secondSpans)),
+          element("pre", { class: "reading" }, formatColoredBrackets(secondText, secondSpans)),
         ]);
       } else if (state.tab === "tree") {
+        const firstT = tie.firstTree || "";
+        const secondT = tie.secondTree || "";
+        copyOutputText = [firstT, secondT].join("\n\n");
+        updateTabToolbar(true);
         fill(output, [
           element("p", { class: "rlabel", text: "First reading" }),
-          renderWrappedLines(tie.firstTree || "", { className: "reading code-block", mode: "tree" }),
+          renderWrappedLines(firstT, { className: "reading code-block", mode: "tree" }),
           element("p", { class: "rlabel", text: "Second reading" }),
-          renderWrappedLines(tie.secondTree || "", { className: "reading code-block", mode: "tree" }),
+          renderWrappedLines(secondT, { className: "reading code-block", mode: "tree" }),
         ]);
         updateAllCodeBlocksFade();
       } else {
-        const firstJ = state.canonical ? tie.firstCanonical : tie.firstJson;
-        const secondJ = state.canonical ? tie.secondCanonical : tie.secondJson;
-        fill(output, [
-          element("p", { class: "rlabel", text: "First reading" }),
-          renderWrappedLines(firstJ || "", { className: "reading code-block" }),
-          element("p", { class: "rlabel", text: "Second reading" }),
-          renderWrappedLines(secondJ || "", { className: "reading code-block" }),
-        ]);
+        if (state.canonical && (tie.firstCanonical === null || tie.firstCanonical === undefined)) {
+          copyOutputText = "";
+          updateTabToolbar(false);
+          output.replaceChildren();
+          return;
+        }
+        const firstJ = (state.canonical ? tie.firstCanonical : tie.firstJson) || "";
+        const secondJ = (state.canonical ? tie.secondCanonical : tie.secondJson) || "";
+        copyOutputText = [firstJ, secondJ].join("\n\n");
+        updateTabToolbar(true);
+        if (state.canonical) {
+          const firstSlice = sliceCanonical(firstJ);
+          const secondSlice = sliceCanonical(secondJ);
+          fill(output, [
+            element("p", { class: "rlabel", text: "First reading" }),
+            renderWrappedLines(firstSlice.shownText, { className: "reading code-block" }),
+            firstSlice.capped ? element("p", { class: "empty-hint", text: firstSlice.noteText }) : null,
+            element("p", { class: "rlabel", text: "Second reading" }),
+            renderWrappedLines(secondSlice.shownText, { className: "reading code-block" }),
+            secondSlice.capped ? element("p", { class: "empty-hint", text: secondSlice.noteText }) : null,
+          ]);
+        } else {
+          fill(output, [
+            element("p", { class: "rlabel", text: "First reading" }),
+            renderWrappedLines(firstJ, { className: "reading code-block" }),
+            element("p", { class: "rlabel", text: "Second reading" }),
+            renderWrappedLines(secondJ, { className: "reading code-block" }),
+          ]);
+        }
         updateAllCodeBlocksFade();
       }
       return;
@@ -1657,12 +1679,14 @@
     const result = message.output;
     const expectedFormat = state.tab === "json" && state.canonical ? "canonical" : state.tab;
     if (!result || result.format !== expectedFormat) {
+      copyOutputText = "";
       updateTabToolbar(false);
       output.replaceChildren();
       return;
     }
 
     if (result.tree === false) {
+      copyOutputText = "";
       updateTabToolbar(false);
       const err = parse ? parse.error : null;
       output.replaceChildren(empty(err
@@ -1672,24 +1696,25 @@
     }
 
     if (result.text === "") {
+      copyOutputText = "";
       updateTabToolbar(false);
       output.replaceChildren(empty("The text is empty."));
       return;
     }
 
+    copyOutputText = result.text || "";
     updateTabToolbar(true);
     if (result.format === "brackets") {
       output.replaceChildren(element("pre", { class: "result-text", tabindex: "0" }, formatColoredBrackets(result.text, result.spans)));
     } else if (result.format === "canonical") {
-      const { shownText, totalLines, capped } = sliceLines(result.text, CANONICAL_LINES);
+      const { shownText, capped, noteText } = sliceCanonical(result.text);
       const pre = renderWrappedLines(shownText, {
         className: "result-text code-block",
         mode: "code",
         tabindex: 0,
       });
-      pre.dataset.rawText = result.text || "";
       const note = capped
-        ? element("p", { class: "empty-hint", text: `Showing the first ${CANONICAL_LINES} of ${totalLines} lines.` })
+        ? element("p", { class: "empty-hint", text: noteText })
         : null;
       fill(output, [pre, note]);
       updateAllCodeBlocksFade();
@@ -1704,7 +1729,10 @@
   }
 
   function renderTokens(result) {
-    state.tokenStage = result.stage || "";
+    const resolvedStage = result.stage || "";
+    const tokChanged = state.tokenStage !== resolvedStage;
+    state.tokenStage = resolvedStage;
+    if (tokChanged) flushFragment();
     const stageSegs = element("div", { class: "trace-stage-segs", id: "token-stage-segs", role: "radiogroup", "aria-label": "Stage" },
       result.stages.map((stage) => element("button", {
         type: "button",
@@ -1889,6 +1917,7 @@
         },
       })));
 
+    state.trace.toRejection = false;
     if (trace.error) {
       fill(output, [
         element("div", { class: "trace-controls" }, stageSegs),
@@ -1900,7 +1929,6 @@
     const traceChanged = state.trace.stage !== trace.stage || state.trace.position !== trace.position;
     state.trace.stage = trace.stage;
     state.trace.position = trace.position;
-    state.trace.toRejection = false;
     if (traceChanged) saveFragment();
 
     const pickerItems = [];
@@ -2377,15 +2405,16 @@
   });
 
   $("copy-output").addEventListener("click", (event) => {
-    const pre = document.querySelector("#output pre.result-text");
-    if (pre) {
-      const text = pre.dataset.rawText !== undefined ? pre.dataset.rawText : pre.textContent;
-      copyText(text, event.currentTarget, "Copy");
+    if (copyOutputText) {
+      copyText(copyOutputText, event.currentTarget, "Copy");
       return;
     }
-    const readings = [...document.querySelectorAll("#output pre.reading")].map((n) =>
-      n.dataset.rawText !== undefined ? n.dataset.rawText : n.textContent
-    );
+    const pre = document.querySelector("#output pre.result-text");
+    if (pre) {
+      copyText(pre.textContent, event.currentTarget, "Copy");
+      return;
+    }
+    const readings = [...document.querySelectorAll("#output pre.reading")].map((n) => n.textContent);
     if (readings.length) {
       copyText(readings.join("\n\n"), event.currentTarget, "Copy");
     }
@@ -2743,13 +2772,14 @@
     editor.markError(line, strippedLine || rawFirstLine, col);
   }
 
-  function openDocument(path, line = 0, column = 1) {
+  function openDocument(path, line = 0, column = 1, forceReset = false) {
     if (!path) {
       state.open = null;
       editor.setLabel("Grammar document");
       renderDocuments();
       return;
     }
+    const sameDoc = state.open === path;
     state.open = path;
     if (state.grammarHidden) {
       state.grammarHidden = false;
@@ -2762,8 +2792,13 @@
     renderDocuments();
     const baseName = path.slice(path.lastIndexOf("/") + 1) || "Grammar document";
     editor.setLabel(baseName);
-    lastCursorPos = { line: line || 1, column: column || 1 };
-    editor.setValue(normalized(client.text(path)));
+    const nextText = normalized(client.text(path));
+    if (forceReset || !sameDoc || editor.getValue() !== nextText) {
+      lastCursorPos = { line: line || 1, column: column || 1 };
+      editor.setValue(nextText);
+    } else if (line) {
+      lastCursorPos = { line, column: column || 1 };
+    }
     updateEditorStats(lastCursorPos);
     renderDocumentError();
     if (line) {
@@ -2783,7 +2818,7 @@
     const path = state.open || pipelinePath(state.pipeline);
     if (!path || bundled[path] === undefined) return;
     client.setDocument(path, bundled[path]);
-    openDocument(path, 0, 1);
+    openDocument(path, 0, 1, true);
     schedule(0);
   }
 
@@ -3040,6 +3075,7 @@
         jumpToAnchor();
       } else if (openSpec.rule) {
         const ruleName = openSpec.rule;
+        lastRuleLocation = null;
         exampleRule = {
           document: docPath,
           rule: ruleName,
@@ -3219,6 +3255,7 @@
     editor,
     examples: allExamples,
     applyExample,
+    getCopyOutputText: () => copyOutputText,
   };
   startWorker();
   selectTab(state.tab, false);

@@ -1238,8 +1238,8 @@ async function main() {
       });
       const leadingSep = wruns.filter((r) => /^[›·]/.test((r.textContent || "").trim()));
       return {
-        hasRawText: !!(pre && typeof pre.dataset.rawText === "string" && pre.dataset.rawText.length > 0),
-        rawMatchesText: !!(pre && pre.dataset.rawText === pre.textContent),
+        hasRawText: !!(pre && !pre.hasAttribute("data-raw-text") && typeof self.playground.getCopyOutputText() === "string" && self.playground.getCopyOutputText().length > 0),
+        rawMatchesText: !!(pre && self.playground.getCopyOutputText() === pre.textContent),
         textIndent: wlines[0] ? wlines[0].style.textIndent : null,
         pad0: wlines[0] ? wlines[0].style.paddingLeft : null,
         pad1: wlines[1] ? wlines[1].style.paddingLeft : null,
@@ -1565,6 +1565,32 @@ async function main() {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.evaluate(() => window.dispatchEvent(new Event("resize")));
     await choose("grammars/lojban/cll/pipeline.md");
+    await type("mi klama le le");
+    await answerFor("mi klama le le");
+    const failedChipTitle = await page.evaluate(() => {
+      const chips = [...document.querySelectorAll("#stage-flow .stage")];
+      return chips[chips.length - 1]?.getAttribute("title") || "";
+    });
+    if (failedChipTitle !== "Show tokens from indicators, read by syntax") {
+      throw new Error(`Round 10 failed stage chip tooltip check failed: ${failedChipTitle}`);
+    }
+
+    if ((await page.locator(".cm-content").count()) > 0) {
+      await page.evaluate(() => self.playground.openDocument("grammars/lojban/cll/latin.md", 1, 1));
+      const latOrigLen = await page.evaluate(() => self.playground.editor.getValue().length);
+      await page.locator(".cm-content").focus();
+      await page.keyboard.press("Control+Home");
+      await page.keyboard.type("X");
+      await page.evaluate(() => self.playground.openDocument("grammars/lojban/cll/latin.md", 5, 1));
+      await page.locator(".cm-content").focus();
+      await page.keyboard.press("Control+z");
+      const latAfterNavUndoLen = await page.evaluate(() => self.playground.editor.getValue().length);
+      if (latAfterNavUndoLen !== latOrigLen) {
+        throw new Error(`Round 10 same-document navigation lost undo history: ${latAfterNavUndoLen} !== ${latOrigLen}`);
+      }
+      await page.evaluate(() => self.playground.openDocument(null));
+    }
+
     await type("mi klama le zarci");
     await answerFor("mi klama le zarci");
     await page.locator("#tab-brackets").click();

@@ -524,12 +524,6 @@
         const val = gencmu.displayValue({ ...result, stages: [stage], tree: node, error: null });
         return val === null ? "" : gencmu.prettyJson(val);
       };
-      const canonicalText = (node) => {
-        if (!node) return "";
-        return gencmu.prettyJson(
-          gencmu.resultJson({ ...result, stages: [], tree: node, error: null, warnings: [] }).tree
-        );
-      };
       return {
         stage: stage.name,
         reason,
@@ -549,8 +543,8 @@
         secondTree: tree(readings[1]),
         firstJson: jsonText(readings[0]),
         secondJson: jsonText(readings[1]),
-        firstCanonical: canonicalText(readings[0]),
-        secondCanonical: canonicalText(readings[1]),
+        firstCanonical: null,
+        secondCanonical: null,
       };
     }
 
@@ -577,9 +571,25 @@
           output = { format: "json", tree: !!result.tree, text: value === null ? "" : gencmu.prettyJson(value) };
           break;
         }
-        case "canonical":
+        case "canonical": {
+          if (parsed.summary.ties && parsed.summary.ties.length > 0) {
+            for (const tie of parsed.summary.ties) {
+              if (tie.firstCanonical !== null) continue;
+              const stage = result.stages.find((s) => s.name === tie.stage);
+              const readings = (stage && stage.error && stage.error.readings) || [];
+              const canonicalText = (node) =>
+                node
+                  ? gencmu.prettyJson(
+                      gencmu.resultJson({ ...result, stages: [], tree: node, error: null, warnings: [] }).tree
+                    )
+                  : "";
+              tie.firstCanonical = canonicalText(readings[0]);
+              tie.secondCanonical = canonicalText(readings[1]);
+            }
+          }
           output = { format: "canonical", text: gencmu.prettyJson(gencmu.resultJson(result)) };
           break;
+        }
         case "tokens": {
           const stages = result.stages.map((stage) => ({ name: stage.name, verdict: stage.verdict, count: stage.output ? stage.output.length : null }));
           const stage = result.stages.find((each) => each.name === view.stage) ||
