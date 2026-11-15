@@ -1690,7 +1690,7 @@
     },
     {
       "description": "A supplied ranked choice without conjunctions is a document error.",
-      "find": "{\"seq\":[{\"ref\":\"some-of\",\"at\":[*]},{\"literal\":{\"string\":\"≻\"},\"at\":[*]},{\"repeat\":{\"ref\":\"some-of\",\"at\":[*]},\"at\":[*],\"separator\":{\"literal\":{\"string\":\"≻\"},\"at\":[*]}}],\"at\":[*]}",
+      "find": "{\"seq\":[{\"ref\":\"some-of\",\"at\":[*]},{\"literal\":{\"string\":\"≻\"},\"at\":[*]},{\"repeat\":{\"ref\":\"some-of\",\"at\":[*]},\"separator\":{\"literal\":{\"string\":\"≻\"},\"at\":[*]},\"at\":[*]}],\"at\":[*]}",
       "replace": "{\"literal\":{\"string\":\".\"}}",
       "document": "```jbogenbau\n%rule text .\n```\n",
       "inputs": [],
@@ -1841,7 +1841,7 @@
     },
     {
       "description": "A union with two operands requires an operator.",
-      "find": "{\"name\":\"union\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"optional\":{\"literal\":{\"string\":\"∪\"},\"at\":[*]},\"at\":[*]},{\"repeat\":{\"ref\":\"intersection\",\"at\":[*]},\"at\":[*],\"separator\":{\"choice\":[{\"literal\":{\"string\":\"∪\"},\"at\":[*]},{\"literal\":{\"string\":\"∖\"},\"at\":[*]}],\"at\":[*]}}],\"at\":[*]}}],\"conditions\":[],\"at\":[*]}",
+      "find": "{\"name\":\"union\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"optional\":{\"literal\":{\"string\":\"∪\"},\"at\":[*]},\"at\":[*]},{\"repeat\":{\"ref\":\"intersection\",\"at\":[*]},\"separator\":{\"choice\":[{\"literal\":{\"string\":\"∪\"},\"at\":[*]},{\"literal\":{\"string\":\"∖\"},\"at\":[*]}],\"at\":[*]},\"at\":[*]}],\"at\":[*]}}],\"conditions\":[],\"at\":[*]}",
       "replace": "{\"name\":\"union\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\".\"}},{\"ref\":\"intersection\"},{\"literal\":{\"string\":\",\"}},{\"ref\":\"intersection\"}]}}],\"conditions\":[],\"at\":[*]}",
       "document": "```jbogenbau\n%const $X . \"a\", \"b\"\n```\n",
       "inputs": [],
@@ -1917,7 +1917,7 @@
     },
     {
       "description": "A pattern union ignores a child-choice constructor instead of converting its item array.",
-      "find": "{\"name\":\"pattern-union\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"repeat\":{\"ref\":\"pattern-intersection\",\"at\":[*]},\"at\":[*],\"separator\":{\"choice\":[{\"literal\":{\"string\":\"∪\"},\"at\":[*]},{\"literal\":{\"string\":\"∖\"},\"at\":[*]}],\"at\":[*]}}}],\"conditions\":[],\"at\":[*]}",
+      "find": "{\"name\":\"pattern-union\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"repeat\":{\"ref\":\"pattern-intersection\",\"at\":[*]},\"separator\":{\"choice\":[{\"literal\":{\"string\":\"∪\"},\"at\":[*]},{\"literal\":{\"string\":\"∖\"},\"at\":[*]}],\"at\":[*]},\"at\":[*]}}],\"conditions\":[],\"at\":[*]}",
       "replace": "{\"name\":\"pattern-union\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"ref\":\"child-choice\"}}],\"conditions\":[],\"at\":[*]}",
       "document": "```jbogenbau\n%const $P #(a)\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
       "inputs": [],
@@ -1925,7 +1925,7 @@
     },
     {
       "description": "A child choice requires child alternatives instead of a pattern predicate.",
-      "find": "{\"name\":\"child-choice\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"repeat\":{\"ref\":\"child-alternative\",\"at\":[*]},\"at\":[*],\"separator\":{\"literal\":{\"string\":\"|\"},\"at\":[*]}}}],\"conditions\":[],\"at\":[*]}",
+      "find": "{\"name\":\"child-choice\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"repeat\":{\"ref\":\"child-alternative\",\"at\":[*]},\"separator\":{\"literal\":{\"string\":\"|\"},\"at\":[*]},\"at\":[*]}}],\"conditions\":[],\"at\":[*]}",
       "replace": "{\"name\":\"child-choice\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"ref\":\"pattern-intersection\"}}],\"conditions\":[],\"at\":[*]}",
       "document": "```jbogenbau\n%const $P #⁅ a ⁆\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
       "inputs": [],
@@ -1941,7 +1941,7 @@
     },
     {
       "description": "A supplied ranked choice keeps its operands when its separator has another spelling.",
-      "find": "{\"name\":\"ranked-choice\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"some-of\",\"at\":[*]},{\"literal\":{\"string\":\"≻\"},\"at\":[*]},{\"repeat\":{\"ref\":\"some-of\",\"at\":[*]},\"at\":[*],\"separator\":{\"literal\":{\"string\":\"≻\"},\"at\":[*]}}],\"at\":[*]}}],\"conditions\":[],\"at\":[*]}",
+      "find": "{\"name\":\"ranked-choice\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"some-of\",\"at\":[*]},{\"literal\":{\"string\":\"≻\"},\"at\":[*]},{\"repeat\":{\"ref\":\"some-of\",\"at\":[*]},\"separator\":{\"literal\":{\"string\":\"≻\"},\"at\":[*]},\"at\":[*]}],\"at\":[*]}}],\"conditions\":[],\"at\":[*]}",
       "replace": "{\"name\":\"ranked-choice\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"some-of\"},{\"literal\":{\"string\":\"∪\"}},{\"ref\":\"some-of\"}]}}],\"conditions\":[],\"at\":[*]}",
       "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text :: ∅ | \"a\" ∪ \"b\"\n```\n",
       "inputs": [
@@ -2001,7 +2001,7 @@
     },
     {
       "description": "A pattern union requires operators after converting its operands.",
-      "find": "{\"name\":\"pattern-union\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"repeat\":{\"ref\":\"pattern-intersection\",\"at\":[*]},\"at\":[*],\"separator\":{\"choice\":[{\"literal\":{\"string\":\"∪\"},\"at\":[*]},{\"literal\":{\"string\":\"∖\"},\"at\":[*]}],\"at\":[*]}}}],\"conditions\":[],\"at\":[*]}",
+      "find": "{\"name\":\"pattern-union\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"repeat\":{\"ref\":\"pattern-intersection\",\"at\":[*]},\"separator\":{\"choice\":[{\"literal\":{\"string\":\"∪\"},\"at\":[*]},{\"literal\":{\"string\":\"∖\"},\"at\":[*]}],\"at\":[*]},\"at\":[*]}}],\"conditions\":[],\"at\":[*]}",
       "replace": "{\"name\":\"pattern-union\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"pattern-intersection\"},{\"ref\":\"pattern-intersection\"}]}}],\"conditions\":[],\"at\":[*]}",
       "document": "```jbogenbau\n%const $P #(a b)\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
       "inputs": [],
@@ -2014,7 +2014,7 @@
     },
     {
       "description": "A child set requires operators after converting its whole-pattern operands.",
-      "find": "{\"name\":\"child-alternative\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"ref\":\"child-sequence\",\"at\":[*]}},{\"gates\":[],\"expr\":{\"ref\":\"child-set-operation\",\"at\":[*]}}],\"conditions\":[],\"at\":[*]},{\"name\":\"child-sequence\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"repeat\":{\"ref\":\"child-item\",\"at\":[*]},\"at\":[*]}}],\"conditions\":[],\"at\":[*]},{\"name\":\"child-set-operation\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"child-intersection\",\"at\":[*]},{\"choice\":[{\"literal\":{\"string\":\"∪\"},\"at\":[*]},{\"literal\":{\"string\":\"∖\"},\"at\":[*]}],\"at\":[*]},{\"repeat\":{\"ref\":\"child-intersection\",\"at\":[*]},\"at\":[*],\"separator\":{\"choice\":[{\"literal\":{\"string\":\"∪\"},\"at\":[*]},{\"literal\":{\"string\":\"∖\"},\"at\":[*]}],\"at\":[*]}}],\"at\":[*]}},{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"child-path\",\"at\":[*]},{\"literal\":{\"string\":\"∩\"},\"at\":[*]},{\"repeat\":{\"ref\":\"child-path\",\"at\":[*]},\"at\":[*],\"separator\":{\"literal\":{\"string\":\"∩\"},\"at\":[*]}}],\"at\":[*]}}],\"conditions\":[],\"at\":[*]}",
+      "find": "{\"name\":\"child-alternative\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"ref\":\"child-sequence\",\"at\":[*]}},{\"gates\":[],\"expr\":{\"ref\":\"child-set-operation\",\"at\":[*]}}],\"conditions\":[],\"at\":[*]},{\"name\":\"child-sequence\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"repeat\":{\"ref\":\"child-item\",\"at\":[*]},\"at\":[*]}}],\"conditions\":[],\"at\":[*]},{\"name\":\"child-set-operation\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"child-intersection\",\"at\":[*]},{\"choice\":[{\"literal\":{\"string\":\"∪\"},\"at\":[*]},{\"literal\":{\"string\":\"∖\"},\"at\":[*]}],\"at\":[*]},{\"repeat\":{\"ref\":\"child-intersection\",\"at\":[*]},\"separator\":{\"choice\":[{\"literal\":{\"string\":\"∪\"},\"at\":[*]},{\"literal\":{\"string\":\"∖\"},\"at\":[*]}],\"at\":[*]},\"at\":[*]}],\"at\":[*]}},{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"child-path\",\"at\":[*]},{\"literal\":{\"string\":\"∩\"},\"at\":[*]},{\"repeat\":{\"ref\":\"child-path\",\"at\":[*]},\"separator\":{\"literal\":{\"string\":\"∩\"},\"at\":[*]},\"at\":[*]}],\"at\":[*]}}],\"conditions\":[],\"at\":[*]}",
       "replace": "{\"name\":\"child-alternative\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"ref\":\"child-set-operation\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"child-sequence\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"repeat\":{\"ref\":\"child-item\"}}}],\"conditions\":[],\"at\":[*]},{\"name\":\"child-set-operation\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"child-intersection\"},{\"ref\":\"child-intersection\"}]}}],\"conditions\":[],\"at\":[*]}",
       "document": "```jbogenbau\n%const $P #⁅ a b ⁆\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
       "inputs": [],
@@ -2027,7 +2027,7 @@
     },
     {
       "description": "A stray punctuation token cannot replace a pattern union operator.",
-      "find": "{\"name\":\"pattern-union\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"repeat\":{\"ref\":\"pattern-intersection\",\"at\":[*]},\"at\":[*],\"separator\":{\"choice\":[{\"literal\":{\"string\":\"∪\"},\"at\":[*]},{\"literal\":{\"string\":\"∖\"},\"at\":[*]}],\"at\":[*]}}}],\"conditions\":[],\"at\":[*]}",
+      "find": "{\"name\":\"pattern-union\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"repeat\":{\"ref\":\"pattern-intersection\",\"at\":[*]},\"separator\":{\"choice\":[{\"literal\":{\"string\":\"∪\"},\"at\":[*]},{\"literal\":{\"string\":\"∖\"},\"at\":[*]}],\"at\":[*]},\"at\":[*]}}],\"conditions\":[],\"at\":[*]}",
       "replace": "{\"name\":\"pattern-union\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"pattern-intersection\"},{\"literal\":{\"string\":\",\"}},{\"ref\":\"pattern-intersection\"}]}}],\"conditions\":[],\"at\":[*]}",
       "document": "```jbogenbau\n%const $P #(a,b)\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
       "inputs": [],
@@ -2040,7 +2040,7 @@
     },
     {
       "description": "A pattern operand error precedes a missing union operator.",
-      "find": "{\"name\":\"pattern-union\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"repeat\":{\"ref\":\"pattern-intersection\",\"at\":[*]},\"at\":[*],\"separator\":{\"choice\":[{\"literal\":{\"string\":\"∪\"},\"at\":[*]},{\"literal\":{\"string\":\"∖\"},\"at\":[*]}],\"at\":[*]}}}],\"conditions\":[],\"at\":[*]}",
+      "find": "{\"name\":\"pattern-union\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"repeat\":{\"ref\":\"pattern-intersection\",\"at\":[*]},\"separator\":{\"choice\":[{\"literal\":{\"string\":\"∪\"},\"at\":[*]},{\"literal\":{\"string\":\"∖\"},\"at\":[*]}],\"at\":[*]},\"at\":[*]}}],\"conditions\":[],\"at\":[*]}",
       "replace": "{\"name\":\"pattern-union\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"pattern-intersection\"},{\"ref\":\"pattern-intersection\"}]}}],\"conditions\":[],\"at\":[*]}",
       "document": "```jbogenbau\n%const $P #(a _Nope)\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
       "inputs": [],
@@ -2053,7 +2053,7 @@
     },
     {
       "description": "A child operand error precedes a missing set operator.",
-      "find": "{\"name\":\"child-alternative\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"ref\":\"child-sequence\",\"at\":[*]}},{\"gates\":[],\"expr\":{\"ref\":\"child-set-operation\",\"at\":[*]}}],\"conditions\":[],\"at\":[*]},{\"name\":\"child-sequence\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"repeat\":{\"ref\":\"child-item\",\"at\":[*]},\"at\":[*]}}],\"conditions\":[],\"at\":[*]},{\"name\":\"child-set-operation\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"child-intersection\",\"at\":[*]},{\"choice\":[{\"literal\":{\"string\":\"∪\"},\"at\":[*]},{\"literal\":{\"string\":\"∖\"},\"at\":[*]}],\"at\":[*]},{\"repeat\":{\"ref\":\"child-intersection\",\"at\":[*]},\"at\":[*],\"separator\":{\"choice\":[{\"literal\":{\"string\":\"∪\"},\"at\":[*]},{\"literal\":{\"string\":\"∖\"},\"at\":[*]}],\"at\":[*]}}],\"at\":[*]}},{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"child-path\",\"at\":[*]},{\"literal\":{\"string\":\"∩\"},\"at\":[*]},{\"repeat\":{\"ref\":\"child-path\",\"at\":[*]},\"at\":[*],\"separator\":{\"literal\":{\"string\":\"∩\"},\"at\":[*]}}],\"at\":[*]}}],\"conditions\":[],\"at\":[*]}",
+      "find": "{\"name\":\"child-alternative\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"ref\":\"child-sequence\",\"at\":[*]}},{\"gates\":[],\"expr\":{\"ref\":\"child-set-operation\",\"at\":[*]}}],\"conditions\":[],\"at\":[*]},{\"name\":\"child-sequence\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"repeat\":{\"ref\":\"child-item\",\"at\":[*]},\"at\":[*]}}],\"conditions\":[],\"at\":[*]},{\"name\":\"child-set-operation\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"child-intersection\",\"at\":[*]},{\"choice\":[{\"literal\":{\"string\":\"∪\"},\"at\":[*]},{\"literal\":{\"string\":\"∖\"},\"at\":[*]}],\"at\":[*]},{\"repeat\":{\"ref\":\"child-intersection\",\"at\":[*]},\"separator\":{\"choice\":[{\"literal\":{\"string\":\"∪\"},\"at\":[*]},{\"literal\":{\"string\":\"∖\"},\"at\":[*]}],\"at\":[*]},\"at\":[*]}],\"at\":[*]}},{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"child-path\",\"at\":[*]},{\"literal\":{\"string\":\"∩\"},\"at\":[*]},{\"repeat\":{\"ref\":\"child-path\",\"at\":[*]},\"separator\":{\"literal\":{\"string\":\"∩\"},\"at\":[*]},\"at\":[*]}],\"at\":[*]}}],\"conditions\":[],\"at\":[*]}",
       "replace": "{\"name\":\"child-alternative\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"ref\":\"child-set-operation\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"child-sequence\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"repeat\":{\"ref\":\"child-item\"}}}],\"conditions\":[],\"at\":[*]},{\"name\":\"child-set-operation\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"child-intersection\"},{\"ref\":\"child-intersection\"}]}}],\"conditions\":[],\"at\":[*]}",
       "document": "```jbogenbau\n%const $P #⁅ a _Nope ⁆\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
       "inputs": [],
@@ -2066,7 +2066,7 @@
     },
     {
       "description": "A child set with one operand still requires its operator.",
-      "find": "{\"name\":\"child-alternative\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"ref\":\"child-sequence\",\"at\":[*]}},{\"gates\":[],\"expr\":{\"ref\":\"child-set-operation\",\"at\":[*]}}],\"conditions\":[],\"at\":[*]},{\"name\":\"child-sequence\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"repeat\":{\"ref\":\"child-item\",\"at\":[*]},\"at\":[*]}}],\"conditions\":[],\"at\":[*]},{\"name\":\"child-set-operation\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"child-intersection\",\"at\":[*]},{\"choice\":[{\"literal\":{\"string\":\"∪\"},\"at\":[*]},{\"literal\":{\"string\":\"∖\"},\"at\":[*]}],\"at\":[*]},{\"repeat\":{\"ref\":\"child-intersection\",\"at\":[*]},\"at\":[*],\"separator\":{\"choice\":[{\"literal\":{\"string\":\"∪\"},\"at\":[*]},{\"literal\":{\"string\":\"∖\"},\"at\":[*]}],\"at\":[*]}}],\"at\":[*]}},{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"child-path\",\"at\":[*]},{\"literal\":{\"string\":\"∩\"},\"at\":[*]},{\"repeat\":{\"ref\":\"child-path\",\"at\":[*]},\"at\":[*],\"separator\":{\"literal\":{\"string\":\"∩\"},\"at\":[*]}}],\"at\":[*]}}],\"conditions\":[],\"at\":[*]}",
+      "find": "{\"name\":\"child-alternative\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"ref\":\"child-sequence\",\"at\":[*]}},{\"gates\":[],\"expr\":{\"ref\":\"child-set-operation\",\"at\":[*]}}],\"conditions\":[],\"at\":[*]},{\"name\":\"child-sequence\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"repeat\":{\"ref\":\"child-item\",\"at\":[*]},\"at\":[*]}}],\"conditions\":[],\"at\":[*]},{\"name\":\"child-set-operation\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"child-intersection\",\"at\":[*]},{\"choice\":[{\"literal\":{\"string\":\"∪\"},\"at\":[*]},{\"literal\":{\"string\":\"∖\"},\"at\":[*]}],\"at\":[*]},{\"repeat\":{\"ref\":\"child-intersection\",\"at\":[*]},\"separator\":{\"choice\":[{\"literal\":{\"string\":\"∪\"},\"at\":[*]},{\"literal\":{\"string\":\"∖\"},\"at\":[*]}],\"at\":[*]},\"at\":[*]}],\"at\":[*]}},{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"child-path\",\"at\":[*]},{\"literal\":{\"string\":\"∩\"},\"at\":[*]},{\"repeat\":{\"ref\":\"child-path\",\"at\":[*]},\"separator\":{\"literal\":{\"string\":\"∩\"},\"at\":[*]},\"at\":[*]}],\"at\":[*]}}],\"conditions\":[],\"at\":[*]}",
       "replace": "{\"name\":\"child-alternative\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"ref\":\"child-set-operation\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"child-sequence\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"repeat\":{\"ref\":\"child-item\"}}}],\"conditions\":[],\"at\":[*]},{\"name\":\"child-set-operation\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"ref\":\"child-intersection\"}}],\"conditions\":[],\"at\":[*]}",
       "document": "```jbogenbau\n%const $P #⁅ a ⁆\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
       "inputs": [],
@@ -2087,7 +2087,7 @@
     },
     {
       "description": "A pattern union requires intersection constructors rather than direct pattern paths.",
-      "find": "{\"name\":\"pattern-union\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"repeat\":{\"ref\":\"pattern-intersection\",\"at\":[*]},\"at\":[*],\"separator\":{\"choice\":[{\"literal\":{\"string\":\"∪\"},\"at\":[*]},{\"literal\":{\"string\":\"∖\"},\"at\":[*]}],\"at\":[*]}}}],\"conditions\":[],\"at\":[*]}",
+      "find": "{\"name\":\"pattern-union\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"repeat\":{\"ref\":\"pattern-intersection\",\"at\":[*]},\"separator\":{\"choice\":[{\"literal\":{\"string\":\"∪\"},\"at\":[*]},{\"literal\":{\"string\":\"∖\"},\"at\":[*]}],\"at\":[*]},\"at\":[*]}}],\"conditions\":[],\"at\":[*]}",
       "replace": "{\"name\":\"pattern-union\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"repeat\":{\"ref\":\"pattern-path\"},\"separator\":{\"literal\":{\"string\":\"∪\"}}}}],\"conditions\":[],\"at\":[*]}",
       "document": "```jbogenbau\n%const $P #(A ∪ B)\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
       "inputs": [],
@@ -2100,7 +2100,7 @@
     },
     {
       "description": "A pattern intersection requires pattern paths rather than child paths.",
-      "find": "{\"name\":\"pattern-intersection\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"repeat\":{\"ref\":\"pattern-path\",\"at\":[*]},\"at\":[*],\"separator\":{\"literal\":{\"string\":\"∩\"},\"at\":[*]}}}],\"conditions\":[],\"at\":[*]}",
+      "find": "{\"name\":\"pattern-intersection\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"repeat\":{\"ref\":\"pattern-path\",\"at\":[*]},\"separator\":{\"literal\":{\"string\":\"∩\"},\"at\":[*]},\"at\":[*]}}],\"conditions\":[],\"at\":[*]}",
       "replace": "{\"name\":\"pattern-intersection\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"repeat\":{\"ref\":\"child-path\"},\"separator\":{\"literal\":{\"string\":\"∩\"}}}}],\"conditions\":[],\"at\":[*]}",
       "document": "```jbogenbau\n%const $P #(A ∩ B)\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
       "inputs": [],
@@ -2113,7 +2113,7 @@
     },
     {
       "description": "A child intersection requires child paths rather than pattern paths.",
-      "find": "{\"name\":\"child-intersection\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"repeat\":{\"ref\":\"child-path\",\"at\":[*]},\"at\":[*],\"separator\":{\"literal\":{\"string\":\"∩\"},\"at\":[*]}}}],\"conditions\":[],\"at\":[*]}",
+      "find": "{\"name\":\"child-intersection\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"repeat\":{\"ref\":\"child-path\",\"at\":[*]},\"separator\":{\"literal\":{\"string\":\"∩\"},\"at\":[*]},\"at\":[*]}}],\"conditions\":[],\"at\":[*]}",
       "replace": "{\"name\":\"child-intersection\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"repeat\":{\"ref\":\"pattern-path\"},\"separator\":{\"literal\":{\"string\":\"∩\"}}}}],\"conditions\":[],\"at\":[*]}",
       "document": "```jbogenbau\n%const $P #⁅ A ∪ B ⁆\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
       "inputs": [],
@@ -2126,7 +2126,7 @@
     },
     {
       "description": "A child set requires child constructors rather than pattern intersections.",
-      "find": "{\"name\":\"child-set-operation\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"child-intersection\",\"at\":[*]},{\"choice\":[{\"literal\":{\"string\":\"∪\"},\"at\":[*]},{\"literal\":{\"string\":\"∖\"},\"at\":[*]}],\"at\":[*]},{\"repeat\":{\"ref\":\"child-intersection\",\"at\":[*]},\"at\":[*],\"separator\":{\"choice\":[{\"literal\":{\"string\":\"∪\"},\"at\":[*]},{\"literal\":{\"string\":\"∖\"},\"at\":[*]}],\"at\":[*]}}],\"at\":[*]}},{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"child-path\",\"at\":[*]},{\"literal\":{\"string\":\"∩\"},\"at\":[*]},{\"repeat\":{\"ref\":\"child-path\",\"at\":[*]},\"at\":[*],\"separator\":{\"literal\":{\"string\":\"∩\"},\"at\":[*]}}],\"at\":[*]}}],\"conditions\":[],\"at\":[*]}",
+      "find": "{\"name\":\"child-set-operation\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"child-intersection\",\"at\":[*]},{\"choice\":[{\"literal\":{\"string\":\"∪\"},\"at\":[*]},{\"literal\":{\"string\":\"∖\"},\"at\":[*]}],\"at\":[*]},{\"repeat\":{\"ref\":\"child-intersection\",\"at\":[*]},\"separator\":{\"choice\":[{\"literal\":{\"string\":\"∪\"},\"at\":[*]},{\"literal\":{\"string\":\"∖\"},\"at\":[*]}],\"at\":[*]},\"at\":[*]}],\"at\":[*]}},{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"child-path\",\"at\":[*]},{\"literal\":{\"string\":\"∩\"},\"at\":[*]},{\"repeat\":{\"ref\":\"child-path\",\"at\":[*]},\"separator\":{\"literal\":{\"string\":\"∩\"},\"at\":[*]},\"at\":[*]}],\"at\":[*]}}],\"conditions\":[],\"at\":[*]}",
       "replace": "{\"name\":\"child-set-operation\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"repeat\":{\"ref\":\"pattern-intersection\"},\"separator\":{\"literal\":{\"string\":\"∪\"}}}}],\"conditions\":[],\"at\":[*]}",
       "document": "```jbogenbau\n%const $P #⁅ A ∪ B ⁆\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
       "inputs": [],
@@ -2139,7 +2139,7 @@
     },
     {
       "description": "A child set accepts its child-intersection operand layer.",
-      "find": "{\"name\":\"child-set-operation\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"child-intersection\",\"at\":[*]},{\"choice\":[{\"literal\":{\"string\":\"∪\"},\"at\":[*]},{\"literal\":{\"string\":\"∖\"},\"at\":[*]}],\"at\":[*]},{\"repeat\":{\"ref\":\"child-intersection\",\"at\":[*]},\"at\":[*],\"separator\":{\"choice\":[{\"literal\":{\"string\":\"∪\"},\"at\":[*]},{\"literal\":{\"string\":\"∖\"},\"at\":[*]}],\"at\":[*]}}],\"at\":[*]}},{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"child-path\",\"at\":[*]},{\"literal\":{\"string\":\"∩\"},\"at\":[*]},{\"repeat\":{\"ref\":\"child-path\",\"at\":[*]},\"at\":[*],\"separator\":{\"literal\":{\"string\":\"∩\"},\"at\":[*]}}],\"at\":[*]}}],\"conditions\":[],\"at\":[*]}",
+      "find": "{\"name\":\"child-set-operation\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"child-intersection\",\"at\":[*]},{\"choice\":[{\"literal\":{\"string\":\"∪\"},\"at\":[*]},{\"literal\":{\"string\":\"∖\"},\"at\":[*]}],\"at\":[*]},{\"repeat\":{\"ref\":\"child-intersection\",\"at\":[*]},\"separator\":{\"choice\":[{\"literal\":{\"string\":\"∪\"},\"at\":[*]},{\"literal\":{\"string\":\"∖\"},\"at\":[*]}],\"at\":[*]},\"at\":[*]}],\"at\":[*]}},{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"child-path\",\"at\":[*]},{\"literal\":{\"string\":\"∩\"},\"at\":[*]},{\"repeat\":{\"ref\":\"child-path\",\"at\":[*]},\"separator\":{\"literal\":{\"string\":\"∩\"},\"at\":[*]},\"at\":[*]}],\"at\":[*]}}],\"conditions\":[],\"at\":[*]}",
       "replace": "{\"name\":\"child-set-operation\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"repeat\":{\"ref\":\"child-intersection\"},\"separator\":{\"literal\":{\"string\":\"∪\"}}}}],\"conditions\":[],\"at\":[*]}",
       "document": "```jbogenbau\n%const $P #⁅ A ∪ B ⁆\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
       "inputs": [
@@ -2151,7 +2151,7 @@
     },
     {
       "description": "A child set also accepts direct child-path operands.",
-      "find": "{\"name\":\"child-set-operation\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"child-intersection\",\"at\":[*]},{\"choice\":[{\"literal\":{\"string\":\"∪\"},\"at\":[*]},{\"literal\":{\"string\":\"∖\"},\"at\":[*]}],\"at\":[*]},{\"repeat\":{\"ref\":\"child-intersection\",\"at\":[*]},\"at\":[*],\"separator\":{\"choice\":[{\"literal\":{\"string\":\"∪\"},\"at\":[*]},{\"literal\":{\"string\":\"∖\"},\"at\":[*]}],\"at\":[*]}}],\"at\":[*]}},{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"child-path\",\"at\":[*]},{\"literal\":{\"string\":\"∩\"},\"at\":[*]},{\"repeat\":{\"ref\":\"child-path\",\"at\":[*]},\"at\":[*],\"separator\":{\"literal\":{\"string\":\"∩\"},\"at\":[*]}}],\"at\":[*]}}],\"conditions\":[],\"at\":[*]}",
+      "find": "{\"name\":\"child-set-operation\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"child-intersection\",\"at\":[*]},{\"choice\":[{\"literal\":{\"string\":\"∪\"},\"at\":[*]},{\"literal\":{\"string\":\"∖\"},\"at\":[*]}],\"at\":[*]},{\"repeat\":{\"ref\":\"child-intersection\",\"at\":[*]},\"separator\":{\"choice\":[{\"literal\":{\"string\":\"∪\"},\"at\":[*]},{\"literal\":{\"string\":\"∖\"},\"at\":[*]}],\"at\":[*]},\"at\":[*]}],\"at\":[*]}},{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"child-path\",\"at\":[*]},{\"literal\":{\"string\":\"∩\"},\"at\":[*]},{\"repeat\":{\"ref\":\"child-path\",\"at\":[*]},\"separator\":{\"literal\":{\"string\":\"∩\"},\"at\":[*]},\"at\":[*]}],\"at\":[*]}}],\"conditions\":[],\"at\":[*]}",
       "replace": "{\"name\":\"child-set-operation\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"repeat\":{\"ref\":\"child-path\"},\"separator\":{\"literal\":{\"string\":\"∪\"}}}}],\"conditions\":[],\"at\":[*]}",
       "document": "```jbogenbau\n%const $P #⁅ A ∪ B ⁆\n%rule text \"a\"\n%ambiguity-resolution greedy\n```\n",
       "inputs": [

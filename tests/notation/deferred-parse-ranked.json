@@ -4,7 +4,7 @@
   "cacheMisses": true,
   "expect": {
     "dom": {
-      "format": 51,
+      "format": 50,
       "rules": [
         {
           "name": "text",
