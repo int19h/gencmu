@@ -584,6 +584,28 @@
   // ---- Top bar overflow & phone mode ---------------------------------------
 
   let wasPhone = false;
+  // The two minimums do not depend on the window size. They are measured
+  // once, and again only when the stage row, the document list or the
+  // fonts change.
+  let cachedLeftMin = null;
+  let cachedListMin = null;
+  let leftMinDirty = true;
+  let listMinDirty = true;
+
+  function minContentWidth(element, clearMaxWidth = false) {
+    const prevFlex = element.style.flex;
+    const prevWidth = element.style.width;
+    const prevMaxWidth = element.style.maxWidth;
+    element.style.flex = "none";
+    element.style.width = "min-content";
+    if (clearMaxWidth) element.style.maxWidth = "none";
+    const width = element.getBoundingClientRect().width;
+    element.style.flex = prevFlex;
+    element.style.width = prevWidth;
+    element.style.maxWidth = prevMaxWidth;
+    return width;
+  }
+
   function updateTopBarOverflow() {
     const app = $("app");
     const topbar = $("topbar");
@@ -599,66 +621,56 @@
       workspace.classList.remove("no-doc-stacked");
     }
 
-    const clientW = document.documentElement.clientWidth || window.innerWidth;
+    // The work width is the width inside the root element. In Chromium
+    // documentElement.clientWidth does not subtract the stable gutter,
+    // so the workspace width is the fixed one to compare against.
+    const workW = workspace
+      ? workspace.clientWidth
+      : document.documentElement.clientWidth || window.innerWidth;
 
     // The left side's minimum is set only by #stage-flow. Every other
     // block of the left side is a size container, so measuring .left at
     // min-content in the desktop styles gives that minimum.
-    let leftMin = 0;
-    if (leftEl) {
-      const prevFlex = leftEl.style.flex;
-      const prevWidth = leftEl.style.width;
-      leftEl.style.flex = "none";
-      leftEl.style.width = "min-content";
-      leftMin = leftEl.getBoundingClientRect().width;
-      leftEl.style.flex = prevFlex;
-      leftEl.style.width = prevWidth;
+    if (leftMinDirty || cachedLeftMin === null) {
+      cachedLeftMin = leftEl ? minContentWidth(leftEl) : 0;
+      leftMinDirty = false;
     }
+    const leftMin = cachedLeftMin;
 
     // With no document open, stack when the two minimums do not fit.
-    // The rendered widths do not give this. The grammar pane renders
-    // wider than the list's minimum when the list has room.
+    // The comparison uses the measured minimums, not rendered widths.
     if (workspace && !state.open && !state.grammarHidden && leftEl && grammarEl) {
-      const prevFlex = grammarEl.style.flex;
-      const prevWidth = grammarEl.style.width;
-      const prevMaxWidth = grammarEl.style.maxWidth;
-      grammarEl.style.flex = "none";
-      grammarEl.style.width = "min-content";
-      grammarEl.style.maxWidth = "none";
-      const listMin = grammarEl.getBoundingClientRect().width;
-      grammarEl.style.flex = prevFlex;
-      grammarEl.style.width = prevWidth;
-      grammarEl.style.maxWidth = prevMaxWidth;
-      const workW = workspace.clientWidth || clientW;
-      if (leftMin + listMin > workW) {
+      if (listMinDirty || cachedListMin === null) {
+        cachedListMin = minContentWidth(grammarEl, true);
+        listMinDirty = false;
+      }
+      if (leftMin + cachedListMin > workW) {
         workspace.classList.add("no-doc-stacked");
       }
     }
     const leftTooNarrow = leftEl
-      ? clientW < leftMin + (state.grammarHidden ? 36 : 0)
+      ? workW < leftMin + (state.grammarHidden ? 36 : 0)
       : false;
 
     let topBarOverflows = false;
-    {
-      const phaseDisplay = phaseEl ? phaseEl.style.display : "";
-      if (phaseEl) phaseEl.style.display = "none";
+    const phaseDisplay = phaseEl ? phaseEl.style.display : "";
+    if (phaseEl) phaseEl.style.display = "none";
 
-      const overflows = () => topbar.scrollWidth > topbar.clientWidth;
+    const overflows = () => topbar.scrollWidth > topbar.clientWidth;
+    if (overflows()) {
+      topbar.dataset.overflow = "1";
       if (overflows()) {
-        topbar.dataset.overflow = "1";
+        topbar.dataset.overflow = "2";
         if (overflows()) {
-          topbar.dataset.overflow = "2";
+          topbar.dataset.overflow = "3";
           if (overflows()) {
-            topbar.dataset.overflow = "3";
-            if (overflows()) {
-              topBarOverflows = true;
-            }
+            topBarOverflows = true;
           }
         }
       }
-
-      if (phaseEl) phaseEl.style.display = phaseDisplay;
     }
+
+    if (phaseEl) phaseEl.style.display = phaseDisplay;
 
     if (leftTooNarrow || topBarOverflows) {
       delete topbar.dataset.overflow;
@@ -707,6 +719,13 @@
     updatePhoneTabsFade();
     updateAllCodeBlocksFade();
   });
+  if (document.fonts && document.fonts.addEventListener) {
+    document.fonts.addEventListener("loadingdone", () => {
+      leftMinDirty = true;
+      listMinDirty = true;
+      updateTopBarOverflow();
+    });
+  }
   if (typeof ResizeObserver !== "undefined" && $("output-card")) {
     new ResizeObserver(() => {
       updateAllCodeBlocksFade();
@@ -885,6 +904,7 @@
         element("span", { class: "sr-only", text: " " }),
         element("span", { text: "not run" })));
     });
+    leftMinDirty = true;
     fill($("stage-flow"), chips);
     $("features-used").hidden = true;
 
@@ -1093,6 +1113,7 @@
           : null));
       }
     });
+    leftMinDirty = true;
     fill(stageFlow, chips);
     updateTopBarOverflow();
 
@@ -2648,6 +2669,7 @@
     }
 
     fill($("documents"), railNodes);
+    listMinDirty = true;
     fill($("documents-list-view"), fullNodes);
     fill($("doc-select"), selectNodes);
     if (state.open) $("doc-select").value = state.open;
