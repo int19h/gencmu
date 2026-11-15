@@ -17997,6 +17997,101 @@
     "message": "engine tag"
   },
   {
+    "description": "A one-operand union in a tag clause is malformed before its engine-tag literal is read.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "gates": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ],
+      "tags": {
+        "union": [
+          {
+            "tag": "_General_Category_Letter"
+          }
+        ]
+      }
+    },
+    "malformed": true,
+    "message": "a malformed set operation"
+  },
+  {
+    "description": "A recipe atom with an unknown method is malformed before a duplicate capture is read.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "gates": [],
+          "expr": {
+            "seq": [
+              {
+                "capture": "x",
+                "expr": {
+                  "ref": "A",
+                  "at": [
+                    2,
+                    7
+                  ]
+                },
+                "at": [
+                  2,
+                  5
+                ]
+              },
+              {
+                "capture": "x",
+                "expr": {
+                  "ref": "B",
+                  "at": [
+                    2,
+                    12
+                  ]
+                },
+                "at": [
+                  2,
+                  10
+                ]
+              }
+            ],
+            "at": [
+              2,
+              5
+            ]
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ],
+      "value": {
+        "concat": [
+          {
+            "method": "not-a-method",
+            "receiver": {
+              "capture": "x"
+            },
+            "args": []
+          }
+        ]
+      }
+    },
+    "malformed": true,
+    "message": "a malformed recipe atom"
+  },
+  {
     "description": "A well-shaped emission still refuses an engine-tag literal.",
     "rule": {
       "name": "text",
