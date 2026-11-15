@@ -2702,13 +2702,10 @@
   }
 
   function openDocument(path, line = 0, column = 1, forceReset = false) {
-    if (!path && $("app").classList.contains("phone") && state.phoneGrammarOpen) {
-      path = pipelinePath(state.pipeline);
-      line = 0;
-      column = 1;
-    }
     if (!path) {
       state.open = null;
+      state.phoneGrammarOpen = false;
+      updatePhoneGrammarState();
       editor.setLabel("Grammar document");
       renderDocuments();
       updateAllCodeBlocksFade();
@@ -3043,6 +3040,10 @@
         lastRuleLocation = null;
         openDocument(docPath, 1, 1);
       }
+    } else if ($("app").classList.contains("phone") && state.phoneGrammarOpen) {
+      exampleRule = null;
+      lastRuleLocation = null;
+      openDocument(pipelinePath(state.pipeline), 0, 1);
     } else {
       exampleRule = null;
       lastRuleLocation = null;

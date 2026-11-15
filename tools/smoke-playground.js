@@ -1715,6 +1715,53 @@ async function main() {
       throw new Error(`no-doc pane did not stay side by side at 900px: ${JSON.stringify(noDocAt900)}`);
     }
 
+    // At 820px (where the no-document list is at its minimum), path names wrap only at '/', with <wbr> in place.
+    await page.setViewportSize({ width: 820, height: 900 });
+    const noDocAt820 = await page.evaluate(() => {
+      window.dispatchEvent(new Event("resize"));
+      const work = document.getElementById("workspace");
+      const leftRect = document.querySelector(".left").getBoundingClientRect();
+      const grammarRect = document.getElementById("grammar-pane").getBoundingClientRect();
+      const list = document.getElementById("documents-list-view");
+      const row = list.querySelector('.drow[data-doc="grammars/lojban/common/consonant-tables.md"]');
+      const mono = row ? row.querySelector(".mono") : null;
+      const wbrs = mono ? [...mono.querySelectorAll("wbr")] : [];
+      const segs = mono ? [...mono.querySelectorAll(".s")] : [];
+      const segRects = segs.map((s) => ({
+        text: s.textContent,
+        lineCount: s.getClientRects().length,
+        top: Math.round(s.getBoundingClientRect().top),
+        bottom: Math.round(s.getBoundingClientRect().bottom),
+      }));
+      const allSegsSingleLine = [...list.querySelectorAll(".drow .mono .s")].every(
+        (s) => s.getClientRects().length === 1
+      );
+      const totalWbrs = list.querySelectorAll(".drow .mono wbr").length;
+      return {
+        stacked: work.classList.contains("no-doc-stacked"),
+        sameRow: Math.abs(leftRect.top - grammarRect.top) <= 1,
+        wbrCount: wbrs.length,
+        totalWbrs,
+        segRects,
+        wrappedBetweenSlashSegments:
+          segRects.length === 2 &&
+          segRects[0].text === "common/" &&
+          segRects[1].text === "consonant-tables" &&
+          segRects[1].top >= segRects[0].bottom - 2,
+        allSegsSingleLine,
+      };
+    });
+    if (
+      noDocAt820.stacked ||
+      !noDocAt820.sameRow ||
+      noDocAt820.wbrCount !== 1 ||
+      noDocAt820.totalWbrs !== 3 ||
+      !noDocAt820.wrappedBetweenSlashSegments ||
+      !noDocAt820.allSegsSingleLine
+    ) {
+      throw new Error(`no-doc minimum width slash wrap check failed at 820px: ${JSON.stringify(noDocAt820)}`);
+    }
+
     await page.setViewportSize({ width: 680, height: 900 });
     const noDocAt680 = await page.evaluate(() => {
       window.dispatchEvent(new Event("resize"));
@@ -1894,6 +1941,210 @@ async function main() {
       document.getElementById("doc-close").click();
     });
     await idle("after resetting grammar edit in collapsed strip check");
+
+    // Transitions 900 -> 390 -> 1440 px, without and with an edited document, and closing the last document at phone width.
+    await page.setViewportSize({ width: 900, height: 900 });
+    const step900NoEdit = await page.evaluate(() => {
+      window.dispatchEvent(new Event("resize"));
+      const app = document.getElementById("app");
+      const work = document.getElementById("workspace");
+      return {
+        phone: app.classList.contains("phone"),
+        noDoc: work.classList.contains("no-doc"),
+        stacked: work.classList.contains("no-doc-stacked"),
+        hidden: work.classList.contains("grammar-hidden"),
+      };
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    const step390NoEdit = await page.evaluate(() => {
+      window.dispatchEvent(new Event("resize"));
+      const app = document.getElementById("app");
+      const work = document.getElementById("workspace");
+      const strip = document.getElementById("show-grammar");
+      return {
+        phone: app.classList.contains("phone"),
+        noDoc: work.classList.contains("no-doc"),
+        stacked: work.classList.contains("no-doc-stacked"),
+        hidden: work.classList.contains("grammar-hidden"),
+        stripDisplay: getComputedStyle(strip).display,
+        scrollW: document.documentElement.scrollWidth,
+        winW: window.innerWidth,
+      };
+    });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const step1440NoEdit = await page.evaluate(() => {
+      window.dispatchEvent(new Event("resize"));
+      const app = document.getElementById("app");
+      const work = document.getElementById("workspace");
+      const grammar = document.getElementById("grammar-pane").getBoundingClientRect();
+      return {
+        phone: app.classList.contains("phone"),
+        noDoc: work.classList.contains("no-doc"),
+        stacked: work.classList.contains("no-doc-stacked"),
+        hidden: work.classList.contains("grammar-hidden"),
+        grammarW: Math.round(grammar.width),
+      };
+    });
+    if (
+      step900NoEdit.phone ||
+      !step900NoEdit.noDoc ||
+      step900NoEdit.stacked ||
+      step900NoEdit.hidden ||
+      !step390NoEdit.phone ||
+      !step390NoEdit.noDoc ||
+      !step390NoEdit.stacked ||
+      step390NoEdit.hidden ||
+      step390NoEdit.stripDisplay !== "none" ||
+      step390NoEdit.scrollW > step390NoEdit.winW ||
+      step1440NoEdit.phone ||
+      !step1440NoEdit.noDoc ||
+      step1440NoEdit.stacked ||
+      step1440NoEdit.hidden ||
+      Math.abs(step1440NoEdit.grammarW - noDocAt1440.grammarW) > 1
+    ) {
+      throw new Error(
+        `900 -> 390 -> 1440 transition (no edit) failed: ${JSON.stringify({ step900NoEdit, step390NoEdit, step1440NoEdit })}`
+      );
+    }
+
+    await page.setViewportSize({ width: 900, height: 900 });
+    const step900Edited = await page.evaluate(() => {
+      window.dispatchEvent(new Event("resize"));
+      self.playground.openDocument("grammars/lojban/cll/syntax.md", 1, 1);
+      const ed = self.playground.editor;
+      ed.editValue(ed.getValue() + "\n");
+      document.getElementById("hide-grammar").click();
+      const app = document.getElementById("app");
+      const work = document.getElementById("workspace");
+      const grammar = document.getElementById("grammar-pane").getBoundingClientRect();
+      const dot = document.getElementById("show-grammar-dot");
+      return {
+        phone: app.classList.contains("phone"),
+        noDoc: work.classList.contains("no-doc"),
+        stacked: work.classList.contains("no-doc-stacked"),
+        hidden: work.classList.contains("grammar-hidden"),
+        grammarW: Math.round(grammar.width),
+        dotHidden: dot.hidden,
+      };
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    const step390Edited = await page.evaluate(() => {
+      window.dispatchEvent(new Event("resize"));
+      const app = document.getElementById("app");
+      const work = document.getElementById("workspace");
+      const strip = document.getElementById("show-grammar");
+      return {
+        phone: app.classList.contains("phone"),
+        noDoc: work.classList.contains("no-doc"),
+        stacked: work.classList.contains("no-doc-stacked"),
+        hidden: work.classList.contains("grammar-hidden"),
+        stripDisplay: getComputedStyle(strip).display,
+      };
+    });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const step1440Edited = await page.evaluate(() => {
+      window.dispatchEvent(new Event("resize"));
+      const app = document.getElementById("app");
+      const work = document.getElementById("workspace");
+      const workRect = work.getBoundingClientRect();
+      const leftRect = document.querySelector(".left").getBoundingClientRect();
+      const grammarRect = document.getElementById("grammar-pane").getBoundingClientRect();
+      const strip = document.getElementById("show-grammar");
+      const dot = document.getElementById("show-grammar-dot");
+      const dotRect = dot.getBoundingClientRect();
+      return {
+        phone: app.classList.contains("phone"),
+        noDoc: work.classList.contains("no-doc"),
+        stacked: work.classList.contains("no-doc-stacked"),
+        hidden: work.classList.contains("grammar-hidden"),
+        stripDisplay: getComputedStyle(strip).display,
+        grammarW: Math.round(grammarRect.width),
+        sameRow: Math.abs(leftRect.top - grammarRect.top) <= 1,
+        rightEdge: Math.abs(grammarRect.right - workRect.right) <= 1,
+        dotHidden: dot.hidden,
+        dotW: Math.round(dotRect.width),
+        dotH: Math.round(dotRect.height),
+      };
+    });
+    if (
+      step900Edited.phone ||
+      step900Edited.noDoc ||
+      step900Edited.stacked ||
+      !step900Edited.hidden ||
+      step900Edited.grammarW !== 36 ||
+      step900Edited.dotHidden ||
+      !step390Edited.phone ||
+      step390Edited.noDoc ||
+      step390Edited.stacked ||
+      !step390Edited.hidden ||
+      step390Edited.stripDisplay !== "none" ||
+      step1440Edited.phone ||
+      step1440Edited.noDoc ||
+      step1440Edited.stacked ||
+      !step1440Edited.hidden ||
+      step1440Edited.stripDisplay !== "flex" ||
+      step1440Edited.grammarW !== 36 ||
+      !step1440Edited.sameRow ||
+      !step1440Edited.rightEdge ||
+      step1440Edited.dotHidden ||
+      step1440Edited.dotW !== 7 ||
+      step1440Edited.dotH !== 7
+    ) {
+      throw new Error(
+        `900 -> 390 -> 1440 transition (edited + strip) failed: ${JSON.stringify({ step900Edited, step390Edited, step1440Edited })}`
+      );
+    }
+
+    await page.evaluate(() => {
+      document.getElementById("show-grammar").click();
+      document.getElementById("doc-reset").click();
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    const closedAt390 = await page.evaluate(() => {
+      window.dispatchEvent(new Event("resize"));
+      document.getElementById("doc-close").click();
+      const app = document.getElementById("app");
+      const work = document.getElementById("workspace");
+      const strip = document.getElementById("show-grammar");
+      return {
+        phone: app.classList.contains("phone"),
+        noDoc: work.classList.contains("no-doc"),
+        stacked: work.classList.contains("no-doc-stacked"),
+        hidden: work.classList.contains("grammar-hidden"),
+        stripDisplay: getComputedStyle(strip).display,
+      };
+    });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const afterCloseAt1440 = await page.evaluate(() => {
+      window.dispatchEvent(new Event("resize"));
+      const app = document.getElementById("app");
+      const work = document.getElementById("workspace");
+      const grammar = document.getElementById("grammar-pane").getBoundingClientRect();
+      return {
+        phone: app.classList.contains("phone"),
+        noDoc: work.classList.contains("no-doc"),
+        stacked: work.classList.contains("no-doc-stacked"),
+        hidden: work.classList.contains("grammar-hidden"),
+        grammarW: Math.round(grammar.width),
+      };
+    });
+    if (
+      !closedAt390.phone ||
+      !closedAt390.noDoc ||
+      !closedAt390.stacked ||
+      closedAt390.hidden ||
+      closedAt390.stripDisplay !== "none" ||
+      afterCloseAt1440.phone ||
+      !afterCloseAt1440.noDoc ||
+      afterCloseAt1440.stacked ||
+      afterCloseAt1440.hidden ||
+      Math.abs(afterCloseAt1440.grammarW - noDocAt1440.grammarW) > 1
+    ) {
+      throw new Error(
+        `close last document at 390 -> 1440 transition failed: ${JSON.stringify({ closedAt390, afterCloseAt1440 })}`
+      );
+    }
+    await idle("after 900 -> 390 -> 1440 and phone close checks");
 
     console.log(`redesigned layout, full editor, and phone checks work in ${browser}`);
 
