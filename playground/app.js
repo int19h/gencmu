@@ -588,13 +588,30 @@
     const app = $("app");
     const topbar = $("topbar");
     const phaseEl = $("topbar-phase");
+    const workspace = $("workspace");
     const leftEl = document.querySelector(".left");
+    const grammarEl = $("grammar-pane");
 
     app.classList.remove("phone");
     delete topbar.dataset.overflow;
+    if (workspace) {
+      workspace.classList.toggle("no-doc", !state.open);
+      workspace.classList.remove("no-doc-stacked");
+    }
 
     const clientW = document.documentElement.clientWidth || window.innerWidth;
-    const leftOverflows = leftEl ? (leftEl.offsetWidth > clientW || leftEl.scrollWidth > clientW) : false;
+    if (workspace && !state.open && !state.grammarHidden && leftEl && grammarEl) {
+      const workW = workspace.clientWidth || clientW;
+      if (leftEl.offsetWidth + grammarEl.offsetWidth > workW) {
+        workspace.classList.add("no-doc-stacked");
+      }
+    }
+
+    const leftOverflows = leftEl
+      ? (leftEl.offsetWidth > clientW ||
+        leftEl.scrollWidth > clientW ||
+        (workspace ? workspace.scrollWidth > clientW : false))
+      : false;
 
     let topBarOverflows = false;
     if (!leftOverflows) {
@@ -2390,12 +2407,14 @@
   $("hide-grammar").addEventListener("click", () => {
     state.grammarHidden = true;
     $("workspace").classList.add("grammar-hidden");
+    updateTopBarOverflow();
     updateAllCodeBlocksFade();
   });
 
   $("show-grammar").addEventListener("click", () => {
     state.grammarHidden = false;
     $("workspace").classList.remove("grammar-hidden");
+    updateTopBarOverflow();
     updateAllCodeBlocksFade();
   });
 
@@ -2474,14 +2493,17 @@
   }
 
   function renderDocLabel(label) {
-    const slashIdx = label.lastIndexOf("/");
-    if (slashIdx < 0) {
+    const parts = label.split("/");
+    if (parts.length === 1) {
       return element("span", { class: "s", text: label });
     }
-    return element("span", {},
-      element("small", { class: "s", text: label.slice(0, slashIdx + 1) }),
-      document.createElement("wbr"),
-      element("span", { class: "s", text: label.slice(slashIdx + 1) }));
+    const children = [];
+    for (let i = 0; i < parts.length - 1; i++) {
+      children.push(element("small", { class: "s", text: `${parts[i]}/` }));
+      children.push(document.createElement("wbr"));
+    }
+    children.push(element("span", { class: "s", text: parts[parts.length - 1] }));
+    return element("span", {}, children);
   }
 
   function renderDocuments() {
@@ -2502,6 +2524,7 @@
     $("download-edited").hidden = false;
     $("download-edited").disabled = !allEditsCount;
     if ($("download-edited-label")) $("download-edited-label").textContent = "Download edited";
+    if ($("show-grammar-dot")) $("show-grammar-dot").hidden = !allEditsCount;
 
     const stageGroups = [
       { stage: "pipeline", label: "Pipeline", paths: [entry, ...before] },
@@ -2604,6 +2627,7 @@
     fill($("doc-select"), selectNodes);
     if (state.open) $("doc-select").value = state.open;
 
+    $("workspace").classList.toggle("no-doc", !state.open);
     if (!state.open) {
       $("documents-list-view").hidden = false;
       $("grammar-panes").hidden = true;
@@ -2654,6 +2678,7 @@
         }),
       ]),
     ]);
+    updateTopBarOverflow();
   }
 
   function renderDocumentError() {
@@ -2677,15 +2702,13 @@
   }
 
   function openDocument(path, line = 0, column = 1, forceReset = false) {
-    if (!path && $("app").classList.contains("phone") && state.phoneGrammarOpen) {
-      path = pipelinePath(state.pipeline);
-      line = 0;
-      column = 1;
-    }
     if (!path) {
       state.open = null;
+      state.phoneGrammarOpen = false;
+      updatePhoneGrammarState();
       editor.setLabel("Grammar document");
       renderDocuments();
+      updateAllCodeBlocksFade();
       return;
     }
     const sameDoc = state.open === path;
@@ -2699,6 +2722,7 @@
       updatePhoneGrammarState();
     }
     renderDocuments();
+    updateAllCodeBlocksFade();
     const baseName = path.slice(path.lastIndexOf("/") + 1) || "Grammar document";
     editor.setLabel(baseName);
     const nextText = normalized(client.text(path));
@@ -3016,6 +3040,10 @@
         lastRuleLocation = null;
         openDocument(docPath, 1, 1);
       }
+    } else if ($("app").classList.contains("phone") && state.phoneGrammarOpen) {
+      exampleRule = null;
+      lastRuleLocation = null;
+      openDocument(pipelinePath(state.pipeline), 0, 1);
     } else {
       exampleRule = null;
       lastRuleLocation = null;

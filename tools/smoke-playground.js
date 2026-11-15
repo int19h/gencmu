@@ -1646,6 +1646,591 @@ async function main() {
     await answerFor("mi klama le zarci");
     await page.locator("#tab-brackets").click();
     await idle("returning to brackets after layout and editor checks");
+
+    // Grammar pane width with no document open, split when a document opens, and collapsed strip at the right edge.
+    await page.evaluate(() => {
+      self.playground.openDocument(null);
+    });
+    const noDocAt1440 = await page.evaluate(() => {
+      const work = document.getElementById("workspace");
+      const left = document.querySelector(".left");
+      const grammar = document.getElementById("grammar-pane");
+      const split = document.getElementById("split-handle");
+      const list = document.getElementById("documents-list-view");
+      const hideSvg = document.querySelector("#hide-grammar svg");
+      const workRect = work.getBoundingClientRect();
+      const leftRect = left.getBoundingClientRect();
+      const grammarRect = grammar.getBoundingClientRect();
+      const listRect = list.getBoundingClientRect();
+      const hideSvgRect = hideSvg.getBoundingClientRect();
+      const rows = [...list.querySelectorAll(".drow")];
+      const wrappedRows = rows.filter((row) => {
+        const mono = row.querySelector(".mono");
+        const desc = row.querySelector("span:last-child:not(.mono)");
+        return mono.getBoundingClientRect().height > 24 || desc.getBoundingClientRect().height > 24;
+      });
+      return {
+        hasNoDoc: work.classList.contains("no-doc"),
+        hasStacked: work.classList.contains("no-doc-stacked"),
+        splitDisplay: getComputedStyle(split).display,
+        workW: Math.round(workRect.width),
+        leftW: Math.round(leftRect.width),
+        grammarW: Math.round(grammarRect.width),
+        listW: Math.round(listRect.width),
+        sameRow: Math.abs(leftRect.top - grammarRect.top) <= 1,
+        wrappedCount: wrappedRows.length,
+        rowCount: rows.length,
+        hideIconTopOffset: Math.round(hideSvgRect.top - grammarRect.top),
+      };
+    });
+    if (
+      !noDocAt1440.hasNoDoc ||
+      noDocAt1440.hasStacked ||
+      noDocAt1440.splitDisplay !== "none" ||
+      !noDocAt1440.sameRow ||
+      Math.abs(noDocAt1440.leftW + noDocAt1440.grammarW - noDocAt1440.workW) > 1 ||
+      noDocAt1440.grammarW > noDocAt1440.workW * 0.5 ||
+      Math.abs(noDocAt1440.grammarW - (noDocAt1440.listW + 1)) > 2 ||
+      noDocAt1440.rowCount === 0 ||
+      noDocAt1440.wrappedCount !== 0
+    ) {
+      throw new Error(`grammar pane width with no document open failed at 1440px: ${JSON.stringify(noDocAt1440)}`);
+    }
+
+    // With no document open, the smaller minimum keeps the pane side by side at 900px and stacks cleanly at 680px.
+    await page.setViewportSize({ width: 900, height: 900 });
+    const noDocAt900 = await page.evaluate(() => {
+      window.dispatchEvent(new Event("resize"));
+      const work = document.getElementById("workspace");
+      const left = document.querySelector(".left").getBoundingClientRect();
+      const grammar = document.getElementById("grammar-pane").getBoundingClientRect();
+      return {
+        stacked: work.classList.contains("no-doc-stacked"),
+        sameRow: Math.abs(left.top - grammar.top) <= 1,
+        grammarW: Math.round(grammar.width),
+        workW: Math.round(work.getBoundingClientRect().width),
+      };
+    });
+    if (noDocAt900.stacked || !noDocAt900.sameRow || noDocAt900.grammarW > noDocAt900.workW * 0.5) {
+      throw new Error(`no-doc pane did not stay side by side at 900px: ${JSON.stringify(noDocAt900)}`);
+    }
+
+    // Narrow step by step from 900px until the grammar pane reaches its minimum width while the panes still share a row.
+    const measureNoDocAt = async (width) => {
+      await page.setViewportSize({ width, height: 900 });
+      return page.evaluate((vw) => {
+        window.dispatchEvent(new Event("resize"));
+        const work = document.getElementById("workspace");
+        const workRect = work.getBoundingClientRect();
+        const leftRect = document.querySelector(".left").getBoundingClientRect();
+        const grammarRect = document.getElementById("grammar-pane").getBoundingClientRect();
+        const list = document.getElementById("documents-list-view");
+        const row = list.querySelector('.drow[data-doc="grammars/lojban/common/consonant-tables.md"]');
+        const mono = row ? row.querySelector(".mono") : null;
+        const wbrs = mono ? [...mono.querySelectorAll("wbr")] : [];
+        const segs = mono ? [...mono.querySelectorAll(".s")] : [];
+        const segRects = segs.map((s) => ({
+          text: s.textContent,
+          lineCount: s.getClientRects().length,
+          top: Math.round(s.getBoundingClientRect().top),
+          bottom: Math.round(s.getBoundingClientRect().bottom),
+        }));
+        const allSegsSingleLine = [...list.querySelectorAll(".drow .mono .s")].every(
+          (s) => s.getClientRects().length === 1
+        );
+        const totalWbrs = list.querySelectorAll(".drow .mono wbr").length;
+        return {
+          vw,
+          stacked: work.classList.contains("no-doc-stacked"),
+          sameRow: Math.abs(leftRect.top - grammarRect.top) <= 1,
+          belowLeft: grammarRect.top >= leftRect.bottom - 1,
+          leftFull: Math.abs(leftRect.width - workRect.width) <= 1,
+          grammarFull: Math.abs(grammarRect.width - workRect.width) <= 1,
+          leftW: Math.round(leftRect.width),
+          grammarW: Math.round(grammarRect.width),
+          workW: Math.round(workRect.width),
+          wbrCount: wbrs.length,
+          totalWbrs,
+          segRects,
+          wrappedBetweenSlashSegments:
+            segRects.length === 2 &&
+            segRects[0].text === "common/" &&
+            segRects[1].text === "consonant-tables" &&
+            segRects[1].top >= segRects[0].bottom - 2,
+          allSegsSingleLine,
+        };
+      }, width);
+    };
+
+    const measuredWidths = [];
+    let noDocAtMin = null;
+    let noDocFirstStacked = null;
+    for (let w = 900; w >= 600; w -= 10) {
+      const m = await measureNoDocAt(w);
+      measuredWidths.push({
+        vw: m.vw,
+        stacked: m.stacked,
+        sameRow: m.sameRow,
+        leftW: m.leftW,
+        grammarW: m.grammarW,
+      });
+      if (!m.stacked && m.sameRow) {
+        noDocAtMin = m;
+      } else if (noDocAtMin) {
+        noDocFirstStacked = m;
+        for (let fine = w + 9; fine > w; fine--) {
+          const fm = await measureNoDocAt(fine);
+          measuredWidths.push({
+            vw: fm.vw,
+            stacked: fm.stacked,
+            sameRow: fm.sameRow,
+            leftW: fm.leftW,
+            grammarW: fm.grammarW,
+          });
+          if (!fm.stacked && fm.sameRow) {
+            noDocAtMin = fm;
+          } else {
+            noDocFirstStacked = fm;
+            break;
+          }
+        }
+        break;
+      }
+    }
+    if (
+      !noDocAtMin ||
+      !noDocFirstStacked ||
+      noDocAtMin.grammarW >= noDocAt900.grammarW ||
+      !noDocFirstStacked.stacked ||
+      !noDocFirstStacked.belowLeft ||
+      !noDocFirstStacked.leftFull ||
+      !noDocFirstStacked.grammarFull
+    ) {
+      throw new Error(
+        `no-doc minimum width search failed to find side-by-side minimum before stacking: ${JSON.stringify({ noDocAtMin, noDocFirstStacked, measuredWidths })}`
+      );
+    }
+    if (
+      noDocAtMin.stacked ||
+      !noDocAtMin.sameRow ||
+      noDocAtMin.wbrCount !== 1 ||
+      noDocAtMin.totalWbrs !== 3 ||
+      !noDocAtMin.wrappedBetweenSlashSegments ||
+      !noDocAtMin.allSegsSingleLine
+    ) {
+      throw new Error(`no-doc minimum width slash wrap check failed at ${noDocAtMin.vw}px: ${JSON.stringify(noDocAtMin)}`);
+    }
+
+    await page.setViewportSize({ width: 680, height: 900 });
+    const noDocAt680 = await page.evaluate(() => {
+      window.dispatchEvent(new Event("resize"));
+      const work = document.getElementById("workspace");
+      const workRect = work.getBoundingClientRect();
+      const leftRect = document.querySelector(".left").getBoundingClientRect();
+      const grammarRect = document.getElementById("grammar-pane").getBoundingClientRect();
+      return {
+        stacked: work.classList.contains("no-doc-stacked"),
+        belowLeft: grammarRect.top >= leftRect.bottom - 1,
+        leftFull: Math.abs(leftRect.width - workRect.width) <= 1,
+        grammarFull: Math.abs(grammarRect.width - workRect.width) <= 1,
+      };
+    });
+    if (!noDocAt680.stacked || !noDocAt680.belowLeft || !noDocAt680.leftFull || !noDocAt680.grammarFull) {
+      throw new Error(`no-doc stack rule failed at 680px: ${JSON.stringify(noDocAt680)}`);
+    }
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.evaluate(() => window.dispatchEvent(new Event("resize")));
+
+    // Opening a document restores the 35/65 split (or the stored split), and closing the last document shrinks back to the list.
+    await choose("grammars/lojban/examples/calculator/pipeline.md");
+    await idle("calculator pipeline for 35/65 split check");
+    const calcSplit = await page.evaluate(() => {
+      self.playground.openDocument("grammars/lojban/examples/calculator/pipeline.md", 1, 1);
+      const workW = document.getElementById("workspace").getBoundingClientRect().width;
+      const leftW = document.querySelector(".left").getBoundingClientRect().width;
+      const grammarW = document.getElementById("grammar-pane").getBoundingClientRect().width;
+      document.getElementById("doc-close").click();
+      return {
+        leftRatio: leftW / workW,
+        grammarRatio: grammarW / workW,
+      };
+    });
+    if (Math.abs(calcSplit.leftRatio - 0.35) > 0.01 || Math.abs(calcSplit.grammarRatio - 0.65) > 0.01) {
+      throw new Error(`35/65 split check failed on calculator pipeline: ${JSON.stringify(calcSplit)}`);
+    }
+    await choose("grammars/lojban/cll/pipeline.md");
+    await idle("returning to lojban/cll after calculator split check");
+
+    const splitTransition = await page.evaluate(() => {
+      const work = document.getElementById("workspace");
+      const left = document.querySelector(".left");
+      const grammar = document.getElementById("grammar-pane");
+      const split = document.getElementById("split-handle");
+      const workW = work.getBoundingClientRect().width;
+
+      self.playground.openDocument("grammars/lojban/cll/syntax.md", 1, 1);
+      work.style.setProperty("--left-grow", "0");
+      work.style.setProperty("--right-grow", "100");
+      const leftMinW = left.getBoundingClientRect().width;
+      work.style.setProperty("--left-grow", "35");
+      work.style.setProperty("--right-grow", "65");
+      const expectedDefaultLeftW = Math.max(workW * 0.35, leftMinW);
+      const openDefault = {
+        hasNoDoc: work.classList.contains("no-doc"),
+        splitDisplay: getComputedStyle(split).display,
+        leftW: Math.round(left.getBoundingClientRect().width),
+        grammarW: Math.round(grammar.getBoundingClientRect().width),
+        expectedLeftW: Math.round(expectedDefaultLeftW),
+        expectedGrammarW: Math.round(workW - expectedDefaultLeftW),
+      };
+
+      split.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", shiftKey: true }));
+      document.getElementById("doc-close").click();
+      const closedAfterMove = {
+        hasNoDoc: work.classList.contains("no-doc"),
+        splitDisplay: getComputedStyle(split).display,
+        grammarW: Math.round(grammar.getBoundingClientRect().width),
+      };
+
+      self.playground.openDocument("grammars/lojban/cll/syntax.md", 1, 1);
+      const reopenedStored = {
+        leftRatio: left.getBoundingClientRect().width / workW,
+        grammarRatio: grammar.getBoundingClientRect().width / workW,
+      };
+
+      split.dispatchEvent(new KeyboardEvent("keydown", { key: "Home" }));
+      document.getElementById("doc-close").click();
+      const closedFinal = {
+        hasNoDoc: work.classList.contains("no-doc"),
+        grammarW: Math.round(grammar.getBoundingClientRect().width),
+      };
+      return { openDefault, closedAfterMove, reopenedStored, closedFinal };
+    });
+    if (
+      splitTransition.openDefault.hasNoDoc ||
+      splitTransition.openDefault.splitDisplay === "none" ||
+      Math.abs(splitTransition.openDefault.leftW - splitTransition.openDefault.expectedLeftW) > 1 ||
+      Math.abs(splitTransition.openDefault.grammarW - splitTransition.openDefault.expectedGrammarW) > 1 ||
+      !splitTransition.closedAfterMove.hasNoDoc ||
+      splitTransition.closedAfterMove.splitDisplay !== "none" ||
+      Math.abs(splitTransition.closedAfterMove.grammarW - noDocAt1440.grammarW) > 1 ||
+      Math.abs(splitTransition.reopenedStored.leftRatio - 0.45) > 0.01 ||
+      Math.abs(splitTransition.reopenedStored.grammarRatio - 0.55) > 0.01 ||
+      !splitTransition.closedFinal.hasNoDoc ||
+      Math.abs(splitTransition.closedFinal.grammarW - noDocAt1440.grammarW) > 1
+    ) {
+      throw new Error(`split transition between list and open document failed: ${JSON.stringify(splitTransition)}`);
+    }
+
+    // Collapsed strip stands 36px wide at the right edge on the same row as the left side, with show icon, vertical label, and edited dot.
+    const collapsedUnedited = await page.evaluate(() => {
+      document.getElementById("hide-grammar").click();
+      const work = document.getElementById("workspace").getBoundingClientRect();
+      const left = document.querySelector(".left").getBoundingClientRect();
+      const grammar = document.getElementById("grammar-pane").getBoundingClientRect();
+      const strip = document.getElementById("show-grammar");
+      const showSvg = strip.querySelector("svg").getBoundingClientRect();
+      const label = strip.querySelector(".grammar-strip-label");
+      const dot = document.getElementById("show-grammar-dot");
+      return {
+        grammarW: Math.round(grammar.width),
+        sameRow: Math.abs(left.top - grammar.top) <= 1,
+        rightEdge: Math.abs(grammar.right - work.right) <= 1,
+        leftTakesRest: Math.abs(left.width + grammar.width - work.width) <= 1,
+        iconTopOffset: Math.round(showSvg.top - grammar.top),
+        iconCentered: Math.abs((showSvg.left + showSvg.right) / 2 - (grammar.left + grammar.right) / 2) <= 1,
+        labelText: label ? label.textContent : "",
+        writingMode: label ? getComputedStyle(label).writingMode : "",
+        dotHidden: dot ? dot.hidden : null,
+      };
+    });
+    if (
+      collapsedUnedited.grammarW !== 36 ||
+      !collapsedUnedited.sameRow ||
+      !collapsedUnedited.rightEdge ||
+      !collapsedUnedited.leftTakesRest ||
+      Math.abs(collapsedUnedited.iconTopOffset - noDocAt1440.hideIconTopOffset) > 1 ||
+      !collapsedUnedited.iconCentered ||
+      collapsedUnedited.labelText !== "Grammar" ||
+      collapsedUnedited.writingMode !== "vertical-rl" ||
+      collapsedUnedited.dotHidden !== true
+    ) {
+      throw new Error(`collapsed strip check (unedited) failed: ${JSON.stringify(collapsedUnedited)}`);
+    }
+
+    await page.evaluate(() => {
+      document.getElementById("show-grammar").click();
+      self.playground.openDocument("grammars/lojban/cll/syntax.md", 1, 1);
+      const ed = self.playground.editor;
+      ed.editValue(ed.getValue() + "\n");
+      document.getElementById("hide-grammar").click();
+    });
+    const collapsedEdited = await page.evaluate(() => {
+      const work = document.getElementById("workspace").getBoundingClientRect();
+      const left = document.querySelector(".left").getBoundingClientRect();
+      const grammar = document.getElementById("grammar-pane").getBoundingClientRect();
+      const labelRect = document.querySelector("#show-grammar .grammar-strip-label").getBoundingClientRect();
+      const dot = document.getElementById("show-grammar-dot");
+      const dotRect = dot.getBoundingClientRect();
+      return {
+        grammarW: Math.round(grammar.width),
+        sameRow: Math.abs(left.top - grammar.top) <= 1,
+        rightEdge: Math.abs(grammar.right - work.right) <= 1,
+        dotHidden: dot.hidden,
+        dotW: Math.round(dotRect.width),
+        dotH: Math.round(dotRect.height),
+        dotBelowLabel: dotRect.top >= labelRect.bottom - 1,
+      };
+    });
+    if (
+      collapsedEdited.grammarW !== 36 ||
+      !collapsedEdited.sameRow ||
+      !collapsedEdited.rightEdge ||
+      collapsedEdited.dotHidden ||
+      collapsedEdited.dotW !== 7 ||
+      collapsedEdited.dotH !== 7 ||
+      !collapsedEdited.dotBelowLabel
+    ) {
+      throw new Error(`collapsed strip check (edited) failed: ${JSON.stringify(collapsedEdited)}`);
+    }
+    await page.evaluate(() => {
+      document.getElementById("show-grammar").click();
+      document.getElementById("doc-reset").click();
+      document.getElementById("doc-close").click();
+    });
+    await idle("after resetting grammar edit in collapsed strip check");
+
+    // Transitions 900 -> 390 -> 1440 px, without and with an edited document, and closing the last document at phone width.
+    const transitionDesktopWidth = Math.max(900, noDocAtMin.vw + 20);
+    await page.setViewportSize({ width: transitionDesktopWidth, height: 900 });
+    const step900NoEdit = await page.evaluate(() => {
+      window.dispatchEvent(new Event("resize"));
+      const app = document.getElementById("app");
+      const work = document.getElementById("workspace");
+      const leftRect = document.querySelector(".left").getBoundingClientRect();
+      const grammarRect = document.getElementById("grammar-pane").getBoundingClientRect();
+      return {
+        phone: app.classList.contains("phone"),
+        noDoc: work.classList.contains("no-doc"),
+        stacked: work.classList.contains("no-doc-stacked"),
+        hidden: work.classList.contains("grammar-hidden"),
+        sameRow: Math.abs(leftRect.top - grammarRect.top) <= 1,
+      };
+    });
+    if (
+      step900NoEdit.phone ||
+      !step900NoEdit.noDoc ||
+      step900NoEdit.stacked ||
+      step900NoEdit.hidden ||
+      !step900NoEdit.sameRow
+    ) {
+      throw new Error(
+        `900px step before 390 -> 1440 transition (no edit) is not side by side: ${JSON.stringify(step900NoEdit)}`
+      );
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
+    const step390NoEdit = await page.evaluate(() => {
+      window.dispatchEvent(new Event("resize"));
+      const app = document.getElementById("app");
+      const work = document.getElementById("workspace");
+      const strip = document.getElementById("show-grammar");
+      return {
+        phone: app.classList.contains("phone"),
+        noDoc: work.classList.contains("no-doc"),
+        stacked: work.classList.contains("no-doc-stacked"),
+        hidden: work.classList.contains("grammar-hidden"),
+        stripDisplay: getComputedStyle(strip).display,
+        scrollW: document.documentElement.scrollWidth,
+        winW: window.innerWidth,
+      };
+    });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const step1440NoEdit = await page.evaluate(() => {
+      window.dispatchEvent(new Event("resize"));
+      const app = document.getElementById("app");
+      const work = document.getElementById("workspace");
+      const leftRect = document.querySelector(".left").getBoundingClientRect();
+      const grammarRect = document.getElementById("grammar-pane").getBoundingClientRect();
+      return {
+        phone: app.classList.contains("phone"),
+        noDoc: work.classList.contains("no-doc"),
+        stacked: work.classList.contains("no-doc-stacked"),
+        hidden: work.classList.contains("grammar-hidden"),
+        sameRow: Math.abs(leftRect.top - grammarRect.top) <= 1,
+        grammarW: Math.round(grammarRect.width),
+      };
+    });
+    if (
+      !step390NoEdit.phone ||
+      !step390NoEdit.noDoc ||
+      !step390NoEdit.stacked ||
+      step390NoEdit.hidden ||
+      step390NoEdit.stripDisplay !== "none" ||
+      step390NoEdit.scrollW > step390NoEdit.winW ||
+      step1440NoEdit.phone ||
+      !step1440NoEdit.noDoc ||
+      step1440NoEdit.stacked ||
+      step1440NoEdit.hidden ||
+      !step1440NoEdit.sameRow ||
+      Math.abs(step1440NoEdit.grammarW - noDocAt1440.grammarW) > 1
+    ) {
+      throw new Error(
+        `900 -> 390 -> 1440 transition (no edit) failed: ${JSON.stringify({ step900NoEdit, step390NoEdit, step1440NoEdit })}`
+      );
+    }
+
+    await page.setViewportSize({ width: transitionDesktopWidth, height: 900 });
+    const step900Edited = await page.evaluate(() => {
+      window.dispatchEvent(new Event("resize"));
+      self.playground.openDocument("grammars/lojban/cll/syntax.md", 1, 1);
+      const ed = self.playground.editor;
+      ed.editValue(ed.getValue() + "\n");
+      document.getElementById("hide-grammar").click();
+      const app = document.getElementById("app");
+      const work = document.getElementById("workspace");
+      const workRect = work.getBoundingClientRect();
+      const leftRect = document.querySelector(".left").getBoundingClientRect();
+      const grammarRect = document.getElementById("grammar-pane").getBoundingClientRect();
+      const dot = document.getElementById("show-grammar-dot");
+      return {
+        phone: app.classList.contains("phone"),
+        noDoc: work.classList.contains("no-doc"),
+        stacked: work.classList.contains("no-doc-stacked"),
+        hidden: work.classList.contains("grammar-hidden"),
+        sameRow: Math.abs(leftRect.top - grammarRect.top) <= 1,
+        rightEdge: Math.abs(grammarRect.right - workRect.right) <= 1,
+        grammarW: Math.round(grammarRect.width),
+        dotHidden: dot.hidden,
+      };
+    });
+    if (
+      step900Edited.phone ||
+      step900Edited.noDoc ||
+      step900Edited.stacked ||
+      !step900Edited.hidden ||
+      !step900Edited.sameRow ||
+      !step900Edited.rightEdge ||
+      step900Edited.grammarW !== 36 ||
+      step900Edited.dotHidden
+    ) {
+      throw new Error(
+        `900px step before 390 -> 1440 transition (edited + strip) is not side by side: ${JSON.stringify(step900Edited)}`
+      );
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
+    const step390Edited = await page.evaluate(() => {
+      window.dispatchEvent(new Event("resize"));
+      const app = document.getElementById("app");
+      const work = document.getElementById("workspace");
+      const strip = document.getElementById("show-grammar");
+      return {
+        phone: app.classList.contains("phone"),
+        noDoc: work.classList.contains("no-doc"),
+        stacked: work.classList.contains("no-doc-stacked"),
+        hidden: work.classList.contains("grammar-hidden"),
+        stripDisplay: getComputedStyle(strip).display,
+      };
+    });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const step1440Edited = await page.evaluate(() => {
+      window.dispatchEvent(new Event("resize"));
+      const app = document.getElementById("app");
+      const work = document.getElementById("workspace");
+      const workRect = work.getBoundingClientRect();
+      const leftRect = document.querySelector(".left").getBoundingClientRect();
+      const grammarRect = document.getElementById("grammar-pane").getBoundingClientRect();
+      const strip = document.getElementById("show-grammar");
+      const dot = document.getElementById("show-grammar-dot");
+      const dotRect = dot.getBoundingClientRect();
+      return {
+        phone: app.classList.contains("phone"),
+        noDoc: work.classList.contains("no-doc"),
+        stacked: work.classList.contains("no-doc-stacked"),
+        hidden: work.classList.contains("grammar-hidden"),
+        stripDisplay: getComputedStyle(strip).display,
+        grammarW: Math.round(grammarRect.width),
+        sameRow: Math.abs(leftRect.top - grammarRect.top) <= 1,
+        rightEdge: Math.abs(grammarRect.right - workRect.right) <= 1,
+        dotHidden: dot.hidden,
+        dotW: Math.round(dotRect.width),
+        dotH: Math.round(dotRect.height),
+      };
+    });
+    if (
+      !step390Edited.phone ||
+      step390Edited.noDoc ||
+      step390Edited.stacked ||
+      !step390Edited.hidden ||
+      step390Edited.stripDisplay !== "none" ||
+      step1440Edited.phone ||
+      step1440Edited.noDoc ||
+      step1440Edited.stacked ||
+      !step1440Edited.hidden ||
+      step1440Edited.stripDisplay !== "flex" ||
+      step1440Edited.grammarW !== 36 ||
+      !step1440Edited.sameRow ||
+      !step1440Edited.rightEdge ||
+      step1440Edited.dotHidden ||
+      step1440Edited.dotW !== 7 ||
+      step1440Edited.dotH !== 7
+    ) {
+      throw new Error(
+        `900 -> 390 -> 1440 transition (edited + strip) failed: ${JSON.stringify({ step900Edited, step390Edited, step1440Edited })}`
+      );
+    }
+
+    await page.evaluate(() => {
+      document.getElementById("show-grammar").click();
+      document.getElementById("doc-reset").click();
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    const closedAt390 = await page.evaluate(() => {
+      window.dispatchEvent(new Event("resize"));
+      document.getElementById("doc-close").click();
+      const app = document.getElementById("app");
+      const work = document.getElementById("workspace");
+      const strip = document.getElementById("show-grammar");
+      return {
+        phone: app.classList.contains("phone"),
+        noDoc: work.classList.contains("no-doc"),
+        stacked: work.classList.contains("no-doc-stacked"),
+        hidden: work.classList.contains("grammar-hidden"),
+        stripDisplay: getComputedStyle(strip).display,
+      };
+    });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const afterCloseAt1440 = await page.evaluate(() => {
+      window.dispatchEvent(new Event("resize"));
+      const app = document.getElementById("app");
+      const work = document.getElementById("workspace");
+      const grammar = document.getElementById("grammar-pane").getBoundingClientRect();
+      return {
+        phone: app.classList.contains("phone"),
+        noDoc: work.classList.contains("no-doc"),
+        stacked: work.classList.contains("no-doc-stacked"),
+        hidden: work.classList.contains("grammar-hidden"),
+        grammarW: Math.round(grammar.width),
+      };
+    });
+    if (
+      !closedAt390.phone ||
+      !closedAt390.noDoc ||
+      !closedAt390.stacked ||
+      closedAt390.hidden ||
+      closedAt390.stripDisplay !== "none" ||
+      afterCloseAt1440.phone ||
+      !afterCloseAt1440.noDoc ||
+      afterCloseAt1440.stacked ||
+      afterCloseAt1440.hidden ||
+      Math.abs(afterCloseAt1440.grammarW - noDocAt1440.grammarW) > 1
+    ) {
+      throw new Error(
+        `close last document at 390 -> 1440 transition failed: ${JSON.stringify({ closedAt390, afterCloseAt1440 })}`
+      );
+    }
+    await idle("after 900 -> 390 -> 1440 and phone close checks");
+
     console.log(`redesigned layout, full editor, and phone checks work in ${browser}`);
 
     // Basic editor variant: served without playground/vendor/, with zero failed requests.
