@@ -17499,7 +17499,7 @@
     "message": "a malformed directive"
   },
   {
-    "description": "Ranked shape errors precede a header own-tags fault.",
+    "description": "A header own-tags fault precedes a ranked shape error in an alternative, in pre-order.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -17529,7 +17529,7 @@
       ]
     },
     "malformed": true,
-    "code": "ranked-choice-syntax"
+    "message": "a constituent's tags cannot be made of its own"
   },
   {
     "description": "Ranked shape errors precede an empty split delimiter in another alternative.",
@@ -17582,7 +17582,7 @@
     "code": "ranked-choice-syntax"
   },
   {
-    "description": "Ranked shape errors precede a header engine-tag literal.",
+    "description": "A header engine-tag literal precedes a ranked shape error in an alternative, in pre-order.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -17614,7 +17614,7 @@
       }
     },
     "malformed": true,
-    "code": "ranked-choice-syntax"
+    "message": "a tag clause cannot introduce an engine tag"
   },
   {
     "description": "Ranked shape errors precede an alternative own-tags fault.",
@@ -23028,7 +23028,7 @@
     "message": "a tag set is needed here, not a string"
   },
   {
-    "description": "A later ranked shape error precedes an earlier split delimiter fault.",
+    "description": "An earlier declaration's empty split delimiter precedes a ranked shape error in a later declaration.",
     "dom": {
       "format": 50,
       "rules": [
@@ -23080,7 +23080,7 @@
       "implications": []
     },
     "malformed": true,
-    "code": "ranked-choice-syntax"
+    "message": "split has an empty delimiter"
   },
   {
     "description": "A supplied null DOM is malformed.",
@@ -24475,5 +24475,259 @@
       ]
     },
     "malformed": true
+  },
+  {
+    "description": "An unknown method name is a fault before any fault inside its receiver (engine §9.3).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "gates": [],
+          "expr": {
+            "ref": "A"
+          },
+          "tags": {
+            "method": "bogus",
+            "receiver": {
+              "capture": "X"
+            },
+            "args": []
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true,
+    "message": "unknown method bogus"
+  },
+  {
+    "description": "In a constant, a method other than split or ngrams has no structural signature check, so a later set fault comes first (engine §9.3).",
+    "dom": {
+      "format": 50,
+      "rules": [],
+      "directives": [],
+      "constants": [
+        {
+          "name": "C",
+          "op": "define",
+          "value": {
+            "union": [
+              {
+                "method": "source-text",
+                "receiver": {
+                  "string": "x"
+                },
+                "args": [
+                  {
+                    "string": "y"
+                  }
+                ]
+              },
+              {
+                "union": [
+                  {
+                    "tag": "A"
+                  }
+                ]
+              }
+            ]
+          },
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    },
+    "malformed": true,
+    "message": "a malformed set operation"
+  },
+  {
+    "description": "A malformed reference in an earlier alternative precedes a ranked shape error in a later one (engine §9.3).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "gates": [],
+          "expr": {
+            "ref": "bad name"
+          }
+        },
+        {
+          "gates": [],
+          "expr": {
+            "ranked": [
+              {
+                "ref": "A"
+              }
+            ]
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true,
+    "message": "a malformed reference"
+  },
+  {
+    "description": "A method's receiver shape is checked before a parameter in place of a classifier argument (engine §9.3).",
+    "rule": {
+      "name": "text",
+      "params": [
+        "P"
+      ],
+      "op": "define",
+      "alternatives": [
+        {
+          "gates": [],
+          "expr": {
+            "ref": "A"
+          },
+          "tags": {
+            "method": "classify",
+            "receiver": "x",
+            "args": [
+              {
+                "param": "P",
+                "at": [
+                  1,
+                  5
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true,
+    "message": "a malformed method"
+  },
+  {
+    "description": "A capture's placement in a chain is checked before its name (engine §9.3).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "gates": [],
+          "expr": {
+            "repeat": {
+              "capture": "X",
+              "expr": {
+                "ref": "A"
+              }
+            },
+            "separator": {
+              "ref": "S"
+            },
+            "chain": "left"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true,
+    "message": "a capture cannot stand inside a chain"
+  },
+  {
+    "description": "A tag clause checks for own-tag reads after every structural check of its term (engine §9.3).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "gates": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ],
+      "tags": {
+        "union": [
+          {
+            "method": "tags",
+            "receiver": {
+              "capture": ""
+            },
+            "args": []
+          },
+          {
+            "union": [
+              {
+                "tag": "A"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "malformed": true,
+    "message": "a malformed set operation"
+  },
+  {
+    "description": "A method checks its arguments that are not terms in written order (engine §9.3).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "alternatives": [
+        {
+          "gates": [],
+          "expr": {
+            "capture": "x",
+            "expr": {
+              "ref": "A"
+            }
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "method": "followed-by",
+          "receiver": {
+            "capture": "x"
+          },
+          "args": [
+            {
+              "rule": "Bad"
+            },
+            {
+              "terminal": "bad"
+            }
+          ]
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true,
+    "message": "a malformed rule argument"
   }
 ]
