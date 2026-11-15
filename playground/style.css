@@ -184,6 +184,7 @@ a:hover {
 .seg:focus-visible,
 .gap:focus-visible,
 .split:focus-visible,
+.grammar-strip:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
 .link:focus-visible {
@@ -709,7 +710,7 @@ textarea:focus-visible,
 }
 
 .left {
-  flex: var(--left-grow, 35) 1 105px;
+  flex: var(--left-grow, 35) 1 0;
   min-width: min-content;
   display: flex;
   flex-direction: column;
@@ -734,46 +735,102 @@ textarea:focus-visible,
   border-left: 1px solid var(--line);
 }
 
-/* Collapsed grammar pane on desktop */
-.work.grammar-hidden .left {
-  flex: 1 1 100%;
+/* Grammar pane when no document is open on desktop */
+.app:not(.phone) .work.no-doc:not(.grammar-hidden) {
+  flex-wrap: nowrap;
 }
 
-.work.grammar-hidden .grammar {
+.app:not(.phone) .work.no-doc:not(.grammar-hidden) .left {
+  flex: 1 1 0;
+}
+
+.app:not(.phone) .work.no-doc:not(.grammar-hidden) .grammar {
+  flex: 0 1 auto;
+  min-width: min-content;
+  max-width: 50%;
+  container-type: normal;
+}
+
+.app:not(.phone) .work.no-doc:not(.grammar-hidden) .grammar .split {
+  display: none;
+}
+
+.app:not(.phone) .work.no-doc:not(.grammar-hidden) .grammar .ghead,
+.app:not(.phone) .work.no-doc:not(.grammar-hidden) .grammar #edited-elsewhere {
+  contain: inline-size;
+}
+
+.app:not(.phone) .work.no-doc:not(.grammar-hidden) .grammar .ghead {
+  flex-wrap: wrap;
+}
+
+.app:not(.phone) .work.no-doc.no-doc-stacked:not(.grammar-hidden) {
+  flex-wrap: wrap;
+}
+
+.app:not(.phone) .work.no-doc.no-doc-stacked:not(.grammar-hidden) .left,
+.app:not(.phone) .work.no-doc.no-doc-stacked:not(.grammar-hidden) .grammar {
+  flex: 1 1 100%;
+  max-width: 100%;
+}
+
+/* Collapsed grammar pane on desktop */
+.app:not(.phone) .work.grammar-hidden {
+  flex-wrap: nowrap;
+}
+
+.app:not(.phone) .work.grammar-hidden .left {
+  flex: 1 1 0;
+}
+
+.app:not(.phone) .work.grammar-hidden .grammar {
   flex: 0 0 36px;
   min-width: 36px;
+  max-width: 36px;
   width: 36px;
   container-type: normal;
   overflow: hidden;
 }
 
-.work.grammar-hidden .grammar .split,
-.work.grammar-hidden .grammar .ghead,
-.work.grammar-hidden .grammar .panes,
-.work.grammar-hidden .grammar .doc-list-full,
-.work.grammar-hidden .grammar #edited-elsewhere {
+.app:not(.phone) .work.grammar-hidden .grammar .split,
+.app:not(.phone) .work.grammar-hidden .grammar .ghead,
+.app:not(.phone) .work.grammar-hidden .grammar .panes,
+.app:not(.phone) .work.grammar-hidden .grammar .doc-list-full,
+.app:not(.phone) .work.grammar-hidden .grammar #edited-elsewhere {
   display: none !important;
 }
 
 .grammar-strip {
   display: none;
   flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
   width: 100%;
+  padding: 14px 0;
   border: 0;
   background: var(--surface);
   color: var(--muted);
+  font: 500 13px/1 var(--sans);
   cursor: pointer;
-  align-items: flex-start;
-  justify-content: center;
-  padding-top: 10px;
+}
+
+.grammar-strip-label {
+  writing-mode: vertical-rl;
+  color: inherit;
+}
+
+.grammar-strip .dot {
+  margin-left: 0;
 }
 
 .grammar-strip:hover {
-  background: var(--sunk);
+  background: var(--soft);
   color: var(--ink);
 }
 
-.work.grammar-hidden .grammar .grammar-strip {
+.app:not(.phone) .work.grammar-hidden .grammar .grammar-strip {
   display: flex;
 }
 
@@ -1601,8 +1658,14 @@ table.tokens .tag.tok-warn {
 
 /* Full-width document list when no document is open */
 .doc-list-full {
+  display: grid;
+  grid-template-columns: minmax(min-content, max-content) minmax(min-content, 1fr);
   padding-bottom: 12px;
   font-family: var(--sans);
+}
+
+.doc-group-full {
+  display: contents;
 }
 
 .group {
@@ -1615,13 +1678,15 @@ table.tokens .tag.tok-warn {
 }
 
 .doc-list-full .group {
+  grid-column: 1 / -1;
   margin: 0;
   padding: 14px 16px 6px;
 }
 
 .drow {
   display: grid;
-  grid-template-columns: 200px minmax(0, 1fr);
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
   gap: 12px;
   align-items: baseline;
   width: 100%;
@@ -2205,6 +2270,7 @@ small.s,
 }
 
 .app.phone .split,
+.app.phone .grammar-strip,
 .app.phone .ghead,
 .app.phone .docs-rail,
 .app.phone .doc-list-full,

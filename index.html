@@ -107,7 +107,7 @@
       </div>
     </header>
 
-    <main class="work" id="workspace">
+    <main class="work no-doc" id="workspace">
       <section class="left" aria-label="Input and result">
         <section class="tcard free" aria-label="Text">
           <label class="sr-only" for="input">Text</label>
@@ -178,8 +178,10 @@
 
       <aside class="grammar" id="grammar-pane" aria-label="Grammar">
         <button type="button" class="split" id="split-handle" role="separator" aria-orientation="vertical" aria-label="Resize the grammar pane" aria-valuenow="35" aria-valuemin="20" aria-valuemax="60"><span></span></button>
-        <button type="button" class="grammar-strip" id="show-grammar" aria-label="Show the grammar" title="Show the grammar">
+        <button type="button" class="grammar-strip sans" id="show-grammar" aria-label="Show the grammar" title="Show the grammar">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg>
+          <span class="grammar-strip-label" aria-hidden="true">Grammar</span>
+          <span class="dot" id="show-grammar-dot" aria-hidden="true" hidden></span>
         </button>
 
         <div class="ghead sans">
