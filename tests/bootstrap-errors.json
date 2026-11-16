@@ -606,6 +606,15 @@
       "line": 41,
       "column": 7,
       "context": "lexical.md"
+    },
+    {
+      "description": "Bootstrap ranked choice uses enclosing sequence position",
+      "bootstrap": "{\"format\":50,\"documents\":{\"grammars/gencmu/jbogenbau/pipeline.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":50,\"rules\":[],\"directives\":[{\"name\":\"stage\",\"args\":[\"lexical\"],\"at\":[1,1]},{\"name\":\"include\",\"args\":[\"../../../embedded.md\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}},\"embedded.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":50,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"Q\",\"at\":[3,12]},{\"ranked\":[{\"capture\":\"x\",\"expr\":{\"ref\":\"a\",\"at\":[3,18]},\"at\":[3,15]},{\"ref\":\"b\",\"at\":[3,22]}]},{\"ref\":\"Z\",\"at\":[3,25]}],\"at\":[7,11]}}],\"emit\":{\"items\":[{\"capture\":\"x\"}]},\"conditions\":[],\"at\":[3,1]},{\"name\":\"a\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"X\",\"at\":[5,9]},{\"ref\":\"Y\",\"at\":[5,11]}],\"at\":[5,9]}}],\"conditions\":[],\"at\":[5,1]},{\"name\":\"b\",\"op\":\"define\",\"alternatives\":[{\"gates\":[],\"expr\":{\"seq\":[{\"ref\":\"U\",\"at\":[6,9]},{\"ref\":\"V\",\"at\":[6,11]}],\"at\":[6,9]}}],\"conditions\":[],\"at\":[6,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"steps\":[{\"step\":\"late\",\"pattern\":{\"test\":\"tags\",\"requirements\":[{\"negated\":false,\"value\":{\"tag\":\"_Elided\"}}],\"expr\":{\"wildcard\":true,\"at\":[2,30]},\"exact\":true}}],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
+      "context": "embedded.md",
+      "message": "ranked-choice-export",
+      "line": 7,
+      "column": 11,
+      "stage": "lexical"
     }
   ]
 }

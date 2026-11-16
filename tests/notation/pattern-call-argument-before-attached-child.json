@@ -1,0 +1,10 @@
+{
+  "description": "A call pattern checks its arguments before its attached children, so an undeclared parameter in the call precedes a faulty terminal in the child list (engine §9.3).",
+  "document": "```jbogenbau\n%rule t(@P) @P\n%ambiguity-resolution fewest #t(@Missing)⁅ _Nope ⁆\n```\n",
+  "expect": {
+    "error": {
+      "line": 3,
+      "column": 33
+    }
+  }
+}

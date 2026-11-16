@@ -25546,5 +25546,77 @@
     },
     "malformed": true,
     "message": "a malformed expression"
+  },
+  {
+    "description": "A call pattern checks its arguments before its attached children.",
+    "directive": {
+      "name": "ambiguity-resolution",
+      "steps": [
+        {
+          "step": "fewest",
+          "pattern": {
+            "call": "t",
+            "args": [
+              {
+                "string": 5
+              }
+            ],
+            "at": [
+              2,
+              10
+            ],
+            "children": [
+              {
+                "child": {
+                  "terminal": "bad",
+                  "at": [
+                    2,
+                    30
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "at": [
+        2,
+        1
+      ]
+    },
+    "malformed": true,
+    "message": "a malformed scalar string"
+  },
+  {
+    "description": "A call pattern checks its arguments in written order.",
+    "directive": {
+      "name": "ambiguity-resolution",
+      "steps": [
+        {
+          "step": "fewest",
+          "pattern": {
+            "call": "t",
+            "args": [
+              {
+                "string": 5
+              },
+              {
+                "rule": "Bad"
+              }
+            ],
+            "at": [
+              2,
+              10
+            ]
+          }
+        }
+      ],
+      "at": [
+        2,
+        1
+      ]
+    },
+    "malformed": true,
+    "message": "a malformed scalar string"
   }
 ]

@@ -48,6 +48,28 @@ export declare function layeredPatternNodeFault(node: any, inspect?: {
     node: any;
 } | null;
 /**
+ * The fault of one test operand of a pattern: a requirement entry
+ * (`"requirement"`) or the operand of a value test (`"value"`). The
+ * tested base is not inspected here.
+ * @param {string} kind
+ * @param {any} value
+ * @param {{name?:(name:string)=>boolean, terminal?:(name:string)=>boolean, range?:(range:any)=>string|null, test?:(test:any)=>string|null, depth?:number, deferDepth?:boolean, repeated?:boolean, inner?:boolean}} [inspect]
+ * @returns {{problem:string, node:any}|null}
+ */
+export declare function layeredPatternOperandFault(kind: string, value: any, inspect?: {
+    name?: (name: string) => boolean;
+    terminal?: (name: string) => boolean;
+    range?: (range: any) => string | null;
+    test?: (test: any) => string | null;
+    depth?: number;
+    deferDepth?: boolean;
+    repeated?: boolean;
+    inner?: boolean;
+}): {
+    problem: string;
+    node: any;
+} | null;
+/**
  * @param {any} root
  * @param {(term:any)=>string} term
  * @param {boolean} [literal]

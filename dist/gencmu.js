@@ -6136,7 +6136,7 @@
    * @returns {{problem:string, node:any}|null}
    */
   function inspectPattern(root, inspect, deferGroups) {
-    const check = patternChecker(inspect, deferGroups, root);
+    const {check} = patternChecker(inspect, deferGroups, root);
     const stack = [{node:root,item:false,repeated:false,depth:inspect.depth ?? 0,inner:false}];
     while (stack.length) {
       const {fault, pending} = check(/** @type {any} */ (stack.pop()));
@@ -6150,7 +6150,7 @@
    * @param {NonNullable<Parameters<typeof layeredPatternProblem>[1]>} inspect
    * @param {boolean} deferGroups
    * @param {any} root
-   * @returns {(entry:{node:any, item:boolean, repeated:boolean, depth:number, inner:boolean}) => {fault:{problem:string, node:any}|null, pending:any[]}}
+   * @returns {{check:(entry:{node:any, item:boolean, repeated:boolean, depth:number, inner:boolean}) => {fault:{problem:string, node:any}|null, pending:any[]}, operand:(kind:string, value:any) => {problem:string, node:any}|null}}
    */
   function patternChecker(inspect, deferGroups, root) {
     const object = (/** @type {any} */ n) => n && typeof n === 'object' && !Array.isArray(n);
@@ -6256,30 +6256,23 @@
       }
       if (!exact(fields)) return {fault:err('a malformed pattern node test'), pending};
       if ('children' in n && !items(n.children,false,true)) return {fault:err('a malformed pattern child list'), pending};
-      if (key === 'test') {
-        // Check n.expr BEFORE test operands so base atom faults precede test operand faults.
-        if (n.test === 'tags') {
-          for (const requirement of n.requirements) {
-            if (!object(requirement) || Object.keys(requirement).length !== 2 || !('value' in requirement) || typeof requirement.negated !== 'boolean' || !requirementTerm(requirement.value)) {
-              if (object(n.expr)) {
-                const baseFault = inspectPattern(n.expr, {...inspect, depth:depth+1}, deferGroups);
-                if (baseFault) return {fault:baseFault, pending};
-              }
-              return {fault:err('a malformed pattern requirement', requirement?.value ?? requirement ?? n), pending};
-            }
-          }
-        } else if (!stringTerm(n.value)) {
-          if (object(n.expr)) {
-            const baseFault = inspectPattern(n.expr, {...inspect, depth:depth+1}, deferGroups);
-            if (baseFault) return {fault:baseFault, pending};
-          }
-          return {fault:err('a malformed pattern value test', n.value ?? n), pending};
-        }
-        if ("expr" in n) push(n.expr,false,false,true);
-      }
+      if (key === 'test' && "expr" in n) push(n.expr,false,false,true);
       return {fault:null, pending};
     };
-    return check;
+    // A test operand runs only after the tested base has finished its own
+    // validation, so this check is separate from the node's own shape.
+    /** @param {string} kind @param {any} value @returns {{problem:string, node:any}|null} */
+    const operand = (kind, value) => {
+      if (kind === "requirement") {
+        if (!object(value) || Object.keys(value).length !== 2 || !('value' in value) || typeof value.negated !== 'boolean' || !requirementTerm(value.value)) {
+          return {problem:'a malformed pattern requirement', node: value?.value ?? value};
+        }
+        return null;
+      }
+      if (!stringTerm(value)) return {problem:'a malformed pattern value test', node: value};
+      return null;
+    };
+    return {check, operand};
   }
 
   /**
@@ -6290,8 +6283,21 @@
    * @returns {{problem:string, node:any}|null}
    */
   function layeredPatternNodeFault(node, inspect = {}, item = false) {
-    const check = patternChecker(inspect, false, node);
+    const {check} = patternChecker(inspect, false, node);
     return check({node, item, repeated: inspect.repeated ?? false, depth: inspect.depth ?? 0, inner: inspect.inner ?? false}).fault;
+  }
+
+  /**
+   * The fault of one test operand of a pattern: a requirement entry
+   * (`"requirement"`) or the operand of a value test (`"value"`). The
+   * tested base is not inspected here.
+   * @param {string} kind
+   * @param {any} value
+   * @param {{name?:(name:string)=>boolean, terminal?:(name:string)=>boolean, range?:(range:any)=>string|null, test?:(test:any)=>string|null, depth?:number, deferDepth?:boolean, repeated?:boolean, inner?:boolean}} [inspect]
+   * @returns {{problem:string, node:any}|null}
+   */
+  function layeredPatternOperandFault(kind, value, inspect = {}) {
+    return patternChecker(inspect, false, value).operand(kind, value);
   }
 
   /**
@@ -6752,31 +6758,20 @@
       }
       if (kind === "pattern-part") {
         if (value.param && !task.params.has(value.param)) return report(`undeclared parameter @${value.param}`);
-        if (value.call) {
-          const nodes = [value.args];
-          while (nodes.length) {
-            const node = nodes.pop();
-            if (!node || typeof node !== "object") continue;
-            if (node.rule && tag(node.rule)) return report("a pattern argument rule reads back as a tag", node);
-            const vals = Object.values(node);
-            for (let i = vals.length - 1; i >= 0; i--) if (vals[i] && typeof vals[i] === "object") nodes.push(vals[i]);
-          }
-          pushReverse(value.args, arg => child("arg", arg, { closed: undefined }));
-        }
+        // The children are queued before the call's arguments, so the
+        // arguments run first: a call pattern checks its arguments before
+        // its attached children (engine §9.3 step 5).
         if (value.children) pushReverse(value.children, item => child("pattern-item", item, { closed: undefined, patternRepeated: false, patternAt: task.patternAt }));
+        if (value.call) pushReverse(value.args, arg => child("arg", arg, { closed: undefined, patternCall: true }));
         for (const key of ["union", "intersection", "difference"]) if (value[key]) pushReverse(value[key], operand => child("pattern", operand, { closed: undefined, patternAt: task.patternAt }));
         if (value.path) child("pattern", value.pattern, { closed: undefined, patternAt: task.patternAt });
         if (value.test === "tags") {
-          if (!expanded && object(value.expr) && ["name", "call"].some(k => k in value.expr)) {
-            for (const requirement of value.requirements) {
-              if (!requirement.negated && requirement.value?.tag === "_Elided") {
-                return report("a rule pattern cannot require _Elided", requirement.value);
-              }
-            }
-          }
-          pushReverse(value.requirements, requirement => child("term", requirement.value, { patternTag: true, closed: undefined }));
+          // The requirements are queued before the base, so they run after
+          // the base has finished its own validation (engine §9.3 step 5).
+          const forbidElided = !expanded && object(value.expr) && ["name", "call"].some(k => k in value.expr);
+          pushReverse(value.requirements, requirement => child("pattern-operand", requirement, { closed: undefined, operandKind: "requirement", forbidElided, patternAt: task.patternAt }));
         }
-        else if (value.test) child("term", value.value, { closed: undefined });
+        else if (value.test) child("pattern-operand", value.value, { closed: undefined, operandKind: "value", patternAt: task.patternAt });
         if (value.expr) child("pattern", value.expr, { closed: undefined, patternInner: true, patternAt: task.patternAt });
         if (value.range) {
           const problem = rangeProblem(value.range);
@@ -6795,6 +6790,21 @@
         if (value.child) child("pattern", value.child, { closed: undefined, patternAt: task.patternAt });
         return null;
       }
+      if (kind === "pattern-operand") {
+        const oFault = layeredPatternOperandFault(task.operandKind, value, { name: name => ruleName(name) && !tag(name), terminal: name => name === "_Elided" || tag(name), range: rangeProblem });
+        if (oFault) {
+          // An unknown engine tag gets its own message, as in a term.
+          const node = /** @type {any} */ (oFault.node);
+          const unknown = oFault.problem === "a malformed pattern requirement" ? unknownEngineTag(node?.terminal ?? node?.tag) : null;
+          return report(unknown ?? oFault.problem, oFault.node ?? (task.patternAt ? { at: task.patternAt } : value));
+        }
+        if (task.operandKind === "requirement" && task.forbidElided && object(value) && !value.negated && value.value?.tag === "_Elided") {
+          return report("a rule pattern cannot require _Elided", value.value);
+        }
+        if (task.operandKind === "requirement") child("term", value.value, { patternTag: true, closed: undefined });
+        else child("term", value, { closed: undefined });
+        return null;
+      }
       // Unresolved leaves still obey the category of their position.
       if ("param" in value) {
         if (!["expr", "arg", "term", "tags", "target", "pattern", "pattern-part"].includes(kind)) return report(`a malformed ${kind}`);
@@ -6810,6 +6820,18 @@
         return null;
       }
       if (kind === "arg") {
+        if (task.patternCall) {
+          // A pattern argument is checked at its own place in the written
+          // order, so this walk runs per argument, not over all of them.
+          const nodes = [value];
+          while (nodes.length) {
+            const node = nodes.pop();
+            if (!node || typeof node !== "object") continue;
+            if (node.rule && tag(node.rule)) return report("a pattern argument rule reads back as a tag", node);
+            const vals = Object.values(node);
+            for (let i = vals.length - 1; i >= 0; i--) if (vals[i] && typeof vals[i] === "object") nodes.push(vals[i]);
+          }
+        }
         if ("classifier" in value || "integer" in value) return report("an argument cannot read or declare captures");
         if ("body" in value) {
           if (!exact(value, ["body"])) return report("a malformed body argument");

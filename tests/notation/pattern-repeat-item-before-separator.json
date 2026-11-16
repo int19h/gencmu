@@ -1,0 +1,10 @@
+{
+  "description": "A pattern repeat checks its item before its separator, so a faulty terminal in the item precedes one in the separator (engine §9.3).",
+  "document": "```jbogenbau\n%rule t A\n%conditions $ ≅ #⁅ {_Nope / _Bogus} ⁆\n```\n",
+  "expect": {
+    "error": {
+      "line": 3,
+      "column": 21
+    }
+  }
+}
