@@ -6709,6 +6709,7 @@
         closed: task.closed,
         featureDirectiveAt: task.featureDirectiveAt,
         queryBody: task.queryBody,
+        patternCall: task.patternCall,
         ...context,
       });
       const fields = Object.keys(value);
@@ -6768,10 +6769,11 @@
         if (value.test === "tags") {
           // The requirements are queued before the base, so they run after
           // the base has finished its own validation (engine §9.3 step 5).
+          // They stand at the depth of the terms they queue, not below it.
           const forbidElided = !expanded && object(value.expr) && ["name", "call"].some(k => k in value.expr);
-          pushReverse(value.requirements, requirement => child("pattern-operand", requirement, { closed: undefined, operandKind: "requirement", forbidElided, patternAt: task.patternAt }));
+          pushReverse(value.requirements, requirement => push("pattern-operand", requirement, depth, { params: task.params, at: enclosingAt, featureDirectiveAt: task.featureDirectiveAt, operandKind: "requirement", forbidElided, patternAt: task.patternAt }));
         }
-        else if (value.test) child("pattern-operand", value.value, { closed: undefined, operandKind: "value", patternAt: task.patternAt });
+        else if (value.test) push("pattern-operand", value.value, depth, { params: task.params, at: enclosingAt, featureDirectiveAt: task.featureDirectiveAt, operandKind: "value", patternAt: task.patternAt });
         if (value.expr) child("pattern", value.expr, { closed: undefined, patternInner: true, patternAt: task.patternAt });
         if (value.range) {
           const problem = rangeProblem(value.range);
@@ -6820,25 +6822,13 @@
         return null;
       }
       if (kind === "arg") {
-        if (task.patternCall) {
-          // A pattern argument is checked at its own place in the written
-          // order, so this walk runs per argument, not over all of them.
-          const nodes = [value];
-          while (nodes.length) {
-            const node = nodes.pop();
-            if (!node || typeof node !== "object") continue;
-            if (node.rule && tag(node.rule)) return report("a pattern argument rule reads back as a tag", node);
-            const vals = Object.values(node);
-            for (let i = vals.length - 1; i >= 0; i--) if (vals[i] && typeof vals[i] === "object") nodes.push(vals[i]);
-          }
-        }
         if ("classifier" in value || "integer" in value) return report("an argument cannot read or declare captures");
         if ("body" in value) {
           if (!exact(value, ["body"])) return report("a malformed body argument");
-          push("expr", value.body, depth, { params: task.params, whole: true, at: enclosingAt, featureDirectiveAt: task.featureDirectiveAt });
+          push("expr", value.body, depth, { params: task.params, whole: true, at: enclosingAt, featureDirectiveAt: task.featureDirectiveAt, patternCall: task.patternCall });
         } else if ("targets" in value) {
           if (!exact(value, ["targets"]) || !Array.isArray(value.targets) || value.targets.length < 2) return report("a malformed target choice");
-          pushReverse(value.targets, t => push("target", t, depth, { params: task.params, at: enclosingAt, featureDirectiveAt: task.featureDirectiveAt }));
+          pushReverse(value.targets, t => push("target", t, depth, { params: task.params, at: enclosingAt, featureDirectiveAt: task.featureDirectiveAt, patternCall: task.patternCall }));
         } else if ("requirements" in value && !value.test) {
           if (!exact(value, ["requirements"]) || !Array.isArray(value.requirements)) return report("a malformed requirement list");
           for (const entry of value.requirements) {
@@ -6846,12 +6836,16 @@
           }
           pushReverse(value.requirements, entry => push("term", entry.value, depth, { params: task.params, at: enclosingAt, featureDirectiveAt: task.featureDirectiveAt }));
         } else if (value.rule) {
+          // The rule-as-tag restriction stands at the node that holds the
+          // rule, in the normal traversal (engine §9.3 step 5).
+          if (task.patternCall && typeof value.rule === "string" && tag(value.rule)) return report("a pattern argument rule reads back as a tag", value);
           if (!exact(value, ["rule"]) || !ruleName(value.rule)) return report("a malformed nominal rule argument");
-        } else if (value.splice || value.test || value.range || value.wildcard) push("expr", value, depth, { params: task.params, at: enclosingAt, featureDirectiveAt: task.featureDirectiveAt });
-        else push("term", value, depth, { params: task.params, at: enclosingAt, featureDirectiveAt: task.featureDirectiveAt });
+        } else if (value.splice || value.test || value.range || value.wildcard) push("expr", value, depth, { params: task.params, at: enclosingAt, featureDirectiveAt: task.featureDirectiveAt, patternCall: task.patternCall });
+        else push("term", value, depth, { params: task.params, at: enclosingAt, featureDirectiveAt: task.featureDirectiveAt, patternCall: task.patternCall });
         return null;
       }
       if (kind === "target") {
+        if (task.patternCall && typeof value.rule === "string" && tag(value.rule)) return report("a pattern argument rule reads back as a tag", value);
         if (!(exact(value, ["rule"]) && ruleName(value.rule) || exact(value, ["terminal"]) && /^(?!.*--)[A-Z][A-Za-z0-9_-]*$/.test(value.terminal))) return report("a malformed query target");
         return null;
       }
@@ -7053,8 +7047,9 @@
               // the capture's own shape (engine §9.3). A reduced body keeps
               // the nearest enclosing position of the original body, and a
               // child with its own position keeps it (docs/output.md).
-              visits.push(() => push("expr", parsed.body, depth + (Array.isArray(arg.body.seq) && !Array.isArray(parsed.body?.seq) ? 2 : 1), { params: task.params, at: nodePos(parsed.body, nodePos(arg.body, enclosingAt)), featureDirectiveAt: task.featureDirectiveAt, queryBody: true }));
+              visits.push(() => push("expr", parsed.body, depth + (Array.isArray(arg.body.seq) && !Array.isArray(parsed.body?.seq) ? 2 : 1), { params: task.params, at: nodePos(parsed.body, nodePos(arg.body, enclosingAt)), featureDirectiveAt: task.featureDirectiveAt, queryBody: true, patternCall: task.patternCall }));
             } else if (object(arg) && typeof arg.rule === "string") {
+              if (task.patternCall && tag(arg.rule)) return report("a pattern argument rule reads back as a tag", arg);
               if (Object.keys(arg).length !== 1 || !["without-elision-except", "followed-by", "preceded-by"].includes(value.method) || !ruleName(arg.rule)) return report("a malformed rule argument", value);
             } else if (object(arg) && typeof arg.terminal === "string") {
               if (Object.keys(arg).length !== 1 || !TARGET_METHODS.has(value.method) || !/^(?!.*--)[A-Z][A-Za-z0-9_-]*$/.test(arg.terminal)) return report("a malformed boundary target", value);

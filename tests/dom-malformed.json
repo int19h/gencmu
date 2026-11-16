@@ -25618,5 +25618,101 @@
     },
     "malformed": true,
     "message": "a malformed scalar string"
+  },
+  {
+    "description": "A fault earlier in a pattern call's body argument precedes a rule that reads back as a tag in a later call.",
+    "directive": {
+      "name": "ambiguity-resolution",
+      "steps": [
+        {
+          "step": "fewest",
+          "pattern": {
+            "call": "t",
+            "args": [
+              {
+                "body": {
+                  "seq": [
+                    {
+                      "ref": "bad name",
+                      "at": [
+                        3,
+                        5
+                      ]
+                    },
+                    {
+                      "call": "u",
+                      "args": [
+                        {
+                          "rule": "Bad"
+                        }
+                      ],
+                      "at": [
+                        3,
+                        15
+                      ]
+                    }
+                  ],
+                  "at": [
+                    3,
+                    1
+                  ]
+                }
+              }
+            ],
+            "at": [
+              2,
+              10
+            ]
+          }
+        }
+      ],
+      "at": [
+        2,
+        1
+      ]
+    },
+    "malformed": true,
+    "message": "a malformed reference",
+    "at": [
+      3,
+      5
+    ]
+  },
+  {
+    "description": "A pattern call's method argument checks its method name before a rule that reads back as a tag in its arguments.",
+    "directive": {
+      "name": "ambiguity-resolution",
+      "steps": [
+        {
+          "step": "fewest",
+          "pattern": {
+            "call": "t",
+            "args": [
+              {
+                "method": "bogus",
+                "receiver": {
+                  "string": "a"
+                },
+                "args": [
+                  {
+                    "rule": "Bad"
+                  }
+                ]
+              }
+            ],
+            "at": [
+              2,
+              10
+            ]
+          }
+        }
+      ],
+      "at": [
+        2,
+        1
+      ]
+    },
+    "malformed": true,
+    "message": "unknown method bogus"
   }
 ]
