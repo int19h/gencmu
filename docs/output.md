@@ -491,9 +491,9 @@ A bare `parse` result or its filtered result can stand as a condition. A forest 
 
 `.ngrams` takes exactly one `{"integer":"2"}` argument. Its digits match `[1-9][0-9]*`, without a size limit. This argument is not a value term and occurs only in `.ngrams`.
 
-`.without-elision` requires a bare capture receiver, including `{"capture":""}` for `$`. `.onward` can wrap its restored result. The DOM contains no runtime restoration records or seals. Readers reject `$x.onward.without-elision` and direct the author to `$x.without-elision.onward`.
+`.without-elision` requires a bare capture receiver, including `{"capture":""}` for `$`. `.onward` can wrap its restored result. The DOM contains no runtime restoration records or seals. The DOM validator rejects `$x.onward.without-elision` and directs the author to `$x.without-elision.onward`.
 
-`.without-elision-except` takes the same receiver and exactly one rule argument. `.onward` can wrap its result too. Readers reject `$x.onward.without-elision-except(f)` in the same way.
+`.without-elision-except` takes the same receiver and exactly one rule argument. `.onward` can wrap its result too. The DOM validator rejects `$x.onward.without-elision-except(f)` in the same way.
 
 For example, `$m.without-elision.parse(sumti)` uses this condition DOM:
 

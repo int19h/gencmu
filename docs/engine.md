@@ -464,7 +464,7 @@ The lexical grammar performs no name lookup. Its string tokens retain their esca
 
 ### Engine-tag provenance
 
-A grammar cannot introduce an engine tag. This restriction covers every binary, enumerated, and extension-member tag, including default values. The function `lit` finds engine tags supplied by literals rather than forwarded input. During reading, the reader applies `lit` to each complete `::` clause of a rule header, alternative, or emission item. It does not reject an intermediate term whose enclosing filter removes its literals.
+A grammar cannot introduce an engine tag. This restriction covers every binary, enumerated, and extension-member tag, including default values. The function `lit` finds engine tags supplied by literals rather than forwarded input. The DOM validator applies `lit` to each complete `::` clause of a rule header, alternative, or emission item. It does not reject an intermediate term whose enclosing filter removes its literals.
 
 Conditions, tag tests, and patterns only read tags, so `lit` does not apply to their tag-set terms. Constants and `%implies` follow their separate literal bans below. A constant reference gives `lit = ∅` regardless of its value, so binding cannot change this check.
 
@@ -3262,7 +3262,7 @@ Parentheses after the `rule-keyword` fail the syntax stage at `(`, column 6 in `
   A pattern atom accepts the tests of §4.1. A terminal atom accepts one tag test and then one value test. A rule, emoji, family or call atom accepts the same two tests. Its tag test reads the constituent's tags, and its value test reads the input value of its span.
 
   A test needs an atom, so a test alone, as `#<T>` or `#=""`, is an error at the test. Both checks stand at the first test that is not allowed there. Thus `%rule r $c:A %conditions $c ≅ #(sumti="x"<B>)` fails at `<`, column 42. In `#(sumti<B><C>)`, the order check fails at the second `<`.
-- A grouped value-test operand is a reader error at its opening parenthesis.
+- The DOM validator rejects a grouped value-test operand at its opening parenthesis.
 - A body constant must resolve to a string terminal or scalar range endpoint. A tag-set or pattern constant in that position is a document error.
 - A range whose start is above its end is an error, reported at the range.
 - An engine tag name outside §1's inventory is a document error at its token. Mixed aliases, unsupported compatibility aliases, and wrong-case names are invalid.
@@ -3291,7 +3291,7 @@ Parentheses after the `rule-keyword` fail the syntax stage at `(`, column 6 in `
 #### Optionals
 
 - An `optional` with two or more markers is an error, reported at the second marker. The bundled syntax grammar never gives such a node, but a bootstrap of another notation can.
-- An elidable optional that is not of the form of §3.8 is an error, reported at its `[`. Before the reader drops groups, it makes sure that the notation tree meets this rule. The handwritten bootstrap reader builds the same tree, so it makes the same check. Select the captured or ordinary route before requiring a child, as the constructor steps above state.
+- An elidable optional that is not of the form of §3.8 is an error, reported at its `[`. The reader marks each group as it drops it, and the DOM validator checks the marked form against this rule. The handwritten bootstrap reader builds the same tree, so the same check applies. Select the captured or ordinary route before requiring a child, as the constructor steps above state.
 
   On the ordinary route, require `choice` as one `some-of` of one `sequence`, without a leading `|` or `&`. So `[+| KU]` and `[+& KU]` are errors. A choice in parentheses later in the optional can still begin with `|`, as in `[+KU (| A | B)]`.
 
