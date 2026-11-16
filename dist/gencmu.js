@@ -479,8 +479,8 @@
   /** @param {unknown} value @returns {boolean} */
   function position(value) {
     return Array.isArray(value) && value.length === 2
-      && Number.isInteger(value[0]) && value[0] >= 1
-      && Number.isInteger(value[1]) && value[1] >= 1;
+      && Number.isSafeInteger(value[0]) && value[0] >= 1
+      && Number.isSafeInteger(value[1]) && value[1] >= 1;
   }
 
   /** @param {any} object @param {string[]} allowed @returns {boolean} */
@@ -6136,7 +6136,23 @@
    * @returns {{problem:string, node:any}|null}
    */
   function inspectPattern(root, inspect, deferGroups) {
+    const check = patternChecker(inspect, deferGroups, root);
     const stack = [{node:root,item:false,repeated:false,depth:inspect.depth ?? 0,inner:false}];
+    while (stack.length) {
+      const {fault, pending} = check(/** @type {any} */ (stack.pop()));
+      if (fault) return fault;
+      for (const child of pending) stack.push(child);
+    }
+    return null;
+  }
+
+  /**
+   * @param {NonNullable<Parameters<typeof layeredPatternProblem>[1]>} inspect
+   * @param {boolean} deferGroups
+   * @param {any} root
+   * @returns {(entry:{node:any, item:boolean, repeated:boolean, depth:number, inner:boolean}) => {fault:{problem:string, node:any}|null, pending:any[]}}
+   */
+  function patternChecker(inspect, deferGroups, root) {
     const object = (/** @type {any} */ n) => n && typeof n === 'object' && !Array.isArray(n);
     const position = (/** @type {any} */ n) => Array.isArray(n) && n.length === 2 && n.every((/** @type {any} */ x) => Number.isSafeInteger(x) && x > 0);
     const stringTerm = (/** @type {any} */ n) => object(n) && !n.grouped && (
@@ -6146,14 +6162,17 @@
     const requirementTerm = (/** @type {any} */ n) => !n?.grouped && (stringTerm(n) && !('string' in n) || object(n) && Object.keys(n).length === 1 && typeof n.tag === 'string' && (inspect.terminal ? inspect.terminal(n.tag) : /^[A-Z][A-Za-z0-9_-]*$/.test(n.tag) || n.tag.startsWith('_')));
     const ruleName = (/** @type {any} */ name) => typeof name === 'string' && (inspect.name ? inspect.name(name) : /^[a-z][A-Za-z0-9_-]*$/.test(name) || [...name].length === 1 && (name.codePointAt(0) ?? 0) > 127);
     const terminalAtom = (/** @type {any} */ n) => object(n) && ['terminal','literal','range','wildcard','constant','param'].some(k => k in n) && !('exact' in n || 'children' in n);
-    while (stack.length) {
-      const {node:n,item,repeated,depth,inner} = /** @type {any} */ (stack.pop());
-      if (!inspect.deferDepth && depth > 256) return {problem:'nested too deeply',node:root};
-      if (!object(n)) return {problem:'a malformed pattern',node:n};
+    /** @param {{node:any, item:boolean, repeated:boolean, depth:number, inner:boolean}} entry */
+    const check = (entry) => {
+      const {node:n,item,repeated,depth,inner} = entry;
+      /** @type {any[]} */
+      const pending = [];
+      if (!inspect.deferDepth && depth > 256) return {fault:{problem:'nested too deeply',node:root}, pending};
+      if (!object(n)) return {fault:{problem:'a malformed pattern',node:n}, pending};
       const err = (/** @type {string} */ problem, /** @type {any} */ target = n) => ({problem, node:target});
       const keys = Object.keys(n);
       const exact = (/** @type {string[]} */ fields) => keys.length === fields.length && fields.every(k => k in n);
-      const push = (/** @type {any} */ node, isItem = false, inRepeat = repeated, isInner = false) => stack.push({node,item:isItem,repeated:inRepeat,depth:depth+1,inner:isInner});
+      const push = (/** @type {any} */ node, isItem = false, inRepeat = repeated, isInner = false) => pending.push({node,item:isItem,repeated:inRepeat,depth:depth+1,inner:isInner});
       const items = (/** @type {any} */ array, inRepeat = repeated, empty = false) => {
         if (!Array.isArray(array) || !empty && !array.length) return false;
         for (let i = array.length - 1; i >= 0; i--) push(array[i],true,inRepeat);
@@ -6161,82 +6180,82 @@
       };
       if (item) {
         if (deferGroups && exact(['sequence'])) {
-          if (!items(n.sequence)) return err('a malformed pattern sequence');
+          if (!items(n.sequence)) return {fault:err('a malformed pattern sequence'), pending};
         } else if (exact(['child'])) push(n.child,false,false);
         else if (exact(['siblings'])) {
-          if (n.siblings !== true) return err('a malformed sibling ellipsis');
-          if (repeated) return err('a sibling ellipsis cannot be a repeat item or separator', null);
+          if (n.siblings !== true) return {fault:err('a malformed sibling ellipsis'), pending};
+          if (repeated) return {fault:err('a sibling ellipsis cannot be a repeat item or separator', null), pending};
         } else if (exact(['optional'])) {
-          if (!items(n.optional)) return err('a malformed pattern optional');
+          if (!items(n.optional)) return {fault:err('a malformed pattern optional'), pending};
         } else if (exact(['repeat']) || exact(['repeat','separator'])) {
-          if ('separator' in n && !items(n.separator,true) || !items(n.repeat,true)) return err('a malformed pattern repeat');
+          if ('separator' in n && !items(n.separator,true) || !items(n.repeat,true)) return {fault:err('a malformed pattern repeat'), pending};
         } else if (exact(['choice'])) {
-          if (!Array.isArray(n.choice) || n.choice.length < 2) return err('a malformed pattern choice');
+          if (!Array.isArray(n.choice) || n.choice.length < 2) return {fault:err('a malformed pattern choice'), pending};
           for (let i = n.choice.length - 1; i >= 0; i--) {
             const arm = n.choice[i];
-            if (!items(arm) || !deferGroups && arm.length === 1 && object(arm[0]) && 'choice' in arm[0]) return err('a malformed pattern choice', arm?.[0] ?? n);
+            if (!items(arm) || !deferGroups && arm.length === 1 && object(arm[0]) && 'choice' in arm[0]) return {fault:err('a malformed pattern choice', arm?.[0] ?? n), pending};
           }
-        } else return err('a malformed pattern child item');
-        continue;
+        } else return {fault:err('a malformed pattern child item'), pending};
+        return {fault:null, pending};
       }
       const compound = ['union','intersection','difference'].find(k => k in n);
       if (compound) {
         const operands = n[compound];
-        if (!exact([compound]) || !Array.isArray(operands) || operands.length < 2 || compound === 'difference' && operands.length !== 2) return err('a malformed pattern');
-        if (!deferGroups && compound !== 'difference' && operands.some((/** @type {any} */ x) => object(x) && compound in x)) return err('a nested pattern set must be flat');
+        if (!exact([compound]) || !Array.isArray(operands) || operands.length < 2 || compound === 'difference' && operands.length !== 2) return {fault:err('a malformed pattern'), pending};
+        if (!deferGroups && compound !== 'difference' && operands.some((/** @type {any} */ x) => object(x) && compound in x)) return {fault:err('a nested pattern set must be flat'), pending};
         for (let i = operands.length - 1; i >= 0; i--) push(operands[i],false,false);
-        continue;
+        return {fault:null, pending};
       }
       if ('path' in n) {
-        if (!exact(['path','pattern']) || !['descendant','first','last'].includes(n.path)) return err('a malformed pattern path');
+        if (!exact(['path','pattern']) || !['descendant','first','last'].includes(n.path)) return {fault:err('a malformed pattern path'), pending};
         push(n.pattern,false,false);
-        continue;
+        return {fault:null, pending};
       }
       const form = ['name','call','param','terminal','literal','range','wildcard','constant','test','any'].filter(k => k in n);
-      if (form.length !== 1) return err('a malformed pattern node test');
+      if (form.length !== 1) return {fault:err('a malformed pattern node test'), pending};
       const key = form[0];
-      if ('exact' in n && (n.exact !== true || inner)) return err('a malformed exact pattern prefix');
-      if ('children' in n && (inner || !['name','call','param','any'].includes(key))) return err('a child list requires a rule test', n.listAt ? {at: n.listAt} : n);
+      if ('exact' in n && (n.exact !== true || inner)) return {fault:err('a malformed exact pattern prefix'), pending};
+      if ('children' in n && (inner || !['name','call','param','any'].includes(key))) return {fault:err('a child list requires a rule test', n.listAt ? {at: n.listAt} : n), pending};
       let fields = [key, ...('exact' in n ? ['exact'] : []), ...('children' in n ? ['children'] : [])];
       if (key === 'test') {
         if (n.test === 'tags') {
           fields.push('requirements', 'expr');
           const ruleAtom = object(n.expr) && ['name','call'].some(k => k in n.expr) && !('exact' in n.expr || 'children' in n.expr);
-          if (!(terminalAtom(n.expr) || ruleAtom) || !Array.isArray(n.requirements)) return err('a pattern tag test requires a node atom');
+          if (!(terminalAtom(n.expr) || ruleAtom) || !Array.isArray(n.requirements)) return {fault:err('a pattern tag test requires a node atom'), pending};
         } else {
           fields.push('value','expr');
-          if (!['=','≠'].includes(n.test) || !(terminalAtom(n.expr) || object(n.expr) && ['name','call'].some(k => k in n.expr) || object(n.expr) && n.expr.test === 'tags' && !('exact' in n.expr || 'children' in n.expr) && (terminalAtom(n.expr.expr) || object(n.expr.expr) && ['name','call'].some(k => k in n.expr.expr)))) return err('a pattern value test requires a node atom');
+          if (!['=','≠'].includes(n.test) || !(terminalAtom(n.expr) || object(n.expr) && ['name','call'].some(k => k in n.expr) || object(n.expr) && n.expr.test === 'tags' && !('exact' in n.expr || 'children' in n.expr) && (terminalAtom(n.expr.expr) || object(n.expr.expr) && ['name','call'].some(k => k in n.expr.expr)))) return {fault:err('a pattern value test requires a node atom'), pending};
         }
-        if (!exact(fields)) return err('a malformed pattern node test');
+        if (!exact(fields)) return {fault:err('a malformed pattern node test'), pending};
         const problem = inspect.test?.(n);
-        if (problem) return err(problem);
+        if (problem) return {fault:err(problem), pending};
       } else if (key === 'any') {
-        if (n.any !== true || !('children' in n)) return err('a malformed bare child list');
+        if (n.any !== true || !('children' in n)) return {fault:err('a malformed bare child list'), pending};
       } else {
         fields.push('at');
-        if (!position(n.at)) return err('a malformed pattern position');
+        if (!position(n.at)) return {fault:err('a malformed pattern position'), pending};
         if (key === 'call') {
           fields.push('args');
-          if (!ruleName(n.call) || !Array.isArray(n.args) || !n.args.length || n.args.some((/** @type {any} */ x) => !object(x))) return err('a malformed pattern call');
+          if (!ruleName(n.call) || !Array.isArray(n.args) || !n.args.length || n.args.some((/** @type {any} */ x) => !object(x))) return {fault:err('a malformed pattern call'), pending};
         } else if (key === 'name') {
-          if (!ruleName(n.name)) return err('a malformed pattern rule name');
+          if (!ruleName(n.name)) return {fault:err('a malformed pattern rule name'), pending};
         } else if (key === 'param' || key === 'constant') {
-          if (typeof n[key] !== 'string' || !(key === 'param' ? /^[A-Za-z][A-Za-z0-9_-]*$/ : /^[A-Z][A-Za-z0-9_-]*$/).test(n[key])) return err('a malformed pattern reference');
+          if (typeof n[key] !== 'string' || !(key === 'param' ? /^[A-Za-z][A-Za-z0-9_-]*$/ : /^[A-Z][A-Za-z0-9_-]*$/).test(n[key])) return {fault:err('a malformed pattern reference'), pending};
         } else if (key === 'terminal') {
-          if (n.terminal === '_Elided') return err('_Elided stands only in a pattern tag test');
-          if (typeof n.terminal !== 'string' || !(inspect.terminal ? inspect.terminal(n.terminal) : /^[A-Z][A-Za-z0-9_-]*$/.test(n.terminal) || n.terminal.startsWith('_'))) return err('a malformed pattern terminal');
+          if (n.terminal === '_Elided') return {fault:err('_Elided stands only in a pattern tag test'), pending};
+          if (typeof n.terminal !== 'string' || !(inspect.terminal ? inspect.terminal(n.terminal) : /^[A-Z][A-Za-z0-9_-]*$/.test(n.terminal) || n.terminal.startsWith('_'))) return {fault:err('a malformed pattern terminal'), pending};
         } else if (key === 'wildcard') {
-          if (n.wildcard !== true) return err('a malformed pattern wildcard');
+          if (n.wildcard !== true) return {fault:err('a malformed pattern wildcard'), pending};
         } else if (key === 'literal') {
-          if (!stringTerm(n.literal) || !('string' in n.literal)) return err('a malformed pattern literal');
+          if (!stringTerm(n.literal) || !('string' in n.literal)) return {fault:err('a malformed pattern literal'), pending};
         } else if (key === 'range') {
-          if (!Array.isArray(n.range) || n.range.length !== 2 || n.range.some((/** @type {any} */ x) => !stringTerm(x))) return err('a malformed pattern range');
+          if (!Array.isArray(n.range) || n.range.length !== 2 || n.range.some((/** @type {any} */ x) => !stringTerm(x))) return {fault:err('a malformed pattern range'), pending};
           const problem = inspect.range?.(n.range);
-          if (problem) return err(problem);
+          if (problem) return {fault:err(problem), pending};
         }
       }
-      if (!exact(fields)) return err('a malformed pattern node test');
-      if ('children' in n && !items(n.children,false,true)) return err('a malformed pattern child list');
+      if (!exact(fields)) return {fault:err('a malformed pattern node test'), pending};
+      if ('children' in n && !items(n.children,false,true)) return {fault:err('a malformed pattern child list'), pending};
       if (key === 'test') {
         // Check n.expr BEFORE test operands so base atom faults precede test operand faults.
         if (n.test === 'tags') {
@@ -6244,22 +6263,35 @@
             if (!object(requirement) || Object.keys(requirement).length !== 2 || !('value' in requirement) || typeof requirement.negated !== 'boolean' || !requirementTerm(requirement.value)) {
               if (object(n.expr)) {
                 const baseFault = inspectPattern(n.expr, {...inspect, depth:depth+1}, deferGroups);
-                if (baseFault) return baseFault;
+                if (baseFault) return {fault:baseFault, pending};
               }
-              return err('a malformed pattern requirement', requirement?.value ?? requirement ?? n);
+              return {fault:err('a malformed pattern requirement', requirement?.value ?? requirement ?? n), pending};
             }
           }
         } else if (!stringTerm(n.value)) {
           if (object(n.expr)) {
             const baseFault = inspectPattern(n.expr, {...inspect, depth:depth+1}, deferGroups);
-            if (baseFault) return baseFault;
+            if (baseFault) return {fault:baseFault, pending};
           }
-          return err('a malformed pattern value test', n.value ?? n);
+          return {fault:err('a malformed pattern value test', n.value ?? n), pending};
         }
         if ("expr" in n) push(n.expr,false,false,true);
       }
-    }
-    return null;
+      return {fault:null, pending};
+    };
+    return check;
+  }
+
+  /**
+   * The fault of one pattern node or pattern item, without its children.
+   * @param {any} node
+   * @param {{name?:(name:string)=>boolean, terminal?:(name:string)=>boolean, range?:(range:any)=>string|null, test?:(test:any)=>string|null, depth?:number, deferDepth?:boolean, repeated?:boolean, inner?:boolean}} [inspect]
+   * @param {boolean} [item]
+   * @returns {{problem:string, node:any}|null}
+   */
+  function layeredPatternNodeFault(node, inspect = {}, item = false) {
+    const check = patternChecker(inspect, false, node);
+    return check({node, item, repeated: inspect.repeated ?? false, depth: inspect.depth ?? 0, inner: inspect.inner ?? false}).fault;
   }
 
   /**
@@ -6359,10 +6391,10 @@
     "steps", "step", "pattern", "capture", "insert", "tags", "value", "image", "alternatives", "emit", "items",
     "before", "after", "conditions", "erased", "if", "then", "not", "any", "all", "nonempty", "captured",
     "seq", "choice", "ranked", "and", "optional", "elidable", "default", "repeat", "separator", "chain", "ref",
-    "literal", "wildcard", "range", "splice", "expr", "body", "targets", "requirements", "string", "concat",
+    "literal", "wildcard", "empty", "range", "splice", "expr", "body", "targets", "requirements", "string", "concat",
     "tag", "const", "emptySet", "union", "intersection", "difference", "terminal", "constant", "exact", "children",
     "path", "child", "siblings", "remainder", "integer", "classifier", "rule", "at"];
-  const TEST_ORDER = ["test", "value", "requirements", "expr", "at"];
+  const TEST_ORDER = ["test", "value", "requirements", "expr", "exact", "at"];
   const ALTERNATIVE_ORDER = ["gates", "expr", "tags", "value", "image"];
   /** @param {any} node @returns {string[]} */
   function canonicalMembers(node) {
@@ -6705,17 +6737,17 @@
         return null;
       }
       if (kind === "pattern") {
-        const pFault = layeredPatternFault(value, { depth, deferDepth: true, name: name => ruleName(name) && !tag(name), terminal: name => name === "_Elided" || tag(name), range: rangeProblem });
+        // Only this node's own shape runs here. Its arguments and children
+        // are queued at their place by the pattern-part task, so an earlier
+        // argument fault precedes a later sibling fault (engine §9.3 step 5).
+        const pFault = layeredPatternNodeFault(value, { depth, deferDepth: true, name: name => ruleName(name) && !tag(name), terminal: name => name === "_Elided" || tag(name), range: rangeProblem, repeated: task.patternRepeated, inner: task.patternInner });
         if (pFault) {
           // An unknown engine tag gets its own message, as in a term.
           const node = /** @type {any} */ (pFault.node);
           const unknown = ["a malformed pattern terminal", "a malformed pattern requirement"].includes(pFault.problem) ? unknownEngineTag(node?.terminal ?? node?.tag) : null;
           return report(unknown ?? pFault.problem, pFault.node ?? (task.at ? { at: task.at } : value));
         }
-        if (layeredPatternProblem(value, { depth, name: name => ruleName(name) && !tag(name), terminal: name => name === "_Elided" || tag(name), range: rangeProblem }) === "nested too deeply") {
-          firstDeepAt ??= declAt;
-        }
-        push("pattern-part", value, depth, { params: task.params, at: enclosingAt, featureDirectiveAt: task.featureDirectiveAt });
+        push("pattern-part", value, depth, { params: task.params, at: enclosingAt, patternAt: task.patternAt ?? task.at, featureDirectiveAt: task.featureDirectiveAt });
         return null;
       }
       if (kind === "pattern-part") {
@@ -6731,9 +6763,9 @@
           }
           pushReverse(value.args, arg => child("arg", arg, { closed: undefined }));
         }
-        if (value.children) pushReverse(value.children, item => child("pattern-item", item, { closed: undefined }));
-        for (const key of ["union", "intersection", "difference"]) if (value[key]) pushReverse(value[key], operand => child("pattern-part", operand, { closed: undefined }));
-        if (value.path) child("pattern-part", value.pattern, { closed: undefined });
+        if (value.children) pushReverse(value.children, item => child("pattern-item", item, { closed: undefined, patternRepeated: false, patternAt: task.patternAt }));
+        for (const key of ["union", "intersection", "difference"]) if (value[key]) pushReverse(value[key], operand => child("pattern", operand, { closed: undefined, patternAt: task.patternAt }));
+        if (value.path) child("pattern", value.pattern, { closed: undefined, patternAt: task.patternAt });
         if (value.test === "tags") {
           if (!expanded && object(value.expr) && ["name", "call"].some(k => k in value.expr)) {
             for (const requirement of value.requirements) {
@@ -6745,7 +6777,7 @@
           pushReverse(value.requirements, requirement => child("term", requirement.value, { patternTag: true, closed: undefined }));
         }
         else if (value.test) child("term", value.value, { closed: undefined });
-        if (value.expr) child("pattern-part", value.expr, { closed: undefined });
+        if (value.expr) child("pattern", value.expr, { closed: undefined, patternInner: true, patternAt: task.patternAt });
         if (value.range) {
           const problem = rangeProblem(value.range);
           if (problem) return report(problem);
@@ -6755,9 +6787,12 @@
         return null;
       }
       if (kind === "pattern-item") {
-        if (value.choice) pushReverse(value.choice, arm => pushReverse(arm, item => child("pattern-item", item, { closed: undefined })));
-        for (const key of ["separator", "repeat", "optional"]) if (value[key]) pushReverse(value[key], item => child("pattern-item", item, { closed: undefined }));
-        if (value.child) child("pattern-part", value.child, { closed: undefined });
+        const pFault = layeredPatternNodeFault(value, { depth, deferDepth: true, name: name => ruleName(name) && !tag(name), terminal: name => name === "_Elided" || tag(name), range: rangeProblem, repeated: task.patternRepeated }, true);
+        if (pFault) return report(pFault.problem, pFault.node ?? (task.patternAt ? { at: task.patternAt } : task.at ? { at: task.at } : value));
+        if (value.choice) pushReverse(value.choice, arm => pushReverse(arm, item => child("pattern-item", item, { closed: undefined, patternRepeated: task.patternRepeated, patternAt: task.patternAt })));
+        for (const key of ["separator", "repeat"]) if (value[key]) pushReverse(value[key], item => child("pattern-item", item, { closed: undefined, patternRepeated: true, patternAt: task.patternAt }));
+        if (value.optional) pushReverse(value.optional, item => child("pattern-item", item, { closed: undefined, patternRepeated: task.patternRepeated, patternAt: task.patternAt }));
+        if (value.child) child("pattern", value.child, { closed: undefined, patternAt: task.patternAt });
         return null;
       }
       // Unresolved leaves still obey the category of their position.
@@ -6982,11 +7017,21 @@
           for (const arg of value.args) {
             if (object(arg) && "body" in arg) {
               if (value.method !== "parse" || !exact(arg, ["body"]) || !object(arg.body)) return report("a malformed parse argument", arg);
+              // The positions that queryBody discards (the sequence it
+              // reduces and its remainder leaves) obey the same bound as
+              // every other position, so they are checked before the
+              // reduction (docs/output.md, "A grammar DOM").
+              if ("at" in arg.body && !position(arg.body.at)) return report("a malformed expression", arg.body);
+              if (Array.isArray(arg.body.seq)) for (const part of arg.body.seq) {
+                if (object(part) && part.remainder && "at" in part && !position(part.at)) return report("a malformed expression", part);
+              }
               const parsed = queryBody(arg.body);
               if (parsed.problem) return report(parsed.problem, arg.body);
               // The body's walk rejects a capture where it meets one, after
-              // the capture's own shape (engine §9.3).
-              visits.push(() => push("expr", parsed.body, depth + (Array.isArray(arg.body.seq) && !Array.isArray(parsed.body?.seq) ? 2 : 1), { params: task.params, at: nodePos(parsed.body, enclosingAt), featureDirectiveAt: task.featureDirectiveAt, queryBody: true }));
+              // the capture's own shape (engine §9.3). A reduced body keeps
+              // the nearest enclosing position of the original body, and a
+              // child with its own position keeps it (docs/output.md).
+              visits.push(() => push("expr", parsed.body, depth + (Array.isArray(arg.body.seq) && !Array.isArray(parsed.body?.seq) ? 2 : 1), { params: task.params, at: nodePos(parsed.body, nodePos(arg.body, enclosingAt)), featureDirectiveAt: task.featureDirectiveAt, queryBody: true }));
             } else if (object(arg) && typeof arg.rule === "string") {
               if (Object.keys(arg).length !== 1 || !["without-elision-except", "followed-by", "preceded-by"].includes(value.method) || !ruleName(arg.rule)) return report("a malformed rule argument", value);
             } else if (object(arg) && typeof arg.terminal === "string") {
@@ -10412,24 +10457,28 @@
       this.sourceSites = new WeakMap();
       for (const rule of rules.values()) rule.alternatives.forEach((source, alternative) => {
         this.sourceSites.set(source,{document:source.document,at:[source.at.line,source.at.column],rule:rule.name,alternative,path:""});
-        /** @param {any} expr @param {string} path @param {boolean} final @param {RankedGroup|null} owner */
-        const visit = (expr, path, final, owner) => {
+        /** @param {any} expr @param {string} path @param {boolean} final @param {RankedGroup|null} owner @param {[number,number]|undefined} enclosingAt */
+        const visit = (expr, path, final, owner, enclosingAt) => {
           this.paths.set(expr, path);
+          // A group without its own position uses the nearest enclosing
+          // node with one, and the declaration is the first fallback
+          // (docs/output.md).
+          const nearestAt = expr.at ?? enclosingAt;
           if (expr.ranked) {
-            const site = { document: source.document, ...(expr.at ? {at:expr.at} : {}), rule:rule.name, alternative, path };
+            const site = { document: source.document, ...(nearestAt ? {at:nearestAt} : {}), rule:rule.name, alternative, path };
             const group = {id:this.groups.length, site, expr, source, final, parent:rule.name, captures:rankedDeclaredCaptures(expr), helper:`${rule.name}·ranked${this.groups.length}`};
             this.groups.push(group);
             this.byExpression.set(expr, group);
-            expr.ranked.forEach((/** @type {any} */ child, /** @type {number} */ index) => visit(child, `${path}/ranked/${index}`, final, group));
+            expr.ranked.forEach((/** @type {any} */ child, /** @type {number} */ index) => visit(child, `${path}/ranked/${index}`, final, group, nearestAt));
             return;
           }
           if (typeof expr.capture === "string" && owner) this.owners.set(expr, owner);
           for (const [child, component] of rankedExpressionChildren(expr)) {
             const last = expr.seq || expr.and ? component.endsWith(`/${(expr.seq ?? expr.and).length - 1}`) : true;
-            visit(child, `${path}${component}`, final && last && !expr.repeat, owner);
+            visit(child, `${path}${component}`, final && last && !expr.repeat, owner, nearestAt);
           }
         };
-        visit(source.expr, "", true, null);
+        visit(source.expr, "", true, null, /** @type {[number,number]} */ ([source.at.line, source.at.column]));
       });
     }
 

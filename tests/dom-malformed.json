@@ -25397,5 +25397,154 @@
     },
     "malformed": true,
     "message": "a malformed expression"
+  },
+  {
+    "description": "A fault in a parse body left by a removed remainder stands at the nearest enclosing position.",
+    "rule": {
+      "name": "r",
+      "op": "define",
+      "alternatives": [
+        {
+          "gates": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "method": "parse",
+          "receiver": {
+            "capture": ""
+          },
+          "args": [
+            {
+              "body": {
+                "seq": [
+                  {
+                    "ref": "bad name"
+                  },
+                  {
+                    "remainder": true
+                  }
+                ],
+                "at": [
+                  7,
+                  11
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true,
+    "message": "a malformed reference",
+    "at": [
+      7,
+      11
+    ]
+  },
+  {
+    "description": "A parse body whose sequence position is above the coordinate bound is malformed.",
+    "rule": {
+      "name": "r",
+      "op": "define",
+      "alternatives": [
+        {
+          "gates": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "method": "parse",
+          "receiver": {
+            "capture": ""
+          },
+          "args": [
+            {
+              "body": {
+                "seq": [
+                  {
+                    "ref": "A"
+                  },
+                  {
+                    "remainder": true
+                  }
+                ],
+                "at": [
+                  9007199254740992,
+                  1
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true,
+    "message": "a malformed expression"
+  },
+  {
+    "description": "A parse remainder whose position is above the coordinate bound is malformed.",
+    "rule": {
+      "name": "r",
+      "op": "define",
+      "alternatives": [
+        {
+          "gates": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "method": "parse",
+          "receiver": {
+            "capture": ""
+          },
+          "args": [
+            {
+              "body": {
+                "seq": [
+                  {
+                    "ref": "A"
+                  },
+                  {
+                    "remainder": true,
+                    "at": [
+                      9007199254740992,
+                      1
+                    ]
+                  }
+                ],
+                "at": [
+                  7,
+                  11
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true,
+    "message": "a malformed expression"
   }
 ]

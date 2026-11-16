@@ -1,0 +1,10 @@
+{
+  "description": "A pattern checks its call arguments at their place in the structural pass, so an undeclared parameter in an earlier call precedes a faulty terminal in a later operand (engine §9.3).",
+  "document": "```jbogenbau\n%rule t(@P) @P\n%ambiguity-resolution fewest #(t(@Missing) ∪ _Nope)\n```\n",
+  "expect": {
+    "error": {
+      "line": 3,
+      "column": 34
+    }
+  }
+}
