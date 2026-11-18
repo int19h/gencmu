@@ -32,12 +32,12 @@ Joined vowels use the same public tags as isolated vowels. The emission filter k
   | ("х" | "Х") [letter-marks] := "x"
   | ("з" | "З") [letter-marks] := "z"
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 
 %redefine-rule cyrillic-apostrophe
   ("һ" | "Һ") [letter-marks]
 %emits
-  $ :: ∅ := "'"
+  $ :: ∅ := "'" :- "'"
 
 %rule cyrillic-vowel
   | "а" [letter-marks<¬Accent>] :: Syllabic := "a"
@@ -82,7 +82,7 @@ Joined vowels use the same public tags as isolated vowels. The emission filter k
   | "ј" [letter-marks] := "i"
   | "Ј" [letter-marks] :: Capital := "i"
 %emits
-  $ :: $.tags ∩ (Stressed ∪ Syllabic)
+  $ :: $.tags ∩ (Stressed ∪ Syllabic) := $.emitted.value :- $.emitted.image
 
 %redefine-rule cyrillic-plain-vowel
   cyrillic-vowel<¬Stressed ¬Folded>
@@ -96,7 +96,8 @@ Joined vowels use the same public tags as isolated vowels. The emission filter k
 %redefine-rule joined-vowel-with(@V)
   $v:@V :: $v.tags
 %emits
-  ε :: ∅ := "'", $v :: $v.tags ∩ (Stressed ∪ Syllabic)
+  ε :: ∅ := "'" :- "'",
+  $v :: $v.tags ∩ (Stressed ∪ Syllabic) := $v.emitted.value :- $v.emitted.image
 
 ```
 
@@ -132,7 +133,7 @@ The Cyrillic of CLL, in [../cll/cyrillic.md](../cll/cyrillic.md), ignores unknow
   | ("х" | "Х") [letter-marks] := "x"
   | ("ш" | "Ш") [letter-marks] := "c"
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 
 %redefine-rule cll-cyrillic-plain-vowel :: ∅
   | "а" [letter-marks<¬Accent>] := "a"
@@ -142,7 +143,7 @@ The Cyrillic of CLL, in [../cll/cyrillic.md](../cll/cyrillic.md), ignores unknow
   | "у" [letter-marks<¬Accent>] := "u"
   | "ъ" [letter-marks<¬Accent>] := "y"
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 
 %redefine-rule cll-cyrillic-stressed-vowel = stressed-vowel-with(
   ("а" letter-marks<Accent> | "А" [letter-marks]),

@@ -87,7 +87,7 @@ The spelling guard also covers `ze'ei`, so punctuation cannot escape into an ear
   | $l:unit<¬Trailing-Pause> compound-gap<¬Punctuation-Material> zehei-word zei-right-gap $r:nonmagic-zehei-right
   | su-boundary? $l:unit<Trailing-Pause> suppressed-gap<¬Punctuation-Material> zehei-word zei-right-gap $r:nonmagic-zehei-right
 %emits
-  $ := $r.emitted.value :- $.source-text
+  $ :: $.tags := $r.emitted.value :- $.source-text
 
 %const $ZEHEI-MAGIC-RIGHT
   $MAGIC-WORDS ∪ LOhAI ∪ LEhAI

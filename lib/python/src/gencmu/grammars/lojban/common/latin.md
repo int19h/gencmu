@@ -80,7 +80,7 @@ An ignored character at a pause edge is a comma or a non-breaking format charact
 %redefine-rule pause-core
   {core-char}
 %emits
-  $ :: PAUSE ∪ ($.first-token.matches(period-char) ⟹ Period-Initial) ∪ ($.matches(period-core) ⟹ Period-Only) := " "
+  $ :: PAUSE ∪ ($.first-token.matches(period-char) ⟹ Period-Initial) ∪ ($.matches(period-core) ⟹ Period-Only) := " " :- " "
 
 %rule punctuation-pause
   [commas] punctuation [commas]
@@ -197,7 +197,7 @@ The rule reads `h` and `H` as the apostrophe. A selma'o is a class of Lojban par
 %extend-rule apostrophe
   ("h" | "H")
 %emits
-  $ :: ∅ := "'"
+  $ :: ∅ := "'" :- "'"
 ```
 
 <details><summary>Railroad diagram of <code>apostrophe</code></summary>
@@ -266,7 +266,7 @@ An accent on a capital still marks stress there, and the other capitals fold. So
   | "U" stress-mark :: Stressed := "u" :- "U"
   | "Y" stress-mark :: Stressed := "y" :- "Y"
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 ```
 
 <details><summary>Railroad diagrams of the 13 rules from <code>run</code> to <code>folded-vowel</code></summary>
@@ -296,7 +296,7 @@ A combining mark that no letter rule takes makes its run foreign, whatever its c
   | ("i" | "I") glide-mark := "i"
   | ("u" | "U") glide-mark := "u"
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 
 %extend-rule stressed-vowel :: Stressed
   | ("a" | "A") stress-mark := "a" :- "A"
@@ -306,7 +306,7 @@ A combining mark that no letter rule takes makes its run foreign, whatever its c
   | ("u" | "U") stress-mark := "u" :- "U"
   | ("y" | "Y") stress-mark := "y" :- "Y"
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 
 %rule stress-mark
   "‹U+0301›" | "‹U+0300›"
@@ -370,7 +370,8 @@ A period between two digits is the decimal point in a foreign run too, so it bel
 %rule two-phonemes(@C, @A, @B)
   @C
 %emits
-  $ :: ∅ := @A, ε :: ∅ := @B
+  $ :: ∅ := @A :- @A,
+  ε :: ∅ := @B :- @B
 
 %rule digit-0 = two-phonemes("0", "n", "o")
 

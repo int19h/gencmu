@@ -61,7 +61,7 @@ An engine tag starts with `_` and continues with letters, digits, or underscores
 %conditions
   ¬$.following-tokens.begins(call-open)
 %emits
-  $ :: Emoji-Name
+  $ :: Emoji-Name := $.emitted.value :- $.emitted.image
 
 %rule word
   | $lower:lower-name :: Identifier Lowercase-Name
@@ -70,7 +70,7 @@ An engine tag starts with `_` and continues with letters, digits, or underscores
   ¬$.following-tokens.begins(name-character),
   $lower ⟹ ¬$.following-tokens.begins(call-open)
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 
 %rule whole-name
   name
@@ -92,7 +92,7 @@ An engine tag starts with `_` and continues with letters, digits, or underscores
 %rule integer
   digit | integer digit
 %emits
-  $ :: Integer
+  $ :: Integer := $.emitted.value :- $.emitted.image
 
 %rule lower-name
   "a".."z" | lower-name name-character
@@ -105,7 +105,7 @@ An engine tag starts with `_` and continues with letters, digits, or underscores
 %conditions
   ¬$.following-tokens.begins(engine-name-part)
 %emits
-  $ :: Engine-Tag
+  $ :: Engine-Tag := $.emitted.value :- $.emitted.image
 
 %rule engine-name
   engine-name-part | engine-name engine-name-part
@@ -148,7 +148,7 @@ A parameter starts with `@` and an ASCII letter. Its remaining characters follow
 %conditions
   $.following-tokens.begins(call-open)
 %emits
-  $ :: Call-Name
+  $ :: Call-Name := $.emitted.value :- $.emitted.image
 
 %rule call-open
   "("
@@ -161,7 +161,7 @@ A parameter starts with `@` and an ASCII letter. Its remaining characters follow
 %rule parameter-token
   "@" whole-name
 %emits
-  $ :: Parameter
+  $ :: Parameter := $.emitted.value :- $.emitted.image
 ```
 
 <details><summary>Railroad diagrams of the 4 rules from <code>call-name</code> to <code>parameter-token</code></summary>
@@ -187,14 +187,14 @@ The boundary conditions prevent either token from ending inside its name. The sy
 %conditions
   ¬$n.following-tokens.begins(name-character)
 %emits
-  $ :: Capture
+  $ :: Capture := $.emitted.value :- $.emitted.image
 
 %rule constant-token
   "$" upper-name
 %conditions
   ¬$.following-tokens.begins(name-character)
 %emits
-  $ :: Constant
+  $ :: Constant := $.emitted.value :- $.emitted.image
 ```
 
 <details><summary>Railroad diagrams of <code>capture-token</code> and <code>constant-token</code></summary>
@@ -214,7 +214,7 @@ A `¬` immediately before a guard belongs to that guard. Elsewhere, `negation` e
 %rule guard
   ["¬"] feature-name "?" | feature-name "!"
 %emits
-  $ :: Guard
+  $ :: Guard := $.emitted.value :- $.emitted.image
 
 %rule feature-name
   letter | feature-name feature-character
@@ -227,7 +227,7 @@ A `¬` immediately before a guard belongs to that guard. Elsewhere, `negation` e
 %conditions
   ¬$.followed-by(guard)
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 ```
 
 <details><summary>Railroad diagrams of <code>guard</code>, <code>feature-name</code>, <code>feature-character</code> and <code>negation</code></summary>
@@ -249,7 +249,7 @@ The lexical stage keeps escapes as written. A separate inspection validates each
 %rule string
   "‹U+0022›" [{ordinary-string-character}] "‹U+0022›"
 %emits
-  $ :: String
+  $ :: String := $.emitted.value :- $.emitted.image
 
 %rule ordinary-string-character
   "‹U+0000›".."‹U+0021›" | "‹U+0023›".."‹U+10FFFF›"
@@ -274,12 +274,14 @@ An include path keeps dollar signs and backslashes literally. It excludes quotes
 %rule include
   $keyword:include-keyword [layout-run] $path:include-path
 %emits
-  $keyword :: KW-INCLUDE, $path :: Include-Path
+  $keyword :: KW-INCLUDE := $keyword.emitted.value :- $keyword.emitted.image,
+  $path :: Include-Path := $path.emitted.value :- $path.emitted.image
 
 %rule names
   $keyword:names-keyword [layout-run] $path:include-path
 %emits
-  $keyword :: KW-NAMES, $path :: Include-Path
+  $keyword :: KW-NAMES := $keyword.emitted.value :- $keyword.emitted.image,
+  $path :: Include-Path := $path.emitted.value :- $path.emitted.image
 
 %rule include-tail
   [layout-run] include-path
@@ -380,7 +382,7 @@ Value tests select known keywords. `$KEYWORDS` holds their exact names. The fall
   $include ⟹ ¬$.following-tokens.begins(include-tail),
   $names ⟹ ¬$.following-tokens.begins(include-tail)
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 ```
 
 <details><summary>Railroad diagram of <code>keyword</code></summary>
@@ -406,7 +408,7 @@ The greedy reading keeps `...`, `..`, `++`, `::`, `:=`, and `:-` together as com
   | "+" "+" | "." "." "." | "." "." | ":" ":" | ":" "=" | ":" "-"
   | ("=" | "∈" | "⊆" | "≅") "‹U+0338›"
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 ```
 
 <details><summary>Railroad diagram of <code>symbol</code></summary>

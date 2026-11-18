@@ -26,7 +26,7 @@ In the experimental pipeline, an unfinished marker carries `Fault` unless a [`co
   $c.classes ∩ $MAGIC-WORDS = ∅,
   ¬$c.onward.begins(quote)
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 
 %rule lohai-constructor-tail
   skipped constructor-word
@@ -40,7 +40,7 @@ In the experimental pipeline, an unfinished marker carries `Fault` unless a [`co
   | $r:lohai-run word-gap lehai-marker :: $r.tags
   | $r:lohai-run word-gap lohai-run word-gap lehai-marker :: $r.tags
 %emits
-  $ :: $.tags ∪ Quote
+  $ :: $.tags ∪ Quote := $.emitted.value :- $.emitted.image
 
 %rule lohai-run
   | $m:lohai-marker :: $m.tags
@@ -57,19 +57,19 @@ In the experimental pipeline, an unfinished marker carries `Fault` unless a [`co
 %conditions
   $w.classes ∩ (LOhAI ∪ LEhAI) = ∅
 %emits
-  $ :: Word
+  $ :: Word := $.emitted.value :- $.emitted.image
 
 %rule lohai-marker
   $q:read-word :: $q.classes ∪ Word ∪ Cmavo
 %conditions
   LOhAI ⊆ $q.classes
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 
 %rule lehai-marker
   $q:LEhAI :: $q.classes ∪ Word ∪ Cmavo
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 ```
 
 <details><summary>Railroad diagrams of the 9 rules from <code>word</code> to <code>lehai-marker</code></summary>

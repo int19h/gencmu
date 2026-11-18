@@ -68,7 +68,7 @@ Ordinary word forms divide each run in one way only. Zantufa's `ra'oi` quote is 
 %rule foreign-token
   $f:FOREIGN
 %emits
-  $ :: $f.tags ∪ Run-Initial ∪ Run-Final
+  $ :: $f.tags ∪ Run-Initial ∪ Run-Final := $.emitted.value :- $.emitted.image
 
 %rule unsegmentable-run
   $f:phoneme-sequence
@@ -169,7 +169,7 @@ The words stage needs to know where a run begins and ends. A name that `bu` take
 %conditions
   ¬$w.onward.begins(split-first-y)
 %emits
-  $ :: $w.tags ∪ Run-Initial ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
+  $ :: $w.tags ∪ Run-Initial ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final) := $.emitted.value :- $.emitted.image
 
 %rule later-word
   ordinary-later-word | split-later-y
@@ -179,7 +179,7 @@ The words stage needs to know where a run begins and ends. A name that `bu` take
 %conditions
   ¬$w.onward.begins(split-later-y)
 %emits
-  $ :: $w.tags ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
+  $ :: $w.tags ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final) := $.emitted.value :- $.emitted.image
 
 %rule split-first-y
   $p:y-prefix $y:y-atom :: $.tags(source-word)
@@ -187,8 +187,8 @@ The words stage needs to know where a run begins and ends. A name that `bu` take
   $.matches(hesitation-shape),
   $.following-tokens.begins(bu-form-ahead)
 %emits
-  $p :: $.tags(source-word) ∪ Run-Initial,
-  $y :: $.tags(source-word) ∪ Spacing ∪ (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
+  $p :: $.tags(source-word) ∪ Run-Initial := $p.emitted.value :- $p.emitted.image,
+  $y :: $.tags(source-word) ∪ Spacing ∪ (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final) := $y.emitted.value :- $y.emitted.image
 
 %rule split-later-y
   $p:y-prefix $y:y-atom :: $.tags(source-word)
@@ -196,8 +196,8 @@ The words stage needs to know where a run begins and ends. A name that `bu` take
   $.matches(hesitation-shape),
   $.following-tokens.begins(bu-form-ahead)
 %emits
-  $p :: $.tags(source-word),
-  $y :: $.tags(source-word) ∪ Spacing ∪ (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
+  $p :: $.tags(source-word) := $p.emitted.value :- $p.emitted.image,
+  $y :: $.tags(source-word) ∪ Spacing ∪ (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final) := $y.emitted.value :- $y.emitted.image
 
 %rule y-prefix
   y-atom | y-prefix y-atom

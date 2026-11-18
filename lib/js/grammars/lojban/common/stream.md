@@ -81,7 +81,7 @@ The rule `empty` reads a prefix that leaves no units. Its alternatives use `text
   | empty cmavo-token<BU> :: Word ∪ BY ∪ Fault
   | lehu-marker :: Word ∪ LEhU ∪ Fault
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 
 %rule faho-group
   read-word<FAhO> [raw-tokens]
@@ -217,7 +217,7 @@ Without SA or SU input, both feature states admit the same plain words. The rule
     :: Word ∪ BY ∪ Y-Letter ∪ $b.tags
      ∪ Run-Initial ∩ $b.first-token.tags ∪ Run-Final ∩ $u.last-token.tags
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 
 %rule word
   $c:read-word :: $c.tags
@@ -225,7 +225,7 @@ Without SA or SU input, both feature states admit the same plain words. The rule
   $c.classes ∩ $MAGIC-WORDS = ∅,
   ¬$c.onward.begins(quote)
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 
 %rule cmavo-token
   $c:Cmavo :: $c.tags
@@ -305,7 +305,7 @@ An attached opening mark supplies one gap space, even without whitespace. `quote
   | $m:word-quote-marker $g:word-gap<¬Quote-Material> $w:zo-punctuation
       :: $m.tags :- $m.source-text ++ $g.source-text ++ $w.verbatim-text
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 
 %rule word-quote-gap
   | word-gap<¬Quote-Material>
@@ -379,7 +379,7 @@ The hesitation rule refuses a raw y letteral. In `zo'oi .y. bu`, the quote there
   ¬$s.following-tokens.begins(quote-run-token),
   Hesitation ⊈ $s.first-token.tags ∨ $s.first-token.onward.begins(raw-y-letter)
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 
 %const $SINGLE-QUOTE-MARKERS
   ZOhOI ∪ MEhOI
@@ -454,7 +454,7 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
   $open.tags ∖ $Y-PROPERTIES = $close.tags,
   $open.tags ∖ $Y-PROPERTIES ⊈ $content.tags(body-with-y-close)
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 
 %rule zoi-quote :: $m.tags :- $.source-text
   | $m:zoi-marker $g:delimiter-gap $open:delimiter $b:delimiter-body-gap $content:zoi-body PAUSE [quote-attachment] $close:raw-close [quote-end-mark]
@@ -467,7 +467,7 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
   $open.value = $close.value,
   $open.value ∉ $content.value.split($PAUSE)
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 
 %const $ZOI-MARKERS
   ZOI
@@ -630,21 +630,21 @@ A LOhU quote ends at the first LEhU. Its body reads Lojban words through the sha
   | $m:lohu-marker word-gap lohu-stream word-gap lehu-marker
   | $m:lohu-marker word-gap lehu-marker
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 
 %rule lohu-marker
   $q:read-word :: $q.classes ∪ Word ∪ Cmavo
 %conditions
   LOhU ⊆ $q.classes
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 
 %rule lehu-marker
   $q:read-word :: $q.classes ∪ Word ∪ Cmavo
 %conditions
   LEhU ⊆ $q.classes
 %emits
-  $ :: LEhU
+  $ :: LEhU := $.emitted.value :- $.emitted.image
 
 %rule lohu-stream
   | lohu-word
@@ -657,7 +657,7 @@ A LOhU quote ends at the first LEhU. Its body reads Lojban words through the sha
 %conditions
   LEhU ⊈ $w.classes
 %emits
-  $ :: Word
+  $ :: Word := $.emitted.value :- $.emitted.image
 ```
 
 <details><summary>Railroad diagrams of the 5 rules from <code>lohu-quote</code> to <code>lohu-word</code></summary>
@@ -734,13 +734,13 @@ lojban/cll requires pauses around a direct name base of BU. It tests the source 
   | $u:unit<¬Trailing-Pause> compound-gap cmavo-token<BU>
   | su-boundary? $u:unit<Trailing-Pause> suppressed-gap cmavo-token<BU>
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 
 %rule zei-compound :: Word ∪ BRIVLA ∪ Fault ∩ $l.tags
   | $l:unit<¬Trailing-Pause> compound-gap<¬Punctuation-Material> cmavo-token<ZEI> zei-right-gap $r:read-word
   | su-boundary? $l:unit<Trailing-Pause> suppressed-gap<¬Punctuation-Material> cmavo-token<ZEI> zei-right-gap $r:read-word
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 
 %rule zei-right-gap
   word-gap<¬Punctuation-Material>

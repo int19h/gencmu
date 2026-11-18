@@ -33,7 +33,7 @@ A replacement name keeps its source boundary. Thus `ladjan. sa .djim. bu` leaves
 %conditions
   CMEVLA ⊈ $u.tags ∨ Run-Initial ⊆ $u.tags
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 ```
 
 <details><summary>Railroad diagram of <code>lerfu-word</code></summary>

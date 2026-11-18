@@ -54,7 +54,7 @@ The book says that any character other than its 25 symbols and the digits is a s
 %conditions
   ¬$.following-tokens.begins(plain(@Chars))
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 
 %rule plain(@Chars)
   $c:@Chars
@@ -238,7 +238,7 @@ The Latin letters `q`, `w`, `x` and `y` are not Eberban letters. Like every othe
 %rule foreign-letter
   plain(foreign-char)
 %emits
-  $ :: Space ∪ Foreign-Letter := " "
+  $ :: Space ∪ Foreign-Letter := " " :- " "
 
 %rule foreign-char
   "q" | "Q" | "w" | "W" | "x" | "X" | "y" | "Y"
@@ -261,7 +261,7 @@ The numbers chapter says that `+`, `*` and `/` are spaces, and that verbs expres
 %conditions
   ¬$.following-tokens.begins(space-char)
 %emits
-  $ :: Space ∪ ($.matches(math-run) ⟹ Math-Symbol) := " "
+  $ :: Space ∪ ($.matches(math-run) ⟹ Math-Symbol) := " " :- " "
 
 %rule space-char
   $c:_
@@ -340,17 +340,17 @@ The brackets `[` and `]` delimit foreign quotes. Outside a quote they are spaces
   | "8" := "tiu"
   | "9" := "tei"
 %emits
-  $ :: Digit
+  $ :: Digit := $.emitted.value :- $.emitted.image
 
 %rule open-bracket
   "["
 %emits
-  $ :: Open
+  $ :: Open := $.emitted.value :- $.emitted.image
 
 %rule close-bracket
   "]"
 %emits
-  $ :: Close
+  $ :: Close := $.emitted.value :- $.emitted.image
 ```
 
 <details><summary>Railroad diagrams of <code>digit</code>, <code>open-bracket</code> and <code>close-bracket</code></summary>

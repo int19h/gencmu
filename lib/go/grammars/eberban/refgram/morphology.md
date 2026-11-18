@@ -72,7 +72,7 @@ The rules `space-before` and `space-after` hold beside a space, a bracket of a g
 %conditions
   ¬$.following-tokens.begins(Space | Open | Close)
 %emits
-  $ :: Space := " "
+  $ :: Space := " " :- " "
 
 %rule space-unit
   | Space<¬Foreign-Letter>
@@ -472,26 +472,26 @@ A `co` that a complete opener follows starts a foreign quote, so it is never a p
 %conditions
   CO ⊆ $p.tags ⟹ ¬$.onward.begins(quote-opener)
 %emits
-  $ :- $.value
+  $ :: $.tags := $.emitted.value :- $.value
 
 %rule ni-word
   $p:ni-particle [misplaced-hyphen] :: Word ∪ Particle ∪ $p.tags
 %conditions
   ¬$.preceding-tokens.ends(after-digit)
 %emits
-  $ :- $.value
+  $ :: $.tags := $.emitted.value :- $.value
 
 %rule vowel-particle-word
   $p:vowel-particle [misplaced-hyphen] :: Word ∪ Particle ∪ $p.tags
 %conditions
   ¬$.preceding-tokens.ends(after-digit)
 %emits
-  $ :- $.value
+  $ :: $.tags := $.emitted.value :- $.value
 
 %rule root-word
   root-form [misplaced-hyphen] :: Word ∪ Root
 %emits
-  $ :- $.value
+  $ :: $.tags := $.emitted.value :- $.value
 
 %rule quote-opener
   quote-co [opening-gap] [delimiter-shape] Open
@@ -530,7 +530,7 @@ Each prefix emits one token tagged `Prefix` and `E-PREFIX`, `EN-PREFIX` or `ER-P
 %conditions
   ¬$.preceding-tokens.ends(after-digit)
 %emits
-  $ :- $.value
+  $ :: $.tags := $.emitted.value :- $.value
 
 %rule later-letter
   [Hyphen] Letter
@@ -542,7 +542,7 @@ Each prefix emits one token tagged `Prefix` and `E-PREFIX`, `EN-PREFIX` or `ER-P
 %conditions
   $i.preceding-tokens.ends(after-e)
 %emits
-  $ :- $.value
+  $ :: $.tags := $.emitted.value :- $.value
 
 %rule after-e
   Letter="e" [Hyphen]
@@ -573,7 +573,7 @@ Each prefix emits one token tagged `Prefix` and `E-PREFIX`, `EN-PREFIX` or `ER-P
 %conditions
   $i.preceding-tokens.ends(after-arity)
 %emits
-  $ :- $.value
+  $ :: $.tags := $.emitted.value :- $.value
 
 %rule after-arity
   prefix-arity [Hyphen]
@@ -601,7 +601,7 @@ The PEG warns about a hyphen before or after the prefix, and about content that 
   $p.value = @Prefix,
   ¬$p.preceding-tokens.ends(after-digit)
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 
 %rule borrowing = freeform-word("u", Borrowing)
 %rule freeform-variable = freeform-word("i", Freeform)
@@ -662,7 +662,7 @@ The numbers chapter also says that `+`, `*` and `/` are spaces, and that verbs e
   ¬$l.preceding-tokens.ends(Hyphen),
   ¬$t.following-tokens.begins(Hyphen)
 %emits
-  $d :: Word ∪ Particle ∪ TI
+  $d :: Word ∪ Particle ∪ TI := $d.emitted.value :- $d.emitted.image
 
 %rule digit-math
   [$m:math-mark]
@@ -702,12 +702,12 @@ The words `ra` and `ri` are the erasers of the [sentences chapter](https://eberb
 %rule ra-word
   Letter="r" [misplaced-hyphen] Letter="a" :: Word ∪ RA
 %emits
-  $ :- $.value
+  $ :: $.tags := $.emitted.value :- $.value
 
 %rule ri-word
   Letter="r" [misplaced-hyphen] Letter="i" :: Word ∪ RI
 %emits
-  $ :- $.value
+  $ :: $.tags := $.emitted.value :- $.value
 ```
 
 <details><summary>Railroad diagrams of <code>hesitation</code>, <code>eraser-run</code>, <code>ra-word</code> and <code>ri-word</code></summary>
@@ -728,7 +728,7 @@ The quote is a word that starts with `c`, so a run of words can hold it, as in `
   ce-particle [misplaced-hyphen] units [gap] [misplaced-hyphen] cei-particle [misplaced-hyphen]
     :: Word ∪ Particle ∪ CE ∪ Quote :- $.source-text
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 
 %rule units
   | first-unit [{later-unit}]
@@ -783,7 +783,7 @@ The quote emits one token tagged `Word`, `Particle`, `CO` and `Quote`. Its image
 %rule foreign-quote
   $q:quote-co [opening-gap] $t:quoted-text :: Word ∪ Particle ∪ CO ∪ Quote := $q.value ++ " " ++ $t.emitted.value :- $.source-text
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 
 %rule quote-co
   co-particle particle-end [misplaced-hyphen] word-boundary

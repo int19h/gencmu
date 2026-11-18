@@ -42,12 +42,12 @@ The diphthong instances use `two-phonemes` for their two output strings. The `st
   | ("‹ZBALERMORNA HUMBERT LETTER NY›" | "‹ZBALERMORNA UCSUR LETTER NY›") := "n"
   | ("‹ZBALERMORNA HUMBERT LETTER XY›" | "‹ZBALERMORNA UCSUR LETTER XY›") := "x"
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 
 %extend-rule apostrophe
   ("‹ZBALERMORNA HUMBERT SYMBOL FOR YHY›" | "‹ZBALERMORNA UCSUR SYMBOL FOR YHY›")
 %emits
-  $ :: ∅ := "'"
+  $ :: ∅ := "'" :- "'"
 
 %extend-rule core-char
   ("‹ZBALERMORNA HUMBERT SYMBOL FOR DENPA BU›" | "‹ZBALERMORNA UCSUR SYMBOL FOR DENPA BU›")
@@ -95,7 +95,7 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN YBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN YBU›"
     | "‹ZBALERMORNA HUMBERT LETTER FULL YBU›" | "‹ZBALERMORNA UCSUR LETTER FULL YBU›") := "y"
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 
 %extend-rule stressed-vowel :: Stressed
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN ABU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN ABU›"
@@ -117,7 +117,7 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
     | "‹ZBALERMORNA HUMBERT LETTER FULL YBU›"
     | "‹ZBALERMORNA UCSUR LETTER FULL YBU›") zbalermorna-stress := "y" :- "Y"
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 
 %rule zbalermorna-stress
   {zbalermorna-stress-mark}
@@ -163,7 +163,8 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
 %rule stressed-two-phonemes(@C, @A, @Image, @B)
   @C zbalermorna-stress
 %emits
-  $ :: Stressed := @A :- @Image, ε :: ∅ := @B
+  $ :: Stressed := @A :- @Image,
+  ε :: ∅ := @B :- @B
 
 %rule zbalermorna-stressed-ai = stressed-two-phonemes(
   ("‹ZBALERMORNA HUMBERT VOWEL SIGN AIBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN AIBU›"),
@@ -184,7 +185,8 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
 %rule zbalermorna-shorthand
   $v:zbalermorna-marked-vowel
 %emits
-  $v, ε :: ∅ := "'"
+  $v :: $v.tags := $v.emitted.value :- $v.emitted.image,
+  ε :: ∅ := "'" :- "'"
 
 %rule zbalermorna-marked-vowel
   zbalermorna-shorthand-mark $v:zbalermorna-shorthand-vowel

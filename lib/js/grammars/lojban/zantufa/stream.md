@@ -40,7 +40,7 @@ For quote markers, this layer only adds classes to the shared class sets. The sh
   $m:rahoi-marker $g:word-quote-gap $f:rafsi-quote-target
     :: $m.tags :- $m.source-text ++ $g.source-text ++ $f.verbatim-text
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 
 %rule rafsi-quote-target
   $f:Rafsi-Form [quote-end-mark] :: $f.tags :- $.verbatim-text
@@ -93,7 +93,7 @@ In a `lo'u` or `lo'ai` quote, the stage tags such a word `Word` only, like every
   Y-Letters ⊈ $h.tags ∨ ¬$h.following-tokens.begins(y-letter-ahead),
   ¬$h.onward.begins(y-bu-word)
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 
 %extend-rule read-word
   attached-y
@@ -127,14 +127,14 @@ A word of LU, TO or LUhEI, the classes of `$TEXT-OPENERS`, that this stage reads
   $c.classes ∩ $MAGIC-WORDS = ∅,
   ¬$c.onward.begins(quote)
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 
 %rule text-opener
   $q:cmavo-token :: $q.tags
 %conditions
   $q.classes ∩ $TEXT-OPENERS ≠ ∅
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 
 %rule opener-spaces
   $h:opener-space-token [opener-spaces]
@@ -210,7 +210,7 @@ The lookahead skips erased regions before BU. Thus `su mi si bu` forms the lette
 %extend-rule unit
   $s:su-letter-base compound-gap cmavo-token<BU> :: Word ∪ BY
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 
 %rule su-letter-base
   $q:read-word

@@ -36,12 +36,12 @@ The rules map Cyrillic letters to their Lojban phonemes. The consonant mappings 
   | ("х" | "Х") := "x"
   | ("з" | "З") := "z"
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 
 %rule cyrillic-apostrophe
   ("һ" | "Һ")
 %emits
-  $ :: ∅ := "'"
+  $ :: ∅ := "'" :- "'"
 
 %rule cyrillic-period
   "ӏ" | "Ӏ"
@@ -70,7 +70,7 @@ A capital full vowel letter, or a combining accent after one, marks stress, as i
   | (("и" | "И") glide-mark | "ј" | "Ј") :: ∅ := "i"
   | ("у" | "У") glide-mark :: ∅ := "u"
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 
 %rule cyrillic-stressed-vowel :: Stressed ∪ Syllabic
   | "А" := "a" :- "A"
@@ -86,7 +86,7 @@ A capital full vowel letter, or a combining accent after one, marks stress, as i
   | ("Ъ" | "Ы" | "Ә") := "y" :- "Y"
   | ("ъ" | "ы" | "ә" | "Ъ" | "Ы" | "Ә") stress-mark := "y" :- "Y"
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 
 %rule cyrillic-folded-vowel
   | "А" :: Syllabic := "a"
@@ -104,7 +104,7 @@ A capital full vowel letter, or a combining accent after one, marks stress, as i
   | "У" stress-mark :: Stressed ∪ Syllabic := "u" :- "U"
   | ("Ъ" | "Ы" | "Ә") stress-mark :: Stressed ∪ Syllabic := "y" :- "Y"
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 ```
 
 <details><summary>Railroad diagrams of the 3 rules from <code>cyrillic-plain-vowel</code> to <code>cyrillic-folded-vowel</code></summary>

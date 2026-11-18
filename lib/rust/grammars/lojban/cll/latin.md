@@ -69,7 +69,7 @@ CLL[^cll-s3-3] says that a comma "cannot be pronounced as a pause", so a comma a
 %rule spaced-pause
   [pause-edge] $c:pause-core [pause-edge]
 %emits
-  $c :: PAUSE ∪ ($c.first-token.matches(period-char) ⟹ Period-Initial) ∪ ($c.matches(period-core) ⟹ Period-Only) := " "
+  $c :: PAUSE ∪ ($c.first-token.matches(period-char) ⟹ Period-Initial) ∪ ($c.matches(period-core) ⟹ Period-Only) := " " :- " "
 
 %rule pause-core
   core-char | pause-core core-char | pause-core pause-edge core-char
@@ -156,7 +156,8 @@ In `lojban/cll`, a comma between two vowels marks the syllable break of CLL[^cll
 %rule joined-vowel-with(@V)
   $v:@V :: $v.tags
 %emits
-  ε :: ∅ := "'", $v
+  ε :: ∅ := "'" :- "'",
+  $v :: $v.tags := $v.emitted.value :- $v.emitted.image
 
 %rule vowel-group = vowel-group-with(vowel)
 %rule vowel-group-plain = vowel-group-plain-with(vowel)
@@ -199,7 +200,7 @@ A foreign run has at least one character that no rule of `any-lojban-char` reads
   ¬$r.first-token.matches(comma),
   ¬$r.last-token.matches(comma)
 %emits
-  $ :: FOREIGN :- $.source-text
+  $ :: FOREIGN := $.emitted.value :- $.source-text
 
 %rule chars-with-non-lojban-char
   | non-lojban-char
@@ -266,12 +267,12 @@ CLL[^cll-s3-1] omits `h` from the alphabet. CLL[^cll-s3-3] says that `h` does no
   | ("x" | "X") := "x"
   | ("z" | "Z") := "z"
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 
 %rule plain-vowel :: ∅
   | "a" | "e" | "i" | "o" | "u" | "y"
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 
 %rule stressed-vowel-with(@A, @E, @I, @O, @U, @Y) :: Stressed
   | @A := "a" :- "A"
@@ -281,14 +282,14 @@ CLL[^cll-s3-1] omits `h` from the alphabet. CLL[^cll-s3-3] says that `h` does no
   | @U := "u" :- "U"
   | @Y := "y" :- "Y"
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 
 %rule stressed-vowel = stressed-vowel-with("A", "E", "I", "O", "U", "Y")
 
 %rule apostrophe
   "'" | "’" | "‘" | "ʼ"
 %emits
-  $ :: ∅ := "'"
+  $ :: ∅ := "'" :- "'"
 
 %rule comma
   ","

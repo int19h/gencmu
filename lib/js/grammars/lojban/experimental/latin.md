@@ -56,7 +56,7 @@ Between two letters, a mark has two readings: in one run, or as a pause between 
   | "ʼ" [letter-marks]
   | ("h" | "H") [letter-marks]
 %emits
-  $ :: ∅ := "'"
+  $ :: ∅ := "'" :- "'"
 
 %rule quote-mark
   "'" | "’" | "‘" | "`" | "´"
@@ -69,7 +69,7 @@ Between two letters, a mark has two readings: in one run, or as a pause between 
 %rule inner-apostrophe
   inner-quote-mark
 %emits
-  $ :: ∅ := "'"
+  $ :: ∅ := "'" :- "'"
 
 %extend-rule non-vowel
   inner-apostrophe
@@ -194,7 +194,7 @@ The run's image is its source text. A quote body keeps its verbatim text, so `zo
   ¬$r.first-token.matches(comma),
   ¬$r.last-token.matches(comma)
 %emits
-  $ :: FOREIGN :- $.source-text
+  $ :: FOREIGN := $.emitted.value :- $.source-text
 ```
 
 <details><summary>Railroad diagrams of <code>comma</code>, <code>silent-mark</code> and <code>non-lojban-char-run</code></summary>
@@ -264,7 +264,7 @@ A Latin consonant takes any marks and ignores them, and so does `h`, the apostro
   | ("x" | "X") [letter-marks] := "x"
   | ("z" | "Z") [letter-marks] := "z"
 %emits
-  $
+  $ :: $.tags := $.emitted.value :- $.emitted.image
 ```
 
 <details><summary>Railroad diagram of <code>consonant</code></summary>
@@ -321,7 +321,7 @@ A breve on `i` or `u` makes a glide letter, which the next section reads. The vo
   | "Y" [$m:letter-marks<¬Accent>] :: Folded Capital := "y"
   | $g:glide-letter :: $g.tags
 %emits
-  $ :: $.tags ∩ (Stressed ∪ Glide ∪ Onglide)
+  $ :: $.tags ∩ (Stressed ∪ Glide ∪ Onglide) := $.emitted.value :- $.emitted.image
 
 %redefine-rule plain-vowel :: ∅
   | latin-vowel<¬Stressed ¬Folded ¬Dieresis>
@@ -400,7 +400,8 @@ An ogonek and a caron together on `a` give no reading, so the run is foreign. On
   | "O" $m:letter-marks<Ogonek ¬Accent> :: Stressed Capital := "o" :- "O"
   | "O" $m:letter-marks<Ogonek ¬Accent> :: Folded Capital := "o"
 %emits
-  $ :: $.tags ∩ Stressed, ε :: ∅ := "i"
+  $ :: $.tags ∩ Stressed := $.emitted.value :- $.emitted.image,
+  ε :: ∅ := "i" :- "i"
 
 %rule latin-diphthong-u :: ($m ⟹ $m.tags ∩ Dieresis)
   | "a" $m:letter-marks<Caron ¬Accent ¬Ogonek> := "a"
@@ -414,7 +415,8 @@ An ogonek and a caron together on `a` give no reading, so the run is foreign. On
   | "Ꜷ" [$m:letter-marks<¬Accent>] :: Stressed Capital := "a" :- "A"
   | "Ꜷ" [$m:letter-marks<¬Accent>] :: Folded Capital := "a"
 %emits
-  $ :: $.tags ∩ Stressed, ε :: ∅ := "u"
+  $ :: $.tags ∩ Stressed := $.emitted.value :- $.emitted.image,
+  ε :: ∅ := "u" :- "u"
 
 %extend-rule vowel
   latin-diphthong-i<¬Folded ¬Dieresis> | latin-diphthong-u<¬Folded ¬Dieresis>
@@ -442,7 +444,7 @@ A dieresis on a vowel letter means an apostrophe before it, as in an orthography
 %rule dieresis-apostrophe
   ε
 %emits
-  ε :: ∅ := "'"
+  ε :: ∅ := "'" :- "'"
 
 %rule dieresis-start
   dieresis-apostrophe dieresis-letter
