@@ -345,12 +345,12 @@ The brackets `[` and `]` delimit foreign quotes. Outside a quote they are spaces
 %rule open-bracket
   "["
 %emits
-  $ :: Open := $.emitted.value :- $.emitted.image
+  $ :: Open := "[" :- "["
 
 %rule close-bracket
   "]"
 %emits
-  $ :: Close := $.emitted.value :- $.emitted.image
+  $ :: Close := "]" :- "]"
 ```
 
 <details><summary>Railroad diagrams of <code>digit</code>, <code>open-bracket</code> and <code>close-bracket</code></summary>

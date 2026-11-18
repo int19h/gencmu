@@ -601,7 +601,7 @@ The PEG warns about a hyphen before or after the prefix, and about content that 
   $p.value = @Prefix,
   ¬$p.preceding-tokens.ends(after-digit)
 %emits
-  $ :: $.tags := $.emitted.value :- $.emitted.image
+  $ :: Word ∪ @Tag := @Prefix ++ $c.value :- @Prefix ++ $c.value
 
 %rule borrowing = freeform-word("u", Borrowing)
 %rule freeform-variable = freeform-word("i", Freeform)
@@ -662,7 +662,7 @@ The numbers chapter also says that `+`, `*` and `/` are spaces, and that verbs e
   ¬$l.preceding-tokens.ends(Hyphen),
   ¬$t.following-tokens.begins(Hyphen)
 %emits
-  $d :: Word ∪ Particle ∪ TI := $d.emitted.value :- $d.emitted.image
+  $d :: Word ∪ Particle ∪ TI := $d.value :- $d.image
 
 %rule digit-math
   [$m:math-mark]
@@ -728,7 +728,7 @@ The quote is a word that starts with `c`, so a run of words can hold it, as in `
   ce-particle [misplaced-hyphen] units [gap] [misplaced-hyphen] cei-particle [misplaced-hyphen]
     :: Word ∪ Particle ∪ CE ∪ Quote :- $.source-text
 %emits
-  $ :: $.tags := $.emitted.value :- $.emitted.image
+  $ :: Word ∪ Particle ∪ CE ∪ Quote := $.emitted.value :- $.emitted.image
 
 %rule units
   | first-unit [{later-unit}]
@@ -783,7 +783,7 @@ The quote emits one token tagged `Word`, `Particle`, `CO` and `Quote`. Its image
 %rule foreign-quote
   $q:quote-co [opening-gap] $t:quoted-text :: Word ∪ Particle ∪ CO ∪ Quote := $q.value ++ " " ++ $t.emitted.value :- $.source-text
 %emits
-  $ :: $.tags := $.emitted.value :- $.emitted.image
+  $ :: Word ∪ Particle ∪ CO ∪ Quote := $.emitted.value :- $.emitted.image
 
 %rule quote-co
   co-particle particle-end [misplaced-hyphen] word-boundary

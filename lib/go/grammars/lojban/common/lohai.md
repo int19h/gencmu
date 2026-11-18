@@ -64,12 +64,12 @@ In the experimental pipeline, an unfinished marker carries `Fault` unless a [`co
 %conditions
   LOhAI ⊆ $q.classes
 %emits
-  $ :: $.tags := $.emitted.value :- $.emitted.image
+  $ :: $q.classes ∪ Word ∪ Cmavo := $.emitted.value :- $.emitted.image
 
 %rule lehai-marker
   $q:LEhAI :: $q.classes ∪ Word ∪ Cmavo
 %emits
-  $ :: $.tags := $.emitted.value :- $.emitted.image
+  $ :: $q.classes ∪ Word ∪ Cmavo := $.emitted.value :- $.emitted.image
 ```
 
 <details><summary>Railroad diagrams of the 9 rules from <code>word</code> to <code>lehai-marker</code></summary>

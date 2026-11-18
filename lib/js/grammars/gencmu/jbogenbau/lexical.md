@@ -57,11 +57,11 @@ An engine tag starts with `_` and continues with letters, digits, or underscores
 
 ```jbogenbau
 %rule emoji-name
-  _Emoji_Presentation<¬_Emoji_Component>
+  $t:_Emoji_Presentation<¬_Emoji_Component>
 %conditions
   ¬$.following-tokens.begins(call-open)
 %emits
-  $ :: Emoji-Name := $.emitted.value :- $.emitted.image
+  $ :: Emoji-Name := $t.value :- $t.image
 
 %rule word
   | $lower:lower-name :: Identifier Lowercase-Name
@@ -144,11 +144,11 @@ A parameter starts with `@` and an ASCII letter. Its remaining characters follow
 
 ```jbogenbau
 %rule call-name
-  lower-name | _Emoji_Presentation<¬_Emoji_Component>
+  $n:lower-name | $n:_Emoji_Presentation<¬_Emoji_Component>
 %conditions
   $.following-tokens.begins(call-open)
 %emits
-  $ :: Call-Name := $.emitted.value :- $.emitted.image
+  $ :: Call-Name := $n.value :- $n.image
 
 %rule call-open
   "("
@@ -159,9 +159,9 @@ A parameter starts with `@` and an ASCII letter. Its remaining characters follow
   "*"
 
 %rule parameter-token
-  "@" whole-name
+  "@" $n:whole-name
 %emits
-  $ :: Parameter := $.emitted.value :- $.emitted.image
+  $ :: Parameter := "@" ++ $n.value :- "@" ++ $n.image
 ```
 
 <details><summary>Railroad diagrams of the 4 rules from <code>call-name</code> to <code>parameter-token</code></summary>
@@ -190,11 +190,11 @@ The boundary conditions prevent either token from ending inside its name. The sy
   $ :: Capture := $.emitted.value :- $.emitted.image
 
 %rule constant-token
-  "$" upper-name
+  "$" $n:upper-name
 %conditions
   ¬$.following-tokens.begins(name-character)
 %emits
-  $ :: Constant := $.emitted.value :- $.emitted.image
+  $ :: Constant := "$" ++ $n.value :- "$" ++ $n.image
 ```
 
 <details><summary>Railroad diagrams of <code>capture-token</code> and <code>constant-token</code></summary>
@@ -227,7 +227,7 @@ A `¬` immediately before a guard belongs to that guard. Elsewhere, `negation` e
 %conditions
   ¬$.followed-by(guard)
 %emits
-  $ :: $.tags := $.emitted.value :- $.emitted.image
+  $ :: $.tags := "¬" :- "¬"
 ```
 
 <details><summary>Railroad diagrams of <code>guard</code>, <code>feature-name</code>, <code>feature-character</code> and <code>negation</code></summary>
@@ -274,14 +274,14 @@ An include path keeps dollar signs and backslashes literally. It excludes quotes
 %rule include
   $keyword:include-keyword [layout-run] $path:include-path
 %emits
-  $keyword :: KW-INCLUDE := $keyword.emitted.value :- $keyword.emitted.image,
-  $path :: Include-Path := $path.emitted.value :- $path.emitted.image
+  $keyword :: KW-INCLUDE := $keyword.value :- $keyword.image,
+  $path :: Include-Path := $path.value :- $path.image
 
 %rule names
   $keyword:names-keyword [layout-run] $path:include-path
 %emits
-  $keyword :: KW-NAMES := $keyword.emitted.value :- $keyword.emitted.image,
-  $path :: Include-Path := $path.emitted.value :- $path.emitted.image
+  $keyword :: KW-NAMES := $keyword.value :- $keyword.image,
+  $path :: Include-Path := $path.value :- $path.image
 
 %rule include-tail
   [layout-run] include-path

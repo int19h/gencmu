@@ -225,7 +225,7 @@ Without SA or SU input, both feature states admit the same plain words. The rule
   $c.classes ∩ $MAGIC-WORDS = ∅,
   ¬$c.onward.begins(quote)
 %emits
-  $ :: $.tags := $.emitted.value :- $.emitted.image
+  $ :: $c.tags := $.emitted.value :- $.emitted.image
 
 %rule cmavo-token
   $c:Cmavo :: $c.tags
@@ -637,7 +637,7 @@ A LOhU quote ends at the first LEhU. Its body reads Lojban words through the sha
 %conditions
   LOhU ⊆ $q.classes
 %emits
-  $ :: $.tags := $.emitted.value :- $.emitted.image
+  $ :: $q.tags := $.emitted.value :- $.emitted.image
 
 %rule lehu-marker
   $q:read-word :: $q.classes ∪ Word ∪ Cmavo

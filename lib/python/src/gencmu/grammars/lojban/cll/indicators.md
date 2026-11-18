@@ -78,7 +78,7 @@ An item hands on a word with its preceding `ba'e` run and following indicator ru
 %conditions
   $a ⟹ $w.classes ∩ $INDICATOR-BOUNDARIES = ∅
 %emits
-  ($b) $w ($a) :: $w.tags := $w.emitted.value :- $w.emitted.image
+  ($b) $w ($a) :: $w.tags := $w.value :- $w.image
 
 %rule unit
   Word<¬Indicator ¬BAhE>
@@ -87,9 +87,9 @@ An item hands on a word with its preceding `ba'e` run and following indicator ru
   bahe | bahe-run bahe
 
 %rule bahe
-  Word<BAhE>
+  $t:Word<BAhE>
 %emits
-  $ :: $.tags := $.emitted.value :- $.emitted.image
+  $ :: $t.tags := $t.value :- $t.image
 ```
 
 <details><summary>Railroad diagrams of <code>item</code>, <code>unit</code>, <code>bahe-run</code> and <code>bahe</code></summary>
@@ -118,19 +118,19 @@ The rule `attitudinal-nai` reads the pair with three captures: the `ba'e` run be
   Indicator ⊆ $i.tags,
   FUhE ⊈ $i.classes
 %emits
-  ($b) $i :: $i.tags := $i.emitted.value :- $i.emitted.image
+  ($b) $i :: $i.tags := $i.value :- $i.image
 
 %rule fuhe
   [$b:bahe-run] $i:Word :: $i.tags
 %conditions
   FUhE ⊆ $i.classes
 %emits
-  ($b) $i :: $i.tags := $i.emitted.value :- $i.emitted.image
+  ($b) $i :: $i.tags := $i.value :- $i.image
 
 %rule attitudinal-nai
   [$b:bahe-run] $u:attitudinal $n:nai :: $u.tags
 %emits
-  ($b) $u ($n) :: $u.tags := $u.emitted.value :- $u.emitted.image
+  ($b) $u ($n) :: $u.tags := $u.value :- $u.image
 
 %rule attitudinal
   $i:Word :: $i.tags
@@ -140,7 +140,7 @@ The rule `attitudinal-nai` reads the pair with three captures: the `ba'e` run be
 %rule nai
   [$b:bahe-run] $m:Word<NAI> :: $m.tags
 %emits
-  ($b) $m :: $m.tags := $m.emitted.value :- $m.emitted.image
+  ($b) $m :: $m.tags := $m.value :- $m.image
 ```
 
 <details><summary>Railroad diagrams of the 6 rules from <code>indicator-run</code> to <code>nai</code></summary>
@@ -178,8 +178,8 @@ The syntax reads the attitudinal run. Suppose that the stage nested a `nai` unde
 %rule leading-attitudinal-nai
   [$b:bahe-run] $u:attitudinal [$c:bahe-run] $m:Word<NAI>
 %emits
-  ($b) $u :: $u.tags := $u.emitted.value :- $u.emitted.image,
-  ($c) $m :: $m.tags := $m.emitted.value :- $m.emitted.image
+  ($b) $u :: $u.tags := $u.value :- $u.image,
+  ($c) $m :: $m.tags := $m.value :- $m.image
 ```
 
 <details><summary>Railroad diagrams of <code>leading</code> and <code>leading-attitudinal-nai</code></summary>

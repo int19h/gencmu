@@ -146,13 +146,13 @@ The redefined `run-words` keeps the join conditions of [../common/forms.md](../c
   (* A hesitation after space counts as space. Before BU, the split rules reserve the final y for its letter word. *)
   $w:source-word<Hesitation>
 %emits
-  $ :: $w.tags ∪ Spacing ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final) := $.emitted.value :- $.emitted.image
+  $ :: $w.tags ∪ Spacing ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final) := $w.value :- $w.image
 
 %rule opener-space
   (* A hesitation after a text opener counts as space where that opener opens a text. The tag carries through following hesitation. *)
   $w:source-word<Hesitation>
 %emits
-  $ :: $w.tags ∪ Opener-Space ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final) := $.emitted.value :- $.emitted.image
+  $ :: $w.tags ∪ Opener-Space ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final) := $w.value :- $w.image
 
 %rule space-piece
   ordinary-space-piece | split-later-y
@@ -164,7 +164,7 @@ The redefined `run-words` keeps the join conditions of [../common/forms.md](../c
 %conditions
   ¬$w.onward.begins(split-later-y)
 %emits
-  $ :: $w.tags ∪ Spacing ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final) := $.emitted.value :- $.emitted.image
+  $ :: $w.tags ∪ Spacing ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final) := $w.value :- $w.image
 
 %rule only-hesitation
   (* A run of hesitation preserves a pending quote opener for the next run. *)
@@ -215,7 +215,7 @@ The stage gives `Opener-Space` to a hesitation directly after a text opener, and
 %conditions
   ¬$w.onward.begins(split-later-y)
 %emits
-  $ :: $w.tags ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final) := $.emitted.value :- $.emitted.image
+  $ :: $w.tags ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final) := $w.value :- $w.image
 ```
 
 <details><summary>Railroad diagrams of <code>joined-hesitation</code> and <code>ordinary-joined-hesitation</code></summary>

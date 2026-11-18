@@ -93,7 +93,7 @@ In a `lo'u` or `lo'ai` quote, the stage tags such a word `Word` only, like every
   Y-Letters ⊈ $h.tags ∨ ¬$h.following-tokens.begins(y-letter-ahead),
   ¬$h.onward.begins(y-bu-word)
 %emits
-  $ :: $.tags := $.emitted.value :- $.emitted.image
+  $ :: Word ∪ Cmavo ∪ Y := $h.value :- $h.image
 
 %extend-rule read-word
   attached-y
@@ -134,7 +134,7 @@ A word of LU, TO or LUhEI, the classes of `$TEXT-OPENERS`, that this stage reads
 %conditions
   $q.classes ∩ $TEXT-OPENERS ≠ ∅
 %emits
-  $ :: $.tags := $.emitted.value :- $.emitted.image
+  $ :: $q.tags := $.emitted.value :- $.emitted.image
 
 %rule opener-spaces
   $h:opener-space-token [opener-spaces]

@@ -34,21 +34,21 @@ A prefix where no compound begins is junk too, so the syntax stage can erase it.
 
 ```jbogenbau
 %rule plain-word
-  Word<¬Prefix>
+  $t:Word<¬Prefix>
 %emits
-  $ :: $.tags := $.emitted.value :- $.emitted.image
+  $ :: $t.tags := $t.value :- $t.image
 
 %rule junk
-  Junk
+  $t:Junk
 %emits
-  $ :: $.tags := $.emitted.value :- $.emitted.image
+  $ :: $t.tags := $t.value :- $t.image
 
 %rule stray-prefix
   $p:Prefix
 %conditions
   ¬$p.onward.begins(compound)
 %emits
-  $ :: Junk := $.emitted.value :- $.emitted.image
+  $ :: Junk := $p.value :- $p.image
 ```
 
 <details><summary>Railroad diagrams of <code>plain-word</code>, <code>junk</code> and <code>stray-prefix</code></summary>
@@ -73,7 +73,7 @@ The rule `compound-tail` reads a compound and gives its value without the vowel 
 %rule compound
   $t:compound-tail :: Word ∪ Compound ∪ $t.tags := "e" ++ $t.emitted.value
 %emits
-  $ :: $.tags := $.emitted.value :- $.emitted.image
+  $ :: Word ∪ Compound ∪ $t.tags := $.emitted.value :- $.emitted.image
 
 %rule compound-tail
   | $t:fixed-tail :: $t.tags := $t.emitted.value
